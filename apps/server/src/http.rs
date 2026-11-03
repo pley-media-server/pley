@@ -1,4 +1,4 @@
-//! The HTTP listeners (the web app and API, the Plex-compatible API): like
+//! The HTTP listeners (the web app and API, the Jellyfin-compatible API): like
 //! `axum::serve`, but a client gets [`HEADER_TIMEOUT`] to send a request's
 //! headers, so connections opened and never used (or fed a byte at a time)
 //! don't pile up until pley runs out of them.

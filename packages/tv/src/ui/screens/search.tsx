@@ -28,10 +28,12 @@ const TMDB_PAGES = 3;
 /** The Discover row saying why TMDB didn't answer: its header, the problem in a line and why in up to two, and Retry. */
 const TMDB_PROBLEM_H = HEADER + HEADER_TO_TILES + 22 + 4 + 40 + 16 + 40;
 
-/** The groups results come in, in order, with their headers and tiles. */
+/**
+ * The groups results come in, in order, with their headers and tiles: the
+ * libraries' titles, then Live TV, then people, as on the web (the server
+ * puts the closest matches first in each).
+ */
 const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string; tile: TileKind }[] = [
-  { kind: "person", title: "People", tile: "person" },
-  { kind: "channel", title: "Live TV", tile: "landscape" },
   { kind: "movie", title: "Movies", tile: "poster" },
   { kind: "show", title: "Shows", tile: "poster" },
   { kind: "season", title: "Seasons", tile: "poster" },
@@ -39,6 +41,8 @@ const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string;
   { kind: "artist", title: "Artists", tile: "square" },
   { kind: "album", title: "Albums", tile: "square" },
   { kind: "track", title: "Tracks", tile: "square" },
+  { kind: "channel", title: "Live TV", tile: "landscape" },
+  { kind: "person", title: "People", tile: "person" },
 ];
 
 type Results = { items: ItemSummary[]; people: PersonSummary[]; channels: LiveChannel[] };

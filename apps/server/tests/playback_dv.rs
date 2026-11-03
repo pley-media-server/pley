@@ -555,8 +555,8 @@ fn version_1_players_are_untouched() {
         let d = play_in(chrome(), "mkv", &source(row));
         assert_eq!(outcome(&d), "R", "{row}");
     }
-    let plex = json!({"containers": [], "video_codecs": ["h264"], "audio_codecs": ["aac", "mp3"]});
-    assert_eq!(outcome(&play_in(plex, "mkv", &source("P8.1+"))), "T");
+    let hls = json!({"containers": [], "video_codecs": ["h264"], "audio_codecs": ["aac", "mp3"]});
+    assert_eq!(outcome(&play_in(hls, "mkv", &source("P8.1+"))), "T");
 }
 
 // ------------------------------------------------------------------ the stand-in

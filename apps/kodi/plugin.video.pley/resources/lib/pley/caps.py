@@ -31,6 +31,8 @@ AUDIO = [
     "pcm_dvd", "ape", "dsd_lsbf", "dsd_msbf",
 ]
 SUBTITLES = ["subrip", "srt", "ass", "ssa", "mov_text", "webvtt", "hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"]
+# The picture subtitles Kodi shows beside a stream: PGS, from a `.sup` file.
+SIDELOADED = ["hdmv_pgs_subtitle"]
 # Kodi's setting for each format a receiver may take as it is.
 PASSTHROUGH = (
     ("audiooutput.ac3passthrough", ["ac3"]),
@@ -88,8 +90,11 @@ def build(
         "subtitle_codecs": SUBTITLES,
         # PGS beside a stream or next to the media comes as a `.sup` file
         # (tracks.beside_tracks); VobSub and DVB are drawn onto converted
-        # video, asked for with `subtitle_index`.
+        # video, asked for with `subtitle_index`. So PGS alone is named as
+        # shown beside a stream: the server copies no other picture track
+        # out of the file for one.
         "picture_subtitles_sideload": True,
+        "picture_subtitles_sideload_codecs": SIDELOADED,
         "audio_track_switching": True,
         # Kodi's HLS player (FFmpeg's) reads no CODECS, and MPEG-TS segments
         # carry no Dolby Vision configuration: Dolby Vision the server names

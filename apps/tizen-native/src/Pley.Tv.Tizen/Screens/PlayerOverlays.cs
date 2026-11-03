@@ -483,9 +483,10 @@ static class Letterbox
 {
     /// <summary>
     /// Shows <paramref name="picture"/> as <paramref name="crop"/>, the frame's part of its sheet
-    /// (null: the whole picture, its shape known once it has loaded), in <paramref name="box"/>.
+    /// (null: the whole picture, its shape known once it has loaded), in <paramref name="box"/>,
+    /// <paramref name="inset"/> pixels inside its edges.
     /// </summary>
-    public static void Show(ImageView picture, View box, string file, TrickplayFrame? crop)
+    public static void Show(ImageView picture, View box, string file, TrickplayFrame? crop, float inset = 0)
     {
         box.BackgroundColor = Color.Black;
         var loaded = picture.ResourceUrl == file && picture.NaturalSize2D.Height > 0;
@@ -493,27 +494,27 @@ static class Letterbox
         picture.PixelArea = crop == null
             ? new RelativeVector4(0, 0, 1, 1)
             : new RelativeVector4(crop.Left / (float)crop.SheetWidth, crop.Top / (float)crop.SheetHeight, crop.Width / (float)crop.SheetWidth, crop.Height / (float)crop.SheetHeight);
-        if (crop != null) Fit(picture, box, crop.Width / (float)crop.Height);
-        else if (loaded) Fit(picture, box, picture.NaturalSize2D.Width / (float)picture.NaturalSize2D.Height);
+        if (crop != null) Fit(picture, box, crop.Width / (float)crop.Height, inset);
+        else if (loaded) Fit(picture, box, picture.NaturalSize2D.Width / (float)picture.NaturalSize2D.Height, inset);
         else
         {
             // Its shape is the picture's own, once it's read.
-            Fit(picture, box, 0);
+            Fit(picture, box, 0, inset);
             void Ready(object? s, EventArgs e)
             {
                 picture.ResourceReady -= Ready;
                 if (picture.ResourceUrl != file) return;
                 var natural = picture.NaturalSize2D;
-                Fit(picture, box, natural.Height > 0 ? natural.Width / (float)natural.Height : 0);
+                Fit(picture, box, natural.Height > 0 ? natural.Width / (float)natural.Height : 0, inset);
             }
             picture.ResourceReady += Ready;
         }
     }
 
-    /// <summary><paramref name="picture"/> at <paramref name="aspect"/> (width over height) in <paramref name="box"/>, centred; 0 fills it.</summary>
-    static void Fit(View picture, View box, float aspect)
+    /// <summary><paramref name="picture"/> at <paramref name="aspect"/> (width over height) in <paramref name="box"/> less <paramref name="inset"/> each side, centred; 0 fills it.</summary>
+    static void Fit(View picture, View box, float aspect, float inset)
     {
-        float w = box.SizeWidth, h = box.SizeHeight;
+        float w = box.SizeWidth - 2 * inset, h = box.SizeHeight - 2 * inset;
         if (aspect > 0)
         {
             if (w / aspect <= h) h = w / aspect;
@@ -532,6 +533,8 @@ static class Letterbox
 sealed class SeekPreviewView : View
 {
     public const float PictureWidth = 240, PictureHeight = 135;
+    /// <summary>The frame's edge, which the picture stays inside.</summary>
+    const float Edge = 2;
 
     readonly Images images;
     readonly View frame;
@@ -555,13 +558,21 @@ sealed class SeekPreviewView : View
             CornerRadius = Ui.Dp(PleyShape.TileRadius),
             BackgroundColor = PleyColors.Surface2,
         };
-        picture = new ImageView { Size = frame.Size, CornerRadius = Ui.Dp(PleyShape.TileRadius), FittingMode = FittingModeType.ScaleToFill };
+        // Inside the edge: the TV draws an image's content over a later sibling's border, so a picture
+        // reaching the frame's sides hid the edge there, the picture seeming wider than its box.
+        picture = new ImageView
+        {
+            Size = new Size(Ui.Dp(PictureWidth - 2 * Edge), Ui.Dp(PictureHeight - 2 * Edge)),
+            Position = new Position(Ui.Dp(Edge), Ui.Dp(Edge)),
+            CornerRadius = Ui.Dp(PleyShape.TileRadius - Edge),
+            FittingMode = FittingModeType.ScaleToFill,
+        };
         frame.Add(picture);
         frame.Add(new View
         {
             Size = frame.Size,
             CornerRadius = Ui.Dp(PleyShape.TileRadius),
-            BorderlineWidth = Ui.Dp(2),
+            BorderlineWidth = Ui.Dp(Edge),
             BorderlineOffset = -1,
             BorderlineColor = new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.2f),
             BackgroundColor = Color.Transparent,
@@ -606,7 +617,7 @@ sealed class SeekPreviewView : View
 
     void Show(string url, TrickplayFrame? crop)
     {
-        void Apply(string file) => Letterbox.Show(picture, frame, file, crop);
+        void Apply(string file) => Letterbox.Show(picture, frame, file, crop, Ui.Dp(Edge));
         asked = url;
         if (sheets.TryGetValue(url, out var known))
         {

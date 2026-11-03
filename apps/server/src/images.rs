@@ -2,7 +2,7 @@
 //! each size is only computed once) and generates missing artwork on demand
 //! through the transcoder (video frame grabs, embedded cover art).
 
-use std::io::{BufRead, Cursor, Seek};
+use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -93,9 +93,19 @@ impl Images {
     }
 
     /// Serve `source`, resized to the bucket at or above `width` when smaller
-    /// than the original.
+    /// than the original. Read from the file opened and checked
+    /// ([`crate::library::walk::open_of_its_kind`]), not by its name again:
+    /// a library's `poster.jpg` swapped for a link meanwhile hands out no
+    /// other file.
     pub async fn load(&self, source: &Path, width: Option<u32>) -> Result<ImageBytes, AppError> {
-        let meta = tokio::fs::metadata(source).await.map_err(|_| AppError::not_found("image not found"))?;
+        let named = source.to_path_buf();
+        let (file, meta) = tokio::task::spawn_blocking(move || crate::library::walk::open_of_its_kind(&named))
+            .await
+            .map_err(|e| AppError::Internal(e.into()))?
+            .ok_or_else(|| AppError::not_found("image not found"))?;
+        if meta.len() > MAX_PICTURE_BYTES {
+            return Err(AppError::not_found("image not found"));
+        }
         let mtime = meta.modified().ok().map(crate::util::system_time_secs).unwrap_or(0);
         let bucket = width.map(|w| *BUCKETS.iter().find(|b| **b >= w).unwrap_or(&BUCKETS[BUCKETS.len() - 1]));
         let mut hasher = Sha256::new();
@@ -107,7 +117,7 @@ impl Images {
         let etag = format!("\"{key}\"");
 
         let Some(bucket) = bucket else {
-            let bytes = tokio::fs::read(source).await?;
+            let bytes = crate::util::blocking(move || Ok(whole(file)?)).await.map_err(AppError::Internal)?;
             return Ok(ImageBytes { content_type: content_type_of(source, &bytes), bytes: bytes.into(), etag });
         };
 
@@ -120,30 +130,52 @@ impl Images {
         }
 
         let _permit = self.limiter.acquire().await.map_err(|e| AppError::Internal(e.into()))?;
-        let src = source.to_path_buf();
         let out = dir.join(&key);
-        let result = crate::util::blocking(move || resize_to_file(&src, bucket, &out)).await;
-        match result {
-            Ok(Some((bytes, content_type))) => Ok(ImageBytes { bytes: bytes.into(), content_type, etag }),
-            // Already small enough (or not decodable): serve the original.
-            Ok(None) | Err(_) => {
-                let bytes = tokio::fs::read(source).await?;
-                Ok(ImageBytes { content_type: content_type_of(source, &bytes), bytes: bytes.into(), etag })
-            }
-        }
+        let (bytes, made) =
+            crate::util::blocking(move || resized_or_whole(file, bucket, &out)).await.map_err(AppError::Internal)?;
+        // Already small enough (or not decodable): the original.
+        let content_type = made.unwrap_or_else(|| content_type_of(source, &bytes));
+        Ok(ImageBytes { bytes: bytes.into(), content_type, etag })
     }
 }
 
-/// Resize to `width` (keeping aspect ratio) and write it beside `out` (its
-/// extension added): a JPEG, or a PNG when the picture is see-through.
-/// Returns `None` when the source is not wider than the target.
-fn resize_to_file(source: &Path, width: u32, out: &Path) -> anyhow::Result<Option<(Vec<u8>, &'static str)>> {
-    let reader = ImageReader::open(source)?.with_guessed_format()?;
-    let (w, h) = reader.into_dimensions()?;
+/// The largest picture file read here (artwork is a few MB): a file of a
+/// library named like a picture is read into memory whole only up to this.
+const MAX_PICTURE_BYTES: u64 = 64 << 20;
+
+/// All of `file`, from its start, up to [`MAX_PICTURE_BYTES`].
+fn whole(mut file: std::fs::File) -> std::io::Result<Vec<u8>> {
+    file.seek(SeekFrom::Start(0))?;
+    let mut bytes = Vec::new();
+    file.take(MAX_PICTURE_BYTES).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// `file` resized to `width` and kept beside `out` ([`resize_to_file`]), or
+/// all of it as it is when it isn't wider or can't be decoded: its bytes,
+/// and their type when they were made here.
+fn resized_or_whole(
+    mut file: std::fs::File,
+    width: u32,
+    out: &Path,
+) -> anyhow::Result<(Vec<u8>, Option<&'static str>)> {
+    if let Ok(Some((bytes, content_type))) = resize_to_file(&mut file, width, out) {
+        return Ok((bytes, Some(content_type)));
+    }
+    Ok((whole(file)?, None))
+}
+
+/// Resize `file`, a picture, to `width` (keeping aspect ratio) and write it
+/// beside `out` (its extension added): a JPEG, or a PNG when the picture is
+/// see-through. Returns `None` when the picture is not wider than the target.
+fn resize_to_file(file: &mut std::fs::File, width: u32, out: &Path) -> anyhow::Result<Option<(Vec<u8>, &'static str)>> {
+    let (w, h) = ImageReader::new(BufReader::new(&mut *file)).with_guessed_format()?.into_dimensions()?;
     if w <= width {
         return Ok(None);
     }
-    let img = limited(ImageReader::open(source)?.with_guessed_format()?, MAX_DIMENSION, MAX_DECODE_BYTES)?;
+    file.seek(SeekFrom::Start(0))?;
+    let img =
+        limited(ImageReader::new(BufReader::new(&mut *file)).with_guessed_format()?, MAX_DIMENSION, MAX_DECODE_BYTES)?;
     let height = ((h as f64) * (width as f64) / (w as f64)).round().max(1.0) as u32;
     let resized = img.resize_exact(width, height, image::imageops::FilterType::Triangle);
     let mut buf = Vec::with_capacity((width * height / 4) as usize);

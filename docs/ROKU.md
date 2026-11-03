@@ -147,9 +147,10 @@ left on, kept on the Roku for each server, profile and library.
 
 Search is typed on the Roku's keyboard and asked once typing rests half a
 second. What the libraries have comes in rows by kind, in the other apps'
-order: People, Live TV (cards: OK watches the channel, and Up and Down in
-the player go through what was found), Movies, Shows, Seasons, Episodes,
-Artists, Albums and Tracks; then Discover for those who may ask (below).
+order: Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks, Live TV
+(cards: OK watches the channel, and Up and Down in the player go through
+what was found) and People, the closest matches first in each; then
+Discover for those who may ask (below).
 Right from the keyboard's last column reaches them.
 
 Before anything is typed it lists the recent searches: the last 10 whose
@@ -210,11 +211,47 @@ next.
 - Subtitles look as the Roku's caption settings say (Settings →
   Accessibility → Captions style). The app never sets `captionStyle`,
   which would change them for the whole Roku.
-- Text subtitles go to the Video node as WebVTT. Picture subtitles (PGS,
-  VobSub, DVB) are burned in by the server.
+- Text subtitles go to the Video node as WebVTT.
+- **PGS subtitles** are drawn by the app over the video
+  (`components/lib/Pictures.brs`), so the file plays as it is and HDR stays
+  HDR. The app reports `hdmv_pgs_subtitle` in `subtitle_codecs` with
+  `picture_subtitles_sideload`, and asks for no `subtitle_index` for them.
+  The session's key opens the track's pictures:
+  `/api/media/{key}/subtitles-{index}.json?at={ms}` lists each one's time,
+  its place on the subtitle plane and its PNG beside it (named with the
+  list's `at`). The server reads the pictures around `at` first: while the
+  list isn't whole, the app asks again every 3 s from where the video is
+  (at once after a seek), and keeps what it has. The subtitle plane goes
+  over the picture as the web player puts it: a DVD-sized plane (576 lines
+  or fewer) stretches over it, and an HD plane of another shape than the
+  video (a film cropped to 1920×800) keeps its own, fitted to the screen.
+  The file says only how its video is stored, so a video of 576 lines or
+  fewer is taken to show as 16:9. A picture shows while the video plays,
+  under the skip button and the player's panels; paused or seeking, Roku's
+  bar has the bottom of the screen. The next picture loads in a second
+  frame while one shows, and one that fails to load loads again 3 s later.
+  The Video node tells its position every 0.2 s while pictures are drawn,
+  else every second.
+- Roku's options list only text tracks: PGS is picked on a title's page.
+  A text track picked in the options takes the place of the pictures, and
+  captions turned off there turn them off; captions turned on without a
+  text track leave them be.
+- A server that can't make the pictures has them burned in: the stream
+  reopens where it was with `subtitle_index`, and caps without PGS in
+  `subtitle_codecs` or `picture_subtitles_sideload` (to the server, a
+  listed codec is the player's to show, never burned in), as for VobSub
+  and DVB, which are always burned in. The app keeps burning them in until
+  the player closes. That is an older server (`404` "unknown file", or
+  "unknown playlist file" for a stream, as its keyed media knows no such
+  name), a transcoder too old to copy the track (`503` "update it"), or a
+  track that isn't PGS. Anything else (a disk asleep, the transcoder
+  restarting or out of reach, the network) is asked again 3 s later:
+  burning them in would need the same server.
 - **Subtitle sync:** Left and Right move subtitles 0.1 s, up to 10 s either
-  way. The server shifts the cues (`offset_ms`) and the stream reopens
-  where it was. The offset is kept per file per server (the latest 50).
+  way. The server shifts text cues (`offset_ms`) and the stream reopens
+  where it was; pictures drawn by the app move as the offset changes, and
+  the stream plays on. The offset is kept per file per server (the latest
+  50).
 - **Find subtitles…** searches OpenSubtitles in the profile's subtitle
   language, or another that Language, above the results, picks
   (`components/lib/SubtitleSearch.brs`). OK on a result adds it on the
@@ -378,9 +415,25 @@ Rules the code keeps:
 - All HTTP goes through `ApiTask`; the render thread never makes a request.
 - The access token goes only in `Authorization: Bearer`, never in an
   address, including the Video node's and the pictures' HTTP agents.
+- No token goes to the server's address before the server there proves it
+  is the one signed in to, at that address
+  ([API.md](API.md#telling-servers-apart)). The access token waits for a
+  proof made on this network within the half hour, and the scene (its
+  players, pictures and event stream) has the token only while one holds:
+  `ApiTask` asks for the next proof before it lapses, and joining or
+  leaving a network (Roku's link status) takes the token away until the
+  server proves itself again. A request that gets no answer, or an event
+  stream that fails when the server doesn't answer a request after it,
+  takes the token away too until a new proof. A proof that fails is asked
+  again every 30 seconds. A refresh, a profile switch with its PIN and
+  a sign-out wait for a proof made then. What can't prove itself gets no
+  token, and the app says "Another device answers there." Roku's
+  transfers follow redirects, but a proof made at any other address than
+  the one asked doesn't verify.
 - Videos play from [keyed addresses](API.md#keyed-urls): Roku fetches a
   BIF file of seek previews without its HTTP agent's headers, so the
-  previews come from the session's key, beside its media.
+  previews come from the session's key, beside its media. So do the
+  pictures of PGS subtitles and their list, fetched without the token.
 - Refreshes run one at a time per server, and the new token pair is saved
   before use (a refresh token works once).
 - The User-Agent is `pleyRoku/<version> (Roku OS <version>; <model>)`; the
@@ -446,22 +499,28 @@ bun run images    # the nine-patch focus and watched-mark images
 - **Unit tests** run `components/lib` and `tests/*.test.brs` in brs-node;
   each `sub test_…()` is a test.
 - **Smoke run** starts a fake server (`scripts/fixture-server.mjs`; its
-  requests and TMDB titles, all made up, in `scripts/fixture-requests.mjs`)
-  and walks every screen, saving each in `out/smoke/`. It fails on a
-  BrightScript error, a request without the User-Agent, a token in an
-  address, or a refresh token used twice. On the way it jumps down a
-  library with its A to Z, saves a library's filters as a smart playlist,
-  plays a collection of movies and a smart one of shows, and an artist's
-  tracks, makes a playlist, plays a track from Now Playing's Up next,
-  shuffles the queue and puts its order back, steps the music's sleep
-  timer through its choices, plays a track from under an album's "Disc 2",
-  opens the See all of Search's Discover row, asks for a movie and three
-  seasons from Discover, approves a request, opens a title from its
-  ready-to-watch notice, and checks that a server without requests is
-  asked nothing but the summary.
+  requests and TMDB titles, all made up, in
+  `scripts/fixture-requests.mjs`) and walks every screen, saving each in
+  `out/smoke/`. It fails on a BrightScript error, a request without the
+  User-Agent, a token in an address, a token before the server proved
+  itself (a refresh token without a proof made then), or a refresh token
+  used twice. On the way it plays an episode whose PGS subtitles the app
+  draws (their list asked for where it starts, then again until whole, and
+  a picture loaded), then the same episode on a server without their
+  pictures, which burns them in; it jumps down a library with its A to Z,
+  saves a library's filters as a smart playlist, plays a collection of
+  movies and a smart one of shows, and an artist's tracks, makes a
+  playlist, plays a track from Now Playing's Up next, shuffles the queue
+  and puts its order back, steps the music's sleep timer through its
+  choices, plays a track from under an album's "Disc 2", opens the See all
+  of Search's Discover row, asks for a movie and three seasons from
+  Discover, approves a request, opens a title from its ready-to-watch
+  notice, and checks that a server without requests is asked nothing but
+  the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
-  Next and the sleep timers' ends have only unit tests), one fetch at a
-  time, the odd dropped key, and no measure of a Roku's speed.
+  Next, the sleep timers' ends and picture subtitles shown in time have
+  only unit tests), one fetch at a time, the odd dropped key, and no
+  measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.

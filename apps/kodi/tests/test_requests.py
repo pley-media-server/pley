@@ -17,13 +17,13 @@ def season(number, state, **more):
 
 
 def show(*seasons, **more):
-    return dict({"kind": "show", "tmdb_id": 1396, "title": "Breaking Bad", "status": "none", "item_id": None,
+    return dict({"kind": "show", "tmdb_id": 1396, "title": "Driftline", "status": "none", "item_id": None,
                  "seasons": list(seasons), "requests": [], "watching": False, "seasons_left": None,
                  "movies_left": None}, **more)
 
 
 def request(**more):
-    return dict({"id": 42, "kind": "movie", "tmdb_id": 949, "title": "Heat", "stage": "pending", "status": "pending",
+    return dict({"id": 42, "kind": "movie", "tmdb_id": 949, "title": "Saltwind", "stage": "pending", "status": "pending",
                  "mine": True, "watching": False, "actions": [], "requested_by": {"id": 1, "name": "Ann"},
                  "created_at": NOW - 3 * DAY, "available_seasons": [], "item_id": None}, **more)
 
@@ -95,11 +95,11 @@ class SummaryTest(unittest.TestCase):
             self.assertFalse(requests.showing(path, counted + listed), path)
 
     def test_words_for_tmdb_are_what_the_server_takes(self):
-        self.assertEqual(requests.search_text("  dune  "), "dune")
+        self.assertEqual(requests.search_text("  saltwind  "), "saltwind")
         self.assertEqual(requests.search_text("   "), "")
         # 200 characters at most, counted as the server counts them.
         self.assertEqual(requests.search_text("é" * 250), "é" * 200)
-        self.assertEqual(requests.search_text("x" * 199 + " dune"), "x" * 199)
+        self.assertEqual(requests.search_text("x" * 199 + " saltwind"), "x" * 199)
 
 
 class TitleTest(unittest.TestCase):
@@ -266,14 +266,14 @@ class AskingTest(unittest.TestCase):
         found, following = requests.ask(client, "show", 1396, [3, 1])
         self.assertEqual(sent, [("POST", "/api/requests", {"kind": "show", "tmdb_id": 1396, "seasons": [1, 3]})])
         self.assertFalse(following)
-        self.assertEqual(requests.asked(found, following, T), "“Heat” is approved and on its way.")
+        self.assertEqual(requests.asked(found, following, T), "“Saltwind” is approved and on its way.")
         client, sent = self.client(200, request(watching=True, mine=False))
         found, following = requests.ask(client, "movie", 949)
         self.assertEqual(sent[0][2], {"kind": "movie", "tmdb_id": 949})
         self.assertTrue(following)
-        self.assertEqual(requests.asked(found, following, T), "You'll hear when “Heat” is ready.")
-        self.assertEqual(requests.asked(request(), False, T), "Asked for “Heat”: an administrator decides.")
-        self.assertEqual(requests.asked(request(status="failed"), False, T), "Asked for “Heat”, but it couldn't be sent to download yet.")
+        self.assertEqual(requests.asked(found, following, T), "You'll hear when “Saltwind” is ready.")
+        self.assertEqual(requests.asked(request(), False, T), "Asked for “Saltwind”: an administrator decides.")
+        self.assertEqual(requests.asked(request(status="failed"), False, T), "Asked for “Saltwind”, but it couldn't be sent to download yet.")
         client, _ = self.client(429, {"code": "too_many_requests", "message": "no", "retry_at": NOW + 3 * DAY})
         with self.assertRaises(api.ApiError) as refused:
             requests.ask(client, "movie", 949)
@@ -331,12 +331,12 @@ class AskingTest(unittest.TestCase):
 
 class NoticesTest(unittest.TestCase):
     def test_ready_to_watch(self):
-        event = {"type": "request_available", "title": "Heat", "kind": "movie", "seasons": None, "complete": True}
-        self.assertEqual(requests.ready(event, T), "“Heat” is ready to watch.")
-        event = {"title": "Severance", "kind": "show", "seasons": [2], "complete": False}
-        self.assertEqual(requests.ready(event, T), "Season 2 of “Severance” is ready to watch.")
-        self.assertEqual(requests.ready(dict(event, seasons=[1, 2]), T), "Seasons 1–2 of “Severance” are ready to watch.")
-        self.assertEqual(requests.ready(dict(event, complete=True), T), "“Severance” is ready to watch.")
+        event = {"type": "request_available", "title": "Saltwind", "kind": "movie", "seasons": None, "complete": True}
+        self.assertEqual(requests.ready(event, T), "“Saltwind” is ready to watch.")
+        event = {"title": "Driftline", "kind": "show", "seasons": [2], "complete": False}
+        self.assertEqual(requests.ready(event, T), "Season 2 of “Driftline” is ready to watch.")
+        self.assertEqual(requests.ready(dict(event, seasons=[1, 2]), T), "Seasons 1–2 of “Driftline” are ready to watch.")
+        self.assertEqual(requests.ready(dict(event, complete=True), T), "“Driftline” is ready to watch.")
         self.assertEqual(requests.news(3, T), "3 of your requests have news")
 
     def test_requests_ready_for_a_notice(self):
@@ -344,7 +344,7 @@ class NoticesTest(unittest.TestCase):
         self.assertFalse(requests.ready_now(request(stage="available")))
         self.assertFalse(requests.ready_now(request(stage="declined", item_id=7)))
         partial = requests.as_event(request(kind="show", stage="partial", available_seasons=[1], item_id=7))
-        self.assertEqual(requests.ready(partial, T), "Season 1 of “Heat” is ready to watch.")
+        self.assertEqual(requests.ready(partial, T), "Season 1 of “Saltwind” is ready to watch.")
 
 
 if __name__ == "__main__":

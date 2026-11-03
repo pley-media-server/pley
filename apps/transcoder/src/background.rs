@@ -14,9 +14,13 @@
 //! Transcodes come first too: while a job's FFmpeg or a conversion runs (it
 //! holds a transcode slot, see [`Background::transcode`]), background FFmpeg
 //! runs wait and are paused the same way, until a few seconds after the last
-//! one ends ([`AFTER_TRANSCODE`]). Probes and reading ahead (`prefetch.rs`)
-//! wait only for starts: they read little, and a new file or the next
-//! playback shouldn't wait for a film to end.
+//! one ends ([`AFTER_TRANSCODE`]). So do subtitles a player waits for (a text
+//! track, or a picture track's pictures), while they are read through a file's
+//! Cues ([`Background::subtitles`]): on a share's disks each of their blocks
+//! is a seek, and a seek preview's FFmpeg reading a remux beside them makes
+//! each one wait its turn. Probes and reading ahead (`prefetch.rs`) wait only
+//! for starts: they read little, and a new file or the next playback shouldn't
+//! wait for a film to end.
 //!
 //! A paused run only waits: nothing is lost, and its time limit counts the
 //! time it ran.
@@ -43,6 +47,15 @@ pub const MAX_HOLD: Duration = Duration::from_secs(60);
 /// Background work waits this long after the last transcode ends: a job's
 /// FFmpeg restarting (a seek, another preset) ends one before the next.
 pub const AFTER_TRANSCODE: Duration = Duration::from_secs(5);
+/// Background work waits this long after the last read of subtitles ends: a
+/// player's next ask comes soon.
+pub const AFTER_SUBTITLES: Duration = Duration::from_secs(2);
+/// The longest a read of subtitles holds background work, its tail included:
+/// a picture track's minute of reading, and the playback start it may wait
+/// for ([`MAX_START`]); a text track's read takes a minute at most. The
+/// pictures a player waits for come in seconds; the rest of a big file's track
+/// on a slow share can take minutes, which seek previews needn't wait out.
+pub const MAX_SUBTITLES: Duration = Duration::from_secs(90);
 
 #[derive(Default)]
 struct State {
@@ -55,6 +68,11 @@ struct State {
     transcodes: usize,
     /// Until when the last transcode to end holds background work.
     transcoded_until: Option<Instant>,
+    /// Reads of subtitles under way (see [`Background::subtitles`]), by id:
+    /// until when each holds background work at most.
+    subtitle_reads: HashMap<u64, Instant>,
+    /// Until when the last of them to end holds background work.
+    subtitles_read_until: Option<Instant>,
 }
 
 impl State {
@@ -69,7 +87,9 @@ impl State {
         if self.transcodes > 0 {
             return Some(now + MAX_HOLD);
         }
-        self.starting_until(now).into_iter().chain(self.transcoded_until.filter(|until| *until > now)).max()
+        let reads = self.subtitle_reads.values().copied();
+        let after = reads.chain([self.transcoded_until, self.subtitles_read_until].into_iter().flatten());
+        self.starting_until(now).into_iter().chain(after.filter(|until| *until > now)).max()
     }
 }
 
@@ -118,6 +138,20 @@ impl Background {
         Transcoding { background: self.clone() }
     }
 
+    /// Subtitles a player waits for are read through a file's Cues (a text
+    /// track, or a picture track's blocks around the player or the rest of
+    /// the track): background work waits until the guard is dropped and
+    /// [`AFTER_SUBTITLES`] longer, or [`MAX_SUBTITLES`] from now at most.
+    pub fn subtitles(self: &Arc<Self>) -> ReadingSubtitles {
+        let mut state = self.state.lock();
+        let id = state.next_id;
+        state.next_id += 1;
+        state.subtitle_reads.insert(id, Instant::now() + MAX_SUBTITLES);
+        drop(state);
+        self.changed.send_replace(());
+        ReadingSubtitles { background: self.clone(), id }
+    }
+
     /// Whether background work must wait now.
     #[cfg(test)]
     pub fn held(&self) -> bool {
@@ -162,9 +196,10 @@ impl Background {
         }
     }
 
-    /// Run FFmpeg (or FFprobe) as background work: once nothing starts or
-    /// transcodes, and paused while something does. Its output and log; an
-    /// error when it fails or runs longer than `timeout`.
+    /// Run FFmpeg (or FFprobe) as background work: once nothing starts,
+    /// transcodes or reads a player's subtitles, and paused while something
+    /// does. Its output and log; an error when it fails or runs longer than
+    /// `timeout`.
     pub async fn run(&self, mut cmd: Command, timeout: Duration) -> ApiResult<(Vec<u8>, String)> {
         self.wait().await;
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -183,8 +218,8 @@ impl Background {
     }
 
     /// Wait for a background process to end, pausing it while a playback
-    /// starts or a transcode runs; it is stopped once it has run for
-    /// `timeout`, paused time not counted.
+    /// starts, a transcode runs or a player's subtitles are read; it is
+    /// stopped once it has run for `timeout`, paused time not counted.
     pub async fn supervise(&self, child: &mut Child, timeout: Duration) -> ApiResult<ExitStatus> {
         let mut changed = self.changed.subscribe();
         changed.mark_unchanged();
@@ -243,6 +278,28 @@ impl Drop for Transcoding {
         let mut state = self.background.state.lock();
         state.transcodes = state.transcodes.saturating_sub(1);
         state.transcoded_until = Some(Instant::now() + AFTER_TRANSCODE);
+        drop(state);
+        self.background.changed.send_replace(());
+    }
+}
+
+/// A read of subtitles under way (see [`Background::subtitles`]); over when
+/// dropped.
+pub struct ReadingSubtitles {
+    background: Arc<Background>,
+    id: u64,
+}
+
+impl Drop for ReadingSubtitles {
+    fn drop(&mut self) {
+        let mut state = self.background.state.lock();
+        let now = Instant::now();
+        // Its tail stays within what it may hold: one that held all it may
+        // has nothing more to hold as it ends.
+        if let Some(until) = state.subtitle_reads.remove(&self.id).filter(|until| *until > now) {
+            let tail = (now + AFTER_SUBTITLES).min(until);
+            state.subtitles_read_until = Some(state.subtitles_read_until.map_or(tail, |held| held.max(tail)));
+        }
         drop(state);
         self.background.changed.send_replace(());
     }
@@ -440,10 +497,61 @@ mod tests {
         assert!(!bg.held());
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn subtitle_reads_hold_background_work_until_a_moment_after_they_end_for_a_while_at_most() {
+        let bg = Background::new();
+        let around_one_player = bg.subtitles();
+        assert!(bg.held());
+        assert!(!bg.starting(), "probes and reading ahead go on");
+        let waiting = tokio::spawn({
+            let bg = bg.clone();
+            async move { bg.wait().await }
+        });
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        let a_track = bg.subtitles();
+        tokio::time::sleep(Duration::from_secs(20)).await;
+        assert!(!waiting.is_finished(), "for as long as they read");
+        drop(around_one_player);
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        assert!(!waiting.is_finished(), "the track's read goes on");
+        drop(a_track);
+        let ended = Instant::now();
+        waiting.await.unwrap();
+        assert_eq!(ended.elapsed().as_secs(), AFTER_SUBTITLES.as_secs(), "the next read comes soon");
+        assert!(!bg.held());
+        // A read that goes on, on a slow share: for a while at most, and
+        // nothing more as it ends.
+        let slow = bg.subtitles();
+        let started = Instant::now();
+        tokio::time::timeout(MAX_SUBTITLES * 2, bg.wait()).await.expect("not held for ever");
+        assert_eq!(started.elapsed().as_secs(), MAX_SUBTITLES.as_secs());
+        drop(slow);
+        assert!(!bg.held());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_subtitle_read_that_ends_near_its_limit_holds_background_work_up_to_it() {
+        let bg = Background::new();
+        let late = bg.subtitles();
+        tokio::time::sleep(MAX_SUBTITLES - Duration::from_secs(1)).await;
+        drop(late);
+        let ended = Instant::now();
+        bg.wait().await;
+        assert_eq!(ended.elapsed().as_secs(), 1, "not past it");
+        // Nor does it cut another read's moment short.
+        let late = bg.subtitles();
+        tokio::time::sleep(MAX_SUBTITLES - Duration::from_secs(1)).await;
+        drop(bg.subtitles());
+        drop(late);
+        let ended = Instant::now();
+        bg.wait().await;
+        assert_eq!(ended.elapsed().as_secs(), AFTER_SUBTITLES.as_secs());
+    }
+
     #[cfg(any(windows, target_os = "linux"))]
     #[tokio::test]
-    async fn runs_are_paused_while_a_playback_starts_or_a_transcode_runs() {
-        for transcode in [false, true] {
+    async fn runs_are_paused_while_a_playback_starts_a_transcode_runs_or_subtitles_are_read() {
+        for kind in ["start", "transcode", "subtitles"] {
             let bg = Background::new();
             let mut child = chatty().spawn().unwrap();
             let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
@@ -452,12 +560,16 @@ mod tests {
                 async move { bg.supervise(&mut child, Duration::from_secs(3600)).await }
             });
             assert!(line_within(&mut lines, Duration::from_secs(10)).await);
-            let hold: Box<dyn std::any::Any> = if transcode { Box::new(bg.transcode()) } else { Box::new(bg.start()) };
+            let hold: Box<dyn std::any::Any> = match kind {
+                "start" => Box::new(bg.start()),
+                "transcode" => Box::new(bg.transcode()),
+                _ => Box::new(bg.subtitles()),
+            };
             let deadline = Instant::now() + Duration::from_secs(5);
             while bg.paused() == 0 && Instant::now() < deadline {
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            assert_eq!(bg.paused(), 1, "transcode: {transcode}");
+            assert_eq!(bg.paused(), 1, "{kind}");
             while line_within(&mut lines, Duration::from_millis(300)).await {}
             assert!(!line_within(&mut lines, Duration::from_millis(500)).await, "paused");
             drop(hold);

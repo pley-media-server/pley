@@ -410,7 +410,21 @@ pub async fn image(
         return Err(AppError::not_found(format!("item {id} not found")));
     }
     let width = query.get("w").and_then(|w| w.parse::<u32>().ok()).filter(|w| *w > 0);
-    let path = resolve_artwork(&state, id, &kind).await?;
+    artwork(&state, id, &kind, width, query.contains_key("v"), &headers).await
+}
+
+/// An item's `poster`, `backdrop` or `thumb` at `width` (or as it is), for a
+/// caller that checked it may be seen; `versioned`: asked for at an address
+/// that changes with the artwork.
+pub(crate) async fn artwork(
+    state: &AppState,
+    id: i64,
+    kind: &str,
+    width: Option<u32>,
+    versioned: bool,
+    headers: &HeaderMap,
+) -> ApiResult<Response> {
+    let path = resolve_artwork(state, id, kind).await?;
     let image = state.images.load(&path, width).await?;
     if headers.get(header::IF_NONE_MATCH).and_then(|v| v.to_str().ok()) == Some(image.etag.as_str()) {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
@@ -418,7 +432,7 @@ pub async fn image(
     let mut out = HeaderMap::new();
     out.insert(header::CONTENT_TYPE, HeaderValue::from_static(image.content_type));
     // Versioned URLs (`?v=<updated_at>`) change whenever the artwork does.
-    let cache = if query.contains_key("v") { "private, max-age=31536000, immutable" } else { "private, max-age=300" };
+    let cache = if versioned { "private, max-age=31536000, immutable" } else { "private, max-age=300" };
     out.insert(header::CACHE_CONTROL, HeaderValue::from_static(cache));
     if let Ok(etag) = HeaderValue::from_str(&image.etag) {
         out.insert(header::ETAG, etag);

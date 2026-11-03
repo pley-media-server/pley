@@ -168,18 +168,20 @@ class Player(xbmc.Player):
         answer, or None when signed out or out of reach. Refusals but `fine`
         ones are logged."""
         try:
-            server = self.tokens.server()
-            if not server:
+            if not self.tokens.server():
                 return None
-            token = self.tokens.access()
+            server, token = self.tokens.session()
             for attempt in range(2):
                 response = api.Client(server, self.user_agent, token, timeout=timeout).request(method, path, json_body=body)
                 if response.status != 401 or attempt:
                     if response.status >= 400 and response.status not in fine:
                         kodi.log("%s %s: %d" % (method, path, response.status), xbmc.LOGWARNING)
                     return response
-                token = self.tokens.refreshed(token)
+                token = self.tokens.refreshed(token, server)
         except (api.ApiError, auth.SignedOut) as e:
+            if isinstance(e, api.ApiError) and e.status == 0:
+                # Nothing answered: the server proves itself again before the next token.
+                self.tokens.doubt()
             kodi.log("%s %s failed: %s" % (method, path, e), xbmc.LOGWARNING)
         return None
 
@@ -779,8 +781,9 @@ class QualitySetting:
 
 
 class Monitor(xbmc.Monitor):
-    """Kodi's word that the add-on's settings changed, and the plugin's that
-    it did something to requests (requests.ASKING)."""
+    """Kodi's word that the add-on's settings changed, that it woke from
+    sleep, and the plugin's that it did something to requests
+    (requests.ASKING)."""
 
     def __init__(self, changed, asking=lambda: None):
         super().__init__()
@@ -793,6 +796,9 @@ class Monitor(xbmc.Monitor):
     def onNotification(self, sender, method, data) -> None:
         if sender == kodi.ADDON_ID and method.endswith(requests.ASKING):
             self.asking()
+        elif sender == "xbmc" and method == "System.OnWake":
+            # Maybe on another network: the server proves itself again.
+            auth.network_may_have_changed()
 
 
 def run() -> None:
@@ -833,7 +839,13 @@ def run() -> None:
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
     worker.put(quality.read)
+    # Kodi's own address: another one, maybe on another network, has the
+    # server prove itself again before its next token.
+    address = xbmc.getIPAddress()
     while not monitor.waitForAbort(1):
+        if xbmc.getIPAddress() != address:
+            address = xbmc.getIPAddress()
+            auth.network_may_have_changed()
         try:
             player.tick()
         except Exception as e:  # noqa: BLE001 - the loop outlives any one turn

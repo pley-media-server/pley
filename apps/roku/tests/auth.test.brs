@@ -209,3 +209,90 @@ sub test_auth_says_when_the_server_requires_two_step_sign_in()
     tkEqual(authTwoStepNote(httpAnswer(503, "{""code"":""unavailable"",""two_step_required"":true}")), "", "a refusal")
     tkEqual(authTwoStepNote(httpAnswer(-28, "")), "", "no answer in time")
 end sub
+
+' --- Telling servers apart ---
+
+function authTestKey() as string
+    return "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+end function
+
+function authTestProofKeys() as object
+    return { serverId: "0123456789abcdef0123456789abcdef01234567", proofId: "17", proofKey: authTestKey() }
+end function
+
+sub test_auth_keeps_the_servers_proof_key_from_token_answers()
+    keyed = authTestTokens().Replace("}", ",""server_id"":""0123456789abcdef0123456789abcdef01234567"",""proof_id"":""17"",""proof_key"":""" + authTestKey() + """}")
+    tkEqual(authParseTokens(keyed, "library play", 1000).proof, authTestProofKeys())
+    tkInvalid(authParseTokens(authTestTokens(), "library play", 1000).proof, "a server before them")
+    base = { server_id: "0123456789abcdef0123456789abcdef01234567", proof_id: "17", proof_key: authTestKey() }
+    tkEqual(authParseProof(base), authTestProofKeys())
+    for each bad in [{ proof_id: "017" }, { proof_id: "0" }, { proof_id: 17 }, { proof_id: "12345678901234567890" }, { proof_id: "17" + Chr(10) }, { proof_key: authTestKey() + "=" }, { proof_key: "AQEBAQEBAQEBAQEBAQEBAQ" }, { proof_key: authTestKey().Replace("A", "+") }, { server_id: "" }]
+        data = {}
+        data.Append(base)
+        data.Append(bad)
+        tkInvalid(authParseProof(data), FormatJson(bad))
+    end for
+end sub
+
+' The server's known answers (apps/server/src/identity.rs, and the shared
+' fixture packages/tv/test/fixtures/auth.json).
+sub test_auth_a_proof_is_the_servers_hmac()
+    key = authKeyBytes(authTestKey())
+    id = "0123456789abcdef0123456789abcdef01234567"
+    tkEqual(authProof(key, id, "http://192.168.1.20:7539", "AAECAwQFBgcICQoLDA0ODw"), "YwkvaCQfaIQCZkoOP5yOE3yR4xRKU5T5wYWz4b85SCM")
+    tkEqual(authProof(key, id, "https://pley.example.com", "AAECAwQFBgcICQoLDA0OEA"), "zHpBDBWP9YET2oKU1zMoY50w77pLxVJDXPKyJZVOHuA")
+    tkEqual(authProof(key, id, "http://[fd00::5]:7539", "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"), "Hy76L1n79Vkst4fC8d1JqvXMZ7rY3MhMKArRSR57AQ4")
+end sub
+
+sub test_auth_only_the_server_proves_itself_at_its_address()
+    keys = authTestProofKeys()
+    at = "http://192.168.1.20:7539"
+    challenge = "AAECAwQFBgcICQoLDA0ODw"
+    right = "YwkvaCQfaIQCZkoOP5yOE3yR4xRKU5T5wYWz4b85SCM"
+    answer = "{""id"":""0123456789abcdef0123456789abcdef01234567"",""name"":""Den"",""proof"":""" + right + """}"
+    tkEqual(authProofVerdict(200, answer, keys, at, challenge), "proved")
+    ' The same answer at another address (a redirect followed elsewhere).
+    tkEqual(authProofVerdict(200, answer, keys, "https://pley.example.com", challenge), "another")
+    tkEqual(authProofVerdict(200, answer, keys, at, "AAECAwQFBgcICQoLDA0OEA"), "another", "another challenge")
+    tkEqual(authProofVerdict(200, answer.Replace("0123456789abcdef0123456789abcdef01234567", "another"), keys, at, challenge), "another")
+    tkEqual(authProofVerdict(200, "{""id"":""0123456789abcdef0123456789abcdef01234567"",""proof"":null}", keys, at, challenge), "another")
+    tkEqual(authProofVerdict(200, "<html>a router</html>", keys, at, challenge), "another")
+    tkEqual(authProofVerdict(403, "{""message"":""a proof for a plain-http address is made for the home network only""}", keys, at, challenge), "another")
+    tkEqual(authProofVerdict(404, "", keys, at, challenge), "another")
+    ' The server, or a proxy before it, out of reach for now.
+    tkEqual(authProofVerdict(502, "Bad Gateway", keys, at, challenge), "unreachable")
+    tkEqual(authProofVerdict(-28, "", keys, at, challenge), "unreachable")
+end sub
+
+sub test_auth_a_proof_counts_half_an_hour_on_its_network()
+    proved = { at: 1000, network: 2 }
+    tkTrue(authRecentlyProved(proved, 2, 1000))
+    tkTrue(authRecentlyProved(proved, 2, 1000 + authProofTtlMs() - 1))
+    tkFalse(authRecentlyProved(proved, 2, 1000 + authProofTtlMs()))
+    tkFalse(authRecentlyProved(proved, 3, 1000), "another network")
+    tkFalse(authRecentlyProved(proved, 2, 999), "a clock gone back")
+    tkFalse(authRecentlyProved(invalid, 2, 1000))
+    tkTrue(authProofRenewMs() < authProofTtlMs(), "renewed before it lapses")
+end sub
+
+sub test_auth_no_token_goes_after_a_request_went_unanswered()
+    keys = { serverId: "abc", proofId: "17", proofKey: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE" }
+    proved = { at: 1000, network: 2 }
+    tkTrue(authTokenMayGo(keys, proved, 2, false, 1000))
+    tkFalse(authTokenMayGo(keys, proved, 2, true, 1000), "doubted: the players' token waits for a proof")
+    tkFalse(authTokenMayGo(keys, proved, 3, false, 1000), "another network")
+    tkTrue(authTokenMayGo(invalid, invalid, 2, true, 1000), "a server without proofs: nothing to check")
+end sub
+
+sub test_auth_the_next_proof_is_asked_when_due_and_not_before_a_retry()
+    proved = { at: 1000, network: 2 }
+    tkFalse(authProofDue(proved, 2, false, 1000 + authProofRenewMs() - 1, 0))
+    tkTrue(authProofDue(proved, 2, false, 1000 + authProofRenewMs(), 0), "before it lapses")
+    tkTrue(authProofDue(proved, 3, false, 1000, 0), "another network")
+    tkTrue(authProofDue(proved, 2, true, 1000, 0), "a request went unanswered")
+    tkTrue(authProofDue(invalid, 2, false, 1000, 0), "none held")
+    ' A proof refused or unanswered isn't asked again at once, so another
+    ' device at the address isn't asked over and over.
+    tkFalse(authProofDue(invalid, 2, false, 1000, 31000))
+    tkTrue(authProofDue(invalid, 2, false, 31000, 31000))
+end sub

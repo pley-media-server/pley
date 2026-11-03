@@ -223,6 +223,112 @@ pub fn leads_to_its_kind(path: &Path) -> bool {
     kind.is_some() && std::fs::canonicalize(path).is_ok_and(|target| file_kind(&extension(&target)) == kind)
 }
 
+/// `path` opened, and its metadata, when it is a file of the kind its name
+/// says (as [`leads_to_its_kind`] has it), told by the file opened: what is
+/// read is what was checked. Checking the name and then opening it again
+/// would let someone who can write in the library swap a link in between,
+/// and hand out pley's database or `secret.key` named `poster.jpg`. The name
+/// is checked first too, so that a link to a device or a pipe isn't opened.
+pub fn open_of_its_kind(path: &Path) -> Option<(std::fs::File, std::fs::Metadata)> {
+    if !leads_to_its_kind(path) {
+        return None;
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    // One swapped in since: opened without waiting for a pipe's writer or
+    // taking a terminal, then refused as no file.
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::custom_flags(&mut options, libc::O_NONBLOCK | libc::O_NOCTTY);
+    let file = options.open(path).ok()?;
+    checked(file, path)
+}
+
+/// `file`, opened from `path`, and its metadata, when it is a file and the
+/// one `path` leads to now: `path` itself when it isn't a link, else the
+/// file of the same kind the link leads to. Whatever was swapped in before
+/// the open leads elsewhere by now, or here to another file than the one
+/// opened.
+fn checked(file: std::fs::File, path: &Path) -> Option<(std::fs::File, std::fs::Metadata)> {
+    let opened = file.metadata().ok().filter(std::fs::Metadata::is_file)?;
+    let meta = std::fs::symlink_metadata(path).ok()?;
+    let kind = file_kind(&extension(path));
+    let named = if meta.file_type().is_symlink() {
+        let target = std::fs::canonicalize(path).ok()?;
+        if kind.is_none() || file_kind(&extension(&target)) != kind {
+            return None;
+        }
+        target
+    } else {
+        path.to_path_buf()
+    };
+    is_the_file_at(&file, &opened, &named, kind).then_some((file, opened))
+}
+
+/// Whether `file` (whose metadata is `opened`) is the file at `named`, not a
+/// link there: by device and inode on Unix, read without following a link.
+#[cfg(unix)]
+fn is_the_file_at(_file: &std::fs::File, opened: &std::fs::Metadata, named: &Path, _kind: Option<u8>) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::symlink_metadata(named)
+        .is_ok_and(|now| !now.file_type().is_symlink() && now.dev() == opened.dev() && now.ino() == opened.ino())
+}
+
+/// Whether `file` is the file `named` names: by the name Windows gives the
+/// file opened, wherever junctions and links led (object-manager links
+/// included, which take no privilege and which the name's own checks don't
+/// see). Its name is `named`'s, or one of the library name's `kind`. Only
+/// the name: a library's folders may be junctions or links themselves.
+#[cfg(windows)]
+fn is_the_file_at(file: &std::fs::File, _opened: &std::fs::Metadata, named: &Path, kind: Option<u8>) -> bool {
+    let Some(opened) = final_path(file) else { return false };
+    let (Some(opened_name), Some(name)) = (opened.file_name(), named.file_name()) else { return false };
+    opened_name.to_string_lossy().eq_ignore_ascii_case(&name.to_string_lossy())
+        || (kind.is_some() && file_kind(&extension(&opened)) == kind)
+}
+
+/// The path Windows gives `file`, an open file, as it is now.
+#[cfg(windows)]
+fn final_path(file: &std::fs::File) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_NAME_NORMALIZED, FILE_NAME_OPENED, GetFinalPathNameByHandleW, VOLUME_NAME_DOS, VOLUME_NAME_NT,
+    };
+    // By its drive's letter, or else (a volume mounted with none) by the
+    // device's name; normalized, or else as opened, on a file system that
+    // can't normalize names. Either is the name junctions and links led to,
+    // and only the file's own name is looked at.
+    let flags = [
+        FILE_NAME_NORMALIZED | VOLUME_NAME_DOS,
+        FILE_NAME_NORMALIZED | VOLUME_NAME_NT,
+        FILE_NAME_OPENED | VOLUME_NAME_DOS,
+        FILE_NAME_OPENED | VOLUME_NAME_NT,
+    ];
+    for flags in flags {
+        let mut buf = vec![0u16; 1024];
+        // Once more when the buffer was too small: `len` is then the length it takes.
+        for _ in 0..2 {
+            // SAFETY: an open file's handle, and a buffer of the length given.
+            let len =
+                unsafe { GetFinalPathNameByHandleW(file.as_raw_handle(), buf.as_mut_ptr(), buf.len() as u32, flags) }
+                    as usize;
+            if len == 0 {
+                break;
+            }
+            if len < buf.len() {
+                buf.truncate(len);
+                return Some(PathBuf::from(std::ffi::OsString::from_wide(&buf)));
+            }
+            buf.resize(len + 1, 0);
+        }
+    }
+    // The file isn't sent: said once, for the drive it's on.
+    static TOLD: std::sync::Once = std::sync::Once::new();
+    let err = std::io::Error::last_os_error();
+    TOLD.call_once(|| tracing::warn!("Windows gives no name for a library's file opened ({err}): it isn't sent"));
+    None
+}
+
 /// Release samples: `sample.mkv`, `sample-movie.mkv`, `movie-sample.mkv`
 /// (small files only).
 fn is_sample(path: &Path, size: u64) -> bool {
@@ -1105,6 +1211,85 @@ mod tests {
         std::os::unix::fs::symlink(dir.path().join("secrets.db"), &film).unwrap();
         assert!(!leads_to_its_kind(&film));
         assert!(leads_to_its_kind(&dir.path().join("passwd")), "not a link: what the scan found");
+        assert!(open_of_its_kind(&film).is_none());
+
+        // What is read is what was checked: a file opened through a link
+        // swapped in for a moment is no file of the link's kind, though the
+        // link leads to one again by the time it's looked at.
+        std::fs::write(dir.path().join("real.jpg"), b"\xff\xd8\xff").unwrap();
+        let poster = library.join("Alien (1979)").join("poster.jpg");
+        let swap = |target: &str| {
+            let _ = std::fs::remove_file(&poster);
+            std::os::unix::fs::symlink(dir.path().join(target), &poster).unwrap();
+        };
+        swap("real.jpg");
+        assert!(open_of_its_kind(&poster).is_some(), "a link to a picture");
+        swap("secrets.db");
+        let opened = std::fs::File::open(&poster).unwrap();
+        swap("real.jpg");
+        assert!(checked(opened, &poster).is_none(), "the database, opened before the link went back");
+        swap("secrets.db");
+        let opened = std::fs::File::open(&poster).unwrap();
+        std::fs::remove_file(&poster).unwrap();
+        std::fs::write(&poster, b"\xff\xd8\xff").unwrap();
+        assert!(checked(opened, &poster).is_none(), "the database, though a picture is there now");
+        // And a picture opened as itself, now a link to the database: no.
+        let opened = std::fs::File::open(&poster).unwrap();
+        swap("secrets.db");
+        assert!(checked(opened, &poster).is_none());
+    }
+
+    /// A library's folder may be a junction (no privilege makes one): what
+    /// it holds is told by the name Windows gives the file opened.
+    #[cfg(windows)]
+    #[test]
+    fn a_file_through_a_junction_is_opened() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        std::fs::create_dir(&real).unwrap();
+        std::fs::write(real.join("Film (2020).mkv"), b"a film").unwrap();
+        let films = dir.path().join("Films");
+        let made = std::process::Command::new("cmd")
+            .arg("/C")
+            .arg("mklink")
+            .arg("/J")
+            .arg(&films)
+            .arg(&real)
+            .stdout(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert!(made.success());
+        assert!(open_of_its_kind(&films.join("Film (2020).mkv")).is_some());
+    }
+
+    /// What was opened goes out only as the file the name names, Windows
+    /// telling by the name it gives the file opened.
+    #[test]
+    fn a_file_other_than_the_one_named_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let poster = dir.path().join("poster.jpg");
+        std::fs::write(&poster, b"\xff\xd8\xff").unwrap();
+        std::fs::write(dir.path().join("secrets.db"), b"secret").unwrap();
+        let database = std::fs::File::open(dir.path().join("secrets.db")).unwrap();
+        assert!(checked(database, &poster).is_none());
+        assert!(checked(std::fs::File::open(&poster).unwrap(), &poster).is_some());
+    }
+
+    #[test]
+    fn a_file_is_opened_when_it_is_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let film = dir.path().join("Film (2020).mkv");
+        std::fs::write(&film, b"a film").unwrap();
+        let (mut opened, meta) = open_of_its_kind(&film).expect("a film");
+        assert_eq!(meta.len(), 6);
+        let mut read = String::new();
+        std::io::Read::read_to_string(&mut opened, &mut read).unwrap();
+        assert_eq!(read, "a film");
+        assert!(open_of_its_kind(&dir.path().join("passwd.txt")).is_none(), "gone");
+        assert!(open_of_its_kind(dir.path()).is_none(), "a folder");
+        // Not a link: whatever its name says, what the scan found.
+        std::fs::write(dir.path().join("notes"), b"x").unwrap();
+        assert!(open_of_its_kind(&dir.path().join("notes")).is_some());
     }
 
     #[test]

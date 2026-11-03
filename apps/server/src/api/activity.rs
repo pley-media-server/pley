@@ -20,7 +20,7 @@ use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::library::scanner::ScanStatus;
 use crate::markers::AnalysisStatus;
-use crate::playback::{Method, TranscodeInfo, transcode_info};
+use crate::playback::{Method, TranscodeInfo};
 use crate::schedule::LibraryWorkStatus;
 use crate::state::AppState;
 
@@ -80,7 +80,10 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
             state: play.state,
             started_at: session.started_at,
             updated_at: play.updated_at,
-            transcode: session.job_id().and_then(|id| jobs.get(&id)).map(transcode_info),
+            transcode: session
+                .job_id()
+                .and_then(|id| jobs.get(&id))
+                .map(|job| super::playback::transcode_seen_by(&user, job)),
         });
     }
     let analysis = if user.is_admin { state.markers.status() } else { None };

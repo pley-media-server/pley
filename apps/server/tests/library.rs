@@ -194,7 +194,7 @@ async fn each_profile_may_list_its_libraries_in_its_own_order() {
     let (kid, kid_id) = app.user(&admin, "kid", json!({"all_libraries": false, "library_ids": [movies, music]})).await;
 
     // An app with the play scope sorts its profile's libraries: theirs
-    // alone, on every list (the libraries, Home's rows, Plex's sections).
+    // alone, on every list (the libraries, Home's rows, Jellyfin's views).
     let (app_token, _) = app.app_token(bob_id, "library play").await;
     let mut events = app.state.events.subscribe();
     let mine = app.put("/api/me/libraries/order", &app_token, json!({"ids": [music, movies, tv]})).await;
@@ -941,7 +941,7 @@ async fn administration_endpoints() {
         (Method::GET, "/api/transcoder"),
         (Method::GET, "/api/settings"),
         (Method::PUT, "/api/settings"),
-        (Method::GET, "/api/fs"),
+        (Method::POST, "/api/fs"),
     ] {
         let reply = app.call(method.clone(), uri, Some(&bob), Some(json!({})), &[]).await;
         assert_eq!(reply.status, StatusCode::FORBIDDEN, "{method} {uri}");
@@ -980,14 +980,14 @@ async fn administration_endpoints() {
     }
     std::fs::write(root.join("notes.txt"), b"x").unwrap();
     let path = root.to_string_lossy().into_owned();
-    let listing = app.get(&format!("/api/fs?path={}", common::encode(&path)), &admin).await;
+    let listing = app.post("/api/fs", &admin, json!({ "path": path })).await;
     let names: Vec<&str> =
         listing.body["entries"].as_array().unwrap().iter().map(|e| e["name"].as_str().unwrap()).collect();
     assert_eq!(names, ["Films", "series"]);
     assert_eq!(listing.body["parent"], json!(root.parent().unwrap().to_string_lossy()));
-    let missing = app.get(&format!("/api/fs?path={}", common::encode(&format!("{path}/nope"))), &admin).await;
+    let missing = app.post("/api/fs", &admin, json!({ "path": format!("{path}/nope") })).await;
     assert_eq!(missing.status, StatusCode::BAD_REQUEST);
-    assert_eq!(app.get("/api/fs?path=relative", &admin).await.status, StatusCode::BAD_REQUEST);
+    assert_eq!(app.post("/api/fs", &admin, json!({ "path": "relative" })).await.status, StatusCode::BAD_REQUEST);
 }
 
 /// A conditional GET of `uri` with the tag of an earlier answer.
@@ -1110,10 +1110,12 @@ async fn editions_are_versions_of_one_movie_with_their_names() {
     editions.sort();
     assert_eq!(editions, ["Final Cut", "Theatrical Cut"]);
 
-    // The Plex API names the edition of the version played by default.
-    let plex = app.plex_json(&format!("/library/metadata/{film}"), &token).await;
-    let edition = plex["Metadata"][0]["editionTitle"].as_str().unwrap().to_owned();
-    assert!(editions.contains(&edition), "{edition}");
+    // Jellyfin's apps list the versions by their editions.
+    let jellyfin = app.jf_json(&format!("/Items/{}", app.jf_item(film)), &token).await;
+    let mut versions: Vec<String> =
+        jellyfin["MediaSources"].as_array().unwrap().iter().map(|s| s["Name"].as_str().unwrap().to_owned()).collect();
+    versions.sort();
+    assert_eq!(versions, editions);
 }
 
 #[tokio::test]
@@ -1164,10 +1166,12 @@ async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     // Every sort says it: the posters' badges show whatever the order.
     let by_title = app.get(&format!("/api/libraries/{lib}/items?sort=title"), &admin).await;
     assert_eq!(by_title.body["items"][1]["media"]["dynamic_range"], "dolby_vision");
-    // The Plex-compatible API (and smart collections) sort the same way.
-    let plex = app.plex_json(&format!("/library/sections/{lib}/all?sort=mediaBitrate:desc"), &admin).await;
-    let titles: Vec<&str> = plex["Metadata"].as_array().unwrap().iter().map(|m| m["title"].as_str().unwrap()).collect();
-    assert_eq!(titles, ["Brazil", "Alien", "Casablanca"]);
+    // Smart collections sort the same way.
+    let smart = json!({"title": "By bitrate", "smart_filter": "type=1&sort=mediaBitrate:desc"});
+    let created = app.post(&format!("/api/libraries/{lib}/collections"), &admin, smart).await;
+    assert_eq!(created.status, StatusCode::CREATED, "{:?}", created.body);
+    let collection = app.get(&format!("/api/collections/{}", created.body["id"]), &admin).await;
+    assert_eq!(titles(&collection.body["items"]), ["Brazil", "Alien", "Casablanca"]);
 }
 
 #[tokio::test]

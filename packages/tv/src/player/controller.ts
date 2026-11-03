@@ -1175,7 +1175,7 @@ export class PlaybackController {
     this.auto?.interrupted();
     this.lastAdvanceAt = this.now();
     this.setClock({ positionMs: target });
-    this.presenter.refresh();
+    this.presenter.sought(target);
     if (this.seekReportTimer !== null) clearTimeout(this.seekReportTimer);
     this.seekReportTimer = setTimeout(() => {
       this.seekReportTimer = null;

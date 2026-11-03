@@ -12,6 +12,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// The TV's way in (design spec §2.8; the Android app's TvLinkScreen): the steps and the code on
 /// the left from x = 96, the QR code and "Change server" on the right from x = 600. "Change server"
 /// has focus, except after a decline or once the code expired, when "Get a new code" has it.
+/// Signing in, a server that requires two-step sign-in is said so under the title, once it answers.
 /// </summary>
 sealed class LinkScreen : Sheet
 {
@@ -19,6 +20,12 @@ sealed class LinkScreen : Sheet
 
     readonly LinkModel model;
     readonly View column;
+    /// <summary>The steps, the code and what's under it: they move down when an intro comes under the title.</summary>
+    readonly View steps;
+    /// <summary>Where the intro goes, under the title.</summary>
+    readonly float introTop;
+    /// <summary>The screen's own intro (approving a profile): the server's two-step sign-in isn't said over it.</summary>
+    readonly bool ownIntro;
     readonly View codeFields;
     readonly TextLabel address;
     readonly TextLabel addressLead;
@@ -33,8 +40,13 @@ sealed class LinkScreen : Sheet
     View? signedIn;
     LinkCode? shownCode;
     bool? neededNewCode;
+    TextLabel? introLabel;
+    bool twoStepShown;
 
-    /// <param name="intro">Under the title: why a code (approving a profile on a phone); null when signing in.</param>
+    /// <param name="intro">
+    /// Under the title: why a code (approving a profile on a phone); null when signing in, where it
+    /// says when the server requires two-step sign-in.
+    /// </param>
     public LinkScreen(LinkModel model, Action onBack, string title = "Sign in to Pley", string? intro = null, string backLabel = "Change server") : base("link", Axis.Row)
     {
         this.model = model;
@@ -47,32 +59,25 @@ sealed class LinkScreen : Sheet
         var heading = Text.Label(title, PleyType.PageTitle, PleyColors.Fg, width: ColumnWidth);
         heading.PositionY = Ui.Dp(40 + 28);
         column.Add(heading);
-        float y = 40 + 28 + PleyType.PageTitle.Line;
-        if (intro != null)
-        {
-            var introLabel = Text.Label(intro, PleyType.Body, PleyColors.Muted, maxLines: 2, width: ColumnWidth);
-            introLabel.VerticalAlignment = VerticalAlignment.Top;
-            introLabel.PositionY = Ui.Dp(y + 6);
-            column.Add(introLabel);
-            y += 6 + PleyType.Body.Line * 2 + 10;
-        }
-        else
-        {
-            y += 18;
-        }
-        column.Add(Step(1, y, out _, "Scan the code with your phone"));
+        introTop = 40 + 28 + PleyType.PageTitle.Line + 6;
+        steps = new View { Size = new Size(Ui.Dp(ColumnWidth), Ui.Dp(400)) };
+        column.Add(steps);
+        ownIntro = intro != null;
+        Intro(intro);
+        float y = 0;
+        steps.Add(Step(1, y, out _, "Scan the code with your phone"));
         y += 28 + 12;
         var step2 = Step(2, y, out var stepText, "or go to");
         addressLead = stepText;
         address = Text.Label("…", PleyType.Section, PleyColors.Fg);
         address.SizeHeight = Ui.Dp(28);
         step2.Add(address);
-        column.Add(step2);
+        steps.Add(step2);
         y += 28 + 12;
-        column.Add(Step(3, y, out _, "and enter this code"));
+        steps.Add(Step(3, y, out _, "and enter this code"));
         y += 28 + 12;
         codeFields = new View { PositionY = Ui.Dp(y), Size = new Size(Ui.Dp(ColumnWidth), Ui.Dp(76)) };
-        column.Add(codeFields);
+        steps.Add(codeFields);
         y += 76 + 16;
         notes = new View { PositionY = Ui.Dp(y) };
         var sameWifi = Text.Label("Your phone must be on the same Wi-Fi as this TV.", PleyType.Body, PleyColors.Muted, width: ColumnWidth);
@@ -80,11 +85,11 @@ sealed class LinkScreen : Sheet
         otherDevice.PositionY = Ui.Dp(PleyType.Body.Line + 6);
         notes.Add(sameWifi);
         notes.Add(otherDevice);
-        column.Add(notes);
+        steps.Add(notes);
         newCode = new ButtonView("Get a new code", ButtonKind.Pill, model.NewCode, iconName: "refresh-cw") { PositionY = Ui.Dp(y) };
         newCode.Hide();
         newCode.Item.Shown = false;
-        column.Add(newCode);
+        steps.Add(newCode);
 
         status = new StatusLine(ColumnWidth) { Position = new Position(Ui.Dp(Left), Ui.Dp(StatusTop)) };
         View.Add(status);
@@ -127,8 +132,40 @@ sealed class LinkScreen : Sheet
         model.Started();
     }
 
+    /// <summary>
+    /// Under the title: why a code (approving a profile on a phone), or that the server requires
+    /// two-step sign-in; the steps start under it, or 18 dp under the title without.
+    /// </summary>
+    void Intro(string? text)
+    {
+        if (text == null)
+        {
+            introLabel?.Hide();
+            steps.PositionY = Ui.Dp(introTop - 6 + 18);
+            return;
+        }
+        if (introLabel == null)
+        {
+            introLabel = Text.Label(text, PleyType.Body, PleyColors.Muted, maxLines: 2, width: ColumnWidth);
+            introLabel.VerticalAlignment = VerticalAlignment.Top;
+            introLabel.PositionY = Ui.Dp(introTop);
+            column.Add(introLabel);
+        }
+        else
+        {
+            introLabel.Text = text;
+            introLabel.Show();
+        }
+        steps.PositionY = Ui.Dp(introTop + PleyType.Body.Line * 2 + 10);
+    }
+
     void Show(LinkState state)
     {
+        if (!ownIntro && state.TwoStepRequired != twoStepShown)
+        {
+            twoStepShown = state.TwoStepRequired;
+            Intro(twoStepShown ? LinkText.TwoStepRequired : null);
+        }
         var s = state.Shown;
         if (s is LinkStatus.SignedIn done)
         {

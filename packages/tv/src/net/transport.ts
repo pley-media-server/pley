@@ -23,6 +23,8 @@ export interface HttpResponse {
   header(name: string): string | null;
   /** The body, as `responseType` asked. */
   body: unknown;
+  /** Where the answer came from, after any redirect, when the transport says. */
+  url?: string;
 }
 
 export type Transport = (req: HttpRequest) => Promise<HttpResponse>;
@@ -101,7 +103,7 @@ export const xhrTransport: Transport = (req) =>
           body = text;
         }
       }
-      resolve({ status: xhr.status, header: (name) => xhr.getResponseHeader(name), body });
+      resolve({ status: xhr.status, header: (name) => xhr.getResponseHeader(name), body, url: xhr.responseURL || undefined });
     };
     xhr.onerror = () => {
       forget?.();

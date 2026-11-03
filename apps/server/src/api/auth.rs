@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::accounts::{self, UserDto};
 use crate::auth::grants::APP_TOKEN_PREFIX;
 use crate::auth::{
-    AuthUser, ClientIp, CurrentToken, SourceIp, clear_cookie, dummy_password_hash, forwarded_https, hash_password,
-    hash_token, session_cookie, token_from_parts, validate_password, validate_username, verify_password,
+    AuthUser, ClientIp, CurrentToken, PeerIp, SourceIp, clear_cookie, compatibility, dummy_password_hash,
+    forwarded_https, hash_password, hash_token, session_cookie, token_from_parts, validate_password, validate_username,
+    verify_password,
 };
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
@@ -40,7 +41,48 @@ pub struct Credentials {
     setup_id: Option<String>,
 }
 
-pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serde_json::Value>> {
+/// An app asking the server to prove it is the one it signed in to (see
+/// [`crate::identity`]).
+#[derive(Deserialize)]
+pub struct ProofQuery {
+    challenge: Option<String>,
+    proof_id: Option<String>,
+}
+
+pub async fn server_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    PeerIp(peer): PeerIp,
+    SourceIp(source): SourceIp,
+    Query(query): Query<ProofQuery>,
+) -> ApiResult<Response> {
+    let proof = match (query.challenge.as_deref(), query.proof_id.as_deref()) {
+        (None, None) => None,
+        (Some(challenge), Some(proof_id)) => {
+            if asked_by_a_page(&headers) {
+                return Err(AppError::forbidden("a proof is made for Pley's apps, not for a page"));
+            }
+            let address = crate::api::oauth::issuer(&headers)?;
+            let home = |ip: Option<std::net::IpAddr>| ip.is_some_and(crate::identity::at_home);
+            // Pley has no TLS of its own: an https address is a proxy's, which
+            // says so in X-Forwarded-Proto. Only a proxy on the home network
+            // is believed, as with X-Forwarded-For; from anywhere else the
+            // header could name any https address.
+            if !home(peer) {
+                return Err(AppError::forbidden("a proof is made through a proxy on the home network only"));
+            }
+            // An app reaches a plain-http address on its own network only:
+            // asked for one from the internet, the server is being asked on
+            // behalf of a device at that address elsewhere. The client the
+            // proxy forwards for counts too.
+            if address.starts_with("http://") && !home(source) {
+                return Err(AppError::forbidden("a proof for a plain-http address is made for the home network only"));
+            }
+            let proof = state.identity.prove(proof_id, &address, challenge).map_err(AppError::bad_request)?;
+            Some((proof, address))
+        }
+        _ => return Err(AppError::bad_request("a proof takes both challenge and proof_id")),
+    };
     let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users").fetch_one(&state.db.read).await?;
     if users > 0 {
         // Set up, by the setup page or elsewhere (`pley reset-password
@@ -49,7 +91,8 @@ pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serd
         state.auth.setup.clear();
     }
     let settings = state.settings.get();
-    Ok(Json(serde_json::json!({
+    let mut body = serde_json::json!({
+        "id": state.identity.id,
         "name": settings.server_name,
         "version": crate::VERSION,
         "commit": crate::COMMIT,
@@ -59,7 +102,43 @@ pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serd
         "setup_code_required": users == 0,
         // Signing in may take setting it up first (see second_step).
         "two_step_required": state.auth.two_step_required(),
-    })))
+    });
+    let Some((proof, address)) = proof else { return Ok(Json(body).into_response()) };
+    body["proof"] = serde_json::json!(proof);
+    // What the proof covers: an app that finds another address here can say
+    // a proxy in front of the server names it otherwise (its Host header).
+    body["address"] = serde_json::json!(address);
+    // An answer to one challenge only.
+    Ok(([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response())
+}
+
+/// Whether a proof is asked from a website's page rather than one of Pley's
+/// apps: an `Origin` other than the TV apps' (docs/API.md, "CORS for TV
+/// apps"), or `null` from something other than LG's TV app. A page in a
+/// sandboxed frame sends `null` too, and in a browser at home it could read
+/// a proof for the home address and hand it to a device elsewhere. LG's web
+/// runtime says webOS in its User-Agent, which a page can't set without a
+/// preflight that the TV apps' CORS refuses; Samsung's sends no Origin.
+fn asked_by_a_page(headers: &HeaderMap) -> bool {
+    let Some(origin) = headers.get(header::ORIGIN).map(|o| o.as_bytes()) else { return false };
+    let webos = headers
+        .get(header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|agent| agent.contains("Web0S") || agent.contains("webOS"));
+    !crate::api::tv_app_origin(origin) || (origin == b"null" && !webos)
+}
+
+/// `GET /api/server/proof-key`: a proof key for pley's own sign-in, which
+/// has no grant to carry one: the desktop app asks with its window's
+/// session, and checks the server with it before it opens it again. Apps
+/// have theirs in their token answers.
+pub async fn server_proof_key(State(state): State<AppState>, _user: AuthUser) -> Response {
+    let mut body = serde_json::json!({ "server_id": state.identity.id });
+    if let Some(proof) = state.identity.session_key() {
+        body["proof_id"] = serde_json::json!(proof.id);
+        body["proof_key"] = serde_json::json!(proof.key);
+    }
+    ([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response()
 }
 
 pub(crate) async fn login_response(
@@ -178,6 +257,9 @@ pub async fn setup(
     login_response(&state, id, &headers, ip.as_deref(), None).await
 }
 
+/// Signs in with a password (and its second step) for a session. Other
+/// apps sign in through the Jellyfin-compatible API for a token of their
+/// own ([`crate::jellyfin`]).
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -185,7 +267,28 @@ pub async fn login(
     SourceIp(source): SourceIp,
     Json(body): Json<Credentials>,
 ) -> ApiResult<Response> {
-    let username = body.username.trim().to_owned();
+    let account = check_password(&state, &body.username, body.password, source).await?;
+    let recovery_codes =
+        second_step(&state, account.id, &account.username, body.code.as_deref(), body.setup_id.as_deref()).await?;
+    login_response(&state, account.id, &headers, ip.as_deref(), recovery_codes).await
+}
+
+/// An account whose password was right.
+pub(crate) struct PasswordChecked {
+    pub id: i64,
+    pub username: String,
+}
+
+/// The first step of every sign-in with a password: attempts are limited
+/// per name and address, and a disabled account is refused once its
+/// password is right. The second step ([`second_step`]) is the caller's.
+pub(crate) async fn check_password(
+    state: &AppState,
+    username: &str,
+    password: String,
+    source: Option<std::net::IpAddr>,
+) -> ApiResult<PasswordChecked> {
+    let username = username.trim().to_owned();
     // No account has a longer name (`validate_username`): nothing to check,
     // and nothing to count and keep.
     if username.chars().count() > 64 {
@@ -202,11 +305,11 @@ pub async fn login(
     // real check against a stand-in hash takes as long as one against a
     // user's, so neither can be told apart by timing.
     let Some((id, hash, disabled)) = row.filter(|(_, hash, _)| !hash.starts_with('!')) else {
-        verify_password(body.password, dummy_password_hash().await).await?;
+        verify_password(password, dummy_password_hash().await).await?;
         attempt.failed();
         return Err(AppError::Unauthorized);
     };
-    if !verify_password(body.password, hash).await? {
+    if !verify_password(password, hash).await? {
         attempt.failed();
         return Err(AppError::Unauthorized);
     }
@@ -214,8 +317,7 @@ pub async fn login(
     if disabled {
         return Err(AppError::forbidden("this account is disabled"));
     }
-    let recovery_codes = second_step(&state, id, &username, body.code.as_deref(), body.setup_id.as_deref()).await?;
-    login_response(&state, id, &headers, ip.as_deref(), recovery_codes).await
+    Ok(PasswordChecked { id, username })
 }
 
 /// Checks that the signed-in user may change how their account signs in:
@@ -245,6 +347,10 @@ pub(crate) async fn confirm_password(state: &AppState, user: &AuthUser, password
 pub async fn logout(State(state): State<AppState>, request: axum::extract::Request) -> Response {
     let (parts, _) = request.into_parts();
     match token_from_parts(&parts) {
+        // A tool signing out ends its compatibility token.
+        Some(token) if token.starts_with(compatibility::PREFIX) => {
+            let _ = state.auth.end_compatibility_token_of(&token).await;
+        }
         // An app signing out ends its grant, wherever it put its token.
         Some(token) if token.starts_with(APP_TOKEN_PREFIX) => {
             state.auth.revoke_app_token(&token).await;

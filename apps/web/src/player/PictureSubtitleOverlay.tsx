@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
-import { loadPictures, PictureRenderer, type PictureSubtitles } from "./pictures";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { loadPictures, PictureRenderer, type PictureLoader, type PictureSubtitles } from "./pictures";
 
 /** What the player hears of a picture track, besides the track itself. */
 export interface PictureTrackHooks {
@@ -7,30 +7,47 @@ export interface PictureTrackHooks {
   unavailable(): void;
   /** The track couldn't be loaded. */
   failed(): void;
+  /** Where the player is (ms of the file's time) as the track is asked for: the server reads one it hasn't yet from there first. */
+  position(): number;
 }
 
 /**
  * The picture track at `url` (the server's `.mks` of the subtitles chosen;
  * `null`: none), as far as it has arrived, asked for again while the
- * server answers with part of it (`X-Pley-Complete: 0`); and whether the
- * server can't make such files, which holds for every track from then on
- * (none is asked for any more). `hooks` hears either problem first.
+ * server answers with part of it (`X-Pley-Complete: 0`), and at once after
+ * a seek (`sought`); and whether the server can't make such files, which
+ * holds for every track from then on (none is asked for any more). `hooks`
+ * hears either problem first, and says where the player is.
  */
-export function usePictureTrack(url: string | null, hooks: RefObject<PictureTrackHooks>): { subs: PictureSubtitles | null; unavailable: boolean } {
+export function usePictureTrack(
+  url: string | null,
+  hooks: RefObject<PictureTrackHooks>,
+): { subs: PictureSubtitles | null; unavailable: boolean; sought: () => void } {
   const [track, setTrack] = useState<{ url: string; subs: PictureSubtitles } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const loader = useRef<PictureLoader | null>(null);
   useEffect(() => {
     if (!url || unavailable) return;
-    return loadPictures(url, {
-      onTrack: (subs) => setTrack({ url, subs }),
-      onUnavailable: () => {
-        hooks.current.unavailable();
-        setUnavailable(true);
+    const loading = loadPictures(
+      url,
+      {
+        onTrack: (subs) => setTrack({ url, subs }),
+        onUnavailable: () => {
+          hooks.current.unavailable();
+          setUnavailable(true);
+        },
+        onFailed: () => hooks.current.failed(),
       },
-      onFailed: () => hooks.current.failed(),
-    });
+      () => hooks.current.position(),
+    );
+    loader.current = loading;
+    return () => {
+      loading.stop();
+      if (loader.current === loading) loader.current = null;
+    };
   }, [url, unavailable, hooks]);
-  return { subs: !unavailable && track && track.url === url ? track.subs : null, unavailable };
+  const sought = useCallback(() => loader.current?.sought(), []);
+  return { subs: !unavailable && track && track.url === url ? track.subs : null, unavailable, sought };
 }
 
 /**

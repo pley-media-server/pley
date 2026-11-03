@@ -21,10 +21,14 @@ import app.pley.android.model.PersonCredit
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
 import app.pley.android.model.PersonSummary
+import app.pley.android.model.PleyJson
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerInfo
 import java.security.MessageDigest
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import mockwebserver3.MockResponse
 
 /**
@@ -39,7 +43,7 @@ internal class BrowseRoutes(private val s: State) {
 
     fun routes(): List<Route> = listOf(
         public("GET", "/api/health") { _, _ -> Reply.json(Health.serializer(), Health("ok")) },
-        public("GET", "/api/server") { _, _ -> Reply.json(ServerInfo.serializer(), ServerInfo(NAME, VERSION)) },
+        public("GET", "/api/server") { call, _ -> server(call) },
         route("GET", "/api/auth/me", Need.AnyApp) { _, c, _ -> Reply.json(Me.serializer(), views.me(c.profile, c.scope)) },
         route("GET", "/api/users/*/avatar", Need.AnyApp, free = true) { call, _, v ->
             val profile = v[0].toLongOrNull()?.let(s::profile)
@@ -354,6 +358,18 @@ internal class BrowseRoutes(private val s: State) {
             .sortedByDescending { it.viewedAt }
         val entries = records.drop(offset).take(limit).mapNotNull { views.history(it, caller.profile) }
         return Reply.json(HistoryPage.serializer(), HistoryPage(records.size, entries))
+    }
+
+    /** The server, with its id, and its proof when asked (docs/API.md, "Telling servers apart"). */
+    private fun server(call: Call): MockResponse {
+        val info = PleyJson.encodeToJsonElement(ServerInfo.serializer(), ServerInfo(NAME, VERSION)).jsonObject
+        val challenge = call.query("challenge")
+        val proofId = call.query("proof_id")
+        if (challenge == null && proofId == null) return Reply.json(JsonObject(info + ("id" to JsonPrimitive(s.oauth.serverId))).toString())
+        val proof = if (challenge != null && proofId != null) s.oauth.proof(call, challenge, proofId) else null
+        proof ?: return Reply.error(400, "bad_request", "challenge and proof_id go together, each written as docs/API.md says")
+        val answer = info + ("id" to JsonPrimitive(s.oauth.serverId)) + ("proof" to JsonPrimitive(proof))
+        return Reply.json(JsonObject(answer).toString(), headers = mapOf("Cache-Control" to "no-store"))
     }
 
     companion object {

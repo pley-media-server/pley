@@ -38,6 +38,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -329,16 +330,20 @@ class OkHttpPictureSource(
             )
         }
         // Read to the end even when cancelled meanwhile (the read can't be
-        // interrupted): a result thrown away would keep its samples open.
-        val loaded = withContext(io + NonCancellable) {
-            val store = SampleStore(samples)
-            try {
-                PictureLoad(PictureTrack.read(mks, store, work), complete)
-            } catch (e: Exception) {
-                store.close()
-                throw if (e is IOException) e else IOException(e)
-            } finally {
-                mks.delete()
+        // interrupted), and closed below: a result thrown away would keep its
+        // samples open. withContext drops what another thread hands back to
+        // a cancelled caller, but not to one within NonCancellable.
+        val loaded = withContext(NonCancellable) {
+            withContext(io) {
+                val store = SampleStore(samples)
+                try {
+                    PictureLoad(PictureTrack.read(mks, store, work), complete)
+                } catch (e: Exception) {
+                    store.close()
+                    throw if (e is IOException) e else IOException(e)
+                } finally {
+                    mks.delete()
+                }
             }
         }
         try {
@@ -360,7 +365,9 @@ class OkHttpPictureSource(
  * The picture subtitles shown, side-loaded beside a stream (capabilities
  * v2 `picture_subtitles_sideload`): the server's .mks of the track, read
  * into [track]. A track still being copied out of its file is asked for
- * again every 3 s until it is whole, as [ServerSubtitles] does.
+ * again every 3 s until it is whole, as [ServerSubtitles] does, and at once
+ * after a seek ([jumped]); each time from where the player is then, as the
+ * server answers with the pictures around there first.
  */
 class PictureSubtitles(
     private val scope: CoroutineScope,
@@ -375,36 +382,67 @@ class PictureSubtitles(
 
     private var job: Job? = null
 
+    /** The track asked for until it is whole; `null` once it is (or failed, or none shows). */
+    private var unfinished: Ask? = null
+
     /** Which track shows: `fileId:index`, or `null`. */
     var showing: String? = null
         private set
 
-    /** Shows track [index] of file [fileId], at [url]; the same track again changes nothing (unless it failed). */
-    fun show(fileId: Long, index: Int, url: String) {
+    /**
+     * Shows track [index] of file [fileId], at the address [url] gives each
+     * time it is asked for (from where the player is then); the same track
+     * again changes nothing (unless it failed).
+     */
+    fun show(fileId: Long, index: Int, url: () -> String) {
         val key = "$fileId:$index"
         if (key == showing) return
         hide()
         showing = key
+        ask(Ask(fileId, index, url))
+    }
+
+    /**
+     * The player jumped (a seek): a track not yet whole is asked for at once,
+     * from where the player is now, and an answer on its way for where it
+     * was is dropped. A whole one already holds everything.
+     */
+    fun jumped() {
+        unfinished?.let(::ask)
+    }
+
+    /** Asks for [wanted] until it is whole, the asks before it stopped. */
+    private fun ask(wanted: Ask) {
+        job?.cancel()
+        unfinished = wanted
         job = scope.launch {
             while (true) {
                 val answer = try {
-                    source.load(fileId, index, url)
+                    source.load(wanted.fileId, wanted.index, wanted.url())
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: IOException) {
-                    if (showing == key) showing = null
+                    // Asked again meanwhile, or hidden: that ask's failure doesn't count.
+                    if (!isActive) return@launch
+                    showing = null
+                    unfinished = null
                     onError(e)
                     return@launch
                 }
-                if (showing != key) {
+                // Asked again meanwhile (a seek), or hidden: the newer answer shows, or none.
+                if (!isActive) {
                     answer.track.close()
                     return@launch
                 }
-                // A later answer holds everything found so far: it replaces the one before.
+                // A later answer holds the pictures around where the player is: it replaces the one before.
                 val before = state.value
                 state.value = answer.track
                 before?.close()
-                if (answer.complete) return@launch
+                if (answer.complete) {
+                    unfinished = null
+                    return@launch
+                }
+                // Well within the 40 s past a seek that the server's answer for it holds.
                 delay(ServerSubtitles.AGAIN_MS)
             }
         }
@@ -414,8 +452,12 @@ class PictureSubtitles(
     fun hide() {
         job?.cancel()
         job = null
+        unfinished = null
         showing = null
         state.value?.close()
         state.value = null
     }
+
+    /** A track to ask for: [url] is its address from where the player is when asked. */
+    private class Ask(val fileId: Long, val index: Int, val url: () -> String)
 }

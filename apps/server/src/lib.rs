@@ -21,10 +21,14 @@ pub mod error;
 pub mod events;
 pub mod history;
 pub mod http;
+pub mod identity;
 pub mod images;
 pub mod instance;
+pub mod jellyfin;
 pub mod labels;
+pub mod languages;
 pub mod library;
+pub mod listing;
 pub mod livetv;
 pub mod logging;
 pub mod markers;
@@ -36,7 +40,6 @@ pub mod people;
 pub mod pgs;
 pub mod playback;
 pub mod playlists;
-pub mod plex;
 pub mod providers;
 pub mod ratings;
 pub mod related;
@@ -208,7 +211,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 /// Before the database is opened, the data directory is locked (one server
 /// per data directory, see [`instance`]) and the first address is bound: a
 /// second copy, or one whose port is taken, stops without touching anything.
-/// The other addresses, the Plex-compatible API and discovery follow (see
+/// The other addresses, the Jellyfin-compatible API and discovery follow (see
 /// [`network`]).
 ///
 /// On shutdown the listeners close, the event streams end, and requests in
@@ -229,8 +232,14 @@ pub async fn run_with_tray(config: Config, tray: Option<desktop::TrayLauncher>) 
     state.start_background_tasks();
     let app = api::router(state.clone());
     tracing::info!("Pley {VERSION_AND_COMMIT} listening on http://{}", display_addr(addr));
-    if state.network.plex_on_web() {
-        tracing::info!("the Plex-compatible API answers on Pley's port, to its clients");
+    if state.network.jellyfin_on_web() {
+        tracing::info!("the Jellyfin-compatible API answers on Pley's port, to its clients");
+    }
+    if state.config.plex_bind_ignored {
+        tracing::warn!(
+            "plex_bind is no longer read: the Plex-compatible API is gone (the Jellyfin-compatible one is \
+             jellyfin_bind)"
+        );
     }
     LISTENING.store(true, std::sync::atomic::Ordering::SeqCst);
     if let Some(code) = state.auth.setup.shown() {
@@ -381,15 +390,21 @@ pub async fn reset_password(config: Config, username: &str, password: &str, admi
                 .await?
                 .rows_affected();
             sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?").bind(id).execute(&db.write).await?;
-            // Apps using the account or allowed by it end too. A server running
-            // meanwhile reads tokens from its cache for up to a minute, as it
-            // does sessions: its apps stop within that minute.
+            // Apps using the account or allowed by it end too, and its tokens
+            // for other apps. A server running meanwhile reads tokens from its
+            // cache for up to a minute, as it does sessions: its apps stop
+            // within that minute.
             let apps = sqlx::query("DELETE FROM app_grants WHERE user_id = ? OR approved_by = ?")
                 .bind(id)
                 .bind(id)
                 .execute(&db.write)
                 .await?
-                .rows_affected();
+                .rows_affected()
+                + sqlx::query("DELETE FROM compatibility_tokens WHERE user_id = ?")
+                    .bind(id)
+                    .execute(&db.write)
+                    .await?
+                    .rows_affected();
             let required = settings::SettingsStore::load(&db).await?.get().require_two_step;
             let off = match (two_step > 0, required) {
                 (true, true) => {

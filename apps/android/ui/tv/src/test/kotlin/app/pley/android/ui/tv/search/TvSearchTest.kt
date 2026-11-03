@@ -83,23 +83,23 @@ class TvSearchTest {
     }
 
     @Test
-    fun channelsFoundAreARowAfterPeopleThatPlays() {
+    fun channelsFoundAreARowBetweenTitlesAndPeopleThatPlays() {
         val groups = listOf(
-            SearchGroup(SearchGroupKind.People, listOf(tile(70, "Lena North")), listOf(70)),
             SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)),
+            SearchGroup(SearchGroupKind.People, listOf(tile(70, "Lena North")), listOf(70)),
         )
         val channels = listOf(LiveChannel(id = 7, name = "North Sport", number = "101"), LiveChannel(id = 8, name = "North News"))
         show(SearchUiState("north", emptyList(), SearchResultsState.Ready("north", groups, loading = false, channels = channels)))
         compose.onNodeWithText("Live TV").assertExists()
         compose.onNodeWithTag(TV_SEARCH_CHANNEL + 7).assertExists()
         compose.press(Key.DirectionDown)
-        compose.focused().assert(hasContentDescription("Lena North"))
+        compose.focused().assert(hasContentDescription("Northern Lights"))
         compose.press(Key.DirectionDown)
         compose.press(Key.DirectionRight)
         compose.press(Key.Enter)
         assertEquals(listOf(8L), watched)
         compose.press(Key.DirectionDown)
-        compose.focused().assert(hasContentDescription("Northern Lights"))
+        compose.focused().assert(hasContentDescription("Lena North"))
     }
 
     @Test

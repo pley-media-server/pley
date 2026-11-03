@@ -56,6 +56,32 @@ public static class PlaybackPlan
 
     public static IReadOnlyList<MediaStream> AudioStreams(MediaFile? file) => (file?.Streams ?? new MediaStream[0]).Where(s => s.Kind == "audio").ToList();
 
+    /// <summary>
+    /// <paramref name="chosen"/>'s place among the <paramref name="listed"/> audio tracks the TV's
+    /// player lists; null when it leaves the track out. The player lists a file's tracks in the
+    /// file's order, without those it can't play (<see cref="TizenCaps.PlayerLeavesOut"/>); a
+    /// player that lists none (not ready, or an engine that doesn't say) goes by the file's order.
+    /// </summary>
+    public static int? EngineAudioOrdinal(IReadOnlyList<MediaStream> streams, MediaStream chosen, int listed)
+    {
+        var at = OfferedAudio(streams, listed).IndexOf(chosen);
+        return at >= 0 ? at : null;
+    }
+
+    /// <summary>The file's audio stream at the TV's track <paramref name="ordinal"/> of <paramref name="listed"/>.</summary>
+    public static MediaStream? EngineAudioStream(IReadOnlyList<MediaStream> streams, int? ordinal, int listed)
+    {
+        var offered = OfferedAudio(streams, listed);
+        return ordinal is int i && i >= 0 && i < offered.Count ? offered[i] : null;
+    }
+
+    static List<MediaStream> OfferedAudio(IReadOnlyList<MediaStream> streams, int listed)
+    {
+        if (listed <= 0 || listed == streams.Count) return streams.ToList();
+        var kept = streams.Where(s => !TizenCaps.PlayerLeavesOut.Contains(s.Codec.ToLowerInvariant())).ToList();
+        return kept.Count == listed ? kept : streams.ToList();
+    }
+
     public static IReadOnlyList<MediaStream> SubtitleStreams(MediaFile? file) => (file?.Streams ?? new MediaStream[0]).Where(s => s.Kind == "subtitle").ToList();
 
     /// <summary>The subtitle tracks the server's conversion of <paramref name="file"/> holds, in their order.</summary>
@@ -100,6 +126,13 @@ public static class PlaybackPlan
 
     /// <summary>Where the server's .mks of picture subtitles <paramref name="index"/> of <paramref name="fileId"/> is.</summary>
     public static string PictureSubtitlesPath(long fileId, int index) => $"/api/files/{fileId}/subtitles/{index}.mks";
+
+    /// <summary>
+    /// <paramref name="url"/> asked for from where the player is (<paramref name="atMs"/> of the file), 0 at the
+    /// start too: a track the server hasn't copied out of its file yet comes from there first, and is answered with
+    /// the pictures around there until it is whole.
+    /// </summary>
+    public static string PictureUrlAt(string url, long atMs) => $"{url}{(url.Contains('?') ? "&" : "?")}at={Math.Max(0, atMs)}";
 
     /// <summary>Where the server's WebVTT of a text track is, when the session doesn't name it.</summary>
     public static string TextSubtitlesPath(long fileId, int index) => $"/api/files/{fileId}/subtitles/{index}.vtt";

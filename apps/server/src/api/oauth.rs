@@ -648,16 +648,22 @@ fn user_agent(headers: &HeaderMap) -> Option<String> {
     headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_owned)
 }
 
-/// A token answer (RFC 6749 §5.1), never cached.
-fn tokens(issued: Issued) -> Response {
+/// A token answer (RFC 6749 §5.1), never cached, with what the app keeps
+/// to tell this server from another device later ([`crate::identity`]).
+fn tokens(state: &AppState, issued: Issued) -> Response {
     let mut body = json!({
         "access_token": issued.access_token,
         "token_type": "Bearer",
         "expires_in": issued.expires_in,
         "scope": issued.scopes.to_string(),
+        "server_id": state.identity.id,
     });
     if let Some(refresh) = issued.refresh_token {
         body["refresh_token"] = json!(refresh);
+    }
+    if let Some(proof) = state.identity.proof_key(issued.grant_id) {
+        body["proof_id"] = json!(proof.id);
+        body["proof_key"] = json!(proof.key);
     }
     (StatusCode::OK, NO_STORE, Json(body)).into_response()
 }
@@ -785,7 +791,7 @@ async fn exchange_code(
         return Err(OAuthError::invalid_grant(refusal));
     }
     tracing::info!("{} may use {}'s account ({})", grant.app.label(), user.username, issued.scopes);
-    Ok(tokens(issued))
+    Ok(tokens(state, issued))
 }
 
 /// Why a code or a TV's answer got nothing although it was right.
@@ -818,7 +824,7 @@ async fn refresh(
         ip,
     };
     match state.auth.refresh(input).await {
-        Ok(issued) => Ok(tokens(issued)),
+        Ok(issued) => Ok(tokens(state, issued)),
         Err(RefreshError::WiderScope) => {
             Err(OAuthError::new("invalid_scope", "the app asked for more than it was allowed"))
         }
@@ -1083,7 +1089,7 @@ async fn device_token(
         }
         return Err(OAuthError::new("access_denied", SIGNED_OUT));
     }
-    Ok(tokens(issued))
+    Ok(tokens(state, issued))
 }
 
 /// The tokens of a TV that was allowed, when its account still may have them.
@@ -1206,7 +1212,7 @@ async fn switch_profile(
             issued.scopes
         );
     }
-    Ok(tokens(issued))
+    Ok(tokens(state, issued))
 }
 
 /// A switch to the profile the app acts as, without a PIN to check.

@@ -178,7 +178,7 @@ pub fn search_languages(code: &str) -> Vec<String> {
         return vec![code];
     }
     let primary = code.split('-').next().unwrap_or_default();
-    let short = crate::plex::meta::language(primary).map_or(primary, |(_, short, _)| short);
+    let short = crate::languages::language(primary).map_or(primary, |(_, short, _)| short);
     match short {
         "pt" => vec!["pt-br".into(), "pt-pt".into()],
         "zh" => vec!["zh-cn".into(), "zh-tw".into()],

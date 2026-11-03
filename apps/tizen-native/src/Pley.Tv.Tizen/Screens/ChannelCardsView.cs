@@ -22,7 +22,7 @@ sealed class ChannelCardsView : View
     /// <summary>Room above the first row for the focused tile's growth and ring.</summary>
     const float Room = 14, RowGap = 20;
 
-    static readonly TileKind Kind = TileKind.Episode;
+    static readonly TileKind Kind = ChannelCard.Kind;
 
     readonly LiveTvModel model;
     readonly Images images;
@@ -191,133 +191,136 @@ sealed class ChannelCardsView : View
             card.Focus(Item.Focused && i == index);
         }
     }
+}
 
-    /// <summary>
-    /// A channel's tile: its logo (or name) with its number, a star when a favourite and how far
-    /// what's on is; captioned with its name and what's on. Focused, it grows to 1.08 in the
-    /// accent ring and its name turns bold. A channel still loading is a still skeleton.
-    /// </summary>
-    sealed class ChannelCard : View
+/// <summary>
+/// A channel's tile: its logo (or name) with its number, a star when a favourite and how far
+/// what's on is; captioned with its name and what's on. Focused, it grows to 1.08 in the
+/// accent ring and its name turns bold. A channel still loading is a still skeleton. Live TV's
+/// Channels view draws them, and search's Live TV row.
+/// </summary>
+sealed class ChannelCard : View
+{
+    public static readonly TileKind Kind = TileKind.Episode;
+
+    readonly View frame;
+    readonly View? ring;
+    readonly View well;
+    readonly TextLabel? name;
+    readonly TextLabel? onNow;
+    View? progress;
+    LiveProgram? progressOf;
+    bool focused;
+    Animation? look;
+
+    public ChannelCard(LiveChannel? channel, string label, string origin, Images images, long now)
     {
-        readonly View frame;
-        readonly View? ring;
-        readonly View well;
-        readonly TextLabel? name;
-        readonly TextLabel? onNow;
-        View? progress;
-        LiveProgram? progressOf;
-        bool focused;
-        Animation? look;
-
-        public ChannelCard(LiveChannel? channel, string label, string origin, Images images, long now)
+        Channel = channel;
+        var w = Ui.Dp(Kind.Width);
+        var h = Ui.Dp(Kind.Height);
+        Size = new Size(w, h + Ui.Dp(PleyTv.TilesToCaption + PleyTv.CaptionHeight));
+        frame = new View { Size = new Size(w, h), PivotPoint = global::Tizen.NUI.PivotPoint.Center, PositionUsesPivotPoint = false };
+        Add(frame);
+        if (channel == null)
         {
-            Channel = channel;
-            var w = Ui.Dp(Kind.Width);
-            var h = Ui.Dp(Kind.Height);
-            Size = new Size(w, h + Ui.Dp(PleyTv.TilesToCaption + PleyTv.CaptionHeight));
-            frame = new View { Size = new Size(w, h), PivotPoint = global::Tizen.NUI.PivotPoint.Center, PositionUsesPivotPoint = false };
-            Add(frame);
-            if (channel == null)
-            {
-                well = new View { Size = new Size(w, h), CornerRadius = Ui.Dp(PleyShape.TileRadius), BackgroundColor = PleyColors.Surface2 };
-                frame.Add(well);
-                var captionTop = h + Ui.Dp(PleyTv.TilesToCaption);
-                Add(new View { Position = new Position(0, captionTop + Ui.Dp(3)), Size = new Size(w * 0.6f, Ui.Dp(12)), CornerRadius = Ui.Dp(PleyShape.BadgeRadius), BackgroundColor = PleyColors.Surface2 });
-                Add(new View { Position = new Position(0, captionTop + Ui.Dp(23)), Size = new Size(w * 0.35f, Ui.Dp(12)), CornerRadius = Ui.Dp(PleyShape.BadgeRadius), BackgroundColor = PleyColors.Surface2 });
-                return;
-            }
-            var reach = Ui.Dp(PleyShape.RingOffset + PleyShape.RingStroke / 2);
-            ring = new View
-            {
-                Size = new Size(w + 2 * reach, h + 2 * reach),
-                Position = new Position(-reach, -reach),
-                BackgroundColor = Color.Transparent,
-                BorderlineWidth = Ui.Dp(PleyShape.RingStroke),
-                BorderlineColor = PleyColors.AccentBright,
-                BorderlineOffset = -1f,
-                CornerRadius = Ui.Dp(PleyShape.TileRadius) + reach,
-                Opacity = 0,
-            };
-            frame.Add(ring);
-            well = new ChannelLogoView(channel, origin, images, Kind.Width, Kind.Height, name: true, style: PleyType.Title);
+            well = new View { Size = new Size(w, h), CornerRadius = Ui.Dp(PleyShape.TileRadius), BackgroundColor = PleyColors.Surface2 };
             frame.Add(well);
-            if (channel.Number is { } number)
-            {
-                var text = Text.Label(number, PleyType.Badge, PleyColors.Fg);
-                var box = new View
-                {
-                    Position = new Position(Ui.Dp(6), Ui.Dp(6)),
-                    Size = new Size(text.NaturalSize.Width + Ui.Dp(10), Ui.Dp(PleyType.Badge.Line + 4)),
-                    BackgroundColor = PleyColors.OnArt,
-                    CornerRadius = Ui.Dp(PleyShape.BadgeRadius),
-                };
-                text.Size = new Size(box.SizeWidth, box.SizeHeight);
-                text.HorizontalAlignment = HorizontalAlignment.Center;
-                box.Add(text);
-                well.Add(box);
-            }
-            if (channel.Favorite)
-            {
-                var star = Icons.Icon("star", 16, PleyColors.Accent);
-                star.Position = new Position(w - Ui.Dp(6 + 16), Ui.Dp(6));
-                well.Add(star);
-            }
-            var top = h + Ui.Dp(PleyTv.TilesToCaption);
-            name = Text.Label(label, PleyType.Caption, PleyColors.Fg, width: Kind.Width);
-            name.PositionY = top;
-            Add(name);
-            onNow = Text.Label("", PleyType.Caption, PleyColors.Muted, width: Kind.Width);
-            onNow.PositionY = top + Ui.Dp(PleyType.Caption.Line);
-            Add(onNow);
-            Now(now);
+            var captionTop = h + Ui.Dp(PleyTv.TilesToCaption);
+            Add(new View { Position = new Position(0, captionTop + Ui.Dp(3)), Size = new Size(w * 0.6f, Ui.Dp(12)), CornerRadius = Ui.Dp(PleyShape.BadgeRadius), BackgroundColor = PleyColors.Surface2 });
+            Add(new View { Position = new Position(0, captionTop + Ui.Dp(23)), Size = new Size(w * 0.35f, Ui.Dp(12)), CornerRadius = Ui.Dp(PleyShape.BadgeRadius), BackgroundColor = PleyColors.Surface2 });
+            return;
         }
-
-        public LiveChannel? Channel { get; }
-
-        /// <summary>What's on and how far it is, at <paramref name="now"/>.</summary>
-        public void Now(long now)
+        var reach = Ui.Dp(PleyShape.RingOffset + PleyShape.RingStroke / 2);
+        ring = new View
         {
-            if (Disposed || Channel == null || onNow == null) return;
-            Text.Show(onNow, LiveText.OnNowOf(Channel, now));
-            var on = Channel.OnAt(now);
-            // The same programme on: its bar moves in place, rather than made again at each 15 s tick.
-            if (on != null && progress != null && progressOf is { } was && was.Start == on.Start && was.Stop == on.Stop)
-            {
-                if (progress.ChildCount > 0 && progress.GetChildAt(0) is View fill) fill.SizeWidth = Ui.Dp(Kind.Width * on.ProgressAt(now));
-                return;
-            }
-            progress?.Dispose();
-            progress = null;
-            progressOf = on;
-            if (on == null) return;
-            progress = LiveViews.Progress(on, now, Kind.Width, PleyColors.ProgressTrackOnArt);
-            progress.PositionY = Ui.Dp(Kind.Height - 3);
-            well.Add(progress);
-        }
-
-        public void Focus(bool on)
+            Size = new Size(w + 2 * reach, h + 2 * reach),
+            Position = new Position(-reach, -reach),
+            BackgroundColor = Color.Transparent,
+            BorderlineWidth = Ui.Dp(PleyShape.RingStroke),
+            BorderlineColor = PleyColors.AccentBright,
+            BorderlineOffset = -1f,
+            CornerRadius = Ui.Dp(PleyShape.TileRadius) + reach,
+            Opacity = 0,
+        };
+        frame.Add(ring);
+        well = new ChannelLogoView(channel, origin, images, Kind.Width, Kind.Height, name: true, style: PleyType.Title);
+        frame.Add(well);
+        if (channel.Number is { } number)
         {
-            if (Disposed || focused == on) return;
-            focused = on;
-            if (on) RaiseToTop();
-            if (name != null) name.FontStyle = Text.Weight(on ? PleyType.Bold : PleyType.Caption.Weight);
-            var scale = on ? PleyShape.TileScale : 1f;
-            look?.Stop();
-            look = new Animation(on ? PleyMotion.FocusMs : PleyMotion.UnfocusMs)
+            var text = Text.Label(number, PleyType.Badge, PleyColors.Fg);
+            var box = new View
             {
-                DefaultAlphaFunction = new AlphaFunction(on ? AlphaFunction.BuiltinFunctions.EaseOut : AlphaFunction.BuiltinFunctions.EaseIn),
+                Position = new Position(Ui.Dp(6), Ui.Dp(6)),
+                Size = new Size(text.NaturalSize.Width + Ui.Dp(10), Ui.Dp(PleyType.Badge.Line + 4)),
+                BackgroundColor = PleyColors.OnArt,
+                CornerRadius = Ui.Dp(PleyShape.BadgeRadius),
             };
-            look.AnimateTo(frame, "Scale", new Vector3(scale, scale, 1));
-            if (ring != null) look.AnimateTo(ring, "Opacity", on ? 1f : 0f);
-            look.Play();
+            text.Size = new Size(box.SizeWidth, box.SizeHeight);
+            text.HorizontalAlignment = HorizontalAlignment.Center;
+            box.Add(text);
+            well.Add(box);
         }
-
-        protected override void Dispose(DisposeTypes type)
+        if (channel.Favorite)
         {
-            if (Disposed) return;
-            // Only when disposed by the app: collected, the animation may have gone first (Kit/Held.cs).
-            if (type == DisposeTypes.Explicit) look?.Stop();
-            base.Dispose(type);
+            var star = Icons.Icon("star", 16, PleyColors.Accent);
+            star.Position = new Position(w - Ui.Dp(6 + 16), Ui.Dp(6));
+            well.Add(star);
         }
+        var top = h + Ui.Dp(PleyTv.TilesToCaption);
+        name = Text.Label(label, PleyType.Caption, PleyColors.Fg, width: Kind.Width);
+        name.PositionY = top;
+        Add(name);
+        onNow = Text.Label("", PleyType.Caption, PleyColors.Muted, width: Kind.Width);
+        onNow.PositionY = top + Ui.Dp(PleyType.Caption.Line);
+        Add(onNow);
+        Now(now);
+    }
+
+    public LiveChannel? Channel { get; }
+
+    /// <summary>What's on and how far it is, at <paramref name="now"/>.</summary>
+    public void Now(long now)
+    {
+        if (Disposed || Channel == null || onNow == null) return;
+        Text.Show(onNow, LiveText.OnNowOf(Channel, now));
+        var on = Channel.OnAt(now);
+        // The same programme on: its bar moves in place, rather than made again at each 15 s tick.
+        if (on != null && progress != null && progressOf is { } was && was.Start == on.Start && was.Stop == on.Stop)
+        {
+            if (progress.ChildCount > 0 && progress.GetChildAt(0) is View fill) fill.SizeWidth = Ui.Dp(Kind.Width * on.ProgressAt(now));
+            return;
+        }
+        progress?.Dispose();
+        progress = null;
+        progressOf = on;
+        if (on == null) return;
+        progress = LiveViews.Progress(on, now, Kind.Width, PleyColors.ProgressTrackOnArt);
+        progress.PositionY = Ui.Dp(Kind.Height - 3);
+        well.Add(progress);
+    }
+
+    public void Focus(bool on)
+    {
+        if (Disposed || focused == on) return;
+        focused = on;
+        if (on) RaiseToTop();
+        if (name != null) name.FontStyle = Text.Weight(on ? PleyType.Bold : PleyType.Caption.Weight);
+        var scale = on ? PleyShape.TileScale : 1f;
+        look?.Stop();
+        look = new Animation(on ? PleyMotion.FocusMs : PleyMotion.UnfocusMs)
+        {
+            DefaultAlphaFunction = new AlphaFunction(on ? AlphaFunction.BuiltinFunctions.EaseOut : AlphaFunction.BuiltinFunctions.EaseIn),
+        };
+        look.AnimateTo(frame, "Scale", new Vector3(scale, scale, 1));
+        if (ring != null) look.AnimateTo(ring, "Opacity", on ? 1f : 0f);
+        look.Play();
+    }
+
+    protected override void Dispose(DisposeTypes type)
+    {
+        if (Disposed) return;
+        // Only when disposed by the app: collected, the animation may have gone first (Kit/Held.cs).
+        if (type == DisposeTypes.Explicit) look?.Stop();
+        base.Dispose(type);
     }
 }

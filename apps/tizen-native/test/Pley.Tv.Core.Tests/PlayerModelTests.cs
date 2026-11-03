@@ -177,7 +177,8 @@ public class PlayerModelTests
         h.Model.SelectSubtitle(null);
         Assert.Null(h.Model.Picture.Value);
         Assert.Single(h.Source.Bodies);
-        Assert.Equal(new[] { PgsMks }, h.Source.MksAsked);
+        // Asked for once, whole, from where the player was as they were chosen: the start, which is said too.
+        Assert.Equal(new[] { PgsMks + "?at=0" }, h.Source.MksAsked);
     }
 
     /// <summary>

@@ -46,6 +46,7 @@ internal suspend fun keepNewSignIn(
 ): StoredTokens {
     ScopeGuard.check(http, answer, asked, fresh)
     val previous = tokens.install(fresh)
-    if (previous != null && previous.refreshToken != fresh.refreshToken) Tokens.revoke(http, previous)
+    // The sign-in before goes only to the server that proves it holds its key.
+    if (previous != null && previous.refreshToken != fresh.refreshToken && tokens.proves(previous)) Tokens.revoke(http, previous)
     return fresh
 }

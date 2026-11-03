@@ -202,6 +202,20 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   return { codecId: subtitle.codecId, codecPrivate: subtitle.codecPrivate, samples };
 }
 
+/**
+ * Where the Matroska file `bytes` start with ends, when its Segment's size
+ * is written: the server writes its own files whole, FFmpeg writes the size
+ * once it has finished one. `null` for a file still being written (its
+ * Segment of unknown size), or what isn't one.
+ */
+export function matroskaEnd(bytes: Uint8Array): number | null {
+  const r = new Reader(bytes);
+  const header = r.element(0, bytes.length);
+  if (!header || header.id !== ID.EBML || header.size === null) return null;
+  const segment = r.element(header.dataStart + header.size, bytes.length);
+  return segment?.id === ID.Segment && segment.size !== null ? segment.dataStart + segment.size : null;
+}
+
 /** A block's track, absolute time in ticks and its one frame (subtitles are never laced). */
 function block(body: Uint8Array, clusterTime: number): { track: number; time: number; data: Uint8Array } | null {
   const v = vint(body, 0, true);

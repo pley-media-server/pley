@@ -10,7 +10,11 @@ using Pley.Tv.Core.Net;
 namespace Pley.Tv.Core.Auth;
 
 /// <summary>A Pley server that answered at <paramref name="Url"/>.</summary>
-public sealed record ServerInfo(string Url, string Name, string Version);
+/// <param name="TwoStepRequired">
+/// Every account with a password must use two-step sign-in: the phone that approves a code sets it
+/// up for whoever hasn't yet. Servers before it leave it out.
+/// </param>
+public sealed record ServerInfo(string Url, string Name, string Version, bool TwoStepRequired = false);
 
 /// <summary>Why an address isn't a server to sign in to.</summary>
 public abstract record ConnectProblem
@@ -95,7 +99,9 @@ public static class Servers
         var version = Json.String(body, "version");
         if (name == null || string.IsNullOrWhiteSpace(version)) return new Answer(null, null);
         var shown = Plain.Of(name);
-        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!), null);
+        // On only when the server sends true: anything else (a string, a number) reads as off, as on Android.
+        var twoStep = Json.Bool(body, "two_step_required") == true;
+        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!, twoStep), null);
     }
 
     /// <summary>A home address gets 3 s to accept a connection, one on the internet 10 s.</summary>
@@ -104,8 +110,8 @@ public static class Servers
 
     /// <summary>
     /// Asks <paramref name="url"/> whether it is Pley (GET /api/server, no token, no redirect
-    /// followed): its name and version, null when something else answered. Network trouble
-    /// throws <see cref="NetworkException"/>.
+    /// followed): its name and version, and whether it requires two-step sign-in; null when
+    /// something else answered. Network trouble throws <see cref="NetworkException"/>.
     /// </summary>
     public static async Task<ServerInfo?> Probe(Transport http, string url, CancellationToken cancel = default) =>
         (await Ask(http, url, ConnectTimeoutOf(url), ProbeReadMs, cancel).ConfigureAwait(false)).Info;

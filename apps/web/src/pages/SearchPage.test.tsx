@@ -11,7 +11,7 @@ function search(q: string) {
 }
 
 describe("SearchPage", () => {
-  it("groups the results by kind, people first", async () => {
+  it("groups the results by kind, the titles first, people last", async () => {
     const requests = mockApi({
       "GET /api/search": () => ({
         items: [
@@ -26,7 +26,7 @@ describe("SearchPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Results for “heat ”" })).toBeInTheDocument();
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(["People 1", "Movies 2", "Episodes 1"]);
+    expect(headings).toEqual(["Movies 2", "Episodes 1", "People 1"]);
     expect(screen.getByRole("link", { name: /Heath Ledger/ })).toHaveAttribute("href", personUrl(9));
 
     const movies = screen.getByRole("heading", { name: "Movies 2" }).closest("section") as HTMLElement;

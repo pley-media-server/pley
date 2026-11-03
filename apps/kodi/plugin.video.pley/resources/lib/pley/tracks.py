@@ -273,6 +273,15 @@ class Follower:
         self.baseline = None
         self.pending = None
         self.pending_since = 0.0
+        # Whether a turn saw Kodi play audio: none playing after that is a
+        # player stopping or between files, also where the layout lists no
+        # audio (a converted stream's).
+        self.had_audio = False
+        # The account's subtitles when show() left Kodi's off (drawn onto the
+        # video, or a track Kodi doesn't list, as a `.sup` file it couldn't
+        # add): still the choice until the person picks subtitles in Kodi's
+        # player.
+        self.hidden = None
         # Off once Kodi lists a track the layout doesn't know (subtitles
         # added while it plays): its places no longer say pley's tracks.
         self.following = True
@@ -299,11 +308,15 @@ class Follower:
                 self.quiet_until = now + QUIET
             return
         state = current(props)
-        if state[0] is None and (props.get("audiostreams") or self.layout["audio"]):
+        if state[0] is None and (props.get("audiostreams") or self.layout["audio"] or self.had_audio):
             # A player between files, or stopping: nothing to go by.
             return
+        self.had_audio = self.had_audio or state[0] is not None
         if now < self.quiet_until or self.baseline is None:
-            # Where it starts, the account's choice shown.
+            # Where it starts, the account's choice shown. Subtitles turned
+            # on once Kodi took show()'s off are the person's pick.
+            if state[1] is not None and self.baseline is not None and self.baseline[1] is None:
+                self.hidden = None
             self.baseline = state
             return
         if state == self.baseline:
@@ -317,10 +330,20 @@ class Follower:
             self._flush()
 
     def finish(self) -> None:
-        """The playback ended: a change still settling is saved."""
+        """The playback ended: a change that held SETTLE seconds, which no
+        turn came to save, is saved. One still settling isn't, nor one that
+        turned subtitles off: Kodi turns them off as it stops, and the last
+        turn may have seen that."""
         if self.lock.acquire(timeout=1):
             try:
-                self._flush()
+                if self.pending is not None:
+                    state, _ = self.pending
+                    # Subtitles off all along are no part of the change: audio
+                    # changed with them off is saved.
+                    turned_off = state[1] is None and self.baseline is not None and self.baseline[1] is not None
+                    if not turned_off and self.clock() - self.pending_since >= SETTLE:
+                        self._flush()
+                    self.pending = None
             finally:
                 self.lock.release()
 
@@ -329,6 +352,9 @@ class Follower:
             return
         state, body = self.pending
         self.pending = None
+        if state[1] is not None:
+            # Subtitles the person picked: theirs from now on, off too.
+            self.hidden = None
         self.baseline = state
         if body is not None:
             self.save(body)
@@ -362,6 +388,7 @@ class Follower:
             # doesn't list: none rather than Kodi's own.
             at = to_kodi(lay["subtitles"], lay["subtitle_index"], subtitles)
         if at is None:
+            self.hidden = lay["subtitle_index"]
             if props.get("subtitleenabled"):
                 self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": "off"})
         elif at != playing_subtitle:
@@ -369,14 +396,18 @@ class Follower:
         return True
 
     def body(self, state: tuple, props: dict):
-        """PUT /api/items/{id}/streams's body for what Kodi plays (None for a
+        """PUT /api/items/{id}/streams's body for what Kodi plays, the
+        account's subtitles while show() keeps Kodi's off (None for a
         subtitle pley doesn't know, which isn't saved). The audio goes only
         when it was changed: the track playing was the server's choice for
         this Kodi, and another device may play another of that language
         better, so subtitles changed alone keep the audio picked before."""
         lay = self.layout
         audio_at, subtitle_at = state
-        subtitle = None
+        # Off as show() left them: the account's choice, sent as it was.
+        # Leaving it out would save them off too (the server reads none as
+        # off), and the audio changed must still be saved.
+        subtitle = self.hidden
         if subtitle_at is not None:
             subtitle = from_kodi(lay["subtitles"], subtitle_at, props.get("subtitles") or [])
             if subtitle is None:

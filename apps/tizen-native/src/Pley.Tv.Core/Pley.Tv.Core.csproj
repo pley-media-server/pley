@@ -5,6 +5,12 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
+  <!-- A profiling build of the app (scripts/package.mjs, PLEY_TIZEN_METRICS) builds Core with its
+       marks (Marks.cs); any other build leaves them out. -->
+  <PropertyGroup Condition="'$(PleyMetrics)' != ''">
+    <DefineConstants>$(DefineConstants);PROFILE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- No newer than the TV's own copy (.NET 6), which the runtime loads first. -->
     <PackageReference Include="System.Text.Json" Version="6.0.11" />

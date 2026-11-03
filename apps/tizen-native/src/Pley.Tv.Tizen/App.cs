@@ -51,6 +51,8 @@ class App : NUIApplication
         TizenMediaEngine.Covered = () => shell.Covered;
         images = new Images(Current.DirectoryInfo.Cache);
         var made = Profile.Start();
+        // Joining or leaving a network makes the server prove itself again before its next token.
+        Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
         // Pictures come through the API in use, with its token.
@@ -96,6 +98,8 @@ class App : NUIApplication
     protected override void OnResume()
     {
         base.OnResume();
+        // Back from the TV's other apps or standby, maybe on another network.
+        Core.Auth.ServerProofs.NetworkMayHaveChanged();
         shell.Visible(true);
         state.Listen(true);
     }
@@ -216,7 +220,9 @@ class App : NUIApplication
             PageKey.Libraries => new LibrariesScreen(tv, shell, new LibrariesModel(new AppLibrarySource(state), new ContextScheduler()), gate, k => Go(tv, k)),
             PageKey.Library library => new LibraryScreen(tv, shell, new LibraryModel(new AppLibrarySource(state), library, new ContextScheduler()), images, gate, k => Go(tv, k)),
             PageKey.Person person => new PersonScreen(tv, new PersonModel(new AppPersonSource(state), person.PersonId, new ContextScheduler()), images, gate, k => Go(tv, k)),
-            PageKey.Search search => new SearchScreen(tv, shell, new SearchModel(new AppSearchSource(state), new ContextScheduler(), search.Query), images, gate, k => Go(tv, k)),
+            // A channel found plays over the search, which is there again when it's left.
+            PageKey.Search search => new SearchScreen(tv, shell, new SearchModel(new AppSearchSource(state), new ContextScheduler(), search.Query), images, gate, k => Go(tv, k),
+                watch => WatchLive(watch, () => { })),
             // Every movie and show library's collections, whichever library the key names, as the Android TV app has it.
             PageKey.Collections collections => new CollectionsScreen(tv, collections, new CollectionsModel(new AppCollectionSource(state), new ContextScheduler(), only: null), images, gate, k => Go(tv, k)),
             PageKey.Collection collection => new CollectionScreen(tv, new CollectionModel(new AppCollectionSource(state), collection.CollectionId, new ContextScheduler()), images, gate, k => Go(tv, k)),
@@ -230,13 +236,7 @@ class App : NUIApplication
             // What the TV reports when it asks to play, Settings' passthrough choices with it.
             DiagnosticsPage => new DiagnosticsScreen(tv, new DiagnosticsModel(Platform.Version(), () => Task.FromResult(Platform.Facts()), new ContextScheduler(),
                 facts => TizenCaps.Of(facts, state.Settings.Value.Passthrough))),
-            PageKey.LiveTv => new LiveTvScreen(tv, shell, new LiveTvModel(live, new ContextScheduler()), images, gate,
-                (watch, back) =>
-                {
-                    // A channel takes the TV's one media pipeline: the music lets go of it first.
-                    music.YieldToVideo();
-                    new LivePlayerScreen(shell, live, watch, images, gate, back).Show();
-                }),
+            PageKey.LiveTv => new LiveTvScreen(tv, shell, new LiveTvModel(live, new ContextScheduler()), images, gate, WatchLive),
             ArtistPage artist => new ArtistScreen(tv, new ArtistModel(new AppItemSource(state), music, new ContextScheduler(), artist.ArtistId), images, gate, k => Go(tv, k)),
             AlbumPage album => new AlbumScreen(tv, new AlbumModel(new AppItemSource(state), music, new ContextScheduler(), album.AlbumId, album.TrackId), images, gate, k => Go(tv, k)),
             PageKey.NowPlaying => new NowPlayingScreen(tv, shell, new NowPlayingModel(music, state.Server.Value ?? ""), images, gate),
@@ -278,6 +278,14 @@ class App : NUIApplication
         Profile.Ends("Home's data", home);
         // Signed in now (at start, after a sign-in or a profile chosen): the server's events from here.
         state.Listen(true);
+    }
+
+    /// <summary>The live player on <paramref name="watch"/>'s channel, from Live TV or search; <paramref name="back"/> runs as it closes.</summary>
+    void WatchLive(LiveWatch watch, Action back)
+    {
+        // A channel takes the TV's one media pipeline: the music lets go of it first.
+        music.YieldToVideo();
+        new LivePlayerScreen(shell, live, watch, images, gate, back).Show();
     }
 
     /// <summary>Home: a tile opens its item's page, an artist's or album's their music page, a track its album.</summary>

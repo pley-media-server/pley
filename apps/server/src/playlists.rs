@@ -73,8 +73,8 @@ pub struct PlaylistDto {
     pub duration_ms: i64,
     /// Artwork of the first entries, for a mosaic.
     pub artwork: Vec<String>,
-    /// A smart playlist's filter: a listing of `library_id` in Plex's syntax
-    /// (see `crate::plex::smart_items`). `None` for playlists of entries.
+    /// A smart playlist's filter: a listing of `library_id` as a query string
+    /// (see `crate::listing::smart_items`). `None` for playlists of entries.
     pub smart_filter: Option<String>,
     pub library_id: Option<i64>,
     pub created_at: i64,
@@ -136,7 +136,7 @@ async fn owned(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<Playlis
 async fn smart_entries(db: &Db, user: &AuthUser, row: &PlaylistRow) -> sqlx::Result<Vec<(i64, ItemRow)>> {
     let (Some(library_id), Some(filter)) = (row.library_id, row.smart_filter.as_deref()) else { return Ok(Vec::new()) };
     let Some(lib) = crate::library::get_library(db, library_id).await? else { return Ok(Vec::new()) };
-    let found = crate::plex::smart_items(db, user.id, &lib, filter).await?;
+    let found = crate::listing::smart_items(db, user.id, &lib, filter).await?;
     let mut leaves = Vec::new();
     for item in found {
         if leaves.len() as i64 >= MAX_ENTRIES {

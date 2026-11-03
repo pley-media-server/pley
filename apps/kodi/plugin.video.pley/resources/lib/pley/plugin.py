@@ -135,12 +135,13 @@ class Plugin(asking.Asking):
         except api.ApiError as e:
             kodi.log("%s: %s %s" % (route, e.code, e.message), xbmc.LOGWARNING)
             listing_route = self.handle >= 0 and route not in ACTIONS
-            if e.code == "unreachable" and listing_route:
+            if e.code in UNREACHABLE and listing_route:
                 # The server is off or out of reach (the internet needn't be
-                # there: pley works on the home network alone).
-                return self.unreachable()
-            if e.code == "unreachable":
-                message = kodi.text("cant_reach") % self.server_name()
+                # there: pley works on the home network alone), or another
+                # device answers at its address.
+                return self.unreachable(e.code)
+            if e.code in UNREACHABLE:
+                message = away_text(e.code, self.server_name())
             elif e.code == "signed_out":
                 message = kodi.text("signed_out")
             elif e.code == "service_off":
@@ -162,9 +163,10 @@ class Plugin(asking.Asking):
     def server_name(self) -> str:
         return kodi.setting("server_name") or server_setting()
 
-    def unreachable(self) -> None:
-        """What a listing shows when the server doesn't answer."""
-        li = xbmcgui.ListItem(kodi.text("cant_reach") % self.server_name(), offscreen=True)
+    def unreachable(self, code: str = "unreachable") -> None:
+        """What a listing shows when the server doesn't answer, or another
+        device answers at its address."""
+        li = xbmcgui.ListItem(away_text(code, self.server_name()), offscreen=True)
         li.setArt({"icon": "DefaultIconError.png", "thumb": "DefaultIconError.png"})
         li.getVideoInfoTag().setPlot(kodi.text("cant_reach_hint"))
         xbmcplugin.addDirectoryItem(self.handle, self.url(route="retry"), li, isFolder=False)
@@ -190,7 +192,11 @@ class Plugin(asking.Asking):
         except api.ApiError as e:
             # Its list ended already: what went wrong is said, not listed.
             kodi.log("Pley's window: %s %s" % (e.code, e.message), xbmc.LOGWARNING)
-            kodi.notify(kodi.text("cant_reach") % self.server_name() if e.code == "unreachable" else kodi.text("server_error") % e.message, error=True)
+            if e.code in UNREACHABLE:
+                message = away_text(e.code, self.server_name())
+            else:
+                message = kodi.text("server_error") % e.message
+            kodi.notify(message, error=True)
 
     def signed_in(self) -> bool:
         """Whether the add-on is signed in on the chosen server."""
@@ -885,8 +891,10 @@ class Plugin(asking.Asking):
                     # What it may do with requests is the new sign-in's.
                     self.notify_service(forget=True)
                     if previous and previous.get("refresh_token") != record["refresh_token"]:
-                        # The sign-in this one replaces ends on its server too.
-                        auth.revoke(previous, kodi.user_agent())
+                        # The sign-in this one replaces ends on its server
+                        # too, where that server proves it holds its key.
+                        if auth.proves(previous, kodi.user_agent()):
+                            auth.revoke(previous, kodi.user_agent())
                     outcome = signed_in_text(server, tokens["access_token"])
                 elif state == "denied":
                     outcome = kodi.text("code_refused")
@@ -932,6 +940,13 @@ ACTIONS = (
     "retry",
 ) + asking.ACTIONS
 RESOLVING = ("play", "live_play")
+# The server out of reach: nothing answers there, or another device does.
+UNREACHABLE = ("unreachable", "another_device")
+
+
+def away_text(code: str, server: str) -> str:
+    """What the add-on says of `server` out of reach (one of UNREACHABLE)."""
+    return kodi.text("cant_reach" if code == "unreachable" else code) % server
 
 
 def choose(server: str, name: str, server_id: str) -> None:

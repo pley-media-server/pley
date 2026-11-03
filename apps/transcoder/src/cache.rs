@@ -55,26 +55,18 @@ pub struct Pruned {
     pub bytes: u64,
 }
 
-/// Prune the caches every hour, starting shortly after start-up.
-pub fn spawn_janitor(work_dir: PathBuf) {
+/// Prune the caches every hour, starting shortly after start-up (`shared`:
+/// see [`prune_all`]).
+pub fn spawn_janitor(work_dir: PathBuf, shared: bool) {
     tokio::spawn(async move {
         tokio::time::sleep(FIRST_RUN).await;
         let mut tick = tokio::time::interval(EVERY);
         loop {
             tick.tick().await;
             let dir = work_dir.clone();
-            let pruned = tokio::task::spawn_blocking(move || {
-                let now = SystemTime::now();
-                let mut total = Pruned::default();
-                for (folder, policy) in policies(&dir) {
-                    let p = prune(&folder, &policy, now);
-                    total.entries += p.entries;
-                    total.bytes += p.bytes;
-                }
-                total
-            })
-            .await
-            .unwrap_or_default();
+            let pruned = tokio::task::spawn_blocking(move || prune_all(&dir, shared, SystemTime::now()))
+                .await
+                .unwrap_or_default();
             if pruned.entries > 0 {
                 tracing::info!(
                     "cache pruning removed {} entries ({:.1} MB)",
@@ -84,6 +76,25 @@ pub fn spawn_janitor(work_dir: PathBuf) {
             }
         }
     });
+}
+
+/// Prune every cache of `work_dir`. In a work folder other accounts may
+/// write in (`shared`), a cache that became a link or a junction may be
+/// theirs, leading to files that aren't the cache's: it is left as it is.
+/// Elsewhere one is this account's own (the cache kept on another disk), and
+/// pruned. Blocking.
+pub fn prune_all(work_dir: &Path, shared: bool, now: SystemTime) -> Pruned {
+    let mut total = Pruned::default();
+    for (folder, policy) in policies(work_dir) {
+        if shared && std::fs::symlink_metadata(&folder).is_ok_and(|meta| meta.file_type().is_symlink()) {
+            tracing::warn!("{} is a link, not a cache: left as it is", folder.display());
+            continue;
+        }
+        let p = prune(&folder, &policy, now);
+        total.entries += p.entries;
+        total.bytes += p.bytes;
+    }
+    total
 }
 
 /// Prune one cache folder whose entries are files, or folders of files.
@@ -210,5 +221,43 @@ mod tests {
         let pruned = prune(dir.path(), &policy, SystemTime::now());
         assert_eq!(pruned, Pruned { entries: 1, bytes: 110 });
         assert!(!old.exists() && used.exists());
+    }
+
+    /// A folder link at `link` to `target`: a symbolic link, or on Windows a
+    /// junction, which any account may make where it may write.
+    fn link_folder(target: &Path, link: &Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).unwrap();
+        #[cfg(windows)]
+        {
+            let made = std::process::Command::new("cmd")
+                .arg("/C")
+                .arg("mklink")
+                .arg("/J")
+                .arg(link)
+                .arg(target)
+                .stdout(std::process::Stdio::null())
+                .status()
+                .unwrap();
+            assert!(made.success());
+        }
+    }
+
+    #[test]
+    fn a_cache_that_is_a_link_is_pruned_only_where_it_is_this_accounts() {
+        let dir = tempfile::tempdir().unwrap();
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir(&elsewhere).unwrap();
+        let old = file(&elsewhere, "photos.zip", 100, 400 * DAY);
+        let work = dir.path().join("work");
+        std::fs::create_dir(&work).unwrap();
+        link_folder(&elsewhere, &work.join("trickplay"));
+        // Where other accounts may write, the link may be theirs: its files
+        // aren't the cache's to prune, however old.
+        assert_eq!(prune_all(&work, true, SystemTime::now()), Pruned::default());
+        assert!(old.exists());
+        // Elsewhere it is this account's, keeping the cache on another disk.
+        assert_eq!(prune_all(&work, false, SystemTime::now()).entries, 1);
+        assert!(!old.exists());
     }
 }

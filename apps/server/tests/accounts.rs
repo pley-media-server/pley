@@ -639,9 +639,10 @@ async fn pages_and_answers_carry_the_security_headers() {
         assert_eq!(header("x-frame-options"), "DENY", "{uri}");
         assert_eq!(header("referrer-policy"), "same-origin", "{uri}");
     }
-    let plex = app.plex(Method::GET, "/identity", "", &[]).await;
-    assert_eq!(plex.headers["x-content-type-options"], "nosniff");
-    assert_eq!(plex.headers["x-frame-options"], "DENY");
+    let jellyfin = app.jf(Method::GET, "/System/Info/Public", "", None).await;
+    assert_eq!(jellyfin.headers["x-content-type-options"], "nosniff");
+    assert_eq!(jellyfin.headers["x-frame-options"], "DENY");
+    assert!(jellyfin.headers["content-security-policy"].to_str().unwrap().contains("sandbox"));
 }
 
 #[tokio::test]

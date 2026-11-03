@@ -557,9 +557,16 @@ fn aad(user_id: i64) -> [u8; 16] {
     aad
 }
 
+/// A key of its own for `purpose`, derived from the server's key in
+/// `secret.key`: [`crate::bandwidth`]'s and [`crate::identity`]'s.
+pub(crate) fn derived_key(secret: &[u8], purpose: &[u8]) -> hmac::Key {
+    let derived = hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, secret), purpose);
+    hmac::Key::new(hmac::HMAC_SHA256, derived.as_ref())
+}
+
 /// The key in `path`, made on first use. A file that isn't a key is left
 /// alone: replacing it would lose every secret sealed with it. Other keys
-/// the server holds are derived from it ([`crate::bandwidth`]'s).
+/// the server holds are derived from it ([`derived_key`]).
 pub(crate) fn load_key(path: &Path) -> Result<[u8; 32], String> {
     match std::fs::read_to_string(path) {
         Ok(text) => hex::decode(text.trim())

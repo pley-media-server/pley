@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
+using Pley.Tv.Core.Net;
 using Pley.Tv.Core.Ui;
 using Xunit;
 
@@ -50,6 +53,16 @@ public class LinkModelTests
         }
 
         public Task<string?> SignedIn(string server) => Task.FromResult(Name);
+
+        /// <summary>What the server says of two-step sign-in, once the test answers.</summary>
+        public TaskCompletionSource<bool> TwoStep { get; } = new TaskCompletionSource<bool>();
+        public List<string> AskedTwoStep { get; } = new List<string>();
+
+        public Task<bool> TwoStepRequired(string server)
+        {
+            AskedTwoStep.Add(server);
+            return TwoStep.Task;
+        }
     }
 
     static (LinkModel Model, FakeSource Source, FakeScheduler Clock) Link()
@@ -136,6 +149,55 @@ public class LinkModelTests
         Assert.False(done);
         clock.Advance(LinkModel.SignedInMs);
         Assert.True(done);
+    }
+
+    [Fact]
+    public void Says_when_the_server_requires_two_step_sign_in()
+    {
+        var (model, source, _) = Link();
+        Assert.False(model.State.Value.TwoStepRequired);
+        model.Started();
+        // The code didn't wait for the answer.
+        Assert.Equal("BCDF-GHJK", model.State.Value.Code!.UserCode);
+        Assert.IsType<LinkStatus.Waiting>(model.State.Value.Status);
+        source.TwoStep.SetResult(true);
+        Assert.True(model.State.Value.TwoStepRequired);
+        Assert.IsType<LinkStatus.Waiting>(model.State.Value.Status);
+        Assert.Equal(new[] { Server }, source.AskedTwoStep);
+        Assert.Equal("This server requires two-step sign-in: your phone sets it up if you haven't yet.", LinkText.TwoStepRequired);
+    }
+
+    [Fact]
+    public void Says_nothing_of_two_step_sign_in_otherwise()
+    {
+        // Not required, or a server from before it.
+        var (notRequired, source, _) = Link();
+        source.TwoStep.SetResult(false);
+        Assert.False(notRequired.State.Value.TwoStepRequired);
+        // No answer.
+        var (unreachable, other, _) = Link();
+        other.TwoStep.SetException(new UnreachableException());
+        Assert.False(unreachable.State.Value.TwoStepRequired);
+        Assert.Single(other.AskedTwoStep);
+    }
+
+    static AppState App(FakeServer server) =>
+        new AppState(new AppPlatform("tizen", "client", new MemoryKeyValue()), server.Transport, (_, _, _, _, _) => Task.FromResult(new EventEnd(0, false)), new FakeScheduler());
+
+    [Fact]
+    public async Task The_app_asks_the_server_and_a_profiles_approval_doesnt()
+    {
+        const string Home = "https://pley.example.com";
+        var server = new FakeServer().On("GET", Home + "/api/server", 200, @"{""name"":""Home"",""version"":""0.1.0"",""two_step_required"":true}");
+        var app = App(server);
+        Assert.True(await new AppLinkSource(app).TwoStepRequired(Home));
+        Assert.Single(server.Requests);
+        // A profile's approval is about the household, not the server's sign-in.
+        Assert.False(await new AppLinkSource(app, 3).TwoStepRequired(Home));
+        Assert.False(await new AppLinkSource(app, 0).TwoStepRequired(Home));
+        Assert.Single(server.Requests);
+        // A server out of reach says nothing of it.
+        Assert.False(await new AppLinkSource(App(new FakeServer())).TwoStepRequired(Home));
     }
 
     [Fact]

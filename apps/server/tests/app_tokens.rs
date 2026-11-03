@@ -1,7 +1,7 @@
 //! Apps' tokens (src/auth/grants.rs) open only the routes their scopes allow
 //! (src/auth/scopes.rs), and only from `Authorization: Bearer`: every route
 //! of api/mod.rs is classified, an administrator's app administers nothing,
-//! and the Plex-compatible API refuses them.
+//! and the Jellyfin-compatible API refuses them.
 
 mod common;
 
@@ -59,7 +59,12 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("DELETE", "/api/me/devices/{id}"),
     ("GET", "/api/me/apps"),
     ("DELETE", "/api/me/apps/{id}"),
+    ("GET", "/api/me/compatibility-tokens"),
+    ("POST", "/api/me/compatibility-tokens"),
+    ("DELETE", "/api/me/compatibility-tokens/{id}"),
     ("GET", "/api/activity"),
+    // Apps have their keys in their token answers.
+    ("GET", "/api/server/proof-key"),
 ];
 
 /// Administration.
@@ -112,7 +117,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("POST", "/api/settings/arr"),
     ("GET", "/api/network"),
     ("PUT", "/api/network"),
-    ("GET", "/api/fs"),
+    ("POST", "/api/fs"),
     ("GET", "/api/live/settings"),
     ("PUT", "/api/live/settings"),
     ("GET", "/api/live/sources"),
@@ -473,35 +478,36 @@ async fn app_tokens_go_only_in_the_authorization_header() {
 }
 
 #[tokio::test]
-async fn the_plex_api_refuses_app_tokens() {
+async fn the_jellyfin_api_refuses_app_tokens() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
+    let tool = app.compatibility_token(&admin, "play").await;
     let (token, _) = app.app_token(1, "library play playlists profiles").await;
-    assert_eq!(app.plex(Method::GET, "/library/sections", &admin, &[]).await.status, StatusCode::OK);
-    assert_eq!(app.plex(Method::GET, "/library/sections", &token, &[]).await.status, StatusCode::UNAUTHORIZED);
-    let plex = |uri: String, headers: Vec<(&'static str, String)>| {
-        let mut req = Request::builder().uri(uri).header(header::ACCEPT, "application/json");
+    assert_eq!(app.jf(Method::GET, "/UserViews", &tool, None).await.status, StatusCode::OK);
+    assert_eq!(app.jf(Method::GET, "/UserViews", &token, None).await.status, StatusCode::UNAUTHORIZED);
+    let jellyfin = |uri: String, headers: Vec<(&'static str, String)>| {
+        let mut req = Request::builder().uri(uri);
         for (name, value) in headers {
             req = req.header(name, value);
         }
-        app.plex.clone().oneshot(req.body(Body::empty()).unwrap())
+        app.jellyfin.clone().oneshot(req.body(Body::empty()).unwrap())
     };
     for (uri, headers) in [
-        (format!("/library/sections?X-Plex-Token={token}"), vec![]),
-        ("/library/sections".to_owned(), vec![("authorization", format!("Bearer {token}"))]),
-        ("/library/sections".to_owned(), vec![("x-pley-token", token.clone())]),
-        (format!("/library/sections?token={token}"), vec![]),
-        // Not even next to a session token.
-        ("/library/sections".to_owned(), vec![("x-plex-token", token.clone()), ("x-pley-token", admin.clone())]),
+        (format!("/UserViews?api_key={token}"), vec![]),
+        ("/UserViews".to_owned(), vec![("authorization", format!("Bearer {token}"))]),
+        ("/UserViews".to_owned(), vec![("x-emby-token", token.clone())]),
+        ("/UserViews".to_owned(), vec![("authorization", format!(r#"MediaBrowser Token="{token}""#))]),
+        // Not even next to a compatibility token: the header is read first.
+        (format!("/UserViews?api_key={tool}"), vec![("x-emby-token", token.clone())]),
     ] {
-        let resp = plex(uri.clone(), headers).await.unwrap();
+        let resp = jellyfin(uri.clone(), headers).await.unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{uri}");
     }
-    // The notification socket, before upgrading.
-    let socket = app.plex(Method::GET, "/:/websockets/notifications", &token, &[]).await;
+    // The socket, before upgrading.
+    let socket = app.jf(Method::GET, &format!("/socket?api_key={token}"), "", None).await;
     assert_eq!(socket.status, StatusCode::UNAUTHORIZED);
-    let socket = app.plex(Method::GET, "/:/websockets/notifications", &admin, &[]).await;
-    assert_ne!(socket.status, StatusCode::UNAUTHORIZED, "a session gets as far as the upgrade");
+    let socket = app.jf(Method::GET, &format!("/socket?api_key={tool}"), "", None).await;
+    assert_ne!(socket.status, StatusCode::UNAUTHORIZED, "a compatibility token gets as far as the upgrade");
 }
 
 // ------------------------------------------------------------------ rights
@@ -613,12 +619,17 @@ async fn apps_and_non_administrators_dont_see_folders_or_file_paths() {
     assert_eq!(app.get("/api/libraries", &viewer).await.body[0]["paths"], json!([]));
     let detail = app.get(&format!("/api/items/{film}"), &viewer).await;
     assert_eq!(detail.body["files"][0]["path"], "Film (2020).mkv");
-    let sections = app.plex_json("/library/sections", &viewer).await;
-    assert_eq!(sections["Directory"][0]["Location"][0]["path"], "movies");
-    let item = app.plex_json(&format!("/library/metadata/{film}"), &viewer).await;
-    assert_eq!(item["Metadata"][0]["Media"][0]["Part"][0]["file"], "Film (2020).mkv");
-    let sections = app.plex_json("/library/sections", &admin).await;
-    assert_eq!(sections["Directory"][0]["Location"][0]["path"], json!(folder), "administrators see where");
+    // Jellyfin's apps are shown files' names, administrators' too.
+    for token in [&viewer, &admin] {
+        let item = app.jf_json(&format!("/Items/{}", app.jf_item(film)), token).await;
+        assert_eq!(
+            (&item["Path"], &item["MediaSources"][0]["Path"]),
+            (&json!("/Film (2020).mkv"), &json!("/Film (2020).mkv"))
+        );
+        let views = app.jf(Method::GET, "/UserViews", token, None).await;
+        assert!(!views.mentions(&folder.replace('\\', "\\\\")) && !views.mentions(&folder), "{}", views.text());
+        assert!(!item.to_string().contains(&folder.replace('\\', "\\\\")));
+    }
 }
 
 #[tokio::test]
@@ -766,7 +777,7 @@ async fn an_apps_event_stream_ends_when_its_grant_does() {
 }
 
 #[tokio::test]
-async fn plex_session_files_refuse_app_sessions_and_disabled_accounts() {
+async fn jellyfin_session_files_are_its_tokens_while_they_work() {
     use pley::playback::{Method as Play, Session, TranscodeSpec};
 
     let app = TestApp::new().await;
@@ -775,7 +786,7 @@ async fn plex_session_files_refuse_app_sessions_and_disabled_accounts() {
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let film = app.ids(movies, &admin).await["Film"];
     let file = app.file_of(film).await;
-    let (_, bob) = app.user(&admin, "bob", json!({})).await;
+    let (bob_session, bob) = app.user(&admin, "bob", json!({})).await;
     let (token, _) = app.app_token(bob, "play").await;
 
     // Playback an app starts is marked with its grant.
@@ -789,29 +800,43 @@ async fn plex_session_files_refuse_app_sessions_and_disabled_accounts() {
     assert_eq!(session_of(&by_app).app_grant, Some(grant));
     assert_eq!(session_of(&by_session).app_grant, None);
 
-    // Transcode sessions, as the transcoder would have started them.
-    let transcode = |user: i64, grant: Option<i64>| {
+    // Transcode sessions, as the transcoder would have started them for a
+    // compatibility token, an app or Pley's own player.
+    let transcode = |user: i64, grant: Option<i64>, compatibility: Option<i64>| {
         let spec = TranscodeSpec { request: Default::default(), segment_count: 1, duration_ms: 1000 };
         let mut session =
             Session::new(user, "u".into(), None, film, file, Play::Transcode, 1000, Some(spec), Some("job".into()), 0);
         session.app_grant = grant;
+        session.compatibility_token = compatibility;
         app.state.sessions.insert(session).id.clone()
     };
-    let plex_file = |session: String| {
-        let req = Request::builder()
-            .uri(format!("/video/:/transcode/universal/session/{session}/base/index.m3u8"))
-            .body(Body::empty())
-            .unwrap();
-        let plex = app.plex.clone();
-        async move { plex.oneshot(req).await.unwrap().status() }
+    app.compatibility_token(&bob_session, "play").await;
+    let tool: i64 = sqlx::query_scalar("SELECT id FROM compatibility_tokens WHERE user_id = ?")
+        .bind(bob)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let item = app.jf_item(film);
+    let session_file = |session: String| {
+        let req =
+            Request::builder().uri(format!("/Videos/{item}/hls1/{session}/index.m3u8")).body(Body::empty()).unwrap();
+        let jellyfin = app.jellyfin.clone();
+        async move { jellyfin.oneshot(req).await.unwrap().status() }
     };
-    let bobs = transcode(bob, None);
-    let apps = transcode(bob, Some(grant));
+    let bobs = transcode(bob, None, Some(tool));
     // No transcoder runs here: it gets as far as asking it.
-    assert_ne!(plex_file(bobs.clone()).await, StatusCode::NOT_FOUND);
-    assert_eq!(plex_file(apps).await, StatusCode::NOT_FOUND, "an app's session");
+    assert_ne!(session_file(bobs.clone()).await, StatusCode::NOT_FOUND);
+    assert_eq!(session_file(transcode(bob, Some(grant), None)).await, StatusCode::NOT_FOUND, "an app's session");
+    assert_eq!(session_file(transcode(bob, None, None)).await, StatusCode::NOT_FOUND, "Pley's own player's");
+    let admin_id = app.get("/api/auth/me", &admin).await.body["id"].as_i64().unwrap();
+    assert_eq!(session_file(transcode(admin_id, None, Some(tool))).await, StatusCode::NOT_FOUND, "someone else's");
     sqlx::query("UPDATE users SET disabled = 1 WHERE id = ?").bind(bob).execute(&app.state.db.write).await.unwrap();
-    assert_eq!(plex_file(bobs).await, StatusCode::NOT_FOUND, "a disabled account's session");
+    assert_eq!(session_file(bobs.clone()).await, StatusCode::NOT_FOUND, "a disabled account's session");
+    sqlx::query("UPDATE users SET disabled = 0 WHERE id = ?").bind(bob).execute(&app.state.db.write).await.unwrap();
+    assert_ne!(session_file(bobs.clone()).await, StatusCode::NOT_FOUND);
+    let revoked = app.delete(&format!("/api/me/compatibility-tokens/{tool}"), &bob_session).await;
+    assert_eq!(revoked.status, StatusCode::NO_CONTENT);
+    assert_eq!(session_file(bobs).await, StatusCode::NOT_FOUND, "a revoked token's session");
 }
 
 // ------------------------------------------------------------------ the tables

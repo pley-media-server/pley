@@ -413,8 +413,6 @@ internal fun TvPlayerScreen(
                 ui = ui,
                 alpha = controlsAlpha,
                 onPlayPause = ::playPause,
-                onBack10 = { seeker.press(-1) },
-                onForward10 = { seeker.press(1) },
                 onPrevious = ::previous,
                 onNext = ::next,
             )

@@ -47,3 +47,18 @@ sub test_tokens_from_an_answer_keep_their_endpoints()
     tkEqual(tokens.expiresAt, 3700)
     tkEqual(tokens.revocationEndpoint, "http://pley.local:7539/api/oauth/revoke")
 end sub
+
+sub test_tokens_keep_their_servers_proof_key()
+    section = tkRegistrySection()
+    keys = { serverId: "0123456789abcdef0123456789abcdef01234567", proofId: "17", proofKey: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE" }
+    pair = tokensTestPair("pley_at_1", "pley_rt_1")
+    pair.proof = keys
+    tokensSave(section, pair)
+    tkEqual(tokensLoad(section, "http://nas:7539").proof, keys)
+    ' A refresh keeps the sign-in's key whatever its answer brings; one from
+    ' before keys gets its key.
+    other = { ok: true, access: "pley_at_2", refresh: "pley_rt_2", expiresAt: 1, scope: "library", proof: { serverId: "x", proofId: "18", proofKey: "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk" } }
+    tkEqual(tokensFrom(other, "http://nas:7539", "t", "r", pair).proof, keys)
+    tkEqual(tokensFrom(other, "http://nas:7539", "t", "r", tokensTestPair("pley_at_1", "pley_rt_1")).proof, other.proof)
+    tkInvalid(tokensFrom({ ok: true, access: "a", refresh: "r", expiresAt: 1, scope: "library" }, "http://nas:7539", "t", "r").proof)
+end sub

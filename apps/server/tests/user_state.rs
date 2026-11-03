@@ -1,7 +1,7 @@
 //! A user's watch state reaching their other devices (docs/API.md,
 //! "Activity & events"): `user_state_changed` when something is watched or
 //! unwatched, a resume point starts, settles or ends, or a title leaves
-//! Continue Watching, through pley's API and the Plex-compatible one; never
+//! Continue Watching, through pley's API and the Jellyfin-compatible one; never
 //! for the reports that only keep the place.
 
 mod common;
@@ -160,40 +160,37 @@ async fn marks_are_told_once_whatever_they_cover() {
 }
 
 #[tokio::test]
-async fn plex_clients_marks_and_reports_are_told_too() {
+async fn jellyfin_clients_marks_and_reports_are_told_too() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
+    // Players report where they are, not how long the title is.
+    sqlx::query("UPDATE items SET duration_ms = 100000").execute(&app.state.db.write).await.unwrap();
     let mut events = app.state.events.subscribe();
-    let plex = |uri: String| async move {
-        let client = [("x-plex-client-identifier", "living-room")];
-        let reply = app.plex(Method::GET, &uri, admin, &client).await;
-        assert_eq!(reply.status, StatusCode::OK, "{uri}: {}", reply.text());
+    let jellyfin = |method: Method, uri: String, body: Option<Value>| async move {
+        let reply = app.jf(method, &uri, admin, body).await;
+        assert!(reply.status.is_success(), "{uri}: {}", reply.text());
     };
 
-    // Scrobbling a season marks its episodes: one event.
-    plex(format!("/:/scrobble?key={}&identifier=com.plexapp.plugins.library", w.season)).await;
+    // Marking a season played marks its episodes: one event.
+    jellyfin(Method::POST, format!("/UserPlayedItems/{}", app.jf_item(w.season)), None).await;
     assert_eq!(heard(&mut events), [(vec![w.season, w.show], true)]);
-    // Scrobbled again: nothing changes.
-    plex(format!("/:/scrobble?key={}&identifier=com.plexapp.plugins.library", w.pilot)).await;
+    // Marked again: nothing changes.
+    jellyfin(Method::POST, format!("/UserPlayedItems/{}", app.jf_item(w.pilot)), None).await;
     assert!(heard(&mut events).is_empty());
-    plex(format!("/:/unscrobble?key={}&identifier=com.plexapp.plugins.library", w.pilot)).await;
+    jellyfin(Method::DELETE, format!("/UserPlayedItems/{}", app.jf_item(w.pilot)), None).await;
     assert_eq!(heard(&mut events), [(vec![w.pilot, w.season, w.show], false)]);
 
-    // A player's timeline: a resume point starts, ticks keep the place, the
+    // A player's reports: a resume point starts, ticks keep the place, the
     // stop settles it.
-    for (time, state) in [(5_000, "playing"), (20_000, "playing"), (30_000, "playing"), (35_000, "stopped")] {
-        plex(format!("/:/timeline?ratingKey={}&state={state}&time={time}&duration=100000", w.film)).await;
+    let film = app.jf_item(w.film);
+    for (ms, path) in [(5_000, ""), (20_000, "/Progress"), (30_000, "/Progress"), (35_000, "/Stopped")] {
+        let body = json!({"ItemId": film, "PositionTicks": ms * 10_000});
+        jellyfin(Method::POST, format!("/Sessions/Playing{path}"), Some(body)).await;
     }
     assert_eq!(heard(&mut events), [(vec![w.film], false), (vec![w.film], false)]);
-    plex(format!("/:/timeline?ratingKey={}&state=playing&time=95000&duration=100000", w.film)).await;
+    let body = json!({"ItemId": film, "PositionTicks": 95_000 * 10_000_i64});
+    jellyfin(Method::POST, "/Sessions/Playing/Progress".into(), Some(body)).await;
     assert_eq!(heard(&mut events), [(vec![w.film], false)]);
-
-    // Taken out of Continue Watching.
-    plex(format!("/:/timeline?ratingKey={}&state=stopped&time=50000&duration=100000", w.pilot)).await;
-    heard(&mut events);
-    let remove = format!("/actions/removeFromContinueWatching?ratingKey={}", w.pilot);
-    assert_eq!(app.plex(Method::PUT, &remove, admin, &[]).await.status, StatusCode::OK);
-    assert_eq!(heard(&mut events), [(vec![w.show], false)]);
 }
 
 #[tokio::test]

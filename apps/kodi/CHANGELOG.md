@@ -8,6 +8,48 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Search shows movies, shows and episodes first, then music, then Live
+  TV, then people, the closest matches first in each.
+
+## [0.1.3] - 2026-11-02
+
+### Changed
+
+- Starting a stream with VobSub or DVB subtitles no longer has the server
+  copy them out of the film for nothing: Kodi has them drawn onto the
+  video, and on a network share the copy could read the whole film.
+  Needs a server from the same release.
+
+### Fixed
+
+- Stopping a show or movie no longer turns its subtitles off for the next
+  time: Kodi turns them off as it stops, and that could be saved as the
+  choice. A track changed in Kodi's player is saved once it has held 2
+  seconds, so one changed just before stopping isn't.
+- Changing the audio no longer turns a show's or movie's subtitles off for
+  the next time when Kodi couldn't show them (PGS whose file didn't load):
+  the add-on turns them off then, and that was saved with the audio.
+
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one Kodi signed in to, at that address: the access token waits for a
+  proof made on this network within the half hour, the refresh token, a
+  profile's PIN and signing out for one made then. Another device at the
+  address on another network gets nothing, nor does one passing the
+  challenge on to the server from elsewhere; Pley says another device
+  answers at the server's address. One that takes the address on Kodi's own
+  network may get an access token (an hour's) within the half hour, never
+  the refresh token. A sign-in from before starts checking within the hour,
+  as its token is renewed.
+- After Change server, a request still waiting on the server left behind
+  is never sent there again with the new server's token: when that server
+  refuses its token, it gets nothing more and the request ends signed out.
+- The server left behind can't sign the add-on out of the new one either,
+  by refusing late a token renewal it held.
+
 ## [0.1.2] - 2026-11-02
 
 ### Fixed
@@ -115,7 +157,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02.2...HEAD
+[0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
 [0.1.1]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01
 [0.1.0]: https://github.com/pley-media-server/pley/tree/94985f768f39f4a230060cb47af9498ee8779ddf

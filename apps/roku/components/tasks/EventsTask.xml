@@ -11,6 +11,10 @@
         <!-- The token the server refused (it ran out while nothing else
              asked the server): the scene has it renewed. -->
         <field id="tokenRefused" type="string" alwaysNotify="true" />
+        <!-- The token of a stream that failed or ended: the scene has the
+             API task ask the server, so that when nothing answers the token
+             waits for the server to prove itself again. -->
+        <field id="failed" type="string" alwaysNotify="true" />
         <!-- Each ServerEvent as it comes. -->
         <field id="event" type="assocarray" alwaysNotify="true" />
         <!-- The stream is up: the server answered, and tells what changes.

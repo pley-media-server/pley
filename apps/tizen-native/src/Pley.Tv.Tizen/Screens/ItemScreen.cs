@@ -43,6 +43,7 @@ sealed class ItemScreen : ShellPage
     bool inSections;
     bool summaryCut;
     Animation? reveal;
+    Animation? reading;
     string shownKind = "";
 
     /// <param name="layers">The app's sheets, for the side panels and dialogs.</param>
@@ -460,7 +461,13 @@ sealed class ItemScreen : ShellPage
         if (ItemText.HasDetails(page))
         {
             var details = new ItemDetailsView(page, model.ChooseVersion);
-            details.Group.Exit = d => d == Direction.Left ? Scrolling.Left(gate, Shell.FocusRail) : d is Direction.Right or Direction.Down;
+            details.Group.Exit = d =>
+            {
+                if (d == Direction.Up) details.Rest();
+                return d == Direction.Left ? Scrolling.Left(gate, Shell.FocusRail) : d is Direction.Right or Direction.Down;
+            };
+            // Reading on through the details, the info block steps aside: the text has the screen.
+            details.Reading += on => Fade(infoBlock, on ? 0f : 1f);
             column.Add(details, details.Group);
         }
         body.Add(column);
@@ -510,6 +517,15 @@ sealed class ItemScreen : ShellPage
         {
             episodeRest.Start();
         }
+    }
+
+    /// <summary>The info block steps aside while reading on through the details, and back after.</summary>
+    void Fade(View view, float to)
+    {
+        reading?.Stop();
+        reading = new Animation(PleyMotion.RevealMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
+        reading.AnimateTo(view, "Opacity", to);
+        reading.Play();
     }
 
     void SetInSections(bool on)

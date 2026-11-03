@@ -99,7 +99,8 @@ public sealed record PlaylistDetail : Playlist
 {
     public IReadOnlyList<PlaylistEntry> Entries { get; init; } = new PlaylistEntry[0];
 }
-public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People);
+/// <summary>Live TV's <see cref="Channels"/> (up to 12) by name, number or what's on, for those it's open to; none from a server without it.</summary>
+public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People, IReadOnlyList<LiveChannel>? Channels = null);
 public sealed record CollectionRef(long Id, string Title);
 public sealed record ItemCollectionsAnswer(IReadOnlyList<CollectionRef> Collections);
 public sealed record AddedAnswer(long Added);
@@ -168,34 +169,59 @@ public sealed class Api
     public async Task<HttpResponse> Send(string path, string method = "GET", object? body = null, IEnumerable<KeyValuePair<string, object?>>? query = null,
         CancellationToken cancel = default, int? timeoutMs = null, ResponseType responseType = ResponseType.Json, Action<long>? onProgress = null, string? accept = null)
     {
-        var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-        var res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, token, accept).ConfigureAwait(false);
-        if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+        HttpResponse res;
+        try
         {
-            var fresh = await Refreshed(token).ConfigureAwait(false);
-            // Once: a 401 after a refresh is the answer.
-            if (fresh != null) res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, fresh, accept).ConfigureAwait(false);
+            var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
+            res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, token, accept).ConfigureAwait(false);
+            if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+            {
+                var fresh = await Refreshed(token).ConfigureAwait(false);
+                // Once: a 401 after a refresh is the answer.
+                if (fresh != null) res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, fresh, accept).ConfigureAwait(false);
+            }
+        }
+        catch (NetworkException e) when (!e.Cancelled && OwnServer(path))
+        {
+            Unanswered();
+            throw;
         }
         if (res.Status >= 200 && res.Status < 300) return res;
         throw ToError(res);
     }
 
     /// <summary>
+    /// A request to the server got no answer: the TV may be on another network now, so what
+    /// answers at the address next proves it is the server before a token goes.
+    /// </summary>
+    void Unanswered() => tokens.DoubtServer();
+
+    /// <summary>
     /// GET <paramref name="path"/> with the token, its body read as it comes for as long as it lasts
     /// (a live channel's MPEG-TS); refused, an <see cref="ApiException"/>, as <see cref="Send"/>'s.
+    /// The server may stay silent <paramref name="timeoutMs"/> before it answers (null: the API's).
     /// </summary>
-    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*")
+    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*", int? timeoutMs = null)
     {
-        var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-        var res = await OpenOnce(path, token, cancel, accept).ConfigureAwait(false);
-        if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+        StreamResponse res;
+        try
         {
-            var fresh = await Refreshed(token).ConfigureAwait(false);
-            if (fresh != null)
+            var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
+            res = await OpenOnce(path, token, cancel, accept, timeoutMs).ConfigureAwait(false);
+            if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
             {
-                res.Dispose();
-                res = await OpenOnce(path, fresh, cancel, accept).ConfigureAwait(false);
+                var fresh = await Refreshed(token).ConfigureAwait(false);
+                if (fresh != null)
+                {
+                    res.Dispose();
+                    res = await OpenOnce(path, fresh, cancel, accept, timeoutMs).ConfigureAwait(false);
+                }
             }
+        }
+        catch (NetworkException e) when (!e.Cancelled && OwnServer(path))
+        {
+            Unanswered();
+            throw;
         }
         if (res.Status >= 200 && res.Status < 300) return res;
         using (res)
@@ -209,11 +235,11 @@ public sealed class Api
         }
     }
 
-    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel, string accept)
+    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel, string accept, int? timeoutMs)
     {
         var headers = new Dictionary<string, string> { ["Accept"] = accept };
         if (OwnServer(path)) headers["Authorization"] = "Bearer " + token;
-        return streams(new HttpRequest { Url = Url(path), Headers = headers, Cancel = cancel });
+        return streams(new HttpRequest { Url = Url(path), Headers = headers, Cancel = cancel, TimeoutMs = timeoutMs ?? Transports.ReadTimeoutMs });
     }
 
     /// <summary>
@@ -467,18 +493,25 @@ public sealed class Api
     /// <summary>
     /// The server's .mks of picture subtitle track <paramref name="url"/>
     /// (<c>/api/files/{id}/subtitles/{n}.mks</c>). The server reads the whole file to make it the
-    /// first time, minutes for a big one on a network share, so it may stay silent for 15; an
-    /// answer marked <c>X-Pley-Complete: 0</c> is a part, to ask for again. An older server
-    /// answers 404, an older transcoder 503.
+    /// first time, minutes for a big one on a network share, so it may stay silent before it
+    /// answers: <see cref="PicturesTimeoutMs"/>. An answer marked <c>X-Pley-Complete: 0</c> is a
+    /// part, to ask for again. An older server answers 404, an older transcoder 503.
     /// </summary>
     public async Task<SubtitlePictures> PictureSubtitles(string url, CancellationToken cancel = default)
     {
         // Read as it comes into one array of its length: gathered in a growing buffer and copied
         // out, a film's track took three times its size of .NET's heap, tens of MB on a 32-bit TV.
-        using var res = await Open(url, cancel, "video/x-matroska").ConfigureAwait(false);
+        using var res = await Open(url, cancel, "video/x-matroska", PicturesTimeoutMs).ConfigureAwait(false);
         var bytes = await ReadAll(res, cancel).ConfigureAwait(false);
         return new SubtitlePictures(bytes, (res.Header("X-Pley-Complete") ?? "").Trim() != "0");
     }
+
+    /// <summary>
+    /// How long the server may stay silent before it answers with a picture track's .mks: a minute,
+    /// as Android's subtitles client allows. The API's 10 s left a track the server was still
+    /// making "couldn't be loaded".
+    /// </summary>
+    public const int PicturesTimeoutMs = 60_000;
 
     /// <summary>The whole body of <paramref name="res"/>: into one array when its length is said, else gathered.</summary>
     static async Task<byte[]> ReadAll(StreamResponse res, CancellationToken cancel)

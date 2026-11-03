@@ -242,11 +242,11 @@ bun run --cwd apps/tizen build       # only the app's dist/; --dev keeps it read
   Tizen Studio is deprecated), found through `TIZEN_STUDIO` or `tizen` on
   the PATH, and a security profile named by `PLEY_TIZEN_PROFILE` (default
   `pley-dev`).
-- **Icons:** `bun scripts/render-icons.mjs` draws the 512×423 icons. One
-  TV may have more than one of Pley's Samsung apps, so the native app's
-  icon is plain, the web app's says WEB on blue, and a profiling build of
-  the native app (an app of its own, `app.pley.tizen.debug`, "Pley
-  (debug)") says DEBUG on yellow.
+- **Icons:** `bun scripts/render-icons.mjs` draws Samsung's icons, square
+  as the TV's menu draws its other apps. One TV may have more than one of
+  Pley's Samsung apps, so the native app's icon is plain, the web app's says
+  WEB on blue, and a profiling build of the native app (an app of its own,
+  `app.pley.tizen.debug`, "Pley (debug)") says DEBUG on yellow.
 
 ### Testing without a TV
 
@@ -262,7 +262,7 @@ its packages into the SDK by hand and it runs on WHPX.
 
 | Path | What |
 |---|---|
-| `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs |
+| `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs, the server's proof before a token goes ([Telling servers apart](API.md#telling-servers-apart)) |
 | `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile); what the app's shell provides |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
@@ -317,7 +317,10 @@ and field reports:
   Vorbis, PCM. **No DTS**, decoded or passed through. E-AC-3 with Atmos
   reaches a receiver when the TV's digital output passes Dolby; apps can
   read that setting (`tizen.tvaudiocontrol.getOutputMode()`) but not change
-  it. Apps reportedly can't pass TrueHD over eARC.
+  it. TrueHD doesn't leave an app: on a 2025 S95F the native player lists
+  a file's audio tracks without its TrueHD, and the E-AC-3 (Atmos) beside it
+  plays instead. The native app switches to a track by its place in the
+  player's list, once the player is ready, and Info shows the one playing.
 - **`<video>` and MSE** stop H.264 at 1080p; 4K and 8K need AVPlay.
 - **AVPlay sends no request headers** but a cookie and a User-Agent, so
   the app plays from [keyed addresses](API.md#keyed-urls).
@@ -363,12 +366,16 @@ than a web engine. It runs on Tizen 9 TVs and is built beside the web app,
 which stays the Samsung app until the native one has its features. So far
 it has the Android TV app's "Choose your server" screen (servers found on
 the network, an address typed on the TV's keyboard, forgetting a server),
-its sign-in with a code and a QR code, Who's watching? with PINs, and
+its sign-in with a code and a QR code (the server proving itself before
+a token goes, [Telling servers apart](API.md#telling-servers-apart), and
+saying when the server requires two-step sign-in, which the approving
+phone sets up), Who's watching? with PINs, and
 Home: the hero, the server's rows and the rail, and item pages: the hero
 and its buttons, seasons and episodes, Extras, Cast and More Like This,
 and the side panels; library pages (the chips and panels, the grid with
 the A to Z jump, Recommended and Collections) and the Libraries page;
-search (the field and the TV's keyboard, results in rows, recent
+search (the field and the TV's keyboard, results in rows, Live TV's
+channels in a row before People that play the one chosen, recent
 searches); people's pages (the photo, the name and a row per role); the
 rail's Collections and a collection's page, with Play and Shuffle; the
 watch history page; playlists (their covers, a playlist's page with
@@ -395,7 +402,10 @@ for a few seconds as each item begins, text subtitles in Settings' look
 DVB) decoded from the server's `.mks` and drawn as the web app draws them,
 burned in by the server only when it can't make that file, the side
 panels (Subtitles with Sync and the subtitles' look, Audio, Quality, the
-sleep timer, Speed where the TV's player has other speeds, and Info),
+sleep timer, Speed where the TV's player has other speeds, and Info,
+where the server's speed sits beside the TV's network speed: the fastest
+second of the last ten, from the bytes the TV's network received, since
+Tizen's player doesn't say how fast it downloads),
 Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
 reaches them, as on Android TV), Up
 Next (the next episode, or the next in a playlist or collection),
@@ -509,8 +519,21 @@ node apps/tizen-native/scripts/metrics.mjs     # writes apps/tizen-native/out/me
 PLEY_TIZEN_METRICS=http://<computer>:7531 bun run tizen-native
 ```
 
+While the listener runs, the same script drives the app from the computer.
+The app asks it every second for something to do: a screenshot of its
+window, saved in `apps/tizen-native/out` (the video's plane comes out
+black), or the remote's keys, pressed 300 ms apart. `--tv` picks the TV
+whose model name holds the text given.
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs shot                 # prints the screenshot's path
+node apps/tizen-native/scripts/metrics.mjs keys Left Down OK    # Up, Down, Left, Right, OK, Back, Menu
+node apps/tizen-native/scripts/metrics.mjs --tv S89C shot
+```
+
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
-`Kit/Profile.cs` are left out when it is compiled.
+`Kit/Profile.cs`, the code behind them (the listener, screenshots, keys,
+the watchdog and sampler) and Core's marks are left out when it is compiled.
 
 ### Videos on a USB drive
 
@@ -518,8 +541,14 @@ While a drive is plugged into the TV, the rail ends with **USB drive**. It
 lists the drive's folders, then the videos the TV's player opens (MKV, MP4,
 M4V, MOV, TS, M2TS, WebM, AVI, MPEG), sorted as a person sorts names;
 hidden files and what Windows and macOS leave on a drive aren't shown. A
-folder opens over the one before, with ".." first to go back up. At the
-drive's top, the page says how full the drive is.
+folder opens over the one before, with ".." first to go back up. The
+page's title is the drive's make and model as it reports them ("Kingston
+DataTraveler 3.0"), or USB drive when it says nothing; the name given to
+the drive isn't to be read, since an app may not open the device. At the
+drive's top, the line under the title says "/" and how full the drive is;
+in a folder, its path ("/Films/2019"). An empty folder says so in the
+middle of the page, under a folder icon, and keeps focus there, so the
+rail stays closed; Left opens it.
 
 A video plays in Pley's player as it is, with no server
 (`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and

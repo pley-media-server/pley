@@ -3,7 +3,7 @@ import { Api, unreachable, unreachableReason } from "../src/api/client";
 import type { Tokens } from "../src/auth/tokens";
 import { NetworkError, TIMED_OUT, type HttpRequest, type HttpResponse } from "../src/net/transport";
 
-const tokens = { accessToken: () => Promise.resolve("token") } as unknown as Tokens;
+const tokens = { accessToken: () => Promise.resolve("token"), doubtServer: () => {} } as unknown as Tokens;
 
 /** A transport whose answers the test decides: `null` never answers, so the request times out (as XHR does) unless cancelled first. */
 function transport(answer: (req: HttpRequest) => Promise<HttpResponse> | null) {
@@ -30,6 +30,19 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("a request nothing answers", () => {
+  it("has the next token wait for the server to prove itself again, unless it was cancelled", async () => {
+    const doubtServer = vi.fn();
+    const watched = { accessToken: () => Promise.resolve("token"), doubtServer } as unknown as Tokens;
+    const unanswered = new Api("http://192.168.1.20:7539", watched, () => Promise.reject(new NetworkError("nothing answers")));
+    await expect(unanswered.send("/api/home")).rejects.toThrow("nothing answers");
+    expect(doubtServer).toHaveBeenCalledTimes(1);
+    const cancelled = new Api("http://192.168.1.20:7539", watched, () => Promise.reject(new NetworkError("cancelled", true)));
+    await expect(cancelled.send("/api/home")).rejects.toThrow("cancelled");
+    expect(doubtServer).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("a server on the home network", () => {

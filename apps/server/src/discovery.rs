@@ -22,7 +22,7 @@ const MAX_ANSWERS: u32 = 100;
 pub struct Announcement<'a> {
     /// The protocol's version.
     pub pley: u32,
-    /// Stable across restarts and renames (the Plex machine id).
+    /// Stable across restarts and renames (the server's id).
     pub id: &'a str,
     pub name: &'a str,
     pub version: &'a str,
@@ -32,7 +32,7 @@ pub struct Announcement<'a> {
 
 /// Answer discovery requests on `socket` until `stopping` is cancelled.
 pub async fn serve(state: AppState, socket: UdpSocket, web_port: u16, stopping: CancellationToken) {
-    let id = state.plex_machine_id();
+    let id = state.identity.id.clone();
     let mut buf = [0u8; 64];
     let mut window = (Instant::now(), 0u32);
     loop {

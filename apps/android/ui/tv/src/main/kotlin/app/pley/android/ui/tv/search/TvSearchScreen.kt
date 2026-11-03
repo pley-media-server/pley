@@ -91,8 +91,8 @@ import kotlinx.coroutines.delay
  * top, 520 wide, with initial focus; Select opens the system keyboard,
  * which has voice input, and Back closes it. Before typing, the recent
  * searches as chips. While typing (250 ms after the last key), the
- * results as rows, grouped (People, Live TV, Movies, Shows, Seasons,
- * Episodes, Artists, Albums, Tracks), the first header at y = 96; a
+ * results as rows, grouped (Movies, Shows, Seasons, Episodes, Artists,
+ * Albums, Tracks, Live TV, People), the first header at y = 96; a
  * channel found plays at once. Down from the
  * field goes into the rows, Up from the first row back to it; Left goes
  * to the rail.
@@ -194,9 +194,9 @@ internal fun TvSearchContent(
                     contentPadding = PaddingValues(top = ResultsTop, bottom = ResultsBottomRoom),
                     headerY = ResultsTop,
                 ) {
-                    results.groups.forEachIndexed { index, group ->
-                        // Live TV's row comes after People, as on the web.
-                        if (index == results.groups.count { it.kind == SearchGroupKind.People } && results.channels.isNotEmpty()) {
+                    results.groups.forEach { group ->
+                        // Live TV's row comes after the titles and before People, as on the web.
+                        if (group.kind == SearchGroupKind.People && results.channels.isNotEmpty()) {
                             channelRow(results, memory, onWatch)
                         }
                         val kind = group.kind.tvTileKind
@@ -212,7 +212,7 @@ internal fun TvSearchContent(
                             )
                         }
                     }
-                    if (results.groups.all { it.kind == SearchGroupKind.People } && results.channels.isNotEmpty()) {
+                    if (results.groups.none { it.kind == SearchGroupKind.People } && results.channels.isNotEmpty()) {
                         channelRow(results, memory, onWatch)
                     }
                 }

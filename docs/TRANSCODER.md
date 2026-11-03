@@ -89,9 +89,19 @@ or `~/.cache/pley-transcoder` on Linux.
 - Temporaries left by a crash go after 3 hours untouched (a long subtitle pass
   touches its outputs every 10 minutes, and seek previews their folder, even
   while paused).
-- What the transcoder keeps here is private to its user, and so is the work
-  folder when the transcoder creates it or it is the default. A folder that
-  already exists (such as `/tmp`) keeps its permissions.
+- What the transcoder keeps here is private to its user, live channels'
+  segments included, and so is the work folder when the transcoder creates
+  it or it is the default. A folder that already exists (such as `/tmp`)
+  keeps its permissions.
+- In a work folder other accounts may write in (on Unix, one that isn't the
+  transcoder's account's or that its group or others may write in; on
+  Windows, one whose permissions are the drive's), a link or a junction in
+  place of one of these is removed at start rather than followed, segments'
+  folders are checked again before each job and channel, and the caches'
+  clean-up leaves alone one that becomes a link later. In any other work
+  folder, a cache may be a link the transcoder's account made, to keep it on
+  another disk. On Unix, one another account made first can't be made
+  private, and the transcoder doesn't start.
 
 ### Authentication
 
@@ -246,8 +256,8 @@ each sheet holds `columns × rows` of them, left to right, top to bottom.
   mapped with libplacebo when available.
 - Up to `trickplay_runs` sets are made at once (`--max-previews`); further
   requests wait their turn. Like other background work, sets wait for and
-  pause through playback starts and transcodes
-  ([Background work and playback](#background-work-and-playback)).
+  pause through playback starts, transcodes and reads of a player's
+  subtitles ([Background work and playback](#background-work-and-playback)).
 - A set may run for an hour, or 1 s per 10 MB of its file when that is
   longer; paused time doesn't count. Its folder is made only once it may
   start, and is marked as being written every 10 minutes while it runs or
@@ -285,20 +295,62 @@ seconds (as a rule, when it can be read through the file's Cues). Otherwise it
 is the cues read so far, with `X-Pley-Complete: 0`, and the extraction goes on
 in the background.
 
-`POST /v1/subtitles/mks` takes the same fields and returns
-`video/x-matroska`: the track (or the subtitle file, without `stream_index`)
-copied as it is into a Matroska file of its own. It is for players that show
-picture subtitles (PGS, VobSub with its palette, DVB) next to an HLS stream.
+`POST /v1/subtitles/mks` takes the same fields, `from_ms?` (where the player
+is, in ms of the track's time) and `media?` (the file's media information,
+which spares a probe while a playback starts; as a job's, used only with a
+duration and a start time), and returns `video/x-matroska`: the track (or the
+subtitle file, without `stream_index`) copied as it is into a Matroska file
+of its own. It is for players that show picture subtitles (PGS, VobSub with
+its palette, DVB) next to an HLS stream.
 
 - Times are the original's from the start of the file (its start time taken
   off, as the HLS streams do), so the track lines up with playback.
-- A Matroska file whose Cues list the track's blocks is read through them in
-  seconds. Otherwise FFmpeg copies the track out (`-vn -an -dn`), reading
-  the whole file as one of the [passes over whole files](#ffmpeg-fallback).
-- With `partial` (capability `subtitle_matroska_partial`), it answers within
-  about 2 s with what has been copied so far, up to its last whole cluster,
-  and `X-Pley-Complete: 0` until it is whole. Every answer is a file players
-  read (the track's header at least).
+- A Matroska file whose Cues list the track's blocks is read through them.
+  The blocks around where the player is come first, at once: from half a
+  minute before `from_ms` to two minutes after it, written whole to a file
+  of their own. The rest waits for playbacks starting, as other background
+  work does, then comes a few hundred clusters at a time, each taking a
+  turn among the reads through the Cues again (another track's first
+  blocks and text tracks don't wait for it), and the whole track is
+  written, in order of time. Whenever a playback starts, or the blocks at a
+  player's seek are read, the rest steps aside before its next block until
+  that is over, its turn let go meanwhile; its time limit doesn't count
+  that, nor its other waits. The read keeps at most 192 MiB and may take
+  as long as FFmpeg would take to read the file at 100 MB/s, a minute at
+  least: a Blu-ray's track is thousands of reads, a disk seek each, and
+  FFmpeg reads all of a remux. A later request whose `from_ms` is
+  away from where the copy started (a seek) is answered with the blocks
+  there, from 10 s before it to 40 s after it: those the copy has read,
+  when it has all of them, else read through the Cues at once, beside the
+  copy, whose rest waits for that read. Such a read has a budget of its own
+  (32 MB, 10 s) and turns of its own, apart from the copies' reads; one
+  runs at a time per track, and one that a later one replaces while it
+  waits isn't run. An answer waits for it as long as such a read may take
+  (12 s), or until the copy has those blocks: what the copy has meanwhile
+  is around where it started, and players that replace what they have
+  with each answer would lose the pictures where they are. Past that, or
+  when the read gets nothing (over its budget, or left out for a later
+  one), the answer is the blocks there if the copy has all of them, else
+  what the copy has, and the player asks again: a read that went over its
+  time (a busy disk) is tried again then.
+- `rest` (with `partial`) is for a player that reads the track once
+  (Kodi's `.sup`): the answer waits up to 8 s for the whole track, then is
+  everything read through the Cues so far, not only the blocks around
+  where the copy started (once that is being written whole, the whole
+  track).
+- Otherwise FFmpeg copies the track out (`-vn -an -dn`), once no playback is
+  starting, reading the whole file as one of the
+  [passes over whole files](#ffmpeg-fallback).
+- With `partial` (capability `subtitle_matroska_partial`), it answers with
+  what has been copied so far, and `X-Pley-Complete: 0` until it is whole:
+  the blocks around the player as soon as they are written, else what
+  FFmpeg has written within about 2 s, up to its last whole cluster. Every
+  answer is a file players read (the track's header at least). A read
+  through the Cues that fails past the blocks around the player answers
+  with those while FFmpeg copies the track, until FFmpeg's copy comes past
+  them; then with that copy. Requests at seeks are still answered with the
+  blocks there, read through the Cues: those gave the blocks around the
+  player.
 - Whole tracks are cached in `subtitles/`.
 
 ### Background work
@@ -1012,7 +1064,8 @@ and tracks can't be read safely as above: encrypted or bzip2/LZO-compressed
 tracks, laced blocks, a track's own timestamp scale, cues out of order or
 pointing at the wrong block, mkvmerge's `S_TEXT/WEBVTT`, and the other cases
 `src/matroska.rs` checks. A track the Cues couldn't give goes straight to
-FFmpeg next time.
+FFmpeg next time, unless it is a picture track whose read failed past the
+blocks around the player (a busy disk can run it out of time).
 
 - Every text track comes out in one pass over the file, with a time limit of
   20 minutes or the time to read the file at 10 MB/s, whichever is longer. A
@@ -1045,7 +1098,7 @@ episodes' fingerprints to find shared intros and credits.
   audio downmixed to mono 11025 Hz. Each value covers 1365 samples (0.124 s,
   `item_seconds`).
 - Two requests run at a time, at below-normal priority, paused while a
-  playback starts or a transcode runs
+  playback starts, a transcode runs or a player's subtitles are read
   ([Background work and playback](#background-work-and-playback)).
 
 ### Key frames
@@ -1106,7 +1159,14 @@ A playback is starting:
 
 While any transcode slot is in use (a job's FFmpeg, even paused far ahead, or
 a conversion), the same runs also wait and pause, until 5 s after the last one
-ends. Probes and reading ahead wait for playback starts only.
+ends. So they do while subtitles a player waits for are read through a file's
+Cues (a text track, or a picture track's pictures: those around where the
+player is, those at a seek, or the rest of the track), until 2 s after the
+last read ends, and 90 s at most from the start of each: on a share's disks
+each block is a seek, and a seek preview's FFmpeg reading a remux beside them
+makes every one of them wait, while the rest of a big file's track can take
+minutes, which the runs needn't wait out. Probes and reading ahead wait for
+playback starts only.
 
 Background runs and conversions start at below-normal process priority
 (`nice` 10 on Linux), a job's FFmpeg at normal priority. `/v1/status` counts

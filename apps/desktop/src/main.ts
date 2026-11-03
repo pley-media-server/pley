@@ -40,13 +40,13 @@ let searching = false;
 const reachable = new Map<string, boolean>();
 let busy: string | null = null;
 let autoOpen: AbortController | null = null;
-/** An unencrypted address someone was warned about: connecting again goes ahead. */
-let warnedAbout: string | null = null;
 let downloads: Download[] = [];
 /** The download whose Delete was pressed once: pressed again, it goes. */
 let confirming: number | null = null;
 let confirmTimer = 0;
 let pollTimer = 0;
+/** What the picker says once it has looked for servers. */
+let note = "";
 
 function message(err: unknown): string {
   return typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
@@ -57,7 +57,7 @@ function render(): void {
   list.replaceChildren(...entries.map(row));
   if (searching) status.textContent = "Looking for servers on this network…";
   else if (!entries.length) status.textContent = "No server answered. Check that Pley is running on it, or enter its address.";
-  else status.textContent = "";
+  else status.textContent = note;
   searchAgain.hidden = searching;
 }
 
@@ -239,8 +239,16 @@ async function refreshDownloads(): Promise<void> {
   if (downloads.some(coming)) pollTimer = window.setTimeout(() => void refreshDownloads(), 1000);
 }
 
+function notEncrypted(url: string): string {
+  return `${displayAddress(url)} isn't encrypted: your password and what you watch could be read on the way. Open it by its https address.`;
+}
+
 /** Checks the server, remembers it and shows its web app in this window. */
 async function openServer(url: string, id: string | null): Promise<void> {
+  if (unencrypted(url)) {
+    status.textContent = notEncrypted(url);
+    return;
+  }
   busy = url;
   render();
   try {
@@ -341,12 +349,11 @@ async function addServer(input: string): Promise<void> {
     addError.hidden = false;
     return;
   }
-  // Plain http across the internet: say so once, then go ahead if asked again.
-  if (unencrypted(url) && warnedAbout !== url) {
-    warnedAbout = url;
-    addError.textContent =
-      `${displayAddress(url)} isn't encrypted: your password and what you watch could be read on the way. ` +
-      "Use its https address if it has one, or press Connect again to go ahead anyway.";
+  // Plain http across the internet: refused, as Pley's other apps do. The
+  // session would travel readable, and the server proves itself to plain
+  // http on its own networks only.
+  if (unencrypted(url)) {
+    addError.textContent = notEncrypted(url);
     addError.hidden = false;
     return;
   }
@@ -368,9 +375,15 @@ async function start(): Promise<void> {
   saved = await invoke<SavedServer[]>("saved_servers");
   void refreshDownloads();
   // "Switch server" in the web app comes back here with ?pick: no opening by itself then.
-  const pick = new URLSearchParams(window.location.search).has("pick");
+  const params = new URLSearchParams(window.location.search);
+  const pick = params.has("pick");
+  // The app left a server whose address now leads to another device (a
+  // saved one: a server's page could open the picker with any address).
+  const notYours = saved.find((s) => s.url === params.get("not-yours")?.replace(/\/$/, ""));
+  if (notYours) note = `Another device answers at ${displayAddress(notYours.url)} now, so Pley came back here.`;
   const last = lastUsed(saved);
-  if (last && !pick) void openLastUsed(last);
+  // A plain-http address across the internet isn't opened (see addServer).
+  if (last && !pick && !unencrypted(last.url)) void openLastUsed(last);
   else showChooser();
 }
 

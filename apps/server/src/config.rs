@@ -13,8 +13,9 @@ use serde::Deserialize;
 
 /// Default HTTP port ("PLEY" on a phone keypad).
 pub const DEFAULT_PORT: u16 = 7539;
-/// Default port of the Plex-compatible API (Plex Media Server's).
-pub const PLEX_PORT: u16 = 32400;
+/// The port the Jellyfin-compatible API takes when it has one of its own:
+/// Jellyfin's, which its apps try for an address typed without a port.
+pub const JELLYFIN_PORT: u16 = 8096;
 /// How long requests in progress may take to finish once the server is told
 /// to stop. Streams (a film playing directly) are cut after that. Short
 /// enough to leave time for stopping the transcoder and closing the database
@@ -50,9 +51,14 @@ pub struct Cli {
     #[arg(long, env = "PLEY_BIND", global = true)]
     pub bind: Option<String>,
 
-    /// Where the Plex-compatible API listens: `web` (default) answers on Pley's own port, `off`
-    /// turns it off, or addresses of its own (`0.0.0.0:32400`), several separated by commas
-    #[arg(long, env = "PLEY_PLEX_BIND", global = true)]
+    /// Where the Jellyfin-compatible API listens: `off` (default), `web` on Pley's own port, or
+    /// addresses of its own (`0.0.0.0:8096`), several separated by commas
+    #[arg(long, env = "PLEY_JELLYFIN_BIND", global = true)]
+    pub jellyfin_bind: Option<String>,
+
+    /// Older versions' Plex-compatible API, which is gone: taken and ignored, so that a setup
+    /// that still names it starts
+    #[arg(long, env = "PLEY_PLEX_BIND", global = true, hide = true)]
     pub plex_bind: Option<String>,
 
     /// Path to the ffmpeg binary
@@ -109,7 +115,7 @@ pub enum Command {
     },
     /// Exit with status 0 when the server on this machine answers (for container health checks)
     Health,
-    /// Save the options given before it (--bind, --plex-bind, --transcode-dir, --ffmpeg,
+    /// Save the options given before it (--bind, --jellyfin-bind, --transcode-dir, --ffmpeg,
     /// --ffprobe, --no-discovery) in pley.toml in the data folder, for every later start
     SaveConfig {
         /// Whether to answer the Pley apps looking for servers on the local network
@@ -127,6 +133,8 @@ pub enum Command {
 #[serde(default, deny_unknown_fields)]
 struct FileConfig {
     bind: Option<String>,
+    jellyfin_bind: Option<String>,
+    /// Older versions' Plex-compatible API: read and ignored.
     plex_bind: Option<String>,
     data_dir: Option<PathBuf>,
     transcode_dir: Option<PathBuf>,
@@ -147,13 +155,16 @@ pub struct Config {
     /// Where it listens too, once it can: a network adapter's address may
     /// come after pley (Wi-Fi, a VPN like Tailscale).
     pub extra_binds: Vec<SocketAddr>,
-    /// Plex-compatible API listener (`None`: disabled).
-    pub plex_bind: Option<SocketAddr>,
+    /// Jellyfin-compatible API listener on a port of its own (`None`: none).
+    pub jellyfin_bind: Option<SocketAddr>,
     /// Where that API listens too, as [`Config::extra_binds`].
-    pub plex_extra_binds: Vec<SocketAddr>,
-    /// That API answers on pley's own port instead (`plex_bind = "web"`, see
-    /// [`crate::plex::on_web_port`]).
-    pub plex_on_web: bool,
+    pub jellyfin_extra_binds: Vec<SocketAddr>,
+    /// That API answers on pley's own port (`jellyfin_bind = "web"`, see
+    /// [`crate::jellyfin::on_web_port`]).
+    pub jellyfin_on_web: bool,
+    /// The setup names older versions' Plex-compatible API (`plex_bind`),
+    /// which is ignored: said once in the log.
+    pub plex_bind_ignored: bool,
     pub data_dir: PathBuf,
     /// Work directory handed to the managed transcoder (segments, caches):
     /// the one chosen, or [`Config::default_transcode_dir`] when it can't
@@ -220,14 +231,14 @@ impl Config {
             None => vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_PORT)],
             Some(value) => parse_binds(&value)?,
         };
-        let plex_bind = cli.plex_bind.clone().or(file.plex_bind);
-        // By default on pley's own port: wherever pley is reached, through
-        // its reverse proxy's HTTPS too.
-        let plex_on_web = plex_bind.as_deref().is_none_or(is_web);
-        let plex_binds = match plex_bind {
+        // Off unless an administrator turns it on.
+        let jellyfin_bind = cli.jellyfin_bind.clone().or(file.jellyfin_bind);
+        let jellyfin_on_web = jellyfin_bind.as_deref().is_some_and(is_web);
+        let jellyfin_binds = match jellyfin_bind {
             Some(value) if !is_off(&value) && !is_web(&value) => parse_binds(&value)?,
             _ => Vec::new(),
         };
+        let plex_bind_ignored = cli.plex_bind.is_some() || file.plex_bind.is_some();
         let transcode_dir = cli
             .transcode_dir
             .clone()
@@ -238,9 +249,10 @@ impl Config {
         Ok(Self {
             bind: binds[0],
             extra_binds: binds[1..].to_vec(),
-            plex_bind: plex_binds.first().copied(),
-            plex_extra_binds: plex_binds.iter().skip(1).copied().collect(),
-            plex_on_web,
+            jellyfin_bind: jellyfin_binds.first().copied(),
+            jellyfin_extra_binds: jellyfin_binds.iter().skip(1).copied().collect(),
+            jellyfin_on_web,
+            plex_bind_ignored,
             ffmpeg: cli.ffmpeg.clone().or(file.ffmpeg).unwrap_or_else(|| PathBuf::from("ffmpeg")),
             ffprobe: cli.ffprobe.clone().or(file.ffprobe).unwrap_or_else(|| PathBuf::from("ffprobe")),
             web_dir: cli.web_dir.clone().or(file.web_dir),
@@ -258,7 +270,7 @@ impl Config {
             trickplay_disks: crate::disks::Source::System,
             network_fixed: crate::network::Fixed {
                 web: cli.bind.is_some(),
-                plex: cli.plex_bind.is_some(),
+                jellyfin: cli.jellyfin_bind.is_some(),
                 discovery: cli.no_discovery,
             },
             config_file,
@@ -275,9 +287,10 @@ impl Config {
         Self {
             bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
             extra_binds: Vec::new(),
-            plex_bind: None,
-            plex_extra_binds: Vec::new(),
-            plex_on_web: true,
+            jellyfin_bind: None,
+            jellyfin_extra_binds: Vec::new(),
+            jellyfin_on_web: false,
+            plex_bind_ignored: false,
             data_dir: data_dir.to_path_buf(),
             transcode_dir: data_dir.join("transcode"),
             transcode_dir_problem: None,
@@ -380,11 +393,11 @@ pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::R
         parse_binds(bind)?;
         values.push(("bind", bind.trim().into()));
     }
-    if let Some(plex_bind) = &cli.plex_bind {
-        if !is_off(plex_bind) && !is_web(plex_bind) {
-            parse_binds(plex_bind)?;
+    if let Some(jellyfin_bind) = &cli.jellyfin_bind {
+        if !is_off(jellyfin_bind) && !is_web(jellyfin_bind) {
+            parse_binds(jellyfin_bind)?;
         }
-        values.push(("plex_bind", plex_bind.trim().into()));
+        values.push(("jellyfin_bind", jellyfin_bind.trim().into()));
     }
     for (key, path) in [("transcode_dir", &cli.transcode_dir), ("ffmpeg", &cli.ffmpeg), ("ffprobe", &cli.ffprobe)] {
         if let Some(path) = path {
@@ -406,20 +419,27 @@ pub fn save_listen(path: &Path, listen: &crate::network::Listen, fixed: crate::n
     if !fixed.web {
         values.push(("bind", list(&listen.web).into()));
     }
-    if !fixed.plex {
-        let plex = if listen.plex_on_web {
+    if !fixed.jellyfin {
+        let jellyfin = if listen.jellyfin_on_web {
             "web".to_owned()
-        } else if listen.plex.is_empty() {
+        } else if listen.jellyfin.is_empty() {
             "off".to_owned()
         } else {
-            list(&listen.plex)
+            list(&listen.jellyfin)
         };
-        values.push(("plex_bind", plex.into()));
+        values.push(("jellyfin_bind", jellyfin.into()));
     }
     if !fixed.discovery {
         values.push(("discovery", listen.discovery.into()));
     }
-    write_keys(path, &values)
+    write_keys(path, &values)?;
+    // Older versions' Plex-compatible API is gone: its line goes too.
+    let text = read_config_text(path)?;
+    if text.lines().any(|line| defines(line, "plex_bind")) {
+        let kept: Vec<&str> = text.lines().filter(|line| !defines(line, "plex_bind")).collect();
+        replace_config(path, kept.join("\n") + "\n")?;
+    }
+    Ok(())
 }
 
 /// Saves the transcode folder chosen in Settings → Transcoder in the config
@@ -520,7 +540,7 @@ fn is_off(value: &str) -> bool {
     matches!(value.trim(), "" | "off" | "none" | "false" | "0")
 }
 
-/// A Plex-compatible API address that puts it on pley's own port.
+/// The Jellyfin-compatible API's address that puts it on pley's own port.
 fn is_web(value: &str) -> bool {
     value.trim().eq_ignore_ascii_case("web")
 }
@@ -584,35 +604,52 @@ mod tests {
     }
 
     #[test]
-    fn several_addresses_listen_and_the_plex_api_follows() {
+    fn several_addresses_listen_and_the_jellyfin_api_follows() {
         let dir = tempfile::tempdir().unwrap();
         let mut args = cli(dir.path());
         args.bind = Some("127.0.0.1:7539,100.64.0.7:7539".into());
-        args.plex_bind = Some("127.0.0.1:32400, 100.64.0.7:32400".into());
+        args.jellyfin_bind = Some("127.0.0.1:8096, 100.64.0.7:8096".into());
         let config = Config::load(&args).unwrap();
         assert_eq!(config.bind, "127.0.0.1:7539".parse().unwrap());
         assert_eq!(config.extra_binds, ["100.64.0.7:7539".parse::<SocketAddr>().unwrap()]);
-        assert_eq!(config.plex_bind, Some("127.0.0.1:32400".parse().unwrap()));
-        assert_eq!(config.plex_extra_binds, ["100.64.0.7:32400".parse::<SocketAddr>().unwrap()]);
+        assert_eq!(config.jellyfin_bind, Some("127.0.0.1:8096".parse().unwrap()));
+        assert_eq!(config.jellyfin_extra_binds, ["100.64.0.7:8096".parse::<SocketAddr>().unwrap()]);
     }
 
     #[test]
-    fn the_plex_api_is_on_pleys_port_unless_given_its_own() {
+    fn the_jellyfin_api_is_off_unless_turned_on() {
         let dir = tempfile::tempdir().unwrap();
         let mut args = cli(dir.path());
         let config = Config::load(&args).unwrap();
-        assert!(config.plex_on_web, "on by default, on pley's port");
-        assert_eq!(config.plex_bind, None);
+        assert!(!config.jellyfin_on_web, "off by default");
+        assert_eq!(config.jellyfin_bind, None);
         for (value, on_web, bind) in [
             ("web", true, None),
             (" Web ", true, None),
             ("off", false, None),
-            ("0.0.0.0:32400", false, Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), PLEX_PORT))),
+            ("0.0.0.0:8096", false, Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), JELLYFIN_PORT))),
         ] {
-            args.plex_bind = Some(value.into());
+            args.jellyfin_bind = Some(value.into());
             let config = Config::load(&args).unwrap();
-            assert_eq!((config.plex_on_web, config.plex_bind), (on_web, bind), "{value}");
+            assert_eq!((config.jellyfin_on_web, config.jellyfin_bind), (on_web, bind), "{value}");
         }
+    }
+
+    #[test]
+    fn older_versions_plex_api_is_ignored() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("pley.toml"), "plex_bind = \"0.0.0.0:32400\"\n").unwrap();
+        let config = Config::load(&cli(dir.path())).unwrap();
+        assert!(config.plex_bind_ignored);
+        assert_eq!((config.jellyfin_bind, config.jellyfin_on_web), (None, false), "and turns nothing on");
+        let mut args = cli(tempfile::tempdir().unwrap().path());
+        args.plex_bind = Some("web".into());
+        assert!(Config::load(&args).unwrap().plex_bind_ignored);
+
+        // Saving where Pley listens drops the old line.
+        save_listen(&config.config_file, &crate::network::Listen::of(&config), config.network_fixed).unwrap();
+        let text = std::fs::read_to_string(&config.config_file).unwrap();
+        assert!(!text.contains("plex_bind") && text.contains("jellyfin_bind = \"off\""), "{text}");
     }
 
     /// Command line options as if none were given (built directly, so the
@@ -624,6 +661,7 @@ mod tests {
             data_dir: Some(data_dir.to_path_buf()),
             transcode_dir: None,
             bind: None,
+            jellyfin_bind: None,
             plex_bind: None,
             ffmpeg: None,
             ffprobe: None,
@@ -642,7 +680,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();
         assert_eq!(config.bind, SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_PORT));
-        assert_eq!((config.plex_bind, config.plex_on_web), (None, true));
+        assert_eq!((config.jellyfin_bind, config.jellyfin_on_web), (None, false));
         assert_eq!(config.data_dir, dir.path());
         assert_eq!(config.transcode_dir, dir.path().join("transcode"));
         assert_eq!(config.db_path(), dir.path().join("pley.db"));
@@ -658,7 +696,7 @@ mod tests {
         std::fs::write(
             dir.path().join("pley.toml"),
             format!(
-                "bind = \"127.0.0.1:8000\"\nplex_bind = \"off\"\nffmpeg = \"/opt/ff/ffmpeg\"\n\
+                "bind = \"127.0.0.1:8000\"\njellyfin_bind = \"web\"\nffmpeg = \"/opt/ff/ffmpeg\"\n\
                  transcode_dir = {:?}\ntranscoder_url = \"  \"\ntranscoder_max_jobs = 0\n",
                 transcode.to_string_lossy()
             ),
@@ -666,7 +704,7 @@ mod tests {
         .unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();
         assert_eq!(config.bind, "127.0.0.1:8000".parse().unwrap());
-        assert_eq!(config.plex_bind, None, "`off` disables the Plex-compatible API");
+        assert!(config.jellyfin_on_web, "`web` puts the Jellyfin-compatible API on Pley's port");
         assert_eq!(config.ffmpeg, PathBuf::from("/opt/ff/ffmpeg"));
         assert_eq!(config.transcode_dir, transcode);
         assert_eq!(config.transcoder_url, None, "a blank URL means: spawn the transcoder");
@@ -674,11 +712,11 @@ mod tests {
 
         let mut args = cli(dir.path());
         args.bind = Some("9000".into());
-        args.plex_bind = Some("127.0.0.1:32401".into());
+        args.jellyfin_bind = Some("127.0.0.1:8097".into());
         args.ffmpeg = Some("ffmpeg7".into());
         let config = Config::load(&args).unwrap();
         assert_eq!(config.bind, SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9000));
-        assert_eq!(config.plex_bind, Some("127.0.0.1:32401".parse().unwrap()));
+        assert_eq!((config.jellyfin_bind, config.jellyfin_on_web), (Some("127.0.0.1:8097".parse().unwrap()), false));
         assert_eq!(config.ffmpeg, PathBuf::from("ffmpeg7"));
     }
 
@@ -733,11 +771,11 @@ mod tests {
 
     #[test]
     fn set_keys_replaces_lines_keeps_the_rest_and_appends_new_keys() {
-        let text = "# pley\nbind = \"0.0.0.0:7539\"\n# plex_bind = \"off\"\nbind_extra = 1\nbind=\"x\"\n";
-        let out = set_keys(text, &[("bind", "127.0.0.1:7539".into()), ("plex_bind", "off".into())]);
+        let text = "# pley\nbind = \"0.0.0.0:7539\"\n# jellyfin_bind = \"off\"\nbind_extra = 1\nbind=\"x\"\n";
+        let out = set_keys(text, &[("bind", "127.0.0.1:7539".into()), ("jellyfin_bind", "off".into())]);
         assert_eq!(
             out,
-            "# pley\nbind = \"127.0.0.1:7539\"\n# plex_bind = \"off\"\nbind_extra = 1\nplex_bind = \"off\"\n"
+            "# pley\nbind = \"127.0.0.1:7539\"\n# jellyfin_bind = \"off\"\nbind_extra = 1\njellyfin_bind = \"off\"\n"
         );
         assert_eq!(set_keys("", &[("discovery", false.into())]), "discovery = false\n");
     }
@@ -749,7 +787,7 @@ mod tests {
         std::fs::write(&file, "# mine\ntranscoder_max_jobs = 3\nbind = \"9000\"\n").unwrap();
         let mut args = cli(dir.path());
         args.bind = Some("127.0.0.1:7540".into());
-        args.plex_bind = Some("off".into());
+        args.jellyfin_bind = Some("web".into());
         args.ffmpeg = Some(PathBuf::from(r"C:\Program Files\pley\ffmpeg\ffmpeg.exe"));
         save_config(&args, &file, Some(false)).unwrap();
         let text = std::fs::read_to_string(&file).unwrap();
@@ -757,7 +795,7 @@ mod tests {
 
         let config = Config::load(&cli(dir.path())).unwrap();
         assert_eq!(config.bind, "127.0.0.1:7540".parse().unwrap());
-        assert_eq!(config.plex_bind, None);
+        assert!(config.jellyfin_on_web);
         assert_eq!(config.ffmpeg, PathBuf::from(r"C:\Program Files\pley\ffmpeg\ffmpeg.exe"));
         assert!(!config.discovery);
         assert_eq!(config.transcoder_max_jobs, 3);
@@ -776,8 +814,8 @@ mod tests {
         assert_eq!(config.network_fixed, crate::network::Fixed::default());
         let listen = crate::network::Listen {
             web: vec!["127.0.0.1:7540".parse().unwrap(), "192.168.1.10:7540".parse().unwrap()],
-            plex: Vec::new(),
-            plex_on_web: false,
+            jellyfin: Vec::new(),
+            jellyfin_on_web: true,
             discovery: false,
         };
         save_listen(&config.config_file, &listen, config.network_fixed).unwrap();
@@ -788,13 +826,14 @@ mod tests {
         let mut args = cli(dir.path());
         args.bind = Some("0.0.0.0:7539".into());
         let fixed = Config::load(&args).unwrap();
-        assert_eq!(fixed.network_fixed, crate::network::Fixed { web: true, plex: false, discovery: false });
+        assert_eq!(fixed.network_fixed, crate::network::Fixed { web: true, jellyfin: false, discovery: false });
         let mut changed = crate::network::Listen::of(&fixed);
-        changed.plex = vec!["127.0.0.1:32400".parse().unwrap()];
+        changed.jellyfin_on_web = false;
+        changed.jellyfin = vec!["127.0.0.1:8096".parse().unwrap()];
         save_listen(&fixed.config_file, &changed, fixed.network_fixed).unwrap();
         let text = std::fs::read_to_string(&fixed.config_file).unwrap();
         assert!(text.contains("bind = \"127.0.0.1:7540, 192.168.1.10:7540\""), "{text}");
-        assert!(text.contains("plex_bind = \"127.0.0.1:32400\""), "{text}");
+        assert!(text.contains("jellyfin_bind = \"127.0.0.1:8096\""), "{text}");
         assert!(!dir.path().join("pley.toml.new").exists());
     }
 
@@ -805,7 +844,7 @@ mod tests {
         let err = Config::load(&cli(dir.path())).unwrap_err();
         assert!(format!("{err:#}").contains("pley.toml"), "{err:#}");
 
-        std::fs::write(dir.path().join("pley.toml"), "plex_bind = \"somewhere\"\n").unwrap();
+        std::fs::write(dir.path().join("pley.toml"), "jellyfin_bind = \"somewhere\"\n").unwrap();
         assert!(Config::load(&cli(dir.path())).is_err(), "an unreadable address is an error, not a silent default");
 
         let mut args = cli(dir.path());

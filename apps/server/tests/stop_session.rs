@@ -1,6 +1,6 @@
 //! Stopping a playback session from elsewhere (docs/API.md, "Stopping a
-//! stream"): `DELETE /api/sessions/{id}` and the Plex API's
-//! `/status/sessions/terminate`.
+//! stream"): `DELETE /api/sessions/{id}`, which Jellyfin's players hear of
+//! too.
 
 mod common;
 
@@ -10,7 +10,7 @@ use axum::http::{Method, StatusCode};
 use futures::StreamExt;
 use serde_json::{Value, json};
 
-use common::{TestApp, encode};
+use common::TestApp;
 
 /// What a browser playing Matroska directly says it plays.
 const CAPS: &str = r#"{"containers": ["mkv"], "video_codecs": ["h264"], "audio_codecs": ["aac"]}"#;
@@ -169,39 +169,29 @@ async fn users_stop_their_own_sessions() {
 }
 
 #[tokio::test]
-async fn plex_tools_terminate_sessions() {
+async fn a_jellyfin_players_reports_dont_start_a_stopped_session_again() {
     let w = world().await;
-    let app = &w.app;
-    let session = play(&w, &w.viewer).await;
-    let sessions = app.plex_json("/status/sessions", &w.admin).await;
-    assert_eq!(sessions["Metadata"][0]["Session"]["id"], json!(session));
+    let (app, viewer) = (&w.app, w.viewer.as_str());
+    let film = app.jf_item(w.film);
+    let report = |path: &'static str, ms: i64| {
+        let body = json!({"ItemId": film, "PositionTicks": ms * 10_000});
+        async move {
+            let reply = app.jf(Method::POST, &format!("/Sessions/Playing{path}"), viewer, Some(body)).await;
+            assert_eq!(reply.status, StatusCode::NO_CONTENT, "{}", reply.text());
+        }
+    };
+    report("", 10_000).await;
+    let sessions = app.state.sessions.list();
+    assert_eq!(sessions.len(), 1, "the player's reports make a session");
+    assert_eq!(sessions[0].client_id.as_deref(), Some("bench-1"), "keyed by the device");
+    let session = sessions[0].id.clone();
 
-    let terminate = format!("/status/sessions/terminate?sessionId={session}&reason={}", encode("Too many streams"));
-    assert_eq!(app.plex(Method::GET, &terminate, &w.viewer, &[]).await.status, StatusCode::FORBIDDEN);
-    let missing = app.plex(Method::GET, "/status/sessions/terminate", &w.admin, &[]).await;
-    assert_eq!(missing.status, StatusCode::BAD_REQUEST);
-    let unknown = app.plex(Method::GET, "/status/sessions/terminate?sessionId=nope", &w.admin, &[]).await;
-    assert_eq!(unknown.status, StatusCode::NOT_FOUND);
-    let ended = app.plex(Method::GET, &terminate, &w.admin, &[]).await;
-    assert_eq!(ended.status, StatusCode::OK, "{}", ended.text());
-    assert_eq!(app.plex_json("/status/sessions", &w.admin).await["size"], json!(0));
-    let gone = app.get(&format!("/api/playback/{session}"), &w.viewer).await;
-    assert_eq!((gone.status, gone.body["message"].clone()), (StatusCode::GONE, json!("Too many streams")));
-
-    // A Plex player's reports don't start a stopped session again.
-    let client = [("x-plex-client-identifier", "living-room")];
-    let timeline = format!("/:/timeline?ratingKey={}&time=10000&state=playing", w.film);
-    app.plex(Method::GET, &timeline, &w.viewer, &client).await;
-    let plex_session = app.plex_json("/status/sessions", &w.admin).await["Metadata"][0]["Session"]["id"].clone();
-    let plex_session = plex_session.as_str().unwrap().to_owned();
-    let terminate = format!("/status/sessions/terminate?sessionId={plex_session}");
-    assert_eq!(app.plex(Method::GET, &terminate, &w.admin, &[]).await.status, StatusCode::OK);
-    app.plex(Method::GET, &timeline, &w.viewer, &client).await;
-    assert_eq!(app.plex_json("/status/sessions", &w.admin).await["size"], json!(0));
+    assert_eq!(app.delete(&format!("/api/sessions/{session}"), &w.admin).await.status, StatusCode::NO_CONTENT);
+    report("/Progress", 12_000).await;
+    assert!(app.state.sessions.list().is_empty(), "the player hasn't heard yet");
 
     // Once that player stops too, playing the title again shows up.
-    let stop = format!("/:/timeline?ratingKey={}&time=12000&state=stopped", w.film);
-    app.plex(Method::GET, &stop, &w.viewer, &client).await;
-    app.plex(Method::GET, &timeline, &w.viewer, &client).await;
-    assert_eq!(app.plex_json("/status/sessions", &w.admin).await["size"], json!(1));
+    report("/Stopped", 12_000).await;
+    report("", 12_000).await;
+    assert_eq!(app.state.sessions.list().len(), 1);
 }

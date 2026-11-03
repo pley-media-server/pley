@@ -9,13 +9,145 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A Jellyfin-compatible API, for Jellyfin's apps and others built on its
+  API: they sign in with Pley's accounts, browse the libraries, play files
+  as they are or as HLS from Pley's transcoder, with subtitles and Skip
+  Intro, and keep watch state, favorites (My List) and ratings with Pley's.
+  It is off until turned on in Settings → Network, on Pley's port or one of
+  its own (Jellyfin's is 8096; `--jellyfin-bind`, and `compose.jellyfin.yaml`
+  for Docker). Each sign-in gets a token of its own, which works on that API
+  only, never on Pley's own, and never as an administrator; accounts with
+  two-step sign-in can't sign in from these apps yet
+  ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md)).
+- Account has Tokens for other apps: each app signed in through the
+  Jellyfin-compatible API, with its device and last use, to revoke, and
+  tokens made by hand for apps or scripts that take one, shown once to
+  copy.
+
 ### Changed
 
-- Pley is free software under the GNU Affero General Public License,
-  version 3 (`AGPL-3.0-only`, `LICENSE`). The transcoder gives the address
-  of its source (`GET /v1/info`, `--license`).
+- Updating the Windows service no longer takes minutes on a large library:
+  Setup no longer sets the permissions of every file in the data
+  folder again when the folder is set up already.
+- The server's id is kept in `server-id` in the data folder. An older
+  version's `plex-machine-id` is renamed to it on start, so apps keep
+  recognising the server.
+- Search puts the closest matches first: a title, person or Live TV
+  channel named exactly what was typed, then those whose name begins with
+  it, then the rest.
+- The web app's search shows movies, shows and episodes first, then
+  music, then Live TV, then people.
 - The LG TV app's sign-ins are listed as "Pley for LG TV", with the TV's
   webOS and model, now that the app names itself.
+
+### Removed
+
+- The Plex-compatible API, and with it Tautulli, Kometa, `python-plexapi`
+  scripts and Plex players on Pley. `--plex-bind`, `PLEY_PLEX_BIND` and
+  `plex_bind` are read and ignored, with a warning in the log; Settings →
+  Network's next change takes `plex_bind` out of `pley.toml`. The Windows
+  installer no longer asks about it, and Docker's `compose.plex.yaml` is
+  `compose.jellyfin.yaml`. Smart collections' `guid` filter no longer takes
+  `plex://` guids.
+- The web player's Back 10 seconds and Forward 30 seconds buttons. Left
+  and Right (or J and L) still seek 10 s.
+
+## [0.1.4] - 2026-11-02
+
+### Added
+
+- Apps can make sure an address still leads to the server they signed in
+  to before sending it their token: each sign-in gets a key of its own,
+  and the server proves it holds it, for the address it was asked at. The
+  desktop app gets a key for its window's session. A proof for a plain-http
+  address goes only to the home network (403 from the internet), one for an
+  https address only through a proxy on it, and none goes to a website's
+  page, so a device elsewhere can't get one passed on. A reverse proxy must
+  now pass on only the server's own names (deploy/README.md).
+- A playback with keyed addresses has its file's PGS subtitles beside its
+  media as pictures, each placed and timed (`subtitles-{index}.json` and its
+  PNGs), for a player that can't decode PGS: Roku draws them over the video
+  rather than have them burned in.
+
+### Changed
+
+- Seek previews, fingerprints and other background work pause while the
+  subtitles of a film being played are read out of its Matroska file, a
+  minute and a half at most each time, so on a NAS those come sooner while
+  seek previews are being made.
+- Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
+  seconds of a playback starting, where they could take up to a minute:
+  the transcoder reads those around where the playback is out of a
+  Matroska file first, at once, and the rest of the track after the
+  playback's start. A `.mks` asked for with `at` (where the player is)
+  starts there, and a seek while the rest is read has the pictures where
+  the player went read at once. Kodi's `.sup` has everything read by the
+  time it opens, not only the pictures around the start.
+- A stream for Kodi with VobSub or DVB subtitles no longer starts a copy
+  of them that Kodi never reads, which, in a Matroska file whose index
+  doesn't list them, could read the whole film from a network share.
+  Needs Pley for Kodi from the same release, which names the picture
+  subtitles it shows beside a stream (`picture_subtitles_sideload_codecs`).
+- A PGS subtitle file next to the media (`.sup`) is no longer copied as
+  each playback starts, only when a player asks for it: Kodi reads it as
+  it is.
+- PGS subtitles of a Blu-ray remux come whole about twice as fast from a NAS
+  or a slow disk: each picture is one read of the file, where it was two or
+  three.
+- A remux's picture subtitles aren't left to a read of the whole file (a
+  quarter of an hour or more from a NAS) when a busy NAS makes reading
+  them take over a minute, and a seek while the whole file is read for
+  them still has the pictures where the player went, rather than none.
+- The rest of a film's picture subtitles, read after those around where it
+  plays, pauses while a playback starts or the pictures where a player
+  seeks are read, so on a NAS a seek soon after a film starts has its
+  subtitles in about a second, where it could take four.
+
+### Security
+
+- A Live TV playlist's own guide is used only when it is a web address
+  (http or https). One naming a file or a network share
+  (`url-tvg="//host/share/guide.xml"`) had the server open it, on Windows
+  signing in to that share.
+- People who aren't administrators no longer see FFmpeg's words, which
+  name the server's files, in the activity's sessions or a download that
+  failed, as apps already didn't.
+- The folder browser (Settings, picking a library's or the transcoder's
+  folder) is asked with `POST /api/fs`, no longer `GET`. Over plain HTTP
+  browsers don't say which page asked for a GET, so another site's link
+  or picture could have the server open a folder of its choosing while an
+  administrator was signed in, and on Windows a share named so had the
+  server sign in to it.
+- A library's files are sent from the file checked: a file played as it is,
+  pictures, a `.sup` beside the media and the compatibility API's files and
+  subtitle files are opened once, checked, and read from what was opened.
+  The file was checked and then opened again by its name, so someone who
+  could write in a library folder could swap a link in between and have
+  the server hand out its database or `secret.key`.
+- Transcodes, downloads, frame grabs, album covers, subtitle copies and
+  seek previews check that a file hasn't become a link to another kind of
+  file since the scan, as playing it as it is does: the transcoder was
+  handed whatever the link led to.
+- Live TV's segments are kept to the transcoder's account in a transcode
+  folder chosen elsewhere (`/tmp`, `/dev/shm`, a folder on a second Windows
+  drive), as a playback's are: other accounts on the computer could read
+  what played, or swap a segment. A link or a junction another account put
+  in place of one of the transcoder's folders there is taken away rather
+  than followed: the hourly clean-up of its caches could delete whatever
+  it led to. One put back while the transcoder makes the folder is
+  refused, and what it leads to keeps its permissions.
+- While the transcoder isn't running, people and apps are told just that,
+  no longer its last words as it went, which named files and accounts:
+  administrators still find them in Settings → Transcoder and the log.
+- A guide saved as a file on this computer is read only as one, and only
+  up to a guide's size: no longer one on another computer
+  (`//host/share/…`, `\??\UNC\host\share\…`, which a playlist could have
+  saved before), a device or a pipe. A source with a guide file it couldn't read isn't saved.
+- A channel's stream asked for with `take_over` takes another channel's
+  connection only with a token: over plain HTTP, another site's link signed
+  in by an administrator's cookie could end what others watched.
 
 ## [0.1.3] - 2026-11-02
 
@@ -332,7 +464,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02.2...HEAD
+[0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01.2
 [0.1.1]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01

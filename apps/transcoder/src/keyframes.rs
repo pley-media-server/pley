@@ -199,7 +199,8 @@ async fn scan(ff: &Ffmpeg, background: &Background, path: &Path) -> anyhow::Resu
         }
         anyhow::Ok(times)
     };
-    // Paused while a playback starts or a transcode runs.
+    // Paused while a playback starts, a transcode runs or a player's
+    // subtitles are read.
     let (status, times) = tokio::join!(background.supervise(&mut child, SCAN_TIMEOUT), read);
     let (status, mut times) = (status.map_err(|e| anyhow::anyhow!("{e:?}"))?, times?);
     if !status.success() && times.is_empty() {

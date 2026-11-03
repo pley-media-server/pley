@@ -37,6 +37,19 @@ pub struct Block {
 /// of time) as a Matroska file at `path`. Blocking.
 pub fn write(path: &Path, codec_id: &str, private: &[u8], blocks: &[Block]) -> std::io::Result<()> {
     let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+    write_to(&mut out, codec_id, private, blocks)?;
+    out.into_inner().map_err(|e| e.into_error())?.sync_all()
+}
+
+/// The Matroska file [`write`] writes, in memory.
+pub fn to_bytes(codec_id: &str, private: &[u8], blocks: &[Block]) -> Vec<u8> {
+    let mut out = std::io::Cursor::new(Vec::new());
+    // Writing to memory doesn't fail.
+    let _ = write_to(&mut out, codec_id, private, blocks);
+    out.into_inner()
+}
+
+fn write_to(out: &mut (impl Write + Seek), codec_id: &str, private: &[u8], blocks: &[Block]) -> std::io::Result<()> {
     out.write_all(&element(EBML, &ebml_header()))?;
     out.write_all(&id_bytes(SEGMENT))?;
     // The segment's size, once known.
@@ -113,7 +126,8 @@ pub fn write(path: &Path, codec_id: &str, private: &[u8], blocks: &[Block]) -> s
     out.write_all(&size8(end - segment))?;
     out.seek(SeekFrom::Start(seek_head_at))?;
     out.write_all(&element(SEEK_HEAD, &[seek(INFO, info_at), seek(TRACKS, tracks_at), seek(CUES, cues_at)].concat()))?;
-    out.into_inner().map_err(|e| e.into_error())?.sync_all()
+    out.seek(SeekFrom::Start(end))?;
+    Ok(())
 }
 
 /// A Matroska file of the track with no block yet: what players are given
@@ -137,6 +151,13 @@ pub fn header_only(codec_id: &str) -> Vec<u8> {
 /// element after the segment's start (a cluster, as a rule), once its
 /// tracks are there. `None` before that.
 pub fn readable(bytes: &[u8]) -> Option<usize> {
+    readable_to(bytes).map(|(end, _)| end)
+}
+
+/// [`readable`], with how far into the track's time (ms) that goes: the
+/// time of the last whole cluster, before which every block is there.
+/// `None` for the time until a cluster is whole.
+pub fn readable_to(bytes: &[u8]) -> Option<(usize, Option<i64>)> {
     let (id, size, at) = header(bytes, 0)?;
     if id != EBML {
         return None;
@@ -149,16 +170,39 @@ pub fn readable(bytes: &[u8]) -> Option<usize> {
     at = children;
     let mut tracks = false;
     let mut end = None;
+    let (mut scale_ns, mut last_cluster) = (1_000_000, None);
     while let Some((id, Some(size), data)) = header(bytes, at) {
         let next = data.checked_add(usize::try_from(size).ok()?)?;
         if next > bytes.len() {
             break;
         }
         tracks |= id == TRACKS;
+        match id {
+            INFO => scale_ns = child_uint(bytes, data, next, 0x2A_D7B1).unwrap_or(scale_ns),
+            CLUSTER => last_cluster = child_uint(bytes, data, next, 0xE7).or(last_cluster),
+            _ => {}
+        }
         at = next;
         end = Some(next);
     }
-    end.filter(|_| tracks)
+    let ms = |ticks: u64| i64::try_from(u128::from(ticks) * u128::from(scale_ns) / 1_000_000).unwrap_or(i64::MAX);
+    end.filter(|_| tracks).map(|end| (end, last_cluster.map(ms)))
+}
+
+/// The unsigned integer `id` among the children of the element whose data
+/// is `at..end`.
+fn child_uint(bytes: &[u8], mut at: usize, end: usize, id: u32) -> Option<u64> {
+    while let Some((child, Some(size), data)) = header(bytes, at) {
+        let next = data.checked_add(usize::try_from(size).ok()?)?;
+        if next > end {
+            return None;
+        }
+        if child == id {
+            return (size <= 8).then(|| bytes[data..next].iter().fold(0, |v, b| (v << 8) | u64::from(*b)));
+        }
+        at = next;
+    }
+    None
 }
 
 /// The element at `at`: its id, its size (`None`: unknown), and where its
@@ -336,6 +380,18 @@ mod tests {
         assert_eq!(readable(&bytes[..clusters[1]]), Some(clusters[1]));
         assert_eq!(readable(&bytes[..clusters[1] + 3]), Some(clusters[1]));
         assert_eq!(readable(b"not matroska"), None);
+        // How far into the track that goes: to the last whole cluster's time.
+        assert_eq!(readable_to(&bytes[..clusters[0] + 3]), Some((clusters[0], None)));
+        assert_eq!(readable_to(&bytes[..clusters[1] + 3]), Some((clusters[1], Some(1_000))));
+        assert_eq!(readable_to(&bytes), Some((bytes.len(), Some(95_000))));
+    }
+
+    #[test]
+    fn files_in_memory_are_those_written() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("track.mks");
+        write(&path, "S_VOBSUB", b"palette: 000000", &blocks()).unwrap();
+        assert_eq!(to_bytes("S_VOBSUB", b"palette: 000000", &blocks()), std::fs::read(&path).unwrap());
     }
 
     #[test]

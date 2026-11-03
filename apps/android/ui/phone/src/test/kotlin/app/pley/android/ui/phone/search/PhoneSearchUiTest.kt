@@ -108,8 +108,8 @@ class PhoneSearchUiTest {
     @Test
     fun resultsComeAsCountedGroupsThatOpen() {
         val groups = listOf(
-            SearchGroup(SearchGroupKind.People, listOf(tile(70, "Lena Okafor")), listOf(70)),
             SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights"), tile(2, "North Star")), listOf(1, 2)),
+            SearchGroup(SearchGroupKind.People, listOf(tile(70, "Lena Okafor")), listOf(70)),
         )
         show(SearchUiState("north", emptyList(), SearchResultsState.Ready("north", groups, loading = false)))
         compose.onNodeWithText("Results for “north”").assertExists()

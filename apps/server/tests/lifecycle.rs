@@ -140,7 +140,7 @@ async fn where_pley_listens_changes_while_it_runs() {
 
     // Two addresses instead of the first: the answer comes once they listen.
     let (a, b) = (format!("127.0.0.1:{}", free_port()), format!("127.0.0.1:{}", free_port()));
-    let now = change(first.clone(), json!({"web": [&a, &b], "plex": [], "discovery": false})).await;
+    let now = change(first.clone(), json!({"web": [&a, &b], "jellyfin": [], "discovery": false})).await;
     let listening =
         |now: &serde_json::Value| now["listeners"].as_array().unwrap().iter().filter(|l| l["error"].is_null()).count();
     assert_eq!(listening(&now), 2, "{now}");
@@ -150,17 +150,17 @@ async fn where_pley_listens_changes_while_it_runs() {
     assert!(saved.contains(&format!("bind = \"{a}, {b}\"")), "{saved}");
 
     // One taken by another program is listened on once it is free; the
-    // Plex-compatible API opens.
+    // Jellyfin-compatible API opens on a port of its own.
     let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let later = taken.local_addr().unwrap().to_string();
-    let plex = format!("127.0.0.1:{}", free_port());
-    let now = change(b.clone(), json!({"web": [&b, &later], "plex": [&plex], "discovery": false})).await;
+    let jellyfin = format!("127.0.0.1:{}", free_port());
+    let now = change(b.clone(), json!({"web": [&b, &later], "jellyfin": [&jellyfin], "discovery": false})).await;
     let waiting: Vec<_> = now["listeners"].as_array().unwrap().iter().filter(|l| !l["error"].is_null()).collect();
     assert_eq!(waiting.len(), 1, "{now}");
     assert_eq!(waiting[0]["address"], later.as_str());
     assert!(!answers(a.clone()).await, "{a} closed");
-    let identity = http.get(format!("http://{plex}/identity")).send().await.unwrap();
-    assert!(identity.status().is_success(), "the Plex-compatible API answers");
+    let info = http.get(format!("http://{jellyfin}/System/Info/Public")).send().await.unwrap();
+    assert!(info.status().is_success(), "the Jellyfin-compatible API answers");
     drop(taken);
     let deadline = Instant::now() + Duration::from_secs(10);
     while !answers(later.clone()).await {
@@ -218,7 +218,7 @@ async fn a_taken_port_stops_the_start_before_the_database_is_opened() {
 async fn failed_start(data: &std::path::Path, args: &[&str]) -> (std::process::ExitStatus, String, String) {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let run = pley_exe()
-        .args(["--no-tray", "--plex-bind", "off", "--bind"])
+        .args(["--no-tray", "--jellyfin-bind", "off", "--bind"])
         .arg(taken.local_addr().unwrap().to_string())
         .arg("--data-dir")
         .arg(data)
@@ -266,7 +266,7 @@ async fn a_second_pley_stops_when_one_answers_on_its_port() {
     // on next to the first's 127.0.0.1: the two would share the port.
     let other = tempfile::tempdir().unwrap();
     let run = pley_exe()
-        .args(["--no-tray", "--plex-bind", "off", "--bind"])
+        .args(["--no-tray", "--jellyfin-bind", "off", "--bind"])
         .arg(format!("0.0.0.0:{port}"))
         .arg("--data-dir")
         .arg(other.path())

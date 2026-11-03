@@ -13,8 +13,6 @@ public static class PlayerText
     // The control row.
     public const string Play = "Play";
     public const string Pause = "Pause";
-    public const string Back10 = "Back 10 seconds";
-    public const string Forward10 = "Forward 10 seconds";
     public const string Previous = "Previous";
     public const string Next = "Next";
     public const string Subtitles = "Subtitles";

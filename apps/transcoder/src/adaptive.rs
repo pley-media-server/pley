@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The automatic preset for software encodes (`auto`): x264's and x265's
 //! presets trade encoding speed for picture quality at the same bitrate.
 //!

@@ -149,6 +149,9 @@ public interface IVideoEngine : IMediaEngine
     /// <summary>Switches to the audio track at <paramref name="ordinal"/> among the file's audio streams, checked against <paramref name="language"/>; false when it can't.</summary>
     bool SelectAudio(int ordinal, string? language);
 
+    /// <summary>The place among <see cref="AudioTracks"/> of the track playing; null when it doesn't say.</summary>
+    int? PlayingAudio();
+
     /// <summary>The speeds it plays with their sound, 1 among them; empty when only at normal speed (Speed isn't offered then).</summary>
     IReadOnlyList<double> Speeds { get; }
 

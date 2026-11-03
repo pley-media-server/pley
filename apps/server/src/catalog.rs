@@ -752,6 +752,26 @@ pub async fn files_for_item(db: &Db, item_id: i64) -> sqlx::Result<Vec<FileRow>>
     .await
 }
 
+/// The files of each of `ids`, in [`files_for_item`]'s order. The caller
+/// checks access.
+pub async fn files_for_items(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<FileRow>>> {
+    let mut out: HashMap<i64, Vec<FileRow>> = HashMap::new();
+    for chunk in ids.chunks(500) {
+        let sql = format!(
+            "{FILE_SELECT} WHERE item_id IN ({}) ORDER BY item_id, COALESCE(height, 0) DESC, id",
+            vec!["?"; chunk.len()].join(",")
+        );
+        let mut query = sqlx::query_as::<_, FileRow>(sqlx::AssertSqlSafe(sql.as_str()));
+        for id in chunk {
+            query = query.bind(id);
+        }
+        for file in query.fetch_all(&db.read).await? {
+            out.entry(file.item_id).or_default().push(file);
+        }
+    }
+    Ok(out)
+}
+
 pub async fn file(db: &Db, file_id: i64) -> sqlx::Result<Option<FileRow>> {
     sqlx::query_as(sqlx::AssertSqlSafe(format!("{FILE_SELECT} WHERE id = ?")))
         .bind(file_id)
@@ -815,7 +835,7 @@ pub enum SqlArg {
 }
 
 /// Items of one kind in a library, chosen and ordered by SQL that the caller
-/// builds (the Plex API's filters and sorts, see `plex::library`). [`VISIBLE`]
+/// builds (a listing's filters and sorts, see `crate::listing`). [`VISIBLE`]
 /// applies as everywhere else.
 pub struct ItemsQuery<'a> {
     pub library_id: i64,
@@ -1028,7 +1048,7 @@ pub async fn set_rating(db: &Db, user_id: i64, item_id: i64, rating: Option<f64>
     Ok(())
 }
 
-/// A rating in Plex's 0-10 range, rounded to half stars; `None` for anything else.
+/// A rating from 0 to 10, rounded to half stars; `None` for anything else.
 pub fn valid_rating(value: f64) -> Option<f64> {
     (value.is_finite() && (0.0..=10.0).contains(&value)).then(|| value.round())
 }
@@ -1536,6 +1556,44 @@ pub fn fts_query(input: &str) -> Option<String> {
     (!terms.is_empty()).then(|| terms.join(" "))
 }
 
+/// How closely `name` answers a search for `input`, best first: 0 the whole
+/// name, 1 its beginning, 2 a word of it onwards, 3 its words in any order.
+/// Case and punctuation don't count ("spider-man" is "Spider Man").
+pub fn match_rank(input: &str, name: &str) -> u8 {
+    let words = |s: &str| {
+        s.split(|c: char| !c.is_alphanumeric()).filter(|t| !t.is_empty()).map(str::to_lowercase).collect::<Vec<_>>()
+    };
+    let (query, name) = (words(input).join(" "), words(name).join(" "));
+    if query.is_empty() {
+        3
+    } else if name == query {
+        0
+    } else if name.starts_with(&query) {
+        1
+    } else if name.contains(&format!(" {query}")) {
+        2
+    } else {
+        3
+    }
+}
+
+/// Where a kind of item comes in search results: movies, shows, seasons
+/// and episodes, then music.
+fn search_order(kind: &str) -> u8 {
+    match kind {
+        "movie" => 0,
+        "show" => 1,
+        "season" => 2,
+        "episode" => 3,
+        "artist" => 4,
+        "album" => 5,
+        "track" => 6,
+        _ => 7,
+    }
+}
+
+/// Titles matching `input`, at most `limit`: by kind (movies, shows,
+/// seasons, episodes, then music), the closest matches first in each.
 pub async fn search(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Result<Vec<ItemRow>> {
     let Some(fts) = fts_query(input) else { return Ok(Vec::new()) };
     let ids: Vec<i64> =
@@ -1556,15 +1614,26 @@ pub async fn search(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Res
     let mut rows = items_by_ids(db, user_id, &ids).await?;
     // Bonus material is found through its movie or show.
     rows.retain(|r| r.kind != "extra");
-    // Keep relevance order but surface top-level items first.
-    let priority = |kind: &str| match kind {
+    rank_found(&mut rows, input, limit as usize);
+    Ok(rows)
+}
+
+/// Keeps the `limit` best of `rows` (in the index's order of relevance) and
+/// puts them in the order search shows them. The best: whole titles, then
+/// their beginnings, then a word onwards (a sort title without its "The"
+/// counts too), top-level items before seasons, albums, episodes and tracks
+/// that match as well, so a large library's episodes don't crowd out the
+/// movie whose name was typed.
+fn rank_found(rows: &mut Vec<ItemRow>, input: &str, limit: usize) {
+    let depth = |kind: &str| match kind {
         "movie" | "show" | "artist" => 0,
         "album" | "season" => 1,
         _ => 2,
     };
-    rows.sort_by_key(|r| priority(&r.kind));
-    rows.truncate(limit as usize);
-    Ok(rows)
+    let rank = |r: &ItemRow| match_rank(input, &r.title).min(match_rank(input, &r.sort_title));
+    rows.sort_by_cached_key(|r| (rank(r), depth(&r.kind)));
+    rows.truncate(limit);
+    rows.sort_by_key(|r| search_order(&r.kind));
 }
 
 #[cfg(test)]
@@ -1622,6 +1691,56 @@ mod tests {
         assert_eq!(fts_query("Matrix Reload").as_deref(), Some("\"matrix\"* \"reload\"*"));
         assert_eq!(fts_query("  ").as_deref(), None);
         assert_eq!(fts_query("l'été").as_deref(), Some("\"l\"* \"été\"*"));
+    }
+
+    #[test]
+    fn ranks_matches_by_how_close_they_are() {
+        assert_eq!(match_rank("spider-man", "Spider Man"), 0);
+        assert_eq!(match_rank("the office", "The Office"), 0);
+        assert_eq!(match_rank("alien", "Aliens"), 1);
+        assert_eq!(match_rank("alien", "Alien: Romulus"), 1);
+        assert_eq!(match_rank("romulus", "Alien: Romulus"), 2);
+        assert_eq!(match_rank("man", "Batman"), 3);
+        assert_eq!(match_rank("knight dark", "The Dark Knight"), 3);
+        assert_eq!(match_rank("  ", "Anything"), 3);
+    }
+
+    #[test]
+    fn search_shows_titles_by_kind_closest_first() {
+        let row = |id, kind, title: &str| ItemRow::test_row(id, kind, title);
+        // In the index's order: an episode, a longer movie title, an album,
+        // the movie of that name, a show beginning with it.
+        let mut rows = vec![
+            row(1, "episode", "Heat"),
+            row(2, "movie", "Heat Wave"),
+            row(3, "album", "Heat"),
+            row(4, "movie", "Heat"),
+            row(5, "show", "Heatwave"),
+        ];
+        rank_found(&mut rows, "heat", 10);
+        let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
+        assert_eq!(ids, [4, 2, 5, 1, 3]);
+
+        // Fewer than found: whole titles stay, the movie and then the album
+        // before the episode of the same name.
+        let mut rows = vec![
+            row(1, "episode", "Heat"),
+            row(2, "movie", "Heat Wave"),
+            row(3, "album", "Heat"),
+            row(4, "movie", "Heat"),
+        ];
+        rank_found(&mut rows, "heat", 2);
+        let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
+        assert_eq!(ids, [4, 3]);
+
+        // A sort title counts: "Office" is the whole of "The Office".
+        let mut office = row(1, "show", "The Office");
+        office.sort_title = "Office".into();
+        let mut rows = vec![row(2, "movie", "Office Space"), office];
+        rank_found(&mut rows, "office", 10);
+        assert_eq!(rows[1].id, 1);
+        rank_found(&mut rows, "office", 1);
+        assert_eq!(rows[0].id, 1);
     }
 
     fn ep(id: i64, watched: bool, position_ms: i64, last: Option<i64>) -> EpisodeState {

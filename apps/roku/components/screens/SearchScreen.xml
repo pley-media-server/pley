@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Search with the on-screen keyboard; the recent searches before anything
-     is typed; what the libraries have in rows by kind (People, Live TV's
-     channels as cards, Movies, Shows, Seasons, Episodes, Artists, Albums,
-     Tracks), then, where the person may ask for titles, Discover, ending
-     with See all. -->
+     is typed; what the libraries have in rows by kind (Movies, Shows,
+     Seasons, Episodes, Artists, Albums, Tracks, Live TV's channels as
+     cards, People), then, where the person may ask for titles, Discover,
+     ending with See all. -->
 <component name="SearchScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

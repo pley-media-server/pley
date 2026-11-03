@@ -94,6 +94,13 @@ pub struct Caps {
     /// video.
     #[serde(default)]
     pub picture_subtitles_sideload: Option<bool>,
+    /// The picture codecs the player shows from their own file next to a
+    /// stream (with [`Caps::picture_subtitles_sideload`]); left out, every
+    /// picture codec in `subtitle_codecs`. Kodi shows VobSub and DVB from
+    /// a file it plays as it is, and has them burned into a stream: it
+    /// names PGS alone.
+    #[serde(default)]
+    pub picture_subtitles_sideload_codecs: Option<Vec<String>>,
     /// The player switches a file's audio tracks itself.
     #[serde(default)]
     pub audio_track_switching: Option<bool>,
@@ -213,12 +220,13 @@ impl Caps {
 
     /// The player draws these picture subtitles itself from their own file
     /// (`/api/files/{id}/subtitles/{index}.mks`) next to whatever plays
-    /// ([`Caps::picture_subtitles_sideload`]). Read from players of either
-    /// version: the web app says so in a version 1 report, which these two
-    /// fields change nothing else of.
+    /// ([`Caps::picture_subtitles_sideload`]): those it names
+    /// ([`Caps::picture_subtitles_sideload_codecs`]), else those it shows.
+    /// Read from players of either version: the web app says so in a
+    /// version 1 report, which these fields change nothing else of.
     pub fn sideloads_pictures(&self, codec: &str) -> bool {
-        self.picture_subtitles_sideload == Some(true)
-            && self.subtitle_codecs.as_deref().is_some_and(|list| listed(list, codec))
+        let codecs = self.picture_subtitles_sideload_codecs.as_deref().or(self.subtitle_codecs.as_deref());
+        self.picture_subtitles_sideload == Some(true) && codecs.is_some_and(|list| listed(list, codec))
     }
 
     /// A version 2 player that reads multivariant playlists: its HLS
@@ -1429,32 +1437,42 @@ pub fn decide_with_audio(
 
 /// The picture subtitle track whose `.mks` the player of `req` will ask for
 /// (it draws them itself, [`Caps::sideloads_pictures`]), so the server has
-/// it copied out of its file at once: the track named in the request, else
-/// the one the user's choices pick (`chosen`, `streams::resolve`), when it
-/// is pictures the player draws and nothing burns them in. Not for a track
-/// in a file played as it is: a player that reads it from the file (the
-/// Android app, Kodi) needs no `.mks`, and one that doesn't asks for it at
-/// once anyway. Players change the track as they play: the `.mks` request
-/// starts the copy then.
+/// it copied out of its file at once: the one the user's choices pick
+/// (`chosen`, `streams::resolve`), when it is pictures the player draws and
+/// nothing burns them in. A track the request names needs none: it is
+/// text, pictures burned into a stream ([`decide`]), or read from a file
+/// played as it is. Only for a track in a stream: a player that reads it
+/// from a file played as it is (the Android app, Kodi) needs no `.mks`, and
+/// one that doesn't asks for it at once anyway. Never for a `.sup` next to
+/// the media (the only picture subtitle file Pley lists there): its copy
+/// reads only that file, and Kodi's `.sup` is the file itself. Players
+/// change the track as they play: the `.mks` request starts the copy then.
 pub fn picture_to_prepare(
     streams: &[MediaStream],
     req: &PlaybackRequest,
     decision: &Decision,
     chosen: Option<i64>,
 ) -> Option<i64> {
-    let index = req.subtitle_index.or(chosen)?;
+    if req.subtitle_index.is_some() {
+        return None;
+    }
+    let index = chosen?;
     let track = streams.iter().find(|s| s.index == index && s.kind == StreamKind::Subtitle)?;
     let drawn = !track.text_based.unwrap_or(true) && req.caps.sideloads_pictures(&track.codec);
-    let streamed = decision.method != Method::Direct || track.external;
+    let streamed = decision.method != Method::Direct && !track.external;
     (drawn && streamed && decision.burn_index != Some(index)).then_some(index)
 }
 
-/// Whether a player that draws picture subtitles itself may want one of
-/// these streams' (see [`picture_to_prepare`]).
+/// Whether [`picture_to_prepare`] may pick one of these streams for a
+/// player that draws picture subtitles itself: one in the file, in a codec
+/// it draws.
 pub fn may_draw_pictures(streams: &[MediaStream], caps: &Caps) -> bool {
-    streams
-        .iter()
-        .any(|s| s.kind == StreamKind::Subtitle && !s.text_based.unwrap_or(true) && caps.sideloads_pictures(&s.codec))
+    streams.iter().any(|s| {
+        s.kind == StreamKind::Subtitle
+            && !s.external
+            && !s.text_based.unwrap_or(true)
+            && caps.sideloads_pictures(&s.codec)
+    })
 }
 
 pub fn subtitle_tracks(file_id: i64, streams: &[MediaStream]) -> Vec<SubtitleTrack> {
@@ -1514,8 +1532,12 @@ pub struct Session {
     pub started_at: i64,
     pub play: Mutex<PlayState>,
     /// The app grant whose token started it (`None`: a session token). The
-    /// Plex API's token-less session files refuse these.
+    /// Jellyfin API's token-less session files refuse these.
     pub app_grant: Option<i64>,
+    /// The compatibility token that started it, through the Jellyfin API:
+    /// that API's token-less session files serve only these, while the
+    /// token works.
+    pub compatibility_token: Option<i64>,
     /// What the session's keyed addresses carry (`/api/media/{key}/…`) when
     /// its player asked for them (`keyed_urls`): 256 random bits that open
     /// this session's media and nothing else, for as long as it lasts.
@@ -1562,6 +1584,7 @@ impl Session {
             started_at: now,
             play: Mutex::new(PlayState { position_ms: start_ms, state: "playing".into(), updated_at: now }),
             app_grant: None,
+            compatibility_token: None,
             media_key: None,
             recreate: tokio::sync::Mutex::new(()),
             bitrate: Mutex::new(None),
@@ -1586,8 +1609,8 @@ impl Session {
     }
 
     /// Records a progress report; whether the play state (playing, paused,
-    /// stopped) changed or the session woke, which the dashboard and Plex
-    /// tools hear about at once.
+    /// stopped) changed or the session woke, which the dashboard hears about
+    /// at once.
     pub fn update(&self, position_ms: i64, state: &str) -> bool {
         let mut play = self.play.lock();
         let changed = play.state != state;
@@ -2957,15 +2980,25 @@ mod tests {
         assert_eq!(prepared(&req, Some(10)).1, None);
         assert_eq!(prepared(&req, None).1, None);
         // As it is, a track in the file: the player reads it there or asks
-        // at once. One next to it is prepared.
+        // at once.
         let mut direct = req.clone();
         direct.caps.audio_decode = Some(vec!["dts".into()]);
         assert_eq!(prepared(&direct, Some(9)), (Method::Direct, None));
-        assert_eq!(prepared(&direct, Some(1000)), (Method::Direct, Some(1000)));
-        // Named by the player: burned in, nothing to prepare.
+        // A file next to the media, as it is or beside a stream: its copy
+        // reads only that file.
+        assert_eq!(prepared(&direct, Some(1000)), (Method::Direct, None));
+        assert_eq!(prepared(&req, Some(1000)), (Method::Remux, None));
+        let next_to_it: Vec<_> = streams.iter().filter(|s| s.index != 9).cloned().collect();
+        assert!(!may_draw_pictures(&next_to_it, &req.caps));
+        // Named by the player: burned in, or text it shows; nothing to
+        // prepare, whatever the user's choices pick.
         let mut burn = req.clone();
         burn.subtitle_index = Some(9);
         assert_eq!(prepared(&burn, None).1, None);
+        assert_eq!(prepared(&burn, Some(9)).1, None);
+        let mut text = req.clone();
+        text.subtitle_index = Some(10);
+        assert_eq!(prepared(&text, Some(9)).1, None);
         // A player that doesn't draw them, or not these.
         let mut android = req.clone();
         android.caps.picture_subtitles_sideload = None;
@@ -2986,6 +3019,73 @@ mod tests {
         let d = decide(&f, Some(&i), &streams, &web);
         assert_eq!((d.method, d.burn_index), (Method::Remux, None), "DTS: repackaged, PGS not drawn on");
         assert_eq!(picture_to_prepare(&streams, &web, &d, Some(9)), Some(9));
+    }
+
+    /// Kodi's report (apps/kodi, caps.py): every picture codec shown from a
+    /// file played as it is, PGS alone beside a stream (as a `.sup` made of
+    /// its `.mks`).
+    fn kodi() -> Caps {
+        serde_json::from_value(serde_json::json!({
+            "caps_version": 2, "containers": ["mkv", "mp4"], "video_codecs": ["h264"], "audio_codecs": ["dts"],
+            "video": [{"codec": "h264"}], "audio_decode": ["dts"],
+            "subtitle_codecs": ["subrip", "hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"],
+            "picture_subtitles_sideload": true, "picture_subtitles_sideload_codecs": ["hdmv_pgs_subtitle"],
+            "audio_track_switching": true, "hls": {"master_playlist": false, "segments": ["ts"]}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn picture_tracks_are_prepared_only_in_the_codecs_a_player_shows_beside_a_stream() {
+        let mut i = info("h264", &["dts"], DynamicRange::Sdr);
+        for (index, codec) in [(11, "dvd_subtitle"), (12, "dvb_subtitle")] {
+            i.streams.push(MediaStream {
+                index,
+                kind: StreamKind::Subtitle,
+                codec: codec.into(),
+                text_based: Some(false),
+                ..Default::default()
+            });
+        }
+        let f = file("mkv", 5_000_000);
+        let mut req = request();
+        req.caps = kodi();
+        assert!(req.caps.sideloads_pictures("hdmv_pgs_subtitle"));
+        assert!(!req.caps.sideloads_pictures("dvd_subtitle") && !req.caps.sideloads_pictures("dvb_subtitle"));
+        // A quality below the file's (Automatic's restart): converted, with
+        // the profile's track not named. Kodi asks again to have VobSub or
+        // DVB drawn on: their copy would never be read.
+        req.max_bitrate = Some(2_000);
+        let prepared = |req: &PlaybackRequest, chosen: Option<i64>| {
+            let d = decide(&f, Some(&i), &i.streams, req);
+            (d.method, picture_to_prepare(&i.streams, req, &d, chosen))
+        };
+        assert_eq!(prepared(&req, Some(9)), (Method::Transcode, Some(9)));
+        assert_eq!(prepared(&req, Some(11)), (Method::Transcode, None));
+        assert_eq!(prepared(&req, Some(12)), (Method::Transcode, None));
+        let no_pgs: Vec<_> = i.streams.iter().filter(|s| s.index != 9).cloned().collect();
+        assert!(may_draw_pictures(&i.streams, &req.caps) && !may_draw_pictures(&no_pgs, &req.caps));
+        // Without the list: every picture codec it shows, as before.
+        let mut every = req.clone();
+        every.caps.picture_subtitles_sideload_codecs = None;
+        for index in [9, 11, 12] {
+            assert_eq!(prepared(&every, Some(index)), (Method::Transcode, Some(index)));
+        }
+        assert!(may_draw_pictures(&no_pgs, &every.caps));
+        // The list changes no decision: a track named is burned into a
+        // stream, and shown by Kodi from a file played as it is.
+        for max_bitrate in [None, Some(2_000)] {
+            for subtitle_index in [None, Some(9), Some(11), Some(12)] {
+                let mut named = req.clone();
+                (named.max_bitrate, named.subtitle_index) = (max_bitrate, subtitle_index);
+                let mut unnamed = named.clone();
+                unnamed.caps.picture_subtitles_sideload_codecs = None;
+                let d = decide(&f, Some(&i), &i.streams, &named);
+                assert_eq!(format!("{d:?}"), format!("{:?}", decide(&f, Some(&i), &i.streams, &unnamed)));
+                let burned = subtitle_index.filter(|_| max_bitrate.is_some());
+                assert_eq!(d.burn_index, burned, "{max_bitrate:?} {subtitle_index:?}");
+            }
+        }
     }
 
     #[test]

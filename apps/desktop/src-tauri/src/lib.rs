@@ -9,11 +9,16 @@
 //! only the picker, bundled with the app, has it. The files a server's page
 //! downloads are fetched by the app, to play while the server is away
 //! (`downloads`), and the system's notifications tell of requests while the
-//! window isn't in front (`notices`).
+//! window isn't in front (`notices`). Before the app opens a server, and
+//! before its own requests with the window's session, the server proves it
+//! is the one the window signed in to (`proofs`); the server's pages in the
+//! window send the session themselves, so on another network the window
+//! leaves a plain-http server at once and opens it again through a proof.
 
 mod discovery;
 mod downloads;
 mod notices;
+mod proofs;
 mod servers;
 
 use std::sync::Mutex;
@@ -36,6 +41,9 @@ struct Places {
     picker: Option<Url>,
     /// The server shown now.
     server: Option<Url>,
+    /// The address of this computer the server was reached from when it
+    /// opened (see [`network_changed`]).
+    route: Option<std::net::IpAddr>,
 }
 
 #[derive(Default)]
@@ -94,16 +102,87 @@ fn navigation(url: &Url, places: &mut Places) -> Navigation {
 }
 
 fn show_picker<R: Runtime>(window: &WebviewWindow<R>) {
+    let picker = window.state::<Pages>().0.lock().unwrap().picker.clone();
+    leave_for(
+        window,
+        picker.map(|mut picker| {
+            picker.set_query(Some("pick"));
+            picker
+        }),
+    );
+}
+
+/// Takes the window from `server` back to the picker, which says that
+/// another device answers there now (see [`proofs`]).
+pub(crate) fn not_yours<R: Runtime>(app: &AppHandle<R>, server: &Url) {
+    let Some(window) = app.get_webview_window("main") else { return };
     let pages = window.state::<Pages>();
     let picker = {
-        let mut places = pages.0.lock().unwrap();
-        places.server = None;
+        let places = pages.0.lock().unwrap();
+        if !places.server.as_ref().is_some_and(|shown| same_origin(shown, server)) {
+            return;
+        }
         places.picker.clone()
     };
+    leave_for(
+        &window,
+        picker.map(|mut picker| {
+            picker.query_pairs_mut().append_key_only("pick").append_pair("not-yours", server.as_str());
+            picker
+        }),
+    );
+}
+
+/// The computer's addresses changed, or it slept: every server proves
+/// itself again. A plain-http server shown leaves the window for the
+/// picker, which opens it again once it proves itself there, when the way
+/// to it changed (another network) or the computer slept (it may have woken
+/// on another). An https server is safe where it is, its address checked by
+/// its certificate, and so is one on this computer.
+fn network_changed<R: Runtime>(app: &AppHandle<R>, slept: bool) {
+    app.state::<proofs::Proofs>().doubt_all();
+    let Some(window) = app.get_webview_window("main") else { return };
+    let (shown, route, picker) = {
+        let pages = window.state::<Pages>();
+        let places = pages.0.lock().unwrap();
+        let Some(shown) = places.server.clone() else { return };
+        (shown, places.route, places.picker.clone())
+    };
+    let on_this_computer = match shown.host() {
+        Some(url::Host::Domain(name)) => name.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
+    };
+    if shown.scheme() != "http" || on_this_computer {
+        return;
+    }
+    if slept {
+        leave_for(&window, picker);
+        return;
+    }
+    tauri::async_runtime::spawn(async move {
+        let changed = route_to(shown.clone()).await != route;
+        // Unless the window went elsewhere while the name resolved.
+        let still = window.state::<Pages>().0.lock().unwrap().server.as_ref() == Some(&shown);
+        if changed && still {
+            leave_for(&window, picker);
+        }
+    });
+}
+
+/// [`proofs::route_to`], off the window's thread and the async runtime's:
+/// resolving a name can take seconds, the more so on another network.
+async fn route_to(server: Url) -> Option<std::net::IpAddr> {
+    tauri::async_runtime::spawn_blocking(move || proofs::route_to(&server)).await.ok().flatten()
+}
+
+fn leave_for<R: Runtime>(window: &WebviewWindow<R>, picker: Option<Url>) {
+    window.state::<Pages>().0.lock().unwrap().server = None;
     window.state::<notices::Notices>().follow(None);
-    let Some(mut picker) = picker else { return };
-    picker.set_query(Some("pick"));
-    let _ = window.navigate(picker);
+    if let Some(picker) = picker {
+        let _ = window.navigate(picker);
+    }
 }
 
 /// Opens a web or mail link in the browser; any other kind of address (a
@@ -120,9 +199,25 @@ fn open_in_browser<R: Runtime>(app: &AppHandle<R>, url: &Url) {
 /// Shows the server at `url` in the window (the picker calls this once the
 /// server answered).
 #[tauri::command]
-fn open_server(window: WebviewWindow, url: String) -> Result<(), String> {
+async fn open_server(window: WebviewWindow, url: String) -> Result<(), String> {
     let origin = servers::server_origin(&url)?;
-    window.state::<Pages>().0.lock().unwrap().server = Some(origin.clone());
+    let route = route_to(origin.clone()).await;
+    // The network may have changed since the picker checked it.
+    let proofs = window.state::<proofs::Proofs>();
+    if !proofs.may_open(&origin) {
+        return Err("the network changed: open it again".to_owned());
+    }
+    // The window's cookies go to every port of the host: a server proven at
+    // another port keeps its session, which one without a key doesn't get.
+    if proofs.host_keyed_elsewhere(&origin) {
+        servers::sign_out(&window, &origin);
+    }
+    {
+        let pages = window.state::<Pages>();
+        let mut places = pages.0.lock().unwrap();
+        places.server = Some(origin.clone());
+        places.route = route;
+    }
     window.state::<notices::Notices>().follow(Some(origin.clone()));
     window.navigate(origin).map_err(|e| e.to_string())
 }
@@ -159,6 +254,8 @@ pub fn run() {
             if cfg!(dev) {
                 app.state::<Pages>().0.lock().unwrap().picker = app.config().build.dev_url.clone();
             }
+            // On this computer only (not a roaming profile's folder).
+            app.manage(proofs::Proofs::load(app.path().app_local_data_dir()?.join("proofs.json")));
             let list = app.path().app_data_dir()?.join("downloads.json");
             app.manage(downloads::Downloads::load(list, downloads::folder(app.handle())));
             let handle = app.handle().clone();
@@ -211,6 +308,8 @@ pub fn run() {
             // servers' sessions).
             tauri::async_runtime::spawn(downloads::run(app.handle().clone()));
             tauri::async_runtime::spawn(notices::run(app.handle().clone()));
+            let watching = app.handle().clone();
+            tauri::async_runtime::spawn(proofs::watch_network(move |slept| network_changed(&watching, slept)));
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -226,7 +325,7 @@ mod tests {
     }
 
     fn at_server(picker: &str, server: &str) -> Places {
-        Places { picker: Some(url(picker)), server: Some(url(server)) }
+        Places { picker: Some(url(picker)), server: Some(url(server)), route: None }
     }
 
     #[test]

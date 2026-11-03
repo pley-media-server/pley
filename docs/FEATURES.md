@@ -101,6 +101,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
   documents. Pley's own apps work without internet access; apps by other
   publishers are off until an administrator allows them. TVs show a code to
   type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
+- Apps that use the Jellyfin-compatible API sign in with tokens of their
+  own, which work on that API only, to browse and play; Account lists each
+  app signed in and revokes it ([COMPATIBILITY.md](COMPATIBILITY.md#signing-in)).
 - First-run setup needs a one-time code from the server's log, which the tray
   icon fills in. Passwords have at least 8 characters and can't be common
   ones ([SECURITY.md](../SECURITY.md)).
@@ -112,11 +115,13 @@ What Pley does, in full. The [README](../README.md) has the short version.
   (playback, transcoder, scans, and charts of Pley's and the computer's CPU
   and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
 
-## Compatibility API
+## Jellyfin-compatible API
 
-On Pley's own port (or 32400), for `python-plexapi`, Tautulli and Kometa:
-browsing with their filters, editing, collections, playlists, play queues,
-sessions and notifications ([COMPATIBILITY.md](COMPATIBILITY.md)).
+Off until it is turned on, on Pley's own port or one of its own (8096):
+Jellyfin's apps and others built on its API browse the libraries, play as
+they are or as HLS from Pley's transcoder, with subtitles, skip intro and
+credits, and keep watch state, favorites (My List) and ratings with Pley's
+accounts ([COMPATIBILITY.md](COMPATIBILITY.md)).
 
 ## Offline
 

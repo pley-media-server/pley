@@ -53,8 +53,8 @@ FILTERS = ("view", "kind", "user_id", "q")
 # What only managers do: refused, it needs a sign-in with `approvals`.
 DECIDING = ("approve", "retry", "decline", "decline_reason", "handled", "delete")
 # Refusals the plugin says itself (plugin.run): the server or the service
-# is away, or the sign-in ended.
-AWAY = ("unreachable", "service_off", "signed_out")
+# is away (or another device answers at its address), or the sign-in ended.
+AWAY = ("unreachable", "another_device", "service_off", "signed_out")
 # Routes that run as actions (plugin.ACTIONS).
 ACTIONS = ("title", "act", "request_filter", "more_seasons")
 

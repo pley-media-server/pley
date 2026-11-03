@@ -1,6 +1,6 @@
 //! What an app may do with its token: the scopes a person allows on pley's
 //! own page, and the routes each one opens. Everything else stays closed to
-//! apps (administration, sign-in settings, devices, the Plex-compatible API):
+//! apps (administration, sign-in settings, devices, the Jellyfin-compatible API):
 //! there is no scope for it.
 
 use std::fmt;

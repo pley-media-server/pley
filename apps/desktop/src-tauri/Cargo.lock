@@ -2615,10 +2615,12 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pley-desktop"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
+ "base64 0.23.1",
  "if-addrs",
  "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "tauri",

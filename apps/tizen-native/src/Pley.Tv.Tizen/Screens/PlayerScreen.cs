@@ -98,9 +98,7 @@ sealed class PlayerScreen : Sheet
     readonly FocusItem scrubber;
     readonly FocusGroup row = new FocusGroup(Axis.Row, "controls");
     readonly PlayerButton previous;
-    readonly PlayerButton back10;
     readonly PlayerButton playPause;
-    readonly PlayerButton forward10;
     readonly PlayerButton next;
     readonly PlayerButton chapters;
     readonly PlayerButton sleep;
@@ -255,15 +253,13 @@ sealed class PlayerScreen : Sheet
         preview.Hide();
         controls.Add(preview);
 
-        // The control row: Chapters · Sleep timer · Speed at the left; Previous · Back 10 ·
-        // Play/Pause · Forward 10 · Next centred; Subtitles · Audio · Quality · Info at the right.
+        // The control row: Chapters · Sleep timer · Speed at the left; Previous · Play/Pause ·
+        // Next centred; Subtitles · Audio · Quality · Info at the right.
         chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, OpenChapters);
         sleep = new PlayerButton(PlayerText.Sleep, "moon", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Sleep));
         speed = new PlayerButton(PlayerText.Speed, "fast-forward", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Speed));
         previous = new PlayerButton(PlayerText.Previous, "skip-back", Button, TransportIcon, () => model.Previous(seeker.Target ?? model.LivePositionMs()));
-        back10 = new PlayerButton(PlayerText.Back10, "rotate-ccw", Button, TransportIcon, () => Jump(-1));
         playPause = new PlayerButton(PlayerText.Pause, "pause", PlayButton, PlayIcon, PlayPause);
-        forward10 = new PlayerButton(PlayerText.Forward10, "rotate-cw", Button, TransportIcon, () => Jump(1));
         next = new PlayerButton(PlayerText.Next, "skip-forward", Button, TransportIcon, () => model.Next(seeker.Target ?? model.LivePositionMs()));
         subtitlesButton = new PlayerButton(PlayerText.Subtitles, "captions", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Subtitles));
         audio = new PlayerButton(PlayerText.Audio, "audio-lines", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Audio));
@@ -373,7 +369,7 @@ sealed class PlayerScreen : Sheet
     /// <summary>Starting or between sessions: Left, Right and OK wait, as on Android.</summary>
     bool Busy => model.State.Value.Phase.Kind == PhaseKind.Preparing;
 
-    IEnumerable<PlayerButton> RowButtons => new[] { chapters, sleep, speed, previous, back10, playPause, forward10, next, subtitlesButton, audio, quality, info };
+    IEnumerable<PlayerButton> RowButtons => new[] { chapters, sleep, speed, previous, playPause, next, subtitlesButton, audio, quality, info };
 
     static Size Canvas() => new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.CanvasHeight));
 
@@ -530,9 +526,7 @@ sealed class PlayerScreen : Sheet
         if (options.Speed) left.Add(speed);
         var centre = new List<PlayerButton>();
         if (options.PreviousNext) centre.Add(previous);
-        centre.Add(back10);
         centre.Add(playPause);
-        centre.Add(forward10);
         if (options.PreviousNext) centre.Add(next);
         var right = new List<PlayerButton>();
         if (options.Subtitles) right.Add(subtitlesButton);
@@ -978,7 +972,7 @@ sealed class PlayerScreen : Sheet
         Layout();
     }
 
-    /// <summary>Back and Forward: a step of 10 s each, as Left and Right; fast forward and rewind 30 s. They seek without waiting for OK.</summary>
+    /// <summary>Fast forward and rewind: 30 s, three of Left and Right's steps. They seek without waiting for OK.</summary>
     void Jump(int steps)
     {
         if (Busy) return;

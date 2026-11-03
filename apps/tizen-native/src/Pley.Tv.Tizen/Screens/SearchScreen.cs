@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Tizen.NUI;
@@ -12,9 +14,9 @@ namespace Pley.Tv.Tizen.Screens;
 /// Search on TV (design spec §4.5; the Android app's TvSearchScreen): the field at the top, 520
 /// wide, with initial focus; OK opens the TV's keyboard, and Back or its Search key closes it.
 /// Before typing, the recent searches as chips. While typing (250 ms after the last key), the
-/// results as rows, grouped (People, Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks),
-/// the first header at y = 96. Down from the field goes into the rows, the chips or Retry, Up from
-/// the first row back to it; Left goes to the rail.
+/// results as rows, grouped (Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks, Live TV,
+/// People), the first header at y = 96; a channel found plays at once. Down from the field goes
+/// into the rows, the chips or Retry, Up from the first row back to it; Left goes to the rail.
 /// </summary>
 sealed class SearchScreen : ShellPage
 {
@@ -27,6 +29,7 @@ sealed class SearchScreen : ShellPage
     readonly Images images;
     readonly KeyRepeatGate gate;
     readonly Action<PageKey> go;
+    readonly Action<LiveWatch> watch;
     readonly List<IDisposable> watches = new List<IDisposable>();
     readonly View body = new View { WidthResizePolicy = ResizePolicyType.FillToParent, HeightResizePolicy = ResizePolicyType.FillToParent };
     readonly TextInput field;
@@ -39,16 +42,20 @@ sealed class SearchScreen : ShellPage
     View? chipStrip;
     float chipScroll;
     Animation? chipAnimation;
+    /// <summary>The Live TV row, while the results have one.</summary>
+    ChannelRowView? channelRow;
 
     /// <param name="layers">The app's sheets: the field's keyboard takes the remote's keys through their input.</param>
     /// <param name="go">Opens another page: an item, a person, an album.</param>
-    public SearchScreen(TvShell shell, Shell layers, SearchModel model, Images images, KeyRepeatGate gate, Action<PageKey> go)
+    /// <param name="watch">Plays a Live TV channel found.</param>
+    public SearchScreen(TvShell shell, Shell layers, SearchModel model, Images images, KeyRepeatGate gate, Action<PageKey> go, Action<LiveWatch> watch)
         : base(shell, new PageKey.Search(model.State.Value.Query), "search")
     {
         this.model = model;
         this.images = images;
         this.gate = gate;
         this.go = go;
+        this.watch = watch;
         View.BackgroundColor = PleyColors.Bg;
         // The rows scroll up under the field, which is drawn over them.
         View.Add(body);
@@ -75,6 +82,7 @@ sealed class SearchScreen : ShellPage
             _ => false,
         };
         watches.Add(model.State.Watch(Show));
+        watches.Add(model.Now.Watch(now => channelRow?.SetNow(now)));
     }
 
     public override void Enter()
@@ -109,7 +117,7 @@ sealed class SearchScreen : ShellPage
                 if (!Equals(shown, "skeleton")) Skeletons();
                 break;
             case SearchResultsState.Ready ready:
-                if (!ReferenceEquals(ready.Groups, shown)) Rows(ready.Groups);
+                if (!ReferenceEquals(ready.Groups, shown)) Rows(ready);
                 break;
         }
     }
@@ -122,6 +130,7 @@ sealed class SearchScreen : ShellPage
         chipAnimation = null;
         chipStrip = null;
         chipScroll = 0;
+        channelRow = null;
         below.Clear();
         foreach (var child in body.Children.ToList())
         {
@@ -139,14 +148,26 @@ sealed class SearchScreen : ShellPage
         return false;
     }
 
-    /// <summary>The results' rows: people as circles, episodes as stills, music as squares, the rest posters.</summary>
-    void Rows(IReadOnlyList<SearchGroup> groups)
+    /// <summary>
+    /// The results' rows: people as circles, Live TV's channels as its channel tiles, episodes as
+    /// stills, music as squares, the rest posters.
+    /// </summary>
+    void Rows(SearchResultsState.Ready ready)
     {
+        var groups = ready.Groups;
         ClearBody(groups);
         var column = new RowColumnView(gate, top: ResultsTop, headerY: ResultsTop);
-        foreach (var group in groups)
+        // Live TV's row comes after the titles and before People, as on the web.
+        var channelsAt = ready.Channels.Count > 0 ? SearchRules.ChannelsAt(groups) : -1;
+        for (var i = 0; i <= groups.Count; i++)
         {
-            var g = group;
+            if (i == channelsAt)
+            {
+                channelRow = new ChannelRowView(ready.Channels, model.Origin, model.Now.Value, gate, images, Watch, Shell.FocusRail);
+                column.Add(channelRow, channelRow.Group);
+            }
+            if (i == groups.Count) break;
+            var g = groups[i];
             column.Add(new RowView(g.Title, g.Tiles, g.TileKind, gate, images,
                 tile =>
                 {
@@ -157,6 +178,11 @@ sealed class SearchScreen : ShellPage
         }
         body.Add(column);
         below.Add(column.Group);
+    }
+
+    void Watch(LiveChannel channel)
+    {
+        if (model.Watch(channel.Id) is { } w) watch(w);
     }
 
     /// <summary>
@@ -264,4 +290,75 @@ sealed class SearchScreen : ShellPage
 
     void Block(float x, float y, float w, float h, float radius) =>
         body.Add(new View { Position = new Position(Ui.Dp(x), Ui.Dp(y)), Size = new Size(Ui.Dp(w), Ui.Dp(h)), CornerRadius = Ui.Dp(radius), BackgroundColor = PleyColors.Surface2 });
+}
+
+/// <summary>
+/// Search's Live TV row (the Android app's ChannelRow; the web's ChannelResults): the channels
+/// found as Live TV's channel tiles, the logo with the number and how far what's on is, captioned
+/// with the name and what's on. OK plays the channel; there are no details on a long press, as on
+/// Android TV. As in a row of tiles, the focused tile's left edge stays at the gutter while the
+/// row moves under it, Left from the first tile goes to the rail and Right stops at the end.
+/// </summary>
+sealed class ChannelRowView : View
+{
+    static readonly TileKind Kind = ChannelCard.Kind;
+
+    readonly KeyRepeatGate gate;
+    readonly View strip;
+    readonly List<ChannelCard> cards = new List<ChannelCard>();
+    Animation? scroll;
+
+    public ChannelRowView(IReadOnlyList<LiveChannel> channels, string origin, long now, KeyRepeatGate gate, Images images, Action<LiveChannel> onWatch, Func<bool> toRail)
+    {
+        this.gate = gate;
+        Group = new FocusGroup(Axis.Row, SearchText.LiveTv);
+        Group.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
+        var header = Text.Label(SearchText.LiveTv, PleyType.Section, PleyColors.Fg, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
+        header.Position = new Position(Ui.Dp(PleyTv.Gutter), 0);
+        Add(header);
+        var top = Ui.Dp(PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles);
+        strip = new View { Position = new Position(Ui.Dp(PleyTv.Gutter), top) };
+        Add(strip);
+        var step = Ui.Dp(Kind.Width + Kind.Gap);
+        // Twelve at most: each is made now, its logo asked for with it.
+        for (var i = 0; i < channels.Count; i++)
+        {
+            var channel = channels[i];
+            var card = new ChannelCard(channel, channel.Name, origin, images, now) { Position = new Position(i * step, 0) };
+            var item = Group.Add(new FocusItem($"{SearchText.LiveTv}/{channel.Id}") { Selected = () => onWatch(channel) });
+            item.FocusChanged += on => card.Focus(on);
+            strip.Add(card);
+            cards.Add(card);
+        }
+        Group.ChildFocused += ScrollTo;
+        Size = new Size(Ui.Dp(PleyTv.CanvasWidth), top + Ui.Dp(Kind.Height + PleyTv.TilesToCaption + PleyTv.CaptionHeight));
+    }
+
+    public FocusGroup Group { get; }
+
+    /// <summary>What's on each channel, and how far it is, at <paramref name="now"/>.</summary>
+    public void SetNow(long now)
+    {
+        if (Disposed) return;
+        foreach (var card in cards) card.Now(now);
+    }
+
+    /// <summary>Where the strip sits for the tile at <paramref name="index"/>, as in <see cref="RowView"/>: its left edge at the gutter, or as far as the row goes.</summary>
+    float OffsetFor(int index)
+    {
+        var step = Ui.Dp(Kind.Width + Kind.Gap);
+        var content = cards.Count * step - Ui.Dp(Kind.Gap);
+        var room = Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
+        if (content <= room) return 0;
+        var most = content + Ui.Dp(PleyTv.SafeHorizontal + Kind.Width) - Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter);
+        return -Math.Min(index * step, Math.Max(0, most));
+    }
+
+    void ScrollTo(int index)
+    {
+        scroll?.Stop();
+        scroll = Scrolling.Glide(gate);
+        scroll.AnimateTo(strip, "PositionX", Ui.Dp(PleyTv.Gutter) + OffsetFor(index));
+        scroll.Play();
+    }
 }

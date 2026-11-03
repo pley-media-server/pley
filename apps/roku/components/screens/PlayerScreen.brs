@@ -6,7 +6,8 @@
 ' current token (a token that ran out answers 401 to the Video node).
 ' Skip Intro and Skip Credits follow the web player: an episode's credits
 ' bring up Up Next instead. Down brings up pley's menu: Quality, subtitle
-' sync for a file with text subtitles (SubtitleSync.brs), the file's
+' sync for a file with text subtitles or pictures drawn here
+' (SubtitleSync.brs), the file's
 ' chapters, the sleep timer (Sleep.brs) and the playback's details
 ' (Details.brs). Subtitles (or audio) the person picks
 ' in Roku's options are remembered on the server for the show or the movie
@@ -14,6 +15,9 @@
 ' is the one chosen in Settings or the menu; when it doesn't play well,
 ' Automatic lowers a conversion's bitrate as it is sent, or opens the
 ' stream again lower where it was once it stopped anyway (AutoQuality.brs).
+' PGS subtitles are drawn over the video from the server's pictures
+' (Pictures.brs), so the file plays as it is; the server burns them in
+' only where it can't make those.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -90,6 +94,8 @@ sub init()
     m.syncMs = 0
     m.syncKey = ""
     m.syncWas = 0
+    ' The offset the stream's text tracks were opened with.
+    m.streamSyncMs = 0
     m.textTracks = 0
     ' The tracks shown (stream indexes; -1 none, -2 not known yet), the
     ' audio played, and from when (clock ms) a change is the person's: -1
@@ -127,6 +133,39 @@ sub init()
     m.pausedTimer.duration = playerPausedReportEveryMs() / 1000
     m.pausedTimer.observeField("fire", "onPausedTick")
     m.video.observeField("downloadedSegment", "onSegment")
+    ' Picture subtitles drawn here: the track (-1 none), its pictures known
+    ' (Pictures.brs), where the video's picture shows (invalid when the
+    ' file doesn't say its size), the folder of their files after the
+    ' server, the cue showing (-1 none), the frames (the one at front shows,
+    ' the other loads the next), which answer is awaited and whether a seek
+    ' since wants another at once, the last position seen (and when) to
+    ' tell a seek by, and the pictures that failed to load (and when). Once
+    ' the server turns out not to make them, they are burned in for as long
+    ' as the player shows.
+    m.picturesOff = false
+    m.pictureIndex = -1
+    m.pictures = invalid
+    m.picturePicture = invalid
+    m.pictureFolder = ""
+    m.pictureShown = -1
+    m.pictureFrames = [m.top.findNode("pictureA"), m.top.findNode("pictureB")]
+    m.pictureFront = 0
+    for each frame in m.pictureFrames
+        frame.setHttpAgent(uiHttpAgent(false))
+        frame.observeField("loadStatus", "onPictureLoad")
+    end for
+    m.pictureFailed = {}
+    ' Captions as last seen: the person turning them off turns off pictures
+    ' drawn here.
+    m.captionModeSeen = httpString(m.video.globalCaptionMode)
+    m.pictureAsk = 0
+    m.pictureWaiting = false
+    m.pictureAgain = false
+    m.pictureLastMs = -1
+    m.pictureLastAt = 0
+    m.picturesTimer = m.top.findNode("picturesTimer")
+    m.picturesTimer.duration = picAgainMs() / 1000
+    m.picturesTimer.observeField("fire", "askPictures")
     m.syncButtons.buttons = ["Done", "Reset"]
     m.syncButtons.observeField("buttonSelected", "onSyncButton")
     m.video.notificationInterval = 1
@@ -217,6 +256,7 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.skipDismissed = false
     m.textTracks = 0
     m.tracksFrom = -1
+    stopPictures()
     m.sync.visible = false
     closeMenu()
     hideSkip()
@@ -233,7 +273,8 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
 end sub
 
 ' POST /api/playback for the version chosen, else the first file, with
-' its picture subtitles to draw when the person's choices pick some, at the
+' its picture subtitles to burn in when the person's choices pick some the
+' app doesn't draw itself, at the
 ' quality chosen in Settings (or Automatic's). A title's first opening in
 ' Automatic asks the server what it knows of the network first.
 sub askPlayback()
@@ -300,12 +341,19 @@ sub requestPlayback(choice as string, ceilingKbps as float)
     ' Keyed addresses: Roku fetches the seek previews itself, without the
     ' Authorization header.
     spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt, keyed: true }
+    ' PGS the app can't draw (no pictures from this server) is burned in:
+    ' the caps say the app doesn't show it, or the server would leave it out.
+    drawn = picCodecs()
+    if m.picturesOff
+        drawn = []
+        spec.picturesOff = true
+    end if
     ' The version chosen on the title's page; a title played next has none
     ' of its files, so it plays its first (the server's default too).
     file = contentFile(m.item, m.top.params.fileId)
     if file <> invalid
         spec.fileId = httpNumber(file.id, 0)
-        burn = playerBurnIndex(file)
+        burn = playerBurnIndex(file, drawn)
         if burn >= 0 then spec.subtitleIndex = burn
     end if
     again = ""
@@ -414,6 +462,7 @@ sub begin()
     m.video.setFocus(true)
     m.lastReportAt = m.clock.TotalMilliseconds()
     watchPlayback()
+    startPictures()
 end sub
 
 ' Automatic's watch over what now plays: the title's own after a restart,
@@ -571,6 +620,7 @@ sub showStream(stream as object, subtitle as string)
     content.title = stream.title
     content.playStart = stream.playStart
     content.subtitleTracks = syncTracks(stream.subtitleTracks, m.syncMs)
+    m.streamSyncMs = m.syncMs
     if stream.previews <> ""
         content.SDBifUrl = stream.previews
         content.HDBifUrl = stream.previews
@@ -588,7 +638,7 @@ function syncSection() as object
 end function
 
 ' pley's menu is offered while a stream plays; subtitle sync in it for a
-' file with text subtitles.
+' file with text subtitles, or picture ones drawn here.
 function menuOffered() as boolean
     return m.info <> invalid and not m.notice.visible and not m.upNext.visible and not m.sync.visible
 end function
@@ -605,6 +655,8 @@ end sub
 sub stepSync(byMs as integer)
     m.syncMs = syncClamp(m.syncMs + byMs)
     m.syncValue.text = syncLabel(m.syncMs)
+    ' Pictures drawn here move at once.
+    drawPictures()
 end sub
 
 sub onSyncButton(event as object)
@@ -616,14 +668,15 @@ sub onSyncButton(event as object)
 end sub
 
 ' Done or Back: a new offset is remembered for the file, and the stream
-' opens again where it was, its text tracks moved by the server.
+' opens again where it was, its text tracks moved by the server. Pictures
+' drawn here moved already: the stream plays on.
 sub closeSync()
     if not m.sync.visible then return
     m.sync.visible = false
     m.video.setFocus(true)
     if m.syncMs = m.syncWas then return
     syncRemember(syncSection(), m.syncKey, m.syncMs)
-    reopen()
+    if m.pictureIndex < 0 then reopen()
 end sub
 
 ' The stream again from where it is: the same session and address, the
@@ -666,7 +719,14 @@ end sub
 sub onTracks()
     if m.info = invalid or m.item = invalid then return
     file = contentFile(m.item, m.info.file_id)
-    subtitle = tracksSubtitleShown(httpString(m.video.globalCaptionMode), httpString(m.video.currentSubtitleTrack), m.info.subtitles, m.global.session.server)
+    mode = httpString(m.video.globalCaptionMode)
+    subtitle = tracksSubtitleShown(mode, httpString(m.video.currentSubtitleTrack), m.info.subtitles, m.global.session.server)
+    settled = m.tracksFrom >= 0 and m.clock.TotalMilliseconds() >= m.tracksFrom
+    ' Roku's options can't name pictures drawn here: captions on without a
+    ' text track leave them be; turned off by the person, they go.
+    turnedOff = settled and LCase(mode) = "off" and LCase(m.captionModeSeen) <> "off"
+    m.captionModeSeen = mode
+    if m.pictureIndex >= 0 and subtitle = -1 and not turnedOff then subtitle = -2
     ' A converted stream has one audio track; a file played as it is, all.
     audio = -2
     if not httpTrue(m.info.hls) then audio = tracksAudioShown(m.video.availableAudioTracks, tracksTrackId(m.video.currentAudioTrack), file)
@@ -679,13 +739,14 @@ sub onTracks()
         m.audioPlaying = audio
     end if
     if not subtitlePicked and not audioPicked then return
-    if m.tracksFrom < 0 or m.clock.TotalMilliseconds() < m.tracksFrom then return
+    if not settled then return
     saveTracks(file, subtitlePicked, audioPicked)
 end sub
 
 ' PUT /api/items/{id}/streams with the tracks playing; kept in the file too,
 ' so a stream started again shows them. Text subtitles picked over picture
-' ones the server draws need a stream without those.
+' ones the server draws need a stream without those; over ones drawn here,
+' only that those go.
 sub saveTracks(file as dynamic, subtitlePicked as boolean, audioPicked as boolean)
     burned = -1
     if httpTrue(m.info.burn_subtitles) then burned = Int(httpNumber(m.info.subtitle_index, -1))
@@ -699,6 +760,12 @@ sub saveTracks(file as dynamic, subtitlePicked as boolean, audioPicked as boolea
     if file <> invalid
         if body.DoesExist("audio_index") then file.selected_audio = body.audio_index
         file.selected_subtitle = body.subtitle_index
+    end if
+    if subtitlePicked and m.pictureIndex >= 0 and subtitle <> m.pictureIndex
+        stopPictures()
+        ' A sync changed meanwhile moved the pictures alone: the text track
+        ' moves with the stream opened again.
+        if subtitle >= 0 and m.syncMs <> m.streamSyncMs then reopen()
     end if
     if not subtitlePicked or not tracksNeedNewSession(burned, subtitle) then return
     position = m.positionMs
@@ -721,6 +788,7 @@ end sub
 sub onState(event as object)
     state = event.getData()
     watchState(state)
+    drawPictures()
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state = "playing"
         m.played = true
@@ -759,6 +827,8 @@ sub onPosition(event as object)
     if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
     if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
+    followPictures()
+    drawPictures()
 end sub
 
 ' Skip Intro or Skip Credits while the playhead is in one and the video
@@ -891,6 +961,7 @@ sub finish()
     newTitle()
     m.toastTimer.control = "stop"
     m.toast.visible = false
+    stopPictures()
     if m.sessionId <> ""
         report("stopped")
         endSession()
@@ -907,6 +978,7 @@ end sub
 ' over the screen before.
 sub stopped(data as dynamic)
     m.tracksFrom = -1
+    stopPictures()
     m.sessionId = ""
     m.video.control = "stop"
     lines = playerStoppedMessage(data).Split(Chr(10))
@@ -1135,7 +1207,8 @@ end function
 
 ' --- pley's menu ---
 
-' Its entries: Quality, Subtitle sync for a file with text subtitles,
+' Its entries: Quality, Subtitle sync for a file with text subtitles or
+' pictures drawn here,
 ' Chapters for a file that has them, Sleep timer, Find subtitles…,
 ' Playback details.
 sub openMenu()
@@ -1144,7 +1217,7 @@ sub openMenu()
     m.menuTitle.text = "Playback"
     items = [{ title: "Quality: " + qualityShown() }]
     m.menuActions = ["quality"]
-    if m.textTracks > 0
+    if m.textTracks > 0 or m.pictureIndex >= 0
         items.Push({ title: "Subtitle sync: " + syncLabel(m.syncMs) })
         m.menuActions.Push("sync")
     end if
@@ -1425,8 +1498,169 @@ sub showDetails(live as dynamic)
     for each row in details.rows
         lines.Push(row.label + ": " + row.value)
     end for
+    if m.pictureIndex >= 0 then lines.Push("Subtitles: Drawn by Pley")
     if m.watch <> invalid and aqLowered(m.watch) then lines.Push("Quality: " + qualityShown() + " · Lowered for your connection")
     m.menuText.text = lines.Join(Chr(10))
+end sub
+
+' --- Picture subtitles drawn here (Pictures.brs) ---
+
+' The person's picture subtitles, when the app draws them: their list asked
+' for at once, from where the playback starts. Without a key to fetch them
+' by, the server burns them in instead.
+sub startPictures()
+    stopPictures()
+    file = contentFile(m.item, m.info.file_id)
+    index = picTrack(m.info, file, m.picturesOff)
+    if index < 0 then return
+    m.pictureIndex = index
+    m.picturePicture = picPicture(file, 1920, 1080)
+    m.pictureFolder = picFolder(m.info.url, m.global.session.server)
+    if m.pictureFolder = ""
+        picturesFailed()
+        return
+    end if
+    ' What shows is these pictures: Roku's options only list text tracks.
+    m.subtitleShown = index
+    m.video.notificationInterval = picNotifySeconds()
+    askPictures()
+end sub
+
+sub stopPictures()
+    m.pictureIndex = -1
+    m.pictures = invalid
+    m.pictureShown = -1
+    ' An answer on its way is for pictures no longer drawn.
+    m.pictureAsk = m.pictureAsk + 1
+    m.pictureWaiting = false
+    m.pictureAgain = false
+    m.pictureLastMs = -1
+    m.picturesTimer.control = "stop"
+    for each frame in m.pictureFrames
+        frame.opacity = 0
+        frame.uri = ""
+    end for
+    m.pictureFailed = {}
+    m.video.notificationInterval = 1
+end sub
+
+' The list of the track's pictures, from where the video is: one request at
+' a time, the next a few seconds after the last answer while the track
+' isn't whole.
+sub askPictures()
+    if m.pictureIndex < 0 or m.pictureWaiting or m.sessionId = "" then return
+    m.picturesTimer.control = "stop"
+    m.pictureWaiting = true
+    path = picListPath(m.pictureFolder, m.pictureIndex, m.positionMs)
+    ' The session's key opens it: no token.
+    uiRequest({ method: "GET", path: path, auth: false, build: "pictures", ask: m.pictureAsk }, "onPictures")
+end sub
+
+sub onPictures(event as object)
+    if event.getRoSGNode().spec.ask <> m.pictureAsk then return
+    m.pictureWaiting = false
+    answer = event.getData()
+    kind = picAnswerKind(answer)
+    if kind = "unavailable"
+        picturesFailed()
+        return
+    end if
+    ' A session stopped: the player hears of it itself.
+    if kind = "stopped" then return
+    if kind = "ok"
+        m.pictures = picMerge(m.pictures, answer.data)
+        m.pictureShown = -2
+        drawPictures()
+        if m.pictures.complete then return
+    end if
+    ' A seek while it was asked for: the pictures where the video is now.
+    if m.pictureAgain
+        m.pictureAgain = false
+        askPictures()
+        return
+    end if
+    m.picturesTimer.control = "start"
+end sub
+
+' A seek while the track isn't whole: the pictures where the video is now
+' are asked for at once, rather than at the next look.
+sub followPictures()
+    if m.pictureIndex < 0 then return
+    now = m.clock.TotalMilliseconds()
+    seeked = picSeeked(m.pictureLastMs, m.pictureLastAt, m.positionMs, now)
+    m.pictureLastMs = m.positionMs
+    m.pictureLastAt = now
+    if not seeked or (m.pictures <> invalid and m.pictures.complete) then return
+    if m.pictureWaiting
+        m.pictureAgain = true
+    else
+        askPictures()
+    end if
+end sub
+
+' The server doesn't make pictures (an older server or transcoder): they
+' are burned in from now on, the stream opening again where it is, as on
+' the other TVs.
+sub picturesFailed()
+    m.picturesOff = true
+    stopPictures()
+    if m.info = invalid then return
+    position = m.positionMs
+    seconds = m.video.position
+    if seconds <> invalid and seconds > 0 then position = Int(seconds * 1000)
+    open(m.itemId, position, m.item, m.mode)
+end sub
+
+' The picture for now, while the video plays, at its place on the screen;
+' the next one loads meanwhile in the other frame, which then comes to the
+' front. Paused or seeking, Roku's bar has the bottom of the screen.
+sub drawPictures()
+    if m.pictureIndex < 0 then return
+    plan = { show: -1, preload: -1 }
+    if m.pictures <> invalid then plan = picPlan(m.pictures, m.positionMs, m.syncMs)
+    shown = plan.show
+    if m.video.state <> "playing" then shown = -1
+    base = m.global.session.server + m.pictureFolder
+    if shown <> m.pictureShown
+        m.pictureShown = shown
+        if shown >= 0
+            cue = m.pictures.cues[shown]
+            uri = base + cue.image
+            if m.pictureFrames[m.pictureFront].uri <> uri and m.pictureFrames[1 - m.pictureFront].uri = uri then m.pictureFront = 1 - m.pictureFront
+            front = m.pictureFrames[m.pictureFront]
+            loadPicture(front, uri)
+            ' Not loading, as it failed a moment ago: looked at again next time.
+            if front.uri <> uri then m.pictureShown = -2
+            place = picBox(cue, m.pictures, picPlane(m.pictures, m.picturePicture, 1920, 1080))
+            front.translation = [place.x, place.y]
+            front.width = place.width
+            front.height = place.height
+            front.opacity = 1
+        else
+            m.pictureFrames[m.pictureFront].opacity = 0
+        end if
+        m.pictureFrames[1 - m.pictureFront].opacity = 0
+    end if
+    if plan.preload >= 0 then loadPicture(m.pictureFrames[1 - m.pictureFront], base + m.pictures.cues[plan.preload].image)
+end sub
+
+' Has frame load uri, unless its load failed a moment ago (picLoadAgain).
+sub loadPicture(frame as object, uri as string)
+    if frame.uri = uri then return
+    if not picLoadAgain(m.pictureFailed[uri], m.clock.TotalMilliseconds()) then return
+    frame.uri = uri
+end sub
+
+' A picture that didn't load (a timeout, the server busy) loads again a few
+' seconds later, when it shows or comes next.
+sub onPictureLoad(event as object)
+    if event.getData() <> "failed" then return
+    frame = event.getRoSGNode()
+    uri = httpString(frame.uri)
+    if uri = "" then return
+    m.pictureFailed[uri] = m.clock.TotalMilliseconds()
+    frame.uri = ""
+    if frame.opacity > 0 then m.pictureShown = -2
 end sub
 
 ' --- Find subtitles… (SubtitleSearch.brs) ---
@@ -1537,6 +1771,7 @@ sub onSubtitlesAdded(event as object)
     burned = -1
     if httpTrue(m.info.burn_subtitles) then burned = Int(httpNumber(m.info.subtitle_index, -1))
     m.subtitleShown = index
+    stopPictures()
     body = tracksStreamsBody(m.info.file_id, -2, index)
     uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.itemId) + "/streams", jsonText: FormatJson(body) }, "")
     if file <> invalid then file.selected_subtitle = index

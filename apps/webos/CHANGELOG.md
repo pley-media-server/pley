@@ -82,12 +82,37 @@ describes how they are made.
 - An audio track whose language the file and the TV write differently
   ("vie" and "vi", "ind" and "id") switches in place instead of starting
   the stream again, and on the track asked for.
+- In the player, Skip Intro and a click on the bar no longer come undone
+  a few seconds later by a seek still waiting for OK.
+
+## [0.1.3] - 2026-11-02
+
+### Changed
+
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, where they could take up to a minute: the
+  TV tells the server where it plays, and the server reads those around it
+  first.
+
+### Fixed
+
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
-- In the player, Skip Intro and a click on the bar no longer come undone
-  a few seconds later by a seek still waiting for OK.
+
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one the TV signed in to, at that address: the access token waits for
+  a proof made on this network within the half hour, the refresh token and
+  a profile's PIN for one made then. Another device at the address on
+  another network gets nothing, nor does one passing the challenge on to
+  the server from elsewhere; the TV says "Another device answers there."
+  One that takes the address on the TV's own network may get an access
+  token (an hour's) within the half hour, never the refresh token. A
+  sign-in from before starts checking within the hour, as its token is
+  renewed.
 
 ## [0.1.2] - 2026-11-02
 
@@ -202,7 +227,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02.2...HEAD
+[0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
 [0.1.1]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01
 [0.1.0]: https://github.com/pley-media-server/pley/tree/94985f768f39f4a230060cb47af9498ee8779ddf

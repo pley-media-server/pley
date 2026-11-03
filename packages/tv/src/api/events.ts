@@ -156,7 +156,11 @@ export class EventStream {
       this.later(this.retryDelay());
     };
     xhr.onload = ended;
-    xhr.onerror = ended;
+    xhr.onerror = () => {
+      // Nothing answered: the server proves itself again before the next token.
+      this.tokens.doubtServer();
+      ended();
+    };
     xhr.onabort = ended;
     xhr.send();
   }

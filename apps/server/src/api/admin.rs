@@ -380,7 +380,7 @@ pub async fn put_network(
     listen.check().map_err(AppError::bad_request)?;
     let (now, fixed) = (state.network.wanted(), state.network.fixed);
     if (fixed.web && listen.web != now.web)
-        || (fixed.plex && (listen.plex != now.plex || listen.plex_on_web != now.plex_on_web))
+        || (fixed.jellyfin && (listen.jellyfin != now.jellyfin || listen.jellyfin_on_web != now.jellyfin_on_web))
         || (fixed.discovery && listen.discovery != now.discovery)
     {
         return Err(AppError::bad_request("the command line or the environment sets that: change it there"));
@@ -389,15 +389,15 @@ pub async fn put_network(
         let addresses =
             |list: &[std::net::SocketAddr]| list.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         tracing::info!(
-            "{} changed where Pley listens: {} (the Plex-compatible API: {}; discovery {})",
+            "{} changed where Pley listens: {} (the Jellyfin-compatible API: {}; discovery {})",
             user.username,
             addresses(&listen.web),
-            if listen.plex_on_web {
+            if listen.jellyfin_on_web {
                 "on Pley's port".to_owned()
-            } else if listen.plex.is_empty() {
+            } else if listen.jellyfin.is_empty() {
                 "off".to_owned()
             } else {
-                addresses(&listen.plex)
+                addresses(&listen.jellyfin)
             },
             if listen.discovery { "on" } else { "off" },
         );
@@ -802,8 +802,20 @@ fn roots() -> Vec<DirEntry> {
     out
 }
 
-pub async fn browse_fs(_admin: AdminUser, Query(query): Query<HashMap<String, String>>) -> ApiResult<Json<Listing>> {
-    let Some(raw) = query.get("path").map(|p| p.trim()).filter(|p| !p.is_empty()) else {
+#[derive(Deserialize)]
+pub struct FsQuery {
+    #[serde(default)]
+    path: Option<String>,
+}
+
+/// `POST /api/fs`: the folders in `path`, or the roots and drives without
+/// it, to pick a library's or the transcoder's from. A POST, though it
+/// changes nothing: over plain HTTP browsers don't say which page asked for
+/// a GET, so another site's link or picture could have the server open a
+/// folder of its choosing (on Windows, a share of its own, signing in to
+/// it). A POST's `Origin` says.
+pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResult<Json<Listing>> {
+    let Some(raw) = query.path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
         return Ok(Json(Listing { path: None, parent: None, entries: roots() }));
     };
     let path = PathBuf::from(raw);

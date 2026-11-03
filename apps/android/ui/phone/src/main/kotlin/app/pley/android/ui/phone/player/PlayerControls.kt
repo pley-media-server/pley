@@ -51,7 +51,6 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.icon.SkipIcon
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
 
@@ -153,39 +152,23 @@ private fun BackButton(onClick: () -> Unit) {
 }
 
 /**
- * −10 s, Play/Pause and +10 s, as streaming apps' players draw them:
- * glyphs alone on the dimmed picture, the skips with their seconds in
- * them, 64 dp apart. Play/Pause steps aside for the spinner.
+ * Play/Pause, as streaming apps' players draw it: a glyph alone on the
+ * dimmed picture. It steps aside for the spinner.
  */
 @Composable
 internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("centre")
     // The seek preview takes the middle while the seek bar is dragged.
     val scrubbing = state.scrubMs != null
-    val seconds = (PlayerScreenState.SEEK_STEP_MS / 1000).toInt()
-    Row(
-        modifier.graphicsLayer { alpha = if (scrubbing) 0f else 1f },
-        horizontalArrangement = Arrangement.spacedBy(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GlyphButton(stringResource(R.string.player_back_10), SkipTarget, onClick = { state.seekBy(-PlayerScreenState.SEEK_STEP_MS) }) {
-            SkipIcon(forward = false, seconds = seconds, size = SkipGlyph)
-        }
-        val playing = state.playing
-        Box(Modifier.size(PlayTarget).graphicsLayer { alpha = if (spinning) 0f else 1f }) {
-            GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), PlayTarget, onClick = state::togglePlay) {
-                Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = PlayGlyph)
-            }
-        }
-        GlyphButton(stringResource(R.string.player_forward_10), SkipTarget, onClick = { state.seekBy(PlayerScreenState.SEEK_STEP_MS) }) {
-            SkipIcon(forward = true, seconds = seconds, size = SkipGlyph)
+    val playing = state.playing
+    Box(modifier.size(PlayTarget).graphicsLayer { alpha = if (scrubbing || spinning) 0f else 1f }) {
+        GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), PlayTarget, onClick = state::togglePlay) {
+            Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = PlayGlyph)
         }
     }
 }
 
-/** The centre's touch targets and glyphs: the skips 64 dp around 40, Play/Pause 80 around 52. */
-private val SkipTarget = 64.dp
-private val SkipGlyph = 40.dp
+/** The centre's touch target and glyph: 80 dp around 52. */
 private val PlayTarget = 80.dp
 private val PlayGlyph = 52.dp
 

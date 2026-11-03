@@ -17,6 +17,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Caps.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />

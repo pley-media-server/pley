@@ -62,7 +62,7 @@ pub async fn home(
 }
 
 /// `DELETE /api/continue-watching/{id}`: takes a row out of the user's
-/// Continue Watching (every one: Home's, the libraries', the Plex API's) until
+/// Continue Watching (every one: Home's, the libraries', the Jellyfin API's) until
 /// they play it again. An episode takes its whole show out. Progress and
 /// watched marks stay as they are.
 pub async fn hide_continue_watching(

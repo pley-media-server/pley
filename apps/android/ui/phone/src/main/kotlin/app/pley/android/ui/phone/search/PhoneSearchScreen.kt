@@ -115,7 +115,7 @@ import kotlinx.coroutines.delay
  * bar docked at the top with the keyboard up when the tab opens empty.
  * Before typing, the way to Discover where requests are open, and the
  * profile's recent searches with Clear; while typing, the results as
- * rows, grouped and counted (People, Live TV, Movies, Shows…), the ones
+ * rows, grouped and counted (Movies, Shows… Live TV, People), the ones
  * shown staying while the next load, then what TMDB has that no library
  * has, or why TMDB can't be searched. A channel found plays at once.
  */
@@ -342,8 +342,8 @@ private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: ()
 
 /**
  * The results: a line saying what they are for (with a spinner while newer
- * ones load), then a row per group, Live TV's after People (the web's
- * order), then what TMDB has ([tmdb]).
+ * ones load), then a row per group, the titles', Live TV's, then People
+ * (the web's order), then what TMDB has ([tmdb]).
  */
 @Composable
 private fun Results(
@@ -378,18 +378,17 @@ private fun Results(
                 }
             }
         }
-        val people = results.groups.takeWhile { it.kind == SearchGroupKind.People }
-        val rest = results.groups.drop(people.size)
-        items(people, key = { it.kind.name }, contentType = { it.kind.tileKind }) { group ->
-            ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = null)
+        val (people, titles) = results.groups.partition { it.kind == SearchGroupKind.People }
+        items(titles, key = { it.kind.name }, contentType = { it.kind.tileKind }) { group ->
+            ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = onActions)
         }
         if (results.channels.isNotEmpty()) {
             item(key = "channels", contentType = "channels") {
                 ChannelRow(results.channels, results.origin, onWatch)
             }
         }
-        items(rest, key = { it.kind.name }, contentType = { it.kind.tileKind }) { group ->
-            ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = onActions)
+        items(people, key = { it.kind.name }, contentType = { it.kind.tileKind }) { group ->
+            ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = null)
         }
         if (tmdb != TmdbSection.Hidden) {
             item(key = "tmdb", contentType = "tmdb") { OnTmdb(results.query, tmdb, onRetryTmdb) }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -48,6 +49,29 @@ public class PlayerApiTests
         Assert.Equal(("text/vtt", 120_000), (sent.Headers!["Accept"], sent.TimeoutMs));
         server.On("GET", Home + "/api/files/7/subtitles/3.vtt", 200, "WEBVTT\n", new Dictionary<string, string> { ["Content-Type"] = "text/vtt" });
         Assert.True((await api.Subtitles(Home + "/api/files/7/subtitles/3.vtt")).Complete);
+    }
+
+    /// <summary>
+    /// The server may stay silent a while making a picture track's .mks the first time: a minute,
+    /// as Android's subtitles client allows. The API's 10 s said a German PGS track the server was
+    /// still making couldn't be loaded.
+    /// </summary>
+    [Fact]
+    public async Task Picture_subtitles_wait_a_minute_for_the_server()
+    {
+        var clock = new FakeClock();
+        var fake = new FakeServer();
+        var tokens = new Tokens(Home, "client", new MemoryKeyValue(), fake.Transport, null, clock.Read);
+        await tokens.Install(new StoredTokens(Home, "pley_at_0", "pley_rt_0", clock.Now + 3_600_000, "library play", Home + "/api/oauth/token", Home + "/api/oauth/revoke"), "library play");
+        HttpRequest? sent = null;
+        var api = new Api.Api(Home, tokens, fake.Transport, req =>
+        {
+            sent = req;
+            return Task.FromResult(new StreamResponse(200, h => h == "X-Pley-Complete" ? "0" : null, new MemoryStream(new byte[] { 1, 2, 3 })));
+        });
+        var part = await api.PictureSubtitles(Home + "/api/files/7/subtitles/4.mks");
+        Assert.Equal((3, false), (part.Bytes.Length, part.Complete));
+        Assert.Equal(("video/x-matroska", 60_000), (sent!.Headers!["Accept"], sent.TimeoutMs));
     }
 
     [Fact]

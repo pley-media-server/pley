@@ -1,7 +1,7 @@
 // Draws SVG into PNG and JPEG pictures through a headless Chrome or Edge, for
 // the scripts that render what the apps ship (render-icons.mjs,
-// render-kodi-skin.mjs). Chrome comes from $CHROME, else the usual place on
-// Windows, macOS or Linux.
+// render-kodi-skin.mjs) and mark-screenshot.mjs. Chrome comes from $CHROME,
+// else the usual place on Windows, macOS or Linux.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";

@@ -158,6 +158,13 @@ object PlaybackPlan {
     /** Where the server's .mks of picture subtitles [index] of [fileId] is. */
     fun pictureSubtitlesPath(fileId: Long, index: Int): String = "/api/files/$fileId/subtitles/$index.mks"
 
+    /**
+     * [url] asked for from where the player is ([atMs] of the file, the
+     * start too): a track the server hasn't copied out of its file yet comes
+     * from there first.
+     */
+    fun pictureUrlAt(url: String, atMs: Long): String = "$url${if ('?' in url) '&' else '?'}at=${atMs.coerceAtLeast(0)}"
+
     /** Whether this device decodes [stream]'s audio or sends it as it is to the receiver. */
     fun audioPlaysHere(stream: MediaStream?, caps: CapsSnapshot?): Boolean {
         if (stream == null) return true

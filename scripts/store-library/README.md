@@ -17,7 +17,7 @@ the metadata providers can't match the made-up titles to real ones: set
 `NO_PROXY=127.0.0.1,localhost`. Set it up with the code from its log:
 
 ```sh
-pley serve --data-dir <dir>/data --bind 127.0.0.1:17560 --plex-bind off --no-discovery --no-tray
+pley serve --data-dir <dir>/data --bind 127.0.0.1:17560 --no-discovery --no-tray
 bun scripts/store-library/setup.mjs http://127.0.0.1:17560 <setup code> <dir>
 ```
 

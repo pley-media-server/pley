@@ -8,12 +8,44 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Search shows movies, shows and episodes first, then music, then Live
+  TV, then people, the closest matches first in each.
+
+### Removed
+
+- The player's −10 s and +10 s buttons, on phones and on TV. Double-tapping
+  the sides of the picture (phones) and Left and Right (TV) still seek.
+
+## [0.1.4] - 2026-11-02
+
+### Changed
+
+- Picture subtitles (PGS, VobSub, DVB) drawn beside a stream show within
+  a few seconds of a playback starting or a seek, where they could take up
+  to a minute: the app tells the server where it plays, and the server
+  reads those around it first.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
+
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one the app signed in to, at that address: the access token waits
+  for a proof made on this network within the half hour, the refresh token
+  and a profile's PIN for one made then. Another device at the address on
+  another network gets nothing, nor does one passing the challenge on to
+  the server from elsewhere; the app says "Another device answers there."
+  One that takes the address on the device's own network may get an
+  access token (an hour's) within the half hour, never the refresh token.
+  A sign-in from before starts checking within the hour, as its token is
+  renewed.
 
 ## [0.1.3] - 2026-11-02
 
@@ -169,7 +201,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02.2...HEAD
+[0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01.2
 [0.1.1]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01

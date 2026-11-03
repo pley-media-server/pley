@@ -30,7 +30,8 @@ use windows_sys::Win32::Security::Credentials::{
     CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_DOMAIN_PASSWORD, CREDENTIALW, CredWriteW,
 };
 use windows_sys::Win32::Security::{
-    LookupAccountNameW, LookupAccountSidW, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES,
+    DACL_SECURITY_INFORMATION, LookupAccountNameW, LookupAccountSidW, OBJECT_SECURITY_INFORMATION,
+    OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES,
 };
 use windows_sys::Win32::Storage::FileSystem::CreateDirectoryW;
 use windows_sys::Win32::System::Threading::{
@@ -337,13 +338,16 @@ fn system32(program: &str) -> std::path::PathBuf {
     Path::new(&root).join("System32").join(program)
 }
 
-/// Lets only SYSTEM, the administrators and `allowed` (SIDs, with icacls'
-/// `M` or `F`) into `dir` and everything in it. The administrators own it
-/// all, and what anyone else was allowed is gone: a folder someone made in
-/// ProgramData before pley was installed stays theirs otherwise.
 /// Who owns `path`, as SDDL names them: `BA` (the administrators), `SY`
 /// (SYSTEM), or a SID.
 pub fn owner(path: &Path) -> anyhow::Result<String> {
+    let sddl =
+        security(path, OWNER_SECURITY_INFORMATION).with_context(|| format!("reading who owns {}", path.display()))?;
+    Ok(sddl.trim_start_matches("O:").to_owned())
+}
+
+/// The parts `info` names of `path`'s security descriptor, in SDDL.
+fn security(path: &Path, info: OBJECT_SECURITY_INFORMATION) -> anyhow::Result<String> {
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
     // SAFETY: a NUL-terminated path; Windows allocates the descriptor, freed below.
@@ -351,7 +355,7 @@ pub fn owner(path: &Path) -> anyhow::Result<String> {
         GetNamedSecurityInfoW(
             wide.as_ptr(),
             SE_FILE_OBJECT,
-            OWNER_SECURITY_INFORMATION,
+            info,
             null_mut(),
             null_mut(),
             null_mut(),
@@ -359,22 +363,11 @@ pub fn owner(path: &Path) -> anyhow::Result<String> {
             &mut descriptor,
         )
     };
-    anyhow::ensure!(
-        status == 0,
-        "reading who owns {}: {}",
-        path.display(),
-        std::io::Error::from_raw_os_error(status as i32)
-    );
+    anyhow::ensure!(status == 0, "{}", std::io::Error::from_raw_os_error(status as i32));
     let mut text = null_mut();
     // SAFETY: the descriptor read above; Windows allocates the string, freed below.
     let ok = unsafe {
-        ConvertSecurityDescriptorToStringSecurityDescriptorW(
-            descriptor,
-            SDDL_REVISION_1,
-            OWNER_SECURITY_INFORMATION,
-            &mut text,
-            null_mut(),
-        )
+        ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, info, &mut text, null_mut())
     };
     let error = std::io::Error::last_os_error();
     // SAFETY: a NUL-terminated string from Windows, when it gave one.
@@ -384,8 +377,7 @@ pub fn owner(path: &Path) -> anyhow::Result<String> {
         LocalFree(text.cast());
         LocalFree(descriptor);
     }
-    let sddl = sddl.ok_or_else(|| anyhow::anyhow!("reading who owns {}: {error}", path.display()))?;
-    Ok(sddl.trim_start_matches("O:").to_owned())
+    sddl.ok_or_else(|| anyhow::Error::from(error))
 }
 
 /// Makes the folder `dir` (not its parents) open to SYSTEM and the
@@ -419,7 +411,28 @@ pub fn create_private_folder(dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn protect_folder(dir: &Path, allowed: &[(String, &str)]) -> anyhow::Result<()> {
+/// Lets only SYSTEM, the administrators and `allowed` (SIDs, with icacls'
+/// `M` or `F`) into `dir` and everything in it. The administrators own it
+/// all, and what anyone else was allowed is gone: a folder someone made in
+/// ProgramData before pley was installed stays theirs otherwise.
+///
+/// Unless `every_file`, a folder an earlier install protected for the same
+/// accounts is left as it is: going through every file again takes minutes
+/// once there are artwork and seek previews for a library. What is in it
+/// was made since by those accounts alone, and what they made inherits the
+/// folder's permissions, unless one of them changed it. Whether it went
+/// through every file.
+pub fn protect_folder(dir: &Path, allowed: &[(String, &str)], every_file: bool) -> anyhow::Result<bool> {
+    if !every_file {
+        let current = security(dir, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION)
+            .with_context(|| format!("reading who may open {}", dir.display()))?;
+        // Written as Windows writes it (its names for some accounts, such as
+        // LA for the built-in Administrator), or not at all: every file then.
+        let wanted = protected_sddl(allowed).and_then(|sddl| canonical(&sddl).ok());
+        if wanted.is_some_and(|wanted| same_security(&current, &wanted)) {
+            return Ok(false);
+        }
+    }
     icacls(dir, &["/setowner", "*S-1-5-32-544", "/T", "/Q"])?;
     // Only what the folder inherits, everywhere in it…
     icacls(dir, &["/reset", "/T", "/Q"])?;
@@ -429,7 +442,80 @@ pub fn protect_folder(dir: &Path, allowed: &[(String, &str)]) -> anyhow::Result<
     let mut args = vec!["/inheritance:r", "/grant:r"];
     args.extend(grants.iter().map(String::as_str));
     args.push("/Q");
-    icacls(dir, &args)
+    icacls(dir, &args)?;
+    Ok(true)
+}
+
+/// The owner and DACL [`protect_folder`] gives the folder for `allowed`, in
+/// SDDL: owned by the administrators, inheriting nothing, and open to
+/// SYSTEM, the administrators and `allowed` alone, for them and everything
+/// in it. None for access other than icacls' `M` and `F`.
+pub(super) fn protected_sddl(allowed: &[(String, &str)]) -> Option<String> {
+    // One entry per account: icacls replaces an account's earlier grant.
+    let mut grants: Vec<(&str, &str)> = vec![("SY", "FA"), ("BA", "FA")];
+    for (sid, access) in allowed {
+        let rights = match *access {
+            "F" => "FA",
+            // Read, write, run and delete.
+            "M" => "0x1301bf",
+            _ => return None,
+        };
+        grants.retain(|(other, _)| !other.eq_ignore_ascii_case(sid));
+        grants.push((sid.as_str(), rights));
+    }
+    let aces: String = grants.iter().map(|(sid, rights)| format!("(A;OICI;{rights};;;{sid})")).collect();
+    Some(format!("O:BAD:P{aces}"))
+}
+
+/// `sddl` (an owner and DACL) as Windows writes it back.
+pub(super) fn canonical(sddl: &str) -> anyhow::Result<String> {
+    let text: Vec<u16> = sddl.encode_utf16().chain(Some(0)).collect();
+    let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
+    // SAFETY: a NUL-terminated SDDL string; Windows allocates the descriptor, freed below.
+    let ok = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            text.as_ptr(),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            null_mut(),
+        )
+    };
+    anyhow::ensure!(ok != 0, "reading {sddl}: {}", std::io::Error::last_os_error());
+    let mut back = null_mut();
+    // SAFETY: the descriptor made above; Windows allocates the string, freed below.
+    let ok = unsafe {
+        ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            descriptor,
+            SDDL_REVISION_1,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            &mut back,
+            null_mut(),
+        )
+    };
+    let error = std::io::Error::last_os_error();
+    // SAFETY: a NUL-terminated string from Windows, when it gave one.
+    let result = (ok != 0).then(|| unsafe { from_wide(back) });
+    // SAFETY: both allocated by Windows with LocalAlloc (or null).
+    unsafe {
+        LocalFree(back.cast());
+        LocalFree(descriptor);
+    }
+    result.ok_or_else(|| anyhow::anyhow!("writing {sddl}: {error}"))
+}
+
+/// Whether two owners and DACLs in SDDL are the same: the same owner, both
+/// protected or not, and the same entries in any order (Windows keeps
+/// them in the order they were added).
+pub(super) fn same_security(a: &str, b: &str) -> bool {
+    fn parts(sddl: &str) -> Option<(&str, bool, Vec<&str>)> {
+        let (owner, dacl) = sddl.strip_prefix("O:")?.split_once("D:")?;
+        let (flags, aces) = dacl.split_at(dacl.find('(').unwrap_or(dacl.len()));
+        let mut aces: Vec<&str> =
+            if aces.is_empty() { Vec::new() } else { aces.strip_prefix('(')?.strip_suffix(')')?.split(")(").collect() };
+        aces.sort_unstable();
+        Some((owner, flags.contains('P'), aces))
+    }
+    matches!((parts(a), parts(b)), (Some(a), Some(b)) if a == b)
 }
 
 fn icacls(dir: &Path, args: &[&str]) -> anyhow::Result<()> {

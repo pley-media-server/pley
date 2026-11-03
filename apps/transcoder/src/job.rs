@@ -606,7 +606,10 @@ impl JobManager {
 
         let id = uuid::Uuid::new_v4().simple().to_string();
         let dir = self.jobs_dir.join(&id);
-        tokio::fs::create_dir_all(&dir).await?;
+        // `jobs` as it was made at start-up, even if something took it away
+        // since: never made again with the default permissions, nor a link.
+        crate::own_folder(&self.jobs_dir)?;
+        tokio::fs::create_dir(&dir).await?;
         // Its folder in RAM, when it asks for memory and is throttled: its
         // lead on the player is bounded then.
         let store = self.memory.get().filter(|_| req.options.in_memory && plan.throttle);

@@ -12,7 +12,9 @@ It has no releases yet: it is built and installed by hand
 
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with a DEBUG icon on a yellow band, so it installs beside the app rather
-  than in its place; the app's own icon is the plain logo.
+  than in its place; the app's own icon is the plain logo. The metrics
+  listener takes its screenshots and presses the remote's keys for it, so
+  the app can be driven from the computer.
 - A native app for Samsung TVs with Tizen 9, beside the web app: so far the
   Android TV app's "Choose your server" screen, with servers found on the
   network, an address typed on the TV's keyboard and forgetting a server; its
@@ -48,8 +50,8 @@ It has no releases yet: it is built and installed by hand
 - Playing in the native app: a session on the server with the TV's
   capabilities, as the web Samsung app reports them, on the TV's own
   player; Left and Right seek 10 s, presses adding up and a held key
-  scrubbing; the title, clock, scrubber and Back 10 · Play/Pause ·
-  Forward 10 over a scrim; where it stopped goes to the server.
+  scrubbing; the title, clock, scrubber and Play/Pause over a scrim; where
+  it stopped goes to the server.
 - Search in the native app, from the rail: OK on the field opens the TV's
   keyboard, results come as you type, in rows (People, Movies, Shows,
   Seasons, Episodes, Artists, Albums, Tracks), and the last 10 searches
@@ -180,12 +182,25 @@ It has no releases yet: it is built and installed by hand
   only the chapter pictures near the one shown, lets them go as the player
   goes, and reads a film's subtitle pictures once rather than every few
   seconds while the server makes them.
+- Picture subtitles chosen in the native app wait up to a minute, as
+  Android's do, for a server that hasn't made them yet, rather than saying
+  after 10 s that they couldn't be loaded.
 - Films start about half a second sooner in the native app: the player
   starts once it has as much as Android's does, and asks for the film
   while its screen is being made.
 - Back in the native app's Live TV guide goes to the categories, then the
   rail, rather than straight to the rail.
 - The native app's "Exit Pley?" is a narrower dialog.
+- The native player's Info says "TV network speed", how fast the video
+  reaches the TV, beside the server's Speed: a video that stalls with the
+  server keeping up has a network that can't carry it.
+- The native app's search finds Live TV channels, as Android TV's does: by
+  name, number or what's on, in a Live TV row after the titles and before
+  People, each tile with the channel's logo, number and what's on. OK
+  plays the channel, changing channel among every channel.
+- Signing in to the native app with a code says when the server requires
+  two-step sign-in: the phone that approves the code sets it up for
+  whoever hasn't.
 - The native app's rail opens and closes as Android TV's does: it widens
   with its labels fading in, the page behind it dims, and its entries grow
   and shrink as focus moves; with Reduce motion, it opens in place.
@@ -194,7 +209,10 @@ It has no releases yet: it is built and installed by hand
 - Holding Up or Down in the native app's libraries slides the posters
   under a highlight that stays still, as rows do for Left and Right.
 - The native app's seek preview keeps its picture inside its rounded
-  edge, where the picture's square corners showed past it.
+  edge, where the picture's square corners showed past it and its sides
+  covered the edge, so it seemed wider than its box.
+- A channel's number and favourite star in the native app's Live TV
+  cards stay on top of its logo, which covered them once it loaded.
 - Posters in the native app no longer stay empty, until the app starts
   again, after a library's sort or filter changes while they load.
 - In the native app's player, the seek preview and the chapters' cards
@@ -239,8 +257,43 @@ It has no releases yet: it is built and installed by hand
   Pley's player from where it stopped, with its audio tracks, chapters,
   HDR, its own subtitles and the subtitle files beside it.
 
+### Changed
+
+- The native app's icon, and its debug build's, are square, as the TV's
+  menu draws the other apps, where they were wider than the rest.
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, where they could take up to a minute: the
+  TV tells the server where it plays, and the server reads those around it
+  first.
+- Search shows movies, shows and episodes first, then music, then
+  people, the closest matches first in each.
+
 ### Fixed
 
+- On an item page in the native app, Details moves as on Android TV: a
+  version or Media info moves it up only as far as keeps that row on the
+  screen, nothing of it shows under the title and summary, Down reads on
+  through open Media info a step at a time to its end, where a file's
+  streams taller than the screen were cut off, and it comes back down
+  under More Like This when focus goes up, where it had stayed over the
+  row's titles.
+- An item page's "Details" and "Versions" headings show in the native app,
+  where the rail covered them.
+- An empty USB drive's page keeps focus, so the rail closes rather than
+  covering its message, which shows under a folder icon; at the drive's top,
+  the line under the title is the folder's path ("/Films/2019"), and "/"
+  at the drive's top beside how full it is. The page's title is the drive's
+  make and model ("Kingston DataTraveler 3.0").
+- The rail marks the page a rail entry opened, not Home, when the page has
+  nothing to focus yet, as the first page opened after Who's watching?.
+- Diagnostics, Remove from My List and Settings' audio and subtitle rows
+  show their icons.
+- The native app carries none of the profiling build's code: its marks, the
+  listener, screenshots and remote keys were compiled into it, unused.
+- A film's audio track, chosen or saved, plays from the start: it was asked
+  for before the TV's player was ready, and the first track played. Beside a
+  TrueHD track the TV leaves out, the right track is chosen, and Info shows
+  the track playing.
 - Live TV no longer pauses for a quarter of a second as it opens and as a
   channel is left, with a provider's hundreds of categories, and moving
   through the guide is smoother: a row's programmes are painted again
@@ -255,3 +308,16 @@ It has no releases yet: it is built and installed by hand
   stopped an animation that had gone with it.
 - Too many wrong PINs for the profile the TV starts as say how long to
   wait, as a switch does, rather than "a few minutes".
+
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one the TV signed in to, at that address, as in the Samsung web app
+  and on Android: the access token waits for a proof made on this network
+  within the half hour, the refresh token and a profile's PIN for one made
+  then. Another device at the address on another network gets nothing, nor
+  does one passing the challenge on to the server from elsewhere; the TV
+  says "Another device answers there." One that takes the address on the
+  TV's own network may get an access token (an hour's) within the half
+  hour, never the refresh token. A sign-in from before starts checking
+  within the hour, as its token is renewed.

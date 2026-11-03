@@ -332,6 +332,7 @@ TEXT = {
     "show": 30547,
     "yours": 30548,
     "results_for": 30549,
+    "another_device": 30550,
 }
 
 

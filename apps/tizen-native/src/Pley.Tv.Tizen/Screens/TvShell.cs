@@ -189,8 +189,10 @@ sealed class TvShell : Sheet
         }
         stack.Clear();
         stack.Add(page);
-        Show(page);
+        // Marked before the page enters: a page with nothing to focus yet gives focus to the rail's
+        // current entry, which was still the page before (Home, on the first one opened).
         MarkCurrent();
+        Show(page);
     }
 
     /// <summary>Focus to the rail's current entry, which opens the rail.</summary>

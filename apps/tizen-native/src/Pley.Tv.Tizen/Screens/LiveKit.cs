@@ -135,6 +135,8 @@ sealed class ChannelLogoView : View
                 }.OutputVisualMap,
             };
             Add(picture);
+            // Under what was put on the well while it loaded (a card's number, its star).
+            picture.LowerToBottom();
         });
     }
 }

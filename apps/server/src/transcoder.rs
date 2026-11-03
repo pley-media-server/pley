@@ -50,10 +50,48 @@ impl TranscoderError {
     }
 }
 
+/// Refuses `path`, a file the transcoder is to read, when it is a link that
+/// doesn't lead to a file of its kind
+/// ([`crate::library::walk::leads_to_its_kind`]): a film or a subtitle file
+/// swapped for a link to another kind of file since the scan is read by no
+/// transcode, download, frame grab or subtitle copy, whichever asks for it.
+/// A file gone (a share asleep) is the transcoder's to tell, as before.
+async fn of_its_kind(path: &str) -> TranscoderResult<()> {
+    let named = std::path::PathBuf::from(path);
+    let astray = tokio::task::spawn_blocking(move || {
+        std::fs::symlink_metadata(&named).is_ok_and(|meta| meta.file_type().is_symlink())
+            && !crate::library::walk::leads_to_its_kind(&named)
+    })
+    .await
+    .unwrap_or(true);
+    if astray {
+        return Err(TranscoderError::Api {
+            status: 404,
+            code: "not_found".into(),
+            message: "the file is a link to another kind of file".into(),
+        });
+    }
+    Ok(())
+}
+
+/// [`of_its_kind`] for what a job reads: its file, and a subtitle file to burn in.
+async fn job_of_its_kind(req: &JobRequest) -> TranscoderResult<()> {
+    of_its_kind(&req.input).await?;
+    if let Some(path) = req.subtitle.as_ref().and_then(|s| s.external_path.as_deref()) {
+        of_its_kind(path).await?;
+    }
+    Ok(())
+}
+
 impl From<TranscoderError> for AppError {
     fn from(err: TranscoderError) -> Self {
         match err {
-            TranscoderError::Unavailable(_) => AppError::Unavailable(err.to_string()),
+            // Why it isn't (its binary's path, the last words it said as it
+            // went, which name files and accounts) is for the log and the
+            // administrators' `/api/transcoder`, not for every client.
+            TranscoderError::Unavailable(_) => {
+                AppError::Unavailable("the transcoder isn't running: try again in a moment".into())
+            }
             TranscoderError::Api { status: 404, message, .. } => AppError::NotFound(message),
             TranscoderError::Api { status: 400, message, .. } => AppError::BadRequest(message),
             TranscoderError::Api { status: 503, message, .. } => AppError::Unavailable(message),
@@ -226,15 +264,18 @@ impl Transcoder {
     // ---------------------------------------------------------------- API
 
     pub async fn probe(&self, path: &str) -> TranscoderResult<MediaInfo> {
+        of_its_kind(path).await?;
         self.post_json("/v1/probe", &ProbeRequest { path: path.to_owned() }, Duration::from_secs(150)).await
     }
 
     pub async fn thumbnail(&self, req: &ThumbnailRequest) -> TranscoderResult<Bytes> {
+        of_its_kind(&req.path).await?;
         let resp = self.post("/v1/thumbnail", req, Duration::from_secs(90)).await?;
         Ok(resp.bytes().await?)
     }
 
     pub async fn cover(&self, path: &str) -> TranscoderResult<(Bytes, String)> {
+        of_its_kind(path).await?;
         let resp = self.post("/v1/cover", &CoverRequest { path: path.to_owned() }, Duration::from_secs(60)).await?;
         let content_type = resp
             .headers()
@@ -252,7 +293,8 @@ impl Transcoder {
     /// as the file's size calls for (two hours for 70 GB on a slow share):
     /// the wait for those only ends for a transcoder that stopped answering.
     pub async fn subtitles(&self, path: &str, stream_index: Option<i64>) -> TranscoderResult<String> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: false };
+        of_its_kind(path).await?;
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, ..Default::default() };
         // A file's conversion ends within the 30 minutes the API gives a request.
         let wait = if stream_index.is_some() { Duration::from_secs(12 * 3600) } else { Duration::from_secs(25 * 60) };
         let resp = self.post("/v1/subtitles", &req, wait).await?;
@@ -264,7 +306,8 @@ impl Transcoder {
     /// picture subtitles next to an HLS stream. Copying a track out reads
     /// the whole file: it may take as long as a text track's conversion.
     pub async fn subtitle_matroska(&self, path: &str, stream_index: Option<i64>) -> TranscoderResult<Vec<u8>> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: false };
+        of_its_kind(path).await?;
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, ..Default::default() };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(12 * 3600)).await?;
         Ok(resp.bytes().await?.to_vec())
     }
@@ -296,15 +339,21 @@ impl Transcoder {
 
     /// A picture track's Matroska ([`Transcoder::subtitle_matroska`]) as far
     /// as it has been copied, and whether that is all of it: the transcoder
-    /// goes on copying after answering. It answers within seconds (half a
-    /// minute while the copy waits for a playback starting, or for a
-    /// sleeping disk), always with a Matroska file players read.
+    /// goes on copying after answering, from around `from_ms` (where the
+    /// player is) first when this request starts the copy; `media` (the
+    /// file's, when the track is in it) spares it a probe. It answers within
+    /// seconds (half a minute while the copy waits for a playback starting,
+    /// or for a sleeping disk), always with a Matroska file players read.
     pub async fn subtitle_matroska_so_far(
         &self,
         path: &str,
         stream_index: Option<i64>,
+        from_ms: Option<i64>,
+        media: Option<MediaInfo>,
+        rest: bool,
     ) -> TranscoderResult<(Bytes, bool)> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: true };
+        of_its_kind(path).await?;
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: true, from_ms, media, rest };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(90)).await?;
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");
         Ok((resp.bytes().await?, complete))
@@ -317,7 +366,13 @@ impl Transcoder {
     /// for a Matroska file, read through its Cues), else with those found so
     /// far.
     pub async fn subtitles_so_far(&self, path: &str, stream_index: i64) -> TranscoderResult<(String, bool)> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index: Some(stream_index), partial: true };
+        of_its_kind(path).await?;
+        let req = SubtitleRequest {
+            path: path.to_owned(),
+            stream_index: Some(stream_index),
+            partial: true,
+            ..Default::default()
+        };
         let resp = self.post("/v1/subtitles", &req, Duration::from_secs(60)).await?;
         // A transcoder from before partial answers only answers when done.
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");
@@ -325,6 +380,7 @@ impl Transcoder {
     }
 
     pub async fn request_keyframes(&self, path: &str) -> TranscoderResult<()> {
+        of_its_kind(path).await?;
         self.post("/v1/keyframes", &KeyframesRequest { path: path.to_owned() }, Duration::from_secs(30)).await?;
         Ok(())
     }
@@ -343,6 +399,7 @@ impl Transcoder {
     }
 
     pub async fn prefetch(&self, path: &str, start_ms: i64) -> TranscoderResult<Prefetched> {
+        of_its_kind(path).await?;
         let req = PrefetchRequest { path: path.to_owned(), start_ms: Some(start_ms.max(0)) };
         self.post_json("/v1/prefetch", &req, Duration::from_secs(20)).await
     }
@@ -386,11 +443,13 @@ impl Transcoder {
 
     /// Chromaprint fingerprint of part of a file (intro/credits detection).
     pub async fn fingerprint(&self, req: &FingerprintRequest) -> TranscoderResult<Fingerprint> {
+        of_its_kind(&req.path).await?;
         self.post_json("/v1/fingerprint", req, Duration::from_secs(15 * 60)).await
     }
 
     /// Darkness and contrast of the key frames of part of a video (credits detection).
     pub async fn frames(&self, req: &FramesRequest) -> TranscoderResult<Frames> {
+        of_its_kind(&req.path).await?;
         self.post_json("/v1/frames", req, Duration::from_secs(15 * 60)).await
     }
 
@@ -400,6 +459,7 @@ impl Transcoder {
     /// one's work; older ones give a set up after an hour, and lose a paused
     /// one's folder to their clean-up after three.
     pub async fn trickplay(&self, path: &str) -> TranscoderResult<TrickplayInfo> {
+        of_its_kind(path).await?;
         let req = TrickplayRequest { path: path.to_owned(), ..Default::default() };
         let bounded = self.info().is_some_and(|info| info.capabilities.trickplay_runs > 0);
         let wait = Duration::from_secs(if bounded { 12 * 3600 } else { 3600 });
@@ -423,12 +483,14 @@ impl Transcoder {
     /// track out of it to burn in, which it gives up on after 20 minutes:
     /// the wait here is longer, so its answer comes through.
     pub async fn create_job(&self, req: &JobRequest) -> TranscoderResult<JobCreated> {
+        job_of_its_kind(req).await?;
         self.post_json("/v1/jobs", req, Duration::from_secs(25 * 60)).await
     }
 
     /// Starts making `req` into one file (a converted download), or finds
     /// the conversion made of it: transcoders with `conversions`.
     pub async fn create_conversion(&self, req: &JobRequest) -> TranscoderResult<ConversionStatus> {
+        job_of_its_kind(req).await?;
         self.post_json("/v1/conversions", req, Duration::from_secs(10 * 60)).await
     }
 
@@ -946,6 +1008,35 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn the_transcoder_reads_no_link_to_another_kind_of_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let film = dir.path().join("Film (2020).mkv");
+        std::fs::write(&film, b"film").unwrap();
+        let path = |p: &std::path::Path| p.to_string_lossy().into_owned();
+        assert!(of_its_kind(&path(&film)).await.is_ok());
+        // Gone: the transcoder says so, its own way.
+        assert!(of_its_kind(&path(&dir.path().join("gone.mkv"))).await.is_ok());
+        #[cfg(unix)]
+        {
+            std::fs::write(dir.path().join("secrets.db"), b"x").unwrap();
+            std::fs::write(dir.path().join("other.mkv"), b"film").unwrap();
+            let link = dir.path().join("Link (2020).mkv");
+            std::os::unix::fs::symlink(dir.path().join("other.mkv"), &link).unwrap();
+            assert!(of_its_kind(&path(&link)).await.is_ok(), "a film's link to a film");
+            std::fs::remove_file(&link).unwrap();
+            std::os::unix::fs::symlink(dir.path().join("secrets.db"), &link).unwrap();
+            let refused = of_its_kind(&path(&link)).await.unwrap_err();
+            assert!(matches!(AppError::from(refused), AppError::NotFound(_)));
+            let job = JobRequest { input: path(&film), ..Default::default() };
+            assert!(job_of_its_kind(&job).await.is_ok());
+            let burn =
+                pley_transcoder_api::SubtitleBurnRequest { external_path: Some(path(&link)), ..Default::default() };
+            let job = JobRequest { input: path(&film), subtitle: Some(burn), ..Default::default() };
+            assert!(job_of_its_kind(&job).await.is_err(), "a subtitle file to burn in too");
+        }
+    }
+
+    #[tokio::test]
     async fn an_unreachable_transcoder_is_unavailable_not_an_internal_error() {
         // Nothing listens on a port just freed.
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
@@ -990,5 +1081,14 @@ mod tests {
             assert!(transcoder.note_prefetch(&format!("{n}.mkv"), now));
         }
         assert!(transcoder.prefetched.lock().len() <= PREFETCHES_KEPT);
+    }
+
+    #[test]
+    fn a_transcoder_that_isnt_running_says_nothing_of_why() {
+        let gone = "transcoder exited (exit code: 1): ffmpeg failed at segment 12: /mnt/media/Film (2020).mkv";
+        match AppError::from(TranscoderError::Unavailable(Some(gone.into()))) {
+            AppError::Unavailable(message) => assert!(!message.contains("/mnt"), "{message}"),
+            other => panic!("{other:?}"),
+        }
     }
 }

@@ -178,7 +178,7 @@ public static class Readout
         var stats = input.Stats;
         if (d != null)
         {
-            sections.Add(new MediaFactBlock(HowItPlays, Playback(d, input.Quality)));
+            sections.Add(new MediaFactBlock(HowItPlays, Playback(d, input.Quality, stats)));
             if (d.File != null) sections.Add(new MediaFactBlock("File", MediaFacts.File(d.File)));
             if (d.Video != null)
             {
@@ -265,11 +265,14 @@ public static class Readout
         _ => mime.IndexOf('/') is var slash && slash >= 0 ? mime.Substring(slash + 1) : mime,
     };
 
-    static List<MediaFact> Playback(PlaybackDetails d, string quality)
+    static List<MediaFact> Playback(PlaybackDetails d, string quality, EngineStats? stats)
     {
         var facts = new List<MediaFact> { new MediaFact("Playback", d.Method + (d.Pipeline != null ? " · " + d.Pipeline : "")) };
         if (!string.IsNullOrWhiteSpace(d.Why)) facts.Add(new MediaFact("Why", d.Why!));
         facts.AddRange(d.Rows.Select(r => new MediaFact(r.Label, r.Value)));
+        // Beside the server's speed and the bitrate: a server keeping up whose video stalls is a
+        // network that can't carry it.
+        if (stats?.Bandwidth is long bandwidth) facts.Add(new MediaFact(SessionText.RowNetwork, ItemFormat.Bitrate(bandwidth)));
         if (!string.IsNullOrWhiteSpace(quality)) facts.Add(new MediaFact("Quality", quality));
         return facts;
     }
@@ -306,7 +309,6 @@ public static class Readout
         if (codec != null && codec.IndexOf(' ') is var space && space > 0 && codec.Substring(space + 1).Trim() is { Length: > 0 } codecString) facts.Add(new MediaFact("Codec string", codecString));
         if (stats.Dropped is long dropped && stats.Frames is long frames) facts.Add(new MediaFact("Dropped frames", DroppedOf(dropped, frames)));
         facts.Add(new MediaFact("Buffered ahead", $"{input.BufferedAheadMs / 1000} s"));
-        if (stats.Bandwidth is long bandwidth) facts.Add(new MediaFact("Network", ItemFormat.Bitrate(bandwidth)));
         facts.Add(new MediaFact("Stalls", input.Stalls.ToString(CultureInfo.InvariantCulture)));
         if (input.FirstFrameMs is long first) facts.Add(new MediaFact("First frame", $"{first} ms"));
         // The engine's own lines, "Label: value".

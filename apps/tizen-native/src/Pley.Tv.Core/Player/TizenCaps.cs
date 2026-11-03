@@ -143,6 +143,12 @@ public static class TizenCaps
 
     static readonly string[] PassthroughCodecs = { "ac3", "eac3", "truehd", "dts" };
 
+    /// <summary>
+    /// Audio a file can hold that the TV's player leaves out of its tracks: a 2025 S95F listed a
+    /// film's E-AC-3 and not its TrueHD, so the player's first track was the file's second.
+    /// </summary>
+    public static readonly IReadOnlyList<string> PlayerLeavesOut = new[] { "truehd" };
+
     static string CodecOf(string format) => format switch
     {
         "eac3-joc" => "eac3",

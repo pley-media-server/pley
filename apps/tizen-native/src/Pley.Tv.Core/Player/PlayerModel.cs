@@ -124,6 +124,8 @@ public sealed class PlayerModel : IDisposable
     long lastStruggleSample;
     /// <summary>Dropped frames aren't counted before this (an audio track switched in place).</summary>
     long framesQuietUntil;
+    /// <summary>The session's player has been ready once: its audio track is switched to then.</summary>
+    bool engineReady;
     long sessionStartedAt;
     /// <summary>When the screen asked to play: the first frame is timed from it.</summary>
     long? pressedAt;
@@ -155,7 +157,7 @@ public sealed class PlayerModel : IDisposable
         pressedAt = scheduler.Elapsed;
         offsets = new SubtitleOffsets(source.Storage, () => source.ProfileId);
         presenter = new SubtitlePresenter(scheduler, source.Subtitles, LivePositionMs, () => offset, () => State.Value.Speed, () => Notice(SessionText.SubtitlesFailed),
-            source.PictureSubtitles, PicturesFailed, source.Local ? SubtitlePresenter.LocalPicturesRetryMs : SubtitlePresenter.PicturesRetryMostMs);
+            source.PictureSubtitles, PicturesFailed, source.Local);
         sleep = new SleepTimer(scheduler, ItemLeftMs, () => item?.Id, OnSleep);
         sleep.State.Changed += s => Update(st => st with { Sleep = s });
         lastPositionMs = request.StartMs;
@@ -410,6 +412,7 @@ public sealed class PlayerModel : IDisposable
             AudioCodec: started.AudioConverted ? null : audio?.Codec);
         // The engine says where it is by its events, which come after this returns.
         engineStatus = EngineStatus.Buffering;
+        engineReady = false;
         engine.Prepare(source_, wantPlay);
         if (State.Value.Speed != 1) engine.SetSpeed(State.Value.Speed);
         ApplyTracks();
@@ -482,11 +485,7 @@ public sealed class PlayerModel : IDisposable
     {
         var s = info;
         if (s == null || engine == null) return;
-        if (!s.Hls && audio != null)
-        {
-            // Another track than the one the file starts with: the switch may drop frames.
-            if (engine.SelectAudio(PlaybackPlan.AudioStreams(file).ToList().IndexOf(audio), CheckedLanguage(audio)) && !audio.Default) QuietFrames();
-        }
+        ApplyAudio();
         var sub = subtitle;
         if (sub == null)
         {
@@ -500,6 +499,28 @@ public sealed class PlayerModel : IDisposable
         }
         else if (!s.BurnSubtitles && Sideload) presenter.ShowPictures(source.Url(PlaybackPlan.PictureSubtitlesPath(s.FileId, sub.Index)));
         else presenter.Hide();
+    }
+
+    /// <summary>
+    /// The audio chosen, switched to on the TV's player once it is ready: asked before, the player
+    /// said no, and every file played its first track whatever the profile's language.
+    /// </summary>
+    void ApplyAudio()
+    {
+        var s = info;
+        if (s == null || engine == null || s.Hls || audio == null || !engineReady) return;
+        var streams = PlaybackPlan.AudioStreams(file);
+        // A track the TV's player leaves out (TrueHD) can't be switched to: it plays its own.
+        if (PlaybackPlan.EngineAudioOrdinal(streams, audio, engine.AudioTracks().Count) is not int ordinal) return;
+        // Another track than the one the file starts with: the switch may drop frames.
+        if (engine.SelectAudio(ordinal, CheckedLanguage(audio)) && !audio.Default) QuietFrames();
+    }
+
+    /// <summary>The audio stream the TV's player plays, as it says; the one chosen when it doesn't, or the server's in a stream.</summary>
+    MediaStream? PlayingAudio()
+    {
+        if (info is not { Hls: false } || engine == null || !engineReady) return audio;
+        return PlaybackPlan.EngineAudioStream(PlaybackPlan.AudioStreams(file), engine.PlayingAudio(), engine.AudioTracks().Count) ?? audio;
     }
 
     /// <summary>
@@ -565,6 +586,11 @@ public sealed class PlayerModel : IDisposable
             case EngineStatus.Ready:
                 mediaShown = true;
                 shownOnce = true;
+                if (!engineReady)
+                {
+                    engineReady = true;
+                    ApplyAudio();
+                }
                 if (outage == null) Phase(engine?.Playing == true ? PlayerPhase.Playing : PlayerPhase.Paused);
                 break;
             case EngineStatus.Ended:
@@ -954,7 +980,7 @@ public sealed class PlayerModel : IDisposable
         struggle.Reset();
         lastAdvanceAt = scheduler.Elapsed;
         SetClock(positionMs: target);
-        presenter.Sought();
+        presenter.Sought(target);
         seekReportTimer?.Dispose();
         seekReportTimer = scheduler.After(SeekReportMs, () =>
         {
@@ -968,14 +994,17 @@ public sealed class PlayerModel : IDisposable
     {
         var chosen = PlaybackPlan.AudioStreams(file).FirstOrDefault(s => s.Index == index);
         if (chosen == null || chosen.Index == audio?.Index) return;
+        if (Marks.On)
+            Marks.Note($"audio: stream {chosen.Index} ({chosen.Codec}, {chosen.Channels} ch) chosen, {(PlaybackPlan.AudioPlaysHere(chosen, caps) ? "plays here" : "not this TV's")}; the TV passes through {string.Join(" ", caps?.AudioPassthrough ?? new string[0])}");
         audio = chosen;
         audioPicked = true;
         SaveStreams();
         PublishChoices();
         var s = info;
         if (s == null) return;
-        if (!s.Hls && engine != null && PlaybackPlan.AudioPlaysHere(chosen, caps)
-            && engine.SelectAudio(PlaybackPlan.AudioStreams(file).ToList().IndexOf(chosen), CheckedLanguage(chosen)))
+        if (!s.Hls && engine != null && engineReady && PlaybackPlan.AudioPlaysHere(chosen, caps)
+            && PlaybackPlan.EngineAudioOrdinal(PlaybackPlan.AudioStreams(file), chosen, engine.AudioTracks().Count) is int ordinal
+            && engine.SelectAudio(ordinal, CheckedLanguage(chosen)))
         {
             QuietFrames();
             return;
@@ -1242,7 +1271,10 @@ public sealed class PlayerModel : IDisposable
         if (!force && State.Value.Details == null) return;
         var s = info;
         if (s == null) return;
-        var details = Details.Build(s, file, audio?.Index, NoteNow(), LivePositionMs(), live, subtitle, Sideload);
+        // What the TV plays, which isn't the track chosen when its player leaves that one out.
+        var playing = PlayingAudio();
+        var note = NoteNow() ?? (playing != null && audio != null && playing.Index != audio.Index ? SessionText.AudioNotOffered(Details.AudioLabel(audio), Details.AudioLabel(playing)) : null);
+        var details = Details.Build(s, file, playing?.Index, note, LivePositionMs(), live, subtitle, Sideload);
         Update(st => st with { Details = details });
     }
 

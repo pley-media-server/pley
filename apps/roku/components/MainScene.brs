@@ -27,6 +27,7 @@ sub init()
     m.events = CreateObject("roSGNode", "EventsTask")
     m.events.observeField("event", "onServerEvent")
     m.events.observeField("tokenRefused", "onStreamRefused")
+    m.events.observeField("failed", "onStreamFailed")
     ' The token the stream was last refused with, renewed since.
     m.renewing = ""
     m.gather = m.top.findNode("gather")
@@ -117,6 +118,14 @@ sub onStreamRefused(event as object)
     if token = "" or token <> m.global.session.accessToken or token = m.renewing then return
     m.renewing = token
     uiGet("/api/auth/me", "")
+end sub
+
+' The stream failed: a request the API task sends finds out whether the
+' server still answers. When nothing does, the players' token waits for
+' the server to prove itself again, as after any request without an answer.
+sub onStreamFailed(event as object)
+    token = event.getData()
+    if token <> "" and token = m.global.session.accessToken then uiGet("/api/auth/me", "")
 end sub
 
 ' Watch state, My List, libraries or Live TV changed elsewhere: Home asks again
