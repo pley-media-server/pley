@@ -29,7 +29,7 @@ use pley_shell::{AppCx, AppEvent, Chrome, PlayRequest, Route, Screen};
 use pley_ui::theme;
 use pley_ui::{Edge, Id, Ui};
 
-pub use listing::{Line, Listing, Pick, Problem, TITLE, UP, list};
+pub use listing::{Line, Listing, Pick, Problem, TITLE, UP, list, unreadable};
 
 /// Where the caption and the list are (`StorageScreen.cs`): the caption 8 under the title, the
 /// list 16 under the caption, 720 wide.
@@ -103,14 +103,20 @@ impl StorageScreen {
 
     /// Takes the reading once it is in: the lines change in place, focus staying on the line it
     /// was on (the last when that one went); a page left with no lines keeps it on its message,
-    /// and lines that come back take it from there.
+    /// and lines that come back take it from there. A reading that failed outright leaves the
+    /// page as it was, or, before the first came in, says the folder can't be read, so it isn't
+    /// read again every frame.
     fn take_reading(&mut self, ui: &mut Ui, list_id: Id, message_id: Id) {
         let Some(reading) = self.reading.as_mut() else { return };
-        let Some(listing) = reading.take() else {
-            if reading.failed() {
-                self.reading = None;
+        let listing = match reading.take() {
+            Some(listing) => listing,
+            None if reading.failed() && self.listing.is_none() => unreadable(self.path.as_deref()),
+            None => {
+                if reading.failed() {
+                    self.reading = None;
+                }
+                return;
             }
-            return;
         };
         self.reading = None;
         let had_focus = ui.focused_in(list_id).is_some();

@@ -2,14 +2,19 @@
 //! OK goes, where each video resumes, a drive pulled out, and what Audio Guidance reads. No
 //! server is needed: a drive's videos play without one.
 
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
 use pley_base::{DisplayList, Key, KeyEvent, Waker};
 use pley_core::device::{Drive, DriveSpace, scratch_dir};
 use pley_core::media::NullEngine;
-use pley_core::{FakeDevice, Http, PlayerEngine, Store, Tasks};
+use pley_core::{
+    CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, FakeDevice, Http, PlayerEngine, Store, Tasks, Tier,
+};
 use pley_local::resume;
 use pley_local::server::ITEM_ID;
 use pley_shell::{AppState, NavCommand, PlayRequest, Registry, Route, Shell};
@@ -28,7 +33,7 @@ struct TestApp {
 }
 
 impl TestApp {
-    fn open_on(device: Arc<FakeDevice>, route: Route) -> TestApp {
+    fn open_on(device: Arc<dyn Device>, route: Route) -> TestApp {
         let store = Store::open(scratch_dir("storage-store")).unwrap();
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
         let mut registry = Registry::new();
@@ -248,6 +253,72 @@ fn a_drive_pulled_out_leaves_the_page_saying_so() {
     app.news(&rx);
     assert!(app.until(|a| a.shows("Film 10")));
     assert_eq!(app.ui.focused(), Some(app.line(0)), "the lines take focus from the message");
+}
+
+/// A TV whose reading of a drive stops outright: asked the drive's name, it panics.
+struct Broken {
+    tv: Arc<FakeDevice>,
+    asked: AtomicUsize,
+}
+
+impl Device for Broken {
+    fn info(&self) -> DeviceInfo {
+        self.tv.info()
+    }
+    fn data_dir(&self) -> PathBuf {
+        self.tv.data_dir()
+    }
+    fn cache_dir(&self) -> PathBuf {
+        self.tv.cache_dir()
+    }
+    fn font_dirs(&self) -> Vec<PathBuf> {
+        self.tv.font_dirs()
+    }
+    fn tier(&self) -> Tier {
+        self.tv.tier()
+    }
+    fn caps(&self, overrides: &CapsOverrides) -> CapsReport {
+        self.tv.caps(overrides)
+    }
+    fn local_ipv4(&self) -> Option<Ipv4Addr> {
+        self.tv.local_ipv4()
+    }
+    fn clock_24h(&self) -> bool {
+        self.tv.clock_24h()
+    }
+    fn screen_reader(&self) -> bool {
+        self.tv.screen_reader()
+    }
+    fn keep_awake(&self, on: bool) {
+        self.tv.keep_awake(on)
+    }
+    fn exit(&self) {
+        self.tv.exit()
+    }
+    fn engine(&self) -> Box<dyn PlayerEngine> {
+        self.tv.engine()
+    }
+    fn subscribe(&self, tx: Sender<DeviceEvent>) {
+        self.tv.subscribe(tx)
+    }
+    fn drive(&self) -> Option<Drive> {
+        self.tv.drive()
+    }
+    fn drive_name(&self, _root: &Path) -> Option<String> {
+        self.asked.fetch_add(1, Ordering::SeqCst);
+        panic!("the drive's name can't be asked");
+    }
+}
+
+#[test]
+fn a_reading_that_stops_says_the_folder_cant_be_read_and_isnt_tried_again() {
+    let root = drive();
+    let broken = Arc::new(Broken { tv: tv(&root), asked: AtomicUsize::new(0) });
+    let mut app = TestApp::open_on(broken.clone(), Route::Storage { path: Some(root.join("Season 1")) });
+    assert!(app.shows("This folder can't be read"));
+    assert!(app.shows(pley_storage::UP), "no way up");
+    app.advance(1.0);
+    assert_eq!(broken.asked.load(Ordering::SeqCst), 1, "the folder was read again and again");
 }
 
 #[test]

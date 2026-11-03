@@ -129,14 +129,7 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
             .map(|s| format!("{} free of {}", format_bytes(Some(s.free)), format_bytes(Some(s.total))));
         space.map_or_else(|| SLASH.to_string(), |s| format!("{SLASH}{DOT}{s}"))
     } else {
-        lines.push(Line {
-            pick: Pick::Up,
-            title: UP.into(),
-            subtitle: Some("Up a folder".into()),
-            size: String::new(),
-            icon: Icon::CornerLeftUp,
-            progress: 0.0,
-        });
+        lines.push(up_line());
         under.components().map(|c| format!("{SLASH}{}", c.as_os_str().to_string_lossy())).collect()
     };
     let entries = match folder::list(dir) {
@@ -181,6 +174,24 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
         }
     }));
     Listing { title, caption, lines, problem: None }
+}
+
+/// What the page shows when reading the folder `asked` failed outright (the reading itself
+/// stopped): that it can't be read, with the line that goes up from a folder under the top.
+pub fn unreadable(asked: Option<&Path>) -> Listing {
+    let lines = if asked.is_some() { vec![up_line()] } else { Vec::new() };
+    problem(TITLE.into(), String::new(), lines, Problem::Unreadable)
+}
+
+fn up_line() -> Line {
+    Line {
+        pick: Pick::Up,
+        title: UP.into(),
+        subtitle: Some("Up a folder".into()),
+        size: String::new(),
+        icon: Icon::CornerLeftUp,
+        progress: 0.0,
+    }
 }
 
 fn problem(title: String, caption: String, lines: Vec<Line>, problem: Problem) -> Listing {
