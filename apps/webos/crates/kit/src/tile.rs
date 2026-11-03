@@ -276,11 +276,12 @@ impl<'a> Tile<'a> {
         match self.well {
             Well::Art => {
                 let shown = first_art(ui, self.art, priority);
-                if shown.is_some_and(|s| s.opaque()) {
+                // A person's circle is Surface2 (Android's `TvPersonScreen.kt`, the Samsung app's
+                // `TileView.cs`): the gradient is for a title, and a person shows none.
+                if shown.is_some_and(|s| s.opaque()) || self.kind.round() {
                     ui.fill(rect, theme::SURFACE2, r);
                 } else {
-                    let title = if self.kind.round() { "" } else { self.title };
-                    placeholder(ui, rect, self.seed, title, r);
+                    placeholder(ui, rect, self.seed, self.title, r);
                 }
                 if let Some(s) = shown {
                     ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
@@ -426,7 +427,8 @@ pub fn first_art(ui: &mut Ui, art: &[ImageRequest], priority: Priority) -> Optio
 /// The placeholder art (`Placeholder.kt`): a 135° gradient from hsl(h, 30 %, 22 %) at the top-left
 /// to hsl(h + 40, 35 %, 12 %) at the bottom-right, `h` from the seed, with `title` centred on it
 /// in `Tv.Title` at Fg 70 % (12 dp in, up to 4 lines), smaller (down to 0.7×) when its longest
-/// word wouldn't fit whole. An empty title draws the gradient alone (round tiles, backdrops).
+/// word wouldn't fit whole. An empty title draws the gradient alone (backdrops, a channel's or an
+/// album's well); a person's round well is Surface2 instead.
 pub fn placeholder(ui: &mut Ui, rect: Rect, seed: &str, title: &str, corner: f32) {
     let (a, b) = theme::placeholder_colors(seed);
     // CSS's 135° gradient puts the end colours on the top-left and bottom-right corners; the other

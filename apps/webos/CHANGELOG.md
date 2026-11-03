@@ -88,6 +88,9 @@ describes how they are made.
 - On webOS 6 and later, Back in the rail asks "Exit Pley?", as LG asks of
   apps and as the Samsung app does: Exit closes Pley, Cancel or Back
   stays. On webOS 4 and 5 it still shows the TV's Home.
+- A person's round picture, in rows and on their page, sits on a plain
+  grey circle while it loads or when there is none, as in the Android and
+  Samsung apps, rather than on a coloured gradient.
 
 ### Removed
 

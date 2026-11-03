@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{CreditRole, PersonDetail, PersonRole};
 use pley_core::store::snapshot_keys;
-use pley_kit::{ColumnState, Row, RowColumn, RowState, Section, TileKind, placeholder};
+use pley_kit::{ColumnState, Row, RowColumn, RowState, Section, TileKind};
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Id, ImageOpts, Ui};
@@ -128,11 +128,10 @@ impl PersonScreen {
             common::block(ui, x, y + 46.0, 200.0, 20.0);
             return;
         };
+        // The photo's circle stays Surface2 under it (`TvPersonScreen.kt`, the Samsung app's
+        // `PersonScreen.cs`). Initials only for someone without a photo: one still coming shows
+        // the circle alone.
         let shown = self.photo.as_ref().map(|req| ui.image_state(req, pley_base::Priority::Visible));
-        if !shown.as_ref().is_some_and(|s| s.opaque()) {
-            placeholder(ui, photo, &page.name, "", r);
-        }
-        // Initials only for someone without a photo: one still coming shows its placeholder alone.
         if self.photo.is_none() {
             let initials = words::initials(&page.name);
             let size = ui.measure(&initials, &theme::PAGE_TITLE, &TextOpts::default());

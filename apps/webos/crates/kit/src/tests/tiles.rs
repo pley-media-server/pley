@@ -137,6 +137,28 @@ fn round_tiles_have_round_rings_and_no_hairline() {
 }
 
 #[test]
+fn a_round_well_is_surface2_until_the_photo_covers_it() {
+    let art = [ImageRequest::new("http://pley/person/7", 192)];
+    let mut screen = |ui: &mut Ui| {
+        let id = ui.id("person");
+        Tile::new(TileKind::Person, "Amy Adams").art(&art).show(ui, id, Point::new(96.0, 210.0));
+    };
+    let mut h = Harness::new();
+    let f = h.idle(&mut screen);
+    // No name-seeded gradient: the circle is Surface2, round.
+    assert!(!f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. })));
+    let well = fills_of(&f.list, theme::SURFACE2);
+    assert_eq!(well, [Rect::new(96.0, 210.0, 96.0, 96.0)]);
+    assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Fill { color, radius, .. }
+        if *color == theme::SURFACE2 && close(*radius, 48.0))));
+    // The photo comes over the same well.
+    let id = h.images.ready("http://pley/person/7", 192, 192, -10.0);
+    let f = h.idle(&mut screen);
+    assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Image { image, .. } if *image == id)));
+    assert_eq!(fills_of(&f.list, theme::SURFACE2).len(), 1);
+}
+
+#[test]
 fn a_see_all_tile_says_so_and_has_no_caption() {
     let mut screen = |ui: &mut Ui| {
         let id = ui.id("all");
