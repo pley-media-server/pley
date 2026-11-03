@@ -8,8 +8,9 @@
 
 ' The request for server's stream with the access token: { host, port,
 ' text }, or invalid for an https server, an address that doesn't parse,
-' or no token.
-function evRequest(server as string, token as string, userAgent as string) as dynamic
+' or no token. With cast ({ device, name }, Cast.brs), the stream lists
+' this Roku for the profile's other devices to cast to.
+function evRequest(server as string, token as string, userAgent as string, cast = invalid as dynamic) as dynamic
     parts = urlParse(server)
     if parts = invalid or parts.scheme <> "http" or token = "" then return invalid
     port = parts.port
@@ -19,7 +20,7 @@ function evRequest(server as string, token as string, userAgent as string) as dy
     if Left(host, 1) = "[" then host = Mid(host, 2, Len(host) - 2)
     crlf = Chr(13) + Chr(10)
     lines = [
-        "GET /api/events HTTP/1.1",
+        "GET /api/events" + castQuery(cast) + " HTTP/1.1",
         "Host: " + Mid(urlOriginOf("http", parts.host, parts.port), 8),
         "Authorization: Bearer " + token,
         "Accept: text/event-stream",
@@ -192,6 +193,13 @@ end function
 function evChangesHome(event as object) as boolean
     kind = httpString(event.type)
     return kind = "user_state_changed" or kind = "watchlist_changed" or kind = "library_changed" or kind = "libraries_changed" or kind = "live_channels_changed"
+end function
+
+' Whether a stream that lists this Roku for casting was refused for that
+' (a name or id the server won't take, a sign-in without `play`, or the
+' profile's devices full): the stream then goes on without it.
+function evCastRefused(status as integer) as boolean
+    return status = 400 or status = 403 or status = 429
 end function
 
 ' How long before connecting again after the stream ended or failed: 2 s,

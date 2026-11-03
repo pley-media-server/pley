@@ -14,6 +14,12 @@
         <!-- A session stopped from elsewhere, as the event stream tells
              ({ session_id, message, by_admin }). -->
         <field id="serverStopped" type="assocarray" alwaysNotify="true" />
+        <!-- A command for the player from a device casting to this Roku
+             ({ action, positionMs }, Cast.brs's castCommand). -->
+        <field id="castControl" type="assocarray" alwaysNotify="true" />
+        <!-- A title sent to this Roku takes the player's place: leaving, it
+             doesn't tell the devices casting that it plays nothing. -->
+        <field id="castHandover" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -31,6 +37,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Cast.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
         <Video id="video" width="1920" height="1080">

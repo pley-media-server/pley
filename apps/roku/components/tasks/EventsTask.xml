@@ -8,6 +8,9 @@
         <field id="server" type="string" />
         <field id="token" type="string" />
         <field id="userAgent" type="string" />
+        <!-- This Roku for casting ({ device, name }, lib/Cast.brs): the
+             stream lists it for the profile's other devices. -->
+        <field id="cast" type="assocarray" />
         <!-- The token the server refused (it ran out while nothing else
              asked the server): the scene has it renewed. -->
         <field id="tokenRefused" type="string" alwaysNotify="true" />
@@ -21,9 +24,13 @@
              false while it isn't (an https server, or connecting again),
              when the scene asks for itself. -->
         <field id="live" type="boolean" />
+        <!-- The stream is up and lists this Roku for casting: the other
+             devices can send it titles, and hear what it plays. -->
+        <field id="castListed" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/tasks/EventsTask.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Events.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Cast.brs" />
 </component>

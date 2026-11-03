@@ -203,6 +203,32 @@ again (or lets this title play to its end). Paused by it for 10 minutes,
 the player leaves; it isn't kept from one time the player opens to the
 next.
 
+### Being cast to
+
+A phone or a browser signed in to the same profile can cast to the Roku
+([API.md](API.md#casting-to-another-device)): it lists the Roku by the
+name it has in Roku's settings (else its model's), sends it a movie, an
+episode or an extra, then pauses, resumes, seeks and stops it, and shows
+what it plays. The Roku is cast to; it doesn't cast to other devices.
+
+- The Roku is listed while its event stream is open, so only with an
+  `http://` server. The stream says so (`cast_device`, `cast_name`,
+  `cast_platform=roku`); the id is made once and kept in the registry
+  section `device`. A server that refuses the listing (`400`, `403`,
+  `429`) gets the stream without it until the next token.
+- A title sent plays from whatever screen shows: a dialog closes, and a
+  video or Live TV playing leaves as Back leaves it, its progress told.
+  Back from the title goes to the screen that showed. Sent without a
+  position, it starts where the profile left off, without asking.
+- Pause, resume, seek and stop go to the video player on top, whatever it
+  plays; stop leaves it as Back does. Music and Live TV aren't steered.
+- Nothing sent is played while signing in, on "Who's watching?" or on a
+  PIN.
+- The player says what it plays (`PUT /api/cast/devices/{id}/state`) as
+  it starts (buffering, then playing), pauses, resumes, seeks and waits,
+  every 10 s while playing and every 30 s while paused, and that nothing
+  plays once it closes. The next episode is told of as it starts.
+
 ### Audio and subtitles
 
 - Roku shows a subtitle track only with captions on, a Roku-wide setting.
@@ -404,7 +430,7 @@ then shows it. It is kept on the Roku for each server.
 | `components/items/` | Tiles, rows, the player's skip button |
 | `components/tasks/ApiTask` | The only code that talks to the server |
 | `components/tasks/DiscoveryTask` | `pley?` to UDP port 7539 (`apps/server/src/discovery.rs`) |
-| `components/tasks/EventsTask` | The server's event stream, on a socket |
+| `components/tasks/EventsTask` | The server's event stream, on a socket, which lists the Roku for casting |
 | `components/lib/` | Plain BrightScript (no SceneGraph): the logic the unit tests cover |
 | `tests/` | Unit tests of `components/lib` |
 | `scripts/` | Test runner, smoke run, preview, bench, images |
@@ -442,7 +468,7 @@ Rules the code keeps:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
   `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
-  `requests`, `searches`.
+  `requests`, `searches`; this Roku's player and cast ids in `device`.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before
@@ -537,7 +563,8 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 - No playback speed or audio delay: the Video node has neither.
 - Live updates need an `http://` server; with `https://`, Home and the
   requests' summary refresh once a minute, a title page with a request
-  each 30 s.
+  each 30 s, and the Roku can't be cast to.
+- The Roku doesn't cast to other devices; it is cast to.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Home has no hero over its rows, which the other TVs have.

@@ -75,7 +75,8 @@ sub apiRun()
     end while
 end sub
 
-' The User-Agent, the player's id and what Settings shows of this Roku.
+' The User-Agent, the player's id, this Roku for casting and what Settings
+' shows of it.
 sub apiDeviceFacts()
     device = CreateObject("roDeviceInfo")
     version = CreateObject("roAppInfo").GetVersion()
@@ -90,6 +91,14 @@ sub apiDeviceFacts()
         section.Write("player", m.playerId)
         section.Flush()
     end if
+    friendly = ""
+    try
+        friendly = device.GetFriendlyName()
+    catch failure
+        friendly = ""
+    end try
+    m.session.castName = castName(friendly, model)
+    m.session.castDevice = castDeviceId(section, device.GetRandomUUID())
     m.session.userAgent = m.userAgent
     m.session.appVersion = version
     m.session.device = model + " · Roku OS " + httpOsVersion(os)

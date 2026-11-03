@@ -9,6 +9,7 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/tasks/ApiTask.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Cast.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/TokenStore.brs" />

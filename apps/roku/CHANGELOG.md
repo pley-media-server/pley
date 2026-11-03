@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The Roku can be cast to from a phone or a browser signed in to the same
+  profile: a movie, an episode or an extra sent to it plays from whatever
+  screen shows, the sender pauses, resumes, seeks and stops it, and sees
+  what it plays. It needs an `http://` server.
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live

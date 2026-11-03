@@ -17,7 +17,9 @@
 ' stream again lower where it was once it stopped anyway (AutoQuality.brs).
 ' PGS subtitles are drawn over the video from the server's pictures
 ' (Pictures.brs), so the file plays as it is; the server burns them in
-' only where it can't make those.
+' only where it can't make those. While the event stream lists this Roku
+' for casting (Cast.brs), the player tells the profile's other devices what
+' it plays, and they pause, resume, seek and stop it.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -182,12 +184,17 @@ sub init()
     m.countdownTimer.observeField("fire", "onCountdown")
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
+    ' When the devices casting were last told what plays (clock ms).
+    m.castToldAt = 0
+    m.top.observeField("castControl", "onCastControl")
 end sub
 
 ' Paused, the progress goes on being told, so the session stays the
 ' player's.
 sub onPausedTick()
-    if m.video.state = "paused" then report("paused")
+    if m.video.state <> "paused" then return
+    report("paused")
+    castTell("paused")
 end sub
 
 ' This playback's session stopped from elsewhere: it ends now, not at its
@@ -264,6 +271,9 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.notice.visible = false
     m.loading.visible = true
     m.top.setFocus(true)
+    ' A title sent without a position (startMs -1) is told of once its
+    ' details say where it starts.
+    if startMs >= 0 then castTell("buffering")
     if m.item = invalid
         uiRequest({ method: "GET", path: "/api/items/" + urlValue(itemId), attempt: m.attempt }, "onItem")
         return
@@ -403,6 +413,13 @@ sub onItem(event as object)
         return
     end if
     m.item = answer.data
+    ' Sent from another device without a position: where the profile left
+    ' off, without asking.
+    if m.startMs < 0
+        m.startMs = playerResumeOf(m.item)
+        m.positionMs = m.startMs
+        castTell("buffering")
+    end if
     itemKnown()
     askPlayback()
 end sub
@@ -789,6 +806,7 @@ sub onState(event as object)
     state = event.getData()
     watchState(state)
     drawPictures()
+    if state = "playing" or state = "paused" or state = "buffering" then castTell(castPlayState(state))
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state = "playing"
         m.played = true
@@ -825,6 +843,7 @@ sub onPosition(event as object)
     m.positionMs = Int(seconds * 1000)
     if m.watch <> invalid then aqPosition(m.watch, m.clock.TotalMilliseconds(), m.positionMs)
     if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
+    if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.castToldAt) then castTell("playing")
     if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
     followPictures()
@@ -903,6 +922,7 @@ sub seekTo(targetMs as integer)
     if target < 0 then target = 0
     m.positionMs = target
     m.video.seek = target / 1000
+    castTell(castPlayState(m.video.state))
 end sub
 
 ' POST /api/items/{id}/progress for the current session. Stopped, the
@@ -919,6 +939,57 @@ sub onReported(event as object)
     if event.getRoSGNode().spec.session <> m.sessionId then return
     answer = event.getData()
     if answer.status = 410 then stopped(answer.data)
+end sub
+
+' --- Being cast to ---
+
+' What plays, for the profile's devices that cast to this Roku (PUT
+' /api/cast/devices/{id}/state), while the event stream lists it: state
+' "buffering", "playing" or "paused", or "" for nothing. Nothing waits for
+' the answer.
+sub castTell(state as string)
+    device = m.top.getScene().castDevice
+    if device = "" then return
+    m.castToldAt = m.clock.TotalMilliseconds()
+    itemId = 0
+    if state <> "" then itemId = m.itemId
+    uiRequest({ method: "PUT", path: castStatePath(device), jsonText: castStateBody(itemId, m.positionMs, castDurationMs(), state) }, "")
+end sub
+
+' The length of what plays: the session's, else the title's details', else
+' not known (0).
+function castDurationMs() as dynamic
+    if m.info <> invalid then return m.durationMs
+    if m.item <> invalid then return httpNumber(m.item.duration_ms, 0)
+    return 0
+end function
+
+' A device casting to this Roku steers the player, whatever it plays:
+' pause, resume, seek, or stop, which leaves as Back does. A seek before the
+' video plays opens it there.
+sub onCastControl(event as object)
+    command = event.getData()
+    action = httpString(command.action)
+    if action = "stop"
+        uiNavigate({ back: true })
+        return
+    end if
+    if m.notice.visible then return
+    if action = "seek"
+        target = Int(httpNumber(command.positionMs, 0))
+        if m.info = invalid
+            open(m.itemId, target, m.item, m.mode)
+        else
+            seekTo(target)
+        end if
+        return
+    end if
+    if m.info = invalid then return
+    if action = "pause" and m.video.state <> "paused"
+        m.video.control = "pause"
+    else if action = "resume" and m.video.state = "paused"
+        m.video.control = "resume"
+    end if
 end sub
 
 ' DELETE /api/playback/{session}: the server stops any conversion.
@@ -966,6 +1037,7 @@ sub finish()
         report("stopped")
         endSession()
     end if
+    if m.started and not m.top.castHandover then castTell("")
     m.video.control = "stop"
     captionsBack()
     if m.started then m.global.session.unobserveFieldScoped("accessToken")

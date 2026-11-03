@@ -223,3 +223,13 @@ function playerStartOf(positionMs as dynamic, durationMs as dynamic) as integer
     if fmtResumable(positionMs, durationMs) then return Int(httpNumber(positionMs, 0))
     return 0
 end function
+
+' Where a title's details (GET /api/items/{id}) say it starts: where the
+' profile left off, as its page's Resume, else from the start.
+function playerResumeOf(item as dynamic) as integer
+    data = httpObject(item)
+    if data = invalid then return 0
+    state = httpObject(data.user_state)
+    if state = invalid then return 0
+    return playerStartOf(state.position_ms, data.duration_ms)
+end function

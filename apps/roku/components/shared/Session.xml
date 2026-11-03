@@ -15,6 +15,10 @@
         <field id="userAgent" type="string" />
         <field id="appVersion" type="string" />
         <field id="device" type="string" />
+        <!-- This Roku for casting (lib/Cast.brs): its id, made once and
+             kept, and its name in Roku's settings. -->
+        <field id="castDevice" type="string" />
+        <field id="castName" type="string" />
         <!-- The profile signed in (GET /api/auth/me), once the server said:
              0 and "" until then. -->
         <field id="profileId" type="integer" />

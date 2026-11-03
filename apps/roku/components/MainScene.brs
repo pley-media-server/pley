@@ -64,6 +64,7 @@ sub init()
     m.closedDialog = invalid
     session.observeField("profileId", "onProfile")
     m.events.observeField("live", "onStreamLive")
+    m.events.observeField("castListed", "onCastListed")
     m.top.observeField("requestNote", "onRequestNote")
     m.top.observeField("requestTouched", "onRequestTouched")
     m.top.observeField("dialog", "onDialog")
@@ -103,10 +104,13 @@ sub launchDialogDone()
     m.top.signalBeacon("AppDialogComplete")
 end sub
 
-' The event stream follows the server and the token signed in with.
+' The event stream follows the server and the token signed in with, and
+' lists this Roku for the profile's other devices to cast to.
 sub onStream()
     session = m.global.session
     m.events.userAgent = session.userAgent
+    cast = m.events.cast
+    if cast = invalid or httpString(cast.device) <> session.castDevice or httpString(cast.name) <> session.castName then m.events.cast = { device: session.castDevice, name: session.castName }
     m.events.server = session.server
     m.events.token = session.accessToken
 end sub
@@ -130,9 +134,14 @@ end sub
 
 ' Watch state, My List, libraries or Live TV changed elsewhere: Home asks again
 ' (now if it shows, else as it shows); a stream of this Roku's stopped from
-' elsewhere ends at once.
+' elsewhere ends at once; another device casts to this Roku.
 sub onServerEvent(event as object)
     data = event.getData()
+    command = castCommand(data, m.global.session.castDevice)
+    if command <> invalid
+        onCast(command)
+        return
+    end if
     if httpString(data.type) = "session_stopped"
         if m.stack.Count() > 0 and m.stack.Peek().hasField("serverStopped") then m.stack.Peek().serverStopped = data
         return
@@ -149,6 +158,43 @@ end sub
 sub onGathered()
     m.top.remoteChanges = m.top.remoteChanges + 1
     if m.stack.Count() > 0 and m.stack.Peek().hasField("refresh") then m.stack.Peek().refresh = true
+end sub
+
+' --- Being cast to ---
+
+' The stream lists this Roku for casting, or no longer does: the player
+' tells what it plays while it does.
+sub onCastListed()
+    if m.events.castListed
+        m.top.castDevice = m.global.session.castDevice
+    else
+        m.top.castDevice = ""
+    end if
+end sub
+
+' A command from another of the profile's devices (Cast.brs's castCommand),
+' unless the person is signing in, choosing a profile or typing its PIN. A
+' title plays from whatever shows: a dialog closes, a player leaves as Back
+' leaves it, and Back from the title goes back to the screen under it. A
+' command for the player goes to the video player on top, if one is.
+sub onCast(command as object)
+    if m.stack.Count() = 0 then return
+    top = m.stack.Peek()
+    if not castTakesCommands(top.route, m.global.session.signedIn) then return
+    if command.kind = "control"
+        if top.route = "player" then top.castControl = command
+        return
+    end if
+    if dialogShowing()
+        dialog = m.top.dialog
+        ' A notice not seen yet shows once the title is left.
+        if m.noticeDialog <> invalid and dialog.isSameNode(m.noticeDialog) then noticeCovered()
+        if dialog.hasField("close") then dialog.close = true
+    end if
+    ' The player leaving doesn't say it plays nothing: the title sent says
+    ' what plays.
+    if top.route = "player" then top.castHandover = true
+    show({ to: "player", replace: castReplaces(top.route), params: castPlayerParams(command) })
 end sub
 
 ' --- Requests ---

@@ -5,7 +5,9 @@
 ' scene, and `live` says whether the stream is up (while it isn't, the
 ' scene asks the server itself). An https server's stream isn't followed:
 ' Roku's sockets have no TLS. A socket that misbehaves is closed and tried
-' again, never more: the screens still ask the server as they show.
+' again, never more: the screens still ask the server as they show. The
+' stream lists this Roku for casting (`cast`); one refused for that goes on
+' without it until the next token.
 
 sub init()
     m.top.functionName = "eventsRun"
@@ -15,7 +17,12 @@ sub eventsRun()
     m.port = CreateObject("roMessagePort")
     m.top.observeField("server", m.port)
     m.top.observeField("token", m.port)
+    m.top.observeField("cast", m.port)
     m.clock = CreateObject("roTimespan")
+    ' Whether this connection asks to be listed for casting, and whether the
+    ' server refused it for this token.
+    m.casting = false
+    m.castOff = false
     m.socket = invalid
     m.reader = invalid
     ' What of the request the socket hasn't taken yet.
@@ -29,8 +36,9 @@ sub eventsRun()
         msg = wait(1000, m.port)
         kind = type(msg)
         if kind = "roSGNodeEvent"
-            ' Another server or token: at once, with it.
+            ' Another server, token or name: at once, with it.
             m.failures = 0
+            m.castOff = false
             connect()
         else if kind = "roSocketEvent"
             if m.socket <> invalid and msg.getSocketID() = m.socket.getID()
@@ -50,7 +58,10 @@ end sub
 sub connect()
     close()
     m.connectAt = -1
-    request = evRequest(m.top.server, m.top.token, m.top.userAgent)
+    cast = invalid
+    if not m.castOff then cast = m.top.cast
+    m.casting = castQuery(cast) <> ""
+    request = evRequest(m.top.server, m.top.token, m.top.userAgent, cast)
     if request = invalid then return
     connected = false
     socket = invalid
@@ -131,6 +142,12 @@ sub readSome()
     if not m.reader.head and not m.reader.failed
         m.failures = 0
         if not m.top.live then m.top.live = true
+        if m.casting and not m.top.castListed then m.top.castListed = true
+    end if
+    ' Refused for being listed: again 2 s on, without it.
+    if m.reader.failed and m.casting and evCastRefused(m.reader.status)
+        m.castOff = true
+        m.failures = 0
     end if
     ' The token ran out (the stream ends with it): the scene has the API
     ' task renew it, and the new one connects again.
@@ -155,4 +172,5 @@ sub close()
     m.reader = invalid
     m.unsent = ""
     if m.top.live then m.top.live = false
+    if m.top.castListed then m.top.castListed = false
 end sub

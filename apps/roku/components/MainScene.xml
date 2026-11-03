@@ -43,6 +43,9 @@
         <!-- The server's event stream is up: what changes elsewhere is
              told, so pages showing requests need not ask on their own. -->
         <field id="eventsLive" type="boolean" />
+        <!-- This Roku's id for casting while the event stream lists it, ""
+             otherwise: the player tells what it plays to that id. -->
+        <field id="castDevice" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -50,6 +53,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Events.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Cast.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
