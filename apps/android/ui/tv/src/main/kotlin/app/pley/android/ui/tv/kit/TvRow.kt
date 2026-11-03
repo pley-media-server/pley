@@ -294,7 +294,11 @@ internal fun <T> TvTileRow(
     if (column != null) {
         DisposableEffect(column, rowKey) {
             column.rows[rowKey] = group
-            onDispose { if (column.rows[rowKey] === group) column.rows.remove(rowKey) }
+            onDispose {
+                if (column.rows[rowKey] === group) column.rows.remove(rowKey)
+                // As a TvRow: a row that goes with focus in it hands it to the row now in its place.
+                if (column.focusedRow == rowKey && column.hadFocus) column.lost(rowKey)
+            }
         }
     }
     CompositionLocalProvider(LocalBringIntoViewSpec provides TvScrolling.itself, LocalTileQuiet provides motion.quiet) {
