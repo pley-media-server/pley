@@ -159,7 +159,7 @@ impl Widths {
 }
 
 impl Found {
-    /// The server's answer sorted into rows: people, channels, then each kind of title. Items of
+    /// The server's answer sorted into rows: each kind of title, then channels, then people. Items of
     /// other kinds (extras) are left out, as on the web; empty groups too. However long the answer,
     /// no more than the server should send is kept.
     pub fn new(results: SearchResults, resolve: Resolve) -> Found {

@@ -1,8 +1,9 @@
 //! Pley for LG TV's Search (the Android TV app's
 //! `TvSearchScreen.kt` and `SearchViewModel.kt`, the TV app's `search.tsx`): the field with the
 //! kit's on-screen keyboard, the profile's recent searches, and what `GET /api/search` finds,
-//! asked 250 ms after typing pauses and shown in rows by kind (people, Live TV channels, movies,
-//! shows, seasons, episodes, artists, albums, tracks), with the loading, empty and failed states.
+//! asked 250 ms after typing pauses and shown in rows by kind (movies, shows, seasons, episodes,
+//! artists, albums, tracks, then Live TV channels, then people), with the loading, empty and
+//! failed states.
 //! For whoever may ask for titles, a Discover row follows: what TMDB has for the words that the
 //! libraries lack, badged, with See all.
 //!
