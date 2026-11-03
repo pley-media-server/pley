@@ -341,8 +341,15 @@ Measure on devices (a mid-range phone, a 1 GB Fire TV stick, a Chromecast
 with Google TV HD), never on emulators. `TvStartupBenchmark` starts the TV
 app cold ten times against the demo server built into benchmark builds, and
 records the time to the first frame and to Home fully drawn, with a
-Perfetto trace of each. Run it with adb on one device; a connected Gradle
-task installs the app on every attached device.
+Perfetto trace of each. `TvScrollBenchmark` and `PhoneScrollBenchmark`
+record the frames (FrameTimingMetric: each frame's time on the main thread
+and how late it was shown) while the app scrolls, five times each: on a TV,
+Right held along Home's rows and Down held through a library's grid; on a
+phone, Home's page and a row flung, and a library's grid. Each run starts
+the app cold and goes to where it scrolls before measuring, and each
+benchmark runs only on its kind of device. The demo server has no Live TV,
+so the guide has no benchmark. Run them with adb on one device; a connected
+Gradle task installs the app on every attached device.
 
 ```powershell
 .\gradlew.bat :app:assembleStoreBenchmarkRelease :benchmark:assembleBenchmarkRelease
@@ -350,6 +357,7 @@ adb -s <device> install -r app\build\outputs\apk\store\benchmarkRelease\app-stor
 adb -s <device> install -r benchmark\build\outputs\apk\benchmarkRelease\benchmark-benchmarkRelease.apk
 adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvStartupBenchmark `
   app.pley.android.benchmark/androidx.test.runner.AndroidJUnitRunner
+# The same with TvScrollBenchmark on a TV, PhoneScrollBenchmark on a phone.
 ```
 
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
