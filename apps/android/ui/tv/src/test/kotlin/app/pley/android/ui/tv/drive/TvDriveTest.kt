@@ -3,8 +3,11 @@ package app.pley.android.ui.tv.drive
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import app.pley.android.common.Tier
 import app.pley.android.data.drive.DriveSpace
@@ -21,7 +24,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The USB drive's page with the remote: its lines, where it is, and what it says when it can't list a folder. */
+/**
+ * The USB drive's page with the remote: the drive's name, its lines, where
+ * it is, and what it says when it can't list a folder, focus waiting on
+ * that message when nothing else on the page can have it.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class TvDriveTest {
@@ -43,10 +50,10 @@ class TvDriveTest {
         sizeBytes = 4_000_000_000,
     )
 
-    private fun show(page: DrivePage) {
+    private fun show(page: DrivePage, name: String? = null) {
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = true) {
-                TvDriveContent(page, onLine = { opened += it.name }, onUp = { ups++ }, onOpenSettings = { settings++ })
+                TvDriveContent(page, onLine = { opened += it.name }, onUp = { ups++ }, onOpenSettings = { settings++ }, name = name)
             }
         }
         compose.waitForIdle()
@@ -55,7 +62,7 @@ class TvDriveTest {
     @Test
     fun aFolderListsUpThenItsFoldersThenItsVideosAndFocusStartsOnTheFirst() {
         show(DrivePage.Folder(DrivePlace.Under(listOf("Films")), up = true, lines = listOf(season, film)))
-        compose.onNodeWithText("USB drive › Films").assertExists()
+        compose.onNodeWithText("/Films").assertExists()
         compose.onNodeWithText("Up a folder").assertExists()
         compose.onNodeWithText("MKV · Resumes at 1:02:03").assertExists()
         compose.onNodeWithText("3.7 GB").assertExists()
@@ -75,7 +82,7 @@ class TvDriveTest {
     @Test
     fun theDrivesTopSaysHowFullItIs() {
         show(DrivePage.Folder(DrivePlace.Top(DriveSpace(437_000_000_000, 1_000_000_000_000)), up = false, lines = listOf(film)))
-        compose.onNodeWithText("407 GB free of 931 GB").assertExists()
+        compose.onNodeWithText("/ · 407 GB free of 931 GB").assertExists()
         compose.onNodeWithText("..").assertDoesNotExist()
         compose.focused().assert(hasText("Mad Max"))
     }
@@ -83,7 +90,7 @@ class TvDriveTest {
     @Test
     fun anEmptyFolderSaysSoUnderUp() {
         show(DrivePage.Folder(DrivePlace.Under(listOf("Films", "2019")), up = true, lines = emptyList()))
-        compose.onNodeWithText("USB drive › Films › 2019").assertExists()
+        compose.onNodeWithText("/Films/2019").assertExists()
         compose.onNodeWithText("Nothing to play here").assertExists()
         compose.focused().assert(hasText("Up a folder"))
     }
@@ -97,9 +104,33 @@ class TvDriveTest {
     }
 
     @Test
-    fun withoutADriveOrAReadableFolderItSaysWhy() {
+    fun withoutADriveOrAReadableFolderItSaysWhyAndKeepsFocusOnThePage() {
         show(DrivePage.NoDrive)
+        compose.onNodeWithText("USB drive").assertExists()
         compose.onNodeWithText("No USB drive").assertExists()
         compose.onNodeWithText("Plug a USB drive into the TV to play its videos here.").assertExists()
+        // Focus waits on the message, which shows nothing of it, rather than in the rail.
+        compose.onNodeWithTag(TV_DRIVE_MESSAGE).assertIsFocused()
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag(TV_DRIVE_MESSAGE).assertIsFocused()
+    }
+
+    @Test
+    fun anEmptyTopKeepsFocusOnItsMessageUnderTheDrivesName() {
+        show(DrivePage.Folder(DrivePlace.Top(null), up = false, lines = emptyList()), name = "Kingston DataTraveler 3.0")
+        compose.onNodeWithText("Kingston DataTraveler 3.0").assertExists()
+        compose.onNodeWithText("USB drive").assertDoesNotExist()
+        compose.onNodeWithText("/").assertExists()
+        compose.onNodeWithTag(TV_DRIVE_MESSAGE).assertIsFocused().assert(hasText("Nothing to play here"))
+        // Centred between the gutter (96) and the safe area's edge (912), as the Samsung app has it.
+        val message = compose.onNodeWithText("Nothing to play here").getBoundsInRoot()
+        assertEquals(504f, ((message.left + message.right) / 2).value, 2f)
+    }
+
+    @Test
+    fun aFolderThatCantBeReadSaysSoUnderUp() {
+        show(DrivePage.Unreadable(DrivePlace.Under(listOf("Films")), up = true))
+        compose.onNodeWithText("This folder can't be read").assertExists()
+        compose.focused().assert(hasText("Up a folder"))
     }
 }

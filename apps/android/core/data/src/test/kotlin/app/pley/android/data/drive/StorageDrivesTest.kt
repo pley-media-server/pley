@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Which of the volumes Android lists is the drive, as TV builds report them. */
+/** Which of the volumes Android lists is the drive, as TV builds report them, and what it is called. */
 class StorageDrivesTest {
     private val folders = setOf("/storage/1A2B-3C4D", "/mnt/media_rw/1A2B-3C4D", "/storage/5E6F-7A8B")
 
@@ -50,6 +50,39 @@ class StorageDrivesTest {
         assertEquals(listOf("android.permission.READ_EXTERNAL_STORAGE"), Drives.drivePermissions(32))
         assertEquals(listOf("android.permission.READ_MEDIA_VIDEO"), Drives.drivePermissions(33))
         assertEquals(listOf("android.permission.READ_MEDIA_VIDEO"), Drives.drivePermissions(37))
+    }
+
+    @Test
+    fun theDrivesNameIsItsMakeAndModelFromTheDiskItIsMountedFrom() {
+        val sys = mapOf(
+            "/sys/block/sda/device/vendor" to "Kingston\n",
+            "/sys/block/sda/device/model" to "DataTraveler 3.0 \n",
+            "/sys/dev/block/8:17/../device/vendor" to "SanDisk ",
+            "/sys/dev/block/8:17/../device/model" to "Ultra",
+        )
+        val mounts = listOf(
+            "/dev/fuse /storage/1A2B-3C4D fuse rw,nosuid 0 0",
+            "/dev/block/vold/public:8,17 /mnt/media_rw/5E6F-7A8B vfat rw 0 0",
+            "/dev/sda1 /mnt/usb/sda1 exfat rw 0 0",
+        )
+        // A disk Linux names (sda1, a part of sda).
+        assertEquals("Kingston DataTraveler 3.0", StorageDrives.name("/mnt/usb/sda1", mounts, sys::get))
+        // Android's own mount, where /storage shows the volume to apps.
+        assertEquals("SanDisk Ultra", StorageDrives.name("/storage/5E6F-7A8B", mounts, sys::get))
+        // What the app sees is the system's file system, and /sys says nothing: no name.
+        assertNull(StorageDrives.name("/storage/1A2B-3C4D", mounts, sys::get))
+        assertNull(StorageDrives.name("/storage/1A2B-3C4D", emptyList(), sys::get))
+    }
+
+    @Test
+    fun withoutItsMakeTheDriveHasTheSystemsNameForIt() {
+        val volumes = listOf(
+            volume(directory = "/storage/1A2B-3C4D").copy(description = "SanDisk USB drive"),
+            volume(uuid = "5E6F-7A8B").copy(description = " "),
+        )
+        assertEquals("SanDisk USB drive", StorageDrives.describedAs("/storage/1A2B-3C4D", volumes))
+        assertNull(StorageDrives.describedAs("/storage/5E6F-7A8B", volumes))
+        assertNull(StorageDrives.describedAs("/storage/9C33-6BBD", volumes))
     }
 
     @Test

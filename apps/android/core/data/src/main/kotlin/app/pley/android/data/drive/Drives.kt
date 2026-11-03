@@ -8,8 +8,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** A drive plugged into the device, by the folder the device mounts it at: "/storage/1A2B-3C4D". */
-data class Drive(val root: String)
+/**
+ * A drive plugged into the device, by the folder the device mounts it at:
+ * "/storage/1A2B-3C4D"; [name] is its make and model as it reports them
+ * ("Kingston DataTraveler 3.0"), else the system's name for it ("SanDisk
+ * USB drive"), `null` when neither says.
+ */
+data class Drive(val root: String, val name: String? = null)
 
 /** How full a drive is. */
 data class DriveSpace(val freeBytes: Long, val totalBytes: Long)

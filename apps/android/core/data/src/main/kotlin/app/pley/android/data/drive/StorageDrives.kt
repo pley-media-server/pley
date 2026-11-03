@@ -11,6 +11,7 @@ import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
 import androidx.annotation.RequiresApi
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,8 +78,15 @@ class StorageDrives(
             // The system wouldn't say: the folders it mounts drives at are looked at instead.
             emptyList()
         }
-        val root = pick(volumes, ::isFolder) ?: mountedUnder(File(STORAGE))
-        return root?.let(::Drive)
+        val root = pick(volumes, ::isFolder) ?: mountedUnder(File(STORAGE)) ?: return null
+        val said = try {
+            File(MOUNTS).readLines()
+        } catch (_: IOException) {
+            emptyList()
+        } catch (_: SecurityException) {
+            emptyList()
+        }
+        return Drive(root, name(root, said, ::readSys) ?: describedAs(root, volumes))
     }
 
     private fun volumeOf(volume: StorageVolume): Volume = Volume(
@@ -88,6 +96,11 @@ class StorageDrives(
         state = volume.state,
         directory = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Api30.directory(volume) else null,
         uuid = volume.uuid,
+        description = try {
+            volume.getDescription(app)
+        } catch (_: RuntimeException) {
+            null
+        },
     )
 
     /** A volume as [pick] weighs it. */
@@ -101,6 +114,8 @@ class StorageDrives(
         val directory: String?,
         /** Its file system's id ("1A2B-3C4D"), which public volumes are mounted under in /storage. */
         val uuid: String?,
+        /** The system's name for it: "SanDisk USB drive", or "USB drive" when the drive gives no make. */
+        val description: String? = null,
     )
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -121,6 +136,12 @@ class StorageDrives(
     internal companion object {
         /** Where Android mounts public volumes, each under its file system's id. */
         const val STORAGE = "/storage"
+
+        /** Where the system mounts a public volume itself, under its id, before /storage shows it to apps. */
+        private const val MEDIA_RW = "/mnt/media_rw"
+
+        /** The mounts this app sees, one a line: "device folder type options …". */
+        private const val MOUNTS = "/proc/self/mounts"
 
         private val MEDIA_ACTIONS = listOf(
             Intent.ACTION_MEDIA_MOUNTED,
@@ -158,5 +179,46 @@ class StorageDrives(
             .minByOrNull { it.name }?.path
 
         private fun isFolder(path: String): Boolean = File(path).isDirectory
+
+        /**
+         * The make and model of the drive mounted at [root] as it reports
+         * them ("Kingston DataTraveler 3.0"), as the Samsung app reads them:
+         * the disk it is mounted from, in [mounts] (lines of /proc/self/mounts),
+         * then what the disk says of itself in /sys, through [read]. `null`
+         * when any of it is out of reach, as it is on most TVs: the app may
+         * not open the device itself, nor see where the system mounts it.
+         */
+        fun name(root: String, mounts: List<String>, read: (String) -> String?): String? {
+            val at = setOf(root, "$MEDIA_RW/${root.substringAfterLast('/')}")
+            val device = mounts.map { it.split(' ') }.firstOrNull { it.size > 1 && it[1] in at }?.get(0) ?: return null
+            val folders = when {
+                // Android's own: "/dev/block/vold/public:8,1", the disk's numbers, a part of a disk or the whole of it.
+                device.startsWith(VOLD) -> device.removePrefix(VOLD).replace(',', ':').let { listOf("/sys/dev/block/$it/../device", "/sys/dev/block/$it/device") }
+                // sda1 is a part of the disk sda (mmcblk0p1 of mmcblk0), whose folder holds what the drive says of itself.
+                device.startsWith("/dev/") -> listOf("/sys/block/${device.substringAfterLast('/').replace(PART, "")}/device")
+                else -> return null
+            }
+            return folders.firstNotNullOfOrNull { folder ->
+                listOf("vendor", "model").mapNotNull { read("$folder/$it")?.trim()?.ifEmpty { null } }.joinToString(" ").ifEmpty { null }
+            }
+        }
+
+        /** The system's name for the volume mounted at [root], among [volumes]. */
+        fun describedAs(root: String, volumes: List<Volume>): String? =
+            volumes.firstOrNull { it.directory == root || it.uuid?.let { id -> "$STORAGE/$id" } == root }?.description?.trim()?.ifEmpty { null }
+
+        /** A file of /sys, when there is one and the app may read it. */
+        private fun readSys(path: String): String? = try {
+            File(path).takeIf { it.isFile }?.readText()
+        } catch (_: IOException) {
+            null
+        } catch (_: SecurityException) {
+            null
+        }
+
+        private const val VOLD = "/dev/block/vold/public:"
+
+        /** A partition's number at the end of its device's name: sda1's 1, mmcblk0p1's p1. */
+        private val PART = Regex("""(?<=\d)p\d+$|(?<=[a-z])\d+$""")
     }
 }

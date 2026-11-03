@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -77,9 +78,10 @@ import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 
 /**
- * The USB drive's page on TV (the Samsung app's StorageScreen): "USB
- * drive", and under it where the page is ("437 GB free of 1.0 TB" at the
- * drive's top, "USB drive › Films › 2019" in a folder), then a line each:
+ * The USB drive's page on TV (the Samsung app's StorageScreen): the
+ * drive's make and model ("USB drive" when it doesn't say), and under it
+ * where the page is ("/Films/2019"; "/ · 437 GB free of 1.0 TB" at the
+ * drive's top), then a line each:
  * ".." first in a folder (Up a folder, which goes Back), its folders, then
  * its videos with their kind, or where they resume with a bar of how far
  * through, and their size. OK on a folder opens it over this page, on a
@@ -107,6 +109,7 @@ internal fun TvDriveScreen(folder: String?) {
     }
     TvDriveContent(
         page = state.page,
+        name = state.name,
         onLine = { line -> if (line.folder) navigator.open(PleyKey.Drive(line.path)) else vm.play(line) },
         onUp = navigator::back,
         onOpenSettings = { openAppSettings(context) },
@@ -114,12 +117,14 @@ internal fun TvDriveScreen(folder: String?) {
 }
 
 @Composable
-internal fun TvDriveContent(page: DrivePage, onLine: (DriveLine) -> Unit, onUp: () -> Unit, onOpenSettings: () -> Unit) {
+internal fun TvDriveContent(page: DrivePage, onLine: (DriveLine) -> Unit, onUp: () -> Unit, onOpenSettings: () -> Unit, name: String? = null) {
     Column(Modifier.fillMaxSize().padding(top = TvSafeArea.Vertical).testTag(TV_DRIVE)) {
         BasicText(
-            stringResource(R.string.tv_drive_title),
+            name ?: stringResource(R.string.tv_drive_title),
             style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg),
-            modifier = Modifier.padding(start = PleyTv.Gutter).semantics { heading() },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal).semantics { heading() },
         )
         Spacer(Modifier.height(8.dp))
         val place = when (page) {
@@ -135,51 +140,66 @@ internal fun TvDriveContent(page: DrivePage, onLine: (DriveLine) -> Unit, onUp: 
             modifier = Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal).heightIn(min = 18.dp),
         )
         Spacer(Modifier.height(16.dp))
-        when (page) {
-            DrivePage.Loading -> Unit
-            DrivePage.Refused -> DriveMessage(
-                stringResource(R.string.tv_drive_refused_title),
-                stringResource(R.string.tv_drive_refused_body),
-                action = stringResource(R.string.tv_drive_open_settings),
-                onAction = onOpenSettings,
-            )
-            DrivePage.NoDrive -> DriveMessage(stringResource(R.string.tv_drive_none_title), stringResource(R.string.tv_drive_none_body))
-            is DrivePage.Unreadable -> DriveLines(page.up, emptyList(), R.string.tv_drive_unreadable_title, R.string.tv_drive_unreadable_body, onLine, onUp)
-            is DrivePage.Folder -> DriveLines(
-                page.up,
-                page.lines,
-                R.string.tv_drive_empty_title.takeIf { page.lines.isEmpty() },
-                R.string.tv_drive_empty_body,
-                onLine,
-                onUp,
-            )
+        Box(Modifier.fillMaxSize()) {
+            when (page) {
+                DrivePage.Loading -> Unit
+                DrivePage.Refused -> DriveMessage(
+                    PleyIcons.CircleAlert,
+                    stringResource(R.string.tv_drive_refused_title),
+                    stringResource(R.string.tv_drive_refused_body),
+                    up = false,
+                    action = stringResource(R.string.tv_drive_open_settings),
+                    onAction = onOpenSettings,
+                )
+                DrivePage.NoDrive -> DriveMessage(
+                    PleyIcons.Usb,
+                    stringResource(R.string.tv_drive_none_title),
+                    stringResource(R.string.tv_drive_none_body),
+                    up = false,
+                )
+                is DrivePage.Unreadable -> {
+                    DriveLines(page.up, emptyList(), onLine, onUp)
+                    DriveMessage(
+                        PleyIcons.CircleAlert,
+                        stringResource(R.string.tv_drive_unreadable_title),
+                        stringResource(R.string.tv_drive_unreadable_body),
+                        up = page.up,
+                    )
+                }
+                is DrivePage.Folder -> {
+                    DriveLines(page.up, page.lines, onLine, onUp)
+                    if (page.lines.isEmpty()) {
+                        DriveMessage(
+                            PleyIcons.FolderOpen,
+                            stringResource(R.string.tv_drive_empty_title),
+                            stringResource(R.string.tv_drive_empty_body),
+                            up = page.up,
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
-/** "437 GB free of 1.0 TB" at the drive's top (nothing when the TV won't say); "USB drive › Films › 2019" in a folder. */
+/** Where the page is on the drive, as a path: "/Films/2019"; at its top, "/" and how full it is ("/ · 437 GB free of 1.0 TB"). */
 @Composable
 private fun placeLabel(place: DrivePlace): String = when (place) {
-    is DrivePlace.Top -> place.space?.let { stringResource(R.string.tv_drive_space, formatBytes(it.freeBytes), formatBytes(it.totalBytes)) }.orEmpty()
-    is DrivePlace.Under -> (listOf(stringResource(R.string.tv_drive_title)) + place.folders).joinToString(stringResource(R.string.tv_drive_path_separator))
+    is DrivePlace.Top -> place.space?.let { "/ · " + stringResource(R.string.tv_drive_space, formatBytes(it.freeBytes), formatBytes(it.totalBytes)) } ?: "/"
+    is DrivePlace.Under -> place.folders.joinToString("/", prefix = "/")
 }
 
 /**
- * The folder's lines, ".." first under the drive's top, and under them
- * what the folder can't show ([message]). Focus starts on the first folder
- * or video, else on ".."; with no line at all it goes to the rail, as on
- * the Samsung app. Back from a folder opened, it is on that folder's line.
+ * The folder's lines, ".." first under the drive's top. Focus starts on
+ * the first folder or video, else on ".."; with no line at all the page's
+ * message holds it ([DriveMessage]). Back from a folder opened, it is on
+ * that folder's line.
  */
 @Composable
-private fun DriveLines(up: Boolean, lines: List<DriveLine>, message: Int?, body: Int, onLine: (DriveLine) -> Unit, onUp: () -> Unit) {
+private fun DriveLines(up: Boolean, lines: List<DriveLine>, onLine: (DriveLine) -> Unit, onUp: () -> Unit) {
+    if (!up && lines.isEmpty()) return
     val rail = LocalTvRailFocus.current
     val memory = rememberFocusMemory()
-    if (!up && lines.isEmpty()) {
-        LaunchedEffect(Unit) {
-            withFrameNanos { }
-            rail?.focusCurrent()
-        }
-    }
     val first = lines.firstOrNull()?.path
     LazyColumn(
         Modifier
@@ -219,14 +239,6 @@ private fun DriveLines(up: Boolean, lines: List<DriveLine>, message: Int?, body:
                 onClick = { onLine(line) },
                 modifier = Modifier.rememberedFocus(memory, line.path, initial = line.path == first),
             )
-        }
-        if (message != null) {
-            item(key = "message", contentType = "message") {
-                Column(Modifier.padding(start = 12.dp, top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    BasicText(stringResource(message), style = PleyType.Tv.Title.copy(color = PleyColors.Fg))
-                    BasicText(stringResource(body), style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 3)
-                }
-            }
         }
     }
 }
@@ -290,25 +302,40 @@ internal fun TvDriveLine(
     }
 }
 
-/** A message in the page's place (no drive, refused), with one focused action, or focus in the rail without one. */
+/**
+ * What the page says in a folder's place (no drive, refused, nothing to
+ * play, can't be read), as the Samsung app has it: centred on the page
+ * under a 64 dp icon, under the ".." line when there is one ([up]). Its
+ * [action] takes focus; without one, and with no ".." to focus, the
+ * message holds focus itself, showing nothing of it, so the rail closes
+ * over the page and Left still opens it.
+ */
 @Composable
-private fun DriveMessage(title: String, body: String, action: String? = null, onAction: () -> Unit = {}) {
-    if (action == null) {
-        val rail = LocalTvRailFocus.current
-        LaunchedEffect(Unit) {
-            withFrameNanos { }
-            rail?.focusCurrent()
-        }
-    }
-    Column(
-        Modifier.fillMaxWidth().padding(start = PleyTv.Gutter, top = 24.dp, end = TvSafeArea.Horizontal),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+private fun DriveMessage(icon: PleyIcon, title: String, body: String, up: Boolean, action: String? = null, onAction: () -> Unit = {}) {
+    val rail = LocalTvRailFocus.current
+    val holds = action == null && !up
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = PleyTv.Gutter, top = if (up) LINE_HEIGHT + 24.dp else 40.dp, end = TvSafeArea.Horizontal)
+            .railOnLeftStopOnRight(rail)
+            .focusGroup(),
     ) {
-        BasicText(title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg))
-        BasicText(body, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), modifier = Modifier.widthIn(max = 520.dp))
-        if (action != null) {
-            Spacer(Modifier.height(12.dp))
-            TvPillButton(action, onClick = onAction, modifier = Modifier.initialFocus())
+        Column(
+            (if (holds) Modifier.initialFocus().focusable().semantics(mergeDescendants = true) { } else Modifier)
+                .fillMaxWidth()
+                .testTag(TV_DRIVE_MESSAGE),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(icon, contentDescription = null, size = MESSAGE_ICON, tint = PleyColors.Muted)
+            Spacer(Modifier.height(20.dp))
+            BasicText(title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg, textAlign = TextAlign.Center))
+            Spacer(Modifier.height(10.dp))
+            BasicText(body, style = PleyType.Tv.Body.copy(color = PleyColors.Muted, textAlign = TextAlign.Center), maxLines = 3)
+            if (action != null) {
+                Spacer(Modifier.height(24.dp))
+                TvPillButton(action, onClick = onAction, modifier = Modifier.initialFocus())
+            }
         }
     }
 }
@@ -331,8 +358,12 @@ private const val UP = ".."
 private val LIST_WIDTH = 720.dp
 private val LINE_HEIGHT = 56.dp
 
+/** The size of a message's icon. */
+private val MESSAGE_ICON = 64.dp
+
 /** How long a line's bar is at most. */
 private val BAR_WIDTH = 160.dp
 
 internal const val TV_DRIVE = "tv-drive"
 internal const val TV_DRIVE_LINES = "tv-drive-lines"
+internal const val TV_DRIVE_MESSAGE = "tv-drive-message"

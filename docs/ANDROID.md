@@ -381,10 +381,17 @@ rail has **USB drive** after Now Playing, as the Samsung app does. Its page
 lists the drive's folders, then its videos (MKV, MP4, M4V, MOV, TS, WebM,
 AVI, MPEG), each sorted as a person sorts names ("Part 2" before "Part
 10"); hidden files and what Windows and macOS leave on a drive aren't
-shown. At the drive's top the page says how full the drive is; a folder
-opens over the one before, with ".." first to go back up. A video's line
-gives its kind, or where it resumes with a bar of how far through it is,
-and its size. A video plays in Pley's player as it is, with no server,
+shown. The page's title is the drive's make and model as it reports them
+("Kingston DataTraveler 3.0") when the app can read them, else the
+system's name for it ("SanDisk USB drive"), else "USB drive"; under it,
+the folder's path ("/Films/2019"), at the drive's top "/" and how full the
+drive is. A folder opens over the one before, with ".." first to go back
+up. A video's line gives its kind, or where it resumes with a bar of how
+far through it is, and its size. No drive, an empty folder and one that
+can't be read say so centred on the page under an icon, as on the Samsung
+app; with nothing to focus (no ".." line) focus waits on that message,
+showing nothing, so the rail closes over the page and Left opens it. A
+video plays in Pley's player as it is, with no server,
 also while the server is out of reach, the way a download plays: seeking,
 the panels, the sleep timer and the subtitles' look are the same. The page
 is in the rail, which shows once the TV is signed in to a server.
@@ -395,7 +402,10 @@ is in the rail, which shows once the TV is signed in to a server.
   `/storage/<id>`; with none listed, a readable volume folder under
   `/storage`. The app follows the media broadcasts and, from Android 11,
   `StorageManager`'s callback, and looks again as the app or the page
-  opens, for builds that send neither.
+  opens, for builds that send neither. Its make and model come from the
+  disk `/proc/self/mounts` says it is mounted from, in `/sys`, as the
+  Samsung app reads them; most TVs keep both from apps, and the volume's
+  own description stands in.
 - **Leave to read it** is asked for as the page opens: `READ_MEDIA_VIDEO`
   from Android 13, `READ_EXTERNAL_STORAGE` before (Android 10 reads the
   drive as earlier versions do: `requestLegacyExternalStorage`). Refused,

@@ -69,19 +69,21 @@ sealed interface DrivePage {
 
 data class DriveUiState(
     val page: DrivePage = DrivePage.Loading,
+    /** The drive's make and model, the page's title ([Drive.name]); `null` without a drive or a name. */
+    val name: String? = null,
     /** Permissions to ask the system for now: the screen asks, then calls [DriveViewModel.asked]. */
     val ask: List<String> = emptyList(),
 )
 
 /**
  * A folder of the drive plugged into the TV ([folder]; `null`: the drive's
- * top), as the Samsung app's StorageScreen shows it: where it is, its
- * folders then its videos ([DriveFolder]), and each video's line with
- * where it stopped as this device keeps it. The folder is read off the
- * main thread, as a drive that sleeps is slow to answer; again when a
- * drive comes or goes; and its lines again each time the page shows (back
- * from the player). Leave to read the drive is asked for as the page
- * opens; refused, the page says so.
+ * top), as the Samsung app's StorageScreen shows it: the drive's name,
+ * where it is, its folders then its videos ([DriveFolder]), and each
+ * video's line with where it stopped as this device keeps it. The folder
+ * is read off the main thread, as a drive that sleeps is slow to answer;
+ * again when a drive comes or goes; and its lines again each time the
+ * page shows (back from the player). Leave to read the drive is asked for
+ * as the page opens; refused, the page says so.
  */
 class DriveViewModel(
     private val drives: Drives,
@@ -154,7 +156,7 @@ class DriveViewModel(
         val dir = folder?.trimEnd('/') ?: root
         if (root == null || dir == null || !(dir == root || dir.startsWith("$root/"))) {
             entries = emptyList()
-            _state.update { it.copy(page = DrivePage.NoDrive) }
+            _state.update { it.copy(page = DrivePage.NoDrive, name = null) }
             return
         }
         val up = dir != root
@@ -171,12 +173,12 @@ class DriveViewModel(
         }
         if (read == null) {
             entries = emptyList()
-            _state.update { it.copy(page = DrivePage.Unreadable(if (up) under else DrivePlace.Top(null), up)) }
+            _state.update { it.copy(page = DrivePage.Unreadable(if (up) under else DrivePlace.Top(null), up), name = drive.name) }
             return
         }
         val (found, lines, place) = read
         entries = found
-        _state.update { it.copy(page = DrivePage.Folder(place, up, lines)) }
+        _state.update { it.copy(page = DrivePage.Folder(place, up, lines), name = drive.name) }
     }
 
     /** [found]'s lines: a video's with where it stopped, as this device keeps it (a read of its preferences). */

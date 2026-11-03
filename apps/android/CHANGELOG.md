@@ -27,11 +27,14 @@ describes how they are made.
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
 - Android TV and Fire TV play videos from a USB drive, with no server: while
-  one is plugged in, the rail has USB drive after Now Playing. Its page
-  lists the drive's folders and videos, sorted as a person sorts names,
-  with where each video resumes, and a video plays in Pley's player with
-  the subtitle files beside it, from where it stopped. The page asks for
-  leave to read the drive as it opens.
+  one is plugged in, the rail has USB drive after Now Playing. Its page,
+  titled with the drive's make and model when it says them, gives the
+  folder's path and lists the drive's folders and videos, sorted as a
+  person sorts names, with where each video resumes, and a video plays in
+  Pley's player with the subtitle files beside it, from where it stopped.
+  An empty folder or no drive says so under an icon, with focus on the
+  page, so the rail closes over it. The page asks for leave to read the
+  drive as it opens.
 ### Changed
 
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge

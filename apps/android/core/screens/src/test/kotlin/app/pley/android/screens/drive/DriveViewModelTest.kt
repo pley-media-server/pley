@@ -113,6 +113,17 @@ class DriveViewModelTest {
     }
 
     @Test
+    fun thePageIsTitledWithTheDrivesName() {
+        drives.plugged.value = Drive(ROOT, name = "Kingston DataTraveler 3.0")
+        val vm = page("$ROOT/Films")
+        assertEquals("Kingston DataTraveler 3.0", vm.state.value.name)
+        drives.plugged.value = null
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(DrivePage.NoDrive, vm.state.value.page)
+        assertEquals(null, vm.state.value.name)
+    }
+
+    @Test
     fun aFolderThatCantBeReadSaysSoAndNoDriveSaysPlugOneIn() {
         drives.unreadable += "$ROOT/Films"
         assertEquals(DrivePage.Unreadable(DrivePlace.Under(listOf("Films")), up = true), page("$ROOT/Films").state.value.page)

@@ -2,10 +2,8 @@
 <resources>
     <!-- A USB drive's page (the Samsung app's StorageScreen). -->
     <string name="tv_drive_title">USB drive</string>
-    <!-- At the drive's top: "437 GB free of 1.0 TB". -->
+    <!-- At the drive's top, after "/ · ": "437 GB free of 1.0 TB". -->
     <string name="tv_drive_space">%1$s free of %2$s</string>
-    <!-- In a folder: "USB drive › Films › 2019". -->
-    <string name="tv_drive_path_separator">" › "</string>
     <string name="tv_drive_up">Up a folder</string>
     <!-- A video started before: "MKV · Resumes at 1:02:03". -->
     <string name="tv_drive_resumes">%1$s · Resumes at %2$s</string>
