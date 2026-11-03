@@ -53,6 +53,41 @@ struct PicturesTests {
         #expect(Array(b.rgba[16..<20]) == [0, 0, 0, 128])
     }
 
+    @Test func pgsDecodesAFramesWorthOfPixelsAtMost() throws {
+        // One 2048×2048 object placed three times: twice would pass a 4K screen's pixels.
+        let side = 2048
+        var pcs = u16(1920) + u16(1080) + [0x10] + u16(1) + [0x80, 0x00, 0x00, 3]
+        for i in 0..<3 { pcs += u16(0) + [0, 0x00] + u16(i * 10) + u16(0) }
+        let data = u16(side) + u16(side)
+        let set = pgsSegment(0x16, pcs)
+            + pgsSegment(0x14, [0, 0, 1, 235, 128, 128, 255])
+            + pgsSegment(0x15, u16(0) + [0, 0xC0, 0, 0, UInt8(data.count)] + data)
+            + pgsSegment(0x80, [])
+        let frame = try #require(PGSDecoder(samples: [set]).decode(0))
+        #expect(frame.bitmaps.count == 1)
+        #expect(frame.bitmaps.allSatisfy { $0.width == side && $0.height == side })
+    }
+
+    @Test func decodedFramesAreKeptWithinTheirBytes() {
+        func frame(_ bytes: Int) -> PictureFrame {
+            let bitmap = SubtitleBitmap(x: 0, y: 0, width: 1, height: 1, rgba: [UInt8](repeating: 0, count: bytes))
+            return PictureFrame(planeWidth: 1920, planeHeight: 1080, bitmaps: [bitmap])
+        }
+        var cache = FrameCache()
+        let third = Pictures.cacheBytes / 3 + 1
+        cache.put(0, frame(third))
+        cache.put(1, frame(third))
+        cache.put(2, frame(third))
+        #expect(cache.get(0) == nil)
+        #expect(cache.get(1) != nil && cache.get(2) != nil)
+        // One frame over the bound is still kept: it is the one showing.
+        cache.put(3, frame(Pictures.cacheBytes + 1))
+        #expect(cache.get(2) == nil && cache.get(3) != nil)
+        // Frames with nothing to show are kept by number, as before.
+        for i in 10..<40 { cache.put(i, nil) }
+        #expect(cache.get(10) == nil && cache.get(15) != nil && cache.get(39) != nil)
+    }
+
     @Test func pgsDecodesANormalCaseDisplaySetFromItsEpochsDefinitions() throws {
         let start = pgsDisplaySet(state: 0x80, objects: true, rle: rle2x4)
         let clear = pgsDisplaySet(state: 0x00, objects: false)

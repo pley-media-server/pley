@@ -237,9 +237,12 @@ public final class PGSDecoder: PictureDecoder {
             lut[i * 4 + 3] = UInt8(e.a)
         }
         var bitmaps: [SubtitleBitmap] = []
+        var pixelsLeft = Pictures.maxPixels
         for placed in pcs.objects {
             guard let object = objects[placed.id], (1...Self.maxSide).contains(object.width),
                   (1...Self.maxSide).contains(object.height) else { continue }
+            pixelsLeft -= object.width * object.height
+            guard pixelsLeft >= 0 else { break }
             let indexes = Self.decodeRle(object.rle, width: object.width, height: object.height)
             let crop = placed.crop ?? (0, 0, object.width, object.height)
             let w = max(0, min(crop.w, object.width - crop.x))

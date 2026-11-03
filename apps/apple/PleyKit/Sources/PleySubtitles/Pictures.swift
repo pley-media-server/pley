@@ -79,22 +79,41 @@ public enum Pictures {
     /// Decoded frames kept per track: a few around the playhead are enough,
     /// as seeking decodes again.
     static let cacheSize = 24
+
+    /// The most pixels a frame decodes, all its pictures together: a 4K
+    /// screen's worth. A file can place a 4096² picture many times over, and
+    /// each pixel costs 4 bytes once coloured.
+    static let maxPixels = 3_840 * 2_160
+
+    /// The most bytes the frames kept per track hold together.
+    static let cacheBytes = 128 << 20
 }
 
 /// The few frames decoded last, oldest dropped first.
 struct FrameCache {
     private var order: [Int] = []
     private var frames: [Int: PictureFrame?] = [:]
+    private var bytes = 0
 
     /// The frame of `index` (maybe `nil`, kept as such), or `.none` when not decoded yet.
     func get(_ index: Int) -> PictureFrame?? { frames[index] }
 
     mutating func put(_ index: Int, _ frame: PictureFrame?) {
-        if frames[index] == nil {
+        if let kept = frames[index] {
+            bytes -= Self.size(kept)
+        } else {
             order.append(index)
-            if order.count > Pictures.cacheSize + 1 { frames[order.removeFirst()] = nil }
         }
         frames[index] = .some(frame)
+        bytes += Self.size(frame)
+        // The frame just decoded stays, whatever its size.
+        while order.count > 1, order.count > Pictures.cacheSize + 1 || bytes > Pictures.cacheBytes {
+            if let dropped = frames.removeValue(forKey: order.removeFirst()) { bytes -= Self.size(dropped) }
+        }
+    }
+
+    private static func size(_ frame: PictureFrame?) -> Int {
+        frame?.bitmaps.reduce(0) { $0 + $1.rgba.count } ?? 0
     }
 }
 

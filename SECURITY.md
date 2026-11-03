@@ -465,6 +465,9 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   keeps a code from the real app's sheet for that sheet. Apple TV registers
   the scheme for its Top Shelf links, which the app signs and checks before
   opening one.
+- Picture subtitles (PGS, DVB, VobSub) decode at most a 4K screen's pixels
+  for one moment, and the frames kept per track hold 128 MiB at most, so a
+  crafted file can't take more memory than a real one.
 
 ### TV apps, Kodi and Roku
 

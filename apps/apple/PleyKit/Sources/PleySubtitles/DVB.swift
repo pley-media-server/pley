@@ -356,6 +356,9 @@ public final class DVBDecoder: PictureDecoder {
                     let w = b.u16(2)
                     let h = b.u16(4)
                     guard w <= Self.maxSide, h <= Self.maxSide else { break }
+                    // Up to 256 regions are kept at once: together, no more than a frame's pixels.
+                    let others = regions.reduce(0) { $0 + ($1.key == id ? 0 : $1.value.pixels.count) }
+                    guard others + w * h <= Pictures.maxPixels else { break }
                     let depths = [0, 2, 4, 8]
                     let code = (b.at(6) >> 2) & 7
                     let depth = code < depths.count ? depths[code] : 4

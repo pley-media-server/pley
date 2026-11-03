@@ -187,6 +187,7 @@ public final class VobSubDecoder: PictureDecoder {
         guard width > 0, height > 0 else {
             return PictureFrame(planeWidth: header.width, planeHeight: header.height, bitmaps: [])
         }
+        guard width * height <= Pictures.maxPixels else { return nil }
         let data = samples[index]
         let size = data.u16(0)
         let ctrl = data.u16(2)
