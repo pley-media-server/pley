@@ -132,8 +132,12 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
 - A branch is `<kind>/<topic>`: the kind is `fix`, `feature`,
   `optimization`, `experiment` or `deployment`, and the topic is a few
   words in snake_case saying what it's for, as in
-  `fix/server_address_input`. Not a generated name like `claude/…`;
-  `release/` is the release workflow's.
+  `fix/server_address_input`. `release/` is the release workflow's.
+- Never `claude/…`, `worktree-…` or another name a tool made up: the branch
+  list, a pull request and its merge commit should say what the change is
+  for. A session or worktree that starts on such a branch renames it
+  (`git branch -m <kind>/<topic>`) before it pushes, and no pull request
+  comes from one.
 - A pull request's title is written like a commit subject, and kept short:
   `android, samsung, lg: Enter an address opens the keyboard`. A change to
   every app says `apps:`.
