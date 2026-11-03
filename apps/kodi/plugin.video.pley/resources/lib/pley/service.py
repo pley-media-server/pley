@@ -34,6 +34,13 @@ ENDED_FROM = 0.9
 LOST_AFTER = 3
 # Waits that aren't the network's: Kodi seeking, or playing faster or backwards.
 MOVING = ("Player.Seeking", "Player.Forwarding", "Player.Rewinding")
+# Someone taking a live channel's connection over says so with an event
+# before the server ends its stream: an end waits this long for one before
+# it says the server stopped the channel.
+TAKEN_GRACE = 1
+# A take-over's events (one for each viewer of the channel) come together:
+# within this long, they are the one.
+TAKEN_ONCE = 15
 FULLSCREEN = "Window.IsActive(fullscreenvideo) + !Window.IsVisible(videoosd) + !Window.IsVisible(seekbar)"
 
 
@@ -151,6 +158,10 @@ class Player(xbmc.Player):
         self.stopped_at = float("-inf")
         # When a live channel was last refused for want of a connection.
         self.busy_at = float("-inf")
+        # The live channel last taken over, and when; the one whose stream
+        # the server last ended, and when.
+        self.taken = (None, float("-inf"))
+        self.live_end = (None, float("-inf"))
         # Automatic (docs/QUALITY.md): the playback's watch and what it
         # was given (playback.automatic), what the proxy counts, and the
         # title being played again at another quality: (item id, watch,
@@ -217,15 +228,61 @@ class Player(xbmc.Player):
         kodi.notify(message or kodi.text("stream_stopped"), error=True)
         self.stop()
 
-    def live_ended(self) -> None:
-        """A live channel the server ended (an administrator stopped it, or
-        its provider gave up), from the proxy before Kodi reads the end:
-        Kodi's queue of channels is let go, or Kodi would tune the next
-        one, taking the connection again; and it is said."""
+    def live_ended(self, path: str = "") -> None:
+        """A live channel the server ended, from the proxy before Kodi reads
+        the end: Kodi's queue of channels is let go, or Kodi would tune the
+        next one, taking the connection again. Someone taking its connection
+        over says so with an event, which comes first (taken_over); without
+        one within a second, the server stopped it (an administrator, or its
+        provider gave up), and that is said."""
         from . import livetv
 
         livetv.forget_queue()
-        kodi.notify(kodi.text("stream_stopped"), error=True)
+        channel = livetv.channel_of(path)
+        now = time.monotonic()
+        self.live_end = (channel, now)
+
+        def say():
+            taken, at = self.taken
+            if channel is not None and taken == channel and at > now - TAKEN_ONCE:
+                return
+            kodi.notify(kodi.text("stream_stopped"), error=True)
+
+        later = threading.Timer(TAKEN_GRACE, say)
+        later.daemon = True
+        later.start()
+
+    def taken_over(self, channel_id, message) -> None:
+        """Someone took over the connection of a live channel this account
+        watches (the server's live_taken_over, one for each viewer of the
+        channel, by channel: Kodi's stream never learns its session). The
+        channel playing here (or whose stream just ended) stops at once,
+        Kodi's queue of channels is let go, and the server's words are said
+        once, with Watch again, which plays the channel as any is played:
+        every connection in use says so. It never takes a connection over
+        by itself."""
+        from . import livetv
+
+        if not isinstance(channel_id, int):
+            return
+        now = time.monotonic()
+        playing = livetv.channel_of(self.playing_file())
+        ended, ended_at = self.live_end
+        if playing != channel_id and not (ended == channel_id and now - ended_at < TAKEN_ONCE):
+            return
+        taken, at = self.taken
+        if taken == channel_id and now - at < TAKEN_ONCE:
+            return
+        self.taken = (channel_id, now)
+        livetv.forget_queue()
+        if playing == channel_id:
+            self.stop()
+
+        def say():
+            if livetv.taken_over(message):
+                self.play(livetv.play_url(channel_id))
+
+        threading.Thread(target=say, name="pley-live-taken", daemon=True).start()
 
     def busy(self, message, connections=(), path: str = "") -> None:
         """A live channel Kodi asked for when every connection of its source
@@ -239,13 +296,13 @@ class Player(xbmc.Player):
         self.busy_at = now
         from . import livetv
 
-        found = re.search(r"/api/live/channels/(\d+)/stream\.ts", path or "")
+        channel = livetv.channel_of(path)
 
         def say():
             livetv.forget_queue()
             take_over = livetv.busy(message, connections)
-            if take_over is not None and found:
-                self.play(livetv.play_url(int(found.group(1)), take_over=take_over))
+            if take_over is not None and channel is not None:
+                self.play(livetv.play_url(channel, take_over=take_over))
 
         threading.Thread(target=say, name="pley-live-busy", daemon=True).start()
 
@@ -262,6 +319,8 @@ class Player(xbmc.Player):
                 return
             by = "stopped_by_admin" if event.get("by_admin") else "stopped_elsewhere"
             self.stopped_by_server(event.get("message") or kodi.text(by))
+        elif kind == "live_taken_over":
+            self.taken_over(event.get("channel_id"), event.get("message"))
 
     # ----------------------------------------------------- what is playing
 

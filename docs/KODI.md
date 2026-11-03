@@ -162,8 +162,13 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   side) are Kodi's video queue, so the player's Next and Previous (the
   remote's skip keys, `.` and `,`) change channel. Up and Down don't.
 - **Every connection in use (`409`):** Kodi's list offers "Watch here
-  instead" where the server allows it. A connection taken by someone else
-  ends with "The server stopped this stream." (`stream.ts` can't say who).
+  instead" where the server allows it.
+- **Taken over:** the server's `live_taken_over` event for the channel
+  playing stops it at once and empties Kodi's queue of channels, so Kodi
+  doesn't tune the next one. A dialog, "Live TV stopped", gives the
+  server's words with OK and Watch again, which plays the channel as any
+  channel plays. A stream that ends without that event within a second
+  says "The server stopped this stream."
 
 ### Requests
 

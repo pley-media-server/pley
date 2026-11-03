@@ -242,17 +242,76 @@ class ServiceTest(unittest.TestCase):
     def setUp(self):
         from pley import service
 
+        self.service = service
         xbmc.PlayList.entries.clear()
         del xbmcgui.notified[:]
         del xbmcgui.boxes[:]
         del xbmcgui.picks[:]
+        del xbmcgui.questions[:]
+        del xbmcgui.answers[:]
         self.player = service.Player(None, "pleyKodi/test", None)
+        self.stopped, self.played = [], []
+        self.player.stop = lambda: self.stopped.append(1)
+        self.player.play = self.played.append
+        self.playing = ""
+        self.player.playing_file = lambda: self.playing
+
+    def wait(self, check, seconds=1.0):
+        for _ in range(int(seconds / 0.02)):
+            if check():
+                return
+            time.sleep(0.02)
+
+    def taken(self, channel, message="Alex is watching Two now, on the connection this channel used."):
+        self.player.heard({"type": "live_taken_over", "session_id": "s1", "channel_id": channel, "message": message})
 
     def test_a_channel_the_server_ended_doesnt_tune_the_next(self):
         livetv.queue(BASE, CHANNELS, 0, NOW)
-        self.player.live_ended()
-        self.assertEqual(xbmc.PlayList(xbmc.PLAYLIST_VIDEO).size(), 0)
+        with mock.patch.object(self.service, "TAKEN_GRACE", 0.05):
+            self.player.live_ended("/api/live/channels/1/stream.ts?client_id=kodi-1")
+            self.assertEqual(xbmc.PlayList(xbmc.PLAYLIST_VIDEO).size(), 0)
+            # Said once no take-over's event came for it.
+            self.wait(lambda: xbmcgui.notified)
         self.assertEqual(xbmcgui.notified, [("Pley", "The server stopped this stream.")])
+
+    def test_a_channel_taken_over_stops_at_once_and_says_why_once(self):
+        livetv.queue(BASE, CHANNELS, 0, NOW)
+        self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/1/stream.ts?client_id=kodi-1"
+        self.taken(1)
+        # Its HLS session and its stream's reader each have an event, as other devices' do.
+        self.taken(1)
+        self.wait(lambda: xbmcgui.questions)
+        time.sleep(0.1)
+        self.assertEqual(self.stopped, [1])
+        self.assertEqual(xbmc.PlayList(xbmc.PLAYLIST_VIDEO).size(), 0, "Kodi tunes nothing after it")
+        self.assertEqual(xbmcgui.questions, [("Live TV stopped", "Alex is watching Two now, on the connection this channel used.", "OK", "Watch again")])
+        self.assertEqual(self.played, [], "OK leaves it stopped")
+
+    def test_watch_again_plays_the_channel_as_any_is_played(self):
+        self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/1/stream.ts?client_id=kodi-1"
+        xbmcgui.answers.append(True)
+        self.taken(1, None)
+        self.wait(lambda: self.played)
+        self.assertEqual(xbmcgui.questions[0][1], "This channel isn't being watched any more.")
+        # Never taking a connection over by itself: every connection in use says so.
+        self.assertEqual(self.played, ["plugin://plugin.video.pley/?route=live_play&id=1"])
+
+    def test_another_channels_take_over_changes_nothing(self):
+        self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/1/stream.ts?client_id=kodi-1"
+        self.taken(2)
+        time.sleep(0.1)
+        self.assertEqual((self.stopped, xbmcgui.questions), ([], []))
+
+    def test_a_take_over_heard_after_its_stream_ended_is_said_and_the_end_says_nothing(self):
+        with mock.patch.object(self.service, "TAKEN_GRACE", 0.2):
+            self.player.live_ended("/api/live/channels/1/stream.ts?client_id=kodi-1")
+            # Kodi read the end already: nothing plays.
+            self.taken(1)
+            self.wait(lambda: xbmcgui.questions)
+            time.sleep(0.4)
+        self.assertEqual(len(xbmcgui.questions), 1)
+        self.assertEqual(self.stopped, [], "nothing plays to stop")
+        self.assertEqual(xbmcgui.notified, [], "the take-over says why, not the end")
 
     def test_a_channel_refused_on_its_way_to_kodi_can_be_watched_here_instead(self):
         played = []

@@ -429,6 +429,22 @@ def forget_queue() -> None:
         playlist.clear()
 
 
+def channel_of(path: str):
+    """The channel a stream's address (stream_path, or the proxy's address
+    of it) plays; None for anything else."""
+    found = re.search(r"/api/live/channels/(\d+)/stream\.ts", path or "")
+    return int(found.group(1)) if found else None
+
+
+def taken_over(message) -> bool:
+    """Someone took over the connection of the channel that played: the
+    server's words under "Live TV stopped", with OK and Watch again: whether
+    to watch it again (as any channel is watched: every connection in use
+    says so)."""
+    body = message or kodi.text("live_stopped_body")
+    return bool(xbmcgui.Dialog().yesno(kodi.text("live_stopped"), body, nolabel=kodi.text("ok"), yeslabel=kodi.text("watch_again")))
+
+
 def who(connection: dict) -> str:
     """Who holds a connection: "You, on another device", the names (told
     to administrators), "Someone else" or "3 people"."""

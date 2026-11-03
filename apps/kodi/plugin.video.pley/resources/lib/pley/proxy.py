@@ -66,7 +66,7 @@ class Proxy:
     """Serves on 127.0.0.1:`port` (another one when it is taken) until
     `stop`. `on_stopped(message)` hears of streams an administrator
     stopped; `on_busy(message, connections, path)` of a live channel
-    refused because every connection of its source is in use, `on_ended()`
+    refused because every connection of its source is in use, `on_ended(path)`
     of one the server ended. `meter` (autoquality.Meter) counts what streams bring, for
     Automatic."""
 
@@ -467,9 +467,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 meter.answered(path, size, time.monotonic() - began)
             if live and response.status == 200 and self.proxy.on_ended:
                 # The server ended the channel (an administrator stopped
-                # it, the provider gave up): said before Kodi reads the
-                # end, which would play the next channel of its queue.
-                self.proxy.on_ended()
+                # it, the provider gave up, someone took its connection
+                # over): said before Kodi reads the end, which would play
+                # the next channel of its queue.
+                self.proxy.on_ended(path)
         except (OSError, http.client.HTTPException):
             # Kodi let go (a seek, a stop), the server did, or the proxy is
             # stopping: the connection ends, and Kodi asks again from where

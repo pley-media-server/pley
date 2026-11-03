@@ -12,6 +12,9 @@ describes how they are made.
 
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- A Live TV channel whose connection someone else takes over stops at
+  once and says who or why under "Live TV stopped", with Watch again,
+  where it said only "The server stopped this stream."
 
 ## [0.1.3] - 2026-11-02
 

@@ -386,15 +386,17 @@ class ProxyTest(unittest.TestCase):
         self.assertNotIn(b"accept-ranges", head)
         self.assertNotIn(b"content-length", head)
         self.assertEqual((list(self.proxy.meter.answers), list(self.proxy.meter.chunks)), ([], []), "Automatic doesn't measure a channel")
-        # The server ends the channel: said before Kodi reads the end.
+        # The server ends the channel: said before Kodi reads the end, with
+        # the stream's address (its channel).
         ended = []
-        self.proxy.on_ended = lambda: ended.append(len(got))
+        self.proxy.on_ended = ended.append
         release.set()
         while True:
             piece = sock.recv(65536)
             if not piece:
                 break
         self.assertEqual(len(ended), 1)
+        self.assertRegex(ended[0], r"^/api/live/channels/\d+/stream\.ts")
 
     def test_a_live_channel_kodi_lets_go_of_hasnt_ended(self):
         listener = socket.socket()
@@ -417,7 +419,7 @@ class ProxyTest(unittest.TestCase):
         self.addCleanup(listener.close)
         self.store.save(dict(self.store.load(), server="http://127.0.0.1:%d" % listener.getsockname()[1]))
         ended = []
-        self.proxy.on_ended = lambda: ended.append(1)
+        self.proxy.on_ended = ended.append
         sock = socket.create_connection(("127.0.0.1", self.port), timeout=5)
         sock.sendall(b"GET /%s/api/live/channels/1/stream.ts HTTP/1.1\r\nHost: 127.0.0.1:%d\r\n\r\n" % (SECRET.encode(), self.port))
         sock.recv(65536)

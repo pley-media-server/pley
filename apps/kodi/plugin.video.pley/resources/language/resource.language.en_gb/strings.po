@@ -1329,3 +1329,19 @@ msgstr ""
 msgctxt "#30550"
 msgid "Another device answers at %s's address"
 msgstr ""
+
+msgctxt "#30551"
+msgid "Live TV stopped"
+msgstr ""
+
+msgctxt "#30552"
+msgid "This channel isn't being watched any more."
+msgstr ""
+
+msgctxt "#30553"
+msgid "Watch again"
+msgstr ""
+
+msgctxt "#30554"
+msgid "OK"
+msgstr ""
