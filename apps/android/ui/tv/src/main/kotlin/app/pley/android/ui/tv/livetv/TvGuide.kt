@@ -303,6 +303,8 @@ internal fun TvGuide(
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                             if (c == null) return@onPreviewKeyEvent true
                             if (down) {
+                                // A press of its own: a hold whose key-up went to the details it opened is over.
+                                if (native.repeatCount == 0) held = false
                                 // Held: the details, once.
                                 if (native.repeatCount > 0 && !held && on != null) {
                                     held = true
@@ -637,13 +639,18 @@ private fun GuideRow(
  * focused row first ([run]). Made and used on the main thread.
  */
 @Stable
-private class RowFill {
+internal class RowFill {
     private val waiting = HashMap<Int, CancellableContinuation<Unit>>()
     private val asked = Channel<Unit>(Channel.CONFLATED)
 
-    /** Returns once row [index] may draw. */
+    /**
+     * Returns once row [index] may draw. A row waiting under the same index
+     * (the list reordered under it: Recently watched after a watch, a
+     * favourite gone) draws now: cancelled, it would keep what it last drew
+     * until its programmes changed again.
+     */
     suspend fun turn(index: Int) = suspendCancellableCoroutine { turn ->
-        waiting.put(index, turn)?.cancel()
+        waiting.put(index, turn)?.resume(Unit)
         turn.invokeOnCancellation { if (waiting[index] === turn) waiting.remove(index) }
         asked.trySend(Unit)
     }

@@ -11,6 +11,7 @@ import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveSummary
 import app.pley.android.model.LiveWatching
 import app.pley.android.testing.Fixtures
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -40,6 +41,9 @@ class FakeLiveTv : LiveTvRepository {
 
     /** Watching fails with this until set back to `null`. */
     var watchFails: Exception? = null
+
+    /** How long the server takes to answer a watch: 0, at once, unless the test sets it. */
+    var watchTakesMs = 0L
 
     /** Setting a favourite fails with this until set back to `null`. */
     var favoriteFails: Exception? = null
@@ -118,6 +122,7 @@ class FakeLiveTv : LiveTvRepository {
 
     override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?): LiveWatching {
         sent += "watch $channelId $clientId" + (takeOver?.let { " taking $it" } ?: "")
+        if (watchTakesMs > 0) delay(watchTakesMs)
         watchFails?.let { throw it }
         return LiveWatching("live-$channelId", "http://127.0.0.1:7539/api/live/sessions/live-$channelId/index.m3u8")
     }

@@ -80,7 +80,7 @@ describes how they are made.
   channel without a guide, Left and Right move the guide a half hour at a
   time, as on Samsung TVs.
 - In the TV guide, rewind and fast forward (or Previous and Next) move it
-  two hours, as on the Samsung and LG apps, and the time now shows in a
+  two hours, as in the Samsung and LG web apps, and the time now shows in a
   pill over the now line.
 - Back on Live TV's page on TVs goes up a step at a time, as on Samsung
   TVs: the guide back to now, a search back to the category before, the
