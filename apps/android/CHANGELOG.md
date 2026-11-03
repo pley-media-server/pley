@@ -24,9 +24,8 @@ describes how they are made.
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
-- On phones and tablets, dragging the seek bar, the volume or the
-  brightness moves only what is drawn: the controls no longer redraw with
-  each move of the finger.
+- On phones and tablets, the seek bar, the volume and the brightness keep
+  up with a finger dragging them, without stutters.
 - On phones and tablets, the sleep timer's notice keeps its width as the
   count goes under 10 s, so Keep watching no longer moves under the finger.
 - On phones and tablets, seek previews that arrive while a finger rests on
