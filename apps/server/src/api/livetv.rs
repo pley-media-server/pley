@@ -227,7 +227,8 @@ async fn start_watching(
     state.live.check_access(user).await?;
     // An app acts as a viewer, but whose connections it may take over goes by the account.
     let admin = user.is_admin || state.live.account_is_admin(user.id).await;
-    let home_name = state.live.home_name(user.id).await;
+    // Read as the take-over is asked for: who is in the home then is told who took their connection.
+    let home = if take_over.is_some() { state.live.home_now(user.id).await } else { None };
     let channel = state.live.channel(user, id).await?;
     let row = state.live.channel_row(id).await?;
     let (source_name, max_connections, user_agent) = state.live.source_of(&row).await?;
@@ -237,7 +238,7 @@ async fn start_watching(
         .watch(
             user,
             Tune { channel: &row, source_name, max_connections, user_agent },
-            WatchAs { client_id, kind, keyed, admin, take_over, home_name },
+            WatchAs { client_id, kind, keyed, admin, take_over, home },
         )
         .await?;
     state.live.watched(user.id, id).await;

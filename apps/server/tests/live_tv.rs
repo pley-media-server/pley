@@ -537,6 +537,34 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
     assert_ne!(app.get(&format!("/api/live/sessions/{admins}/index.m3u8"), &admin).await.status, StatusCode::GONE);
 }
 
+/// Who is in the home counts as the connection is taken over, not as its
+/// watcher started: someone taken out of the home since isn't told who.
+#[tokio::test]
+async fn the_home_counts_as_the_connection_is_taken_over() {
+    let (base, _) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let url = format!("{base}/list.m3u");
+    app.post("/api/live/sources", &admin, json!({"name": "P", "kind": "m3u", "url": url, "max_connections": 1})).await;
+    wait_until_read(&app, &admin).await;
+    let channels = app.get("/api/live/channels", &bob).await.body;
+    let (one, two) = (channels[0]["id"].as_i64().unwrap(), channels[1]["id"].as_i64().unwrap());
+    let bobs = app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv"})).await;
+    assert_eq!(bobs.status, StatusCode::OK, "{:?}", bobs.body);
+
+    // Bob, in the home as he started, is taken out of it while he watches.
+    sqlx::query("UPDATE users SET home = 0 WHERE username = 'bob'").execute(&app.state.db.write).await.unwrap();
+    let mut events = app.state.events.subscribe();
+    let taken = app
+        .post(&format!("/api/live/channels/{two}/watch"), &admin, json!({"client_id": "pc", "take_over": one}))
+        .await;
+    assert_eq!(taken.status, StatusCode::OK, "{:?}", taken.body);
+    let told = taken_over(&mut events);
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert_eq!(told[0]["message"], "Someone else needed this channel's connection to watch another channel.");
+}
+
 /// The `live_taken_over` events sent so far, as their streams see them.
 fn taken_over(events: &mut tokio::sync::broadcast::Receiver<pley::events::ServerEvent>) -> Vec<Value> {
     let mut told = Vec::new();

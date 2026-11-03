@@ -18,7 +18,7 @@
 //! - Whether a channel played is told ([`Played`]): one the provider gives
 //!   nothing for is offline until it plays again.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -97,9 +97,14 @@ struct Viewer {
     /// The account is an administrator's (whatever signed it in): whose
     /// connections it may take over.
     admin: bool,
-    /// The account is in the home: who took its connection over is named
-    /// to it when they are too.
-    home: bool,
+}
+
+/// The home a take-over happens in, as it is then: the taker's name, and
+/// the accounts in the home, whose viewers are told who took their
+/// connection.
+pub struct InHome {
+    pub name: String,
+    pub accounts: HashSet<i64>,
 }
 
 /// How a channel is watched.
@@ -114,10 +119,10 @@ pub struct WatchAs {
     pub admin: bool,
     /// Every connection being in use, the channel whose connection to take.
     pub take_over: Option<i64>,
-    /// The account's name when it is in the home (`None` when it isn't):
-    /// the viewers it takes a connection from who are in the home too are
-    /// told who did.
-    pub home_name: Option<String>,
+    /// The home, read as the take-over is asked for, when the account is in
+    /// it (`None` when it isn't, or nothing is taken over): the viewers it
+    /// takes a connection from who are in the home too are told who did.
+    pub home: Option<InHome>,
 }
 
 /// A connection of a source whose connections are all in use, as someone
@@ -336,14 +341,17 @@ fn device_of(client: &str) -> &str {
 
 /// What a viewer whose connection `taker` took over to watch `channel` is
 /// told. The taker is named, with the channel, only to their own devices
-/// and to someone else in the home when they are in it too (`home_name`);
-/// anyone else learns only that the connection was needed.
-fn taken_over_why(viewer: &Viewer, taker: i64, home_name: Option<&str>, channel: &str) -> String {
+/// and to someone else in the home when they are in it too (`home`, as it
+/// is at the take-over); anyone else learns only that the connection was
+/// needed.
+fn taken_over_why(viewer: &Viewer, taker: i64, home: Option<&InHome>, channel: &str) -> String {
     if viewer.user_id == taker {
         return format!("Watching moved to {channel} on another device.");
     }
-    match home_name {
-        Some(name) if viewer.home => format!("{name} is watching {channel} now, on the connection this channel used."),
+    match home {
+        Some(home) if home.accounts.contains(&viewer.user_id) => {
+            format!("{} is watching {channel} now, on the connection this channel used.", home.name)
+        }
         _ => "Someone else needed this channel's connection to watch another channel.".to_owned(),
     }
 }
@@ -630,7 +638,7 @@ impl Tuners {
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
     pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
-        let WatchAs { client_id, kind, keyed, admin, take_over, home_name } = how;
+        let WatchAs { client_id, kind, keyed, admin, take_over, home } = how;
         let channel_id = tune.channel.id;
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
@@ -642,38 +650,41 @@ impl Tuners {
                 !(v.user_id == user.id && same)
             });
         }
-        let tuner = {
-            let _one = self.starting.lock().await;
-            // Not in the match: its guard would live through start_tuner's own lock.
-            let pulling = self.tuners.lock().get(&channel_id).filter(|t| t.is_live()).cloned();
-            match pulling {
-                Some(t) => t,
-                None => self.start_tuner(user, admin, home_name.as_deref(), &tune, take_over)?,
-            }
-        };
         let session_id = uuid::Uuid::new_v4().simple().to_string();
         let media_key = (keyed && kind == ViewerKind::Hls).then(crate::playback::new_media_key);
         let url = match &media_key {
             Some(key) => format!("/api/live/media/{key}/index.m3u8"),
             None => format!("/api/live/sessions/{session_id}/index.m3u8"),
         };
-        self.viewers.lock().insert(
-            session_id.clone(),
-            Viewer {
-                id: session_id.clone(),
-                user_id: user.id,
-                username: user.username.clone(),
-                client_id,
-                channel_id,
-                started_at: now(),
-                last_seen: Instant::now(),
-                kind,
-                media_key,
-                app_grant: user.app.as_ref().map(|app| app.grant_id),
-                admin,
-                home: home_name.is_some(),
-            },
-        );
+        let tuner = {
+            let _one = self.starting.lock().await;
+            // Not in the match: its guard would live through start_tuner's own lock.
+            let pulling = self.tuners.lock().get(&channel_id).filter(|t| t.is_live()).cloned();
+            let tuner = match pulling {
+                Some(t) => t,
+                None => self.start_tuner(user, admin, home.as_ref(), &tune, take_over)?,
+            };
+            // Watching before the lock goes: a take-over, made under it too,
+            // then counts this viewer and tells it, where one made between
+            // finding the tuner and adding the viewer would miss it.
+            self.viewers.lock().insert(
+                session_id.clone(),
+                Viewer {
+                    id: session_id.clone(),
+                    user_id: user.id,
+                    username: user.username.clone(),
+                    client_id,
+                    channel_id,
+                    started_at: now(),
+                    last_seen: Instant::now(),
+                    kind,
+                    media_key,
+                    app_grant: user.app.as_ref().map(|app| app.grant_id),
+                    admin,
+                },
+            );
+            tuner
+        };
         tuner.state.lock().idle_since = None;
         self.events.send(ServerEvent::LiveTunersChanged);
         Ok(Watching { url, session_id, kind })
@@ -699,7 +710,7 @@ impl Tuners {
         self: &Arc<Self>,
         user: &AuthUser,
         admin: bool,
-        home_name: Option<&str>,
+        home: Option<&InHome>,
         tune: &Tune<'_>,
         take_over: Option<i64>,
     ) -> Result<Arc<Tuner>, AppError> {
@@ -720,7 +731,7 @@ impl Tuners {
                 Some(idle) => self.remove_tuner(idle),
                 None => match take_over.and_then(|id| on_source.iter().find(|t| t.channel_id == id)) {
                     Some(held) if self.may_take_over(user.id, admin, held.channel_id) => {
-                        self.take_over(user, home_name, held, tune.channel.display_name());
+                        self.take_over(user, home, held, tune.channel.display_name());
                     }
                     Some(_) => {
                         return Err(AppError::forbidden(
@@ -765,9 +776,9 @@ impl Tuners {
 
     /// Ends everyone watching `held`, telling them why (their players at
     /// once, through their event streams), and lets its connection go for
-    /// `user` to watch `channel_name` with. `home_name`: `user`'s name, when
-    /// they are in the home.
-    fn take_over(&self, user: &AuthUser, home_name: Option<&str>, held: &Arc<Tuner>, channel_name: &str) {
+    /// `user` to watch `channel_name` with. `home`: the home as it is now,
+    /// when `user` is in it.
+    fn take_over(&self, user: &AuthUser, home: Option<&InHome>, held: &Arc<Tuner>, channel_name: &str) {
         let told: Vec<(Viewer, String)> = {
             let mut viewers = self.viewers.lock();
             let mut ended = self.ended.lock();
@@ -777,7 +788,7 @@ impl Tuners {
             let told: Vec<(Viewer, String)> = viewers
                 .values()
                 .filter(|v| v.channel_id == held.channel_id)
-                .map(|v| (v.clone(), taken_over_why(v, user.id, home_name, channel_name)))
+                .map(|v| (v.clone(), taken_over_why(v, user.id, home, channel_name)))
                 .collect();
             let mut ended_keys = self.ended_keys.lock();
             if ended_keys.len() > ENDED_KEPT {
@@ -1420,7 +1431,7 @@ mod tests {
         assert_eq!(pmt_pid(&p), None);
     }
 
-    fn viewer(user_id: i64, home: bool) -> Viewer {
+    fn viewer(user_id: i64) -> Viewer {
         Viewer {
             id: "s".into(),
             user_id,
@@ -1433,23 +1444,24 @@ mod tests {
             media_key: None,
             app_grant: None,
             admin: false,
-            home,
         }
     }
 
     #[test]
     fn who_took_a_connection_over_is_named_only_in_the_home() {
+        // Sam (1) in the home with account 2; account 3 isn't.
+        let home = InHome { name: "Sam".into(), accounts: HashSet::from([1, 2]) };
         // Their own other device.
-        assert_eq!(taken_over_why(&viewer(1, false), 1, None, "News"), "Watching moved to News on another device.");
-        // Both in the home.
+        assert_eq!(taken_over_why(&viewer(1), 1, None, "News"), "Watching moved to News on another device.");
+        // Both in the home, as it is at the take-over.
         assert_eq!(
-            taken_over_why(&viewer(2, true), 1, Some("Sam"), "News"),
+            taken_over_why(&viewer(2), 1, Some(&home), "News"),
             "Sam is watching News now, on the connection this channel used."
         );
         // Either outside it: neither who nor what.
         let anonymous = "Someone else needed this channel's connection to watch another channel.";
-        assert_eq!(taken_over_why(&viewer(2, false), 1, Some("Sam"), "News"), anonymous);
-        assert_eq!(taken_over_why(&viewer(2, true), 1, None, "News"), anonymous);
+        assert_eq!(taken_over_why(&viewer(3), 1, Some(&home), "News"), anonymous);
+        assert_eq!(taken_over_why(&viewer(2), 1, None, "News"), anonymous);
     }
 
     #[test]

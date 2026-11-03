@@ -3484,7 +3484,7 @@ type ServerEvent =
   | { type: "live_tuners_changed" }                  // a channel was tuned or let go, or its viewers changed
   | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string }
                                                      // someone took the connection of a channel watched in this
-                                                     // Live TV session (theirs only): see Live TV, "Watching"
+                                                     // Live TV session (theirs only): see Live TV, "Taken over"
   | { type: "requests_changed"; request_id: Id | null; kind: TitleKind | null; tmdb_id: number | null }
                                                      // a request changed; all three null: many did (Request events)
   | { type: "request_available"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number;
@@ -3648,17 +3648,18 @@ interface LiveTuner {                  // a connection in use
 - **Taken over.** Each viewer ended by a take-over gets
   `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
   streams at once, and its session answers `410` with the same `message`
-  from then on, at its keyed address too. Every player of that channel on the account stops (a
-  player reading `stream.ts` knows no session, so players go by
-  `channel_id`; one viewer's HLS and stream sessions each send one) and
-  shows the message until it is dismissed; it doesn't tune again by
-  itself. The message
+  after it, at its keyed address too (the server remembers up to 500
+  sessions ended so, until it restarts). Every player of that channel on the
+  account stops (a player reading `stream.ts` knows no session, so players
+  go by `channel_id`; one viewer's HLS and stream sessions each send one)
+  and shows the message until it is dismissed, even after the app goes
+  to the background and back; it doesn't tune again by itself. The message
   says who took the connection and for which channel only to the taker's
   own devices ("Watching moved to News on another device.") and to an
-  account in the home when the taker is in it too ("Sam is watching News
-  now, on the connection this channel used."). Anyone else is told only
-  that the connection was needed ("Someone else needed this channel's
-  connection to watch another channel.").
+  account in the home, as it is at the take-over, when the taker is in it
+  too ("Sam is watching News now, on the connection this channel used.").
+  Anyone else is told only that the connection was needed ("Someone else
+  needed this channel's connection to watch another channel.").
 - **The stream.** H.264 is sent as it is; other video, and interlaced
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
