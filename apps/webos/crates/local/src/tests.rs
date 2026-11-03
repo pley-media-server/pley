@@ -554,6 +554,17 @@ fn subrip_becomes_webvtt_the_app_draws() {
 }
 
 #[test]
+fn a_subtitle_file_in_utf16_is_read_by_its_byte_order_mark() {
+    let words: Vec<u16> = "Café 日本".encode_utf16().collect();
+    let le: Vec<u8> = [0xFF, 0xFE].into_iter().chain(words.iter().flat_map(|w| w.to_le_bytes())).collect();
+    let be: Vec<u8> = [0xFE, 0xFF].into_iter().chain(words.iter().flat_map(|w| w.to_be_bytes())).collect();
+    assert_eq!(folder::decode(&le), "Café 日本");
+    assert_eq!(folder::decode(&be), "Café 日本");
+    // A lone surrogate and an odd last byte don't stop the rest.
+    assert_eq!(folder::decode(&[0xFF, 0xFE, 0x00, 0xD8, 0x41, 0x00, 0x42]), "\u{FFFD}A");
+}
+
+#[test]
 fn a_subtitle_file_not_in_utf8_is_read_as_latin1() {
     assert_eq!(folder::decode(&[0x63, 0x61, 0x66, 0xE9]), "café");
     assert_eq!(folder::decode("café".as_bytes()), "café");

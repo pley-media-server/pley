@@ -319,11 +319,23 @@ pub fn to_webvtt(text: &str) -> String {
     "WEBVTT\n\n".to_string() + &String::from_utf8_lossy(&bytes)
 }
 
-/// A subtitle file's text: UTF-8 when it is, else Latin-1, close to the
-/// Western code page older SubRip files are in.
+/// A subtitle file's text: UTF-16 when it starts with that byte-order mark
+/// (as Windows tools save "Unicode" text), UTF-8 when it is, else Latin-1,
+/// close to the Western code page older SubRip files are in.
 pub fn decode(bytes: &[u8]) -> String {
-    match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_string(),
-        Err(_) => bytes.iter().map(|b| char::from(*b)).collect(),
+    match bytes {
+        [0xFF, 0xFE, rest @ ..] => utf16(rest, u16::from_le_bytes),
+        [0xFE, 0xFF, rest @ ..] => utf16(rest, u16::from_be_bytes),
+        _ => match std::str::from_utf8(bytes) {
+            Ok(text) => text.to_string(),
+            Err(_) => bytes.iter().map(|b| char::from(*b)).collect(),
+        },
     }
+}
+
+/// UTF-16 text in `word`'s byte order; a lone surrogate reads as U+FFFD and
+/// an odd last byte is dropped.
+fn utf16(bytes: &[u8], word: fn([u8; 2]) -> u16) -> String {
+    let units = bytes.as_chunks::<2>().0.iter().map(|c| word(*c));
+    char::decode_utf16(units).map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER)).collect()
 }
