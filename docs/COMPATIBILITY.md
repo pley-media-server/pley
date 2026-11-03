@@ -189,6 +189,21 @@ Kometa, `python-plexapi` scripts, poster and artwork tools, refresh
 triggers in the manner of Autoscan (a refresh's `?path=` is ignored: the
 whole library is scanned again), and Maintainerr's collections.
 
+Kometa takes Pley's address and a token under `plex` in its `config.yml`
+(`url: http://pley.local:7539`, `token: …`). The token may Manage
+libraries and See everyone's activity (Kometa reads where files are, for
+its asset folders and overlays), and is best limited to Kometa's address.
+What Pley doesn't do for it:
+
+- collections and overlays on what Pley doesn't filter by, such as
+  resolution, audio or subtitle language, HDR, country or network: their
+  searches answer `400` and Kometa reports that collection's error, rather
+  than acting on the whole library;
+- collection modes and promoting collections to home pages, which Pley
+  doesn't have (changes answer `400`);
+- what Kometa does through plex.tv: playlists' `sync_to_users`,
+  `plex_watchlist`, and what it asks a Plex Pass for.
+
 Tautulli works in part. Its setup asks for a plex.tv sign-in and has no
 field for a token, so it is set up in its `config.ini` while it is stopped:
 `first_run_complete = 1` under `[General]`, and under `[PMS]` Pley's

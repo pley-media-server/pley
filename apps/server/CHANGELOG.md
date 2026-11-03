@@ -72,6 +72,14 @@ describes how they are made.
   files (where Kometa's own images are) as well as TMDB, TheTVDB, TVmaze and
   the Cover Art Archive. Other addresses are still refused.
 
+- Through the Plex-compatible API, collections keep labels and are
+  found by title and label; their order (`collectionSort`) and an item's
+  place in it can be changed; items and collections list their pictures;
+  and a playlist's title can be changed. Edits Pley can't keep (critic and
+  audience ratings, cast and crew, countries, editions, collection modes,
+  logos, theme music) answer `400` where they answered `200` and kept
+  nothing.
+
 ### Removed
 
 - The web player's Back 10 seconds and Forward 30 seconds buttons. Left
@@ -79,6 +87,12 @@ describes how they are made.
 
 ### Fixed
 
+- A picture sent to a collection or playlist through the Plex-compatible
+  API no longer lands on the movie or show that had the same number:
+  collections and playlists have keys of their own there. An episode's
+  poster sent there becomes its still, the picture apps show.
+- An uploaded poster keeps Kometa's overlay mark, so Kometa doesn't take a
+  poster it drew on for an original and draw on it again.
 - Kometa connects to the Plex-compatible API with a token that may manage
   libraries: library sections say so (`allowSync`), and a library's
   settings answer, with none to change.
