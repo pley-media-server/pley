@@ -27,7 +27,11 @@ pub type Result<T> = std::result::Result<T, &'static str>;
 const MAX_FTYP: u64 = 64 << 10;
 const MAX_MOOV: u64 = 16 << 20;
 const MAX_MOOF: u64 = 16 << 20;
-const MAX_MDAT: u64 = 1 << 30;
+/// A remux's fragment is a whole group of pictures, held a few times over
+/// as it is edited and written: 256 MiB is a 4K remux's 20 s GOP at
+/// 100 Mbit/s, and bounds what a file with one keyframe in a long stretch
+/// makes each job hold.
+const MAX_MDAT: u64 = 256 << 20;
 /// Largest other top-level box (`free`, `sidx`, `styp`, `mfra`, …), skipped
 /// without being kept.
 const MAX_SKIPPED: u64 = 16 << 20;

@@ -1113,10 +1113,21 @@ async fn players_that_put_fmp4_first_stream_fmp4_segments() {
     let segment = app.call(Method::GET, &format!("{keyed}4.m4s"), None, None, &[]).await;
     assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job2:4".to_owned()));
 
-    // A lost job comes back in fMP4, with the same names.
+    // A lost job isn't made again: the player holds the first job's init,
+    // which another encoder's wouldn't match. It starts a new session.
     w.fake.lose_jobs();
-    let segment = get("5.m4s").await;
-    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job3:5".to_owned()));
+    let lost = get("5.m4s").await;
+    assert_eq!(lost.status, StatusCode::NOT_FOUND);
+    assert_eq!(lost.body["message"], json!("playback session expired"));
+
+    // A remux's init is the file's, the same each time: its job comes back
+    // in fMP4, with the same names.
+    let remux = play(app, admin, json!({"item_id": feature, "caps": apple(), "client_id": "phone"})).await;
+    assert_eq!(remux.body["method"], json!("remux"), "{}", remux.body);
+    let id = remux.body["session_id"].as_str().unwrap().to_owned();
+    w.fake.lose_jobs();
+    let segment = app.get(&format!("/api/playback/{id}/5.m4s"), admin).await;
+    assert!(segment.status == StatusCode::OK && segment.text().ends_with(":5"), "{}", segment.text());
     assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Fmp4);
 
     // An MPEG-TS session has no fMP4 files.

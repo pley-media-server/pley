@@ -2287,17 +2287,6 @@ async fn commit_part(file: &mut tokio::fs::File, part: &Path, path: &Path) -> st
     tokio::fs::rename(part, path).await
 }
 
-/// Reads the fragmented MP4 an fMP4 process (`generation`, making segments
-/// `[start, end)`) writes on stdout and cuts it into segments: its `ftyp`
-/// and `moov` are the job's `init.mp4` ([`Job::store_init`]), and each
-/// `moof` and `mdat` goes in the segment its first video sample is shown
-/// in, as the segment muxer splits MPEG-TS ([`Plan::split_at`]). Fragments
-/// before `start` (a remux's seek landing a keyframe early) and from `end`
-/// on are left out: other processes make those. A segment is written to a
-/// part file of the process's own and named `{n}.m4s` once the next one
-/// begins; the last is given back, made when the process ended well.
-/// Output it can't use sets `reason` and ends the reading, which stops
-/// FFmpeg (its pipe is closed).
 /// The init a process's `ftyp` and `moov` make: for a Dolby Vision
 /// remux, with the configuration record its stream now has (or none,
 /// copied without being named), so that every process writes the same.
@@ -2365,6 +2354,17 @@ pub(crate) fn segment_of(plan: &Plan, t: i64) -> u32 {
     plan.split_at[..count].partition_point(|&s| s <= t).max(1) as u32 - 1
 }
 
+/// Reads the fragmented MP4 an fMP4 process (`generation`, making segments
+/// `[start, end)`) writes on stdout and cuts it into segments: its `ftyp`
+/// and `moov` are the job's `init.mp4` ([`Job::store_init`]), and each
+/// `moof` and `mdat` goes in the segment its first video sample is shown
+/// in, as the segment muxer splits MPEG-TS ([`Plan::split_at`]). Fragments
+/// before `start` (a remux's seek landing a keyframe early) and from `end`
+/// on are left out: other processes make those. A segment is written to a
+/// part file of the process's own and named `{n}.m4s` once the next one
+/// begins; the last is given back, made when the process ended well.
+/// Output it can't use sets `reason` and ends the reading, which stops
+/// FFmpeg (its pipe is closed).
 async fn read_fragments(
     stdout: impl AsyncRead + Unpin,
     start: u32,

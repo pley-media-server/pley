@@ -630,10 +630,16 @@ async fn replacement_job(state: &AppState, user: &AuthUser, session: &Session, f
         (None, None) => true,
         _ => false,
     };
+    // An fMP4 player keeps the init it fetched. A remux's comes from the
+    // file, the same each time; a new job's encoder may not be the first's
+    // (the GPU busy, another preset), and its init then wouldn't match: the
+    // player starts a new session instead, as for another layout.
+    let encoded = created.video.as_ref().is_some_and(|plan| plan.mode == VideoMode::Transcode);
     if !same_mode
         || created.segment_count != spec.segment_count
         || created.duration_ms != spec.duration_ms
         || created.segment_format != spec.request.segment_format
+        || (encoded && !created.segment_format.is_ts())
     {
         let _ = state.transcoder.delete_job(&created.id).await;
         *session.job_id.lock() = None;
