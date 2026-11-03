@@ -80,9 +80,9 @@ import kotlinx.coroutines.flow.filterNotNull
  * them (the native Samsung app's ChapterStrip): Up on the scrubber while a
  * seek waits opens it on the chapter the seek was going to, the Chapters
  * button on the one playing ([TvPlayerUi.openChapters]). Left and Right go
- * through the chapters, a card a press, without wrapping; OK goes to the
- * start of the one focused ([onGo], its index); Down or Back closes it, and
- * focus goes back where it was; Up does nothing. The video plays on
+ * through the chapters, a card a press, without wrapping; OK, let go, goes
+ * to the start of the one focused ([onGo], its index); Down or Back closes
+ * it, and focus goes back where it was; Up does nothing. The video plays on
  * meanwhile, and the scrubber shows the focused chapter's start.
  *
  * The cards are the seek preview's size, in its place: 240 × 135 from
@@ -118,6 +118,8 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
         }
     }
     val resources = LocalResources.current
+    // An OK pressed while the cards have focus: only its key up, after a down they saw, goes to the chapter.
+    val okDown = remember { BooleanArray(1) }
     // What a screen reader says of the strip: the chapter focused, and from when.
     val spoken by remember(state, ui, resources) {
         derivedStateOf {
@@ -151,8 +153,16 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
                     }
                     // Nothing above the cards.
                     AndroidKeyEvent.KEYCODE_DPAD_UP -> true
+                    // OK goes as it's let go, as the row's buttons click: the cards close, focus goes back
+                    // to the Chapters button, and an OK let go there would click it, opening them again.
                     else -> if (TvPlayerKeys.isSelect(native.keyCode)) {
-                        if (down && native.repeatCount == 0 && at != null && at < chapters.size) onGo(at)
+                        when {
+                            down -> if (native.repeatCount == 0) okDown[0] = true
+                            okDown[0] -> {
+                                okDown[0] = false
+                                if (at != null && at < chapters.size) onGo(at)
+                            }
+                        }
                         true
                     } else {
                         false

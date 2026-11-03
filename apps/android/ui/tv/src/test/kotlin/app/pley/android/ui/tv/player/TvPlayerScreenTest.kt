@@ -380,6 +380,26 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `OK on a card opened from the Chapters button goes there, and the cards stay closed`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionDown)
+        press(Key.DirectionLeft, times = 5)
+        val button = tagOf(PlayerFocus.Chapters)
+        press(Key.DirectionCenter)
+        focusedOn(TAG_CHAPTER_STRIP)
+        press(Key.DirectionRight)
+        // A remote's OK: let go a moment after it went down, once the cards could have closed onto the button.
+        val at = SystemClock.uptimeMillis()
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 0, at)
+        assertTrue("nothing until OK is let go", controller.calls("seekTo").isEmpty())
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 0, at + 120)
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(button)
+    }
+
+    @Test
     fun `the cards slide to keep the focused one at the gutter, and the last at the right safe edge`() {
         val parts = (0 until 10).map { ChapterMark("Part ${it + 1}", it * 360_000L, (it + 1) * 360_000L, null) }
         val controller = playing { it.copy(chapters = parts, positionMs = 0) }
