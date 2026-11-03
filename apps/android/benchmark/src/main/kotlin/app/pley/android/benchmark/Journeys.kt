@@ -38,7 +38,7 @@ internal object Tags {
     const val TV_PROFILES = "pley.profiles"
     const val TV_ROW = "pley.tv.row."
     const val TV_ITEM = "pley.tv.item"
-    const val TV_EPISODES = "pley.tv.item.episodes"
+    const val TV_EPISODES = TV_ROW + "episode"
     const val TV_ITEM_PANEL = "pley.tv.item.panel"
     const val TV_ITEM_ACTIONS = "pley.tv.item.actions"
     const val TV_PERSON = "pley.tv.person"
