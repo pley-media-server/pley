@@ -1,5 +1,5 @@
-// Turns a recording's frames (the native Samsung app's `metrics.mjs record`)
-// into an animated PNG for a pull request, marked as mark-screenshot.mjs marks
+// Turns a recording's frames (the native Samsung app's `metrics.mjs record`,
+// the Android app's record-android.mjs) into an animated PNG for a pull request, marked as mark-screenshot.mjs marks
 // a screenshot: red boxes and arrows, on every frame (docs/DEVELOPMENT.md,
 // "Screenshots for a pull request"). Places are in the frames' own pixels.
 // An animated PNG rather than a GIF: a GIF's 256 colours band a dark page's

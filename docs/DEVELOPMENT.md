@@ -28,7 +28,7 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |
-| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), marking a pull request's screenshots and animations (`mark-screenshot.mjs`, `mark-animation.mjs`) |
+| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), marking a pull request's screenshots and animations (`mark-screenshot.mjs`, `mark-animation.mjs`), recording the Android app's animations (`record-android.mjs`) |
 
 ## Requirements
 
@@ -145,7 +145,9 @@ bun scripts/mark-screenshot.mjs before.png corner.png --zoom 84,416,160,100 --bo
 
 A change that moves (an animation, a transition) is shown moving. The native
 Samsung app's debug build records one frame by frame (`metrics.mjs record`,
-[TV_PLATFORMS.md](TV_PLATFORMS.md), "Profiling");
+[TV_PLATFORMS.md](TV_PLATFORMS.md), "Profiling"), and
+`scripts/record-android.mjs` records the Android app, phone or TV, through
+adb ([ANDROID.md](ANDROID.md#recording-an-animation));
 `scripts/mark-animation.mjs` marks the frames as `mark-screenshot.mjs` marks
 a screenshot and writes an animated PNG, slower than it was where the change
 is too quick to see, which the caption says. GitHub takes pictures up to
