@@ -109,7 +109,8 @@ fn open_append(path: &Path) -> Option<File> {
 const HIDDEN: &str = "…";
 
 /// `line` with secrets taken out: bearer tokens, token and code parameters (in queries, forms and
-/// JSON), and the key of keyed media addresses (`/api/media/pley_mk_…`).
+/// JSON), the key of keyed media addresses (`/api/media/pley_mk_…`), and the folders and names of
+/// a file on a USB drive (`/tmp/usb/sda/sda1/….mkv`).
 pub fn redact(line: &str) -> String {
     let mut out = line.to_string();
     for marker in ["Bearer ", "bearer "] {
@@ -120,7 +121,8 @@ pub fn redact(line: &str) -> String {
         out = mask_after(&out, &format!("\"{name}\":\""), |c| c == '"');
         out = mask_after(&out, &format!("\"{name}\": \""), |c| c == '"');
     }
-    mask_after(&out, "pley_mk_", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace())
+    out = mask_after(&out, "pley_mk_", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
+    pley_core::device::hide_drive_paths(&out)
 }
 
 /// Replaces what follows each `marker` up to a character `end` accepts with [`HIDDEN`].
@@ -158,6 +160,7 @@ mod tests {
         );
         assert_eq!(redact("device_code=dc&user_code=ABCD-EFGH"), "device_code=…&user_code=…");
         assert_eq!(redact("page home opens"), "page home opens");
+        assert_eq!(redact("load file:///tmp/usb/sdb/sdb1/Kids/Frozen.mkv"), "load file:///tmp/usb/sdb/sdb1/….mkv");
     }
 
     #[test]

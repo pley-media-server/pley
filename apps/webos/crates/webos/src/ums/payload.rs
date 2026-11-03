@@ -166,6 +166,29 @@ mod tests {
     }
 
     #[test]
+    fn a_file_on_a_drive_loads_as_a_file_at_its_address() {
+        let mut req = LoadRequest::new("file:///tmp/usb/sda/sda1/Films/Mad%20Max.mkv", MediaKind::File);
+        req.start_ms = 1_234_000;
+        req.duration_hint_ms = Some(7_380_000);
+        assert_eq!(
+            load(&req, "app.pley.tv", Some("_Window_Id_3"), None),
+            json!({
+                "uri": "file:///tmp/usb/sda/sda1/Films/Mad%20Max.mkv",
+                "type": "media",
+                "payload": { "option": {
+                    "appId": "app.pley.tv",
+                    "windowId": "_Window_Id_3",
+                    "transmission": { "playTime": { "start": 1_234_000 } }
+                } }
+            })
+        );
+        // Before webOS 5 there is no exported window to name.
+        let old = load(&req, "app.pley.tv", None, None);
+        assert!(old["payload"]["option"].get("windowId").is_none());
+        assert!(old["payload"].get("mediaTransportType").is_none());
+    }
+
+    #[test]
     fn hls_declares_its_ceiling_and_transport() {
         let mut req = LoadRequest::new("http://h/api/media/k/master.m3u8", MediaKind::Hls);
         req.video = Some(video("h264", 1920, 1080, Some(23.976)));

@@ -1,11 +1,12 @@
 //! pley-core's `Device` for an LG TV: what the TV is and plays, its folders,
-//! its network address, its clock and Audio Guidance, the screen saver,
-//! leaving the app, and the player engine.
+//! its network address, its clock and Audio Guidance, the USB drive plugged
+//! into it, the screen saver, leaving the app, and the player engine.
 //!
 //! Every method is quick. The facts are read once at start on a thread of
 //! their own (nyx's files, the config, settings and ARC services); Audio
 //! Guidance and the network are luna subscriptions whose news goes to
-//! subscribers.
+//! subscribers, and so is the drive, which a thread of its own follows
+//! (`drives.rs`).
 
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 use std::path::{Path, PathBuf};
@@ -15,7 +16,7 @@ use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use pley_base::{Tier, Waker};
-use pley_core::device::{CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, user_agent};
+use pley_core::device::{CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, Drive, DriveSpace, user_agent};
 use pley_core::media::PlayerEngine;
 use serde_json::{Value, json};
 
@@ -56,6 +57,7 @@ struct Inner {
     waited: AtomicBool,
     screen_reader: AtomicBool,
     network: Mutex<Option<(bool, Option<Ipv4Addr>)>>,
+    drive: Mutex<Option<Drive>>,
     awake: AtomicBool,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
     subscriptions: Mutex<Vec<Subscription>>,
@@ -99,6 +101,7 @@ impl WebosDevice {
                 waited: AtomicBool::new(false),
                 screen_reader: AtomicBool::new(false),
                 network: Mutex::new(None),
+                drive: Mutex::new(None),
                 awake: AtomicBool::new(false),
                 subscribers: Mutex::new(Vec::new()),
                 subscriptions: Mutex::new(Vec::new()),
@@ -108,6 +111,7 @@ impl WebosDevice {
         };
         device.read_facts(root.to_path_buf());
         device.subscribe_news();
+        device.watch_drives(root);
         device
     }
 
@@ -205,6 +209,25 @@ impl WebosDevice {
             },
         );
         self.inner.subscriptions.lock().unwrap_or_else(|e| e.into_inner()).extend([guidance, network]);
+    }
+
+    /// Follows the drive plugged in, telling subscribers when it changes.
+    fn watch_drives(&self, root: &Path) {
+        let (alive, weak) = (Arc::downgrade(&self.inner), Arc::downgrade(&self.inner));
+        crate::drives::watch(
+            root,
+            self.inner.luna.as_ref(),
+            move || alive.strong_count() > 0,
+            move |drive| {
+                let Some(inner) = weak.upgrade() else { return };
+                let mut now = inner.drive.lock().unwrap_or_else(|e| e.into_inner());
+                if *now != drive {
+                    *now = drive.clone();
+                    drop(now);
+                    inner.send(DeviceEvent::Drive(drive));
+                }
+            },
+        );
     }
 
     /// Answers the TV's screen saver requests while the app keeps the screen
@@ -402,6 +425,14 @@ impl Device for WebosDevice {
     fn subscribe(&self, tx: Sender<DeviceEvent>) {
         self.inner.subscribers.lock().unwrap_or_else(|e| e.into_inner()).push(tx);
     }
+
+    fn drive(&self) -> Option<Drive> {
+        self.inner.drive.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    fn drive_space(&self, root: &Path) -> Option<DriveSpace> {
+        data::space(root).map(|(free, total)| DriveSpace { free, total })
+    }
 }
 
 #[cfg(test)]
@@ -467,6 +498,12 @@ mod tests {
         assert_eq!(network_status(&both), (true, Some(Ipv4Addr::new(10, 0, 0, 5))));
         assert_eq!(network_status(&json!({ "wired": { "state": "connected" } })), (true, None));
         assert_eq!(network_status(&json!({ "wifi": { "state": "disconnected" } })), (false, None));
+    }
+
+    #[test]
+    fn a_tv_without_a_drive_has_none() {
+        let (device, _) = tv();
+        assert_eq!(device.drive(), None);
     }
 
     #[test]

@@ -6,7 +6,7 @@
 //! - [`luna::Luna`]: the luna thread and its handle.
 //! - [`facts::WebosFacts`] and [`caps::webos_caps`]: what the TV is and plays.
 //! - [`device::WebosDevice`]: pley-core's `Device` for the TV, with the data
-//!   folder it probes.
+//!   folder it probes and the USB drive [`drives`] follows.
 //! - [`ums::UmsEngine`]: pley-core's `PlayerEngine` on uMediaServer.
 //! - [`log`] and [`launch`]: the TV's log file and the launch payload.
 
@@ -14,6 +14,7 @@ pub mod caps;
 pub mod data;
 pub mod device;
 mod dl;
+pub mod drives;
 pub mod facts;
 pub mod launch;
 pub mod log;

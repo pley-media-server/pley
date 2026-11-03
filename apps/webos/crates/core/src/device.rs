@@ -1,10 +1,10 @@
 //! The device the app runs on, as the rest of the app sees it: its facts,
 //! folders, capability report, network address, clock format, screen reader,
-//! and its player engine. `pley-webos` implements it for LG TVs; [`FakeDevice`]
+//! the USB drive plugged into it, and its player engine. `pley-webos` implements it for LG TVs; [`FakeDevice`]
 //! stands in for tests and the simulator.
 
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -78,6 +78,29 @@ impl CapsOverrides {
     }
 }
 
+/// The USB drive plugged into the TV: the first one mounted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Drive {
+    /// Where it is mounted (`/tmp/usb/sda/sda1` on an LG TV).
+    pub root: PathBuf,
+    /// Plugged in and mounted by the TV, but the app's jail doesn't show its files.
+    pub hidden: bool,
+}
+
+impl Drive {
+    /// Whether the app can read its files.
+    pub fn readable(&self) -> bool {
+        !self.hidden
+    }
+}
+
+/// How full a drive is, in bytes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct DriveSpace {
+    pub free: u64,
+    pub total: u64,
+}
+
 /// News from the device.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeviceEvent {
@@ -85,6 +108,8 @@ pub enum DeviceEvent {
     ScreenReader(bool),
     /// The network came or went, with the TV's address on it.
     Network { connected: bool, ipv4: Option<Ipv4Addr> },
+    /// A USB drive was plugged in, pulled out or swapped: the one there now.
+    Drive(Option<Drive>),
 }
 
 /// The device. Every method is quick; none waits on the network.
@@ -116,8 +141,92 @@ pub trait Device: Send + Sync {
     fn exit(&self);
     /// A new player engine.
     fn engine(&self) -> Box<dyn PlayerEngine>;
-    /// Sends the device's news (screen reader, network) to `tx`.
+    /// Sends the device's news (screen reader, network, drives) to `tx`.
     fn subscribe(&self, tx: Sender<DeviceEvent>);
+    /// The USB drive plugged in (the first mounted); none while none is. Quick: the device follows
+    /// drives as they come and go.
+    fn drive(&self) -> Option<Drive> {
+        None
+    }
+    /// How full the drive mounted at `root` is; none when the device won't say. It asks the disk,
+    /// so it runs off the main thread.
+    fn drive_space(&self, _root: &Path) -> Option<DriveSpace> {
+        None
+    }
+}
+
+/// Where an LG TV mounts USB drives: `/tmp/usb/<disk>/<partition>`.
+pub const USB_ROOT: &str = "/tmp/usb";
+
+/// The extensions a drive's file is known by in a log line: the videos the app lists and the
+/// subtitles beside them.
+const DRIVE_FILE_EXTENSIONS: [&str; 17] = [
+    "mkv", "mp4", "m4v", "mov", "ts", "m2ts", "mts", "avi", "mpg", "mpeg", "webm", "srt", "vtt", "mks", "ass", "ssa",
+    "sub",
+];
+
+/// `text` with the folders and file names of a drive taken out: everything after `/tmp/usb/`
+/// and the disk and partition (`sda/sda1`, which name devices, not anyone's files) up to the
+/// file's extension, so `/tmp/usb/sda/sda1/Films/Mad%20Max.mkv` logs as
+/// `/tmp/usb/sda/sda1/….mkv`. Without an extension, the rest of the path goes, up to a quote or
+/// the end of the line.
+pub fn hide_drive_paths(text: &str) -> String {
+    let marker = format!("{USB_ROOT}/");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(&marker) {
+        let (before, after) = rest.split_at(at + marker.len());
+        out.push_str(before);
+        let mut after = after;
+        // Below the partition: a folder or a file of someone's.
+        let mut below = true;
+        for _ in 0..2 {
+            let end = after.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(after.len());
+            if !is_device_name(&after[..end]) {
+                break;
+            }
+            out.push_str(&after[..end]);
+            after = &after[end..];
+            match after.strip_prefix('/') {
+                Some(under) => {
+                    out.push('/');
+                    after = under;
+                }
+                None => {
+                    below = false;
+                    break;
+                }
+            }
+        }
+        if below {
+            let span = after.find(['"', '\'', '<', '>', '\n']).unwrap_or(after.len());
+            let end = extension_at(&after[..span]).unwrap_or(span);
+            if end > 0 {
+                out.push('…');
+            }
+            after = &after[end..];
+        }
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
+/// A disk or partition as the kernel names it: `sda`, `sdb1`.
+fn is_device_name(s: &str) -> bool {
+    let Some(tail) = s.strip_prefix("sd") else { return false };
+    let letters = tail.bytes().take_while(u8::is_ascii_lowercase).count();
+    letters > 0 && tail.bytes().skip(letters).all(|b| b.is_ascii_digit())
+}
+
+/// Where the first `.mkv` (or another drive file's extension, ended by anything but a letter or
+/// digit) starts in `path`.
+fn extension_at(path: &str) -> Option<usize> {
+    path.match_indices('.').map(|(at, _)| at).find(|&at| {
+        let ext = &path[at + 1..];
+        let len = ext.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(ext.len());
+        DRIVE_FILE_EXTENSIONS.iter().any(|e| e.eq_ignore_ascii_case(&ext[..len]))
+    })
 }
 
 /// The `User-Agent` the server names the TV by (`pleyLG/0.2.0 (webOS 23;
@@ -161,6 +270,8 @@ pub struct FakeDevice {
     ipv4: Mutex<Option<Ipv4Addr>>,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
     spoken: Mutex<Vec<String>>,
+    drive: Mutex<Option<Drive>>,
+    drive_space: Mutex<Option<DriveSpace>>,
 }
 
 impl FakeDevice {
@@ -181,6 +292,8 @@ impl FakeDevice {
             ipv4: Mutex::new(Some(Ipv4Addr::new(192, 168, 1, 50))),
             subscribers: Mutex::new(Vec::new()),
             spoken: Mutex::new(Vec::new()),
+            drive: Mutex::new(None),
+            drive_space: Mutex::new(None),
         }
     }
 
@@ -209,6 +322,21 @@ impl FakeDevice {
     pub fn set_ipv4(&self, ip: Option<Ipv4Addr>) {
         *self.ipv4.lock().unwrap_or_else(|e| e.into_inner()) = ip;
         self.send(DeviceEvent::Network { connected: ip.is_some(), ipv4: ip });
+    }
+
+    /// Plugs a drive in (or pulls it out, with `None`), telling subscribers when that changes.
+    pub fn set_drive(&self, drive: Option<Drive>) {
+        let mut now = self.drive.lock().unwrap_or_else(|e| e.into_inner());
+        if *now != drive {
+            *now = drive.clone();
+            drop(now);
+            self.send(DeviceEvent::Drive(drive));
+        }
+    }
+
+    /// How full the drive says it is (none: it won't say).
+    pub fn set_drive_space(&self, space: Option<DriveSpace>) {
+        *self.drive_space.lock().unwrap_or_else(|e| e.into_inner()) = space;
     }
 
     /// Tells every subscriber `event`.
@@ -292,6 +420,15 @@ impl Device for FakeDevice {
 
     fn subscribe(&self, tx: Sender<DeviceEvent>) {
         self.subscribers.lock().unwrap_or_else(|e| e.into_inner()).push(tx);
+    }
+
+    fn drive(&self) -> Option<Drive> {
+        self.drive.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    fn drive_space(&self, root: &Path) -> Option<DriveSpace> {
+        let space = *self.drive_space.lock().unwrap_or_else(|e| e.into_inner());
+        space.filter(|_| self.drive().is_some_and(|d| d.root == root))
     }
 }
 
@@ -455,5 +592,48 @@ mod tests {
         device.exit();
         assert!(device.exited());
         assert_eq!(device.info().user_agent, user_agent(env!("CARGO_PKG_VERSION"), 22, "OLED65C2PUA"));
+    }
+
+    #[test]
+    fn the_fake_device_follows_a_drive_plugged_in_and_pulled_out() {
+        let device = FakeDevice::new(|| Box::new(NullEngine::default()));
+        let (tx, rx) = std::sync::mpsc::channel();
+        device.subscribe(tx);
+        assert_eq!(device.drive(), None);
+        let drive = Drive { root: PathBuf::from("/tmp/usb/sda/sda1"), hidden: false };
+        device.set_drive(Some(drive.clone()));
+        device.set_drive(Some(drive.clone()));
+        assert_eq!(rx.try_recv().unwrap(), DeviceEvent::Drive(Some(drive.clone())));
+        assert!(rx.try_recv().is_err(), "the same drive again is no news");
+        assert_eq!(device.drive(), Some(drive.clone()));
+        device.set_drive_space(Some(DriveSpace { free: 1, total: 2 }));
+        assert_eq!(device.drive_space(&drive.root), Some(DriveSpace { free: 1, total: 2 }));
+        assert_eq!(device.drive_space(Path::new("/tmp/usb/sdb/sdb1")), None);
+        device.set_drive(None);
+        assert_eq!(rx.try_recv().unwrap(), DeviceEvent::Drive(None));
+        assert_eq!(device.drive_space(&drive.root), None);
+    }
+
+    #[test]
+    fn a_drives_folders_and_file_names_never_reach_the_log() {
+        let hide = hide_drive_paths;
+        assert_eq!(
+            hide("load file:///tmp/usb/sda/sda1/Films/Mad%20Max.mkv (direct)"),
+            "load file:///tmp/usb/sda/sda1/….mkv (direct)"
+        );
+        assert_eq!(
+            hide(r#"{"uri":"file:///tmp/usb/sdb/sdb1/My Films/Our trip.MP4","x":1}"#),
+            r#"{"uri":"file:///tmp/usb/sdb/sdb1/….MP4","x":1}"#
+        );
+        assert_eq!(hide("subtitles /tmp/usb/sda/sda1/a/Film.en.srt read"), "subtitles /tmp/usb/sda/sda1/….srt read");
+        // The drive itself is no one's secret; a folder without a file is hidden to the end.
+        assert_eq!(hide("drives: /tmp/usb/sda/sda1 mounted"), "drives: /tmp/usb/sda/sda1 mounted");
+        assert_eq!(hide("can't read /tmp/usb/sdc/sdc2/Holiday 2019"), "can't read /tmp/usb/sdc/sdc2/…");
+        // A name that isn't a device's is hidden from the start.
+        assert_eq!(
+            hide("/tmp/usb/Films/x.mkv and /tmp/usb/sda/sda1/y.ts"),
+            "/tmp/usb/….mkv and /tmp/usb/sda/sda1/….ts"
+        );
+        assert_eq!(hide("nothing here"), "nothing here");
     }
 }

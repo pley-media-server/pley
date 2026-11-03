@@ -32,10 +32,11 @@ pub fn line(text: &str) {
     eprintln!("{text}");
 }
 
-/// `text` with credentials and keyed addresses taken out: bearer tokens,
-/// token and key parameters in queries, forms and JSON, and the key of a
-/// `/api/media/<key>/…` address. The call sites keep such values out of their
-/// lines; this is the backstop.
+/// `text` with credentials, keyed addresses and a drive's files taken out:
+/// bearer tokens, token and key parameters in queries, forms and JSON, the
+/// key of a `/api/media/<key>/…` address, and the folders and names of a
+/// file on a USB drive (`/tmp/usb/sda/sda1/….mkv`). The call sites keep such
+/// values out of their lines; this is the backstop.
 pub fn scrub(text: &str) -> String {
     let mut out = text.to_string();
     out = redact_after(&out, "Bearer ", |c| c.is_whitespace() || c == '"' || c == '\'' || c == ',');
@@ -45,7 +46,8 @@ pub fn scrub(text: &str) -> String {
         out = redact_after(&out, &format!("\"{name}\": \""), |c| c == '"');
     }
     out = redact_after(&out, "/api/media/", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
-    redact_after(&out, "pley_mk_", |c| !c.is_ascii_alphanumeric() && c != '_' && c != '-')
+    out = redact_after(&out, "pley_mk_", |c| !c.is_ascii_alphanumeric() && c != '_' && c != '-');
+    pley_core::device::hide_drive_paths(&out)
 }
 
 /// Replaces what follows each `marker` up to the first character `stop`
@@ -221,6 +223,10 @@ mod tests {
         assert_eq!(scrub("uri pley_mk_ABC-12_x/file.mkv"), "uri pley_mk_…/file.mkv");
         assert_eq!(scrub("nothing to hide"), "nothing to hide");
         assert_eq!(scrub("ends with Bearer "), "ends with Bearer ");
+        assert_eq!(
+            scrub(r#"ums: load {"uri":"file:///tmp/usb/sda/sda1/Home%20videos/Lisbon.mp4"}"#),
+            r#"ums: load {"uri":"file:///tmp/usb/sda/sda1/….mp4"}"#
+        );
     }
 
     #[test]

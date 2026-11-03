@@ -25,7 +25,7 @@ pub mod task;
 
 pub use api::{Api, image_bucket};
 pub use auth::{AuthError, DeviceSignIn, Tokens};
-pub use device::{CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, FakeDevice, Tier};
+pub use device::{CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, Drive, DriveSpace, FakeDevice, Tier};
 pub use events::{EventStream, StreamNews};
 pub use http::{ApiError, Http, NetError, TokenSource};
 pub use media::{AudioTrack, EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine};

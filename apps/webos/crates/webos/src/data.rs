@@ -150,8 +150,14 @@ fn budget_for(free: Option<u64>) -> u64 {
     if budget < MIN { 0 } else { budget }
 }
 
-#[cfg(unix)]
 fn free_bytes(dir: &Path) -> Option<u64> {
+    space(dir).map(|(free, _)| free)
+}
+
+/// The bytes free for the app, and in all, on the file system holding `dir` (a drive's: "437 GB
+/// free of 1.0 TB"); none when it won't say.
+#[cfg(unix)]
+pub fn space(dir: &Path) -> Option<(u64, u64)> {
     use std::os::unix::ffi::OsStrExt;
     let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
     // SAFETY: a zeroed statvfs is a valid output buffer for statvfs(3).
@@ -160,11 +166,12 @@ fn free_bytes(dir: &Path) -> Option<u64> {
     if unsafe { libc::statvfs(path.as_ptr(), &mut stat) } != 0 {
         return None;
     }
-    Some((stat.f_bavail as u64).saturating_mul(stat.f_frsize as u64))
+    let unit = stat.f_frsize as u64;
+    Some(((stat.f_bavail as u64).saturating_mul(unit), (stat.f_blocks as u64).saturating_mul(unit)))
 }
 
 #[cfg(not(unix))]
-fn free_bytes(_dir: &Path) -> Option<u64> {
+pub fn space(_dir: &Path) -> Option<(u64, u64)> {
     None
 }
 
