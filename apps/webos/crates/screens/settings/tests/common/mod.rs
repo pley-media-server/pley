@@ -176,6 +176,7 @@ fn sign_in(server: &FixtureServer, profile: i64, scope: Option<&str>, store: &St
         refresh_token: Some(t.refresh_token),
         expires_in: t.expires_in as u64,
         scope: scope.map_or(t.scope, str::to_string),
+        proof: None,
     };
     let url = server.url();
     let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;

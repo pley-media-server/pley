@@ -54,6 +54,17 @@ pub struct TokenAnswer {
     pub scope: Option<String>,
     /// `pley_rt_…`: good once.
     pub refresh_token: Option<String>,
+    /// The server's id, as discovery gives it; with the two below, what the
+    /// server proves itself with later (`auth::ServerProof`). As sent: one
+    /// written wrong means no proof, not an unreadable answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server_id: Option<serde_json::Value>,
+    /// The sign-in's id, in digits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_id: Option<serde_json::Value>,
+    /// The sign-in's key: 32 bytes in base64url without padding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_key: Option<serde_json::Value>,
 }
 
 /// A token, device or revocation endpoint's refusal (RFC 6749 §5.2), with

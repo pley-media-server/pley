@@ -268,6 +268,10 @@ pub fn run(
                     log::info!("the app is {}", if v { "shown" } else { "hidden" });
                     if !v {
                         device.keep_awake(false);
+                    } else {
+                        // Back from the TV's other apps or standby, maybe on another network:
+                        // the server proves itself again before its next token.
+                        pley_core::auth::network_may_have_changed();
                     }
                     shell.visible(v, &mut state, &mut ui_state, now);
                 }

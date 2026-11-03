@@ -25,6 +25,13 @@ pub enum NetError {
     TooBig,
     /// Anything else: "the connection to the server failed".
     Failed(String),
+    /// What answers at the server's address can't prove it is the server
+    /// signed in to (`auth::proof`): "another device answers there". The TV
+    /// treats it as the server being out of reach, and sends it no token.
+    AnotherDevice,
+    /// The server, or a proxy before it, answered a proof with a server
+    /// error: "the server couldn't answer", out of reach for now.
+    ServerFailed,
 }
 
 impl NetError {
@@ -56,6 +63,8 @@ impl NetError {
             NetError::Tls(_) => "its secure connection failed",
             NetError::TooBig => "the server's answer is too big",
             NetError::Failed(_) => "the connection to the server failed",
+            NetError::AnotherDevice => "another device answers there",
+            NetError::ServerFailed => "the server couldn't answer",
         }
     }
 }

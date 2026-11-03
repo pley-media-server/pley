@@ -260,7 +260,11 @@ fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel) -
     let answer = match api.http().open(req) {
         Ok(a) => a,
         Err(_) if cancel.is_cancelled() => return End::Stop,
-        Err(_) => return End::Failed,
+        Err(_) => {
+            // Nothing answered: the server proves itself again before the next token.
+            api.tokens().doubt_server();
+            return End::Failed;
+        }
     };
     match answer.status {
         200 => {}
@@ -283,8 +287,12 @@ fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel) -
     let mut buf = [0u8; 8192];
     loop {
         let n = match body.read(&mut buf) {
-            Ok(0) | Err(_) => {
-                return if cancel.is_cancelled() { End::Stop } else { End::Closed { opened: Some(opened) } };
+            Ok(0) | Err(_) if cancel.is_cancelled() => return End::Stop,
+            Ok(0) => return End::Closed { opened: Some(opened) },
+            Err(_) => {
+                // The stream broke off (not the server ending it): as unanswered as no answer.
+                api.tokens().doubt_server();
+                return End::Closed { opened: Some(opened) };
             }
             Ok(n) => n,
         };

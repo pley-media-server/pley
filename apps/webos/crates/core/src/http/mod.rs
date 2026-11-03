@@ -322,6 +322,10 @@ pub trait TokenSource: Send + Sync {
     /// Whether the server refused `sent` just after a refresh issued it: the
     /// sign-in is then over (and forgotten), since another refresh won't help.
     fn refused_after_refresh(&self, sent: &str) -> bool;
+    /// A request to the server got no answer: the TV may be on another
+    /// network now, so what answers at the address next proves it is the
+    /// server before a token goes. Nothing to do for a source without proofs.
+    fn doubt_server(&self) {}
 }
 
 /// Requests to one server as one sign-in: the bearer token on the server's
@@ -363,8 +367,15 @@ impl Authorized {
 
     /// Sends `req` and reads the whole answer; anything but 2xx is an error.
     pub fn send(&self, req: Request) -> Result<Response, ApiError> {
+        let own = self.own(&req.url);
         let answer = self.open(req)?;
-        answer.read_all(MAX_BODY).map_err(ApiError::Net)
+        answer.read_all(MAX_BODY).map_err(|e| {
+            // The answer broke off: as unanswered as no answer at all.
+            if own && !matches!(e, NetError::Cancelled | NetError::TooBig) {
+                self.tokens.doubt_server();
+            }
+            ApiError::Net(e)
+        })
     }
 
     /// Sends `req`; the answer once its headers are in. Anything but 2xx is
@@ -381,24 +392,34 @@ impl Authorized {
 
     /// Sends `req` with the token when it is for this server, refreshing it
     /// once when refused; the answer whatever its status (redirects included).
+    /// The token waits for the server to prove itself at its address.
     pub fn exchange(&self, req: Request) -> Result<Streamed, ApiError> {
-        let answer = if self.own(&req.url) {
-            let token = self.tokens.access_token()?;
-            let first = self.http.open(with_token(req.clone(), &token)).map_err(ApiError::Net)?;
-            if first.status == 401 && invalid_token(&first) {
-                drop(first);
-                if self.tokens.refused_after_refresh(&token) {
-                    return Err(ApiError::SignedOut);
-                }
-                let fresh = self.tokens.refresh(&token)?;
-                self.http.open(with_token(req, &fresh)).map_err(ApiError::Net)?
-            } else {
-                first
+        if !self.own(&req.url) {
+            return self.http.open(req).map_err(ApiError::Net);
+        }
+        let answer = self.exchange_own(req);
+        // Out of reach, the TV may be on another network now: what answers
+        // at this address next proves it is the server before a token goes.
+        if let Err(ApiError::Net(e)) = &answer
+            && *e != NetError::Cancelled
+        {
+            self.tokens.doubt_server();
+        }
+        answer
+    }
+
+    fn exchange_own(&self, req: Request) -> Result<Streamed, ApiError> {
+        let token = self.tokens.access_token()?;
+        let first = self.http.open(with_token(req.clone(), &token)).map_err(ApiError::Net)?;
+        if first.status == 401 && invalid_token(&first) {
+            drop(first);
+            if self.tokens.refused_after_refresh(&token) {
+                return Err(ApiError::SignedOut);
             }
-        } else {
-            self.http.open(req).map_err(ApiError::Net)?
-        };
-        Ok(answer)
+            let fresh = self.tokens.refresh(&token)?;
+            return self.http.open(with_token(req, &fresh)).map_err(ApiError::Net);
+        }
+        Ok(first)
     }
 }
 

@@ -59,6 +59,8 @@ struct Inner {
     waited: AtomicBool,
     screen_reader: AtomicBool,
     network: Mutex<Option<(bool, Option<Ipv4Addr>)>>,
+    /// The network the TV is on, as [`network_identity`] reads it.
+    joined: Mutex<Option<Value>>,
     drive: Mutex<Option<Drive>>,
     awake: AtomicBool,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
@@ -104,6 +106,7 @@ impl WebosDevice {
                 waited: AtomicBool::new(false),
                 screen_reader: AtomicBool::new(false),
                 network: Mutex::new(None),
+                joined: Mutex::new(None),
                 drive: Mutex::new(None),
                 awake: AtomicBool::new(false),
                 subscribers: Mutex::new(Vec::new()),
@@ -202,6 +205,17 @@ impl WebosDevice {
             SUBSCRIBE_TIMEOUT,
             move |answer| {
                 let (Ok(v), Some(inner)) = (answer, weak.upgrade()) else { return };
+                // Joining or leaving a network, or another one under the same
+                // address, makes the server prove itself again before its
+                // next token (pley_core::auth::proof). The first answer is the
+                // network the app started on: nothing changed yet.
+                let identity = network_identity(&v);
+                let mut joined = inner.joined.lock().unwrap_or_else(|e| e.into_inner());
+                if joined.as_ref().is_some_and(|before| *before != identity) {
+                    pley_core::auth::network_may_have_changed();
+                }
+                *joined = Some(identity);
+                drop(joined);
                 let status = network_status(&v);
                 let mut last = inner.network.lock().unwrap_or_else(|e| e.into_inner());
                 if *last != Some(status) {
@@ -290,6 +304,23 @@ pub fn network_status(answer: &Value) -> (bool, Option<Ipv4Addr>) {
         (Some(None), _) | (_, Some(None)) => (true, None),
         _ => (false, None),
     }
+}
+
+/// What tells one network from another in the connection manager's answer:
+/// each link's state, address, gateway and Wi-Fi network name. The fields are
+/// those LG lists for `getStatus` (webostv.developer.lge.com, "Connection
+/// Manager"); `ssid` is in webOS OSE's list (webosose.org,
+/// com.webos.service.connectionmanager) and may be missing on a TV, where
+/// only the others tell. Whether the internet answers (`onInternet`,
+/// `isInternetConnectionAvailable`) is left out: it comes and goes on the
+/// same network.
+pub fn network_identity(answer: &Value) -> Value {
+    let link = |name: &str| {
+        let link = answer.get(name);
+        let field = |f: &str| link.and_then(|l| l.get(f)).cloned().unwrap_or(Value::Null);
+        json!([field("state"), field("ipAddress"), field("gateway"), field("ssid")])
+    };
+    json!([link("wired"), link("wifi")])
 }
 
 /// The address the TV's route to the outside leaves from: connecting a UDP
@@ -505,6 +536,28 @@ mod tests {
         assert_eq!(network_status(&both), (true, Some(Ipv4Addr::new(10, 0, 0, 5))));
         assert_eq!(network_status(&json!({ "wired": { "state": "connected" } })), (true, None));
         assert_eq!(network_status(&json!({ "wifi": { "state": "disconnected" } })), (false, None));
+    }
+
+    #[test]
+    fn another_network_is_told_apart_from_the_internet_coming_and_going() {
+        let home = json!({
+            "isInternetConnectionAvailable": true,
+            "wifi": { "state": "connected", "ipAddress": "192.168.1.23", "gateway": "192.168.1.1", "ssid": "Home", "onInternet": "yes" }
+        });
+        let offline = json!({
+            "isInternetConnectionAvailable": false,
+            "wifi": { "state": "connected", "ipAddress": "192.168.1.23", "gateway": "192.168.1.1", "ssid": "Home", "onInternet": "no" }
+        });
+        let next_door = json!({
+            "wifi": { "state": "connected", "ipAddress": "192.168.1.23", "gateway": "192.168.1.1", "ssid": "Next door" }
+        });
+        let wired = json!({
+            "wired": { "state": "connected", "ipAddress": "192.168.1.23", "gateway": "192.168.1.1" },
+            "wifi": { "state": "disconnected" }
+        });
+        assert_eq!(network_identity(&home), network_identity(&offline));
+        assert_ne!(network_identity(&home), network_identity(&next_door));
+        assert_ne!(network_identity(&home), network_identity(&wired));
     }
 
     #[test]

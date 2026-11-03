@@ -327,6 +327,9 @@ fn stored(expires_at: u64, scope: &str) -> StoredTokens {
         scope: scope.into(),
         token_endpoint: format!("{SERVER}/api/oauth/token"),
         revocation_endpoint: format!("{SERVER}/api/oauth/revoke"),
+        server_id: None,
+        proof_id: None,
+        proof_key: None,
     }
 }
 

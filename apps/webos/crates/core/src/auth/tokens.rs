@@ -2,15 +2,17 @@
 //! token while it works, a new pair from the refresh token when it doesn't.
 //! Refreshes happen strictly one at a time (the server ends the sign-in when
 //! a refresh token is used twice), and the new pair is saved before the new
-//! access token is used.
+//! access token is used. No token leaves before the server at the address
+//! has proved it is the one signed in to ([`super::proof`]).
 
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, Weak};
 
 use serde::{Deserialize, Serialize};
 
+use super::proof::{self, ServerProof};
 use super::{AuthError, CLIENT_ID, SWITCH_PROFILE_GRANT, SignOutReason, post_form};
 use crate::http::{ApiError, Http, NetError, TokenSource, sentence};
 use crate::model::TokenAnswer;
@@ -38,6 +40,14 @@ pub struct StoredTokens {
     pub scope: String,
     pub token_endpoint: String,
     pub revocation_endpoint: String,
+    /// What tells the server from another device later ([`ServerProof`]);
+    /// absent from servers before proofs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_key: Option<String>,
 }
 
 impl fmt::Debug for StoredTokens {
@@ -60,6 +70,7 @@ impl StoredTokens {
         revocation_endpoint: &str,
         now_ms: u64,
     ) -> StoredTokens {
+        let proof = answer.proof.as_ref();
         StoredTokens {
             issuer: issuer.into(),
             access_token: answer.access_token.clone(),
@@ -68,7 +79,29 @@ impl StoredTokens {
             scope: answer.scope.clone(),
             token_endpoint: token_endpoint.into(),
             revocation_endpoint: revocation_endpoint.into(),
+            server_id: proof.map(|p| p.server_id.clone()),
+            proof_id: proof.map(|p| p.proof_id.clone()),
+            proof_key: proof.map(|p| p.proof_key.clone()),
         }
+    }
+
+    /// The tokens of `answer` as kept after a refresh or a profile switch of
+    /// `self`: the same sign-in, whose key never changes. `self`'s proof stays,
+    /// whatever the answer says; an answer brings one only to a sign-in without.
+    pub fn renewed(&self, answer: &TokenAnswerParsed, now_ms: u64) -> StoredTokens {
+        let mut fresh =
+            StoredTokens::new(answer, &self.issuer, &self.token_endpoint, &self.revocation_endpoint, now_ms);
+        if self.proof().is_some() {
+            (fresh.server_id, fresh.proof_id, fresh.proof_key) =
+                (self.server_id.clone(), self.proof_id.clone(), self.proof_key.clone());
+        }
+        fresh
+    }
+
+    /// What the server proves itself with, when the sign-in has it and it is
+    /// written as it should be.
+    pub fn proof(&self) -> Option<ServerProof> {
+        ServerProof::of(self.server_id.as_deref(), self.proof_id.as_deref(), self.proof_key.as_deref())
     }
 
     /// The scope as names.
@@ -85,6 +118,8 @@ pub struct TokenAnswerParsed {
     /// Seconds.
     pub expires_in: u64,
     pub scope: String,
+    /// The server's id and this sign-in's proof key; none from servers before proofs.
+    pub proof: Option<ServerProof>,
 }
 
 impl fmt::Debug for TokenAnswerParsed {
@@ -109,6 +144,7 @@ pub fn parse_token_answer(body: &[u8], asked_scope: &str) -> Result<TokenAnswerP
         expires_in: a.expires_in.filter(|e| *e > 0.0).map_or(DEFAULT_EXPIRES_IN, |e| e as u64),
         // RFC 6749 §5.1: a scope left out is the one asked for.
         scope: a.scope.unwrap_or_else(|| asked_scope.to_string()),
+        proof: ServerProof::of_answer(a.server_id.as_ref(), a.proof_id.as_ref(), a.proof_key.as_ref()),
     })
 }
 
@@ -194,6 +230,20 @@ impl SwitchRefusal {
 }
 
 type Listener = Arc<dyn Fn(SignOutReason) + Send + Sync>;
+type Random = Arc<dyn Fn(usize) -> Vec<u8> + Send + Sync>;
+
+/// The server's proofs as one sign-in sees them.
+#[derive(Default)]
+struct Proofs {
+    /// When, and on which network ([`proof::network`]), the server last proved itself.
+    proved_at: Option<(u64, u64)>,
+    /// A proof is under way: other callers wait for it.
+    proving: bool,
+    /// Counts the proofs begun, so a caller waiting on one knows when it ended.
+    round: u64,
+    /// The last proof that failed, by its round, and why.
+    failed: Option<(u64, NetError)>,
+}
 
 /// The tokens of one server. One per server in the whole app ([`Tokens::shared`]):
 /// two would refresh with the same refresh token and end the sign-in.
@@ -210,6 +260,11 @@ pub struct Tokens {
     /// The access token the last refresh or switch gave, and when.
     last_issued: Mutex<Option<(String, u64)>>,
     listeners: Mutex<Vec<Listener>>,
+    proofs: Mutex<Proofs>,
+    /// Told when a proof ends.
+    proof_ended: Condvar,
+    /// The challenges' random bytes.
+    random: Random,
 }
 
 impl fmt::Debug for Tokens {
@@ -251,7 +306,16 @@ impl Tokens {
             cache: Mutex::new(None),
             last_issued: Mutex::new(None),
             listeners: Mutex::new(Vec::new()),
+            proofs: Mutex::new(Proofs::default()),
+            proof_ended: Condvar::new(),
+            random: Arc::new(proof::random_bytes),
         }
+    }
+
+    /// These tokens, with challenges made of `random`'s bytes (for tests).
+    pub fn with_random(mut self, random: impl Fn(usize) -> Vec<u8> + Send + Sync + 'static) -> Tokens {
+        self.random = Arc::new(random);
+        self
     }
 
     /// The server's origin these tokens are for.
@@ -284,6 +348,71 @@ impl Tokens {
     fn wipe(&self) {
         *lock(&self.cache) = Some(None);
         let _ = self.store.remove(&keys::tokens(&self.issuer));
+        lock(&self.proofs).proved_at = None;
+    }
+
+    /// Returns once the server at this address has proved it is the one
+    /// signed in to, within the last half hour and on this network, or now
+    /// when `now`: no token leaves before. A sign-in from a server without
+    /// proofs has nothing to check.
+    fn proved(&self, tokens: &StoredTokens, now: bool) -> Result<(), AuthError> {
+        let Some(proof) = tokens.proof() else { return Ok(()) };
+        let mut proofs = lock(&self.proofs);
+        // A refresh token, a PIN or a sign-out waits for a proof of its own.
+        if now {
+            proofs.proved_at = None;
+        }
+        // A proof under way counts once it ends, unless the TV changed
+        // networks meanwhile: looked at again then, as Android does.
+        loop {
+            if self.recently_proved(&proofs) {
+                return Ok(());
+            }
+            if proofs.proving {
+                let round = proofs.round;
+                while proofs.proving && proofs.round == round {
+                    proofs = self.proof_ended.wait(proofs).unwrap_or_else(|e| e.into_inner());
+                }
+                if let Some((failed, why)) = &proofs.failed
+                    && *failed == round
+                {
+                    return Err(AuthError::Unreachable(why.clone()));
+                }
+                continue;
+            }
+            proofs.proving = true;
+            proofs.round += 1;
+            let (round, network) = (proofs.round, proof::network());
+            drop(proofs);
+            let result = proof::prove(&self.http, &self.issuer, &proof, &*self.random);
+            proofs = lock(&self.proofs);
+            proofs.proving = false;
+            match &result {
+                Ok(()) => proofs.proved_at = Some((self.clock.now_ms(), network)),
+                Err(why) => proofs.failed = Some((round, why.clone())),
+            }
+            self.proof_ended.notify_all();
+            result?;
+        }
+    }
+
+    // A clock set back makes an age below zero: proved again.
+    fn recently_proved(&self, proofs: &Proofs) -> bool {
+        proofs.proved_at.is_some_and(|(at, network)| {
+            let now = self.clock.now_ms();
+            network == proof::network() && now >= at && now - at < proof::TTL_MS
+        })
+    }
+
+    /// Whether the server proves it holds `tokens`' key now (none: nothing to check).
+    fn proves(&self, tokens: &StoredTokens) -> bool {
+        tokens.proof().is_none_or(|p| proof::prove(&self.http, &self.issuer, &p, &*self.random).is_ok())
+    }
+
+    /// A request to the server got no answer: the TV may be on another
+    /// network, so the next token waits for a new proof.
+    pub fn doubt_server(&self) {
+        lock(&self.proofs).proved_at = None;
     }
 
     /// Whether this TV holds a sign-in for the server.
@@ -301,13 +430,16 @@ impl Tokens {
         self.scopes().iter().any(|s| s == scope)
     }
 
-    /// The access token to send, refreshed first when it ends within a minute.
+    /// The access token to send, refreshed first when it ends within a
+    /// minute, once the server has proved itself.
     pub fn access_token(&self) -> Result<String, AuthError> {
         let tokens = self.load().ok_or(AuthError::SignedOut(SignOutReason::Ended))?;
-        if tokens.expires_at.saturating_sub(self.clock.now_ms()) > EARLY_MS {
-            return Ok(tokens.access_token);
+        // A refresh waits for a proof of its own: one before it would be wasted.
+        if tokens.expires_at.saturating_sub(self.clock.now_ms()) <= EARLY_MS {
+            return self.refresh(Some(&tokens.access_token));
         }
-        self.refresh(Some(&tokens.access_token))
+        self.proved(&tokens, false)?;
+        Ok(tokens.access_token)
     }
 
     /// A new access token in place of `stale` (refused, or about to end).
@@ -317,9 +449,13 @@ impl Tokens {
         let tokens = self.load().ok_or(AuthError::SignedOut(SignOutReason::Ended))?;
         let fresh = tokens.expires_at.saturating_sub(self.clock.now_ms()) > EARLY_MS;
         if Some(tokens.access_token.as_str()) != stale && fresh {
+            // Refreshed by another caller meanwhile, maybe on another network since.
+            self.proved(&tokens, false)?;
             return Ok(tokens.access_token);
         }
         let Some(refresh) = tokens.refresh_token.clone() else { return Err(self.end(SignOutReason::Ended)) };
+        // The refresh token goes only to a server that proves itself now.
+        self.proved(&tokens, true)?;
         let answer = post_form(
             &self.http,
             &tokens.token_endpoint,
@@ -332,7 +468,7 @@ impl Tokens {
         };
         let parsed = parse_token_answer(&answer.body, &tokens.scope)?;
         let now = self.clock.now_ms();
-        let fresh = StoredTokens::new(&parsed, &self.issuer, &tokens.token_endpoint, &tokens.revocation_endpoint, now);
+        let fresh = tokens.renewed(&parsed, now);
         if !extra_scopes(&parsed.scope, &tokens.scope).is_empty() {
             return Err(self.widened(&fresh));
         }
@@ -374,6 +510,7 @@ impl Tokens {
         if let Some(pin) = pin {
             fields.push(("pin", pin));
         }
+        self.proved(&tokens, true)?;
         let answer = match post_form(&self.http, &tokens.token_endpoint, &fields) {
             // Without a reason the refresh token itself is spent or unknown.
             Err(e) if e.code() == Some("invalid_grant") && e.reason().is_none() => {
@@ -384,7 +521,7 @@ impl Tokens {
         };
         let parsed = parse_token_answer(&answer.body, &tokens.scope)?;
         let now = self.clock.now_ms();
-        let fresh = StoredTokens::new(&parsed, &self.issuer, &tokens.token_endpoint, &tokens.revocation_endpoint, now);
+        let fresh = tokens.renewed(&parsed, now);
         if !extra_scopes(&parsed.scope, &tokens.scope).is_empty() {
             return Err(self.widened(&fresh));
         }
@@ -407,8 +544,13 @@ impl Tokens {
         let previous = self.load();
         self.save(&fresh);
         *lock(&self.last_issued) = None;
+        // A new sign-in, a new key: the next token waits for its proof.
+        lock(&self.proofs).proved_at = None;
+        // The sign-in before goes only to the server that proves it holds its
+        // key: another device that got the TV to sign in again gets nothing.
         if let Some(previous) = previous
             && previous.refresh_token != fresh.refresh_token
+            && self.proves(&previous)
         {
             revoke(&self.http, &self.client_id, &previous);
         }
@@ -416,10 +558,14 @@ impl Tokens {
     }
 
     /// Ends this app's sign-in on the server (RFC 7009), then forgets the
-    /// tokens whatever it answered (offline included).
+    /// tokens whatever it answered (offline included). A server that can't
+    /// prove itself gets no token: the person can sign the TV out in
+    /// Account → Apps.
     pub fn sign_out(&self) {
         let _one = lock(&self.serial);
-        if let Some(tokens) = self.load() {
+        if let Some(tokens) = self.load()
+            && self.proves(&tokens)
+        {
             revoke(&self.http, &self.client_id, &tokens);
         }
         self.wipe();
@@ -455,6 +601,10 @@ impl TokenSource for Tokens {
 
     fn refused_after_refresh(&self, sent: &str) -> bool {
         Tokens::refused_after_refresh(self, sent)
+    }
+
+    fn doubt_server(&self) {
+        Tokens::doubt_server(self)
     }
 }
 

@@ -48,6 +48,7 @@ impl Rig {
                 refresh_token: Some(t.refresh_token),
                 expires_in: t.expires_in as u64,
                 scope: t.scope,
+                proof: None,
             };
             let url = server.url();
             let now_ms = now_ms();

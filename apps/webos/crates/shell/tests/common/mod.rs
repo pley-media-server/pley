@@ -46,6 +46,7 @@ pub fn sign_in(server: &FixtureServer, profile: i64, store: &Store, http: &Http)
         refresh_token: Some(t.refresh_token),
         expires_in: t.expires_in as u64,
         scope: t.scope,
+        proof: None,
     };
     let url = server.url();
     let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;

@@ -136,6 +136,17 @@ describes how they are made.
   sign-in from before starts checking within the hour, as its token is
   renewed.
 
+### Security
+
+- The native app sends its token to the server's address only once the
+  server has proved there that it is the one the TV signed in to, as the
+  web app did: the access token waits for a proof made on this network
+  within the half hour, the refresh token, a profile's PIN and signing out
+  for one made then. Coming back to the app, the TV's connection changing
+  and a request that gets no answer ask for a new one. Another device at
+  the address gets nothing, and the TV says "Another device answers
+  there."
+
 ## [0.1.2] - 2026-11-02
 
 ### Changed

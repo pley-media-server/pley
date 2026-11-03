@@ -375,6 +375,19 @@ them), the next episode, and Find subtitles.
   bearer token goes only to the server's own origin, hop by hop. It says
   `pleyLG/<version> (webOS <n>; <model>)` as its User-Agent, which the
   server shows for its sign-in ([API.md](API.md#apps-oauth-21)).
+- **Telling the server apart.** Before a token goes to the server's
+  address, the server proves there that it is the one the TV signed in
+  to, with the key of the sign-in that its token answers carry
+  ([API.md](API.md#telling-servers-apart)). An access token waits for a
+  proof made on this network within the half hour; a refresh token, a
+  profile's PIN and a sign-out wait for one made then. The app showing
+  again, the TV's connection changing (a link, its address or gateway, or
+  the Wi-Fi network, as the connection manager tells them) and a request
+  that gets no answer each ask for a new proof. What can't prove itself is
+  the server out of reach: the TV says "Another device answers there."
+  and sends it nothing, and signing out then forgets the sign-in on the TV
+  only (the server's Account → Apps ends it there). A sign-in from a server
+  without proofs is checked from its next refresh, when it gets its key.
 - **Signing in** uses a code (OAuth's device grant) with the client
   `https://pley-media-server.github.io/pley/oauth/webos.json`, built into
   the server, asking for `library`, `play`, `playlists` and `profiles`,
@@ -559,7 +572,8 @@ Magic Remote.
 
 The fake server listens on 127.0.0.1: a demo household with profiles
 (Sam's PIN is 1234), libraries of films, shows and music, pictures it
-draws itself, Live TV with a guide, the code sign-in approved at once,
+draws itself, Live TV with a guide, the code sign-in approved at once
+(and the proofs that tell the server apart, keyed the same on every run),
 playback of the Android app's test media, subtitles, seek previews and
 the event stream.
 

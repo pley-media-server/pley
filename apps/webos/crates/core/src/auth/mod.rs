@@ -5,6 +5,7 @@
 
 mod device;
 mod metadata;
+pub mod proof;
 mod tokens;
 
 pub use device::{
@@ -12,6 +13,7 @@ pub use device::{
     display_code, scope_for, verification_address,
 };
 pub use metadata::{METADATA_PATH, ServerMetadata, fetch_metadata, parse_metadata};
+pub use proof::{ServerProof, network_may_have_changed};
 pub use tokens::{
     EARLY_MS, JUST_ISSUED_MS, StoredTokens, SwitchRefusal, TokenAnswerParsed, Tokens, extra_scopes, parse_token_answer,
     revoke,
