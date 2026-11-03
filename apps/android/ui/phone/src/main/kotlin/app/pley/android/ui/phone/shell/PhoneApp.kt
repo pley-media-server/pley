@@ -52,6 +52,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -122,7 +124,8 @@ import kotlinx.coroutines.withContext
  *
  * The window's background (the app's theme) is the page's colour, so
  * nothing here paints the whole screen again: each such layer is another
- * full screen of pixels on every frame.
+ * full screen of pixels on every frame. Test tags are resource ids as well,
+ * which the benchmarks' journeys find things by ([TestTags]).
  */
 @Composable
 fun PhoneApp(
@@ -131,7 +134,7 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
-        Box(Modifier.fillMaxSize().testTag(TestTags.PHONE_ROOT)) {
+        Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag(TestTags.PHONE_ROOT)) {
             val known by produceState(start) { if (value == null) value = awaitStart() }
             known?.let { PhoneShell(it, graph) }
         }
