@@ -224,6 +224,9 @@ class SessionPlaybackController(
 
     /** The engine shows this session's media: only then is its position the playhead. */
     private var mediaShown = false
+
+    /** Something has shown in this player, in any session: a drive's file that did is one this TV plays. */
+    private var shownOnce = false
     private val wantPlay = MutableStateFlow(true)
     private var ended = false
     private var closed = false
@@ -890,6 +893,7 @@ class SessionPlaybackController(
             EngineStatus.Buffering -> if (!ended) phase(PlayerPhase.Buffering)
             EngineStatus.Ready -> {
                 mediaShown = true
+                shownOnce = true
                 phase(if (link?.playWhenReady == true) PlayerPhase.Playing else PlayerPhase.Paused)
             }
             EngineStatus.Ended -> if (endedShort()) onEndedShort() else onEnded()
@@ -1113,8 +1117,9 @@ class SessionPlaybackController(
             lastAdvanceAt = now
             // A file on a drive waits for no server, and the same file again would only stand still
             // again: one whose picture never came isn't one this TV plays; one that showed and then
-            // stood still can't be read any more (the drive pulled out), as on LG TVs.
-            if (env.drive) return fail(if (mediaShown) texts.driveUnreadable else texts.driveStuck, canRetry = true)
+            // stood still can't be read any more (the drive pulled out), as on LG TVs. Showed in any
+            // session: a file read again after an error, which then hangs, played before.
+            if (env.drive) return fail(if (shownOnce) texts.driveUnreadable else texts.driveStuck, canRetry = true)
             val starving = engineLink.status == EngineStatus.Buffering && engineLink.bufferedMs - engineLink.positionMs < STARVING_MS
             act(recovery.onStall(s.info.method, starving), starving)
             return

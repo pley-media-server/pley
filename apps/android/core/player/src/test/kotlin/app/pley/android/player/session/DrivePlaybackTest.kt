@@ -233,6 +233,22 @@ class DrivePlaybackTest {
     }
 
     @Test
+    fun aPictureThatShowedThenHangsAsTheFileIsReadAgainSaysTheDriveMayHaveBeenPulledOut() {
+        // It played; a read failed, and the file read again from there never shows: it played
+        // before, so the drive, not the file.
+        val c = play()
+        engine.ready()
+        advance(60_000)
+        engine.fail(EngineError.Network("ERROR_CODE_IO_UNSPECIFIED"))
+        scheduler.runCurrent()
+        assertEquals(2, engine.prepared.size)
+        advance(13_000)
+        val error = c.state.value.phase as PlayerPhase.Error
+        assertEquals(texts.driveUnreadable, error.message)
+        assertTrue(error.canRetry)
+    }
+
+    @Test
     fun aFileThatCantBeReadAsItPlaysSaysTheDriveMayHaveBeenPulledOut() {
         val c = play()
         engine.ready()
