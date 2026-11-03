@@ -308,8 +308,8 @@ internal class CachedSearch(private val cache: ResourceCache) : SearchRepository
     }
 
     companion object {
-        /** Results asked for: a few rows of a grid. */
-        const val LIMIT = 60
+        /** Results asked for, of titles, people and channels each: the server's most, so no group is cut short. */
+        const val LIMIT = 200
 
         /** Recent searches kept per profile. */
         const val RECENT = 10

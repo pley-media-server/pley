@@ -53,6 +53,9 @@ describes how they are made.
   entry leaves it to make room for another: its entries are a little
   smaller, and scroll between the avatar and Settings when they don't all
   fit.
+- Search shows every title, person and Live TV channel the server finds,
+  up to 200 of each, where it stopped at 60 titles and 12 people and
+  channels.
 - On phones, the first scrolls after an install or an update are smoother:
   the app comes compiled ahead for the phone's screens too, not only the
   TV's.

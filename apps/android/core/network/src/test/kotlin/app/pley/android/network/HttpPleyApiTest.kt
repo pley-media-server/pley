@@ -158,7 +158,7 @@ class HttpPleyApiTest {
             ) { history(offset = 50, limit = 200, itemId = 201, libraryId = 2, since = 1761000000) },
             Golden("homeHubs", json("hubs/home.json"), "GET /api/hubs/home") { homeHubs() },
             Golden("watchlist", json("watchlist/list.json"), "GET /api/watchlist") { watchlist() },
-            Golden("search", json("search/results.json"), "GET /api/search?q=blade%20runner%20%26%202049&limit=60") {
+            Golden("search", json("search/results.json"), "GET /api/search?q=blade%20runner%20%26%202049&limit=200") {
                 search("blade runner & 2049")
             },
             Golden(

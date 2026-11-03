@@ -245,11 +245,11 @@ interface PleyApi {
     suspend fun watchlist(): ItemList
 
     /**
-     * GET /api/search: titles by relevance, and people. [limit] at most
-     * 200; 60 by default, a few rows of a grid (the server's own default
-     * is 40).
+     * GET /api/search: titles by relevance, people and Live TV channels,
+     * up to [limit] of each: 200 by default, the most the server gives,
+     * so every result shows (the server's own default is 40).
      */
-    suspend fun search(query: String, limit: Int = 60): SearchResults
+    suspend fun search(query: String, limit: Int = 200): SearchResults
 
     // ---------------------------------------------------------------- playback (scope play)
 

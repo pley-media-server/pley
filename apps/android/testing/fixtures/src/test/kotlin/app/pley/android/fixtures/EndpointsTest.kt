@@ -190,7 +190,7 @@ class EndpointsTest {
         assertTrue(smart.items.all { (it.year ?: 0) in 1990..1999 })
         assertTrue(app.read("/api/collections/${FixtureIds.COLLECTION}", CollectionDetail.serializer()).items.isNotEmpty())
 
-        val results = app.read("/api/search?q=silent+har&limit=60", SearchResults.serializer())
+        val results = app.read("/api/search?q=silent+har&limit=200", SearchResults.serializer())
         assertTrue(results.items.isNotEmpty())
         assertTrue(results.items.all { "silent" in it.title.lowercase() })
         assertTrue(app.read("/api/search?q=ada", SearchResults.serializer()).people.isNotEmpty())

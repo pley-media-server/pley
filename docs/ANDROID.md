@@ -187,6 +187,14 @@ counts by its best file, a show by its best episode.
   sorted by bitrate, each also shows its bitrate and size. Recommended
   rows, collections, playlists, search and Home show none.
 
+### Search
+
+Search asks the server for up to 200 titles, 200 people and 200 Live TV
+channels (`GET /api/search?limit=200`), the most it gives, and shows every
+one: a row per group (Movies, Shows, Seasons, Episodes, Artists, Albums,
+Tracks, Live TV, People) on phones and TVs, each scrolling sideways, with
+no See all. TMDB's Discover row comes after them ([Requests](#requests)).
+
 ### Audio and subtitles
 
 Unless you pick a track, the server picks the audio in the profile's
