@@ -145,7 +145,7 @@ internal fun ArtworkBox(
             val scope = rememberCoroutineScope()
             val onState = remember(load, scope) { { state: AsyncImagePainter.State -> load.onState(state, scope) } }
             AsyncImage(
-                model = image,
+                model = rememberArtworkModel(image),
                 contentDescription = null,
                 imageLoader = loader,
                 modifier = Modifier.matchParentSize(),

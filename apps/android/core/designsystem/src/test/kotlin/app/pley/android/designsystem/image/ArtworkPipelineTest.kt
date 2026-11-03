@@ -7,18 +7,30 @@ import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import coil3.ImageLoader
+import coil3.Uri
+import coil3.fetch.FetchResult
+import coil3.fetch.Fetcher
+import coil3.fetch.ImageFetchResult
 import coil3.intercept.Interceptor
+import coil3.memory.MemoryCache
 import coil3.network.HttpException
 import coil3.network.NetworkResponse
 import coil3.request.CachePolicy
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.ImageResult
+import coil3.request.Options
 import coil3.request.SuccessResult
+import coil3.size.pxOrElse
 import coil3.test.FakeImage
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -162,5 +174,111 @@ class ArtworkPipelineTest {
         prefetcher.onVisible(1, 4, images, 248, 372)
         assertEquals((4..10).map { "$origin/api/items/$it/images/poster?w=320" }, t2.asked)
         assertTrue(t2.policies.all { it == CachePolicy.ENABLED })
+    }
+
+    @Test
+    fun prefetchWaitsWhileAKeyIsHeldThenAsksWhereItCameUp() = runTest {
+        val images = (0 until 20).map { ArtworkImage(listOf("$origin/api/items/$it/images/poster")) }
+        val server = FakeServer(images.map { "${it.candidates[0]}?w=320" }.toSet())
+        val hold = FakeHold()
+        val prefetcher = ImagePrefetcher(context, loader(server, Tier.T2), Tier.T2, hold)
+        prefetcher.onVisible(0, 3, images, 248, 372)
+        assertTrue(server.asked.isEmpty())
+        hold.release()
+        prefetcher.onVisible(4, 7, images, 248, 372)
+        assertEquals((8..13).map { "$origin/api/items/$it/images/poster?w=320" }, server.asked)
+    }
+
+    @Test
+    fun prefetchLetsGoOfWhatTheListHasPassed() = runTest {
+        val images = (0 until 40).map { ArtworkImage(listOf("$origin/api/items/$it/images/poster")) }
+        val server = SlowServer()
+        val prefetcher = ImagePrefetcher(context, loader(server, Tier.T2), Tier.T2)
+        prefetcher.onVisible(0, 3, images, 248, 372)
+        assertEquals((4..9).map { "$origin/api/items/$it/images/poster?w=320" }, server.asked)
+        // A long way on: the pictures still loading for what went by stop, and those ahead start.
+        prefetcher.onVisible(20, 23, images, 248, 372)
+        assertEquals((4..9).map { "$origin/api/items/$it/images/poster?w=320" }.toSet(), server.cancelled.toSet())
+        assertEquals((24..29).map { "$origin/api/items/$it/images/poster?w=320" }, server.asked.drop(6))
+    }
+
+    @Test
+    fun aHeldPictureWaitsForTheKeyUnlessTheMemoryCacheHasIt() = runTest {
+        val fetched = mutableListOf<String>()
+        val loader = ImageLoader.Builder(context)
+            .components {
+                addArtworkHold()
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T1, 1920)))
+                add(FakeFetcher(fetched))
+            }
+            .memoryCache(MemoryCache.Builder().maxSizeBytes(1L shl 20).build())
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        val hold = FakeHold()
+        val image = ArtworkImage(listOf("$origin/api/items/1/images/poster"))
+        val request = heldRequest(image, hold, context).newBuilder().size(248, 372).build()
+
+        val first = async { loader.execute(request) }
+        runCurrent()
+        // Held: nothing is fetched, and the request waits.
+        assertFalse(first.isCompleted)
+        assertTrue(fetched.isEmpty())
+        hold.release()
+        runCurrent()
+        assertTrue(first.await() is SuccessResult)
+        assertEquals(listOf("$origin/api/items/1/images/poster?w=320"), fetched)
+
+        // Held again: in the memory cache now, it comes at once, fetching nothing.
+        hold.hold()
+        assertTrue(loader.execute(request) is SuccessResult)
+        assertEquals(1, fetched.size)
+    }
+
+    /** A hold that holds until [release]. */
+    private class FakeHold : ArtworkHold {
+        override var holding = true
+        private var released = CompletableDeferred<Unit>()
+
+        override suspend fun awaitRelease() {
+            if (holding) released.await()
+        }
+
+        fun release() {
+            holding = false
+            released.complete(Unit)
+        }
+
+        fun hold() {
+            holding = true
+            released = CompletableDeferred()
+        }
+    }
+
+    /** Answers nothing until cancelled, remembering what was asked and what was let go. */
+    private class SlowServer : Interceptor {
+        val asked = mutableListOf<String>()
+        val cancelled = mutableListOf<String>()
+
+        override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+            val url = chain.request.data as String
+            asked += url
+            try {
+                awaitCancellation()
+            } finally {
+                cancelled += url
+            }
+        }
+    }
+
+    /** Fetches every address as a picture of the size asked for (Coil keeps no other for an exact size), remembering which. */
+    private class FakeFetcher(private val fetched: MutableList<String>) : Fetcher.Factory<Uri> {
+        override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher = object : Fetcher {
+            override suspend fun fetch(): FetchResult {
+                fetched += data.toString()
+                val image = FakeImage(width = options.size.width.pxOrElse { 1 }, height = options.size.height.pxOrElse { 1 })
+                return ImageFetchResult(image, isSampled = false, dataSource = coil3.decode.DataSource.NETWORK)
+            }
+        }
     }
 }

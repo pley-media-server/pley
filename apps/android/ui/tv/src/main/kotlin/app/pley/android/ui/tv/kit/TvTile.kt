@@ -1,9 +1,12 @@
 package app.pley.android.ui.tv.kit
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -14,8 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +32,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -59,6 +63,8 @@ import app.pley.android.designsystem.tile.tvTileSize
 import app.pley.android.ui.tv.theme.LocalTvTier
 import app.pley.android.common.Tier
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -72,7 +78,10 @@ import kotlinx.coroutines.launch
  * outside the scaled layer, turns bold. Select opens; holding Select calls
  * [onLongClick], the item's actions (rule 6), which are also buttons on its
  * page; so does the remote's Menu key, the way Fire TV apps open them.
- * While a key repeats the tile snaps to its focus look (rule 5).
+ * The look comes in over 150 ms, eased out, and goes over 120 ms, eased
+ * in, with the native Samsung app's curves ([TvMotion]); under a held key
+ * it changes evenly over the time between moves (rule 5,
+ * [KeyRepeatGate.GLIDE_MS]).
  *
  * [focusModifier] goes on the focusable itself: a FocusRequester,
  * [initialFocus] or [rememberedFocus].
@@ -130,7 +139,9 @@ fun TvSeeAllTile(
 
 /**
  * A focusable well of [kind]'s size with the TV's focus look, and a
- * caption under it that [caption] draws (told whether the tile has focus).
+ * caption under it that [caption] draws (told whether it is emphasized:
+ * focused, and not quiet). In a row sliding or a grid gliding under a held
+ * key the tile keeps its resting look ([TileQuiet], [LocalTileQuiet]).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -144,23 +155,21 @@ fun TvTileFrame(
     well: @Composable () -> Unit,
 ) {
     val gate = LocalKeyRepeatGate.current
+    val quiet = LocalTileQuiet.current
     val tier = LocalTvTier.current
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
-    val look = remember(gate) { TileFocusLook(scope, gate) }
+    val look = remember(gate, quiet) { TileFocusLook(scope, gate, quiet) }
     look.reduced = reduced
     look.tier = tier
-    val interactions = remember { MutableInteractionSource() }
-    LaunchedEffect(interactions) {
-        interactions.interactions.collect { if (it is PressInteraction) look.press(it is PressInteraction.Press) }
-    }
+    val presses = remember(look) { TilePresses(look) }
     Column(modifier.width(kind.tvWidth).focusedOnTop(look)) {
         Box(
             focusModifier
                 .onFocusChanged { look.focus(it.isFocused) }
                 .menuKey(onLongClick)
                 .combinedClickable(
-                    interactionSource = interactions,
+                    interactionSource = presses,
                     indication = null,
                     onLongClick = onLongClick,
                     onClick = onClick,
@@ -172,28 +181,35 @@ fun TvTileFrame(
                 }
                 .drawWithContent {
                     drawContent()
-                    drawFocusRing(kind, look.progress.value, look.scale())
+                    drawFocusRing(kind, look.shown(), look.scale())
                 },
         ) {
             well()
         }
         Spacer(Modifier.height(TileStyle.Tv.captionGap))
-        caption(look.focused)
+        caption(look.emphasized)
     }
 }
 
 /**
  * A tile's focus, animated outside composition: [progress] (0 at rest, 1
- * focused) and the press are read only in the layer and while drawing, so
- * an animation frame never recomposes. [focused] switches once per change,
- * for the caption's weight and the tile's drawing order.
+ * focused), the quiet and the press are read only in the layer and while
+ * drawing, so an animation frame never recomposes. [focused] switches once
+ * per change, for the tile's drawing order, and [emphasized], for the
+ * caption's weight, once at either end of a slide as well.
  */
 @Stable
-internal class TileFocusLook(private val scope: CoroutineScope, private val gate: KeyRepeatGate) {
+internal class TileFocusLook(private val scope: CoroutineScope, private val gate: KeyRepeatGate, private val quiet: TileQuiet?) {
     var focused by mutableStateOf(false)
         private set
+
+    /** Whether the caption is bold: focused, and not quiet. Tiles without focus don't read the quiet at all. */
+    val emphasized: Boolean by derivedStateOf { focused && quiet?.on != true }
+
     val progress = Animatable(0f)
-    private val pressed = Animatable(1f)
+
+    /** The press's scale, made at the first press: most tiles are never pressed. */
+    private var pressed by mutableStateOf<Animatable<Float, AnimationVector1D>?>(null)
     var reduced = false
     var tier = Tier.T2
 
@@ -201,25 +217,58 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
         if (on == focused) return
         focused = on
         val target = if (on) 1f else 0f
-        // Held keys snap; T0 animates the focused tile only (design spec §6).
-        val snap = reduced || gate.holding || (!on && tier == Tier.T0)
+        // T0 animates the focused tile only (design spec §6). While quiet a tile shows none of
+        // its look, so it takes it at once, and the quiet's end brings it in. A held key's move
+        // changes the look evenly over the time to the next, so focus glides from tile to tile
+        // rather than pulsing; otherwise it eases as on the native Samsung app (TvMotion).
+        val snap = reduced || quiet?.on == true || (!on && tier == Tier.T0)
+        val spec: FiniteAnimationSpec<Float> = when {
+            gate.holding -> KeyRepeatGate.glide()
+            on -> TvMotion.FocusIn
+            else -> TvMotion.FocusOut
+        }
         scope.launch {
             if (snap) {
                 progress.snapTo(target)
             } else {
-                progress.animateTo(target, if (on) PleyMotion.focus() else PleyMotion.unfocus())
+                progress.animateTo(target, spec)
             }
         }
     }
 
     fun press(down: Boolean) {
         val target = if (down) PleyFocus.TILE_PRESSED_SCALE / PleyFocus.TILE_SCALE else 1f
-        scope.launch { pressed.animateTo(target, PleyMotion.press(reduced)) }
+        val scale = pressed ?: Animatable(1f).also { pressed = it }
+        scope.launch { scale.animateTo(target, PleyMotion.press(reduced)) }
+    }
+
+    /** How much of the focus look shows: [progress], none of it while quiet. */
+    fun shown(): Float {
+        val p = progress.value
+        return if (p == 0f || quiet == null) p else p * (1f - quiet.amount)
     }
 
     /** The well's scale now: up to [PleyFocus.TILE_SCALE], times the press. */
-    fun scale(): Float = (1f + (PleyFocus.TILE_SCALE - 1f) * progress.value) * pressed.value
+    fun scale(): Float = (1f + (PleyFocus.TILE_SCALE - 1f) * shown()) * (pressed?.value ?: 1f)
+}
 
+/**
+ * A tile's presses, heard as they happen rather than collected: no
+ * coroutine per tile waits for them, and nothing else reads them.
+ */
+private class TilePresses(private val look: TileFocusLook) : MutableInteractionSource {
+    override val interactions: Flow<Interaction> = emptyFlow()
+
+    override suspend fun emit(interaction: Interaction) = hear(interaction)
+
+    override fun tryEmit(interaction: Interaction): Boolean {
+        hear(interaction)
+        return true
+    }
+
+    private fun hear(interaction: Interaction) {
+        if (interaction is PressInteraction) look.press(interaction is PressInteraction.Press)
+    }
 }
 
 /**
@@ -262,5 +311,24 @@ internal fun ContentDrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale:
         size = Size(size.width + 2 * offset, size.height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),
         style = Stroke(stroke),
+    )
+}
+
+/**
+ * The focus ring around a resting well of [kind] whose top left is at
+ * [topLeft]: the one a row or grid draws still while its tiles are quiet
+ * ([TileQuiet]). [stroke] is the ring's, made once rather than each frame.
+ */
+internal fun DrawScope.drawStillRing(kind: TileKind, topLeft: Offset, stroke: Stroke) {
+    val offset = PleyFocus.RingOffset.toPx()
+    val width = kind.tvWidth.roundToPx().toFloat()
+    val height = kind.tvHeight.roundToPx().toFloat()
+    val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() + offset
+    drawRoundRect(
+        color = PleyColors.AccentBright,
+        topLeft = Offset(topLeft.x - offset, topLeft.y - offset),
+        size = Size(width + 2 * offset, height + 2 * offset),
+        cornerRadius = CornerRadius(radius, radius),
+        style = stroke,
     )
 }

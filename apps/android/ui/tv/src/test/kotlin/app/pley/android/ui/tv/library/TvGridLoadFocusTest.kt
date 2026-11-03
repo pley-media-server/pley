@@ -1,26 +1,41 @@
 package app.pley.android.ui.tv.library
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.rememberSkeleton
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,9 +43,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * A TV grid's focus while its pages load: a cell focused as a skeleton
- * keeps focus when its title arrives, and the D-pad goes on from it.
+ * A TV grid's focus while its pages load, and how it moves: a cell
+ * focused as a skeleton keeps focus when its title arrives, and the D-pad
+ * goes on from it; a press glides the grid a row over 150 ms, and a held
+ * Down glides it on a row a step, on the gate's clock, without a stop or
+ * a jump (rule 5); a held Up stays in the grid.
  */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class TvGridLoadFocusTest {
@@ -39,35 +58,55 @@ class TvGridLoadFocusTest {
 
     private val tiles = List(120) { ArtworkTileModel(id = it + 1L, title = "Title ${it + 1}", subtitle = "2024") }
 
-    @OptIn(ExperimentalTestApi::class)
-    @Test
-    fun aFocusedSkeletonKeepsFocusWhenItsPageLoads() {
-        var loaded by mutableStateOf(false)
-        lateinit var focus: TvGridFocus
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
+
+    private lateinit var focus: TvGridFocus
+    private lateinit var state: LazyGridState
+
+    /** The grid, with something focusable above it when [above] (the library's chips). */
+    private fun grid(reduced: Boolean? = null, above: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
         compose.setContent {
-            TvTheme(reducedMotion = true) {
+            TvTheme(reducedMotion = reduced) {
                 focus = remember { TvGridFocus() }
-                Box(Modifier.fillMaxSize()) {
-                    TvPosterGrid(
-                        total = tiles.size,
-                        tileAt = { if (loaded) tiles[it] else null },
-                        keyAt = { it },
-                        kind = TileKind.LibraryGrid,
-                        onOpen = { _, _ -> },
-                        memory = rememberFocusMemory(),
-                        memoryPrefix = "grid",
-                        skeleton = rememberSkeleton(animated = false),
-                        focus = focus,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                state = rememberTvGridState()
+                CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
+                        TvPosterGrid(
+                            total = tiles.size,
+                            tileAt = tileAt,
+                            keyAt = { it },
+                            kind = TileKind.LibraryGrid,
+                            onOpen = { _, _ -> },
+                            memory = rememberFocusMemory(),
+                            memoryPrefix = "grid",
+                            skeleton = rememberSkeleton(animated = false),
+                            state = state,
+                            focus = focus,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
         compose.waitForIdle()
+    }
+
+    /** From one row's top to the next's, in pixels: they all have the one height. */
+    private fun rowPitch(): Float = state.layoutInfo.visibleItemsInfo.let { (it[Columns].offset.y - it[0].offset.y).toFloat() }
+
+    /** How far the grid has scrolled, in pixels. */
+    private fun scrolled(): Float = state.firstVisibleItemIndex / Columns * rowPitch() + state.firstVisibleItemScrollOffset
+
+    @Test
+    fun aFocusedSkeletonKeepsFocusWhenItsPageLoads() {
+        var loaded by mutableStateOf(false)
+        grid(reduced = true, tileAt = { if (loaded) tiles[it] else null })
         compose.onRoot().performKeyInput { repeat(3) { pressKey(Key.DirectionDown) } }
         compose.waitForIdle()
         val before = focus.focused
-        assertEquals(TvGridColumnsForTest * 3, before)
+        assertEquals(Columns * 3, before)
 
         loaded = true
         compose.waitForIdle()
@@ -79,8 +118,68 @@ class TvGridLoadFocusTest {
         assertEquals(before + 1, focus.focused)
     }
 
+    @Test
+    fun aPressGlidesTheGridARowOver150MsEasedOut() {
+        grid()
+        val pitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        // Eased out: well over half the way a third of the way through.
+        compose.mainClock.advanceTimeBy(80)
+        val partway = scrolled()
+        assertTrue("$partway of $pitch", partway > pitch / 2 && partway < pitch)
+        compose.mainClock.advanceTimeBy(128)
+        assertEquals(pitch, scrolled(), 1f)
+        assertEquals(Columns, focus.focused)
+    }
+
+    @Test
+    fun aHeldDownGlidesTheGridOnARowAStep() {
+        grid()
+        val pitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        var last = scrolled()
+        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
+        for (frame in 1..25) {
+            compose.mainClock.advanceTimeByFrame()
+            val moved = scrolled() - last
+            last += moved
+            assertTrue("frame $frame moved $moved of $pitch", moved < pitch / 2)
+            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+        }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        // The press and five held steps: six rows down, that row at the top.
+        assertEquals(Columns * 6, focus.focused)
+        assertEquals(6 * pitch, scrolled(), 1f)
+    }
+
+    @Test
+    fun aHeldUpStaysInTheGridAndAPressLeavesIt() {
+        grid(above = true)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        assertEquals(Columns, focus.focused)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
+        // The press moves up to the first row; held from 180 ms, Up goes no further.
+        compose.mainClock.advanceTimeBy(600)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(0, focus.focused)
+        compose.onNodeWithTag(ABOVE).assertIsNotFocused()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(ABOVE).assertIsFocused()
+    }
+
     private companion object {
         /** The library grid's columns on TV. */
-        val TvGridColumnsForTest = tvGridColumns(TileKind.LibraryGrid)
+        val Columns = tvGridColumns(TileKind.LibraryGrid)
+
+        const val ABOVE = "above"
     }
 }

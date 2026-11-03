@@ -113,6 +113,42 @@ describes how they are made.
   rather than appearing at once.
 - On phones and tablets, the next episode, or a queue's next, shows the
   controls with its title as it begins, as the first does.
+- On Android TV and Fire TV, a held direction key starts moving after
+  180 ms rather than half a second, and moves about 22 times a second at
+  an even pace, as on the native Samsung app.
+- On Android TV and Fire TV, a held Left or Right slides a row on evenly
+  under a ring that stays still, its tiles at rest, rather than jumping a
+  tile at a time; focus lands on the tile under the ring when the key
+  comes up, as on the native Samsung app. A season's episodes move as
+  every other row does, and a press moves a row over 150 ms, eased out.
+- On Android TV and Fire TV, a held Up or Down glides a page of rows or a
+  library grid on without stopping, rather than jumping a row at a time;
+  in a grid the posters stay at rest under one ring until the key comes
+  up. A press moves pages and grids over 150 ms, eased out, as on the
+  native Samsung app.
+- On Android TV and Fire TV, a held Left stops at a row's first tile
+  rather than opening the rail, and a held Right or Up stays in a
+  library's grid rather than running on to the A to Z jump, the chips and
+  the tabs; a press of its own still reaches them, as on the native
+  Samsung app.
+- On Android TV and Fire TV, pictures wait while a direction key is held:
+  the posters a row or page passes ask for nothing, and those where the
+  key comes up load then, so a weak TV spends nothing on what flies by.
+  Pictures already in memory still show at once. The rows of item pages,
+  search, people, collections and Recommended now load their pictures
+  ahead of the scroll, as Home's do, and a list stops loading pictures it
+  has moved past.
+- On Android TV and Fire TV, Search's recent searches stay put while the
+  chip you move to shows, and move only when it would pass the edge,
+  gliding as rows do, rather than bringing each chip to a third of the
+  way across.
+- On Android TV and Fire TV, a tile's focus look comes in and goes with
+  the native Samsung app's curves (150 ms eased out, 120 ms eased in), the
+  tile a held key stops on takes its look the same way, and Up from Home's
+  rows glides back to the hero over 150 ms rather than springing there.
+- On Android TV and Fire TV, an item page glides to its episodes and rows,
+  and back to its buttons, as Home does: over 150 ms, eased out, for a
+  press, and on without a stop under a held Up or Down.
 
 ### Fixed
 

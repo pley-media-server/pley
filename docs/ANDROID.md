@@ -85,6 +85,39 @@ heard it for that profile, the start asks "Who's watching?".
   as a row of cards over the scrubber, on the one it was going to; the
   Chapters button shows them on the one playing. Left and Right go
   through them, OK goes to one, Down or Back closes them.
+- A direction key held for 180 ms moves focus by itself, every 45 ms
+  (about 22 a second), on the app's own clock: the system's repeats start
+  later and come unevenly, so the app drops them. A held Left or Right
+  slides a row on at that pace, a tile every 45 ms, under a ring that
+  stays still at the row's left edge, the tiles keeping their resting
+  look; when the key comes up, focus lands on the tile under the ring (or
+  the next one the way the row was going) and the row settles there. Near
+  a row's end, where tiles no longer reach that edge, focus steps across
+  them instead. A held Up or Down glides a page of rows (Home, an item
+  page, search) or a grid on a row at each step, each glide a little
+  longer than the step, so the page never stops; in a grid the tiles keep
+  their resting look under one ring that stays still where focus is
+  going, until the key comes up. A press moves a row, a page or a grid
+  over 150 ms, eased out, and so does Up from the rows of Home or an item
+  page to its top. A tile's focus look comes in over 150 ms,
+  eased out, and goes over 120 ms, eased in, with the native Samsung app's
+  curves; where a held key's slide or glide stops, the still ring goes at
+  once and the tile's look comes in that way. Elsewhere under a held key a
+  tile's focus look changes evenly from one tile to the next, and
+  backdrops and info blocks wait until focus has rested 400 ms. With
+  Reduce motion a held key steps focus a tile or a row at a time and
+  nothing slides.
+  Search's recent searches move only when the next chip would pass the
+  gutter or the safe area's edge, and then glide as a row does.
+- A held key never leaves its row or grid: a held Left stops at a row's
+  first tile, and a held Right or Up at a library grid's edge. The rail,
+  the A to Z jump and the chips above the grid take a press of their own.
+- Pictures wait while a key is held: the tiles a row slides past or a
+  page glides past ask for none, unless the memory cache has them, and
+  no backdrop is fetched ahead; where the key comes up, the tiles on
+  screen and just past it load, with the backdrops around the focused
+  tile. Every page's rows ask for the pictures ahead of them, a screen
+  and a half, and stop asking for those the row has moved past.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

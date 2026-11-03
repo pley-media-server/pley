@@ -5,6 +5,7 @@ import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkPolicy
+import app.pley.android.designsystem.image.addArtworkHold
 import coil3.ComponentRegistry
 import coil3.ImageLoader
 import coil3.bitmapFactoryMaxParallelism
@@ -28,7 +29,9 @@ import okio.Path.Companion.toOkioPath
  *   cached pictures never go stale.
  * - Hardware bitmaps; two decodes at a time on T0.
  * - [ArtworkImage][app.pley.android.designsystem.image.ArtworkImage]s are
- *   asked for at their box's width and fall back in order ([ArtworkInterceptor]).
+ *   asked for at their box's width and fall back in order ([ArtworkInterceptor]),
+ *   and wait while a TV's direction key is held unless the memory cache
+ *   has them ([addArtworkHold]).
  * - No crossfade by default: artwork fades only when it came from disk or
  *   the network, and never on T0.
  */
@@ -49,6 +52,7 @@ object PleyImageLoader {
         val policy = ArtworkPolicy(profile.tier, maxOf(metrics.widthPixels, metrics.heightPixels))
         return ImageLoader.Builder(app)
             .components {
+                addArtworkHold()
                 add(ArtworkInterceptor(policy))
                 add(OkHttpNetworkFetcherFactory(callFactory = { client() }))
                 extra()

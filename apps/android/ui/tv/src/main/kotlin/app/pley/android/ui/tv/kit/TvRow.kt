@@ -4,6 +4,7 @@ package app.pley.android.ui.tv.kit
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -33,9 +35,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.CacheDrawScope
+import androidx.compose.ui.draw.DrawResult
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -43,28 +50,45 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
+import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
+import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /**
  * A row of tiles (design spec §2.4, D-pad rules 2 to 5): a header, then a
@@ -72,11 +96,19 @@ import kotlinx.coroutines.launch
  * moves under it.
  *
  * - The row is one focus group that comes back to the tile focused last
- *   (focusRestorer); [memory] keeps that tile across leaving the page, so
- *   Back lands on it.
- * - Left from the first tile enters the rail; Right stops at the end.
+ *   (focusRestorer), the first time to [enterOn] when given; [memory]
+ *   keeps that tile across leaving the page, so Back lands on it.
+ * - Left from the first tile enters the rail, on a press of its own: a
+ *   held Left stops there. Right stops at the end.
  * - Keys are the tiles' ids, and the content type their kind.
- * - While a key repeats, the row jumps a tile at a time without animating.
+ * - The row moves itself ([RowMotion]): to a pressed tile over 150 ms,
+ *   eased out. Under a held Left or Right from a tile at the gutter it
+ *   slides on, a tile per held move, beneath a ring that stays still at the
+ *   gutter, its tiles keeping their resting look ([TileQuiet]); when the
+ *   key comes up focus lands on the tile under the ring and the row
+ *   settles there.
+ * - Its pictures load a screen and a half ahead of the scroll; under a
+ *   held key they wait, and where it comes up loads them.
  * - A focused tile that leaves the row (Remove from Continue Watching)
  *   hands focus to the tile that takes its place; a row that goes with
  *   its last tile hands it to the row that takes its place ([TvRowColumn]).
@@ -100,16 +132,27 @@ fun TvRow(
     memory: FocusMemory? = null,
     initialFocus: Boolean = false,
     seeAll: SeeAll? = null,
-    state: LazyListState = rememberLazyListState(),
+    enterOn: Long? = null,
+    state: LazyListState = rememberTvRowState(),
 ) {
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
     val rail = LocalTvRailFocus.current
     val column = LocalTvRowColumn.current
-    val focusManager = LocalFocusManager.current
+    val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     val row = remember { RowFocus() }
-    val spec = remember(density, state) { TvScrolling.row(density, state) }
+    val motion = remember(state, gate) { RowMotion(state, gate, scope) }
+    motion.measure(density, kind, tiles.size + if (seeAll != null) 1 else 0, reduced)
+    // Pictures ahead of the scroll, not only as each tile composes: every page's rows, as on Samsung.
+    val images = remember(tiles) { tiles.map { it.image } }
+    rememberImagePrefetcher(
+        state = state,
+        images = images,
+        widthPx = with(density) { kind.tvWidth.roundToPx() },
+        heightPx = with(density) { kind.tvHeight.roundToPx() },
+        tier = LocalTvTier.current,
+    )
     val group = remember { FocusRequester() }
     if (column != null) {
         DisposableEffect(column, rowKey) {
@@ -130,13 +173,15 @@ fun TvRow(
             runCatching { heirFocus.requestFocus() }
         }
     }
+    val enter = remember { FocusRequester() }
     Column(
         modifier
             .fillMaxWidth()
             .focusRequester(group)
             .onFocusChanged {
                 row.hasFocus = it.hasFocus
-                if (it.hasFocus) column?.focusedRow = rowKey
+                motion.hasFocus = it.hasFocus
+                if (it.hasFocus) column?.focusedRow = rowKey else column?.left(rowKey)
             }
             .focusedRowOnTop(row)
             .focusGroup(),
@@ -150,7 +195,7 @@ fun TvRow(
             )
             Spacer(Modifier.height(PleyTv.HeaderToTiles))
         }
-        CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides TvScrolling.itself, LocalTileQuiet provides motion.quiet) {
             LazyRow(
                 state = state,
                 modifier = Modifier
@@ -158,26 +203,9 @@ fun TvRow(
                     .bleed(TileBleed)
                     .testTag("$ROW_TAG$rowKey")
                     .railOnLeftStopOnRight(rail)
-                    .focusRestorer()
-                    .onPreviewKeyEvent { event ->
-                        // Held keys: jump straight to the next tile, then move focus there
-                        // (it is already at the gutter, so nothing animates).
-                        if (!gate.holding || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                        val step = when (event.key) {
-                            Key.DirectionLeft -> -1
-                            Key.DirectionRight -> 1
-                            else -> return@onPreviewKeyEvent false
-                        }
-                        val count = tiles.size + if (seeAll != null) 1 else 0
-                        val target = row.focusedIndex + step
-                        if (row.focusedIndex < 0 || target !in 0 until count) return@onPreviewKeyEvent false
-                        scope.launch {
-                            state.scrollToItem(target)
-                            withFrameNanos { }
-                            focusManager.moveFocus(if (step < 0) FocusDirection.Left else FocusDirection.Right)
-                        }
-                        true
-                    },
+                    .focusRestorer(if (enterOn != null) enter else FocusRequester.Default)
+                    .onPreviewKeyEvent(motion::onKey)
+                    .drawWithCache { motion.drawRing(this, kind) },
                 contentPadding = PaddingValues(
                     start = PleyTv.Gutter,
                     end = TvSafeArea.Horizontal + kind.tvWidth,
@@ -187,6 +215,8 @@ fun TvRow(
                 horizontalArrangement = Arrangement.spacedBy(kind.tvGap),
             ) {
                 itemsIndexed(tiles, key = { _, tile -> tile.id }, contentType = { _, _ -> kind }) { index, tile ->
+                    val first = initialFocus && index == 0
+                    val remembered = if (memory != null) Modifier.rememberedFocus(memory, "$rowKey/${tile.id}", first) else Modifier.initialFocus(enabled = first)
                     TvTile(
                         model = tile,
                         kind = kind,
@@ -196,14 +226,15 @@ fun TvRow(
                             if (it.hasFocus) {
                                 row.focusedIndex = index
                                 row.focusedId = tile.id
+                                motion.focused(index)
+                                column?.follow(rowKey, motion.slots.coordinates(index))
                                 onFocus?.invoke(tile)
                             }
                         },
-                        focusModifier = if (memory != null) {
-                            Modifier.rememberedFocus(memory, "$rowKey/${tile.id}", initial = initialFocus && index == 0)
-                        } else {
-                            Modifier.initialFocus(enabled = initialFocus && index == 0)
-                        }.then(if (tile.id == heir) Modifier.focusRequester(heirFocus) else Modifier),
+                        focusModifier = remembered
+                            .focusSlot(motion.slots, index)
+                            .then(if (tile.id == heir) Modifier.focusRequester(heirFocus) else Modifier)
+                            .then(if (tile.id == enterOn) Modifier.focusRequester(enter) else Modifier),
                     )
                 }
                 if (seeAll != null) {
@@ -212,8 +243,15 @@ fun TvRow(
                             kind = kind,
                             label = seeAll.label,
                             onClick = seeAll.onClick,
-                            modifier = Modifier.onFocusChanged { if (it.hasFocus) row.focusedIndex = tiles.size },
-                            focusModifier = if (memory != null) Modifier.rememberedFocus(memory, "$rowKey/$SEE_ALL_KEY") else Modifier,
+                            modifier = Modifier.onFocusChanged {
+                                if (it.hasFocus) {
+                                    row.focusedIndex = tiles.size
+                                    motion.focused(tiles.size)
+                                    column?.follow(rowKey, motion.slots.coordinates(tiles.size))
+                                }
+                            },
+                            focusModifier = (if (memory != null) Modifier.rememberedFocus(memory, "$rowKey/$SEE_ALL_KEY") else Modifier)
+                                .focusSlot(motion.slots, tiles.size),
                         )
                     }
                 }
@@ -227,15 +265,191 @@ fun TvRow(
 class SeeAll(val label: String, val onClick: () -> Unit)
 
 /**
+ * A row's scroll state, composing half a screen past its edge: the tiles a
+ * slide brings in are made before they show, rather than in the frame they
+ * do. [initialFirstVisibleItemIndex] is the tile it opens at.
+ */
+@Composable
+fun rememberTvRowState(initialFirstVisibleItemIndex: Int = 0): LazyListState = rememberLazyListState(
+    cacheWindow = remember { LazyLayoutCacheWindow(aheadFraction = ROW_AHEAD, behindFraction = 0f) },
+    initialFirstVisibleItemIndex = initialFirstVisibleItemIndex,
+)
+
+/** How far past its edge a row composes, in screens. */
+private const val ROW_AHEAD = 0.5f
+
+/** The keys that act on the focused tile: Select (and Enter) opens it, Menu its actions. */
+private val TileKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Menu)
+
+/**
+ * How a row moves (design spec §2.4, D-pad rules 4 and 5), as the native
+ * Samsung app moves it. Focus on a tile brings the tile's left edge to the
+ * gutter, or the row as far as it goes; a row whose tiles all fit stays
+ * where it starts. A held Left or Right from a tile resting at the gutter
+ * slides the row on ([slide]), and the key coming up lands focus where it
+ * stopped ([land]). Its tiles all have the one width, so a tile's place is
+ * its index times the pitch; sizes are in pixels, from [measure].
+ */
+@Stable
+internal class RowMotion(private val state: LazyListState, private val gate: KeyRepeatGate, private val scope: CoroutineScope) {
+    val slots = FocusSlots()
+    val quiet = TileQuiet()
+
+    /** Whether focus is in the row: a slide that ends elsewhere lands without taking it back. */
+    var hasFocus = false
+
+    /** Which way the row slides under a held key: 1, -1, or 0 when it doesn't. */
+    private var sliding = 0
+    private var focused = -1
+    private val glide = TvGlide(state, scope)
+    private var looks: Job? = null
+    private val landing: () -> Unit = { land() }
+    private var pitch = 1
+    private var gap = 0
+    private var start = 0
+    private var end = 0
+    private var safe = 0
+    private var count = 0
+    private var reduced = false
+
+    /** The row's sizes: [count] tiles (See all with them) of [kind]. */
+    fun measure(density: Density, kind: TileKind, count: Int, reduced: Boolean) {
+        with(density) {
+            gap = kind.tvGap.roundToPx()
+            pitch = kind.tvWidth.roundToPx() + gap
+            start = PleyTv.Gutter.roundToPx()
+            end = (TvSafeArea.Horizontal + kind.tvWidth).roundToPx()
+            safe = TvSafeArea.Horizontal.roundToPx()
+        }
+        this.count = count
+        this.reduced = reduced
+    }
+
+    /** Tile [index] took focus: the row moves to it, unless a slide is moving it. */
+    fun focused(index: Int) {
+        focused = index
+        if (sliding == 0) moveTo(restFor(index))
+    }
+
+    /**
+     * A key the row's tiles get first. Under a held key, Left or Right from
+     * a tile resting at the gutter, where the row has room that way, starts
+     * a slide; while it runs, its keys go to it and focus waits. So does
+     * Select or Menu pressed meanwhile: focus is still on the tile the
+     * slide left behind, which they would open.
+     */
+    fun onKey(event: KeyEvent): Boolean {
+        if (sliding != 0 && event.key in TileKeys) return true
+        if (event.type != KeyEventType.KeyDown) return false
+        val step = when (event.key) {
+            Key.DirectionLeft -> -1
+            Key.DirectionRight -> 1
+            else -> return false
+        }
+        if (sliding != 0) return true
+        if (!gate.holding || reduced || focused < 0 || !canSlide(focused, step)) return false
+        slide(step)
+        return true
+    }
+
+    /** The ring that stays still at the gutter while the row slides; the tiles' wells' top is [TileBleed] down. */
+    fun drawRing(cache: CacheDrawScope, kind: TileKind): DrawResult = with(cache) {
+        val stroke = Stroke(PleyFocus.RingStroke.toPx())
+        val at = Offset(PleyTv.Gutter.roundToPx().toFloat(), TileBleed.roundToPx().toFloat())
+        onDrawWithContent {
+            drawContent()
+            if (quiet.on) drawStillRing(kind, at, stroke)
+        }
+    }
+
+    /** How far the row has scrolled. */
+    private fun scrolled(): Float = state.firstVisibleItemIndex * pitch.toFloat() + state.firstVisibleItemScrollOffset
+
+    private fun width(): Int = state.layoutInfo.viewportSize.width
+
+    /** The tiles' span, from the first's left edge to the last's right. */
+    private fun content(): Int = count * pitch - gap
+
+    /** Whether every tile fits before the safe area's edge unscrolled. */
+    private fun fits(): Boolean = start + content() <= width() - safe
+
+    /** The furthest the row scrolls: its last tile in from the edge, its end room after it. */
+    private fun most(): Float = (start + content() + end - width()).coerceAtLeast(0).toFloat()
+
+    /** Where the row rests with focus on tile [index]. */
+    private fun restFor(index: Int): Float = if (fits()) 0f else minOf(index * pitch.toFloat(), most())
+
+    /**
+     * Whether the row can slide [step] with focus at [index]: the tile rests
+     * at the gutter, where the slide's ring stays, and the row has room that
+     * way. Near the row's end, where tiles don't come to the gutter, focus
+     * steps across them instead, so the ring never leaps from tile to gutter.
+     */
+    private fun canSlide(index: Int, step: Int): Boolean {
+        if (fits()) return false
+        val rest = restFor(index)
+        if (abs(rest - index * pitch) >= 0.5f) return false
+        return if (step > 0) rest < most() - 0.5f else index > 0
+    }
+
+    private fun moveTo(target: Float) = glide.move(target - scrolled(), gate.holding, reduced)
+
+    /**
+     * The PSP's XMB way: the row slides to its end as one movement, a tile
+     * per held move, under a ring that stays still at the gutter; the tiles
+     * keep their resting look meanwhile, and focus waits where it was. The
+     * key coming up, or the row's end, lands it ([land]).
+     */
+    private fun slide(step: Int) {
+        sliding = step
+        quiet.start()
+        looks?.cancel()
+        gate.onRelease(landing)
+        val from = scrolled()
+        val to = if (step > 0) most() else 0f
+        val ms = (abs(to - from) / pitch * KeyRepeatGate.MOVE_INTERVAL_MS).roundToInt()
+        // At the row's end focus steps on from where the tiles stop coming to the gutter.
+        if (ms > 0) glide.slide(to - from, ms, landing) else land()
+    }
+
+    /**
+     * The slide ends, as the key comes up or the row reaches its end: focus
+     * lands on the tile under the ring, or the next one the way it was going,
+     * so the row only ever settles forward; the row settles on that tile, and
+     * the tiles take their looks back. Focus moves while they are still quiet,
+     * so the tile it leaves shows nothing of it. The settling takes over from
+     * the slide where it got to.
+     */
+    private fun land() {
+        val step = sliding
+        if (step == 0) return
+        sliding = 0
+        val under = scrolled() / pitch
+        // The row's tiles may have changed meanwhile, even to none.
+        val target = (if (step > 0) ceil(under - 0.01f) else floor(under + 0.01f)).toInt().coerceIn(0, (count - 1).coerceAtLeast(0))
+        if (!hasFocus || target == focused || !slots.focus(target)) moveTo(restFor(target))
+        looks = scope.launch { quiet.end(reduced) }
+    }
+}
+
+/**
  * A page of rows (design spec §2.4, §4.1): a lazy column that brings the
- * focused row's header to y = 188, hides tiles scrolled under the rail
- * ([railFade]) and, while a key repeats, jumps a row at a time without
- * animating. Give each [TvRow] its rowKey as its item key.
+ * focused row's header to y = 172 ([headerY]) and hides tiles scrolled
+ * under the rail ([railFade]). Give each [TvRow] its rowKey as its item
+ * key.
  *
- * A page with a hero (Home, item pages) makes it the first item and says
- * how tall it is ([heroHeight]): focus in the hero scrolls the page back
- * to its top, and Down from the hero's buttons finds the first row, since
- * both are in the one column.
+ * The column moves itself to a row's tile as it takes focus, as the
+ * native Samsung app's RowColumnView does: over 150 ms, eased out, for a
+ * press; evenly over [KeyRepeatGate.GLIDE_MS] for a held Up or Down's step,
+ * a little longer than the time between steps, so the glides run into
+ * each other and the page moves on without stopping (D-pad rule 5). What
+ * else isn't a row is scrolled to as Compose scrolls to focus.
+ *
+ * A page with a hero (Home, item pages) makes it the first item, marks it
+ * ([tvRowColumnHero]) and says how tall it is ([heroHeight]): focus in the
+ * hero takes the page back to its top, gliding as to a row, and Down from
+ * the hero's buttons finds the first row, since both are in the one
+ * column.
  *
  * Once the page has scrolled, nothing is drawn above the focused row's
  * header ([clearAbove]): the rows pass beneath the page's info block
@@ -244,7 +458,7 @@ class SeeAll(val label: String, val onClick: () -> Unit)
 @Composable
 fun TvRowColumn(
     modifier: Modifier = Modifier,
-    state: LazyListState = rememberLazyListState(),
+    state: LazyListState = rememberTvRowColumnState(),
     contentPadding: PaddingValues = PaddingValues(bottom = LastRowRoom),
     headerY: Dp = PleyTv.FocusedRowHeaderY,
     heroHeight: Dp = 0.dp,
@@ -252,15 +466,9 @@ fun TvRowColumn(
     content: LazyListScope.() -> Unit,
 ) {
     val density = LocalDensity.current
-    val gate = LocalKeyRepeatGate.current
-    val focusManager = LocalFocusManager.current
-    val scope = rememberCoroutineScope()
-    val holder = remember { TvRowColumnFocus() }
-    holder.state = state
-    holder.scope = scope
-    holder.hadFocus = holder.hasFocus
     val tileTop = headerY + PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles
-    val spec = remember(density, tileTop, state, heroHeight) { TvScrolling.page(density, tileTop, state, heroHeight) }
+    val holder = rememberTvRowColumnFocus(state, with(density) { tileTop.toPx() })
+    val spec = remember(density, tileTop, state, heroHeight, holder) { holder.spec(TvScrolling.page(density, tileTop, state, heroHeight)) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides holder) {
         LazyColumn(
             state = state,
@@ -269,7 +477,7 @@ fun TvRowColumn(
             modifier = modifier
                 .railFade()
                 .clearAboveHeader(state, headerY, clearAbove)
-                .onFocusChanged { holder.hasFocus = it.hasFocus }
+                .tvRowColumnFocus(holder)
                 // Coming back from the rail: the row focus was in, then (its own restorer) the tile.
                 // focusRestorer here would pick by composition key, which lazy rows share.
                 .focusProperties {
@@ -278,30 +486,87 @@ fun TvRowColumn(
                             holder.focusedRow?.let(holder.rows::get)?.let { runCatching { it.requestFocus() } }
                         }
                     }
-                }
-                .onPreviewKeyEvent { event ->
-                    if (!gate.holding || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    val step = when (event.key) {
-                        Key.DirectionUp -> -1
-                        Key.DirectionDown -> 1
-                        else -> return@onPreviewKeyEvent false
-                    }
-                    val focused = holder.focusedRow ?: return@onPreviewKeyEvent false
-                    val index = state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == focused }?.index
-                        ?: return@onPreviewKeyEvent false
-                    val target = index + step
-                    if (target !in 0 until state.layoutInfo.totalItemsCount) return@onPreviewKeyEvent false
-                    val before = with(density) { contentPadding.calculateTopPadding().roundToPx() }
-                    val headerAt = with(density) { headerY.roundToPx() }
-                    scope.launch {
-                        if (target == 0 && heroHeight > 0.dp) state.scrollToItem(0) else state.scrollToItem(target, before - headerAt)
-                        withFrameNanos { }
-                        focusManager.moveFocus(if (step < 0) FocusDirection.Up else FocusDirection.Down)
-                    }
-                    true
                 },
             content = content,
         )
+    }
+}
+
+/**
+ * A page of rows' scroll state, composing about a row of posters below the
+ * screen: the next row and its pictures are on their way before focus
+ * gets there, and a held Down glides onto rows already made.
+ */
+@Composable
+fun rememberTvRowColumnState(): LazyListState =
+    rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = ColumnAhead, behind = 0.dp) })
+
+/** About one row of posters, with its header and caption. */
+private val ColumnAhead = 300.dp
+
+/**
+ * How a lazy column of rows on [state] moves to its rows' tiles, which
+ * come to [tileTop] (pixels from its top): [TvRowColumn]'s, and the item
+ * page's, whose rows sit among sections of its own. The column provides
+ * it as [LocalTvRowColumn], carries [tvRowColumnFocus], and scrolls with
+ * [TvRowColumnFocus.spec].
+ */
+@Composable
+internal fun rememberTvRowColumnFocus(state: LazyListState, tileTop: Float): TvRowColumnFocus {
+    val scope = rememberCoroutineScope()
+    val holder = remember { TvRowColumnFocus() }
+    holder.state = state
+    holder.scope = scope
+    holder.glide = remember(state, scope) { TvGlide(state, scope) }
+    holder.gate = LocalKeyRepeatGate.current
+    holder.reduced = reducedMotion()
+    holder.hadFocus = holder.hasFocus
+    holder.tileTop = tileTop
+    return holder
+}
+
+/** Tells [column] whether focus is in this column and where it is laid out. */
+internal fun Modifier.tvRowColumnFocus(column: TvRowColumnFocus): Modifier =
+    onFocusChanged { column.hasFocus = it.hasFocus }.onPlaced { column.coordinates = it }
+
+/**
+ * The page's own spec for what isn't a row; nothing for a row's tiles or
+ * the hero, which the column moves to itself ([TvRowColumnFocus.follow],
+ * [TvRowColumnFocus.heroFocused]).
+ */
+@Stable
+private class ColumnSpec(private val page: BringIntoViewSpec, private val column: TvRowColumnFocus) : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        if (column.following != null || column.inHero) 0f else page.calculateScrollDistance(offset, size, containerSize)
+}
+
+/**
+ * Marks a [TvRowColumn]'s hero, its first item: focus coming into it
+ * takes the page back to its top as the page goes to a row, over 150 ms,
+ * eased out, as the native Samsung app's page does, where Compose's own
+ * scrolling would spring there. Nothing outside a page of rows (a
+ * [TvRowColumn], the item page's column).
+ */
+fun Modifier.tvRowColumnHero(): Modifier = this then TvRowColumnHeroElement
+
+private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHeroNode>() {
+    override fun create() = TvRowColumnHeroNode()
+
+    override fun update(node: TvRowColumnHeroNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "tvRowColumnHero"
+    }
+}
+
+private class TvRowColumnHeroNode : Modifier.Node(), FocusEventModifierNode, CompositionLocalConsumerModifierNode {
+    private var hadFocus = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.hasFocus == hadFocus) return
+        hadFocus = focusState.hasFocus
+        val column = currentValueOf(LocalTvRowColumn) ?: return
+        if (hadFocus) column.heroFocused() else column.heroLeft()
     }
 }
 
@@ -326,7 +591,7 @@ private fun Modifier.clearAboveHeader(state: LazyListState, headerY: Dp, enabled
 /** Room kept above the focused row's header when the rows above it are cleared. */
 private val HeaderClearance = 12.dp
 
-/** Which row of a [TvRowColumn] has focus, by its key. */
+/** Which row of a [TvRowColumn] has focus, by its key, and how the column moves to it. */
 @Stable
 internal class TvRowColumnFocus {
     var focusedRow: Any? = null
@@ -341,6 +606,72 @@ internal class TvRowColumnFocus {
     var hadFocus = false
     var state: LazyListState? = null
     var scope: CoroutineScope? = null
+    var gate: KeyRepeatGate? = null
+    var reduced = false
+
+    /** Where a focused tile's top comes, in pixels from the column's top: under its row's header at the line. */
+    var tileTop = 0f
+
+    /** Where a row's focused tile comes instead of [tileTop], by the row's key: the item page's episodes, under their tabs. */
+    val tileTops = HashMap<Any, Float>()
+
+    /** Where the column is laid out, for where its rows' tiles are. */
+    var coordinates: LayoutCoordinates? = null
+
+    /** The row whose tile has focus, which the column moves to itself; null while focus is elsewhere (a hero). */
+    var following: Any? = null
+        private set
+    /** How the column moves, on [state]. */
+    var glide: TvGlide? = null
+
+    /** [page] for what the column doesn't move to itself: nothing for a row's tile or the hero ([follow], [heroFocused]). */
+    fun spec(page: BringIntoViewSpec): BringIntoViewSpec = ColumnSpec(page, this)
+
+    /**
+     * A tile of row [rowKey] took focus, laid out at [tile]: the column
+     * brings the tile's top to [tileTop] (or the row's own, [tileTops]).
+     * Within the row the column goes on as it was; a tile not laid out yet
+     * leaves it to Compose.
+     */
+    fun follow(rowKey: Any, tile: LayoutCoordinates?) {
+        val glide = glide
+        val column = coordinates
+        if (glide == null || column == null || tile == null || !column.isAttached || !tile.isAttached) {
+            following = null
+            return
+        }
+        val same = following == rowKey
+        following = rowKey
+        if (same && glide.moving) return
+        glide.move(column.localPositionOf(tile, Offset.Zero).y - (tileTops[rowKey] ?: tileTop), gate?.holding == true, reduced)
+    }
+
+    /** Focus left row [rowKey]: what takes it next, if not a row's tile or the hero, Compose scrolls to. */
+    fun left(rowKey: Any) {
+        if (following == rowKey) following = null
+    }
+
+    /** Whether focus is in the hero ([tvRowColumnHero]), which the column takes back to its top itself. */
+    var inHero = false
+        private set
+
+    /**
+     * Focus came into the hero: the column glides back to its top. From a
+     * row the hero still shows, so how far that is is known; otherwise
+     * Compose scrolls there.
+     */
+    fun heroFocused() {
+        val list = state
+        val glide = glide
+        if (list == null || glide == null || list.firstVisibleItemIndex != 0) return
+        inHero = true
+        glide.move(-list.firstVisibleItemScrollOffset.toFloat(), gate?.holding == true, reduced)
+    }
+
+    /** Focus left the hero. */
+    fun heroLeft() {
+        inHero = false
+    }
 
     /**
      * Row [rowKey] went with focus in it (its last tile left): once the
@@ -428,7 +759,7 @@ private val TileBleed = 16.dp
 
 /**
  * Room under a page's last row, so it too can come up to the header line
- * (y = 188): the screen, less the line and the shortest row (landscape
+ * (y = 172): the screen, less the line and the shortest row (landscape
  * tiles with their header and caption).
  */
 val LastRowRoom: Dp = PleyTv.CanvasHeight - PleyTv.FocusedRowHeaderY -
