@@ -266,8 +266,23 @@ sub test_live_troubles()
     tkFalse(liveTrouble({ status: 404, message: "" }, "x").retry)
     tkEqual(liveTrouble({ status: 503, message: "the channel didn't start" }, "Film Four").title, "Film Four isn't playing")
     tkEqual(liveTrouble({ status: 500, message: "boom" }, "Film Four").title, "Film Four didn't start")
-    tkFalse(liveTrouble({ status: 410, message: "the channel was stopped" }, "x").retry, "stopped by an administrator")
     tkEqual(liveTroubleButtons(busy), [{ label: "Try again", action: "retry", channelId: 0 }, { label: "Other channels", action: "list", channelId: 0 }, { label: "Back", action: "back", channelId: 0 }], "without what holds the connections")
+end sub
+
+sub test_live_stopped_on_the_server()
+    ' Taken over, or stopped there: the server's words, with Watch again (as any watch, never taking a connection).
+    taken = liveTrouble({ status: 410, message: "Gone.", data: { code: "session_stopped", message: "Alex is watching Two HD now, on the connection this channel used." } }, "One")
+    tkEqual(taken.kind, "stopped")
+    tkEqual(taken.title, "Live TV stopped")
+    tkEqual(taken.lines, "Alex is watching Two HD now, on the connection this channel used.")
+    tkTrue(taken.retry, "watching again may well work")
+    tkEqual(liveTroubleButtons(taken), [{ label: "Watch again", action: "retry", channelId: 0 }, { label: "Other channels", action: "list", channelId: 0 }, { label: "Back", action: "back", channelId: 0 }])
+    ' Without words: not a status's sentence.
+    bare = liveTrouble({ status: 410, message: "It was stopped.", data: { code: "session_stopped", message: invalid } }, "One")
+    tkEqual(bare.message, "This channel isn't being watched any more.")
+    tkEqual(liveStopped("").lines, "This channel isn't being watched any more.")
+    tkEqual(liveStopped(invalid).message, "This channel isn't being watched any more.")
+    tkEqual(liveStopped("Watching moved to Two HD on another device.").message, "Watching moved to Two HD on another device.")
 end sub
 
 sub test_live_busy_connections()

@@ -130,11 +130,16 @@ end sub
 
 ' Watch state, My List, libraries or Live TV changed elsewhere: Home asks again
 ' (now if it shows, else as it shows); a stream of this Roku's stopped from
-' elsewhere ends at once.
+' elsewhere ends at once, as does a live channel whose connection someone
+' took over.
 sub onServerEvent(event as object)
     data = event.getData()
     if httpString(data.type) = "session_stopped"
         if m.stack.Count() > 0 and m.stack.Peek().hasField("serverStopped") then m.stack.Peek().serverStopped = data
+        return
+    end if
+    if httpString(data.type) = "live_taken_over"
+        if m.stack.Count() > 0 and m.stack.Peek().hasField("liveTakenOver") then m.stack.Peek().liveTakenOver = data
         return
     end if
     if reqIsEvent(data)

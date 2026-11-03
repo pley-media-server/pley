@@ -12,6 +12,9 @@
         <field id="params" type="assocarray" />
         <field id="navigate" type="assocarray" alwaysNotify="true" />
         <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The server's live_taken_over: someone took over a channel's
+             connection from this account ({ session_id, channel_id, message }). -->
+        <field id="liveTakenOver" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />

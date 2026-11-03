@@ -305,6 +305,11 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   change channel, tuning 0.7 s after the last press. Left opens the
   channel list; Right, OK or Options show the banner. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
+- **Taken over:** the server's `live_taken_over` event for the channel
+  playing (the scene hands it to the player) stops it at once, before its
+  stream breaks off. A stream that breaks asks its playlist again, and a
+  `410` there stops it too. Either way the notice says "Live TV stopped"
+  with the server's words, and Watch again in place of Try again.
 - **Radio:** a channel with no picture keeps its card with what's on.
 
 ### Requests and Discover

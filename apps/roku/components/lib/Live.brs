@@ -650,8 +650,7 @@ end function
 ' the source in use, 409: the server's message, and what holds each
 ' connection as liveBusyConnections reads them, lines the notice's), "missing"
 ' (404), "closed" (403), "stopped" (410: its connection taken over, or
-' stopped by an administrator, the server's message saying which),
-' "unavailable" (503) or "other".
+' stopped by an administrator, liveStopped), "unavailable" (503) or "other".
 function liveTrouble(answer as object, channelName as string) as object
     status = answer.status
     message = httpSentence(answer.message)
@@ -659,13 +658,29 @@ function liveTrouble(answer as object, channelName as string) as object
         connections = liveBusyConnections(answer.data)
         return { kind: "busy", title: "All connections are in use", message: message, retry: true, connections: connections, lines: liveBusyLines(message, connections) }
     end if
+    if status = 410
+        ' The server's own words, not a status's.
+        body = httpObject(answer.data)
+        words = ""
+        if body <> invalid then words = httpString(body.message)
+        return liveStopped(words)
+    end if
     problem = { kind: "other", title: channelName + " didn't start", message: message, retry: true, connections: [] }
     if status = 404 then problem = { kind: "missing", title: "This channel isn't here any more", message: "It may have been hidden, or its source removed.", retry: false, connections: [] }
     if status = 403 then problem = { kind: "closed", title: "Live TV isn't open to this account", message: "An administrator can open it in Settings → Live TV, on the web.", retry: false, connections: [] }
-    if status = 410 then problem = { kind: "stopped", title: "Watching stopped", message: message, retry: false, connections: [] }
     if status = 503 then problem = { kind: "unavailable", title: channelName + " isn't playing", message: message, retry: true, connections: [] }
     problem.lines = problem.message
     return problem
+end function
+
+' Watching ended on the server: its connection taken over (the event
+' live_taken_over, or the playlist's 410), or stopped there. The server's
+' own words, as every app says them, else "This channel isn't being watched
+' any more."; Watch again tunes the channel as any watch does.
+function liveStopped(message as dynamic) as object
+    words = httpSentence(message)
+    if words = "" then words = "This channel isn't being watched any more."
+    return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
 end function
 
 ' The connections of a 409 ({ connections: [{ channel_id, channel_name,
@@ -721,8 +736,8 @@ end function
 
 ' The buttons of a trouble's notice, and what each does ([{ label, action,
 ' channelId }]): "Watch here instead" for each connection that may be taken
-' over (naming its channel when there are several), Try again, Other
-' channels, Back.
+' over (naming its channel when there are several), Try again (Watch again
+' when watching ended on the server), Other channels, Back.
 function liveTroubleButtons(problem as object) as object
     out = []
     takeable = []
@@ -734,7 +749,11 @@ function liveTroubleButtons(problem as object) as object
         if takeable.Count() > 1 then label = "Watch here instead of " + c.channelName
         out.Push({ label: label, action: "takeOver", channelId: c.channelId })
     end for
-    if problem.retry then out.Push({ label: "Try again", action: "retry", channelId: 0 })
+    if problem.retry
+        label = "Try again"
+        if problem.kind = "stopped" then label = "Watch again"
+        out.Push({ label: label, action: "retry", channelId: 0 })
+    end if
     out.Push({ label: "Other channels", action: "list", channelId: 0 })
     out.Push({ label: "Back", action: "back", channelId: 0 })
     return out
