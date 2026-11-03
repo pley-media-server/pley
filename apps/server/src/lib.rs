@@ -9,6 +9,7 @@ pub mod api;
 pub mod auth;
 pub mod backup;
 pub mod bandwidth;
+pub mod bonjour;
 pub mod catalog;
 pub mod collections;
 pub mod config;
@@ -32,6 +33,7 @@ pub mod listing;
 pub mod livetv;
 pub mod logging;
 pub mod markers;
+pub mod mdns;
 pub mod metadata;
 pub mod network;
 pub mod oauth;
@@ -215,7 +217,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 /// per data directory, see [`instance`]) and the first address is bound: a
 /// second copy, or one whose port is taken, stops without touching anything.
 /// The other addresses, the compatibility APIs and discovery follow (see
-/// [`network`]).
+/// [`network`]), and the Bonjour announcement (see [`bonjour`]).
 ///
 /// On shutdown the listeners close, the event streams end, and requests in
 /// progress get [`Config::shutdown_grace`] to finish; connections still open
@@ -241,6 +243,9 @@ pub async fn run_with_tray(config: Config, tray: Option<desktop::TrayLauncher>) 
     if state.network.jellyfin_on_web() {
         tracing::info!("the Jellyfin-compatible API answers on Pley's port, to its clients");
     }
+    for warning in &state.config.file_warnings {
+        tracing::warn!("pley.toml: {warning}");
+    }
     LISTENING.store(true, std::sync::atomic::Ordering::SeqCst);
     if let Some(code) = state.auth.setup.shown() {
         tracing::warn!(
@@ -254,6 +259,8 @@ pub async fn run_with_tray(config: Config, tray: Option<desktop::TrayLauncher>) 
     let stopping = state.stopping.clone();
     let listeners = tokio_util::task::TaskTracker::new();
     let network = tokio::spawn(network::run(state.clone(), app, listener, retry, listeners.clone()));
+    // On the tracker: the goodbye goes out before pley stops.
+    listeners.spawn(bonjour::run(state.clone()));
     shutdown_signal(&stopping).await;
     tracing::info!("shutting down");
     LISTENING.store(false, std::sync::atomic::Ordering::SeqCst);

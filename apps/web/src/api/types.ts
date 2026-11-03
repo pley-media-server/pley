@@ -970,8 +970,14 @@ export interface ListenChoice {
   plex: string[];
   /** The Plex-compatible API answers on pley's own port, to its apps and tools (the default). */
   plex_on_web: boolean;
-  /** Whether the pley apps on the networks find the server. */
+  /** Whether the pley apps on the networks find the server (UDP). */
   discovery: boolean;
+  /** Whether pley announces itself by Bonjour, for Apple's apps. */
+  bonjour: boolean;
+  /** The adapters Bonjour announces from, by name: every one the web app listens on when empty. */
+  bonjour_adapters: string[];
+  /** Bonjour's host name, the label before `.local`: the generated one when empty. */
+  bonjour_host_name: string;
 }
 
 export type ListenerKind = "web" | "jellyfin" | "plex" | "discovery";
@@ -998,9 +1004,11 @@ export interface NetworkAdapter {
 
 export interface NetworkSettings extends ListenChoice {
   /** What the command line or the environment sets: it can't change here. */
-  fixed: { web: boolean; jellyfin: boolean; plex: boolean; discovery: boolean };
+  fixed: { web: boolean; jellyfin: boolean; plex: boolean; discovery: boolean; bonjour: boolean };
   listeners: NetworkListener[];
   adapters: NetworkAdapter[];
+  /** Bonjour's host name when none is chosen (`pley-` and the server id's start). */
+  bonjour_host_default: string;
   /** Where a change is saved. */
   config_file: string;
   /** Windows Firewall decides which kinds of network reach pley. */

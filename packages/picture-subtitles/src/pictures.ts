@@ -32,6 +32,88 @@ export interface PictureDecoder {
   ownDurationMs(index: number): number | null;
 }
 
+/**
+ * A picture's side at most, in pixels (a PGS object, a DVB region):
+ * subtitles are drawn for 4K screens at most, and a file's sizes are
+ * outside input.
+ */
+export const MAX_SIDE = 4096;
+
+/**
+ * The most pixels a frame decodes, all its pictures together: a 4K
+ * screen's worth. A file can place a 4096² picture many times over, and
+ * each pixel costs 4 bytes once coloured.
+ */
+export const MAX_PIXELS = 3840 * 2160;
+
+/**
+ * The most work decoding a frame takes, in pixels filled or drawn, a byte
+ * read costing as many pixels as it takes as long: eight 4K screens' worth,
+ * where a real frame takes a fraction of one.
+ */
+export const MAX_WORK = 8 * MAX_PIXELS;
+
+/**
+ * The segments read of one sample: a real display set has a handful, where
+ * a crafted one could hold 150,000 in a MiB, each kept as an object.
+ */
+export const MAX_SEGMENTS = 256;
+
+/**
+ * The most display sets a frame is decoded from, back to the last that
+ * holds everything it needs (an epoch start, an acquisition point): real
+ * tracks have one every few, or every few hundred in a long palette
+ * animation, and without that, each frame would read the whole track.
+ */
+export const MAX_EPOCH = 4096;
+
+/** Decoded frames kept per track, and the most bytes they hold together. */
+export const CACHE_FRAMES = 25;
+export const CACHE_BYTES = 128 << 20;
+
+/** The bytes of a frame's pictures. */
+export function frameBytes(frame: PictureFrame | null | undefined): number {
+  let bytes = 0;
+  for (const b of frame?.bitmaps ?? []) bytes += b.rgba.byteLength;
+  return bytes;
+}
+
+/**
+ * The frames decoded last, the oldest dropped first: a few around the
+ * playhead are enough, as seeking decodes again. A crafted file's frames
+ * can each be a 4K screen's worth, so they are kept by bytes too, but the
+ * frame just decoded always stays: it is the one showing.
+ */
+export class FrameCache {
+  private readonly frames = new Map<number, PictureFrame | null>();
+  private bytes = 0;
+  private readonly most: number;
+  private readonly mostBytes: number;
+
+  constructor(most = CACHE_FRAMES, mostBytes = CACHE_BYTES) {
+    this.most = most;
+    this.mostBytes = mostBytes;
+  }
+
+  has(index: number): boolean {
+    return this.frames.has(index);
+  }
+
+  /** The frame of `index`, from `decode` unless kept. */
+  get(index: number, decode: (index: number) => PictureFrame | null): PictureFrame | null {
+    if (this.frames.has(index)) return this.frames.get(index)!;
+    const frame = decode(index);
+    this.frames.set(index, frame);
+    this.bytes += frameBytes(frame);
+    for (const [kept, old] of this.frames) {
+      if (this.frames.size === 1 || (this.frames.size <= this.most && this.bytes <= this.mostBytes)) break;
+      this.frames.delete(kept);
+      this.bytes -= frameBytes(old);
+    }
+    return frame;
+  }
+}
+
 /** Limited-range YCbCr to RGB: BT.709 for HD planes, BT.601 for SD (as FFmpeg's decoders). */
 export function ycbcrToRgb(y: number, cb: number, cr: number, hd: boolean): [number, number, number] {
   const yy = 1.164383 * (y - 16);

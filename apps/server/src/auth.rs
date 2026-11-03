@@ -160,47 +160,85 @@ const HASHING_AT_ONCE: usize = 4;
 /// How long a password waits its turn before pley says it is busy.
 const HASHING_WAIT: Duration = Duration::from_secs(10);
 
+/// The answer to a password pley can't check now.
+fn busy_hashing() -> AppError {
+    AppError::Unavailable("Pley is busy checking passwords: try again in a moment".into())
+}
+
 /// Runs Argon2 `work` when its turn comes.
 async fn hashing<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> Result<T, AppError> {
     static TURNS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(HASHING_AT_ONCE);
     let _turn = tokio::time::timeout(HASHING_WAIT, TURNS.acquire())
         .await
-        .map_err(|_| AppError::Unavailable("Pley is busy checking passwords: try again in a moment".into()))?
+        .map_err(|_| busy_hashing())?
         .map_err(|e| AppError::Internal(e.into()))?;
     tokio::task::spawn_blocking(work).await.map_err(|e| AppError::Internal(e.into()))
 }
 
 pub async fn hash_password(password: String) -> Result<String, AppError> {
-    hashing(move || {
-        Argon2::default()
-            .hash_password(password.as_bytes())
-            .map(|h: PasswordHash| h.to_string())
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("hashing password: {e}")))
+    hashing(move || hashed(Argon2::default().hash_password(password.as_bytes()).map(|h| h.to_string()))).await?
+}
+
+/// A hash Argon2 made, or why not. Without the memory it works in, pley is
+/// busy, as for a check ([`matched`]).
+fn hashed(made: argon2::password_hash::Result<String>) -> Result<String, AppError> {
+    made.map_err(|e| match e {
+        argon2::password_hash::Error::OutOfMemory => {
+            tracing::warn!("out of memory hashing a password or PIN: answered that Pley is busy");
+            busy_hashing()
+        }
+        e => AppError::Internal(anyhow::anyhow!("hashing password: {e}")),
+    })
+}
+
+/// A real Argon2 hash of a random password, made once: checking a login for
+/// an unknown user against it costs the same as checking a real one. When
+/// it can't be made yet (pley busy, or out of memory), the sign-in is told
+/// so, as a known user's would be, and the next one tries again: an empty
+/// hash kept instead would answer unknown users at once, and their timing
+/// would tell which usernames exist.
+pub async fn dummy_password_hash() -> Result<String, AppError> {
+    static HASH: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
+    kept(&HASH, async {
+        let mut secret = [0u8; 16];
+        getrandom::fill(&mut secret).expect("the system's random numbers");
+        hash_password(hex::encode(secret)).await
+    })
+    .await
+}
+
+/// What `cell` holds, made by `make` the first time it works.
+async fn kept(
+    cell: &tokio::sync::OnceCell<String>,
+    make: impl std::future::Future<Output = Result<String, AppError>>,
+) -> Result<String, AppError> {
+    cell.get_or_try_init(|| make).await.cloned()
+}
+
+/// Whether `password` matches `hash` (never for the markers of accounts
+/// without a password); an error when pley is too busy to check, or hasn't
+/// the memory to ([`matched`]).
+pub async fn verify_password(password: String, hash: String) -> Result<bool, AppError> {
+    hashing(move || match PasswordHash::new(&hash) {
+        Ok(parsed) => matched(Argon2::default().verify_password(password.as_bytes(), &parsed)),
+        Err(_) => Ok(false),
     })
     .await?
 }
 
-/// A real Argon2 hash of a random password, made once: checking a login for
-/// an unknown user against it costs the same as checking a real one.
-pub async fn dummy_password_hash() -> String {
-    static HASH: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
-    HASH.get_or_init(|| async {
-        let mut secret = [0u8; 16];
-        getrandom::fill(&mut secret).expect("the system's random numbers");
-        hash_password(hex::encode(secret)).await.unwrap_or_default()
-    })
-    .await
-    .clone()
-}
-
-/// Whether `password` matches `hash` (never for the markers of accounts
-/// without a password); an error when pley is too busy to check.
-pub async fn verify_password(password: String, hash: String) -> Result<bool, AppError> {
-    hashing(move || {
-        PasswordHash::new(&hash)
-            .is_ok_and(|parsed| Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok())
-    })
-    .await
+/// What an Argon2 check says of the password. Without the memory it works
+/// in (the system is out of it), it said nothing: that is pley being busy,
+/// never a wrong password, which would count towards locking the account
+/// or its PIN.
+fn matched(check: argon2::password_hash::Result<()>) -> Result<bool, AppError> {
+    match check {
+        Ok(()) => Ok(true),
+        Err(argon2::password_hash::Error::OutOfMemory) => {
+            tracing::warn!("out of memory checking a password or PIN: answered that Pley is busy");
+            Err(busy_hashing())
+        }
+        Err(_) => Ok(false),
+    }
 }
 
 pub fn new_token() -> String {
@@ -1436,6 +1474,27 @@ mod tests {
         let checks = (0..24).map(|_| verify_password("hunter22".into(), hash.clone()));
         let results = futures::future::join_all(checks).await;
         assert!(results.into_iter().all(|r| r.unwrap()));
+    }
+
+    #[test]
+    fn a_check_without_the_memory_for_it_is_no_wrong_password() {
+        use argon2::password_hash::Error;
+        assert!(matches!(matched(Ok(())), Ok(true)));
+        assert!(matches!(matched(Err(Error::PasswordInvalid)), Ok(false)));
+        assert!(matches!(matched(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
+        // Making a hash too: busy, not an error of pley's.
+        assert!(matches!(hashed(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
+        assert!(matches!(hashed(Err(Error::Algorithm)), Err(AppError::Internal(_))));
+    }
+
+    #[tokio::test]
+    async fn a_dummy_hash_that_couldnt_be_made_is_made_next_time() {
+        let cell = tokio::sync::OnceCell::new();
+        assert!(matches!(kept(&cell, async { Err(busy_hashing()) }).await, Err(AppError::Unavailable(_))));
+        assert!(cell.get().is_none(), "nothing kept, an empty hash least of all");
+        assert_eq!(kept(&cell, async { Ok("$argon2id$made".to_owned()) }).await.unwrap(), "$argon2id$made");
+        assert_eq!(kept(&cell, async { Err(busy_hashing()) }).await.unwrap(), "$argon2id$made", "kept once made");
+        assert!(dummy_password_hash().await.unwrap().starts_with("$argon2id$"));
     }
 
     #[test]
