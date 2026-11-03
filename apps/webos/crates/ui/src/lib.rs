@@ -17,8 +17,9 @@
 //!   Remote's pointer (hover focuses without re-centring, a click is OK, the wheel steps focus or
 //!   scrolls a group that takes it).
 //! - **Animation**: [`Ui::animate`] and its colour and rectangle forms, with the design's
-//!   [`Motion`]s; held keys, Reduce motion and Low-tier TVs snap them; only a running animation
-//!   asks for another frame.
+//!   [`Motion`]s; held keys, Reduce motion and Low-tier TVs snap them, except that under a held
+//!   key scrolls glide evenly from move to move ([`Ui::scroll`]); only a running animation asks
+//!   for another frame.
 //! - **Theme**: every colour, type style, spacing, radius, scrim and focus treatment of the
 //!   design, the canvas's fixed lines and the device tiers ([`theme`]).
 //!

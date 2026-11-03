@@ -58,6 +58,10 @@ describes how they are made.
 - A held arrow key moves focus as in the Samsung app: from 180 ms on, about
   22 times a second at an even pace, rather than every other one of the
   TV's uneven repeats.
+- Under a held arrow key, rows, pages, lists and poster grids glide
+  smoothly from tile to tile instead of jumping. In a library, Collections,
+  playlists and a collection's page, the rows slide under one still ring,
+  and their pictures load once the key is let go.
 
 ### Fixed
 

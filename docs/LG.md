@@ -94,7 +94,13 @@ differs on LG:
 - **A held arrow** moves focus by itself once held 180 ms, then every
   45 ms on the app's own clock, as in the Samsung app: sooner and more
   evenly than the TV's repeats, which only say the key is still down.
-  Backdrops and details follow focus once it has rested 400 ms.
+  Rows, pages, lists and grids glide evenly under it, each move running
+  into the next, while tiles snap to their focus. In a grid of posters
+  (a library, Collections, playlists, a collection's page) one ring stays
+  still on the focused line while the rows slide under it, the tiles
+  keeping their resting look, and the pictures of the rows going by load
+  once the key is let go. With Reduce motion everything steps. Backdrops
+  and details follow focus once it has rested 400 ms.
 - **In the player** the keys follow the Samsung app's. With the controls
   hidden, OK and Up show them on the scrubber and Down on Play/Pause.
   Left and Right show them and step 10 s, and a held key scrubs faster

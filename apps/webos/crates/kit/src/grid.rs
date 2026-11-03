@@ -2,7 +2,9 @@
 //! columns from x 96, 14 apart, as many as fit before x 858 (the
 //! A–Z jump control's room); 20 dp from a caption to the next row's wells. The focused row's wells
 //! stay 14 dp under the grid's top line (y 136 in a library) while the rows slide under it in
-//! 220 ms (a jump while a key is held), and the content never scrolls past its end.
+//! 220 ms, and the content never scrolls past its end. Under a held Up or Down the rows glide
+//! evenly from move to move under one still ring, the tiles keeping their resting look, and the
+//! pictures of the rows going by wait until the key is let go (the Samsung app's `GridView`).
 //!
 //! Cells are one per position, loaded or not, so a skeleton keeps focus when its page of items
 //! arrives. One grid focus group returns to its last cell; Right from the last column goes where
@@ -17,7 +19,7 @@ use pley_ui::{Dir, Dirs, Edge, FocusOpts, Group, Id, Response, Ui, nudge};
 
 use crate::look::{SCROLL, register, shade, text_centred};
 use crate::row::{RowResponse, find_key, note};
-use crate::tile::{SlotMode, TileKind, TileSlot};
+use crate::tile::{SlotMode, TileKind, TileLook, TileSlot, ring};
 
 /// Where a grid's columns must end: 960 − 48 − 40 − 14, leaving the jump control its room
 /// (`TvTiles.kt`).
@@ -39,6 +41,8 @@ pub struct GridState {
     shown: f32,
     jumps: u32,
     started: bool,
+    /// A held key has moved focus to another row: the rows glide under one still ring.
+    quiet: bool,
 }
 
 impl GridState {
@@ -179,11 +183,19 @@ impl PosterGrid {
         let max = self.max_scroll(len);
 
         let mut focused_now = false;
+        let row_before = state.index / cols;
         if let Some(f) = ui.focused().filter(|_| ui.focused_in(id).is_some())
             && let Some(i) = find_key(state.drawn, len, |i| id.with(i as u64) == f)
         {
             state.index = i;
             focused_now = true;
+        }
+        // A held Up or Down: the rows slide under a still ring until the key is let go (a tile
+        // growing and shrinking at each step, its ring with it, made the page stutter).
+        if !ui.holding() {
+            state.quiet = false;
+        } else if focused_now && state.index / cols != row_before {
+            state.quiet = true;
         }
         let jump = state.focus_to.take();
         if let Some(i) = jump {
@@ -203,7 +215,7 @@ impl PosterGrid {
             state.scroll = self.scroll_for(state.index, len);
         }
         state.scroll = state.scroll.clamp(0.0, max);
-        let shown = ui.animate(id.with(("kit.scroll", state.jumps)), state.scroll, SCROLL);
+        let shown = ui.scroll(id.with(("kit.scroll", state.jumps)), state.scroll, SCROLL);
         state.shown = shown;
 
         let rows = len.div_ceil(cols);
@@ -229,6 +241,11 @@ impl PosterGrid {
             Rect::new(x, row_y(i / cols), size.w, size.h)
         };
         let (fr, fv) = (out.visible.0, out.visible.1);
+        let quiet = state.quiet;
+        // Gliding, the rows going by ask for their pictures behind everything else: where focus
+        // lands loads once the key is let go.
+        let on_screen = if quiet { Priority::Prefetch } else { Priority::Visible };
+        let near = if quiet { Priority::Prefetch } else { Priority::Near };
         let clip = Rect::new(0.0, self.top, theme::CANVAS_W, theme::CANVAS_H - self.top);
         let mut slots: Vec<TileSlot> = Vec::with_capacity(d1 - d0);
         let kind = self.kind;
@@ -237,7 +254,7 @@ impl PosterGrid {
                 for i in d0..d1 {
                     let cell_id = id.with(i as u64);
                     let response = register(ui, cell_id, cell(i), opts);
-                    let priority = if i >= fr && i < fv { Priority::Visible } else { Priority::Near };
+                    let priority = if i >= fr && i < fv { on_screen } else { near };
                     slots.push(TileSlot {
                         index: i,
                         id: cell_id,
@@ -251,8 +268,12 @@ impl PosterGrid {
             });
             let mut focused_slot = None;
             for slot in &slots {
-                if slot.response.focused {
+                if slot.response.focused && !quiet {
                     focused_slot = Some(*slot);
+                } else if slot.response.focused {
+                    // At rest under the still ring.
+                    let response = Response { focused: false, gained: false, ..slot.response };
+                    draw(ui, &TileSlot { response, ..*slot });
                 } else {
                     draw(ui, slot);
                 }
@@ -260,12 +281,22 @@ impl PosterGrid {
             if let Some(slot) = focused_slot {
                 draw(ui, &slot);
             }
+            if quiet {
+                // The ring where the focused cell is heading: on the focused line, or where the
+                // content's end leaves it.
+                let x = theme::GUTTER + (state.index % cols) as f32 * col_pitch;
+                let y = wells_top + (state.index / cols) as f32 * pitch - state.scroll;
+                let rest = TileLook { progress: 1.0, scale: 1.0 };
+                ring(ui, Rect::new(x, y, size.w, size.h), kind, &rest);
+            }
         });
         let mut rr = RowResponse::default();
         for slot in &slots {
             note(&mut rr, slot.index, &slot.response);
         }
         (out.focused, out.gained, out.activated, out.actions) = (rr.focused, rr.gained, rr.activated, rr.actions);
+        // Nothing is fetched ahead while gliding.
+        let ahead = if quiet { r1 } else { ahead };
         for i in d1..(ahead * cols).min(len) {
             let cell_id = id.with(i as u64);
             let slot = TileSlot {

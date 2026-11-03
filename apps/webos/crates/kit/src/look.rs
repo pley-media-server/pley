@@ -9,8 +9,8 @@ use pley_ui::theme::focus::ControlLook;
 use pley_ui::{Easing, FocusOpts, Id, Motion, Response, Ui};
 
 /// Rows and grids sliding to keep focus in place: 220 ms `cubic-bezier(0.2, 0, 0, 1)`, as the TV
-/// app's rows and grids slide (`packages/tv/src/ui/kit/row.tsx`, `grid.tsx`). Snaps while a key is held and
-/// with Reduce motion.
+/// app's rows and grids slide (`packages/tv/src/ui/kit/row.tsx`, `grid.tsx`). Glides evenly from move to move under
+/// a held key ([`Ui::scroll`]) and snaps with Reduce motion.
 pub const SCROLL: Motion = Motion::new(0.220, Easing::cubic(0.2, 0.0, 0.0, 1.0));
 
 /// Pages of rows bringing the focused row to its line: 240 ms with the same curve (the TV app's

@@ -499,7 +499,7 @@ impl List {
             state.scroll = anchored;
         }
         state.scroll = state.scroll.clamp(0.0, max);
-        let shown = ui.animate(id.with("kit.scroll"), state.scroll, SCROLL);
+        let shown = ui.scroll(id.with("kit.scroll"), state.scroll, SCROLL);
         state.shown = shown;
         out.scroll = shown;
 

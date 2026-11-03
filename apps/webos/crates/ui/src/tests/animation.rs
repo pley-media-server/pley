@@ -54,6 +54,43 @@ fn a_held_key_snaps_animations() {
     assert!((f.output.wake_at.unwrap() - (f.time + 0.045)).abs() < 1e-9);
 }
 
+/// Holds Right along a row of 40 for a second, the TV repeating from 400 ms, with a scroll 100 a
+/// tile following focus; every frame's scroll.
+fn held_scroll(reduced: bool) -> Vec<f32> {
+    let values = RefCell::new(Vec::new());
+    let mut screen = |ui: &mut Ui| {
+        row(ui, "a", 210.0, 0..40, Group::row());
+        let at = (0..40).find(|&i| ui.focused() == Some(super::t("a", i))).unwrap_or(0);
+        let v = ui.scroll(Id::new("scroll"), at as f32 * 100.0, Motion::OVERLAY);
+        values.borrow_mut().push(v);
+    };
+    let mut h = Harness::new();
+    h.state.set_reduced_motion(reduced);
+    h.idle(&mut screen);
+    h.step(Step::Down(Key::Right), &mut screen);
+    h.wait(0.4, &mut screen);
+    for _ in 0..12 {
+        h.step(Step::Repeat(Key::Right), &mut screen);
+        h.wait(0.05, &mut screen);
+    }
+    values.take()
+}
+
+#[test]
+fn a_held_key_glides_a_scroll_from_move_to_move() {
+    let v = held_scroll(false);
+    assert!(v.windows(2).all(|w| w[1] >= w[0]));
+    // Glides overlap: once the hold is under way, every frame shows the scroll on its way, never
+    // resting on a tile.
+    let gliding = &v[v.len() / 2..];
+    assert!(gliding.iter().all(|x| x % 100.0 > 0.5), "{gliding:?}");
+    assert!(*v.last().unwrap() > 1500.0);
+    // Reduce motion: each move lands at once.
+    let v = held_scroll(true);
+    assert!(v.iter().all(|x| x % 100.0 == 0.0), "{v:?}");
+    assert!(*v.last().unwrap() > 1500.0);
+}
+
 #[test]
 fn reduce_motion_snaps_all_but_reveals() {
     let values = RefCell::new((0.0, 0.0));

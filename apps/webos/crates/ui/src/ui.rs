@@ -1179,7 +1179,8 @@ impl<'a> Ui<'a> {
         self.text_input |= on;
     }
 
-    /// Whether a direction key is held: tiles, rings and scrolls snap instead of animating.
+    /// Whether a direction key is held: tiles and rings snap instead of animating, and scrolls
+    /// glide ([`Ui::scroll`]).
     pub fn holding(&mut self) -> bool {
         let h = self.st.gate.holding(self.st.time);
         self.want_gate |= h;
@@ -1213,11 +1214,19 @@ impl<'a> Ui<'a> {
     // Animation.
 
     /// The value of `id` heading for `target` with `motion`: a new value starts at its target,
-    /// and a changed target starts a tween from where the value is. Snaps while a key is held,
-    /// with Reduce motion (unless the motion is kept) and on Low-tier TVs for motions that snap
-    /// there. A running tween asks for the next frame.
+    /// and a changed target starts a tween from where the value is. Snaps while a key is held
+    /// (unless the motion is a held key's glide), with Reduce motion (unless the motion is kept)
+    /// and on Low-tier TVs for motions that snap there. A running tween asks for the next frame.
     pub fn animate(&mut self, id: Id, target: f32, motion: Motion) -> f32 {
         self.tween(id, None, [target, 0.0, 0.0, 0.0], motion)[0]
+    }
+
+    /// A scroll following focus (a row's offset, a page's shift, a grid's scroll): as
+    /// [`Ui::animate`] with `motion`, but while a direction key is held each move glides evenly
+    /// into the next ([`Motion::GLIDE`]) rather than jumping.
+    pub fn scroll(&mut self, id: Id, target: f32, motion: Motion) -> f32 {
+        let motion = if self.holding() { Motion::GLIDE } else { motion };
+        self.animate(id, target, motion)
     }
 
     /// As [`Ui::animate`], but a new value starts at `from`: a panel opening, a toast showing.
@@ -1241,7 +1250,7 @@ impl<'a> Ui<'a> {
 
     /// Whether `motion` snaps this frame instead of animating.
     pub fn snaps(&mut self, motion: Motion) -> bool {
-        self.st.gate.holding(self.st.time)
+        (self.st.gate.holding(self.st.time) && !motion.held)
             || (self.st.reduced_motion && !motion.reduced)
             || (self.st.tier == Tier::Low && motion.low_snaps)
     }

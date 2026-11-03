@@ -3,6 +3,7 @@
 //! knows exactly when nothing moves any more and stops drawing.
 
 use crate::id::{Id, IdMap};
+use crate::input::KeyGate;
 
 /// How a tween's progress maps to its value: straight, or a cubic Bézier from (0, 0) to (1, 1)
 /// through two control points, as CSS's `cubic-bezier()` and Compose's `CubicBezierEasing`.
@@ -96,6 +97,9 @@ pub struct Motion {
     pub reduced: bool,
     /// Snaps on Low-tier TVs (Android's T0).
     pub low_snaps: bool,
+    /// Still animates while a direction key is held ([`Motion::GLIDE`]); everything else snaps
+    /// then.
+    pub held: bool,
 }
 
 impl Motion {
@@ -119,10 +123,15 @@ impl Motion {
     pub const CURTAIN: Motion = Motion::new(0.110, Easing::LINEAR);
     /// A picture that wasn't in memory fading in (`IMAGE_FADE_MS`); none on Low-tier TVs.
     pub const IMAGE_FADE: Motion = Motion { low_snaps: true, ..Motion::new(0.150, Easing::LINEAR) };
+    /// A row, page or grid following focus under a held key: evenly over a little more than the
+    /// time between held moves ([`KeyGate::GLIDE`]), so each glide runs into the next and the
+    /// content slides on without a pause (the Samsung app's `Scrolling.Glide`). Snaps with Reduce
+    /// motion.
+    pub const GLIDE: Motion = Motion { held: true, ..Motion::new(KeyGate::GLIDE as f32, Easing::LINEAR) };
 
     /// A motion that snaps with Reduce motion on and animates on every tier.
     pub const fn new(duration: f32, easing: Easing) -> Motion {
-        Motion { duration, easing, reduced: false, low_snaps: false }
+        Motion { duration, easing, reduced: false, low_snaps: false, held: false }
     }
 
     /// The eased progress `elapsed` seconds in, 0 to 1.
@@ -274,7 +283,9 @@ mod tests {
         assert_eq!(Motion::CURTAIN.duration * 2.0, Motion::SCREEN.duration);
         assert_eq!(Motion::IMAGE_FADE.duration, 0.150);
         const { assert!(Motion::UNFOCUS.low_snaps && Motion::BACKDROP.low_snaps && Motion::IMAGE_FADE.low_snaps) };
-        const { assert!(!Motion::FOCUS.low_snaps && !Motion::FOCUS.reduced) };
+        const { assert!(!Motion::FOCUS.low_snaps && !Motion::FOCUS.reduced && !Motion::FOCUS.held) };
+        assert!((Motion::GLIDE.duration - 0.05625).abs() < 1e-6 && Motion::GLIDE.easing == Easing::LINEAR);
+        const { assert!(Motion::GLIDE.held && !Motion::GLIDE.reduced) };
     }
 
     #[test]

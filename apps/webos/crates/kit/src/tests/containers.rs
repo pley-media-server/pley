@@ -2,7 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 
-use pley_base::{Cmd, Key, Point, Rect};
+use pley_base::{Cmd, Key, Point, Priority, Rect};
 use pley_ui::testing::{Harness, Step};
 use pley_ui::theme;
 use pley_ui::{Dir, Edge, Group, Id, Ui};
@@ -118,23 +118,27 @@ fn a_row_draws_only_what_is_near_the_screen_and_asks_ahead_for_pictures() {
 }
 
 #[test]
-fn a_held_key_moves_the_row_without_animating() {
-    let cell = OneRow::new(40);
-    let mut screen = one_row(&cell);
+fn a_held_key_glides_the_row_from_tile_to_tile() {
+    let cell = OneRow::new(60);
+    let shown = RefCell::new(Vec::new());
+    let mut inner = one_row(&cell);
+    let mut screen = |ui: &mut Ui| {
+        inner(ui);
+        shown.borrow_mut().push(cell.borrow().state.shown_offset());
+    };
     let mut h = Harness::new();
     h.idle(&mut screen);
-    h.step(Step::Down(Key::Right), &mut screen);
-    // LG repeats after 400 ms, then every 50 ms; the gate lets one move through each 100 ms.
-    h.wait(0.4, &mut screen);
-    for _ in 0..6 {
-        h.step(Step::Repeat(Key::Right), &mut screen);
-        h.wait(0.05, &mut screen);
-    }
-    let slot = focused_slot(&cell);
-    assert!(slot.index >= 3);
-    // Held: the row is where it is heading, the focused tile at the gutter at once.
-    assert_eq!(slot.rect.x, 96.0);
-    assert_eq!(cell.borrow().state.shown_offset(), cell.borrow().state.offset);
+    hold(&mut h, Key::Right, &mut screen);
+    // Each move glides evenly into the next: never more than half a tile a frame, and once under
+    // way never resting on a tile.
+    let v = shown.borrow().clone();
+    assert!(v.windows(2).all(|w| w[1] >= w[0] && w[1] - w[0] < 61.0), "{v:?}");
+    assert!(v[v.len() / 2..].iter().all(|x| x % 122.0 > 0.5), "{v:?}");
+    assert!(focused_slot(&cell).index >= 18);
+    // Let go, the last glide lands with the focused tile at the gutter.
+    h.step(Step::Up(Key::Right), &mut screen);
+    settle(&mut h, &mut screen);
+    assert_eq!(focused_slot(&cell).rect.x, 96.0);
 }
 
 #[test]
@@ -398,6 +402,92 @@ fn a_grid_never_scrolls_past_its_end_and_jumps_to_a_cell() {
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("grid").with(2000u64)));
     assert_eq!(focused.get().unwrap().1, 136.0);
+}
+
+/// Holds `key` for a second, the TV repeating every 50 ms from 400 ms, then lets it go; the
+/// frames drawn meanwhile.
+fn hold(h: &mut Harness, key: Key, screen: &mut dyn FnMut(&mut Ui)) -> Vec<pley_ui::testing::Frame> {
+    let mut frames = h.run(&[Step::Down(key), Step::Wait(0.4)], screen);
+    for _ in 0..12 {
+        frames.extend(h.run(&[Step::Repeat(key), Step::Wait(0.05)], screen));
+    }
+    frames
+}
+
+/// The focus rings a frame draws.
+fn rings(list: &pley_base::DisplayList) -> Vec<Rect> {
+    let ring = theme::focus::RING_COLOR;
+    super::strokes(list)
+        .into_iter()
+        .filter(|s| s.1.a > 0 && (s.1.r, s.1.g, s.1.b) == (ring.r, ring.g, ring.b))
+        .map(|s| s.0)
+        .collect()
+}
+
+#[test]
+fn a_held_down_glides_the_grid_under_one_still_ring() {
+    let state = RefCell::new(GridState::default());
+    let shown = RefCell::new(Vec::new());
+    let slots = RefCell::new(Vec::new());
+    let mut screen = |ui: &mut Ui| {
+        let mut s = state.borrow_mut();
+        slots.borrow_mut().clear();
+        PosterGrid::new(TileKind::LibraryGrid, 122.0).show(ui, Id::new("grid"), &mut s, 10_000, |ui, slot| {
+            slots.borrow_mut().push((slot.mode, slot.priority));
+            Tile::new(TileKind::LibraryGrid, "T").paint(ui, slot);
+        });
+        shown.borrow_mut().push(s.shown_scroll());
+    };
+    let mut h = Harness::new();
+    h.idle(&mut screen);
+    shown.borrow_mut().clear();
+    let frames = hold(&mut h, Key::Down, &mut screen);
+    // Once the hold is under way: one ring, still, on the focused line; the rows' pictures wait,
+    // and nothing is fetched ahead.
+    let held: Vec<_> = frames.iter().filter(|f| f.time >= 0.25).collect();
+    assert!(held.len() > 30);
+    for f in &held {
+        assert_eq!(rings(&f.list).len(), 1, "at {}", f.time);
+    }
+    let ring = rings(&held[0].list)[0];
+    assert!(close(ring.y, 136.0 - theme::focus::RING_OFFSET), "{ring:?}");
+    assert!(held.iter().all(|f| rings(&f.list)[0] == ring));
+    assert!(slots.borrow().iter().all(|&(mode, priority)| mode == SlotMode::Draw && priority == Priority::Prefetch));
+    // Meanwhile the rows glide: never more than half a row a frame, and on their way between rows.
+    let v = shown.borrow().clone();
+    assert!(v.windows(2).all(|w| w[1] >= w[0] && w[1] - w[0] < 106.0), "{v:?}");
+    let pitch = 212.0;
+    assert!(v[v.len() / 2..].iter().all(|x| x % pitch > 0.5), "{v:?}");
+    assert!(*v.last().unwrap() > 15.0 * pitch);
+    // Let go, the focused tile grows into its own ring and the pictures load.
+    h.step(Step::Up(Key::Down), &mut screen);
+    let f = settle(&mut h, &mut screen);
+    let rings = rings(&f.list);
+    assert_eq!(rings.len(), 1);
+    assert!(rings[0].w > ring.w);
+    assert!(slots.borrow().iter().any(|&(_, priority)| priority == Priority::Visible));
+    let s = state.borrow();
+    assert_eq!(s.shown_scroll(), s.scroll);
+}
+
+#[test]
+fn reduce_motion_steps_a_held_grid_a_row_at_a_time() {
+    let state = RefCell::new(GridState::default());
+    let shown = RefCell::new(Vec::new());
+    let mut screen = |ui: &mut Ui| {
+        let mut s = state.borrow_mut();
+        PosterGrid::new(TileKind::LibraryGrid, 122.0).show(ui, Id::new("grid"), &mut s, 10_000, |ui, slot| {
+            Tile::new(TileKind::LibraryGrid, "T").paint(ui, slot);
+        });
+        shown.borrow_mut().push(s.shown_scroll());
+    };
+    let mut h = Harness::new();
+    h.state.set_reduced_motion(true);
+    h.idle(&mut screen);
+    hold(&mut h, Key::Down, &mut screen);
+    let v = shown.borrow();
+    assert!(v.iter().all(|x| x % 212.0 == 0.0), "{v:?}");
+    assert!(*v.last().unwrap() > 15.0 * 212.0);
 }
 
 #[test]

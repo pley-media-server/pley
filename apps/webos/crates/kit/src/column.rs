@@ -3,8 +3,8 @@
 //! section's header sits on its anchor line (172 on Home and the item page; 80 on library tabs; 96
 //! on Search; 240 on a person's page), or at the page's top for a hero. Once moved, nothing is
 //! drawn above the clip line (the anchor less 12: 160 on Home), which leaves the area above for the
-//! info block. The page slides in 240 ms, jumps while a key is held and when the move is more than
-//! a screen (Back to Home's hero), and with the pointer moves only as far as brings what it points
+//! info block. The page slides in 240 ms (gliding evenly from move to move under a held key), jumps
+//! when the move is more than a screen (Back to Home's hero), and with the pointer moves only as far as brings what it points
 //! at in whole.
 //!
 //! The sections form one column focus group: Up and Down go to the section above or below, which
@@ -176,7 +176,7 @@ impl RowColumn {
             state.jumps = state.jumps.wrapping_add(1);
         }
         state.shift = target;
-        let shown = ui.animate(id.with(("kit.shift", state.jumps)), target, PAGE_SCROLL);
+        let shown = ui.scroll(id.with(("kit.shift", state.jumps)), target, PAGE_SCROLL);
         state.shown = shown;
 
         let clip = self.clip_above.filter(|_| shown > 0.5);

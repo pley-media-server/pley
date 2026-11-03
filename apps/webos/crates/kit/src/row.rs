@@ -2,8 +2,8 @@
 //! in `Tv.Section`, 14 dp, then tiles from the gutter (x 96) that slide so the focused tile's left
 //! edge stays at x 96, except that a row whose tiles all end before x 912 never moves and the last
 //! tile never comes further left than its end padding allows (48 + a tile's width), so focus walks
-//! right near the end. The slide takes 220 ms and jumps while a key is held; the pointer moves the
-//! row only as far as brings a cut-off tile in whole.
+//! right near the end. The slide takes 220 ms, and under a held key glides evenly from move to move;
+//! the pointer moves the row only as far as brings a cut-off tile in whole.
 //!
 //! The row is one focus group that comes back to its last tile, entered from above or below at the
 //! nearest tile; Left at its start leaves the page (the shell opens the rail), Right at its end
@@ -180,7 +180,7 @@ impl<'a> Row<'a> {
             state.offset = self.offset_for(state.index, len);
         }
         state.offset = state.offset.clamp(0.0, max);
-        let shown = ui.animate(id.with("kit.scroll"), state.offset, SCROLL);
+        let shown = ui.scroll(id.with("kit.scroll"), state.offset, SCROLL);
         state.shown = shown;
 
         // On screen: the tiles crossing 0..960; one more either side so the next move has a target.
