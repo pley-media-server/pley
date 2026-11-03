@@ -25,6 +25,8 @@
 #                      empty skips Apple TV, as an empty PLEY_IOS_SIMS skips the others
 #   PLEY_SHOTS         a folder for the walk's screenshots
 #   PLEY_SCREENS_LOGS  a folder for the test logs of the simulators that failed
+#                      (each try's), and the last minute of each failed test's
+#                      screen recording
 #   PLEY_BUNDLE_ID     the app's bundle ID, when Local.xcconfig changes it
 #   PLEY_UI_TESTS      only these tests of ScreensTests, separated by ";"
 #                      (testLiveTv;testSignIn…); all of them when empty
@@ -340,11 +342,46 @@ take() {
 }
 
 walk_cleanup() {
+  # A stop reaches a walk twice, from the stop and from the run's own
+  # cleanup: the second mustn't end this one part way, leaving the server.
+  trap '' TERM INT
   if [[ -n "$xcode" ]]; then kill "$xcode" 2>/dev/null || true; fi
   # A full run's server goes with it; the live source stops its FFmpegs
   # and its web server with it.
   if [[ -z "$quick" && -n "$dir" ]]; then stop_kept "$dir"; fi
   if [[ -n "$lock" ]]; then rm -rf "$lock"; fi
+}
+
+# The names of the tests that failed in xcodebuild's log $1.
+failed_tests() {
+  sed -nE "s/^Test Case '-\[[A-Za-z]+\.ScreensTests (test[A-Za-z0-9_]+)\]' failed.*/\1/p" "$1" | sort -u
+}
+
+# The last minute of each failed test's screen recording in result bundle
+# $1 (its log $2), made small, as $3-<test>.mp4: the screen as the test
+# failed, to tell a flaky step from a broken one. The bundle's own are
+# hundreds of megabytes.
+keep_recordings() {
+  local bundle=$1 out="$dir/attachments" failed test file
+  [[ -d "$bundle" ]] || return 0
+  failed=$(failed_tests "$2")
+  [[ -n "$failed" ]] || return 0
+  rm -rf "$out"
+  xcrun xcresulttool export attachments --path "$bundle" --output-path "$out" >/dev/null 2>&1 || return 0
+  python3 -c '
+import json, sys
+out = sys.argv[1]
+for t in json.load(open(out + "/manifest.json")):
+    name = t["testIdentifier"].split("/")[-1].rstrip("()")
+    for a in t["attachments"]:
+        if a["exportedFileName"].endswith(".mp4"):
+            print(name + "\t" + out + "/" + a["exportedFileName"])
+' "$out" | while IFS=$'\t' read -r test file; do
+    if grep -qx "$test" <<<"$failed"; then
+      ffmpeg -nostdin -v error -y -sseof -60 -i "$file" -vf scale=-2:540 -an "$3-$test.mp4" || true
+    fi
+  done
+  rm -rf "$out"
 }
 
 # Runs the walk's UI tests on its simulator, writing log $1 and result
@@ -430,12 +467,12 @@ walk() {
   # passed aren't run again. A quick run doesn't.
   if [[ $passed == no && -z "$quick" ]]; then
     local again=() failure
-    for failure in $(sed -nE "s/^Test Case '-\[[A-Za-z]+\.ScreensTests (test[A-Za-z0-9_]+)\]' failed.*/\1/p" "$log" |
-      sort -u); do
+    for failure in $(failed_tests "$log"); do
       again+=("-only-testing:$target/ScreensTests/$failure")
     done
     if [[ ${#again[@]} -gt 0 ]]; then
-      echo "check-screens: $name runs ${again[*]##*/} again"
+      echo "check-screens: $name runs ${again[*]##*/} again, after:"
+      grep -E "\.swift:[0-9]+: error" "$log" | sed 's/^.*\/\([A-Za-z]*\.swift:\)/  \1/' | redacted || true
       log="$dir/$scheme-again.log"
       passed=yes
       run_tests "$log" "$dir/$scheme-again.xcresult" "${again[@]}" || passed=no
@@ -448,7 +485,12 @@ walk() {
     grep -E "error:|failed|XCTAssert|didn't show|couldn't" "$log" | tail -n 20 | redacted >&2 || true
     echo "check-screens: $name's server's last lines:" >&2
     tail -n 40 "$dir/server.log" | redacted >&2
-    if [[ -n "$logs" ]]; then redacted <"$log" >"$logs/$scheme-$name.log"; fi
+    if [[ -n "$logs" ]]; then
+      redacted <"$dir/$scheme.log" >"$logs/$scheme-$name.log"
+      [[ -f "$dir/$scheme-again.log" ]] && redacted <"$dir/$scheme-again.log" >"$logs/$scheme-$name-again.log"
+      keep_recordings "$dir/$scheme.xcresult" "$dir/$scheme.log" "$logs/$scheme-$name"
+      keep_recordings "$dir/$scheme-again.xcresult" "$dir/$scheme-again.log" "$logs/$scheme-$name-again"
+    fi
   fi
   if tail -n "+$first" "$dir/server.log" | grep -q "pley_mk_"; then
     echo "check-screens: $name's server's log names a keyed media address" >&2

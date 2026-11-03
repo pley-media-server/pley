@@ -1649,11 +1649,13 @@ same one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
 TV 4K (4th generation) with `xcodebuild test-without-building`, and stops
 the servers and deletes their folders afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
-`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed, and
+`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed and
+the last minute of each failed test's screen recording, and
 `PLEY_UI_TESTS` (names separated by `;`, such as `testMusic;testLiveTv`) the
 tests to run, all of them when unset. A
 test that fails runs once more, on its own in a new test runner
-(`-only-testing`), and the tests that passed aren't run again; one that
+(`-only-testing`), after its errors are printed, so a test that passes
+the second time still shows; the tests that passed aren't run again; one that
 fails twice fails the run, which then prints the test's errors and the server's
 last 40 log lines, with addresses, tokens and codes left out. The server's
 address reaches the tests as a `TEST_RUNNER_` variable; the
