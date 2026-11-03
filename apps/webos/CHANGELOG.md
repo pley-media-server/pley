@@ -146,6 +146,8 @@ describes how they are made.
 - On a Live TV channel with sound only, the logo, "Sound only" and what's
   on rise above the bar at the foot while it shows, rather than sitting
   among its words.
+- A server that keeps refusing the sign-in's events, or a proxy asking for
+  its own login, no longer has Pley refresh the sign-in over and over.
 
 ### Security
 

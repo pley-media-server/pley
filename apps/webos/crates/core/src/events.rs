@@ -6,8 +6,10 @@
 //! [`StreamNews::Connected`] and the app asks again for what is older than
 //! 30 s. The server ends a stream when its access token expires: a stream
 //! that ran 30 s or more reconnects at once (with a refreshed token); any
-//! other end waits 2 s, doubling to 30 s; a `401` refreshes the token first;
-//! a `403` or the end of the sign-in stops it.
+//! other end waits 2 s, doubling to 30 s. A `401` about the token
+//! (`invalid_token`) refreshes it once and reconnects; a `401` to the fresh
+//! token, any other `401` (a proxy's own login), a `403` or the end of the
+//! sign-in stops it, as the native Samsung app's `EventStream` does.
 
 use std::io::Read;
 use std::sync::mpsc::Sender;
@@ -17,7 +19,7 @@ use std::time::{Duration, Instant};
 use pley_base::Waker;
 
 use crate::api::Api;
-use crate::http::{ApiError, Request};
+use crate::http::{ApiError, Request, invalid_token};
 use crate::model::ServerEvent;
 use crate::task::Cancel;
 
@@ -38,7 +40,7 @@ pub enum StreamNews {
     /// A connection opened: nothing missed is replayed, so ask again.
     Connected,
     Event(ServerEvent),
-    /// The stream stopped for good: `403` (not allowed) or the sign-in ended.
+    /// The stream stopped for good: refused (`401` after a refresh, `403`) or the sign-in ended.
     Stopped,
     /// The connection failed or ended, and the stream waits before trying again: until
     /// [`StreamNews::Connected`], what the events would say is asked for instead. Told once a
@@ -178,6 +180,7 @@ enum End {
     Unauthorized {
         token_refreshed: bool,
     },
+    /// `403`, or a `401` that another refresh wouldn't help.
     Forbidden,
     SignedOut,
     Failed,
@@ -187,8 +190,11 @@ enum End {
 fn run(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, nudges: &std::sync::Mutex<Cancel>) {
     let mut failures = 0u32;
     let mut lost = false;
+    // The token was refreshed for this connection: a 401 now is the answer.
+    let mut refreshed = false;
     while !cancel.is_cancelled() {
-        let end = cancel.scope(|| connect(api, tx, waker, cancel));
+        let end = cancel.scope(|| connect(api, tx, waker, cancel, refreshed));
+        refreshed = matches!(end, End::Unauthorized { token_refreshed: true });
         if matches!(end, End::Closed { opened: Some(_) }) {
             lost = false;
         }
@@ -247,7 +253,7 @@ pub fn retry_delay(failures: u32) -> Duration {
     wait.min(MAX_RETRY)
 }
 
-fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel) -> End {
+fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, refreshed: bool) -> End {
     let token = match api.tokens().access_token() {
         Ok(t) => t,
         Err(ApiError::SignedOut) => return End::SignedOut,
@@ -268,7 +274,13 @@ fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel) -
     };
     match answer.status {
         200 => {}
+        401 if refreshed || !invalid_token(&answer) => return End::Forbidden,
         401 => {
+            drop(answer);
+            // Refused moments after a refresh: the sign-in ends, and so does the stream.
+            if api.tokens().refused_after_refresh(&token) {
+                return End::SignedOut;
+            }
             return match api.tokens().refresh(&token) {
                 Ok(_) => End::Unauthorized { token_refreshed: true },
                 Err(ApiError::SignedOut) => End::SignedOut,
@@ -397,6 +409,12 @@ mod tests {
 
     struct Counting(AtomicUsize);
 
+    impl Counting {
+        fn refreshes(&self) -> usize {
+            self.0.load(Ordering::SeqCst)
+        }
+    }
+
     impl TokenSource for Counting {
         fn access_token(&self) -> Result<String, ApiError> {
             Ok(format!("t{}", self.0.load(Ordering::SeqCst)))
@@ -450,5 +468,55 @@ mod tests {
             ]
         );
         assert!(fake.requests().iter().all(|r| r.header_value("Accept") == Some("text/event-stream")));
+    }
+
+    /// Every piece of news until the stream stops (or goes quiet for 10 s).
+    fn news_until_stopped(rx: &std::sync::mpsc::Receiver<StreamNews>) -> Vec<StreamNews> {
+        let mut news = Vec::new();
+        while let Ok(n) = rx.recv_timeout(Duration::from_secs(10)) {
+            let done = n == StreamNews::Stopped;
+            news.push(n);
+            if done {
+                break;
+            }
+        }
+        news
+    }
+
+    #[test]
+    fn a_token_refused_again_after_its_refresh_stops_the_stream() {
+        let fake = Arc::new(FakeTransport::new(|_| {
+            let mut a = Response::empty(401);
+            a.headers.push(("WWW-Authenticate".into(), "Bearer error=\"invalid_token\"".into()));
+            Ok(a)
+        }));
+        let tokens = Arc::new(Counting(AtomicUsize::new(0)));
+        let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", tokens.clone());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut stream = EventStream::start(api, tx, Waker::noop());
+        let news = news_until_stopped(&rx);
+        stream.stop();
+        assert_eq!(news, [StreamNews::Stopped]);
+        // One refresh, not one per refusal: the refresh token isn't spun through.
+        assert_eq!(tokens.refreshes(), 1);
+        assert_eq!(fake.requests().len(), 2);
+    }
+
+    #[test]
+    fn a_401_that_isnt_about_the_token_stops_the_stream_without_a_refresh() {
+        let fake = Arc::new(FakeTransport::new(|_| {
+            let mut a = Response::empty(401);
+            a.headers.push(("WWW-Authenticate".into(), "Basic realm=\"proxy\"".into()));
+            Ok(a)
+        }));
+        let tokens = Arc::new(Counting(AtomicUsize::new(0)));
+        let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", tokens.clone());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut stream = EventStream::start(api, tx, Waker::noop());
+        let news = news_until_stopped(&rx);
+        stream.stop();
+        assert_eq!(news, [StreamNews::Stopped]);
+        assert_eq!(tokens.refreshes(), 0);
+        assert_eq!(fake.requests().len(), 1);
     }
 }

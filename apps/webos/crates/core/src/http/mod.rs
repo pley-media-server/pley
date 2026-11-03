@@ -429,7 +429,7 @@ fn with_token(req: Request, token: &str) -> Request {
 
 /// A 401 that is about the token: `WWW-Authenticate` naming `invalid_token`,
 /// or none at all (an older server).
-fn invalid_token(answer: &Streamed) -> bool {
+pub(crate) fn invalid_token(answer: &Streamed) -> bool {
     answer.header("WWW-Authenticate").is_none_or(|c| c.trim().is_empty() || c.contains("invalid_token"))
 }
 
