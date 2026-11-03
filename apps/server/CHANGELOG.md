@@ -94,6 +94,9 @@ describes how they are made.
 
 ### Fixed
 
+- A password or PIN checked while the server is out of memory gets "Pley
+  is busy checking passwords: try again in a moment" rather than "wrong",
+  and no longer counts towards locking the account or the PIN.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's
