@@ -153,8 +153,8 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
     val ready = list as? RequestListState.Ready
     // News since the profile last looked keeps its dot while the page shows, though seeing it clears it on the server.
     var news by remember { mutableStateOf(emptySet<Long>()) }
-    if (ready != null) {
-        val fresh = ready.requests.filter { it.unseen && it.id !in news }
+    LaunchedEffect(ready?.requests) {
+        val fresh = ready?.requests.orEmpty().filter { it.unseen && it.id !in news }
         if (fresh.isNotEmpty()) news = news + fresh.map { it.id }
     }
     val listTop = if (state.manage || state.signInForApprovals) ListTopLow else ListTop
@@ -540,9 +540,21 @@ private fun RequestCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val poster = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) }
-        Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
-        if (news) {
-            Box(Modifier.offset((-6).dp, (-30).dp).size(10.dp).background(PleyColors.Accent, PleyShape.Circle).clearAndSetSemantics { })
+        Box {
+            Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
+            // On the poster's top right corner, ringed in the card's colour, so the words beside it never move.
+            if (news) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(6.dp, (-4).dp)
+                        .size(14.dp)
+                        .background(if (focused) PleyColors.Surface3 else PleyColors.Surface, PleyShape.Circle)
+                        .padding(2.dp)
+                        .background(PleyColors.Accent, PleyShape.Circle)
+                        .clearAndSetSemantics { },
+                )
+            }
         }
         Column(Modifier.weight(1f).padding(horizontal = 16.dp).clearAndSetSemantics { }) {
             BasicText(
