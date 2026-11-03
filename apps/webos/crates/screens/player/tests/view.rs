@@ -315,6 +315,24 @@ fn skip_takes_focus_while_the_controls_are_hidden_and_ok_skips() {
 }
 
 #[test]
+fn skip_and_a_click_on_the_bar_drop_a_seek_still_waiting_for_ok() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.skip_label = Some("Skip Intro".into());
+    pl.wait(0.2);
+    pl.press(Key::FastForward);
+    pl.press(Key::Ok);
+    pl.wait(6.0);
+    assert_eq!(pl.p.calls, [Call::Skip], "the waiting seek undid the skip");
+
+    let mut pl = Player::new(Fake::movie());
+    pl.press(Key::Right);
+    pl.run(&[Step::Point(Point::new(480.0, 425.0)), Step::Click]);
+    pl.wait(6.0);
+    let seeks = pl.p.calls.iter().filter(|c| matches!(c, Call::Seek(_))).count();
+    assert_eq!(seeks, 1, "the waiting seek undid the click: {:?}", pl.p.calls);
+}
+
+#[test]
 fn up_from_the_scrubber_goes_to_skip() {
     let mut pl = Player::new(Fake::episode());
     pl.p.state.skip_label = Some("Skip Credits".into());

@@ -66,6 +66,8 @@ describes how they are made.
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
+- In the player, Skip Intro and a click on the bar no longer come undone
+  a few seconds later by a seek still waiting for OK.
 
 ## [0.1.2] - 2026-11-02
 

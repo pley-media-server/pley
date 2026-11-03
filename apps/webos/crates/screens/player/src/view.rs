@@ -1263,9 +1263,16 @@ impl PlayerView {
                 let skip = self.skip_shown(p.state());
                 self.show(if skip { Target::Skip } else { Target::Scrubber });
             }
-            Act::ScrubClick(f) => p.seek_to((f as f64 * p.clock().duration_ms as f64) as i64),
+            // A seek still waiting for OK goes, or it would land after these and undo them.
+            Act::ScrubClick(f) => {
+                self.seeker.cancel();
+                p.seek_to((f as f64 * p.clock().duration_ms as f64) as i64);
+            }
             Act::Button(b) => self.button(p, now, b),
-            Act::Skip => p.skip(),
+            Act::Skip => {
+                self.seeker.cancel();
+                p.skip();
+            }
             Act::Keep => p.keep_watching(),
             Act::PlayNow => p.play_next(),
             Act::CancelCard => p.cancel_up_next(),
