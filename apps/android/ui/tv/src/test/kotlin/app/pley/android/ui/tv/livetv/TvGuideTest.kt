@@ -70,9 +70,9 @@ class TvGuideTest {
     private val store = ViewModelStore()
     private val live = FakeLiveTv()
 
-    /** The keys' uptime, which the gate reads too. */
+    /** The keys' uptime, which the gate reads too. The test sends a held direction no repeats: none is waited for. */
     private var uptime = 100_000L
-    private val gate = KeyRepeatGate { uptime }
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { uptime }
     private var leaves = 0
     private var watches = 0
     private var details = 0
@@ -113,15 +113,40 @@ class TvGuideTest {
         compose.waitForIdle()
     }
 
-    /** [code] down ([repeat] of a held key) at [at] ms, then up unless held. */
+    /**
+     * [code] down ([repeat] of a held key) at [at] ms, then up unless held. While a direction
+     * is down the gate's clock runs every frame, so Compose never idles: the test's clock
+     * waits until the key is up, and a direction is held only by [hold].
+     */
     private fun key(code: Int, at: Long, repeat: Int = 0, up: Boolean = true) {
         uptime = at
+        compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(at, at, AndroidKeyEvent.ACTION_DOWN, code, repeat)))
+        if (up) compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(at, at, AndroidKeyEvent.ACTION_UP, code, 0)))
+        compose.mainClock.autoAdvance = true
         compose.waitForIdle()
-        if (up) {
-            compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(at, at, AndroidKeyEvent.ACTION_UP, code, 0)))
-            compose.waitForIdle()
+    }
+
+    /**
+     * [code] pressed at [at] and held for [ms], a frame at a time: the gate moves focus by
+     * itself, from 180 ms every 45, as on a TV, where it drops the system's repeats. The key
+     * stays down until [release].
+     */
+    private fun hold(code: Int, at: Long, ms: Long) {
+        compose.mainClock.autoAdvance = false
+        uptime = at
+        compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(at, at, AndroidKeyEvent.ACTION_DOWN, code, 0)))
+        while (uptime < at + ms) {
+            uptime += FRAME_MS
+            compose.mainClock.advanceTimeByFrame()
         }
+    }
+
+    /** Lets the held [code] go: the gate's clock stops, and Compose idles again. */
+    private fun release(code: Int) {
+        compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(uptime, uptime, AndroidKeyEvent.ACTION_UP, code, 0)))
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
     }
 
     @Test
@@ -140,11 +165,11 @@ class TvGuideTest {
     @Test
     fun `a held Left stops at the guide's start`() {
         show()
-        key(AndroidKeyEvent.KEYCODE_DPAD_LEFT, at = 100_000, up = false)
-        for (i in 1..10) key(AndroidKeyEvent.KEYCODE_DPAD_LEFT, at = 100_400 + i * 100L, repeat = i, up = false)
+        hold(AndroidKeyEvent.KEYCODE_DPAD_LEFT, at = 100_000, ms = 1_400)
+        assertTrue(gate.holding)
         assertEquals(0, leaves)
-        compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(uptime, uptime, AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_LEFT, 0)))
-        compose.waitForIdle()
+        release(AndroidKeyEvent.KEYCODE_DPAD_LEFT)
+        assertEquals(0, leaves)
         // Let go, a press of its own leaves.
         key(AndroidKeyEvent.KEYCODE_DPAD_LEFT, at = uptime + EDGE_PAUSE_MS + 1)
         assertEquals(1, leaves)
@@ -154,11 +179,11 @@ class TvGuideTest {
     fun `a held Up stops at the first row, a press goes on above`() {
         show()
         key(AndroidKeyEvent.KEYCODE_DPAD_DOWN, at = 100_000)
-        key(AndroidKeyEvent.KEYCODE_DPAD_UP, at = 100_200, up = false)
-        for (i in 1..5) key(AndroidKeyEvent.KEYCODE_DPAD_UP, at = 100_600 + i * 100L, repeat = i, up = false)
+        hold(AndroidKeyEvent.KEYCODE_DPAD_UP, at = 100_200, ms = 1_100)
+        assertTrue(gate.holding)
         compose.onNodeWithTag(ABOVE).assertIsNotFocused()
-        compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(uptime, uptime, AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_UP, 0)))
-        compose.waitForIdle()
+        release(AndroidKeyEvent.KEYCODE_DPAD_UP)
+        compose.onNodeWithTag(ABOVE).assertIsNotFocused()
         key(AndroidKeyEvent.KEYCODE_DPAD_UP, at = uptime + 1_000)
         compose.onNodeWithTag(ABOVE).assertIsFocused()
     }
@@ -256,6 +281,9 @@ class TvGuideTest {
 
     private companion object {
         const val ABOVE = "above"
+
+        /** The test clock's frame. */
+        const val FRAME_MS = 16L
 
         /** The channels' column, left of the programmes. */
         val CHANNEL = 160.dp
