@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,6 +16,8 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.screens.PleyKey
+import app.pley.android.ui.tv.item.LocalTvTileActions
+import app.pley.android.ui.tv.item.TvTileActions
 import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.settings.TvAccountTestApplication
@@ -35,7 +38,8 @@ import org.robolectric.annotation.Config
  * Music on TV with the D-pad: an album starts on Play and plays from a
  * track chosen on the right, opening Now Playing; an album opened from a
  * track starts on it; Now Playing starts on Play/Pause, and the queue
- * under it jumps to a track.
+ * under it jumps to a track. An artist's album opens its actions beside
+ * the page.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi", application = TvAccountTestApplication::class)
@@ -84,6 +88,24 @@ class TvMusicFocusTest {
         show { TvAlbumScreen(TvAccountTestGraph.ALBUM, trackId = 510) }
         waitFor("Song 10")
         compose.focused().assert(hasText("Song 10"))
+    }
+
+    @Test
+    fun anAlbumsActionsOpenOverTheArtistsPage() {
+        val asked = mutableListOf<Long>()
+        show {
+            CompositionLocalProvider(LocalTvTileActions provides TvTileActions { id, _ -> asked += id }) {
+                TvArtistScreen(TvAccountTestGraph.ARTIST)
+            }
+        }
+        waitFor("Harbour Lights")
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription("Shallows", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasContentDescription("Shallows", substring = true))
+        compose.press(Key.Menu)
+        // The shell's panel, not a page of their own.
+        assertEquals(1, asked.size)
+        assertEquals(listOf<NavKey>(PleyKey.Home), stack)
     }
 
     @Test

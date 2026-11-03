@@ -93,8 +93,8 @@ internal class TvTileActionsState(private val page: FocusRequester, private val 
 /**
  * A tile's actions in a side panel over the page they were asked on
  * (design spec §2.7, D-pad rule 6), as the item page shows its tiles':
- * from Home, a library's grid and Recommended, search, a collection and a
- * person's page. The panel slides in once the item's actions are in: its
+ * from Home, a library's grid and Recommended, search, a collection, a
+ * person's and an artist's page. The panel slides in once the item's actions are in: its
  * title, then Play (or Resume and From start), the watched mark, leaving
  * Continue Watching, My List, Add to playlist and Go to show or season,
  * with focus on the first. Back closes it; a choice closes it and runs,
