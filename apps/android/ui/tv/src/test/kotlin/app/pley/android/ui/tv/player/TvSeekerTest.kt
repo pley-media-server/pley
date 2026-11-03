@@ -5,13 +5,59 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.pow
 
-/** Left and Right: presses that add up and seek once, and a held key that scrubs and seeks on release. */
+/** Left and Right: presses that add up and seek once, OK or their wait over, and a held key that scrubs and waits when let go. */
 class TvSeekerTest {
     private var position = 600_000L
-    private val duration = 3_600_000L
+    private var duration = 3_600_000L
     private val seeks = mutableListOf<Long>()
     private val seeker = TvSeeker({ position }, { duration }, { seeks += it })
+
+    /** How far a key held since 0 moves the target from [from] to [to] ms, repeating every 50 ms. */
+    private fun scrubbed(from: Long, to: Long): Long {
+        val before = seeker.target ?: 0
+        var t = from + 50
+        while (t <= to) {
+            seeker.repeat(1, t)
+            t += 50
+        }
+        return (seeker.target ?: 0) - before
+    }
+
+    @Test
+    fun `a held key scrubs twice as fast every 1,5 s`() {
+        duration = 36_000_000
+        seeker.repeat(1, 0)
+        assertTrue(seeker.holding)
+        seeker.repeat(1, 50)
+        assertEquals(600_000L + (TvSeeker.HOLD_START_RATE * 2.0.pow(50 / 1_500.0) * 50).toLong(), seeker.target)
+        // A second held goes about twice as far as the second 1.5 s before it.
+        scrubbed(50, 500)
+        val early = scrubbed(500, 1_500)
+        scrubbed(1_500, 2_000)
+        val later = scrubbed(2_000, 3_000)
+        assertEquals(2.0, later / early.toDouble(), 0.1)
+    }
+
+    @Test
+    fun `a held key tops out at a whole video in 10 s, or 300 ms a ms`() {
+        assertEquals(20.0, seeker.rateAt(0), 1e-9)
+        assertEquals(40.0, seeker.rateAt(1_500), 1e-6)
+        assertEquals(160.0, seeker.rateAt(4_500), 1e-6)
+        // An hour's video: an hour in 10 s, 360 ms of video a ms.
+        assertEquals(360.0, seeker.rateAt(20_000), 1e-9)
+        // A short one: 300 ms a ms at most.
+        duration = 600_000
+        assertEquals(300.0, seeker.rateAt(20_000), 1e-9)
+    }
+
+    @Test
+    fun `a gap between repeats counts as 200 ms at most`() {
+        seeker.repeat(1, 0)
+        seeker.repeat(1, 1_000)
+        assertEquals(600_000L + (TvSeeker.HOLD_START_RATE * 2.0.pow(1_000 / 1_500.0) * 200).toLong(), seeker.target)
+    }
 
     @Test
     fun `presses in a row add up and seek once when they stop`() {
@@ -29,7 +75,19 @@ class TvSeekerTest {
     }
 
     @Test
-    fun `a held key scrubs faster the longer it's held and seeks once on release`() {
+    fun `Left and Right wait for OK, 5 s at most, and the jumps 400 ms`() {
+        seeker.press(1)
+        assertEquals(TvSeeker.WAIT_MS, seeker.waitMs)
+        // Fast forward on top: the presses still add up, and the last one's wait counts.
+        seeker.press(1, 30_000, wait = TvSeeker.SETTLE_MS)
+        assertEquals(TvSeeker.SETTLE_MS, seeker.waitMs)
+        assertEquals(640_000L, seeker.target)
+        seeker.press(-1)
+        assertEquals(TvSeeker.WAIT_MS, seeker.waitMs)
+    }
+
+    @Test
+    fun `a held key scrubs, and let go it waits where it got to, as presses do`() {
         seeker.press(1)
         var t = 1_000L
         seeker.repeat(1, t)
@@ -42,11 +100,29 @@ class TvSeekerTest {
         assertTrue("5 s held goes well past one step: $target", target > 610_000L + 150_000L)
         seeker.settle(seeker.presses)
         assertTrue("nothing seeks while the key is held", seeks.isEmpty())
+        val presses = seeker.presses
         assertTrue(seeker.release())
-        assertEquals(listOf(target), seeks)
         assertFalse(seeker.holding)
+        // Let go: no seek yet; it waits for OK, and its wait starts again from now.
+        assertTrue(seeks.isEmpty())
+        assertEquals(target, seeker.target)
+        assertEquals(presses + 1, seeker.presses)
+        assertEquals(TvSeeker.WAIT_MS, seeker.waitMs)
         assertFalse(seeker.release())
-        assertEquals(1, seeks.size)
+        seeker.settle(seeker.presses)
+        assertEquals(listOf(target), seeks)
+    }
+
+    @Test
+    fun `a seek waiting can be let go`() {
+        seeker.press(1)
+        seeker.press(1)
+        seeker.cancel()
+        assertNull(seeker.target)
+        assertNull(seeker.badgeMs)
+        seeker.settle(seeker.presses)
+        assertTrue(seeks.isEmpty())
+        assertFalse("let go, OK plays or pauses again", seeker.confirm())
     }
 
     @Test

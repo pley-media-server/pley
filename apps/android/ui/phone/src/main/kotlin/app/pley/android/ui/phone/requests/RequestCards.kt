@@ -68,9 +68,11 @@ import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.R
 import app.pley.android.screens.requests.ApproveDialog
 import app.pley.android.screens.requests.CardAction
+import app.pley.android.screens.requests.DECLINE_REASON_MAX
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.cardActions
 import app.pley.android.screens.requests.confirms
+import app.pley.android.screens.requests.declineReasonEnd
 import app.pley.android.screens.requests.readyElsewhere
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.DelayedSpinner
@@ -484,13 +486,11 @@ internal fun CountBadge(count: Int, alarm: Boolean, description: String, modifie
 /** What a badge counts to before it says "99+". */
 private const val MAX_COUNT = 99
 
-/** The longest reason a decline takes (the server's limit). */
-private const val REASON_MAX = 500
-
-/** A reason past [REASON_MAX] characters (pasted, say) keeps its first ones. */
+/** A reason past [DECLINE_REASON_MAX] characters (pasted, say) keeps its first ones ([declineReasonEnd]). */
 private object ReasonLength : InputTransformation {
     override fun TextFieldBuffer.transformInput() {
-        if (length > REASON_MAX) replace(REASON_MAX, length, "")
+        val end = declineReasonEnd(asCharSequence())
+        if (end < length) replace(end, length, "")
     }
 }
 

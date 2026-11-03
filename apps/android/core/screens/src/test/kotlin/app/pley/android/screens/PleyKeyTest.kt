@@ -1,5 +1,6 @@
 package app.pley.android.screens
 
+import app.pley.android.model.DiscoverList
 import app.pley.android.model.TitleKind
 import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.json.Json
@@ -30,6 +31,7 @@ class PleyKeyTest {
         PleyKey.LiveTv,
         PleyKey.Discover,
         PleyKey.DiscoverResults("arrival"),
+        PleyKey.DiscoverList(DiscoverList.Upcoming),
         PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true),
         PleyKey.Requests,
         PleyKey.Me,
@@ -38,6 +40,8 @@ class PleyKeyTest {
         PleyKey.Settings,
         PleyKey.Diagnostics,
         PleyKey.NowPlaying,
+        PleyKey.Drive(),
+        PleyKey.Drive("/storage/1A2B-3C4D/Films"),
         PleyKey.ItemActions(4567),
         PleyKey.ItemActions(204, continueWatching = true),
         PleyKey.AddToPlaylist(listOf(1, 2, 3)),

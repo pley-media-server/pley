@@ -22,6 +22,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -235,6 +236,8 @@ private fun LibraryGrid(
     val columns = libraryColumns(state.density, kind, available, gap)
     val width = cellWidth(columns, available, gap)
     val grid = rememberLazyGridState(cacheWindow = remember { LazyLayoutCacheWindow(aheadFraction = 1f, behindFraction = 0.25f) })
+    // A tap reads the page as it is then: cards keep their handlers, and don't recompose, as the listing's pages arrive.
+    val current = rememberUpdatedState(state)
 
     // A new sort or filter starts at the top.
     val query = state.params.query()
@@ -283,7 +286,7 @@ private fun LibraryGrid(
                         MediaCard(
                             model = model,
                             kind = kind,
-                            onClick = { navigator.open(state.opens(model.id)) },
+                            onClick = { navigator.open(current.value.opens(model.id)) },
                             onLongClick = { navigator.open(PleyKey.ItemActions(model.id)) },
                             modifier = Modifier.fillMaxWidth(),
                         )

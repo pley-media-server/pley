@@ -270,6 +270,19 @@ class RequestRulesTest {
     }
 
     @Test
+    fun aDeclineReasonIsCutToTheServersLimitWithoutSplittingAPair() {
+        assertEquals(3, declineReasonEnd("abc"))
+        assertEquals(DECLINE_REASON_MAX, declineReasonEnd("a".repeat(DECLINE_REASON_MAX)))
+        assertEquals(DECLINE_REASON_MAX, declineReasonEnd("a".repeat(DECLINE_REASON_MAX + 5)))
+        // An emoji (two UTF-16 units) across the limit goes whole rather than leaving its first half.
+        val across = "a".repeat(DECLINE_REASON_MAX - 1) + "😀" + "b"
+        assertEquals(DECLINE_REASON_MAX - 1, declineReasonEnd(across))
+        // One that ends at the limit stays.
+        val within = "a".repeat(DECLINE_REASON_MAX - 2) + "😀" + "b"
+        assertEquals(DECLINE_REASON_MAX, declineReasonEnd(within))
+    }
+
+    @Test
     fun downloadsSayTheirState() {
         val queued = show.requests.single().copy(download = RequestDownload(0.0, DownloadState.Queued, null, 1))
         assertEquals(StagePill.Downloading(0f, null, DownloadState.Queued), stagePill(queued, false))

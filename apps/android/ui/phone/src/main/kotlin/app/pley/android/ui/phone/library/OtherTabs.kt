@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -33,6 +34,7 @@ import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
@@ -56,8 +58,10 @@ import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
 import app.pley.android.ui.phone.kit.HubRow
 import app.pley.android.ui.phone.kit.HubRowModel
+import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.PRESS_ROOM
 import app.pley.android.ui.phone.kit.cardPress
+import app.pley.android.ui.phone.kit.rememberItemGridState
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 
@@ -155,8 +159,20 @@ internal fun CollectionsPane(
             val available = metrics.contentWidth - metrics.margin * 2
             val columns = libraryColumns(app.pley.android.data.GridDensity.Medium, TileKind.Poster, available)
             val width = cellWidth(columns, available)
+            // About a screen composed ahead, and the posters of the next 1.5 screens asked for (the count has none).
+            val grid = rememberItemGridState()
+            val density = LocalDensity.current
+            val images = remember(list) { listOf(null) + list.orEmpty().map { it.tile.image } }
+            rememberImagePrefetcher(
+                state = grid,
+                images = images,
+                widthPx = with(density) { width.roundToPx() },
+                heightPx = with(density) { (width / TileKind.Poster.aspectRatio).roundToPx() },
+                tier = LocalPhoneDeviceTier.current,
+            )
             LazyVerticalGrid(
                 columns = EqualCells(columns),
+                state = grid,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, top = 8.dp, bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(PleyPhone.TileGap),

@@ -43,9 +43,9 @@ class LinkViewModelTest {
         ProfileGate.passed = false
     }
 
-    private fun TestScope.link(purpose: LinkPurpose = LinkPurpose.SignIn, requests: Boolean = true): LinkViewModel {
+    private fun TestScope.link(purpose: LinkPurpose = LinkPurpose.SignIn): LinkViewModel {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        return LinkViewModel(source, server, purpose, requests) { testScheduler.currentTime }.also { vm = it }
+        return LinkViewModel(source, server, purpose) { testScheduler.currentTime }.also { vm = it }
     }
 
     @Test
@@ -61,17 +61,6 @@ class LinkViewModelTest {
         assertEquals("$server/link?code=BCDFGHJK", code.qr)
         assertEquals(LinkStatus.Waiting, vm.state.value.status)
         assertEquals(1, source.polling)
-    }
-
-    @Test
-    fun aTvsCodeAsksForNoScopesOfRequests() = runTest {
-        val phone = link()
-        phone.started()
-        runCurrent()
-        phone.viewModelScope.cancel()
-        link(requests = false).started()
-        runCurrent()
-        assertEquals(listOf(true, false), source.requestScopes)
     }
 
     @Test

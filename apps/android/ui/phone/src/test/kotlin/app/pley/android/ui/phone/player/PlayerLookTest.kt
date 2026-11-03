@@ -65,6 +65,8 @@ class PlayerLookTest {
         assertEquals(-1, PlayerLook.chapterAt(emptyList(), 1_000))
         assertEquals("Chapter 2", PlayerLook.chapterTitle(chapters[1], 1) { "Chapter $it" })
         assertEquals("Intro", PlayerLook.chapterTitle(chapters[0], 0) { "Chapter $it" })
+        // Named only for where it starts, as mkvmerge names chapters: numbered too.
+        assertEquals("Chapter 3", PlayerLook.chapterTitle(ChapterMark("00:16:00.000", 16_000, 20_000, null), 2) { "Chapter $it" })
     }
 
     @Test

@@ -1,28 +1,22 @@
 package app.pley.android.ui.tv.item
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -34,17 +28,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
@@ -62,12 +54,11 @@ import app.pley.android.screens.item.ItemPage
 import app.pley.android.screens.item.SeasonsSection
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.FocusMemory
-import app.pley.android.ui.tv.kit.LocalTvRailFocus
+import app.pley.android.ui.tv.kit.ROW_TAG
+import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvScrolling
-import app.pley.android.ui.tv.kit.TvTile
-import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberRested
-import app.pley.android.ui.tv.kit.rememberedFocus
+import app.pley.android.ui.tv.kit.rememberTvRowState
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
@@ -131,8 +122,10 @@ internal fun TvEpisodesSection(
 /**
  * The season tabs (design spec §2.6): 40 dp pills, labels in [muted][PleyColors.Muted];
  * the shown season on [surface3][PleyColors.Surface3] in [fg][PleyColors.Fg];
- * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus comes back
- * to the shown season's tab.
+ * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus coming
+ * into the tabs (Up from the episodes, Down from the buttons) lands on the
+ * shown season's tab, as on the Samsung app, never on the tab nearest the
+ * focus, which would show its season.
  */
 @Composable
 private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
@@ -145,7 +138,8 @@ private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifi
     Row(
         modifier
             .padding(start = PleyTv.Gutter - 20.dp, end = TvSafeArea.Horizontal)
-            .focusRestorer(selected)
+            .focusProperties { onEnter = { runCatching { selected.requestFocus() } } }
+            .focusGroup()
             .testTag(TV_SEASON_TABS),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -200,12 +194,11 @@ private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onCl
 }
 
 /**
- * The episodes, as a row of the TV kit's tiles: the focused tile's left
- * edge at the gutter, focus coming back to the tile it left (or to
- * [target]), Left from the first tile to the rail, Right stopping at the
- * end.
+ * The episodes, as a row of the TV kit ([TvRow]): the focused tile's left
+ * edge at the gutter, focus coming back to the tile it left (or the first
+ * time to [target]), Left from the first tile to the rail, Right stopping
+ * at the end, and a held key sliding the row as any row's does.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EpisodeRow(
     episodes: List<EpisodeLine>,
@@ -219,70 +212,36 @@ private fun EpisodeRow(
     onActions: (ItemSummary) -> Unit,
 ) {
     val tiles = remember(episodes, origin) { episodes.map { ArtworkTileModel.of(it.item, TileKind.Episode, origin) } }
+    val byId = remember(episodes) { episodes.associateBy { it.item.id } }
     val start = remember(episodes, target) { episodes.indexOfFirst { it.item.id == target }.coerceAtLeast(0) }
-    val state = rememberLazyListState(initialFirstVisibleItemIndex = start)
+    val state = rememberTvRowState(initialFirstVisibleItemIndex = start)
     val density = LocalDensity.current
-    val spec = remember(density, state) { TvScrolling.row(density, state) }
-    val targetRequester = remember { FocusRequester() }
-    val targetId = episodes.getOrNull(start)?.item?.id
-    val rail = LocalTvRailFocus.current
     // A season that fits on screen opens unscrolled, whichever episode is next.
     LaunchedEffect(state, density) {
         val endRoom = with(density) { TvSafeArea.Horizontal.toPx() }
         val fits = snapshotFlow { TvScrolling.fits(state, endRoom) }.filterNotNull().first()
         if (fits && (state.firstVisibleItemIndex != 0 || state.firstVisibleItemScrollOffset != 0)) state.scrollToItem(0)
     }
-    CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
-        LazyRow(
-            state = state,
-            modifier = modifier
-                .fillMaxWidth()
-                .bleed(RowBleed)
-                .focusRequester(rowRequester)
-                .railOnLeftStopOnRight(rail)
-                .focusRestorer(targetRequester)
-                .testTag(TV_EPISODE_ROW),
-            contentPadding = PaddingValues(
-                start = PleyTv.Gutter,
-                end = TvSafeArea.Horizontal + TileKind.Episode.tvWidth,
-                top = RowBleed,
-                bottom = RowBleed,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(TileKind.Episode.tvGap),
-        ) {
-            itemsIndexed(tiles, key = { _, tile -> tile.id }, contentType = { _, _ -> TileKind.Episode }) { index, tile ->
-                val episode = episodes[index]
-                TvTile(
-                    model = tile,
-                    kind = TileKind.Episode,
-                    onClick = { onOpen(episode.item) },
-                    onLongClick = { onActions(episode.item) },
-                    modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocusEpisode(episode) },
-                    focusModifier = (if (tile.id == targetId) Modifier.focusRequester(targetRequester) else Modifier)
-                        .rememberedFocus(memory, "episode/${tile.id}"),
-                )
-            }
-        }
-    }
-}
-
-/**
- * Lays this out [vertical] taller above and below than the room it takes:
- * a lazy row clips its content near its edges, and a focused tile's
- * growth, ring and glow reach beyond them.
- */
-private fun Modifier.bleed(vertical: Dp): Modifier = layout { measurable, constraints ->
-    val extra = vertical.roundToPx()
-    val placeable = measurable.measure(
-        constraints.copy(maxHeight = if (constraints.hasBoundedHeight) constraints.maxHeight + 2 * extra else constraints.maxHeight),
+    TvRow(
+        rowKey = EPISODE_ROW,
+        title = null,
+        tiles = tiles,
+        kind = TileKind.Episode,
+        onOpen = { tile -> byId[tile.id]?.let { onOpen(it.item) } },
+        onActions = { tile -> byId[tile.id]?.let { onActions(it.item) } },
+        onFocus = { tile -> byId[tile.id]?.let(onFocusEpisode) },
+        memory = memory,
+        enterOn = episodes.getOrNull(start)?.item?.id,
+        state = state,
+        modifier = modifier.focusRequester(rowRequester),
     )
-    layout(placeable.width, (placeable.height - 2 * extra).coerceAtLeast(0)) { placeable.place(0, -extra) }
 }
-
-private val RowBleed = 16.dp
 
 /** Tabs are 40 tall (design spec §2.6). */
 private val TabHeight = 40.dp
 
 internal const val TV_SEASON_TABS = "pley.tv.item.seasons"
-internal const val TV_EPISODE_ROW = "pley.tv.item.episodes"
+
+/** The episode row's key: its tiles are remembered as "episode/<id>". */
+internal const val EPISODE_ROW = "episode"
+internal const val TV_EPISODE_ROW = ROW_TAG + EPISODE_ROW

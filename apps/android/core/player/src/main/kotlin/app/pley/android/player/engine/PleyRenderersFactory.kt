@@ -76,7 +76,8 @@ class PleyRenderersFactory(
 /**
  * Media3's video renderer, asking the decoder lists through a selector that
  * knows the format, with Dolby Vision decoders first for Dolby Vision that
- * comes out as Dolby Vision ([DecoderRules.dolbyVisionDecoders]), and
+ * comes out as Dolby Vision ([DecoderRules.dolbyVisionDecoders]), weighing
+ * profile 7 played as its base layer as HEVC ([DecoderRules.decoded]), and
  * saying which MIME type each decoder it starts was chosen for (a Dolby
  * Vision stream's base layer goes to an HEVC decoder): the same renderer
  * otherwise.
@@ -99,7 +100,7 @@ internal class PolicyVideoRenderer(
     }
 
     override fun supportsFormat(mediaCodecSelector: MediaCodecSelector, format: Format): Int =
-        super.supportsFormat(rules.selectorFor(mediaCodecSelector, format), format)
+        super.supportsFormat(rules.selectorFor(mediaCodecSelector, format), rules.decoded(format))
 
     override fun getDecoderInfos(
         mediaCodecSelector: MediaCodecSelector,

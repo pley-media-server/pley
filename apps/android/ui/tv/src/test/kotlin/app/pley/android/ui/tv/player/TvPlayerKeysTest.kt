@@ -8,9 +8,9 @@ import org.junit.Test
 /** The player's key map (TV addendum §5.2, design spec §2.7). */
 class TvPlayerKeysTest {
     @Test
-    fun `with the controls hidden, Centre plays or pauses unless Skip holds focus`() {
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = false))
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.hidden(KeyEvent.KEYCODE_ENTER, skipShowing = false))
+    fun `with the controls hidden, Centre is OK, which shows them rather than pausing, unless Skip holds focus`() {
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = false))
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.hidden(KeyEvent.KEYCODE_ENTER, skipShowing = false))
         assertNull(TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = true))
     }
 
@@ -19,7 +19,7 @@ class TvPlayerKeysTest {
         assertEquals(PlayerKey.Step(-1), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_LEFT, skipShowing = false))
         assertEquals(PlayerKey.Step(1), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_RIGHT, skipShowing = true))
         assertEquals(PlayerKey.Show(ControlFocus.Scrubber), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_UP, skipShowing = false))
-        assertEquals(PlayerKey.Show(ControlFocus.Tracks), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_DOWN, skipShowing = false))
+        assertEquals(PlayerKey.Show(ControlFocus.PlayPause), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_DOWN, skipShowing = false))
         assertEquals(PlayerKey.Show(ControlFocus.Default), TvPlayerKeys.hidden(KeyEvent.KEYCODE_MENU, skipShowing = false))
     }
 
@@ -34,9 +34,16 @@ class TvPlayerKeysTest {
     @Test
     fun `the scrubber takes Left, Right and Centre, and leaves Up and Down to focus`() {
         assertEquals(PlayerKey.Step(-1), TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_LEFT))
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_CENTER))
+        // OK there, not Play/Pause: it goes to a seek waiting before it pauses.
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_CENTER))
         assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_UP))
         assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_DOWN))
+    }
+
+    @Test
+    fun `while a seek waits, Up on the scrubber opens the chapters`() {
+        assertEquals(PlayerKey.Chapters, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_UP, chaptersOnUp = true))
+        assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_DOWN, chaptersOnUp = true))
     }
 
     @Test

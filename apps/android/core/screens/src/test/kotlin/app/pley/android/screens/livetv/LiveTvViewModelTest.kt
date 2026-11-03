@@ -55,6 +55,8 @@ class LiveTvViewModelTest {
     fun clear() {
         store.clear()
         LastWatched.channel.value = null
+        // What a test watched and no player took.
+        ChannelHandoff.take(0)
     }
 
     /**
@@ -122,6 +124,29 @@ class LiveTvViewModelTest {
         runCurrent()
         assertEquals(listOf(5L), vm.channels.value.loaded.map { it.id })
         assertEquals(1, vm.channels.value.total)
+    }
+
+    @Test
+    fun `a page that failed is asked for again once 10 s have passed, as the list moves`() = liveTest {
+        live.failingPages[1] = ApiException(503, "unavailable", "Busy.")
+        val vm = page()
+        vm.showingRows(150, 160)
+        runCurrent()
+        assertNull(vm.channels.value[150])
+        val asked = live.pagesAsked.count { it == 1 }
+        live.failingPages.remove(1)
+        // Moving on within 10 s: not yet.
+        clock += ChannelPaging.RETRY_MS / 2
+        vm.showingRows(151, 161)
+        runCurrent()
+        assertEquals(asked, live.pagesAsked.count { it == 1 })
+        assertNull(vm.channels.value[150])
+        // Once they have passed, as the list moves: asked for again, and in.
+        clock += ChannelPaging.RETRY_MS / 2
+        vm.showingRows(152, 162)
+        runCurrent()
+        assertEquals(asked + 1, live.pagesAsked.count { it == 1 })
+        assertEquals(1148L, vm.channels.value[150]?.id)
     }
 
     @Test
@@ -372,6 +397,22 @@ class LiveTvViewModelTest {
         // Opened again, unsearched.
         vm.openList()
         assertEquals("", vm.listQuery.value)
+    }
+
+    @Test
+    fun `the player shows the channel as the page had it, before the server says`() = liveTest {
+        val vm = page()
+        // A channel the server doesn't answer for yet.
+        val seen = LiveChannel(77, name = "Seventy-seven", number = "77")
+        vm.watch(seen)
+        assertEquals(listOf(77L to "all"), watched)
+        assertEquals(seen, player(77).channel.value)
+        // Taken once: a player opened on it again waits for the server.
+        assertNull(player(77).channel.value)
+        // A player of another channel doesn't take it for its own, and it goes.
+        vm.watch(seen)
+        assertEquals(1L, player(1).channel.value?.id)
+        assertNull(ChannelHandoff.take(77))
     }
 
     @Test

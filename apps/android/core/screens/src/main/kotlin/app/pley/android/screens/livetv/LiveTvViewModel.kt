@@ -84,8 +84,14 @@ data class LivePage(
 /** Where a list opens: at [index] of [category] searched for [query] (the channel last watched). */
 data class Landing(val category: LiveCategory, val query: String, val index: Int?)
 
-/** The guide's programmes by channel, and whether those in view are in. */
-data class GuidePrograms(val byChannel: Map<Long, List<LiveProgram>> = emptyMap(), val loaded: Boolean = false)
+/**
+ * The guide's programmes by channel, and whether those in view are in.
+ * Each is a new merge of the chunks, told apart by identity: the state
+ * flow compares each value with the one before on the main thread, and two
+ * merges, every list made anew, were compared programme by programme each
+ * time a chunk came in. The guides' rows skip what didn't change.
+ */
+class GuidePrograms(val byChannel: Map<Long, List<LiveProgram>> = emptyMap(), val loaded: Boolean = false)
 
 /** Something to tell: a favourite the server refused. */
 sealed interface LiveTvEvent {
@@ -150,7 +156,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
     /** The category listed: every channel while searching. */
     private val listed: Flow<LiveCategory> = combine(category, query) { c, q -> if (q.isBlank()) c else LiveCategory.All }.distinctUntilChanged()
 
-    private val paging = ChannelPaging(deps.live, listed, query, viewModelScope)
+    private val paging = ChannelPaging(deps.live, listed, query, viewModelScope, deps.clock)
 
     /** The chosen category's channels, as far as they are loaded. */
     val channels: StateFlow<ChannelPages> = paging.pages
@@ -252,6 +258,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
     /** Opens the live player on [channel], which changes channel within the category it was chosen in (every channel, from a search). */
     fun watch(channel: LiveChannel) {
         val from = if (query.value.isBlank()) chosen.value ?: LiveCategory.All else LiveCategory.All
+        ChannelHandoff.give(channel)
         deps.launcher.watchLive(channel.id, from.key)
     }
 

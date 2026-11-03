@@ -55,6 +55,7 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.ui.tv.kit.FieldHeight
+import app.pley.android.ui.tv.kit.OverlayShowing
 
 /**
  * The search field on TV (design spec §2.11, §4.5; D-pad rule 7): the
@@ -91,6 +92,7 @@ internal fun TvSearchField(
     }
 
     BackHandler(enabled = editing) { stop() }
+    OverlayShowing(editing)
     LaunchedEffect(editing) {
         if (editing) {
             runCatching { field.requestFocus() }

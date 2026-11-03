@@ -37,9 +37,9 @@ public static class LiveRules
     /// <summary>
     /// Whether this TV plays a channel's stream.ts as the provider sends it: its picture sent as it
     /// is (or none), its sound sent as it is or in a format every Samsung TV decodes itself (AC3,
-    /// MP2…), which the plan converts for players that can't. Deviation from Android, which plays
-    /// only what the plan sends as it is (<see cref="LivePlan.Direct"/>): its devices decode
-    /// different things, and HLS made a converted channel start later.
+    /// MP2…), which the plan converts for players that can't: as HLS, such a channel starts later.
+    /// Android plays such sound where its device's probe says it decodes it or passes it to the
+    /// receiver: its devices decode different things.
     /// </summary>
     public static bool PlaysAsSent(LivePlan plan) =>
         plan.Video is "copy" or "none"

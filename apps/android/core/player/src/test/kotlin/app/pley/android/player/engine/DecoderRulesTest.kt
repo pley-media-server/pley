@@ -91,6 +91,19 @@ class DecoderRulesTest {
     }
 
     @Test
+    fun profileSevenOnADrivePlaysOnTheHevcDecoderAsItsBaseLayer() {
+        val p7 = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvhe.07.06")
+        val drive = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { true }, profile7BaseLayer = { true })
+        assertEquals(listOf("c2.vendor.hevc.decoder"), names(drive, MimeTypes.VIDEO_DOLBY_VISION, p7))
+        // Other profiles keep their decoders: profile 8.1 its own where Dolby Vision is shown.
+        val p8 = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06")
+        assertEquals(listOf("c2.vendor.dolby.decoder"), names(drive, MimeTypes.VIDEO_DOLBY_VISION, p8))
+        // A server's stream: profile 7's decoder stays.
+        val stream = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { false })
+        assertEquals(listOf("c2.vendor.dolby.decoder"), names(stream, MimeTypes.VIDEO_DOLBY_VISION, p7))
+    }
+
+    @Test
     fun dolbyVisionShownGetsItsOwnDecodersFirstWhateverTheModeInUse() {
         val context = RuntimeEnvironment.getApplication()
         val format = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06")

@@ -1,6 +1,9 @@
 package app.pley.android.ui.phone.shell
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -9,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.pley.android.auth.SignOutReason
+import app.pley.android.common.TestTags
 import app.pley.android.data.SessionState
 import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
@@ -81,6 +85,19 @@ class PhoneShellTest {
     class Shell(val graph: TestGraph) {
         lateinit var state: PhoneShellState
         lateinit var navigation: PhoneNavigation
+    }
+
+    @Test
+    fun itsTagsAreResourceIdsForTheBenchmarks() {
+        val graph = TestGraph(null)
+        TestApplication.graph = graph
+        val start = PhoneStart(server = null, signedIn = false)
+        compose.setContent {
+            CompositionLocalProvider(LocalOnboardingSource provides FakeOnboardingSource()) {
+                PhoneApp(start, awaitStart = { start }, graph = { graph })
+            }
+        }
+        compose.onNodeWithTag(TestTags.PHONE_ROOT).assert(SemanticsMatcher.expectValue(SemanticsPropertiesAndroid.TestTagsAsResourceId, true))
     }
 
     @Test

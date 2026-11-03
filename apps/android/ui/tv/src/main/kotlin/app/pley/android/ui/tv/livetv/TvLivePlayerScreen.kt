@@ -70,6 +70,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,11 +109,11 @@ private enum class Overlay { None, Controls, Channels }
  * The TV's live player (the web's LivePlayerPage, for a remote), the
  * channel full screen. With nothing over it:
  *
- * - Up and Down, and Channel up and down, change channel (Up the next
- *   number), digits tune a number;
- * - OK shows the controls (the channel list, the favourite) over what's
- *   on; Menu or Guide shows the channel list; Back hides what shows, then
- *   leaves.
+ * - Up and Down, Channel up and down, and Previous and Next change
+ *   channel (Up the next number), digits tune a number;
+ * - OK opens the channel list, as Menu and Guide do; held, it shows the
+ *   controls (the channel list, the favourite) over what's on; Back hides
+ *   what shows, then leaves.
  *
  * Live TV is watched as it airs, as the web's: no pause, no going back,
  * so play, pause, rewind and fast forward, Left and Right do nothing.
@@ -132,6 +134,10 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
     var peek by remember { mutableIntStateOf(0) }
     var poked by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
+    // OK went down with nothing over the picture: its release opens the channel list, unless it was held.
+    var okPressed by remember { mutableStateOf(false) }
+    // OK held showed the controls: the rest of that press is the picture's.
+    var okHeld by remember { mutableStateOf(false) }
     val root = remember { FocusRequester() }
     val playing = state.phase == LivePhase.Playing
     val failed = state.phase is LivePhase.Failed
@@ -163,18 +169,25 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
+            // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+            .semantics { testTagsAsResourceId = true }
             .background(Color.Black)
             .testTag(TV_LIVE_PLAYER)
             .onPreviewKeyEvent { event ->
                 val code = event.key.nativeKeyCode
                 val down = event.type == KeyEventType.KeyDown
+                // Or its release would press the button the controls focused.
+                if (okHeld && code in OK_KEYS) {
+                    if (!down) okHeld = false
+                    return@onPreviewKeyEvent true
+                }
                 if (overlay == Overlay.Controls) poked++
                 when {
-                    code == KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    code == KeyEvent.KEYCODE_CHANNEL_UP || code == KeyEvent.KEYCODE_MEDIA_NEXT -> {
                         if (down) vm.step(1)
                         true
                     }
-                    code == KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    code == KeyEvent.KEYCODE_CHANNEL_DOWN || code == KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                         if (down) vm.step(-1)
                         true
                     }
@@ -203,8 +216,18 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> true
-                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            if (!down) overlay = Overlay.Controls
+                        // The channel list on the way up, as OK selects elsewhere; held, the controls, as a long press opens actions elsewhere.
+                        in OK_KEYS -> {
+                            if (down && event.nativeKeyEvent.repeatCount == 0) {
+                                okPressed = true
+                            } else if (down && okPressed) {
+                                okPressed = false
+                                okHeld = true
+                                overlay = Overlay.Controls
+                            } else if (!down && okPressed) {
+                                okPressed = false
+                                overlay = Overlay.Channels
+                            }
                             true
                         }
                         else -> false
@@ -218,7 +241,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         val shown = channel
         if (state.audioOnly && playing && shown != null) SoundOnly(shown, origin, now)
         when (val phase = state.phase) {
-            LivePhase.Tuning, LivePhase.Idle -> if (shown != null) Tuning(vm, shown, origin, now)
+            // The channel not known yet (opened elsewhere than a page that had it): the spinner alone.
+            LivePhase.Tuning, LivePhase.Idle -> if (shown != null) Tuning(vm, shown, origin, now) else Spinner(Modifier.align(Alignment.Center))
             is LivePhase.Failed -> Trouble(
                 trouble = phase.trouble,
                 channel = shown,
@@ -684,47 +708,55 @@ private fun CategoryChannels(
         BasicText(stringResource(R.string.tv_livetv_no_match), style = PleyType.Tv.Label.copy(color = PleyColors.Subtle), modifier = Modifier.padding(8.dp))
     }
     LazyColumn(state = list, contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag(TV_LIVE_PLAYER_CHANNELS)) {
-        items(count = pages.total ?: 0, key = { i -> pages[i]?.id ?: -i - 1L }) { i ->
+        items(count = pages.total ?: 0, key = { i -> pages[i]?.id ?: -i - 1L }, contentType = { i -> if (pages[i] == null) LOADING_ROW else CHANNEL_ROW }) { i ->
             val channel = pages[i]
             if (channel == null) {
-                Box(Modifier.fillMaxWidth().height(52.dp).clip(PleyShape.Control).background(Color.White.copy(alpha = 0.04f)))
+                Box(Modifier.fillMaxWidth().height(52.dp).background(Color.White.copy(alpha = 0.04f), PleyShape.Control))
                 return@items
             }
-            val on = channel.onAt(now)
-            val isCurrent = channel.id == current
-            Surface(
+            ChannelRow(
+                channel = channel,
+                label = listOfNotNull(channel.number, LiveTv.channelName(channel, category)).joinToString("  "),
+                // What's on, not the time: the clock's tick draws a row again only when its programme changes.
+                on = channel.onAt(now)?.title,
+                origin = origin,
+                playing = channel.id == current,
                 onClick = { onTune(channel, category) },
-                modifier = Modifier.fillMaxWidth().then(if (i == index) Modifier.initialFocus(enabled = initial).focusRequester(target) else Modifier),
-                shape = ClickableSurfaceDefaults.shape(PleyShape.Control),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = if (isCurrent) PleyColors.Surface3 else Color.Transparent,
-                    contentColor = PleyColors.Fg,
-                    focusedContainerColor = PleyColors.Accent,
-                    focusedContentColor = PleyColors.OnAccent,
-                    pressedContainerColor = PleyColors.AccentBright,
-                    pressedContentColor = PleyColors.OnAccent,
-                ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
-                glow = ClickableSurfaceDefaults.glow(Glow.None, Glow.None, Glow.None),
-            ) {
-                val content = androidx.tv.material3.LocalContentColor.current
-                Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ChannelTile(channel, origin, Modifier.size(width = 52.dp, height = 32.dp), well = Color.White.copy(alpha = 0.08f))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        BasicText(
-                            listOfNotNull(channel.number, LiveTv.channelName(channel, category)).joinToString("  "),
-                            style = PleyType.Tv.Label.copy(color = content),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (on != null) {
-                            BasicText(on.title, style = PleyType.Tv.Caption.copy(color = content.copy(alpha = 0.75f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                    if (channel.favorite) Icon(PleyIcons.Star, contentDescription = null, size = 14.dp, tint = content)
+                modifier = if (i == index) Modifier.initialFocus(enabled = initial).focusRequester(target) else Modifier,
+            )
+        }
+    }
+}
+
+/** A channel in the list: its logo, number and name, what's on, a star for a favourite; the one [playing] marked. */
+@Composable
+private fun ChannelRow(channel: LiveChannel, label: String, on: String?, origin: String, playing: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = ClickableSurfaceDefaults.shape(PleyShape.Control),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (playing) PleyColors.Surface3 else Color.Transparent,
+            contentColor = PleyColors.Fg,
+            focusedContainerColor = PleyColors.Accent,
+            focusedContentColor = PleyColors.OnAccent,
+            pressedContainerColor = PleyColors.AccentBright,
+            pressedContentColor = PleyColors.OnAccent,
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+        glow = ClickableSurfaceDefaults.glow(Glow.None, Glow.None, Glow.None),
+    ) {
+        val content = androidx.tv.material3.LocalContentColor.current
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            ChannelTile(channel, origin, Modifier.size(width = 52.dp, height = 32.dp), well = Color.White.copy(alpha = 0.08f))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                BasicText(label, style = PleyType.Tv.Label.copy(color = content), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (on != null) {
+                    BasicText(on, style = PleyType.Tv.Caption.copy(color = content.copy(alpha = 0.75f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            if (channel.favorite) Icon(PleyIcons.Star, contentDescription = null, size = 14.dp, tint = content)
         }
     }
 }
@@ -743,6 +775,13 @@ private const val INFO_MS = 5_000L
 
 /** The controls hide after this long untouched while playing. */
 private const val CONTROLS_MS = 6_000L
+
+/** The channel list's rows: a channel, or one whose page is still loading. */
+private const val CHANNEL_ROW = "channel"
+private const val LOADING_ROW = "loading"
+
+/** The keys that select: the remote's OK, and Enter on a keyboard or keypad. */
+private val OK_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
 
 /** Media keys that would pause, seek or skip: Live TV has none of that. */
 private val NOT_LIVE_KEYS = setOf(
