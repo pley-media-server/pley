@@ -36,7 +36,7 @@ pub const CLUSTER_MOST: u64 = 16 * 1024 * 1024;
 pub const INFLATED_MOST: usize = 4 * 1024 * 1024;
 /// The most cue points kept for a track: a film's subtitles are a few thousand.
 const CUE_POINTS_MOST: usize = 100_000;
-/// The most of a track's blocks held: a UHD film's PGS is a few tens of MB.
+/// The most of a track's blocks read: a UHD film's PGS is a few tens of MB.
 pub const TRACK_MOST: usize = 64 * 1024 * 1024;
 
 /// A subtitle's block: when it shows, for how long when the file says, and
@@ -63,21 +63,23 @@ struct RawBlock {
     data: Vec<u8>,
 }
 
-/// `track`'s blocks in time order. Each is passed to `found` as it is read,
-/// so what is read shows while the rest is; `cancel` stops the reading with
-/// what was read. Empty when the file has no Cues (FFmpeg writes them for
-/// video alone) or none for the track.
+/// Reads `track`'s blocks, in the Cues' order (the file's), handing each to
+/// `found` as it is read: the caller keeps them, so what is read shows while
+/// the rest is, and a track is held once, never copied here as well. `cancel`
+/// stops the reading with what was read. Nothing is found when the file has no
+/// Cues (FFmpeg writes them for video alone) or none for the track. Gives how
+/// many blocks were found.
 pub fn read<R: ReadAt + ?Sized>(
     file: &R,
     facts: &LocalFacts,
     track: &MatroskaTrack,
-    mut found: impl FnMut(&SubtitleBlock),
+    mut found: impl FnMut(SubtitleBlock),
     cancel: &AtomicBool,
-) -> Vec<SubtitleBlock> {
-    let Some(cues_at) = facts.cues_at else { return Vec::new() };
+) -> usize {
+    let Some(cues_at) = facts.cues_at else { return 0 };
     let mut cues = cues_of(file, cues_at, track.number, facts.scale_ns);
     cues.sort_by_key(|c| (c.cluster, c.relative.unwrap_or(0)));
-    let mut blocks: Vec<SubtitleBlock> = Vec::new();
+    let mut count = 0;
     let mut starts = HashSet::new();
     let mut held = 0usize;
     let mut cluster_times = HashMap::new();
@@ -104,11 +106,22 @@ pub fn read<R: ReadAt + ?Sized>(
             }
             let Some(data) = uncompressed(raw.data, track) else { continue };
             held = held.saturating_add(data.len());
-            let block = SubtitleBlock { start_ms, duration_ms, data };
-            found(&block);
-            blocks.push(block);
+            count += 1;
+            found(SubtitleBlock { start_ms, duration_ms, data });
         }
     }
+    count
+}
+
+/// `track`'s blocks, all of them, in time order: [`read`] kept in one list.
+pub fn read_all<R: ReadAt + ?Sized>(
+    file: &R,
+    facts: &LocalFacts,
+    track: &MatroskaTrack,
+    cancel: &AtomicBool,
+) -> Vec<SubtitleBlock> {
+    let mut blocks = Vec::new();
+    read(file, facts, track, |b| blocks.push(b), cancel);
     blocks.sort_by_key(|b| b.start_ms);
     blocks
 }

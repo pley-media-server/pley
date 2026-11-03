@@ -86,13 +86,14 @@ impl Extraction {
         }
     }
 
-    fn found(&self, block: &SubtitleBlock) {
+    /// Keeps a block read out of the file: its bytes move here, the one copy held.
+    fn found(&self, block: SubtitleBlock) {
         if self.pictures {
             let duration = block.duration_ms.map(|d| d.max(0) as u64);
-            let sample = PictureSample::new(block.start_ms.max(0) as u64, duration, block.data.clone());
+            let sample = PictureSample::new(block.start_ms.max(0) as u64, duration, block.data);
             self.samples.lock().unwrap_or_else(|e| e.into_inner()).push(sample);
         } else {
-            self.blocks.lock().unwrap_or_else(|e| e.into_inner()).push(block.clone());
+            self.blocks.lock().unwrap_or_else(|e| e.into_inner()).push(block);
         }
     }
 

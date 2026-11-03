@@ -194,10 +194,11 @@ fn subtitled(codec: &str, first: Option<Vec<u8>>, extra: Vec<u8>) -> Vec<u8> {
 }
 
 fn read_track(file: &[u8], facts: &LocalFacts) -> Vec<SubtitleBlock> {
-    let mut seen = 0;
-    let blocks = cues::read(file, facts, &facts.tracks[0], |_| seen += 1, &AtomicBool::new(false));
-    assert_eq!(seen, blocks.len(), "each block is passed on as it is read");
-    blocks
+    let mut seen = Vec::new();
+    let count = cues::read(file, facts, &facts.tracks[0], |b| seen.push(b), &AtomicBool::new(false));
+    assert_eq!(count, seen.len(), "each block is passed on as it is read");
+    assert_eq!(seen, cues::read_all(file, facts, &facts.tracks[0], &AtomicBool::new(false)));
+    seen
 }
 
 #[test]
@@ -262,7 +263,7 @@ fn a_zlib_vobsub_track_is_inflated_and_a_stripped_header_put_back() {
 fn reading_a_track_stops_when_asked() {
     let file = subtitled("S_TEXT/UTF8", None, vec![]);
     let facts = read_head(&file, usize::MAX);
-    assert!(cues::read(&file, &facts, &facts.tracks[0], |_| {}, &AtomicBool::new(true)).is_empty());
+    assert_eq!(cues::read(&file, &facts, &facts.tracks[0], |_| {}, &AtomicBool::new(true)), 0);
 }
 
 #[test]
@@ -393,7 +394,7 @@ fn a_file_cut_anywhere_or_full_of_noise_reads_as_less_never_a_panic() {
             let part = &file[..cut];
             if let Some(facts) = facts(part) {
                 for track in &facts.tracks {
-                    let blocks = cues::read(part, &facts, track, |_| {}, &never);
+                    let blocks = cues::read_all(part, &facts, track, &never);
                     cues::webvtt(&blocks, &track.codec_id);
                 }
             }
@@ -721,7 +722,28 @@ fn a_files_own_subtitle_tracks_are_read_out_of_it_for_the_player() {
     assert_eq!(track.codec_id, "S_HDMV/PGS");
     assert_eq!(track.samples.iter().map(|s| s.time_ms).collect::<Vec<_>>(), [1_500, 10_000]);
     assert_eq!(track.samples[0].data(), [0x16, 0, 0]);
+    // Each picture is held once: every answer hands over the same bytes, not a copy.
+    let (again, _) = pictures.picture_track("/api/files/7/subtitles/0.mks", SECOND).unwrap().unwrap();
+    assert_eq!(again.samples[0].data().as_ptr(), track.samples[0].data().as_ptr());
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_tracks_blocks_go_to_the_reader_without_a_copy_kept_while_reading() {
+    let file = subtitled("S_HDMV/PGS", Some(vec![0x16, 0x00, 0x00]), vec![]);
+    let facts = read_head(&file, usize::MAX);
+    // The blocks are the reader's as they come: what it keeps are the very buffers read.
+    let mut kept: Vec<(usize, SubtitleBlock)> = Vec::new();
+    let count = cues::read(
+        file.as_slice(),
+        &facts,
+        &facts.tracks[0],
+        |b| kept.push((b.data.as_ptr() as usize, b)),
+        &AtomicBool::new(false),
+    );
+    assert_eq!(count, 2);
+    assert!(kept.iter().all(|(at, b)| *at == b.data.as_ptr() as usize));
+    assert_eq!(kept.iter().map(|(_, b)| b.start_ms).collect::<Vec<_>>(), [1_500, 10_000]);
 }
 
 #[test]
