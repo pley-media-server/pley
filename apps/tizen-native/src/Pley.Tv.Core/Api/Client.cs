@@ -465,6 +465,10 @@ public sealed class Api
         return Call("POST", $"/api/items/{itemId}/progress", body);
     }
 
+    /// <summary>PUT /api/cast/devices/{id}/state: what this TV, listed for casting, plays (a <see cref="Player.CastReport"/>'s body).</summary>
+    public Task<HttpResponse> CastState(string deviceId, IReadOnlyDictionary<string, object?> body) =>
+        Send($"/api/cast/devices/{Uri.EscapeDataString(deviceId)}/state", "PUT", body, timeoutMs: 10_000);
+
     /// <summary>
     /// GET /api/playback/{session}: how it plays now, with its transcode's live numbers. Gone, it is
     /// a 404; stopped from elsewhere, a <see cref="SessionStoppedException"/>.

@@ -10,6 +10,10 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- The native app can be cast to from a phone or a browser signed in to the
+  same profile, as the web app: a movie, an episode or an extra sent there
+  plays at once, from any page, and the phone or browser pauses, resumes,
+  seeks and stops it and sees what plays. It shows as "Samsung TV".
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with a DEBUG icon on a yellow band, so it installs beside the app rather
   than in its place; the app's own icon is the plain logo. The metrics

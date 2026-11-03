@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
 using Pley.Tv.Core.Net;
+using Pley.Tv.Core.Player;
 
 namespace Pley.Tv.Core;
 
@@ -177,6 +178,8 @@ public sealed class AppState
     const long LibraryGatherMs = 1_500;
     /// <summary>How long "Showing what Pley had saved. Reconnecting…" shows: as long as an error's toast.</summary>
     const long OfflineNoticeMs = 6_000;
+    /// <summary>This TV's id as a device to cast to, made once.</summary>
+    const string CastDeviceKey = "pley.castDevice";
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     static readonly JsonSerializerOptions SettingsJson = new JsonSerializerOptions
@@ -197,6 +200,8 @@ public sealed class AppState
     readonly HashSet<long> stateIds = new HashSet<long>();
     readonly HashSet<long> stateParents = new HashSet<long>();
     readonly Dictionary<long, IDisposable> libraryTimers = new Dictionary<long, IDisposable>();
+    /// <summary>Reports of what plays, to the phones and browsers that cast to the TV: one at a time, in order.</summary>
+    readonly SessionReporter castReports = new SessionReporter();
     Tokens? tokens;
     EventStream? events;
     IDisposable? stateTimer, noticeTimer;
@@ -249,6 +254,8 @@ public sealed class AppState
     public Signal<int> PlaylistChanges { get; } = new Signal<int>(0);
     /// <summary>The libraries being scanned now, from the server's events and the libraries' <c>scanning</c>.</summary>
     public Signal<IReadOnlyList<ScanState>> Scans { get; } = new Signal<IReadOnlyList<ScanState>>(new ScanState[0]);
+    /// <summary>Bumped each time the events connect with the TV listed for casting: a video playing says so again.</summary>
+    public Signal<int> CastConnects { get; } = new Signal<int>(0);
     /// <summary>The server signed the TV out: show sign-in.</summary>
     public Signal<bool> SignedOut { get; } = new Signal<bool>(false);
     /// <summary>Whether the TV shows the app (not another app, its home screen or standby).</summary>
@@ -385,6 +392,31 @@ public sealed class AppState
             store.Set("pley.installId", id);
         }
         return id!;
+    }
+
+    /// <summary>How this TV is listed for casting: its id made once and kept for good (<c>pley.castDevice</c>), its name and platform.</summary>
+    public CastIdentity CastIdentity()
+    {
+        var id = store.Get(CastDeviceKey);
+        if (!Cast.IsId(id))
+        {
+            id = Cast.NewId();
+            store.Set(CastDeviceKey, id);
+        }
+        return Cast.Identity(id!);
+    }
+
+    /// <summary>
+    /// Says what the video player plays (PUT /api/cast/devices/{id}/state), while the events list
+    /// the TV for casting: one at a time, in order, and what fails is dropped.
+    /// </summary>
+    public void CastState(CastReport report)
+    {
+        var api = Api.Value;
+        if (api == null || events?.Casting != true) return;
+        var id = CastIdentity().Id;
+        var body = report.Body();
+        castReports.Send(() => api.CastState(id, body));
     }
 
     /// <summary>The profile "Always start as" names, for the whole TV; null asks who's watching.</summary>
@@ -917,7 +949,7 @@ public sealed class AppState
             Scans.Value = new ScanState[0];
             return;
         }
-        events ??= new EventStream(server, tokens, HandleEvent, Reconnected, connect, scheduler, platform.UserAgent);
+        events ??= new EventStream(server, tokens, HandleEvent, Reconnected, connect, scheduler, platform.UserAgent, CastIdentity());
         events.Start();
     }
 
@@ -926,6 +958,8 @@ public sealed class AppState
         // Nothing is replayed: what is older than 30 s, or anything after the server was out of reach, is asked again.
         var away = Offline.Value;
         ServerAnswered();
+        // Listed afresh for casting: the server knows nothing of what plays here.
+        if (events?.Casting == true) CastConnects.Value++;
         var now = scheduler.Elapsed;
         if (away || lastSync == null || now - lastSync.Value >= RevalidateMs)
         {

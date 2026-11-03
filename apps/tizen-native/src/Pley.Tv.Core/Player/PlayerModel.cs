@@ -183,6 +183,12 @@ public sealed class PlayerModel : IDisposable
     /// <summary>Play or pause, from what the player means to do now.</summary>
     public bool WantsToPlay => wantPlay;
 
+    /// <summary>The title played to its end: nothing plays, whether Up Next shows or not.</summary>
+    public bool AtEnd => ended;
+
+    /// <summary>Each seek, so what follows the playback (a phone casting to the TV) hears where it went.</summary>
+    public event Action? Sought;
+
     /// <summary>The subtitles' look (Settings → Subtitles), which the Subtitles panel changes.</summary>
     public Settings Settings => source.Settings;
 
@@ -970,6 +976,7 @@ public sealed class PlayerModel : IDisposable
             lastPositionMs = target;
             SetClock(positionMs: target);
             Restart(target);
+            Sought?.Invoke();
             return;
         }
         e.SeekTo(target);
@@ -987,6 +994,7 @@ public sealed class PlayerModel : IDisposable
             seekReportTimer = null;
             Report(wantPlay ? "playing" : "paused");
         });
+        Sought?.Invoke();
     }
 
     /// <summary>The audio track <paramref name="index"/>: switched by the engine in direct play when it plays here, else a new session with it.</summary>

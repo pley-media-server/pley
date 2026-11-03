@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
@@ -109,6 +110,21 @@ sealed class Shell
         };
         leaving.Add(later);
         later.Start();
+    }
+
+    /// <summary>
+    /// Takes the covering sheet (a video or a channel playing) off the screen at once, with what is
+    /// over it (its panels and lists), as Back would: for a player another one takes the place of in
+    /// the same turn, which keeps the window clear, and which must find the TV's player let go.
+    /// </summary>
+    public void LeaveCovering()
+    {
+        var cover = sheets.FindLastIndex(s => s.Covers);
+        if (cover < 0) return;
+        var leaving = sheets.Skip(cover).Reverse().ToList();
+        sheets.RemoveRange(cover, sheets.Count - cover);
+        foreach (var sheet in leaving) Remove(sheet);
+        Uncovered();
     }
 
     /// <summary>Time for a frame or two (at 60 Hz) to be drawn before a covering sheet lets go.</summary>

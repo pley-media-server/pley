@@ -540,7 +540,8 @@ Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scru
 reaches them, as on Android TV), Up
 Next (the next episode, or the next in a playlist or collection),
 recovering by itself from stalls and a server out of reach, and Try again
-when it can't play. Back on its first screen asks "Exit Pley?". Unlike
+when it can't play. A phone or a browser casts to it as to the web app
+([Casting](#casting)). Back on its first screen asks "Exit Pley?". Unlike
 Android's, its music pauses while the app is hidden, since a hidden app
 gives up the TV's player, and plays on from there when the app is back.
 The other pages come next.
@@ -586,7 +587,9 @@ screen is made, which takes the UI thread half a second the first time.
   watching?", which profile is current and locked, what choosing one
   leads to, where each refusal of a PIN leaves the screen, and the first
   screen a start opens (with Always start as, the PIN pad of the profile
-  the TV was left on when it has one). Where the Android app is
+  the TV was left on when it has one); `cast.json` pins the casting
+  commands read from the event stream, the stream's query, and what the
+  player says it plays as it changes. Where the Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which
   fixture case it answers differently.

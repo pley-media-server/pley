@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Pley.Tv.Core;
+using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Local;
 using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Live;
@@ -30,6 +31,10 @@ class App : NUIApplication
     Drives drives = null!;
     /// <summary>The music was playing as the app went to the background: it plays again when the app is back.</summary>
     bool musicWasPlaying;
+    /// <summary>The pages with the rail, while they show: a title cast to the TV plays over them, never over sign-in or "Who's watching?".</summary>
+    TvShell? pages;
+    /// <summary>Titles cast to the TV so far: one whose details come after a later one's is dropped.</summary>
+    int casts;
 
     protected override void OnCreate()
     {
@@ -74,6 +79,8 @@ class App : NUIApplication
         {
             if (signedOut && state.Server.Value != null) Go(new PageKey.Link(state.Server.Value));
         };
+        // A phone or a browser casting a title to the TV.
+        state.OnEvent(e => _ = OnCast(e));
         var first = Profile.Start();
         Go(state.Start() switch
         {
@@ -164,9 +171,38 @@ class App : NUIApplication
         }
     }
 
+    /// <summary>
+    /// A title cast from a phone or a browser (docs/API.md, "Casting to another device"): a video or
+    /// a channel playing leaves, as on Back, and the player opens over whatever page shows, where it
+    /// was sent to start, else where the profile left off, without asking.
+    /// </summary>
+    async Task OnCast(ServerEvent e)
+    {
+        if (e.Type != "cast_play" || pages == null || !state.SignedIn || Cast.Command(e, state.CastIdentity().Id) is not CastCommand.Play play) return;
+        var tv = pages;
+        var cast = ++casts;
+        ItemDetail? detail = null;
+        if (play.PositionMs == null)
+        {
+            try
+            {
+                detail = state.CachedItemStale(play.ItemId) ? await state.Item(play.ItemId) : state.CachedItem(play.ItemId);
+            }
+            catch (Exception)
+            {
+                // The player asks again, and says why when it can't play.
+            }
+        }
+        if (cast != casts || pages != tv || !state.SignedIn) return;
+        shell.LeaveCovering();
+        tv.Play?.Invoke(Cast.Request(play, detail));
+    }
+
     /// <summary>Shows the page for <paramref name="key"/>, in place of what is on screen.</summary>
     void Go(PageKey key)
     {
+        // Sign-in, the servers and "Who's watching?" take the screen; Home brings the pages back.
+        pages = null;
         switch (key)
         {
             case PageKey.Servers:
@@ -270,6 +306,7 @@ class App : NUIApplication
         Profile.Took("app: the shell and its rail", made);
         tv.Actions = (id, continueWatching) => TileActions.Open(shell, state, id, continueWatching, r => tv.Play?.Invoke(r), k => Go(tv, k), tv.Toast);
         shell.Show(tv);
+        pages = tv;
         var shown = Profile.Start();
         tv.Restart(Home(tv));
         Profile.Took("Home shown", shown);

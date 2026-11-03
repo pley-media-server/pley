@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using Pley.Tv.Core;
+using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Local;
 using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Ui;
@@ -57,6 +58,10 @@ sealed class PlayerScreen : Sheet
     readonly IDisposable keys;
     readonly MediaKeys mediaKeys;
     readonly List<IDisposable> watches = new List<IDisposable>();
+    /// <summary>What plays, said to the phones and browsers that cast to the TV; none for a video from a drive.</summary>
+    readonly CastReporter? cast;
+    /// <summary>The item asked for, until the model knows the one playing.</summary>
+    readonly long requested;
 
     readonly View black;
     readonly View bars;
@@ -362,6 +367,17 @@ sealed class PlayerScreen : Sheet
         watches.Add(model.Cues.Watch(subtitles.Show));
         watches.Add(model.Picture.Watch(pictures.Show));
         watches.Add(state.Settings.Watch(subtitles.Restyle));
+        // A phone or a browser casting to the TV steers this player, cast or not; a title of the server's is said to them as it plays.
+        watches.Add(state.OnEvent(OnCast));
+        requested = request.ItemId;
+        if (localFile == null)
+        {
+            var said = new CastReporter(CastView, state.CastState, new ContextScheduler());
+            cast = said;
+            watches.Add(model.State.Watch(_ => said.Changed()));
+            model.Sought += said.Now;
+            state.CastConnects.Changed += CastConnected;
+        }
     }
 
     bool Disposed => gone;
@@ -1127,6 +1143,41 @@ sealed class PlayerScreen : Sheet
         if (!gone && !visible) model.Pause();
     }
 
+    // ---- casting
+
+    /// <summary>A phone or a browser casting to the TV: pause, resume, seek and stop, as the remote's media keys and a chapter chosen do.</summary>
+    void OnCast(ServerEvent e)
+    {
+        if (gone || e.Type != "cast_control" || Cast.Command(e, state.CastIdentity().Id) is not CastCommand.Control control) return;
+        switch (control.Action)
+        {
+            case "pause":
+                OnMedia(MediaAction.Pause);
+                break;
+            case "resume":
+                OnMedia(MediaAction.Play);
+                break;
+            case "stop":
+                OnMedia(MediaAction.Stop);
+                break;
+            case "seek" when error == null:
+                seeker.Cancel();
+                model.SeekTo(control.PositionMs ?? 0);
+                Layout();
+                break;
+        }
+    }
+
+    /// <summary>What the player is doing, for the cast report.</summary>
+    CastView CastView()
+    {
+        var s = model.State.Value;
+        return new CastView(s.ItemId != 0 ? s.ItemId : requested, s.Phase.Kind, model.LivePositionMs(), model.Clock.Value.DurationMs, model.AtEnd);
+    }
+
+    /// <summary>The events list the TV again: the server knows nothing of what plays until it is said.</summary>
+    void CastConnected(int _) => cast?.Now();
+
     // ---- errors
 
     /// <summary>
@@ -1214,6 +1265,12 @@ sealed class PlayerScreen : Sheet
         model.Toast -= ShowToast;
         foreach (var w in watches) w.Dispose();
         watches.Clear();
+        if (cast != null)
+        {
+            model.Sought -= cast.Now;
+            state.CastConnects.Changed -= CastConnected;
+            cast.Close();
+        }
         model.Close();
         // The pictures' textures go now, not when the view is collected.
         pictures.Show(null);

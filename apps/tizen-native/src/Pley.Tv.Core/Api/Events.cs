@@ -17,7 +17,8 @@ namespace Pley.Tv.Core.Api;
 /// <summary>
 /// One of the server's events (docs/API.md, "Activity &amp; events"). Types: library_changed,
 /// libraries_changed, sessions_changed, watchlist_changed, user_state_changed, session_stopped,
-/// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed.
+/// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed, and to
+/// this TV's stream alone while it may be cast to, cast_play and cast_control (<see cref="Player.Cast"/>).
 /// </summary>
 public sealed record ServerEvent
 {
@@ -35,6 +36,15 @@ public sealed record ServerEvent
     /// <summary>scan_progress: the files read so far, of <see cref="Total"/>.</summary>
     public long Processed { get; init; }
     public long Total { get; init; }
+    /// <summary>cast_play and cast_control: the device they are for.</summary>
+    public string? DeviceId { get; init; }
+    /// <summary>cast_play: what to play, and which of its versions when one was picked.</summary>
+    public long? ItemId { get; init; }
+    public long? FileId { get; init; }
+    /// <summary>cast_play: where to start (null: where the profile left off); cast_control: a seek's target.</summary>
+    public long? PositionMs { get; init; }
+    /// <summary>cast_control: "pause", "resume", "seek" or "stop".</summary>
+    public string? Action { get; init; }
 }
 
 /// <summary>A library scan under way: how far, 0 to 1, when the server has said.</summary>
@@ -96,6 +106,7 @@ public sealed class SseReader
     {
         "library_changed" or "scan_started" or "scan_progress" or "scan_finished" => e.LibraryId != null,
         "session_stopped" => !string.IsNullOrEmpty(e.SessionId),
+        "cast_play" or "cast_control" => !string.IsNullOrEmpty(e.DeviceId),
         "libraries_changed" or "sessions_changed" or "watchlist_changed" or "user_state_changed" or "live_channels_changed" or "live_tuners_changed" => true,
         _ => false,
     };
@@ -113,6 +124,9 @@ public sealed class SseReader
 /// <item>A 401 whose challenge says <c>invalid_token</c> refreshes the token once and tries
 /// again; a 401 after that, or any 403, stops the stream until the next <see cref="Start"/>:
 /// trying again can't help.</item>
+/// <item>With a <see cref="Player.CastIdentity"/>, the TV is listed for casting while the stream is open
+/// (<see cref="Player.Cast.Query"/>); a server that refuses that (400, 403, 429) gets the stream without
+/// it until the next <see cref="Start"/>.</item>
 /// </list>
 /// </summary>
 public sealed class EventStream
@@ -132,13 +146,16 @@ public sealed class EventStream
     readonly EventConnect connect;
     readonly IScheduler scheduler;
     readonly string? userAgent;
+    readonly Player.CastIdentity? cast;
     CancellationTokenSource? running;
     IDisposable? timer;
     int failures;
     bool stopped = true;
+    /// <summary>The server refused the TV as a device to cast to: the stream goes on without it until the next start.</summary>
+    bool castRefused;
 
     public EventStream(string server, Tokens tokens, Action<ServerEvent> onEvent, Action onReconnect, EventConnect connect, IScheduler scheduler,
-        string? userAgent = null)
+        string? userAgent = null, Player.CastIdentity? cast = null)
     {
         this.server = server;
         this.tokens = tokens;
@@ -147,22 +164,28 @@ public sealed class EventStream
         this.connect = connect;
         this.scheduler = scheduler;
         this.userAgent = userAgent;
+        this.cast = cast;
     }
 
     /// <summary>Whether the stream is followed: started, and not stopped by the server's refusal since.</summary>
     public bool Running => !stopped;
+
+    /// <summary>A stream is open that lists the TV for casting: what it plays is worth saying.</summary>
+    public bool Casting { get; private set; }
 
     public void Start()
     {
         if (!stopped) return;
         stopped = false;
         failures = 0;
+        castRefused = false;
         _ = Connect(refreshed: false);
     }
 
     public void Stop()
     {
         stopped = true;
+        Casting = false;
         timer?.Dispose();
         timer = null;
         running?.Cancel();
@@ -229,15 +252,17 @@ public sealed class EventStream
             ["Authorization"] = "Bearer " + token,
         };
         if (userAgent != null) headers["User-Agent"] = userAgent;
+        var listed = castRefused ? null : cast;
         EventEnd end;
         try
         {
             // The stream is read off the UI thread; what it says is told there, in order.
-            end = await connect($"{server}/api/events", headers, () => scheduler.Post(() =>
+            end = await connect($"{server}/api/events{Player.Cast.Query(listed)}", headers, () => scheduler.Post(() =>
             {
                 if (openedAt >= 0 || running != mine) return;
                 openedAt = scheduler.Elapsed;
                 failures = 0;
+                Casting = listed != null;
                 onReconnect();
             }), text =>
             {
@@ -255,9 +280,17 @@ public sealed class EventStream
         }
         if (running != mine) return;
         running = null;
+        Casting = false;
         if (stopped) return;
         // Nothing answered, or the stream broke off: the server proves itself again before the next token.
         if (end.Status == 0) tokens.DoubtServer();
+        // Refused as a device to cast to (an id or name it doesn't take, a token without `play`, too many devices): the events still come.
+        if (listed != null && end.Status is 400 or 403 or 429)
+        {
+            castRefused = true;
+            Later(0);
+            return;
+        }
         if (end.Status == 401 && !refreshed && Api.InvalidToken(end.Challenge))
         {
             string? fresh;
