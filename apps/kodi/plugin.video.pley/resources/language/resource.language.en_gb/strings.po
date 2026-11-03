@@ -1329,3 +1329,27 @@ msgstr ""
 msgctxt "#30550"
 msgid "Another device answers at %s's address"
 msgstr ""
+
+msgctxt "#30551"
+msgid "Your rating"
+msgstr ""
+
+msgctxt "#30552"
+msgid "Bitrate"
+msgstr ""
+
+msgctxt "#30553"
+msgid "Resolution"
+msgstr ""
+
+msgctxt "#30554"
+msgid "Dynamic range"
+msgstr ""
+
+msgctxt "#30555"
+msgid "All resolutions"
+msgstr ""
+
+msgctxt "#30556"
+msgid "All dynamic ranges"
+msgstr ""

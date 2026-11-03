@@ -333,6 +333,12 @@ TEXT = {
     "yours": 30548,
     "results_for": 30549,
     "another_device": 30550,
+    "sort_user_rating": 30551,
+    "sort_bitrate": 30552,
+    "resolution": 30553,
+    "dynamic_range": 30554,
+    "any_resolution": 30555,
+    "any_dynamic_range": 30556,
 }
 
 

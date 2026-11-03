@@ -85,6 +85,21 @@ GRID = {
 }
 
 
+# A library poster's quality badges (the Android TV app's TileOverlays):
+# pills 36 tall, 12 in from the art's left and foot and 12 apart, each its
+# word in FONT_BADGE with 12 either side. By the key the tile gives the
+# skin (tiles.BADGE_KEYS): its word, and its pill's width. "4K" and the
+# widest after it fill a poster of the grid to its inset.
+BADGE_HEIGHT, BADGE_INSET, BADGE_GAP = 36, 12, 12
+BADGES = {
+    "4k": ("4K", 50),
+    "dolby_vision": ("DV", 54),
+    "hdr10plus": ("HDR10+", 106),
+    "hdr10": ("HDR10", 94),
+    "hlg": ("HLG", 68),
+}
+
+
 def stride(shape: Shape) -> int:
     return shape.width + shape.gap
 
@@ -234,8 +249,11 @@ LIBRARY_CONTROLS = 4020
 # The sort chip twice: ascending and descending (its icon says which).
 LIBRARY_SORT, LIBRARY_SORT_DOWN, LIBRARY_UNWATCHED, LIBRARY_GENRE, LIBRARY_YEAR = 4021, 4121, 4023, 4024, 4025
 LIBRARY_FILTER = 4022
-# The filter chips twice too: off, and on (leading with a check).
+# The filter chips twice too: off, and on (leading with a check). The
+# resolution and the dynamic range have no chips of their own, which the
+# row has no room for: Filter's twin says them while one is chosen.
 LIBRARY_UNWATCHED_ON, LIBRARY_GENRE_ON, LIBRARY_YEAR_ON = 4123, 4124, 4125
+LIBRARY_FILTER_ON = 4122
 LIBRARY_COUNT = 4026
 LIBRARY_GRID = 4030  # one list per grid shape
 LIBRARY_EMPTY = 4040

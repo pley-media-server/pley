@@ -515,6 +515,8 @@ class WindowTest(unittest.TestCase):
         library.items, library.total = [], 23
         library.genre, library.watched = "Science Fiction", False
         library.sort, library.descending = "year", True
+        # A server from before the quality filters: no Resolution or Dynamic range.
+        library.filters = {"genres": ["Drama", "Science Fiction"], "years": [1999]}
         self.assertEqual(library.query(0)["watched"], "false")
         # Save as…: Plex's syntax, as SmartFilter.of writes it.
         self.assertEqual(library.smart_filter(), "genre=Science+Fiction&unwatched=1&sort=year%3Adesc")
@@ -543,6 +545,135 @@ class WindowTest(unittest.TestCase):
             library.filter_menu()
         self.assertEqual(win.session.client.posts, [("/api/playlists", {"title": "Seen", "smart_filter": "unwatched=0&sort=year%3Adesc", "library_id": 4})])
         self.assertEqual(len(win.opened), 1)
+
+    def test_library_quality_filters(self):
+        uhd = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "video_codec": "hevc", "dynamic_range": "dolby_vision"}
+        hd = {"bitrate": 8_200_000, "size": 4_294_967_296, "width": 1920, "height": 1080, "video_codec": "h264", "dynamic_range": "sdr"}
+        items = [
+            {"id": 1, "kind": "movie", "title": "Saltwind", "year": 1995, "user_state": {}, "media": uhd},
+            {"id": 2, "kind": "movie", "title": "Low Orbit", "year": 2019, "user_state": {}, "media": hd},
+        ]
+        filters = {
+            "genres": ["Drama"],
+            "years": [1999],
+            "resolutions": ["4k", "1080"],
+            # Best first, "hdr" leading; a token this add-on has no word for is left out.
+            "dynamic_ranges": ["hdr", "dolby_vision", "hdr12", "sdr"],
+        }
+        asked = []
+
+        def get(path, **query):
+            asked.append((path, query))
+            return filters if path.endswith("/filters") else {"items": items, "total": 2}
+
+        win = FakeWindow()
+        win.session.get = get
+        win.libraries = [{"id": 4, "kind": "movies", "name": "Movies", "item_count": 342}]
+        library = window.Library(win, win.libraries[0], None)
+        library.load()
+        library.draw()
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        # Sorted by title and unfiltered, the posters say nothing of their quality.
+        self.assertEqual([(li.label2, li.properties.get("resolution"), li.properties.get("range")) for li in grid.items], [("1995", None, None), ("2019", None, None)])
+        self.assertTrue(win.made[L.LIBRARY_FILTER].visible)
+        self.assertFalse(win.made[L.LIBRARY_FILTER_ON].visible)
+        # Filter: Resolution and Dynamic range after Year, with nothing chosen.
+        with Dialogs(picks=[5, 1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        names = dialogs.shown[0][0]
+        self.assertEqual(names[3:], ["Genre: All genres", "Year: All years", "Resolution: All resolutions", "Dynamic range: All dynamic ranges"])
+        # The choices are the server's, in its order, by their names.
+        self.assertEqual(dialogs.shown[1], (["All resolutions", "4K", "1080p"], 0))
+        self.assertEqual(asked[-1], ("/api/libraries/4/items", {"sort": "title", "order": "asc", "offset": 0, "limit": window.PAGE, "resolution": "4k"}))
+        # A resolution chosen: the posters carry their badges, their line stays the year.
+        self.assertEqual([(li.label2, li.properties.get("resolution"), li.properties.get("range")) for li in grid.items], [("1995", "4k", "dolby_vision"), ("2019", None, None)])
+        # Filter's twin says what is chosen, and keeps focus.
+        self.assertFalse(win.made[L.LIBRARY_FILTER].visible)
+        self.assertTrue(win.made[L.LIBRARY_FILTER_ON].visible)
+        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K")
+        self.assertEqual(win.focused, L.LIBRARY_FILTER_ON)
+        self.assertEqual(win.made[L.LIBRARY_COUNT].label, window.T("count_of") % ("2", "342 movies"))
+        with Dialogs(picks=[6, 2]) as dialogs:
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual(dialogs.shown[0][0][5:], ["Resolution: 4K", "Dynamic range: All dynamic ranges", window.T("clear_filters"), window.T("save_as")])
+        self.assertEqual(dialogs.shown[1], (["All dynamic ranges", "HDR", "Dolby Vision", "SDR"], 0))
+        self.assertEqual(asked[-1][1]["dynamic_range"], "dolby_vision")
+        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K · Dolby Vision")
+        # Save as…: after the year, before unwatched, in Plex's syntax (Pley's dynamicRange).
+        library.genre, library.year, library.watched = "Drama", 1999, False
+        self.assertEqual(library.smart_filter(), "genre=Drama&year=1999&resolution=4k&dynamicRange=dolby_vision&unwatched=1&sort=titleSort")
+        # A value chosen stays offered when the server no longer lists its kind, to change or clear it.
+        library.genre, library.year, library.watched = None, None, None
+        filters["resolutions"], filters["dynamic_ranges"] = [], []
+        library.filters = None
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual(dialogs.shown[0][0][5:7], ["Resolution: 4K", "Dynamic range: Dolby Vision"])
+        # Clear filters clears them too.
+        with Dialogs(picks=[7]):
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual((library.resolution, library.dynamic_range, library.filtered), (None, None, False))
+        self.assertNotIn("resolution", asked[-1][1])
+        self.assertEqual(win.focused, L.LIBRARY_FILTER)
+        # Nothing to choose from and nothing chosen: no rows for them.
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        self.assertEqual(len(dialogs.shown[0][0]), 5)
+        # The filters' answer missing: the menu goes on without them.
+        library.filters = None
+        win.session.get = lambda path, **query: (_ for _ in ()).throw(window.api.ApiError(500, "internal", "down"))
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        self.assertEqual(len(dialogs.shown[0][0]), 5)
+
+    def test_library_sorts_and_the_bitrate_line(self):
+        win = FakeWindow()
+        asked = []
+        media = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "dynamic_range": "hdr10plus"}
+        items = [
+            {"id": 1, "kind": "movie", "title": "Saltwind", "year": 1995, "user_state": {}, "media": media},
+            {"id": 2, "kind": "movie", "title": "Low Orbit", "year": 2019, "user_state": {}, "media": {"bitrate": None, "size": None, "width": 720, "height": 576}},
+        ]
+
+        def get(path, **query):
+            asked.append(query)
+            return {"items": list(items), "total": 4}
+
+        win.session.get = get
+        movies = window.Library(win, {"id": 4, "kind": "movies", "name": "Movies"}, None)
+        # The web's sorts, in its order: Your rating and Bitrate too.
+        with Dialogs(picks=[8]) as dialogs:
+            movies.click(L.LIBRARY_SORT)
+        self.assertEqual(dialogs.shown[0][0], ["Title", "Year", "Date added", "Rating", "Your rating", "Release date", "Duration", "Last played", "Bitrate"])
+        self.assertEqual((asked[-1]["sort"], asked[-1]["order"]), ("bitrate", "desc"))
+        self.assertEqual(win.focused, L.LIBRARY_SORT_DOWN)
+        # Sorted by bitrate: the line under each poster is its bitrate and size, and the posters
+        # carry their badges.
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        self.assertEqual([li.label2 for li in grid.items], ["42 Mbps · 23.4 GB", "Bitrate unknown"])
+        self.assertEqual((grid.items[0].properties["resolution"], grid.items[0].properties["range"]), ("4k", "hdr10plus"))
+        self.assertNotIn("resolution", grid.items[1].properties)
+        self.assertEqual(movies.smart_filter(), "sort=mediaBitrate%3Adesc")
+        # The next page's posters too.
+        win.later = at_once
+        movies.more()
+        self.assertEqual(asked[-1]["offset"], 2)
+        self.assertEqual([li.label2 for li in grid.items[2:]], ["42 Mbps · 23.4 GB", "Bitrate unknown"])
+        with Dialogs(picks=[4]):
+            movies.click(L.LIBRARY_SORT_DOWN)
+        self.assertEqual(asked[-1]["sort"], "user_rating")
+        self.assertEqual(movies.smart_filter(), "sort=userRating%3Adesc")
+        self.assertEqual([(li.label2, li.properties.get("resolution")) for li in grid.items], [("1995", None), ("2019", None)])
+        # Shows have no one duration, and artists sort as the web's music does.
+        shows = window.Library(win, {"id": 5, "kind": "shows", "name": "TV Shows"}, None)
+        with Dialogs(picks=[-1]) as dialogs:
+            shows.click(L.LIBRARY_SORT)
+        self.assertNotIn("Duration", dialogs.shown[0][0])
+        self.assertEqual(dialogs.shown[0][0][-1], "Bitrate")
+        music = window.Library(win, {"id": 6, "kind": "music", "name": "Music"}, None)
+        with Dialogs(picks=[-1]) as dialogs:
+            music.click(L.LIBRARY_SORT)
+        self.assertEqual(dialogs.shown[0][0], ["Title", "Date added", "Your rating", "Last played"])
 
     def test_a_library_opens_on_the_tab_it_was_left_on(self):
         settings = window.kodi.xbmcaddon.settings

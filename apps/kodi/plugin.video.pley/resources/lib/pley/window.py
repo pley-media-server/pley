@@ -45,15 +45,30 @@ UI = kodi.WINDOW_OPEN
 # Room for a pill's icon before its label (pill-*.png keep it unstretched).
 ICON_ROOM = " " * 8
 
-SORTS = ("title", "added", "year", "release", "rating", "duration", "last_played")
+SORTS = ("title", "year", "added", "rating", "user_rating", "release", "duration", "last_played", "bitrate")
+# What each kind of library sorts by, in the web's order (LibraryPage.tsx):
+# a show has no one duration, and music sorts its artists by name, when
+# they came, your rating and when last played.
+KIND_SORTS = {
+    "shows": tuple(s for s in SORTS if s != "duration"),
+    "music": ("title", "added", "user_rating", "last_played"),
+}
 SORT_NAMES = {
     "title": "sort_title",
     "added": "sort_added",
     "year": "sort_year",
     "release": "sort_release",
     "rating": "sort_rating",
+    "user_rating": "sort_user_rating",
     "duration": "sort_duration",
     "last_played": "sort_last_played",
+    "bitrate": "sort_bitrate",
+}
+# A library's quality filters, as GET /api/libraries/{id}/items takes them:
+# the list of /filters that offers their choices, and their words.
+QUALITY_FILTERS = {
+    "resolution": ("resolutions", words.RESOLUTIONS),
+    "dynamic_range": ("dynamic_ranges", words.DYNAMIC_RANGES),
 }
 LIBRARY_ICONS = {"movies": "icon-clapperboard.png", "shows": "icon-tv.png", "music": "icon-music.png"}
 PAGE = 120
@@ -70,8 +85,10 @@ PLEX_SORTS = {
     "added": "addedAt",
     "rating": "rating",
     "release": "originallyAvailableAt",
+    "user_rating": "userRating",
     "duration": "duration",
     "last_played": "lastViewedAt",
+    "bitrate": "mediaBitrate",
 }
 HERO_BUTTONS = (
     L.ITEM_PLAY,
@@ -1066,6 +1083,13 @@ def library_rail(libraries: list, library_id, live: bool = False) -> str:
     return "lib%d" % at if at < rail_shown(len(libraries), live) else "libraries"
 
 
+def named_tokens(tokens, names: dict) -> list:
+    """The tokens of a /filters list there are words for, in the server's
+    order: a newer server's others are left out rather than shown as they
+    are."""
+    return [t for t in tokens if isinstance(t, str) and t in names] if isinstance(tokens, list) else []
+
+
 LIBRARY_NOUNS = {"movies": ("movie", "movies"), "shows": ("show", "shows"), "music": ("artist", "artists")}
 
 
@@ -2050,6 +2074,9 @@ class Library(Screen):
         self.watched = None  # all, False: unwatched, True: watched
         self.genre = None
         self.year = None
+        # Tokens of QUALITY_FILTERS' words ("4k", "dolby_vision"), or None.
+        self.resolution = None
+        self.dynamic_range = None
         self.items = []
         self.total = 0
         self.collections = None
@@ -2077,6 +2104,9 @@ class Library(Screen):
     def shape(self) -> str:
         return "square" if self.library.get("kind") == "music" else "grid"
 
+    def sorts(self) -> tuple:
+        return KIND_SORTS.get(self.library.get("kind"), SORTS)
+
     def query(self, offset: int) -> dict:
         q = {"sort": self.sort, "order": "desc" if self.descending else "asc", "offset": offset, "limit": PAGE}
         if self.watched is not None:
@@ -2085,16 +2115,39 @@ class Library(Screen):
             q["genre"] = self.genre
         if self.year:
             q["year"] = self.year
+        if self.resolution:
+            q["resolution"] = self.resolution
+        if self.dynamic_range:
+            q["dynamic_range"] = self.dynamic_range
         return q
 
     @property
     def filtered(self) -> bool:
-        return self.watched is not None or bool(self.genre) or bool(self.year)
+        return self.watched is not None or bool(self.genre or self.year or self.resolution or self.dynamic_range)
+
+    @property
+    def badged(self) -> bool:
+        """Whether the grid's posters carry their quality badges ("4K",
+        "DV"): only where they say something, sorted by bitrate or filtered
+        by resolution or dynamic range (as on the other apps)."""
+        return self.sort == "bitrate" or bool(self.resolution or self.dynamic_range)
+
+    def tile(self, item: dict) -> xbmcgui.ListItem:
+        """A title of the grid; sorted by bitrate, its line under the poster
+        is its bitrate and size."""
+        return tiles.tile(self.session.base, item, self.shape, quality=self.badged, bitrate=self.sort == "bitrate")
+
+    def quality_words(self) -> str:
+        """The resolution and dynamic range chosen, as the Filter chip says
+        them while on: "4K", "4K · Dolby Vision"."""
+        chosen = [QUALITY_FILTERS[field][1].get(getattr(self, field) or "") for field in QUALITY_FILTERS]
+        return " · ".join(w for w in chosen if w)
 
     def chips(self) -> list:
-        """(chip, whether it is on, its label when on) for Unwatched, Genre
-        and Year."""
+        """(chip, whether it is on, its label when on) for Filter (on with a
+        resolution or dynamic range chosen), Unwatched, Genre and Year."""
         return [
+            (L.LIBRARY_FILTER, bool(self.resolution or self.dynamic_range), self.quality_words()),
             (L.LIBRARY_UNWATCHED, self.watched is False, T("unwatched")),
             (L.LIBRARY_GENRE, bool(self.genre), self.genre or ""),
             (L.LIBRARY_YEAR, bool(self.year), str(self.year or "")),
@@ -2113,6 +2166,11 @@ class Library(Screen):
             parts.append(("genre", self.genre))
         if self.year:
             parts.append(("year", str(self.year)))
+        # Plex's own field, and Pley's for the dynamic range.
+        if self.resolution:
+            parts.append(("resolution", self.resolution))
+        if self.dynamic_range:
+            parts.append(("dynamicRange", self.dynamic_range))
         if self.watched is not None:
             parts.append(("unwatched", "0" if self.watched else "1"))
         field = PLEX_SORTS[self.sort]
@@ -2164,7 +2222,6 @@ class Library(Screen):
             # Music only sorts (TvLibraryScreen's chips); a filter that is on
             # shows its twin, with a check.
             music = self.library.get("kind") == "music"
-            win.visible(L.LIBRARY_FILTER, not music)
             win.put(L.LIBRARY_FILTER, ICON_ROOM + T("filter"))
             for chip, on, text in self.chips():
                 win.visible(chip, not music and not on)
@@ -2179,7 +2236,7 @@ class Library(Screen):
                 win.put(L.LIBRARY_COUNT, words.plural(self.total, *noun))
             grid = win.c(L.grid_list(L.LIBRARY_GRID, self.shape))
             grid.reset()
-            grid.addItems([tiles.tile(self.session.base, item, self.shape) for item in self.items])
+            grid.addItems([self.tile(item) for item in self.items])
             win.visible(L.grid_list(L.LIBRARY_GRID, self.shape), bool(self.items))
             if not self.items:
                 win.put(L.LIBRARY_EMPTY, T("no_matches") if self.filtered else T("library_empty"))
@@ -2230,19 +2287,22 @@ class Library(Screen):
         if control_id in tabs or control_id - 100 in tabs:
             return self.switch(tabs.get(control_id) or tabs[control_id - 100])
         if control_id in (L.LIBRARY_SORT, L.LIBRARY_SORT_DOWN):
-            names = [T(SORT_NAMES[s]) for s in SORTS]
-            chosen = xbmcgui.Dialog().select(T("sort_by"), names, preselect=SORTS.index(self.sort))
+            sorts = self.sorts()
+            names = [T(SORT_NAMES[s]) for s in sorts]
+            chosen = xbmcgui.Dialog().select(T("sort_by"), names, preselect=sorts.index(self.sort) if self.sort in sorts else 0)
             if chosen < 0:
                 return
-            if SORTS[chosen] == self.sort:
+            if sorts[chosen] == self.sort:
                 self.descending = not self.descending
             else:
-                self.sort = SORTS[chosen]
+                self.sort = sorts[chosen]
                 self.descending = self.sort not in ("title",)
             self.reload()
             return win.setFocusId(L.LIBRARY_SORT_DOWN if self.descending else L.LIBRARY_SORT)
-        if control_id == L.LIBRARY_FILTER:
-            return self.filter_menu()
+        if control_id in (L.LIBRARY_FILTER, L.LIBRARY_FILTER_ON):
+            if self.filter_menu():
+                self.refocus(L.LIBRARY_FILTER)
+            return
         if control_id in (L.LIBRARY_UNWATCHED, L.LIBRARY_UNWATCHED_ON):
             self.watched = None if self.watched is False else False
             self.reload()
@@ -2267,36 +2327,56 @@ class Library(Screen):
         elif self.tab == "collections" and self.collections and 0 <= at < len(self.collections):
             win.open(Grid.collection(win, self.collections[at]))
 
-    def filter_menu(self) -> None:
-        """Filter (TvLibraryPanel's): which titles to show, the genre and
-        the year; then Clear filters and Save as…"""
+    def filter_menu(self) -> bool:
+        """Filter (TvLibraryPanel's): which titles to show, the genre, the
+        year, the resolution and the dynamic range; then Clear filters and
+        Save as… Whether the page stays, with what was chosen (Save as…
+        opens the playlist it makes)."""
         shows = ((None, T("all")), (False, T("unwatched")), (True, T("mark_watched_short")))
-        entries = []
+        entries, actions = [], []
         for watched, name in shows:
             li = xbmcgui.ListItem(name, offscreen=True)
             li.select(self.watched is watched)
             entries.append(li)
+            actions.append(lambda watched=watched: self.show_watched(watched))
+
+        def entry(text, action):
+            entries.append(xbmcgui.ListItem(text, offscreen=True))
+            actions.append(action)
+
         # Kodi's select list draws one label: the value goes in it.
-        entries.append(xbmcgui.ListItem("%s: %s" % (T("genre"), self.genre or T("any_genre")), offscreen=True))
-        entries.append(xbmcgui.ListItem("%s: %s" % (T("year"), self.year or T("any_year")), offscreen=True))
+        entry("%s: %s" % (T("genre"), self.genre or T("any_genre")), self.pick_genre)
+        entry("%s: %s" % (T("year"), self.year or T("any_year")), self.pick_year)
+        try:
+            listed = self.filter_options()
+        except api.ApiError:
+            # Without them; Genre's and Year's pickers say what is wrong.
+            listed = {}
+        # The resolution and the dynamic range where the library's titles
+        # differ in them (the server lists two or more), or one is chosen,
+        # so it can be changed or cleared. Music has none.
+        quality = QUALITY_FILTERS.items() if self.library.get("kind") != "music" else ()
+        for field, (key, names) in quality:
+            value = getattr(self, field)
+            if value or named_tokens(listed.get(key), names):
+                entry("%s: %s" % (T(field), names.get(value) or T("any_" + field)), lambda field=field: self.pick_quality(field))
         if self.filtered:
-            entries.append(xbmcgui.ListItem(T("clear_filters"), offscreen=True))
-            entries.append(xbmcgui.ListItem(T("save_as"), offscreen=True))
+            entry(T("clear_filters"), self.clear_filters)
+            entry(T("save_as"), self.save_as)
         current = next(i for i, (watched, _) in enumerate(shows) if self.watched is watched)
         chosen = xbmcgui.Dialog().select(T("filter"), entries, preselect=current)
         if chosen < 0:
-            return
-        if chosen < len(shows):
-            self.watched = shows[chosen][0]
-            return self.reload()
-        if chosen == len(shows):
-            return self.pick_genre()
-        if chosen == len(shows) + 1:
-            return self.pick_year()
-        if chosen == len(shows) + 2:
-            self.watched, self.genre, self.year = None, None, None
-            return self.reload()
-        self.save_as()
+            return False
+        actions[chosen]()
+        return actions[chosen] != self.save_as
+
+    def show_watched(self, watched) -> None:
+        self.watched = watched
+        self.reload()
+
+    def clear_filters(self) -> None:
+        self.watched, self.genre, self.year, self.resolution, self.dynamic_range = None, None, None, None, None
+        self.reload()
 
     def filter_options(self) -> dict:
         if self.filters is None:
@@ -2323,6 +2403,21 @@ class Library(Screen):
         chosen = xbmcgui.Dialog().select(T("year"), [T("any_year")] + options, preselect=current)
         if chosen >= 0:
             self.year = int(options[chosen - 1]) if chosen else None
+            self.reload()
+
+    def pick_quality(self, field: str) -> None:
+        """Resolution or Dynamic range: none, then what the library's titles
+        have, best first ("4K", "1080p"; "HDR", "Dolby Vision")."""
+        key, names = QUALITY_FILTERS[field]
+        try:
+            options = named_tokens(self.filter_options().get(key), names)
+        except api.ApiError as e:
+            return self.win.toast(T("server_error") % e.message, 6)
+        value = getattr(self, field)
+        current = options.index(value) + 1 if value in options else 0
+        chosen = xbmcgui.Dialog().select(T(field), [T("any_" + field)] + [names[o] for o in options], preselect=current)
+        if chosen >= 0:
+            setattr(self, field, options[chosen - 1] if chosen else None)
             self.reload()
 
     def save_as(self) -> None:
@@ -2357,7 +2452,7 @@ class Library(Screen):
             if not found or len(self.items) != offset:
                 return
             self.items += found
-            self.win.c(L.grid_list(L.LIBRARY_GRID, self.shape)).addItems([tiles.tile(self.session.base, item, self.shape) for item in found])
+            self.win.c(L.grid_list(L.LIBRARY_GRID, self.shape)).addItems([self.tile(item) for item in found])
 
         def failed():
             # Asked again as focus moves on.

@@ -65,6 +65,23 @@ class TilesTest(unittest.TestCase):
         self.assertEqual((counted.properties["count"], counted.properties["countsize"]), ("117", "3"))
         self.assertTrue(counted.properties["ph"].startswith("ph-"))
 
+    def test_quality_badges_and_the_bitrate_line(self):
+        media = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "dynamic_range": "hdr10plus"}
+        movie = dict(MOVIE, media=media)
+        # Unless asked, a tile says nothing of its file, though its listing has it.
+        plain = tiles.tile(BASE, movie, "grid")
+        self.assertEqual(plain.label2, "1995")
+        self.assertNotIn("resolution", plain.properties)
+        self.assertNotIn("range", plain.properties)
+        # The badges by the server's tokens: the skin's conditions can't name "HDR10+".
+        badged = tiles.tile(BASE, movie, "grid", quality=True)
+        self.assertEqual((badged.properties["resolution"], badged.properties["range"], badged.label2), ("4k", "hdr10plus", "1995"))
+        self.assertEqual(tiles.badges(dict(media, width=1920, dynamic_range="dolby_vision", height=800)), [("dolby_vision", "DV")])
+        self.assertEqual(tiles.tile(BASE, movie, "grid", bitrate=True).label2, "42 Mbps · 23.4 GB")
+        # A listing from an older server, without a summary: nothing.
+        self.assertEqual(tiles.tile(BASE, MOVIE, "grid", quality=True, bitrate=True).label2, "")
+        self.assertNotIn("range", tiles.tile(BASE, MOVIE, "grid", quality=True).properties)
+
     def test_rows(self):
         self.assertEqual(tiles.row_shape({"key": "continue_watching", "items": [MOVIE]}), "landscape")
         self.assertEqual(tiles.row_shape({"key": "recently_added:2", "items": [EPISODE]}), "landscape")

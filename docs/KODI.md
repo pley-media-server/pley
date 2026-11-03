@@ -79,6 +79,17 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
 - **The menu key** on a tile: mark watched, My List, add to a playlist,
   remove from Continue Watching, go to the show. In a playlist it also
   moves and removes entries.
+- **A library's Library tab** sorts as on the other apps (Bitrate and
+  Your rating too; shows have no Duration, music only Title, Date added,
+  Your rating and Last played) and filters by what is watched, genre,
+  year, resolution and dynamic range. Resolution and Dynamic range are in
+  the Filter menu after Year where the library's titles differ in them,
+  and the Filter chip says what is chosen ("4K · Dolby Vision"): the chip
+  row has no room for a chip each. Sorted by bitrate, the line under each
+  poster is its bitrate and size ("42 Mbps · 23.4 GB"); sorted by bitrate
+  or filtered by resolution or dynamic range, posters show "4K" and their
+  dynamic range ("DV", "HDR10+", "HDR10", "HLG"). The tab a library was
+  left on is kept; its sort and filters start afresh each time it opens.
 - **Library order** is the profile's, saved for all its devices: Sort
   libraries in the profile's menu, or a library's menu key.
 - **Kodi's lists:** Settings → Screens → "Kodi's lists, in this skin's

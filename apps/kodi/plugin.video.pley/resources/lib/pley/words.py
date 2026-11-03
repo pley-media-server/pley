@@ -212,6 +212,57 @@ def quality_badges(file) -> list:
     return [b for b in badges if b]
 
 
+# A library's quality filters (GET /api/libraries/{id}/items' `resolution`
+# and `dynamic_range`): the server's tokens and what the filters call them,
+# best first, as the server lists them.
+RESOLUTIONS = {"4k": "4K", "1080": "1080p", "720": "720p", "sd": "SD"}
+DYNAMIC_RANGES = {"hdr": "HDR", "dolby_vision": "Dolby Vision", "hdr10plus": "HDR10+", "hdr10": "HDR10", "hlg": "HLG", "sdr": "SDR"}
+# A poster's dynamic range badge, by its file's (the web's mediaBadges):
+# SDR and HDR of no known kind have none.
+RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR10+", "hdr10": "HDR10", "hlg": "HLG"}
+
+
+def media_badges(media) -> list:
+    """A library poster's badges from its listing's media summary (the
+    web's mediaBadges): "4K" of the resolutions only, then the dynamic
+    range; no codec, which on most posters says nothing worth the room."""
+    if not isinstance(media, dict):
+        return []
+    badges = ["4K" if resolution_badge(media.get("width"), media.get("height")) == "4K" else None]
+    badges.append(RANGE_BADGES.get(media.get("dynamic_range") or ""))
+    return [b for b in badges if b]
+
+
+def size(n) -> str:
+    """Bytes as the web writes them, in units of 1024: "23.4 GB", "150 MB";
+    "" when unknown."""
+    if not n or n < 0:
+        return ""
+    units = ("B", "KB", "MB", "GB", "TB")
+    value, unit = float(n), 0
+    while value >= 1024 and unit < len(units) - 1:
+        value /= 1024
+        unit += 1
+    return ("%.0f %s" if value >= 100 or unit == 0 else "%.1f %s") % (value, units[unit])
+
+
+def bitrate(bps) -> str:
+    """Bits a second as the web writes them: "8.2 Mbps", "42 Mbps", "320 kbps"."""
+    if not bps or bps <= 0:
+        return ""
+    if bps >= 1_000_000:
+        return ("%.0f Mbps" if bps >= 10_000_000 else "%.1f Mbps") % (bps / 1_000_000)
+    return "%d kbps" % int(bps / 1000 + 0.5)
+
+
+def media_line(media) -> str:
+    """The line under a poster sorted by bitrate: "42 Mbps · 23.4 GB",
+    "Bitrate unknown" when neither is known, "" without a summary."""
+    if not isinstance(media, dict):
+        return ""
+    return " · ".join(p for p in (bitrate(media.get("bitrate")), size(media.get("size"))) if p) or "Bitrate unknown"
+
+
 def stars(value) -> str:
     """Your rating, 0 to 10 on the server, in stars: 7 → "3½ stars"."""
     whole, half = divmod(int(value), 2)
