@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- On phones and tablets, the posters of search results, a person's page, a
+  collection and a library's Collections tab load ahead of the scroll, as
+  Home's rows and a library's grid already did.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a

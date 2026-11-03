@@ -107,7 +107,7 @@ internal fun CategoryList(
                         ) { open = if (expanded) null else r.region }
                     }
                     if (expanded) {
-                        items(r.groups, key = { "group:${it.name}" }) { g ->
+                        items(r.groups, key = { "group:${it.name}" }, contentType = { "group" }) { g ->
                             val category = LiveCategory.Group(g.name)
                             Entry(null, g.label, g.count, selected == category, indent = GROUP_INSET + 20.dp) { onSelect(category) }
                         }
@@ -119,7 +119,7 @@ internal fun CategoryList(
                 item(key = "others") {
                     Heading(stringResource(if (regions.isEmpty()) R.string.livetv_groups else R.string.livetv_more_groups), others.size)
                 }
-                items(others, key = { "group:${it.name}" }) { g ->
+                items(others, key = { "group:${it.name}" }, contentType = { "group" }) { g ->
                     val category = LiveCategory.Group(g.name)
                     Entry(null, g.name.ifEmpty { stringResource(R.string.livetv_no_group_name) }, g.count, selected == category, indent = GROUP_INSET) { onSelect(category) }
                 }
