@@ -38,21 +38,36 @@ extension Walk {
         seeHome("the same")
     }
 
-    /// Long press on a movie of Home's, then the menu's item `words`,
-    /// `downs` presses below Play (a movie's menu: Play, its mark, My List).
-    private func act(_ tile: XCUIElement, _ words: String, downs: Int, shot name: String? = nil) {
+    /// Long press on the first movie of a row of Home's, then the menu's
+    /// item `words`, found by its words: a movie part way through has
+    /// Resume and Play from start where another has Play.
+    private func act(_ tile: XCUIElement, _ words: String, shot name: String? = nil) {
         // Home reads its rows again after each action: once it has, up to
         // the tabs and down again lands on the first row's first tile.
         sleep(1)
-        if !tile.hasFocus {
+        if !focused(tile) {
             for _ in 0..<4 { remote.press(.up) }
             remote.press(.down)
         }
         focus(tile, "the movie", first: [.left, .down])
+        // `hasFocus` can say yes of the first tile while its neighbour has
+        // the focus. The tile is its row's first: Left from anywhere in the
+        // row comes to it, and stops there.
+        press(.left, 3)
         remote.press(.select, forDuration: 1.5)
         wait(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", words)).firstMatch, words)
         if let name { shot(name) }
-        for _ in 0..<downs { remote.press(.down) }
+        // The focus is on a cell around the item, which has no words of
+        // its own: down from the first until the cell holds `words`.
+        let item = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", words)).firstMatch
+        let focus = app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch
+        func onItem() -> Bool {
+            guard item.exists, focus.exists else { return false }
+            let middle = CGPoint(x: item.frame.midX, y: item.frame.midY)
+            return focus.frame.contains(middle)
+        }
+        for _ in 0..<6 where !onItem() { press(.down) }
+        XCTAssertTrue(onItem(), "\(words) has the focus")
         remote.press(.select)
     }
 
@@ -65,9 +80,9 @@ extension Walk {
         let tile = row.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'tile.item.'")).firstMatch
         wait(tile, "a movie on Home")
         let id = Int(tile.identifier.dropFirst("tile.item.".count)) ?? 0
-        act(tile, "Mark as watched", downs: 1, shot: "09-actions")
+        act(tile, "Mark as watched", shot: "09-actions")
         await eventually("the server has it watched") { await Admin.watched(id) == true }
-        act(tile, "Add to My List", downs: 2)
+        act(tile, "Add to My List")
         await eventually("My List has it") { await Admin.watchlist().contains(id) }
         // Back as it was, as the administrator.
         _ = await Admin.call("POST", "/api/items/\(id)/unwatched")

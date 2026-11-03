@@ -53,7 +53,7 @@ extension Walk {
         if element("profiles.pin").waitForExistence(timeout: 3) {
             element("profiles.pin").tap()
             element("profiles.pin").typeText(Admin.adminPin)
-            tap("profiles.pin.continue", "Continue")
+            tapAfterTyping("profiles.pin.continue", "Continue", then: tile)
         }
     }
 

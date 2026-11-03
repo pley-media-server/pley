@@ -162,7 +162,7 @@ extension Walk {
         name.tap()
         name.typeText(Self.smartTitle)
         shot("19-save-as")
-        tap("newPlaylist.create", "Save")
+        tapAfterTyping("newPlaylist.create", "Save", then: element("playlist.title"))
         wait(element("playlist.title"), "the smart playlist's page")
         await eventually("the server has the smart playlist") {
             let filter = await Admin.playlist(titled: Self.smartTitle)?["smart_filter"] as? String

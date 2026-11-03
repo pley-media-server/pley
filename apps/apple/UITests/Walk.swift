@@ -35,6 +35,21 @@ struct Walk {
         wait(button(id), what, file: file, line: line).tap()
     }
 
+    /// Taps `id` after typing, until `next` shows. On the iPad the first tap
+    /// after typing can go to the keyboard, taking its prediction, rather
+    /// than to the button: the button is tapped again while it is still
+    /// there. A button that saves is off while it saves, so nothing is made
+    /// twice.
+    func tapAfterTyping(_ id: String, _ what: String, then next: XCUIElement, file: StaticString = #filePath,
+                        line: UInt = #line) {
+        tap(id, what, file: file, line: line)
+        for _ in 0..<2 where !next.waitForExistence(timeout: 5) {
+            let again = button(id)
+            guard again.exists, again.isHittable else { return }
+            again.tap()
+        }
+    }
+
     /// A screenshot, kept with the test's results and, when `PLEY_SHOTS` is
     /// set, written there as `<device>-<name>.png`.
     func shot(_ name: String) {
@@ -140,7 +155,7 @@ struct Walk {
         let field = wait(element("profiles.pin"), "\(name)'s PIN")
         field.tap()
         field.typeText(pin)
-        tap("profiles.pin.continue", "Continue")
+        tapAfterTyping("profiles.pin.continue", "Continue", then: tile)
     }
 
     /// Home, with its rows of tiles.

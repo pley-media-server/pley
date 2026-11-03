@@ -34,14 +34,50 @@ struct Walk {
     func focus(_ element: XCUIElement, _ what: String, first: [XCUIRemote.Button] = [.down, .right, .up, .left],
                file: StaticString = #filePath, line: UInt = #line) {
         wait(element, what, file: file, line: line)
-        if element.hasFocus { return }
+        if focused(element) { return }
+        if steer(to: element) { return }
         for direction in first + [.down, .right, .up, .left] {
             for _ in 0..<10 {
                 remote.press(direction)
-                if element.hasFocus { return }
+                if focused(element) { return }
             }
         }
         XCTFail("couldn't move the focus to \(what)", file: file, line: line)
+    }
+
+    /// Moves the focus toward `element` by where it is on the screen from
+    /// what has the focus: a press up or down while it is in another row,
+    /// left or right in its row. False when the focus stops moving, or the
+    /// element is off the screen, where a lazy grid doesn't make it: the
+    /// caller sweeps then. A fixed sweep misses a tile in the middle of a
+    /// grid's top row, and where a title lands in a grid isn't fixed.
+    func steer(to element: XCUIElement) -> Bool {
+        let focus = app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch
+        var last = CGRect.null
+        for _ in 0..<30 {
+            guard focus.exists, element.exists else { return false }
+            let from = focus.frame, to = element.frame
+            if from == last || to.isEmpty { return false }
+            last = from
+            let dx = to.midX - from.midX, dy = to.midY - from.midY
+            if abs(dy) > max(from.height, to.height) / 2 {
+                remote.press(dy > 0 ? .down : .up)
+            } else if abs(dx) > max(from.width, to.width) / 2 {
+                remote.press(dx > 0 ? .right : .left)
+            } else {
+                return focused(element)
+            }
+            if focused(element) { return true }
+        }
+        return false
+    }
+
+    /// Whether `element` has the focus. Asked of an element that is gone,
+    /// such as a tile in a grid the page is drawing again after the
+    /// server's news, `hasFocus` fails the test; this says no, and the
+    /// next press finds the element drawn again.
+    func focused(_ element: XCUIElement) -> Bool {
+        element.exists && element.hasFocus
     }
 
     func select(_ element: XCUIElement, _ what: String, first: [XCUIRemote.Button] = [.down, .right, .up, .left],
@@ -152,8 +188,18 @@ struct Walk {
         seeHome("the same")
     }
 
+    /// The tab bar, which hides while the focus is down in a page: Up until
+    /// it shows.
+    func showTabs() {
+        for _ in 0..<8 where !app.tabBars.buttons.firstMatch.exists {
+            remote.press(.up)
+            _ = app.tabBars.buttons.firstMatch.waitForExistence(timeout: 1)
+        }
+    }
+
     /// The Settings tab, which holds the profile and Sign out.
     func openSettings() {
+        showTabs()
         let tab = app.tabBars.buttons["Settings"]
         focus(tab, "the Settings tab", first: [.up, .right])
         remote.press(.select)
@@ -161,6 +207,7 @@ struct Walk {
     }
 
     func openHome() {
+        showTabs()
         let tab = app.tabBars.buttons["Home"]
         focus(tab, "the Home tab", first: [.up, .left])
         remote.press(.select)
