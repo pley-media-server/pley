@@ -1041,7 +1041,9 @@ end;
 
 // Lets pley through Windows Firewall on the kinds of network chosen. pley
 // decides where it listens and on which ports, which its Settings change:
-// the rule is for pley, wherever it listens.
+// the rule is for pley, wherever it listens. Its UDP half takes in
+// discovery's broadcast on the web port and Bonjour's queries on 5353
+// (mDNS), so neither needs a rule of its own.
 procedure Firewall;
 var
   Code: Integer;

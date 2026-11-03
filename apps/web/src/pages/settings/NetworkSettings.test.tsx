@@ -12,7 +12,11 @@ const NETWORK: Network = {
   plex: [],
   plex_on_web: true,
   discovery: true,
-  fixed: { web: false, jellyfin: false, plex: false, discovery: false },
+  bonjour: false,
+  bonjour_adapters: [],
+  bonjour_host_name: "",
+  bonjour_host_default: "pley-0123456789ab",
+  fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
   adapters: [
     {
@@ -47,7 +51,7 @@ describe("NetworkSettings", () => {
     expect(screen.getByText("Private network")).toBeInTheDocument();
     expect(screen.getByText("Not connected")).toBeInTheDocument();
     expect(screen.getByText(/Windows Firewall decides/)).toBeInTheDocument();
-    await user.click(screen.getByRole("checkbox", { name: /Ethernet/ }));
+    await user.click(within(screen.getByRole("group", { name: "Networks" })).getByRole("checkbox", { name: /Ethernet/ }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -58,6 +62,9 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
     expect(await screen.findByText("Pley listens there now")).toBeInTheDocument();
@@ -84,6 +91,9 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -105,6 +115,9 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -120,6 +133,9 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -150,6 +166,9 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -173,6 +192,9 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -189,6 +211,9 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: false,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -200,7 +225,7 @@ describe("NetworkSettings", () => {
         ...NETWORK,
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
-        fixed: { web: false, jellyfin: false, plex: true, discovery: false },
+        fixed: { web: false, jellyfin: false, plex: true, discovery: false, bonjour: false },
         listeners: [
           { kind: "web", address: "127.0.0.1:7539", error: null },
           { kind: "plex", address: "0.0.0.0:32400", error: "address in use" },
@@ -226,6 +251,9 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
+        bonjour: false,
+        bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -237,7 +265,7 @@ describe("NetworkSettings", () => {
       "GET /api/network": () => ({
         ...NETWORK,
         jellyfin: ["0.0.0.0:8096", "0.0.0.0:32400"],
-        fixed: { web: false, jellyfin: true, plex: false, discovery: false },
+        fixed: { web: false, jellyfin: true, plex: false, discovery: false, bonjour: false },
       }),
       "PUT /api/network": () =>
         apiError(400, "bad_request", "the Plex-compatible API can't share port 32400 with the Jellyfin-compatible API"),
@@ -254,12 +282,93 @@ describe("NetworkSettings", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
+  it("announces by Bonjour on the networks chosen", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/network": () => ({ ...NETWORK, web: ["0.0.0.0:7539"] }),
+      "PUT /api/network": (req) => ({ ...NETWORK, ...(req.body as ListenChoice) }),
+    });
+    renderWithProviders(<NetworkSettings />);
+    // Off until turned on.
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).not.toBeChecked();
+    expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
+    expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).toBeChecked();
+
+    // A host name of its own, as typed.
+    expect(screen.getByRole("textbox", { name: "Host name" })).toHaveAttribute("placeholder", "pley-0123456789ab");
+    await user.type(screen.getByRole("textbox", { name: "Host name" }), "my media");
+    expect(screen.getByText(/Bonjour's host name is letters, digits and hyphens/)).toBeInTheDocument();
+    // Hidden, a host name that can't be saved doesn't stop the rest: the saved one stays.
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
+    expect(screen.queryByText(/Bonjour's host name is letters, digits and hyphens/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
+    await user.clear(screen.getByRole("textbox", { name: "Host name" }));
+    await user.type(screen.getByRole("textbox", { name: "Host name" }), "Media.local");
+
+    // The home network only, not the Wi-Fi.
+    await user.click(within(screen.getByRole("group", { name: "Announced on" })).getByRole("checkbox", { name: /^Ethernet/ }));
+    expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(requests.filter((r) => r.method === "PUT").at(-1)?.body).toEqual({
+        web: ["0.0.0.0:7539"],
+        jellyfin: [],
+        jellyfin_on_web: false,
+        plex: [],
+        plex_on_web: true,
+        discovery: true,
+        bonjour: true,
+        bonjour_adapters: ["Ethernet"],
+        bonjour_host_name: "media",
+      }),
+    );
+
+    // Off: its choices go with it from the page, and stay saved.
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
+    expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.filter((r) => r.method === "PUT").at(-1)?.body).toMatchObject({ bonjour: false }));
+  });
+
+  it("offers Bonjour only the networks Pley listens on", async () => {
+    mockApi({
+      "GET /api/network": () => ({
+        ...NETWORK,
+        web: ["127.0.0.1:7539", "192.168.1.10:7539"],
+        bonjour: true,
+        bonjour_adapters: ["Wi-Fi"],
+        bonjour_host_name: "",
+      }),
+    });
+    renderWithProviders(<NetworkSettings />);
+    const announced = within(await screen.findByRole("group", { name: "Announced on" }));
+    expect(announced.getByRole("checkbox", { name: /^Ethernet/ })).not.toBeChecked();
+    // Chosen before, but Pley doesn't listen there now.
+    expect(announced.getByRole("checkbox", { name: /^Wi-Fi/ })).toBeChecked();
+    expect(announced.getByText(/Not a network Pley listens on now/)).toBeInTheDocument();
+  });
+
+  it("leaves Bonjour alone when the command line turns it off", async () => {
+    mockApi({
+      "GET /api/network": () => ({
+        ...NETWORK,
+        web: ["0.0.0.0:7539"],
+        bonjour: false,
+        fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: true },
+      }),
+    });
+    renderWithProviders(<NetworkSettings />);
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeDisabled();
+    expect(screen.getByText(/Turned off by --no-bonjour/)).toBeInTheDocument();
+  });
+
   it("leaves what the command line sets alone, and says which addresses wait", async () => {
     mockApi({
       "GET /api/network": () => ({
         ...NETWORK,
         web: ["0.0.0.0:7539"],
-        fixed: { web: true, jellyfin: false, plex: false, discovery: false },
+        fixed: { web: true, jellyfin: false, plex: false, discovery: false, bonjour: false },
         listeners: [{ kind: "jellyfin", address: "0.0.0.0:8096", error: "address in use" }],
       }),
     });
