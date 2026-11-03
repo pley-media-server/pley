@@ -3,6 +3,7 @@
 use serde::Serialize;
 use tokio::sync::broadcast;
 
+use crate::cast::{CastAction, CastState};
 use crate::discover::TitleKind;
 use crate::requests::{RequestStatus, RequestUser};
 
@@ -196,6 +197,39 @@ pub enum ServerEvent {
         #[serde(skip)]
         user_id: Option<i64>,
     },
+    /// A device the profile may cast to came, went, or changed its name:
+    /// senders fetch the list again.
+    CastDevicesChanged {
+        #[serde(skip)]
+        user_id: i64,
+    },
+    /// What a cast device plays changed (`state: None`: nothing), to its
+    /// profile's streams.
+    CastState {
+        #[serde(skip)]
+        user_id: i64,
+        device_id: String,
+        state: Option<Box<CastState>>,
+    },
+    /// Play this on device `device_id`: to that device's stream only.
+    /// `position_ms: None` starts where the profile left off.
+    CastPlay {
+        #[serde(skip)]
+        user_id: i64,
+        device_id: String,
+        item_id: i64,
+        file_id: Option<i64>,
+        position_ms: Option<i64>,
+    },
+    /// Steer the player of device `device_id`: to that device's stream only.
+    /// `position_ms` is where to seek to.
+    CastControl {
+        #[serde(skip)]
+        user_id: i64,
+        device_id: String,
+        action: CastAction,
+        position_ms: Option<i64>,
+    },
 }
 
 impl ServerEvent {
@@ -219,7 +253,11 @@ impl ServerEvent {
             | ServerEvent::RequestDecided { .. }
             | ServerEvent::RequestCreated { .. }
             | ServerEvent::RequestFailed { .. }
-            | ServerEvent::RequestsSettingsChanged { .. } => None,
+            | ServerEvent::RequestsSettingsChanged { .. }
+            | ServerEvent::CastDevicesChanged { .. }
+            | ServerEvent::CastState { .. }
+            | ServerEvent::CastPlay { .. }
+            | ServerEvent::CastControl { .. } => None,
         }
     }
 
@@ -230,8 +268,21 @@ impl ServerEvent {
             ServerEvent::WatchlistChanged { user_id }
             | ServerEvent::OwnLibrariesChanged { user_id }
             | ServerEvent::UserStateChanged { user_id, .. }
-            | ServerEvent::SessionStopped { user_id, .. } => Some(*user_id),
+            | ServerEvent::SessionStopped { user_id, .. }
+            | ServerEvent::CastDevicesChanged { user_id }
+            | ServerEvent::CastState { user_id, .. }
+            | ServerEvent::CastPlay { user_id, .. }
+            | ServerEvent::CastControl { user_id, .. } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
+            _ => None,
+        }
+    }
+
+    /// The one cast device the event is for (a command for its player):
+    /// only that device's stream gets it.
+    pub fn cast_device(&self) -> Option<&str> {
+        match self {
+            ServerEvent::CastPlay { device_id, .. } | ServerEvent::CastControl { device_id, .. } => Some(device_id),
             _ => None,
         }
     }
@@ -354,6 +405,32 @@ mod tests {
         assert_eq!(serde_json::to_string(&everyone).unwrap(), r#"{"type":"requests_settings_changed"}"#);
         let one = ServerEvent::RequestsSettingsChanged { user_id: Some(4) };
         assert_eq!((one.user_id(), one.audience()), (Some(4), None));
+        // Commands for a cast device name it, and go to it alone.
+        let play = ServerEvent::CastPlay {
+            user_id: 4,
+            device_id: "device-tv-1".into(),
+            item_id: 9,
+            file_id: None,
+            position_ms: Some(60_000),
+        };
+        assert_eq!((play.user_id(), play.cast_device()), (Some(4), Some("device-tv-1")));
+        assert_eq!(
+            serde_json::to_string(&play).unwrap(),
+            r#"{"type":"cast_play","device_id":"device-tv-1","item_id":9,"file_id":null,"position_ms":60000}"#
+        );
+        let seek = ServerEvent::CastControl {
+            user_id: 4,
+            device_id: "device-tv-1".into(),
+            action: CastAction::Seek,
+            position_ms: Some(5),
+        };
+        assert_eq!(
+            serde_json::to_string(&seek).unwrap(),
+            r#"{"type":"cast_control","device_id":"device-tv-1","action":"seek","position_ms":5}"#
+        );
+        let changed = ServerEvent::CastDevicesChanged { user_id: 4 };
+        assert_eq!((changed.user_id(), changed.cast_device()), (Some(4), None));
+        assert_eq!(serde_json::to_string(&changed).unwrap(), r#"{"type":"cast_devices_changed"}"#);
     }
 
     #[test]

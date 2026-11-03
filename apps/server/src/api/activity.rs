@@ -5,11 +5,11 @@ use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::Stream;
 use pley_transcoder_api::JobStatus;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -141,11 +141,37 @@ impl Drop for StreamSlot {
     }
 }
 
+/// A device that may be cast to says so as it opens its stream
+/// (docs/API.md, "Casting to another device").
+#[derive(Deserialize, Default)]
+pub struct EventsQuery {
+    cast_device: Option<String>,
+    cast_name: Option<String>,
+    cast_platform: Option<String>,
+}
+
 pub async fn events(
     State(state): State<AppState>,
     user: AuthUser,
     CurrentToken(token): CurrentToken,
+    Query(query): Query<EventsQuery>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
+    // Listed for casting while the stream is open: a device that plays what
+    // it is sent needs `play`.
+    let receiver = match query.cast_device.as_deref() {
+        None => None,
+        Some(id) => {
+            if !user.allowed(Scope::Play) {
+                return Err(AppError::InsufficientScope(Some(Scope::Play.name())));
+            }
+            let (Some(name), Some(platform)) = (query.cast_name.as_deref(), query.cast_platform.as_deref()) else {
+                return Err(AppError::bad_request("a cast device gives its name and platform"));
+            };
+            let platform = crate::cast::Platform::from_name(platform)
+                .ok_or_else(|| AppError::bad_request("unknown cast platform"))?;
+            Some(state.cast.connect(user.id, id, name, platform)?)
+        }
+    };
     let slot = StreamSlot::take(token.as_deref())?;
     // Events about libraries the user can't open aren't theirs to see.
     let libraries = Arc::new(parking_lot::RwLock::new(access::library_ids(&state.db, &user).await?));
@@ -186,8 +212,11 @@ pub async fn events(
     let gone = ended.clone().drop_guard();
     let me = user.id;
     let key = slot.0.clone();
+    let device = receiver.as_ref().map(|r| r.id().to_owned());
     let stream = BroadcastStream::new(state.events.subscribe())
         .filter_map(|event| event.ok())
+        // Commands for a cast device go to its own stream only.
+        .filter(move |event| event.cast_device().is_none_or(|id| device.as_deref() == Some(id)))
         // Events for one user (their My List, their stopped session) go to
         // that user's streams only; requests' to those they name.
         .filter(move |event| match event.audience() {
@@ -199,7 +228,7 @@ pub async fn events(
             _ => true,
         })
         .map(move |event| {
-            let _ = (&gone, &slot);
+            let _ = (&gone, &slot, &receiver);
             Ok(Event::default().json_data(event).unwrap_or_else(|_| Event::default().comment("encode error")))
         });
     // The stream never ends on its own and the web UI keeps one open while

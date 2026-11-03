@@ -11,6 +11,11 @@ describes how they are made.
 
 ### Added
 
+- Casting: a profile's devices play on one another. A phone or a browser
+  sends a movie or an episode to the TV, then pauses, seeks and stops it
+  from there and sees what it plays. The server lists the devices that
+  may be cast to while they are connected, and passes the commands on
+  ([API.md](../../docs/API.md#casting-to-another-device)).
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

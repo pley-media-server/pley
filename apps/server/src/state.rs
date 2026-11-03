@@ -45,6 +45,8 @@ pub struct Inner {
     pub watcher: Arc<LibraryWatcher>,
     pub images: Images,
     pub sessions: Arc<Sessions>,
+    /// The devices each profile may cast to (see [`crate::cast`]).
+    pub cast: Arc<crate::cast::Cast>,
     /// When library work runs (see [`crate::schedule`]).
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
@@ -189,6 +191,7 @@ impl AppState {
                 network: crate::network::Network::new(&config),
                 resources,
                 auth,
+                cast: crate::cast::Cast::new(events.clone()),
                 sessions,
                 schedule,
                 markers,

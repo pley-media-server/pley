@@ -145,6 +145,11 @@ protect your server.
 - Switching from a restricted profile to one that can see more (an
   administrator, a higher age limit, other libraries) takes that profile's
   PIN, or its password (and code).
+- Casting stays within a profile: only the profile's own devices are
+  listed to it, sent titles by it and seen playing by it, and a device
+  plays what it is sent with its own token, through the same access checks
+  as a title picked there. A device is listed only while its event stream
+  is open, and at most 32 at once.
 
 ### Apps signing in
 

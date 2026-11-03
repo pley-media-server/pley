@@ -5,6 +5,7 @@ mod activity;
 mod admin;
 pub(crate) mod auth;
 mod browse;
+mod cast;
 pub(crate) mod collections;
 mod compatibility_tokens;
 pub(crate) mod editing;
@@ -191,6 +192,10 @@ pub fn router(state: AppState) -> Router {
         .route("/sessions/{id}", delete(playback::stop_session))
         .route("/activity", get(activity::activity))
         .route("/events", get(activity::events))
+        .route("/cast/devices", get(cast::devices))
+        .route("/cast/devices/{id}/play", post(cast::play))
+        .route("/cast/devices/{id}/control", post(cast::control))
+        .route("/cast/devices/{id}/state", put(cast::report))
         .route("/users", get(accounts::list_users).post(accounts::create_user))
         .route("/users/{id}", patch(accounts::update_user).delete(accounts::delete_user))
         .route("/users/{id}/avatar", get(accounts::avatar))

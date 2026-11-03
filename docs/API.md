@@ -51,6 +51,7 @@ details.
 - [Activity & events](#activity--events):
   [Stopping a stream](#stopping-a-stream),
   [Watch state on other devices](#watch-state-on-other-devices)
+- [Casting to another device](#casting-to-another-device)
 - [Live TV](#live-tv)
 - [Users](#users-admin), [Invitations](#invitations),
   [System](#system-admin)
@@ -3137,7 +3138,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 |---|---|---|---|
 | GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
-| GET | `/api/events` | `library` | Server-Sent Events; each `data:` is a JSON `ServerEvent` |
+| GET | `/api/events` | `library` | Server-Sent Events; each `data:` is a JSON `ServerEvent`. `?cast_device=&cast_name=&cast_platform=` (`play` too): the device may be cast to while the stream is open ([Casting](#casting-to-another-device)) |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
 credits detection, `previews_pending` files waiting for seek previews
@@ -3332,10 +3333,78 @@ type ServerEvent =
       seasons: number[] | null; requested_by: RequestUser; status: "pending" | "approved" } // to managers
   | { type: "request_failed"; request_id: Id; title: string; kind: TitleKind; reason: string;
       retry_at: null }                               // to managers: it waits for one
-  | { type: "requests_settings_changed" };           // fetch the request summary again: requests were turned on or
+  | { type: "requests_settings_changed" }            // fetch the request summary again: requests were turned on or
                                                      // off, their limits or the TMDB key changed (every stream, apps'
                                                      // included), or one account's request_access, role, age limit
                                                      // or libraries did (its streams only)
+  | { type: "cast_devices_changed" }                 // a device to cast to came, went or was renamed (their streams only)
+  | { type: "cast_state"; device_id: string; state: CastState | null } // what a cast device plays (their streams only)
+  | { type: "cast_play"; device_id: string; item_id: Id; file_id: Id | null; position_ms: number | null }
+                                                     // to that cast device's stream only: play this
+  | { type: "cast_control"; device_id: string; action: CastAction; position_ms: number | null };
+                                                     // to that cast device's stream only: steer its player
+```
+
+## Casting to another device
+
+A profile's devices play on one another: a phone or a browser sends a
+movie, an episode or an extra to the TV, then pauses, seeks and stops it
+from where it is, and sees what it plays. The server only passes the
+commands on: each device plays what it is sent by itself, as if it had been
+picked there, with its own quality, tracks and resume point.
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/cast/devices` | `play` | `CastDevice[]`: the profile's devices that may be cast to, by name |
+| POST | `/api/cast/devices/{id}/play` | `play` | `{ item_id, file_id?, position_ms? }` → `204`: device `id` plays it |
+| POST | `/api/cast/devices/{id}/control` | `play` | `{ action, position_ms? }` → `204`: device `id`'s player pauses, resumes, seeks or stops |
+| PUT | `/api/cast/devices/{id}/state` | `play` | `{ item_id, position_ms?, duration_ms?, state? }` → `204`: device `id` says what it plays |
+
+**Being cast to.** A device that may be cast to opens its
+[event stream](#activity--events) with `cast_device` (an id it makes once and
+keeps: 8 to 64 letters, digits, `-` and `_`), `cast_name` (what people call
+it, 1 to 64 characters: "Living room TV") and `cast_platform`. It needs
+`play` for that (else `403 insufficient_scope`); a missing or wrong one
+answers `400`. It is listed for as long as that stream stays open, and
+leaves the list as the stream ends: a device that goes away (switched off,
+signed out, out of the network) goes with its connection. The same id
+connecting again is the same device, under the name it gives then. A
+profile has at most 32 at once (`429`).
+
+- Only the profile's own devices see and steer it: another profile's
+  answer `404`, as a device not connected does.
+- `cast_play` and `cast_control` go to that device's stream alone.
+- `position_ms` left out of `play` starts where the profile left off; `0`
+  from the start. `file_id` is one of the title's versions. A title the
+  profile can't open answers `404`; a show, a season or a track `400`.
+- `seek` needs `position_ms`. Positions and lengths are 0 to a week in
+  milliseconds (`400`).
+- The device says what it plays as it starts, pauses, resumes, seeks and
+  stops, and every 10 s while it plays: `state` is `playing` (the
+  default), `paused` or `buffering`; `item_id: null` plays nothing. The
+  profile's streams hear `cast_state`, and the list shows it.
+- A device that is sent a title and doesn't say it plays it within 15 s
+  hasn't heard: Pley's apps say so.
+- Senders hear `cast_devices_changed` and fetch the list again.
+
+```ts
+type CastPlatform = "web" | "desktop" | "android" | "android_tv" | "kodi" | "roku" | "samsung" | "lg";
+type CastAction = "pause" | "resume" | "seek" | "stop";
+
+interface CastDevice {
+  id: string;
+  name: string;
+  platform: CastPlatform;
+  state: CastState | null;          // what it plays, as it last said; null: nothing
+}
+
+interface CastState {
+  item: ItemSummary;
+  position_ms: number;
+  duration_ms: number | null;
+  state: "playing" | "paused" | "buffering";
+  age_ms: number;                   // how long ago it said so: a playing position has moved on since
+}
 ```
 
 ## Live TV
