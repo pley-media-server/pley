@@ -181,9 +181,9 @@ describes how they are made.
 - On TVs, Back from a title or from a tile's actions, and Right from the
   rail, land on the library grid's tile focus left, the grid as it was,
   where they went to the first tile or to the Sort chip.
-- On TVs, a held Up in a library grid keeps its column, as a held Down
-  does, where it could jump to the end of the row above and end on the
-  first column.
+- On TVs, a held Up in a library grid keeps its column and its focus, as
+  a held Down does, where it could jump to the end of the row above, end
+  on another column or leave no tile focused.
 - On TVs, Up from a show's episodes goes to the tab of the season shown,
   where it could go to the next season's tab and show that season.
 - Discover's hero is the first title of the next row when the trending

@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.library
 
+import android.view.View
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -34,6 +36,7 @@ import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.theme.TvTheme
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -41,13 +44,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowBuild
+import org.robolectric.shadows.ShadowLooper
+import org.robolectric.util.ReflectionHelpers
 
 /**
  * A TV grid's focus while its pages load, and how it moves: a cell
  * focused as a skeleton keeps focus when its title arrives, and the D-pad
  * goes on from it; a press glides the grid a row over 150 ms, and a held
  * Down glides it on a row a step, on the gate's clock, without a stop or
- * a jump (rule 5); a held Up stays in the grid, and in its column.
+ * a jump (rule 5); a held Up stays in the grid, and in its column, on
+ * cells laid out on the screen: the grid composes rows off the screen as
+ * a TV's prefetching does, and focus never goes to one of those.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -63,13 +71,18 @@ class TvGridLoadFocusTest {
 
     private lateinit var focus: TvGridFocus
     private lateinit var state: LazyGridState
+    private lateinit var view: View
 
     /** The grid, with something focusable above it when [above] (the library's chips). */
     private fun grid(reduced: Boolean? = null, above: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
+        // Compose prefetches nothing under Robolectric, known by its fingerprint, nor for a window that
+        // doesn't show, as Robolectric's says; a TV composes the cache window's rows off the screen.
+        ShadowBuild.setFingerprint("pley/tv")
         compose.setContent {
             TvTheme(reducedMotion = reduced) {
                 focus = remember { TvGridFocus() }
                 state = rememberTvGridState()
+                view = LocalView.current
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
                     Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
                         if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
@@ -90,6 +103,7 @@ class TvGridLoadFocusTest {
                 }
             }
         }
+        ReflectionHelpers.setField(ReflectionHelpers.getField<Any>(view, "mAttachInfo"), "mWindowVisibility", View.VISIBLE)
         compose.waitForIdle()
     }
 
@@ -176,21 +190,51 @@ class TvGridLoadFocusTest {
         compose.onNodeWithTag(ABOVE).assertIsFocused()
     }
 
-    @Test
-    fun aHeldUpKeepsItsColumn() {
+    /**
+     * A frame, with the main looper's work after it: the grid's prefetching
+     * runs there, as on a TV, composing the cache window's rows off the
+     * screen without laying them out.
+     */
+    private fun frame() {
+        compose.mainClock.advanceTimeByFrame()
+        ShadowLooper.idleMainLooper(16, TimeUnit.MILLISECONDS)
+    }
+
+    /** Whether the focused cell is laid out on the grid, not only composed ahead of it. */
+    private fun focusLaidOut(): Boolean = state.layoutInfo.visibleItemsInfo.any { it.key == focus.focused }
+
+    /** Focus on row 8, column 3, with the rows the cache window composes around it. */
+    private fun deepInTheGrid() {
         grid(above = true)
         compose.onRoot().performKeyInput {
-            repeat(8) { pressKey(Key.DirectionDown) }
+            repeat(9) { pressKey(Key.DirectionDown) }
             repeat(3) { pressKey(Key.DirectionRight) }
         }
         compose.waitForIdle()
+        // Up once, so the cache window reaches up the grid.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.waitForIdle()
+        repeat(3) { frame() }
+        compose.waitForIdle()
         assertEquals(Columns * 8 + 3, focus.focused)
+        // As on a TV, the row above the screen's is composed (the window ahead of it) but not laid out.
+        val above = state.layoutInfo.visibleItemsInfo.minOf { it.index } / Columns * Columns - Columns + 3
+        val laidOut = state.layoutInfo.visibleItemsInfo.map { it.key }
+        assertTrue("$above composed; laid out: $laidOut", focus.slots.has(above))
+        assertTrue("$above not laid out: $laidOut", above !in laidOut)
+    }
+
+    @Test
+    fun aHeldUpKeepsItsColumn() {
+        deepInTheGrid()
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
-        // The press and five held steps, a frame at a time: six rows up, in the same column all the way.
+        // The press and five held steps, a frame at a time: six rows up, in the same column all the way,
+        // on a cell laid out on the grid.
         for (frame in 1..25) {
-            compose.mainClock.advanceTimeByFrame()
+            frame()
             assertEquals("frame $frame", 3, focus.focused % Columns)
+            assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())
         }
         compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
         compose.mainClock.autoAdvance = true
@@ -204,6 +248,37 @@ class TvGridLoadFocusTest {
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
         assertEquals(3, focus.focused)
+    }
+
+    @Test
+    fun aLongHeldUpEndsAtTheTopInItsColumn() {
+        deepInTheGrid()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
+        // Three seconds: up to the first row, and held there.
+        for (frame in 1..180) {
+            frame()
+            assertEquals("frame $frame", 3, focus.focused % Columns)
+            assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())
+        }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(3, focus.focused)
+        compose.onAllNodes(isFocused()).assertCountEquals(1)
+        compose.onNodeWithTag(ABOVE).assertIsNotFocused()
+    }
+
+    @Test
+    fun pressesUpKeepTheirColumn() {
+        deepInTheGrid()
+        for (row in 7 downTo 0) {
+            compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+            compose.waitForIdle()
+            frame()
+            assertEquals(Columns * row + 3, focus.focused)
+            assertTrue("row $row laid out", focusLaidOut())
+        }
     }
 
     private companion object {

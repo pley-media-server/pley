@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -125,6 +126,13 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     var columns = 1
     var reduced = false
 
+    /** The cells' keys by position ([TvPosterGrid]'s keyAt), and how many there are. */
+    var keyAt: (Int) -> Any = { it }
+    var total = 0
+
+    /** The lazy grid's index of the first cell: 0, or after a header's items; -1 until a cell is seen laid out then. */
+    var lead = 0
+
     /** The still ring's top left, in the grid: where the focused cell's well comes to rest. */
     private var ringX by mutableFloatStateOf(0f)
     private var ringY by mutableFloatStateOf(0f)
@@ -154,23 +162,27 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         glide.move(by, held, reduced)
     }
 
-    /** Focuses the cell at [position] once it is composed ([column]). */
+    /** Focuses the cell at [position] once it is laid out ([column]). */
     private var bringing: Job? = null
 
     /**
-     * Up or Down from the focused cell, [from] (keyed [key]), to [position]
-     * in its column, as the Samsung app's grid moves; whether the key is
-     * used. A cell not composed yet (a held key outrunning the rows made
-     * ahead of it) is scrolled just into the grid and focused a frame
-     * later, where Compose's own search would compose the nearest cell and
-     * land there: the end of the row above.
+     * Up or Down from the focused cell, [from], to [position] in its
+     * column, as the Samsung app's grid moves; whether the key is used.
+     * Only a cell laid out on the grid takes focus. The cache window
+     * composes rows off the screen without placing them: focus on one of
+     * those was measured where it wasn't, the grid scrolled wrong, and the
+     * next step left Compose's own search to drift to another column or
+     * lose focus. A cell not laid out (a held key outrunning the rows on
+     * the screen) is scrolled just into the grid and focused once it is.
      */
-    fun column(from: Int, key: Any, position: Int, focus: TvGridFocus): Boolean {
+    fun column(from: Int, position: Int, focus: TvGridFocus): Boolean {
         if (bringing?.isActive == true) return true
-        if (focus.focus(position)) return true
+        val target = keyAt(position)
+        if (laidOut(target) && focus.focus(position)) return true
         val info = state.layoutInfo
-        val cell = info.visibleItemsInfo.firstOrNull { it.key == key } ?: return false
-        val top = cell.offset.y + (position / columns - from / columns) * (cell.size.height + info.mainAxisItemSpacing)
+        // Where the target's row is, from a cell laid out now: the focused one, or any other.
+        val (cell, at) = reference(from) ?: return false
+        val top = cell.offset.y + (position / columns - at / columns) * (cell.size.height + info.mainAxisItemSpacing)
         val by = when {
             top + cell.size.height <= info.viewportStartOffset -> (top + cell.size.height - info.viewportStartOffset - 1).toFloat()
             top >= info.viewportEndOffset -> (top - info.viewportEndOffset + 1).toFloat()
@@ -178,10 +190,27 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         }
         bringing = scope.launch {
             if (by != 0f) state.scrollBy(by)
-            withFrameNanos { }
-            focus.focus(position)
+            repeat(BRING_FRAMES) {
+                withFrameNanos { }
+                if (laidOut(target) && focus.focus(position)) return@launch
+            }
         }
         return true
+    }
+
+    /** Whether the cell keyed [key] is laid out on the grid, not only composed off it. */
+    private fun laidOut(key: Any): Boolean = state.layoutInfo.visibleItemsInfo.any { it.key == key }
+
+    /** A cell laid out now, and its position: [from]'s when it is, or any other's. */
+    private fun reference(from: Int): Pair<LazyGridItemInfo, Int>? {
+        val items = state.layoutInfo.visibleItemsInfo
+        val key = keyAt(from)
+        items.firstOrNull { it.key == key }?.let {
+            lead = it.index - from
+            return it to from
+        }
+        if (lead < 0) return null
+        return items.firstOrNull { it.index - lead in 0 until total }?.let { it to it.index - lead }
     }
 
     /** The cell at [position] lost focus. */
@@ -218,6 +247,11 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     private fun land() {
         looks?.cancel()
         looks = scope.launch { quiet.end(reduced) }
+    }
+
+    private companion object {
+        /** How many frames a cell scrolled into the grid has to be laid out in and take focus. */
+        const val BRING_FRAMES = 3
     }
 }
 
@@ -278,9 +312,11 @@ internal fun TvPosterGrid(
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
     val scope = rememberCoroutineScope()
-    val motion = remember(state, gate) { GridMotion(state, gate, scope) }
+    val motion = remember(state, gate) { GridMotion(state, gate, scope).apply { if (header != null) lead = -1 } }
     motion.anchor = with(density) { contentTop.toPx() }
     motion.columns = columns
+    motion.keyAt = keyAt
+    motion.total = total
     motion.reduced = reducedMotion()
     val spec = remember(density, contentTop, heroHeight, state, motion) {
         CellSpec(GridSpec(with(density) { contentTop.toPx() }, with(density) { heroHeight.toPx() }, state), motion)
@@ -309,8 +345,8 @@ internal fun TvPosterGrid(
                     when (event.key) {
                         // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
                         Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
-                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, keyAt(from), from - columns, focus)
-                        Key.DirectionDown -> from + columns < total && motion.column(from, keyAt(from), from + columns, focus)
+                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus)
+                        Key.DirectionDown -> from + columns < total && motion.column(from, from + columns, focus)
                         else -> false
                     }
                 }
