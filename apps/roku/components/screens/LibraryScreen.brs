@@ -636,7 +636,8 @@ sub onFilters(event as object)
     m.filterWanted = ""
     answer = event.getData()
     if not answer.ok or answer.data = invalid
-        if not uiFailed(answer) and m.panel.visible then m.panelHint.text = answer.message
+        ' Only the Filter panel waits for it: another panel's hint stays its own.
+        if not uiFailed(answer) and m.panel.visible and m.panelKind = "filters" then m.panelHint.text = answer.message
         return
     end if
     m.filters = libFilters(answer.data)
@@ -661,10 +662,10 @@ sub openFilter(kind as string)
         end for
         showChoices("genre", "Genre", labels, values, current, "")
     else if kind = "resolution"
-        choices = libQualityChoices(fmtResolutions(), m.filters.resolutions, m.view.resolution)
+        choices = libQualityChoices(fmtResolutions(), m.filters.resolutions, m.view.resolution, "All resolutions")
         showChoices("resolution", "Resolution", choices.labels, choices.values, choices.current, "")
     else if kind = "dynamic_range"
-        choices = libQualityChoices(fmtDynamicRanges(), m.filters.dynamicRanges, m.view.dynamic_range)
+        choices = libQualityChoices(fmtDynamicRanges(), m.filters.dynamicRanges, m.view.dynamic_range, "All dynamic ranges")
         showChoices("dynamic_range", "Dynamic range", choices.labels, choices.values, choices.current, "")
     else
         values = [0]
@@ -727,6 +728,8 @@ end sub
 sub closePanel()
     m.panel.visible = false
     m.panelKind = ""
+    ' A filter picked while its choices were loading is forgotten with the panel.
+    m.filterWanted = ""
     m.viewChips.setFocus(true)
 end sub
 

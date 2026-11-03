@@ -179,10 +179,10 @@ function libFilterRows(view as object, kind as string, filters as dynamic) as ob
             ranges = filters.dynamicRanges
         end if
         if resolutions.Count() > 0 or view.resolution <> ""
-            rows.Push({ title: "Resolution: " + libQualityLabel(fmtResolutions(), view.resolution), action: "resolution" })
+            rows.Push({ title: "Resolution: " + libQualityLabel(fmtResolutions(), view.resolution, "All resolutions"), action: "resolution" })
         end if
         if ranges.Count() > 0 or view.dynamic_range <> ""
-            rows.Push({ title: "Dynamic range: " + libQualityLabel(fmtDynamicRanges(), view.dynamic_range), action: "dynamic_range" })
+            rows.Push({ title: "Dynamic range: " + libQualityLabel(fmtDynamicRanges(), view.dynamic_range, "All dynamic ranges"), action: "dynamic_range" })
         end if
     end if
     if libFiltered(view)
@@ -198,16 +198,19 @@ function libWatchedLabel(watched as string) as string
     return "All titles"
 end function
 
-function libQualityLabel(table as object, token as string) as string
-    if token = "" then return "Any"
+' A resolution's or a dynamic range's words; `none` when none is chosen
+' ("All resolutions", as the other apps say: "Any" would read beside "Any
+' HDR" as the same thing).
+function libQualityLabel(table as object, token as string, none as string) as string
+    if token = "" then return none
     return fmtTokenLabel(table, token)
 end function
 
 ' A resolution's or a dynamic range's choices: { labels, values, current }.
-' Any, then the tokens the library offers in its order, and the one chosen
-' when it no longer offers it, so that it shows checked.
-function libQualityChoices(table as object, offered as object, chosen as string) as object
-    out = { labels: ["Any"], values: [""], current: 0 }
+' `none`, then the tokens the library offers in its order, and the one
+' chosen when it no longer offers it, so that it shows checked.
+function libQualityChoices(table as object, offered as object, chosen as string, none as string) as object
+    out = { labels: [none], values: [""], current: 0 }
     tokens = []
     tokens.Append(offered)
     if chosen <> ""
