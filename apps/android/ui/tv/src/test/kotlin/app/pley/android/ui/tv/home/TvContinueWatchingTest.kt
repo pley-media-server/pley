@@ -147,6 +147,8 @@ class TvContinueWatchingTest {
         )
 
         waitUntil { focusedDescription().startsWith("Arrival") }
+        // The page stays where it was, the hero above the row: focus went nowhere else on the way.
+        compose.onNodeWithText("Resume").assertExists()
     }
 
     @Test

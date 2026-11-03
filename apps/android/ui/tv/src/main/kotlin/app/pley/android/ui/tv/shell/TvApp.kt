@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -189,6 +190,7 @@ private fun TvShell(
             Modifier
                 .fillMaxSize()
                 .focusRequester(content)
+                .onFocusChanged { rail.contentFocused = it.hasFocus }
                 // No focusRestorer here: it would hand focus back to a page that is leaving.
                 // The rail saves and restores the page's focus itself.
                 .railOnLeftStopOnRight(if (rail.shown) rail else null, stopRight = false)

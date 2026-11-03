@@ -25,7 +25,9 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,6 +79,8 @@ import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvRailFocus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * The rail's focus, for the shell and for content leaving on the left:
@@ -93,6 +97,8 @@ import app.pley.android.ui.tv.kit.TvRailFocus
  * focus yet (still loading), Android hands focus to the first thing it
  * finds, top left: the rail's avatar, which would open the rail by itself.
  * The rail refuses it ([enter]), and the page's initial focus takes it.
+ * When focus is nowhere (what had it went with a redraw of its page) and
+ * stays so, the next Up, Down or Right brings it back to the page.
  */
 @Stable
 class RailState(private val content: FocusRequester = FocusRequester()) : TvRailFocus {
@@ -114,8 +120,14 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
     var shown by mutableStateOf(false)
         internal set
 
+    /** Whether focus is on the page, as the shell's content tells it ([enter]). */
+    internal var contentFocused = false
+
     /** Set while [focusCurrent] sends focus to an entry: the one way in ([enter]). */
     private var sending = false
+
+    /** The rail's own, while it shows ([TvRail]): where [enter] waits for focus to settle. */
+    internal var scope: CoroutineScope? = null
 
     internal fun requester(id: String): FocusRequester = requesters.getOrPut(id) { FocusRequester() }
 
@@ -147,11 +159,28 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
      * nothing focused, while a page loads) goes to the current entry, not
      * the nearest one; anything else, such as Android placing focus on the
      * first thing it finds, is refused.
+     *
+     * Up, Down or Right with nothing focused (neither the page nor the
+     * rail: what had focus went with a redraw) goes back to the page, so
+     * the key isn't lost, but only once focus has stayed nowhere for a few
+     * frames. Android comes here too when a focused tile leaves its row,
+     * and that row hands focus to the tile in its place a frame later (a
+     * row going with its last tile, two): taking focus to the page at once
+     * would scroll it to wherever focus landed first.
      */
     internal fun FocusEnterExitScope.enter() {
         if (sending) return
         cancelFocusChange()
-        if (requestedFocusDirection == FocusDirection.Left) focusCurrent()
+        when (requestedFocusDirection) {
+            FocusDirection.Left -> focusCurrent()
+            FocusDirection.Up, FocusDirection.Down, FocusDirection.Right -> if (!contentFocused) {
+                scope?.launch {
+                    repeat(SETTLE_FRAMES) { withFrameNanos { } }
+                    if (!hasFocus && !contentFocused) backToContent()
+                }
+            }
+            else -> Unit
+        }
     }
 
     /** Back to the page: the element that had focus there, or the page's first. */
@@ -189,6 +218,7 @@ internal fun TvRail(
 ) {
     val open = rail.hasFocus
     val opening = rememberRailOpening(open)
+    rail.scope = rememberCoroutineScope()
     val offlineSaid = stringResource(R.string.tv_shell_offline)
     Box(
         Modifier
@@ -467,6 +497,9 @@ private val LeadingSize = 24.dp
 
 /** The open rail's soft right edge. */
 private val RailShadow = 64.dp
+
+/** Frames a key from nowhere waits before it takes focus to the page: past a row's own handing on ([RailState.enter]). */
+private const val SETTLE_FRAMES = 3
 
 /** That edge: surface at 85 % to clear. */
 private val RailEdge by lazy { GradientBitmaps.horizontal(0f to PleyColors.Surface.copy(alpha = 0.85f), 1f to PleyColors.Surface.copy(alpha = 0f)) }

@@ -21,6 +21,9 @@ describes how they are made.
   no title in their place while they load, and no fade.
 - On Android TV and Fire TV, Reduce motion (in Settings, or the system's
   Remove animations) stills the rail too: it opens and closes in place.
+- On Android TV and Fire TV, Up, Down or Right pressed while nothing on
+  the page has focus, as when what had it was drawn again, brings focus
+  back to the page, where the key did nothing.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

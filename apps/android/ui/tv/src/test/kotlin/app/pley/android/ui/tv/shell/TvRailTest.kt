@@ -7,9 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.InputMode
@@ -18,8 +23,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -43,7 +50,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * The rail (design spec §2.1): Left from the page opens it over 200 ms, in
- * place with reduced motion, and only Left goes into it.
+ * place with reduced motion. Only Left goes into it, and a key pressed
+ * with nothing focused brings focus back to the page.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -54,14 +62,19 @@ class TvRailTest {
     val compose = createComposeRule()
 
     private val content = FocusRequester()
+    private val nearFocus = FocusRequester()
     private val rail = RailState(content).apply {
         shown = true
         current = "home"
     }
     private lateinit var input: InputModeManager
 
-    /** The rail over a page, as the shell has them, with [FAR] on the page. Focus starts on the page. */
-    private fun shell(reduced: Boolean) {
+    /**
+     * The rail over a page, as the shell has them: [FAR] on the page (while
+     * [far] can take focus), and [NEAR] above and left of it while [near].
+     * Focus starts on the page.
+     */
+    private fun shell(reduced: Boolean, near: () -> Boolean = { false }, far: () -> Boolean = { true }) {
         compose.setContent {
             input = LocalInputModeManager.current
             TvTheme(reducedMotion = reduced) {
@@ -70,10 +83,12 @@ class TvRailTest {
                         Modifier
                             .fillMaxSize()
                             .focusRequester(content)
+                            .onFocusChanged { rail.contentFocused = it.hasFocus }
                             .railOnLeftStopOnRight(rail, stopRight = false)
                             .focusGroup(),
                     ) {
-                        Box(Modifier.offset(600.dp, 300.dp).size(40.dp).testTag(FAR).focusable())
+                        if (near()) Box(Modifier.offset(300.dp, 100.dp).size(40.dp).testTag(NEAR).focusRequester(nearFocus).focusable())
+                        Box(Modifier.offset(600.dp, 300.dp).size(40.dp).testTag(FAR).focusProperties { canFocus = far() }.focusable())
                     }
                     TvRail(railItems(emptyList()), RailProfile("Anna"), rail, onSelect = {}, onProfile = {})
                 }
@@ -134,6 +149,32 @@ class TvRailTest {
     }
 
     @Test
+    fun aKeyWithNothingFocusedBringsFocusBackToThePage() {
+        var near by mutableStateOf(true)
+        var far by mutableStateOf(true)
+        shell(reduced = true, near = { near }, far = { far })
+        // Right and Down from nowhere would find the rail's entries first, at the top left.
+        for (key in listOf(Key.DirectionRight, Key.DirectionDown)) {
+            near = true
+            compose.waitForIdle()
+            compose.runOnUiThread { nearFocus.requestFocus() }
+            compose.waitForIdle()
+            compose.onNodeWithTag(NEAR).assertIsFocused()
+            // The focused element goes with a redraw of its page while nothing else there can take
+            // focus, which then comes back: nothing has focus.
+            far = false
+            near = false
+            compose.waitForIdle()
+            far = true
+            compose.waitForIdle()
+            compose.onAllNodes(isFocused()).assertCountEquals(0)
+            // The next key doesn't open the rail, nor is it lost: focus is back on the page.
+            compose.press(key)
+            compose.onNodeWithTag(FAR).assertIsFocused()
+        }
+    }
+
+    @Test
     fun upFromThePageStaysThere() {
         shell(reduced = true)
         compose.onNodeWithTag(FAR).assertIsFocused()
@@ -142,6 +183,7 @@ class TvRailTest {
     }
 
     private companion object {
+        const val NEAR = "near"
         const val FAR = "far"
     }
 }
