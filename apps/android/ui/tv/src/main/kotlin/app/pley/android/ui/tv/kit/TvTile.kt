@@ -26,12 +26,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -174,14 +173,18 @@ fun TvTileFrame(
                     onLongClick = onLongClick,
                     onClick = onClick,
                 )
+                // The ring outside the well's layer: a focus animation's frames draw it again, not the well.
+                .drawWithCache {
+                    val ring = Stroke(PleyFocus.RingStroke.toPx())
+                    onDrawWithContent {
+                        drawContent()
+                        drawFocusRing(kind, look.shown(), look.scale(), ring)
+                    }
+                }
                 .graphicsLayer {
                     val s = look.scale()
                     scaleX = s
                     scaleY = s
-                }
-                .drawWithContent {
-                    drawContent()
-                    drawFocusRing(kind, look.shown(), look.scale())
                 },
         ) {
             well()
@@ -295,22 +298,24 @@ private fun Modifier.focusedOnTop(look: TileFocusLook): Modifier = layout { meas
 }
 
 /**
- * The focus ring (design spec §1.4) around a well drawn at [scale]: a 3 dp
- * accentBright stroke centred 4.5 dp outside the scaled edge, so drawn in
- * the well's own (unscaled) units it is divided by the scale.
+ * The focus ring (design spec §1.4) around a well scaled by [scale] about
+ * its centre: a 3 dp accentBright stroke ([stroke], made once) centred
+ * 4.5 dp outside the scaled edge. It is drawn outside the well's layer, so
+ * its width stays the same as the well grows, and nothing is made per frame.
  */
-internal fun ContentDrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float) {
+internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke) {
     if (alpha <= 0f) return
-    val s = scale.coerceAtLeast(0.01f)
-    val offset = PleyFocus.RingOffset.toPx() / s
-    val stroke = PleyFocus.RingStroke.toPx() / s
-    val radius = if (kind.round) size.minDimension / 2f + offset else PleyShape.TileTvRadius.toPx() + offset
+    val offset = PleyFocus.RingOffset.toPx()
+    val width = size.width * scale
+    val height = size.height * scale
+    val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() * scale + offset
     drawRoundRect(
-        color = PleyColors.AccentBright.copy(alpha = alpha.coerceIn(0f, 1f)),
-        topLeft = Offset(-offset, -offset),
-        size = Size(size.width + 2 * offset, size.height + 2 * offset),
+        color = PleyColors.AccentBright,
+        topLeft = Offset((size.width - width) / 2f - offset, (size.height - height) / 2f - offset),
+        size = Size(width + 2 * offset, height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),
-        style = Stroke(stroke),
+        alpha = alpha.coerceIn(0f, 1f),
+        style = stroke,
     )
 }
 
