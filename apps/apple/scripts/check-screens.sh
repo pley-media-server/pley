@@ -3,7 +3,7 @@
 # server: builds the server and its transcoder, makes the screens' test
 # media (make-test-media.sh --screens, or PLEY_CHECK_MEDIA if set), starts
 # a disposable server (a temporary data folder, a free port on 127.0.0.1,
-# no Bonjour, no Plex port, no tray), and sets up its household: an
+# no Bonjour, no tray), and sets up its household: an
 # administrator ("Admin", with a PIN) and the managed profile Kids (with a
 # PIN), the libraries Movies, Shows, Clips and Music, and once they are
 # scanned the collection "Test collection" of two movies, and Live TV's
@@ -106,7 +106,7 @@ while [[ "$kids_pin" == "$admin_pin" ]]; do kids_pin=$(pin); done
 
 target/debug/pley --data-dir "$data" reset-password checkadmin "$password" --admin >/dev/null
 PLEY_TRANSCODER_WORK_DIR="$temp/transcoder" \
-  target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --plex-bind off --no-discovery --no-tray \
+  target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --no-discovery --no-tray \
   >"$temp/server.log" 2>&1 &
 server=$!
 

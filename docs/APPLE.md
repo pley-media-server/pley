@@ -1701,7 +1701,7 @@ PLEY_CHECK_PASSWORD=$(openssl rand -hex 16) apps/apple/scripts/check-server.sh
 
 It needs Rust and the web app built in `apps/web/dist`. The server gets a
 temporary data folder, a free port on 127.0.0.1, an administrator
-`checkadmin` with that password, and no Bonjour, Plex port or tray.
+`checkadmin` with that password, and no Bonjour or tray.
 `pley-apple-check` then signs in with a code as Apple TV, and again as
 iPhone:
 
@@ -1802,7 +1802,7 @@ by hand, start a server the same way and keep it running:
 ```sh
 data=$(mktemp -d)
 pley --data-dir "$data" reset-password admin <password> --admin
-pley --data-dir "$data" --bind 127.0.0.1:7712 --plex-bind off --no-discovery --no-tray
+pley --data-dir "$data" --bind 127.0.0.1:7712 --no-discovery --no-tray
 ```
 
 The simulators share the Mac's network, so the apps open

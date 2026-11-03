@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checks the Apple apps' sign-in against a real Pley server: builds the
 # server, starts a disposable one (a temporary data folder, a free port on
-# 127.0.0.1, no Bonjour, no Plex port, no tray), makes an administrator, and
+# 127.0.0.1, no Bonjour, no tray), makes an administrator, and
 # runs pley-apple-check as Apple TV and as iPhone. The server and its folder
 # are removed afterwards, whatever happens. macOS only.
 #
@@ -38,7 +38,7 @@ origin="http://127.0.0.1:$port"
 
 cargo build -p pley-server
 target/debug/pley --data-dir "$data" reset-password checkadmin "$PLEY_CHECK_PASSWORD" --admin >/dev/null
-target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --plex-bind off --no-discovery --no-tray \
+target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --no-discovery --no-tray \
   >"$data/server.log" 2>&1 &
 server=$!
 

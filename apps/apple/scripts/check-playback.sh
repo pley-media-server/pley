@@ -2,7 +2,7 @@
 # Checks the Apple apps' playback against a real Pley server: builds the
 # server and its transcoder, makes the test media (make-test-media.sh, or
 # PLEY_CHECK_MEDIA if set), starts a disposable server (a temporary data
-# folder, a free port on 127.0.0.1, no Bonjour, no Plex port, no tray, the
+# folder, a free port on 127.0.0.1, no Bonjour, no tray, the
 # managed transcoder working in the same temporary folder), makes an
 # administrator, starts live-source.sh's made-up channels, and runs
 # pley-apple-play, which plays the media and the channels through the
@@ -66,7 +66,7 @@ origin="http://127.0.0.1:$port"
 
 target/debug/pley --data-dir "$data" reset-password checkadmin "$PLEY_CHECK_PASSWORD" --admin >/dev/null
 PLEY_TRANSCODER_WORK_DIR="$temp/transcoder" \
-  target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --plex-bind off --no-discovery --no-tray \
+  target/debug/pley --data-dir "$data" --bind "127.0.0.1:$port" --no-discovery --no-tray \
   >"$temp/server.log" 2>&1 &
 server=$!
 
