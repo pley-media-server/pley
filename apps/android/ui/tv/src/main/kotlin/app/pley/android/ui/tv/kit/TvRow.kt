@@ -361,8 +361,16 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
     val slots = FocusSlots()
     val quiet = TileQuiet()
 
-    /** Whether focus is in the row: a slide that ends elsewhere lands without taking it back. */
+    /**
+     * Whether focus is in the row: a slide that ends elsewhere lands without
+     * taking it back. A key swallowed ([onKey]) whose key-up went elsewhere
+     * is forgotten, so the row's next press of it acts.
+     */
     var hasFocus = false
+        set(value) {
+            field = value
+            if (!value) swallowed = null
+        }
 
     /** Which way the row slides under a held key: 1, -1, or 0 when it doesn't. */
     private var sliding = 0

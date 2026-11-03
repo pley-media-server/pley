@@ -413,6 +413,30 @@ class TvRowFocusTest {
     }
 
     @Test
+    fun aKeyPressedWhileARowSlidesIsForgottenOnceItComesUpOnAnotherRow() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        advance(304)
+        keyDown(Key.Menu)
+        advance(48)
+        keyUp(Key.DirectionRight)
+        advance(48)
+        // Down to row B with Menu still down: it comes up there, not on row A.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        advance(304)
+        keyUp(Key.Menu)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        // Back on row A, Menu pressed on its own opens the actions of the tile focus comes back to.
+        compose.press(Key.DirectionUp)
+        compose.press(Key.Menu)
+        val landed = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single()
+        assertTrue(landed, landed.startsWith("A "))
+        assertEquals(listOf(landed.removePrefix("A ").toLong()), actioned)
+    }
+
+    @Test
     fun nearTheRowsEndAHeldKeyStepsOnToTheLastTile() {
         page()
         compose.mainClock.autoAdvance = false
