@@ -5,7 +5,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{Api, send};
+use common::{Api, Events, eventually, send};
 use pley_fixtures::{FixtureServer, ManualClock, Options, ids};
 use serde_json::{Value, json};
 
@@ -154,12 +154,18 @@ fn a_busy_connection_answers_409_until_taken_over() {
     assert_eq!(shared.status, 200);
     let shared_session = shared.json()["session_id"].as_str().unwrap().to_string();
 
+    let mut events = Events::open(&alex);
+    assert!(eventually(|| server.event_listeners() == 1));
     let taken =
         watch(&alex, ids::LIVE_CONFLICT_CHANNEL, json!({ "client_id": "tv", "take_over": ids::LIVE_BUSY_CHANNEL }));
     assert_eq!(taken.status, 200, "{}", taken.text());
+    // Each viewer it ended hears why, by its channel.
+    let told = events.wait_for("live_taken_over", Duration::from_secs(5)).expect("the viewers hear it");
+    assert_eq!(told["channel_id"], ids::LIVE_BUSY_CHANNEL);
+    assert!(told["message"].as_str().unwrap().starts_with("Watching moved to"));
     let moved = alex.get(&format!("/api/live/sessions/{shared_session}/index.m3u8"));
     assert_eq!(moved.status, 410);
-    assert!(moved.json()["message"].as_str().unwrap().starts_with("Watching moved to"));
+    assert_eq!(moved.json()["message"], told["message"]);
 
     // Now Robin finds Alex's channel there, and may not take it.
     let robin = Api::new(&server, ids::ROBIN);

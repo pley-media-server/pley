@@ -7,17 +7,19 @@
 //! Live TV is watched as it airs: play, pause, rewind and fast forward, Left and Right do nothing. A
 //! channel that doesn't start says why, with Try again, Other channels and Back to the guide; every
 //! connection in use lists what holds each, with Watch here instead where it may be taken over.
+//! Someone taking this channel's connection over (the server's `live_taken_over`) stops it at once,
+//! with the server's words and Watch again.
 
 use std::sync::Arc;
 
 use pley_base::{Align, Color, Icon, Key, Point, Rect, TextOpts};
 use pley_core::http::sentence;
-use pley_core::model::{BusyConnection, LiveCategory, LiveChannel, LiveChannelPage};
+use pley_core::model::{BusyConnection, LiveCategory, LiveChannel, LiveChannelPage, ServerEvent};
 use pley_core::{ApiError, Device, Promise};
 use pley_kit::button::ROUND_SIZE;
 use pley_kit::{Button, LoadingRing, RoundButton, bar_group, inert};
 use pley_player::live::data::{CHANNEL_PAGE, channel_by_number, channel_name, time_left};
-use pley_player::live::{Category, ChannelPages, LivePhase, LiveSession, Trouble, holders, trouble_of};
+use pley_player::live::{Category, ChannelPages, LivePhase, LiveSession, Trouble, TroubleKind, holders, trouble_of};
 use pley_player::{PlayerServer, now_ms};
 use pley_shell::{AppCx, AppEvent, Chrome, Screen};
 use pley_ui::theme::{self, radius};
@@ -807,6 +809,13 @@ impl Screen for LivePlayerScreen {
                     z.stale();
                 }
             }
+            // Someone took over the connection of the channel playing: it stops at once, before its
+            // stream breaks off and would be tuned again.
+            AppEvent::Server(ServerEvent::LiveTakenOver { channel_id, message, .. }) => {
+                if let Some(s) = self.session.as_mut() {
+                    s.taken_over(*channel_id, message.as_deref());
+                }
+            }
             _ => {}
         }
     }
@@ -1065,8 +1074,9 @@ fn connections_shown(n: usize, room: f32, note: f32, more: f32) -> usize {
 }
 
 /// Why the channel doesn't play, centred over black (`Trouble`): the channel's logo (or a warning), the
-/// title, the server's words or the connections in use, then Try again, Other channels and Back to the
-/// guide. `focus` sends focus to its first button: Watch here instead, else Try again, else Other channels.
+/// title, the server's words or the connections in use, then Try again (Watch again when watching ended
+/// on the server), Other channels and Back to the guide. `focus` sends focus to its first button: Watch
+/// here instead, else Try again, else Other channels.
 fn trouble_card(
     ui: &mut Ui,
     cx: &AppCx,
@@ -1081,7 +1091,8 @@ fn trouble_card(
     let connections: &[BusyConnection] = &t.connections;
 
     // The buttons, to measure the card by.
-    let retry = t.can_retry.then(|| Button::pill("Try again").icon(Icon::RefreshCw));
+    let again = if t.kind == TroubleKind::Stopped { "Watch again" } else { "Try again" };
+    let retry = t.can_retry.then(|| Button::pill(again).icon(Icon::RefreshCw));
     let others = Button::pill("Other channels").icon(Icon::List);
     let back = Button::pill("Back to the guide");
     let gap = theme::BUTTON_GAP;

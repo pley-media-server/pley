@@ -391,6 +391,22 @@ mod tests {
     }
 
     #[test]
+    fn a_live_channel_taken_over_names_the_channel_and_says_why() {
+        let e = parse_event(
+            r#"{"type":"live_taken_over","session_id":"ab12","channel_id":7,"message":"Watching moved to News on another device."}"#,
+        );
+        assert_eq!(
+            e,
+            Some(ServerEvent::LiveTakenOver {
+                session_id: "ab12".into(),
+                channel_id: 7,
+                message: Some("Watching moved to News on another device.".into()),
+            })
+        );
+        assert_eq!(e.map(|e| e.kind().to_string()), Some("live_taken_over".into()));
+    }
+
+    #[test]
     fn data_that_isnt_an_event_is_skipped() {
         assert_eq!(parse_event("not json"), None);
         assert_eq!(parse_event("[1,2]"), None);

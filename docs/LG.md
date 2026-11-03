@@ -258,11 +258,15 @@ and goes with `live_channels_changed`. On LG:
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
-  The pipeline says nothing of a playlist gone (`410`), so a stall of 5 s
-  asks the server why watching ended
-  (`GET /api/live/sessions/{id}/plan`) and shows its words (not while the
-  `stream.ts` plays: its HLS session, unread, would say watching ended); a
-  stall of 20 s is a failure.
+  The pipeline says nothing of a playlist gone (`410`), so a failure, or a
+  stall of 5 s, asks the server why watching ended
+  (`GET /api/live/sessions/{id}/plan`) and shows its words (not a stall
+  while the `stream.ts` plays: its HLS session, unread, would say watching
+  ended); a stall of 20 s is a failure.
+- **Taken over:** the server's `live_taken_over` event for the channel
+  playing stops the player at once, before its stream breaks off, so it
+  isn't tuned again into a connection that is gone. The card says "Live TV
+  stopped" with the server's words, and Watch again in place of Try again.
 
 ### Music
 

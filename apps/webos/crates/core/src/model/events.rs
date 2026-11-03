@@ -60,6 +60,13 @@ pub enum ServerEvent {
     /// Live TV's sources, channels or guide changed.
     LiveChannelsChanged,
     LiveTunersChanged,
+    /// Someone took over the connection of live channel `channel_id`: every viewer of it on this
+    /// profile was ended, each with one of these, and `message` says why (docs/API.md, "Live TV").
+    LiveTakenOver {
+        session_id: String,
+        channel_id: i64,
+        message: Option<String>,
+    },
     /// Any change of a request (its stage included); all three `None` when many changed (after
     /// Your requests was seen elsewhere).
     RequestsChanged {
@@ -139,6 +146,8 @@ struct Raw {
     message: Option<String>,
     #[serde(default, deserialize_with = "nd")]
     by_admin: bool,
+    #[serde(default, deserialize_with = "nd")]
+    channel_id: i64,
     #[serde(default)]
     request_id: Option<i64>,
     #[serde(rename = "kind", default)]
@@ -190,6 +199,9 @@ impl<'de> Deserialize<'de> for ServerEvent {
             }
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,
             "live_tuners_changed" => ServerEvent::LiveTunersChanged,
+            "live_taken_over" => {
+                ServerEvent::LiveTakenOver { session_id: r.session_id, channel_id: r.channel_id, message: r.message }
+            }
             "requests_changed" => {
                 ServerEvent::RequestsChanged { request_id: r.request_id, kind: r.title_kind, tmdb_id: r.tmdb_id }
             }
@@ -260,6 +272,7 @@ impl ServerEvent {
             ServerEvent::SessionStopped { .. } => "session_stopped",
             ServerEvent::LiveChannelsChanged => "live_channels_changed",
             ServerEvent::LiveTunersChanged => "live_tuners_changed",
+            ServerEvent::LiveTakenOver { .. } => "live_taken_over",
             ServerEvent::RequestsChanged { .. } => "requests_changed",
             ServerEvent::RequestAvailable { .. } => "request_available",
             ServerEvent::RequestDecided { .. } => "request_decided",

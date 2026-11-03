@@ -83,7 +83,9 @@ pub enum TroubleKind {
     Other,
 }
 
-/// Why a channel isn't playing, in words for the person; `can_retry` offers Try again.
+/// Why a channel isn't playing, in words for the person; `can_retry` offers Try again (Watch again
+/// when [`TroubleKind::Stopped`]: watching ended on the server, its connection taken over or stopped
+/// there).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Trouble {
     pub kind: TroubleKind,
@@ -111,6 +113,27 @@ pub fn holders(c: &BusyConnection) -> String {
     if c.people == 1 { "Someone else".into() } else { format!("{} people", c.people) }
 }
 
+/// Watching ended on the server: its connection taken over, stopped there, or let go after the TV
+/// asked for nothing for a while. The server's own words (`why`), as every app says them; watching
+/// again may well work.
+pub fn stopped_trouble(why: Option<&str>) -> Trouble {
+    let why = why.map(str::trim).filter(|w| !w.is_empty());
+    Trouble::new(
+        TroubleKind::Stopped,
+        "Live TV stopped",
+        why.map_or_else(|| "This channel isn't being watched any more.".to_string(), sentence),
+        true,
+    )
+}
+
+/// What a `410` says of why watching ended: the server's words, if it gave any.
+fn stopped_note(e: &ApiError) -> Option<String> {
+    match e {
+        ApiError::SessionStopped { message } => message.clone(),
+        _ => None,
+    }
+}
+
 /// The server's answer to watching `channel` as a trouble. 502–504 read as
 /// the channel not playing, as on Android; out of reach, the TV app's words.
 pub fn trouble_of(e: &ApiError, channel: &str) -> Trouble {
@@ -120,9 +143,8 @@ pub fn trouble_of(e: &ApiError, channel: &str) -> Trouble {
         t.connections = e.busy().map(|b| b.connections).unwrap_or_default();
         return t;
     }
-    // Stopped on the server, or let go after the TV asked for nothing for a while: watching again may well work.
     if e.is(410) {
-        return Trouble::new(TroubleKind::Stopped, "Watching stopped", message, true);
+        return stopped_trouble(stopped_note(e).as_deref());
     }
     if e.is(404) {
         return Trouble::new(TroubleKind::Missing, "This channel isn't here any more", message, false);
@@ -212,11 +234,12 @@ pub struct LiveSession {
     direct: bool,
 }
 
-/// Why a session ended, from its plan: the server's words for a `410`; none while it goes on (or can't say).
+/// Why a session ended, from its plan: the server's words for a `410` (empty when it gave none, not
+/// a video's "stopped by the administrator"); none while it goes on (or can't say).
 fn why_ended(server: &dyn PlayerServer, session: &str) -> Option<String> {
     match server.live_plan(session) {
         Ok(_) => None,
-        Err(e @ ApiError::SessionStopped { .. }) => Some(e.to_string()),
+        Err(ApiError::SessionStopped { message }) => Some(message.unwrap_or_default()),
         Err(e) if e.is(410) => Some(e.to_string()),
         Err(_) => None,
     }
@@ -336,6 +359,33 @@ impl LiveSession {
         self.retries = 0;
         let channel = self.state.channel.clone();
         self.start(channel, Some(channel_id));
+    }
+
+    /// Someone took over the connection of channel `channel_id` (the server's `live_taken_over`):
+    /// the channel playing stops at once, with the server's words, and isn't watched again by
+    /// itself. The event names the channel, not the session (a stream's reader never learns its
+    /// own), and the server ends every viewer of it, each with an event of its own: the first says
+    /// so, the others change nothing, unless a `410` without words said so first.
+    pub fn taken_over(&mut self, channel_id: i64, message: Option<&str>) {
+        if self.closed || channel_id != self.state.channel.id {
+            return;
+        }
+        let trouble = stopped_trouble(message);
+        if self.state.phase == LivePhase::Error {
+            let said = message.is_some_and(|m| !m.trim().is_empty());
+            if let Some(shown) = self.state.trouble.as_mut()
+                && shown.kind == TroubleKind::Stopped
+                && said
+                && shown.message != trouble.message
+            {
+                *shown = trouble;
+                self.changed();
+            }
+            return;
+        }
+        // Its session is gone on the server: nothing to leave.
+        self.session = None;
+        self.fail(trouble);
     }
 
     fn start(&mut self, channel: LiveChannel, take_over: Option<i64>) {
@@ -483,6 +533,12 @@ impl LiveSession {
             // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
             let result = match server.media(Method::Get, &playlist, Duration::from_millis(PLAYLIST_WAIT_MS)) {
                 Ok(_) => Ok(Source::Hls(playlist)),
+                // Ended before it played (taken over, say): a keyed address only says the session
+                // has gone, its own address says why.
+                Err(e) if e.is(410) => {
+                    let why = why_ended(server.as_ref(), &watching.session_id).or_else(|| stopped_note(&e));
+                    Err(stopped_trouble(why.as_deref()))
+                }
                 Err(e) => Err(trouble_of(&e, &channel.name)),
             };
             handed_on(Done::Tuned { g, session, channel: named, result })
@@ -608,7 +664,13 @@ impl LiveSession {
                         self.engine.load(req);
                         self.start_deadline = Some(self.now + DIRECT_WAIT_MS);
                     }
-                    Err(trouble) => self.fail(trouble),
+                    Err(trouble) => {
+                        // Ended on the server already: nothing to leave.
+                        if trouble.kind == TroubleKind::Stopped {
+                            self.session = None;
+                        }
+                        self.fail(trouble);
+                    }
                 }
             }
             Done::Why { g, asked, why } => {
@@ -619,7 +681,7 @@ impl LiveSession {
                     Asked::Stall => {
                         if let Some(why) = why.filter(|_| self.state.phase == LivePhase::Buffering) {
                             self.session = None;
-                            self.fail(Trouble::new(TroubleKind::Stopped, "Watching stopped", why, true));
+                            self.fail(stopped_trouble(Some(&why)));
                         }
                     }
                     Asked::Failure(e, channel) => {
@@ -630,12 +692,11 @@ impl LiveSession {
                                 self.session = None;
                             }
                             let said = match &e {
-                                EngineError::Stopped { message: Some(m) } if !m.is_empty() => Some(m.clone()),
+                                EngineError::Stopped { message: Some(m) } => Some(m.clone()),
                                 _ => None,
                             };
-                            let message =
-                                why.or(said).unwrap_or_else(|| "The channel was stopped on the server.".into());
-                            self.fail(Trouble::new(TroubleKind::Stopped, "Watching stopped", message, true));
+                            let why = why.filter(|w| !w.is_empty()).or(said);
+                            self.fail(stopped_trouble(why.as_deref()));
                             return;
                         }
                         self.after_failure(e, *channel);
@@ -644,7 +705,7 @@ impl LiveSession {
                         Some(why) => {
                             // Already gone at the server: nothing to leave.
                             self.session = None;
-                            self.fail(Trouble::new(TroubleKind::Stopped, "Watching stopped", why, true));
+                            self.fail(stopped_trouble(Some(&why)));
                         }
                         None => self.start_with(*channel, None, false),
                     },
@@ -721,9 +782,13 @@ impl LiveSession {
 
     /// The TV's player failed: the server is asked first whether watching
     /// ended there (someone took the connection over, or it was stopped),
-    /// which the player can't say, then it is watched anew, twice.
+    /// which the player can't say, then it is watched anew, twice, the first
+    /// time after a second: a take-over's event, on its way as the stream
+    /// breaks off, stops it before it asks for a connection that is gone.
     fn on_engine_error(&mut self, e: EngineError) {
-        if self.closed {
+        // Stopped already (watching ended on the server, or it failed): the player's last words
+        // change nothing.
+        if self.closed || self.state.phase == LivePhase::Error {
             return;
         }
         if self.direct {

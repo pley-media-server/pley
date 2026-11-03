@@ -119,6 +119,9 @@ describes how they are made.
 - A season partly in the library says how much of it is, "4 of 10
   episodes in library", as in the Android TV app, under its name on a
   Discover title's page.
+- A Live TV channel whose connection someone else takes over stops at
+  once and says why, under "Live TV stopped", with Watch again, where it
+  said so only once its picture had stopped.
 
 ### Removed
 

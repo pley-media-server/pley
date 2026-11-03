@@ -14,4 +14,6 @@ pub use data::Category;
 pub use guide::GuideStore;
 pub use pages::ChannelPages;
 pub use relay::StreamRelay;
-pub use session::{LivePhase, LiveSession, LiveState, Trouble, TroubleKind, holders, plays_as_sent, trouble_of};
+pub use session::{
+    LivePhase, LiveSession, LiveState, Trouble, TroubleKind, holders, plays_as_sent, stopped_trouble, trouble_of,
+};

@@ -1,6 +1,6 @@
 //! packages/tv/test/live/{session,pages}.test.ts, ported: a live channel on
-//! the TV's player (on `SimEngine`), a category's channels by pages, and the
-//! guide of the rows in view.
+//! the TV's player (on `SimEngine`), taken over by another viewer, a
+//! category's channels by pages, and the guide of the rows in view.
 
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
@@ -63,6 +63,8 @@ struct LiveFake {
     /// Plans asked for, and whether they wait for the test.
     plans: Mutex<usize>,
     plans_held: AtomicBool,
+    /// Sessions whose keyed playlist answers `410`, as a session ended on the server.
+    gone: Mutex<Vec<String>>,
 }
 
 /// What the pretend server's stream.ts sends.
@@ -88,6 +90,7 @@ impl LiveFake {
             open_at_playlist: Mutex::default(),
             plans: Mutex::new(0),
             plans_held: AtomicBool::new(false),
+            gone: Mutex::default(),
         })
     }
 
@@ -178,6 +181,11 @@ impl PlayerServer for LiveFake {
         self.log(format!("{m} {}", url.replace("http://tv.test", "")));
         let open = self.stream_cancels.lock().unwrap().iter().filter(|c| !c.is_cancelled()).count();
         self.open_at_playlist.lock().unwrap().push(open);
+        let session = url.split("pley_mk_").nth(1).and_then(|r| r.split('/').next()).map(|n| format!("s{n}"));
+        if session.is_some_and(|s| self.gone.lock().unwrap().contains(&s)) {
+            // A keyed address only says the session has gone, not why.
+            return Err(ApiError::SessionStopped { message: Some("this channel isn't being watched any more".into()) });
+        }
         Ok("#EXTM3U".into())
     }
     fn network(&self, _: &str, _: Duration) -> Result<NetworkAnswer, ApiError> {
@@ -494,18 +502,235 @@ fn says_who_took_the_connection_over_rather_than_watching_again() {
     w.c.tune(channel(1));
     w.settle();
     w.first_frame();
-    w.fake.end("s1", "ana started watching Films on this connection.");
+    w.fake.end("s1", "Sam is watching Films now, on the connection this channel used.");
     w.sim.fail(2, "the playlist went");
     w.settle();
     w.advance(5_000);
     let t = w.c.state().trouble.clone().unwrap();
     assert_eq!(
-        (t.kind, t.title.as_str(), t.message.as_str()),
-        (TroubleKind::Stopped, "Watching stopped", "ana started watching Films on this connection.")
+        (t.kind, t.title.as_str(), t.message.as_str(), t.can_retry),
+        (
+            TroubleKind::Stopped,
+            "Live TV stopped",
+            "Sam is watching Films now, on the connection this channel used.",
+            true
+        )
     );
     assert_eq!(w.fake.watches().len(), 1);
     // Its session is gone already: nothing to leave.
     assert!(!w.fake.asked().contains(&"leave s1".to_string()));
+}
+
+#[test]
+fn says_the_channel_isnt_being_watched_any_more_when_the_server_ended_it_without_words() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.fake.end("s1", "");
+    w.sim.fail(2, "the playlist went");
+    w.settle();
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "This channel isn't being watched any more."));
+    // A `410` with no words says the same, not a video's "stopped by the administrator".
+    let bare = pley_player::live::trouble_of(&ApiError::SessionStopped { message: None }, "Ch 1");
+    assert_eq!(
+        (bare.title.as_str(), bare.message.as_str()),
+        ("Live TV stopped", "This channel isn't being watched any more.")
+    );
+}
+
+#[test]
+fn asks_why_when_the_playlist_has_gone_before_it_plays() {
+    let fake = LiveFake::new();
+    fake.gone.lock().unwrap().push("s1".into());
+    fake.end("s1", "Someone else needed this channel's connection to watch another channel.");
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(
+        (t.kind, t.message.as_str()),
+        (TroubleKind::Stopped, "Someone else needed this channel's connection to watch another channel.")
+    );
+    assert!(w.sim.loads().is_empty());
+    assert!(!w.fake.asked().contains(&"leave s1".to_string()));
+}
+
+// ---- taken over by another viewer
+
+#[test]
+fn a_take_over_stops_the_channel_at_once_with_the_servers_words_and_it_isnt_watched_again() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.taken_over(1, Some("Sam is watching Two HD now, on the connection this channel used."));
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(
+        (w.c.state().phase, t.kind, t.title.as_str(), t.message.as_str(), t.can_retry),
+        (
+            LivePhase::Error,
+            TroubleKind::Stopped,
+            "Live TV stopped",
+            "Sam is watching Two HD now, on the connection this channel used.",
+            true
+        )
+    );
+    assert_eq!(w.sim.commands().last().map(String::as_str), Some("unload"));
+    // The stream breaking off after changes nothing: no retry, no other words.
+    w.sim.fail(2, "the stream ended");
+    w.settle();
+    w.advance(60_000);
+    assert_eq!(w.fake.watches().len(), 1);
+    assert_eq!(w.c.state().trouble, Some(t));
+    // Its session is gone on the server: nothing to leave.
+    assert!(!w.fake.asked().contains(&"leave s1".to_string()));
+}
+
+#[test]
+fn a_take_over_matches_the_channel_and_leaves_another_alone() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.taken_over(2, Some("Watching moved to Two HD on another device."));
+    assert_eq!((w.c.state().phase, w.c.state().trouble.is_none()), (LivePhase::Playing, true));
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    assert_eq!(w.c.state().trouble.as_ref().map(|t| t.kind), Some(TroubleKind::Stopped));
+}
+
+#[test]
+fn a_take_over_says_so_once_however_many_of_the_channels_viewers_the_server_ended() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.taken_over(1, Some("Sam is watching Two HD now, on the connection this channel used."));
+    let version = w.c.version();
+    let unloads = w.sim.commands().iter().filter(|c| *c == "unload").count();
+    // Its HLS session and its stream's reader each have an event.
+    w.c.taken_over(1, Some("Sam is watching Two HD now, on the connection this channel used."));
+    assert_eq!(w.c.version(), version);
+    assert_eq!(w.sim.commands().iter().filter(|c| *c == "unload").count(), unloads);
+}
+
+#[test]
+fn a_take_overs_words_replace_a_410_without_any_that_came_first() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.fake.end("s1", "");
+    w.sim.fail(2, "the playlist went");
+    w.settle();
+    assert_eq!(
+        w.c.state().trouble.as_ref().map(|t| t.message.as_str()),
+        Some("This channel isn't being watched any more.")
+    );
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "Watching moved to Two HD on another device."));
+}
+
+#[test]
+fn a_take_over_in_the_second_before_a_failures_retry_stops_it_there() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    // The stream broke off first; the server didn't say yet that watching ended.
+    w.sim.fail(2, "the stream ended");
+    w.settle();
+    w.advance(500);
+    assert_eq!(w.fake.watches().len(), 1);
+    w.c.taken_over(1, Some("Someone else needed this channel's connection to watch another channel."));
+    w.advance(10_000);
+    assert_eq!(w.fake.watches().len(), 1);
+    assert_eq!(w.c.state().trouble.as_ref().map(|t| t.kind), Some(TroubleKind::Stopped));
+}
+
+#[test]
+fn a_take_over_of_a_stream_ts_stops_it_before_it_would_be_watched_as_hls() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    assert!(w.c.direct());
+    // The server tells first, then ends the stream.
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    assert!(!w.c.direct());
+    w.sim.fail(2, "the stream broke off");
+    w.settle();
+    w.advance(5_000);
+    assert_eq!(w.fake.watches().len(), 1);
+    assert_eq!(w.sim.loads().len(), 1);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "Watching moved to Two HD on another device."));
+}
+
+#[test]
+fn a_take_over_stops_a_channel_still_tuning_and_lets_its_late_watch_go() {
+    let fake = LiveFake::new();
+    fake.hold_watches();
+    let mut w = Live::new(fake.clone());
+    w.c.tune(channel(1));
+    let until = Instant::now() + Duration::from_secs(5);
+    while fake.watches().is_empty() {
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    assert_eq!(w.c.state().trouble.as_ref().map(|t| t.kind), Some(TroubleKind::Stopped));
+    fake.answer_held(LiveWatching {
+        session_id: "late".into(),
+        url: "/api/live/media/pley_mk_late/index.m3u8".into(),
+        kind: "hls".into(),
+        channel: Some(channel(1)),
+    });
+    w.settle();
+    while !fake.asked().contains(&"leave late".to_string()) {
+        assert!(Instant::now() < until, "the late watch was never let go");
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert!(w.sim.loads().is_empty());
+}
+
+#[test]
+fn watch_again_after_a_take_over_watches_as_any_watch_never_taking_a_connection_by_itself() {
+    let fake = LiveFake::new();
+    let body = serde_json::json!({
+        "code": "conflict", "message": "",
+        "connections": [{ "channel_id": 2, "channel_name": "Two HD", "watchers": ["sam"], "people": 1, "yours": false, "can_take_over": false }]
+    });
+    fake.answer(move |id, n| {
+        if n == 1 {
+            Ok(LiveWatching {
+                session_id: "s1".into(),
+                url: "/api/live/media/pley_mk_1/index.m3u8".into(),
+                kind: "hls".into(),
+                channel: Some(channel(id)),
+            })
+        } else {
+            Err(refused(
+                409,
+                "Provider allows one connection at once, and it is in use: watching Two HD.",
+                Some(body.clone()),
+            ))
+        }
+    });
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.taken_over(1, Some("Sam is watching Two HD now, on the connection this channel used."));
+    w.c.retry();
+    w.settle();
+    assert_eq!(w.fake.watches(), ["watch 1 webos-tv", "watch 1 webos-tv"]);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.connections.len()), (TroubleKind::Busy, 1));
 }
 
 #[test]

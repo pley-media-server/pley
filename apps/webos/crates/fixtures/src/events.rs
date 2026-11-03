@@ -56,6 +56,12 @@ pub enum ServerEvent {
     },
     LiveChannelsChanged,
     LiveTunersChanged,
+    /// To each viewer a take-over ended: the channel, and why.
+    LiveTakenOver {
+        session_id: String,
+        channel_id: i64,
+        message: String,
+    },
 }
 
 impl ServerEvent {
@@ -85,6 +91,9 @@ impl ServerEvent {
             }),
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),
+            ServerEvent::LiveTakenOver { session_id, channel_id, message } => json!({
+                "type": "live_taken_over", "session_id": session_id, "channel_id": channel_id, "message": message,
+            }),
         };
         value.to_string()
     }

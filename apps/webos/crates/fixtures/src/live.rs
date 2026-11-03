@@ -703,8 +703,16 @@ fn start_watching(
                         "someone else watches that channel: only an administrator takes it over, from those who aren't",
                     ));
                 }
-                for (session, _) in viewers {
-                    live.end(&session, Some(format!("Watching moved to {name} on another device.")));
+                // As the server: each viewer hears why before its stream ends.
+                let message = format!("Watching moved to {name} on another device.");
+                for (session, profile) in viewers {
+                    let event = ServerEvent::LiveTakenOver {
+                        session_id: session.clone(),
+                        channel_id: taken,
+                        message: message.clone(),
+                    };
+                    cx.shared.events.emit_to(profile, &event);
+                    live.end(&session, Some(message.clone()));
                 }
             }
             None => {
