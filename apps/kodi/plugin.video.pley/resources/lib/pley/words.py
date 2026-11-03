@@ -224,15 +224,28 @@ DYNAMIC_RANGES = {"hdr": "Any HDR", "dolby_vision": "Dolby Vision", "hdr10plus":
 RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG"}
 
 
-def media_badges(media) -> list:
+# The Filter chip's short words for a dynamic range while it's on, the
+# posters' where they have one: "4K · DV" fits the chip row where
+# "4K · Dolby Vision" can push it past the screen.
+CHIP_RANGES = dict(DYNAMIC_RANGES, **RANGE_BADGES)
+
+
+def media_badge_keys(media) -> list:
     """A library poster's badges from its listing's media summary (the
-    web's mediaBadges): "4K" of the resolutions only, then the dynamic
-    range; no codec, which on most posters says nothing worth the room."""
+    web's mediaBadges), by the server's tokens: "4k" of the resolutions
+    only, then the dynamic range; no codec, which on most posters says
+    nothing worth the room."""
     if not isinstance(media, dict):
         return []
-    badges = ["4K" if resolution_badge(media.get("width"), media.get("height")) == "4K" else None]
-    badges.append(RANGE_BADGES.get(media.get("dynamic_range") or ""))
-    return [b for b in badges if b]
+    keys = ["4k" if resolution_badge(media.get("width"), media.get("height")) == "4K" else None]
+    range_ = media.get("dynamic_range") or ""
+    keys.append(range_ if range_ in RANGE_BADGES else None)
+    return [k for k in keys if k]
+
+
+def media_badges(media) -> list:
+    """media_badge_keys' words: ["4K", "DV"]."""
+    return ["4K" if key == "4k" else RANGE_BADGES[key] for key in media_badge_keys(media)]
 
 
 def size(n) -> str:

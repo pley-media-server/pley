@@ -88,7 +88,7 @@ GRID = {
 # A library poster's quality badges (the Android TV app's TileOverlays):
 # pills 36 tall, 12 in from the art's left and foot and 12 apart, each its
 # word in FONT_BADGE with 12 either side. By the key the tile gives the
-# skin (tiles.BADGE_KEYS): its word, and its pill's width. "4K" and the
+# skin (tiles.badges): its word, and its pill's width. "4K" and the
 # widest after it fill a poster of the grid to its inset.
 BADGE_HEIGHT, BADGE_INSET, BADGE_GAP = 36, 12, 12
 BADGES = {

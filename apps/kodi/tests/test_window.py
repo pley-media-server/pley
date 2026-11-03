@@ -598,7 +598,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(dialogs.shown[0][0][5:], ["Resolution: 4K", "Dynamic range: All dynamic ranges", window.T("clear_filters"), window.T("save_as")])
         self.assertEqual(dialogs.shown[1], (["All dynamic ranges", "Any HDR", "Dolby Vision", "SDR"], 0))
         self.assertEqual(asked[-1][1]["dynamic_range"], "dolby_vision")
-        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K · Dolby Vision")
+        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K · DV")
         # Save as…: after the year, before unwatched, in Plex's syntax (Pley's dynamicRange).
         library.genre, library.year, library.watched = "Drama", 1999, False
         self.assertEqual(library.smart_filter(), "genre=Drama&year=1999&resolution=4k&dynamicRange=dolby_vision&unwatched=1&sort=titleSort")
@@ -880,6 +880,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.rail_entry("lib4"), L.RAIL_LIBRARIES[4])
         win.take_libraries(libraries, live={"available": True})
         self.assertEqual(page.rail, "libraries")
+        self.assertEqual(win.rail_entry(page.rail), L.RAIL_ALL_LIBRARIES)
         self.assertEqual(win.rail_entry("lib4"), L.RAIL_HOME)
         self.assertFalse(win.made[L.rail_group(L.RAIL_LIBRARIES[4])].visible)
         self.assertTrue(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible)

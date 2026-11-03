@@ -84,7 +84,7 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   Your rating and Last played) and filters by what is watched, genre,
   year, resolution and dynamic range. Resolution and Dynamic range are in
   the Filter menu after Year where the library's titles differ in them,
-  and the Filter chip says what is chosen ("4K · Dolby Vision"): the chip
+  and the Filter chip says what is chosen ("4K · DV"): the chip
   row has no room for a chip each. Sorted by bitrate, the line under each
   poster is its bitrate and size ("42 Mbps · 23.4 GB"); sorted by bitrate
   or filtered by resolution or dynamic range, posters show "4K" and their

@@ -2139,8 +2139,8 @@ class Library(Screen):
 
     def quality_words(self) -> str:
         """The resolution and dynamic range chosen, as the Filter chip says
-        them while on: "4K", "4K · Dolby Vision"."""
-        chosen = [QUALITY_FILTERS[field][1].get(getattr(self, field) or "") for field in QUALITY_FILTERS]
+        them while on, in the posters' short words: "4K", "4K · DV"."""
+        chosen = [words.RESOLUTIONS.get(self.resolution or ""), words.CHIP_RANGES.get(self.dynamic_range or "")]
         return " · ".join(w for w in chosen if w)
 
     def chips(self) -> list:

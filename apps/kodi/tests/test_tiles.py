@@ -1,7 +1,7 @@
 import unittest
 
 import support  # noqa: F401
-from pley import tiles
+from pley import tiles, words
 
 BASE = "http://127.0.0.1:5000/s"
 EPISODE = {
@@ -77,6 +77,9 @@ class TilesTest(unittest.TestCase):
         badged = tiles.tile(BASE, movie, "grid", quality=True)
         self.assertEqual((badged.properties["resolution"], badged.properties["range"], badged.label2), ("4k", "hdr10plus", "1995"))
         self.assertEqual(tiles.badges(dict(media, width=1920, dynamic_range="dolby_vision", height=800)), [("dolby_vision", "DV")])
+        # Every badge word the posters may wear has a pill in the skin.
+        for range_ in words.RANGE_BADGES:
+            self.assertEqual(tiles.badges(dict(media, dynamic_range=range_))[-1], (range_, words.RANGE_BADGES[range_]))
         self.assertEqual(tiles.tile(BASE, movie, "grid", bitrate=True).label2, "42 Mbps · 23.4 GB")
         # A listing from an older server, without a summary: nothing.
         self.assertEqual(tiles.tile(BASE, MOVIE, "grid", quality=True, bitrate=True).label2, "")
