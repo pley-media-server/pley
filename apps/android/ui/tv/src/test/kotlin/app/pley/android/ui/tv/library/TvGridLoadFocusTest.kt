@@ -47,7 +47,7 @@ import org.robolectric.annotation.Config
  * focused as a skeleton keeps focus when its title arrives, and the D-pad
  * goes on from it; a press glides the grid a row over 150 ms, and a held
  * Down glides it on a row a step, on the gate's clock, without a stop or
- * a jump (rule 5); a held Up stays in the grid.
+ * a jump (rule 5); a held Up stays in the grid, and in its column.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -174,6 +174,36 @@ class TvGridLoadFocusTest {
         compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
         compose.waitForIdle()
         compose.onNodeWithTag(ABOVE).assertIsFocused()
+    }
+
+    @Test
+    fun aHeldUpKeepsItsColumn() {
+        grid(above = true)
+        compose.onRoot().performKeyInput {
+            repeat(8) { pressKey(Key.DirectionDown) }
+            repeat(3) { pressKey(Key.DirectionRight) }
+        }
+        compose.waitForIdle()
+        assertEquals(Columns * 8 + 3, focus.focused)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
+        // The press and five held steps, a frame at a time: six rows up, in the same column all the way.
+        for (frame in 1..25) {
+            compose.mainClock.advanceTimeByFrame()
+            assertEquals("frame $frame", 3, focus.focused % Columns)
+        }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(Columns * 2 + 3, focus.focused)
+        // Held on to the top, it stays in the column there too.
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
+        compose.mainClock.advanceTimeBy(600)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(3, focus.focused)
     }
 
     private companion object {

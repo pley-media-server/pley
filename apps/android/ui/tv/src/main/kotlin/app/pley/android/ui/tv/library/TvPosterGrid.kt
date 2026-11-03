@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.CacheDrawScope
@@ -152,6 +154,36 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         glide.move(by, held, reduced)
     }
 
+    /** Focuses the cell at [position] once it is composed ([column]). */
+    private var bringing: Job? = null
+
+    /**
+     * Up or Down from the focused cell, [from] (keyed [key]), to [position]
+     * in its column, as the Samsung app's grid moves; whether the key is
+     * used. A cell not composed yet (a held key outrunning the rows made
+     * ahead of it) is scrolled just into the grid and focused a frame
+     * later, where Compose's own search would compose the nearest cell and
+     * land there: the end of the row above.
+     */
+    fun column(from: Int, key: Any, position: Int, focus: TvGridFocus): Boolean {
+        if (bringing?.isActive == true) return true
+        if (focus.focus(position)) return true
+        val info = state.layoutInfo
+        val cell = info.visibleItemsInfo.firstOrNull { it.key == key } ?: return false
+        val top = cell.offset.y + (position / columns - from / columns) * (cell.size.height + info.mainAxisItemSpacing)
+        val by = when {
+            top + cell.size.height <= info.viewportStartOffset -> (top + cell.size.height - info.viewportStartOffset - 1).toFloat()
+            top >= info.viewportEndOffset -> (top - info.viewportEndOffset + 1).toFloat()
+            else -> 0f
+        }
+        bringing = scope.launch {
+            if (by != 0f) state.scrollBy(by)
+            withFrameNanos { }
+            focus.focus(position)
+        }
+        return true
+    }
+
     /** The cell at [position] lost focus. */
     fun lost(position: Int) {
         if (inCell == position) inCell = -1
@@ -212,9 +244,10 @@ private class CellSpec(private val page: BringIntoViewSpec, private val motion: 
  * - It is one focus group that comes back to the tile it had; each tile
  *   is remembered in [memory] (as `"<memoryPrefix>/<id>"`), so Back from
  *   a title lands on it.
- * - Right from the last column calls [onRight] (the jump control). A
- *   held Right stops there, and a held Up at the first row: the jump, and
- *   the chips or a page's header above, take a press of their own.
+ * - Up and Down keep the column, held too. Right from the last column
+ *   calls [onRight] (the jump control). A held Right stops there, and a
+ *   held Up at the first row: the jump, and the chips or a page's header
+ *   above, take a press of their own.
  * - Pictures load about a row ahead; [badge] puts a count on a tile's
  *   top right (collections).
  * - [footer] adds cells after the [total] (a grid's Show more).
@@ -276,7 +309,8 @@ internal fun TvPosterGrid(
                     when (event.key) {
                         // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
                         Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
-                        Key.DirectionUp -> gate.holding && from < columns
+                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, keyAt(from), from - columns, focus)
+                        Key.DirectionDown -> from + columns < total && motion.column(from, keyAt(from), from + columns, focus)
                         else -> false
                     }
                 }

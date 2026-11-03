@@ -122,8 +122,9 @@ heard it for that profile, the start asks "Who's watching?".
 - A held key never leaves its row or grid: a held Left stops at a row's
   first tile, and a held Right or Up at a library grid's edge. The rail,
   the A to Z jump and the chips above the grid take a press of their own.
-  Coming back to a grid (Back from a title or its actions, Right from
-  the rail, Down from the chips) lands on the tile focus left.
+  In a grid, Up and Down keep the column, held too. Coming back to a
+  grid (Back from a title or its actions, Right from the rail, Down from
+  the chips) lands on the tile focus left.
 - Pictures wait while a key is held: the tiles a row slides past or a
   page glides past ask for none, unless the memory cache has them, and
   no backdrop is fetched ahead; where the key comes up, the tiles on
