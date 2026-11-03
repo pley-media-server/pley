@@ -351,6 +351,17 @@ fn a_folder_not_on_the_drive_plugged_in_is_no_drive() {
 }
 
 #[test]
+fn a_folder_reached_up_out_of_the_drive_is_no_drive() {
+    let root = drive();
+    let other = scratch_dir("storage-beside");
+    std::fs::write(other.join("Not on the drive.mkv"), b"x").unwrap();
+    let up = root.join("..").join(other.file_name().unwrap());
+    let app = TestApp::open_on(tv(&root), Route::Storage { path: Some(up) });
+    assert!(app.shows("No USB drive"));
+    assert!(!app.shows("Not on the drive"));
+}
+
+#[test]
 fn audio_guidance_reads_the_page_then_each_line() {
     let root = drive();
     let device = tv(&root);

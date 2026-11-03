@@ -92,9 +92,10 @@ pub fn shown(name: &str) -> bool {
 }
 
 /// `dir`'s folders, then its videos, each by name as a person sorts them
-/// ("Part 2" before "Part 10"); other files aren't shown. An error when the
-/// folder can't be read.
-pub fn list(dir: &Path) -> io::Result<Vec<Entry>> {
+/// ("Part 2" before "Part 10"); other files aren't shown, nor a link that
+/// leads off the drive at `root`. An error when the folder can't be read.
+pub fn list(dir: &Path, root: &Path) -> io::Result<Vec<Entry>> {
+    let root = fs::canonicalize(root)?;
     let mut folders = Vec::new();
     let mut videos = Vec::new();
     for entry in fs::read_dir(dir)? {
@@ -107,7 +108,11 @@ pub fn list(dir: &Path) -> io::Result<Vec<Entry>> {
             continue;
         }
         let path = entry.path();
-        // Through a link, as a person browsing the drive sees it.
+        // Through a link, as a person browsing the drive sees it, while it stays on the drive.
+        let link = entry.file_type().is_ok_and(|t| t.is_symlink());
+        if link && !fs::canonicalize(&path).is_ok_and(|p| p.starts_with(&root)) {
+            continue;
+        }
         let Ok(meta) = fs::metadata(&path) else { continue };
         if meta.is_dir() {
             folders.push(Entry { path, name, folder: true, size: 0 });
@@ -119,6 +124,16 @@ pub fn list(dir: &Path) -> io::Result<Vec<Entry>> {
     videos.sort_by(|a, b| natural(&a.name, &b.name));
     folders.append(&mut videos);
     Ok(folders)
+}
+
+/// Whether `path` is on the drive at `root` once links and `..` are followed:
+/// a link on a drive may lead anywhere on the TV the app can read. False when
+/// either can't be found.
+pub fn within(root: &Path, path: &Path) -> bool {
+    match (fs::canonicalize(root), fs::canonicalize(path)) {
+        (Ok(root), Ok(path)) => path.starts_with(root),
+        _ => false,
+    }
 }
 
 /// Compares names by their runs of digits as numbers (leading zeros

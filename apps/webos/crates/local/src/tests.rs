@@ -494,7 +494,7 @@ fn a_folder_lists_its_folders_then_its_videos() {
     for f in ["Film.mkv", "Film.en.srt", "notes.txt", ".hidden.mkv", "Clip.MP4", "Trailer.webm"] {
         std::fs::write(dir.join(f), "x").unwrap();
     }
-    let listed = folder::list(&dir).unwrap();
+    let listed = folder::list(&dir, &dir).unwrap();
     // Only what plays: subtitle files, notes, hidden files and WebM, which
     // LG's player doesn't list, aren't shown.
     assert_eq!(
@@ -505,7 +505,7 @@ fn a_folder_lists_its_folders_then_its_videos() {
     assert_eq!(listed[3].size, 1);
     assert_eq!(listed[3].path, dir.join("Film.mkv"));
     assert_eq!(folder::title(&listed[3].path), "Film");
-    assert!(folder::list(&dir.join("gone")).is_err());
+    assert!(folder::list(&dir.join("gone"), &dir).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -709,6 +709,44 @@ fn a_film_on_a_drive_plays_as_it_is_with_its_subtitle_files_and_a_track_the_tv_d
 }
 
 #[test]
+fn a_video_reached_off_the_drive_doesnt_play() {
+    let dir = scratch_dir("local-off-drive");
+    let drive = dir.join("drive");
+    std::fs::create_dir_all(&drive).unwrap();
+    let store = Store::open(scratch_dir("local-off-drive-store")).unwrap();
+    std::fs::write(dir.join("Elsewhere.mkv"), subtitled("S_TEXT/UTF8", None, vec![])).unwrap();
+    let off = drive.join("..").join("Elsewhere.mkv");
+    let server = LocalServer::new(off, drive.clone(), store.clone(), std::sync::Arc::new(|| Some(lg())));
+    assert!(play(&server, PlaybackMode::Auto).is_err());
+    assert!(folder::within(&drive, &drive.join(".")) && !folder::within(&drive, &dir));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Links on a drive are followed only while they stay on it (unix: Windows makes a link only
+/// with Developer Mode on).
+#[cfg(unix)]
+#[test]
+fn a_link_on_the_drive_leading_off_it_is_neither_listed_nor_read() {
+    use std::os::unix::fs::symlink;
+    let dir = scratch_dir("local-links");
+    let (drive, outside) = (dir.join("drive"), dir.join("outside"));
+    std::fs::create_dir_all(drive.join("Season 1")).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("secret.srt"), "1\n00:00:01,000 --> 00:00:02,000\nsecret\n").unwrap();
+    symlink(&outside, drive.join("Away")).unwrap();
+    symlink(drive.join("Season 1"), drive.join("Also")).unwrap();
+    symlink(outside.join("secret.srt"), drive.join("Film.en.srt")).unwrap();
+    let names: Vec<_> = folder::list(&drive, &drive).unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names, ["Also", "Season 1"]);
+    let store = Store::open(scratch_dir("local-links-store")).unwrap();
+    let server = server_for(&drive, "Film.mkv", subtitled("S_TEXT/UTF8", None, vec![]), &store);
+    let info = play(&server, PlaybackMode::Auto).unwrap();
+    let sidecar = info.subtitles.iter().find(|s| s.external).and_then(|s| s.url.clone()).unwrap();
+    assert!(server.subtitles(&sidecar, "text/vtt", SECOND).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn a_files_own_subtitle_tracks_are_read_out_of_it_for_the_player() {
     let dir = scratch_dir("local-tracks");
     let store = Store::open(scratch_dir("local-tracks-store")).unwrap();
@@ -760,9 +798,9 @@ fn a_tracks_blocks_go_to_the_reader_without_a_copy_kept_while_reading() {
 fn the_simulators_sample_drive_reads_as_its_files_say() {
     let dir = scratch_dir("local-sample-drive");
     pley_fixtures::write_sample_drive(&dir).unwrap();
-    let names: Vec<_> = folder::list(&dir).unwrap().into_iter().map(|e| e.name).collect();
+    let names: Vec<_> = folder::list(&dir, &dir).unwrap().into_iter().map(|e| e.name).collect();
     assert_eq!(names, ["Season 1", "Alita HDR10+.mkv", "Dolby Vision P7.mkv", "Mad Max.mkv", "Toy Story.mp4"]);
-    let episodes: Vec<_> = folder::list(&dir.join("Season 1")).unwrap().into_iter().map(|e| e.name).collect();
+    let episodes: Vec<_> = folder::list(&dir.join("Season 1"), &dir).unwrap().into_iter().map(|e| e.name).collect();
     assert_eq!(episodes, ["Episode 1.mkv", "Episode 2.mkv", "Episode 10.mkv"]);
 
     let file = FileReader::open(&dir.join("Mad Max.mkv")).unwrap();

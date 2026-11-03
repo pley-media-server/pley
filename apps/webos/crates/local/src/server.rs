@@ -312,7 +312,9 @@ impl LocalServer {
 
     /// A subtitle file beside the video, by the path this server gave for it.
     fn sidecar(&self, url: &str) -> Option<&Sidecar> {
-        self.described().sidecars.iter().find(|s| s.path.to_string_lossy() == url)
+        let found = self.described().sidecars.iter().find(|s| s.path.to_string_lossy() == url)?;
+        // Read only on the drive: a subtitle file may be a link to anywhere.
+        folder::within(&self.root, &found.path).then_some(found)
     }
 }
 
@@ -391,6 +393,10 @@ impl PlayerServer for LocalServer {
                 message: NOTHING_CONVERTS.into(),
                 body: None,
             });
+        }
+        // Only a video on the drive, not one a link on it leads to elsewhere on the TV.
+        if !folder::within(&self.root, &self.file) {
+            return Err(absent());
         }
         let file = self.described().detail.files.first().ok_or_else(absent)?;
         let report = self.report.get_or_init(|| (self.caps)());

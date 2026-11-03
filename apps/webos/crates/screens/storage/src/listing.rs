@@ -117,7 +117,8 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
     let no_drive = || problem(TITLE.into(), String::new(), Vec::new(), Problem::NoDrive);
     let Some(root) = drive.map(|d| d.root) else { return no_drive() };
     let dir = asked.unwrap_or(&root);
-    if !dir.starts_with(&root) {
+    // On the drive once `..` and links are followed; a folder gone with the drive is unreadable.
+    if !dir.starts_with(&root) || (dir.exists() && !folder::within(&root, dir)) {
         return no_drive();
     }
     let title = device.drive_name(&root).unwrap_or_else(|| TITLE.into());
@@ -132,7 +133,7 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
         lines.push(up_line());
         under.components().map(|c| format!("{SLASH}{}", c.as_os_str().to_string_lossy())).collect()
     };
-    let entries = match folder::list(dir) {
+    let entries = match folder::list(dir, &root) {
         Ok(entries) => entries,
         Err(_) => return problem(title, caption, lines, Problem::Unreadable),
     };

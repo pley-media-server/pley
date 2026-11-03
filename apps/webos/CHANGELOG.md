@@ -151,6 +151,8 @@ describes how they are made.
 - A Live TV channel that plays as HLS lets go of its stream.ts at once, as
   in the Samsung app, so the provider's connection isn't held for up to 45
   s.
+- A link on a USB drive that leads off the drive is no longer listed,
+  played or read for subtitles.
 
 ### Security
 
