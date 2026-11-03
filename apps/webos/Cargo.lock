@@ -1274,6 +1274,7 @@ dependencies = [
  "pley-search",
  "pley-settings",
  "pley-shell",
+ "pley-storage",
 ]
 
 [[package]]
@@ -1434,6 +1435,19 @@ dependencies = [
  "pley-ui",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "pley-storage"
+version = "0.0.0"
+dependencies = [
+ "pley-base",
+ "pley-core",
+ "pley-host",
+ "pley-kit",
+ "pley-local",
+ "pley-shell",
+ "pley-ui",
 ]
 
 [[package]]

@@ -491,6 +491,7 @@ fn the_request_keeps_what_the_page_asked_for() {
         audio_index: Some(2),
         subtitle_index: Some(-1),
         queue: Some(pley_shell::PlayQueue::Playlist(3)),
+        file: None,
         pressed_at: 1.5,
     };
     let p = pley_player_ui::player_request(&r);

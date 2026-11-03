@@ -6,6 +6,9 @@
 //! interface is seen everywhere the player draws nothing. What the screen shows and how it
 //! answers keys lives in [`PlayerView`], which drives the playback through the [`Playback`]
 //! trait so it can be tested against a stand-in.
+//!
+//! A video on the USB drive ([`PlayRequest::file`]) plays the same way, with no server behind
+//! it: pley-local answers for it, and finding subtitles isn't offered.
 
 mod chapters;
 mod clock;
@@ -30,6 +33,9 @@ pub use panels::{Panel, Pick};
 pub use playback::Playback;
 pub use previews::{KEEP_SHEET_S, Previews, Tile, Want};
 pub use view::{CONFIRM_MS, FrameEnv, HIDE_AFTER_MS, Out, PlayerView, STOPPED_LEAVE_MS, Style, Target, keeps_awake};
+
+/// What the player says when a drive's video is opened and the drive is gone.
+pub const NO_DRIVE: &str = "Can't play this video: its USB drive was pulled out.";
 
 /// The screen of `route` when it is one of this crate's pages: the video player.
 pub fn screen(route: &Route, _cx: &mut AppCx) -> Option<Box<dyn Screen>> {
@@ -85,10 +91,22 @@ impl PlayerScreen {
     }
 
     /// Makes the playback: the music gives way (one thing plays at a time), and the controller
-    /// starts on the TV's engine, its seek previews fetched with the pictures' fetcher. False
-    /// without a server.
+    /// starts on the TV's engine, its seek previews fetched with the pictures' fetcher. A video on
+    /// the drive plays from the file, the drive's own; anything else through the server. False
+    /// without a server, or for a file whose drive isn't plugged in.
     fn begin(&mut self, request: pley_player::PlayRequest, pressed_at: f64, cx: &mut AppCx) -> bool {
-        let Some(env) = cx.player_env() else { return false };
+        let env = match &self.request.file {
+            Some(file) => {
+                let drive = cx.device().drive().filter(|d| d.readable() && file.starts_with(&d.root));
+                let Some(drive) = drive else { return false };
+                self.view.set_can_find(false);
+                cx.local_player_env(file.clone(), drive.root)
+            }
+            None => match cx.player_env() {
+                Some(env) => env,
+                None => return false,
+            },
+        };
         if let Some(music) = cx.state.music.as_mut() {
             music.pause();
         }
@@ -139,8 +157,13 @@ impl Screen for PlayerScreen {
             self.started = true;
             let pressed = if self.request.pressed_at > 0.0 { self.request.pressed_at } else { cx.now };
             if !self.begin(player_request(&self.request), pressed, cx) {
-                log::warn!("the player opened without a server");
-                cx.toast_error("Can't play this item: no server is chosen.");
+                if self.request.file.is_some() {
+                    log::warn!("the player opened on a drive that isn't there");
+                    cx.toast_error(NO_DRIVE);
+                } else {
+                    log::warn!("the player opened without a server");
+                    cx.toast_error("Can't play this item: no server is chosen.");
+                }
                 cx.pop();
                 return;
             }
@@ -191,6 +214,7 @@ impl Screen for PlayerScreen {
             }
             // Shown again: a new playback where it was, paused, as the Samsung and Android apps
             // leave a video the TV's Home interrupted, with the controls showing as a pause does.
+            // A drive's video starts again from the same file.
             AppEvent::Visible(true) => {
                 if let Some(saved) = self.saved.take()
                     && self.begin(saved.request, cx.now, cx)

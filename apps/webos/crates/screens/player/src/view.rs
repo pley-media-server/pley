@@ -373,6 +373,12 @@ impl PlayerView {
         ui.focused_in(ids.error).map(|_| Target::Error)
     }
 
+    /// Whether "Find subtitles…" is offered: never for a video on the drive, with no server to
+    /// search.
+    pub fn set_can_find(&mut self, can: bool) {
+        self.can_find = can;
+    }
+
     /// The playback was made again, paused (the TV showed the app after hiding it): what was seen
     /// of the last one goes, nothing is open, and the controls show on the scrubber, as a pause
     /// shows them. The title banner, shown for this item already, doesn't come again.

@@ -4,6 +4,7 @@
 //! the drive is mounted. The store keeps one file per key, so every video's
 //! point is in one bounded key, [`keys::LOCAL_RESUME`].
 
+use std::collections::HashMap;
 use std::io;
 use std::path::{Component, Path};
 
@@ -52,6 +53,17 @@ pub fn kept(store: &Store, id: i64) -> Option<Kept> {
         .into_iter()
         .find(|(i, position, _)| *i == id && *position > 0)
         .map(|(_, position_ms, duration_ms)| Kept { position_ms, duration_ms: duration_ms.max(0) })
+}
+
+/// Where every video kept stopped, by its id: a folder's lines read the store once.
+pub fn all_kept(store: &Store) -> HashMap<i64, Kept> {
+    // Newest first in the store: the first of an id (there is only one) wins.
+    all(store)
+        .into_iter()
+        .rev()
+        .filter(|(_, position, _)| *position > 0)
+        .map(|(id, position_ms, duration_ms)| (id, Kept { position_ms, duration_ms: duration_ms.max(0) }))
+        .collect()
 }
 
 /// Keeps where the file `id` stopped. At 95 % of its length or past it, it

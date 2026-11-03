@@ -587,6 +587,8 @@ fn where_a_video_stopped_is_kept_on_the_tv_until_it_was_watched() {
     resume::keep(&store, film, 600_000, Some(7_200_000)).unwrap();
     assert_eq!(resume::kept(&store, film), Some(Kept { position_ms: 600_000, duration_ms: 7_200_000 }));
     assert_eq!(resume::kept(&store, other), None);
+    let all = resume::all_kept(&store);
+    assert_eq!((all.len(), all.get(&film).map(|k| k.position_ms)), (1, Some(600_000)));
     // A position of 0 changes nothing.
     resume::keep(&store, film, 0, Some(7_200_000)).unwrap();
     assert_eq!(resume::kept(&store, film).map(|k| k.position_ms), Some(600_000));

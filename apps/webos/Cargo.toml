@@ -32,6 +32,7 @@ members = [
     "crates/screens/settings",
     "crates/screens/live",
     "crates/screens/requests",
+    "crates/screens/storage",
     "crates/screens/player",
     "crates/app",
     "xtask",
