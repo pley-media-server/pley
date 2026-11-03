@@ -135,9 +135,9 @@ server's own quality.
   one's last picture with no spinner. They do the same for a quality, audio
   or picture-subtitle change picked in their menus.
 - The Samsung and LG apps do the same, requesting the segment with `HEAD`
-  ([TV_PLATFORMS.md](TV_PLATFORMS.md#quality)), but their players can't
-  hold the last picture: the screen is black while the new stream opens,
-  and their loading ring waits 2.5 s.
+  ([Samsung](TV_PLATFORMS.md#quality), [LG](LG.md#quality)), but their
+  players can't hold the last picture: the screen is black while the new
+  stream opens, and their loading ring waits 2.5 s.
 - The Apple apps prepare the new session as the web app does, requesting
   its playlist and the segment it starts with (20 s at most), then give
   AVPlayer the new stream from where the old one got to. AVPlayer can't

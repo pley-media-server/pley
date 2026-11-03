@@ -122,9 +122,6 @@ class FakeOnboardingSource(
     var startError: Throwable? = null
     var starts = 0
 
-    /** Whether each code asked for the scopes of requests too. */
-    val requestScopes = mutableListOf<Boolean>()
-
     /** What each poll says after Waiting: the test sends them. */
     val polls = Channel<DevicePoll>(Channel.UNLIMITED)
 
@@ -133,9 +130,8 @@ class FakeOnboardingSource(
         private set
 
     override val deviceSignIn: DeviceSignIn = object : DeviceSignIn {
-        override suspend fun start(server: String, requests: Boolean): DeviceCode {
+        override suspend fun start(server: String): DeviceCode {
             starts++
-            requestScopes += requests
             startError?.let { throw it }
             return if (codes.size > 1) codes.removeFirst() else codes.firstOrNull() ?: code(server)
         }

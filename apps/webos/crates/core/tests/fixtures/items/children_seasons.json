@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": 202, "library_id": 2, "kind": "season", "title": "Season 1", "sort_title": "Season 1", "year": 2022, "index": 1,
+      "parent_id": 201, "parent_title": "Severance", "added_at": 1761200000,
+      "poster_url": "/api/items/202/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0, "last_played_at": 1761250000 },
+      "leaf_count": 9, "viewed_leaf_count": 1
+    },
+    {
+      "id": 206, "library_id": 2, "kind": "season", "title": "Season 2", "sort_title": "Season 2", "year": 2025, "index": 2,
+      "parent_id": 201, "parent_title": "Severance", "added_at": 1761200000,
+      "poster_url": "/api/items/206/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 },
+      "leaf_count": 10, "viewed_leaf_count": 0
+    }
+  ]
+}

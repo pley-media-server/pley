@@ -1,5 +1,9 @@
 package app.pley.android.ui.tv.music
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
@@ -22,18 +26,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -62,6 +71,7 @@ import androidx.tv.material3.IconButton
 import androidx.tv.material3.IconButtonDefaults
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
+import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
@@ -70,6 +80,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.player.MusicError
 import app.pley.android.player.NowPlaying
@@ -83,6 +94,7 @@ import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.player.MoonIcon
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Now Playing on TV (design spec §4.10): the album art at 300 dp at
@@ -91,20 +103,30 @@ import kotlinx.coroutines.delay
  * under them, over a faint copy of the art. Focus starts on Play/Pause.
  * The scrubber takes focus: Left and Right seek 10 s. The music plays on
  * when the screen is left; after two minutes without a key it dims to
- * 30 %, to spare the screen, and the next key wakes it.
+ * 30 % over 400 ms, to spare the screen, and the next key wakes it over
+ * 200 ms (at once with reduced motion).
  */
 @Composable
 internal fun TvNowPlayingScreen() {
     val model: NowPlayingViewModel = viewModel(factory = NowPlayingViewModel.factory)
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
+    // Read by the dimming's effect only: a key doesn't recompose the page.
     var lastKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var dimmed by remember { androidx.compose.runtime.mutableStateOf(false) }
-    LaunchedEffect(lastKey) {
-        dimmed = false
-        delay(DIM_AFTER_MS)
-        dimmed = true
+    var dimmed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { lastKey }.collectLatest {
+            dimmed = false
+            delay(DIM_AFTER_MS)
+            dimmed = true
+        }
     }
+    val reduced = reducedMotion()
+    val dim = animateFloatAsState(
+        targetValue = if (dimmed) 1f - DIMMED else 0f,
+        animationSpec = if (reduced) snap() else tween(if (dimmed) PleyMotion.REST_MS else PleyMotion.OVERLAY_MS, easing = LinearEasing),
+        label = "dim",
+    )
     val now = state.now
     val art = remember(now?.artUrl) { now?.artUrl?.let { ArtworkImage(listOf(it)) } }
     Box(
@@ -116,7 +138,8 @@ internal fun TvNowPlayingScreen() {
             }
             .drawWithContent {
                 drawContent()
-                if (dimmed) drawRect(Color.Black.copy(alpha = 1f - DIMMED))
+                val black = dim.value
+                if (black > 0f) drawRect(Color.Black.copy(alpha = black))
             }
             .testTag(TV_NOW_PLAYING_PAGE),
     ) {
@@ -316,23 +339,43 @@ private fun PlayPause(now: NowPlaying, onClick: () -> Unit) {
     }
 }
 
-/** The queue under the controls, from the track playing on; Select plays one. */
+/**
+ * The queue under the controls, from the track playing on; Select plays
+ * one. Down from the controls lands on the track playing, remembered as
+ * each track starts unless focus is in the queue; after a look down the
+ * queue, on the line left last.
+ */
 @Composable
 private fun Queue(state: NowPlayingState, onPick: (Int) -> Unit) {
     if (state.queue.size <= 1) return
     val current = state.queue.indexOfFirst { it.current }.coerceAtLeast(0)
     val list = rememberLazyListState(initialFirstVisibleItemIndex = current)
+    val landing = remember { QueueLanding() }
     // The next track comes to the top, unless someone is looking down the queue: what has focus stays in view.
     var browsing by remember { mutableStateOf(false) }
-    LaunchedEffect(current) { if (!browsing) list.scrollToItem(current) }
+    LaunchedEffect(current) {
+        if (browsing) return@LaunchedEffect
+        landing.position = current
+        list.scrollToItem(current)
+    }
     BasicText(stringResource(R.string.tv_music_queue), style = PleyType.Tv.Label.copy(color = PleyColors.Subtle), modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
     LazyColumn(
-        Modifier.fillMaxSize().onFocusChanged { browsing = it.hasFocus }.focusRestorer().focusGroup().testTag(TV_QUEUE),
+        Modifier
+            .fillMaxSize()
+            .onFocusChanged { browsing = it.hasFocus }
+            .focusProperties { onEnter = { landing.enter() } }
+            .focusGroup()
+            .testTag(TV_QUEUE),
         state = list,
         contentPadding = PaddingValues(bottom = TvSafeArea.Vertical + 60.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items(state.queue, key = { it.position }, contentType = { "row" }) { row ->
+            val line = remember { FocusRequester() }
+            DisposableEffect(landing, row.position) {
+                landing.lines[row.position] = line
+                onDispose { if (landing.lines[row.position] === line) landing.lines.remove(row.position) }
+            }
             TvTrackLine(
                 number = (row.position + 1).toString(),
                 title = row.title,
@@ -342,8 +385,25 @@ private fun Queue(state: NowPlayingState, onPick: (Int) -> Unit) {
                 playing = row.current && state.now?.playing == true,
                 highlighted = false,
                 onClick = { onPick(row.position) },
+                modifier = Modifier.focusRequester(line).onFocusChanged { if (it.isFocused) landing.position = row.position },
             )
         }
+    }
+}
+
+/**
+ * Where focus lands in the queue, by queue position, and the lines it can
+ * go to while they are composed. Not snapshot state: it follows focus, and
+ * nothing is drawn from it.
+ */
+@Stable
+private class QueueLanding {
+    var position = 0
+    val lines = HashMap<Int, FocusRequester>()
+
+    /** Focus coming into the queue goes to [position]'s line; where Compose puts it when that line isn't composed. */
+    fun enter() {
+        lines[position]?.let { runCatching { it.requestFocus() } }
     }
 }
 

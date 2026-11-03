@@ -30,6 +30,8 @@ pub const MACOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/maco
 pub const ROKU_APP: &str = "https://pley-media-server.github.io/pley/oauth/roku.json";
 /// The client_id of pley's Apple app on Apple TV.
 pub const TVOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/tvos.json";
+/// The client_id of pley's LG TV app.
+pub const WEBOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 /// The Host the tests' browsers and apps reach pley at.
 pub const HOST: &str = "pley.local:7539";
 /// The issuer for [`HOST`].

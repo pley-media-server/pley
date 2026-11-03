@@ -1,0 +1,20 @@
+{
+  "collections": [
+    {
+      "id": 801, "library_id": 1, "title": "Dune Collection", "summary": "The saga of Paul Atreides.", "automatic": true, "sort": "release",
+      "smart_filter": null, "item_count": 2, "poster_url": "/api/collections/801/images/poster?v=1761300600",
+      "backdrop_url": "/api/collections/801/images/backdrop?v=1761300600", "created_at": 1761300000, "updated_at": 1761300600
+    },
+    {
+      "id": 803, "library_id": 1, "title": "Unwatched Sci-Fi", "summary": null, "automatic": false, "sort": "title",
+      "smart_filter": "genre=Science%20Fiction&unwatched=1&sort=year:desc", "item_count": 2,
+      "poster_url": "/api/collections/803/images/poster?v=1761310000", "backdrop_url": "/api/collections/803/images/backdrop?v=1761310000",
+      "created_at": 1761310000, "updated_at": 1761310000
+    },
+    {
+      "id": 802, "library_id": 1, "title": "Villeneuve Picks", "summary": "Hand-picked.", "automatic": false, "sort": "custom",
+      "smart_filter": null, "item_count": 3, "poster_url": "/api/collections/802/images/poster?v=1761320000",
+      "backdrop_url": "/api/collections/802/images/backdrop?v=1761320000", "created_at": 1761305000, "updated_at": 1761320000
+    }
+  ]
+}

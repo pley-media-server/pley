@@ -13,9 +13,9 @@ import app.pley.android.ui.tv.player.TvPlayerActivity
 
 /**
  * Starts playback: the request goes out first, so the server answers
- * while the player screen opens; music pauses; then the phone's or the
- * TV's player. Live TV opens the phone's or the TV's live player, which
- * tunes the channel itself.
+ * while the player screen opens; music pauses and ends its session; then
+ * the phone's or the TV's player. Live TV opens the phone's or the TV's
+ * live player, which tunes the channel itself.
  */
 class PlayerLauncherImpl(
     private val context: Context,

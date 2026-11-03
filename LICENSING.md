@@ -23,8 +23,9 @@ In short, the AGPL means:
 | **Pley for desktop** | `apps/desktop` | AGPL-3.0-only | A window on a server's web app (Tauri, MIT OR Apache-2.0) |
 | **Pley for Android** | `apps/android` | AGPL-3.0-only | A native app for phones, tablets and TVs (Kotlin and Compose): AndroidX, Media3, OkHttp, Coil and kotlinx under Apache-2.0, Lucide's icons under ISC, Nayuki's QR code generator under MIT |
 | **Pley for Roku** | `apps/roku` | AGPL-3.0-only | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package |
-| **Pley for Samsung TV and LG TV** | `apps/tizen`, `apps/webos`, `packages/tv` | AGPL-3.0-only | Web apps for the TVs' own engines in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
+| **Pley for Samsung TV** | `apps/tizen`, `packages/tv` | AGPL-3.0-only | A web app for the TV's own engine in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
 | **Pley for Samsung TV, native** | `apps/tizen-native` | AGPL-3.0-only | A Tizen .NET app in C# with NUI screens, on Tizen.NET (Apache-2.0) and .NET Standard (MIT), which the TV provides, Lucide's icons (ISC, and MIT for those from Feather), Nayuki's QR code generator (MIT, `Net.Codecrete.QrCodeGenerator`) and the Roboto font (OFL-1.1) |
+| **Pley for LG TV** | `apps/webos` | AGPL-3.0-only | A native webOS app in Rust, on permissively licensed crates (MIT, Apache-2.0, BSD, ISC, Zlib and the like), with Lucide's icons (ISC, and MIT for those from Feather) and the Roboto font (OFL-1.1); the TV's own libraries and media pipeline do the rest |
 | **Pley for Kodi** | `apps/kodi` | **GPL-2.0-or-later** (`plugin.video.pley/LICENSE.txt`) | A Kodi add-on in Python, on Python's standard library alone, with pictures drawn from Lucide's icons under ISC |
 
 ## Source code
@@ -88,12 +89,22 @@ licence's terms too, and some of them, the GPL version 2 only for one,
 can't be combined with the AGPL at all.
 
 - **No copyleft code in Pley's own programs.** `scripts/check-licenses.ps1`
-  walks the real dependency graphs of the server and the transcoder and fails
-  on any crate that is only available under a copyleft licence (GPL, LGPL,
-  AGPL and the like), and on the server depending on the transcoder crate
-  (they are separate programs that talk over HTTP, `docs/TRANSCODER.md`).
-  `cargo deny check licenses` allows only permissive licences for
-  third-party crates (`deny.toml`). CI runs both.
+  walks the real dependency graphs of the server, the transcoder and the LG
+  TV app and fails on any crate that is only available under a copyleft
+  licence (GPL, LGPL, AGPL and the like), and on the server depending on
+  the transcoder crate (they are separate programs that talk over HTTP,
+  `docs/TRANSCODER.md`). `cargo deny check licenses` allows only permissive
+  licences for third-party crates (`deny.toml`). CI runs both.
+- **Nothing of the TV's in the LG TV app.** It plays through the TV's own
+  media pipeline, with no FFmpeg. The TV's libraries it uses (SDL2, EGL and
+  GLES, luna-service2, GLib, LG's media libraries) are part of the TV's
+  system: the app opens them at run time and neither links nor ships them.
+  It links only the TV's C library (glibc and `libgcc_s`), and leaves out
+  the webOS toolchain's glibc polyfills, whose licence isn't known (the app
+  defines the one function it needs from them). `cargo xtask check`, run
+  by CI on the TV build, fails on a crate whose licence `deny.toml` doesn't
+  allow, on a binary that would need any other library, and on the
+  polyfills.
 - **No FFmpeg and no GPL code in the Android app.** It plays with Media3 and
   the device's own decoders; the server's transcoder converts what the
   device can't play. `scripts/check-android.ps1`, run by CI after the release
@@ -111,8 +122,8 @@ can't be combined with the AGPL at all.
     (`libandroidx.graphics.path.so`) and DataStore's counter
     (`libdatastore_shared_counter.so`). FFmpeg's Media3 extension or mpv
     would bring native code, so neither can slip in under an allowed group.
-- **The TV apps name every package they bundle.** Their build fails on a
-  package that `packages/tv/src/licenses.ts` doesn't name.
+- **The Samsung TV app names every package it bundles.** Its build fails on
+  a package that `packages/tv/src/licenses.ts` doesn't name.
 - **Only permissive packages in the native Samsung app.**
   `scripts/check-nuget-licenses.mjs` reads the licence of every NuGet
   package the app ships with, transitive ones included, and fails on one
@@ -124,6 +135,8 @@ can't be combined with the AGPL at all.
     into the server, the transcoder or an app; Pley runs FFmpeg as a program.
   - Never add `pley-transcoder` as a dependency of `pley-server`.
   - Never add FFmpeg, mpv or a GPL library to the Android app.
+  - Never link the LG TV app against a library of the TV's beyond its C
+    library, nor ship one in its package.
   - Never copy the Kodi add-on's code into the server or another app.
 
 ## Third-party notices
@@ -145,12 +158,12 @@ What each build contains of others' work, and where its notices are:
   from Lucide's icons (ISC, and MIT for those Lucide took from Feather); the
   notice ships in the add-on's `NOTICES.txt`, and its `addon.xml` gives the
   licence as `GPL-2.0-or-later AND ISC AND MIT`.
-- The Samsung and LG TV apps use Preact and `@preact/signals` (MIT),
-  Lucide's icons (ISC, and MIT for those Lucide took from Feather),
+- The Samsung TV app uses Preact and `@preact/signals` (MIT), Lucide's
+  icons (ISC, and MIT for those Lucide took from Feather),
   `qrcode-generator` (MIT) and Roboto (OFL-1.1, from
   `@fontsource/roboto`). The build writes the full licences of the packages
-  in the bundle into `NOTICES.txt` in `dist/` (so into the .wgt and the
-  .ipk). Settings → About lists them.
+  in the bundle into `NOTICES.txt` in `dist/` (so into the .wgt). Settings →
+  About lists them.
 - The native Samsung app draws Lucide's icons (ISC, and MIT for those
   Lucide took from Feather), copied as SVG files by
   `apps/tizen-native/scripts/icons.mjs` with their licence beside them
@@ -162,8 +175,16 @@ What each build contains of others' work, and where its notices are:
   web TV app ships from `@fontsource/roboto`, unpacked to TrueType by
   `apps/tizen-native/scripts/fonts.mjs`, with their licence beside them
   (`shared/res/fonts/LICENSE.txt`, in the .tpk).
+- The LG TV app is built from Rust crates under permissive licences (MIT,
+  Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, CDLA-Permissive-2.0 and the
+  like, as `deny.toml` allows) and carries Lucide's icons (ISC, and MIT for
+  those Lucide took from Feather) and Roboto (OFL-1.1). `cargo xtask
+  notices` writes the licences of every crate compiled into the binary, of
+  the icons and the typeface, and of Rust's standard library into
+  `NOTICES.txt` in the .ipk, beside the icons' and the typeface's own
+  licence files. Settings → About lists them.
 - The tools that build the JavaScript apps (Bun, Vite, TypeScript and the
-  rest) aren't shipped.
+  rest) and the LG TV app (cargo, the webOS toolchain) aren't shipped.
 - Builds of Pley carry `LICENSE` (as `LICENSE.txt`) and this file.
 
 > This document describes the technical setup. It is not legal advice.

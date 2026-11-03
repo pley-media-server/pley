@@ -1618,7 +1618,7 @@ export class PlaybackController {
       originalKbps: file?.bitrate ? file.bitrate / 1000 : null,
       memory: this.env.autoMemory ?? null,
       onCeiling: network ? (kbps) => network.report(kbps) : undefined,
-      // Samsung's AVPlay and LG's pipeline go black between streams (docs/QUALITY.md).
+      // Samsung's AVPlay goes black between streams (docs/QUALITY.md).
       blanks: true,
     });
     this.auto.start(this.now(), known);

@@ -1,22 +1,21 @@
 package app.pley.android.ui.tv.kit
 
-import android.view.KeyEvent as NativeKeyEvent
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performKeyPress
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -25,9 +24,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Tiles: Select opens, holding Select or pressing Menu gives the actions (rule 6), and a
- * held direction key moves one tile per 100 ms, jumping without animation
- * (rule 5).
+ * Tiles: Select opens, and holding Select or pressing Menu gives the actions (rule 6);
+ * a quiet tile (a row sliding, a grid gliding under a held key) shows none of its focus
+ * look until the quiet ends.
+ * Held direction keys are [TvRowFocusTest]'s.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -36,8 +36,7 @@ class TvTileTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private var now = 50_000L
-    private val gate = KeyRepeatGate { now }
+    private val gate = KeyRepeatGate { compose.mainClock.currentTime }
     private val opened = mutableListOf<Long>()
     private val actions = mutableListOf<Long>()
 
@@ -97,25 +96,30 @@ class TvTileTest {
         assertTrue(opened.isEmpty())
     }
 
-    private fun hold(code: Int, repeat: Int) {
-        compose.onRoot().performKeyPress(KeyEvent(NativeKeyEvent(0, now, NativeKeyEvent.ACTION_DOWN, code, repeat)))
-        compose.waitForIdle()
-    }
-
     @Test
-    fun aHeldKeyMovesOneTilePer100Ms() {
-        row()
-        val right = NativeKeyEvent.KEYCODE_DPAD_RIGHT
-        hold(right, 0)
-        compose.focused().assertContentDescriptionEquals("T 2")
-        now += 400
-        // Ten repeats 50 ms apart: five moves.
-        for (i in 1..10) {
-            hold(right, i)
-            now += 50
-        }
-        compose.onRoot().performKeyPress(KeyEvent(NativeKeyEvent(0, now, NativeKeyEvent.ACTION_UP, right, 0)))
-        compose.waitForIdle()
-        compose.focused().assertContentDescriptionEquals("T 7")
+    fun aQuietTileShowsNoneOfItsFocusLookTillTheQuietEnds() = runTest {
+        val quiet = TileQuiet()
+        val look = TileFocusLook(this, gate, quiet).apply { reduced = true }
+        look.focus(true)
+        runCurrent()
+        assertEquals(1f, look.shown())
+        assertTrue(look.emphasized)
+        // Its row slides: no ring, no growth, a regular caption.
+        quiet.start()
+        assertEquals(0f, look.shown())
+        assertEquals(1f, look.scale())
+        assertFalse(look.emphasized)
+        quiet.end(reduced = true)
+        assertEquals(1f, look.shown())
+        assertTrue(look.emphasized)
+
+        // Focus reaching a tile while quiet: it takes its look at once, unseen, and shows it as the quiet ends.
+        quiet.start()
+        val other = TileFocusLook(this, gate, quiet)
+        other.focus(true)
+        runCurrent()
+        assertEquals(0f, other.shown())
+        quiet.end(reduced = true)
+        assertEquals(1f, other.shown())
     }
 }

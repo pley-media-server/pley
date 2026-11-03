@@ -12,6 +12,7 @@ import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.LocalMedia
 import app.pley.android.data.Passthrough
 import app.pley.android.data.Settings
+import app.pley.android.data.drive.Drives
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.engine.EngineSettings
 import app.pley.android.player.engine.Media3EngineFactory
@@ -35,7 +36,7 @@ interface PlayerGraph {
          * Media3 engines by device, following the app's settings (refresh
          * rate, tunneling, passthrough), server sessions over them for the
          * server and profile signed in to now, files played from [local]'s
-         * downloads, and music in the background.
+         * downloads and from [drives], and music in the background.
          */
         fun create(
             context: Context,
@@ -44,10 +45,11 @@ interface PlayerGraph {
             caps: CapsGraph,
             profile: DeviceProfile,
             local: () -> LocalMedia = { LocalMedia.None },
+            drives: () -> Drives = { Drives.None },
         ): PlayerGraph {
             val settings = FollowedSettings(data, caps, profile)
             val engines = Media3EngineFactory.of(caps, network) { settings.engine }
-            val services = SessionPlaybackServices.create(context, data, network, caps, profile, engines, local)
+            val services = SessionPlaybackServices.create(context, data, network, caps, profile, engines, local, drives)
             return AppPlayer(engines, services) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
         }
     }

@@ -2,9 +2,8 @@ import { signal } from "@preact/signals";
 import { errorMessage, isApiError, unreachable, unreachableReason } from "../api/client";
 import type { LiveBusyConnection, LiveChannel, LiveWatching } from "../api/types";
 import { Cancel, NetworkError } from "../net/transport";
-import type { EngineStatus, PlayerEngine } from "../player/engine";
+import { HLS_MIME, type EngineStatus, type PlayerEngine } from "../player/engine";
 import type { EngineError } from "../player/recovery";
-import { HLS_MIME } from "../player/video-engine";
 
 /** What a live player needs of the server (the Api; tests give their own). */
 export interface LiveServer {

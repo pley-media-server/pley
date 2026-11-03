@@ -1,10 +1,12 @@
 package app.pley.android.player.engine
 
 import android.content.Context
+import android.media.MediaCodecInfo.CodecProfileLevel
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -19,8 +21,9 @@ import app.pley.android.caps.DecoderPolicy
  * doesn't come out as Dolby Vision, so Media3 falls back to the HEVC (or
  * AVC, AV1) decoder of the base layer, and come first when it does
  * ([dolbyVisionDecoders]). Profiles 5 and 7 have no base layer another
- * decoder plays: their Dolby Vision decoders stay, as Media3 keeps them.
- * Audio decoders are never limited.
+ * decoder plays: their Dolby Vision decoders stay, as Media3 keeps them,
+ * but for profile 7 on a drive ([profile7BaseLayer]), which goes to the
+ * HEVC decoder. Audio decoders are never limited.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class DecoderRules(
@@ -30,10 +33,20 @@ class DecoderRules(
      * the mode the video plays in. `null` when unknown (Media3 then decides).
      */
     private val dolbyVisionShown: () -> Boolean? = { null },
+    /**
+     * Dolby Vision profile 7 plays on the HEVC decoder, as its HDR10 base
+     * layer, as on the Samsung app: a file on a drive, which no server can
+     * make 8.1 of (a server's stream of it is 8.1 or HDR10 already).
+     */
+    private val profile7BaseLayer: () -> Boolean = { false },
 ) {
     /** A selector for a track of [format]: [base]'s decoders that may play it, hardware first. */
     fun selectorFor(base: MediaCodecSelector, format: Format?): MediaCodecSelector =
         MediaCodecSelector { mimeType, secure, tunneling ->
+            if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && baseLayerOnly(format)) {
+                // The enhancement layer and Dolby Vision's metadata go unread: the HEVC decoder plays what is under them.
+                return@MediaCodecSelector selectorFor(base, format).getDecoderInfos(MimeTypes.VIDEO_H265, secure, tunneling)
+            }
             val listed = base.getDecoderInfos(mimeType, secure, tunneling)
             if (!MimeTypes.isVideo(mimeType)) return@MediaCodecSelector listed
             if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && !dolbyVisionDecoded(format)) return@MediaCodecSelector emptyList()
@@ -44,6 +57,19 @@ class DecoderRules(
 
     /** The selector for renderers that don't know the format (audio, and the factory's default). */
     fun selector(base: MediaCodecSelector = MediaCodecSelector.DEFAULT): MediaCodecSelector = selectorFor(base, null)
+
+    /**
+     * [format] as its decoder takes it, for weighing whether one plays it:
+     * profile 7 whose base layer plays ([profile7BaseLayer]) as the HEVC
+     * under it, as Media3 counts profile 7 as no HEVC decoder's and would
+     * leave its track unplayed; any other format as it is.
+     */
+    fun decoded(format: Format): Format =
+        if (format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION && baseLayerOnly(format)) {
+            format.buildUpon().setSampleMimeType(MimeTypes.VIDEO_H265).setCodecs(null).build()
+        } else {
+            format
+        }
 
     /**
      * The decoders of [format], best first, when it is Dolby Vision that
@@ -73,6 +99,11 @@ class DecoderRules(
      */
     private fun dolbyVisionDecoded(format: Format?): Boolean =
         dolbyVisionShown() != false || format == null || MediaCodecUtil.getAlternativeCodecMimeType(format) == null
+
+    /** Dolby Vision profile 7 whose base layer is to play ([profile7BaseLayer]). */
+    private fun baseLayerOnly(format: Format?): Boolean =
+        format != null && profile7BaseLayer() &&
+            CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first == CodecProfileLevel.DolbyVisionProfileDvheDtb
 
     /** Whether a [hardware] (or software) decoder of [mimeType] may play [picture] here. */
     fun allows(mimeType: String, hardware: Boolean, picture: Picture): Boolean {

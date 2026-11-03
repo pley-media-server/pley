@@ -94,21 +94,21 @@ private fun LazyListScope.tracks(page: ItemPage, actions: TvPageActions, first: 
     val tracks = page.tracks ?: return
     var firstGiven = false
     fun take(checked: Boolean): FocusRequester? = if (!firstGiven && checked) first.also { firstGiven = true } else null
-    item(key = "title") { PanelTitle(stringResource(R.string.tv_item_tracks)) }
+    item(key = "title", contentType = PANEL_TITLE) { PanelTitle(stringResource(R.string.tv_item_tracks)) }
     if (tracks.versions.isNotEmpty()) {
-        item(key = "versions") { PanelHeading(stringResource(R.string.tv_item_version)) }
+        item(key = "versions", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_item_version)) }
         tracks.versions.forEach { v ->
             val requester = take(v.selected)
-            item(key = "version-${v.id}") {
+            item(key = "version-${v.id}", contentType = PANEL_ROW) {
                 PanelRow(v.label, onClick = { actions.model.chooseVersion(v.id) }, checked = v.selected, focusRequester = requester)
             }
         }
     }
     if (tracks.audio.isNotEmpty()) {
-        item(key = "audio") { PanelHeading(stringResource(R.string.tv_item_audio)) }
+        item(key = "audio", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_item_audio)) }
         // Automatic: no pick, each device plays its best track of the language.
         val automatic = take(tracks.automaticAudio)
-        item(key = "audio-automatic") {
+        item(key = "audio-automatic", contentType = PANEL_ROW) {
             val language = tracks.automaticLanguage
             PanelRow(
                 if (language != null) stringResource(R.string.tv_item_audio_automatic_language, language) else stringResource(R.string.tv_item_audio_automatic),
@@ -119,20 +119,20 @@ private fun LazyListScope.tracks(page: ItemPage, actions: TvPageActions, first: 
         }
         tracks.audio.forEach { a ->
             val requester = take(a.selected)
-            item(key = "audio-${a.id}") {
+            item(key = "audio-${a.id}", contentType = PANEL_ROW) {
                 PanelRow(a.label, onClick = { actions.model.chooseAudio(a.id.toInt()) }, checked = a.selected, focusRequester = requester)
             }
         }
     }
     if (tracks.subtitles.isNotEmpty()) {
-        item(key = "subtitles") { PanelHeading(stringResource(R.string.tv_item_subtitles)) }
+        item(key = "subtitles", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_item_subtitles)) }
         val off = take(tracks.subtitleIndex == null)
-        item(key = "subtitle-off") {
+        item(key = "subtitle-off", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_subtitles_off), onClick = { actions.model.chooseSubtitle(null) }, checked = tracks.subtitleIndex == null, focusRequester = off)
         }
         tracks.subtitles.forEach { s ->
             val requester = take(s.selected)
-            item(key = "subtitle-${s.id}") {
+            item(key = "subtitle-${s.id}", contentType = PANEL_ROW) {
                 PanelRow(s.label, onClick = { actions.model.chooseSubtitle(s.id.toInt()) }, checked = s.selected, focusRequester = requester)
             }
         }
@@ -148,15 +148,15 @@ private fun LazyListScope.more(
     onSummary: () -> Unit,
     close: () -> Unit,
 ) {
-    item(key = "title") { PanelTitle(stringResource(R.string.tv_item_more)) }
+    item(key = "title", contentType = PANEL_TITLE) { PanelTitle(stringResource(R.string.tv_item_more)) }
     if (summaryCut) {
-        item(key = "summary") { PanelRow(stringResource(R.string.tv_item_full_summary), icon = PleyIcons.Info, onClick = onSummary) }
+        item(key = "summary", contentType = PANEL_ROW) { PanelRow(stringResource(R.string.tv_item_full_summary), icon = PleyIcons.Info, onClick = onSummary) }
     }
     var given = false
     if (page.rateable) {
-        item(key = "rating") { PanelHeading(stringResource(R.string.tv_item_your_rating)) }
+        item(key = "rating", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_item_your_rating)) }
         val current = page.userRating
-        item(key = "rating-none") {
+        item(key = "rating-none", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_no_rating), onClick = { actions.model.rate(null) }, checked = current == null, focusRequester = if (current == null) first else null)
         }
         if (current == null) given = true
@@ -164,7 +164,7 @@ private fun LazyListScope.more(
             val value = stars * 2
             val checked = current == value || (current != null && current == value - 1)
             val requester = if (!given && checked) first.also { given = true } else null
-            item(key = "rating-$stars") {
+            item(key = "rating-$stars", contentType = PANEL_ROW) {
                 PanelRow(
                     pluralStringResource(R.plurals.tv_item_stars, stars, stars.toString()),
                     onClick = { actions.model.rate(value) },
@@ -179,7 +179,7 @@ private fun LazyListScope.more(
     val show = context?.showId
     if (show != null) {
         val requester = if (!given) first.also { given = true } else null
-        item(key = "show") {
+        item(key = "show", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_action_go_to_show), icon = PleyIcons.Tv, focusRequester = requester, onClick = {
                 close()
                 actions.open(PleyKey.Item(show))
@@ -189,7 +189,7 @@ private fun LazyListScope.more(
     val season = context?.seasonId
     if (page.kind == ItemKind.Episode && season != null) {
         val requester = if (!given) first.also { given = true } else null
-        item(key = "season") {
+        item(key = "season", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_action_go_to_season), icon = PleyIcons.Layers, focusRequester = requester, onClick = {
                 close()
                 actions.open(PleyKey.Item(season))
@@ -198,7 +198,7 @@ private fun LazyListScope.more(
     }
     page.partOf.forEach { collection ->
         val requester = if (!given) first.also { given = true } else null
-        item(key = "collection-${collection.id}") {
+        item(key = "collection-${collection.id}", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_part_of, collection.title), icon = PleyIcons.Layers, focusRequester = requester, onClick = {
                 close()
                 actions.open(PleyKey.Collection(collection.id))
@@ -206,7 +206,7 @@ private fun LazyListScope.more(
         }
     }
     if (!given) {
-        item(key = "playlist") {
+        item(key = "playlist", contentType = PANEL_ROW) {
             PanelRow(stringResource(R.string.tv_item_add_to_playlist), icon = PleyIcons.ListPlus, focusRequester = first, onClick = {
                 close()
                 actions.open(PleyKey.AddToPlaylist(listOf(page.id)))
@@ -218,9 +218,9 @@ private fun LazyListScope.more(
 /** A tile's actions (a long press of Select, rule 6): what its action sheet offers. */
 private fun LazyListScope.itemActionsList(panel: Panel.Actions, actions: TvPageActions, first: FocusRequester, close: () -> Unit) {
     val item = panel.item
-    item(key = "title") { PanelTitle(item.title) }
+    item(key = "title", contentType = PANEL_TITLE) { PanelTitle(item.title) }
     itemActions(item).forEachIndexed { i, action ->
-        item(key = "action-${action.name}") {
+        item(key = "action-${action.name}", contentType = PANEL_ROW) {
             val (label, icon) = actionLook(action)
             PanelRow(label, icon = icon, focusRequester = if (i == 0) first else null, onClick = {
                 close()
@@ -236,8 +236,9 @@ private fun LazyListScope.itemActionsList(panel: Panel.Actions, actions: TvPageA
     }
 }
 
+/** An action's label and icon, as the panels list it. */
 @Composable
-private fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (action) {
+internal fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (action) {
     ItemAction.Play -> stringResource(R.string.tv_item_action_play) to PleyIcons.Play
     ItemAction.Resume -> stringResource(R.string.tv_item_action_resume) to PleyIcons.Play
     ItemAction.FromStart -> stringResource(R.string.tv_item_action_from_start) to PleyIcons.RotateCcw
@@ -253,7 +254,7 @@ private fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (actio
 }
 
 @Composable
-private fun PanelTitle(text: String) {
+internal fun PanelTitle(text: String) {
     BasicText(
         text,
         style = PleyType.Tv.Title.copy(color = PleyColors.Fg),
@@ -264,5 +265,10 @@ private fun PanelTitle(text: String) {
 }
 
 private const val STARS = 5
+
+/** The content types of a panel's list, so a row scrolled in reuses one scrolled out. */
+internal const val PANEL_TITLE = "title"
+internal const val PANEL_HEADING = "heading"
+internal const val PANEL_ROW = "row"
 
 internal const val TV_PANEL = "pley.tv.item.panel"

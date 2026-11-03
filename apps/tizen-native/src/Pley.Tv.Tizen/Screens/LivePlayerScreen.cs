@@ -17,9 +17,8 @@ namespace Pley.Tv.Tizen.Screens;
 /// The live player (the Android app's TvLivePlayerScreen): the channel full screen on the TV's
 /// own player, under a clear window. With nothing over it, Up and Down and Channel up and down
 /// change channel (Up the next), digits tune a number; OK, Menu or Guide opens the channel list;
-/// OK held shows the controls (the channel list, the favourite) over what's on, where Android's
-/// OK shows them and opens no list; Info shows what's on for
-/// 5 s; Back hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
+/// OK held shows the controls (the channel list, the favourite) over what's on; Info shows what's
+/// on for 5 s; Back hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
 /// fast forward, Left and Right do nothing. A channel that doesn't start says why, with Try again
 /// (or Watch here instead, every connection being in use), Other channels and Back to the guide.
 /// The app hidden, the channel and its connection are let go; shown again, it tunes again.

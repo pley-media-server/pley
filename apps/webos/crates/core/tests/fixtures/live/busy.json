@@ -1,0 +1,7 @@
+{
+  "code": "conflict",
+  "message": "The one connection of Lab IPTV is in use, watching Sport 1080i. A channel already being watched can be joined, or one of these stopped.",
+  "connections": [
+    { "channel_id": 2, "channel_name": "Sport 1080i", "watchers": [], "people": 1, "yours": true, "can_take_over": true }
+  ]
+}

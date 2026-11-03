@@ -1,0 +1,21 @@
+[package]
+name = "pley-onboarding"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: choosing a server, signing in and choosing a profile"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+log = "0.4.29"
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/onboarding_sim.rs), and the fake server.
+pley-host = { path = "../../host" }
+pley-fixtures = { path = "../../fixtures" }

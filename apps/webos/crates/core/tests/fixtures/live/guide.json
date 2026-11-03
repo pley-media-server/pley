@@ -1,0 +1,42 @@
+{
+  "from": 1761742800,
+  "to": 1761764400,
+  "programs": {
+    "1": [
+      {
+        "channel_id": 1,
+        "start": 1761746400,
+        "stop": 1761750000,
+        "title": "Early News",
+        "categories": [],
+        "is_new": false,
+        "is_live": false
+      },
+      {
+        "channel_id": 1,
+        "start": 1761750000,
+        "stop": 1761753600,
+        "title": "Morning Briefing",
+        "subtitle": "Part 7",
+        "description": "Everything you need to know.",
+        "categories": ["News"],
+        "season": 1,
+        "episode": 7,
+        "is_new": true,
+        "is_live": false
+      }
+    ],
+    "2": [
+      {
+        "channel_id": 2,
+        "start": 1761750000,
+        "stop": 1761757200,
+        "title": "Match of the Day",
+        "categories": ["Sport"],
+        "is_new": false,
+        "is_live": true,
+        "rating": "PG"
+      }
+    ]
+  }
+}

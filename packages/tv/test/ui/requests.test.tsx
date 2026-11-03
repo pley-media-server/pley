@@ -164,7 +164,7 @@ function mount(screen: (entry: Entry, app: AppState) => ComponentChildren, api: 
   // The shell's page root, which pages look for when focus went with what they removed.
   root.className = "screen";
   document.body.appendChild(root);
-  const platform = { name: "webos", clientId: "test", storage: memoryStore() } as unknown as Platform;
+  const platform = { name: "tizen", clientId: "test", storage: memoryStore() } as unknown as Platform;
   const app = new AppState(platform, () => Promise.reject(new Error("no network in tests")));
   (app.api as { value: unknown }).value = api;
   app.server.value = "http://pley.test";

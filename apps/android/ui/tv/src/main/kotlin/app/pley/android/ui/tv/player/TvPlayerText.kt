@@ -43,6 +43,10 @@ internal object TvPlayerText {
     fun chapterAt(chapters: List<ChapterMark>, positionMs: Long): Int? =
         chapters.indexOfLast { positionMs >= it.startMs }.takeIf { it >= 0 && positionMs < chapters[it].endMs.coerceAtLeast(chapters[it].startMs + 1) }
 
+    /** The chapter the cards open on for [positionMs]: the one holding it, else the last to start before it, else the first. */
+    fun chapterNear(chapters: List<ChapterMark>, positionMs: Long): Int =
+        chapterAt(chapters, positionMs) ?: chapters.indexOfLast { it.startMs <= positionMs }.coerceAtLeast(0)
+
     /** "−10 s"'s number: whole seconds, never 0 for a real step. */
     fun seconds(ms: Long): Int = ((kotlin.math.abs(ms) + 500) / 1000).toInt()
 }

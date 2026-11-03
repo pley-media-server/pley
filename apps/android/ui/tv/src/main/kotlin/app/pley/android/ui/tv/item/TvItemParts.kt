@@ -63,6 +63,7 @@ import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.screens.item.MetaPart
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvTextButton
 import kotlinx.coroutines.delay
 
@@ -231,6 +232,7 @@ private const val ERROR_TOAST_MS = 6_000L
 @Composable
 internal fun TvTextDialog(title: String?, text: String, onDismiss: () -> Unit) {
     BackHandler(onBack = onDismiss)
+    OverlayShowing()
     val close = remember { FocusRequester() }
     val reduced = reducedMotion()
     LaunchedEffect(Unit) { runCatching { close.requestFocus() } }

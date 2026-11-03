@@ -6,11 +6,12 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.RequestsEntry
 
 /** The kinds of place the rail goes to. */
-enum class RailSlot { Search, Home, LiveTv, Library, Libraries, Playlists, Collections, NowPlaying, Settings }
+enum class RailSlot { Search, Home, Discover, Requests, LiveTv, Library, Libraries, Playlists, Collections, NowPlaying, Drive, Settings }
 
-/** One rail entry: where it goes, and for a library its name and kind. */
+/** One rail entry: where it goes, for a library its name and kind, for requests what they carry. */
 @Immutable
 data class RailItem(
     /** Stable across library changes: "home", "library:3", "settings". */
@@ -20,11 +21,15 @@ data class RailItem(
     /** A library's name, as the server has it; the other slots have their own strings. */
     val name: String? = null,
     val libraryKind: LibraryKind? = null,
+    /** The way into requests: whose requests it leads to (the managers' Requests), and the number that waits there. */
+    val requests: RequestsEntry? = null,
 ) {
     val icon: PleyIcon
         get() = when (slot) {
             RailSlot.Search -> PleyIcons.Search
             RailSlot.Home -> PleyIcons.House
+            RailSlot.Discover -> PleyIcons.Compass
+            RailSlot.Requests -> PleyIcons.ListVideo
             RailSlot.LiveTv -> PleyIcons.TvMinimal
             RailSlot.Library -> when (libraryKind) {
                 LibraryKind.Movies -> PleyIcons.Clapperboard
@@ -36,6 +41,7 @@ data class RailItem(
             RailSlot.Playlists -> PleyIcons.ListMusic
             RailSlot.Collections -> PleyIcons.Layers
             RailSlot.NowPlaying -> PleyIcons.AudioLines
+            RailSlot.Drive -> PleyIcons.Usb
             RailSlot.Settings -> PleyIcons.Settings
         }
 }
@@ -47,14 +53,24 @@ data class RailItem(
  * entries, so with more libraries a "Libraries" entry, which lists them
  * all, takes Collections' place (collections stay on each library's
  * Collections tab). Live TV, where it has channels ([liveTv], as the
- * web's sidebar shows it), comes after Home; while music has a queue
- * ([nowPlaying]), Now Playing comes last. Each takes room as it is added
- * ([roomIn]).
+ * web's sidebar shows it), comes after Home, and the way into requests
+ * ([requests], [requestsItem]) before it; while music has a queue
+ * ([nowPlaying]), Now Playing comes last, and while a USB drive is plugged
+ * into the TV ([drive]), USB drive after it, as on the Samsung app. Each
+ * takes room as it is added ([roomIn]).
  */
-fun railItems(libraries: List<Library>, nowPlaying: Boolean = false, liveTv: Boolean = false): List<RailItem> {
+fun railItems(
+    libraries: List<Library>,
+    nowPlaying: Boolean = false,
+    liveTv: Boolean = false,
+    requests: RailItem? = null,
+    drive: Boolean = false,
+): List<RailItem> {
     var items = mainItems(libraries)
     if (liveTv) items = roomIn(items).let { listOf(it[0], it[1], LiveTvItem) + it.drop(2) }
+    if (requests != null) items = roomIn(items).let { listOf(it[0], it[1], requests) + it.drop(2) }
     if (nowPlaying) items = roomIn(items) + NowPlayingItem
+    if (drive) items = roomIn(items) + DriveItem
     return items
 }
 
@@ -62,16 +78,23 @@ fun railItems(libraries: List<Library>, nowPlaying: Boolean = false, liveTv: Boo
  * [items] with room for one more: as they are when there is room, else
  * without Collections, else without the last library ("Libraries" lists
  * it); with no "Libraries" yet, the last two libraries make way for it.
+ * When no library can make way (none is left, or the only one, which
+ * "Libraries" would merely replace), Playlists does, so the rail never
+ * holds more than [MAX_ITEMS].
  */
 private fun roomIn(items: List<RailItem>): List<RailItem> {
     if (items.size < MAX_ITEMS) return items
     if (items.any { it.slot == RailSlot.Collections }) return items.filter { it.slot != RailSlot.Collections }
     val libraries = items.filter { it.slot == RailSlot.Library }
-    if (items.any { it.slot == RailSlot.Libraries }) return items - libraries.last()
-    val leaving = libraries.takeLast(2)
-    val at = items.indexOf(leaving.first())
-    val kept = items - leaving.toSet()
-    return kept.take(at) + RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries) + kept.drop(at)
+    val listed = items.any { it.slot == RailSlot.Libraries }
+    if (listed && libraries.isNotEmpty()) return items - libraries.last()
+    if (!listed && libraries.size >= 2) {
+        val leaving = libraries.takeLast(2)
+        val at = items.indexOf(leaving.first())
+        val kept = items - leaving.toSet()
+        return kept.take(at) + RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries) + kept.drop(at)
+    }
+    return items.filter { it.slot != RailSlot.Playlists }
 }
 
 private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
@@ -92,8 +115,22 @@ private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
 /** Live TV, where it has channels. */
 val LiveTvItem = RailItem("live-tv", RailSlot.LiveTv, PleyKey.LiveTv)
 
+/**
+ * The rail's way into requests, as the Samsung and LG apps have it:
+ * Discover where the profile may ask, else its requests (the managers'
+ * Requests) where it has any to see, else none. It carries their number.
+ */
+fun requestsItem(entry: RequestsEntry): RailItem? = when {
+    entry.discover -> RailItem("discover", RailSlot.Discover, PleyKey.Discover, requests = entry)
+    entry.requests -> RailItem("requests", RailSlot.Requests, PleyKey.Requests, requests = entry)
+    else -> null
+}
+
 /** Music's Now Playing, while there is music. */
 val NowPlayingItem = RailItem("now-playing", RailSlot.NowPlaying, PleyKey.NowPlaying)
+
+/** The USB drive plugged into the TV, while one is: its top folder. */
+val DriveItem = RailItem("drive", RailSlot.Drive, PleyKey.Drive())
 
 /** Settings, pinned at the rail's foot. */
 val SettingsItem = RailItem("settings", RailSlot.Settings, PleyKey.Settings)
@@ -112,6 +149,10 @@ fun railCurrent(root: PleyKey, items: List<RailItem>): String? = when (root) {
     is PleyKey.Collections -> items.firstOrNull { it.slot == RailSlot.Collections }?.id
         ?: railCurrent(PleyKey.Library(root.libraryId), items)
     is PleyKey.Search -> "search"
+    // Discover's pages, and the requests reached from it, under whichever of the two the rail has.
+    PleyKey.Discover, PleyKey.Requests, is PleyKey.DiscoverList, is PleyKey.DiscoverTitle ->
+        (items.firstOrNull { it.key == root } ?: items.firstOrNull { it.slot == RailSlot.Discover || it.slot == RailSlot.Requests })?.id
+    is PleyKey.Drive -> DriveItem.id
     PleyKey.Settings -> SettingsItem.id
     is PleyKey.Profiles -> PROFILE_ITEM
     else -> items.firstOrNull { it.key == root }?.id

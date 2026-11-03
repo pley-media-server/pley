@@ -138,9 +138,10 @@ Each endpoint table has a **Who** column:
 
 ### CORS for TV apps
 
-Pley's Samsung and LG apps are web apps loaded from the TV itself, and
-their web engines apply CORS. Their requests come with `Origin: file://`,
-`null` or an `app://` address. For those origins only, the API and
+Pley's Samsung app is a web app loaded from the TV itself, as the LG app
+was before it became a native app, and a TV's web engine applies CORS.
+Their requests come with `Origin: file://`, `null` or an `app://` address.
+For those origins only, the API and
 `/.well-known/oauth-authorization-server` answer CORS:
 
 - a preflight lets `Authorization`, `Content-Type`, `Accept` and `Range`
@@ -759,8 +760,49 @@ datagram:
 `pley` is the protocol version, `id` stays the same across restarts and
 renames, and `port` is the web port on the address the answer came from.
 Only senders on the local network get an answer, at most 100 a second.
-Administrators turn it off in Settings → Network (`discovery`) or with
-`--no-discovery` (`PLEY_NO_DISCOVERY`).
+
+Servers can also announce themselves by Bonjour (mDNS and DNS-SD), for
+apps that browse rather than broadcast (Apple's), once an administrator
+turns it on in Settings → Network (`bonjour`). The service type is
+`_pley._tcp`, its port the web port, and its instance name the server's
+name (at most 63 bytes). The TXT records carry the UDP answer's fields:
+
+| Key | Value |
+|---|---|
+| `pley` | `1`, the protocol version |
+| `id` | the server's id, as in the UDP answer |
+| `name` | the server's name (at most 64 characters and 250 bytes) |
+| `version` | the server's version |
+
+The SRV record names the host, `pley-` and the id's start, `.local`, or
+the host name an administrator chose (`bonjour_host_name`), and its A
+record the server's IPv4 address on the network that asked. A chosen host
+name is probed for first: when another device answers for it, the
+server goes by the generated one, and says so in its log; a network that
+comes later is asked too, before the names are claimed there. The
+announcement goes out from the IPv4 adapters with the web addresses that
+are on the local network: private and link-local addresses, or only
+those of them an administrator chooses (`bonjour_adapters`), so a
+server that is also on a VPN, a container or virtual machine network, or a
+guest Wi-Fi isn't announced there. Each network is told only the server's
+address on it. 100.64.0.0/10 (Tailscale's, which carries no multicast,
+and carriers' shared addresses) is announced on only when its adapter is
+chosen. On `0.0.0.0` and, but on Windows, on `[::]` that is every
+IPv4 adapter; a server listening on IPv6 addresses only isn't announced.
+
+The server answers only queries from devices on those networks, at most
+once a second for each question by multicast, and keeps nothing of what
+other devices send. It follows a rename, and says goodbye when the server
+stops. When another device answers for the instance name first, the
+server takes `name (2)`, `(3)`…, so apps go by `id`. Anyone on the
+network can announce or answer, so either way an app confirms a server it
+found through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpoints))
+and its sign-in endpoints before it trusts it.
+
+The UDP answer is on and Bonjour off unless an administrator changes
+them in Settings → Network (`discovery`, `bonjour`). `--no-bonjour`
+(`PLEY_NO_BONJOUR`) keeps Bonjour off, and `--no-discovery`
+(`PLEY_NO_DISCOVERY`) both.
 
 **Finding the sign-in endpoints.**
 `GET /.well-known/oauth-authorization-server` (RFC 8414) says where
@@ -1277,9 +1319,10 @@ profiles when the app's profile is in the household, else nothing:
   can tell apart. Its User-Agent, `pleyApple/0.1.0 (iPadOS 16.7; iPad)`,
   gives the system first, so its sessions are named "Pley for iPhone",
   "Pley for iPad", "Pley for Mac" or "Pley for Apple TV".
-- The Samsung and LG apps can't set their own User-Agent: the TV's web
-  engine names the TV ("Samsung TV", "LG TV"; for an app's grant its
-  system, "Tizen 7.0", "webOS 23").
+- The Samsung app can't set its own User-Agent: the TV's web engine names
+  the TV ("Samsung TV"; for an app's grant its system, "Tizen 7.0"). The LG
+  app says `pleyLG/<version> (webOS <n>; <model>)`; a TV still on the
+  earlier LG web app is named by its web engine ("LG TV", "webOS 23").
 - The consent page marks them "Pley's own app". No other app may use a
   client ID on their host.
 
@@ -2103,8 +2146,8 @@ the language's default track.
 ### Keyed URLs
 
 Some players can't send headers with their media requests (Samsung's AVPlay
-sets only a cookie and a User-Agent; LG's media pipeline only what the web
-engine gives it), and an app's token goes only in the Authorization header.
+sets only a cookie and a User-Agent; LG's media pipeline takes only an
+address), and an app's token goes only in the Authorization header.
 A play request with `keyed_urls: true` gets a session whose addresses carry
 a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
 URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
@@ -3647,7 +3690,7 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
-| PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery }` → `Network` |
+| PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, bonjour_host_name? }` → `Network` |
 
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a
@@ -3733,9 +3776,18 @@ interface Network {
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)
-  fixed: { web: boolean; plex: boolean; jellyfin: boolean; discovery: boolean }; // set by
+  bonjour: boolean;       // announce Pley by Bonjour (off when a change leaves it out)
+  bonjour_adapters: string[]; // the adapters it is announced on, by name: [] = every one
+                          // Pley listens on but 100.64.0.0/10's; 32 at most
+  bonjour_host_name: string; // the host name before .local, one DNS label (letters, digits,
+                          // hyphens; "Media.local" is kept as "media"): "" = bonjour_host_default
+  bonjour_host_default: string; // read only: pley- and the server id's start
+                          // A PUT that leaves out bonjour, bonjour_adapters or
+                          // bonjour_host_name sets it to off, [] or "".
+  fixed: { web: boolean; plex: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean }; // set by
                           // --bind/PLEY_BIND, --plex-bind/PLEY_PLEX_BIND,
-                          // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery
+                          // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery,
+                          // --no-bonjour (or --no-discovery)
   listeners: { kind: "web" | "plex" | "jellyfin" | "discovery"; address: string; error: string | null }[];
                           // error: why not (yet); tried again every 30 s
   adapters: { name: string; description: string | null; up: boolean; addresses: string[]; // IPv4, no loopback

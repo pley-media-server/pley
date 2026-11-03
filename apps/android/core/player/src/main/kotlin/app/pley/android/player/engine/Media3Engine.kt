@@ -141,6 +141,10 @@ class Media3Engine(
     @Volatile
     private var dolbyVisionShown: Boolean? = null
 
+    /** Dolby Vision profile 7 plays as its base layer ([EngineSource.profile7BaseLayer]); read on Media3's thread. */
+    @Volatile
+    private var profile7BaseLayer = false
+
     /** The video decoder started last, with the MIME type it was started for: a decoder can take more than one. */
     @Volatile
     private var videoCodec: Pair<String, String>? = null
@@ -148,6 +152,7 @@ class Media3Engine(
     private val rules = DecoderRules(
         policy = { details?.policy ?: DecoderPolicy(tv = profile.isTv) },
         dolbyVisionShown = { dolbyVisionShown },
+        profile7BaseLayer = { profile7BaseLayer },
     )
 
     private val loadControl = PleyLoadControl(BufferPlan.of(profile))
@@ -286,6 +291,7 @@ class Media3Engine(
         request = asked
         loaded = source
         dolbyVisionShown = source.dolbyVision ?: details?.let { ModeChoice.dolbyVisionShown(it, asked, sdk) }
+        profile7BaseLayer = source.profile7BaseLayer
         matchPending = asked != null
         Log.i(TAG, "prepare at $startMs ms: play $playWhenReady, display match ${if (asked != null) "asked" else "none"}, window ${window != null}")
         snapToKeyFrame = startMs > 0 && !music && !source.hls

@@ -1,0 +1,25 @@
+[package]
+name = "pley-item"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: a title's page, its actions and a person's page"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+# The request widgets (the stage pill, a download's bar) and the TV's clock for their words.
+pley-requests = { path = "../requests" }
+log = "0.4.29"
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/item_sim.rs), and the fake server.
+pley-host = { path = "../../host" }
+pley-fixtures = { path = "../../fixtures" }
+# The tests' fake TV plays with the simulated engine.
+pley-player = { path = "../../player" }

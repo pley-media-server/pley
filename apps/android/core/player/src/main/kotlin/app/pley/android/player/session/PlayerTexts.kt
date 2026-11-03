@@ -58,6 +58,18 @@ interface PlayerTexts {
     /** A download that doesn't play here as it is, with the server out of reach to convert it. */
     val downloadNeedsServer: String get() = "This download can't play on this device offline. Connect to your server to play it."
 
+    /** A file on a drive that doesn't play here as it is: there is no server to convert it. */
+    val driveUnplayable: String get() = "This TV can't play this file as it is, and a file on a drive has no server to convert it."
+
+    /** A file on a drive whose picture never started. */
+    val driveStuck: String get() = "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy."
+
+    /** A file on a drive that can't be read. */
+    val driveUnreadable: String get() = "This video can't be read. The drive may have been pulled out."
+
+    /** The speed can't change: a file on a drive's sound goes to a receiver as it is, and nothing here decodes it. */
+    val driveSpeedUndecodable: String get() = "Not for this file: its sound goes to your receiver as it is, and nothing here decodes it"
+
     /** The server out of reach, for [reason] ("no answer in time"): what to check. */
     fun unreachable(reason: String): String = "${asSentence(reason)} Check that the server is on and that this device is on its network."
 
@@ -191,6 +203,10 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override val noFile: String get() = s(R.string.session_error_no_file)
     override val downloaded: String get() = s(R.string.session_method_downloaded)
     override val downloadNeedsServer: String get() = s(R.string.session_error_download_needs_server)
+    override val driveUnplayable: String get() = s(R.string.session_drive_unplayable)
+    override val driveStuck: String get() = s(R.string.session_drive_stuck)
+    override val driveUnreadable: String get() = s(R.string.session_drive_unreadable)
+    override val driveSpeedUndecodable: String get() = s(R.string.session_drive_speed_undecodable)
 
     override fun unreachable(reason: String): String = res.getString(R.string.session_error_unreachable, asSentence(reason))
 

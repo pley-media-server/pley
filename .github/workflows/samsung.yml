@@ -1,7 +1,7 @@
 name: Samsung TV
 
-# The Samsung TV app (apps/tizen, built with packages/tv, which the LG app
-# shares): one release unit (docs/RELEASING.md). Runs when either changes.
+# The Samsung TV app (apps/tizen, built with packages/tv): one release unit
+# (docs/RELEASING.md). Runs when either changes.
 # Its package is signed with a Samsung certificate only its owner can make,
 # so a release has none: `bun run --cwd apps/tizen package` makes it
 # (docs/TV_PLATFORMS.md). The Release workflow still calls this first.

@@ -1438,17 +1438,25 @@ impl From<GrantRow> for AppGrant {
 /// What an app's grant was last used from, by the User-Agent of its token
 /// requests. Pley's apps say "pleyAndroid/1.0 (Android 15)",
 /// "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "pleyRoku/0.1.0 (Roku OS 14.5;
-/// Roku Ultra)" or "pleyApple/0.1.0 (iPadOS 16.7; iPad)": the row names the
-/// app already, so the platform it gives in brackets.
+/// Roku Ultra)", "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)" or
+/// "pleyApple/0.1.0 (iPadOS 16.7; iPad)": the row names the app already,
+/// so the platform it gives in brackets.
 fn grant_device(user_agent: &str) -> String {
-    let apps = [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku"), ("pleyApple/", "Apple")];
+    let apps = [
+        ("pleyAndroid/", "Android"),
+        ("pleyKodi/", "Kodi"),
+        ("pleyRoku/", "Roku"),
+        ("pleyLG/", "webOS"),
+        ("pleyApple/", "Apple"),
+    ];
     for (app, platform) in apps {
         if user_agent.contains(app) {
             let given = crate::accounts::bracketed(user_agent);
             return given.unwrap_or(platform).chars().take(60).collect();
         }
     }
-    // Samsung's and LG's TV apps send their TV's own agent: the system's version.
+    // Samsung's TV app, and LG's before it was a native app, send their TV's
+    // own agent: the system's version.
     if let Some(at) = user_agent.find("Tizen ") {
         return user_agent[at..].chars().take_while(|c| *c != ')' && *c != ';').take(60).collect();
     }
@@ -1541,6 +1549,8 @@ mod tests {
         assert_eq!(grant_device(webos), "webOS 23");
         assert_eq!(grant_device(&webos.replace("Chrome/94", "Chrome/99")), "webOS");
         assert_eq!(grant_device("pleyKodi/0.1.0 (Kodi 21.2; Windows)"), "Kodi 21.2; Windows");
+        assert_eq!(grant_device("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)"), "webOS 23; OLED65C3PUA");
+        assert_eq!(grant_device("pleyLG/0.1.0"), "webOS");
     }
 
     #[test]
