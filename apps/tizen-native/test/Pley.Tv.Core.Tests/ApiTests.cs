@@ -176,10 +176,10 @@ public class ApiTests
     }
 
     [Fact]
-    public async Task Search_asks_for_60_and_reads_the_live_tv_channels_found()
+    public async Task Search_asks_for_200_of_each_and_reads_the_live_tv_channels_found()
     {
         var (api, server, _) = SignedIn();
-        server.On("GET", Home + "/api/search?q=dune&limit=60", 200, @"{""items"":[],""people"":[{""id"":714,""name"":""Dune Hartley""}],
+        server.On("GET", Home + "/api/search?q=dune&limit=200", 200, @"{""items"":[],""people"":[{""id"":714,""name"":""Dune Hartley""}],
             ""channels"":[{""id"":9,""source_id"":1,""name"":""Dune Classics"",""number"":""212"",""group"":""Films"",
             ""logo"":""/api/live/channels/9/logo"",""favorite"":false,""has_guide"":false,""now"":null,""next"":null}]}");
         var found = await api.Search("dune");
@@ -187,7 +187,7 @@ public class ApiTests
         Assert.Equal((9L, "Dune Classics", "212", "/api/live/channels/9/logo"), (channel.Id, channel.Name, channel.Number, channel.Logo));
         Assert.Null(channel.Now);
         // A server from before search found channels sends none.
-        server.On("GET", Home + "/api/search?q=north&limit=60", 200, @"{""items"":[],""people"":[]}");
+        server.On("GET", Home + "/api/search?q=north&limit=200", 200, @"{""items"":[],""people"":[]}");
         Assert.Null((await api.Search("north")).Channels);
     }
 

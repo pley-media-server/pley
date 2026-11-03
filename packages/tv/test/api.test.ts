@@ -131,6 +131,15 @@ describe("a library's listing", () => {
   });
 });
 
+describe("search", () => {
+  it("asks for the server's most, 200 of each, which its rows show whole", async () => {
+    const t = transport(() => ok({ items: [], people: [] }));
+    const api = new Api("http://192.168.1.20:7539", tokens, t.http);
+    await api.search("dune");
+    expect(t.asked).toEqual(["GET /api/search?q=dune&limit=200"]);
+  });
+});
+
 describe("no answer", () => {
   it("is a failed connection, a timeout or a gateway with nothing behind it, never a cancelled request", () => {
     expect(unreachable(new NetworkError("Can't reach the server"))).toBe(true);

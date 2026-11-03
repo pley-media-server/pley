@@ -281,6 +281,9 @@ It has no releases yet: it is built and installed by hand
   rail to make room for Live TV, Now Playing or a USB drive any more, and
   the entries scroll between the avatar and Settings when they don't all
   fit.
+- The native app's search rows hold every result, up to 200 titles, 200
+  people and 200 Live TV channels, where they stopped at 60 titles and 12
+  people and channels.
 
 ### Fixed
 

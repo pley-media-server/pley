@@ -108,7 +108,7 @@ public sealed record PlaylistDetail : Playlist
 {
     public IReadOnlyList<PlaylistEntry> Entries { get; init; } = new PlaylistEntry[0];
 }
-/// <summary>Live TV's <see cref="Channels"/> (up to 12) by name, number or what's on, for those it's open to; none from a server without it.</summary>
+/// <summary>Live TV's <see cref="Channels"/> by name, number or what's on, for those it's open to; none from a server without it.</summary>
 public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People, IReadOnlyList<LiveChannel>? Channels = null);
 public sealed record CollectionRef(long Id, string Title);
 public sealed record ItemCollectionsAnswer(IReadOnlyList<CollectionRef> Collections);
@@ -386,8 +386,8 @@ public sealed class Api
 
     public Task<PersonDetail> Person(long id, CancellationToken cancel = default) => Get<PersonDetail>($"/api/people/{id}", cancel: cancel);
 
-    /// <summary>Items and people; Live TV channels come with Live TV.</summary>
-    public Task<SearchAnswer> Search(string q, CancellationToken cancel = default) => Get<SearchAnswer>("/api/search", new[] { Q("q", q), Q("limit", 60) }, cancel);
+    /// <summary>Up to 200 items and 200 people, the server's most, which search's rows show all of; as many Live TV channels come with Live TV.</summary>
+    public Task<SearchAnswer> Search(string q, CancellationToken cancel = default) => Get<SearchAnswer>("/api/search", new[] { Q("q", q), Q("limit", 200) }, cancel);
 
     public Task<PlaylistsAnswer> Playlists(CancellationToken cancel = default) => Get<PlaylistsAnswer>("/api/playlists", cancel: cancel);
 

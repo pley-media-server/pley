@@ -381,9 +381,9 @@ and its buttons, seasons and episodes, Extras, Cast and More Like This,
 and the side panels; library pages (the chips and panels, the filters by
 resolution and dynamic range among them, the grid with the A to Z jump,
 Recommended and Collections) and the Libraries page;
-search (the field and the TV's keyboard, results in rows, Live TV's
-channels in a row before People that play the one chosen, recent
-searches); people's pages (the photo, the name and a row per role); the
+search (the field and the TV's keyboard, results in rows, each with all
+the server finds, up to 200, Live TV's channels in a row before People
+that play the one chosen, recent searches); people's pages (the photo, the name and a row per role); the
 rail's Collections and a collection's page, with Play and Shuffle; the
 watch history page; playlists (their covers, a playlist's page with
 moving and removing entries, Rename and Delete, Add to playlist, New

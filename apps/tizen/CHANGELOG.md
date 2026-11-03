@@ -98,6 +98,9 @@ describes how they are made.
   four or more went behind Libraries; nothing leaves the rail to make room
   for Live TV, Discover or Now Playing any more, and the entries scroll
   between the avatar and Settings when they don't all fit.
+- Search's rows hold every result, up to 200 titles, 200 people and 200
+  Live TV channels, where they stopped at 60 titles and 12 people and
+  channels.
 
 ### Removed
 
