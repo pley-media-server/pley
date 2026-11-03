@@ -264,6 +264,7 @@ class TvDiscoverUiTest {
         back()
         compose.waitForIdle()
         compose.onNodeWithText("Which seasons?").assertDoesNotExist()
+        compose.focused().assert(hasText("Request more seasons"))
     }
 
     /** The node, or a node in it, has focus. */
