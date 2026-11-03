@@ -4,6 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
@@ -157,6 +159,12 @@ class TvAppTest {
     fun homeStartsFocused() {
         app()
         compose.onNodeWithText("Resume").assertIsFocused()
+    }
+
+    @Test
+    fun itsTagsAreResourceIdsForTheBenchmarks() {
+        app()
+        compose.onNodeWithTag(TestTags.TV_ROOT).assert(SemanticsMatcher.expectValue(SemanticsPropertiesAndroid.TestTagsAsResourceId, true))
     }
 
     @Test

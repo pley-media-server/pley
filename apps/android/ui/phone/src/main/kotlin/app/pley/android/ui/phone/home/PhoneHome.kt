@@ -159,14 +159,17 @@ private fun HomeRows(model: PhoneHomeModel, list: LazyListState, vm: HomeViewMod
     ) {
         items(model.rows, key = { it.model.key }, contentType = { it.model.kind }) { row ->
             val rowState = rememberHubRowState()
+            // Home told again what it shows leaves its rows alone: the press's prefetch is kept while the
+            // row's items are, and the handlers read the row (compared by value), never a new key.
+            val prefetch = remember(rowState, row.items) { Modifier.prefetchOnPress(rowState, row.items, vm::prefetch) }
             HubRow(
                 row = row.model,
                 skeleton = skeleton,
                 state = rowState,
                 onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
                 onLongPress = { tile -> navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.model.key))) },
-                onTitleClick = row.seeAll?.let { key -> { navigator.open(key) } },
-                modifier = Modifier.prefetchOnPress(rowState, row.items, vm::prefetch),
+                onTitleClick = if (row.seeAll == null) null else { { row.seeAll?.let(navigator::open) } },
+                modifier = prefetch,
             )
         }
     }

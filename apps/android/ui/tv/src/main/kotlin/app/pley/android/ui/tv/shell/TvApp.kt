@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -116,8 +118,9 @@ fun TvApp(
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
         CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalBringIntoViewSpec provides root) {
-            // No background: the window's is pley's (one full-screen fill, not two).
-            Box(Modifier.fillMaxSize().keyRepeatGate(gate).testTag(TestTags.TV_ROOT)) {
+            // No background: the window's is pley's (one full-screen fill, not two). Test tags are
+            // resource ids as well, which the benchmarks' journeys find things by (TestTags).
+            Box(Modifier.fillMaxSize().keyRepeatGate(gate).semantics { testTagsAsResourceId = true }.testTag(TestTags.TV_ROOT)) {
                 // Known already (read as the activity started), the first screen is in the first frame.
                 val start by produceState(source.startFactsNow()?.let(::startKey), source) {
                     if (value == null) value = startKey(source.startFacts())

@@ -101,6 +101,13 @@ describes how they are made.
   channel with focus shows them at once and the others over the next few
   frames, nearest first, as on Samsung TVs, rather than all in one long
   frame.
+- On phones and tablets, the posters of search results, a person's page, a
+  collection and a library's Collections tab load ahead of the scroll, as
+  Home's rows and a library's grid already did.
+- On phones and tablets, a video's first picture fades in from black,
+  rather than appearing at once.
+- On phones and tablets, the next episode, or a queue's next, shows the
+  controls with its title as it begins, as the first does.
 
 ### Fixed
 
@@ -129,6 +136,13 @@ describes how they are made.
   next episode under it; Stop still leaves.
 - On TVs, the sleep timer's notice keeps its width as the count goes under
   10 s, so Keep watching no longer moves under the focus.
+- On phones and tablets, dragging the seek bar, the volume or the
+  brightness moves only what is drawn: the controls no longer redraw with
+  each move of the finger.
+- On phones and tablets, the sleep timer's notice keeps its width as the
+  count goes under 10 s, so Keep watching no longer moves under the finger.
+- On phones and tablets, seek previews that arrive while a finger rests on
+  the seek bar show at once, rather than when the finger moves again.
 
 ## [0.1.3] - 2026-11-02
 

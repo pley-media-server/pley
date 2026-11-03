@@ -415,8 +415,15 @@ Measure on devices (a mid-range phone, a 1 GB Fire TV stick, a Chromecast
 with Google TV HD), never on emulators. `TvStartupBenchmark` starts the TV
 app cold ten times against the demo server built into benchmark builds, and
 records the time to the first frame and to Home fully drawn, with a
-Perfetto trace of each. Run it with adb on one device; a connected Gradle
-task installs the app on every attached device.
+Perfetto trace of each. `TvScrollBenchmark` and `PhoneScrollBenchmark`
+record the frames (FrameTimingMetric: each frame's time on the main thread
+and how late it was shown) while the app scrolls, five times each: on a TV,
+Right held along Home's rows and Down held through a library's grid; on a
+phone, Home's page and a row flung, and a library's grid. Each run starts
+the app cold and goes to where it scrolls before measuring, and each
+benchmark runs only on its kind of device. The demo server has no Live TV,
+so the guide has no benchmark. Run them with adb on one device; a connected
+Gradle task installs the app on every attached device.
 
 ```powershell
 .\gradlew.bat :app:assembleStoreBenchmarkRelease :benchmark:assembleBenchmarkRelease
@@ -424,10 +431,25 @@ adb -s <device> install -r app\build\outputs\apk\store\benchmarkRelease\app-stor
 adb -s <device> install -r benchmark\build\outputs\apk\benchmarkRelease\benchmark-benchmarkRelease.apk
 adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvStartupBenchmark `
   app.pley.android.benchmark/androidx.test.runner.AndroidJUnitRunner
+# The same with TvScrollBenchmark on a TV, PhoneScrollBenchmark on a phone.
 ```
 
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
+
+The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
+journeys against the demo server: a cold start, then on a TV, with the
+D-pad, signing in, Who's watching?, Home (a tile's actions, the rows), a
+show's page (its episodes, OK held on one, its rows, the cast, a person),
+search, a library's grid, Collections and a collection, Playlists and a
+playlist, Settings (a choice's panel, the Libraries page), the rail and the
+player; on a phone, by touch, Home, a show's page and its cast, the player,
+a library's grid, search, a playlist and Me's Settings. Each journey runs
+on its own kind of device and is skipped on the other, so generate with a
+TV and a phone (or their emulators, API 33 or later) attached. Each step
+waits for the screen it leads to, and a journey that goes astray fails
+there, saying where. The phone signs in through the browser: on a new
+device, open the browser once first, past its welcome pages.
 
 ## Releases
 

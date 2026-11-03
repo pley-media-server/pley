@@ -698,7 +698,11 @@ private fun PanelChannels(
             )
         }
         LazyColumn(state = list, contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(count = pages.total ?: 0, key = { index -> pages[index]?.id ?: -index - 1L }) { index ->
+            items(
+                count = pages.total ?: 0,
+                key = { index -> pages[index]?.id ?: -index - 1L },
+                contentType = { index -> if (pages[index] == null) "skeleton" else "channel" },
+            ) { index ->
                 val channel = pages[index]
                 if (channel == null) {
                     Box(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp, vertical = 8.dp).skeleton(skeleton, PleyShape.Field))
