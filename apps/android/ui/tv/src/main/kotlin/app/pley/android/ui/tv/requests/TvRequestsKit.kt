@@ -219,6 +219,23 @@ internal fun TvStageBlock(request: MediaRequest, manage: Boolean, texts: Request
     }
 }
 
+/**
+ * A request's stage under a library title's facts (packages/tv's
+ * ItemRequestLine): the small pill, and a download's 120 dp bar beside it.
+ */
+@Composable
+internal fun TvItemRequestLine(request: MediaRequest, manage: Boolean, modifier: Modifier = Modifier) {
+    val texts = rememberRequestTexts()
+    val download = request.download
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        TvStagePill(stagePill(request, manage), texts, small = true)
+        if (download != null) {
+            Spacer(Modifier.width(12.dp))
+            TvDownloadBar(downloadProgress(request) ?: 0f, download.state, Modifier.width(ItemBarWidth))
+        }
+    }
+}
+
 /** "Details and pictures from TMDB.", at the foot of Discover and of every title page. */
 @Composable
 internal fun TvTmdbCredit(modifier: Modifier = Modifier) {
@@ -391,3 +408,6 @@ internal fun TvRequestEvents(events: Flow<RequestEvent>, texts: RequestTexts, to
 
 /** Where a notice in place of a page sits (design spec §8). */
 private val NoticeTop = 120.dp
+
+/** A library title's download bar, beside its stage. */
+private val ItemBarWidth = 120.dp

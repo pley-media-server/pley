@@ -581,7 +581,7 @@ internal fun CountBadge(count: Int, alarm: Boolean, focused: Boolean, modifier: 
 
 /** A row's place while its first page comes: its title and still wells; nothing in it takes focus. */
 @Composable
-private fun RowSkeleton(title: String) {
+internal fun RowSkeleton(title: String) {
     val skeleton = rememberSkeleton(animated = false)
     Column {
         BasicText(title, style = PleyType.Tv.Section.copy(color = PleyColors.Fg), maxLines = 1, modifier = Modifier.padding(start = PleyTv.Gutter))

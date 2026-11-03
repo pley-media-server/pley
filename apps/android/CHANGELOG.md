@@ -18,6 +18,10 @@ describes how they are made.
   requests, with their tabs, the administrators' filters and a side panel
   of what may be done to each. What became ready to watch pops up at the
   bottom right once the remote rests, with Open and Close.
+- On Android TV and Fire TV, Search shows Discover after the libraries'
+  results, up to 20 of TMDB's titles the libraries lack, and a library's
+  movie or show from a request shows its stage, with Request more seasons
+  for a show missing some.
 
 ### Fixed
 

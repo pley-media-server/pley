@@ -238,6 +238,13 @@ On Android TV and Fire TV, as on the Samsung and LG apps:
   in the panel; Decline with a reason… takes the words on the TV's
   keyboard. Approve is plain: the server's settings choose the quality
   profile and folder.
+- **Search's Discover row**, after the libraries' results: up to 20 of
+  TMDB's titles that no library has, with See all; with nothing in the
+  libraries, the line saying so above it. When TMDB can't be searched,
+  the row says why, with Retry where trying again may help.
+- **A library title** from a request shows its stage under its facts,
+  with the download's progress, and a show with seasons left to ask for
+  offers Request more seasons beside its play button.
 - **News**: only what became ready to watch pops up, at the bottom right
   with the title's poster, Open and Close, once the remote has rested for
   1.5 s and nothing else holds focus (the open rail, a panel, a dialog,
@@ -428,8 +435,6 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 ## Known limits
 
 - Downloads are on phones and tablets only; TVs stream everything.
-- On Android TV and Fire TV, Search has no Discover row, and a library's
-  movie or show doesn't show its request.
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.

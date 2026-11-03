@@ -15,6 +15,7 @@ import app.pley.android.data.PeopleRepository
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.PlaylistsRepository
+import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
 import app.pley.android.data.ServersRepository
 import app.pley.android.data.SessionRepository
@@ -37,8 +38,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 
-/** An item page's data for the TV's tests: the items set, and what was written. */
-internal class ItemData(vararg details: ItemDetail) : DataGraph {
+/** An item page's data for the TV's tests: the items set, what was written, and [requests] where a test gives them. */
+internal class ItemData(vararg details: ItemDetail, override val requests: RequestsRepository = RequestsRepository.None) : DataGraph {
     private val held = details.associate { it.id to MutableStateFlow<Loadable<ItemDetail>>(Loadable.Ready(it, true)) }
     val streams = mutableListOf<List<Long?>>()
     val played = mutableListOf<PlayRequest>()
