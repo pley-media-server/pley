@@ -32,6 +32,7 @@ import app.pley.android.player.PlayerUiState
 import app.pley.android.player.QualityChoice
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
+import app.pley.android.player.engine.TAG_VIDEO_SHUTTER
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.testing.player.engine.FakePlayerEngine
@@ -730,6 +731,54 @@ class TvPlayerScreenTest {
         engine.update { it.copy(switchingDisplayMode = false, switchingToHz = null) }
         compose.waitForIdle()
         compose.onNodeWithTag(TAG_SWITCHING).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the first picture fades in from black over 200 ms`() {
+        val controller = playing()
+        val engine = FakePlayerEngine()
+        controller.engine = engine
+        show(controller)
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertExists()
+        compose.mainClock.autoAdvance = false
+        compose.runOnUiThread { engine.player.renderFirstFrame() }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(100)
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertExists()
+        compose.mainClock.advanceTimeBy(200)
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertDoesNotExist()
+    }
+
+    @Test
+    fun `with reduced motion the first picture shows at once`() {
+        val controller = playing()
+        val engine = FakePlayerEngine()
+        controller.engine = engine
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                TvPlayerScreen(controller, onExit = { exits++ }, now = { 0L })
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertExists()
+        compose.mainClock.autoAdvance = false
+        compose.runOnUiThread { engine.player.renderFirstFrame() }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(50)
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a stream taking over keeps the last picture rather than black`() {
+        val controller = playing { it.copy(handoff = true) }
+        val engine = FakePlayerEngine()
+        controller.engine = engine
+        show(controller)
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertDoesNotExist()
+        // Taken over, a picture still to come is awaited on black.
+        controller.update { it.copy(handoff = false) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertExists()
     }
 
     @Test

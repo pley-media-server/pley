@@ -37,6 +37,8 @@ describes how they are made.
 - Seek previews keep the video's shape, letterboxed on black, on phones
   and TVs, rather than cropped to fill their box: a wide film's no longer
   loses its sides.
+- On TVs, a video's first picture fades in from black, as the player's
+  controls do, rather than appearing at once (at once with reduced motion).
 
 ### Fixed
 

@@ -476,7 +476,8 @@ internal fun TvPlayerScreen(
             .onPreviewKeyEvent(::onKey)
             .testTag(TAG_PLAYER),
     ) {
-        VideoSurface(player, Modifier.fillMaxSize()) { handoff }
+        // The first picture fades in from black as the controls do; a stream taking over keeps the last one.
+        VideoSurface(player, Modifier.fillMaxSize(), reveal = PleyMotion.overlay(reduced)) { handoff }
         // Under the subtitles, which the scrim mustn't dim.
         Box(Modifier.fillMaxSize().controlScrims(controlsAlpha))
         TvTitleBanner(state, ui)

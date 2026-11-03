@@ -73,7 +73,8 @@ class FakePlayerEngine(looper: Looper = Looper.getMainLooper()) : PlayerEngine {
 /**
  * A player without decoders: one item, which is ready as soon as it is
  * prepared; play, pause and seek change its state at once. The test moves
- * time with [advanceTo] and ends the item with [end].
+ * time with [advanceTo], shows a picture with [renderFirstFrame] and ends
+ * the item with [end].
  */
 @OptIn(markerClass = [UnstableApi::class])
 class FakeVideoPlayer(looper: Looper) : SimpleBasePlayer(looper) {
@@ -130,6 +131,13 @@ class FakeVideoPlayer(looper: Looper) : SimpleBasePlayer(looper) {
     fun fail(error: PlaybackException) {
         current = current.buildUpon().setPlayerError(error).setPlaybackState(STATE_IDLE).build()
         invalidateState()
+    }
+
+    /** The first frame is on the surface: the player says so once, as Media3's does. */
+    fun renderFirstFrame() {
+        current = current.buildUpon().setNewlyRenderedFirstFrame(true).build()
+        invalidateState()
+        current = current.buildUpon().setNewlyRenderedFirstFrame(false).build()
     }
 
     /** The position moved to [positionMs] (time passed while playing). */
