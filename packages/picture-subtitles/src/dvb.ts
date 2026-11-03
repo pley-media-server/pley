@@ -1,4 +1,4 @@
-import { ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
+import { FrameCache, MAX_PIXELS, MAX_SIDE, ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
 
 /**
  * Broadcast subtitles (DVB, ETSI EN 300 743, `S_DVBSUB`): each sample is a
@@ -262,7 +262,7 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
 export class DvbDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
   private readonly parsed: (Segment[] | undefined)[];
-  private readonly cache = new Map<number, PictureFrame | null>();
+  private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[]) {
     this.samples = samples;
@@ -289,11 +289,7 @@ export class DvbDecoder implements PictureDecoder {
   }
 
   decode(index: number): PictureFrame | null {
-    if (this.cache.has(index)) return this.cache.get(index)!;
-    const frame = this.render(index);
-    if (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(index, frame);
-    return frame;
+    return this.cache.get(index, (i) => this.render(i));
   }
 
   private render(index: number): PictureFrame | null {
@@ -329,6 +325,13 @@ export class DvbDecoder implements PictureDecoder {
             const fill = (b[1]! & 0x08) !== 0;
             const w = (b[2]! << 8) | b[3]!;
             const h = (b[4]! << 8) | b[5]!;
+            if (w > MAX_SIDE || h > MAX_SIDE) break;
+            // Up to 256 regions are kept at once: together, no more than a frame's pixels.
+            let held = w * h;
+            regions.forEach((other, otherId) => {
+              if (otherId !== id) held += other.pixels.length;
+            });
+            if (held > MAX_PIXELS) break;
             const depth = [0, 2, 4, 8][(b[6]! >> 2) & 7] ?? 4;
             const clut = b[7]!;
             const background = depth === 8 ? b[8]! : depth === 4 ? b[9]! >> 4 : (b[9]! >> 2) & 3;
@@ -417,9 +420,13 @@ export class DvbDecoder implements PictureDecoder {
     }
     if (!page) return null;
     const bitmaps: SubtitleBitmap[] = [];
+    // A page may place a region any number of times, each a picture of its own.
+    let pixelsLeft = MAX_PIXELS;
     for (const placed of page.regions) {
       const region = regions.get(placed.id);
       if (!region || !region.width || !region.height) continue;
+      pixelsLeft -= region.width * region.height;
+      if (pixelsLeft < 0) break;
       const table = (cluts.get(region.clut) ?? [defaultClut(2), defaultClut(4), defaultClut(8)])[region.depth === 2 ? 0 : region.depth === 4 ? 1 : 2]!;
       const rgba = new Uint8ClampedArray(region.width * region.height * 4);
       let visible = false;

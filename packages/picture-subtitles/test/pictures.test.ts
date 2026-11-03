@@ -4,7 +4,7 @@ import { decodeRle, PgsDecoder } from "../src/pgs";
 import { parseIdx, parseSpu, VobSubDecoder } from "../src/vobsub";
 import { DvbDecoder, segments } from "../src/dvb";
 import { PictureSubtitles } from "../src/picture-track";
-import { ycbcrToRgb } from "../src/pictures";
+import { FrameCache, ycbcrToRgb, type PictureFrame } from "../src/pictures";
 
 // ---- builders
 
@@ -30,6 +30,19 @@ function pgsDisplaySet(opts: { state: number; objects: boolean; x?: number; y?: 
   }
   out.push(...pgsSegment(0x80, []));
   return new Uint8Array(out);
+}
+
+/** An epoch start placing one `w`×`h` object `times` times on a 1920×1080 plane; its pixels are all transparent. */
+function pgsPlaced(w: number, h: number, times: number): Uint8Array {
+  const pcs = [...u16(1920), ...u16(1080), 0x10, ...u16(1), 0x80, 0x00, 0x00, times];
+  for (let i = 0; i < times; i++) pcs.push(...u16(0), 0, 0x00, ...u16(i * 10), ...u16(0));
+  const data = [...u16(w), ...u16(h)];
+  return new Uint8Array([
+    ...pgsSegment(0x16, pcs),
+    ...pgsSegment(0x14, [0, 0, 1, 235, 128, 128, 255]),
+    ...pgsSegment(0x15, [...u16(0), 0, 0xc0, 0, 0, data.length, ...data]),
+    ...pgsSegment(0x80, []),
+  ]);
 }
 
 /** An EBML element. */
@@ -97,6 +110,46 @@ describe("PGS", () => {
     expect([reused.x, reused.y]).toEqual([200, 950]);
     expect(reused.rgba[3]).toBe(255);
   });
+
+  it("decodes a frame's worth of pixels at most", () => {
+    const sizes = (set: Uint8Array) => new PgsDecoder([set]).decode(0)!.bitmaps.map((b) => [b.width, b.height]);
+    // One 2048×2048 object placed three times: twice would pass a 4K screen's pixels.
+    expect(sizes(pgsPlaced(2048, 2048, 3))).toEqual([[2048, 2048]]);
+    // A Blu-ray's whole plane, twice, is well within.
+    expect(sizes(pgsPlaced(1920, 1080, 2))).toEqual([
+      [1920, 1080],
+      [1920, 1080],
+    ]);
+  });
+
+  it("decodes objects of 4096 pixels a side at most", () => {
+    const sizes = (set: Uint8Array) => new PgsDecoder([set]).decode(0)!.bitmaps.map((b) => [b.width, b.height]);
+    expect(sizes(pgsPlaced(4096, 1, 1))).toEqual([[4096, 1]]);
+    expect(sizes(pgsPlaced(4097, 1, 1))).toEqual([]);
+    expect(sizes(pgsPlaced(1, 4097, 1))).toEqual([]);
+  });
+});
+
+describe("FrameCache", () => {
+  const frame = (bytes: number): PictureFrame => ({
+    planeWidth: 1920,
+    planeHeight: 1080,
+    bitmaps: [{ x: 0, y: 0, width: 1, height: 1, rgba: new Uint8ClampedArray(bytes) }],
+  });
+
+  it("keeps the frames decoded last within their bytes and their number, always the one just decoded", () => {
+    const cache = new FrameCache(25, 300);
+    for (const i of [0, 1, 2]) cache.get(i, () => frame(101));
+    expect([0, 1, 2].map((i) => cache.has(i))).toEqual([false, true, true]);
+    // A frame over the bound alone is still kept: it is the one showing.
+    const big = frame(301);
+    expect(cache.get(3, () => big)).toBe(big);
+    expect([1, 2, 3].map((i) => cache.has(i))).toEqual([false, false, true]);
+    expect(cache.get(3, () => frame(1))).toBe(big);
+    // Frames with nothing to show are kept by number.
+    for (let i = 10; i < 40; i++) cache.get(i, () => null);
+    expect([3, 14, 15, 39].map((i) => cache.has(i))).toEqual([false, false, true, true]);
+  });
 });
 
 describe("Matroska", () => {
@@ -150,8 +203,11 @@ describe("Matroska", () => {
 describe("VobSub", () => {
   const idx = str("size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n");
 
-  /** An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom line emphasis 1, shown for 2 s. */
-  function spu(): Uint8Array {
+  /**
+   * An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom
+   * line emphasis 1, shown for 2 s; or of the corners `area` says.
+   */
+  function spu(area = [0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91]): Uint8Array {
     // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, colour cc.
     const top = [0x11, 0x00]; // count 4 colour 1, then padding nibble byte align
     const bottom = [0x12, 0x00]; // count 4 colour 2
@@ -162,7 +218,7 @@ describe("VobSub", () => {
       ...u16(0), ...u16(stopSeqAt), 0x01,
       0x03, 0x32, 0x10, // colours: e2=3 e1=2 p=1 b=0
       0x04, 0xff, 0xf0, // alpha: e2 15, e1 15, p 15, b 0
-      0x05, 0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91, // x 10..13, y 400..401
+      0x05, ...area, // x 10..13, y 400..401
       0x06, ...u16(4), ...u16(6),
       0xff,
     ];
@@ -195,6 +251,12 @@ describe("VobSub", () => {
     expect(Array.from(b.rgba.slice(0, 4))).toEqual([255, 255, 255, 255]);
     expect(Array.from(b.rgba.slice(16, 20))).toEqual([128, 128, 128, 255]);
     expect(decoder.ownDurationMs(0)).toBe(Math.round((175 * 1024) / 90));
+  });
+
+  it("refuses a picture of more than a frame's pixels", () => {
+    // x 0..4095, y 0..4095: as large as its corners go.
+    const frame = new VobSubDecoder([spu([0x00, 0x0f, 0xff, 0x00, 0x0f, 0xff])], new Uint8Array(idx)).decode(0);
+    expect(frame && frame.bitmaps.map((b) => [b.width, b.height])).toBeNull();
   });
 });
 
@@ -231,5 +293,30 @@ describe("DVB", () => {
     // The bottom field is the top one: both lines drawn.
     expect(b.rgba[4 * 4 + 3]).toBe(255);
     expect(decoder.ownDurationMs(0)).toBe(5000);
+  });
+
+  /** A mode-change page placing regions, each `[id, x, y]`. */
+  const placing = (...regions: [number, number, number][]) => dvbSegment(0x10, [5, 2 << 2, ...regions.flatMap(([id, x, y]) => [id, 0, ...u16(x), ...u16(y)])]);
+  /** A 4-bit region filled with entry 1 of CLUT 0. */
+  const filled = (id: number, w: number, h: number) => dvbSegment(0x11, [id, 0x08, ...u16(w), ...u16(h), 2 << 2, 0, 0, 1 << 4]);
+  /** CLUT 0 with entry 1 opaque red. */
+  const red = dvbSegment(0x12, [0, 0, 1, 0x40 | 0x01, 81, 240, 90, 0]);
+  const sizes = (...segs: number[][]) => {
+    const set = new Uint8Array([0x20, 0x00, ...segs.flat(), ...dvbSegment(0x80, []), 0xff]);
+    return new DvbDecoder([set]).decode(0)!.bitmaps.map((b) => [b.width, b.height]);
+  };
+
+  it("decodes a frame's worth of pixels at most", () => {
+    // One 3000×2000 region placed twice: twice would pass a 4K screen's pixels.
+    expect(sizes(placing([0, 0, 0], [0, 10, 10]), filled(0, 3000, 2000), red)).toEqual([[3000, 2000]]);
+  });
+
+  it("keeps a frame's worth of regions at most, of 4096 pixels a side at most", () => {
+    // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.
+    expect(sizes(placing([1, 0, 0]), filled(0, 3000, 2000), filled(1, 3000, 2000), red)).toEqual([]);
+    // A region made again counts once.
+    expect(sizes(placing([0, 0, 0]), filled(0, 3000, 2000), filled(0, 3840, 2160), red)).toEqual([[3840, 2160]]);
+    expect(sizes(placing([0, 0, 0]), filled(0, 4096, 1), red)).toEqual([[4096, 1]]);
+    expect(sizes(placing([0, 0, 0]), filled(0, 4097, 1), red)).toEqual([]);
   });
 });

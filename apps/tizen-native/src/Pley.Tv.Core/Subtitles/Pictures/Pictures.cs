@@ -57,9 +57,21 @@ public interface IPictureDecoder
     long? OwnDurationMs(int index);
 }
 
-/// <summary>What the decoders share: colours, byte reads, and their cache of decoded frames.</summary>
+/// <summary>What the decoders share: colours, byte reads, bounds, and their cache of decoded frames.</summary>
 public static class PictureColors
 {
+    /// <summary>
+    /// A picture's side at most, in pixels (a PGS object, a DVB region): subtitles are drawn for 4K
+    /// screens at most, and a file's sizes are outside input.
+    /// </summary>
+    public const int MaxSide = 4096;
+
+    /// <summary>
+    /// The most pixels a frame decodes, all its pictures together: a 4K screen's worth. A file can
+    /// place a 4096² picture many times over, and each pixel costs 4 bytes once coloured.
+    /// </summary>
+    public const int MaxPixels = 3840 * 2160;
+
     /// <summary>Limited-range YCbCr to RGB: BT.709 for HD planes, BT.601 for SD (as FFmpeg's decoders).</summary>
     public static (byte R, byte G, byte B) YcbcrToRgb(int y, int cb, int cr, bool hd)
     {
@@ -104,22 +116,50 @@ public static class PictureColors
 
 /// <summary>
 /// The frames decoded last: a few around the playhead are enough, as seeking decodes again. The
-/// oldest goes first.
+/// oldest goes first. A crafted file's frames can each be a 4K screen's worth, so they are kept by
+/// bytes too, but the frame just decoded always stays: it is the one showing.
 /// </summary>
 internal sealed class FrameCache
 {
-    const int Kept = 24;
+    /// <summary>Frames kept at most, and the most bytes they hold together.</summary>
+    public const int Kept = 25;
+    public const long KeptBytes = 128L << 20;
 
     readonly Dictionary<int, PictureFrame?> frames = new Dictionary<int, PictureFrame?>();
     readonly Queue<int> order = new Queue<int>();
+    readonly int most;
+    readonly long mostBytes;
+    long bytes;
+
+    public FrameCache(int most = Kept, long mostBytes = KeptBytes)
+    {
+        this.most = most;
+        this.mostBytes = mostBytes;
+    }
+
+    public bool Has(int index) => frames.ContainsKey(index);
 
     public PictureFrame? Get(int index, Func<int, PictureFrame?> make)
     {
         if (frames.TryGetValue(index, out var frame)) return frame;
         frame = make(index);
-        if (frames.Count > Kept) frames.Remove(order.Dequeue());
         frames[index] = frame;
         order.Enqueue(index);
+        bytes += Bytes(frame);
+        while (order.Count > 1 && (order.Count > most || bytes > mostBytes))
+        {
+            var dropped = order.Dequeue();
+            bytes -= Bytes(frames[dropped]);
+            frames.Remove(dropped);
+        }
         return frame;
+    }
+
+    static long Bytes(PictureFrame? frame)
+    {
+        long sum = 0;
+        if (frame != null)
+            foreach (var b in frame.Bitmaps) sum += b.Rgba.Length;
+        return sum;
     }
 }

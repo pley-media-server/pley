@@ -1,4 +1,4 @@
-import type { PictureDecoder, PictureFrame } from "./pictures";
+import { FrameCache, MAX_PIXELS, type PictureDecoder, type PictureFrame } from "./pictures";
 
 /**
  * DVD subtitles (VobSub, `S_VOBSUB`): each sample is one subpicture unit
@@ -154,7 +154,7 @@ export class VobSubDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
   private readonly header: VobSubHeader;
   private readonly spus: (Spu | null | undefined)[];
-  private readonly cache = new Map<number, PictureFrame | null>();
+  private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[], codecPrivate: Uint8Array | null) {
     this.samples = samples;
@@ -177,11 +177,7 @@ export class VobSubDecoder implements PictureDecoder {
   }
 
   decode(index: number): PictureFrame | null {
-    if (this.cache.has(index)) return this.cache.get(index)!;
-    const frame = this.render(index);
-    if (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(index, frame);
-    return frame;
+    return this.cache.get(index, (i) => this.render(i));
   }
 
   private render(index: number): PictureFrame | null {
@@ -191,6 +187,8 @@ export class VobSubDecoder implements PictureDecoder {
     const width = spu.x2 - spu.x1 + 1;
     const height = spu.y2 - spu.y1 + 1;
     if (width <= 0 || height <= 0) return { ...plane, bitmaps: [] };
+    // Its corners allow 4096² pixels: more than a frame's isn't decoded.
+    if (width * height > MAX_PIXELS) return null;
     const data = this.samples[index]!;
     const size = (data[0]! << 8) | data[1]!;
     const ctrl = (data[2]! << 8) | data[3]!;

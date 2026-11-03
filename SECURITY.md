@@ -339,6 +339,11 @@ other apps (`pley_ct_…`), never with a session's
   plain HTTP.
 - A file's attached fonts (for burned-in ASS subtitles) are taken up to
   256 MiB and 1,000 fonts, under names of the transcoder's own.
+- The web app and the Samsung and LG apps decode picture subtitles (PGS,
+  DVB, VobSub) themselves: at most a 4K screen's pixels for one moment, in
+  pictures of 4096 pixels a side at most, and the frames kept per track
+  hold 128 MiB at most, so a crafted file's subtitles can't take more
+  memory than a real one's.
 
 ### Transcoder
 

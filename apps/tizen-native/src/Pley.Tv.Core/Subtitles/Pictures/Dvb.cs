@@ -401,6 +401,12 @@ public sealed class DvbDecoder : IPictureDecoder
                         var fill = (b[1] & 0x08) != 0;
                         var w = (b[2] << 8) | b[3];
                         var h = (b[4] << 8) | b[5];
+                        if (w > PictureColors.MaxSide || h > PictureColors.MaxSide) break;
+                        // Up to 256 regions are kept at once: together, no more than a frame's pixels.
+                        var held = w * h;
+                        foreach (var other in regions)
+                            if (other.Key != id) held += other.Value.Pixels.Length;
+                        if (held > PictureColors.MaxPixels) break;
                         var code = (b[6] >> 2) & 7;
                         var depth = code < Depths.Length ? Depths[code] : 4;
                         var clut = b[7];
@@ -502,9 +508,13 @@ public sealed class DvbDecoder : IPictureDecoder
         }
         if (page == null) return null;
         var bitmaps = new List<SubtitleBitmap>();
+        // A page may place a region any number of times, each a picture of its own.
+        var pixelsLeft = PictureColors.MaxPixels;
         foreach (var placed in page.Regions)
         {
             if (!regions.TryGetValue(placed.Id, out var region) || region.Width == 0 || region.Height == 0) continue;
+            pixelsLeft -= region.Width * region.Height;
+            if (pixelsLeft < 0) break;
             var table = (cluts.TryGetValue(region.Clut, out var own) ? own : DefaultCluts())[region.Depth == 2 ? 0 : region.Depth == 4 ? 1 : 2];
             var rgba = new byte[region.Width * region.Height * 4];
             var visible = false;

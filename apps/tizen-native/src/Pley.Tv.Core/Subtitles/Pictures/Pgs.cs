@@ -273,9 +273,14 @@ public sealed class PgsDecoder : IPictureDecoder
             rgba[at + 3] = (byte)e.A;
         }
         var bitmaps = new List<SubtitleBitmap>();
+        // Each placement is a picture of its own, the same object's too: together, no more than a frame's pixels.
+        var pixelsLeft = PictureColors.MaxPixels;
         foreach (var placed in pcs.Objects)
         {
             if (!objects.TryGetValue(placed.Id, out var obj) || obj.Width == 0 || obj.Height == 0) continue;
+            if (obj.Width > PictureColors.MaxSide || obj.Height > PictureColors.MaxSide) continue;
+            pixelsLeft -= obj.Width * obj.Height;
+            if (pixelsLeft < 0) break;
             var indexes = DecodeRle(obj.Rle, obj.Width, obj.Height);
             var crop = placed.Crop ?? new Crop { X = 0, Y = 0, W = obj.Width, H = obj.Height };
             var w = Math.Max(0, Math.Min(crop.W, obj.Width - crop.X));

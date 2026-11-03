@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Security
 
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
+  the app out of memory: a moment's pictures decode to a 4K screen's
+  pixels at most, and the frames kept decoded hold 128 MiB at most. Real
+  subtitles show as before.
 - The token goes only to the server's own origin, never to an address
   elsewhere that the server hands out.
 - Before the token goes to the server's address, the server proves it is

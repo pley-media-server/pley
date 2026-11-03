@@ -18,6 +18,13 @@ describes how they are made.
 - The player's Back 10 seconds and Forward 10 seconds buttons. Left and
   Right still seek.
 
+### Security
+
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
+  the app out of memory: a moment's pictures decode to a 4K screen's
+  pixels at most, and the frames kept decoded hold 128 MiB at most. Real
+  subtitles show as before.
+
 ## [0.1.3] - 2026-11-02
 
 ### Changed

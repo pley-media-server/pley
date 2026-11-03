@@ -311,6 +311,10 @@ It has no releases yet: it is built and installed by hand
 
 ### Security
 
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
+  the app out of memory: a moment's pictures decode to a 4K screen's
+  pixels at most, and the frames kept decoded hold 128 MiB at most, as in
+  the Samsung web app. Real subtitles show as before.
 - Before the token goes to the server's address, the server proves it is
   the one the TV signed in to, at that address, as in the Samsung web app
   and on Android: the access token waits for a proof made on this network

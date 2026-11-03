@@ -232,6 +232,8 @@ public sealed class VobSubDecoder : IPictureDecoder
         var width = spu.X2 - spu.X1 + 1;
         var height = spu.Y2 - spu.Y1 + 1;
         if (width <= 0 || height <= 0) return new PictureFrame(header.Width, header.Height, new SubtitleBitmap[0]);
+        // Its corners allow 4096² pixels: more than a frame's isn't decoded.
+        if (width * height > PictureColors.MaxPixels) return null;
         var data = samples[index];
         var size = (data[0] << 8) | data[1];
         var ctrl = (data[2] << 8) | data[3];

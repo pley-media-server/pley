@@ -1,4 +1,4 @@
-import { ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
+import { FrameCache, MAX_PIXELS, MAX_SIDE, ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
 
 /**
  * Blu-ray subtitles (HDMV PGS, `S_HDMV/PGS`): each sample is one display
@@ -150,7 +150,7 @@ export function decodeRle(rle: Uint8Array, width: number, height: number): Uint8
 export class PgsDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
   private readonly sets: (DisplaySet | null)[];
-  private readonly cache = new Map<number, PictureFrame | null>();
+  private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[]) {
     this.samples = samples;
@@ -171,12 +171,7 @@ export class PgsDecoder implements PictureDecoder {
   }
 
   decode(index: number): PictureFrame | null {
-    if (this.cache.has(index)) return this.cache.get(index)!;
-    const frame = this.compose(index);
-    // A few frames around the playhead are enough: seeking decodes again.
-    if (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(index, frame);
-    return frame;
+    return this.cache.get(index, (i) => this.compose(i));
   }
 
   private compose(index: number): PictureFrame | null {
@@ -223,9 +218,13 @@ export class PgsDecoder implements PictureDecoder {
       rgba[i * 4 + 3] = e.a;
     });
     const bitmaps: SubtitleBitmap[] = [];
+    // Each placement is a picture of its own, the same object's too: together, no more than a frame's pixels.
+    let pixelsLeft = MAX_PIXELS;
     for (const placed of pcs.objects) {
       const object = objects.get(placed.id);
-      if (!object || !object.width || !object.height) continue;
+      if (!object || !object.width || !object.height || object.width > MAX_SIDE || object.height > MAX_SIDE) continue;
+      pixelsLeft -= object.width * object.height;
+      if (pixelsLeft < 0) break;
       const indexes = decodeRle(object.rle, object.width, object.height);
       const crop = placed.crop ?? { x: 0, y: 0, w: object.width, h: object.height };
       const w = Math.max(0, Math.min(crop.w, object.width - crop.x));

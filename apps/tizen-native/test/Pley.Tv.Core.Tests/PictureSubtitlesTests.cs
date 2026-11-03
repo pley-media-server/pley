@@ -38,6 +38,22 @@ static class PictureKit
         return Bytes(output);
     }
 
+    /// <summary>An epoch start placing one <paramref name="w"/>×<paramref name="h"/> object <paramref name="times"/> times on a 1920×1080 plane; its pixels are all transparent.</summary>
+    public static byte[] PgsPlaced(int w, int h, int times)
+    {
+        var pcs = Cat(U16(1920), U16(1080), new[] { 0x10 }, U16(1), new[] { 0x80, 0x00, 0x00, times });
+        for (var i = 0; i < times; i++) pcs = Cat(pcs, U16(0), new[] { 0, 0x00 }, U16(i * 10), U16(0));
+        var data = Cat(U16(w), U16(h));
+        return Bytes(Cat(
+            PgsSegment(0x16, pcs),
+            PgsSegment(0x14, new[] { 0, 0, 1, 235, 128, 128, 255 }),
+            PgsSegment(0x15, Cat(U16(0), new[] { 0, 0xc0, 0, 0, data.Length }, data)),
+            PgsSegment(0x80, new int[0])));
+    }
+
+    /// <summary>The sizes of the pictures of <paramref name="frame"/>.</summary>
+    public static (int, int)[] Sizes(PictureFrame? frame) => frame!.Bitmaps.Select(b => (b.Width, b.Height)).ToArray();
+
     /// <summary>An EBML element.</summary>
     static int[] El(long id, int[] body)
     {
@@ -108,6 +124,46 @@ public class PgsTests
         Assert.Equal((200, 950), (reused.X, reused.Y));
         Assert.Equal(255, reused.Rgba[3]);
     }
+
+    [Fact]
+    public void Decodes_a_frames_worth_of_pixels_at_most()
+    {
+        static (int, int)[] Sizes(byte[] set) => PictureKit.Sizes(new PgsDecoder(new[] { set }).Decode(0));
+        // One 2048×2048 object placed three times: twice would pass a 4K screen's pixels.
+        Assert.Equal(new[] { (2048, 2048) }, Sizes(PictureKit.PgsPlaced(2048, 2048, 3)));
+        // A Blu-ray's whole plane, twice, is well within.
+        Assert.Equal(new[] { (1920, 1080), (1920, 1080) }, Sizes(PictureKit.PgsPlaced(1920, 1080, 2)));
+    }
+
+    [Fact]
+    public void Decodes_objects_of_4096_pixels_a_side_at_most()
+    {
+        static (int, int)[] Sizes(byte[] set) => PictureKit.Sizes(new PgsDecoder(new[] { set }).Decode(0));
+        Assert.Equal(new[] { (4096, 1) }, Sizes(PictureKit.PgsPlaced(4096, 1, 1)));
+        Assert.Empty(Sizes(PictureKit.PgsPlaced(4097, 1, 1)));
+        Assert.Empty(Sizes(PictureKit.PgsPlaced(1, 4097, 1)));
+    }
+}
+
+public class FrameCacheTests
+{
+    static PictureFrame Frame(int bytes) => new PictureFrame(1920, 1080, new[] { new SubtitleBitmap(0, 0, 1, 1, new byte[bytes]) });
+
+    [Fact]
+    public void Keeps_the_frames_decoded_last_within_their_bytes_and_their_number_always_the_one_just_decoded()
+    {
+        var cache = new FrameCache(25, 300);
+        foreach (var i in new[] { 0, 1, 2 }) cache.Get(i, _ => Frame(101));
+        Assert.Equal(new[] { false, true, true }, new[] { 0, 1, 2 }.Select(cache.Has));
+        // A frame over the bound alone is still kept: it is the one showing.
+        var big = Frame(301);
+        Assert.Same(big, cache.Get(3, _ => big));
+        Assert.Equal(new[] { false, false, true }, new[] { 1, 2, 3 }.Select(cache.Has));
+        Assert.Same(big, cache.Get(3, _ => Frame(1)));
+        // Frames with nothing to show are kept by number.
+        for (var i = 10; i < 40; i++) cache.Get(i, _ => null);
+        Assert.Equal(new[] { false, false, true, true }, new[] { 3, 14, 15, 39 }.Select(cache.Has));
+    }
 }
 
 public class MatroskaTests
@@ -167,8 +223,11 @@ public class VobSubTests
 {
     static readonly byte[] Idx = PictureKit.Bytes(PictureKit.Str("size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n"));
 
-    /// <summary>An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom line emphasis 1, shown for 2 s.</summary>
-    static byte[] Spu()
+    /// <summary>
+    /// An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom line emphasis 1, shown
+    /// for 2 s; or of the corners <paramref name="area"/> says.
+    /// </summary>
+    static byte[] Spu(int[]? area = null)
     {
         // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, colour cc.
         var top = new[] { 0x11, 0x00 }; // count 4 colour 1, then padding nibble byte align
@@ -180,7 +239,7 @@ public class VobSubTests
             PictureKit.U16(0), PictureKit.U16(stopSeqAt), new[] { 0x01 },
             new[] { 0x03, 0x32, 0x10 }, // colours: e2=3 e1=2 p=1 b=0
             new[] { 0x04, 0xff, 0xf0 }, // alpha: e2 15, e1 15, p 15, b 0
-            new[] { 0x05, 0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91 }, // x 10..13, y 400..401
+            new[] { 0x05 }, area ?? new[] { 0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91 }, // x 10..13, y 400..401
             new[] { 0x06 }, PictureKit.U16(4), PictureKit.U16(6),
             new[] { 0xff });
         var stop = PictureKit.Cat(PictureKit.U16(175), PictureKit.U16(stopSeqAt), new[] { 0x02, 0xff });
@@ -218,6 +277,14 @@ public class VobSubTests
         Assert.Equal(new[] { 255, 255, 255, 255 }, PictureKit.Rgba(b, 0, 4));
         Assert.Equal(new[] { 128, 128, 128, 255 }, PictureKit.Rgba(b, 16, 4));
         Assert.Equal((long)Math.Round(175 * 1024 / 90.0), decoder.OwnDurationMs(0));
+    }
+
+    [Fact]
+    public void Refuses_a_picture_of_more_than_a_frames_pixels()
+    {
+        // x 0..4095, y 0..4095: as large as its corners go.
+        var decoder = new VobSubDecoder(new[] { Spu(new[] { 0x00, 0x0f, 0xff, 0x00, 0x0f, 0xff }) }, Idx);
+        Assert.Null(decoder.Decode(0));
     }
 }
 
@@ -258,5 +325,39 @@ public class DvbTests
         // The bottom field is the top one: both lines drawn.
         Assert.Equal(255, b.Rgba[4 * 4 + 3]);
         Assert.Equal(5000, decoder.OwnDurationMs(0));
+    }
+
+    /// <summary>A mode-change page placing regions, each (id, x, y).</summary>
+    static int[] Placing(params (int Id, int X, int Y)[] regions) =>
+        DvbSegment(0x10, PictureKit.Cat(new[] { 5, 2 << 2 }, regions.SelectMany(r => PictureKit.Cat(new[] { r.Id, 0 }, PictureKit.U16(r.X), PictureKit.U16(r.Y)))));
+
+    /// <summary>A 4-bit region filled with entry 1 of CLUT 0.</summary>
+    static int[] Filled(int id, int w, int h) => DvbSegment(0x11, PictureKit.Cat(new[] { id, 0x08 }, PictureKit.U16(w), PictureKit.U16(h), new[] { 2 << 2, 0, 0, 1 << 4 }));
+
+    /// <summary>CLUT 0 with entry 1 opaque red.</summary>
+    static readonly int[] Red = DvbSegment(0x12, new[] { 0, 0, 1, 0x40 | 0x01, 81, 240, 90, 0 });
+
+    static (int, int)[] Sizes(params int[][] segs)
+    {
+        var set = PictureKit.Bytes(PictureKit.Cat(new[] { 0x20, 0x00 }, PictureKit.Cat(segs), DvbSegment(0x80, new int[0]), new[] { 0xff }));
+        return PictureKit.Sizes(new DvbDecoder(new[] { set }).Decode(0));
+    }
+
+    [Fact]
+    public void Decodes_a_frames_worth_of_pixels_at_most()
+    {
+        // One 3000×2000 region placed twice: twice would pass a 4K screen's pixels.
+        Assert.Equal(new[] { (3000, 2000) }, Sizes(Placing((0, 0, 0), (0, 10, 10)), Filled(0, 3000, 2000), Red));
+    }
+
+    [Fact]
+    public void Keeps_a_frames_worth_of_regions_at_most_of_4096_pixels_a_side_at_most()
+    {
+        // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.
+        Assert.Empty(Sizes(Placing((1, 0, 0)), Filled(0, 3000, 2000), Filled(1, 3000, 2000), Red));
+        // A region made again counts once.
+        Assert.Equal(new[] { (3840, 2160) }, Sizes(Placing((0, 0, 0)), Filled(0, 3000, 2000), Filled(0, 3840, 2160), Red));
+        Assert.Equal(new[] { (4096, 1) }, Sizes(Placing((0, 0, 0)), Filled(0, 4096, 1), Red));
+        Assert.Empty(Sizes(Placing((0, 0, 0)), Filled(0, 4097, 1), Red));
     }
 }

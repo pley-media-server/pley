@@ -107,6 +107,13 @@ describes how they are made.
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.
 
+### Security
+
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
+  the web app out of memory: a moment's pictures decode to a 4K screen's
+  pixels at most, and the frames kept decoded hold 128 MiB at most. Real
+  subtitles show as before.
+
 ## [0.1.4] - 2026-11-02
 
 ### Added

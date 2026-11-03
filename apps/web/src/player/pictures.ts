@@ -8,7 +8,7 @@
  */
 import { matroskaEnd, readPictureTrack } from "pley-picture-subtitles/mks";
 import { PictureSubtitles } from "pley-picture-subtitles/picture-track";
-import type { PictureFrame } from "pley-picture-subtitles/pictures";
+import { CACHE_BYTES, frameBytes, type PictureFrame } from "pley-picture-subtitles/pictures";
 
 export type { PictureSubtitles };
 
@@ -301,7 +301,7 @@ interface Decoded {
   images: Image[];
 }
 
-/** Frames kept decoded: the one showing and those coming up. */
+/** Frames kept decoded: the one showing and those coming up, no more bytes than the decoder keeps. */
 const KEPT = 8;
 /** Frames decoded ahead, while the browser is idle. */
 const AHEAD = 3;
@@ -328,6 +328,7 @@ export class PictureRenderer {
   private shown = -1;
   private dirty = true;
   private readonly cache = new Map<number, Decoded | null>();
+  private cacheBytes = 0;
   private frameHandle: number | null = null;
   private animation: number | null = null;
   private idle: number | null = null;
@@ -533,9 +534,13 @@ export class PictureRenderer {
 
   private keep(i: number, entry: Decoded | null): void {
     this.cache.set(i, entry);
-    while (this.cache.size > KEPT) {
-      const [oldest, old] = this.cache.entries().next().value!;
-      this.cache.delete(oldest);
+    this.cacheBytes += frameBytes(entry?.frame);
+    // The oldest go first, never the frame showing nor the one just decoded.
+    for (const [kept, old] of this.cache) {
+      if (this.cache.size <= KEPT && this.cacheBytes <= CACHE_BYTES) break;
+      if (kept === i || kept === this.shown) continue;
+      this.cache.delete(kept);
+      this.cacheBytes -= frameBytes(old?.frame);
       release(old);
     }
   }
@@ -563,6 +568,7 @@ export class PictureRenderer {
   private forget(): void {
     for (const entry of this.cache.values()) release(entry);
     this.cache.clear();
+    this.cacheBytes = 0;
     this.shown = -1;
   }
 }
