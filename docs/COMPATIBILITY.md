@@ -352,8 +352,12 @@ does:
 - Posters and backgrounds: `POST /library/metadata/{id}/posters` (or
   `/arts`) with the picture as the body (25 MB at most, re-encoded), or
   `?url=` and `PUT /library/metadata/{id}/poster?url=` (or `/art`) with a
-  TMDB image. Other URLs are refused: the server doesn't fetch arbitrary
-  addresses.
+  picture's HTTPS address on one of the hosts Pley takes pictures from:
+  TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv
+  (`assets.fanart.tv`), ThePosterDB and GitHub's raw files
+  (`raw.githubusercontent.com`, where Kometa's own images are). Other
+  addresses are refused (`400`): the server doesn't fetch arbitrary ones,
+  which could lead into its own network. Upload the file instead.
 - Collections: their title, sort title (kept as set, and listed as
   `titleSort`) and summary through their section (`type=18&id=…`, as
   `python-plexapi` edits them), their poster and background through
@@ -448,8 +452,8 @@ and the playback tests that go through this API), and with
   remote access, and the apps that depend on it to find servers.
 - Accounts: they are listed, never made, changed or deleted.
 - Collections' order and mode are set in Pley, not through this API.
-- Editing episodes' and seasons' artwork from URLs other than TMDB images
-  (upload the file instead), and per-item preferences (`/prefs`).
+- Artwork from addresses on other hosts (upload the file instead), and
+  per-item preferences (`/prefs`).
 - Filters on descendants (`episode.title` on shows) and on `resolution`,
   `hdr`, audio or subtitle language, among others: refused
   ([Searching and filtering](#searching-and-filtering)).

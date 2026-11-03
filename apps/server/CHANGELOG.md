@@ -67,6 +67,11 @@ describes how they are made.
   tool's change reach the whole library; a smart collection or playlist
   isn't made of one.
 
+- Pictures chosen by address, through the Plex-compatible API or the
+  artwork picker, may come from fanart.tv, ThePosterDB and GitHub's raw
+  files (where Kometa's own images are) as well as TMDB, TheTVDB, TVmaze and
+  the Cover Art Archive. Other addresses are still refused.
+
 ### Removed
 
 - The web player's Back 10 seconds and Forward 30 seconds buttons. Left

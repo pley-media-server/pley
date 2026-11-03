@@ -361,7 +361,8 @@ async fn fix_match_and_artwork_choices() {
     );
     assert_eq!(posters.body[0]["preview_url"], json!(tmdb_image("w342", "en-high.jpg")));
 
-    // Only TMDB pictures can be chosen; this one is already stored, as if downloaded.
+    // Pictures come from the image hosts only; this one is already stored,
+    // as if downloaded.
     let elsewhere = app
         .put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": "https://example.com/x.jpg"}))
         .await;
@@ -379,6 +380,21 @@ async fn fix_match_and_artwork_choices() {
     assert!(picked.body["locked_fields"].as_array().unwrap().contains(&json!("poster")));
     let poster = app.get(&format!("/api/items/{alien}/images/poster"), &admin).await;
     assert_eq!(poster.bytes, b"\xff\xd8\xff\xe0 en-high");
+
+    // And from the hosts library tools take theirs from, such as GitHub's
+    // raw files for Kometa's own.
+    let kometa = "https://raw.githubusercontent.com/team/images/master/poster.jpg";
+    let blob = app.state.store.put(b"\xff\xd8\xff\xe0 kometa", "jpg").await.unwrap();
+    sqlx::query("INSERT INTO remote_images (url, blob, fetched_at) VALUES (?, ?, 0)")
+        .bind(kometa)
+        .bind(&blob)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let picked = app.put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": kometa})).await;
+    assert_eq!(picked.status, StatusCode::OK, "{:?}", picked.body);
+    let poster = app.get(&format!("/api/items/{alien}/images/poster"), &admin).await;
+    assert_eq!(poster.bytes, b"\xff\xd8\xff\xe0 kometa");
 }
 
 #[tokio::test]

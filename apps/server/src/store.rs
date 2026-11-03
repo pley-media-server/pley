@@ -56,8 +56,19 @@ const CACHES: &[(&str, Duration)] = &[
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
 ];
 
-/// Hosts pictures may be downloaded from (metadata providers' image servers).
-const IMAGE_HOSTS: &[&str] = &["image.tmdb.org", "static.tvmaze.com", "artworks.thetvdb.com", "coverartarchive.org"];
+/// Hosts pictures may be downloaded from: metadata providers' image servers,
+/// and those library tools take artwork from (fanart.tv, ThePosterDB, and
+/// GitHub's raw files for Kometa's own). Public hosts only, so that no
+/// address can turn a download towards this network.
+const IMAGE_HOSTS: &[&str] = &[
+    "image.tmdb.org",
+    "static.tvmaze.com",
+    "artworks.thetvdb.com",
+    "coverartarchive.org",
+    "assets.fanart.tv",
+    "theposterdb.com",
+    "raw.githubusercontent.com",
+];
 
 /// Whether a stored reference is a blob (as opposed to a local file path).
 pub fn is_blob(reference: &str) -> bool {
@@ -790,6 +801,11 @@ mod tests {
         assert!(!allowed_image_url("http://image.tmdb.org/t/p/w780/x.jpg"));
         assert!(!allowed_image_url("https://image.tmdb.org.evil.com/x.jpg"));
         assert!(!allowed_image_url("https://localhost/x.jpg"));
+        assert!(allowed_image_url("https://raw.githubusercontent.com/team/images/master/poster.jpg"));
+        assert!(allowed_image_url("https://theposterdb.com/api/assets/1"));
+        assert!(!allowed_image_url("https://raw.githubusercontent.com@169.254.169.254/x.jpg"));
+        assert!(!allowed_image_url("https://raw.githubusercontent.com:8443/x.jpg"));
+        assert!(!allowed_image_url("https://theposterdb.com.example/x.jpg"));
     }
 
     #[tokio::test]

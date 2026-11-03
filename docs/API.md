@@ -1461,7 +1461,7 @@ user's watch state and their access are unchanged.
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
 | POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
-| PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image) → `ItemDetail`; downloaded and locked |
+| PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG and locked |
 | DELETE | `/api/items/{id}/artwork/{kind}` | `admin` | `204`; back to local or downloaded artwork |
 | POST | `/api/items/{id}/refresh` | `admin` | `202`: re-fetch metadata from the item's source |
