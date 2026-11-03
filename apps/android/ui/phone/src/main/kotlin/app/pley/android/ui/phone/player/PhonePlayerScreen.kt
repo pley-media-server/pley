@@ -56,6 +56,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 
 /** What the player screen asks of its window: leaving, picture in picture, the volume and brightness. */
 interface PlayerHost : LevelControls {
@@ -117,6 +119,8 @@ fun PhonePlayerScreen(
     Box(
         modifier
             .fillMaxSize()
+            // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+            .semantics { testTagsAsResourceId = true }
             .background(Color.Black)
             .onSizeChanged {
                 widthPx = it.width

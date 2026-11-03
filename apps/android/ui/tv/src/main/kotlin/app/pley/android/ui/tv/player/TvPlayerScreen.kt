@@ -27,6 +27,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.pley.android.designsystem.PleyMotion
@@ -393,6 +395,8 @@ internal fun TvPlayerScreen(
     Box(
         modifier
             .fillMaxSize()
+            // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+            .semantics { testTagsAsResourceId = true }
             .background(Color.Black)
             .onPreviewKeyEvent(::onKey)
             .testTag(TAG_PLAYER),

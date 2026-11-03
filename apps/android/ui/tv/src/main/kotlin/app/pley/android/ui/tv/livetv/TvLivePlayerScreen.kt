@@ -70,6 +70,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -163,6 +165,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
+            // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+            .semantics { testTagsAsResourceId = true }
             .background(Color.Black)
             .testTag(TV_LIVE_PLAYER)
             .onPreviewKeyEvent { event ->

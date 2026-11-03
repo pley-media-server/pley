@@ -21,7 +21,8 @@ import kotlin.math.abs
 
 /**
  * What the journeys find on screen: the app's test tags, which UI Automator
- * reads as resource ids (both interfaces' roots set testTagsAsResourceId).
+ * reads as resource ids (both interfaces' roots set testTagsAsResourceId,
+ * and so do the players', in windows of their own).
  * Copies of app.pley.android.common.TestTags and of the screens' own tags
  * (ui/tv's and ui/phone's *_TAG and *_PAGE constants): this module sees
  * only the app it runs against.
