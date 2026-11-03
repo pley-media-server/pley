@@ -90,9 +90,6 @@ describes how they are made.
   Live TV's categories, guide and cards. Down on a grid's last row stays.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
-- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
-  playback starting or a seek, as in the Samsung app, and keep coming as
-  the server reads the rest of the track.
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, as the other apps do.
 - A tile's actions (OK held, or the menu key) open in a side panel over
