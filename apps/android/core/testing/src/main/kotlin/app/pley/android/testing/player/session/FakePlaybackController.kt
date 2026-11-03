@@ -189,6 +189,7 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             notice = "This is the last episode",
             subtitleOffsetMs = 500,
             subtitleSync = true,
+            subtitleStyled = true,
             sleep = SleepState(SleepChoice.Minutes(30), minutesLeft = 12),
             stoppedByServer = true,
             speed = 1.5f,

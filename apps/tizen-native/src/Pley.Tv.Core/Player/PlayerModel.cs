@@ -1527,6 +1527,8 @@ public sealed class PlayerModel : IDisposable
         var sub = subtitle;
         // Text moves always; pictures only when drawn here.
         var syncable = sub != null && (!PlaybackPlan.IsImage(sub) || (Sideload && info?.BurnSubtitles != true));
+        // The look is for text: pictures, drawn here or burned in, keep their own.
+        var styled = sub != null && !PlaybackPlan.IsImage(sub);
         var auto = ServerQuality();
         var playing = Label(auto ?? quality);
         var automatic = picked.Automatic;
@@ -1546,6 +1548,7 @@ public sealed class PlayerModel : IDisposable
             Qualities = qualities,
             Quality = automatic ? SessionText.Automatic(playing) : Label(quality),
             SubtitleSync = syncable,
+            SubtitleStyled = styled,
             SubtitleOffsetMs = offset,
         });
     }

@@ -247,7 +247,7 @@ class TvPlayerScreenTest {
 
     @Test
     fun `the Subtitles panel sets their size and background, and stays open`() {
-        val controller = playing()
+        val controller = playing { it.copy(subtitles = listOf(TrackChoice(null, "Off", false), TrackChoice(3, "English (SRT)", true)), subtitleStyled = true) }
         val chosen = mutableListOf<CaptionLook>()
         compose.setContent {
             TvTheme {
@@ -258,8 +258,8 @@ class TvPlayerScreenTest {
         press(Key.DirectionDown)
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()
-        // Off, English (SRT), then Small, Normal and Large.
-        press(Key.DirectionDown, times = 4)
+        // From English (SRT), the subtitles chosen: Small, Normal, then Large.
+        press(Key.DirectionDown, times = 3)
         compose.onNodeWithText("Large").assertIsFocused()
         press(Key.DirectionCenter)
         assertEquals(listOf(CaptionLook(textFraction = 0.06f)), chosen)
@@ -270,6 +270,28 @@ class TvPlayerScreenTest {
         compose.onNodeWithText("Dark box").assertIsFocused()
         press(Key.DirectionCenter)
         assertEquals(CaptionLook(box = true), chosen.last())
+    }
+
+    @Test
+    fun `the Subtitles panel has no style while the subtitles are off or pictures`() {
+        val controller = playing { it.copy(subtitles = it.subtitles + TrackChoice(4, "French (PGS)", false)) }
+        compose.setContent {
+            TvTheme {
+                TvPlayerScreen(controller, onExit = { exits++ }, onSubtitleStyle = {}, now = { 0L })
+            }
+        }
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        press(Key.DirectionCenter)
+        compose.onNodeWithTag(TAG_PANEL).assertExists()
+        compose.onNodeWithText("Subtitle size").assertDoesNotExist()
+        controller.update { it.copy(subtitles = it.subtitles.map { t -> t.copy(selected = t.index == 4L) }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Subtitle size").assertDoesNotExist()
+        // Text: the style is there.
+        controller.update { it.copy(subtitles = it.subtitles.map { t -> t.copy(selected = t.index == 3L) }, subtitleStyled = true) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Subtitle size").assertExists()
     }
 
     @Test

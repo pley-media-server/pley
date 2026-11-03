@@ -58,6 +58,7 @@ class PlayerScreenState(
     val suggestLowerQuality: Boolean by derivedStateOf { ui.value.suggestLowerQuality }
     val details by derivedStateOf { ui.value.details }
     val subtitleSync: Boolean by derivedStateOf { ui.value.subtitleSync }
+    val subtitleStyled: Boolean by derivedStateOf { ui.value.subtitleStyled }
     val subtitleOffsetMs: Long by derivedStateOf { ui.value.subtitleOffsetMs }
     val sleep: SleepState by derivedStateOf { ui.value.sleep }
     val stoppedByServer: Boolean by derivedStateOf { ui.value.stoppedByServer }

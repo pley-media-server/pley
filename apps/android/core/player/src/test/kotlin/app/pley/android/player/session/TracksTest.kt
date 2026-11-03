@@ -146,6 +146,20 @@ class TracksTest {
     }
 
     @Test
+    fun `the subtitle style is for text: not for pictures, nor with subtitles off`() {
+        val movie = Catalogue.movieWithTracks(h.api)
+        val subs = movie.files.first().streams.filter { it.kind == StreamKind.Subtitle }
+        val c = h.play(PlayRequest(movie.id))
+        assertFalse(c.state.value.subtitleStyled)
+        c.selectSubtitle(subs.first { it.textBased == true }.index.toLong())
+        h.settle()
+        assertTrue(c.state.value.subtitleStyled)
+        c.selectSubtitle(subs.first { it.textBased == false }.index.toLong())
+        h.settle()
+        assertFalse(c.state.value.subtitleStyled)
+    }
+
+    @Test
     fun `pictures in a stream start a burn-in session, and back`() {
         use(capsOf(TestDevices.sdrPhone))
         val movie = Catalogue.movieWithTracks(h.api)

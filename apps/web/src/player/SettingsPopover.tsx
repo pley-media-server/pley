@@ -169,7 +169,7 @@ export interface SettingsPopoverProps {
   subtitleStreams: MediaStream[];
   subtitleIndex: number | null;
   onSubtitle: (index: number | null) => void;
-  /** How text subtitles look on this device. */
+  /** How text subtitles look on this device: offered while the subtitles chosen are text. */
   subtitleStyle: SubtitleStyle;
   onSubtitleStyle: (style: SubtitleStyle) => void;
   /** Seconds subtitles are moved by (positive: later), for this file. */
@@ -216,6 +216,10 @@ export function SettingsPopover(props: SettingsPopoverProps) {
   const currentSub = subtitleStreams.find((s) => s.index === subtitleIndex);
   // Picture subtitles burned into the video can't be moved; drawn by the player, they can.
   const movableSub = currentSub && (currentSub.text_based !== false || picturesMovable) ? currentSub : undefined;
+  // The style is for text: pictures keep their own look, and subtitles off have none.
+  const styled = !!currentSub && currentSub.text_based !== false;
+  // Subtitle style goes back to the menu while it doesn't apply (C turned the subtitles off).
+  const view = panel === "style" && !styled ? "root" : panel;
   const sleepValue =
     sleep === null ? "Off" : sleep === "end" ? sleepEndLabel : sleepLeft !== null ? `${formatClock(sleepLeft)} left` : `${sleep} min`;
   const qualityLabel =
@@ -270,7 +274,7 @@ export function SettingsPopover(props: SettingsPopoverProps) {
           role="menu"
           className="absolute bottom-full right-0 mb-3 max-h-[60vh] w-80 animate-pop-in overflow-y-auto rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
         >
-          {panel === "root" ? (
+          {view === "root" ? (
             <>
               <Nav label="Quality" value={qualityLabel} onClick={() => setPanel("quality")} />
               {audioStreams.length > 1 ? (
@@ -282,7 +286,7 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                 extra={movableSub && subtitleOffset !== 0 ? formatSubtitleOffset(subtitleOffset) : undefined}
                 onClick={() => setPanel("subtitles")}
               />
-              {subtitleStreams.some((s) => s.text_based !== false) ? (
+              {styled ? (
                 <Nav
                   label="Subtitle style"
                   value={SUBTITLE_SIZES.find((s) => s.id === subtitleStyle.size)?.label ?? "Normal"}
@@ -306,7 +310,7 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold transition-colors hover:bg-white/10"
               >
                 <ChevronLeft className="size-4" />
-                {PANEL_TITLE[panel]}
+                {PANEL_TITLE[view]}
               </button>
               <div className="my-1 h-px bg-white/10" />
               {panel === "quality"
@@ -338,7 +342,7 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                     </Option>
                   ))
                 : null}
-              {panel === "style" ? (
+              {view === "style" ? (
                 <>
                   <GroupLabel>Size</GroupLabel>
                   {SUBTITLE_SIZES.map((s) => (

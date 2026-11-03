@@ -218,6 +218,8 @@ data class PlayerUiState(
     val subtitleOffsetMs: Long = 0,
     /** The subtitles chosen can be moved: text, or pictures drawn by the player from the server's .mks. */
     val subtitleSync: Boolean = false,
+    /** The subtitles chosen are text, which the subtitle style (size, background, font, position) is for: pictures keep their own look. */
+    val subtitleStyled: Boolean = false,
     /** The sleep timer. */
     val sleep: SleepState = SleepState(),
     /** The playback speed, 1 normal ([PlaybackController.setSpeed]). */

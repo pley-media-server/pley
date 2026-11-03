@@ -106,6 +106,9 @@ describes how they are made.
 - Tautulli no longer takes Pley for a server that is down when nothing has
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.
+- The web player offers Subtitle style only while text subtitles show,
+  where it changes something: picture subtitles (PGS, VobSub, DVB) keep
+  their own look, and subtitles off have nothing to style.
 
 ## [0.1.4] - 2026-11-02
 

@@ -1849,6 +1849,8 @@ class SessionPlaybackController(
         val sub = subtitle
         // Text moves always; pictures only when drawn here from the server's .mks.
         val syncable = sub != null && (!PlaybackPlan.isImage(sub) || (streaming && sideload && info?.burnSubtitles != true))
+        // The style is for text: pictures, drawn here or burned in, keep their own look.
+        val styled = sub != null && !PlaybackPlan.isImage(sub)
         val auto = serverQuality(info)
         val playing = label(auto ?: quality)
         val fileHint = chosenFile?.let { f ->
@@ -1875,6 +1877,7 @@ class SessionPlaybackController(
                 qualities = qualities,
                 quality = if (automatic) texts.automatic(playing) else label(quality),
                 subtitleSync = syncable,
+                subtitleStyled = styled,
                 subtitleOffsetMs = offset.value,
             )
         }

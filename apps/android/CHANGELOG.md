@@ -18,6 +18,14 @@ describes how they are made.
 - The player's −10 s and +10 s buttons, on phones and on TV. Double-tapping
   the sides of the picture (phones) and Left and Right (TV) still seek.
 
+### Fixed
+
+- The player offers the subtitle style (Subtitle style on phones, the
+  size, background, font and position under the tracks on TV) only while
+  text subtitles show, where it changes something: picture subtitles (PGS,
+  VobSub, DVB) keep their own look, and subtitles off have nothing to
+  style.
+
 ## [0.1.4] - 2026-11-02
 
 ### Changed

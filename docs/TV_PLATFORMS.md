@@ -98,8 +98,8 @@ asks "Who's watching?". What differs:
   the TV.
 - **Settings → Subtitles and display:** size, background, font and
   position (raised 5, 10 or 16 % of the height). A font is offered only if
-  the TV has a face for it. Picture subtitles keep their own
-  position.
+  the TV has a face for it. They are for text subtitles: picture subtitles
+  keep their own look.
 - **Pley draws every subtitle itself:** AVPlay takes external files from
   local paths only, and LG lists WebVTT only, without embedded tracks.
   Picture subtitles (PGS, VobSub, DVB) are decoded from the server's `.mks`
@@ -505,8 +505,8 @@ for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
 DVB) decoded from the server's `.mks` and drawn as the web app draws them,
 burned in by the server only when it can't make that file, the side
-panels (Subtitles with Sync and the subtitles' look, Audio, Quality, the
-sleep timer, Speed where the TV's player has other speeds, and Info,
+panels (Subtitles with Sync and, for text subtitles, their look, Audio,
+Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),

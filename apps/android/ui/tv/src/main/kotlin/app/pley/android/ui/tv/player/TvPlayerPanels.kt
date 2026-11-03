@@ -78,8 +78,8 @@ import java.util.Locale
 /**
  * The player's side panels (design spec §2.7): Subtitles (with Sync while
  * the subtitles chosen can move, Find subtitles… while the file streams
- * from the server, and their size, background, font and position when
- * [onSubtitleStyle] saves them), Find subtitles' results, Audio (with the
+ * from the server, and their size, background, font and position while
+ * they are text, when [onSubtitleStyle] saves them), Find subtitles' results, Audio (with the
  * audio delay), Quality, Chapters, Sleep timer, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
  * with 16 dp left corners. It slides in on its own layer over 200 ms (in
  * place with reduced motion) and the scrim behind it fades by its colour
@@ -216,7 +216,8 @@ private fun ChoicePanel(
                         )
                     }
                 }
-                if (onSubtitleStyle != null) subtitleStyle(captionLook, style, onSubtitleStyle)
+                // Pictures keep their own look, and subtitles off have none.
+                if (onSubtitleStyle != null && s.subtitleStyled) subtitleStyle(captionLook, style, onSubtitleStyle)
             }
             PlayerPanel.FindSubtitles -> when (val search = s.subtitleSearch) {
                 null, SubtitleSearchUi.Searching -> item(key = "searching") { PanelNote(searching, Modifier.focusRequester(focus).focusable()) }
@@ -358,6 +359,7 @@ private data class PanelData(
     /** To the chapter, so the chapters panel ticks the one playing. */
     val positionMs: Long,
     val subtitleSync: Boolean,
+    val subtitleStyled: Boolean,
     val subtitleOffsetMs: Long,
     val sleep: SleepState,
     val speed: Float,
@@ -376,6 +378,7 @@ private data class PanelData(
             canPlayOriginal = s.canPlayOriginal,
             positionMs = TvPlayerText.chapterAt(s.chapters, s.positionMs)?.let { s.chapters[it].startMs } ?: 0,
             subtitleSync = s.subtitleSync,
+            subtitleStyled = s.subtitleStyled,
             subtitleOffsetMs = s.subtitleOffsetMs,
             sleep = s.sleep,
             speed = s.speed,

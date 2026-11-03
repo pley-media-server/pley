@@ -101,12 +101,18 @@ data class SubtitleChoice(
  * Subtitle style, Speed, Sleep timer and Playback details, each also opened
  * straight from the bottom row, and Chapters. Subtitles has Sync while the
  * subtitles chosen can move, and Find subtitles… while the file streams
- * from the server; Audio has the audio delay. [surface2][PleyColors.Surface2], 20 dp top
+ * from the server; Subtitle style shows while the subtitles chosen are
+ * text; Audio has the audio delay. [surface2][PleyColors.Surface2], 20 dp top
  * corners, over a 60 % scrim that closes it.
  */
 @Composable
 internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoice, onStyle: (SubtitleChoice) -> Unit) {
     val page = state.sheet
+    // Subtitle style stops applying while open (the next episode's subtitles are pictures): back to Settings.
+    val styleGone = page == SheetPage.Style && !state.subtitleStyled
+    LaunchedEffect(styleGone) {
+        if (styleGone) state.back()
+    }
     val reduced = reducedMotion()
     val scrim by animateFloatAsState(if (page != null) 1f else 0f, PleyMotion.overlay(reduced), label = "sheetScrim")
     if (page != null || scrim > 0f) {
@@ -251,7 +257,10 @@ private fun SettingsPage(state: PlayerScreenState, style: SubtitleChoice) {
     NavRow(PleyIcons.Captions, stringResource(R.string.player_subtitles), subtitle, enabled = state.subtitles.isNotEmpty() || state.canFindSubtitles) {
         state.open(SheetPage.Subtitles)
     }
-    NavRow(PleyIcons.SlidersHorizontal, stringResource(R.string.player_subtitle_style), sizeLabel(style.sizeIndex)) { state.open(SheetPage.Style) }
+    // Only while the subtitles chosen are text: pictures keep their own look.
+    if (state.subtitleStyled) {
+        NavRow(PleyIcons.SlidersHorizontal, stringResource(R.string.player_subtitle_style), sizeLabel(style.sizeIndex)) { state.open(SheetPage.Style) }
+    }
     NavRow(PleyIcons.FastForward, stringResource(R.string.player_speed), PlaybackSpeeds.label(state.speed)) { state.open(SheetPage.Speed) }
     NavRow(MoonIcon, stringResource(R.string.player_sleep_timer), SleepTexts.summary(LocalResources.current, state.sleep)) { state.open(SheetPage.Sleep) }
     NavRow(PleyIcons.Info, stringResource(R.string.player_details), state.method.orEmpty()) { state.open(SheetPage.Details) }

@@ -308,6 +308,10 @@ It has no releases yet: it is built and installed by hand
   stopped an animation that had gone with it.
 - Too many wrong PINs for the profile the TV starts as say how long to
   wait, as a switch does, rather than "a few minutes".
+- The player's Subtitles panel lists the subtitles' size, background, font
+  and position only while text subtitles show, where they change
+  something: picture subtitles keep their own look, and subtitles off have
+  nothing to style.
 
 ### Security
 
