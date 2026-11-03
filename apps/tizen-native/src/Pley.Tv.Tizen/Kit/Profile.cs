@@ -75,6 +75,10 @@ static class Profile
     [Conditional("PROFILE")]
     public static void Keys(Action<string, bool> onKey) => Run.Keys(onKey);
 
+    /// <summary>While the listener records (its "record"), <paramref name="animation"/> plays as many times slower as it asked, so its frames can be caught.</summary>
+    [Conditional("PROFILE")]
+    public static void Slowed(Animation animation) => Run.Slowed(animation);
+
 #if PROFILE
     /// <summary>All the profiling's state, only ever touched in a profiling build.</summary>
     static class Run
@@ -83,6 +87,8 @@ static class Profile
         /// <summary>Milliseconds from the process's start to <see cref="Since"/> starting.</summary>
         static readonly double Before = StartOffset();
         static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        /// <summary>For asking for a command: the listener holds the ask until it has one, so a command comes at once.</summary>
+        static readonly HttpClient Held = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         static readonly string? Address = typeof(Profile).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == "PleyMetrics")?.Value;
         static string last = "start";
@@ -204,15 +210,16 @@ static class Profile
         public static void Keys(Action<string, bool> onKey) => press = onKey;
 
         /// <summary>
-        /// What the listener asks for (scripts/metrics.mjs): every second the app asks, and "shot"
-        /// has it capture its window (its views; the video is on a plane of its own and comes out
-        /// black) and post the PNG to the listener's /shot; "keys Down Down OK" presses those keys.
+        /// What the listener asks for (scripts/metrics.mjs): the app asks, and the listener holds the
+        /// ask until it has a command. "shot" has it capture its window (its views; the video is on a
+        /// plane of its own and comes out black) and post the PNG to the listener's /shot; "keys Down
+        /// Down OK" presses those keys; "record" catches frames (<see cref="Record"/>).
         /// </summary>
         static void Commands(Window window, string dataDir)
         {
             if (Address == null) return;
             var root = Address.TrimEnd('/');
-            asking = new Timer(1000);
+            asking = new Timer(250);
             asking.Tick += (_, _) =>
             {
                 if (!asked) _ = Ask(window, dataDir, root);
@@ -227,9 +234,10 @@ static class Profile
             try
             {
                 // Back on the UI thread after the await: NUI's synchronization context.
-                var wanted = (await Http.GetStringAsync($"{root}/command?tv={Uri.EscapeDataString(Tv)}")).Trim();
+                var wanted = (await Held.GetStringAsync($"{root}/command?tv={Uri.EscapeDataString(Tv)}&hold=1")).Trim();
                 if (wanted == "shot") Shoot(window, dataDir, root);
                 else if (wanted.StartsWith("keys ", StringComparison.Ordinal)) Press(wanted.Substring(5).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                else if (wanted.StartsWith("record ", StringComparison.Ordinal)) Record(window, dataDir, root, wanted.Substring(7).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
             }
             catch (Exception)
             {
@@ -289,6 +297,97 @@ static class Profile
             var size = window.WindowSize;
             capture.Start(window.GetDefaultLayer(), new Size(size.Width, size.Height), file, Color.Black);
             Mark($"screenshot: {size.Width}x{size.Height} asked");
+        }
+
+        static float slowBy = 1;
+        static Timer? recording;
+
+        public static void Slowed(Animation animation)
+        {
+            if (slowBy > 1) animation.SpeedFactor = 1 / slowBy;
+        }
+
+        /// <summary>
+        /// "record 20 6000 0,0,960,1080 Right": animations slowed 20 times (those that say they can
+        /// be, <see cref="Slowed"/>), the keys pressed, and the window's area (in its pixels) caught
+        /// as JPEGs one after another for 6 s. A capture takes the TV a moment, so a 200 ms
+        /// animation gives a frame or two at its own speed; slowed, it gives dozens. Each frame goes
+        /// to the listener's /frame with when it was caught at the animation's own speed, then
+        /// /recorded says how many came.
+        /// </summary>
+        static void Record(Window window, string dataDir, string root, string[] words)
+        {
+            if (recording != null || words.Length < 3) return;
+            var number = System.Globalization.CultureInfo.InvariantCulture;
+            var slow = Math.Max(1, float.Parse(words[0], number));
+            var forMs = int.Parse(words[1], number);
+            var area = words[2].Split(',').Select(v => int.Parse(v, number)).ToArray();
+            var dir = Path.Combine(dataDir, "frames");
+            Forget(dir);
+            Directory.CreateDirectory(dir);
+            var frames = new List<(string File, double At)>();
+            Capture? last = null;
+            var catching = false;
+            var from = Now;
+            slowBy = slow;
+            Mark($"record: {slow}x slower for {forMs} ms, {words[2]}");
+            Press(words.Skip(3));
+            recording = new Timer(5);
+            recording.Tick += (_, _) =>
+            {
+                if (catching) return true;
+                // Disposed here, not in its own Finished: NUI is still in it there.
+                last?.Dispose();
+                last = null;
+                if (Now - from >= forMs)
+                {
+                    slowBy = 1;
+                    recording = null;
+                    Mark($"record: {frames.Count} frames");
+                    _ = SendFrames(root, frames, slow);
+                    return false;
+                }
+                var file = Path.Combine(dir, $"{frames.Count:000}.jpg");
+                var at = Now - from;
+                var capture = new Capture();
+                capture.Finished += (_, e) =>
+                {
+                    if (e.Success) frames.Add((file, at));
+                    catching = false;
+                };
+                capture.SetImageQuality(92);
+                catching = true;
+                last = capture;
+                capture.Start(window.GetDefaultLayer(), new Position(area[0], area[1]), new Size(area[2], area[3]), file, Color.Black);
+                return true;
+            };
+            recording.Start();
+        }
+
+        static async Task SendFrames(string root, List<(string File, double At)> frames, float slow)
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            var tv = Uri.EscapeDataString(Tv);
+            for (var i = 0; i < frames.Count; i++)
+            {
+                try
+                {
+                    using var body = new ByteArrayContent(File.ReadAllBytes(frames[i].File));
+                    await http.PostAsync($"{root}/frame?tv={tv}&n={i}&t={frames[i].At / slow:0.0}", body);
+                }
+                catch (Exception error)
+                {
+                    Mark($"record: frame {i}: {error.GetType().Name} {error.Message}");
+                }
+            }
+            try
+            {
+                await http.PostAsync($"{root}/recorded?tv={tv}&n={frames.Count}", new StringContent(""));
+            }
+            catch (Exception)
+            {
+                // No listener: nothing to tell.
+            }
         }
 
         public static void End()
@@ -604,6 +703,7 @@ done
         public static void Enter(string what) { }
         public static void Leave() { }
         public static void Keys(Action<string, bool> onKey) { }
+        public static void Slowed(Animation animation) { }
     }
 #endif
 }

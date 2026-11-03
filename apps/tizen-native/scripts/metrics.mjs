@@ -4,9 +4,14 @@
 // which the computer's firewall has to let in.
 //
 // It also drives the app: run again with a command while it listens, and the
-// next TV to ask (every second) is given it.
+// TV asking (the listener holds its ask until a command comes) is given it.
 //   metrics.mjs shot                  a screenshot, saved in out/, its path printed
 //   metrics.mjs keys Down Down OK     the remote's keys: Up, Down, Left, Right, OK, Back, Menu
+//   metrics.mjs record 20 6000 0,0,960,1080 Right
+//                                     the keys pressed with the animations that can be slowed
+//                                     20 times slower, and that area of the screen caught frame
+//                                     after frame for 6 s, into out/rec-<time>-<model>/ as
+//                                     NNN-<ms>.jpg, ms at the animation's own speed
 //   --tv S89C                         only the TV whose model name holds this
 
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
@@ -24,6 +29,8 @@ const most = 4000;
 const mostShot = 16 * 1024 * 1024;
 // How long a command waits for a TV to take it (and a screenshot to come).
 const waitMs = 30_000;
+// How long a TV's ask is held: under the 30 s the app waits, so it asks again then.
+const holdMs = 25_000;
 const stamp = () => new Date().toISOString().slice(11, 23);
 
 const args = process.argv.slice(2);
@@ -45,9 +52,12 @@ async function send(command) {
 }
 
 function listen() {
-  // Commands waiting for a TV, and screenshots asked for waiting for their picture.
+  // Commands waiting for a TV; screenshots and recordings asked for, waiting for their pictures;
+  // TVs' asks for a command, held until one comes.
   const waiting = [];
   const shots = [];
+  const recordings = [];
+  const held = [];
   const matches = (wanted, model) => !wanted || model.includes(wanted);
   const settle = (list, entry, status, text) => {
     const i = list.indexOf(entry);
@@ -55,6 +65,26 @@ function listen() {
     list.splice(i, 1);
     clearTimeout(entry.timer);
     entry.res.writeHead(status).end(text);
+  };
+  /** Gives a TV its command: its asker hears once the TV takes it, or once what it asked for is in. */
+  const hand = (entry, model, res) => {
+    res.end(entry.command);
+    appendFileSync(log, `${stamp()} COMMAND ${entry.command} taken by ${model}\n`);
+    const recording = entry.command.startsWith("record ");
+    if (entry.command !== "shot" && !recording) return settle(waiting, entry, 200, `${model} took it`);
+    waiting.splice(waiting.indexOf(entry), 1);
+    clearTimeout(entry.timer);
+    entry.model = model;
+    if (recording) {
+      // The frames come once they are all caught, which takes as long as they do.
+      entry.dir = join(out, `rec-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${model}`);
+      mkdirSync(entry.dir, { recursive: true });
+      entry.timer = setTimeout(() => settle(recordings, entry, 504, `${model} sent no frames`), 5 * 60_000);
+      recordings.push(entry);
+      return;
+    }
+    entry.timer = setTimeout(() => settle(shots, entry, 504, `${model} sent no picture`), waitMs);
+    shots.push(entry);
   };
 
   mkdirSync(out, { recursive: true });
@@ -75,20 +105,25 @@ function listen() {
         const entry = { tv: url.searchParams.get("tv") ?? "", command: body.toString("utf8").trim().slice(0, most), res };
         entry.timer = setTimeout(() => settle(waiting, entry, 504, "No TV asked for it: is a debug build open?"), waitMs);
         waiting.push(entry);
+        // A TV already asking has it at once.
+        const ask = held.find((h) => matches(entry.tv, h.model));
+        if (ask) {
+          held.splice(held.indexOf(ask), 1);
+          clearTimeout(ask.timer);
+          hand(entry, ask.model, ask.res);
+        }
         return;
       }
       if (req.method === "GET" && url.pathname === "/command") {
         const entry = waiting.find((w) => matches(w.tv, model));
-        if (!entry) return res.end("");
-        res.end(entry.command);
-        appendFileSync(log, `${stamp()} COMMAND ${entry.command} taken by ${model}\n`);
-        if (entry.command !== "shot") return settle(waiting, entry, 200, `${model} took it`);
-        // A screenshot's asker hears once the picture is in.
-        waiting.splice(waiting.indexOf(entry), 1);
-        clearTimeout(entry.timer);
-        entry.model = model;
-        entry.timer = setTimeout(() => settle(shots, entry, 504, `${model} sent no picture`), waitMs);
-        shots.push(entry);
+        if (entry) return hand(entry, model, res);
+        if (!url.searchParams.has("hold")) return res.end("");
+        const ask = { model, res };
+        ask.timer = setTimeout(() => {
+          held.splice(held.indexOf(ask), 1);
+          res.end("");
+        }, holdMs);
+        held.push(ask);
         return;
       }
       if (req.method === "POST" && url.pathname === "/shot") {
@@ -97,6 +132,21 @@ function listen() {
         appendFileSync(log, `${stamp()} SHOT ${file} (${size} bytes)\n`);
         const entry = shots.find((s) => s.model === model);
         if (entry) settle(shots, entry, size <= mostShot ? 200 : 413, size <= mostShot ? file : "The picture was too big");
+        return res.end("ok");
+      }
+      if (req.method === "POST" && url.pathname === "/frame") {
+        // A recording's frame: its number, and when it was caught at the animation's own speed.
+        const entry = recordings.find((e) => e.model === model);
+        const n = String(Math.trunc(Number(url.searchParams.get("n")) || 0)).padStart(3, "0");
+        const t = Math.round(Number(url.searchParams.get("t")) || 0);
+        if (entry && size <= mostShot) writeFileSync(join(entry.dir, `${n}-${t}.jpg`), body);
+        return res.end("ok");
+      }
+      if (req.method === "POST" && url.pathname === "/recorded") {
+        const n = Math.trunc(Number(url.searchParams.get("n")) || 0);
+        appendFileSync(log, `${stamp()} RECORDED ${n} frames from ${model}\n`);
+        const entry = recordings.find((e) => e.model === model);
+        if (entry) settle(recordings, entry, 200, `${n} frames in ${entry.dir}`);
         return res.end("ok");
       }
       if (req.method === "POST") appendFileSync(log, `${stamp()} ${body.toString("utf8").slice(0, most)}\n`);

@@ -28,7 +28,7 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |
-| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), marking a pull request's screenshots (`mark-screenshot.mjs`) |
+| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), marking a pull request's screenshots and animations (`mark-screenshot.mjs`, `mark-animation.mjs`) |
 
 ## Requirements
 
@@ -141,6 +141,19 @@ pixels, and writes a PNG; it takes a phone's JPEG too:
 ```sh
 bun scripts/mark-screenshot.mjs before.png before-marked.png --box 176,40,550,370 --arrow 1000,560,740,410
 bun scripts/mark-screenshot.mjs before.png corner.png --zoom 84,416,160,100 --box 88,454,20,60   # 5× there, pixel for pixel
+```
+
+A change that moves (an animation, a transition) is shown moving. The native
+Samsung app's debug build records one frame by frame (`metrics.mjs record`,
+[TV_PLATFORMS.md](TV_PLATFORMS.md), "Profiling");
+`scripts/mark-animation.mjs` marks the frames as `mark-screenshot.mjs` marks
+a screenshot and writes an animated PNG, slower than it was where the change
+is too quick to see, which the caption says. GitHub takes pictures up to
+10 MB: a smaller `--scale`, a longer `--step` or a quicker `--speed` makes one
+smaller, which counts where the whole screen moves, as in a crossfade.
+
+```sh
+bun scripts/mark-animation.mjs apps/tizen-native/out/rec-<time>-<model> after.png --speed 0.2 --box 4,28,164,1024 --arrow 480,740,184,740
 ```
 
 The pictures are attached to the pull request, never committed:
