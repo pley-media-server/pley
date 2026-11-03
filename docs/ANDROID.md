@@ -146,6 +146,57 @@ The menu, Original and Automatic work as in
   the last picture stays until it starts.
 - Downloads play as they are.
 
+### Casting
+
+A profile's devices play on one another ([API.md](API.md#casting-to-another-device)):
+phones and tablets cast, TVs are cast to. Each device plays what it is
+sent by itself, with its own quality, tracks and resume point.
+
+On phones and tablets:
+
+- **Cast** is in the player's top bar and beside Play on a movie's,
+  episode's or extra's page, while the profile has a device to cast to.
+  The list follows the event stream: it is read as the stream connects
+  and again when a device comes, goes or is renamed.
+- **Play on** lists each device with an icon for its kind (a TV, a
+  computer, a phone, a browser), its name and what it plays now.
+  - From the player, the device is sent the title, its version and the
+    position, and the player leaves as Back does, its progress reported.
+  - From a title's page, the device starts where the profile left off.
+  - A device that plays something already isn't sent anything: its
+    remote opens.
+- **The remote** shows the poster, the title, the device and whether it
+  plays, is paused or loading. Its position moves on while it plays, from
+  where the device last said it was (`position_ms` and `age_ms`); tap or
+  drag it to seek. Back 10 s and forward 30 s seek from there. Stop ends
+  it; Play here stops it and plays the title on the phone from that point.
+  Until the device says it plays what it was sent, the remote says
+  "Waiting for Living room TV…", and after 15 s "Living room TV didn't
+  answer".
+- **The bar** above the navigation ("Playing on Living room TV", the
+  title, play and pause) shows while the device last cast to plays
+  something, and opens its remote. It goes when the device plays nothing
+  or leaves the list.
+
+Android TV and Fire TV are listed while their event stream is open: in
+the foreground, signed in with the `play` scope, for the profile in use
+(switching profiles opens the stream again). Each makes an id once and
+keeps it in its settings; its name is the system's device name, else its
+model.
+
+- **A title sent** plays once the TV is past signing in, "Who's
+  watching?" and its PIN, from whatever screen shows: the video playing
+  leaves as Back would (its progress reported), and the player opens on
+  the title, its version and position. Without a position, it resumes
+  where the profile left off, without asking.
+- **Pause, resume, seek and stop** steer the video player open, cast or
+  not; stop leaves it as Back does. With no player open they do nothing.
+- **What it plays** is reported as playback starts (loading, then
+  playing), pauses, resumes, seeks and loads again, every 10 s while it
+  plays, and as nothing when the player closes or the title ends; the
+  next episode is reported as a new title.
+- Music and Live TV aren't cast, and aren't reported.
+
 ### Live TV
 
 This is how every Pley app shows Live TV; the [Kodi](KODI.md#live-tv),
@@ -405,6 +456,8 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 ## Known limits
 
 - Downloads are on phones and tablets only; TVs stream everything.
+- Phones and tablets cast but aren't cast to; TVs are cast to but don't
+  cast. Only video is cast.
 - Requests are on phones and tablets only: Android TV and Fire TV have no
   Discover, no requests and none of their news, and their code sign-in
   doesn't ask for the `requests` and `approvals` scopes.

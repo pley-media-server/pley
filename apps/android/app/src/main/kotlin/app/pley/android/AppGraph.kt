@@ -18,10 +18,12 @@ import app.pley.android.player.PlayerGraph
 import app.pley.android.player.session.Qualities
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.cast.CastReceiver
 import app.pley.android.watchnext.TvProviderRow
 import app.pley.android.watchnext.WatchNext
 import app.pley.android.watchnext.WatchNextImages
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttp
 import okhttp3.OkHttpClient
@@ -87,6 +89,11 @@ class AppGraph(private val app: Application) : ScreensGraph {
     /** What the player plays from the device: the downloads, on phones and tablets. */
     private val localMedia: Downloads get() = downloads
     override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device) }
+
+    /** TVs are cast to; phones and tablets only cast. */
+    override val castReceiver: CastReceiver? by lazy {
+        if (device.isTv) CastReceiver(data.cast, playerLauncher, MainScope()) else null
+    }
 
     /**
      * The home screen's Watch Next row: Android TV and Google TV only

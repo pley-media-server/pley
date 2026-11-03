@@ -95,7 +95,7 @@ internal fun Scrims(visible: Boolean) {
 /** How much the picture dims behind the controls between the scrim's darker ends. */
 private const val MID_DIM = 0.4f
 
-/** Back (large, as the hybrid player's), the title and the episode, how it plays, then picture in picture and Settings. */
+/** Back (large, as the hybrid player's), the title and the episode, how it plays, then Cast, picture in picture and Settings. */
 @Composable
 internal fun TopBar(state: PlayerScreenState, host: PlayerHost, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("top")
@@ -130,6 +130,7 @@ internal fun TopBar(state: PlayerScreenState, host: PlayerHost, modifier: Modifi
             MethodBadge(it) { state.open(SheetPage.Details) }
             Spacer(Modifier.size(4.dp))
         }
+        if (host.castable) PleyIconButton(PleyIcons.Cast, stringResource(R.string.cast_button), onClick = host::castTo)
         if (host.pipSupported) PleyIconButton(PleyIcons.PictureInPicture2, stringResource(R.string.player_pip), onClick = host::enterPip)
         PleyIconButton(PleyIcons.SlidersHorizontal, stringResource(R.string.player_settings), onClick = { state.open(SheetPage.Settings) })
     }

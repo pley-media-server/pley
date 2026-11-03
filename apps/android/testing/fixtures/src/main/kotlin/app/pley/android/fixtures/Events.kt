@@ -1,5 +1,7 @@
 package app.pley.android.fixtures
 
+import app.pley.android.model.CastIdentity
+import app.pley.android.model.CastPlatform
 import app.pley.android.model.PleyJson
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.ServerEvent
@@ -22,13 +24,17 @@ import okio.BufferedSink
  * [FixtureServer.Options.scanEveryMs] (30 s) one library is "scanned":
  * scan_started, its progress, scan_finished and library_changed. Writes
  * add their own (library_changed, sessions_changed), and tests can send
- * any with [FixtureServer.emit].
+ * any with [FixtureServer.emit]. A stream opened by a device to cast to
+ * lists it while it is open ([open]), and its commands go to it alone.
  */
 internal class EventHub(private val state: State) {
     private val streams = CopyOnWriteArraySet<LinkedBlockingQueue<String>>()
 
     /** The profile each stream is for. */
     private val owners = ConcurrentHashMap<LinkedBlockingQueue<String>, Long>()
+
+    /** The device each stream lists to be cast to, if it does. */
+    private val casts = ConcurrentHashMap<LinkedBlockingQueue<String>, String>()
     private var scheduler: ScheduledExecutorService? = null
     private var scans = 0
 
@@ -66,6 +72,32 @@ internal class EventHub(private val state: State) {
         streams.forEach { if (owners[it] == profileId) it.offer(text) }
     }
 
+    /** Sends [event] to the streams of profile [profileId]'s cast device [deviceId] only. */
+    fun emitToDevice(profileId: Long, deviceId: String, event: ServerEvent) {
+        val text = PleyJson.encodeToString(ServerEvent.Serializer, event)
+        streams.forEach { if (owners[it] == profileId && casts[it] == deviceId) it.offer(text) }
+    }
+
+    /**
+     * GET /api/events for [caller]: with `cast_device`, `cast_name` and
+     * `cast_platform`, the device is listed to be cast to while the stream
+     * is open (it needs `play`: 403; a missing or wrong one: 400; more than
+     * 32 for the profile: 429).
+     */
+    fun open(call: Call, caller: Caller): MockResponse {
+        val id = call.query("cast_device") ?: return response(caller, null)
+        if ("play" !in caller.scopes) {
+            return Reply.error(403, "insufficient_scope", "this app wasn't allowed to: it needs play", "Bearer error=\"insufficient_scope\", scope=\"play\"")
+        }
+        val name = call.query("cast_name")?.trim().orEmpty()
+        val platform = CastPlatform.entries.firstOrNull { it.wire == call.query("cast_platform") && it != CastPlatform.Unknown }
+        if (!CastList.validId(id) || name.isEmpty() || name.codePointCount(0, name.length) > CastIdentity.NAME_MAX || platform == null) {
+            return Reply.badRequest("a cast device gives its id, name and platform")
+        }
+        if (!state.casts.hasRoom(caller.profile.id, id)) return Reply.error(429, "too_many", "too many devices to cast to")
+        return response(caller, CastIdentity(id, name, platform))
+    }
+
     private fun scan() {
         val library = state.catalog.libraries[scans++ % state.catalog.libraries.size]
         val total = library.itemCount.toLong()
@@ -77,8 +109,8 @@ internal class EventHub(private val state: State) {
         emit(ServerEvent.LibraryChanged(library.id))
     }
 
-    /** The stream for [caller], until its token ends, it goes away or the server stops. */
-    fun response(caller: Caller): MockResponse {
+    /** The stream for [caller], until its token ends, it goes away or the server stops; listing [cast] meanwhile. */
+    private fun response(caller: Caller, cast: CastIdentity?): MockResponse {
         val queue = LinkedBlockingQueue<String>()
         val body = object : MockResponseBody {
             override val contentLength: Long = -1L
@@ -86,6 +118,12 @@ internal class EventHub(private val state: State) {
             override fun writeTo(sink: BufferedSink) {
                 owners[queue] = caller.profile.id
                 streams += queue
+                if (cast != null) {
+                    casts[queue] = cast.id
+                    synchronized(state.lock) { state.casts.connect(caller.profile.id, cast) }
+                    // Told to every stream of the profile, this one's too.
+                    emitTo(caller.profile.id, ServerEvent.CastDevicesChanged)
+                }
                 try {
                     // The headers go out with the first comment.
                     chunk(sink, ": connected\n\n")
@@ -108,6 +146,11 @@ internal class EventHub(private val state: State) {
                 } finally {
                     streams -= queue
                     owners -= queue
+                    if (cast != null) {
+                        casts -= queue
+                        synchronized(state.lock) { state.casts.disconnect(caller.profile.id, cast.id) }
+                        emitTo(caller.profile.id, ServerEvent.CastDevicesChanged)
+                    }
                 }
             }
         }

@@ -1,5 +1,9 @@
 package app.pley.android.network
 
+import app.pley.android.model.CastAction
+import app.pley.android.model.CastControlRequest
+import app.pley.android.model.CastPlayRequest
+import app.pley.android.model.CastReport
 import app.pley.android.model.ConversionState
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverList
@@ -128,6 +132,11 @@ class FakePleyApiTest {
         assertEquals("No", api.declineRequest(44, Decline("No")).reason)
         assertEquals("Added by hand", api.requestHandled(49).note)
         assertEquals(6L, api.requestOptions().sonarr?.qualityProfile)
+        val devices = api.castDevices()
+        assertEquals(listOf("Living room TV", "Bedroom"), devices.map { it.name })
+        api.castPlay(devices[0].id, CastPlayRequest(101))
+        api.castControl(devices[0].id, CastControlRequest(CastAction.Pause))
+        api.reportCastState(devices[0].id, CastReport())
 
         val suspending =PleyApi::class.java.methods.filter { m -> m.parameterTypes.lastOrNull()?.name == "kotlin.coroutines.Continuation" }
         val called = api.calls.map { it.method }.toSet()

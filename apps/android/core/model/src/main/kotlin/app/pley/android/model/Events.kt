@@ -263,6 +263,57 @@ sealed interface ServerEvent {
         override val type: String get() = TYPE
     }
 
+    /** A device to cast to came, went or was renamed: senders fetch the list again. */
+    data object CastDevicesChanged : ServerEvent {
+        const val TYPE = "cast_devices_changed"
+        override val type: String get() = TYPE
+    }
+
+    /** What cast device [deviceId] plays, as it said just now; `null`: nothing. */
+    @Serializable
+    data class CastStateChanged(
+        val deviceId: String,
+        val state: CastState? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "cast_state"
+        }
+    }
+
+    /**
+     * To cast device [deviceId] alone: play [itemId] (its version [fileId]),
+     * from [positionMs]; `null` from where the profile left off.
+     */
+    @Serializable
+    data class CastPlay(
+        val deviceId: String,
+        val itemId: Long,
+        val fileId: Long? = null,
+        val positionMs: Long? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "cast_play"
+        }
+    }
+
+    /** To cast device [deviceId] alone: its player pauses, resumes, seeks to [positionMs] or stops. */
+    @Serializable
+    data class CastControl(
+        val deviceId: String,
+        val action: CastAction = CastAction.Unknown,
+        val positionMs: Long? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "cast_control"
+        }
+    }
+
     /** An event this app doesn't know: skipped, but not an error. */
     data class Unknown(override val type: String) : ServerEvent
 
@@ -299,6 +350,10 @@ sealed interface ServerEvent {
                 RequestCreated.TYPE -> json.decodeFromJsonElement(RequestCreated.serializer(), fields)
                 RequestFailed.TYPE -> json.decodeFromJsonElement(RequestFailed.serializer(), fields)
                 RequestsSettingsChanged.TYPE -> RequestsSettingsChanged
+                CastDevicesChanged.TYPE -> CastDevicesChanged
+                CastStateChanged.TYPE -> json.decodeFromJsonElement(CastStateChanged.serializer(), fields)
+                CastPlay.TYPE -> json.decodeFromJsonElement(CastPlay.serializer(), fields)
+                CastControl.TYPE -> json.decodeFromJsonElement(CastControl.serializer(), fields)
                 else -> Unknown(type)
             }
         }
@@ -318,7 +373,11 @@ sealed interface ServerEvent {
                 is RequestDecided -> json.encodeToJsonElement(RequestDecided.serializer(), value).jsonObject
                 is RequestCreated -> json.encodeToJsonElement(RequestCreated.serializer(), value).jsonObject
                 is RequestFailed -> json.encodeToJsonElement(RequestFailed.serializer(), value).jsonObject
-                LibrariesChanged, SessionsChanged, WatchlistChanged, LiveChannelsChanged, LiveTunersChanged, RequestsSettingsChanged, is Unknown -> emptyMap()
+                is CastStateChanged -> json.encodeToJsonElement(CastStateChanged.serializer(), value).jsonObject
+                is CastPlay -> json.encodeToJsonElement(CastPlay.serializer(), value).jsonObject
+                is CastControl -> json.encodeToJsonElement(CastControl.serializer(), value).jsonObject
+                LibrariesChanged, SessionsChanged, WatchlistChanged, LiveChannelsChanged, LiveTunersChanged, RequestsSettingsChanged,
+                CastDevicesChanged, is Unknown -> emptyMap()
             }
             output.encodeJsonElement(JsonObject(mapOf<String, JsonElement>("type" to JsonPrimitive(value.type)) + fields))
         }

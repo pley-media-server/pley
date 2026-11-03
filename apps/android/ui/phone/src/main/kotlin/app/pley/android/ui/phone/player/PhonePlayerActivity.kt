@@ -20,10 +20,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
@@ -32,9 +37,11 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.pley.android.data.AppSettings
+import app.pley.android.data.CastTarget
 import app.pley.android.data.SessionState
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
@@ -46,6 +53,11 @@ import app.pley.android.player.PlayerUiState
 import app.pley.android.player.engine.VideoMediaSession
 import app.pley.android.player.session.SavedPlaybackState
 import app.pley.android.screens.PleyGraphOwner
+import app.pley.android.screens.cast.CastViewModel
+import app.pley.android.ui.phone.cast.CastPicker
+import app.pley.android.ui.phone.cast.CastProblems
+import app.pley.android.ui.phone.kit.ToastHost
+import app.pley.android.ui.phone.kit.ToastHostState
 import app.pley.android.ui.phone.theme.PhoneTheme
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
@@ -72,7 +84,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   pause; never while paused;
  * - leaving otherwise pauses, reports and lets go of the decoders; back
  *   within 90 s it carries on with the same server session, later with a
- *   new one at the same place.
+ *   new one at the same place;
+ * - Cast moves what plays to another of the profile's devices, from here,
+ *   and leaves as Back does.
  */
 class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     private lateinit var services: PlaybackServices
@@ -93,6 +107,11 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
     /** What to start again with, after 90 s in the background closed the playback. */
     private var resumeLater: SavedPlaybackState? = null
+
+    /** Casting: the Cast button shows while [castable], "Play on" while [picking]. */
+    private var cast: CastViewModel? = null
+    private val castableState = mutableStateOf(false)
+    private val picking = mutableStateOf(false)
 
     private val pipReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -133,6 +152,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             }
         }
         loadFill()
+        followCasting()
         ContextCompat.registerReceiver(this, pipReceiver, IntentFilter(ACTION_PLAY_PAUSE), ContextCompat.RECEIVER_NOT_EXPORTED)
 
         val settingsFlow: Flow<Settings> = settings?.settings ?: flowOf(Settings())
@@ -155,6 +175,15 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
                             showDetails = chosen.showPlaybackDetails,
                         )
                     }
+                }
+                cast?.let { model ->
+                    // A title that couldn't be sent says so over the player, which plays on.
+                    val toasts = remember { ToastHostState() }
+                    CastProblems(model, toasts)
+                    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.BottomCenter) {
+                        ToastHost(toasts)
+                    }
+                    if (picking.value && !inPip.value) CastPicker(model, onPick = ::castTo, onDismiss = { picking.value = false })
                 }
             }
         }
@@ -358,6 +387,34 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         val video = picture.videoAspect.takeIf { it > 0f } ?: (16f / 9f)
         val clamped = video.coerceIn(1f / 2.39f + 0.001f, 2.39f - 0.001f)
         return android.util.Rational((clamped * 1000).roundToInt(), 1000)
+    }
+
+    // ---------------------------------------------------------------- casting
+
+    /** The profile's devices to cast to, for the Cast button. */
+    private fun followCasting() {
+        val model = ViewModelProvider(this, CastViewModel.Factory)[CastViewModel::class.java]
+        cast = model
+        lifecycleScope.launch { model.available.collect { castableState.value = it } }
+    }
+
+    override val castable: Boolean get() = castableState.value
+
+    override fun castTo() {
+        picking.value = true
+    }
+
+    /**
+     * [device] picked in "Play on": it is sent what plays here, from here,
+     * and the player leaves as it does on Back (its progress reported); the
+     * shell then shows the device's remote. A device that plays something
+     * already shows its remote instead, and nothing is sent.
+     */
+    private fun castTo(device: CastTarget) {
+        picking.value = false
+        val playing = controller.value ?: return
+        val at = playing.saveState().takeIf { it.itemId > 0 } ?: return
+        cast?.pick(device, at.itemId, at.fileId, at.positionMs, sent = ::finish)
     }
 
     // ---------------------------------------------------------------- the host's other parts

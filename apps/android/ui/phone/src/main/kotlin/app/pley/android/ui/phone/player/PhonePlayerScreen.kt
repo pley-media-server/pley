@@ -52,7 +52,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.res.stringResource
 
-/** What the player screen asks of its window: leaving, picture in picture, the volume and brightness. */
+/** What the player screen asks of its window: leaving, picture in picture, casting, the volume and brightness. */
 interface PlayerHost : LevelControls {
     /** Leaves the player. */
     fun back()
@@ -61,6 +61,12 @@ interface PlayerHost : LevelControls {
     val pipSupported: Boolean
 
     fun enterPip()
+
+    /** The profile has a device to cast to: the Cast button shows. */
+    val castable: Boolean get() = false
+
+    /** Opens "Play on": what plays here moves to the device picked. */
+    fun castTo() = Unit
 }
 
 /** Counts compositions in tests: each part reports its name. `null` outside tests. */

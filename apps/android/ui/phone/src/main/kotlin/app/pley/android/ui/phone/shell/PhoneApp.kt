@@ -82,6 +82,7 @@ import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.accountEntries
+import app.pley.android.ui.phone.cast.CastSlot
 import app.pley.android.ui.phone.home.homeEntries
 import app.pley.android.ui.phone.item.itemEntries
 import app.pley.android.ui.phone.kit.FittedLabel
@@ -181,7 +182,7 @@ internal fun PhoneShell(
  * (signed out by the server) and the session (signed out before the shell
  * listened, as when this device can't read its tokens anymore), the
  * server in use, live updates while the app is started, the music
- * playing, requests (and their news, told while the app shows), and the
+ * playing, the devices to cast to, requests (and their news, told while the app shows), and the
  * capability probe. The graph's parts are made off the main thread.
  */
 @Composable
@@ -211,6 +212,11 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
         launch {
             val music = withContext(Dispatchers.Default) { g.player.music.nowPlaying }
             music.collect { shell.nowPlaying = it }
+        }
+        launch {
+            // The profile's devices to cast to, for the Cast buttons, the bar and the remote.
+            withContext(Dispatchers.Default) { g.data.cast.start() }
+            shell.casting = true
         }
         launch {
             // The server's events connected again: it answers, and the offline banner goes.
@@ -270,7 +276,7 @@ private fun GettingIn(navigation: PhoneNavigation, shell: PhoneShellState, entri
     }
 }
 
-/** In: the navigation bar or rail, each tab's back stack, the mini player and the toasts above the bar. */
+/** In: the navigation bar or rail, each tab's back stack, the mini player, casting's bar and the toasts above the bar. */
 @Composable
 private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (NavKey) -> NavEntry<NavKey>) {
     val stacks: Map<PhoneTab, NavBackStack<NavKey>> = PhoneTab.entries.associateWith { rememberNavBackStack(it.root) }
@@ -346,6 +352,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                 )
             }
             MiniPlayerSlot(shell.nowPlaying)
+            if (shell.casting) CastSlot(shell.server, shell.toasts)
         }
     }
     // Back from another tab's first screen goes to Home, then out of the app.

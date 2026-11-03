@@ -2,6 +2,10 @@ package app.pley.android.network
 
 import app.pley.android.model.AddSubtitle
 import app.pley.android.model.Approval
+import app.pley.android.model.CastAction
+import app.pley.android.model.CastControlRequest
+import app.pley.android.model.CastPlayRequest
+import app.pley.android.model.CastReport
 import app.pley.android.model.ConversionState
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverList
@@ -240,6 +244,19 @@ class HttpPleyApiTest {
             Golden("hideFromContinueWatching", MockPley.noContent(), "DELETE /api/continue-watching/204") { hideFromContinueWatching(204) },
             Golden("addToWatchlist", MockPley.noContent(), "PUT /api/watchlist/201", body = "") { addToWatchlist(201) },
             Golden("removeFromWatchlist", MockPley.noContent(), "DELETE /api/watchlist/201") { removeFromWatchlist(201) },
+            Golden("castDevices", json("cast/devices.json"), "GET /api/cast/devices") { castDevices() },
+            Golden("castPlay", MockPley.noContent(), "POST /api/cast/devices/tv-1/play", body = """{"item_id":203,"file_id":2003}""") {
+                castPlay("tv-1", CastPlayRequest(203, fileId = 2003))
+            },
+            Golden(
+                "castControl",
+                MockPley.noContent(),
+                "POST /api/cast/devices/tv-1/control",
+                body = """{"action":"seek","position_ms":90000}""",
+            ) { castControl("tv-1", CastControlRequest(CastAction.Seek, 90_000)) },
+            Golden("reportCastState", MockPley.noContent(), "PUT /api/cast/devices/tv-1/state", body = """{"position_ms":0,"state":"playing"}""") {
+                reportCastState("tv-1", CastReport())
+            },
             Golden("liveSummary", json("live/summary.json"), "GET /api/live") { liveSummary() },
             Golden("liveChannels", json("live/channels.json"), "GET /api/live/channels") { liveChannels() },
             Golden("liveGuide", json("live/guide.json"), "GET /api/live/guide?from=1761742800&to=1761764400") {

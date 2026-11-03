@@ -20,7 +20,7 @@ const icons = [
   ["Rewind", "rewind"], ["FastForward", "fast-forward"], ["RotateCcw", "rotate-ccw"], ["RotateCw", "rotate-cw"],
   ["Captions", "captions"], ["AudioLines", "audio-lines"], ["Gauge", "gauge"], ["PictureInPicture2", "picture-in-picture-2"],
   ["Volume2", "volume-2"], ["Sun", "sun"], ["Maximize", "maximize"], ["Minimize", "minimize"], ["Shuffle", "shuffle"],
-  ["Repeat", "repeat"], ["Repeat1", "repeat-1"], ["MonitorPlay", "monitor-play"],
+  ["Repeat", "repeat"], ["Repeat1", "repeat-1"], ["MonitorPlay", "monitor-play"], ["Cast", "cast"],
   // Actions and state
   ["Check", "check"], ["CircleCheck", "circle-check"], ["Star", "star", true], ["Eye", "eye"], ["EyeOff", "eye-off"],
   ["Plus", "plus"], ["ListPlus", "list-plus"], ["Ellipsis", "ellipsis"], ["EllipsisVertical", "ellipsis-vertical"],
@@ -38,7 +38,7 @@ const icons = [
   ["ChevronDown", "chevron-down"], ["ChevronLeft", "chevron-left"], ["ChevronRight", "chevron-right"],
   ["ChevronUp", "chevron-up"], ["ChevronsRight", "chevrons-right"],
   // Devices, servers, files
-  ["Server", "server"], ["ServerOff", "server-off"], ["Smartphone", "smartphone"], ["Laptop", "laptop"], ["Monitor", "monitor"], ["Wifi", "wifi"],
+  ["Server", "server"], ["ServerOff", "server-off"], ["Smartphone", "smartphone"], ["Laptop", "laptop"], ["Monitor", "monitor"], ["Globe", "globe"], ["Wifi", "wifi"],
   ["HardDrive", "hard-drive"], ["Cpu", "cpu"], ["AppWindow", "app-window"], ["LayoutDashboard", "layout-dashboard"],
   ["Folder", "folder"], ["FolderOpen", "folder-open"], ["FolderPlus", "folder-plus"], ["FolderSearch", "folder-search"],
   ["ImageUp", "image-up"], ["ScanSearch", "scan-search"], ["DatabaseBackup", "database-backup"],

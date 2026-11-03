@@ -2,6 +2,10 @@ package app.pley.android.network
 
 import app.cash.turbine.test
 import app.pley.android.auth.SignedOutException
+import app.pley.android.model.CastAction
+import app.pley.android.model.CastIdentity
+import app.pley.android.model.CastPlatform
+import app.pley.android.model.CastPlayState
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.ServerEvent
 import app.pley.android.testing.Fixtures
@@ -78,6 +82,38 @@ class ServerEventsTest {
         assertEquals("text/event-stream", request.headers["Accept"])
         assertEquals("Bearer pley_at_one", request.headers["Authorization"])
         assertEquals(TEST_AGENT, request.headers["User-Agent"])
+    }
+
+    @Test
+    fun castEventsAreRead() = runBlocking {
+        server.enqueue(MockPley.events(event("cast_devices_changed"), event("cast_state"), event("cast_play"), event("cast_control")))
+
+        val got = stream().events().take(5).toList()
+
+        val tv = "8f14e45fceea167a5a36dedd4bea2543"
+        assertEquals(LiveEvent.Event(ServerEvent.CastDevicesChanged), got[1])
+        val heard = (got[2] as LiveEvent.Event).event as ServerEvent.CastStateChanged
+        assertEquals(tv, heard.deviceId)
+        assertEquals(101L, heard.state?.item?.id)
+        assertEquals(CastPlayState.Buffering, heard.state?.state)
+        assertEquals(LiveEvent.Event(ServerEvent.CastPlay(tv, 101, fileId = 1001, positionMs = 754_000)), got[3])
+        assertEquals(LiveEvent.Event(ServerEvent.CastControl(tv, CastAction.Seek, 784_000)), got[4])
+    }
+
+    @Test
+    fun aDeviceToCastToSaysSoAsItConnects() = runBlocking {
+        server.enqueue(MockPley.events(event("cast_devices_changed")))
+        val cast = CastIdentity("8f14e45fceea167a5a36dedd4bea2543", "Living room TV", CastPlatform.AndroidTv)
+
+        graph.events(issuer, cast).events().take(2).toList()
+
+        val request = server.takeRequest(1, TimeUnit.SECONDS)!!
+        assertEquals(
+            "GET /api/events?cast_device=8f14e45fceea167a5a36dedd4bea2543&cast_name=Living%20room%20TV&cast_platform=android_tv HTTP/1.1",
+            request.requestLine,
+        )
+        // Without one, nothing is added.
+        assertEquals("$issuer/api/events", HttpNetworkGraph.eventsUrl(issuer, null))
     }
 
     @Test

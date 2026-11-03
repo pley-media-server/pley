@@ -29,6 +29,8 @@ import okio.Buffer
  *   defaults, My List, leaving Continue Watching), which change what is
  *   read next and go to [journal];
  * - server events, with keep-alives and a scan every 30 s;
+ * - casting: devices listed while their event streams are open, sent
+ *   what to play and how to steer it, and saying what they play;
  * - pictures drawn per width bucket;
  * - signing in as pley's authorization server does: discovery, the
  *   authorize page (allowing at once, as [signInAs]), PKCE, refresh
@@ -80,7 +82,7 @@ class FixtureServer(private val options: Options = Options()) : Closeable {
     private val state = State(options)
     private val routes: List<Route> =
         state.oauth.routes() + ExtraRoutes(state).routes() + BrowseRoutes(state).routes() + PlayRoutes(state).routes() + PlaylistRoutes(state).routes() +
-            ListRoutes(state).routes()
+            ListRoutes(state).routes() + CastRoutes(state).routes()
     private val listening = Any()
     private var server = MockWebServer()
     private var port = 0

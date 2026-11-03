@@ -9,6 +9,7 @@ import app.pley.android.data.AppDataGraph
 import app.pley.android.data.DataEnvironment
 import app.pley.android.data.LegacyPreferences
 import app.pley.android.data.TrackDefaultsRoute
+import app.pley.android.model.CastIdentity
 import app.pley.android.model.Me
 import app.pley.android.model.TrackDefaults
 import app.pley.android.network.ApiException
@@ -67,9 +68,14 @@ class TestData(
      * it cancels before the second (a DataStore file has one owner at a time).
      */
     scope: CoroutineScope = test.backgroundScope,
+    /** What the device is called where it is cast to: a TV's; `null`, a phone, which isn't cast to. */
+    castName: (() -> String)? = null,
 ) {
     val foreground = MutableStateFlow(true)
     val events = FakeServerEvents()
+
+    /** How each event stream opened listed this device to be cast to, in order (`null`: not at all). */
+    val streams: MutableList<CastIdentity?> = java.util.Collections.synchronizedList(mutableListOf())
     val trackDefaults = FakeTrackDefaultsRoute()
 
     /** The APIs asked for: the issuer, and the profile (`null` before GET /api/auth/me answered). */
@@ -93,9 +99,13 @@ class TestData(
                 user?.let { apiOf[it] } ?: api
             },
             forgetApis = { forgottenApis += it },
-            events = { events },
+            events = { _, cast ->
+                streams += cast
+                events
+            },
             trackDefaults = trackDefaults,
             profile = profile,
+            castName = castName,
             legacy = legacy,
             foreground = foreground,
             debuggable = debuggable,

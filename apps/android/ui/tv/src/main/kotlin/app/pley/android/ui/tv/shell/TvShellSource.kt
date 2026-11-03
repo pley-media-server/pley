@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.withContext
 
 /**
  * What the TV's frame reads: how to start, what the rail lists, and who
@@ -66,6 +67,12 @@ interface TvShellSource {
 
     /** Each time the server's events connect: it answers again (the offline mark goes). */
     val serverAnswered: Flow<Unit> get() = emptyFlow()
+
+    /**
+     * Whether the TV shows its screens, past signing in and "Who's
+     * watching?": only then does what is cast to it play.
+     */
+    suspend fun castReady(ready: Boolean) {}
 
     companion object {
         /**
@@ -171,6 +178,13 @@ private class GraphShellSource(
     override val liveTv: Flow<Boolean> = offMain { graph.data.liveTv.summary() }.map { it.valueOrNull?.available == true }.distinctUntilChanged()
 
     override val serverAnswered: Flow<Unit> = offMain { graph.data.liveUpdates.answered }
+
+    override suspend fun castReady(ready: Boolean) {
+        // Made off the main thread, as the rest of the graph; steered on it.
+        val receiver = withContext(Dispatchers.Default) { graph.castReceiver } ?: return
+        receiver.ready.value = ready
+        if (ready) receiver.start()
+    }
 
     /** [upstream], made and collected on Default: the graph is never made on the main thread for it. */
     private fun <T> offMain(upstream: () -> Flow<T>): Flow<T> = flow { emitAll(upstream()) }.flowOn(Dispatchers.Default)

@@ -78,11 +78,13 @@ import app.pley.android.ui.tv.livetv.liveTvEntries
 import app.pley.android.ui.tv.playlists.playlistsEntries
 import app.pley.android.ui.tv.search.searchEntries
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.withContext
 
 /**
  * The TV app (Android TV, Google TV, Fire TV): the theme, the D-pad rules
@@ -171,6 +173,15 @@ private fun TvShell(
     // A refused sign-in (the server ended it, or forgot it): that server's sign-in again, as on phones.
     LaunchedEffect(source, navigator) {
         source.signedOut.collect { issuer -> if (rail.shown) navigator.restart(PleyKey.Link(issuer)) }
+    }
+
+    // What is cast to the TV plays once past signing in and choosing a profile, and not after the shell goes.
+    LaunchedEffect(source) {
+        try {
+            snapshotFlow { rail.shown }.collect { source.castReady(it) }
+        } finally {
+            withContext(NonCancellable) { source.castReady(false) }
+        }
     }
 
     // A Watch Next program: its page, and it plays, once past signing in and choosing a profile.

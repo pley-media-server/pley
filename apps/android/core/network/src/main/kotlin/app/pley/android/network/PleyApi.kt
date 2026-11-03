@@ -3,6 +3,10 @@ package app.pley.android.network
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastControlRequest
+import app.pley.android.model.CastDevice
+import app.pley.android.model.CastPlayRequest
+import app.pley.android.model.CastReport
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -351,6 +355,20 @@ interface PleyApi {
 
     /** DELETE /api/watchlist/{id}: takes it off My List. */
     suspend fun removeFromWatchlist(itemId: Long)
+
+    // ---------------------------------------------------------------- casting (scope play; docs/API.md, "Casting to another device")
+
+    /** GET /api/cast/devices: the profile's devices that may be cast to, by name, with what each plays. */
+    suspend fun castDevices(): List<CastDevice>
+
+    /** POST /api/cast/devices/{id}/play: device [deviceId] plays [request]'s movie, episode or extra. */
+    suspend fun castPlay(deviceId: String, request: CastPlayRequest)
+
+    /** POST /api/cast/devices/{id}/control: device [deviceId]'s player pauses, resumes, seeks or stops. */
+    suspend fun castControl(deviceId: String, request: CastControlRequest)
+
+    /** PUT /api/cast/devices/{id}/state: this device, listed as [deviceId], says what it plays. */
+    suspend fun reportCastState(deviceId: String, report: CastReport)
 
     // ---------------------------------------------------------------- live TV (docs/API.md, "Live TV")
 

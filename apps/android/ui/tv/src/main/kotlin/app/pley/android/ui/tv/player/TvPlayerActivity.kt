@@ -22,6 +22,7 @@ import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.player.session.SavedPlaybackState
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.cast.CastReceiver
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -36,7 +37,9 @@ import kotlinx.coroutines.launch
  * - **onStart** attaches the playback [PlayerLauncher][app.pley.android.screens.PlayerLauncher]
  *   prepared to this window (the display mode is chosen before the first
  *   frame), tells the capability probe which display this is, and starts
- *   the media session, so remotes' media keys and Alexa reach the player.
+ *   the media session, so remotes' media keys and Alexa reach the player,
+ *   and hands it to casting (CastReceiver), which steers it and reports
+ *   what it plays.
  * - **onStop** keeps where it was, ends the media session and lets
  *   everything go: the server's session, the player, its decoders and audio
  *   output (Amazon 1.3, Google's TV-NP). Nothing plays behind other apps,
@@ -64,6 +67,9 @@ class TvPlayerActivity : ComponentActivity() {
 
     /** Settings → Playback details: the readout shows over the video. */
     private var showDetails by mutableStateOf(false)
+
+    /** The playback as casting steers it, while the window is started. */
+    private var cast: CastReceiver.Player? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,10 +113,26 @@ class TvPlayerActivity : ComponentActivity() {
         saved = null
         window.decorView.display?.displayId?.let(graph.caps.capabilities::setDisplay)
         attachEngine()
+        castTo()
+    }
+
+    /** The playback showing is steered by what is cast to the TV, and says what it plays. */
+    private fun castTo() {
+        val playing = controller ?: return
+        val receiver = graph.castReceiver ?: return
+        val shown = object : CastReceiver.Player {
+            override val controller: PlaybackController = playing
+
+            override fun exit() = finish()
+        }
+        cast = shown
+        receiver.opened(shown)
     }
 
     override fun onStop() {
         if (!isChangingConfigurations) {
+            cast?.let { graph.castReceiver?.closed(it) }
+            cast = null
             val playing = controller
             if (playing != null) {
                 saved = playing.saveState()

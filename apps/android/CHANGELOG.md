@@ -8,6 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Casting: phones play a movie, an episode or an extra on another of the
+  profile's devices (Cast in the player and beside Play), then pause,
+  seek and stop it from a remote, with a bar above the navigation while it
+  plays. Android TV and Fire TV play what they are sent, and are steered
+  from the phone.
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live

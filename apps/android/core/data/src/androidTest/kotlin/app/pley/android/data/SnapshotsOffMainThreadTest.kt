@@ -57,7 +57,7 @@ class SnapshotsOffMainThreadTest {
             cacheDir = { File(dir, "cache") },
             auth = auth,
             api = { _, _ -> api },
-            events = { FakeServerEvents() },
+            events = { _, _ -> FakeServerEvents() },
             trackDefaults = FakeTrackDefaultsRoute(),
             profile = TestData.PHONE,
             legacy = MemoryLegacyPreferences(),

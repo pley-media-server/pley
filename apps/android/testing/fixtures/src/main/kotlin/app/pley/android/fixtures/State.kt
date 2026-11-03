@@ -112,6 +112,9 @@ internal class State(val options: FixtureServer.Options) {
     /** Automatic's network memory (ExtraRoutes). */
     val network = NetworkMemory()
 
+    /** The devices listed to be cast to, while their event streams are open (CastRoutes). */
+    val casts = CastList()
+
     /** Subtitle search is set up. */
     @Volatile
     var subtitleSearch = true

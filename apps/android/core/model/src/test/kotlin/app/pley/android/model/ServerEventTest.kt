@@ -69,6 +69,52 @@ class ServerEventTest {
     }
 
     @Test
+    fun castEventsRead() {
+        assertEquals(ServerEvent.CastDevicesChanged, ServerEvent.parse("""{"type":"cast_devices_changed"}"""))
+        val heard = ServerEvent.parse(
+            """{"type":"cast_state","device_id":"tv-1","state":{"item":{"id":101,"library_id":1,"kind":"movie","title":"A movie"},""" +
+                """"position_ms":61000,"duration_ms":7200000,"state":"paused","age_ms":250}}""",
+        ) as ServerEvent.CastStateChanged
+        assertEquals("tv-1", heard.deviceId)
+        assertEquals(101L, heard.state?.item?.id)
+        assertEquals(CastPlayState.Paused, heard.state?.state)
+        assertEquals(250L, heard.state?.ageMs)
+        assertEquals(ServerEvent.CastStateChanged("tv-1", null), ServerEvent.parse("""{"type":"cast_state","device_id":"tv-1","state":null}"""))
+        assertEquals(
+            ServerEvent.CastPlay("tv-1", 203, fileId = 9, positionMs = null),
+            ServerEvent.parse("""{"type":"cast_play","device_id":"tv-1","item_id":203,"file_id":9,"position_ms":null}"""),
+        )
+        assertEquals(
+            ServerEvent.CastControl("tv-1", CastAction.Seek, 90_000),
+            ServerEvent.parse("""{"type":"cast_control","device_id":"tv-1","action":"seek","position_ms":90000}"""),
+        )
+        // An action a newer server adds is kept as Unknown, and ignored by the player.
+        assertEquals(ServerEvent.CastControl("tv-1", CastAction.Unknown), ServerEvent.parse("""{"type":"cast_control","device_id":"tv-1","action":"rewind"}"""))
+        for (event in listOf(heard, ServerEvent.CastDevicesChanged, ServerEvent.CastPlay("tv-1", 101), ServerEvent.CastControl("tv-1", CastAction.Stop))) {
+            assertEquals(event, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), event)))
+        }
+    }
+
+    @Test
+    fun castBodiesWriteWhatTheServerReads() {
+        assertEquals("""{"item_id":101,"position_ms":0}""", PleyJson.encodeToString(CastPlayRequest.serializer(), CastPlayRequest(101, positionMs = 0)))
+        assertEquals("""{"action":"pause"}""", PleyJson.encodeToString(CastControlRequest.serializer(), CastControlRequest(CastAction.Pause)))
+        assertEquals(
+            """{"item_id":101,"position_ms":5000,"duration_ms":60000,"state":"buffering"}""",
+            PleyJson.encodeToString(CastReport.serializer(), CastReport(101, 5_000, 60_000, CastPlayState.Buffering)),
+        )
+        // Playing nothing: the server reads the missing item_id as null.
+        assertEquals("""{"position_ms":0,"state":"playing"}""", PleyJson.encodeToString(CastReport.serializer(), CastReport()))
+    }
+
+    @Test
+    fun castNamesAreWhatTheServerTakes() {
+        assertEquals("Living room", CastIdentity.nameOf("  Living room ", "TV"))
+        assertEquals("TV", CastIdentity.nameOf(" ", "TV"))
+        assertEquals(CastIdentity.NAME_MAX, CastIdentity.nameOf("x".repeat(80), "TV").length)
+    }
+
+    @Test
     fun unknownTypesAreKeptByName() {
         val event = ServerEvent.parse("""{"type":"markers_found","item_id":203}""")
         assertEquals(ServerEvent.Unknown("markers_found"), event)

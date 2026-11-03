@@ -45,6 +45,7 @@ internal class DataStoreSettings(
         qualityOnHomeNetwork = settings.qualityOnHomeNetwork.ifBlank { Settings.AUTOMATIC },
         qualityOnMobile = settings.qualityOnMobile.ifBlank { Settings.AUTOMATIC },
         downloadQuality = settings.downloadQuality.ifBlank { Settings.ORIGINAL },
+        castDeviceId = settings.castDeviceId?.takeIf { Settings.isCastDeviceId(it) },
     )
 
     private fun read(p: Preferences): Settings {
@@ -71,6 +72,7 @@ internal class DataStoreSettings(
                 allowSoftwareVideo = p[SOFTWARE_VIDEO] ?: defaults.allowSoftwareVideo,
                 downloadOnMobileData = p[DOWNLOAD_ON_MOBILE] ?: defaults.downloadOnMobileData,
                 downloadQuality = p[DOWNLOAD_QUALITY] ?: defaults.downloadQuality,
+                castDeviceId = p[CAST_DEVICE_ID],
             ),
         )
     }
@@ -98,6 +100,7 @@ internal class DataStoreSettings(
         p.keep(SOFTWARE_VIDEO, s.allowSoftwareVideo, d.allowSoftwareVideo)
         p.keep(DOWNLOAD_ON_MOBILE, s.downloadOnMobileData, d.downloadOnMobileData)
         p.keep(DOWNLOAD_QUALITY, s.downloadQuality, d.downloadQuality)
+        p.keep(CAST_DEVICE_ID, s.castDeviceId, null)
     }
 
     private fun <T : Any> MutablePreferences.keep(key: Preferences.Key<T>, value: T?, default: T?) {
@@ -125,6 +128,7 @@ internal class DataStoreSettings(
         private val SOFTWARE_VIDEO = booleanPreferencesKey("allow_software_video")
         private val DOWNLOAD_ON_MOBILE = booleanPreferencesKey("download_on_mobile_data")
         private val DOWNLOAD_QUALITY = stringPreferencesKey("download_quality")
+        private val CAST_DEVICE_ID = stringPreferencesKey("cast_device_id")
 
         private fun passthroughKey(format: String) = stringPreferencesKey("passthrough:$format")
 

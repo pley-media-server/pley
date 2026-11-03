@@ -3,6 +3,10 @@ package app.pley.android.testing.network
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastControlRequest
+import app.pley.android.model.CastDevice
+import app.pley.android.model.CastPlayRequest
+import app.pley.android.model.CastReport
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -325,6 +329,16 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun addToWatchlist(itemId: Long) = respond("addToWatchlist", itemId) { }
 
     override suspend fun removeFromWatchlist(itemId: Long) = respond("removeFromWatchlist", itemId) { }
+
+    // ---------------------------------------------------------------- casting
+
+    override suspend fun castDevices(): List<CastDevice> = respond("castDevices") { fixture("cast/devices.json") }
+
+    override suspend fun castPlay(deviceId: String, request: CastPlayRequest) = respond("castPlay", deviceId, request) { }
+
+    override suspend fun castControl(deviceId: String, request: CastControlRequest) = respond("castControl", deviceId, request) { }
+
+    override suspend fun reportCastState(deviceId: String, report: CastReport) = respond("reportCastState", deviceId, report) { }
 
     // ---------------------------------------------------------------- live TV
 

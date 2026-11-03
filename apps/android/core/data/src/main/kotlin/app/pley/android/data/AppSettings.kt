@@ -1,6 +1,9 @@
 package app.pley.android.data
 
+import java.io.IOException
+import java.security.SecureRandom
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /** Matching the TV's display mode to the video. */
 enum class FrameRateMatching {
@@ -77,6 +80,8 @@ data class Settings(
      * quality (smaller), else the original when it plays here as it is.
      */
     val downloadQuality: String = ORIGINAL,
+    /** TVs: the id this device is cast to by (32 hex digits), made once ([AppSettings.castDeviceId]); `null` until then. */
+    val castDeviceId: String? = null,
 ) {
     /** The frame-rate matching a phone ([tv] false) or a TV uses: the choice, if it is one of the device's, else its default. */
     fun frameRateMatching(tv: Boolean): FrameRateMatching =
@@ -102,6 +107,15 @@ data class Settings(
          * Digital Plus, Atmos (in Dolby Digital Plus), TrueHD, DTS and DTS-HD.
          */
         val PASSTHROUGH_FORMATS: List<String> = listOf("ac3", "eac3", "eac3-joc", "truehd", "dts", "dts-hd")
+
+        /** A new id to be cast to by: 128 random bits as 32 hex digits. */
+        fun newCastDeviceId(): String {
+            val bytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
+            return bytes.joinToString("") { "%02x".format(it) }
+        }
+
+        /** Whether [id] is one [newCastDeviceId] made. */
+        fun isCastDeviceId(id: String?): Boolean = id != null && id.length == 32 && id.all { it in '0'..'9' || it in 'a'..'f' }
     }
 }
 
@@ -114,4 +128,20 @@ interface AppSettings {
      * builds) is put back to what it may be.
      */
     suspend fun update(change: (Settings) -> Settings)
+
+    /**
+     * The id this device is cast to by: made the first time it is asked
+     * for, then kept, so the device is the same one to the server each time
+     * it connects. One that can't be saved lasts until the app ends.
+     */
+    suspend fun castDeviceId(): String {
+        settings.first().castDeviceId?.let { return it }
+        val made = Settings.newCastDeviceId()
+        try {
+            update { it.copy(castDeviceId = it.castDeviceId ?: made) }
+        } catch (_: IOException) {
+            return made
+        }
+        return settings.first().castDeviceId ?: made
+    }
 }

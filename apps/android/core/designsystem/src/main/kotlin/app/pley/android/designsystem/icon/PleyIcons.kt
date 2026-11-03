@@ -387,6 +387,16 @@ object PleyIcons {
         "M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z",
     )
 
+    /** Lucide `cast`. */
+    val Cast = PleyIcon(
+        "cast",
+        false,
+        "M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6",
+        "M2 12a9 9 0 0 1 8 8",
+        "M2 16a5 5 0 0 1 4 4",
+        "M2 20L2.01 20",
+    )
+
     /** Lucide `check`. */
     val Check = PleyIcon(
         "check",
@@ -862,6 +872,15 @@ object PleyIcons {
         "M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z",
         "M8 21L16 21",
         "M12 17L12 21",
+    )
+
+    /** Lucide `globe`. */
+    val Globe = PleyIcon(
+        "globe",
+        false,
+        "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0z",
+        "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
+        "M2 12h20",
     )
 
     /** Lucide `wifi`. */

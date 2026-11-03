@@ -134,7 +134,7 @@ internal class BrowseRoutes(private val s: State) {
         route("GET", "/api/history", LIBRARY) { call, c, _ -> history(call, c) },
         route("GET", "/api/hubs/home", LIBRARY) { _, c, _ -> Reply.json(Hubs.serializer(), Hubs(homeHubs(c.profile))) },
         route("GET", "/api/search", LIBRARY) { call, c, _ -> search(call, c) },
-        route("GET", "/api/events", LIBRARY) { _, c, _ -> s.events.response(c) },
+        route("GET", "/api/events", LIBRARY) { call, c, _ -> s.events.open(call, c) },
         // Only pley's web app reads these; apps' tokens are refused.
         route("GET", "/api/activity", Need.Scope(WEB_ONLY)) { _, _, _ -> Reply.noContent() },
     )

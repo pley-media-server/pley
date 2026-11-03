@@ -56,6 +56,7 @@ import app.pley.android.screens.item.ItemPage
 import app.pley.android.screens.item.MetaPart
 import app.pley.android.screens.item.PrimaryAction
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.cast.CastTitle
 import app.pley.android.ui.phone.kit.ActionButton
 import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.PleyTextButton
@@ -279,12 +280,19 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         TonalButton(stringResource(R.string.item_unavailable), onClick = {}, enabled = false, modifier = width.height(48.dp))
         return
     }
-    PrimaryButton(
-        text = primaryLabel(primary),
-        onClick = { actions.play(fromStart = false) },
-        icon = PleyIcons.Play,
-        modifier = width.testTag(TestTags.ITEM_PLAY),
-    )
+    Row(if (fullWidth) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically) {
+        PrimaryButton(
+            text = primaryLabel(primary),
+            onClick = { actions.play(fromStart = false) },
+            icon = PleyIcons.Play,
+            modifier = (if (fullWidth) Modifier.weight(1f) else Modifier.widthIn(min = 220.dp)).testTag(TestTags.ITEM_PLAY),
+        )
+        // Movies, episodes and extras cast to another device too, from where the profile left off.
+        if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode || page.kind == ItemKind.Extra) {
+            val tracks = page.tracks
+            CastTitle(page.id, tracks?.versionId?.takeIf { tracks.versions.size > 1 })
+        }
+    }
     if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) {
         Spacer(Modifier.height(8.dp))
         DownloadButton(page.id, page.title, width)

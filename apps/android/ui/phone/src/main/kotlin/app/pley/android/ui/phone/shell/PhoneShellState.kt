@@ -62,6 +62,10 @@ class PhoneShellState internal constructor(
     var nowPlaying: NowPlaying? by mutableStateOf(null)
         internal set
 
+    /** Casting's devices are followed (after the first frame): its bar and remotes may show. */
+    var casting: Boolean by mutableStateOf(false)
+        internal set
+
     /** The ways into requests and their number, for Me's tab. */
     var requests: RequestsEntry by mutableStateOf(RequestsEntry.None)
         internal set

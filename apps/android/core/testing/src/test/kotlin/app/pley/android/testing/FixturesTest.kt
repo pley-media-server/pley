@@ -18,6 +18,7 @@ import app.pley.android.model.RequestSummary
 import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
+import app.pley.android.model.CastDevice
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionList
 import app.pley.android.model.CollectionSort
@@ -170,6 +171,11 @@ class FixturesTest {
         "events/request_created.json" to ServerEvent.Serializer,
         "events/request_failed.json" to ServerEvent.Serializer,
         "events/requests_settings_changed.json" to ServerEvent.Serializer,
+        "events/cast_devices_changed.json" to ServerEvent.Serializer,
+        "events/cast_state.json" to ServerEvent.Serializer,
+        "events/cast_play.json" to ServerEvent.Serializer,
+        "events/cast_control.json" to ServerEvent.Serializer,
+        "cast/devices.json" to ListSerializer(CastDevice.serializer()),
         "requests/summary.json" to RequestSummary.serializer(),
         "requests/summary_manager.json" to RequestSummary.serializer(),
         "requests/list.json" to RequestList.serializer(),
@@ -198,7 +204,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(92, files.size)
+        assertEquals(97, files.size)
     }
 
     @Test

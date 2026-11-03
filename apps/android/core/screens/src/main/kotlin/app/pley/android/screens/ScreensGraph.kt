@@ -9,6 +9,7 @@ import app.pley.android.data.DataGraph
 import app.pley.android.data.Downloads
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.PlayerGraph
+import app.pley.android.screens.cast.CastReceiver
 
 /**
  * What a screen's ViewModel may use, handed over by the app. Each part is
@@ -26,6 +27,10 @@ interface ScreensGraph {
     /** Downloads for watching away from the server: phones and tablets; none on TVs and in tests. */
     val downloads: Downloads
         get() = Downloads.None
+
+    /** Being cast to: TVs; none on phones, which only cast, and in tests. */
+    val castReceiver: CastReceiver?
+        get() = null
 
     /**
      * Finding servers and checking addresses (discovery, the network

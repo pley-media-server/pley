@@ -2,6 +2,7 @@
 
 package app.pley.android.data
 
+import app.pley.android.model.CastIdentity
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
@@ -62,13 +63,18 @@ import kotlinx.coroutines.launch
  *
  * The stream ends for good when the server refuses the app (401, 403):
  * until the next return to the foreground or sign-in.
+ *
+ * A device that may be cast to ([castOf], TVs) is listed while its stream
+ * is open, for the profile whose token opened it, when its sign-in may
+ * play: the stream opens again for the profile switched to.
  */
 internal class ServerLiveUpdates(
     private val session: SessionManager,
     private val foreground: Flow<Boolean>,
-    private val eventsOf: (issuer: String) -> ServerEvents,
+    private val eventsOf: (issuer: String, cast: CastIdentity?) -> ServerEvents,
     private val cache: ResourceCache,
     private val app: CoroutineScope,
+    private val castOf: (suspend () -> CastIdentity)? = null,
 ) : LiveUpdates {
     private val _scans = MutableStateFlow<List<ScanState>>(emptyList())
     private val readScans = _scans.asStateFlow()
@@ -96,12 +102,20 @@ internal class ServerLiveUpdates(
     override fun start() {
         if (!started.compareAndSet(false, true)) return
         app.launch {
-            val signedIn = session.state.map { (it as? SessionState.SignedIn)?.session?.issuer }.distinctUntilChanged()
-            combine(foreground.distinctUntilChanged(), signedIn) { inFront, issuer -> issuer.takeIf { inFront } }
+            val signedIn = session.state.map { state ->
+                (state as? SessionState.SignedIn)?.session?.let { Stream(it.issuer, castFor(it)) }
+            }.distinctUntilChanged()
+            combine(foreground.distinctUntilChanged(), signedIn) { inFront, stream -> stream.takeIf { inFront } }
                 .distinctUntilChanged()
-                .collectLatest { issuer -> if (issuer != null) follow(issuer) else _scans.value = emptyList() }
+                .collectLatest { stream -> if (stream != null) follow(stream) else _scans.value = emptyList() }
         }
     }
+
+    /** The stream to open: [issuer]'s, listing this device to be cast to by profile [castFor] when there is one. */
+    private data class Stream(val issuer: String, val castFor: Long?)
+
+    /** The profile this device is listed for: one whose sign-in may play, on a device that may be cast to. */
+    private fun castFor(session: Session): Long? = if (castOf != null && PLAY in session.scopes) session.me?.id else null
 
     /** A fresh list of libraries: which are scanning now. */
     fun heard(libraries: List<Library>) {
@@ -112,13 +126,14 @@ internal class ServerLiveUpdates(
         }
     }
 
-    private suspend fun follow(issuer: String) = coroutineScope {
+    private suspend fun follow(stream: Stream) = coroutineScope {
         // Back in the foreground (or just signed in): what is old is asked again.
         cache.revalidate(STALE_MS) { _, _ -> true }
         val pending = ConcurrentHashMap<Long, Job>()
         val watchState = AtomicReference<WatchStateHeard?>(null)
         try {
-            eventsOf(issuer).events().collect { live ->
+            val cast = if (stream.castFor != null) castOf?.invoke() else null
+            eventsOf(stream.issuer, cast).events().collect { live ->
                 when (live) {
                     LiveEvent.Reconnected -> {
                         _streaming.value = true
@@ -189,6 +204,8 @@ internal class ServerLiveUpdates(
             is ServerEvent.RequestsChanged, is ServerEvent.RequestAvailable, is ServerEvent.RequestDecided,
             is ServerEvent.RequestCreated, is ServerEvent.RequestFailed, ServerEvent.RequestsSettingsChanged,
             ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, ServerEvent.LiveTunersChanged, is ServerEvent.Unknown -> Unit
+            // Casting follows these itself (ServerCast), from [events].
+            ServerEvent.CastDevicesChanged, is ServerEvent.CastStateChanged, is ServerEvent.CastPlay, is ServerEvent.CastControl -> Unit
         }
     }
 
@@ -246,6 +263,9 @@ internal class ServerLiveUpdates(
 
         /** Events kept for slow listeners of [events]; more are dropped. */
         private const val HEARD_BUFFER = 16
+
+        /** The scope a device needs to be cast to. */
+        private const val PLAY = "play"
 
         /** Whether the answer under [key], holding [value], shows something of [libraryId]. */
         fun affects(libraryId: Long, key: String, value: Any?): Boolean {

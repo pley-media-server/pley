@@ -5,6 +5,10 @@ import app.pley.android.common.ImageUrls
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastControlRequest
+import app.pley.android.model.CastDevice
+import app.pley.android.model.CastPlayRequest
+import app.pley.android.model.CastReport
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -358,6 +362,19 @@ class HttpPleyApi(
     override suspend fun addToWatchlist(itemId: Long) = call("PUT", EMPTY, "api", "watchlist", itemId)
 
     override suspend fun removeFromWatchlist(itemId: Long) = call("DELETE", null, "api", "watchlist", itemId)
+
+    // ---------------------------------------------------------------- casting
+
+    override suspend fun castDevices(): List<CastDevice> = get(ListSerializer(CastDevice.serializer()), "api", "cast", "devices")
+
+    override suspend fun castPlay(deviceId: String, request: CastPlayRequest) =
+        call("POST", json(CastPlayRequest.serializer(), request), "api", "cast", "devices", deviceId, "play")
+
+    override suspend fun castControl(deviceId: String, request: CastControlRequest) =
+        call("POST", json(CastControlRequest.serializer(), request), "api", "cast", "devices", deviceId, "control")
+
+    override suspend fun reportCastState(deviceId: String, report: CastReport) =
+        call("PUT", json(CastReport.serializer(), report), "api", "cast", "devices", deviceId, "state")
 
     // ---------------------------------------------------------------- live TV
 

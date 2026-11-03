@@ -7,11 +7,13 @@ import app.pley.android.common.Addresses
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
 import app.pley.android.common.sha1Hex
+import app.pley.android.model.CastIdentity
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import okhttp3.Cache
 import okhttp3.Dispatcher
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 
@@ -36,8 +38,11 @@ interface NetworkGraph {
     /** For subtitles of [issuer], which the transcoder may still be writing. */
     fun subtitles(issuer: String): OkHttpClient
 
-    /** The event stream of [issuer]. */
-    fun events(issuer: String): ServerEvents
+    /**
+     * The event stream of [issuer]; with [cast], this device is listed to
+     * be cast to while it is open (docs/API.md, "Casting to another device").
+     */
+    fun events(issuer: String, cast: CastIdentity? = null): ServerEvents
 
     /**
      * Lets go of [issuer]'s API clients once its HTTP caches are deleted
@@ -163,9 +168,9 @@ internal class HttpNetworkGraph(
         signedInClient(originOf(origin), EVENTS_READ_SECONDS)
     }
 
-    override fun events(issuer: String): ServerEvents {
+    override fun events(issuer: String, cast: CastIdentity?): ServerEvents {
         val origin = originOf(issuer)
-        return EventStream(OkHttpSseConnection({ eventsClient(origin) }, "$origin/api/events"))
+        return EventStream(OkHttpSseConnection({ eventsClient(origin) }, eventsUrl(origin, cast)))
     }
 
     private fun signedInClient(origin: String, readSeconds: Long): OkHttpClient = base.newBuilder()
@@ -212,5 +217,16 @@ internal class HttpNetworkGraph(
         const val MEDIA_READ_SECONDS = 60L
         const val SUBTITLES_READ_SECONDS = 60L
         const val EVENTS_READ_SECONDS = 45L
+
+        /** GET /api/events of [origin], listing this device as [cast] says when there is one. */
+        internal fun eventsUrl(origin: String, cast: CastIdentity?): String {
+            val url = "$origin/api/events".toHttpUrl().newBuilder()
+            if (cast != null) {
+                url.addQueryParameter("cast_device", cast.id)
+                url.addQueryParameter("cast_name", cast.name)
+                url.addQueryParameter("cast_platform", cast.platform.wire)
+            }
+            return url.build().toString()
+        }
     }
 }

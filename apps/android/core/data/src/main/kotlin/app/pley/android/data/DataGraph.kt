@@ -2,6 +2,8 @@ package app.pley.android.data
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.os.Build
+import android.provider.Settings as SystemSettings
 import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.okio.OkioStorage
@@ -13,6 +15,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import app.pley.android.auth.AuthGraph
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
+import app.pley.android.model.CastIdentity
+import app.pley.android.model.CastPlatform
 import app.pley.android.network.NetworkGraph
 import app.pley.android.network.PleyApi
 import app.pley.android.network.ServerEvents
@@ -63,6 +67,9 @@ interface DataGraph {
     /** How Live TV was left on this device (nothing kept unless the graph keeps it). */
     val liveTvViews: LiveTvViews get() = LiveTvViews.None
 
+    /** Casting to the profile's other devices, and being cast to (none unless the graph has it). */
+    val cast: CastRepository get() = CastRepository.None
+
     companion object {
         /**
          * The data side of the app over [network] and [auth]. Making it
@@ -81,6 +88,7 @@ interface DataGraph {
                     events = network::events,
                     trackDefaults = HttpTrackDefaults { issuer -> network.media(issuer) },
                     profile = profile,
+                    castName = if (profile.isTv) ({ castNameOf(app) }) else null,
                     legacy = LegacyPreferences.of(app),
                     foreground = processForeground(),
                     debuggable = (app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
@@ -92,6 +100,12 @@ interface DataGraph {
         /** Whether the app is in the foreground: some activity of it is started. */
         private fun processForeground(): Flow<Boolean> = flow {
             emitAll(ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) })
+        }
+
+        /** What people call this TV where it is cast to: its name in the system's settings, else its model. */
+        private fun castNameOf(context: Context): String {
+            val named = runCatching { SystemSettings.Global.getString(context.contentResolver, SystemSettings.Global.DEVICE_NAME) }.getOrNull()
+            return CastIdentity.nameOf(named.orEmpty(), fallback = Build.MODEL.ifBlank { "Android TV" })
         }
     }
 }
@@ -111,9 +125,12 @@ class DataEnvironment(
     val api: (issuer: String, userId: Long?) -> PleyApi,
     /** Lets go of a server's APIs once its HTTP caches are deleted (NetworkGraph.forget). */
     val forgetApis: (issuer: String) -> Unit = {},
-    val events: (issuer: String) -> ServerEvents,
+    /** A server's event stream, listing this device to be cast to as [cast] says (NetworkGraph.events). */
+    val events: (issuer: String, cast: CastIdentity?) -> ServerEvents,
     val trackDefaults: TrackDefaultsRoute,
     val profile: DeviceProfile,
+    /** What this device is called where it may be cast to (TVs); `null`: it isn't cast to (phones), only sends. */
+    val castName: (() -> String)? = null,
     val legacy: LegacyPreferences,
     /** Whether the app is in the foreground, where the server's events are followed. */
     val foreground: Flow<Boolean>,
@@ -172,8 +189,17 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     }
     override val session: SessionRepository get() = sessionImpl
 
-    private val live by lazy { ServerLiveUpdates(sessionImpl, env.foreground, env.events, cache, env.scope) }
+    /** How this device is listed to be cast to (TVs): Settings' id, and its name now. */
+    private val castOf: (suspend () -> CastIdentity)? = env.castName?.let { name ->
+        { CastIdentity(settings.castDeviceId(), name(), CastPlatform.AndroidTv) }
+    }
+
+    private val live by lazy { ServerLiveUpdates(sessionImpl, env.foreground, env.events, cache, env.scope, castOf) }
     override val liveUpdates: LiveUpdates get() = live
+
+    override val cast: CastRepository by lazy {
+        ServerCast(cache, live, if (castOf != null) ({ settings.castDeviceId() }) else null, env.scope, env.clock)
+    }
 
     override val libraries: LibrariesRepository by lazy { CachedLibraries(cache) { live.heard(it) } }
     override val hubs: HubsRepository by lazy { CachedHubs(cache) }
