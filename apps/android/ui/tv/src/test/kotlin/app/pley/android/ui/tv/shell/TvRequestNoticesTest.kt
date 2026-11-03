@@ -19,6 +19,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.lifecycle.Lifecycle
 import app.pley.android.common.Tier
 import app.pley.android.data.RequestNotice
 import app.pley.android.data.RequestsRepository
@@ -93,11 +94,12 @@ class TvRequestNoticesTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             val content = remember { FocusRequester() }
+            val rail = remember { RailState(content) }
             TvTheme(Tier.T2, reducedMotion = true) {
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalTvOverlays provides overlays) {
                     Box(Modifier.fillMaxSize().keyRepeatGate(gate).focusRequester(content).focusGroup()) {
                         page()
-                        TvRequestNotices(source, content, free = { free && !overlays.any }, onOpen = { opened += it })
+                        TvRequestNotices(source, content, rail, free = { free && !overlays.any }, onOpen = { opened += it })
                     }
                 }
             }
@@ -135,6 +137,23 @@ class TvRequestNoticesTest {
         card().assertDoesNotExist()
         compose.onNodeWithText("A page").assertIsFocused()
         assertEquals(emptyList<TvNotice>(), queue.value)
+    }
+
+    @Test
+    fun newsHeardBehindThePlayerWaitsForTheRemoteToRestOnceBack() {
+        show()
+        // The player's activity is in front.
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        hear(ready(1, "Arrival"))
+        advance(5_000)
+        card().assertDoesNotExist()
+        // Back from it: the person's next press is meant for the page.
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        advance(1_000)
+        card().assertDoesNotExist()
+        advance(600)
+        card().assertExists()
+        compose.onNodeWithText("Open").assertIsFocused()
     }
 
     @Test
