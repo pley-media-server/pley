@@ -196,6 +196,23 @@ sealed class FakeLive : ILiveSource, ILiveServer
 
     public void Leave(string session) => Left.Add(session);
 
+    readonly List<Action<long, string?>> takers = new List<Action<long, string?>>();
+
+    public IDisposable OnTakenOver(Action<long, string?> taken)
+    {
+        takers.Add(taken);
+        return new Unlisten(() => takers.Remove(taken));
+    }
+
+    /// <summary>The server's <c>live_taken_over</c>: someone took over <paramref name="channelId"/>'s connection.</summary>
+    public void TakeOver(long channelId, string? message)
+    {
+        foreach (var t in takers.ToList()) t(channelId, message);
+    }
+
+    /// <summary>The players listening for a take-over.</summary>
+    public int TakeOverListeners => takers.Count;
+
     public string LastWatch => Sent.Last(s => s.StartsWith("watch", StringComparison.Ordinal));
 
     sealed class Unlisten : IDisposable

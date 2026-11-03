@@ -17,7 +17,8 @@ namespace Pley.Tv.Core.Api;
 /// <summary>
 /// One of the server's events (docs/API.md, "Activity &amp; events"). Types: library_changed,
 /// libraries_changed, sessions_changed, watchlist_changed, user_state_changed, session_stopped,
-/// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed.
+/// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed,
+/// live_taken_over.
 /// </summary>
 public sealed record ServerEvent
 {
@@ -28,6 +29,8 @@ public sealed record ServerEvent
     /// <summary>user_state_changed: everything under the first item changed too.</summary>
     public bool? Children { get; init; }
     public string? SessionId { get; init; }
+    /// <summary>live_taken_over: the channel whose connection someone took over, every viewer of it ended.</summary>
+    public long? ChannelId { get; init; }
     public string? Message { get; init; }
     public bool? ByAdmin { get; init; }
     /// <summary>scan_progress: "queued", "walking", "probing", "metadata" or "done".</summary>
@@ -96,6 +99,7 @@ public sealed class SseReader
     {
         "library_changed" or "scan_started" or "scan_progress" or "scan_finished" => e.LibraryId != null,
         "session_stopped" => !string.IsNullOrEmpty(e.SessionId),
+        "live_taken_over" => e.ChannelId != null,
         "libraries_changed" or "sessions_changed" or "watchlist_changed" or "user_state_changed" or "live_channels_changed" or "live_tuners_changed" => true,
         _ => false,
     };

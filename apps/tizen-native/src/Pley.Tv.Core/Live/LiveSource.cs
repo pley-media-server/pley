@@ -85,6 +85,12 @@ public interface ILiveServer
 
     /// <summary>Stops watching <paramref name="session"/>, in the background.</summary>
     void Leave(string session);
+
+    /// <summary>
+    /// Calls <paramref name="taken"/> with the channel and the server's words each time someone
+    /// takes over a channel's connection from this profile (the server's <c>live_taken_over</c>).
+    /// </summary>
+    IDisposable OnTakenOver(Action<long, string?> taken);
 }
 
 /// <summary>Live TV's source in the app: <see cref="AppState"/> and its API.</summary>
@@ -175,6 +181,11 @@ public sealed class AppLiveSource : ILiveSource, ILiveServer
         if (api == null) return;
         _ = Quietly(api.LeaveChannel(session));
     }
+
+    public IDisposable OnTakenOver(Action<long, string?> taken) => app.OnEvent(e =>
+    {
+        if (e.Type == "live_taken_over" && e.ChannelId is { } channel) taken(channel, e.Message);
+    });
 
     static async Task Quietly(Task task)
     {

@@ -640,9 +640,9 @@ sealed class LivePlayerScreen : Sheet
     }
 
     /// <summary>
-    /// Why the channel doesn't play, with Try again, Other channels and Back to the guide. Every
-    /// connection in use, what holds each, with Watch here instead where it may be taken over,
-    /// focused first.
+    /// Why the channel doesn't play, with Try again (Watch again when watching ended on the server),
+    /// Other channels and Back to the guide. Every connection in use, what holds each, with Watch
+    /// here instead where it may be taken over, focused first.
     /// </summary>
     void Trouble(LiveTrouble t, LiveChannel? channel)
     {
@@ -720,7 +720,8 @@ sealed class LivePlayerScreen : Sheet
         y += 24;
         var buttons = new ButtonRow();
         ButtonView? retry = null;
-        if (t.CanRetry) retry = buttons.Add(new ButtonView(LiveText.PlayerRetry, ButtonKind.Pill, model.Retry, iconName: "refresh-cw"));
+        var again = t.Kind == LiveTroubleKind.Stopped ? LiveText.WatchAgain : LiveText.PlayerRetry;
+        if (t.CanRetry) retry = buttons.Add(new ButtonView(again, ButtonKind.Pill, model.Retry, iconName: "refresh-cw"));
         var others = buttons.Add(new ButtonView(LiveText.OtherChannels, ButtonKind.Pill, OpenList, iconName: "list"));
         buttons.Add(new ButtonView(LiveText.BackToGuide, ButtonKind.Pill, () => shell.Pop(this)));
         var cardWidth = Math.Max(width, buttons.WidthDp + 2 * pad);

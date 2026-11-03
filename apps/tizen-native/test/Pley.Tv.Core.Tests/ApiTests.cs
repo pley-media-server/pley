@@ -140,6 +140,19 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task A_live_session_ended_says_why_in_the_servers_own_words()
+    {
+        var (api, server, _) = SignedIn();
+        server.On("GET", Home + "/api/live/sessions/s1/plan", 410, @"{""code"":""session_stopped"",""message"":""Watching moved to Sky on another device.""}");
+        server.On("GET", Home + "/api/live/sessions/s2/plan", 410, @"{""code"":""session_stopped"",""message"":null}");
+        server.On("GET", Home + "/api/live/sessions/s3/plan", 200, @"{""video"":""copy"",""audio"":""copy""}");
+        // Not a video's "stopped by the administrator" before them.
+        Assert.Equal("Watching moved to Sky on another device.", await api.WhyLiveEnded("s1"));
+        Assert.Equal("", await api.WhyLiveEnded("s2"));
+        Assert.Null(await api.WhyLiveEnded("s3"));
+    }
+
+    [Fact]
     public async Task Writes_nulls_it_means_and_leaves_out_what_it_keeps()
     {
         var (api, server, _) = SignedIn();

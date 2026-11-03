@@ -613,6 +613,11 @@ public sealed class Api
             await Send($"/api/live/sessions/{Uri.EscapeDataString(session)}/plan", cancel: cancel, timeoutMs: 8_000).ConfigureAwait(false);
             return null;
         }
+        catch (SessionStoppedException e)
+        {
+            // The server's words, or "" when it gave none: not a video's "stopped by the administrator".
+            return e.Note?.Trim() ?? "";
+        }
         catch (ApiException e) when (e.Status == 410)
         {
             return e.Message;

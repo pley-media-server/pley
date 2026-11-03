@@ -114,7 +114,11 @@ public static class LiveText
     public const string OtherChannels = "Other channels";
     public const string BackToGuide = "Back to the guide";
     public const string Busy = "All connections are in use";
-    public const string Stopped = "Watching stopped";
+    /// <summary>Watching ended on the server (its connection taken over, or stopped there): the server's words under it, else <see cref="StoppedBody"/>.</summary>
+    public const string Stopped = "Live TV stopped";
+    public const string StoppedBody = "This channel isn't being watched any more.";
+    /// <summary>Try again's place when watching ended on the server: it tunes the channel as any watch does.</summary>
+    public const string WatchAgain = "Watch again";
     public const string Missing = "This channel isn't here any more";
     public const string NotAllowed = "Live TV isn't open to this profile";
     public const string Offline = "Can't reach your server";

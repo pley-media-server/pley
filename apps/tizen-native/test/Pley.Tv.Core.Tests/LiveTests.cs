@@ -179,6 +179,30 @@ public class LiveRulesTests
     }
 
     [Fact]
+    public void Watching_ended_on_the_server_says_the_servers_own_words_not_a_videos()
+    {
+        var taken = LiveTrouble.Of(new SessionStoppedException("Watching moved to Sky on another device."));
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Watching moved to Sky on another device."), taken);
+        Assert.Equal("Live TV stopped", LiveText.TroubleTitle(taken, "BBC One"));
+        Assert.True(taken.CanRetry);
+        // No words: the channel isn't being watched any more, not "stopped by the administrator".
+        Assert.Equal("This channel isn't being watched any more.", LiveTrouble.Of(new SessionStoppedException(null)).Message);
+        Assert.Equal("This channel isn't being watched any more.", LiveTrouble.Stopped(" ").Message);
+        Assert.Equal("This channel isn't being watched any more.", LiveTrouble.Stopped("this channel isn't being watched any more").Message);
+    }
+
+    [Fact]
+    public void A_take_over_event_reads_its_channel_and_one_without_is_skipped()
+    {
+        var reader = new SseReader();
+        var events = reader.Feed(
+            "data: {\"type\":\"live_taken_over\",\"session_id\":\"ab\",\"channel_id\":7,\"message\":\"Sam is watching Sky now, on the connection this channel used.\"}\n\n"
+            + "data: {\"type\":\"live_taken_over\",\"session_id\":\"ab\"}\n\n");
+        var e = Assert.Single(events);
+        Assert.Equal((7L, "Sam is watching Sky now, on the connection this channel used."), (e.ChannelId, e.Message));
+    }
+
+    [Fact]
     public void Live_answers_read_as_the_server_writes_them()
     {
         var guide = JsonSerializer.Deserialize<LiveGuide>("""{"from":0,"to":10,"programs":{"7":[{"channel_id":7,"start":0,"stop":10,"title":"A","is_new":true,"is_live":false,"categories":[]}]}}""", ApiJson.Options)!;
@@ -777,6 +801,148 @@ public class LivePlayerTests
         p.Retry();
         engines[0].Fail(new EngineError.Stopped("Stopped by the administrator."));
         Assert.Equal(LiveTroubleKind.Stopped, p.State.Value.Trouble?.Kind);
+    }
+
+    [Fact]
+    public void A_take_over_stops_the_channel_at_once_with_the_servers_words_and_it_isnt_tuned_again()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.TakeOver(1, "Sam is watching Sky now, on the connection this channel used.");
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Sam is watching Sky now, on the connection this channel used."), p.State.Value.Trouble);
+        Assert.Equal("stop", engines[0].Calls.Last());
+        // Its session is gone on the server: nothing to leave.
+        Assert.Empty(live.Left);
+        // The stream breaking off after changes nothing: no tuning again, no other words.
+        engines[0].Fail(new EngineError.Network("the stream ended"));
+        engines[0].Status(EngineStatus.Ended);
+        scheduler.Advance(60_000);
+        Assert.Single(live.Sent, s => s.StartsWith("watch", StringComparison.Ordinal));
+        Assert.Equal("Sam is watching Sky now, on the connection this channel used.", p.State.Value.Trouble?.Message);
+    }
+
+    [Fact]
+    public void A_take_over_matches_the_channel_and_leaves_another_alone()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.TakeOver(2, "Watching moved to Sky on another device.");
+        Assert.True(p.State.Value.Playing);
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        Assert.Equal(LiveTroubleKind.Stopped, p.State.Value.Trouble?.Kind);
+    }
+
+    [Fact]
+    public void A_take_over_says_so_once_however_many_of_the_channels_viewers_the_server_ended()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.TakeOver(1, "Sam is watching Sky now, on the connection this channel used.");
+        var shown = p.State.Value;
+        var stops = engines[0].Calls.Count(c => c == "stop");
+        // Its HLS session and its stream's reader each have an event.
+        live.TakeOver(1, "Sam is watching Sky now, on the connection this channel used.");
+        Assert.Same(shown, p.State.Value);
+        Assert.Equal(stops, engines[0].Calls.Count(c => c == "stop"));
+    }
+
+    [Fact]
+    public void A_take_overs_words_replace_a_410_without_any_that_came_first()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.Ended = "";
+        engines[0].Fail(new EngineError.Network("the playlist went"));
+        Assert.Equal("This channel isn't being watched any more.", p.State.Value.Trouble?.Message);
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Watching moved to Sky on another device."), p.State.Value.Trouble);
+    }
+
+    [Fact]
+    public void A_take_over_in_the_second_before_a_failures_retry_stops_it_there()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        // The stream broke off first; the server didn't say yet that watching ended.
+        engines[0].Fail(new EngineError.Network("the stream ended"));
+        scheduler.Advance(500);
+        live.TakeOver(1, "Someone else needed this channel's connection to watch another channel.");
+        scheduler.Advance(10_000);
+        Assert.Single(live.Sent, s => s.StartsWith("watch", StringComparison.Ordinal));
+        Assert.Equal(LiveTroubleKind.Stopped, p.State.Value.Trouble?.Kind);
+    }
+
+    [Fact]
+    public void A_take_over_of_a_stream_ts_stops_it_before_it_would_be_watched_as_hls()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        // The server tells first, then ends the stream.
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        Assert.Contains("end stream", live.Sent);
+        engines[0].Status(EngineStatus.Ended);
+        engines[0].Fail(new EngineError.Network("the stream broke off"));
+        scheduler.Advance(5_000);
+        Assert.Single(live.Sent, s => s.StartsWith("watch", StringComparison.Ordinal));
+        Assert.Equal(Relayed, engines[0].Source?.Url);
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Watching moved to Sky on another device."), p.State.Value.Trouble);
+    }
+
+    [Fact]
+    public void A_take_over_while_in_the_background_holds_nothing_to_stop()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        p.Stop();
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        Assert.IsType<LivePhase.Idle>(p.State.Value.Is);
+        p.Resume();
+        Assert.IsType<LivePhase.Tuning>(p.State.Value.Is);
+    }
+
+    [Fact]
+    public void Asked_why_when_the_playlist_has_gone_before_it_plays()
+    {
+        // A keyed address only says the session has gone, not why.
+        live.PrefetchFailure = new SessionStoppedException("this channel isn't being watched any more");
+        live.Ended = "Someone else needed this channel's connection to watch another channel.";
+        var p = Playback();
+        p.Tune(1);
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Someone else needed this channel's connection to watch another channel."), p.State.Value.Trouble);
+        Assert.Empty(engines);
+        Assert.Empty(live.Left);
+    }
+
+    [Fact]
+    public void Watch_again_after_a_take_over_watches_as_any_watch_never_taking_a_connection_by_itself()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.TakeOver(1, "Sam is watching Sky now, on the connection this channel used.");
+        using var doc = JsonDocument.Parse("""{"connections":[{"channel_id":9,"channel_name":"Sky","people":1,"can_take_over":false}]}""");
+        live.WatchFailure = new ApiException(409, "conflict", "every connection is in use", doc.RootElement.Clone());
+        p.Retry();
+        Assert.Equal("watch 1 tizen-1", live.LastWatch);
+        Assert.Equal(LiveTroubleKind.Busy, p.State.Value.Trouble?.Kind);
+    }
+
+    [Fact]
+    public void A_player_stops_listening_for_take_overs_when_it_closes()
+    {
+        var p = Playback();
+        Assert.Equal(1, live.TakeOverListeners);
+        p.Close();
+        Assert.Equal(0, live.TakeOverListeners);
     }
 
     [Fact]
