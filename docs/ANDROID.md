@@ -560,6 +560,25 @@ adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvSta
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
 
+For reference, on emulators on a laptop's integrated GPU (`-gpu host`),
+with the benchmark build compiled from its profile, `dumpsys gfxinfo` over
+three runs gives:
+
+| Where | Median frame | 90th percentile | Janky |
+|---|---|---|---|
+| TV, Right held along Home's rows (`pley-tv-34`) | 17 ms | 18 to 23 ms | 4.5 to 5.6 % |
+| TV, Down held through Movies' grid | 18 to 22 ms | 25 to 30 ms | 1.9 to 2.5 % |
+| Phone, Home flung down and up (`pley_test`) | 17 to 18 ms | 25 to 34 ms | 5.9 to 6.1 % |
+
+None of those frames is slow on the main thread: the late ones are the
+emulator's GPU, which takes about 15 ms a frame whatever is drawn, so a
+change that draws less shows in HWUI's overdraw view
+(`adb shell setprop debug.hwui.overdraw show`, then restart the app), not
+in these times. What the emulator does show is compilation: the phone's
+first flings after a start without the profile compiled run at a 95th
+percentile of 400 ms and 16 % janky frames, where compiled from the
+profile they are at 34 to 121 ms and 5 to 9 %.
+
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
 journeys against the demo server: a cold start (the Startup Profile, which
 puts what starting runs first in the dex), then, for the Baseline Profile
