@@ -78,16 +78,23 @@ fun railItems(
  * [items] with room for one more: as they are when there is room, else
  * without Collections, else without the last library ("Libraries" lists
  * it); with no "Libraries" yet, the last two libraries make way for it.
+ * When no library can make way (none is left, or the only one, which
+ * "Libraries" would merely replace), Playlists does, so the rail never
+ * holds more than [MAX_ITEMS].
  */
 private fun roomIn(items: List<RailItem>): List<RailItem> {
     if (items.size < MAX_ITEMS) return items
     if (items.any { it.slot == RailSlot.Collections }) return items.filter { it.slot != RailSlot.Collections }
     val libraries = items.filter { it.slot == RailSlot.Library }
-    if (items.any { it.slot == RailSlot.Libraries }) return items - libraries.last()
-    val leaving = libraries.takeLast(2)
-    val at = items.indexOf(leaving.first())
-    val kept = items - leaving.toSet()
-    return kept.take(at) + RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries) + kept.drop(at)
+    val listed = items.any { it.slot == RailSlot.Libraries }
+    if (listed && libraries.isNotEmpty()) return items - libraries.last()
+    if (!listed && libraries.size >= 2) {
+        val leaving = libraries.takeLast(2)
+        val at = items.indexOf(leaving.first())
+        val kept = items - leaving.toSet()
+        return kept.take(at) + RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries) + kept.drop(at)
+    }
+    return items.filter { it.slot != RailSlot.Playlists }
 }
 
 private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {

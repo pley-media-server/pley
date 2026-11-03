@@ -174,6 +174,10 @@ describes how they are made.
 
 ### Fixed
 
+- The TV app no longer closes when a USB drive is plugged in with more
+  than three libraries, Live TV, requests and music playing; when no
+  library can make way in the rail, the drive takes Playlists' place, and
+  with a single library the rail no longer runs past its seven entries.
 - On TVs, Back from a title or from a tile's actions, and Right from the
   rail, land on the library grid's tile focus left, the grid as it was,
   where they went to the first tile or to the Sort chip.

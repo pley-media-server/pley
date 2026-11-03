@@ -377,7 +377,10 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
 ### Videos on a USB drive
 
 On Android TV, Google TV and Fire TV, while a USB drive is plugged in, the
-rail has **USB drive** after Now Playing, as the Samsung app does. Its page
+rail has **USB drive** after Now Playing, as the Samsung app does. The
+rail holds seven entries: the drive makes room as the other entries do
+(Collections goes, then libraries behind **Libraries**), and when no
+library can make way, Playlists does. The drive's page
 lists the drive's folders, then its videos (MKV, MP4, M4V, MOV, TS, WebM,
 AVI, MPEG), each sorted as a person sorts names ("Part 2" before "Part
 10"); hidden files and what Windows and macOS leave on a drive aren't

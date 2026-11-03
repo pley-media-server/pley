@@ -190,6 +190,32 @@ class ShellRulesTest {
     }
 
     @Test
+    fun withEveryExtraTheDriveTakesPlaylistsPlaceWhenNoLibraryCanMakeWay() {
+        val discover = requestsItem(RequestsEntry(discover = true, requests = true))
+        assertEquals(
+            "the libraries have all made way for Live TV, Discover and Now Playing: Playlists makes way for the drive",
+            listOf("search", "home", "discover", "live-tv", "libraries", "now-playing", "drive"),
+            railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
+        )
+        assertEquals(
+            "\"Libraries\" in the one library's place would free nothing: Playlists makes way",
+            listOf("search", "home", "discover", "live-tv", "library:1", "now-playing", "drive"),
+            railItems(libraries(1), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
+        )
+        for (n in 0..8) {
+            for (music in listOf(false, true)) {
+                for (live in listOf(false, true)) {
+                    for (requests in listOf(null, discover)) {
+                        val items = railItems(libraries(n), music, live, requests, drive = true)
+                        assertTrue("$n libraries, music $music, live $live, requests ${requests != null}", items.size <= MAX_ITEMS)
+                        assertTrue(items.any { it.slot == RailSlot.Drive })
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun aRailWithoutLibrariesHasNoCollections() {
         assertEquals(listOf("search", "home", "playlists"), railItems(emptyList()).map { it.id })
     }
