@@ -2,6 +2,7 @@ package app.pley.android.player.engine
 
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.SnapSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
@@ -54,8 +55,10 @@ fun VideoSurface(
     val covered = presentation.coverSurface && !holding()
     val shutter = animateFloatAsState(if (covered) 1f else 0f, if (covered) snap() else reveal, label = "shutter")
     val fading by remember { derivedStateOf { shutter.value > 0f } }
+    // A reveal at once goes as the picture is uncovered: the snap would keep the black a frame more.
+    val atOnce = reveal is SnapSpec && reveal.delay == 0
     // Drawn at its alpha, read while drawing: the fade redraws, nothing composes again.
-    if (covered || fading) {
+    if (covered || (fading && !atOnce)) {
         Box(
             Modifier
                 .fillMaxSize()

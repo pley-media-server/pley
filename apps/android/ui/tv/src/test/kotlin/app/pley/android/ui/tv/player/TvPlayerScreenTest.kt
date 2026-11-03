@@ -883,7 +883,8 @@ class TvPlayerScreenTest {
         compose.mainClock.autoAdvance = false
         compose.runOnUiThread { engine.player.renderFirstFrame() }
         compose.waitForIdle()
-        compose.mainClock.advanceTimeBy(50)
+        // Well under the 200 ms fade, with room for the frames the picture's state takes to arrive.
+        compose.mainClock.advanceTimeBy(100)
         compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertDoesNotExist()
     }
 
