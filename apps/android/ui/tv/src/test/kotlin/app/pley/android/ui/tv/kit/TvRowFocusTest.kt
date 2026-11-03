@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlin.math.ceil
+import kotlin.math.floor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -325,6 +326,28 @@ class TvRowFocusTest {
         // And from there the keys go on as ever.
         compose.press(Key.DirectionRight)
         compose.focused().assertContentDescriptionEquals("A ${landed + 2}")
+    }
+
+    @Test
+    fun aHeldLeftSlidesBackAndLandsOnTheTileUnderTheRingRoundedDown() {
+        page()
+        compose.press(Key.DirectionRight, times = 12)
+        compose.focused().assertContentDescriptionEquals("A 13")
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionLeft)
+        // The press moves back to A 12; from 180 ms the row slides back by itself, a tile every 45 ms.
+        compose.mainClock.advanceTimeBy(400)
+        compose.focused().assertContentDescriptionEquals("A 12")
+        val under = scrolledA() / pitch
+        assertTrue("$under", under > 1f && under < 10f)
+        keyUp(Key.DirectionLeft)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        // Moving left, the tile under the ring rounded down: the row only ever settles the way it went.
+        val landed = floor(under + 0.01f).toInt()
+        compose.focused().assertContentDescriptionEquals("A ${landed + 1}")
+        assertEquals(landed * pitch, scrolledA(), 1f)
+        assertEquals(0, rail.asked)
     }
 
     @Test
