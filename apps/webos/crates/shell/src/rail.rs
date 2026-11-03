@@ -1,6 +1,7 @@
 //! The rail at the left edge (Android's `TvRail.kt` and
 //! `RailItems.kt`, the TV app's `ui/shell/rail.tsx`): icons alone while the page has focus, and
-//! labels on a panel while it has focus, which is exactly when it is open.
+//! labels on a panel while it has focus, which is exactly when it is open. Opening, the panel
+//! widens out of the closed rail as it fades in, and the labels slide in 24 dp as they fade.
 //!
 //! Focus enters it only when sent (Left where nothing is further left, Back on a first page, a
 //! page with nothing to focus), always on the current entry. Up and Down move along it, Left does
@@ -319,11 +320,15 @@ impl Rail {
             ui.ramp(Rect::new(0.0, 0.0, CLOSED_WIDTH, theme::CANVAS_H), false, &theme::RAIL_FADE);
         }
         if t > 0.0 {
+            // The panel grows out of the closed rail, its soft edge riding on its right (the
+            // Samsung app's RailView).
+            let width = panel_width(g);
             ui.opacity(t, |ui| {
                 ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), theme::RAIL_SCRIM, 0.0);
-                ui.fill(Rect::new(0.0, 0.0, OPEN_WIDTH, theme::CANVAS_H), theme::RAIL_PANEL, 0.0);
+                ui.fill(Rect::new(0.0, 0.0, width, theme::CANVAS_H), theme::RAIL_PANEL, 0.0);
                 let edge = theme::RAIL_EDGE_END - OPEN_WIDTH;
-                ui.ramp(Rect::new(OPEN_WIDTH, 0.0, edge, theme::CANVAS_H), false, &theme::RAIL_PANEL_EDGE);
+                let stops = theme::RAIL_PANEL_EDGE.stops(OPEN_WIDTH, edge);
+                ui.gradient(Rect::new(width, 0.0, edge, theme::CANVAS_H), false, stops);
             });
         }
 
@@ -401,6 +406,21 @@ impl Rail {
     }
 }
 
+/// How far a label slides in from as the rail opens: a little, since an entry doesn't clip it and
+/// more would cross the icon (the Samsung app's `LabelSlide`).
+const LABEL_SLIDE: f32 = 24.0;
+
+/// The panel's width as it grows (`g` from 0, closed, to 1, open).
+fn panel_width(g: f32) -> f32 {
+    CLOSED_WIDTH + (OPEN_WIDTH - CLOSED_WIDTH) * g
+}
+
+/// How far right of their place the labels are: sliding in as the rail opens (`t` from 0 to 1),
+/// fading where they are as it closes.
+fn label_slide(open: bool, t: f32) -> f32 {
+    if open { LABEL_SLIDE * (1.0 - t) } else { 0.0 }
+}
+
 const FIRST_Y: f32 = TOP + AVATAR_ENTRY + AVATAR_GAP;
 const SETTINGS_Y: f32 = theme::CANVAS_H - BOTTOM - ENTRY_H;
 
@@ -472,7 +492,7 @@ fn entry_ui(
             badge(ui, Point::new(X + 29.0, y + 6.0), count, danger, focused);
         }
         if t > 0.0 {
-            let at = Point::new(X + LABEL_X, y + (ENTRY_H - theme::LABEL.line_height) / 2.0);
+            let at = Point::new(X + LABEL_X + label_slide(open, t), y + (ENTRY_H - theme::LABEL.line_height) / 2.0);
             ui.opacity(t, |ui| ui.text(at, &e.label, &theme::LABEL, &TextOpts::line(LABEL_W), content));
         }
     });
@@ -542,7 +562,7 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
         }
         if t > 0.0 {
             ui.opacity(t, |ui| {
-                let x = X + LABEL_X;
+                let x = X + LABEL_X + label_slide(open, t);
                 ui.text(Point::new(x, TOP + 10.0), name, &theme::RAIL_PROFILE, &TextOpts::line(LABEL_W), content);
                 let below = TOP + 10.0 + theme::RAIL_PROFILE.line_height;
                 ui.opacity(0.8, |ui| {
@@ -672,6 +692,75 @@ mod tests {
         assert_eq!(avatar_color(None), None);
         assert_eq!(initial(" alex"), "A");
         assert_eq!(initial(""), "?");
+    }
+
+    /// The open panel's width in a frame, where it is drawn, and where its edge starts.
+    fn panel(list: &pley_base::DisplayList) -> Option<(f32, f32)> {
+        use pley_base::Cmd;
+        let fill = list.cmds.iter().find_map(|c| match c {
+            Cmd::Fill { rect, color, .. } if *color == theme::RAIL_PANEL && rect.h == theme::CANVAS_H => Some(rect.w),
+            _ => None,
+        })?;
+        let edge = list.cmds.iter().find_map(|c| match c {
+            Cmd::LinearGradient { rect, .. } if rect.x > 0.0 && rect.h == theme::CANVAS_H => Some(rect.x),
+            _ => None,
+        })?;
+        Some((fill, edge))
+    }
+
+    /// Where the label `text` is drawn.
+    fn label_x(list: &pley_base::DisplayList, text: &str) -> Option<f32> {
+        list.cmds.iter().find_map(|c| match c {
+            pley_base::Cmd::Text { origin, layout, .. } if &*layout.text == text => Some(origin.x),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn the_panel_widens_out_of_the_closed_rail_and_the_labels_slide_in() {
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        let entries = rail_entries(&[], false, false, None, false);
+        let rail = RefCell::new(Rail::default());
+        let toggle = Cell::new(false);
+        let mut screen = |ui: &mut Ui| {
+            let mut r = rail.borrow_mut();
+            if toggle.take() {
+                if r.is_open() { r.close() } else { r.open(ui, "home") }
+            }
+            let view = RailView {
+                entries: &entries,
+                current: Some("home"),
+                me: None,
+                avatar: None,
+                offline_mark: false,
+                page_modal: false,
+            };
+            r.ui(ui, &view);
+        };
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        toggle.set(true);
+        h.idle(&mut screen);
+        let frames = h.run(&[Step::Wait(0.5)], &mut screen);
+        let panels: Vec<(f32, f32)> = frames.iter().filter_map(|f| panel(&f.list)).collect();
+        // From the closed rail's width to the open one's, the edge on the panel's right.
+        assert!(panels.len() > 5);
+        assert!(panels.windows(2).all(|w| w[1].0 >= w[0].0));
+        assert!(panels.iter().all(|&(w, edge)| w == edge && w > CLOSED_WIDTH));
+        assert!(panels[0].0 < (CLOSED_WIDTH + OPEN_WIDTH) / 2.0, "{panels:?}");
+        assert_eq!(panels.last().unwrap().0, OPEN_WIDTH);
+        // The labels slide in 24 dp as they fade in.
+        let xs: Vec<f32> = frames.iter().filter_map(|f| label_x(&f.list, "Search")).collect();
+        assert!(xs[0] > X + LABEL_X + 4.0 && xs[0] <= X + LABEL_X + LABEL_SLIDE, "{xs:?}");
+        assert!(xs.windows(2).all(|w| w[1] <= w[0]));
+        assert_eq!(*xs.last().unwrap(), X + LABEL_X);
+        // Closing, they fade where they are.
+        toggle.set(true);
+        h.idle(&mut screen);
+        let frames = h.run(&[Step::Wait(0.5)], &mut screen);
+        let xs: Vec<f32> = frames.iter().filter_map(|f| label_x(&f.list, "Search")).collect();
+        assert!(!xs.is_empty() && xs.iter().all(|&x| x == X + LABEL_X), "{xs:?}");
     }
 
     #[test]
