@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 import unittest
 import urllib.parse
@@ -295,6 +296,37 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(xbmcgui.questions[0][1], "This channel isn't being watched any more.")
         # Never taking a connection over by itself: every connection in use says so.
         self.assertEqual(self.played, ["plugin://plugin.video.pley/?route=live_play&id=1"])
+
+    def test_a_channel_watched_again_and_taken_over_again_says_so_again(self):
+        self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/1/stream.ts?client_id=kodi-1"
+        asked = livetv.taken_over
+        picked = threading.Event()
+
+        def answered(message):
+            picked.wait(1)
+            return asked(message)
+
+        xbmcgui.answers.extend([True, False])
+        with mock.patch.object(self.service, "TAKEN_GRACE", 0.1), mock.patch.object(livetv, "taken_over", answered):
+            self.taken(1, "Alex is watching Two now, on the connection this channel used.")
+            # Its stream ends, then Watch again is picked within the end's wait: the end says nothing.
+            self.player.live_ended("/api/live/channels/1/stream.ts?client_id=kodi-1")
+            picked.set()
+            self.wait(lambda: self.played)
+            time.sleep(0.2)
+            self.assertEqual(xbmcgui.notified, [])
+            # Playing again, the channel is taken over again within seconds.
+            self.taken(1, "Sam is watching Three now, on the connection this channel used.")
+            self.wait(lambda: len(xbmcgui.questions) == 2)
+            self.player.live_ended("/api/live/channels/1/stream.ts?client_id=kodi-1")
+            time.sleep(0.2)
+        self.assertEqual(self.stopped, [1, 1])
+        self.assertEqual(
+            [q[1] for q in xbmcgui.questions],
+            ["Alex is watching Two now, on the connection this channel used.", "Sam is watching Three now, on the connection this channel used."],
+        )
+        self.assertEqual(self.played, ["plugin://plugin.video.pley/?route=live_play&id=1"], "OK leaves it stopped")
+        self.assertEqual(xbmcgui.notified, [], "the take-overs say why, not the ends")
 
     def test_another_channels_take_over_changes_nothing(self):
         self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/1/stream.ts?client_id=kodi-1"

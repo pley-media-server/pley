@@ -38,9 +38,10 @@ MOVING = ("Player.Seeking", "Player.Forwarding", "Player.Rewinding")
 # before the server ends its stream: an end waits this long for one before
 # it says the server stopped the channel.
 TAKEN_GRACE = 1
-# A take-over's events (one for each viewer of the channel) come together:
-# within this long, they are the one.
-TAKEN_ONCE = 15
+# A take-over's events (one for each viewer of the channel) come together,
+# within milliseconds: within this long, they are the one. Watch again
+# starts afresh, so the channel taken over again says so again.
+TAKEN_ONCE = 3
 FULLSCREEN = "Window.IsActive(fullscreenvideo) + !Window.IsVisible(videoosd) + !Window.IsVisible(seekbar)"
 
 
@@ -242,12 +243,18 @@ class Player(xbmc.Player):
         now = time.monotonic()
         self.live_end = (channel, now)
 
-        def say():
-            taken, at = self.taken
-            if channel is not None and taken == channel and at > now - TAKEN_ONCE:
-                return
-            kodi.notify(kodi.text("stream_stopped"), error=True)
+        def taken():
+            channel_taken, at = self.taken
+            return channel is not None and channel_taken == channel and at > now - TAKEN_ONCE
 
+        def say():
+            if not taken():
+                kodi.notify(kodi.text("stream_stopped"), error=True)
+
+        # The take-over's event usually comes first and says why: decided
+        # now, as Watch again picked within the wait forgets it.
+        if taken():
+            return
         later = threading.Timer(TAKEN_GRACE, say)
         later.daemon = True
         later.start()
@@ -280,6 +287,7 @@ class Player(xbmc.Player):
 
         def say():
             if livetv.taken_over(message):
+                self.taken = (None, float("-inf"))
                 self.play(livetv.play_url(channel_id))
 
         threading.Thread(target=say, name="pley-live-taken", daemon=True).start()
