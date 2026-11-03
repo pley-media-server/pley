@@ -1,13 +1,17 @@
 //! Live TV (docs/API.md, "Live TV"): a lineup of made-up channels in six
 //! groups on two sources, a guide made the same for any time asked, watching
 //! with live HLS (the sample stream's segments over and over, in a sliding
-//! window), keyed addresses, plans, leaving, favourites and the channels
-//! watched last. The second source allows one connection at once, and
+//! window), a channel's `stream.ts` (the same segments one after another, in
+//! real time, for as long as it is read), keyed addresses, plans, leaving,
+//! favourites and the channels watched last. The second source allows one connection at once, and
 //! another of Alex's devices holds it at start ([`ids::LIVE_BUSY_CHANNEL`]),
 //! so watching another of its channels answers `409` until that one is
 //! taken over. Live TV isn't open to Sam.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -129,6 +133,24 @@ struct Viewer {
     client_id: Option<String>,
     key: Option<String>,
     started_ms: i64,
+    /// A stream.ts reader's: set when either end lets go (the reader, or the session ended
+    /// here), which ends the other.
+    stream: Option<Arc<AtomicBool>>,
+}
+
+/// The device a client id is: players read a channel's stream as `<client_id>-stream`, beside
+/// the session asked for as `<client_id>` (the server's `device_of`).
+fn device_of(client: &str) -> &str {
+    client.strip_suffix("-stream").unwrap_or(client)
+}
+
+/// Sets a stream reader's flag when its body goes, sent or not (a HEAD request).
+struct StreamEnd(Arc<AtomicBool>);
+
+impl Drop for StreamEnd {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
 }
 
 /// The lineup and who watches what.
@@ -183,6 +205,7 @@ impl Live {
                 client_id: Some(OTHER_DEVICE.into()),
                 key: None,
                 started_ms: now_ms,
+                stream: None,
             },
         );
         live
@@ -235,10 +258,31 @@ impl Live {
         tuned
     }
 
+    /// Takes a session away, ending its stream.ts if it has one.
+    fn remove(&mut self, id: &str) -> Option<Viewer> {
+        let viewer = self.sessions.remove(id)?;
+        if let Some(key) = &viewer.key {
+            self.keys.remove(key);
+        }
+        if let Some(stream) = &viewer.stream {
+            stream.store(true, Ordering::SeqCst);
+        }
+        Some(viewer)
+    }
+
+    /// Forgets the stream.ts readers that let go, as the server drops a stream viewer whose
+    /// response ended.
+    fn forget_gone_streams(&mut self) {
+        self.sessions.retain(|_, v| !v.stream.as_ref().is_some_and(|s| s.load(Ordering::SeqCst)));
+    }
+
     fn end(&mut self, id: &str, message: Option<String>) {
         if let Some(viewer) = self.sessions.remove(id) {
             if let Some(key) = viewer.key {
                 self.keys.insert(key, id.to_string());
+            }
+            if let Some(stream) = viewer.stream {
+                stream.store(true, Ordering::SeqCst);
             }
             self.ended.insert(id.to_string(), (viewer.profile, message));
         }
@@ -395,6 +439,7 @@ pub(crate) fn routes() -> Vec<Route> {
                 }),
             ))
         }),
+        free("GET", "/api/live/channels/*/stream.ts", play, stream),
         free("GET", "/api/live/sessions/*/*", play, |cx| {
             let started = {
                 let mut state = lock(&cx.shared.state);
@@ -407,11 +452,7 @@ pub(crate) fn routes() -> Vec<Route> {
             // A bare 204 or 404, as the server answers it.
             match state.live.sessions.get(id) {
                 Some(viewer) if viewer.profile == cx.caller().profile => {
-                    if let Some(viewer) = state.live.sessions.remove(id)
-                        && let Some(key) = viewer.key
-                    {
-                        state.live.keys.remove(&key);
-                    }
+                    state.live.remove(id);
                     cx.shared.events.emit(&ServerEvent::LiveTunersChanged);
                     Ok(no_content())
                 }
@@ -556,27 +597,88 @@ fn favorite(cx: &Cx<'_>, state: &mut State, on: bool) -> Answer {
 
 /// POST /api/live/channels/{id}/watch `{ client_id?, keyed_urls?, take_over? }`.
 fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
+    let body = cx.req.json().unwrap_or(Value::Null);
+    let client = body["client_id"].as_str().filter(|c| (1..=128).contains(&c.len())).map(str::to_string);
+    let keyed = body["keyed_urls"].as_bool().unwrap_or(false);
+    let (session, url, id) = start_watching(cx, state, client, keyed, body["take_over"].as_i64(), None)?;
+    let profile = state.profile(cx.caller().profile);
+    let channel = state.live.channel(id).expect("checked");
+    Ok(json(
+        200,
+        &json!({ "session_id": session, "url": url, "kind": "hls", "channel": state.live.json(channel, profile, cx.now()) }),
+    ))
+}
+
+/// GET /api/live/channels/{id}/stream.ts `?client_id=&take_over=`: the channel's MPEG-TS for as
+/// long as it is read, a session of its own (the server's `livetv::stream`): here the sample
+/// segments one after another, each when its time comes.
+fn stream(cx: &Cx<'_>) -> Answer {
+    let segments: Vec<Arc<[u8]>> = (0..HLS_SEGMENTS).filter_map(|n| cx.shared.media.segment(n)).collect();
+    if segments.is_empty() {
+        return Err(not_found("the sample media aren't here"));
+    }
+    let client = cx.query("client_id").filter(|c| (1..=128).contains(&c.len())).map(str::to_string);
+    let take_over = cx.query("take_over").and_then(|t| t.parse().ok());
+    let gone = Arc::new(AtomicBool::new(false));
+    {
+        let mut state = lock(&cx.shared.state);
+        start_watching(cx, &mut state, client, false, take_over, Some(gone.clone()))?;
+    }
+    let end = StreamEnd(gone);
+    let run = move |out: &mut crate::http::ChunkWriter<'_>| {
+        let end = end;
+        for segment in segments.iter().cycle() {
+            if end.0.load(Ordering::SeqCst) {
+                break;
+            }
+            out.send(segment)?;
+            // A segment's time, waited in steps so a session ended here ends the stream soon.
+            for _ in 0..HLS_SEGMENT_MS / 100 {
+                if end.0.load(Ordering::SeqCst) {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+        Ok(())
+    };
+    Ok(Response::new(200)
+        .with_header("Content-Type", "video/mp2t")
+        .with_header("Cache-Control", "no-store")
+        .with_body(Body::Stream(Box::new(run))))
+}
+
+/// Starts the caller watching the channel of the path, as `watch` and `stream.ts` both do: the
+/// session, its playlist's address and the channel. `stream`: a stream.ts reader's flag.
+fn start_watching(
+    cx: &Cx<'_>,
+    state: &mut State,
+    client: Option<String>,
+    keyed: bool,
+    take_over: Option<i64>,
+    stream: Option<Arc<AtomicBool>>,
+) -> Result<(String, String, i64), Response> {
     open(cx, state)?;
     let id = channel(cx, state)?.id;
-    let body = cx.req.json().unwrap_or(Value::Null);
     let me = cx.caller().profile;
-    let client = body["client_id"].as_str().filter(|c| (1..=128).contains(&c.len())).map(str::to_string);
     let live = &mut state.live;
-    // What this device watched before ends.
+    live.forget_gone_streams();
+    // What this device watched before ends: the same client id, and its stream reader of
+    // another channel (the server's rule).
     if let Some(client) = &client {
-        let stream = format!("{client}-stream");
         let old: Vec<String> = live
             .sessions
             .iter()
-            .filter(|(_, v)| v.profile == me && v.client_id.as_deref().is_some_and(|c| c == client || c == stream))
+            .filter(|(_, v)| {
+                v.profile == me
+                    && v.client_id.as_deref().is_some_and(|theirs| {
+                        theirs == client || (device_of(theirs) == device_of(client) && v.channel != id)
+                    })
+            })
             .map(|(k, _)| k.clone())
             .collect();
         for old in old {
-            if let Some(viewer) = live.sessions.remove(&old)
-                && let Some(key) = viewer.key
-            {
-                live.keys.remove(&key);
-            }
+            live.remove(&old);
         }
     }
     let channel = live.channel(id).expect("checked");
@@ -589,7 +691,7 @@ fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
         && !tuned.contains(&id)
         && tuned.len() >= limit
     {
-        let take = body["take_over"].as_i64().filter(|t| tuned.contains(t));
+        let take = take_over.filter(|t| tuned.contains(t));
         let viewers_of = |live: &Live, channel: i64| -> Vec<(String, i64)> {
             live.sessions.iter().filter(|(_, v)| v.channel == channel).map(|(k, v)| (k.clone(), v.profile)).collect()
         };
@@ -630,7 +732,7 @@ fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
         }
     }
     let session = hex_id();
-    let key = body["keyed_urls"].as_bool().unwrap_or(false).then(|| format!("pley_mk_{}", token(32)));
+    let key = (keyed && stream.is_none()).then(|| format!("pley_mk_{}", token(32)));
     let url = match &key {
         Some(key) => format!("/api/live/media/{key}/index.m3u8"),
         None => format!("/api/live/sessions/{session}/index.m3u8"),
@@ -638,19 +740,16 @@ fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
     if let Some(key) = &key {
         live.keys.insert(key.clone(), session.clone());
     }
-    live.sessions
-        .insert(session.clone(), Viewer { profile: me, channel: id, client_id: client, key, started_ms: cx.now_ms() });
+    live.sessions.insert(
+        session.clone(),
+        Viewer { profile: me, channel: id, client_id: client, key, started_ms: cx.now_ms(), stream },
+    );
     let profile = state.profile_mut(me);
     profile.live_recent.retain(|c| *c != id);
     profile.live_recent.insert(0, id);
     profile.live_recent.truncate(24);
     cx.shared.events.emit(&ServerEvent::LiveTunersChanged);
-    let profile = state.profile(me);
-    let channel = state.live.channel(id).expect("checked");
-    Ok(json(
-        200,
-        &json!({ "session_id": session, "url": url, "kind": "hls", "channel": state.live.json(channel, profile, cx.now()) }),
-    ))
+    Ok((session, url, id))
 }
 
 /// A live session's playlist or segment: a sliding window over the sample
