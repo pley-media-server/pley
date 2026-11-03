@@ -151,7 +151,7 @@ function choiceOf(form: Form, network: Network): ListenChoice {
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
     bonjour: network.fixed.bonjour ? network.bonjour : form.bonjour,
     bonjour_adapters: [...form.bonjourAdapters].sort(),
-    bonjour_host_name: hostLabel(form.bonjourHost),
+    bonjour_host_name: HOST_LABEL.test(hostLabel(form.bonjourHost)) ? hostLabel(form.bonjourHost) : network.bonjour_host_name,
   };
 }
 
@@ -181,7 +181,8 @@ function problemOf(form: Form): string | null {
     return "The Jellyfin-compatible and Plex-compatible APIs can't share a port.";
   }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
-  if (!HOST_LABEL.test(hostLabel(form.bonjourHost))) {
+  // Only where it shows: hidden, the saved one stays (see choiceOf).
+  if (form.bonjour && form.mode !== "local" && !HOST_LABEL.test(hostLabel(form.bonjourHost))) {
     return "Bonjour's host name is letters, digits and hyphens, 63 at most, not starting or ending with a hyphen.";
   }
   return null;
@@ -591,7 +592,7 @@ export function NetworkSettings() {
 
       <Card className="space-y-4">
         <Row
-          label="Bonjour"
+          label="Found by Apple's devices"
           hint={
             data.fixed.bonjour
               ? "Turned off by --no-bonjour, --no-discovery, PLEY_NO_BONJOUR or PLEY_NO_DISCOVERY."
@@ -604,7 +605,7 @@ export function NetworkSettings() {
             checked={form.bonjour && form.mode !== "local"}
             disabled={data.fixed.bonjour || form.mode === "local"}
             onChange={(v) => set({ bonjour: v })}
-            label="Bonjour"
+            label="Found by Apple's devices (Bonjour)"
           />
         </Row>
         {form.bonjour && form.mode !== "local" ? (

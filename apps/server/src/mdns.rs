@@ -69,8 +69,9 @@ pub fn read(packet: &[u8]) -> Option<Packet> {
     let header = packet.get(..12)?;
     let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
     let (id, flags) = (word(0), word(2));
-    // Opcode 0 (a standard query) only; responses carry a response code of 0.
-    if flags & 0x7800 != 0 {
+    // Opcode 0 (a standard query) only, and responses with a response code
+    // of 0 (RFC 6762 §18.11).
+    if flags & 0x7800 != 0 || (flags & 0x8000 != 0 && flags & 0x000F != 0) {
         return None;
     }
     let questions = usize::from(word(4));
@@ -89,26 +90,31 @@ pub fn read(packet: &[u8]) -> Option<Packet> {
         }
         return Some(Packet::Query(Query { id, questions: asked }));
     }
-    // A response: skip its questions, read its records' names.
+    // A response: skip its questions, read the names its records answer
+    // for. A goodbye (a TTL of 0) answers for none: it gives a name up.
     for _ in 0..questions.min(MAX_ENTRIES) {
         at = skip_name(packet, at)? + 4;
     }
     let mut names = Vec::new();
     for _ in 0..records.min(MAX_ENTRIES) {
         let (name, next) = read_name(packet, at)?;
+        let ttl = u32::from_be_bytes(packet.get(next + 4..next + 8)?.try_into().ok()?);
         let length = usize::from(u16::from_be_bytes([*packet.get(next + 8)?, *packet.get(next + 9)?]));
         at = next + 10 + length;
         if at > packet.len() {
             return None;
         }
-        names.push(name);
+        if ttl > 0 {
+            names.push(name);
+        }
     }
     Some(Packet::Response(names))
 }
 
 /// The name at `at` in `packet`, and where what follows it begins.
-/// Compression pointers must point before the label that points (so they
-/// can't loop), and are followed [`MAX_POINTERS`] times at most.
+/// Compression pointers must point before the label that points, and are
+/// followed [`MAX_POINTERS`] times at most, which ends a loop between
+/// them.
 fn read_name(packet: &[u8], mut at: usize) -> Option<(Name, usize)> {
     let mut labels = Vec::new();
     let mut length = 0;
@@ -321,6 +327,13 @@ mod tests {
         };
         let p = write(std::slice::from_ref(&record), &[], None);
         assert_eq!(read(&p), Some(Packet::Response(vec![name("Den._pley._tcp.local")])));
+        // A goodbye gives the name up: it answers for nothing.
+        let goodbye = write(&[Record { ttl: 0, ..record.clone() }], &[], None);
+        assert_eq!(read(&goodbye), Some(Packet::Response(Vec::new())));
+        // A response with an error code is no answer.
+        let mut failed = p.clone();
+        failed[3] |= 3;
+        assert_eq!(read(&failed), None);
     }
 
     #[test]

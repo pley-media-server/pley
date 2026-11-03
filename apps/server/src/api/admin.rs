@@ -361,7 +361,7 @@ async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
         fixed: state.network.fixed,
         listeners: state.network.listeners(),
         adapters,
-        bonjour_host_default: crate::bonjour::generated_host(&state.server_id()),
+        bonjour_host_default: crate::bonjour::generated_host(&state.identity.id),
         config_file: state.network.config_file.display().to_string(),
         windows: cfg!(windows),
     })

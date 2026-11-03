@@ -53,6 +53,12 @@ const MAX_NAME_CHARS: usize = 64;
 /// The largest packet read: mDNS's (RFC 6762 §17), and more than any query
 /// Pley answers.
 const MAX_PACKET: usize = 9000;
+/// What a read takes: any UDP datagram, so none is too big to read (Windows
+/// fails the read of one larger than the buffer).
+const READ_BUFFER: usize = 65_536;
+/// Answers sent by unicast in a second, at most, whoever asks: a device
+/// can't make Pley send more than this at a forged address.
+const MAX_UNICAST_PER_SECOND: u32 = 100;
 /// A probe's wait for another device's answer, three times (RFC 6762 §8.1).
 const PROBE_WAIT: Duration = Duration::from_millis(250);
 /// The second announcement follows the first (RFC 6762 §8.3).
@@ -99,10 +105,19 @@ fn plan(listen: &Listen) -> Option<Plan> {
 /// named `adapter`: one on the local network that the web app listens on,
 /// among the adapters chosen, if some are.
 fn announced_on(plan: &Plan, adapter: &str, ip: IpAddr) -> bool {
+    let chosen = plan.adapters.iter().any(|chosen| chosen == adapter);
     !ip.is_loopback()
         && crate::setup::is_local_address(ip)
-        && (plan.adapters.is_empty() || plan.adapters.iter().any(|chosen| chosen == adapter))
+        // 100.64.0.0/10 is Tailscale's, which carries no multicast, and
+        // carriers' shared addresses, other customers' network: only when
+        // chosen.
+        && (chosen || (plan.adapters.is_empty() && !shared_address(ip)))
         && plan.addresses.iter().any(|web| *web == ip || (web.is_unspecified() && listens_on_family(*web, ip)))
+}
+
+/// Whether `ip` is in 100.64.0.0/10 (RFC 6598).
+fn shared_address(ip: IpAddr) -> bool {
+    matches!(ip, IpAddr::V4(v4) if v4.octets()[0] == 100 && v4.octets()[1] & 0xC0 == 64)
 }
 
 /// Whether `name` may be a network adapter's: not blank, bounded, and
@@ -314,9 +329,15 @@ struct Responder {
     /// Whether `host` is known not to be another device's: the generated
     /// one is unique, a chosen one is probed for first.
     host_checked: bool,
-    /// The server's name it stands for, and its instance label, once
-    /// announced.
+    /// The server's name it stands for, and its instance label.
     announced: Option<(String, String)>,
+    /// Whether the names were asked for on a network: with none to ask
+    /// on, they are once one comes.
+    probed: bool,
+    /// Said in the log that none of the adapters chosen is here.
+    said_none: bool,
+    /// When the current second of unicast answers began, and how many went.
+    unicast: (Instant, u32),
     /// When to announce again (the second announcement).
     again: Option<Instant>,
     /// When each answer last went out by multicast, by link and question.
@@ -333,6 +354,10 @@ impl Responder {
         socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, PORT)).into())?;
         socket.set_multicast_ttl_v4(255)?;
         socket.set_multicast_loop_v4(true)?;
+        // Only the groups this socket joined, on the adapters chosen; Linux
+        // otherwise also delivers those other programs joined elsewhere.
+        #[cfg(target_os = "linux")]
+        socket.set_multicast_all_v4(false)?;
         socket.set_nonblocking(true)?;
         let socket = UdpSocket::from_std(socket.into())?;
         let chosen = !plan.host.is_empty();
@@ -345,6 +370,9 @@ impl Responder {
             links: Vec::new(),
             host_checked: !chosen,
             announced: None,
+            probed: false,
+            said_none: false,
+            unicast: (Instant::now(), 0),
             again: None,
             multicast: HashMap::new(),
         };
@@ -370,14 +398,28 @@ impl Responder {
             .collect()
     }
 
-    /// Says in the log when adapters are chosen and none of them is here.
-    fn said_where(&self) {
-        if self.links.is_empty() && !self.plan.adapters.is_empty() {
+    /// Says in the log, once until one comes, when adapters are chosen and
+    /// none of them is here.
+    fn said_where(&mut self) {
+        if !self.links.is_empty() || self.plan.adapters.is_empty() {
+            self.said_none = false;
+        } else if !self.said_none {
+            self.said_none = true;
             tracing::warn!(
                 "Bonjour announces Pley on {} only, and none of them is on this computer now",
                 self.plan.adapters.join(", ")
             );
         }
+    }
+
+    /// Whether another answer may go by unicast this second.
+    fn may_unicast(&mut self) -> bool {
+        let now = Instant::now();
+        if now.duration_since(self.unicast.0) >= Duration::from_secs(1) {
+            self.unicast = (now, 0);
+        }
+        self.unicast.1 += 1;
+        self.unicast.1 <= MAX_UNICAST_PER_SECOND
     }
 
     fn records(&self, link: &Link, instance: &str, name: &str, ttl: Option<u32>) -> Records {
@@ -405,13 +447,20 @@ impl Responder {
         }
     }
 
-    /// Announces the server as `name`, unless it already is: a rename says
-    /// goodbye to the old name first, and the new one is probed for.
+    /// Announces the server as `name`, unless it already is. The new names
+    /// are asked for first (the old one's goodbye, heard back, would
+    /// otherwise pass for another device's), then the old one says goodbye.
+    /// With no network to ask on, nothing is claimed until one comes.
     async fn announce(&mut self, name: &str) {
-        if self.announced.as_ref().is_some_and(|(announced, _)| announced == name) {
+        if self.probed && self.announced.as_ref().is_some_and(|(announced, _)| announced == name) {
             return;
         }
-        self.announce_on(&self.links.clone(), true).await;
+        if self.links.is_empty() {
+            self.announced = Some((name.to_owned(), instance_name(name, 1)));
+            self.probed = false;
+            return;
+        }
+        let old = if self.probed { self.announced.as_ref().map(|(_, label)| label.clone()) } else { None };
         if !self.host_checked {
             self.host_checked = true;
             if self.taken(&self.host, mdns::TYPE_A).await {
@@ -427,6 +476,11 @@ impl Responder {
         let mut n = 1;
         let instance = loop {
             let instance = instance_name(name, n);
+            // The label Pley has already, but for its case (a rename that
+            // changes only that, or a long name's end): its own.
+            if old.as_ref().is_some_and(|label| label.eq_ignore_ascii_case(&instance)) {
+                break instance;
+            }
             let service: Name = std::iter::once(instance.clone()).chain(labels(&SERVICE)).collect();
             if n >= 9 || !self.taken(&service, mdns::TYPE_SRV).await {
                 break instance;
@@ -439,7 +493,13 @@ impl Responder {
                 instance_name(name, 1)
             );
         }
+        // The same label in another case replaces its records as they are
+        // (cache-flush); another one says goodbye first.
+        if old.as_ref().is_some_and(|label| !label.eq_ignore_ascii_case(&instance)) {
+            self.announce_on(&self.links.clone(), true).await;
+        }
         self.announced = Some((name.to_owned(), instance));
+        self.probed = true;
         self.announce_on(&self.links.clone(), false).await;
         self.again = Some(Instant::now() + ANNOUNCE_AGAIN);
         tracing::debug!("announced by Bonjour as {} on port {}", self.announced.as_ref().unwrap().1, self.plan.port);
@@ -492,7 +552,7 @@ impl Responder {
             // with short TTLs.
             for question in query.questions.iter().take(MAX_LEGACY_ANSWERS) {
                 let (mut found, _) = answers(&records, std::slice::from_ref(question));
-                if found.is_empty() {
+                if found.is_empty() || !self.may_unicast() {
                     continue;
                 }
                 found.iter_mut().for_each(|r| r.ttl = r.ttl.min(10));
@@ -503,7 +563,7 @@ impl Responder {
         let (unicast, multicast): (Vec<Question>, Vec<Question>) =
             query.questions.into_iter().partition(|question| question.unicast);
         let (found, extra) = answers(&records, &unicast);
-        if !found.is_empty() {
+        if !found.is_empty() && self.may_unicast() {
             self.send(&link, &mdns::write(&found, &extra, None), from.into()).await;
         }
         // Once a second at most per question on each link.
@@ -544,11 +604,19 @@ impl Responder {
         let joined = self.joined(now);
         self.links = joined;
         let new: Vec<Link> = new.into_iter().filter(|link| self.links.contains(link)).collect();
-        self.announce_on(&new, false).await;
-        if had > 0 || !new.is_empty() {
-            return;
-        }
         self.said_where();
+        if !self.probed {
+            // The first network to ask on: the names are asked for there.
+            if let Some((name, _)) = self.announced.clone() {
+                self.announce(&name).await;
+            }
+        } else if !new.is_empty() {
+            self.announce_on(&new, false).await;
+            self.again = Some(Instant::now() + ANNOUNCE_AGAIN);
+        }
+        if had > 0 && self.links.is_empty() {
+            tracing::debug!("Bonjour has no network to announce Pley on now");
+        }
     }
 
     /// Announces a second time, once.
@@ -566,13 +634,16 @@ impl Responder {
 /// Announces the server as where it listens and its name say, until it
 /// stops.
 pub async fn run(state: AppState) {
-    let id = state.server_id();
+    let id = state.identity.id.clone();
     let mut applied = state.network.applied();
     let mut settings = state.settings.subscribe();
     let mut responder: Option<Responder> = None;
     let mut rescan = tokio::time::interval(RESCAN);
     rescan.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    let mut buf = vec![0u8; MAX_PACKET];
+    let mut buf = vec![0u8; READ_BUFFER];
+    // The plan Pley couldn't announce as, said once in the log.
+    let mut failed: Option<Plan> = None;
+    let mut errors = 0u32;
     loop {
         applied.borrow_and_update();
         let wanted = plan(&state.network.wanted());
@@ -580,9 +651,24 @@ pub async fn run(state: AppState) {
             if let Some(responder) = responder.take() {
                 responder.stop().await;
             }
-            responder = wanted.and_then(|plan| {
-                Responder::start(plan, &id).map_err(|err| tracing::warn!("Bonjour can't announce Pley: {err}")).ok()
-            });
+            responder = match wanted {
+                Some(plan) => match Responder::start(plan.clone(), &id) {
+                    Ok(responder) => {
+                        failed = None;
+                        Some(responder)
+                    }
+                    Err(err) => {
+                        if failed.as_ref() == Some(&plan) {
+                            tracing::debug!("Bonjour can't announce Pley: {err}");
+                        } else {
+                            tracing::warn!("Bonjour can't announce Pley: {err}");
+                        }
+                        failed = Some(plan);
+                        None
+                    }
+                },
+                None => None,
+            };
         }
         let name = settings.borrow_and_update().server_name.clone();
         if let Some(responder) = &mut responder {
@@ -593,11 +679,24 @@ pub async fn run(state: AppState) {
             changed = settings.changed() => if changed.is_err() { break },
             _ = rescan.tick() => if let Some(responder) = &mut responder { responder.rescan().await },
             () = again(&responder) => if let Some(responder) = &mut responder { responder.again().await },
-            heard = receive(&responder, &mut buf) => {
-                if let (Some(responder), Some((n, from))) = (&mut responder, heard) {
-                    responder.heard(&buf[..n], from).await;
+            heard = receive(&responder, &mut buf) => match heard {
+                Ok((n, from)) => {
+                    errors = 0;
+                    if let Some(responder) = &mut responder {
+                        responder.heard(&buf[..n], from).await;
+                    }
                 }
-            }
+                Err(err) => {
+                    // Windows reports an unreachable earlier destination on
+                    // the next read: read again at once, and slow down only
+                    // when reads keep failing.
+                    tracing::trace!("Bonjour: {err}");
+                    errors += 1;
+                    if errors > 10 {
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                }
+            },
             () = state.stopping.cancelled() => break,
         }
     }
@@ -607,18 +706,9 @@ pub async fn run(state: AppState) {
 }
 
 /// The next packet `responder` hears; never, without one.
-async fn receive(responder: &Option<Responder>, buf: &mut [u8]) -> Option<(usize, SocketAddr)> {
+async fn receive(responder: &Option<Responder>, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)> {
     let Some(responder) = responder else { return std::future::pending().await };
-    match responder.socket.recv_from(buf).await {
-        Ok(heard) => Some(heard),
-        Err(err) => {
-            // Windows reports an unreachable earlier destination on the next
-            // read: nothing to do but read again, not at once.
-            tracing::trace!("Bonjour: {err}");
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            None
-        }
-    }
+    responder.socket.recv_from(buf).await
 }
 
 /// When `responder` is to announce again; never, without one.
@@ -697,7 +787,11 @@ mod tests {
     fn announced_from_local_addresses_only() {
         let every = on(&["0.0.0.0"], &[]);
         assert!(announced_on(&every, "eth0", ip("192.168.1.10")));
-        assert!(announced_on(&every, "tailscale0", ip("100.101.102.103")), "Tailscale");
+        // 100.64.0.0/10 (Tailscale's, carriers'): only when chosen.
+        assert!(!announced_on(&every, "tailscale0", ip("100.101.102.103")));
+        assert!(announced_on(&on(&["0.0.0.0"], &["tailscale0"]), "tailscale0", ip("100.101.102.103")));
+        assert!(shared_address(ip("100.64.0.0")) && shared_address(ip("100.127.255.255")));
+        assert!(!shared_address(ip("100.63.255.255")) && !shared_address(ip("100.128.0.0")));
         assert!(!announced_on(&every, "lo", ip("127.0.0.1")), "loopback");
         assert!(!announced_on(&every, "eth1", ip("203.0.113.5")), "the internet");
         let dual = on(&["::"], &[]);

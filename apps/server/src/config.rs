@@ -101,8 +101,8 @@ pub struct Cli {
     #[arg(long, env = "PLEY_NO_DISCOVERY", global = true)]
     pub no_discovery: bool,
 
-    /// Don't announce Pley on the local network by Bonjour (Apple's apps then need its address
-    /// typed in, and the web app has no .local name)
+    /// Keep Bonjour off, whatever Settings → Network says (Apple's apps then need the server's
+    /// address typed in)
     #[arg(long, env = "PLEY_NO_BONJOUR", global = true)]
     pub no_bonjour: bool,
 }
@@ -477,8 +477,8 @@ impl Cli {
 
 /// `pley save-config`: the options given (on the command line or in the
 /// environment) written into the config file `path`, whose other lines and
-/// comments stay. `discovery` overrides `--no-discovery`; either turned off
-/// saves Bonjour off too, as `--no-bonjour` does.
+/// comments stay. `discovery` overrides `--no-discovery`. `--no-bonjour`
+/// saves Bonjour off.
 pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::Result<()> {
     let mut values: Vec<(&str, toml::Value)> = Vec::new();
     if let Some(bind) = &cli.bind {
@@ -501,10 +501,9 @@ pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::R
     if let Some(discovery) = discovery.or(cli.no_discovery.then_some(false)) {
         values.push(("discovery", discovery.into()));
     }
-    // Discovery turned off (Windows Setup's checkbox) turns Bonjour off too;
-    // turned on, it leaves Bonjour as Settings → Network has it, since Setup
-    // saves its checkbox again on every update.
-    if cli.no_bonjour || discovery == Some(false) || (discovery.is_none() && cli.no_discovery) {
+    // Bonjour is off unless turned on in Settings → Network, which Setup's
+    // discovery checkbox, saved again on every update, leaves alone.
+    if cli.no_bonjour {
         values.push(("bonjour", false.into()));
     }
     write_keys(path, &values)
@@ -824,13 +823,13 @@ mod tests {
         std::fs::write(&file, "").unwrap();
         save_config(&args, &file, None).unwrap();
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\n");
-        // Setup saves its discovery checkbox on every update: on, it leaves
-        // Bonjour turned off in Settings alone; off, it turns Bonjour off.
+        // Setup saves its discovery checkbox on every update, and leaves
+        // Bonjour as Settings → Network has it either way.
         save_config(&cli(dir.path()), &file, Some(true)).unwrap();
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\ndiscovery = true\n");
         std::fs::write(&file, "bonjour = true\n").unwrap();
         save_config(&cli(dir.path()), &file, Some(false)).unwrap();
-        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\ndiscovery = false\n");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = true\ndiscovery = false\n");
     }
 
     #[test]

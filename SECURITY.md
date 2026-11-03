@@ -304,15 +304,19 @@ other apps (`pley_ct_…`), never with a session's
   server by its id and public endpoint, never by the name.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
-  addresses on the local network, never to the internet, and from only
-  those an administrator chooses when some are (a VPN, a container
+  addresses on the local network, never to the internet nor, unless
+  chosen, to 100.64.0.0/10 (Tailscale's, or a carrier's shared
+  addresses), and from only those an administrator chooses when some
+  are (a VPN, a container
   network or a guest Wi-Fi left out). Each network is told only the
   server's address on it.
 - Bonjour's responder is Pley's own and answers for Pley's names only. It
   answers only devices on the networks it announces on, so a forged source
   address elsewhere gets nothing; multicasts an answer once a second at
-  most on each network; reads what it hears within bounds; and keeps none
-  of it, so no device can make it hold more.
+  most on each network, and sends 100 answers a second at most by
+  unicast, so a device on the network can't make it flood another; reads
+  what it hears within bounds; and keeps none of it, so no device can
+  make it hold more.
 - Discovery is on and Bonjour off until Settings → Network changes them.
   `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
   `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them

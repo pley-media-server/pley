@@ -290,15 +290,19 @@ describe("NetworkSettings", () => {
     });
     renderWithProviders(<NetworkSettings />);
     // Off until turned on.
-    expect(await screen.findByRole("switch", { name: "Bonjour" })).not.toBeChecked();
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).not.toBeChecked();
     expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("switch", { name: "Bonjour" }));
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).toBeChecked();
 
     // A host name of its own, as typed.
     expect(screen.getByRole("textbox", { name: "Host name" })).toHaveAttribute("placeholder", "pley-0123456789ab");
     await user.type(screen.getByRole("textbox", { name: "Host name" }), "my media");
     expect(screen.getByText(/Bonjour's host name is letters, digits and hyphens/)).toBeInTheDocument();
+    // Hidden, a host name that can't be saved doesn't stop the rest: the saved one stays.
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
+    expect(screen.queryByText(/Bonjour's host name is letters, digits and hyphens/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
     await user.clear(screen.getByRole("textbox", { name: "Host name" }));
     await user.type(screen.getByRole("textbox", { name: "Host name" }), "Media.local");
 
@@ -321,7 +325,7 @@ describe("NetworkSettings", () => {
     );
 
     // Off: its choices go with it from the page, and stay saved.
-    await user.click(screen.getByRole("switch", { name: "Bonjour" }));
+    await user.click(screen.getByRole("switch", { name: "Found by Apple's devices (Bonjour)" }));
     expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.filter((r) => r.method === "PUT").at(-1)?.body).toMatchObject({ bonjour: false }));
@@ -355,7 +359,7 @@ describe("NetworkSettings", () => {
       }),
     });
     renderWithProviders(<NetworkSettings />);
-    expect(await screen.findByRole("switch", { name: "Bonjour" })).toBeDisabled();
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeDisabled();
     expect(screen.getByText(/Turned off by --no-bonjour/)).toBeInTheDocument();
   });
 

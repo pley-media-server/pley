@@ -779,11 +779,13 @@ record the server's IPv4 address on the network that asked. A chosen host
 name is probed for first: when another device answers for it, the
 server goes by the generated one, and says so in its log. The
 announcement goes out from the IPv4 adapters with the web addresses that
-are on the local network: private, link-local and Tailscale's addresses,
-or only those of them an administrator chooses (`bonjour_adapters`), so a
+are on the local network: private and link-local addresses, or only
+those of them an administrator chooses (`bonjour_adapters`), so a
 server that is also on a VPN, a container or virtual machine network, or a
 guest Wi-Fi isn't announced there. Each network is told only the server's
-address on it. On `0.0.0.0` and, but on Windows, on `[::]` that is every
+address on it. 100.64.0.0/10 (Tailscale's, which carries no multicast,
+and carriers' shared addresses) is announced on only when its adapter is
+chosen. On `0.0.0.0` and, but on Windows, on `[::]` that is every
 IPv4 adapter; a server listening on IPv6 addresses only isn't announced.
 
 The server answers only queries from devices on those networks, at most
@@ -3765,6 +3767,8 @@ interface Network {
   bonjour_host_name: string; // the host name before .local, one DNS label (letters, digits,
                           // hyphens; "Media.local" is kept as "media"): "" = bonjour_host_default
   bonjour_host_default: string; // read only: pley- and the server id's start
+                          // A PUT that leaves out bonjour, bonjour_adapters or
+                          // bonjour_host_name sets it to off, [] or "".
   fixed: { web: boolean; plex: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean }; // set by
                           // --bind/PLEY_BIND, --plex-bind/PLEY_PLEX_BIND,
                           // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery,
