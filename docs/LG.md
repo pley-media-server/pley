@@ -102,15 +102,15 @@ differs on LG:
   start, focus steps across them. In a grid of posters (a library,
   Collections, playlists, a collection's page) one ring stays still on
   the focused line while the rows slide under it. The pictures of what
-  goes by load once the key is let go. With Reduce motion everything steps. Backdrops
-  and details follow focus once it has rested 400 ms.
+  goes by load once the key is let go. With Reduce motion everything
+  steps. Backdrops and details follow focus once it has rested 400 ms.
 - **A held arrow stops at the end of a list**, where a press goes on, as
   in the Samsung app: a held Left stops at the start of a row, list or
   grid and only a press opens the rail; in a library's grid a held Up or
   Right stays in the grid (a press reaches the chips or the A–Z jump), as
   does a held Up at the top of the Collections tab and of Live TV's
-  categories, guide and channel cards. Right at a row's end and Down on a grid's last row
-  always stay.
+  categories, guide and channel cards. Right at a row's end and Down on a
+  grid's last row always stay.
 - **In the player** the keys follow the Samsung app's. With the controls
   hidden, OK and Up show them on the scrubber and Down on Play/Pause.
   Left and Right show them and step 10 s, and a held key scrubs faster
@@ -124,8 +124,9 @@ differs on LG:
   through them, OK goes to one, Down or Back closes them. As each item
   begins playing, its title shows at the top for 4 s, unless Playback
   details show there (Settings → Playback). Each stream's first picture
-  fades in from black over 200 ms, at once with Reduce motion. While an
-  error shows, Stop is the only media key that acts.
+  fades in from black over 200 ms, at once with Reduce motion. The media
+  keys act while a video starts, before its first picture, as in the
+  Android TV app; while an error shows, Stop is the only one that acts.
 - **Typing** uses the app's own keyboard and pads (a search, a server's
   address, a PIN); the TV's keyboard doesn't open.
 - **On webOS 4**, Home opens as a ribbon over the app, which keeps
@@ -247,9 +248,9 @@ and goes with `live_channels_changed`. On LG:
 - **The guide:** ◀◀ and ▶▶, Previous and Next, move it two hours back
   or on, a press at a time, as in the Android TV app.
 - **The player:** Up and Down, CH+ and CH−, Next and Previous change
-  channel within the category; digits tune a number. OK, the menu or the guide key opens the
-  channel list beside the picture, which moves aside to make room; holding
-  OK shows the controls, as in the Samsung app.
+  channel within the category; digits tune a number. OK, the menu or the
+  guide key opens the channel list beside the picture, which moves aside
+  to make room; holding OK shows the controls, as in the Samsung app.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -304,7 +305,9 @@ jail hides it; the line under the title is the folder's path
 started before says where it resumes, with a bar of how far through it is.
 A page with nothing to list (an empty folder, no drive, a folder that
 can't be read) says why in the middle, under a folder, USB or alert icon,
-and keeps focus there, unmarked, so the rail closes; Left opens it.
+below ".." in a folder under the drive's top, which keeps focus. Where
+not even ".." shows (no drive, or the drive's top), the message keeps
+focus, unmarked, so the rail closes; Left opens it.
 With Discover, Live TV and Now Playing in the rail as well, the drive's
 entry takes Playlists' place.
 
@@ -378,11 +381,11 @@ them), the next episode, and Find subtitles.
   LG documents it only for webOS OSE. The pipeline takes only an address,
   no request headers, so the app plays from
   [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
-  from the app's own relay on the loopback address. The start position goes in the
-  load (`option.transmission.playTime.start`), since a seek after loading
-  buffers from the beginning first; a live channel gets none and starts at
-  its live edge. An HLS stream declares the most it needs
-  (`adaptiveStreaming`): H.264 (and a transcode) Full HD when it fits
+  from the app's own relay on the loopback address. The start position
+  goes in the load (`option.transmission.playTime.start`), since a seek
+  after loading buffers from the beginning first; a live channel gets
+  none and starts at its live edge. An HLS stream declares the most it
+  needs (`adaptiveStreaming`): H.264 (and a transcode) Full HD when it fits
   1920×1088 and 4K otherwise, at its frame rate's class (24, 25, 30, 50,
   60); HEVC, VP9 and AV1 4K at 60, or 8K. The TV's codec table caps each,
   because from webOS 25 the pipeline reserves its decoder for what is
@@ -533,20 +536,23 @@ the app's alone (0700, files 0600), and each file is written whole (a
 temporary file, flushed, then renamed over the old one). It holds `store/`
 (the servers, sign-ins, this TV's id, settings, subtitle sync, Automatic's
 memory, Live TV's view, the household's profiles, library views, recent
-searches), `snapshots/` (what screens last showed, per server and
-profile, within 25 MB), `cache/pictures/` (half the free space, at most
-128 MiB, none below 8 MiB) and `video-plane.json`.
+searches, where each video on a USB drive stopped), `snapshots/` (what
+screens last showed, per server and profile, within 25 MB),
+`cache/pictures/` (half the free space, at most 128 MiB, none below
+8 MiB) and `video-plane.json`.
 
-Signing out ends the sign-in on the server and forgets that server's
-tokens and saved answers. **Settings → Sign out → Delete all local data**
-forgets every server, sign-in, setting and saved picture, as if the app
-were just installed.
+Signing out ends the sign-in on the server, or only on the TV while the
+server can't prove itself there (the server's Account → Apps ends it
+then), and forgets that server's tokens and saved answers. **Settings →
+Sign out → Delete all local data** forgets every server, sign-in,
+setting and saved picture, as if the app were just installed.
 
 **Logs** go to `/tmp/app.pley.tv/pley.log`, rotated at 1 MiB into
 `pley.log.1`, and a restart of the TV empties them. Everything the app
 and the TV's libraries print goes through one writer, which stamps each
 line with the time since start and takes out tokens, codes, keyed
-addresses and the relay's path. The files are 0640, readable by the app's group.
+addresses, the relay's path and a drive's folder and file names. The
+files are 0640, readable by the app's group.
 
 ## Building and testing
 

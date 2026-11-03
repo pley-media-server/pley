@@ -125,7 +125,8 @@ after on the pull request's. Each app is captured its own way:
 | Native Samsung app | Its debug build takes them from the computer: `metrics.mjs shot` ([TV_PLATFORMS.md](TV_PLATFORMS.md), "Profiling"); a video's picture comes out black |
 | Kodi | Kodi's own (the `screenshot` action); [KODI.md](KODI.md) has the setting that keeps the whole screen drawn |
 | Roku | The developer page's Utilities → Screenshot, of a sideloaded app; a video's picture doesn't come out |
-| Samsung web app, LG | A photo of the screen |
+| LG | The simulator writes the frame as PNG: `cargo run -- --fixtures --keys "<keys>" --screenshot shot.png` in `apps/webos`, with `--screenshot-after <ms>` for a playing video ([LG.md](LG.md#the-simulator)); the simulator's player draws no picture, so a video's place stays empty |
+| Samsung web app | A photo of the screen |
 
 `scripts/mark-screenshot.mjs` marks where to look, in the screenshot's own
 pixels, and writes a PNG; it takes a phone's JPEG too:

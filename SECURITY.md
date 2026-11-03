@@ -434,11 +434,21 @@ other apps (`pley_ct_…`), never a session's
   file, then a rename). Refreshes run one at a time and the new pair is
   saved before it is used. A server that grants more than the app asked
   for has the grant revoked and the TV signed out. Signing out revokes the
-  tokens on the server.
+  tokens on the server; while the server can't prove itself at its
+  address, the TV only forgets them, and the server's Account → Apps ends
+  the sign-in.
 - The LG app carries its own TLS (rustls) and root certificates, since a
   TV's own are as old as its firmware. Its log on the TV
   (`/tmp/app.pley.tv/pley.log`, readable by the app's group) leaves out
-  tokens, codes and keyed addresses.
+  tokens, codes, keyed addresses, the Live TV relay's path and a USB
+  drive's folder and file names.
+- The LG app hands a live channel's MPEG-TS stream to the TV's player,
+  which takes no request headers, through a relay of its own: it reads
+  the stream with the token and serves it on 127.0.0.1 alone, under a
+  path of 128 random bits made for that channel, to at most four
+  connections, each sending its request's head (8 KiB at most) within
+  5 s. The relay serves that one stream and closes it, its connections
+  with it, when the channel changes or the player goes.
 - Kodi's player and artwork cache reach the server through the add-on's
   proxy on 127.0.0.1, behind a random path checked in constant time, for
   requests addressed to it alone.
