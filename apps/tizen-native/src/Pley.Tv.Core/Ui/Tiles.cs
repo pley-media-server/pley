@@ -45,6 +45,37 @@ public sealed class TileKind
     public override string ToString() => Name;
 }
 
+/// <summary>
+/// How many of a TV row's tiles have views (the web TV app's row draws only the tiles near the
+/// screen): a tile takes a few milliseconds to make on a TV, and search's rows hold up to 200. A
+/// row makes its tiles from its start: those to the screen's edge and a few past it at once, a
+/// screen more while it waits, and further as focus moves on, so a row of 200 costs what one of
+/// 20 did. Search's Live TV row makes its channels' cards as <see cref="Now"/> says, each asking
+/// for its logo as it is made.
+/// </summary>
+public static class RowReach
+{
+    /// <summary>Pictures are asked for this many tiles past the screen's edge, so they're there when the row moves.</summary>
+    public const int PictureLead = 3;
+
+    /// <summary>The TV canvas's width, in dp.</summary>
+    const float CanvasWidth = 960;
+
+    /// <summary>How many tiles of <paramref name="kind"/> a screen's width holds, the one cut off at its edge counted.</summary>
+    public static int PerScreen(TileKind kind) => (int)Math.Ceiling(CanvasWidth / (kind.Width + kind.Gap));
+
+    /// <summary>
+    /// The tiles from the row's start, of <paramref name="count"/>, it has at once with
+    /// <paramref name="first"/> the first on screen, the one cut off at the gutter's left: those
+    /// to the screen's edge, <paramref name="perScreen"/> after it, and <see cref="PictureLead"/>
+    /// past the edge.
+    /// </summary>
+    public static int Now(int first, int perScreen, int count) => Math.Max(0, Math.Min(count, first + perScreen + PictureLead + 1));
+
+    /// <summary>The tiles from the row's start it makes while it waits: <see cref="Now"/>'s and a screen more.</summary>
+    public static int Soon(int first, int perScreen, int count) => Math.Max(0, Math.Min(count, Now(first, perScreen, count) + perScreen));
+}
+
 /// <summary>Picture addresses as the server makes them (the Android app's ImageUrls and ArtworkCandidates).</summary>
 public static class Artwork
 {

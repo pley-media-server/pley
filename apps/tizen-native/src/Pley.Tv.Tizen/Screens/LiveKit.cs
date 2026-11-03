@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Ui;
@@ -97,8 +98,9 @@ sealed class ChannelLogoView : View
     readonly Color well;
     readonly float inset;
 
+    /// <param name="cancel">Gives up the logo while it comes: the view's row went.</param>
     public ChannelLogoView(LiveChannel channel, string origin, Images images, float widthDp, float heightDp, bool name = false, TextStyle? style = null,
-        Color? well = null, float radiusDp = PleyShape.TileRadius, float insetDp = 8)
+        Color? well = null, float radiusDp = PleyShape.TileRadius, float insetDp = 8, CancellationToken cancel = default)
     {
         this.well = well ?? PleyColors.Surface3;
         inset = insetDp;
@@ -137,7 +139,7 @@ sealed class ChannelLogoView : View
             Add(picture);
             // Under what was put on the well while it loaded (a card's number, its star).
             picture.LowerToBottom();
-        });
+        }, cancel);
     }
 }
 

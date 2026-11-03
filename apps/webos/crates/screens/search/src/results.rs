@@ -131,11 +131,9 @@ pub struct Found {
 /// tile; `None` without a server.
 pub type Resolve<'a> = &'a dyn Fn(&str, TileKind) -> Option<ImageRequest>;
 
-/// The most titles an answer shows: as many as were asked for.
-pub const MAX_TITLES: usize = crate::query::LIMIT as usize;
-/// The most people and the most channels an answer shows, as the server sends (12 of each).
-pub const MAX_PEOPLE: usize = 12;
-pub const MAX_CHANNELS: usize = 12;
+/// The most titles, people and channels an answer keeps, each: as many as were asked for, which
+/// is all the server sends. An answer is from outside, so it is held to that.
+pub const MOST: usize = crate::query::LIMIT as usize;
 
 /// The pictures' widths in device pixels for each kind of tile the results use, measured on the
 /// UI thread so that an answer becomes tiles on the task pool.
@@ -159,16 +157,16 @@ impl Widths {
 }
 
 impl Found {
-    /// The server's answer sorted into rows: each kind of title, then channels, then people. Items of
-    /// other kinds (extras) are left out, as on the web; empty groups too. However long the answer,
-    /// no more than the server should send is kept.
+    /// The server's answer sorted into rows: each kind of title, then channels, then people, each
+    /// row holding all it found. Items of other kinds (extras) are left out, as on the web; empty
+    /// groups too. However long the answer, no more than the server should send is kept.
     pub fn new(results: SearchResults, resolve: Resolve) -> Found {
-        let items = &results.items[..results.items.len().min(MAX_TITLES)];
-        let people = results.people.iter().take(MAX_PEOPLE).map(|p| person_tile(p, resolve)).collect();
+        let items = &results.items[..results.items.len().min(MOST)];
+        let people = results.people.iter().take(MOST).map(|p| person_tile(p, resolve)).collect();
         let channels = results
             .channels
             .into_iter()
-            .take(MAX_CHANNELS)
+            .take(MOST)
             .map(|channel| {
                 let logo =
                     channel.logo.as_deref().filter(|l| !l.is_empty()).and_then(|l| resolve(l, TileKind::Episode));
@@ -461,15 +459,31 @@ mod tests {
     }
 
     #[test]
-    fn an_answer_longer_than_asked_is_cut_short() {
+    fn every_person_and_channel_found_is_kept_up_to_what_was_asked() {
+        // 200 of each are asked for, and a row holds all of them: people and channels aren't cut
+        // at 12 any more.
+        assert_eq!(crate::query::LIMIT, 200);
         let results = SearchResults {
-            items: (0..500).map(|i| item(i, ItemKind::Movie, "North")).collect(),
+            items: (0..150).map(|i| item(i, ItemKind::Movie, "North")).collect(),
             people: (0..100).map(|i| PersonSummary { id: i, name: "N".into(), photo_url: None }).collect(),
             channels: (0..100).map(|i| LiveChannel { id: i, ..LiveChannel::default() }).collect(),
         };
         let found = Found::new(results, &resolve);
-        assert_eq!(found.tiles(Group::Movies).len(), MAX_TITLES);
-        assert_eq!((found.people.len(), found.channels.len()), (MAX_PEOPLE, MAX_CHANNELS));
+        assert_eq!(found.tiles(Group::Movies).len(), 150);
+        assert_eq!((found.people.len(), found.channels.len()), (100, 100));
+        assert_eq!(found.tiles(Group::People).len(), 100);
+    }
+
+    #[test]
+    fn an_answer_longer_than_asked_is_cut_short() {
+        let results = SearchResults {
+            items: (0..500).map(|i| item(i, ItemKind::Movie, "North")).collect(),
+            people: (0..300).map(|i| PersonSummary { id: i, name: "N".into(), photo_url: None }).collect(),
+            channels: (0..300).map(|i| LiveChannel { id: i, ..LiveChannel::default() }).collect(),
+        };
+        let found = Found::new(results, &resolve);
+        assert_eq!(found.tiles(Group::Movies).len(), MOST);
+        assert_eq!((found.people.len(), found.channels.len()), (MOST, MOST));
     }
 
     #[test]

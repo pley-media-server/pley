@@ -7,16 +7,17 @@ import PleyNetwork
 /// Search (Android's `SearchViewModel`, the web's SearchPage): what is
 /// typed is asked for once typing has paused 250 ms, and only the latest
 /// query's answer counts. The results already shown stay while the next
-/// ones load. Results come in groups, in order: People, Movies, Shows,
-/// Seasons, Episodes, Artists, Albums, Tracks, each with its count, then
-/// Live TV's channels (a dozen at most), which open the live player in
-/// All channels. A query is kept among the profile's
-/// last 10 searches when it is submitted or one of its results is opened.
+/// ones load. Results come in groups, in order: Movies, Shows, Seasons,
+/// Episodes, Artists, Albums, Tracks, each with its count, then Live TV's
+/// channels (a dozen at most), which open the live player in All
+/// channels, then People: someone searching usually wants a title, as in
+/// every app. A query is kept among the profile's last 10 searches when
+/// it is submitted or one of its results is opened.
 @MainActor
 public final class SearchModel: ObservableObject {
     /// The groups results come in, in the order they show.
     public enum GroupKind: String, CaseIterable, Sendable {
-        case people, movies, shows, seasons, episodes, artists, albums, tracks, channels
+        case movies, shows, seasons, episodes, artists, albums, tracks, channels, people
 
         public var title: String {
             switch self {

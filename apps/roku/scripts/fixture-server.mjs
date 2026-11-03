@@ -120,6 +120,35 @@ const movies = Array.from({ length: WORDS.length * 7 }, (_, i) => ({
   backdrop_url: `/api/items/${1000 + i}/images/backdrop?v=1`,
   user_state: state(i % 5 === 0 ? 600000 : 0, i % 7 === 3),
 }));
+// What a library listing says of each title's best file (MediaSummary),
+// whatever the sort: a 4K Dolby Vision, a 4K HDR10 and a 1080p SDR one in
+// turn, so the grid has posters with quality badges and without.
+const MOVIE_MEDIA = [
+  { bitrate: 61000000, size: 66571993088, width: 3840, height: 2160, video_codec: "hevc", dynamic_range: "dolby_vision" },
+  { bitrate: 24000000, size: 25125558681, width: 3840, height: 2160, video_codec: "hevc", dynamic_range: "hdr10" },
+  { bitrate: 8000000, size: 6979321856, width: 1920, height: 1080, video_codec: "h264", dynamic_range: "sdr" },
+];
+const mediaOf = (item) =>
+  item.kind === "movie" ? MOVIE_MEDIA[(item.id - 1000) % MOVIE_MEDIA.length]
+  : item.kind === "show" ? { bitrate: 8000000, size: 18000000, width: 1920, height: 1080, video_codec: null, dynamic_range: "sdr" }
+  : null;
+// A listing's resolution and dynamic_range filters, by the title's best
+// file as the server matches them.
+const RESOLUTIONS = [
+  ["4k", (w, h) => w >= 3800 || h >= 2100],
+  ["1080", (w, h) => w >= 1800 || h >= 1000],
+  ["720", (w, h) => w >= 1200 || h >= 700],
+  ["sd", () => true],
+];
+const resolutionOf = (media) => RESOLUTIONS.find(([, fits]) => fits(media?.width ?? 0, media?.height ?? 0))[0];
+// The ranges a dynamic_range value keeps, as the server's: "hdr" every one
+// but SDR, "hdr10" (HDR) HDR10+ and Dolby Vision too, the rest themselves.
+const RANGES_NAMED = { hdr: ["dolby_vision", "hdr10plus", "hdr10", "hlg"], hdr10: ["dolby_vision", "hdr10plus", "hdr10"] };
+function matchesQuality(item, resolution, range) {
+  const media = mediaOf(item);
+  if (resolution && resolutionOf(media) !== resolution) return false;
+  return !range || (RANGES_NAMED[range] ?? [range]).includes(media?.dynamic_range);
+}
 
 const show = {
   id: 99, library_id: 2, kind: "show", title: "Severance", sort_title: "Severance", year: 2022,
@@ -583,9 +612,24 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/collections$/))) {
       return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf) });
     }
-    if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019] });
+    // Resolutions and dynamic ranges only where they tell titles apart, as
+    // the server lists them: the movies differ (Dolby Vision, HDR10 and SDR,
+    // so HDR, which takes in Dolby Vision, and no Any HDR), the one show and
+    // music don't.
+    if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) {
+      const quality = match[1] === "1" ? { resolutions: ["4k", "1080"], dynamic_ranges: ["hdr10", "dolby_vision", "sdr"] } : { resolutions: [], dynamic_ranges: [] };
+      return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019], ...quality });
+    }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/items$/))) {
       let listed = match[1] === "1" ? movies : match[1] === "2" ? [show] : [artist];
+      const resolution = url.searchParams.get("resolution") ?? "";
+      const range = url.searchParams.get("dynamic_range") ?? "";
+      const known = (resolution === "" || RESOLUTIONS.some(([token]) => token === resolution)) && (range === "" || ["hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"].includes(range));
+      if (!known) {
+        problems.push(`a library listed by resolution ${JSON.stringify(resolution)} and dynamic range ${JSON.stringify(range)}`);
+        return json(400, { code: "bad_request", message: "unknown resolution or dynamic range" });
+      }
+      listed = listed.filter((item) => matchesQuality(item, resolution, range));
       // By title, as the server sorts (accents with their letter); other
       // sorts as listed.
       if ((url.searchParams.get("sort") ?? "title") === "title") {
@@ -594,7 +638,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       }
       const offset = Number(url.searchParams.get("offset") ?? 0);
       const limit = Number(url.searchParams.get("limit") ?? 50);
-      return json(200, { total: listed.length, items: listed.slice(offset, offset + limit) });
+      return json(200, { total: listed.length, items: listed.slice(offset, offset + limit).map((item) => ({ ...item, media: mediaOf(item) })) });
     }
     if ((match = path.match(/^\/api\/items\/(\d+)\/images\/(\w+)$/))) {
       res.writeHead(200, { "Content-Type": "image/png" });
@@ -820,12 +864,15 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(204);
       return res.end();
     }
+    // Up to limit (1 to 200) titles, people and channels each, as the
+    // server answers.
     if (path === "/api/search") {
       const q = (url.searchParams.get("q") ?? "").toLowerCase();
-      const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, 12);
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 40) || 40, 1), 200);
+      const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, limit);
       // A person whose name matches, for search's last row before Discover.
-      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q));
-      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people, channels });
+      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q)).slice(0, limit);
+      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, limit), people, channels });
     }
     // A keyed session's picture subtitles, which the app draws: their list
     // around where the player is (the first time a session asks, those

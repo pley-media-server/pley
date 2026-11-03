@@ -20,6 +20,12 @@ function searchGroups() as object
     ]
 end function
 
+' GET /api/search for query: up to 200 titles, 200 people and 200 Live TV
+' channels, the most the server gives, so every row holds all it found.
+function searchPath(query as string) as string
+    return urlWithQuery("/api/search", { q: query, limit: 200 })
+end function
+
 ' GET /api/search's answer as a row per kind with results, in
 ' searchGroups' order: [{ key, title, wide, square, tiles }]. Episodes are
 ' wide, music square, Live TV's channels cards (Live.brs's liveCard; now

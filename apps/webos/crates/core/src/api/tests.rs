@@ -97,15 +97,36 @@ fn a_librarys_listing_asks_in_the_tv_apps_order() {
         order: Some(SortOrder::Desc),
         watched: Some(false),
         genre: Some("Science Fiction".into()),
-        year: None,
+        ..LibraryQuery::default()
     };
     api.library_items(3, &query, 200, 1000).unwrap();
+    // Resolution and dynamic range after the year, and only when chosen.
+    let query =
+        LibraryQuery { resolution: Some(ResolutionFilter::Uhd), dynamic_range: Some(RangeFilter::Hdr), ..query };
+    api.library_items(3, &query, 0, 200).unwrap();
     assert_eq!(
         fake.asked(),
         [
-            "GET /api/libraries/3/items?sort=added&order=desc&watched=false&genre=Science%20Fiction&offset=200&limit=1000"
+            "GET /api/libraries/3/items?sort=added&order=desc&watched=false&genre=Science%20Fiction&offset=200&limit=1000",
+            "GET /api/libraries/3/items?sort=added&order=desc&watched=false&genre=Science%20Fiction&resolution=4k&dynamic_range=hdr&offset=0&limit=200",
         ]
     );
+    assert_eq!(query.key(), "added.desc.unwatched.g=Science Fiction.r=4k.d=hdr");
+}
+
+#[test]
+fn views_kept_before_the_quality_filters_still_read() {
+    let old: LibraryQuery = serde_json::from_str(r#"{"sort":"year","order":"desc","genre":"Drama"}"#).unwrap();
+    assert_eq!((old.genre.as_deref(), old.resolution, old.dynamic_range), (Some("Drama"), None, None));
+    // A token this app doesn't know reads as Unknown, for the library to drop.
+    let odd: LibraryQuery = serde_json::from_str(r#"{"resolution":"8k","dynamic_range":"hdr"}"#).unwrap();
+    assert_eq!((odd.resolution, odd.dynamic_range), (Some(ResolutionFilter::Unknown), Some(RangeFilter::Hdr)));
+    let kept = LibraryQuery { resolution: Some(ResolutionFilter::Sd), ..LibraryQuery::default() };
+    let back: LibraryQuery = serde_json::from_str(&serde_json::to_string(&kept).unwrap()).unwrap();
+    assert_eq!(back, kept);
+    // An older server's filters have neither list.
+    let filters: LibraryFilters = serde_json::from_str(r#"{"genres":["Drama"],"years":[1999]}"#).unwrap();
+    assert!(filters.resolutions.is_empty() && filters.dynamic_ranges.is_empty());
 }
 
 #[test]

@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.kit
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Stable
@@ -35,6 +36,16 @@ object TvScrolling {
      * Compose's own scrolling to the focused element leaves it be.
      */
     val itself: BringIntoViewSpec = ItselfSpec
+
+    /**
+     * A short row that may not fit (a page's chips), scrolled by [state]:
+     * it stays at its start or goes to its end, whichever keeps the focused
+     * element [start] from the viewport's leading edge and [end] from its
+     * trailing one (the gutter and the safe area's edge); only an element
+     * neither end shows so is moved just that far. What fits there doesn't
+     * move.
+     */
+    fun ends(state: ScrollState, start: Float, end: Float): BringIntoViewSpec = EndsSpec(state, start, end)
 
     /** Whether every tile of [state]'s row fits on screen unscrolled, short of [endRoom]; null before its first layout. */
     fun fits(state: LazyListState, endRoom: Float): Boolean? {
@@ -83,6 +94,30 @@ object TvScrolling {
     @Stable
     private object ItselfSpec : BringIntoViewSpec {
         override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
+    }
+
+    /**
+     * Asked again on every frame of a scroll, so it decides by where the
+     * element is in the row, which the scroll doesn't change: the same end
+     * every time, until the row is there.
+     */
+    @Stable
+    private class EndsSpec(private val state: ScrollState, private val start: Float, private val end: Float) : BringIntoViewSpec {
+        override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+            val scrolled = state.value.toFloat()
+            val max = state.maxValue.toFloat()
+            val last = containerSize - end
+            val inRow = offset + scrolled
+            fun shows(at: Float) = inRow - at >= start && inRow - at + size <= last
+            val target = when {
+                shows(0f) -> 0f
+                shows(max) -> max
+                offset < start -> scrolled + offset - start
+                offset + size > last -> scrolled + offset + size - last
+                else -> scrolled
+            }
+            return target - scrolled
+        }
     }
 
     @Stable

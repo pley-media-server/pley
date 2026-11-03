@@ -409,7 +409,12 @@ fn filter_meta(lib: &LibraryRow) -> Node {
             filters.push(("actor", "Actor"));
         }
         if *kind == "movie" {
-            filters.extend([("director", "Director"), ("writer", "Writer"), ("producer", "Producer")]);
+            filters.extend([
+                ("director", "Director"),
+                ("writer", "Writer"),
+                ("producer", "Producer"),
+                ("resolution", "Resolution"),
+            ]);
         }
         for (filter, title) in filters {
             t.push(
@@ -469,6 +474,10 @@ fn filter_meta(lib: &LibraryRow) -> Node {
         ] {
             t.push(Node::new("Field").attr("key", format!("{prefix}{field}")).attr("title", title).attr("type", ty));
         }
+        // A movie's best file's: Kometa checks a resolution against the choices first.
+        if *kind == "movie" {
+            t.push(Node::new("Field").attr("key", "resolution").attr("title", "Resolution").attr("type", "resolution"));
+        }
         meta.push(t);
     }
     let operators: &[(&str, &[(&str, &str)])] = &[
@@ -515,6 +524,24 @@ pub async fn filter_choices(
         // Collections are filtered by their labels alone.
         "label" if collections => super::lists::collection_labels(&state, &user, &lib).await?,
         _ if collections => return Err(PlexError::NotFound),
+        "resolution" if kind == "movie" => {
+            let mut mc = base_container()
+                .attr("size", catalog::RESOLUTIONS.len())
+                .attr("librarySectionID", lib.id)
+                .attr("librarySectionUUID", info.section_uuid(lib.id))
+                .attr("title1", &lib.name)
+                .attr("viewGroup", "secondary");
+            for (key, title) in catalog::RESOLUTIONS.iter().zip(["4K", "1080p", "720p", "SD"]) {
+                mc.push(
+                    Node::new("Directory")
+                        .attr("fastKey", format!("/library/sections/{}/all?type=1&resolution={key}", lib.id))
+                        .attr("key", *key)
+                        .attr("title", title)
+                        .attr("type", "resolution"),
+                );
+            }
+            return Ok(mc);
+        }
         "genre" => genres,
         "year" => years.iter().map(i64::to_string).collect(),
         "decade" => {

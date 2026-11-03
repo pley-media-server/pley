@@ -194,13 +194,16 @@ fun streamLabel(s: MediaStream): String {
 fun isForced(s: MediaStream): Boolean =
     s.forced || s.title.orEmpty().lowercase().split(Regex("[^\\p{L}\\p{N}]+")).any { it == "forced" || it == "signs" }
 
-/** The web's poster badges for a listing's [MediaSummary]: ["4K", "DV"], only 4K of the resolutions and no codec. */
+/**
+ * The web's poster badges for a listing's [MediaSummary]: ["4K", "DV"], only 4K of the resolutions and no codec.
+ * HDR10 and HDR10+ read as plain "HDR" and "HDR+" there; a title's page names them exactly.
+ */
 fun mediaBadges(media: MediaSummary?): List<String> {
     if (media == null) return emptyList()
     val range = when (media.dynamicRange) {
         DynamicRange.DolbyVision -> "DV"
-        DynamicRange.Hdr10Plus -> "HDR10+"
-        DynamicRange.Hdr10 -> "HDR10"
+        DynamicRange.Hdr10Plus -> "HDR+"
+        DynamicRange.Hdr10 -> "HDR"
         DynamicRange.Hlg -> "HLG"
         else -> null
     }

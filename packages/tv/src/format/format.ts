@@ -205,11 +205,15 @@ export function qualityBadges(file: MediaFile | null | undefined): string[] {
   ].filter((b): b is string => !!b);
 }
 
+/** A poster's words for a dynamic range: HDR10 and HDR10+ read as plain "HDR" and "HDR+". */
+const SUMMARY_RANGES: Record<string, string> = { dolby_vision: "DV", hdr10plus: "HDR+", hdr10: "HDR", hlg: "HLG" };
+
 /** Badges a listing can give: 4K (no other resolution, as on the web) and the dynamic range. */
 export function summaryBadges(media: MediaSummary | null | undefined): string[] {
   if (!media) return [];
   const resolution = resolutionBadge(media.width, media.height) === "4K" ? "4K" : null;
-  return [resolution, dynamicRangeShort(media.dynamic_range)].filter((b): b is string => !!b);
+  const range = media.dynamic_range ? (SUMMARY_RANGES[media.dynamic_range] ?? null) : null;
+  return [resolution, range].filter((b): b is string => !!b);
 }
 
 /** Whether the profile picked the file's audio track; older servers don't say, and their choice reads as picked. */

@@ -74,7 +74,7 @@ class SkinTest(unittest.TestCase):
             L.ITEM_HERO, L.ITEM_TITLE, L.ITEM_CONTEXT, L.ITEM_LEFT, L.ITEM_GENRES, L.ITEM_SUMMARY, L.ITEM_CREDITS,
             L.ITEM_BUTTONS_BOX, L.ITEM_PLAY, L.ITEM_INFO_BLOCK, L.ITEM_INFO_TITLE, L.ITEM_INFO_EPISODE,
             L.ITEM_INFO_LINE, L.ITEM_INFO_SUMMARY, L.ITEM_SEASONS,
-            L.LIBRARY_TITLE, L.LIBRARY_SORT, L.LIBRARY_SORT_DOWN, L.LIBRARY_FILTER, L.LIBRARY_UNWATCHED, L.LIBRARY_GENRE,
+            L.LIBRARY_TITLE, L.LIBRARY_SORT, L.LIBRARY_SORT_DOWN, L.LIBRARY_FILTER, L.LIBRARY_FILTER_ON, L.LIBRARY_UNWATCHED, L.LIBRARY_GENRE,
             L.LIBRARY_YEAR, L.LIBRARY_UNWATCHED_ON, L.LIBRARY_GENRE_ON, L.LIBRARY_YEAR_ON, L.LIBRARY_COUNT, L.LIBRARY_EMPTY, L.SEARCH_FIELD, L.SEARCH_EMPTY_TITLE, L.SEARCH_EMPTY_BODY,
             L.GRID_TITLE, L.GRID_SUBTITLE, L.GRID_EMPTY, L.NOTICE_TITLE, L.NOTICE_BODY, L.NOTICE_FIRST, L.NOTICE_SECOND,
             L.LIBRARIES_TITLE, L.LIBRARIES_BUTTONS, L.LIBRARIES_SORT, L.LIBRARIES_LIST, L.TOAST_LABEL,
@@ -101,6 +101,29 @@ class SkinTest(unittest.TestCase):
         for grid in (L.LIBRARY_GRID, L.GRID_LISTS):
             wanted |= {L.grid_list(grid, s) for s in L.GRID_SHAPES}
         self.assertEqual(sorted(wanted - ids), [])
+
+    def test_library_posters_draw_their_quality_badges(self):
+        from pley import window
+
+        grid = next(c for c in parse(L.WINDOW).iter("control") if c.get("id") == str(L.grid_list(L.LIBRARY_GRID, "grid")))
+        poster = L.GRID["grid"]
+        for layout in ("itemlayout", "focusedlayout"):
+            drawn = [c for c in grid.find(layout).iter("control") if c.get("type") == "label" and "ListItem.Property(range)" in (c.findtext("visible") or "")]
+            drawn += [c for c in grid.find(layout).iter("control") if c.get("type") == "label" and "Property(resolution),4k" in (c.findtext("visible") or "")]
+            # "4K", then each dynamic range alone or after it.
+            self.assertEqual(sorted(c.findtext("label") for c in drawn), sorted(["4K"] + [w for k, (w, _) in L.BADGES.items() if k != "4k"] * 2))
+            for c in drawn:
+                # Kodi reads + in a condition as "and": the conditions name the server's tokens.
+                self.assertNotIn("HDR+", c.findtext("visible"))
+                left, width = int(c.findtext("left")), int(c.findtext("width"))
+                self.assertLessEqual(left + width, poster.width - L.BADGE_INSET, c.findtext("label"))
+                self.assertEqual(int(c.findtext("top")) + L.BADGE_HEIGHT, poster.height - L.BADGE_INSET)
+        # Each pill holds its word in the badge font, 12 either side (bold 20 px).
+        for word, width in L.BADGES.values():
+            self.assertGreaterEqual(width, window.text_width(word, 20, bold=True) + 24, word)
+        # Rows never draw them.
+        row = next(c for c in parse(L.WINDOW).iter("control") if c.get("id") == str(L.slot_list(L.HOME_ROWS, 0, "poster")))
+        self.assertFalse([c for c in row.iter("control") if "ListItem.Property(range)" in (c.findtext("visible") or "")])
 
     def test_the_sign_in_has_what_signin_py_fills(self):
         ids = {int(c.get("id")) for c in parse(L.SIGNIN_WINDOW).iter("control") if c.get("id")}

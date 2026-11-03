@@ -40,7 +40,7 @@ describe("formats, named as the server, the web and Android name them", () => {
     const media = { bitrate: 42_000_000, size: 1, width: 3840, height: 2160, video_codec: "hevc", dynamic_range: "dolby_vision" } as const;
     expect(summaryBadges(media)).toEqual(["4K", "DV"]);
     expect(summaryBadges({ ...media, width: 1920, height: 1080, video_codec: "h264", dynamic_range: "sdr" })).toEqual([]);
-    expect(summaryBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR10"]);
+    expect(summaryBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR"]);
   });
 
   it("gives the Info panel the profile, level, base layer and enhancement layer", () => {

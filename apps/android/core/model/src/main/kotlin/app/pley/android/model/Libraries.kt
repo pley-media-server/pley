@@ -43,8 +43,8 @@ data class LibraryIds(
 /**
  * A page of GET /api/libraries/{id}/items: top-level items only. [total]
  * counts every match, not just this page. Items leave out `backdrop_url`
- * and `thumb_url` (grids show posters); sorted by [LibrarySort.Bitrate]
- * they carry [ItemSummary.media].
+ * and `thumb_url` (grids show posters), and carry [ItemSummary.media]
+ * (an older server's only sorted by [LibrarySort.Bitrate]).
  */
 @Serializable
 data class ItemsPage(
@@ -52,12 +52,67 @@ data class ItemsPage(
     val items: List<ItemSummary> = emptyList(),
 )
 
-/** GET /api/libraries/{id}/filters: the genres and years a library's listing can be filtered by. */
+/**
+ * GET /api/libraries/{id}/filters: what a library's listing can be
+ * filtered by. [resolutions] and [dynamicRanges] are the tokens of
+ * [ResolutionFilter] and [DynamicRangeFilter] the titles have, best first,
+ * and only when they have two or more (one would keep every title); an
+ * older server, and music, has none.
+ */
 @Serializable
 data class LibraryFilters(
     val genres: List<String> = emptyList(),
     val years: List<Int> = emptyList(),
-)
+    val resolutions: List<String> = emptyList(),
+    val dynamicRanges: List<String> = emptyList(),
+) {
+    /** [resolutions] this app knows, in the server's order. */
+    val resolutionChoices: List<ResolutionFilter> get() = resolutions.mapNotNull(ResolutionFilter::of)
+
+    /** [dynamicRanges] this app knows, in the server's order. */
+    val dynamicRangeChoices: List<DynamicRangeFilter> get() = dynamicRanges.mapNotNull(DynamicRangeFilter::of)
+}
+
+/**
+ * The `resolution` of GET /api/libraries/{id}/items: a title's best
+ * file's (a show's best episode's), on the lines its poster's "4K"
+ * follows. [label] is how every app names it.
+ */
+enum class ResolutionFilter(override val wire: String, val label: String) : WireEnum {
+    Uhd("4k", "4K"),
+
+    /** Up to 1440p. */
+    FullHd("1080", "1080p"),
+    Hd("720", "720p"),
+    Sd("sd", "SD"),
+    ;
+
+    companion object {
+        /** The filter [wire] names; `null` for anything else. */
+        fun of(wire: String?): ResolutionFilter? = entries.firstOrNull { it.wire == wire }
+    }
+}
+
+/**
+ * The `dynamic_range` of GET /api/libraries/{id}/items: a title's best
+ * file's (a show's best episode's). [Hdr] is any but SDR. [label] is how
+ * every app names it: HDR10 and HDR10+ as plain "HDR" and "HDR+", as on
+ * the posters.
+ */
+enum class DynamicRangeFilter(override val wire: String, val label: String) : WireEnum {
+    Hdr("hdr", "Any HDR"),
+    DolbyVision("dolby_vision", "Dolby Vision"),
+    Hdr10Plus("hdr10plus", "HDR+"),
+    Hdr10("hdr10", "HDR"),
+    Hlg("hlg", "HLG"),
+    Sdr("sdr", "SDR"),
+    ;
+
+    companion object {
+        /** The filter [wire] names; `null` for anything else. */
+        fun of(wire: String?): DynamicRangeFilter? = entries.firstOrNull { it.wire == wire }
+    }
+}
 
 /**
  * The `sort` of GET /api/libraries/{id}/items (apps/server/src/catalog.rs,
@@ -76,7 +131,7 @@ enum class LibrarySort(override val wire: String) : WireEnum {
     Duration("duration"),
     LastPlayed("last_played"),
 
-    /** The best file's bitrate (a show's: its episodes' average); items then carry [ItemSummary.media]. */
+    /** The best file's bitrate (a show's: its episodes' average). */
     Bitrate("bitrate"),
 }
 

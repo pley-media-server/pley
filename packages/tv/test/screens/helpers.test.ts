@@ -8,10 +8,30 @@ import { shuffled } from "../../src/player/music";
 import { heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
 import { castAndCrew } from "../../src/ui/screens/item";
 import { openingTab } from "../../src/ui/screens/library";
-import { AlphaIndex, countLabel, defaultOrder, describeSmartFilter, fitParams, letterOf, ParamsStore, showsJump, TabStore, smartFilterOf, sortsFor } from "../../src/ui/screens/library-data";
+import {
+  AlphaIndex,
+  cleared,
+  countLabel,
+  defaultOrder,
+  describeSmartFilter,
+  fitParams,
+  hasFilter,
+  letterOf,
+  ParamsStore,
+  qualityChoices,
+  showsBadges,
+  showsJump,
+  TabStore,
+  smartFilterOf,
+  sortsFor,
+  type LibraryParams,
+} from "../../src/ui/screens/library-data";
 import { codeHalves, displayCode, typedAddress } from "../../src/ui/screens/onboarding/link";
 import { switchRefusal } from "../../src/ui/screens/onboarding/profiles";
 import { relativeTime } from "../../src/ui/screens/settings";
+
+/** A movie library's params: the defaults, with `over`. */
+const params = (over: Partial<LibraryParams>): LibraryParams => ({ ...fitParams(null, "movies"), ...over });
 
 function summary(over: Partial<ItemSummary>): ItemSummary {
   return { id: 1, library_id: 1, kind: "movie", title: "A", sort_title: "a", added_at: 0, user_state: { position_ms: 0, watched: false, play_count: 0 }, ...over };
@@ -59,8 +79,39 @@ describe("a library's sort and filters", () => {
   });
 
   it("drops what a kind doesn't have", () => {
-    expect(fitParams({ sort: "duration", watched: false, genre: "Rock" }, "music")).toEqual({ sort: "title", order: "asc", watched: null, genre: null, year: null });
+    expect(fitParams({ sort: "duration", watched: false, genre: "Rock", resolution: "4k", dynamicRange: "hdr" }, "music")).toEqual({
+      sort: "title",
+      order: "asc",
+      watched: null,
+      genre: null,
+      year: null,
+      resolution: null,
+      dynamicRange: null,
+    });
     expect(fitParams({ sort: "year", order: "asc", watched: false }, "movies")).toMatchObject({ sort: "year", order: "asc", watched: false });
+  });
+
+  it("filters by resolution and dynamic range, a value kept that isn't the server's being none", () => {
+    expect(fitParams({ resolution: "4k", dynamicRange: "dolby_vision" }, "shows")).toMatchObject({ resolution: "4k", dynamicRange: "dolby_vision" });
+    const unknown = { resolution: "8k", dynamicRange: "hdr12" } as unknown as Partial<LibraryParams>;
+    expect(fitParams(unknown, "movies")).toMatchObject({ resolution: null, dynamicRange: null });
+    expect(hasFilter(params({ resolution: "sd" }))).toBe(true);
+    expect(hasFilter(params({ dynamicRange: "sdr" }))).toBe(true);
+    expect(cleared(params({ sort: "year", genre: "Drama", resolution: "720", dynamicRange: "hlg" }))).toEqual(params({ sort: "year" }));
+    // Older servers send neither; tokens without words here aren't offered.
+    expect(qualityChoices({ genres: [], years: [] })).toEqual({ resolutions: [], dynamicRanges: [] });
+    expect(qualityChoices({ genres: [], years: [], resolutions: ["4k", "1080", "8k"], dynamic_ranges: ["hdr", "dolby_vision", "hdr10", "sdr"] })).toEqual({
+      resolutions: ["4k", "1080"],
+      dynamicRanges: ["hdr", "dolby_vision", "hdr10", "sdr"],
+    });
+  });
+
+  it("badges the posters only when the listing is about the files' quality", () => {
+    expect(showsBadges(params({}))).toBe(false);
+    expect(showsBadges(params({ genre: "Drama", year: 1999, watched: false }))).toBe(false);
+    expect(showsBadges(params({ sort: "bitrate", order: "desc" }))).toBe(true);
+    expect(showsBadges(params({ resolution: "4k" }))).toBe(true);
+    expect(showsBadges(params({ dynamicRange: "sdr" }))).toBe(true);
   });
 
   it("counts by kind", () => {
@@ -70,6 +121,17 @@ describe("a library's sort and filters", () => {
     // Filtered: the noun agrees with the whole library.
     expect(countLabel(23, "movies", 1500)).toBe("23 of 1,500 movies");
     expect(countLabel(1, "shows", 1)).toBe("1 of 1 show");
+  });
+
+  it("keeps a library's resolution and dynamic range with its view", () => {
+    const kept = new Map<string, string>();
+    const kv = { get: (k: string) => kept.get(k) ?? null, set: (k: string, v: string) => void kept.set(k, v), remove: (k: string) => void kept.delete(k) };
+    const quality = params({ resolution: "1080", dynamicRange: "hdr10plus" });
+    new ParamsStore(kv, "http://nas:7539", 1).set(3, quality);
+    expect(new ParamsStore(kv, "http://nas:7539", 1).get(3, "movies")).toEqual(quality);
+    // A view kept before these filters reads as without them.
+    kept.set("pley.library.http://nas:7539.1.4", JSON.stringify({ sort: "year", order: "asc", watched: null, genre: null, year: null }));
+    expect(new ParamsStore(kv, "http://nas:7539", 1).get(4, "movies")).toEqual(params({ sort: "year", order: "asc" }));
   });
 
   it("keeps each profile's view of a library apart", () => {
@@ -265,18 +327,27 @@ describe("the people row", () => {
 
 describe("Save as… (smart playlists)", () => {
   it("writes the library's filters and order in Plex's syntax, as the web and Android do", () => {
-    expect(smartFilterOf({ sort: "title", order: "asc", watched: false, genre: "Comedy", year: 1999 })).toBe("genre=Comedy&year=1999&unwatched=1&sort=titleSort");
-    expect(smartFilterOf({ sort: "year", order: "desc", watched: true, genre: null, year: null })).toBe("unwatched=0&sort=year%3Adesc");
-    expect(smartFilterOf({ sort: "added", order: "desc", watched: null, genre: "Science Fiction & Fantasy", year: null })).toBe("genre=Science+Fiction+%26+Fantasy&sort=addedAt%3Adesc");
+    expect(smartFilterOf(params({ watched: false, genre: "Comedy", year: 1999 }))).toBe("genre=Comedy&year=1999&unwatched=1&sort=titleSort");
+    expect(smartFilterOf(params({ sort: "year", order: "desc", watched: true }))).toBe("unwatched=0&sort=year%3Adesc");
+    expect(smartFilterOf(params({ sort: "added", order: "desc", genre: "Science Fiction & Fantasy" }))).toBe("genre=Science+Fiction+%26+Fantasy&sort=addedAt%3Adesc");
+    // Plex's resolution and Pley's dynamic range, after the year and before unwatched.
+    expect(smartFilterOf(params({ watched: false, genre: "Drama", year: 1999, resolution: "4k", dynamicRange: "hdr" }))).toBe(
+      "genre=Drama&year=1999&resolution=4k&dynamicRange=hdr&unwatched=1&sort=titleSort",
+    );
+    expect(smartFilterOf(params({ sort: "bitrate", order: "desc", dynamicRange: "dolby_vision" }))).toBe("dynamicRange=dolby_vision&sort=mediaBitrate%3Adesc");
   });
 
   it("says what a filter finds", () => {
     expect(describeSmartFilter("genre=Comedy&year=1999&unwatched=1&sort=titleSort")).toEqual(["Genre: Comedy", "From 1999", "Unwatched", "By title"]);
-    expect(describeSmartFilter(smartFilterOf({ sort: "added", order: "desc", watched: true, genre: "Science Fiction & Fantasy", year: null }))).toEqual([
+    expect(describeSmartFilter(smartFilterOf(params({ sort: "added", order: "desc", watched: true, genre: "Science Fiction & Fantasy" })))).toEqual([
       "Genre: Science Fiction & Fantasy",
       "Watched",
       "Recently added first",
     ]);
     expect(describeSmartFilter("type=1&sort=movie.year:desc&decade=1980")).toEqual(["Newest first", "The 1980s"]);
+    // By their words, never the server's tokens.
+    expect(describeSmartFilter("resolution=4k&dynamicRange=dolby_vision&sort=titleSort")).toEqual(["4K", "Dolby Vision", "By title"]);
+    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR+"]);
+    expect(describeSmartFilter("resolution=480")).toEqual(["resolution: 480"]);
   });
 });

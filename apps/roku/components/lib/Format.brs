@@ -1,5 +1,5 @@
-' Times and progress as the screens write them. Durations and positions
-' are milliseconds, as the server sends them.
+' Times, progress, sizes and rates as the screens write them. Durations and
+' positions are milliseconds, as the server sends them.
 
 ' "1:02:03", or "12:34" under an hour.
 function fmtClock(ms as dynamic) as string
@@ -101,6 +101,32 @@ function fmtOneDecimal(value as dynamic) as string
     return Int(tenths / 10).ToStr() + "." + (tenths mod 10).ToStr()
 end function
 
+' "8.2 Mbps", "24 Mbps", "640 kbps"; "" without one.
+function fmtBitrate(bps as dynamic) as string
+    value = httpNumber(bps, 0)
+    if value <= 0 then return ""
+    if value >= 10000000 then return urlValue(Int(value / 1000000 + 0.5)) + " Mbps"
+    if value >= 1000000 then return fmtOneDecimal(value / 1000000) + " Mbps"
+    return urlValue(Int(value / 1000 + 0.5)) + " kbps"
+end function
+
+' 1536 → "1.5 KB", 150 MiB → "150 MB", "62.0 GB": three digits, in units
+' of 1024, as the other apps write sizes. A size past 32 bits comes as a
+' LongInteger, which the first division makes a Float.
+function fmtBytes(bytes as dynamic) as string
+    size = httpNumber(bytes, -1)
+    if size < 0 then return ""
+    units = ["B", "KB", "MB", "GB", "TB"]
+    at = 0
+    while size >= 1024 and at < units.Count() - 1
+        size = size / 1024
+        at = at + 1
+    end while
+    if size >= 100 or at = 0 then return urlValue(Int(size + 0.5)) + " " + units[at]
+    tenths = Int(size * 10 + 0.5)
+    return urlValue(Int(tenths / 10)) + "." + urlValue(tenths mod 10) + " " + units[at]
+end function
+
 ' The languages offered for the audio and subtitle defaults, as ISO 639-2/B
 ' codes (the other apps' 34): [[code, name]].
 function fmtLanguages() as object
@@ -124,6 +150,32 @@ function fmtLanguageName(code as string, none as string) as string
         if language[0] = wanted then return language[1]
     end for
     return code
+end function
+
+' --- Resolutions and dynamic ranges ---
+' A library's filters (lib/Library.brs) and smart filters (lib/Pages.brs)
+' name them by the server's tokens (docs/API.md, GET
+' /api/libraries/{id}/items).
+
+' The resolutions, best first, as the other apps name them: [[token,
+' label]]. 1080 holds 1440p too.
+function fmtResolutions() as object
+    return [["4k", "4K"], ["1080", "1080p"], ["720", "720p"], ["sd", "SD"]]
+end function
+
+' The dynamic ranges, best first; "hdr" is any of them but SDR. HDR10 and
+' HDR10+ read as plain "HDR" and "HDR+", as on the posters.
+function fmtDynamicRanges() as object
+    return [["hdr", "Any HDR"], ["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR+"], ["hdr10", "HDR"], ["hlg", "HLG"], ["sdr", "SDR"]]
+end function
+
+' What table ([[token, label]]) calls token; "" for one it doesn't hold.
+function fmtTokenLabel(table as object, token as dynamic) as string
+    wanted = httpString(token)
+    for each pair in table
+        if pair[0] = wanted then return pair[1]
+    end for
+    return ""
 end function
 
 ' --- Times to come and gone (requests' words, lib/Requests.brs) ---

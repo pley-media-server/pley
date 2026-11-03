@@ -125,6 +125,12 @@ left on, kept on the Roku for each server, profile and library.
 - **Library** is a grid of posters, 70 at a time as the focus comes near
   the next ones; places a jump passes over show empty frames until their
   titles come.
+- **Quality badges:** sorted by bitrate, or filtered by resolution or
+  dynamic range, the posters say what sets their best file apart at their
+  foot: "4K" (no other resolution), then "DV", "HDR+", "HDR" or "HLG".
+  Sorted by bitrate, its bitrate and size take the year's place under the
+  poster ("42 Mbps · 23.4 GB"). Otherwise, and in rows, collections,
+  playlists and search, posters have no quality badges.
 - **See all** ends the rows of a library's newest, newly released and top
   rated titles, on Home and on a library's Recommended tab. It shows the
   library's Library tab in the row's order (date added, release date or
@@ -138,6 +144,13 @@ left on, kept on the Roku for each server, profile and library.
   index of letters: the app reads the listing's titles a thousand at a
   time and keeps only where each letter starts
   (`components/lib/Library.brs`).
+- **Filter**, the chip after the sort's, opens a panel: Show (all titles,
+  unwatched or watched), Genre and Year, then, in a library of movies or
+  shows, Resolution (4K, 1080p, 720p, SD) and Dynamic range (Any HDR,
+  HDR, which takes in Dolby Vision and HDR+, Dolby Vision, HDR+, HLG,
+  SDR). Those two show once the server says the titles differ in them,
+  offering the choices it lists, or while one is chosen; a title counts by
+  its best file, a show by its best episode. The chip says what is kept ("Unwatched, 4K, Dolby Vision").
 - **Save as…:** once filters are set, the Filter panel ends with Clear
   filters and Save as…, which saves them and the order as a smart playlist
   (`POST /api/playlists` with `library_id` and `smart_filter`, written as
@@ -150,7 +163,8 @@ second. What the libraries have comes in rows by kind, in the other apps'
 order: Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks, Live TV
 (cards: OK watches the channel, and Up and Down in the player go through
 what was found) and People, the closest matches first in each; then
-Discover for those who may ask (below).
+Discover for those who may ask (below). Each row holds all that was found
+of its kind, up to 200 (`limit=200`), and scrolls sideways.
 Right from the keyboard's last column reaches them.
 
 Before anything is typed it lists the recent searches: the last 10 whose
@@ -508,15 +522,15 @@ bun run images    # the nine-patch focus and watched-mark images
   draws (their list asked for where it starts, then again until whole, and
   a picture loaded), then the same episode on a server without their
   pictures, which burns them in; it jumps down a library with its A to Z,
-  saves a library's filters as a smart playlist, plays a collection of
-  movies and a smart one of shows, and an artist's tracks, makes a
-  playlist, plays a track from Now Playing's Up next, shuffles the queue
-  and puts its order back, steps the music's sleep timer through its
-  choices, plays a track from under an album's "Disc 2", opens the See all
-  of Search's Discover row, asks for a movie and three seasons from
-  Discover, approves a request, opens a title from its ready-to-watch
-  notice, and checks that a server without requests is asked nothing but
-  the summary.
+  sorts it by bitrate and filters it by resolution, saves another's
+  filters as a smart playlist, plays a collection of movies and a smart
+  one of shows, and an artist's tracks, makes a playlist, plays a track
+  from Now Playing's Up next, shuffles the queue and puts its order back,
+  steps the music's sleep timer through its choices, plays a track from
+  under an album's "Disc 2", opens the See all of Search's Discover row,
+  asks for a movie and three seasons from Discover, approves a request,
+  opens a title from its ready-to-watch notice, and checks that a server
+  without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next, the sleep timers' ends and picture subtitles shown in time have
   only unit tests), one fetch at a time, the odd dropped key, and no

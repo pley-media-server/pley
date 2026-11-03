@@ -34,6 +34,20 @@ sub test_search_rows_by_kind_in_order()
     tkEqual(searchRows(invalid, contentTestServer(), 0, true), [])
 end sub
 
+sub test_search_asks_for_and_keeps_every_result()
+    tkEqual(searchPath("star wars"), "/api/search?limit=200&q=star%20wars", "the most the server gives of each kind")
+    items = []
+    people = []
+    for i = 1 to 150
+        items.Push({ id: i, kind: "movie", title: "Movie " + i.ToStr() })
+        people.Push({ id: i, name: "Person " + i.ToStr() })
+    end for
+    rows = searchRows({ items: items, people: people, channels: [] }, contentTestServer(), 0, true)
+    tkEqual(rows.Count(), 2)
+    tkEqual(rows[0].tiles.Count(), 150, "every title")
+    tkEqual(rows[1].tiles.Count(), 150, "every person, where the server stopped at 12")
+end sub
+
 sub test_search_row_sizes()
     tkEqual(searchRowSize("movie"), { size: [196, 370], height: 430 })
     tkEqual(searchRowSize("person"), { size: [196, 370], height: 430 })

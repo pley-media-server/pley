@@ -151,7 +151,7 @@ sub uiPatchTiles(content as dynamic, change as object)
             uiPatchTiles(node, change)
         else if node.hasField("itemId") and node.itemId = change.itemId and node.hasField("watched")
             fields = {}
-            for each key in ["title", "subtitle", "image", "wide", "square", "progress", "watched", "itemId", "kind", "parentId", "grandparentId", "positionMs", "durationMs", "summary", "entryId", "historyId"]
+            for each key in ["title", "subtitle", "image", "wide", "square", "progress", "watched", "itemId", "kind", "parentId", "grandparentId", "positionMs", "durationMs", "summary", "entryId", "historyId", "qualityBadges"]
                 if node.hasField(key) then fields[key] = node.getField(key)
             end for
             fields.positionMs = 0

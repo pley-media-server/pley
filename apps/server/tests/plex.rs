@@ -233,6 +233,13 @@ async fn sections_listings_filters_and_paging() {
         app.plex_json(&format!("/library/sections/{lib}/all?includeMeta=1&X-Plex-Container-Size=0"), &token).await;
     assert_eq!(meta["Meta"][0]["Type"][0]["type"], "movie");
     assert!(meta["Meta"][0]["FieldType"].as_array().unwrap().len() >= 5);
+    // Kometa looks a resolution up among the section's choices before it searches.
+    let movie = &meta["Meta"][0]["Type"][0];
+    assert!(movie["Filter"].as_array().unwrap().iter().any(|f| f["filter"] == "resolution"));
+    assert!(movie["Field"].as_array().unwrap().iter().any(|f| f["key"] == "resolution" && f["type"] == "resolution"));
+    let choices = app.plex_json(&format!("/library/sections/{lib}/resolution?type=1"), &token).await;
+    let keys: Vec<&str> = choices["Directory"].as_array().unwrap().iter().map(|d| d["key"].as_str().unwrap()).collect();
+    assert_eq!(keys, ["4k", "1080", "720", "sd"]);
 
     // XML for clients that don't ask for JSON.
     let xml = app.plex(&format!("/library/sections/{lib}/all"), &[("x-plex-token", &token)]).await;

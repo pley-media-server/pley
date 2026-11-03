@@ -1,13 +1,15 @@
+import { useId, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSearch } from "@/api/hooks";
 import { programProgress, type Channel } from "@/api/livetv";
 import { mayRequest, requestProblem, uniqueTitles, useDiscoverSearch, useFillPages, useRequestSummary } from "@/api/requests";
-import type { ItemKind, ItemSummary } from "@/api/types";
+import type { ItemKind, ItemSummary, PersonSummary } from "@/api/types";
 import { aspectFor, CardSkeleton, MediaCard } from "@/components/cards";
 import { PersonCard } from "@/components/PersonCard";
 import { Button, EmptyState, SectionTitle, Spinner } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { ChannelLogo, liveUrl, useNow } from "@/pages/livetv/common";
 import { problemWords } from "@/lib/requests";
@@ -24,67 +26,147 @@ const GROUPS: { kind: ItemKind; title: string }[] = [
   { kind: "track", title: "Tracks" },
 ];
 
+/** Rows of a group shown until it's opened: the closest matches come first. */
+const SHOWN_ROWS = 2;
+
+/** Columns of about `target` px, `gap` apart, that fit in `width` (at least `min`; `fallback` before it's measured). */
+function columnsIn(width: number, target: number, gap: number, min = 1, fallback = 4): number {
+  return width > 0 ? Math.max(min, Math.floor((width + gap) / (target + gap))) : fallback;
+}
+
+/**
+ * A group of results: its title and count, its first two rows, and "Show
+ * all" for the rest. Closing a long group brings its title back into view,
+ * rather than leaving the page far below it.
+ */
+function ResultSection<T>({
+  title,
+  items,
+  columns,
+  children,
+}: {
+  title: string;
+  items: T[];
+  /** How many results a row holds. */
+  columns: number;
+  children: (shown: T[]) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  const id = useId();
+  const limit = columns * SHOWN_ROWS;
+  const more = items.length > limit;
+  const toggle = () => {
+    const top = ref.current?.getBoundingClientRect().top ?? 0;
+    if (open && top < 0) ref.current?.scrollIntoView({ block: "start" });
+    setOpen(!open);
+  };
+  return (
+    <section ref={ref} className="scroll-mt-20" aria-labelledby={`${id}-title`}>
+      <SectionTitle
+        action={
+          more ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={`${id}-results`}
+              aria-describedby={`${id}-title`}
+              onClick={toggle}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {open ? "Show fewer" : `Show all ${items.length.toLocaleString()}`}
+              <ChevronDown className={cn("size-4 transition-transform duration-200", open && "rotate-180")} aria-hidden />
+            </button>
+          ) : null
+        }
+      >
+        <span id={`${id}-title`}>
+          {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length.toLocaleString()}</span>
+        </span>
+      </SectionTitle>
+      <div id={`${id}-results`}>{children(open || !more ? items : items.slice(0, limit))}</div>
+    </section>
+  );
+}
+
 function ResultGroup({ title, items }: { title: string; items: ItemSummary[] }) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const aspect = items[0] ? aspectFor(items[0]) : "poster";
   const target = aspect === "thumb" ? 260 : aspect === "square" ? 160 : 150;
   const gap = 18;
-  const cols = width > 0 ? Math.max(2, Math.floor((width + gap) / (target + gap))) : 4;
+  const cols = columnsIn(width, target, gap, 2);
   const colWidth = width > 0 ? (width - gap * (cols - 1)) / cols : target;
   return (
-    <section>
-      <SectionTitle>
-        {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length}</span>
-      </SectionTitle>
-      <div ref={ref} className="grid gap-x-[18px] gap-y-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {items.map((item) => (
-          <MediaCard key={item.id} item={item} aspect={aspect} width={colWidth} playable={item.kind !== "track"} />
-        ))}
-      </div>
-    </section>
+    <ResultSection title={title} items={items} columns={cols}>
+      {(shown) => (
+        <div ref={ref} className="grid gap-x-[18px] gap-y-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {shown.map((item) => (
+            <MediaCard key={item.id} item={item} aspect={aspect} width={colWidth} playable={item.kind !== "track"} />
+          ))}
+        </div>
+      )}
+    </ResultSection>
+  );
+}
+
+/** People found: round photos, as many to a row as fit. */
+function PeopleResults({ people }: { people: PersonSummary[] }) {
+  const [ref, width] = useElementWidth<HTMLDivElement>();
+  const cols = columnsIn(width, 112, 16, 2, 6);
+  return (
+    <ResultSection title="People" items={people} columns={cols}>
+      {(shown) => (
+        <div ref={ref} className="grid gap-x-4 gap-y-5" style={{ gridTemplateColumns: `repeat(${cols}, 112px)` }}>
+          {shown.map((p) => (
+            <PersonCard key={p.id} person={p} width={112} />
+          ))}
+        </div>
+      )}
+    </ResultSection>
   );
 }
 
 /** Live TV channels found: logo, number and name, what's on with how far it is. */
 function ChannelResults({ channels }: { channels: Channel[] }) {
   const now = useNow();
+  const [ref, width] = useElementWidth<HTMLUListElement>();
+  const cols = columnsIn(width, 256, 12, 1, 3);
   return (
-    <section>
-      <SectionTitle>
-        Live TV <span className="ml-1 text-sm font-normal text-subtle">{channels.length}</span>
-      </SectionTitle>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
-        {channels.map((c) => {
-          const on = c.now && c.now.start <= now && c.now.stop > now ? c.now : null;
-          return (
-            <li key={c.id}>
-              <Link
-                to={liveUrl(c)}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface p-2.5 transition-colors hover:border-border-strong hover:bg-surface-2"
-              >
-                <ChannelLogo channel={c} width={96} showName={false} className="h-11 w-[4.5rem] shrink-0 rounded-md bg-surface-3" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-1.5">
-                    {c.number ? <span className="shrink-0 text-xs tabular-nums text-subtle">{c.number}</span> : null}
-                    <span className="truncate text-sm font-medium">{c.name}</span>
+    <ResultSection title="Live TV" items={channels} columns={cols}>
+      {(shown) => (
+        <ul ref={ref} className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {shown.map((c) => {
+            const on = c.now && c.now.start <= now && c.now.stop > now ? c.now : null;
+            return (
+              <li key={c.id}>
+                <Link
+                  to={liveUrl(c)}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-2.5 transition-colors hover:border-border-strong hover:bg-surface-2"
+                >
+                  <ChannelLogo channel={c} width={96} showName={false} className="h-11 w-[4.5rem] shrink-0 rounded-md bg-surface-3" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-1.5">
+                      {c.number ? <span className="shrink-0 text-xs tabular-nums text-subtle">{c.number}</span> : null}
+                      <span className="truncate text-sm font-medium">{c.name}</span>
+                    </div>
+                    {on ? (
+                      <>
+                        <div className="truncate text-xs text-muted">{on.title}</div>
+                        <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-white/10">
+                          <div className="h-full bg-accent" style={{ width: `${programProgress(on, now) * 100}%` }} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="truncate text-xs text-subtle">{c.group}</div>
+                    )}
                   </div>
-                  {on ? (
-                    <>
-                      <div className="truncate text-xs text-muted">{on.title}</div>
-                      <div className="mt-1 h-0.5 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full bg-accent" style={{ width: `${programProgress(on, now) * 100}%` }} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="truncate text-xs text-subtle">{c.group}</div>
-                  )}
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ResultSection>
   );
 }
 
@@ -211,21 +293,11 @@ export function SearchPage() {
       {/* The libraries' titles, then Live TV, then people (the server puts the closest first in each). */}
       {GROUPS.map(({ kind, title }) => {
         const items = results.filter((r) => r.kind === kind);
-        return items.length ? <ResultGroup key={kind} title={title} items={items} /> : null;
+        // Keyed by the query too: a new search starts with every group closed.
+        return items.length ? <ResultGroup key={`${q}:${kind}`} title={title} items={items} /> : null;
       })}
-      {channels.length ? <ChannelResults channels={channels} /> : null}
-      {people.length ? (
-        <section>
-          <SectionTitle>
-            People <span className="ml-1 text-sm font-normal text-subtle">{people.length}</span>
-          </SectionTitle>
-          <div className="flex flex-wrap gap-x-4 gap-y-5">
-            {people.map((p) => (
-              <PersonCard key={p.id} person={p} width={112} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {channels.length ? <ChannelResults key={q} channels={channels} /> : null}
+      {people.length ? <PeopleResults key={q} people={people} /> : null}
       {tmdb()}
     </div>
   );

@@ -82,8 +82,8 @@ data class UserState(
 )
 
 /**
- * What a title's files are like, in listings sorted by bitrate: a movie's
- * best file, a show's episodes together (apps/server/src/catalog.rs,
+ * What a title's files are like, in library listings: a movie's best
+ * file, a show's episodes together (apps/server/src/catalog.rs,
  * `MediaSummary`).
  */
 @Serializable
@@ -97,7 +97,7 @@ data class MediaSummary(
     val height: Int? = null,
     /** `null` for shows. */
     val videoCodec: String? = null,
-    /** `null` for shows. */
+    /** A show: its best episode's (an older server: `null`). */
     val dynamicRange: DynamicRange? = null,
 )
 
@@ -149,7 +149,7 @@ data class ItemSummary(
     val releaseDate: String? = null,
     /** Kind [ItemKind.Extra] only. */
     val extraType: ExtraType? = null,
-    /** Only in library listings sorted by bitrate. */
+    /** Only in library listings (an older server's: only sorted by bitrate). */
     val media: MediaSummary? = null,
 )
 

@@ -82,6 +82,19 @@ heard it for that profile, the start asks "Who's watching?".
 - Select opens, holding Select or Menu (☰) opens a title's actions in a
   panel over the page, which stays as it was, and Back goes back: to the
   page the rail opened as it was left, focus included.
+- **The rail** lists, between the profile's avatar and Settings, Search,
+  Home, Discover (or the requests), Live TV, the first six libraries in
+  the server's order, **Libraries** when there are more (it lists them
+  all), Playlists, Collections when there is no **Libraries**, Now Playing
+  and the USB drive, each where it applies. Nothing makes way for
+  another: entries are 40 dp tall on a 44 dp pitch, nine fit, and more
+  scroll between the avatar and Settings, which stay put. Going down,
+  focus moves until it is the fourth entry shown, then stays there while
+  the entries move under it a whole entry a press, until the last ones
+  show and focus goes on to the last; going up is the same backwards. An
+  entry shows in the same place whichever way focus came, as in the app's
+  lists, and none is ever cut in half. The closed rail shows the page's
+  entry where focus on it would, so opening the rail moves nothing.
 - **The player**: OK with the controls hidden shows them on the scrubber,
   as Up does (Down shows them on Play/Pause), and OK there plays and
   pauses. It seeks as YouTube's TV app does: Left and Right show the
@@ -156,6 +169,36 @@ heard it for that profile, the start asks "Who's watching?".
   and the player's details say why ("HDR10 (Dolby Vision base layer, as
   this screen doesn't show Dolby Vision)"). Their Decoded line names what
   the decoder makes: HEVC and HDR10 for a base layer.
+
+### Libraries
+
+A library's Library tab sorts and filters its grid as the web app does:
+watched or not, genre, year and, in movie and show libraries, resolution
+(4K, 1080p, 720p, SD) and dynamic range (Any HDR, HDR, which takes in
+Dolby Vision and HDR+, Dolby Vision, HDR+, HLG, SDR), the choices the
+server lists where the library's titles differ in them. A title counts by
+its best file, a show by its best episode.
+
+- **Phones**: each filter is a chip over the grid that opens its sheet.
+- **TVs**: Genre and Year are chips and rows of the Filter panel;
+  Resolution and Dynamic range are rows of the Filter panel after Year,
+  with a chip ("4K", "Dolby Vision") while one is chosen. Chips that don't
+  all fit scroll with focus.
+- Clear filters clears them all, Save as… keeps them in the smart playlist
+  (`resolution=4k&dynamicRange=hdr`), and a library opens as it was left,
+  filters included; a stored value the server wouldn't take is dropped.
+- Posters carry their quality badges ("4K", "DV", "HDR") only while the
+  grid is sorted by bitrate or filtered by resolution or dynamic range;
+  sorted by bitrate, each also shows its bitrate and size. Recommended
+  rows, collections, playlists, search and Home show none.
+
+### Search
+
+Search asks the server for up to 200 titles, 200 people and 200 Live TV
+channels (`GET /api/search?limit=200`), the most it gives, and shows every
+one: a row per group (Movies, Shows, Seasons, Episodes, Artists, Albums,
+Tracks, Live TV, People) on phones and TVs, each scrolling sideways, with
+no See all. TMDB's Discover row comes after them ([Requests](#requests)).
 
 ### Audio and subtitles
 
@@ -381,13 +424,9 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
 ### Videos on a USB drive
 
 On Android TV, Google TV and Fire TV, while a USB drive is plugged in, the
-rail has **USB drive** after Now Playing, as in the native Samsung app. The
-rail holds seven entries: the drive makes room as the other entries do
-(Collections goes, then libraries behind **Libraries**), and when no
-library can make way, Playlists does: the Libraries page lists it after
-the libraries, as a card like theirs, while the rail doesn't, and a lone
-library becomes **Libraries** so the rail still leads there. The Playlists
-page opened from it marks **Libraries** in the rail. The drive's page
+rail has **USB drive** after Now Playing, as in the native Samsung app;
+no other entry makes way for it ([the rail](#tvs-and-fire-tv) scrolls).
+The drive's page
 lists the drive's folders, then its videos (MKV, MP4, M4V, MOV, TS, WebM,
 AVI, MPEG), each sorted as a person sorts names ("Part 2" before "Part
 10"); hidden files and what Windows and macOS leave on a drive aren't

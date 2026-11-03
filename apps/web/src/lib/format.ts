@@ -1,4 +1,4 @@
-import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, TranscodeInfo } from "@/api/types";
+import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, RangeFilter, Resolution, TranscodeInfo } from "@/api/types";
 import { languageName } from "./languages";
 
 /** 6720000 → "1h 52m", 2700000 → "45m", 29000 → "29s" (rounded to whole minutes from 30s up). */
@@ -45,15 +45,39 @@ export function formatBytes(bytes: number | null | undefined): string {
 /**
  * What sets a title's files apart, for its poster: `["4K", "DV"]`. Only 4K
  * of the resolutions, and no codec: "1080p" or "H.264" on most posters says
- * nothing worth the room.
+ * nothing worth the room. HDR10 and HDR10+ read as plain "HDR" and "HDR+"
+ * there and in the filters; a title's page names them exactly.
  */
 export function mediaBadges(media: MediaSummary | null | undefined): string[] {
   if (!media) return [];
-  const range: Partial<Record<DynamicRange, string>> = { dolby_vision: "DV", hdr10plus: "HDR10+", hdr10: "HDR10", hlg: "HLG" };
+  const range: Partial<Record<DynamicRange, string>> = { dolby_vision: "DV", hdr10plus: "HDR+", hdr10: "HDR", hlg: "HLG" };
   return [
     resolutionLabel(media.width, media.height) === "4K" ? "4K" : null,
     media.dynamic_range ? (range[media.dynamic_range] ?? null) : null,
   ].filter((b): b is string => !!b);
+}
+
+/** What the library filters by resolution call each one. */
+export const RESOLUTION_LABELS: Record<Resolution, string> = { "4k": "4K", "1080": "1080p", "720": "720p", sd: "SD" };
+
+/** What the library filters by dynamic range call each one. */
+export const RANGE_FILTER_LABELS: Record<RangeFilter, string> = {
+  hdr: "Any HDR",
+  dolby_vision: "Dolby Vision",
+  hdr10plus: "HDR+",
+  hdr10: "HDR",
+  hlg: "HLG",
+  sdr: "SDR",
+};
+
+/** `value` if it's a resolution a library filters by (an address may hold anything). */
+export function resolutionOf(value: string | null | undefined): Resolution | undefined {
+  return value && Object.hasOwn(RESOLUTION_LABELS, value) ? (value as Resolution) : undefined;
+}
+
+/** `value` if it's a dynamic range a library filters by. */
+export function rangeFilterOf(value: string | null | undefined): RangeFilter | undefined {
+  return value && Object.hasOwn(RANGE_FILTER_LABELS, value) ? (value as RangeFilter) : undefined;
 }
 
 /** The line under a title's poster: `"42 Mbps · 23.4 GB"`. */

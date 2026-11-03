@@ -515,6 +515,8 @@ class WindowTest(unittest.TestCase):
         library.items, library.total = [], 23
         library.genre, library.watched = "Science Fiction", False
         library.sort, library.descending = "year", True
+        # A server from before the quality filters: no Resolution or Dynamic range.
+        library.filters = {"genres": ["Drama", "Science Fiction"], "years": [1999]}
         self.assertEqual(library.query(0)["watched"], "false")
         # Save as…: Plex's syntax, as SmartFilter.of writes it.
         self.assertEqual(library.smart_filter(), "genre=Science+Fiction&unwatched=1&sort=year%3Adesc")
@@ -543,6 +545,135 @@ class WindowTest(unittest.TestCase):
             library.filter_menu()
         self.assertEqual(win.session.client.posts, [("/api/playlists", {"title": "Seen", "smart_filter": "unwatched=0&sort=year%3Adesc", "library_id": 4})])
         self.assertEqual(len(win.opened), 1)
+
+    def test_library_quality_filters(self):
+        uhd = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "video_codec": "hevc", "dynamic_range": "dolby_vision"}
+        hd = {"bitrate": 8_200_000, "size": 4_294_967_296, "width": 1920, "height": 1080, "video_codec": "h264", "dynamic_range": "sdr"}
+        items = [
+            {"id": 1, "kind": "movie", "title": "Saltwind", "year": 1995, "user_state": {}, "media": uhd},
+            {"id": 2, "kind": "movie", "title": "Low Orbit", "year": 2019, "user_state": {}, "media": hd},
+        ]
+        filters = {
+            "genres": ["Drama"],
+            "years": [1999],
+            "resolutions": ["4k", "1080"],
+            # Best first, "hdr" leading; a token this add-on has no word for is left out.
+            "dynamic_ranges": ["hdr", "dolby_vision", "hdr12", "sdr"],
+        }
+        asked = []
+
+        def get(path, **query):
+            asked.append((path, query))
+            return filters if path.endswith("/filters") else {"items": items, "total": 2}
+
+        win = FakeWindow()
+        win.session.get = get
+        win.libraries = [{"id": 4, "kind": "movies", "name": "Movies", "item_count": 342}]
+        library = window.Library(win, win.libraries[0], None)
+        library.load()
+        library.draw()
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        # Sorted by title and unfiltered, the posters say nothing of their quality.
+        self.assertEqual([(li.label2, li.properties.get("resolution"), li.properties.get("range")) for li in grid.items], [("1995", None, None), ("2019", None, None)])
+        self.assertTrue(win.made[L.LIBRARY_FILTER].visible)
+        self.assertFalse(win.made[L.LIBRARY_FILTER_ON].visible)
+        # Filter: Resolution and Dynamic range after Year, with nothing chosen.
+        with Dialogs(picks=[5, 1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        names = dialogs.shown[0][0]
+        self.assertEqual(names[3:], ["Genre: All genres", "Year: All years", "Resolution: All resolutions", "Dynamic range: All dynamic ranges"])
+        # The choices are the server's, in its order, by their names.
+        self.assertEqual(dialogs.shown[1], (["All resolutions", "4K", "1080p"], 0))
+        self.assertEqual(asked[-1], ("/api/libraries/4/items", {"sort": "title", "order": "asc", "offset": 0, "limit": window.PAGE, "resolution": "4k"}))
+        # A resolution chosen: the posters carry their badges, their line stays the year.
+        self.assertEqual([(li.label2, li.properties.get("resolution"), li.properties.get("range")) for li in grid.items], [("1995", "4k", "dolby_vision"), ("2019", None, None)])
+        # Filter's twin says what is chosen, and keeps focus.
+        self.assertFalse(win.made[L.LIBRARY_FILTER].visible)
+        self.assertTrue(win.made[L.LIBRARY_FILTER_ON].visible)
+        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K")
+        self.assertEqual(win.focused, L.LIBRARY_FILTER_ON)
+        self.assertEqual(win.made[L.LIBRARY_COUNT].label, window.T("count_of") % ("2", "342 movies"))
+        with Dialogs(picks=[6, 2]) as dialogs:
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual(dialogs.shown[0][0][5:], ["Resolution: 4K", "Dynamic range: All dynamic ranges", window.T("clear_filters"), window.T("save_as")])
+        self.assertEqual(dialogs.shown[1], (["All dynamic ranges", "Any HDR", "Dolby Vision", "SDR"], 0))
+        self.assertEqual(asked[-1][1]["dynamic_range"], "dolby_vision")
+        self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K · DV")
+        # Save as…: after the year, before unwatched, in Plex's syntax (Pley's dynamicRange).
+        library.genre, library.year, library.watched = "Drama", 1999, False
+        self.assertEqual(library.smart_filter(), "genre=Drama&year=1999&resolution=4k&dynamicRange=dolby_vision&unwatched=1&sort=titleSort")
+        # A value chosen stays offered when the server no longer lists its kind, to change or clear it.
+        library.genre, library.year, library.watched = None, None, None
+        filters["resolutions"], filters["dynamic_ranges"] = [], []
+        library.filters = None
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual(dialogs.shown[0][0][5:7], ["Resolution: 4K", "Dynamic range: Dolby Vision"])
+        # Clear filters clears them too.
+        with Dialogs(picks=[7]):
+            library.click(L.LIBRARY_FILTER_ON)
+        self.assertEqual((library.resolution, library.dynamic_range, library.filtered), (None, None, False))
+        self.assertNotIn("resolution", asked[-1][1])
+        self.assertEqual(win.focused, L.LIBRARY_FILTER)
+        # Nothing to choose from and nothing chosen: no rows for them.
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        self.assertEqual(len(dialogs.shown[0][0]), 5)
+        # The filters' answer missing: the menu goes on without them.
+        library.filters = None
+        win.session.get = lambda path, **query: (_ for _ in ()).throw(window.api.ApiError(500, "internal", "down"))
+        with Dialogs(picks=[-1]) as dialogs:
+            library.click(L.LIBRARY_FILTER)
+        self.assertEqual(len(dialogs.shown[0][0]), 5)
+
+    def test_library_sorts_and_the_bitrate_line(self):
+        win = FakeWindow()
+        asked = []
+        media = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "dynamic_range": "hdr10plus"}
+        items = [
+            {"id": 1, "kind": "movie", "title": "Saltwind", "year": 1995, "user_state": {}, "media": media},
+            {"id": 2, "kind": "movie", "title": "Low Orbit", "year": 2019, "user_state": {}, "media": {"bitrate": None, "size": None, "width": 720, "height": 576}},
+        ]
+
+        def get(path, **query):
+            asked.append(query)
+            return {"items": list(items), "total": 4}
+
+        win.session.get = get
+        movies = window.Library(win, {"id": 4, "kind": "movies", "name": "Movies"}, None)
+        # The web's sorts, in its order: Your rating and Bitrate too.
+        with Dialogs(picks=[8]) as dialogs:
+            movies.click(L.LIBRARY_SORT)
+        self.assertEqual(dialogs.shown[0][0], ["Title", "Year", "Date added", "Rating", "Your rating", "Release date", "Duration", "Last played", "Bitrate"])
+        self.assertEqual((asked[-1]["sort"], asked[-1]["order"]), ("bitrate", "desc"))
+        self.assertEqual(win.focused, L.LIBRARY_SORT_DOWN)
+        # Sorted by bitrate: the line under each poster is its bitrate and size, and the posters
+        # carry their badges.
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        self.assertEqual([li.label2 for li in grid.items], ["42 Mbps · 23.4 GB", "Bitrate unknown"])
+        self.assertEqual((grid.items[0].properties["resolution"], grid.items[0].properties["range"]), ("4k", "hdr10plus"))
+        self.assertNotIn("resolution", grid.items[1].properties)
+        self.assertEqual(movies.smart_filter(), "sort=mediaBitrate%3Adesc")
+        # The next page's posters too.
+        win.later = at_once
+        movies.more()
+        self.assertEqual(asked[-1]["offset"], 2)
+        self.assertEqual([li.label2 for li in grid.items[2:]], ["42 Mbps · 23.4 GB", "Bitrate unknown"])
+        with Dialogs(picks=[4]):
+            movies.click(L.LIBRARY_SORT_DOWN)
+        self.assertEqual(asked[-1]["sort"], "user_rating")
+        self.assertEqual(movies.smart_filter(), "sort=userRating%3Adesc")
+        self.assertEqual([(li.label2, li.properties.get("resolution")) for li in grid.items], [("1995", None), ("2019", None)])
+        # Shows have no one duration, and artists sort as the web's music does.
+        shows = window.Library(win, {"id": 5, "kind": "shows", "name": "TV Shows"}, None)
+        with Dialogs(picks=[-1]) as dialogs:
+            shows.click(L.LIBRARY_SORT)
+        self.assertNotIn("Duration", dialogs.shown[0][0])
+        self.assertEqual(dialogs.shown[0][0][-1], "Bitrate")
+        music = window.Library(win, {"id": 6, "kind": "music", "name": "Music"}, None)
+        with Dialogs(picks=[-1]) as dialogs:
+            music.click(L.LIBRARY_SORT)
+        self.assertEqual(dialogs.shown[0][0], ["Title", "Date added", "Your rating", "Last played"])
 
     def test_a_library_opens_on_the_tab_it_was_left_on(self):
         settings = window.kodi.xbmcaddon.settings
@@ -686,48 +817,83 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(left, ["sign_out"])
 
     def test_the_rail_fits_every_library_above_settings(self):
-        for count in range(8):
-            win = FakeWindow()
-            win.libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(count)]
-            win.setup_rail()
-            # As on Android TV (RailItems.kt): three libraries, then Libraries in Collections'
-            # place; no Collections without a library.
-            more = count > 3
-            if more:
-                entries = [L.RAIL_SEARCH, L.RAIL_HOME, *L.RAIL_LIBRARIES, L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS, L.RAIL_SETTINGS]
-            else:
-                entries = [L.RAIL_SEARCH, L.RAIL_HOME, *L.RAIL_LIBRARIES[:count], L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if count else []) + [L.RAIL_SETTINGS]
-            for i, entry in enumerate(L.RAIL_LIBRARIES):
-                self.assertEqual(win.made[L.rail_group(entry)].visible, i < count)
-            self.assertEqual(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible, more)
-            self.assertEqual(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible, 0 < count <= 3)
-            # Each pill's top and bottom on the screen.
-            pills = []
-            for entry in entries:
-                group, pill = win.made[L.rail_group(entry)], win.made[entry]
-                top = group.position[1] + pill.position[1]
-                pills.append((top, top + pill.height))
-                self.assertEqual(win.made[L.rail_pill(entry)].height, pill.height)
-            for (_, above), (below, _) in zip(pills, pills[1:]):
-                self.assertGreaterEqual(below - above, L.RAIL_GAP, "%d libraries: %s" % (count, pills))
-            # Settings stays where skin.py puts it, its pill as tall as the others' (a 100 one
-            # under pills of 64 looked out of place).
-            self.assertEqual(win.made[L.rail_group(L.RAIL_SETTINGS)].position, (0, L.RAIL_SETTINGS_Y - 50))
-            self.assertEqual(len({bottom - top for top, bottom in pills}), 1, pills)
-            # The icons (40 tall) still fit their pills.
-            self.assertGreaterEqual(min(bottom - top for top, bottom in pills), 60, count)
-            # Few libraries keep the rail as it was.
-            if count <= 2:
-                self.assertEqual(win.made[L.rail_group(L.RAIL_PLAYLISTS)].position[1], L.RAIL_TOP + (2 + count) * L.RAIL_PITCH - 50)
+        # Entries 80 tall and 8 apart (the other TV apps' 40 and 4), nine of them over Settings.
+        self.assertEqual((L.RAIL_ROW, L.RAIL_PITCH, L.RAIL_FIT), (80, 88, 9))
+        avatar_foot = L.RAIL_AVATAR_Y + 50
+        for live in (False, True):
+            for count in range(9):
+                win = FakeWindow()
+                win.libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(count)]
+                win.live = {"available": live}
+                win.setup_rail()
+                # As on Android TV (RailItems.kt), the libraries, then Libraries in Collections' place
+                # when the rail can't list them all: at least four, and five while nine entries fit
+                # (Search, Home, Libraries and Playlists around them); no Collections without a library.
+                shown = min(count, 4 if live else 5)
+                more = count > shown
+                top = [L.RAIL_SEARCH, L.RAIL_HOME] + ([L.RAIL_LIVE] if live else [])
+                if more:
+                    entries = top + [*L.RAIL_LIBRARIES[:shown], L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS]
+                else:
+                    entries = top + [*L.RAIL_LIBRARIES[:count], L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if count else [])
+                self.assertEqual(window.rail_entries(count, live), entries)
+                self.assertEqual(window.rail_shown(count, live), shown)
+                for i, entry in enumerate(L.RAIL_LIBRARIES):
+                    self.assertEqual(win.made[L.rail_group(entry)].visible, i < shown, (live, count, i))
+                self.assertEqual(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible, more)
+                self.assertEqual(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible, 0 < count == shown)
+                # Each pill's top and bottom on the screen.
+                pills = []
+                for entry in entries + [L.RAIL_SETTINGS]:
+                    group, pill = win.made[L.rail_group(entry)], win.made[entry]
+                    top_ = group.position[1] + pill.position[1]
+                    pills.append((top_, top_ + pill.height))
+                    self.assertEqual(win.made[L.rail_pill(entry)].height, pill.height)
+                self.assertGreaterEqual(pills[0][0] - avatar_foot, L.RAIL_GAP, "under the avatar")
+                for (_, above), (below, _) in zip(pills, pills[1:]):
+                    self.assertGreaterEqual(below - above, L.RAIL_GAP, "%d libraries: %s" % (count, pills))
+                # Settings stays where skin.py puts it, its foot on the safe area's.
+                self.assertEqual(win.made[L.rail_group(L.RAIL_SETTINGS)].position, (0, L.RAIL_SETTINGS_Y - L.RAIL_ROW // 2))
+                self.assertEqual(pills[-1][1], L.HEIGHT - L.SAFE_Y)
+                # Every entry at full height: none smaller than the others.
+                self.assertEqual({bottom - top_ for top_, bottom in pills}, {L.RAIL_ROW}, pills)
+                # From Search down, a pitch apart.
+                self.assertEqual(win.made[L.rail_group(entries[-1])].position[1], L.RAIL_TOP + (len(entries) - 1) * L.RAIL_PITCH - L.RAIL_ROW // 2)
+        # Too many entries for their places close up, as before, the pills still apart.
+        self.assertEqual(L.rail_pitch(L.RAIL_FIT + 1), (L.RAIL_SETTINGS_Y - L.RAIL_TOP) // (L.RAIL_FIT + 1))
+        self.assertEqual(L.rail_row(L.rail_pitch(L.RAIL_FIT + 1)), L.rail_pitch(L.RAIL_FIT + 1) - L.RAIL_GAP)
+
+    def test_a_library_past_the_rail_marks_libraries(self):
+        libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(6)]
+        self.assertEqual(window.library_rail(libraries, 4), "lib4")
+        self.assertEqual(window.library_rail(libraries, 5), "libraries")
+        # With Live TV in the rail, four libraries.
+        self.assertEqual(window.library_rail(libraries, 3, live=True), "lib3")
+        self.assertEqual(window.library_rail(libraries, 4, live=True), "libraries")
+        self.assertEqual(window.library_rail(libraries, 9), "home")
+        # Live TV coming takes the fifth library's place: its page marks Libraries, focus goes there.
+        win = FakeWindow()
+        win.libraries = libraries
+        page = window.Library(win, libraries[4], None)
+        win.screen = page
+        self.assertEqual(page.rail, "lib4")
+        self.assertEqual(win.rail_entry("lib4"), L.RAIL_LIBRARIES[4])
+        win.take_libraries(libraries, live={"available": True})
+        self.assertEqual(page.rail, "libraries")
+        self.assertEqual(win.rail_entry(page.rail), L.RAIL_ALL_LIBRARIES)
+        self.assertEqual(win.rail_entry("lib4"), L.RAIL_HOME)
+        self.assertFalse(win.made[L.rail_group(L.RAIL_LIBRARIES[4])].visible)
+        self.assertTrue(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible)
 
     def test_the_libraries_page(self):
-        # Five libraries: the rail has three, and Libraries all of them (TvLibrariesScreen).
+        # Six libraries: the rail has five, and Libraries all of them (TvLibrariesScreen).
         listed = [
             {"id": 1, "name": "Movies", "kind": "movies", "item_count": 1234},
             {"id": 2, "name": "TV Shows", "kind": "shows", "item_count": 1},
             {"id": 3, "name": "Music", "kind": "music", "item_count": 40},
             {"id": 4, "name": "Documentaries", "kind": "movies", "item_count": 12, "scanning": True},
             {"id": 5, "name": "Anime", "kind": "shows"},
+            {"id": 6, "name": "Concerts", "kind": "movies", "item_count": 3},
         ]
 
         class Server:
@@ -767,13 +933,17 @@ class WindowTest(unittest.TestCase):
             ("Music", "40 artists"),
             ("Documentaries", "12 movies · " + window.T("scanning_now")),
             ("Anime", ""),
+            ("Concerts", "3 movies"),
         ])
         self.assertEqual(cards.items[2].properties["icon"], "icon-music.png")
         self.assertEqual(win.focused, L.LIBRARIES_LIST)
-        # A card opens its library; past the rail's three, its page marks Libraries.
+        # A card opens its library; past the rail's five, its page marks Libraries.
+        cards.selectItem(5)
+        page.click(L.LIBRARIES_LIST)
+        self.assertEqual((win.opened[-1].library["name"], win.opened[-1].rail), ("Concerts", "libraries"))
         cards.selectItem(3)
         page.click(L.LIBRARIES_LIST)
-        self.assertEqual((win.opened[-1].library["name"], win.opened[-1].rail), ("Documentaries", "libraries"))
+        self.assertEqual(win.opened[-1].rail, "lib3")
         cards.selectItem(1)
         page.click(L.LIBRARIES_LIST)
         self.assertEqual(win.opened[-1].rail, "lib1")
@@ -781,7 +951,7 @@ class WindowTest(unittest.TestCase):
         with Dialogs(picks=[2]) as asked:
             page.menu(L.LIBRARIES_LIST)
         self.assertEqual(asked.shown[0][0], [window.T("open"), window.T("move_up"), window.T("move_down"), window.T("server_order")])
-        self.assertEqual(server.orders[-1], [1, 3, 2, 4, 5])
+        self.assertEqual(server.orders[-1], [1, 3, 2, 4, 5, 6])
         self.assertEqual([c.label for c in cards.items[:3]], ["Movies", "Music", "TV Shows"])
         self.assertEqual(cards.getSelectedPosition(), 2)
         self.assertEqual(win.made[L.rail_labels(L.RAIL_LIBRARIES[1])[0]].label, "Music")
@@ -795,22 +965,22 @@ class WindowTest(unittest.TestCase):
         with Dialogs(picks=[-1]) as asked:
             page.click(L.LIBRARIES_SORT)
         self.assertEqual(asked.shown[0][0], [lib["name"] for lib in listed] + [window.T("server_order")])
-        # The rail's third library moved down goes to Libraries, and focus with it.
+        # The rail's fifth library moved down goes to Libraries, and focus with it.
         with Dialogs(picks=[1]):
-            win.library_menu(L.RAIL_LIBRARIES[2])
-        self.assertEqual(server.orders[-1], [1, 2, 4, 3, 5])
+            win.library_menu(L.RAIL_LIBRARIES[4])
+        self.assertEqual(server.orders[-1], [1, 2, 3, 4, 6, 5])
         self.assertEqual(win.focused, L.RAIL_ALL_LIBRARIES)
-        self.assertEqual(cards.items[3].label, "Music")
+        self.assertEqual(cards.items[5].label, "Anime")
         # A scan's counts reach the page; the rail stays as it is.
         win.session.details = {}
         win.session.lock = window.threading.Lock()
         server.listed = [dict(server.listed[0], item_count=1235)] + server.listed[1:]
         win.changed()
         self.assertEqual(cards.items[0].label2, "1,235 movies")
-        # Down to three libraries: Collections is back, Libraries gone, and the page marks Home.
-        server.listed = server.listed[:3]
+        # Down to five libraries: Collections is back, Libraries gone, and the page marks Home.
+        server.listed = server.listed[:5]
         win.changed()
-        self.assertEqual(len(cards.items), 3)
+        self.assertEqual(len(cards.items), 5)
         self.assertEqual(page.rail, "home")
         self.assertFalse(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible)
         self.assertTrue(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible)
@@ -936,7 +1106,8 @@ class WindowTest(unittest.TestCase):
         page.search("saltwind")
         # The libraries' rows at once; TMDB is looked at beside them, never waited for.
         self.assertEqual([row["key"] for row in page.rows.rows], [window.T("movies")])
-        self.assertEqual(asked_of, [("/api/search", {"q": "saltwind", "limit": 100, "summaries": 1})])
+        # Every title, person and channel the server finds, up to 200 of each.
+        self.assertEqual(asked_of, [("/api/search", {"q": "saltwind", "limit": 200, "summaries": 1})])
         work, then, _ = later.pop()
         then(work())
         self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "saltwind", "missing": 1}))
@@ -1008,6 +1179,22 @@ class WindowTest(unittest.TestCase):
         # The titles' rows, then Live TV's and people's, then Discover.
         self.assertEqual([row["key"] for row in page.rows.rows][-3:], ["channels", "people", "tmdb"])
         self.assertEqual(win.made[L.slot_list(L.SEARCH_ROWS, 6, "poster")].items[0].label, "Saltwind 2")
+
+    def test_search_rows_hold_everything_found(self):
+        win = FakeWindow()
+        requests_off(self)
+        movies = [{"id": n, "kind": "movie", "title": "Harbor %d" % n, "user_state": {}} for n in range(150)]
+        people = [{"id": n, "name": "Harbor Person %d" % n} for n in range(30)]
+        channels = [{"id": n, "source_id": 1, "name": "Harbor %d" % n, "number": str(n), "logo": None, "favorite": False, "has_guide": False, "now": None, "next": None}
+                    for n in range(20)]
+        win.session.get = lambda path, **query: {"items": movies, "people": people, "channels": channels}
+        page = window.Search(win)
+        win.show(page)
+        page.search("harbor")
+        # A row a group, each with all of its results, nothing cut at 12.
+        self.assertEqual([(row["key"], len(row["items"])) for row in page.rows.rows], [(window.T("movies"), 150), ("channels", 20), ("people", 30)])
+        self.assertEqual(len(win.made[L.slot_list(L.SEARCH_ROWS, 2, "person")].items), 30)
+        self.assertEqual(len(win.made[L.slot_list(L.SEARCH_ROWS, 1, "channel")].items), 20)
 
     def test_search_when_the_libraries_have_nothing(self):
         win = FakeWindow()

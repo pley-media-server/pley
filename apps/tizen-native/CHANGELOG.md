@@ -156,8 +156,15 @@ It has no releases yet: it is built and installed by hand
   past its edge, the unwatched count sits on the accent and the watched
   tick is an accent check, both with square corners.
 - A library's posters in the native app show 4K and the dynamic range (DV,
-  HDR10) whatever the sort, as the other apps do: no codec and no lower
-  resolution.
+  HDR10) when it is sorted by bitrate or filtered by resolution or dynamic
+  range, as the other apps do, and otherwise no quality badges: no codec
+  and no lower resolution.
+- Library pages in the native app filter movies and shows by resolution
+  (4K, 1080p, 720p, SD) and dynamic range (Any HDR, HDR including Dolby
+  Vision and HDR+, Dolby Vision, HDR+, HLG, SDR), where the server offers more than one of them: in the
+  Filter panel after Year, with a chip saying the one chosen. Clear
+  filters and Save as… take them in, and the library opens with them as it
+  was left.
 - Live TV in the native app starts a channel in about 2 seconds, from its
   stream as the provider sends it, where it waited for the server's first
   segments before; channels with surround sound the TV decodes (AC3) play
@@ -269,6 +276,16 @@ It has no releases yet: it is built and installed by hand
   first.
 - Search shows movies, shows and episodes first, then music, then
   people, the closest matches first in each.
+- The native app's rail has smaller entries and lists up to six
+  libraries, where four or more went behind Libraries; nothing leaves the
+  rail to make room for Live TV, Now Playing or a USB drive any more, and
+  the entries scroll between the avatar and Settings when they don't all
+  fit, keeping the focused entry fourth from the top, as the app's lists
+  keep theirs.
+- The native app's search rows hold every result, up to 200 titles, 200
+  people and 200 Live TV channels, where they stopped at 60 titles and 12
+  people and channels. A row makes its tiles as focus comes near them, so
+  a long one shows as quickly as a short one.
 
 ### Fixed
 
@@ -290,6 +307,10 @@ It has no releases yet: it is built and installed by hand
   make and model ("Kingston DataTraveler 3.0").
 - The rail marks the page a rail entry opened, not Home, when the page has
   nothing to focus yet, as the first page opened after Who's watching?.
+- The native app's rail keeps focus on its entry when its entries change
+  (a library scan, Live TV's channels, Now Playing, a USB drive), or puts
+  it on the entry now in its place, where nothing showed focus and Down
+  went to the avatar.
 - Diagnostics, Remove from My List and Settings' audio and subtitle rows
   show their icons.
 - The native app carries none of the profiling build's code: its marks, the

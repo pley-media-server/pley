@@ -31,7 +31,7 @@ public interface ILibrarySource
     /// <summary>A page of <paramref name="libraryId"/>'s items, listed by <paramref name="query"/> (its offset and limit the page's).</summary>
     Task<ItemsPage> Items(long libraryId, LibraryQuery query);
 
-    /// <summary>The genres and years the library's items can be filtered by.</summary>
+    /// <summary>The genres, years, resolutions and dynamic ranges the library's items can be filtered by.</summary>
     Task<FiltersAnswer> Filters(long libraryId);
 
     /// <summary>The library's rows, for its Recommended tab.</summary>
@@ -417,9 +417,10 @@ internal sealed class LibraryListing : IDisposable
 ///
 /// - **Recommended:** the library's hubs, then its collections.
 /// - **Library:** every item, in a grid sized from the listing's total; sorted, ordered and
-///   filtered by watched state, genre and year as the web does, with the A to Z when sorted by
-///   title. Sorted by bitrate, tiles say what the files are like. A big library is read as a
-///   window that follows the grid (<see cref="Showing"/>).
+///   filtered by watched state, genre, year, resolution and dynamic range as the web does, with
+///   the A to Z when sorted by title. Sorted by bitrate, tiles say what the files are like;
+///   filtered by resolution or dynamic range, they badge it. A big library is read as a window
+///   that follows the grid (<see cref="Showing"/>).
 /// - **Collections:** the library's collections (not for music).
 ///
 /// A page opened anew starts with the sort and filters the library was left in on this TV, on
@@ -447,6 +448,7 @@ public sealed class LibraryModel : IDisposable
     (Loadable<LibraryItems> From, TileLook Look, string Origin, LibraryGrid Grid)? grid;
     (Loadable<IReadOnlyList<Collection>> From, string? Kind, string Origin, Loadable<IReadOnlyList<CollectionTile>> Tiles)? shelf;
     (Loadable<IReadOnlyList<Hub>> From, Loadable<IReadOnlyList<CollectionTile>> Shelf, string? Kind, string Origin, Loadable<IReadOnlyList<LibraryRow>> Rows)? rows;
+    (FiltersAnswer From, FiltersAnswer Offered)? offered;
     bool computing, again, reloadPosted, gone;
 
     /// <param name="tab">The tab a route opens on; null opens on the one the library was left on.</param>
@@ -530,6 +532,12 @@ public sealed class LibraryModel : IDisposable
 
     public void SetYear(int? year) => Choose(p => p with { Year = year });
 
+    /// <summary>One of <see cref="LibraryParams.Resolutions"/>, or null for every one.</summary>
+    public void SetResolution(string? resolution) => Choose(p => p with { Resolution = resolution });
+
+    /// <summary>One of <see cref="LibraryParams.DynamicRanges"/>, or null for every one.</summary>
+    public void SetDynamicRange(string? range) => Choose(p => p with { DynamicRange = range });
+
     public void ClearFilters() => Choose(p => p.Cleared());
 
     /// <summary>Cards smaller or larger, for every grid on this TV.</summary>
@@ -574,6 +582,10 @@ public sealed class LibraryModel : IDisposable
                 return new PanelOutcome.Show(LibraryPanel.Genre);
             case LibraryRowKind.Years:
                 return new PanelOutcome.Show(LibraryPanel.Year);
+            case LibraryRowKind.Resolutions:
+                return new PanelOutcome.Show(LibraryPanel.Resolution);
+            case LibraryRowKind.DynamicRanges:
+                return new PanelOutcome.Show(LibraryPanel.DynamicRange);
             case LibraryRowKind.ClearFilters:
                 ClearFilters();
                 return new PanelOutcome.Close();
@@ -584,6 +596,12 @@ public sealed class LibraryModel : IDisposable
                 return new PanelOutcome.Close();
             case LibraryRowKind.Year:
                 SetYear(int.TryParse(row.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var year) ? year : null);
+                return new PanelOutcome.Close();
+            case LibraryRowKind.Resolution:
+                SetResolution(row.Value);
+                return new PanelOutcome.Close();
+            case LibraryRowKind.DynamicRange:
+                SetDynamicRange(row.Value);
                 return new PanelOutcome.Close();
             default:
                 return new PanelOutcome.Stay();
@@ -676,7 +694,7 @@ public sealed class LibraryModel : IDisposable
                 this.grid = null;
                 listing.Load();
             }
-            grid = GridOf(listing.State, LibraryRules.GridLook(kind, shown.Sort), origin, shown.Sort);
+            grid = GridOf(listing.State, LibraryRules.GridLook(kind, shown), origin, shown.Sort);
             if (!music && !filters.Asked) filters.Ask(() => source.Filters(LibraryId));
         }
 
@@ -705,12 +723,28 @@ public sealed class LibraryModel : IDisposable
             OpenedOn = openedOn,
             Tabs = LibraryParams.TabsFor(kind),
             Sorts = LibraryParams.SortsFor(kind),
-            Filters = !music && filters.State.Value is { } f ? f : new LibraryState().Filters,
+            Filters = !music && filters.State.Value is { } f ? Offered(f) : new LibraryState().Filters,
             Grid = grid,
             Density = source.Settings.Value.GridDensity,
             Recommended = recommended,
             Collections = shelfNow,
         };
+    }
+
+    /// <summary>
+    /// The server's filters, of its resolutions and dynamic ranges those the app has words for, in its
+    /// order; made once per answer, so the state stays the same while the answer does.
+    /// </summary>
+    FiltersAnswer Offered(FiltersAnswer f)
+    {
+        if (offered is { } o && ReferenceEquals(o.From, f)) return o.Offered;
+        var made = f with
+        {
+            Resolutions = (f.Resolutions ?? Array.Empty<string>()).Where(r => LibraryParams.Resolutions.Contains(r)).ToList(),
+            DynamicRanges = (f.DynamicRanges ?? Array.Empty<string>()).Where(r => LibraryParams.DynamicRanges.Contains(r)).ToList(),
+        };
+        offered = (f, made);
+        return made;
     }
 
     /// <summary>The grid of <paramref name="from"/>, made again only when the listing, the look or the server changed.</summary>
@@ -785,30 +819,24 @@ public sealed class LibraryModel : IDisposable
 /// devices: a move shows at once, and is saved in the order moves were made. On TV, Sort (or
 /// Move in a card's actions) starts sorting: OK lifts a card, the arrows move it through the
 /// grid, OK drops it there and saves the order, Back puts it back; Done or Back ends sorting.
-///
-/// While the rail has no room for Playlists, the page lists them after the libraries.
 /// </summary>
 public sealed class LibrariesModel : IDisposable
 {
     readonly ILibrariesSource source;
     readonly IScheduler scheduler;
-    readonly Signal<IReadOnlyList<RailItem>>? rail;
     readonly List<IDisposable> watches = new List<IDisposable>();
     /// <summary>The libraries' ids in the order shown while moves are made or saved; null: the server's.</summary>
     IReadOnlyList<long>? order;
     bool refreshing, gone;
 
-    /// <param name="rail">The rail's entries, from the shell: whether Playlists has one there.</param>
-    public LibrariesModel(ILibrariesSource source, IScheduler scheduler, Signal<IReadOnlyList<RailItem>>? rail = null)
+    public LibrariesModel(ILibrariesSource source, IScheduler scheduler)
     {
         this.source = source;
         this.scheduler = scheduler;
-        this.rail = rail;
         watches.Add(source.Libraries.Watch(_ => Compute()));
         watches.Add(source.LibrariesError.Watch(_ => Compute()));
         watches.Add(source.Scans.Watch(_ => Compute()));
         watches.Add(source.Me.Watch(_ => Compute()));
-        if (rail != null) watches.Add(rail.Watch(_ => Compute()));
     }
 
     public Signal<LibrariesState> State { get; } = new Signal<LibrariesState>(new LibrariesState.Loading());
@@ -823,12 +851,6 @@ public sealed class LibrariesModel : IDisposable
     public event Action<LibrariesEvent>? Told;
 
     bool Sortable => State.Value is LibrariesState.Ready { Sortable: true };
-
-    /// <summary>
-    /// The Playlists card after the libraries: while the rail has no entry for them, and not while
-    /// sorting, which moves the libraries alone.
-    /// </summary>
-    public bool ListsPlaylists => State.Value is LibrariesState.Ready { Playlists: true } && !Sorting.Value;
 
     /// <summary>Asks the server again (Retry).</summary>
     public void Refresh()
@@ -914,9 +936,6 @@ public sealed class LibrariesModel : IDisposable
         }
         return new PageKey.Library(libraryId);
     }
-
-    /// <summary>OK on the Playlists card: the Playlists page.</summary>
-    public PageKey? SelectPlaylists() => ListsPlaylists ? new PageKey.Playlists() : null;
 
     /// <summary>
     /// An arrow while a card is lifted: <paramref name="by"/> is ±1, or ±<see cref="LibrariesRules.Columns"/>
@@ -1013,7 +1032,7 @@ public sealed class LibrariesModel : IDisposable
     {
         if (gone) return;
         State.Value = LibrariesRules.StateOf(source.Libraries.Value, source.LibrariesError.Value, source.Scans.Value, refreshing, order,
-            LibrariesRules.MayChange(source.Me.Value), rail != null && Rail.PlaylistsOnLibrariesPage(rail.Value));
+            LibrariesRules.MayChange(source.Me.Value));
         // Nothing left to sort (a library went, or this sign-in may not): the page as it is.
         if (!Sortable)
         {

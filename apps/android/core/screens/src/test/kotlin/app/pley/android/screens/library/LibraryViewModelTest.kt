@@ -6,11 +6,14 @@ import app.pley.android.data.LibraryQuery
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.CollectionSummary
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Hub
 import app.pley.android.model.Hubs
 import app.pley.android.model.Library
+import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
@@ -141,6 +144,79 @@ class LibraryViewModelTest {
         vm.clearFilters()
         advanceUntilIdle()
         assertEquals(byTitle, items.asked.last())
+        job.cancel()
+    }
+
+    @Test
+    fun postersCarryNoBadgesUnlessTheyHaveSomethingToSay() = runTest(dispatcher) {
+        items.set(byTitle, LibraryItems(1, listOf(movie(7))))
+        val vm = viewModel()
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        // Every listing has the files' details now: by title, they stay off the posters.
+        assertEquals(TileLook.Poster, vm.state.value.grid.look)
+        assertEquals(TileLook.Poster, vm.state.value.grid.cells.valueOrNull!![0]!!.look)
+        // Nor does a genre, a year or the watched state bring them.
+        vm.genre("Drama")
+        vm.year(1999)
+        vm.watched(false)
+        advanceUntilIdle()
+        assertEquals(TileLook.Poster, vm.state.value.grid.look)
+        job.cancel()
+    }
+
+    @Test
+    fun resolutionAndDynamicRangeFilterTheListingAndBadgeItsPosters() = runTest(dispatcher) {
+        val uhdDolbyVision = LibraryQuery(LibrarySort.Title, SortOrder.Ascending, resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.DolbyVision)
+        items.set(uhdDolbyVision, LibraryItems(1, listOf(movie(7))))
+        val vm = viewModel()
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(ResolutionFilter.Uhd, ResolutionFilter.FullHd), vm.state.value.filters.resolutionChoices)
+        assertEquals(
+            listOf(DynamicRangeFilter.Hdr, DynamicRangeFilter.DolbyVision, DynamicRangeFilter.Hdr10, DynamicRangeFilter.Sdr),
+            vm.state.value.filters.dynamicRangeChoices,
+        )
+        vm.resolution(ResolutionFilter.Uhd)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.filtered)
+        assertEquals(TileLook.Badged, vm.state.value.grid.look)
+        vm.dynamicRange(DynamicRangeFilter.DolbyVision)
+        advanceUntilIdle()
+        assertEquals(uhdDolbyVision, items.asked.last())
+        assertEquals(TileLook.Badged, vm.state.value.grid.cells.valueOrNull!![0]!!.look)
+        assertEquals("resolution=4k&dynamic_range=dolby_vision", vm.state.value.params.toQueryString())
+        assertEquals("resolution=4k&dynamic_range=dolby_vision", views.kept[1])
+        assertEquals(PleyKey.SaveSmartPlaylist(1, "resolution=4k&dynamicRange=dolby_vision&sort=titleSort"), vm.saveAs())
+        // Sorted by bitrate, the posters say more still.
+        vm.sortBy(LibrarySort.Bitrate)
+        advanceUntilIdle()
+        assertEquals(TileLook.Bitrate, vm.state.value.grid.look)
+        vm.clearFilters()
+        vm.sortBy(LibrarySort.Title)
+        advanceUntilIdle()
+        assertEquals(byTitle, items.asked.last())
+        assertEquals(TileLook.Poster, vm.state.value.grid.look)
+        assertNull(views.kept[1])
+        job.cancel()
+    }
+
+    @Test
+    fun aLibraryLeftFilteredByResolutionOpensSo() = runTest(dispatcher) {
+        views.kept[1] = "resolution=1080&dynamic_range=sdr"
+        val vm = viewModel(tab = LibraryTab.Library)
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(LibraryParams(resolution = ResolutionFilter.FullHd, dynamicRange = DynamicRangeFilter.Sdr), vm.state.value.params)
+        // The library has no SD titles any more, nor any other range than SDR: what was chosen stays to choose.
+        items.filters.value = Loadable.Ready(LibraryFilters(resolutions = listOf("4k", "720")), true)
+        advanceUntilIdle()
+        assertEquals(listOf(ResolutionFilter.Uhd, ResolutionFilter.Hd, ResolutionFilter.FullHd), vm.state.value.resolutions)
+        assertEquals(listOf(DynamicRangeFilter.Sdr), vm.state.value.dynamicRanges)
+        vm.clearFilters()
+        advanceUntilIdle()
+        assertEquals(listOf(ResolutionFilter.Uhd, ResolutionFilter.Hd), vm.state.value.resolutions)
+        assertEquals(emptyList<DynamicRangeFilter>(), vm.state.value.dynamicRanges)
         job.cancel()
     }
 
@@ -280,7 +356,7 @@ class LibraryViewModelTest {
 
     @Test
     fun musicHasNoCollectionsOrFiltersAndOpensArtists() = runTest(dispatcher) {
-        val vm = viewModel(libraryId = 2, saved = "tab=collections&watched=false&sort=bitrate")
+        val vm = viewModel(libraryId = 2, saved = "tab=collections&watched=false&sort=bitrate&resolution=4k&dynamic_range=hdr")
         val job = launch { vm.state.collect {} }
         advanceUntilIdle()
         val state = vm.state.value

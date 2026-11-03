@@ -64,7 +64,8 @@ class EndpointsTest {
                 assertEquals(library.itemCount, page.total)
                 assertEquals(minOf(50, library.itemCount - 10), page.items.size)
                 assertTrue(page.items.all { it.backdropUrl == null && it.thumbUrl == null })
-                assertEquals(sort == LibrarySort.Bitrate, page.items.all { it.media != null })
+                // What the files are like, whatever the sort.
+                assertTrue(page.items.all { it.media != null })
             }
             app.read("/api/libraries/${library.id}/filters", LibraryFilters.serializer())
             assertTrue(app.read("/api/libraries/${library.id}/hubs", Hubs.serializer()).hubs.isNotEmpty())
@@ -76,6 +77,33 @@ class EndpointsTest {
         val comedies = app.read("/api/libraries/1/items?genre=Comedy&year=1999&watched=false", ItemsPage.serializer())
         assertTrue(comedies.items.all { it.year == 1999 && !it.userState.watched })
         assertEquals(400, app.get("/api/libraries/1/items?sort=colour").code)
+    }
+
+    @Test
+    fun listingsFilterByResolutionAndDynamicRange() = withServer { server ->
+        val app = Client(server, server.accessToken())
+        val filters = app.read("/api/libraries/1/filters", LibraryFilters.serializer())
+        assertEquals(listOf("4k", "1080"), filters.resolutions)
+        // Broadest first; Any HDR would keep what HDR does, there being no HLG.
+        assertEquals(listOf("hdr10", "dolby_vision", "hdr10plus", "sdr"), filters.dynamicRanges)
+        fun count(query: String) = app.read("/api/libraries/1/items?$query&limit=0", ItemsPage.serializer()).total
+        // Each title is of one resolution and one range.
+        assertEquals(1_500, filters.resolutions.sumOf { count("resolution=$it") })
+        assertEquals(1_500, count("dynamic_range=hdr") + count("dynamic_range=sdr"))
+        val uhd = app.read("/api/libraries/1/items?resolution=4k&dynamic_range=dolby_vision", ItemsPage.serializer())
+        assertTrue(uhd.items.isNotEmpty())
+        assertTrue(uhd.items.all { it.media?.height == 2160 && it.media?.dynamicRange == DynamicRange.DolbyVision })
+        // HDR takes in Dolby Vision and HDR10+; each of those keeps itself alone.
+        assertEquals(count("dynamic_range=hdr"), count("dynamic_range=hdr10"))
+        val (dolbyVision, hdr10plus) = count("dynamic_range=dolby_vision") to count("dynamic_range=hdr10plus")
+        assertTrue(dolbyVision > 0 && hdr10plus > 0 && count("dynamic_range=hdr10") > dolbyVision + hdr10plus)
+        // A value the server doesn't know is refused; none is no filter.
+        assertEquals(400, app.get("/api/libraries/1/items?resolution=8k").code)
+        assertEquals(400, app.get("/api/libraries/1/items?dynamic_range=hdr12").code)
+        assertEquals(1_500, count("resolution=&dynamic_range="))
+        // Music has neither.
+        val music = app.read("/api/libraries/3/filters", LibraryFilters.serializer())
+        assertTrue(music.resolutions.isEmpty() && music.dynamicRanges.isEmpty())
     }
 
     @Test
@@ -166,7 +194,7 @@ class EndpointsTest {
         assertTrue(smart.items.all { (it.year ?: 0) in 1990..1999 })
         assertTrue(app.read("/api/collections/${FixtureIds.COLLECTION}", CollectionDetail.serializer()).items.isNotEmpty())
 
-        val results = app.read("/api/search?q=silent+har&limit=60", SearchResults.serializer())
+        val results = app.read("/api/search?q=silent+har&limit=200", SearchResults.serializer())
         assertTrue(results.items.isNotEmpty())
         assertTrue(results.items.all { "silent" in it.title.lowercase() })
         assertTrue(app.read("/api/search?q=ada", SearchResults.serializer()).people.isNotEmpty())

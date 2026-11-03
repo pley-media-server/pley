@@ -3,6 +3,8 @@ package app.pley.android.fixtures
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionList
 import app.pley.android.model.CollectionRef
+import app.pley.android.model.DynamicRange
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Health
 import app.pley.android.model.HistoryPage
 import app.pley.android.model.Hub
@@ -14,6 +16,7 @@ import app.pley.android.model.ItemList
 import app.pley.android.model.ItemsPage
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
+import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.MaybeItem
 import app.pley.android.model.Me
@@ -22,6 +25,7 @@ import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
 import app.pley.android.model.PersonSummary
 import app.pley.android.model.PleyJson
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerInfo
 import java.security.MessageDigest
@@ -61,9 +65,15 @@ internal class BrowseRoutes(private val s: State) {
         route("GET", "/api/libraries/*/filters", LIBRARY) { _, _, v ->
             val library = library(v[0]) ?: return@route Reply.notFound("no such library")
             val items = top(library.id)
+            val video = library.kind != LibraryKind.Music
             Reply.json(
                 LibraryFilters.serializer(),
-                LibraryFilters(items.flatMap { it.genres }.distinct().sorted(), items.mapNotNull { it.year }.distinct().sortedDescending()),
+                LibraryFilters(
+                    genres = items.flatMap { it.genres }.distinct().sorted(),
+                    years = items.mapNotNull { it.year }.distinct().sortedDescending(),
+                    resolutions = if (video) resolutionsOf(items) else emptyList(),
+                    dynamicRanges = if (video) dynamicRangesOf(items) else emptyList(),
+                ),
             )
         },
         route("GET", "/api/libraries/*/hubs", LIBRARY) { _, c, v ->
@@ -165,11 +175,20 @@ internal class BrowseRoutes(private val s: State) {
         if (order != null && order != "asc" && order != "desc") return Reply.badRequest("order is asc or desc")
         val offset = call.query("offset")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         val limit = call.query("limit")?.toIntOrNull()?.coerceAtLeast(0)
+        // An unknown value is refused, as the server does: the listing would hold everything.
+        val resolution = call.query("resolution")?.takeIf { it.isNotEmpty() }?.let { value ->
+            ResolutionFilter.of(value) ?: return Reply.badRequest("unknown resolution '$value'")
+        }
+        val range = call.query("dynamic_range")?.takeIf { it.isNotEmpty() }?.let { value ->
+            DynamicRangeFilter.of(value) ?: return Reply.badRequest("unknown dynamic_range '$value'")
+        }
 
         var items = top(library.id)
         call.query("genre")?.let { genre -> items = items.filter { genre in it.genres } }
         call.query("year")?.toIntOrNull()?.let { year -> items = items.filter { it.year == year } }
         call.query("watched")?.let { watched -> items = items.filter { views.state(it, profile).watched == (watched == "true") } }
+        resolution?.let { wanted -> items = items.filter { views.resolutionOf(it) == wanted } }
+        range?.let { wanted -> items = items.filter { item -> views.dynamicRangeOf(item)?.let { wanted.matches(it) } == true } }
 
         val ascendingByDefault = sort == LibrarySort.Title || sort == LibrarySort.Year || sort == LibrarySort.Duration
         val descending = order?.let { it == "desc" } ?: !ascendingByDefault
@@ -191,9 +210,42 @@ internal class BrowseRoutes(private val s: State) {
         val key = compareBy<ItemDetail> { keys.getValue(it.id) }
         val sorted = items.sortedWith((if (descending) key.reversed() else key).then(byTitle))
         val page = sorted.drop(offset).let { if (limit != null) it.take(limit) else it }
-            .map { views.summary(it, profile, listing = true, media = sort == LibrarySort.Bitrate) }
+            .map { views.summary(it, profile, listing = true) }
         return Reply.json(ItemsPage.serializer(), ItemsPage(sorted.size, page), headers = cache)
     }
+
+    /** The resolutions [items] have, best first, when they have two or more (one would keep every title). */
+    private fun resolutionsOf(items: List<ItemDetail>): List<String> {
+        val found = items.mapNotNull(views::resolutionOf).toSet()
+        return ResolutionFilter.entries.filter { it in found }.takeIf { it.size > 1 }.orEmpty().map { it.wire }
+    }
+
+    /**
+     * The dynamic ranges worth offering to [items], as the server offers them: broadest first, each that keeps
+     * some of the titles but not all, and not the same ones as a choice of fewer kinds.
+     */
+    private fun dynamicRangesOf(items: List<ItemDetail>): List<String> {
+        val found = items.mapNotNull(views::dynamicRangeOf).map { it.wire }.toSet()
+        val chosen = mutableListOf<Pair<DynamicRangeFilter, Set<String>>>()
+        for (choice in RANGE_CHOICES.sortedBy { it.keeps().size }) {
+            val kept = choice.keeps() intersect found
+            if (kept.isNotEmpty() && kept.size < found.size && chosen.none { it.second == kept }) chosen += choice to kept
+        }
+        return RANGE_CHOICES.filter { choice -> chosen.any { it.first == choice } }.map { it.wire }
+    }
+
+    /**
+     * The ranges this filter keeps, as the server's: [DynamicRangeFilter.Hdr] every one but SDR,
+     * [DynamicRangeFilter.Hdr10] (HDR) HDR10 with HDR10+ and Dolby Vision, the others themselves alone.
+     */
+    private fun DynamicRangeFilter.keeps(): Set<String> = when (this) {
+        DynamicRangeFilter.Hdr -> setOf("dolby_vision", "hdr10plus", "hdr10", "hlg")
+        DynamicRangeFilter.Hdr10 -> setOf("dolby_vision", "hdr10plus", "hdr10")
+        else -> setOf(wire)
+    }
+
+    /** Whether a title of dynamic range [range] is one this filter keeps. */
+    private fun DynamicRangeFilter.matches(range: DynamicRange): Boolean = range.wire in keeps()
 
     // ---------------------------------------------------------------- hubs
 
@@ -378,6 +430,16 @@ internal class BrowseRoutes(private val s: State) {
 
         /** A scope no app has: the route is the web app's only. */
         const val WEB_ONLY = "web"
+
+        /** The dynamic ranges a library can be filtered by, as the server offers them: broadest first. */
+        private val RANGE_CHOICES = listOf(
+            DynamicRangeFilter.Hdr,
+            DynamicRangeFilter.Hdr10,
+            DynamicRangeFilter.DolbyVision,
+            DynamicRangeFilter.Hdr10Plus,
+            DynamicRangeFilter.Hlg,
+            DynamicRangeFilter.Sdr,
+        )
 
         private fun sha1(text: String): String =
             MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

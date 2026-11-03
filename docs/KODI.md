@@ -70,16 +70,31 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
 ### Screens
 
 - **The rail:** the profile, Search, Home, Live TV (where the server has
-  channels), the first three libraries, Playlists, Collections and
-  Settings. With more than three libraries, Libraries takes Collections'
-  place.
+  channels), the first five libraries, Playlists, Collections and
+  Settings. With more libraries, Libraries takes Collections' place. Its
+  entries keep fixed places, nine of them over Settings at the other TV
+  apps' size, so beside Live TV it lists four libraries.
 - **The profile's menu** has Discover and Your requests where the server
   takes requests; they open in Kodi's lists ([Requests](#requests)).
 - **The menu key** on a tile: mark watched, My List, add to a playlist,
   remove from Continue Watching, go to the show. In a playlist it also
   moves and removes entries.
+- **A library's Library tab** sorts as on the other apps (Bitrate and
+  Your rating too; shows have no Duration, music only Title, Date added,
+  Your rating and Last played) and filters by what is watched, genre,
+  year, resolution and dynamic range. Resolution and Dynamic range are in
+  the Filter menu after Year where the library's titles differ in them,
+  and the Filter chip says what is chosen ("4K · DV"): the chip
+  row has no room for a chip each. Sorted by bitrate, the line under each
+  poster is its bitrate and size ("42 Mbps · 23.4 GB"); sorted by bitrate
+  or filtered by resolution or dynamic range, posters show "4K" and their
+  dynamic range ("DV", "HDR+", "HDR", "HLG"). The tab a library was
+  left on is kept; its sort and filters start afresh each time it opens.
 - **Library order** is the profile's, saved for all its devices: Sort
   libraries in the profile's menu, or a library's menu key.
+- **Search** asks the server for up to 200 titles, 200 people and 200
+  Live TV channels, and shows a row for each kind holding all it found.
+  Kodi's lists show every title and channel found.
 - **Kodi's lists:** Settings → Screens → "Kodi's lists, in this skin's
   views" shows the add-on as folders in the skin's own views. Skin widgets
   and favourites always get these folders.

@@ -36,6 +36,37 @@ sub test_content_movie_tiles_show_poster_year_and_progress()
     tkEqual(tile.positionMs, 600000)
 end sub
 
+sub test_content_library_posters_show_their_files_only_when_asked()
+    movie = contentTestMovie()
+    movie.media = { bitrate: 42000000, size: 25125558681&, width: 3840, height: 1600, video_codec: "hevc", dynamic_range: "dolby_vision" }
+    plain = contentTiles([movie, "not an item"], contentTestServer())
+    tkEqual(plain.Count(), 1)
+    tkFalse(plain[0].DoesExist("qualityBadges"), "no badges unless asked")
+    tkEqual(plain[0].subtitle, "2016")
+    badged = contentTiles([movie], contentTestServer(), true)
+    tkEqual(badged[0].qualityBadges, ["4K", "DV"])
+    tkEqual(badged[0].subtitle, "2016", "the year, unless sorted by bitrate")
+    sorted = contentTiles([movie], contentTestServer(), true, true)
+    tkEqual(sorted[0].qualityBadges, ["4K", "DV"])
+    tkEqual(sorted[0].subtitle, "42 Mbps · 23.4 GB")
+    movie.Delete("media")
+    tkEqual(contentTiles([movie], contentTestServer(), true, true)[0].qualityBadges, [], "an older server's listing")
+    tkEqual(contentTiles([movie], contentTestServer(), true, true)[0].subtitle, "Bitrate unknown")
+end sub
+
+sub test_content_quality_badges_say_4k_and_the_dynamic_range()
+    tkEqual(contentQualityBadges({ width: 3840, height: 2160, dynamic_range: "hdr10" }), ["4K", "HDR"])
+    tkEqual(contentQualityBadges({ width: 3996, height: 1716, dynamic_range: "hlg" }), ["4K", "HLG"], "a wide 4K film")
+    tkEqual(contentQualityBadges({ width: 1920, height: 1080, dynamic_range: "hdr10plus" }), ["HDR+"], "no other resolution")
+    tkEqual(contentQualityBadges({ width: 1920, height: 1080, dynamic_range: "sdr", video_codec: "h264" }), [], "1080p, SDR and a codec say nothing worth the room")
+    tkEqual(contentQualityBadges({ width: invalid, height: invalid, dynamic_range: invalid }), [])
+    tkEqual(contentQualityBadges(invalid), [])
+    tkEqual(contentMediaLine({ bitrate: 8200000, size: 6979321856& }), "8.2 Mbps · 6.5 GB")
+    tkEqual(contentMediaLine({ bitrate: invalid, size: 1048576 }), "1.0 MB")
+    tkEqual(contentMediaLine({ bitrate: invalid, size: invalid }), "Bitrate unknown")
+    tkEqual(contentMediaLine(invalid), "Bitrate unknown")
+end sub
+
 sub test_content_episode_tiles_name_the_show()
     tile = contentTile(contentTestEpisode(), contentTestServer(), true)
     tkEqual(tile.title, "Severance")

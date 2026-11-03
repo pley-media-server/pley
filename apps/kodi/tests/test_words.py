@@ -54,6 +54,29 @@ class WordsTest(unittest.TestCase):
         self.assertEqual(words.quality_badges(stereo), ["720p", "5.1"])
         self.assertEqual(words.quality_badges(None), [])
 
+    def test_a_library_posters_badges(self):
+        # The web's mediaBadges: "4K" of the resolutions only, the dynamic range short, no codec.
+        uhd = {"width": 3840, "height": 1608, "video_codec": "hevc", "dynamic_range": "dolby_vision"}
+        self.assertEqual(words.media_badges(uhd), ["4K", "DV"])
+        self.assertEqual(words.media_badges(dict(uhd, width=1920, height=1080, dynamic_range="hdr10plus")), ["HDR+"])
+        self.assertEqual(words.media_badges(dict(uhd, dynamic_range="hlg")), ["4K", "HLG"])
+        self.assertEqual(words.media_badges(dict(uhd, dynamic_range="sdr")), ["4K"])
+        self.assertEqual(words.media_badges({"width": 1280, "height": 720, "dynamic_range": None}), [])
+        self.assertEqual(words.media_badges(None), [])
+
+    def test_bitrate_and_size_under_a_poster(self):
+        # As the web's mediaLine, formatBitrate and formatBytes write them.
+        self.assertEqual(words.media_line({"bitrate": 42_000_000, "size": 25_125_558_682}), "42 Mbps · 23.4 GB")
+        self.assertEqual(words.media_line({"bitrate": 8_200_000, "size": None}), "8.2 Mbps")
+        self.assertEqual(words.media_line({"bitrate": None, "size": 157_286_400}), "150 MB")
+        self.assertEqual(words.media_line({"bitrate": None, "size": None}), "Bitrate unknown")
+        self.assertEqual(words.media_line(None), "")
+        self.assertEqual(words.bitrate(320_400), "320 kbps")
+        self.assertEqual(words.bitrate(12_400_000), "12 Mbps")
+        self.assertEqual(words.size(1536), "1.5 KB")
+        self.assertEqual(words.size(512), "512 B")
+        self.assertEqual(words.size(3 * 1024 ** 4), "3.0 TB")
+
     def test_dolby_vision_as_the_server_names_it(self):
         dv = {"kind": "video", "dynamic_range": "dolby_vision"}
         # Profile 7's base layer (Blu-ray, compatibility 6) isn't named: never "P7.6".

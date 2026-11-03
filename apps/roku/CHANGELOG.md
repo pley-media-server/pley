@@ -8,10 +8,24 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A library of movies or shows filters by resolution (4K, 1080p, 720p, SD)
+  and dynamic range (Any HDR, HDR including Dolby Vision and HDR+, Dolby
+  Vision, HDR+, HLG, SDR) in its
+  Filter panel, offering those its titles have. Clear filters clears them,
+  the library keeps them, and Save as… saves them.
+- A library sorted by bitrate, or filtered by resolution or dynamic range,
+  badges its posters with "4K" and their dynamic range ("DV", "HDR+",
+  "HDR", "HLG"), as the other apps do. Sorted by bitrate, each poster
+  shows its bitrate and size under it ("42 Mbps · 23.4 GB").
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- Search shows every title, person and Live TV channel it finds, up to 200
+  of each, where it stopped at 40 titles and 12 people and channels.
 
 ## [0.1.3] - 2026-11-02
 

@@ -117,12 +117,13 @@ afterEach(() => {
 describe("See all", () => {
   it("from Home lists the library in the row's order, unfiltered, and keeps the view it was left in", async () => {
     const store = memoryStore();
-    new ParamsStore(store, SERVER, 1).set(1, { sort: "title", order: "asc", watched: false, genre: null, year: null });
+    const left = { sort: "title", order: "asc", watched: false, genre: null, year: null, resolution: null, dynamicRange: null } as const;
+    new ParamsStore(store, SERVER, 1).set(1, left);
     const t = setup({ tab: "library", sort: "added", store });
     await t.settle();
     expect(t.asked[0]).toEqual({ sort: "added", order: "desc", watched: undefined });
     // The view left before is still the one a library opened from the rail shows.
-    expect(new ParamsStore(store, SERVER, 1).get(1, "movies")).toEqual({ sort: "title", order: "asc", watched: false, genre: null, year: null });
+    expect(new ParamsStore(store, SERVER, 1).get(1, "movies")).toEqual(left);
   });
 
   it("from a library's Recommended row shows its Library tab in that row's order", async () => {

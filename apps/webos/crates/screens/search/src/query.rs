@@ -10,8 +10,9 @@ use crate::results::Found;
 /// How long typing pauses before what is typed is asked (`DEBOUNCE_MS`).
 pub const DEBOUNCE: f64 = 0.25;
 
-/// How many titles a search asks for (`limit=60`, as both TV apps ask).
-pub const LIMIT: u32 = 60;
+/// How many titles, people and Live TV channels a search asks for, each (`limit=200`, the most the
+/// server gives): every row holds all it finds.
+pub const LIMIT: u32 = 200;
 
 /// After this long, results are asked again when the page shows again (the app's 30 s rule).
 pub const REVALIDATE: f64 = pley_shell::REVALIDATE;

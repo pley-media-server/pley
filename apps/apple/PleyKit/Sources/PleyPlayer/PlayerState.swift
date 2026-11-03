@@ -1,5 +1,6 @@
 import Foundation
 import PleyModel
+import PleyData
 import PleySubtitles
 
 /// What the player screens show, from `PlaybackController`.
@@ -69,6 +70,11 @@ public struct PlayerState: Equatable, Sendable {
     public var canSyncSubtitles = false
     /// The picture subtitles are burned into the video by the server's conversion.
     public var subtitlesBurnedIn = false
+    /// The subtitles shown are text, which the subtitle style is for:
+    /// pictures keep their own look, and Off has nothing to style.
+    public var textSubtitles = false
+    /// The subtitle style, as Settings' Subtitles has it too.
+    public var subtitleStyle = SubtitleOverrides()
     /// What the subtitle layer draws now.
     public var cues: ShownSubtitles = .none
     /// "Find Subtitles…" is offered: the file streams from the server.
@@ -101,6 +107,12 @@ public struct PlayerState: Equatable, Sendable {
 
     /// "Off", or the subtitles shown ("English (SRT)").
     public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? PlayerTexts.subtitlesOff }
+
+    /// The Subtitle style menus (Size, Background, Font, Position) while
+    /// text subtitles show; empty otherwise, as on Android.
+    public var subtitleStyleMenus: [SubtitleStyleMenu] {
+        textSubtitles ? SubtitleStyleMenu.all(subtitleStyle) : []
+    }
 
     /// "+0.5 s", "−1.2 s", "0.0 s".
     public var subtitleOffsetLabel: String { SubtitleSync.label(subtitleOffsetMs) }

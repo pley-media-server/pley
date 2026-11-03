@@ -19,7 +19,8 @@ import UIKit
 ///   the TV when the person turned on Match Content
 ///   (`appliesPreferredDisplayCriteriaAutomatically`, from the master
 ///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality, Audio,
-///   Subtitles (with the subtitle sync, and Find Subtitles… last), Speed
+///   Subtitles (with the subtitle sync, the subtitle style while text
+///   subtitles show, and Find Subtitles… last), Speed
 ///   and Sleep Timer menus sit in the transport bar, and Details is a tab
 ///   of the info panel. Picture in Picture is the transport bar's own
 ///   button.
@@ -163,6 +164,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         var speed: Double = 1
         var sleep: [MenuChoice] = []
         var sleepSummary: String?
+        var style: [SubtitleStyleMenu] = []
 
         init() {}
 
@@ -175,6 +177,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             sleep = state.sleepChoices
             // Minutes left: the menu's second line follows them, not the notice's seconds.
             sleepSummary = state.sleep.secondsLeft == nil ? state.sleepSummary : "notice"
+            style = state.subtitleStyleMenus
         }
     }
 

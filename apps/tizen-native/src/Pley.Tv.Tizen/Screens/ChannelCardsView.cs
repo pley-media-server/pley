@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Ui;
@@ -213,7 +214,8 @@ sealed class ChannelCard : View
     bool focused;
     Animation? look;
 
-    public ChannelCard(LiveChannel? channel, string label, string origin, Images images, long now)
+    /// <param name="logo">Gives up the logo while it comes: the card's row went.</param>
+    public ChannelCard(LiveChannel? channel, string label, string origin, Images images, long now, CancellationToken logo = default)
     {
         Channel = channel;
         var w = Ui.Dp(Kind.Width);
@@ -243,7 +245,7 @@ sealed class ChannelCard : View
             Opacity = 0,
         };
         frame.Add(ring);
-        well = new ChannelLogoView(channel, origin, images, Kind.Width, Kind.Height, name: true, style: PleyType.Title);
+        well = new ChannelLogoView(channel, origin, images, Kind.Width, Kind.Height, name: true, style: PleyType.Title, cancel: logo);
         frame.Add(well);
         if (channel.Number is { } number)
         {

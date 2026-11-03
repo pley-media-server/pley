@@ -86,6 +86,95 @@ public class LibraryModelTests
     }
 
     [Fact]
+    public void Posters_carry_quality_badges_only_when_the_listing_is_about_the_files_quality()
+    {
+        var media = new MediaSummary { Bitrate = 42_000_000, Width = 3840, Height = 2160, VideoCodec = "hevc", DynamicRange = "dolby_vision" };
+        data.Set(ByTitle, new[] { Movie(7) with { Media = media } });
+        var model = Model();
+        // Every listing has its files' summary; a plain grid says nothing of it.
+        Assert.Equal(TileLook.Poster, model.State.Value.Grid.Look);
+        Assert.Empty(Cells(model)[0]!.Badges);
+
+        data.Set(ByTitle with { Resolution = "4k" }, new[] { Movie(7) with { Media = media } });
+        model.SetResolution("4k");
+        Assert.Equal(TileLook.Quality, model.State.Value.Grid.Look);
+        var tile = Cells(model)[0]!;
+        Assert.Equal(new[] { "4K", "DV" }, tile.Badges);
+        // No files' line: that is the bitrate sort's.
+        Assert.Equal("", tile.Subtitle);
+
+        data.Set(ByTitle with { DynamicRange = "hdr" }, new[] { Movie(7) with { Media = media } });
+        model.SetResolution(null);
+        model.SetDynamicRange("hdr");
+        Assert.Equal(new[] { "4K", "DV" }, Cells(model)[0]!.Badges);
+
+        // Genre, year and watched state aren't about quality.
+        var byGenre = ByTitle with { Watched = false, Genre = "Comedy", Year = 1999 };
+        data.Set(byGenre, new[] { Movie(7) with { Media = media } });
+        model.ClearFilters();
+        model.SetWatched(false);
+        model.SetGenre("Comedy");
+        model.SetYear(1999);
+        Assert.Equal(TileLook.Poster, model.State.Value.Grid.Look);
+        Assert.Empty(Cells(model)[0]!.Badges);
+    }
+
+    [Fact]
+    public void Recommended_rows_carry_no_quality_badges()
+    {
+        var media = new MediaSummary { Width = 3840, Height = 2160, DynamicRange = "hdr10" };
+        data.SetHubs(1, new Hub { Key = "recently_added:1", Title = "Recently Added", LibraryId = 1, Items = new[] { Movie(3) with { Media = media } } });
+        var model = Model(saved: "tab=recommended&sort=bitrate&resolution=4k");
+        var rows = Assert.IsType<Loadable<IReadOnlyList<LibraryRow>>.Ready>(model.State.Value.Recommended).Data;
+        Assert.Empty(rows[0].Tiles[0].Badges);
+        Assert.Empty(LibraryRules.Tile(Movie(3) with { Media = media }, TileLook.Poster, FakeLibraries.Server).Badges);
+    }
+
+    [Fact]
+    public void Resolution_and_dynamic_range_filter_the_listing_as_the_server_offers_them()
+    {
+        data.FiltersAnswer = new FiltersAnswer(new[] { "Drama" }, new[] { 1999 })
+        {
+            Resolutions = new[] { "4k", "1080", "8k" },
+            DynamicRanges = new[] { "hdr", "dolby_vision", "sdr" },
+        };
+        var model = Model();
+        // Those the app has words for, in the server's order.
+        Assert.Equal(new[] { "4k", "1080" }, model.State.Value.Filters.Resolutions);
+        Assert.Equal(new[] { "hdr", "dolby_vision", "sdr" }, model.State.Value.Filters.DynamicRanges);
+
+        var filter = LibraryText.Panel(LibraryPanel.Filter, model.State.Value);
+        Assert.Equal(new PanelOutcome.Show(LibraryPanel.Resolution), model.Choose(filter.Rows.Single(r => r.Kind == LibraryRowKind.Resolutions)));
+        Assert.Equal(new PanelOutcome.Show(LibraryPanel.DynamicRange), model.Choose(filter.Rows.Single(r => r.Kind == LibraryRowKind.DynamicRanges)));
+        var resolutions = LibraryText.Panel(LibraryPanel.Resolution, model.State.Value);
+        Assert.Equal(new PanelOutcome.Close(), model.Choose(resolutions.Rows.Single(r => r.Label == "4K")));
+        var ranges = LibraryText.Panel(LibraryPanel.DynamicRange, model.State.Value);
+        Assert.Equal(new PanelOutcome.Close(), model.Choose(ranges.Rows.Single(r => r.Label == "Dolby Vision")));
+        Assert.Equal(ByTitle with { Resolution = "4k", DynamicRange = "dolby_vision" }, LastAsked);
+        Assert.True(model.State.Value.Filtered);
+        Assert.Equal("resolution=4k&dynamic_range=dolby_vision", data.Kept[1]);
+        Assert.Equal(new SaveSmartPlaylistPage(1, "resolution=4k&dynamicRange=dolby_vision&sort=titleSort"), model.SaveAs());
+
+        // "All resolutions" takes it off.
+        model.Choose(LibraryText.Panel(LibraryPanel.Resolution, model.State.Value).Rows[0]);
+        Assert.Equal(ByTitle with { DynamicRange = "dolby_vision" }, LastAsked);
+        model.ClearFilters();
+        Assert.Equal(ByTitle, LastAsked);
+        Assert.False(data.Kept.ContainsKey(1));
+    }
+
+    [Fact]
+    public void A_library_opens_with_the_quality_it_was_left_in_but_not_one_the_server_doesnt_name()
+    {
+        data.Kept[1] = "resolution=720&dynamic_range=hlg";
+        Assert.Equal(new LibraryParams(Resolution: "720", DynamicRange: "hlg"), Model().State.Value.Params);
+        data.Kept[1] = "resolution=8k&dynamic_range=hdr12&genre=Drama";
+        Assert.Equal(new LibraryParams(Genre: "Drama"), Model().State.Value.Params);
+        // Music has none.
+        Assert.Equal(new LibraryParams(), Model(libraryId: 2, saved: "resolution=4k&dynamic_range=hdr").State.Value.Params);
+    }
+
+    [Fact]
     public void Filters_change_the_listing_and_save_as_carries_them()
     {
         var model = Model();

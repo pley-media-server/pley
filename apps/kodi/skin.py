@@ -237,6 +237,10 @@ MASKS = {
 # library's row can end with "See all" in: the others' layouts go without.
 COUNTED = ("poster", "grid", "square")
 SEE_ALL = ("poster", "square")
+# The library grid's posters, which carry quality badges when its sort or
+# filters make them say something (window.Library.badged).
+BADGED = ("grid",)
+ON_ART = "CC0B0D10"  # bg at 80 %, under words on a picture
 
 ZOOM_TILE = "effect=zoom start=100 end=108 time=150 tween=cubic easing=out center=auto"
 ZOOM_PILL = "effect=zoom start=100 end=105 time=150 tween=cubic easing=out center=auto"
@@ -350,6 +354,32 @@ def pill(id_, icon: str | None, text="", navigation=None) -> ET.Element:
     )
 
 
+def quality_badges(h: int) -> list:
+    """A poster's quality badges at the art's foot, from the left: "4K"
+    (ListItem.Property(resolution)), then its dynamic range's
+    (ListItem.Property(range)), after "4K" or in its place. A list's items
+    can't size a pill to its word, so each word has a pill of its own."""
+    top = h - L.BADGE_INSET - L.BADGE_HEIGHT
+    resolution = "ListItem.Property(resolution)"
+
+    def pill(left, key, shown):
+        word, width = L.BADGES[key]
+        return [
+            image(left, top, width, L.BADGE_HEIGHT, "round4.png", color=ON_ART, border=6, visible=shown),
+            label(left, top, width, L.BADGE_HEIGHT, L.FONT_BADGE, L.FG, word, align="center", visible=shown),
+        ]
+
+    out = pill(L.BADGE_INSET, "4k", "String.IsEqual(%s,4k)" % resolution)
+    after = L.BADGE_INSET + L.BADGES["4k"][1] + L.BADGE_GAP
+    for key in L.BADGES:
+        if key == "4k":
+            continue
+        shown = "String.IsEqual(ListItem.Property(range),%s)" % key
+        out += pill(L.BADGE_INSET, key, shown + " + String.IsEmpty(%s)" % resolution)
+        out += pill(after, key, shown + " + !String.IsEmpty(%s)" % resolution)
+    return out
+
+
 def tile_parts(shape: L.Shape, list_id: int, focused: bool) -> list:
     """What a tile draws (ArtworkTile): its placeholder and title, its art,
     progress, watched tick or unwatched count, and the caption under it.
@@ -397,6 +427,8 @@ def tile_parts(shape: L.Shape, list_id: int, focused: bool) -> list:
                 image(w - 12 - width, 12, width, 36, "round4.png", color=L.ACCENT, border=6, visible=shown),
                 label(w - 12 - width, 12, width, 36, L.FONT_BADGE, L.ON_ACCENT, "$INFO[ListItem.Property(count)]", align="center", visible=shown),
             ]
+    if shape.name in BADGED:
+        well += quality_badges(h)
     if shape.name in SEE_ALL:
         # "See all", the last tile of a library's rows.
         see_all = "!" + plain
@@ -567,6 +599,10 @@ def rail() -> list:
             ],
         )
     )
+    # Each entry's group is a pill tall; the window places them (setup_rail),
+    # and the icon and name stay in its middle when it makes pills shorter.
+    row = L.RAIL_ROW
+    middle = (row - 40) // 2
     y = L.RAIL_TOP
     for entry, key, icon, text in entries:
         if entry == L.RAIL_SETTINGS:
@@ -579,19 +615,19 @@ def rail() -> list:
             group(
                 L.rail_group(entry),
                 0,
-                y - 50,
+                y - row // 2,
                 544,
-                100,
+                row,
                 [
-                    image(8, 0, 528, 100, "round12.png", id_=L.rail_pill(entry), color=L.SURFACE3, border=14, visible=opened + " + " + current + " + !" + focused),
-                    image(16, 30, 8, 40, "round4.png", color=L.ACCENT, border=4, visible="!" + opened + " + " + current),
-                    button(entry, 8, 0, 528, 100, "round12.png", None, animations=[anim("Focus", ZOOM_PILL)], navigation=links(entry)),
-                    image(48, 30, 40, 40, icon, id_=rest_icon, color=L.MUTED, visible="!%s + !%s" % (focused, current)),
-                    image(48, 30, 40, 40, icon, id_=current_icon, color=L.FG, visible="!%s + %s" % (focused, current)),
-                    image(48, 30, 40, 40, icon, id_=focus_icon, color=L.ON_ACCENT, visible=focused),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.MUTED, text, id_=rest_label, visible="%s + !%s + !%s" % (opened, focused, current), animations=fades(150)),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.FG, text, id_=current_label, visible="%s + !%s + %s" % (opened, focused, current), animations=fades(150)),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.ON_ACCENT, text, id_=focus_label, visible=focused),
+                    image(8, 0, 528, row, "round12.png", id_=L.rail_pill(entry), color=L.SURFACE3, border=14, visible=opened + " + " + current + " + !" + focused),
+                    image(16, middle, 8, 40, "round4.png", color=L.ACCENT, border=4, visible="!" + opened + " + " + current),
+                    button(entry, 8, 0, 528, row, "round12.png", None, animations=[anim("Focus", ZOOM_PILL)], navigation=links(entry)),
+                    image(48, middle, 40, 40, icon, id_=rest_icon, color=L.MUTED, visible="!%s + !%s" % (focused, current)),
+                    image(48, middle, 40, 40, icon, id_=current_icon, color=L.FG, visible="!%s + %s" % (focused, current)),
+                    image(48, middle, 40, 40, icon, id_=focus_icon, color=L.ON_ACCENT, visible=focused),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.MUTED, text, id_=rest_label, visible="%s + !%s + !%s" % (opened, focused, current), animations=fades(150)),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.FG, text, id_=current_label, visible="%s + !%s + %s" % (opened, focused, current), animations=fades(150)),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.ON_ACCENT, text, id_=focus_label, visible=focused),
                 ],
             )
         )
@@ -791,6 +827,7 @@ def library() -> ET.Element:
             chip(L.LIBRARY_SORT, "arrow-up-narrow-wide", ""),
             chip(L.LIBRARY_SORT_DOWN, "arrow-down-wide-narrow", ""),
             chip(L.LIBRARY_FILTER, "sliders-horizontal", ""),
+            chip(L.LIBRARY_FILTER_ON, "check", ""),
             chip(L.LIBRARY_UNWATCHED, None, "$ADDON[plugin.video.pley 30109]"),
             chip(L.LIBRARY_UNWATCHED_ON, "check", ""),
             chip(L.LIBRARY_GENRE, None, "$ADDON[plugin.video.pley 30110]"),

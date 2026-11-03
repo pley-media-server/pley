@@ -1,8 +1,58 @@
 import type { Api } from "../../api/client";
-import type { ItemSummary, LibraryKind, LibrarySort } from "../../api/types";
+import type { ItemSummary, LibraryFilters, LibraryKind, LibrarySort } from "../../api/types";
 import type { KeyValue } from "../../auth/tokens";
 import { Cancel } from "../../net/transport";
 import type { LibraryTab } from "../shell/navigator";
+
+/** The resolutions a library can be filtered by, as the server names them, best first. */
+export type Resolution = "4k" | "1080" | "720" | "sd";
+/** The dynamic ranges a library can be filtered by, as the server names them: `hdr` is any but SDR. */
+export type DynamicRangeFilter = "hdr" | "dolby_vision" | "hdr10plus" | "hdr10" | "hlg" | "sdr";
+
+const RESOLUTIONS: Resolution[] = ["4k", "1080", "720", "sd"];
+const RESOLUTION_LABELS: string[] = ["4K", "1080p", "720p", "SD"];
+const DYNAMIC_RANGES: DynamicRangeFilter[] = ["hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
+// HDR10 and HDR10+ read as plain "HDR" and "HDR+", as on the posters.
+const DYNAMIC_RANGE_LABELS: string[] = ["Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR"];
+
+export function isResolution(v: unknown): v is Resolution {
+  return RESOLUTIONS.indexOf(v as Resolution) >= 0;
+}
+
+export function isDynamicRange(v: unknown): v is DynamicRangeFilter {
+  return DYNAMIC_RANGES.indexOf(v as DynamicRangeFilter) >= 0;
+}
+
+/** A resolution's words ("4K", "1080p"); null for a value that isn't one. */
+export function resolutionLabel(v: string): string | null {
+  return isResolution(v) ? RESOLUTION_LABELS[RESOLUTIONS.indexOf(v)]! : null;
+}
+
+/** A dynamic range's words ("Dolby Vision", "HDR+"); null for a value that isn't one. */
+export function dynamicRangeLabel(v: string): string | null {
+  return isDynamicRange(v) ? DYNAMIC_RANGE_LABELS[DYNAMIC_RANGES.indexOf(v)]! : null;
+}
+
+/**
+ * The resolutions and dynamic ranges the server offers for a library, in
+ * its order (best first), those this app has words for; none from a server
+ * from before these filters.
+ */
+export function qualityChoices(f: LibraryFilters | null | undefined): { resolutions: Resolution[]; dynamicRanges: DynamicRangeFilter[] } {
+  return {
+    resolutions: (f?.resolutions ?? []).filter(isResolution),
+    dynamicRanges: (f?.dynamic_ranges ?? []).filter(isDynamicRange),
+  };
+}
+
+/**
+ * A filter's list with the value chosen in it: one the server no longer
+ * offers (kept from before, the library changed) comes last, so it shows
+ * checked and focused and can be changed, as on the web and Roku.
+ */
+export function withChosen<T extends string>(offered: T[], chosen: T | null): T[] {
+  return chosen && offered.indexOf(chosen) < 0 ? offered.concat([chosen]) : offered;
+}
 
 /** How a library is listed: sort, order and filters (the web's query string). */
 export interface LibraryParams {
@@ -12,6 +62,8 @@ export interface LibraryParams {
   watched: boolean | null;
   genre: string | null;
   year: number | null;
+  resolution: Resolution | null;
+  dynamicRange: DynamicRangeFilter | null;
 }
 
 export const SORT_LABELS: Record<LibrarySort, string> = {
@@ -39,11 +91,25 @@ export function defaultOrder(sort: LibrarySort): "asc" | "desc" {
 }
 
 export function defaultParams(): LibraryParams {
-  return { sort: "title", order: "asc", watched: null, genre: null, year: null };
+  return { sort: "title", order: "asc", watched: null, genre: null, year: null, resolution: null, dynamicRange: null };
 }
 
 export function hasFilter(p: LibraryParams): boolean {
-  return p.watched !== null || p.genre !== null || p.year !== null;
+  return p.watched !== null || p.genre !== null || p.year !== null || p.resolution !== null || p.dynamicRange !== null;
+}
+
+/** Without any filter, in the same order: Clear filters. */
+export function cleared(p: LibraryParams): LibraryParams {
+  return { ...p, watched: null, genre: null, year: null, resolution: null, dynamicRange: null };
+}
+
+/**
+ * Whether the grid's posters carry their quality badges ("4K", "DV"):
+ * only when the files' quality is what the listing is about, sorted by
+ * bitrate or filtered by resolution or dynamic range.
+ */
+export function showsBadges(p: LibraryParams): boolean {
+  return p.sort === "bitrate" || p.resolution !== null || p.dynamicRange !== null;
 }
 
 /** Plex's name for each sort, as smart filters write it (docs/COMPATIBILITY.md). */
@@ -61,13 +127,16 @@ const PLEX_SORT: Record<LibrarySort, string> = {
 
 /**
  * The library page's filters and order as a smart filter, in Plex's syntax
- * (`genre=Comedy&unwatched=1&sort=year:desc`): what "Save as…" saves (the
- * web's smartFilterOf, the Android app's SmartFilter.of).
+ * (`genre=Comedy&resolution=4k&unwatched=1&sort=year:desc`): what "Save
+ * as…" saves (the web's smartFilterOf, the Android app's SmartFilter.of).
+ * The resolution is Plex's field, the dynamic range Pley's own.
  */
 export function smartFilterOf(p: LibraryParams): string {
   const parts: [string, string][] = [];
   if (p.genre) parts.push(["genre", p.genre]);
   if (p.year !== null) parts.push(["year", String(p.year)]);
+  if (p.resolution) parts.push(["resolution", p.resolution]);
+  if (p.dynamicRange) parts.push(["dynamicRange", p.dynamicRange]);
   if (p.watched !== null) parts.push(["unwatched", p.watched ? "0" : "1"]);
   const field = PLEX_SORT[p.sort];
   parts.push(["sort", p.order === "desc" ? `${field}:desc` : field]);
@@ -151,6 +220,12 @@ export function describeSmartFilter(filter: string): string[] {
       case "decade":
         out.push(`The ${value}s`);
         break;
+      case "resolution":
+        out.push(resolutionLabel(value) ?? `${key}: ${value}`);
+        break;
+      case "dynamicRange":
+        out.push(dynamicRangeLabel(value) ?? `${key}: ${value}`);
+        break;
       case "sort":
         out.push(sortNote(value));
         break;
@@ -168,18 +243,24 @@ export function describeSmartFilter(filter: string): string[] {
   return out;
 }
 
-/** Params as kept, made fit for the library: music has no filters; a sort the kind doesn't offer is Title. */
+/**
+ * Params as kept, made fit for the library: music has no filters; a sort
+ * the kind doesn't offer is Title; a resolution or dynamic range that
+ * isn't one of the server's is none.
+ */
 export function fitParams(p: Partial<LibraryParams> | null, kind: LibraryKind): LibraryParams {
   const d = defaultParams();
   const sort = p?.sort && sortsFor(kind).indexOf(p.sort) >= 0 ? p.sort : d.sort;
   const order = p?.order === "asc" || p?.order === "desc" ? p.order : defaultOrder(sort);
-  if (kind === "music") return { sort, order, watched: null, genre: null, year: null };
+  if (kind === "music") return { ...d, sort, order };
   return {
     sort,
     order,
     watched: typeof p?.watched === "boolean" ? p.watched : null,
     genre: typeof p?.genre === "string" && p.genre ? p.genre : null,
     year: typeof p?.year === "number" ? p.year : null,
+    resolution: isResolution(p?.resolution) ? p!.resolution : null,
+    dynamicRange: isDynamicRange(p?.dynamicRange) ? p!.dynamicRange : null,
   };
 }
 
@@ -438,6 +519,8 @@ export class Listing {
       watched: p.watched === null ? undefined : p.watched,
       genre: p.genre ?? undefined,
       year: p.year ?? undefined,
+      resolution: p.resolution ?? undefined,
+      dynamic_range: p.dynamicRange ?? undefined,
       offset,
       limit,
     };

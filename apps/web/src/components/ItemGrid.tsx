@@ -25,8 +25,10 @@ export interface ItemGridProps {
   jumpBar?: boolean;
   /** Extra offset for sticky headers when jumping (px). */
   stickyOffset?: number;
-  /** Cards say what the files are like (sorted by bitrate). */
+  /** Cards put their files' bitrate and size under the title (sorted by bitrate). */
   media?: boolean;
+  /** Posters carry their quality badges ("4K", "DV"): sorted by bitrate or filtered by quality. */
+  badges?: boolean;
 }
 
 /** Columns and gaps of a grid `width` px wide with cards of about `cardWidth` px: at least two columns. */
@@ -39,7 +41,7 @@ function gridLayout(width: number, cardWidth: number) {
 }
 
 /** Window-scrolled, row-virtualized responsive grid of media cards. */
-export function ItemGrid({ items, total = items.length, aspect, cardWidth, jumpBar, stickyOffset = 136, media }: ItemGridProps) {
+export function ItemGrid({ items, total = items.length, aspect, cardWidth, jumpBar, stickyOffset = 136, media, badges }: ItemGridProps) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const [scrollMargin, setScrollMargin] = useState(0);
   const { gap, rowGap, cols, colWidth } = gridLayout(width, cardWidth);
@@ -106,7 +108,7 @@ export function ItemGrid({ items, total = items.length, aspect, cardWidth, jumpB
                   }}
                 >
                   {rowItems.map((item) => (
-                    <MediaCard key={item.id} item={item} aspect={aspect} width={colWidth} media={media} />
+                    <MediaCard key={item.id} item={item} aspect={aspect} width={colWidth} media={media} badges={badges} />
                   ))}
                   {Array.from({ length: placeholders }, (_, i) => (
                     <CardSkeleton key={`p${i}`} aspect={aspect} />

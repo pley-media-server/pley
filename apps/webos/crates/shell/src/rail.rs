@@ -8,19 +8,22 @@
 //! nothing, Right goes back to the element the page had. Choosing the page already shown returns
 //! to it; any other entry starts the back stack over with its page, the rail keeping focus until
 //! that page has something to focus.
+//!
+//! The avatar stays at the top and Settings at the foot; the entries between them scroll when
+//! more than nine are listed, keeping the focused one in view (the current one while closed) with
+//! the next one in the direction of travel, and are cut off at the avatar and Settings.
 
 use pley_base::{Color, Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{Library, LibraryKind, Me, RequestSummary};
 use pley_core::requests::{has_requests, may_ask, requests_count, requests_title};
 use pley_ui::theme::{self, focus};
-use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, ImageOpts, Motion, Ui};
+use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, ImageOpts, Motion, Ui, nudge};
 
 use crate::route::Route;
 
-/// At most this many libraries have entries of their own (`MAX_LIBRARIES`).
-pub const MAX_LIBRARIES: usize = 3;
-/// Entries between the avatar and Settings, at most: their pitch fills the rail (`MAX_ITEMS`).
-pub const MAX_ITEMS: usize = 7;
+/// At most this many libraries have entries of their own (`MAX_LIBRARIES`); past that, Libraries
+/// lists them all.
+pub const MAX_LIBRARIES: usize = 6;
 
 /// The rail's width while closed: 8 + 56 + 8.
 pub const CLOSED_WIDTH: f32 = theme::RAIL_COLLAPSED;
@@ -30,12 +33,15 @@ pub const OPEN_WIDTH: f32 = theme::RAIL_EXPANDED;
 const X: f32 = 8.0;
 const TOP: f32 = 15.0;
 const BOTTOM: f32 = 27.0;
-const AVATAR_ENTRY: f32 = 56.0;
+/// The avatar's entry: 48 high, its 32 dp picture in the middle.
+const AVATAR_ENTRY: f32 = 48.0;
 const AVATAR_GAP: f32 = 4.0;
-const ENTRY_H: f32 = 48.0;
+/// An entry: as high as the library's chips, 4 apart.
+const ENTRY_H: f32 = 40.0;
 const ENTRY_W: f32 = 56.0;
 const ENTRY_W_OPEN: f32 = 256.0;
-const PITCH: f32 = 56.0;
+const GAP: f32 = 4.0;
+const PITCH: f32 = ENTRY_H + GAP;
 const ICON: f32 = 20.0;
 const LABEL_X: f32 = 56.0;
 const LABEL_W: f32 = 188.0;
@@ -92,12 +98,6 @@ impl RailEntries {
     pub fn has(&self, id: &str) -> bool {
         self.top.iter().any(|e| e.id == id)
     }
-
-    /// Whether the Libraries page lists Playlists after the libraries: the rail had no room for
-    /// it, and the page is the way there.
-    pub fn playlists_on_libraries_page(&self) -> bool {
-        !self.has("playlists")
-    }
 }
 
 fn library_icon(kind: LibraryKind) -> Icon {
@@ -110,16 +110,11 @@ fn library_icon(kind: LibraryKind) -> Icon {
 }
 
 /// The rail's entries (Android's `RailItems`): Search, Home, Discover (or the requests,
-/// [`requests_entry`]), Live TV where the server has channels
-/// for this profile, up to three libraries, then Libraries when there are more, Playlists, and
-/// Collections when there are one to three libraries; Now Playing while music has a queue; USB
-/// drive last while the app can read a drive plugged into the TV (the Samsung app's `Pages.cs`);
-/// Settings at the foot. Seven fit: past that Collections goes first, then libraries from the
-/// last, Libraries listing them. With Discover, Live TV, Now Playing and the drive all there, that
-/// still leaves eight, and no library can make way: Playlists then leaves the rail for the
-/// Libraries page, which lists it after the libraries
-/// ([`RailEntries::playlists_on_libraries_page`]). By then a lone library has become Libraries
-/// too, so the rail always reaches Playlists, one way or the other.
+/// [`requests_entry`]), Live TV where the server has channels for this profile, up to six
+/// libraries, then Libraries when there are more, Playlists, and Collections when there are one to
+/// six libraries; Now Playing while music has a queue; USB drive last while the app can read a
+/// drive plugged into the TV (the Samsung app's `Pages.cs`); Settings at the foot. Nothing makes
+/// room for anything: the entries scroll when they don't fit.
 pub fn rail_entries(
     libraries: &[Library],
     now_playing: bool,
@@ -127,53 +122,35 @@ pub fn rail_entries(
     requests: Option<RailEntry>,
     drive: bool,
 ) -> RailEntries {
-    let mut shown = libraries.len().min(MAX_LIBRARIES);
-    let mut collections = !libraries.is_empty() && libraries.len() <= MAX_LIBRARIES;
-    let build = |shown: usize, collections: bool| {
-        let mut top = vec![
-            RailEntry::new("search", "Search", Icon::Search, Route::Search { query: String::new() }),
-            RailEntry::new("home", "Home", Icon::House, Route::Home),
-        ];
-        top.extend(requests.clone());
-        if live {
-            top.push(RailEntry::new("live-tv", "Live TV", Icon::TvMinimal, Route::LiveTv));
-        }
-        for l in &libraries[..shown] {
-            let route = Route::Library { id: l.id, tab: None, sort: None };
-            top.push(RailEntry::new(format!("library:{}", l.id), l.name.clone(), library_icon(l.kind), route));
-        }
-        if libraries.len() > shown {
-            top.push(RailEntry::new("libraries", "Libraries", Icon::Layers, Route::Libraries { sort: false }));
-        }
-        top.push(RailEntry::new("playlists", "Playlists", Icon::ListMusic, Route::Playlists));
-        if collections {
-            let first = libraries.iter().find(|l| l.kind != LibraryKind::Music).unwrap_or(&libraries[0]);
-            let route = Route::Collections { library_id: Some(first.id) };
-            top.push(RailEntry::new("collections", "Collections", Icon::Layers, route));
-        }
-        if now_playing {
-            top.push(RailEntry::new("now-playing", "Now Playing", Icon::AudioLines, Route::NowPlaying));
-        }
-        if drive {
-            top.push(RailEntry::new("storage", "USB drive", Icon::Usb, Route::Storage { path: None }));
-        }
-        top
-    };
-    let mut top = build(shown, collections);
-    // The first library to go makes no room, "Libraries" coming in for it; the loop goes on, so a
-    // lone library has become "Libraries" by the time Playlists leaves below.
-    while top.len() > MAX_ITEMS && (collections || shown > 0) {
-        if collections {
-            collections = false;
-        } else {
-            shown -= 1;
-        }
-        top = build(shown, collections);
+    let shown = libraries.len().min(MAX_LIBRARIES);
+    let mut top = vec![
+        RailEntry::new("search", "Search", Icon::Search, Route::Search { query: String::new() }),
+        RailEntry::new("home", "Home", Icon::House, Route::Home),
+    ];
+    top.extend(requests);
+    if live {
+        top.push(RailEntry::new("live-tv", "Live TV", Icon::TvMinimal, Route::LiveTv));
     }
-    if top.len() > MAX_ITEMS {
-        // Only the drive brings it here, with no library left to make way: Playlists goes to the
-        // Libraries page, which the rail's "Libraries" opens.
-        top.retain(|e| e.id != "playlists");
+    for l in &libraries[..shown] {
+        let route = Route::Library { id: l.id, tab: None, sort: None };
+        top.push(RailEntry::new(format!("library:{}", l.id), l.name.clone(), library_icon(l.kind), route));
+    }
+    if libraries.len() > shown {
+        top.push(RailEntry::new("libraries", "Libraries", Icon::Layers, Route::Libraries { sort: false }));
+    }
+    top.push(RailEntry::new("playlists", "Playlists", Icon::ListMusic, Route::Playlists));
+    // Collections while every library has an entry: the first one's that isn't music.
+    if libraries.len() == shown
+        && let Some(first) = libraries.iter().find(|l| l.kind != LibraryKind::Music).or(libraries.first())
+    {
+        let route = Route::Collections { library_id: Some(first.id) };
+        top.push(RailEntry::new("collections", "Collections", Icon::Layers, route));
+    }
+    if now_playing {
+        top.push(RailEntry::new("now-playing", "Now Playing", Icon::AudioLines, Route::NowPlaying));
+    }
+    if drive {
+        top.push(RailEntry::new("storage", "USB drive", Icon::Usb, Route::Storage { path: None }));
     }
     RailEntries {
         top,
@@ -182,13 +159,12 @@ pub fn rail_entries(
 }
 
 /// The entry of the page at the root of the back stack (`railCurrent`): the entry that opened it,
-/// Libraries for a library or Playlists not in the rail, the avatar for Profiles, or none.
+/// Libraries for a library not in the rail, the avatar for Profiles, or none.
 pub fn current_entry(root: Option<&Route>, entries: &RailEntries) -> Option<String> {
     let top = &entries.top;
     let has = |id: &str| entries.has(id).then(|| id.to_string());
     match root? {
         Route::Library { id, .. } => has(&format!("library:{id}")).or_else(|| has("libraries")),
-        Route::Playlists => has("playlists").or_else(|| has("libraries")),
         Route::Collections { library_id } => has("collections").or_else(|| {
             let id = (*library_id)?;
             current_entry(Some(&Route::Library { id, tab: None, sort: None }), entries)
@@ -260,6 +236,8 @@ pub struct Rail {
     last_focus: Option<Id>,
     /// The entry chosen, to keep focus once the page it opened replaces the stack.
     chosen: Option<String>,
+    /// How far the entries between the avatar and Settings are scrolled: where it is heading.
+    scroll: f32,
 }
 
 /// The rail's focus group (also its scope while closed, so its animated values carry over).
@@ -363,10 +341,7 @@ impl Rail {
             }
         }
 
-        let mut all: Vec<(&RailEntry, f32)> =
-            view.entries.top.iter().enumerate().map(|(i, e)| (e, FIRST_Y + i as f32 * PITCH)).collect();
-        all.push((&view.entries.settings, SETTINGS_Y));
-
+        let scroll = self.follow(ui, view);
         let open = self.open;
         let group =
             Group::column().edge(Dir::Up, Edge::Stop).edge(Dir::Down, Edge::Stop).takes(Dirs::HORIZONTAL).trap();
@@ -381,7 +356,7 @@ impl Rail {
                     chosen = Some(RailEntry::new("profile", "Profiles", Icon::Users, Route::Profiles));
                 }
             }
-            for &(entry, y) in &all {
+            let mut entry = |ui: &mut Ui, entry: &RailEntry, y: f32| {
                 if let Some(r) = entry_ui(ui, entry, y, view.current == Some(entry.id.as_str()), open, t, g) {
                     if r.focused {
                         focus_now = Some(r.id);
@@ -390,7 +365,15 @@ impl Rail {
                         chosen = Some(entry.clone());
                     }
                 }
-            }
+            };
+            // Every entry is drawn, for focus to move along them in order; those scrolled under
+            // the avatar or over Settings are cut off there.
+            ui.clip(Rect::new(0.0, CLIP_TOP, theme::CANVAS_W, SETTINGS_Y - CLIP_TOP), |ui| {
+                for (i, e) in view.entries.top.iter().enumerate() {
+                    entry(ui, e, FIRST_Y + i as f32 * PITCH - scroll);
+                }
+            });
+            entry(ui, &view.entries.settings, SETTINGS_Y);
         };
         if open {
             ui.group(rail_id(), group, &mut draw);
@@ -411,7 +394,7 @@ impl Rail {
             // The pointer moving onto an entry opens the rail there.
             let strip = ui.clickable(rail_id().with("strip"), Rect::new(0.0, 0.0, CLOSED_WIDTH, theme::CANVAS_H));
             if strip.hovered
-                && let Some(id) = entry_at(view, p)
+                && let Some(id) = entry_at(view, p, scroll)
             {
                 self.open(ui, &id);
                 self.pointed_in = true;
@@ -423,6 +406,62 @@ impl Rail {
         outcome.chosen = chosen;
         outcome
     }
+
+    /// Where the entries between the avatar and Settings show scrolled to this frame, by the rule
+    /// the TV apps share ([`rail_scroll`]): placed for the focused entry, or, while the rail is
+    /// closed, for the current one, so opening it on that entry moves nothing. The pointer keeps
+    /// its own way: the entry it is on comes in only as far as shows it whole, since entries
+    /// moving under a still pointer would move focus.
+    fn follow(&mut self, ui: &mut Ui, view: &RailView) -> f32 {
+        let top = &view.entries.top;
+        let at = if self.open {
+            ui.focused().and_then(|id| place(view.entries, id))
+        } else {
+            view.current.and_then(|c| top.iter().position(|e| e.id == c)).map(|i| i as isize)
+        };
+        let at = at.unwrap_or(-1);
+        self.scroll = match usize::try_from(at) {
+            Ok(i) if self.open && ui.pointer_mode() && i < top.len() => {
+                let y = i as f32 * PITCH;
+                nudge(self.scroll, y, y + ENTRY_H, 0.0, VIEW_H, 0.0, scroll_end(top.len()))
+            }
+            _ => rail_scroll(self.scroll, at, top.len()),
+        };
+        ui.scroll(rail_id().with("scroll"), self.scroll, SCROLL)
+    }
+}
+
+/// Where the rail's element `id` is along it (packages/tv's `placeOf`): -1 for the avatar, an
+/// entry's index, the entries' count for Settings.
+fn place(entries: &RailEntries, id: Id) -> Option<isize> {
+    if id == Rail::entry_focus_id("profile") {
+        return Some(-1);
+    }
+    if id == Rail::entry_focus_id(&entries.settings.id) {
+        return Some(entries.top.len() as isize);
+    }
+    entries.top.iter().position(|e| Rail::entry_focus_id(&e.id) == id).map(|i| i as isize)
+}
+
+/// How far the entries are scrolled while entry `focused` of `count` has focus (packages/tv's
+/// `railScroll`, which packages/tv/test/fixtures/rail.json pins for every TV app): by whole
+/// entries, so none is ever cut in half at either end. Going down, focus moves until it is the
+/// fourth entry shown, then stays there while the entries move under it an entry a press, until
+/// the last ones are all in view and focus goes on to the last; going up is the same backwards.
+/// Where an entry shows depends on it alone, never on the way focus came or on `scroll`, as the
+/// app's lists keep their focused row in one place. With no entry focused (the avatar,
+/// Settings, -1 or `count`) `scroll` is kept, within the ends.
+fn rail_scroll(scroll: f32, focused: isize, count: usize) -> f32 {
+    let end = scroll_end(count);
+    match usize::try_from(focused) {
+        Ok(i) if i < count => ((i as f32 - PIVOT) * PITCH).clamp(0.0, end),
+        _ => scroll.clamp(0.0, end),
+    }
+}
+
+/// The furthest the entries scroll: by whole entries, until the last nine show.
+fn scroll_end(count: usize) -> f32 {
+    count.saturating_sub(FITS) as f32 * PITCH
 }
 
 /// How far a label slides in from as the rail opens: a little, since an entry doesn't clip it and
@@ -440,11 +479,24 @@ fn label_slide(open: bool, t: f32) -> f32 {
     if open { LABEL_SLIDE * (1.0 - t) } else { 0.0 }
 }
 
+/// The first entry's top, unscrolled: 67.
 const FIRST_Y: f32 = TOP + AVATAR_ENTRY + AVATAR_GAP;
+/// Settings' top: 473, 27 from the bottom.
 const SETTINGS_Y: f32 = theme::CANVAS_H - BOTTOM - ENTRY_H;
+/// The view the entries scroll in, from the first entry's top to a gap above Settings: nine fit.
+const VIEW_H: f32 = SETTINGS_Y - GAP - FIRST_Y;
+/// Whole entries in the view, the last one's gap aside: nine.
+const FITS: usize = ((VIEW_H + GAP) / PITCH) as usize;
+/// The entries shown above the focused one while they scroll under it ([`rail_scroll`]).
+const PIVOT: f32 = 3.0;
+/// What shows of the entries, from the avatar's foot to Settings, so a focused entry growing at
+/// either end of the view isn't cut.
+const CLIP_TOP: f32 = TOP + AVATAR_ENTRY;
+/// The scroll's slide (the kit's lists').
+const SCROLL: Motion = pley_kit::SCROLL;
 
-/// The entry under the pointer at `p` while the rail is closed.
-fn entry_at(view: &RailView, p: Point) -> Option<String> {
+/// The entry under the pointer at `p` while the rail is closed, its entries scrolled by `scroll`.
+fn entry_at(view: &RailView, p: Point, scroll: f32) -> Option<String> {
     if p.x >= CLOSED_WIDTH {
         return None;
     }
@@ -454,8 +506,12 @@ fn entry_at(view: &RailView, p: Point) -> Option<String> {
     if (SETTINGS_Y..SETTINGS_Y + ENTRY_H).contains(&p.y) {
         return Some(view.entries.settings.id.clone());
     }
-    let i = ((p.y - FIRST_Y) / PITCH).floor();
-    let inside = p.y >= FIRST_Y && p.y - FIRST_Y - i * PITCH < ENTRY_H;
+    if !(CLIP_TOP..SETTINGS_Y).contains(&p.y) {
+        return None;
+    }
+    let y = p.y - FIRST_Y + scroll;
+    let i = (y / PITCH).floor();
+    let inside = y >= 0.0 && y - i * PITCH < ENTRY_H;
     inside.then(|| view.entries.top.get(i as usize).map(|e| e.id.clone())).flatten()
 }
 
@@ -506,9 +562,10 @@ fn entry_ui(
             let bar = Rect::new(X, y + (ENTRY_H - 20.0) / 2.0, 4.0, 20.0);
             ui.fill(bar, theme::alpha(theme::ACCENT, 1.0 - t), theme::radius::BADGE);
         }
-        ui.icon(Rect::new(X + 18.0, y + 14.0, ICON, ICON), e.icon, content);
+        let icon = Rect::new(X + 18.0, y + (ENTRY_H - ICON) / 2.0, ICON, ICON);
+        ui.icon(icon, e.icon, content);
         if let Some((count, danger)) = e.badge {
-            badge(ui, Point::new(X + 29.0, y + 6.0), count, danger, focused);
+            badge(ui, Point::new(icon.x + 11.0, icon.y - 8.0), count, danger, focused);
         }
         if t > 0.0 {
             let at = Point::new(X + LABEL_X + label_slide(open, t), y + (ENTRY_H - theme::LABEL.line_height) / 2.0);
@@ -557,7 +614,7 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
         if fill.a > 0 {
             ui.fill(pill, fill, theme::radius::CONTROL);
         }
-        let circle = Rect::new(X + 12.0, TOP + 12.0, AVATAR, AVATAR);
+        let circle = Rect::new(X + (ENTRY_W - AVATAR) / 2.0, TOP + (AVATAR_ENTRY - AVATAR) / 2.0, AVATAR, AVATAR);
         let color = avatar_color(view.me.and_then(|m| m.avatar_color.as_deref())).unwrap_or(theme::SURFACE3);
         let shown = view.avatar.as_ref().map(|req| ui.image_state(req, pley_base::Priority::Visible));
         if !shown.is_some_and(|s| s.opaque()) {
@@ -574,7 +631,7 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
             ui.draw_image(circle, &s, &ImageOpts::cover().rounded(AVATAR / 2.0));
         }
         if view.offline_mark {
-            let mark = Rect::new(X + 34.0, TOP + 34.0, MARK, MARK);
+            let mark = Rect::new(circle.x + 22.0, circle.y + 22.0, MARK, MARK);
             ui.fill(mark.expand(2.0), theme::BG, (MARK + 4.0) / 2.0);
             ui.fill(mark, theme::SURFACE3, MARK / 2.0);
             ui.icon(Rect::new(mark.x + 3.5, mark.y + 3.5, 9.0, 9.0), Icon::ServerOff, theme::FG);
@@ -582,8 +639,10 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
         if t > 0.0 {
             ui.opacity(t, |ui| {
                 let x = X + LABEL_X + label_slide(open, t);
-                ui.text(Point::new(x, TOP + 10.0), name, &theme::RAIL_PROFILE, &TextOpts::line(LABEL_W), content);
-                let below = TOP + 10.0 + theme::RAIL_PROFILE.line_height;
+                let block = theme::RAIL_PROFILE.line_height + theme::RAIL_SWITCH.line_height;
+                let y = TOP + (AVATAR_ENTRY - block) / 2.0;
+                ui.text(Point::new(x, y), name, &theme::RAIL_PROFILE, &TextOpts::line(LABEL_W), content);
+                let below = y + theme::RAIL_PROFILE.line_height;
                 ui.opacity(0.8, |ui| {
                     ui.text(
                         Point::new(x, below),
@@ -613,36 +672,71 @@ mod tests {
 
     // apps/android/ui/tv/src/test/.../shell/ShellRulesTest.kt
     #[test]
-    fn three_libraries_fit_with_collections() {
-        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, false, None, false);
+    fn up_to_six_libraries_have_entries_with_collections() {
+        let libs: Vec<Library> = (1..=6).map(|i| lib(i, LibraryKind::Movies)).collect();
+        for n in 4..=6 {
+            let e = rail_entries(&libs[..n], false, false, None, false);
+            let mut want = vec!["search".to_string(), "home".to_string()];
+            want.extend((1..=n).map(|i| format!("library:{i}")));
+            want.extend(["playlists".to_string(), "collections".to_string()]);
+            assert_eq!(ids(&e), want, "{n} libraries");
+        }
+        let e = rail_entries(&libs[..3], false, false, None, false);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "collections"]);
         assert_eq!(e.settings.id, "settings");
     }
 
     #[test]
-    fn more_libraries_than_fit_go_under_libraries() {
-        let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
+    fn more_libraries_than_six_go_under_libraries() {
+        let libs: Vec<Library> = (1..=7).map(|i| lib(i, LibraryKind::Movies)).collect();
         let e = rail_entries(&libs, false, false, None, false);
-        assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "libraries", "playlists"]);
+        assert_eq!(
+            ids(&e),
+            [
+                "search",
+                "home",
+                "library:1",
+                "library:2",
+                "library:3",
+                "library:4",
+                "library:5",
+                "library:6",
+                "libraries",
+                "playlists"
+            ]
+        );
     }
 
     #[test]
-    fn now_playing_takes_the_place_of_collections() {
+    fn nothing_makes_room_for_live_tv_now_playing_or_the_drive() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
         let e = rail_entries(&libs, true, false, None, false);
-        assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "now-playing"]);
-    }
-
-    #[test]
-    fn live_tv_comes_after_home_and_makes_room() {
-        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, true, None, false);
-        assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "library:2", "library:3", "playlists"]);
-        // With music as well, the last two libraries give way to Libraries.
-        let e = rail_entries(&libs, true, true, None, false);
-        assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "libraries", "playlists", "now-playing"]);
-        assert!(e.top.len() <= MAX_ITEMS);
+        assert_eq!(
+            ids(&e),
+            ["search", "home", "library:1", "library:2", "library:3", "playlists", "collections", "now-playing"]
+        );
+        let e = rail_entries(&libs, true, true, discover(), true);
+        assert_eq!(
+            ids(&e),
+            [
+                "search",
+                "home",
+                "discover",
+                "live-tv",
+                "library:1",
+                "library:2",
+                "library:3",
+                "playlists",
+                "collections",
+                "now-playing",
+                "storage"
+            ]
+        );
+        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("playlists"));
+        assert_eq!(
+            current_entry(Some(&Route::Library { id: 3, tab: None, sort: None }), &e).as_deref(),
+            Some("library:3")
+        );
     }
 
     #[test]
@@ -658,14 +752,15 @@ mod tests {
 
     #[test]
     fn the_current_entry_follows_the_first_page() {
-        let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
+        let libs: Vec<Library> = (1..=8).map(|i| lib(i, LibraryKind::Movies)).collect();
         let e = rail_entries(&libs, false, false, None, false);
         let current = |r: Route| current_entry(Some(&r), &e);
         assert_eq!(current(Route::Home).as_deref(), Some("home"));
         assert_eq!(current(Route::Search { query: "x".into() }).as_deref(), Some("search"));
-        assert_eq!(current(Route::Library { id: 2, tab: None, sort: None }).as_deref(), Some("library:2"));
-        assert_eq!(current(Route::Library { id: 5, tab: None, sort: None }).as_deref(), Some("libraries"));
+        assert_eq!(current(Route::Library { id: 6, tab: None, sort: None }).as_deref(), Some("library:6"));
+        assert_eq!(current(Route::Library { id: 7, tab: None, sort: None }).as_deref(), Some("libraries"));
         assert_eq!(current(Route::Collections { library_id: Some(2) }).as_deref(), Some("library:2"));
+        assert_eq!(current(Route::Playlists).as_deref(), Some("playlists"));
         assert_eq!(current(Route::Settings { section: None }).as_deref(), Some("settings"));
         assert_eq!(current(Route::Profiles).as_deref(), Some("profile"));
         assert_eq!(current(Route::Item { id: 3 }), None);
@@ -684,7 +779,6 @@ mod tests {
         // Every folder of the drive is under it.
         let folder = Route::Storage { path: Some("/tmp/usb/sda/sda1/Films".into()) };
         assert_eq!(current_entry(Some(&folder), &e).as_deref(), Some("storage"));
-        assert!(e.top.len() <= MAX_ITEMS);
     }
 
     fn discover() -> Option<RailEntry> {
@@ -692,69 +786,27 @@ mod tests {
     }
 
     #[test]
-    fn with_no_library_left_to_make_way_playlists_leaves_for_the_libraries_page() {
-        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, true, true, discover(), true);
-        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
-        assert!(e.playlists_on_libraries_page());
-        // Playlists, opened from that page or left on top as the drive came in, is under Libraries.
-        assert_eq!(current_entry(Some(&Route::Libraries { sort: false }), &e).as_deref(), Some("libraries"));
-        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("libraries"));
-        // Without the drive, Playlists keeps its place, and the page doesn't list it.
-        let e = rail_entries(&libs, true, true, discover(), false);
-        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "playlists", "now-playing"]);
-        assert!(!e.playlists_on_libraries_page());
-        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("playlists"));
-        // Room for both: nothing gives way.
-        let e = rail_entries(&libs[..1], false, false, None, true);
-        assert_eq!(ids(&e), ["search", "home", "library:1", "playlists", "collections", "storage"]);
-    }
-
-    #[test]
-    fn a_lone_library_becomes_libraries_when_playlists_leaves() {
-        let libs = [lib(1, LibraryKind::Movies)];
-        // Collections making way is enough: the library keeps its entry.
-        let e = rail_entries(&libs, true, true, discover(), false);
-        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "library:1", "playlists", "now-playing"]);
-        // With the drive too, Libraries, which lists the library and then Playlists, takes its place.
-        let e = rail_entries(&libs, true, true, discover(), true);
-        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
-        let libraries = e.top.iter().find(|e| e.id == "libraries").unwrap();
-        assert_eq!((libraries.label.as_str(), libraries.icon), ("Libraries", Icon::Layers));
-        assert_eq!(libraries.route, Route::Libraries { sort: false });
-        assert_eq!(
-            current_entry(Some(&Route::Library { id: 1, tab: None, sort: None }), &e).as_deref(),
-            Some("libraries")
-        );
-        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("libraries"));
-        // Two libraries go the same way.
-        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Music)];
-        let e = rail_entries(&libs, true, true, discover(), true);
-        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
-    }
-
-    #[test]
-    fn playlists_is_always_in_reach_and_the_rail_never_holds_more_than_seven() {
+    fn every_entry_is_listed_in_its_order_whatever_else_is_there() {
         let kinds = [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music];
         let requests = [None, discover(), Some(RailEntry::new("requests", "Requests", Icon::Inbox, Route::Requests))];
-        for n in 0..=6 {
+        for n in 0..=8 {
             let libs: Vec<Library> = (1..=n).map(|i| lib(i, kinds[i as usize % 3])).collect();
             for bits in 0..8 {
                 let (queued, live, drive) = (bits & 1 != 0, bits & 2 != 0, bits & 4 != 0);
                 for req in &requests {
                     let e = rail_entries(&libs, queued, live, req.clone(), drive);
                     let case = format!("{n} libraries, {:?}", ids(&e));
-                    assert!(e.top.len() <= MAX_ITEMS, "{case}");
-                    let playlists = current_entry(Some(&Route::Playlists), &e);
-                    if e.playlists_on_libraries_page() {
-                        // In reach through Libraries, and only once nothing else could make way.
-                        assert!(e.has("libraries") && !e.has("collections"), "{case}");
-                        assert!(!e.top.iter().any(|e| e.id.starts_with("library:")), "{case}");
-                        assert_eq!(playlists.as_deref(), Some("libraries"), "{case}");
-                    } else {
-                        assert_eq!(playlists.as_deref(), Some("playlists"), "{case}");
-                    }
-                    // Every library is in reach too: its own entry, else Libraries.
+                    let mut want: Vec<String> = vec!["search".into(), "home".into()];
+                    want.extend(req.iter().map(|r| r.id.clone()));
+                    want.extend(live.then(|| "live-tv".to_string()));
+                    want.extend(libs.iter().take(MAX_LIBRARIES).map(|l| format!("library:{}", l.id)));
+                    want.extend((libs.len() > MAX_LIBRARIES).then(|| "libraries".to_string()));
+                    want.push("playlists".into());
+                    want.extend((1..=MAX_LIBRARIES).contains(&libs.len()).then(|| "collections".to_string()));
+                    want.extend(queued.then(|| "now-playing".to_string()));
+                    want.extend(drive.then(|| "storage".to_string()));
+                    assert_eq!(ids(&e), want, "{case}");
+                    // Every library is in reach: its own entry, else Libraries.
                     for l in &libs {
                         let root = Route::Library { id: l.id, tab: None, sort: None };
                         assert!(current_entry(Some(&root), &e).is_some(), "{case}");
@@ -844,10 +896,340 @@ mod tests {
     }
 
     #[test]
-    fn the_geometry_is_androids() {
-        assert_eq!(FIRST_Y, 75.0);
-        assert_eq!(SETTINGS_Y, 465.0);
+    fn nine_entries_fit_between_the_avatar_and_settings() {
+        assert_eq!((ENTRY_H, PITCH, AVATAR_ENTRY), (40.0, 44.0, 48.0));
+        assert_eq!(FIRST_Y, 67.0);
+        assert_eq!(SETTINGS_Y, 473.0);
+        assert_eq!(theme::CANVAS_H - SETTINGS_Y - ENTRY_H, BOTTOM);
+        // Whole entries in the view, the last one's gap aside.
+        assert_eq!(((VIEW_H + GAP) / PITCH).floor(), 9.0);
+        assert_eq!(FITS, 9);
         assert_eq!(CLOSED_WIDTH, X + ENTRY_W + 8.0);
         assert_eq!(OPEN_WIDTH, X + ENTRY_W_OPEN + 8.0);
+    }
+
+    /// A rail of fourteen entries: Search, Home, Discover, Live TV, six libraries, Libraries,
+    /// Playlists, Now Playing and the drive.
+    fn long_rail() -> RailEntries {
+        let libs: Vec<Library> = (1..=8).map(|i| lib(i, LibraryKind::Movies)).collect();
+        rail_entries(&libs, true, true, discover(), true)
+    }
+
+    /// Where each entry's label is drawn, as the entry's top.
+    fn tops(list: &pley_base::DisplayList, entries: &RailEntries) -> Vec<f32> {
+        let lift = (ENTRY_H - theme::LABEL.line_height) / 2.0;
+        entries.top.iter().map(|e| label_y(list, &e.label).expect("every entry is drawn") - lift).collect()
+    }
+
+    fn label_y(list: &pley_base::DisplayList, text: &str) -> Option<f32> {
+        list.cmds.iter().find_map(|c| match c {
+            pley_base::Cmd::Text { origin, layout, .. } if &*layout.text == text => Some(origin.y),
+            _ => None,
+        })
+    }
+
+    /// Whether the entry at `top` shows whole between the avatar and Settings.
+    fn whole(top: f32) -> bool {
+        top >= FIRST_Y - 0.01 && top + ENTRY_H <= FIRST_Y + VIEW_H + 0.01
+    }
+
+    /// Draws a rail of `entries` with `current`, open on `open` when given.
+    fn rail_screen<'a>(
+        entries: &'a RailEntries,
+        rail: &'a std::cell::RefCell<Rail>,
+        open: &'a std::cell::Cell<Option<&'static str>>,
+        current: &'a str,
+    ) -> impl FnMut(&mut Ui) + 'a {
+        move |ui: &mut Ui| {
+            let mut r = rail.borrow_mut();
+            if let Some(at) = open.take() {
+                r.open(ui, at);
+            }
+            let view = RailView {
+                entries,
+                current: Some(current),
+                me: None,
+                avatar: None,
+                offline_mark: false,
+                page_modal: false,
+            };
+            r.ui(ui, &view);
+        }
+    }
+
+    /// Where entry `i` of `count` starts while it has focus: down to the fourth place, then there
+    /// while the entries scroll by whole entries, until the last nine show.
+    fn resting_top(i: usize, count: usize) -> f32 {
+        FIRST_Y + i as f32 * PITCH - ((i as f32 - 3.0) * PITCH).clamp(0.0, (count - 9) as f32 * PITCH)
+    }
+
+    #[test]
+    fn the_focused_entry_stays_fourth_from_the_top_as_the_entries_scroll_the_same_both_ways() {
+        use pley_base::Key;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        let entries = long_rail();
+        let n = entries.top.len();
+        assert_eq!(n, 14);
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(Some("search"));
+        let mut screen = rail_screen(&entries, &rail, &open, "home");
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(tops(&f.list, &entries)[0], FIRST_Y, "the first entry starts at the top");
+        // Down along the rail: focus goes down to the fourth entry shown, stays there while the
+        // entries move under it an entry a press, then goes on to the last. They move by whole
+        // entries, so the first one shown starts at the top.
+        for i in 1..n {
+            h.step(Step::Press(Key::Down), &mut screen);
+            let f = h.step(Step::Wait(0.4), &mut screen);
+            assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[i].id)));
+            let tops = tops(&f.list, &entries);
+            assert_eq!(tops[i], resting_top(i, n), "entry {i}");
+            assert!(tops.iter().all(|&t| (t - FIRST_Y).rem_euclid(PITCH) == 0.0), "{tops:?}");
+        }
+        // At the end the last one ends at 459, and Down goes on to Settings, moving nothing.
+        assert_eq!(resting_top(n - 1, n) + ENTRY_H, FIRST_Y + 9.0 * PITCH - GAP);
+        let f = h.step(Step::Press(Key::Down), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("settings")));
+        assert_eq!(label_y(&f.list, "Settings"), Some(SETTINGS_Y + (ENTRY_H - theme::LABEL.line_height) / 2.0));
+        let f = h.step(Step::Wait(0.4), &mut screen);
+        assert_eq!(tops(&f.list, &entries)[n - 1], resting_top(n - 1, n));
+        // Back up: each entry where it was on the way down.
+        for i in (0..n).rev() {
+            h.step(Step::Press(Key::Up), &mut screen);
+            let f = h.step(Step::Wait(0.4), &mut screen);
+            assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[i].id)));
+            assert_eq!(tops(&f.list, &entries)[i], resting_top(i, n), "entry {i}");
+        }
+        assert_eq!(tops(&h.idle(&mut screen).list, &entries)[0], FIRST_Y);
+    }
+
+    #[test]
+    fn the_rail_opens_with_its_current_entry_in_view_and_cuts_off_the_rest() {
+        use pley_base::Cmd;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        let entries = long_rail();
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(None);
+        // Closed on the drive's page: its icon shows, scrolled up to it.
+        let mut screen = rail_screen(&entries, &rail, &open, "storage");
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        let usb = f.list.cmds.iter().find_map(|c| match c {
+            Cmd::Icon { rect, icon: Icon::Usb, .. } => Some(rect.y),
+            _ => None,
+        });
+        let usb = usb.expect("the drive's icon is drawn");
+        assert_eq!(usb - (ENTRY_H - ICON) / 2.0, resting_top(13, 14), "the drive's icon at {usb}");
+        assert_eq!(rail.borrow().scroll, 5.0 * PITCH);
+        // Opened there, nothing moves: the view is at its end, the last nine whole.
+        open.set(Some("storage"));
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        let tops = tops(&f.list, &entries);
+        assert_eq!(rail.borrow().scroll, 5.0 * PITCH);
+        assert!(tops[5..].iter().all(|&t| whole(t)), "{tops:?}");
+        assert!(!whole(tops[0]), "the first entries are scrolled away");
+        // The entries are drawn inside a clip from the avatar's foot to Settings, which is outside.
+        let at = |pred: &dyn Fn(&Cmd) -> bool| f.list.cmds.iter().position(pred).unwrap();
+        let clip = at(&|c| matches!(c, Cmd::PushClip { rect } if rect.y == CLIP_TOP && rect.bottom() == SETTINGS_Y));
+        let search = at(&|c| matches!(c, Cmd::Text { layout, .. } if &*layout.text == "Search"));
+        let unclip = clip + f.list.cmds[clip..].iter().position(|c| matches!(c, Cmd::PopClip)).unwrap();
+        let settings = at(&|c| matches!(c, Cmd::Text { layout, .. } if &*layout.text == "Settings"));
+        assert!(clip < search && search < unclip && unclip < settings);
+        assert_eq!(CLIP_TOP, TOP + AVATAR_ENTRY);
+    }
+
+    /// packages/tv/test/fixtures/rail.json, which the web TV app's and the native Samsung app's
+    /// tests read too: the rail's entries and how they scroll.
+    const SHARED: &str = include_str!("../../../../../packages/tv/test/fixtures/rail.json");
+
+    #[test]
+    fn the_entries_and_their_scroll_follow_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(SHARED).unwrap();
+        let cases = fixture["entries"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let input = &case["in"];
+            let libs: Vec<Library> = (input["libraries"].as_array().unwrap().iter().enumerate())
+                .map(|(i, kind)| lib(i as i64 + 1, serde_json::from_value(kind.clone()).unwrap()))
+                .collect();
+            let (now_playing, live) = (input["nowPlaying"].as_bool().unwrap(), input["live"].as_bool().unwrap());
+            let e = rail_entries(&libs, now_playing, live, None, false);
+            // The web TV app calls Live TV's entry "live"; this app, as Android's, "live-tv".
+            let got: Vec<&str> = ids(&e).into_iter().map(|id| if id == "live-tv" { "live" } else { id }).collect();
+            let want: Vec<&str> = case["out"].as_array().unwrap().iter().map(|id| id.as_str().unwrap()).collect();
+            assert_eq!(got, want, "{input}");
+        }
+        let cases = fixture["scroll"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let input = &case["in"];
+            let focused = input["focused"].as_i64().unwrap() as isize;
+            let count = input["count"].as_u64().unwrap() as usize;
+            // With an entry focused, where it was scrolled before makes no difference.
+            let from = match input["scroll"].as_f64() {
+                Some(scroll) => vec![scroll as f32],
+                None => vec![0.0, 37.0, 1000.0],
+            };
+            for scroll in from {
+                assert_eq!(
+                    rail_scroll(scroll, focused, count),
+                    case["out"].as_f64().unwrap() as f32,
+                    "{input} from {scroll}"
+                );
+            }
+        }
+    }
+
+    /// Where the first entry's top is drawn: `FIRST_Y` less the scroll.
+    /// Where the first entry starts, by its icon: a closed rail draws no labels.
+    fn first_top(list: &pley_base::DisplayList, entries: &RailEntries) -> f32 {
+        let icon = entries.top[0].icon;
+        let y = list.cmds.iter().find_map(|c| match c {
+            pley_base::Cmd::Icon { rect, icon: drawn, .. } if *drawn == icon => Some(rect.y),
+            _ => None,
+        });
+        y.expect("the first entry's icon is drawn") - (ENTRY_H - ICON) / 2.0
+    }
+
+    #[test]
+    fn the_closed_rail_places_its_entry_by_the_rule_and_the_pointer_only_brings_one_in_whole() {
+        use pley_base::Key;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        // Twelve entries: Search, Home, Live TV, six libraries, Playlists, Collections, Now
+        // Playing. Closed on the sixth library's page (entry 8), placed as focus on it would be:
+        // the entries at their end, the last nine whole.
+        let libs: Vec<Library> = (1..=6).map(|i| lib(i, LibraryKind::Movies)).collect();
+        let entries = rail_entries(&libs, true, true, None, false);
+        assert_eq!((entries.top.len(), entries.top[8].id.as_str()), (12, "library:6"));
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(None);
+        let mut screen = rail_screen(&entries, &rail, &open, "library:6");
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(rail.borrow().scroll, 132.0);
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Opened there with keys, nothing moves.
+        open.set(Some("library:6"));
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("library:6")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Down and back up at the end: focus moves, the entries don't.
+        h.step(Step::Press(Key::Down), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        h.step(Step::Press(Key::Up), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Up to entry 5, fourth from the top, the entries moving under it.
+        for _ in 0..3 {
+            h.step(Step::Press(Key::Up), &mut screen);
+        }
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("library:3")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 88.0);
+        // Up to entry 1 brings Search back to the top.
+        for _ in 0..4 {
+            h.step(Step::Press(Key::Up), &mut screen);
+        }
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("home")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y);
+        // The pointer on entry 9, cut off above Settings, brings it in whole and no further.
+        h.step(Step::Point(Point::new(30.0, FIRST_Y + 9.0 * PITCH + 2.0)), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        let pointed = 9.0 * PITCH + ENTRY_H - VIEW_H;
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - pointed);
+        // On entry 4, in view, nothing moves under it.
+        h.step(Step::Point(Point::new(30.0, FIRST_Y + 4.0 * PITCH - pointed + 2.0)), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[4].id)));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - pointed);
+    }
+
+    #[test]
+    fn entries_made_again_keep_focus_and_place_the_focused_one_by_the_rule() {
+        use pley_base::Key;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        // Eleven entries, Playlists last (entry 10); then Live TV comes before it and Now
+        // Playing after it, so it is entry 11 of 13.
+        let libs: Vec<Library> = (1..=8).map(|i| lib(i, LibraryKind::Movies)).collect();
+        let before = rail_entries(&libs, false, false, discover(), false);
+        let after = rail_entries(&libs, true, true, discover(), false);
+        assert_eq!((before.top.len(), before.top[10].id.as_str()), (11, "playlists"));
+        assert_eq!((after.top.len(), after.top[11].id.as_str()), (13, "playlists"));
+        let entries = RefCell::new(before);
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(Some("playlists"));
+        let mut screen = |ui: &mut Ui| {
+            let mut r = rail.borrow_mut();
+            if let Some(at) = open.take() {
+                r.open(ui, at);
+            }
+            let entries = entries.borrow();
+            let view = RailView {
+                entries: &entries,
+                current: Some("playlists"),
+                me: None,
+                avatar: None,
+                offline_mark: false,
+                page_modal: false,
+            };
+            r.ui(ui, &view);
+        };
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(tops(&f.list, &entries.borrow())[10], resting_top(10, 11), "Playlists last of the nine shown");
+        // The entries change under it: focus stays on Playlists, placed again by the rule for
+        // its new place, which shows Now Playing after it whole.
+        *entries.borrow_mut() = after;
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(rail.borrow().scroll, 4.0 * PITCH);
+        let tops_now = tops(&f.list, &entries.borrow());
+        assert_eq!(tops_now[11], resting_top(11, 13));
+        assert!(whole(tops_now[12]), "Now Playing in view");
+        // Down to Now Playing, the last: nothing moves.
+        h.step(Step::Press(Key::Down), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("now-playing")));
+        assert_eq!(rail.borrow().scroll, 4.0 * PITCH);
+        assert_eq!(tops(&f.list, &entries.borrow())[12] + ENTRY_H, FIRST_Y + 9.0 * PITCH - GAP);
+    }
+
+    #[test]
+    fn the_pointer_finds_the_entry_shown_under_it() {
+        let entries = long_rail();
+        let view = RailView {
+            entries: &entries,
+            current: None,
+            me: None,
+            avatar: None,
+            offline_mark: false,
+            page_modal: false,
+        };
+        let at = |y: f32, scroll: f32| entry_at(&view, Point::new(30.0, y), scroll);
+        assert_eq!(at(FIRST_Y + 5.0, 0.0).as_deref(), Some("search"));
+        assert_eq!(at(FIRST_Y + PITCH + 5.0, 0.0).as_deref(), Some("home"));
+        assert_eq!(at(FIRST_Y + ENTRY_H + 1.0, 0.0), None, "the gap between two");
+        // Scrolled by three entries, the fourth is at the top.
+        assert_eq!(at(FIRST_Y + 5.0, 3.0 * PITCH).as_deref(), Some(entries.top[3].id.as_str()));
+        assert_eq!(at(TOP + 5.0, 3.0 * PITCH).as_deref(), Some("profile"));
+        assert_eq!(at(SETTINGS_Y + 5.0, 3.0 * PITCH).as_deref(), Some("settings"));
+        assert_eq!(at(FIRST_Y - 2.0, 0.0), None, "under the avatar, before the first entry");
     }
 }

@@ -2,7 +2,8 @@
 <!-- A title in a RowList row or a MarkupGrid: its poster (a 16:9 picture
      for Continue Watching, a square for music), how far along it is or a
      mark once watched, a badge (a TMDB title's "In library", "Requested"),
-     and two lines under it. -->
+     a library's quality badges ("4K", "DV") at the poster's foot, and two
+     lines under it. -->
 <component name="Tile" extends="Group">
     <interface>
         <field id="itemContent" type="node" onChange="onContent" />
@@ -24,6 +25,13 @@
         <Poster id="watched" uri="pkg:/images/watched.png" width="40" height="40" visible="false" />
         <Rectangle id="badgeBack" height="34" visible="false" />
         <Label id="badge" height="34" vertAlign="center" color="0x16191EFF" font="font:TinySystemFont" visible="false" />
+        <!-- A title has two quality badges at most: "4K" and its dynamic
+             range. Dark under light words, as the other apps draw them on
+             pictures. -->
+        <Rectangle id="qualityBack0" height="34" color="0x0B0D10CC" visible="false" />
+        <Label id="quality0" height="34" vertAlign="center" color="0xEBEBEBFF" font="font:TinySystemFont" visible="false" />
+        <Rectangle id="qualityBack1" height="34" color="0x0B0D10CC" visible="false" />
+        <Label id="quality1" height="34" vertAlign="center" color="0xEBEBEBFF" font="font:TinySystemFont" visible="false" />
         <Label id="title" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
         <Label id="subtitle" color="0xA1A9B6FF" font="font:TinySystemFont" />
     </children>

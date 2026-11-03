@@ -101,7 +101,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
 | Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |
-| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Find Subtitles…, Subtitle Sync, Speed, Sleep Timer, Chapters (the player window that is key) | |
+| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Find Subtitles…, Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters (the player window that is key) | |
 | Playback | Play Music or Pause Music, Next Track, Previous Track (while music has a queue and no player window is key) | ⌘→, ⌘← |
 | Playback | Now Playing (music's window) | |
 | Window | Now Playing | ⌥⌘P |
@@ -234,11 +234,12 @@ behind it.
   toolbar; on Apple TV, the system's keyboard). What is typed is searched
   0.25 s after the last key (`GET /api/search`: the 40 best titles and up to 12 people), and only
   the latest search's answer shows. The results come in rows by kind, each
-  with its count: People, Movies, Shows, Seasons, Episodes, Artists,
-  Albums and Tracks, in the shape of Home's tiles (people round, with
-  their initials when they have no photo), then Live TV's channels (up
-  to 12, by name, number or what's on), which open the live player in All
-  channels.
+  with its count, titles first, as in every app: Movies, Shows, Seasons,
+  Episodes, Artists, Albums and Tracks, in the shape of Home's tiles,
+  then Live TV's channels (up to 12, by name, number or what's on), which
+  open the live player in All channels, then People (round, with their
+  initials when they have no photo). Each row keeps the server's order,
+  closest match first.
   Choosing a result opens its page. With nothing typed, the profile's
   **recent searches** show, newest first: the last 10 searched or opened,
   kept on the device for each server and profile, each searched again
@@ -1059,6 +1060,11 @@ Position raises the text cues 5, 10 or 15 % of the video's height.
 Picture subtitles keep their size and place, as their plane sets them. A
 change shows at once, also over a video playing.
 
+The player's **Subtitle style** menu has the same four, each with its
+choice beside it, and keeps a change for every video, as Settings does.
+As on Android, it shows only while text subtitles do: picture subtitles
+keep their own look, and Off has nothing to style.
+
 The subtitles are looked at as often as they change, 20 to 250 ms apart
 while it plays and every 500 ms while paused. **Subtitle sync** moves
 them 0.1 s at a time, up to 10 s earlier or later (positive: later), and
@@ -1234,7 +1240,8 @@ are drawn by the app in the player's content overlay, under the controls
   the playback. An Options button under the top row (with the controls,
   and while paused) has Quality, Audio (when there are several tracks),
   Subtitles and Subtitle sync (Earlier, Later and Reset, the menu staying
-  open while it moves on iOS 16.4 and later), Find Subtitles…, Speed,
+  open while it moves on iOS 16.4 and later), Subtitle style, Find
+  Subtitles…, Speed,
   Sleep Timer, Chapters and Details: how
   the file plays (Direct play, Direct stream or Transcoding, and whether
   the audio is converted), why, the video, and the subtitles shown.
@@ -1243,7 +1250,7 @@ are drawn by the app in the player's content overlay, under the controls
   Picture in Picture is the system's button.
 - **Apple TV**: full screen, with Quality, Subtitles, Speed, Sleep Timer
   and Audio in the transport bar (Subtitles holding Subtitle sync, which
-  stays open while it moves, and Find Subtitles…) and a Details tab in the info panel (swipe down). Apple TV's
+  stays open while it moves, Subtitle style and Find Subtitles…) and a Details tab in the info panel (swipe down). Apple TV's
   player doesn't say where the video shows: the subtitles go on the
   picture's size fitted to the screen. Skip Intro, Skip
   Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
@@ -1254,12 +1261,12 @@ are drawn by the app in the player's content overlay, under the controls
 - **Mac**: a window of its own per playback, opened from the item's page;
   closing the window ends the session, and starting another playback
   closes it. The controls float over the picture, with Quality, Audio,
-  Subtitles (Find Subtitles… last), Subtitle Sync, Speed, Sleep Timer,
-  Chapters and Details in their menu, and Picture in Picture; Skip
+  Subtitles (Find Subtitles… last), Subtitle Sync, Subtitle Style, Speed,
+  Sleep Timer, Chapters and Details in their menu, and Picture in Picture; Skip
   Intro, Skip Credits and the Up Next card at the bottom right, and a
   Playback menu in the menu bar (Play or Pause, Back and Forward 10
   Seconds, Skip, Play Next, Quality, Audio, Subtitles, Find Subtitles…,
-  Subtitle Sync, Speed, Sleep Timer, Chapters) acts on the window in
+  Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters) acts on the window in
   front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
@@ -1861,6 +1868,12 @@ Delete the folder afterwards.
   download is followed only while Pley is open, since following it needs
   the app running: one started then waits until Pley is opened again. The
   file itself downloads in the background.
+- On iPhone and iPad the system's player keeps its own 10-second back and
+  forward buttons beside Play, which the other apps' players no longer
+  have: AVKit hides them only by turning off scrubbing too
+  (`requiresLinearPlayback`). Apple TV shows none; its clickpad's Left and
+  Right go back and forward 10 seconds, as Left and Right do in the other
+  TV apps.
 - Live TV has no Picture in Picture and doesn't switch the display's
   frame rate or range, as on Android: its player is Pley's own view of the
   video, with no pause or seeking, not the system's player, which brings

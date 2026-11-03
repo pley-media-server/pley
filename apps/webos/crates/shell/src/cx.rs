@@ -1,6 +1,5 @@
 //! [`AppCx`]: everything a screen reaches besides its [`pley_ui::Ui`]: the app's state and the
-//! current server's API, the TV, the task pool, saved data, the rail's entries, navigation,
-//! playback and toasts.
+//! current server's API, the TV, the task pool, saved data, navigation, playback and toasts.
 
 use std::any::Any;
 use std::sync::Arc;
@@ -13,7 +12,6 @@ use pley_core::{Api, ApiError, Device, Promise, Settings, Store, Tasks};
 use pley_player::PlayerEnv;
 use pley_ui::Ui;
 
-use crate::rail::RailEntries;
 use crate::route::{PlayRequest, Route};
 use crate::state::AppState;
 
@@ -95,24 +93,12 @@ pub struct AppCx<'a> {
     /// The frame's time ([`pley_base::time::now`]).
     pub now: f64,
     requests: &'a mut Requests,
-    rail: Option<&'a RailEntries>,
 }
 
 impl<'a> AppCx<'a> {
     /// The context of a frame at `now`.
     pub fn new(state: &'a mut AppState, requests: &'a mut Requests, now: f64) -> AppCx<'a> {
-        AppCx { state, now, requests, rail: None }
-    }
-
-    /// The same, for a page drawn beside the rail with `entries` (`None`: without the rail).
-    pub fn with_rail(self, entries: Option<&'a RailEntries>) -> AppCx<'a> {
-        AppCx { rail: entries, ..self }
-    }
-
-    /// The rail's entries while the page draws beside it, else `None`. A page lists what the rail
-    /// has no room for: the Libraries page, Playlists.
-    pub fn rail(&self) -> Option<&RailEntries> {
-        self.rail
+        AppCx { state, now, requests }
     }
 
     /// The current server's API as the current sign-in; `None` before a server is chosen.

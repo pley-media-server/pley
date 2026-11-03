@@ -3,6 +3,7 @@ package app.pley.android.fixtures
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSort
 import app.pley.android.model.CollectionSummary
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.HistoryEntry
 import app.pley.android.model.HistoryUser
 import app.pley.android.model.ItemDetail
@@ -14,6 +15,7 @@ import app.pley.android.model.Me
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistEntry
 import app.pley.android.model.PlaylistKind
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.StreamKind
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.UserState
@@ -37,10 +39,10 @@ internal class Views(private val catalog: Catalog) {
 
     /**
      * [item] as listings give it. In library listings ([listing]) the
-     * backdrop and still are left out, and summaries but episodes'; with
-     * [media], the best file's numbers (listings sorted by bitrate).
+     * backdrop and still are left out, and summaries but episodes', and
+     * the best file's numbers are in, whatever the sort.
      */
-    fun summary(item: ItemDetail, profile: Profile, listing: Boolean = false, media: Boolean = false): ItemSummary {
+    fun summary(item: ItemDetail, profile: Profile, listing: Boolean = false): ItemSummary {
         val state = state(item, profile)
         return item.toSummary().copy(
             userState = state,
@@ -48,7 +50,7 @@ internal class Views(private val catalog: Catalog) {
             backdropUrl = if (listing) null else item.backdropUrl,
             thumbUrl = if (listing) null else item.thumbUrl,
             summary = if (listing && item.kind != ItemKind.Episode) null else item.summary,
-            media = if (media) mediaSummary(item) else null,
+            media = if (listing) mediaSummary(item) else null,
         )
     }
 
@@ -107,7 +109,7 @@ internal class Views(private val catalog: Catalog) {
     private fun viewed(item: ItemDetail, profile: Profile): Int? =
         if (item.kind.playable || item.leafCount == null) null else catalog.leaves(item.id).count { profile.state(it).watched }
 
-    /** A movie's best file; a show's episodes (an artist's tracks) on average. */
+    /** A movie's best file; a show's episodes (an artist's tracks) on average, with its best episode's dynamic range. */
     fun mediaSummary(item: ItemDetail): MediaSummary? {
         if (!item.kind.playable) {
             val files = catalog.leaves(item.id).mapNotNull { catalog.item(it)?.files?.firstOrNull() }
@@ -117,12 +119,43 @@ internal class Views(private val catalog: Catalog) {
                 size = files.sumOf { it.size },
                 width = files.mapNotNull { it.width }.maxOrNull(),
                 height = files.mapNotNull { it.height }.maxOrNull(),
+                dynamicRange = bestRange(files),
             )
         }
         val best = item.files.maxByOrNull { it.bitrate ?: 0L } ?: return null
-        val video = best.streams.firstOrNull { it.kind == StreamKind.Video }
-        return MediaSummary(best.bitrate, best.size, best.width, best.height, best.videoCodec, video?.dynamicRange)
+        return MediaSummary(best.bitrate, best.size, best.width, best.height, best.videoCodec, rangeOf(best))
     }
+
+    /**
+     * What a library's resolution filter takes [item] for, as the server
+     * does: its best file's (a show's best episode's), on the lines of the
+     * posters' "4K"; `null` without a video file.
+     */
+    fun resolutionOf(item: ItemDetail): ResolutionFilter? {
+        val files = filesOf(item)
+        val width = files.mapNotNull { it.width }.maxOrNull() ?: 0
+        val height = files.mapNotNull { it.height }.maxOrNull() ?: 0
+        return when {
+            width >= 3800 || height >= 2100 -> ResolutionFilter.Uhd
+            width >= 1800 || height >= 1000 -> ResolutionFilter.FullHd
+            width >= 1200 || height >= 700 -> ResolutionFilter.Hd
+            width > 0 || height > 0 -> ResolutionFilter.Sd
+            else -> null
+        }
+    }
+
+    /** What a library's dynamic range filter takes [item] for: its best file's (a show's best episode's). */
+    fun dynamicRangeOf(item: ItemDetail): DynamicRange? = bestRange(filesOf(item))
+
+    /** A title's video files: its own, or its episodes'. */
+    private fun filesOf(item: ItemDetail): List<MediaFile> =
+        if (item.kind.playable) item.files else catalog.leaves(item.id).flatMap { catalog.item(it)?.files.orEmpty() }
+
+    private fun rangeOf(file: MediaFile): DynamicRange? = file.streams.firstOrNull { it.kind == StreamKind.Video }?.dynamicRange
+
+    /** The best of [files]' dynamic ranges, Dolby Vision first, SDR last. */
+    private fun bestRange(files: List<MediaFile>): DynamicRange? =
+        files.mapNotNull(::rangeOf).filter { it in RANGES }.maxByOrNull(RANGES::indexOf)
 
     /**
      * The tracks a file starts with for [profile]: its choice for the movie
@@ -298,5 +331,10 @@ internal class Views(private val catalog: Catalog) {
             user = HistoryUser(profile.id, profile.name, profile.avatarUrl, profile.avatarColor),
             item = summary(item, profile),
         )
+    }
+
+    private companion object {
+        /** Dynamic ranges, worst to best. */
+        val RANGES = listOf(DynamicRange.Sdr, DynamicRange.Hlg, DynamicRange.Hdr10, DynamicRange.Hdr10Plus, DynamicRange.DolbyVision)
     }
 }

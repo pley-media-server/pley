@@ -5,19 +5,22 @@
       "id": 101, "library_id": 1, "kind": "movie", "title": "Arrival", "sort_title": "Arrival", "year": 2016, "duration_ms": 6985000,
       "rating": 7.6, "added_at": 1761300000, "poster_url": "/api/items/101/images/poster?v=1761300500",
       "user_state": { "position_ms": 2412000, "watched": false, "play_count": 0, "last_played_at": 1761390000, "rating": 9.0 },
-      "release_date": "2016-11-11"
+      "release_date": "2016-11-11",
+      "media": { "bitrate": 9120000, "size": 7962000000, "width": 1920, "height": 1040, "video_codec": "h264", "dynamic_range": "sdr" }
     },
     {
       "id": 105, "library_id": 1, "kind": "movie", "title": "Dune", "sort_title": "Dune", "year": 2021, "duration_ms": 9339000,
       "rating": 7.8, "added_at": 1761300000, "poster_url": "/api/items/105/images/poster?v=1761300500",
       "user_state": { "position_ms": 0, "watched": true, "play_count": 2, "last_played_at": 1760000000, "rating": 8.0 },
-      "release_date": "2021-10-22"
+      "release_date": "2021-10-22",
+      "media": { "bitrate": 58400000, "size": 68172000000, "width": 3840, "height": 1608, "video_codec": "hevc", "dynamic_range": "dolby_vision" }
     },
     {
       "id": 104, "library_id": 1, "kind": "movie", "title": "Dune: Part Two", "sort_title": "Dune: Part Two", "year": 2024, "duration_ms": 9963000,
       "rating": 8.2, "added_at": 1761300000, "poster_url": "/api/items/104/images/poster?v=1761300500",
       "user_state": { "position_ms": 0, "watched": false, "play_count": 0 },
-      "release_date": "2024-03-01"
+      "release_date": "2024-03-01",
+      "media": { "bitrate": 41700000, "size": 51935000000, "width": 3840, "height": 2160, "video_codec": "hevc", "dynamic_range": "hdr10" }
     }
   ]
 }

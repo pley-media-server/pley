@@ -27,6 +27,36 @@ public class LibraryParamsTests
     }
 
     [Fact]
+    public void Resolution_and_dynamic_range_go_after_the_year_and_to_the_server()
+    {
+        var p = new LibraryParams(Sort: LibrarySort.Bitrate, Genre: "Drama", Year: 1999, Resolution: "4k", DynamicRange: "hdr10plus");
+        var query = p.ToQueryString();
+        Assert.Equal("sort=bitrate&genre=Drama&year=1999&resolution=4k&dynamic_range=hdr10plus", query);
+        Assert.Equal(p, LibraryParams.Parse(query));
+        Assert.Equal(("4k", "hdr10plus"), (p.Query().Resolution, p.Query().DynamicRange));
+        Assert.True(new LibraryParams(Resolution: "sd").Filtered);
+        Assert.True(new LibraryParams(DynamicRange: "sdr").Filtered);
+        // Only the server's tokens.
+        Assert.Equal(new LibraryParams(), LibraryParams.Parse("resolution=4K&dynamic_range=dolby-vision"));
+        Assert.Equal(new[] { "4k", "1080", "720", "sd" }, LibraryParams.Resolutions);
+        Assert.Equal(new[] { "hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr" }, LibraryParams.DynamicRanges);
+    }
+
+    [Fact]
+    public void Badges_show_sorted_by_bitrate_or_filtered_by_quality()
+    {
+        Assert.False(new LibraryParams().ShowsBadges);
+        Assert.False(new LibraryParams(Watched: false, Genre: "Drama", Year: 1999).ShowsBadges);
+        Assert.True(new LibraryParams(Sort: LibrarySort.Bitrate).ShowsBadges);
+        Assert.True(new LibraryParams(Resolution: "4k").ShowsBadges);
+        Assert.True(new LibraryParams(DynamicRange: "sdr").ShowsBadges);
+        Assert.Equal(TileLook.Poster, LibraryRules.GridLook("movies", new LibraryParams()));
+        Assert.Equal(TileLook.Bitrate, LibraryRules.GridLook("shows", new LibraryParams(Sort: LibrarySort.Bitrate, Resolution: "4k")));
+        Assert.Equal(TileLook.Quality, LibraryRules.GridLook("movies", new LibraryParams(DynamicRange: "hdr")));
+        Assert.Equal(TileLook.Square, LibraryRules.GridLook("music", new LibraryParams(Sort: LibrarySort.Bitrate)));
+    }
+
+    [Fact]
     public void Orders_at_their_default_are_left_out()
     {
         Assert.Equal("sort=added", new LibraryParams(Sort: LibrarySort.Added, Order: SortOrder.Descending).ToQueryString());
@@ -77,7 +107,7 @@ public class LibraryParamsTests
     [Fact]
     public void Music_keeps_no_filters_or_collections()
     {
-        var p = new LibraryParams(LibraryTab.Collections, LibrarySort.Bitrate, SortOrder.Ascending, false, "Jazz");
+        var p = new LibraryParams(LibraryTab.Collections, LibrarySort.Bitrate, SortOrder.Ascending, false, "Jazz", Resolution: "4k", DynamicRange: "hdr");
         Assert.Equal(new LibraryParams(LibraryTab.Library), p.ValidFor("music"));
         // Shows can't sort by duration: back to titles, in their order.
         Assert.Equal(new LibraryParams(), new LibraryParams(Sort: LibrarySort.Duration, Order: SortOrder.Descending).ValidFor("shows"));
@@ -89,7 +119,7 @@ public class LibraryParamsTests
     [Fact]
     public void Clearing_keeps_the_sort()
     {
-        var p = new LibraryParams(Sort: LibrarySort.Rating, Watched: true, Genre: "Drama", Year: 2020);
+        var p = new LibraryParams(Sort: LibrarySort.Rating, Watched: true, Genre: "Drama", Year: 2020, Resolution: "1080", DynamicRange: "hlg");
         Assert.True(p.Filtered);
         Assert.Equal(new LibraryParams(Sort: LibrarySort.Rating), p.Cleared());
         Assert.False(p.Cleared().Filtered);

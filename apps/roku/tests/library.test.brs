@@ -36,6 +36,91 @@ sub test_library_query_and_filters()
     tkEqual(libQuery(view, 70, 70), { sort: "title", order: "asc", offset: 70, limit: 70, watched: "false", genre: "Comedy", year: 1999 })
     tkEqual(libFilterLabel(view), "Unwatched, Comedy, 1999")
     tkTrue(libFiltered(view))
+    view.resolution = "4k"
+    view.dynamic_range = "dolby_vision"
+    tkEqual(libQuery(view, 0, 70), { sort: "title", order: "asc", offset: 0, limit: 70, watched: "false", genre: "Comedy", year: 1999, resolution: "4k", dynamic_range: "dolby_vision" })
+    tkEqual(libFilterLabel(view), "Unwatched, Comedy, 1999, 4K, Dolby Vision", "labels, never tokens")
+    libClearFilters(view)
+    tkEqual(view, libDefaultView(), "Clear filters clears them all")
+    view.dynamic_range = "hdr"
+    tkTrue(libFiltered(view), "a dynamic range alone filters")
+    tkEqual(libQuery(view, 0, 70), { sort: "title", order: "asc", offset: 0, limit: 70, dynamic_range: "hdr" })
+    tkEqual(libFilterLabel(view), "Any HDR")
+    view.dynamic_range = ""
+    view.resolution = "sd"
+    tkTrue(libFiltered(view), "a resolution alone filters")
+    tkEqual(libFilterLabel(view), "SD")
+end sub
+
+sub test_library_posters_badged_only_where_it_says_something()
+    view = libDefaultView()
+    tkFalse(libShowsBadges(view), "by title, nothing filtered")
+    view.watched = "false"
+    view.genre = "Drama"
+    view.year = 1999
+    view.sort = "added"
+    tkFalse(libShowsBadges(view), "other sorts and filters")
+    view.sort = "bitrate"
+    tkTrue(libShowsBadges(view), "sorted by bitrate")
+    view.order = "asc"
+    tkTrue(libShowsBadges(view), "either way")
+    view.sort = "title"
+    view.resolution = "1080"
+    tkTrue(libShowsBadges(view), "filtered by resolution")
+    view.resolution = ""
+    view.dynamic_range = "sdr"
+    tkTrue(libShowsBadges(view), "filtered by dynamic range")
+end sub
+
+sub test_library_filters_the_server_offers()
+    filters = libFilters(ParseJson("{""genres"":[""Drama"","""",3],""years"":[2022,0,""x""],""resolutions"":[""4k"",""1080"",""8k"",7],""dynamic_ranges"":[""hdr"",""dolby_vision"",""sdr""]}"))
+    tkEqual(filters, { genres: ["Drama"], years: [2022], resolutions: ["4k", "1080"], dynamicRanges: ["hdr", "dolby_vision", "sdr"] }, "tokens this version can't name left out")
+    older = libFilters(ParseJson("{""genres"":[""Drama""],""years"":[2022]}"))
+    tkEqual(older.resolutions, [], "an older server sends neither")
+    tkEqual(older.dynamicRanges, [])
+    tkEqual(libFilters(invalid), { genres: [], years: [], resolutions: [], dynamicRanges: [] })
+end sub
+
+sub test_library_filter_panel_rows()
+    actions = function(rows as object) as object
+        out = []
+        for each row in rows
+            out.Push(row.action)
+        end for
+        return out
+    end function
+    view = libDefaultView()
+    offered = { genres: ["Drama"], years: [2022], resolutions: ["4k", "1080"], dynamicRanges: ["hdr", "dolby_vision", "sdr"] }
+    none = { genres: ["Drama"], years: [2022], resolutions: [], dynamicRanges: [] }
+    tkEqual(actions(libFilterRows(view, "movies", invalid)), ["watched", "genre", "year"], "until the server says")
+    tkEqual(actions(libFilterRows(view, "movies", none)), ["watched", "genre", "year"], "a library whose titles are all alike")
+    rows = libFilterRows(view, "shows", offered)
+    tkEqual(actions(rows), ["watched", "genre", "year", "resolution", "dynamic_range"])
+    tkEqual(rows[0].title, "Show: All titles")
+    tkEqual(rows[3].title, "Resolution: All resolutions")
+    tkEqual(rows[4].title, "Dynamic range: All dynamic ranges")
+    tkEqual(actions(libFilterRows(view, "music", offered)), ["watched", "genre", "year"], "never for music")
+    view.resolution = "4k"
+    rows = libFilterRows(view, "movies", none)
+    tkEqual(actions(rows), ["watched", "genre", "year", "resolution", "clear", "save"], "a chosen one stays, to be changed or cleared")
+    tkEqual(rows[3].title, "Resolution: 4K")
+    view.resolution = ""
+    view.dynamic_range = "dolby_vision"
+    view.genre = "Drama"
+    rows = libFilterRows(view, "movies", offered)
+    tkEqual(actions(rows), ["watched", "genre", "year", "resolution", "dynamic_range", "clear", "save"])
+    tkEqual(rows[1].title, "Genre: Drama")
+    tkEqual(rows[4].title, "Dynamic range: Dolby Vision")
+end sub
+
+sub test_library_quality_filter_choices()
+    choices = libQualityChoices(fmtResolutions(), ["4k", "1080", "sd"], "", "All resolutions")
+    tkEqual(choices, { labels: ["All resolutions", "4K", "1080p", "SD"], values: ["", "4k", "1080", "sd"], current: 0 }, "the server's, in its order")
+    tkEqual(libQualityChoices(fmtResolutions(), ["4k", "1080", "sd"], "1080", "All resolutions").current, 2)
+    choices = libQualityChoices(fmtDynamicRanges(), ["hdr", "dolby_vision", "sdr"], "hdr10", "All dynamic ranges")
+    tkEqual(choices.labels, ["All dynamic ranges", "Any HDR", "Dolby Vision", "SDR", "HDR"], "the one chosen, no longer offered, still there")
+    tkEqual(choices.current, 4)
+    tkEqual(libQualityChoices(fmtDynamicRanges(), [], "hlg", "All dynamic ranges"), { labels: ["All dynamic ranges", "HLG"], values: ["", "hlg"], current: 1 })
 end sub
 
 sub test_library_views_kept_and_checked()
@@ -56,6 +141,20 @@ sub test_library_views_kept_and_checked()
     tkEqual(shows.order, "desc", "the order kept")
     music = libLoadView(section, key, "music")
     tkEqual(music.tab, "library", "a tab the kind doesn't have")
+    view.resolution = "4k"
+    view.dynamic_range = "hdr10plus"
+    libSaveView(section, key, view)
+    tkEqual(libLoadView(section, key, "movies"), view, "a resolution and a dynamic range kept")
+    music = libLoadView(section, key, "music")
+    tkEqual(music.resolution, "", "music has neither")
+    tkEqual(music.dynamic_range, "")
+    tkEqual(music.genre, "Drama")
+    section.Write(key, "{""sort"":""title"",""resolution"":""4K"",""dynamic_range"":""hdr11""}")
+    kept = libLoadView(section, key, "movies")
+    tkEqual(kept.resolution, "", "not a token: dropped")
+    tkEqual(kept.dynamic_range, "")
+    section.Write(key, "{""resolution"":1080,""dynamic_range"":[""hdr""]}")
+    tkEqual(libLoadView(section, key, "movies"), libDefaultView(), "not even text")
     section.Write(key, "not json")
     tkEqual(libLoadView(section, key, "movies"), libDefaultView())
     section.Delete(key)
@@ -63,7 +162,7 @@ end sub
 
 sub test_library_see_all_views()
     view = libSeeAllView("added", "movies")
-    tkEqual(view, { tab: "library", sort: "added", order: "desc", watched: "", genre: "", year: 0 }, "newest first, nothing filtered")
+    tkEqual(view, { tab: "library", sort: "added", order: "desc", watched: "", genre: "", year: 0, resolution: "", dynamic_range: "" }, "newest first, nothing filtered")
     tkEqual(libSeeAllView("rating", "shows").order, "desc")
     tkEqual(libSeeAllView("release", "music").sort, "title", "a sort music doesn't offer")
     tkEqual(libSeeAllView("release", "music").order, "asc")
@@ -87,6 +186,22 @@ sub test_library_filters_as_a_smart_filter()
     view.order = "asc"
     tkEqual(libSmartFilter(view), "genre=Action+%26+Adventure&unwatched=0&sort=originallyAvailableAt")
     tkEqual(libSmartFilterWords(view), ["Genre: Action & Adventure", "Watched", "Earliest release first"])
+    view.genre = "Drama"
+    view.year = 1999
+    view.resolution = "4k"
+    view.dynamic_range = "hdr"
+    view.watched = "false"
+    view.sort = "bitrate"
+    view.order = "desc"
+    tkEqual(libSmartFilter(view), "genre=Drama&year=1999&resolution=4k&dynamicRange=hdr&unwatched=1&sort=mediaBitrate%3Adesc", "after year, before unwatched")
+    tkEqual(libSmartFilterWords(view), ["Genre: Drama", "From 1999", "4K", "Any HDR", "Unwatched", "Highest bitrate first"])
+    view.resolution = ""
+    view.dynamic_range = "dolby_vision"
+    view.genre = ""
+    view.year = 0
+    view.watched = ""
+    tkEqual(libSmartFilter(view), "dynamicRange=dolby_vision&sort=mediaBitrate%3Adesc")
+    tkEqual(libSmartFilterWords(view), ["Dolby Vision", "Highest bitrate first"])
     tkEqual(libPlexSort("added"), "addedAt")
     tkEqual(libPlexSort("user_rating"), "userRating")
     tkEqual(libPlexSort("last_played"), "lastViewedAt")

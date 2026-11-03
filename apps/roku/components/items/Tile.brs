@@ -9,6 +9,8 @@ sub init()
     m.subtitle = m.top.findNode("subtitle")
     m.badgeBack = m.top.findNode("badgeBack")
     m.badge = m.top.findNode("badge")
+    m.qualityBacks = [m.top.findNode("qualityBack0"), m.top.findNode("qualityBack1")]
+    m.qualities = [m.top.findNode("quality0"), m.top.findNode("quality1")]
     m.wide = false
     m.square = false
     m.progress = 0.0
@@ -40,6 +42,15 @@ sub onContent()
     m.badge.visible = badge <> ""
     m.badgeBack.visible = badge <> ""
     if badge <> "" and item.hasField("badgeColor") then m.badgeBack.color = item.badgeColor
+    qualities = []
+    if item.hasField("qualityBadges") and item.qualityBadges <> invalid then qualities = item.qualityBadges
+    for i = 0 to m.qualities.Count() - 1
+        text = ""
+        if i < qualities.Count() then text = qualities[i]
+        m.qualities[i].text = text
+        m.qualities[i].visible = text <> ""
+        m.qualityBacks[i].visible = text <> ""
+    end for
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
@@ -88,6 +99,26 @@ sub onLayout()
         m.badgeBack.translation = [12, 12]
         m.badgeBack.width = textWidth + 24
     end if
+    ' The quality badges side by side at the poster's foot, above how far
+    ' along it is; one that doesn't fit whole isn't drawn.
+    x = 12
+    y = imageHeight - 46
+    if m.progress > 0 then y = imageHeight - 56
+    for i = 0 to m.qualities.Count() - 1
+        label = m.qualities[i]
+        back = m.qualityBacks[i]
+        if label.text <> ""
+            label.width = 0
+            chipWidth = label.boundingRect().width + 24
+            fits = x + chipWidth <= w - 12
+            label.visible = fits
+            back.visible = fits
+            label.translation = [x + 12, y]
+            back.translation = [x, y]
+            back.width = chipWidth
+            x = x + chipWidth + 8
+        end if
+    end for
     m.title.translation = [0, imageHeight + 12]
     m.title.width = w
     m.subtitle.translation = [0, imageHeight + 44]

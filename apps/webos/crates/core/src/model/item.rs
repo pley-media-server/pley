@@ -98,8 +98,8 @@ pub struct UserState {
     pub rating: Option<f64>,
 }
 
-/// What a title's files are like, in listings sorted by bitrate (a show:
-/// its episodes together).
+/// What a title's files are like, in library listings (a show: its
+/// episodes together).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct MediaSummary {
     /// Bits per second (a show: its episodes' average).
@@ -111,7 +111,7 @@ pub struct MediaSummary {
     pub height: Option<i64>,
     /// None for shows.
     pub video_codec: Option<String>,
-    /// None for shows.
+    /// A show: its best episode's (none from older servers).
     pub dynamic_range: Option<DynamicRange>,
 }
 

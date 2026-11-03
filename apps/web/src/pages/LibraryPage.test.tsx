@@ -30,7 +30,12 @@ function open(query = "") {
       req.path.includes("watched=false")
         ? { total: 23, items: [makeItem({ id: 7, title: "Heat" })] }
         : { total: 342, items: [makeItem({ id: 7, title: "Heat" }), makeItem({ id: 8, title: "Alien" })] },
-    "GET /api/libraries/3/filters": () => ({ genres: ["Drama"], years: [1995] }),
+    "GET /api/libraries/3/filters": () => ({
+      genres: ["Drama"],
+      years: [1995],
+      resolutions: ["4k", "1080"],
+      dynamic_ranges: ["hdr", "dolby_vision", "hdr10", "sdr"],
+    }),
     "GET /api/libraries/3/hubs": () => ({ hubs: [] }),
   });
   renderWithProviders(
@@ -73,6 +78,35 @@ describe("LibraryPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(leftView(KEY)).toBe("sort=title&order=desc");
+  });
+
+  it("filters by resolution and dynamic range, as the library has them", async () => {
+    const user = userEvent.setup();
+    const listings = open();
+    expect(await screen.findByText("342 movies")).toBeInTheDocument();
+
+    const resolution = await screen.findByRole("combobox", { name: "Resolution" });
+    const options = (select: HTMLElement) => Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
+    expect(options(resolution)).toEqual(["All resolutions", "4K", "1080p"]);
+    const range = screen.getByRole("combobox", { name: "Dynamic range" });
+    expect(options(range)).toEqual(["All dynamic ranges", "Any HDR", "Dolby Vision", "HDR", "SDR"]);
+
+    await user.selectOptions(resolution, "4k");
+    await user.selectOptions(range, "dolby_vision");
+    expect(leftView(KEY)).toBe("resolution=4k&dynamic_range=dolby_vision");
+    await waitFor(() => expect(listings().at(-1)?.path).toContain("resolution=4k&dynamic_range=dolby_vision"));
+    expect(screen.getByRole("button", { name: "Save as…" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(leftView(KEY)).toBe("");
+  });
+
+  it("drops a resolution it doesn't know", async () => {
+    const listings = open("resolution=8k&dynamic_range=sdr");
+    expect(await screen.findByRole("combobox", { name: "Resolution" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Dynamic range" })).toHaveValue("sdr");
+    expect(listings().at(-1)?.path).not.toContain("8k");
+    expect(listings().at(-1)?.path).toContain("dynamic_range=sdr");
   });
 
   it("opens on the tab it was last on, and remembers the one chosen", async () => {

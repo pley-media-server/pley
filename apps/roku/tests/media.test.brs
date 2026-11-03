@@ -96,16 +96,6 @@ sub test_media_picks_shown_before_the_server_says()
     tkEqual(item.files[0].selected_subtitle, invalid, "another file's pick")
 end sub
 
-sub test_media_sizes_as_the_other_apps()
-    tkEqual(mediaBytes(512), "512 B")
-    tkEqual(mediaBytes(1536), "1.5 KB")
-    tkEqual(mediaBytes(157286400), "150 MB")
-    tkEqual(mediaBytes(66571993088&), "62.0 GB", "past 32 bits")
-    tkEqual(mediaBytes(1000000), "977 KB", "three digits")
-    tkEqual(mediaBytes(1048576), "1.0 MB")
-    tkEqual(mediaBytes(invalid), "")
-end sub
-
 sub test_media_versions_one_line_each()
     file = mediaTestFile()
     tkEqual(mediaVersionLine(file, 1), "4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB", "the default audio: none picked")

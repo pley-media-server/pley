@@ -57,6 +57,12 @@ export interface MediaCardProps {
   continueStyle?: boolean;
   /** Put the files' bitrate and size under the title: sorted by bitrate. */
   media?: boolean;
+  /**
+   * Draw the quality badges ("4K", "DV") on the poster: only where they're
+   * what the grid is about (sorted by bitrate, filtered by quality), as on
+   * most posters they'd say the same thing over and over.
+   */
+  badges?: boolean;
   className?: string;
 }
 
@@ -95,6 +101,7 @@ export const MediaCard = memo(function MediaCard({
   playable = item.kind !== "track",
   continueStyle,
   media,
+  badges: showBadges,
   className,
 }: MediaCardProps) {
   const play = usePlayItem();
@@ -102,7 +109,7 @@ export const MediaCard = memo(function MediaCard({
   const defaults = defaultCardTitles(item, continueStyle);
   const t = title ?? defaults.title;
   const st = subtitle ?? (media ? mediaLine(item.media) : defaults.subtitle);
-  const badges = mediaBadges(item.media);
+  const badges = showBadges ? mediaBadges(item.media) : [];
   const to = href ?? itemUrl(item.id);
   const candidates = aspect === "thumb" ? thumbCandidates(item) : posterCandidates(item);
   const progress = item.user_state.watched ? 0 : progressFraction(item);

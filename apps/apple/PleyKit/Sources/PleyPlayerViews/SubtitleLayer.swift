@@ -333,8 +333,11 @@ final class SubtitleView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not from a nib") }
 
-    /// The person changed the system's caption style, or Settings': drawn again with it.
-    @objc private func captionStyleDidChange() {
+    /// The person changed the system's caption style, or Settings': drawn
+    /// again with it. Not on the main actor: any framework in the app may
+    /// change its defaults from another thread, which tells here on that
+    /// thread.
+    @objc nonisolated private func captionStyleDidChange() {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let style = CaptionStyle.current()
@@ -376,8 +379,11 @@ final class SubtitleView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not from a nib") }
 
-    /// The person changed the system's caption style, or Settings': drawn again with it.
-    @objc private func captionStyleDidChange() {
+    /// The person changed the system's caption style, or Settings': drawn
+    /// again with it. Not on the main actor: any framework in the app may
+    /// change its defaults from another thread, which tells here on that
+    /// thread.
+    @objc nonisolated private func captionStyleDidChange() {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let style = CaptionStyle.current()

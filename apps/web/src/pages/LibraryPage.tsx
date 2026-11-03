@@ -17,7 +17,7 @@ import { SaveFiltersModal } from "./SaveFiltersModal";
 import { CollectionsTab } from "./collections/CollectionsTab";
 import type { CardAspect } from "@/components/cards";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
+import { pluralize, RANGE_FILTER_LABELS, rangeFilterOf, RESOLUTION_LABELS, resolutionOf } from "@/lib/format";
 import { smartFilterOf } from "@/lib/smartFilter";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { idParam } from "@/lib/ids";
@@ -196,15 +196,24 @@ function LibraryTab({
   const genre = params.get("genre") ?? undefined;
   const yearParam = params.get("year");
   const year = yearParam ? Number(yearParam) : undefined;
+  const resolution = kind === "music" ? undefined : resolutionOf(params.get("resolution"));
+  const dynamicRange = kind === "music" ? undefined : rangeFilterOf(params.get("dynamic_range"));
 
-  const query = useMemo(() => ({ sort, order, watched, genre, year }), [sort, order, watched, genre, year]);
+  const query = useMemo(
+    () => ({ sort, order, watched, genre, year, resolution, dynamic_range: dynamicRange }),
+    [sort, order, watched, genre, year, resolution, dynamicRange],
+  );
   const items = useLibraryItems(libraryId, query, ready);
   const filters = useLibraryFilters(libraryId, ready && kind !== "music");
 
   const aspect: CardAspect = kind === "music" ? "square" : "poster";
   const [cardWidth, setCardWidth] = useLocalStorage<number>(`pley.cardWidth.${aspect}`, aspect === "square" ? 170 : 160);
   const noun = ITEM_NOUN[kind];
-  const filtered = watched !== undefined || !!genre || year !== undefined;
+  const filtered = watched !== undefined || !!genre || year !== undefined || !!resolution || !!dynamicRange;
+  const clearFilters = { watched: null, genre: null, year: null, resolution: null, dynamic_range: null };
+  // Offered when the library has two or more; one chosen stays offered so it can be cleared.
+  const resolutions = filters.data?.resolutions ?? [];
+  const ranges = filters.data?.dynamic_ranges ?? [];
 
   return (
     <>
@@ -266,8 +275,28 @@ function LibraryTab({
               ))}
             </Select>
           ) : null}
+          {kind !== "music" && (resolutions.length > 0 || resolution) ? (
+            <Select aria-label="Resolution" value={resolution ?? ""} onChange={(e) => setParam({ resolution: e.target.value || null })}>
+              <option value="">All resolutions</option>
+              {(resolution && !resolutions.includes(resolution) ? [...resolutions, resolution] : resolutions).map((r) => (
+                <option key={r} value={r}>
+                  {RESOLUTION_LABELS[r]}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+          {kind !== "music" && (ranges.length > 0 || dynamicRange) ? (
+            <Select aria-label="Dynamic range" value={dynamicRange ?? ""} onChange={(e) => setParam({ dynamic_range: e.target.value || null })}>
+              <option value="">All dynamic ranges</option>
+              {(dynamicRange && !ranges.includes(dynamicRange) ? [...ranges, dynamicRange] : ranges).map((r) => (
+                <option key={r} value={r}>
+                  {RANGE_FILTER_LABELS[r]}
+                </option>
+              ))}
+            </Select>
+          ) : null}
           {filtered ? (
-            <Button size="sm" variant="ghost" onClick={() => setParam({ watched: null, genre: null, year: null })}>
+            <Button size="sm" variant="ghost" onClick={() => setParam(clearFilters)}>
               Clear filters
             </Button>
           ) : null}
@@ -318,7 +347,7 @@ function LibraryTab({
             <EmptyState
               title="No matches"
               description="Nothing in this library matches the current filters."
-              action={<Button onClick={() => setParam({ watched: null, genre: null, year: null })}>Clear filters</Button>}
+              action={<Button onClick={() => setParam(clearFilters)}>Clear filters</Button>}
             />
           ) : (
             <EmptyState
@@ -355,6 +384,7 @@ function LibraryTab({
             cardWidth={cardWidth}
             jumpBar={sort === "title"}
             media={sort === "bitrate"}
+            badges={sort === "bitrate" || !!resolution || !!dynamicRange}
           />
         )}
       </div>

@@ -60,6 +60,9 @@ class TvTestGraph : ScreensGraph {
     /** Every library's listing, whatever its sort and filters. */
     val listing = MutableStateFlow<Loadable<LibraryItems>>(Loadable.Loading)
 
+    /** What every library can be filtered by: nothing, unless a test says. */
+    val filters = MutableStateFlow<Loadable<LibraryFilters>>(Loadable.Ready(LibraryFilters(), fresh = true))
+
     override val device = DeviceProfile(FormFactor.Tv, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 4L shl 30, lowRam = false)
     override val auth: AuthGraph get() = unused("auth")
     override val caps: CapsGraph get() = unused("caps")
@@ -91,7 +94,7 @@ class TvTestGraph : ScreensGraph {
         override val snapshots: SnapshotStore get() = unused("snapshots")
         override val libraryItems = object : LibraryItemsRepository {
             override fun items(libraryId: Long, query: LibraryQuery): Flow<Loadable<LibraryItems>> = listing
-            override fun filters(libraryId: Long): Flow<Loadable<LibraryFilters>> = flowOf(Loadable.Ready(LibraryFilters(), fresh = true))
+            override fun filters(libraryId: Long): Flow<Loadable<LibraryFilters>> = filters
         }
         // The Search tab: nothing searched yet, no recent searches.
         override val search = object : SearchRepository {

@@ -58,11 +58,43 @@ fn libraries_list_sort_filter_and_page() {
     assert!(watched["items"].as_array().unwrap().iter().all(|i| i["user_state"]["watched"] == true));
     let by_bitrate = api.get("/api/libraries/1/items?sort=bitrate&limit=3").json();
     assert!(by_bitrate["items"][0]["media"]["bitrate"].as_i64().unwrap() > 20_000_000);
+    // Every listing carries the media summary, as the server's does.
+    assert!(items.iter().all(|i| i["media"].is_object()), "media whatever the sort");
 
     let filters = api.get("/api/libraries/1/filters").json();
     let years: Vec<i64> = filters["years"].as_array().unwrap().iter().map(|y| y.as_i64().unwrap()).collect();
     assert!(years.windows(2).all(|w| w[0] > w[1]));
     assert!(filters["genres"].as_array().unwrap().iter().any(|g| g == "Comedy"));
+    // The resolutions the films have, best first, and the dynamic ranges
+    // broadest first: HDR (which takes in Dolby Vision and HDR10+) leads,
+    // and Any HDR, which would keep the same films without HLG, is left out.
+    assert_eq!(filters["resolutions"], json!(["4k", "1080"]));
+    assert_eq!(filters["dynamic_ranges"], json!(["hdr10", "dolby_vision", "hdr10plus", "sdr"]));
+    assert_eq!(api.get("/api/libraries/3/filters").json()["resolutions"], json!([]), "music has none");
+    // The listing filters by them: a title by its best file.
+    let uhd = api.get("/api/libraries/1/items?resolution=4k").json();
+    let all = |page: &serde_json::Value, f: &dyn Fn(&serde_json::Value) -> bool| {
+        page["items"].as_array().unwrap().iter().all(|i| f(&i["media"]))
+    };
+    assert!(uhd["total"].as_i64().unwrap() > 0 && uhd["total"].as_i64().unwrap() < 1500);
+    assert!(all(&uhd, &|m| m["height"] == 2160));
+    let hdr = api.get("/api/libraries/1/items?dynamic_range=hdr").json();
+    assert_eq!(hdr["total"], uhd["total"], "the 4K films are the HDR ones");
+    assert!(all(&hdr, &|m| m["dynamic_range"] != "sdr"));
+    let dv = api.get("/api/libraries/1/items?dynamic_range=dolby_vision&resolution=4k").json();
+    assert!(all(&dv, &|m| m["dynamic_range"] == "dolby_vision"));
+    // HDR takes in Dolby Vision and HDR10+: without HLG, the same films as Any HDR.
+    let total = |query: &str| api.get(&format!("/api/libraries/1/items?{query}")).json()["total"].as_i64().unwrap();
+    let (hdr10, dolby_vision, hdr10plus) =
+        (total("dynamic_range=hdr10"), total("dynamic_range=dolby_vision"), total("dynamic_range=hdr10plus"));
+    assert_eq!(hdr10, hdr["total"].as_i64().unwrap());
+    assert!(
+        dolby_vision > 0 && hdr10plus > 0 && hdr10 > dolby_vision + hdr10plus,
+        "{hdr10} {dolby_vision} {hdr10plus}"
+    );
+    assert_eq!(api.get("/api/libraries/1/items?resolution=8k").status, 400);
+    assert_eq!(api.get("/api/libraries/1/items?dynamic_range=hdr11").status, 400);
+    assert_eq!(api.get("/api/libraries/1/items?resolution=").json()["total"], 1500, "empty is no filter");
 
     let shows = api.get("/api/libraries/2/items?limit=5").json();
     assert_eq!(shows["total"], 300);
@@ -162,6 +194,15 @@ fn home_search_and_collections() {
     assert_eq!(api.get("/api/search?q=").json()["items"], json!([]));
     let channels = api.get("/api/search?q=news").json();
     assert!(!channels["channels"].as_array().unwrap().is_empty());
+    // Up to `limit` of each: people and channels as titles, past the 12 they once stopped at.
+    let len = |v: &Value, key: &str| v[key].as_array().unwrap().len();
+    let wide = api.get("/api/search?q=a&limit=200").json();
+    assert!(len(&wide, "people") > 12 && len(&wide, "people") <= 200, "{} people", len(&wide, "people"));
+    assert!(len(&wide, "items") > 12 && len(&wide, "items") <= 200);
+    assert!(len(&wide, "channels") > 12, "{} channels", len(&wide, "channels"));
+    let narrow = api.get("/api/search?q=a&limit=5").json();
+    assert_eq!((len(&narrow, "items"), len(&narrow, "people")), (5, 5));
+    assert!(len(&narrow, "channels") <= 5);
 
     let collections = api.get("/api/libraries/1/collections").json();
     let list = collections["collections"].as_array().unwrap();

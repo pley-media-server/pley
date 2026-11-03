@@ -19,7 +19,7 @@ use crate::pictures::{Shape, picture};
 use crate::server::{
     Answer, Cx, LIBRARY, Need, PLAY, Route, State, bad_request, error, free, json, locked, no_content, not_found,
 };
-use crate::views::{self, ListOpts};
+use crate::views::{self, FileFilter, ListOpts};
 use crate::{ServerEvent, ids};
 
 pub(crate) fn routes() -> Vec<Route> {
@@ -254,8 +254,9 @@ fn item(cx: &Cx<'_>, state: &mut State) -> Answer {
     Ok(json(200, &detail))
 }
 
-/// The value a listing sorts by.
-fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str) -> Option<f64> {
+/// The value a listing sorts by; by bitrate, that of the version a listing filtered to `files`
+/// shows.
+fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str, files: FileFilter) -> Option<f64> {
     let b = &item.base;
     match sort {
         "year" => b.year.map(|y| y as f64),
@@ -265,7 +266,7 @@ fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str)
         "release" => b.release_date.as_ref().and_then(|d| d.replace('-', "").parse::<f64>().ok()),
         "duration" => b.duration_ms.map(|d| d as f64),
         "last_played" => views::state(catalog, item, profile).last_played_at.map(|t| t as f64),
-        "bitrate" => views::media_summary(catalog, item).and_then(|m| m.bitrate).map(|b| b as f64),
+        "bitrate" => views::media_summary(catalog, item, files).and_then(|m| m.bitrate).map(|b| b as f64),
         _ => None,
     }
 }
@@ -309,12 +310,27 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
     if let Some(year) = number(cx, "year")? {
         items.retain(|i| i.base.year == Some(year));
     }
+    // A title by its best file, a show by its best episode; an unknown value is refused. What is
+    // kept is shown, and sorted by bitrate, by the files that match.
+    let mut files = FileFilter::default();
+    if let Some(value) = cx.query("resolution").map(str::trim).filter(|v| !v.is_empty()) {
+        let wanted = resolutions_named(value).ok_or_else(|| bad_request(&format!("unknown resolution '{value}'")))?;
+        items.retain(|i| views::title_resolution(catalog, i).is_some_and(|r| wanted.contains(&r)));
+        files.resolutions = wanted;
+    }
+    if let Some(value) = cx.query("dynamic_range").map(str::trim).filter(|v| !v.is_empty()) {
+        let wanted = ranges_named(value).ok_or_else(|| bad_request(&format!("unknown dynamic_range '{value}'")))?;
+        items.retain(|i| views::title_range(catalog, i).is_some_and(|r| wanted.contains(&r)));
+        files.dynamic_ranges = wanted;
+    }
     if let Some(watched) = cx.query("watched") {
         let want = matches!(watched, "1" | "true" | "yes");
         items.retain(|i| views::state(catalog, i, profile).watched == want);
     }
-    let mut keyed: Vec<(Option<f64>, String, &ItemDetail)> =
-        items.into_iter().map(|i| (sort_key(catalog, i, profile, sort), i.base.sort_title.to_lowercase(), i)).collect();
+    let mut keyed: Vec<(Option<f64>, String, &ItemDetail)> = items
+        .into_iter()
+        .map(|i| (sort_key(catalog, i, profile, sort, files), i.base.sort_title.to_lowercase(), i))
+        .collect();
     keyed.sort_by(|a, b| {
         let by_title = a.1.cmp(&b.1).then(a.2.id().cmp(&b.2.id()));
         if sort == "title" {
@@ -333,7 +349,7 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
         primary.then(by_title)
     });
     let total = keyed.len();
-    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: sort == "bitrate" };
+    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: true, files };
     let page: Vec<ItemSummary> = keyed
         .into_iter()
         .skip(offset)
@@ -345,12 +361,69 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
         .with_header("Cache-Control", "private, no-cache"))
 }
 
-/// GET /api/libraries/{id}/filters: genres (case-insensitively sorted) and
-/// years (newest first).
+/// The resolutions a `resolution` value names: the server's, `2160`, and
+/// Plex's `576` and `480`, which are SD. None for another value.
+fn resolutions_named(value: &str) -> Option<&'static [&'static str]> {
+    let value = value.to_ascii_lowercase();
+    let at = match value.strip_suffix('p').unwrap_or(&value) {
+        "4k" | "2160" => 0,
+        "1080" => 1,
+        "720" => 2,
+        "sd" | "576" | "480" => 3,
+        _ => return None,
+    };
+    Some(&views::RESOLUTIONS[at..=at])
+}
+
+/// The dynamic ranges a `dynamic_range` value names, as the server's: `hdr`
+/// every one but SDR, `hdr10` (HDR) HDR10 with HDR10+ and Dolby Vision, the
+/// others themselves alone. None for another value.
+fn ranges_named(value: &str) -> Option<&'static [&'static str]> {
+    match value.to_ascii_lowercase().as_str() {
+        "hdr" => Some(&views::DYNAMIC_RANGES[..4]),
+        "hdr10" => Some(&views::DYNAMIC_RANGES[..3]),
+        value => views::DYNAMIC_RANGES.iter().position(|r| *r == value).map(|i| &views::DYNAMIC_RANGES[i..=i]),
+    }
+}
+
+/// The dynamic ranges a library can be filtered by, as the server offers
+/// them: from those that keep the most kinds to those that keep one.
+const RANGE_CHOICES: [&str; 6] = ["hdr", "hdr10", "dolby_vision", "hdr10plus", "hlg", "sdr"];
+
+/// The values of a filter worth offering: those of `order` the titles have,
+/// when they have two or more (one would keep every title).
+fn offered(found: &HashSet<&'static str>, order: &[&'static str]) -> Vec<&'static str> {
+    let values: Vec<&'static str> = order.iter().copied().filter(|v| found.contains(v)).collect();
+    if values.len() > 1 { values } else { Vec::new() }
+}
+
+/// The dynamic ranges worth offering to titles of the ranges `found`, as the
+/// server's: each that keeps some of the titles but not all, and not the
+/// same ones as a choice of fewer kinds.
+fn range_choices(found: &HashSet<&'static str>) -> Vec<&'static str> {
+    let kept = |choice: &str| -> Vec<&'static str> {
+        ranges_named(choice).unwrap_or_default().iter().copied().filter(|r| found.contains(r)).collect()
+    };
+    let all = views::DYNAMIC_RANGES.iter().filter(|r| found.contains(*r)).count();
+    let mut narrowest_first = RANGE_CHOICES;
+    narrowest_first.sort_by_key(|choice| ranges_named(choice).map_or(0, <[_]>::len));
+    let mut chosen: Vec<(&str, Vec<&str>)> = Vec::new();
+    for choice in narrowest_first {
+        let titles = kept(choice);
+        if !titles.is_empty() && titles.len() < all && chosen.iter().all(|(_, other)| *other != titles) {
+            chosen.push((choice, titles));
+        }
+    }
+    RANGE_CHOICES.into_iter().filter(|choice| chosen.iter().any(|(c, _)| c == choice)).collect()
+}
+
+/// GET /api/libraries/{id}/filters: genres (case-insensitively sorted),
+/// years (newest first), and for movies and shows the resolutions (best
+/// first) and dynamic ranges ([`range_choices`]) worth filtering by.
 fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
     let id = cx.id(0)?;
     let catalog = cx.catalog();
-    catalog.library(id).ok_or_else(|| not_found(&format!("library {id} not found")))?;
+    let library = catalog.library(id).ok_or_else(|| not_found(&format!("library {id} not found")))?;
     let items = catalog.top(id);
     let mut genres: Vec<&str> = items.iter().flat_map(|i| i.genres.iter().map(String::as_str)).collect();
     genres.sort_by_key(|g| g.to_lowercase());
@@ -358,7 +431,15 @@ fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
     let mut years: Vec<i64> = items.iter().filter_map(|i| i.base.year).collect();
     years.sort_by(|a, b| b.cmp(a));
     years.dedup();
-    Ok(json(200, &json!({ "genres": genres, "years": years })))
+    let (mut resolutions, mut ranges) = (Vec::new(), Vec::new());
+    if library.kind != "music" {
+        let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_resolution(catalog, i)).collect();
+        resolutions = offered(&found, &views::RESOLUTIONS);
+        let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_range(catalog, i)).collect();
+        ranges = range_choices(&found);
+    }
+    let body = json!({ "genres": genres, "years": years, "resolutions": resolutions, "dynamic_ranges": ranges });
+    Ok(json(200, &body))
 }
 
 /// Continue Watching: in progress, and the episode after a show's last
@@ -664,7 +745,7 @@ fn person(cx: &Cx<'_>, state: &mut State) -> Answer {
 }
 
 /// GET /api/search: titles (movies, shows and artists first), people, and
-/// Live TV channels.
+/// Live TV channels, up to `limit` of each.
 fn search(cx: &Cx<'_>, state: &mut State) -> Answer {
     let q = cx.query("q").unwrap_or("").trim().to_lowercase();
     let limit = number(cx, "limit")?.unwrap_or(40).clamp(1, 200) as usize;
@@ -706,12 +787,13 @@ fn search(cx: &Cx<'_>, state: &mut State) -> Answer {
     let mut people: Vec<&crate::catalog::Person> = catalog.people().iter().filter(|p| matches(&p.name)).collect();
     let credited = |id: i64| catalog.credits.get(&id).map_or(0, Vec::len);
     people.sort_by(|a, b| credited(b.id).cmp(&credited(a.id)).then(a.id.cmp(&b.id)));
+    // Up to `limit` of each, as titles.
     let people: Vec<PersonSummary> = people
         .into_iter()
-        .take(12)
+        .take(limit)
         .map(|p| PersonSummary { id: p.id, name: p.name.clone(), photo_url: p.photo_url() })
         .collect();
-    let channels = if profile.live { state.live.search(&q, profile, cx.now(), 12) } else { Vec::new() };
+    let channels = if profile.live { state.live.search(&q, profile, cx.now(), limit) } else { Vec::new() };
     Ok(json(200, &json!({ "items": items, "people": people, "channels": channels })))
 }
 
