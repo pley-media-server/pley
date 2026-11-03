@@ -1031,6 +1031,11 @@ plays (`PleySubtitles`):
   its plane puts it, scaled to the video's bounds. A session asks for no
   `subtitle_index`, so nothing is burned in and a file that plays as it
   is, or repackaged, stays so.
+- The pictures are decoded away from the main actor, so a heavy one
+  never holds up the screen or the remote: the picture at the playhead
+  and the next one, decoded ahead, so each is ready by its time. After a
+  seek or another track, a picture shows once it is decoded. The pictures
+  near the playhead are kept decoded, and stay so while the track grows.
 - While the server is still reading a track out of its file, its answer
   is partial (`X-Pley-Complete: 0`): what came shows, and the rest is
   asked for every 10 seconds (the `.mks` from where it stopped, with

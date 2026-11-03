@@ -55,7 +55,8 @@ public enum ShownSubtitles: Equatable, Sendable {
 /// A subtitle track's cues by time: text (the server's WebVTT) or
 /// pictures (the server's `.mks`). Times are the track's own.
 public protocol CueTrack: AnyObject {
-    /// What shows at `ms` of the track's time; pictures are decoded here.
+    /// What shows at `ms` of the track's time. Called on the main actor
+    /// as the video plays: a picture track only looks up what is decoded.
     func shown(at ms: Int) -> ShownSubtitles
     /// The next time after `ms` at which what shows changes; `nil` when nothing changes any more.
     func nextChangeAfter(_ ms: Int) -> Int?
@@ -133,7 +134,8 @@ public final class TextCueTrack: CueTrack {
 /// `picture-track.ts`: a sample shows from its time until the next sample,
 /// or for its own duration when it carries one (VobSub's stop command,
 /// DVB's page time-out, a Matroska block duration); an empty sample
-/// clears. Decoded only when shown.
+/// clears. Decoded only when shown, on the actor that holds it: the
+/// player's `PictureRenderer`.
 public final class PictureSubtitles: CueTrack {
     /// Codec ids of the picture subtitles the app draws, and the server's (ffprobe's) names for them.
     public static let codecs = ["S_HDMV/PGS": "hdmv_pgs_subtitle", "S_VOBSUB": "dvd_subtitle",
@@ -203,6 +205,13 @@ public final class PictureSubtitles: CueTrack {
         let i = sampleAt(ms)
         guard i >= 0, let frame = decoder.decode(i), !frame.bitmaps.isEmpty else { return nil }
         return (i, frame)
+    }
+
+    /// Sample `i` decoded, with how long it shows when it says (`PictureRenderer`'s answer).
+    public func decoded(_ i: Int) -> DecodedPicture {
+        guard times.indices.contains(i) else { return DecodedPicture(frame: nil, ownDurationMs: nil) }
+        let frame = decoder.decode(i).flatMap { $0.bitmaps.isEmpty ? nil : $0 }
+        return DecodedPicture(frame: frame, ownDurationMs: track.samples[i].durationMs ?? decoder.ownDurationMs(i))
     }
 
     /// When what shows changes after `ms`; `nil` when nothing does any more.
