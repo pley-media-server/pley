@@ -123,3 +123,16 @@ fn orders_still_on_their_way_when_the_page_closes_reach_the_server() {
     let last = [ids::SHOWS, ids::MUSIC, ids::MOVIES];
     assert!(app.until(|a| order(a) == last), "the libraries are in the order {:?}", order(&app));
 }
+
+#[test]
+fn audio_guidance_reads_each_cards_name_and_what_it_holds() {
+    let mut app = libraries(false);
+    assert!(app.until(|a| a.focused() == Some(card(a, ids::MOVIES))));
+    app.ui.set_speaking(true);
+    app.advance(0.1);
+    let first = app.ui.take_speech().unwrap_or_default();
+    assert!(first.contains("Movies, 1,500 movies"), "{first}");
+    app.press(Key::Right);
+    let next = app.ui.take_speech().unwrap_or_default();
+    assert_eq!(next, "TV Shows, 300 shows");
+}

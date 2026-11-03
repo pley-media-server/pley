@@ -18,7 +18,7 @@ use pley_base::{Icon, Key, Point, Rect, Size, TextOpts};
 use pley_core::ApiError;
 use pley_core::http::sentence;
 use pley_core::model::Library;
-use pley_kit::look::shade;
+use pley_kit::look::{shade, spoken};
 use pley_kit::{Button, Heading, ListRow, Message, MessageStyle, SCROLL, SidePanel, bar_group};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, focus, radius};
@@ -677,6 +677,7 @@ impl LibrariesScreen {
 /// kind's icon, 14, then the name (`Tv.Title`) over "412 movies" (`Tv.Caption`, 75 %); while
 /// sorting a grip at its end. Lifted it turns Surface3 with a 3 dp AccentBright ring inside its
 /// edge and keeps its size; it then takes the arrows.
+/// Audio Guidance reads the name, then the line.
 fn draw_card(
     ui: &mut Ui,
     id: Id,
@@ -686,6 +687,7 @@ fn draw_card(
     sorting: bool,
     lifted: bool,
 ) -> pley_ui::Response {
+    ui.name(id, || spoken(&[&library.name, line]));
     let opts = FocusOpts::default().long_press().takes(if lifted { Dirs::ALL } else { Dirs::NONE });
     let r = ui.focusable_with(id, rect, opts);
     if r.activated || r.long_pressed || r.menu {
