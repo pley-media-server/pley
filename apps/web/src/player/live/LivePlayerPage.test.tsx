@@ -157,6 +157,39 @@ describe("LivePlayerPage, its connection taken over", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
+  it("lets the browser's own HLS go, so it doesn't play on", async () => {
+    serve();
+    // A browser that plays HLS itself (Safari before hls.js), whose pause
+    // fires its event as a real one does.
+    const supported = FakeHls.isSupported;
+    FakeHls.isSupported = () => false;
+    vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockImplementation((type) =>
+      type === "application/vnd.apple.mpegurl" ? "maybe" : "",
+    );
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (this: HTMLMediaElement) {
+      this.dispatchEvent(new Event("pause"));
+    });
+    try {
+      const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+      const video = await waitFor(() => {
+        const el = container.querySelector("video");
+        expect(el?.getAttribute("src")).toBe("/api/live/sessions/s1/index.m3u8");
+        return el!;
+      });
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+      play.mockClear();
+      act(() => FakeEventSource.last?.send(takenOver(5)));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Live TV stopped");
+      expect(video.hasAttribute("src")).toBe(false);
+      // Live TV's "plays on" after a pause (100 ms) finds nothing to play.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(play).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent("Live TV stopped");
+    } finally {
+      FakeHls.isSupported = supported;
+    }
+  });
+
   it("says the server's words when its stream answers 410", async () => {
     serve();
     renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });

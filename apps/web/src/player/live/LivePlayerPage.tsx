@@ -452,7 +452,17 @@ function LivePlayer({
     directRef.current = null;
     // Already ended on the server: nothing to leave.
     sessionRef.current = null;
-    videoRef.current?.pause();
+    // Its stream let go too, the picture kept: the browser's own HLS keeps a
+    // source the players above don't, and with it Live TV's "plays on"
+    // (onPause) would play the seconds it has buffered. The source goes
+    // first, so the pause finds none to play on.
+    const video = videoRef.current;
+    if (video) {
+      keepPicture(video);
+      video.removeAttribute("src");
+      video.pause();
+      video.load();
+    }
     setBuffering(false);
     setProblem(why);
     setStatus("error");
