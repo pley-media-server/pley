@@ -21,6 +21,9 @@ fn a_show_partly_in_the_library_offers_open_and_more_seasons() {
     assert!(app.until_shows("Fixture Show"), "no title");
     assert!(app.until(|a| a.shows("Open") && a.shows("Request more seasons")), "no main action");
     assert!(app.shows("Seasons") && app.shows("Cast") && app.shows("In library"));
+    // Under each season how it stands: the two in the library say so, the third its episodes.
+    let lines = |text: &str| app.list.texts().filter(|t| *t == text).count();
+    assert_eq!(lines("3 episodes"), 1, "{:?}", app.list.texts().collect::<Vec<_>>());
     assert_eq!(app.focused(), Some(TitleScreen::main_id(app.page())), "Open first");
 
     // Request more seasons: the picker, the missing season ticked.

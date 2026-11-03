@@ -465,14 +465,10 @@ impl TitleScreen {
                             let x = seasons[slot.index];
                             let request = x.request_id.and_then(|id| d.requests.iter().find(|q| q.id == id));
                             let stage = request.and_then(|q| season_stage(q, x.number, manage, time));
+                            // Its request's stage, else how it stands ("In library", "4 of 10
+                            // episodes in library", "10 episodes"), as in the Android TV app.
                             let (line, tone) = match &stage {
                                 Some(w) => (w.text.clone(), Some(w.tone)),
-                                None if x.state == pley_core::model::SeasonState::Unaired => {
-                                    (season_line(x, time), None)
-                                }
-                                None if x.episodes > 0 => {
-                                    (pley_core::format::pluralize(x.episodes, "episode", None), None)
-                                }
                                 None => (season_line(x, time), None),
                             };
                             ToneTile {
