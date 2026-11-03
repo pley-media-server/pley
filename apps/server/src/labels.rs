@@ -1,6 +1,5 @@
 //! Labels on items (see migrations/0015_labels.sql): free-form tags, matched
-//! without regard to case, which smart filters read (`label=`). Older
-//! versions set them through their Plex-compatible API.
+//! without regard to case. They are set through the Plex-compatible API.
 
 use std::collections::HashMap;
 

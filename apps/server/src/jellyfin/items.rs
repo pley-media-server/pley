@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use super::dto::{self, Batch, Fields, Item, NameId};
 use super::ids::Kind;
 use super::{Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
-use crate::auth::AuthUser;
+use crate::auth::{AuthUser, SourceIp};
 use crate::catalog::{self, ItemRow};
 use crate::events::ServerEvent;
 use crate::library::LibraryRow;
@@ -1262,6 +1262,7 @@ fn image_width(q: &Q) -> Option<u32> {
 /// without a token, as Jellyfin lets them: an id can't be guessed
 /// ([`super::ids`]) and is given only to those who may see what it names.
 /// With a token, what it names must be one the user may see.
+/// `viewer`: the user of the request's token, if it has one.
 async fn picture(
     state: &AppState,
     jellyfin: &Jellyfin,
@@ -1269,9 +1270,8 @@ async fn picture(
     image: &str,
     q: &Q,
     headers: &HeaderMap,
-    uri: &Uri,
+    viewer: Option<AuthUser>,
 ) -> JfResult<Response> {
-    let viewer = super::token_user(state, headers, uri.query()).await?;
     let image = image.to_ascii_lowercase();
     let versioned = q.get("tag").is_some();
     match jellyfin.ids.read(id) {
@@ -1326,17 +1326,20 @@ async fn image(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
     Path((id, kind)): Path<(String, String)>,
+    SourceIp(from): SourceIp,
     q: Q,
     headers: HeaderMap,
     uri: Uri,
 ) -> JfResult<Response> {
-    picture(&state, &jellyfin, &id, &kind, &q, &headers, &uri).await
+    let viewer = super::token_user(&state, &headers, uri.query(), from).await?;
+    picture(&state, &jellyfin, &id, &kind, &q, &headers, viewer).await
 }
 
 async fn image_at(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
     Path((id, kind, index)): Path<(String, String, String)>,
+    SourceIp(from): SourceIp,
     q: Q,
     headers: HeaderMap,
     uri: Uri,
@@ -1345,7 +1348,8 @@ async fn image_at(
     if index != "0" {
         return Err(JfError::NotFound);
     }
-    picture(&state, &jellyfin, &id, &kind, &q, &headers, &uri).await
+    let viewer = super::token_user(&state, &headers, uri.query(), from).await?;
+    picture(&state, &jellyfin, &id, &kind, &q, &headers, viewer).await
 }
 
 // ------------------------------------------------------------------ watch state

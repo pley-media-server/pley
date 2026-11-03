@@ -56,8 +56,8 @@ pub struct CollectionDto {
     pub id: i64,
     pub library_id: i64,
     pub title: String,
-    /// What it is ordered by, when it isn't the title's own (older versions
-    /// set it through their Plex-compatible API).
+    /// What it is ordered by; set by hand (through the Plex API) when it isn't
+    /// the title's own.
     #[serde(skip)]
     pub sort_title: String,
     pub summary: Option<String>,

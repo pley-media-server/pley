@@ -17,14 +17,22 @@ describes how they are made.
   Intro, and keep watch state, favorites (My List) and ratings with Pley's.
   It is off until turned on in Settings → Network, on Pley's port or one of
   its own (Jellyfin's is 8096; `--jellyfin-bind`, and `compose.jellyfin.yaml`
-  for Docker). Each sign-in gets a token of its own, which works on that API
-  only, never on Pley's own, and never as an administrator; accounts with
-  two-step sign-in can't sign in from these apps yet
-  ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md)).
-- Account has Tokens for other apps: each app signed in through the
-  Jellyfin-compatible API, with its device and last use, to revoke, and
-  tokens made by hand for apps or scripts that take one, shown once to
-  copy.
+  for Docker). Each sign-in gets a token of its own, which works on the
+  compatibility APIs only, never on Pley's own, and never as an
+  administrator; accounts with two-step sign-in can't sign in from these
+  apps yet ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md)). It shares
+  Pley's port with the Plex-compatible API: a request that names itself
+  Plex's goes to that one.
+- Account has Tokens for other apps: one for each tool or player that uses
+  the Plex- or Jellyfin-compatible API, made there and shown once to copy,
+  or by a Jellyfin app signing in, with its device and last use, to revoke.
+  A token does only what it was allowed: watching and, for an
+  administrator's, seeing everyone's activity (for activity monitors such
+  as Tautulli) or managing libraries (for library tools such as Kometa:
+  refreshes, edits, collections). Neither is ever managing accounts, and
+  both go with the administrator's role, at once. A token can be limited
+  to the addresses or networks it is used from, or the home network; from
+  elsewhere it is refused, and so are the streams it started.
 
 ### Changed
 
@@ -39,16 +47,19 @@ describes how they are made.
   it, then the rest.
 - The web app's search shows movies, shows and episodes first, then
   music, then Live TV, then people.
+- The Plex-compatible API no longer takes Pley's session tokens, which
+  opened all of Pley's own API too, administration included: Tautulli,
+  Kometa, players and scripts that use one get `401` until they have a token
+  for other apps. Make one for each in Account → Tokens for other apps
+  (Tautulli needs "See everyone's activity", Kometa that and "Manage
+  libraries") and put it where the tool had the old one
+  ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md#moving-from-session-tokens)).
+- The Plex-compatible API's stream addresses, which players fetch without a
+  token, work only for streams started with a token for other apps, while
+  that token works; a web-player's playback can't be opened through them.
 
 ### Removed
 
-- The Plex-compatible API, and with it Tautulli, Kometa, `python-plexapi`
-  scripts and Plex players on Pley. `--plex-bind`, `PLEY_PLEX_BIND` and
-  `plex_bind` are read and ignored, with a warning in the log; Settings →
-  Network's next change takes `plex_bind` out of `pley.toml`. The Windows
-  installer no longer asks about it, and Docker's `compose.plex.yaml` is
-  `compose.jellyfin.yaml`. Smart collections' `guid` filter no longer takes
-  `plex://` guids.
 - The web player's Back 10 seconds and Forward 30 seconds buttons. Left
   and Right (or J and L) still seek 10 s.
 

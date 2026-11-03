@@ -40,6 +40,7 @@ pub mod people;
 pub mod pgs;
 pub mod playback;
 pub mod playlists;
+pub mod plex;
 pub mod providers;
 pub mod ratings;
 pub mod related;
@@ -211,7 +212,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 /// Before the database is opened, the data directory is locked (one server
 /// per data directory, see [`instance`]) and the first address is bound: a
 /// second copy, or one whose port is taken, stops without touching anything.
-/// The other addresses, the Jellyfin-compatible API and discovery follow (see
+/// The other addresses, the compatibility APIs and discovery follow (see
 /// [`network`]).
 ///
 /// On shutdown the listeners close, the event streams end, and requests in
@@ -232,14 +233,11 @@ pub async fn run_with_tray(config: Config, tray: Option<desktop::TrayLauncher>) 
     state.start_background_tasks();
     let app = api::router(state.clone());
     tracing::info!("Pley {VERSION_AND_COMMIT} listening on http://{}", display_addr(addr));
+    if state.network.plex_on_web() {
+        tracing::info!("the Plex-compatible API answers on Pley's port, to its clients");
+    }
     if state.network.jellyfin_on_web() {
         tracing::info!("the Jellyfin-compatible API answers on Pley's port, to its clients");
-    }
-    if state.config.plex_bind_ignored {
-        tracing::warn!(
-            "plex_bind is no longer read: the Plex-compatible API is gone (the Jellyfin-compatible one is \
-             jellyfin_bind)"
-        );
     }
     LISTENING.store(true, std::sync::atomic::Ordering::SeqCst);
     if let Some(code) = state.auth.setup.shown() {

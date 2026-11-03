@@ -211,17 +211,31 @@ fn request_token(parts: &Parts, client: &Client) -> Option<String> {
     client.token.clone().or_else(|| query_value(parts.uri.query(), &["api_key", "apikey"]))
 }
 
-/// The user of a request that may come without a token (a stream, a
-/// picture): `None` without one, an error for one that doesn't work.
-async fn token_user(state: &AppState, headers: &HeaderMap, query: Option<&str>) -> JfResult<Option<AuthUser>> {
+/// The user of a request from `from` that may come without a token (a
+/// stream, a picture): `None` without one, an error for one that doesn't
+/// work.
+async fn token_user(
+    state: &AppState,
+    headers: &HeaderMap,
+    query: Option<&str>,
+    from: Option<std::net::IpAddr>,
+) -> JfResult<Option<AuthUser>> {
     let token = Client::of(headers).token.or_else(|| query_value(query, &["api_key", "apikey"]));
     match token {
         None => Ok(None),
         Some(token) if token.starts_with(compatibility::PREFIX) => {
-            Ok(Some(state.auth.validate_compatibility(&token, None).await.ok_or(JfError::Unauthorized)?))
+            let used = UsedFrom { ip: from.map(|ip| ip.to_string()), user_agent: None };
+            let user = state.auth.validate_compatibility(&token, Some(&used)).await.ok_or(JfError::Unauthorized)?;
+            Ok(Some(this_apis(user)))
         }
         Some(_) => Err(JfError::Unauthorized),
     }
+}
+
+/// A token's user as this API takes it: never as an administrator, whatever
+/// its scopes allow on the Plex-compatible API.
+pub(crate) fn this_apis(user: AuthUser) -> AuthUser {
+    AuthUser { is_admin: false, ..user }
 }
 
 /// The first of `names` in a query string, matched in any case.
@@ -257,7 +271,7 @@ impl FromRequestParts<AppState> for JfUser {
         let user_agent = parts.headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_owned);
         let used = UsedFrom { ip, user_agent };
         let user = state.auth.validate_compatibility(&token, Some(&used)).await.ok_or(JfError::Unauthorized)?;
-        Ok(JfUser { user, client })
+        Ok(JfUser { user: this_apis(user), client })
     }
 }
 
@@ -592,9 +606,13 @@ fn is_jellyfin_request(request: &Request) -> bool {
 }
 
 /// While the API answers on Pley's port, its requests go to it and the
-/// rest to Pley. Answers to the shared paths vary with what decides.
+/// rest to Pley. Answers to the shared paths vary with what decides. A
+/// request that names itself the Plex-compatible API's (`X-Plex-…`) is left
+/// to that API while it is on Pley's port too: its paths and this one's
+/// meet (`/library`, `/system`, `/devices`).
 pub async fn on_web_port(State(api): State<OnWebPort>, request: Request, next: Next) -> Response {
-    if !api.state.network.jellyfin_on_web() {
+    if !api.state.network.jellyfin_on_web() || (api.state.network.plex_on_web() && crate::plex::names_itself(&request))
+    {
         return next.run(request).await;
     }
     let shared = SHARED.contains(&first_segment(request.uri().path()).as_str());

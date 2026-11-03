@@ -96,8 +96,8 @@ ENV PLEY_DATA_DIR=/config \
     PGID=1000 \
     NVIDIA_DRIVER_CAPABILITIES=compute,video,utility,graphics
 VOLUME ["/config"]
-# The web app and its API, and the Jellyfin-compatible API when it answers on
-# Pley's port.
+# The web app and its API, and the compatibility APIs when they answer on
+# Pley's port (the Plex-compatible one does by default).
 EXPOSE 7539
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --start-interval=2s \
     CMD ["pley", "health"]

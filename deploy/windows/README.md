@@ -30,7 +30,7 @@ whether to delete the data folder too (no by default).
 |---|---|---|
 | How Pley runs | Service, service as a user of its own, or notification area (below) | Service |
 | Data folder | Where Pley keeps its database, artwork and settings; optionally a Pley you already use to copy from (stop it first) | `C:\ProgramData\pley`, or `%LOCALAPPDATA%\pley` in the notification area |
-| Network | Only this computer, this computer and the networks you tick, or every network; the port | Only this computer (`127.0.0.1`), port 7539 |
+| Network | Only this computer, this computer and the networks you tick, or every network; the port; the Plex-compatible API | Only this computer (`127.0.0.1`), port 7539, Plex-compatible API on |
 | Windows Firewall | The kinds of network to let Pley through on, from which devices, and whether Pley's apps can find the server | Private and domain networks, devices on them, apps can find it |
 
 How Pley runs:
@@ -101,6 +101,7 @@ pley-server-0.0.1-windows-x86_64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /MODE=s
 | `/COPYDATA=` | A data folder to copy first | none |
 | `/LISTEN=` | `local`, `all`, or the addresses of the networks to listen on, separated by commas | `local` |
 | `/PORT=` | The port | `7539` |
+| `/PLEX=` | `yes` or `no`: the Plex-compatible API, on Pley's port | `yes` |
 | `/FIREWALL=` | `private`, `domain`, `public` (separated by commas), or `none` | `private,domain` |
 | `/FROM=` | `subnet` (devices on those networks) or `any` (a VPN too) | `subnet` |
 | `/DISCOVERY=` | `yes` or `no`: Pley's apps can find the server | `yes` |
@@ -125,7 +126,7 @@ $env:PLEY_SHARE_PASSWORD = [Net.NetworkCredential]::new('', (Read-Host 'NAS pass
 What Setup runs, from an administrator's terminal:
 
 ```
-pley --data-dir C:\ProgramData\pley --bind 127.0.0.1:7539 ^
+pley --data-dir C:\ProgramData\pley --bind 127.0.0.1:7539 --plex-bind web ^
   --ffmpeg "C:\Program Files\pley-server\ffmpeg\ffmpeg.exe" ^
   --ffprobe "C:\Program Files\pley-server\ffmpeg\ffprobe.exe" service install
 ```
