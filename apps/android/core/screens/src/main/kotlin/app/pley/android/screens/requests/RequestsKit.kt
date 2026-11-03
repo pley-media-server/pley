@@ -208,6 +208,8 @@ data class Pages(
      * The last pages read on their own brought fewer titles than wanted,
      * and more are read only when asked for (a TV grid's Show more): for
      * an account with an age limit, page after page can come empty.
+     * It holds until a page is read ([with] starts afresh) or the reading is
+     * asked to go on (the view models' copy with it off).
      */
     val stopped: Boolean = false,
 ) {
