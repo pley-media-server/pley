@@ -183,6 +183,15 @@ fn home_search_and_collections() {
     assert_eq!(api.get("/api/search?q=").json()["items"], json!([]));
     let channels = api.get("/api/search?q=news").json();
     assert!(!channels["channels"].as_array().unwrap().is_empty());
+    // Up to `limit` of each: people and channels as titles, past the 12 they once stopped at.
+    let len = |v: &Value, key: &str| v[key].as_array().unwrap().len();
+    let wide = api.get("/api/search?q=a&limit=200").json();
+    assert!(len(&wide, "people") > 12 && len(&wide, "people") <= 200, "{} people", len(&wide, "people"));
+    assert!(len(&wide, "items") > 12 && len(&wide, "items") <= 200);
+    assert!(len(&wide, "channels") > 12, "{} channels", len(&wide, "channels"));
+    let narrow = api.get("/api/search?q=a&limit=5").json();
+    assert_eq!((len(&narrow, "items"), len(&narrow, "people")), (5, 5));
+    assert!(len(&narrow, "channels") <= 5);
 
     let collections = api.get("/api/libraries/1/collections").json();
     let list = collections["collections"].as_array().unwrap();

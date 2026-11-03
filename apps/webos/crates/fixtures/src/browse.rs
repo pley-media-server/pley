@@ -717,7 +717,7 @@ fn person(cx: &Cx<'_>, state: &mut State) -> Answer {
 }
 
 /// GET /api/search: titles (movies, shows and artists first), people, and
-/// Live TV channels.
+/// Live TV channels, up to `limit` of each.
 fn search(cx: &Cx<'_>, state: &mut State) -> Answer {
     let q = cx.query("q").unwrap_or("").trim().to_lowercase();
     let limit = number(cx, "limit")?.unwrap_or(40).clamp(1, 200) as usize;
@@ -759,12 +759,13 @@ fn search(cx: &Cx<'_>, state: &mut State) -> Answer {
     let mut people: Vec<&crate::catalog::Person> = catalog.people().iter().filter(|p| matches(&p.name)).collect();
     let credited = |id: i64| catalog.credits.get(&id).map_or(0, Vec::len);
     people.sort_by(|a, b| credited(b.id).cmp(&credited(a.id)).then(a.id.cmp(&b.id)));
+    // Up to `limit` of each, as titles.
     let people: Vec<PersonSummary> = people
         .into_iter()
-        .take(12)
+        .take(limit)
         .map(|p| PersonSummary { id: p.id, name: p.name.clone(), photo_url: p.photo_url() })
         .collect();
-    let channels = if profile.live { state.live.search(&q, profile, cx.now(), 12) } else { Vec::new() };
+    let channels = if profile.live { state.live.search(&q, profile, cx.now(), limit) } else { Vec::new() };
     Ok(json(200, &json!({ "items": items, "people": people, "channels": channels })))
 }
 

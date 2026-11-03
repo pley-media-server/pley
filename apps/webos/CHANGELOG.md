@@ -131,6 +131,9 @@ describes how they are made.
   when its entries don't fit, they scroll between the avatar and
   Settings, which stay in place, keeping the entry after the focused one
   in sight.
+- Search shows up to 200 titles, 200 people and 200 Live TV channels,
+  where it stopped at 60 titles and 12 people and channels; each row
+  holds all it found and scrolls sideways.
 
 ### Removed
 
