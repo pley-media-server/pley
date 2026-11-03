@@ -28,10 +28,11 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Collections and playlists: play or shuffle them, add titles to playlists,
   make, rename, reorder and delete playlists, and save a library's filters
   as a smart playlist.
-- Search with recent searches; Settings for quality, the next episode,
-  subtitle style and grid size; History, Diagnostics and About. On Apple
-  TV, choose who's watching at start (a profile with a PIN asks for it,
-  even the one used last) or always start as one profile.
+- Search, titles first, then Live TV and people, with recent searches;
+  Settings for quality, the next episode, subtitle style and grid size;
+  History, Diagnostics and About. On Apple TV, choose who's watching at
+  start (a profile with a PIN asks for it, even the one used last) or
+  always start as one profile.
 - On the Mac: File and View menus with shortcuts, Settings (⌘,), About
   Pley, hover and right-click. On Apple TV, a row puts the focus back on
   the tile you left it on.
@@ -52,8 +53,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   next episode, chapters, and an audio track choice the server remembers
   for the whole show.
 - Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
-  video in your caption style, with a sync control; picture subtitles
-  never force a conversion. Find Subtitles… in the player searches online
+  video in your caption style, with a sync control, and text subtitles'
+  style in the player's menu too; picture subtitles never force a
+  conversion. Find Subtitles… in the player searches online
   through your server and adds the subtitles you choose, which show at
   once.
 - Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep

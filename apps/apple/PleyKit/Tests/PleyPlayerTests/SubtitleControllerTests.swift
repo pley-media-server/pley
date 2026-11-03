@@ -1,4 +1,5 @@
 import Foundation
+import PleyData
 import PleyModel
 import PleyNetwork
 @testable import PleyPlayer
@@ -10,7 +11,8 @@ import Testing
 /// SRT (2) and PGS (3) in the file, and an SRT beside it (1000).
 @MainActor
 private func subtitleRig(method: String = "direct", selected: Int? = 2,
-                         offsets: any SubtitleOffsets = MemorySubtitleOffsets()) async throws -> Rig {
+                         offsets: any SubtitleOffsets = MemorySubtitleOffsets(),
+                         style: any SubtitleStyleMemory = MemorySubtitleStyle()) async throws -> Rig {
     let server = FixtureServer()
     try await server.start()
     var movie = FixtureServer.Playable(itemId: 51, fileId: 510, title: "Subtitled", durationMs: 90_000)
@@ -41,7 +43,8 @@ private func subtitleRig(method: String = "direct", selected: Int? = 2,
     00:00:02.000 --> 00:00:05.000
     La première ligne.
     """.utf8))
-    return try Rig(server: server, request: PlayRequest(itemId: 51), warmer: NoWarmer(), offsets: offsets)
+    return try Rig(server: server, request: PlayRequest(itemId: 51), warmer: NoWarmer(), offsets: offsets,
+                   subtitleStyle: style)
 }
 
 /// The `.mks` of the PGS: a 4×2 picture from 1 s, cleared at 3 s.
@@ -157,6 +160,34 @@ struct SubtitleControllerTests {
         rig.controller.cycleSubtitles()
         #expect(rig.controller.state.subtitles.first(where: \.selected)?.id == "2")
         #expect(rig.engine.loads.count == 1)
+        await rig.controller.close()
+    }
+
+    @Test func theStyleIsOfferedWhileTextSubtitlesShowAndIsKept() async throws {
+        let kept = MemorySubtitleStyle(SubtitleOverrides(size: .p150))
+        let rig = try await subtitleRig(method: "remux", style: kept)
+        defer { rig.cleanUp() }
+        rig.server.serveFile(path: "/api/files/510/subtitles/3.mks", type: "video/x-matroska", body: pgsTrack)
+        try await started(rig)
+        let menus = rig.controller.state.subtitleStyleMenus
+        #expect(menus.map(\.title) == ["Size", "Background", "Font", "Position"])
+        #expect(menus.map(\.summary) == ["150 %", "System", "System", "Bottom"])
+        // A choice is kept for every video, and shows in the menu at once.
+        rig.controller.setSubtitleStyle(.position, "10")
+        rig.controller.setSubtitleStyle(.background, "darkBox")
+        #expect(kept.subtitles == SubtitleOverrides(size: .p150, background: .darkBox, raise: .ten))
+        #expect(rig.controller.state.subtitleStyleMenus.map(\.summary) == ["150 %", "Dark box", "System",
+                                                                             "Raised 10 %"])
+        // A choice the menu doesn't have changes nothing.
+        rig.controller.setSubtitleStyle(.size, "p300")
+        #expect(kept.subtitles.size == .p150)
+        // Pictures keep their own look, and Off has nothing to style.
+        rig.controller.selectSubtitle(3)
+        #expect(rig.controller.state.subtitleStyleMenus.isEmpty)
+        rig.controller.selectSubtitle(nil)
+        #expect(rig.controller.state.subtitleStyleMenus.isEmpty)
+        rig.controller.selectSubtitle(1000)
+        #expect(rig.controller.state.subtitleStyleMenus.count == 4)
         await rig.controller.close()
     }
 

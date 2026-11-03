@@ -2,7 +2,8 @@ import AVKit
 import XCTest
 
 /// The player's extras: Find Subtitles… (the test server has no subtitle
-/// search set up), Speed, and Picture in Picture keeping the playback.
+/// search set up), the subtitle style, Speed, and Picture in Picture
+/// keeping the playback.
 extension Walk {
     /// A menu row by its first words (a submenu says its second line too: "Speed, 1×").
     func menuRow(_ words: String) -> XCUIElement {
@@ -70,6 +71,19 @@ extension Walk {
              timeout: 30)
         shot("80-find-subtitles")
         tap("subtitleSearch.cancel", "Cancel")
+
+        // Text subtitles bring their style into Options.
+        options("English")
+        options("Subtitle style")
+        wait(menuRow("Size, System"), "Size in Subtitle style")
+        shot("83-subtitle-style")
+        menuRow("Size").tap()
+        wait(menuRow("150 %"), "150 % in Size").tap()
+        options("Subtitle style")
+        wait(menuRow("Size, 150 %"), "150 % beside Size")
+        menuRow("Size").tap()
+        wait(menuRow("System"), "System in Size").tap()
+        options("Off")
 
         options("Speed")
         wait(menuRow("1.5×"), "1.5× in Speed").tap()

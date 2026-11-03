@@ -1,6 +1,7 @@
 // The Mac player's action menu: AppKit, so these run on the Mac only.
 #if os(macOS)
 import AppKit
+import PleyData
 import PleyPlayer
 @testable import PleyPlayerViews
 import Testing
@@ -52,6 +53,23 @@ import Testing
         // Without a window to open the search, it isn't offered.
         let without = PlayerMenus.actionItems(now, controller: nil)
         #expect(without.first { $0.title == "Subtitles" }?.submenu?.items.map(\.title) == ["Off"])
+    }
+
+    @Test func theStyleFollowsTheSubtitlesWhileTextShows() throws {
+        var now = state(quality: MenuChoice.original)
+        now.subtitles = [MenuChoice(id: MenuChoice.off, label: "Off"), MenuChoice(id: "2", label: "English",
+                                                                                   selected: true)]
+        #expect(!PlayerMenus.actionItems(now, controller: nil).contains { $0.title == "Subtitle Style" })
+        now.textSubtitles = true
+        now.subtitleStyle = SubtitleOverrides(background: .darkBox)
+        let items = PlayerMenus.actionItems(now, controller: nil)
+        let titles = items.map(\.title)
+        #expect(titles.firstIndex(of: "Subtitle Style") == titles.firstIndex(of: "Subtitles").map { $0 + 1 })
+        let style = try #require(items.first { $0.title == "Subtitle Style" }?.submenu)
+        #expect(style.items.map(\.title) == ["Size", "Background", "Font", "Position"])
+        let background = try #require(style.items.first { $0.title == "Background" })
+        #expect(background.subtitle == "Dark box")
+        #expect(background.submenu?.items.filter { $0.state == .on }.map(\.title) == ["Dark box"])
     }
 
     @Test func withoutAStateTheMenuIsEmpty() {

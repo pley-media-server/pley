@@ -181,7 +181,8 @@ final class ScreensTests: XCTestCase {
     }
 
     /// The player's extras on Direct H264: Find Subtitles… says the server
-    /// has no subtitle search set up, Speed 1.5× is marked once picked, and
+    /// has no subtitle search set up, its SRT brings Subtitle style, whose
+    /// size is marked once picked, Speed 1.5× is marked once picked, and
     /// Picture in Picture shows the page behind with the playback going on.
     func testPlayerExtras() async throws {
         if UIDevice.current.userInterfaceIdiom == .pad {

@@ -21,6 +21,8 @@ public enum PlayerMenus {
         public var chapter: @MainActor (Int) -> Void = { _ in }
         public var speed: @MainActor (Double) -> Void = { _ in }
         public var sleep: @MainActor (SleepChoice) -> Void = { _ in }
+        /// A Subtitle style menu's choice: Size, Background, Font or Position.
+        public var subtitleStyle: @MainActor (SubtitleStyleMenu.Kind, String) -> Void = { _, _ in }
         /// Find Subtitles…: the screen opens the search; `nil` leaves it out.
         public var findSubtitles: (@MainActor () -> Void)?
 
@@ -37,6 +39,7 @@ public enum PlayerMenus {
             chapter = { [weak controller] in controller?.jumpToChapter($0) }
             speed = { [weak controller] in controller?.setSpeed($0) }
             sleep = { [weak controller] in controller?.setSleep($0) }
+            subtitleStyle = { [weak controller] in controller?.setSubtitleStyle($0, $1) }
         }
     }
 
@@ -68,7 +71,8 @@ public enum PlayerMenus {
 
     /// Subtitles: Off and each track, the one shown checked, then the sync
     /// (0.1 s earlier or later, kept open while it is moved, and back to 0)
-    /// when they can be moved, and last Find Subtitles… while it streams.
+    /// when they can be moved, the style while text subtitles show, and
+    /// last Find Subtitles… while it streams.
     public static func subtitles(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         let tracks = state.subtitles.map { choice in
             row(choice) { actions.subtitle(choice.id == MenuChoice.off ? nil : Int(choice.id)) }
@@ -78,6 +82,7 @@ public enum PlayerMenus {
         if state.canSyncSubtitles {
             children.append(subtitleSync(state, actions))
         }
+        if let style = subtitleStyle(state, actions) { children.append(style) }
         if let find = findSubtitles(state, actions) { children.append(find) }
         return UIMenu(title: "Subtitles", image: UIImage(systemName: "captions.bubble"), children: children)
     }
@@ -121,6 +126,20 @@ public enum PlayerMenus {
                ])
     }
 
+    /// Subtitle style: Size, Background, Font and Position, as in Settings,
+    /// each with its choice as its second line; `nil` unless text subtitles
+    /// show, since pictures keep their own look.
+    public static func subtitleStyle(_ state: PlayerState, _ actions: Actions) -> UIMenu? {
+        let menus = state.subtitleStyleMenus
+        guard !menus.isEmpty else { return nil }
+        return UIMenu(title: "Subtitle style", image: UIImage(systemName: "textformat.size"),
+                      children: menus.map { menu in
+                          UIMenu(title: menu.title, subtitle: menu.summary, children: menu.choices.map { choice in
+                              row(choice) { actions.subtitleStyle(menu.kind, choice.id) }
+                          })
+                      })
+    }
+
     /// The chapters, the one playing checked.
     public static func chapters(_ chapters: [ChapterChoice], _ actions: Actions) -> UIMenu {
         UIMenu(title: "Chapters", image: UIImage(systemName: "list.bullet"), children: chapters.map { chapter in
@@ -132,8 +151,8 @@ public enum PlayerMenus {
 
     #if os(iOS)
     /// The iPhone's and iPad's Options menu: Quality, Audio and Subtitles
-    /// (Find Subtitles… last) as sections, then the subtitle sync, Speed,
-    /// Sleep Timer, the chapters and the details.
+    /// (Find Subtitles… last) as sections, then the subtitle sync and
+    /// style, Speed, Sleep Timer, the chapters and the details.
     public static func options(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         var children: [UIMenuElement] = [section(quality(state.qualities, actions))]
         if state.audio.count > 1 { children.append(section(audio(state.audio, actions))) }
@@ -144,6 +163,7 @@ public enum PlayerMenus {
             } + [find].compactMap { $0 }
             children.append(UIMenu(title: "Subtitles", options: .displayInline, children: tracks))
             if state.canSyncSubtitles { children.append(subtitleSync(state, actions)) }
+            if let style = subtitleStyle(state, actions) { children.append(style) }
         }
         children.append(speed(state, actions))
         children.append(sleepTimer(state, actions))
@@ -228,6 +248,7 @@ public struct PlayerOptionsButton: UIViewRepresentable {
         var sleep: [MenuChoice]
         var sleepSummary: String?
         var canFind: Bool
+        var style: [SubtitleStyleMenu]
 
         init(_ state: PlayerState) {
             qualities = state.qualities
@@ -241,6 +262,7 @@ public struct PlayerOptionsButton: UIViewRepresentable {
             sleep = state.sleepChoices
             sleepSummary = state.sleepSummary
             canFind = state.canFindSubtitles
+            style = state.subtitleStyleMenus
         }
     }
 }

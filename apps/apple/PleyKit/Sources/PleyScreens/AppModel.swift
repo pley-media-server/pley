@@ -557,7 +557,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
             ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines,
             subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id,
-            autoplayNext: settings.autoplayNext, local: downloads.local)
+            autoplayNext: settings.autoplayNext, local: downloads.local, subtitleStyle: settings)
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()

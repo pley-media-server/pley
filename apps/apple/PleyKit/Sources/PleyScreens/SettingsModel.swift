@@ -47,6 +47,7 @@ public final class SettingsModel: ObservableObject {
     /// Whether the quality on mobile data is offered: iPhone, and an iPad with cellular.
     public let offersCellular: Bool
     private var settings: AppSettings { app.settings }
+    private var styleWatch: AnyCancellable?
 
     public init(app: AppModel, offersCellular: Bool) {
         self.app = app
@@ -59,6 +60,15 @@ public final class SettingsModel: ObservableObject {
         gridDensity = settings.gridDensity
         privateSignIn = settings.privateSignIn
         alwaysStartAs = app.server.flatMap { settings.alwaysStartAs(origin: $0.origin) }
+        // The player's Subtitle style menu changes it too, as a Mac's Settings window stays open.
+        styleWatch = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.subtitles != self.settings.subtitles else { return }
+                    self.subtitles = self.settings.subtitles
+                }
+            }
     }
 
     // MARK: Playback

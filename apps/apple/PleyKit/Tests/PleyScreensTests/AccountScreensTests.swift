@@ -80,28 +80,29 @@ private func searches(_ server: FixtureServer) -> [String] {
         #expect(groups.first?.tiles.map(\.item.title) == ["Dune: Part Two"])
     }
 
-    @Test func resultsComeInGroupsWithCountsAndChannelsLast() throws {
+    @Test func resultsComeInGroupsWithCountsTitlesFirstThenChannelsThenPeople() throws {
         let results = try PleyJSON.decoder.decode(SearchResults.self, from: Fixtures.data("search/results.json"))
-        #expect(!results.channels.isEmpty)
+        #expect(!results.channels.isEmpty && !results.people.isEmpty)
         let groups = SearchModel.groups(results)
-        #expect(groups.first?.kind == .people)
+        #expect(groups.first?.kind == .movies)
         #expect(groups.map(\.kind) == SearchModel.GroupKind.allCases.filter { groups.map(\.kind).contains($0) })
         #expect(!groups.contains { $0.count == 0 })
-        let people = try #require(groups.first)
-        #expect(people.count == results.people.count)
-        #expect(people.spoken == "People, \(Words.pluralize(results.people.count, "result"))")
         let movies = try #require(groups.first { $0.kind == .movies })
         #expect(movies.tiles.allSatisfy { $0.shape == .poster && $0.item.kind == .movie })
         if let episodes = groups.first(where: { $0.kind == .episodes }) {
             #expect(episodes.tiles.allSatisfy { $0.shape == .landscape })
         }
-        // Live TV's channels last, a dozen at most.
-        let channels = try #require(groups.last)
+        // Live TV's channels after the titles, a dozen at most.
+        let channels = try #require(groups.dropLast().last)
         #expect(channels.kind == .channels && channels.kind.title == "Live TV")
         #expect(channels.channels == Array(results.channels.prefix(SearchModel.channels)))
         var many = results
         many.channels = (1...20).map { LiveChannel(id: $0, name: "Channel \($0)") }
-        #expect(SearchModel.groups(many).last?.count == 12)
+        #expect(SearchModel.groups(many).first { $0.kind == .channels }?.count == 12)
+        // People last.
+        let people = try #require(groups.last)
+        #expect(people.kind == .people && people.count == results.people.count)
+        #expect(people.spoken == "People, \(Words.pluralize(results.people.count, "result"))")
     }
 
     @Test func noResultsAndAFailureSaySoAndRetryAsksAgain() async throws {
@@ -362,6 +363,20 @@ private func searches(_ server: FixtureServer) -> [String] {
         server.addPlayable(FixtureServer.Playable(itemId: 41, fileId: 410, title: "Two Audio", durationMs: 90_000))
         let player = try #require(await app.play(PlayRequest(itemId: 41)))
         #expect(!player.autoplaysNext)
+        await app.closePlayer()
+    }
+
+    @Test func thePlayersSubtitleStyleIsKeptAndShowsInSettings() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        let app = try await signedIn(server, settings: settings)
+        let model = SettingsModel(app: app, offersCellular: false)
+        server.addPlayable(FixtureServer.Playable(itemId: 41, fileId: 410, title: "Two Audio", durationMs: 90_000))
+        let player = try #require(await app.play(PlayRequest(itemId: 41)))
+        player.setSubtitleStyle(.size, SubtitleSize.p125.rawValue)
+        #expect(settings.subtitles.size == .p125)
+        #expect(await eventually { model.subtitles.size == .p125 })
         await app.closePlayer()
     }
 

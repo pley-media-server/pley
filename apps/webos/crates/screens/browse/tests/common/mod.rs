@@ -112,8 +112,12 @@ impl TestApp {
         false
     }
 
-    /// Opens `route` over the page on top.
+    /// Opens `route` over the page on top, the app's clock first brought up to the real one: a
+    /// page waits only so long for what is kept on the TV (a library's view), timed by the app's
+    /// clock, and one left behind by a slow start would leap past that wait at the next `until`
+    /// before the read had a chance.
     pub fn open(&mut self, route: Route) {
+        self.time = self.time.max(pley_base::time::now());
         self.shell.navigate(NavCommand::Push(route), &mut self.state, &mut self.ui);
         self.frame(Vec::new());
     }
