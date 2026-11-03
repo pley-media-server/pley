@@ -6,8 +6,9 @@
 //! for one stream at a time: serving another, or stopping, ends the connections of the one
 //! before.
 //!
-//! What it takes from a player is bounded: a request's head of 8 KiB at most, sent within 5 s,
-//! four players at once. Nothing it logs carries the path, which stands in for the token here.
+//! What it takes from a player is bounded: a request's head of 8 KiB at most, all of it sent
+//! within 5 s, four players at once. Nothing it logs carries the path, which stands in for the
+//! token here.
 //!
 //! What LG says of it: its player takes media over HTTP and HTTPS
 //! (<https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm>) and plays
@@ -21,7 +22,7 @@ use std::net::{Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use pley_core::ApiError;
 use pley_core::http::Streamed;
@@ -29,8 +30,11 @@ use pley_core::task::Cancel;
 
 /// The most of a request's head read: the player's GET is a few lines.
 pub const HEAD_MOST: usize = 8 * 1024;
-/// How long a player has to send its request once connected.
+/// How long a player has to send its whole request once connected.
 pub const HEAD_WAIT: Duration = Duration::from_secs(5);
+/// The longest wait after the system fails to take a connection (out of file handles, say),
+/// doubling from a millisecond: trying again at once would spin.
+const ACCEPT_BACKOFF_MOST: Duration = Duration::from_secs(1);
 /// How long a write to a player that reads nothing may wait: a live stream isn't paused.
 const WRITE_WAIT: Duration = Duration::from_secs(30);
 /// Players served at once; more are closed as they connect.
@@ -161,11 +165,18 @@ impl Drop for Player<'_> {
 }
 
 fn accept(listener: &TcpListener, shared: &Arc<Shared>) {
+    let mut backoff = Duration::ZERO;
     for conn in listener.incoming() {
         if shared.closed.load(Ordering::SeqCst) {
             return;
         }
-        let Ok(client) = conn else { continue };
+        let Ok(client) = conn else {
+            // A failure that lasts (no file handles left) would fail again at once.
+            backoff = (backoff * 2).clamp(Duration::from_millis(1), ACCEPT_BACKOFF_MOST);
+            std::thread::sleep(backoff);
+            continue;
+        };
+        backoff = Duration::ZERO;
         if shared.players.fetch_add(1, Ordering::SeqCst) >= PLAYERS_MOST {
             shared.players.fetch_sub(1, Ordering::SeqCst);
             continue;
@@ -182,9 +193,8 @@ fn accept(listener: &TcpListener, shared: &Arc<Shared>) {
 }
 
 fn handle(mut client: TcpStream, shared: &Shared) {
-    let _ = client.set_read_timeout(Some(HEAD_WAIT));
     let _ = client.set_write_timeout(Some(WRITE_WAIT));
-    let Some((method, target)) = read_head(&mut client) else { return };
+    let Some((method, target)) = read_head(&mut client, HEAD_WAIT) else { return };
     let found = {
         let mut serving = lock(&shared.serving);
         serving.as_mut().filter(|s| same(&s.path, &target)).map(|s| {
@@ -253,12 +263,18 @@ fn handle(mut client: TcpStream, shared: &Shared) {
 }
 
 /// The request line's method and target, from a head read up to its blank line; none when it
-/// isn't HTTP, is longer than [`HEAD_MOST`] or doesn't come within [`HEAD_WAIT`].
-fn read_head(client: &mut TcpStream) -> Option<(String, String)> {
+/// isn't HTTP, is longer than [`HEAD_MOST`] or isn't all in within `wait`: a player sending a
+/// byte now and then holds its place no longer than one that sends nothing.
+fn read_head(client: &mut TcpStream, wait: Duration) -> Option<(String, String)> {
+    let deadline = Instant::now() + wait;
     let mut head = Vec::with_capacity(1024);
     let mut chunk = [0u8; 1024];
     while !head.windows(4).any(|w| w == b"\r\n\r\n") {
         if head.len() >= HEAD_MOST {
+            return None;
+        }
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() || client.set_read_timeout(Some(left)).is_err() {
             return None;
         }
         let want = chunk.len().min(HEAD_MOST - head.len());
@@ -375,6 +391,29 @@ mod tests {
         relay.stop();
         assert!(!relay.serving());
         assert_eq!(get(&second).0, "HTTP/1.1 404 Not Found");
+    }
+
+    #[test]
+    fn a_head_trickled_a_byte_at_a_time_is_let_go_at_its_deadline() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let addr = listener.local_addr().unwrap();
+        let trickle = std::thread::spawn(move || {
+            let mut conn = TcpStream::connect(addr).unwrap();
+            // Never a whole head: a byte every 50 ms for 3 s.
+            for _ in 0..60 {
+                if conn.write_all(b"G").is_err() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        });
+        let (mut client, _) = listener.accept().unwrap();
+        let start = Instant::now();
+        assert_eq!(read_head(&mut client, Duration::from_millis(500)), None);
+        let took = start.elapsed();
+        assert!(took < Duration::from_millis(1500), "held for {took:?}");
+        drop(client);
+        trickle.join().unwrap();
     }
 
     #[test]
