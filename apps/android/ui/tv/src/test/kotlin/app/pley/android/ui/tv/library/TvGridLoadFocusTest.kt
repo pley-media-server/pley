@@ -4,9 +4,12 @@ import android.view.View
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -73,7 +76,7 @@ class TvGridLoadFocusTest {
     private lateinit var view: View
 
     /** The grid, with something focusable above it when [above] (the library's chips). */
-    private fun grid(reduced: Boolean? = null, above: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
+    private fun grid(reduced: Boolean? = null, above: Boolean = false, hero: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
         // A TV composes the cache window's rows off the screen.
         prefetchAsOnATv()
         compose.setContent {
@@ -95,6 +98,20 @@ class TvGridLoadFocusTest {
                             skeleton = rememberSkeleton(animated = false),
                             state = state,
                             focus = focus,
+                            contentTop = if (hero) 58.dp else TileRoom,
+                            heroHeight = if (hero) HeroHeight else 0.dp,
+                            header = if (!hero) {
+                                null
+                            } else {
+                                {
+                                    item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                                        Column(Modifier.height(HeroHeight).tvGridHero()) {
+                                            Spacer(Modifier.height(HeroHeight - 60.dp))
+                                            Box(Modifier.size(148.dp, 48.dp).testTag(HERO).focusable())
+                                        }
+                                    }
+                                }
+                            },
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
                     }
@@ -276,10 +293,56 @@ class TvGridLoadFocusTest {
         }
     }
 
+    @Test
+    fun upIntoTheHeroGlidesTheGridBackToItsStartOver150MsEasedOut() {
+        grid(hero = true)
+        // Down a row and back: the first row's tiles at their line, under the hero scrolled up.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.waitForIdle()
+        assertEquals(0, focus.focused)
+        assertEquals(0, state.firstVisibleItemIndex)
+        val from = state.firstVisibleItemScrollOffset.toFloat()
+        assertTrue("$from", from > 0f)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        // Eased out, as a page of rows goes back to its hero: well over half the way a third of the way through.
+        compose.mainClock.advanceTimeBy(80)
+        val left = state.firstVisibleItemScrollOffset.toFloat()
+        assertTrue("$left of $from left", left > 0f && left < from / 2)
+        compose.mainClock.advanceTimeBy(128)
+        assertEquals(0, state.firstVisibleItemScrollOffset)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNodeWithTag(HERO).assertIsFocused()
+    }
+
+    @Test
+    fun withReducedMotionUpIntoTheHeroGoesBackToTheStartAtOnce() {
+        grid(reduced = true, hero = true)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.waitForIdle()
+        assertTrue("${state.firstVisibleItemScrollOffset}", state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset > 0)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        // The grid moves itself, as Reduce motion asks: in place by the next frame, where Compose's own scrolling springs.
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(0, state.firstVisibleItemScrollOffset)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNodeWithTag(HERO).assertIsFocused()
+    }
+
     private companion object {
         /** The library grid's columns on TV. */
         val Columns = tvGridColumns(TileKind.LibraryGrid)
 
         const val ABOVE = "above"
+        const val HERO = "hero"
+        val HeroHeight = 300.dp
     }
 }

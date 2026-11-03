@@ -110,9 +110,10 @@ heard it for that profile, the start asks "Who's watching?".
   their resting look under one ring that stays still where focus is
   going, until the key comes up. A press moves a row, a page or a grid
   over 150 ms, eased out, and so does Up from the rows of Home or an item
-  page to its top. A tile's focus look comes in over 150 ms,
-  eased out, and goes over 120 ms, eased in, with the native Samsung app's
-  curves; where a held key's slide or glide stops, the still ring goes at
+  page, or from a collection's grid, to its top. A tile's focus look
+  comes in over 150 ms, eased out, and goes over 120 ms, eased in, with
+  the native Samsung app's curves; where a held key's slide or glide
+  stops, the still ring goes at
   once and the tile's look comes in that way. Elsewhere under a held key a
   tile's focus look changes evenly from one tile to the next, and
   backdrops and info blocks wait until focus has rested 400 ms. With

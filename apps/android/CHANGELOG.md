@@ -261,6 +261,9 @@ describes how they are made.
   tile, where it could leave nothing focused.
 - On TVs, Menu pressed while a held key slides a row no longer opens the
   actions of the tile the row lands on when it is let go.
+- On TVs, Up from a collection's titles to its buttons glides the page
+  back to its top over 150 ms, as Home does, and with Reduce motion goes
+  there at once.
 
 ### Removed
 

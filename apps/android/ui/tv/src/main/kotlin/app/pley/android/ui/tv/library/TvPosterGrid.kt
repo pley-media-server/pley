@@ -30,12 +30,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -47,6 +50,10 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -140,6 +147,26 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     private val glide = TvGlide(state, scope)
     private var looks: Job? = null
     private val landing: () -> Unit = { land() }
+
+    /** Whether focus is in the header's hero ([tvGridHero]), which the grid takes back to its start itself. */
+    var inHero = false
+        private set
+
+    /**
+     * Focus came into the hero: the grid glides back to its start, as a page
+     * of rows goes back to its hero. With the hero still showing, how far
+     * that is is known; otherwise Compose scrolls there.
+     */
+    fun heroFocused() {
+        if (state.firstVisibleItemIndex != 0) return
+        inHero = true
+        glide.move(-state.firstVisibleItemScrollOffset.toFloat(), gate.holding, reduced)
+    }
+
+    /** Focus left the hero. */
+    fun heroLeft() {
+        inHero = false
+    }
 
     /** The cell at [position] took focus, laid out at [cell]. */
     fun focused(position: Int, cell: LayoutCoordinates?) {
@@ -278,8 +305,40 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
 @Stable
 private class CellSpec(private val page: BringIntoViewSpec, private val motion: GridMotion) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-        if (motion.inCell >= 0) 0f else page.calculateScrollDistance(offset, size, containerSize)
+        if (motion.inCell >= 0 || motion.inHero) 0f else page.calculateScrollDistance(offset, size, containerSize)
 }
+
+/**
+ * Marks a [TvPosterGrid] header's hero (a collection's top): focus coming
+ * into it takes the grid back to its start over 150 ms, eased out, as a
+ * page of rows goes back to its hero ([tvRowColumnHero]), where Compose's
+ * own scrolling would spring there.
+ */
+internal fun Modifier.tvGridHero(): Modifier = this then TvGridHeroElement
+
+private data object TvGridHeroElement : ModifierNodeElement<TvGridHeroNode>() {
+    override fun create() = TvGridHeroNode()
+
+    override fun update(node: TvGridHeroNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "tvGridHero"
+    }
+}
+
+private class TvGridHeroNode : Modifier.Node(), FocusEventModifierNode, CompositionLocalConsumerModifierNode {
+    private var hadFocus = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.hasFocus == hadFocus) return
+        hadFocus = focusState.hasFocus
+        val motion = currentValueOf(LocalGridMotion) ?: return
+        if (hadFocus) motion.heroFocused() else motion.heroLeft()
+    }
+}
+
+/** The motion of the grid a header is in; none outside a grid. */
+private val LocalGridMotion = staticCompositionLocalOf<GridMotion?> { null }
 
 /**
  * A TV grid of tiles (design spec §4.2): [columns] wells of [kind] from
@@ -348,7 +407,7 @@ internal fun TvPosterGrid(
         heightPx = with(density) { kind.tvHeight.roundToPx() },
         tier = LocalTvTier.current,
     )
-    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTileQuiet provides motion.quiet) {
+    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTileQuiet provides motion.quiet, LocalGridMotion provides motion) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             state = state,

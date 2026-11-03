@@ -71,6 +71,7 @@ import app.pley.android.ui.tv.library.TvTiles
 import app.pley.android.ui.tv.library.rememberTvGridState
 import app.pley.android.ui.tv.library.sentence
 import app.pley.android.ui.tv.library.tvCount
+import app.pley.android.ui.tv.library.tvGridHero
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
@@ -169,7 +170,8 @@ private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: Collec
 @Composable
 private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: String?, memory: FocusMemory) {
     val resources = LocalResources.current
-    Column(Modifier.height(HeroHeight).padding(top = 58.dp).widthIn(max = TextColumn)) {
+    // Focus here takes the grid back to its start, gliding as a page of rows goes back to its hero.
+    Column(Modifier.height(HeroHeight).tvGridHero().padding(top = 58.dp).widthIn(max = TextColumn)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(PleyIcons.Layers, contentDescription = null, size = 18.dp, tint = PleyColors.Muted)
             BasicText(stringResource(R.string.tv_collection_label), style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
