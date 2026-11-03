@@ -84,8 +84,14 @@ data class LivePage(
 /** Where a list opens: at [index] of [category] searched for [query] (the channel last watched). */
 data class Landing(val category: LiveCategory, val query: String, val index: Int?)
 
-/** The guide's programmes by channel, and whether those in view are in. */
-data class GuidePrograms(val byChannel: Map<Long, List<LiveProgram>> = emptyMap(), val loaded: Boolean = false)
+/**
+ * The guide's programmes by channel, and whether those in view are in.
+ * Each is a new merge of the chunks, told apart by identity: the state
+ * flow compares each value with the one before on the main thread, and two
+ * merges, every list made anew, were compared programme by programme each
+ * time a chunk came in. The guides' rows skip what didn't change.
+ */
+class GuidePrograms(val byChannel: Map<Long, List<LiveProgram>> = emptyMap(), val loaded: Boolean = false)
 
 /** Something to tell: a favourite the server refused. */
 sealed interface LiveTvEvent {
