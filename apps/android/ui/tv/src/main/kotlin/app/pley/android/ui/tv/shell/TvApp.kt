@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -47,9 +46,6 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import androidx.tv.material3.DrawerValue
-import androidx.tv.material3.ModalNavigationDrawer
-import androidx.tv.material3.rememberDrawerState
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
 import app.pley.android.common.perf.StartupSignals
@@ -188,22 +184,7 @@ private fun TvShell(
     val select: (PleyKey) -> Unit = { key ->
         if (navigator.root == key && backStack.size == 1) rail.backToContent() else navigator.restart(key)
     }
-    ModalNavigationDrawer(
-        drawerState = rememberDrawerState(DrawerValue.Closed),
-        scrimBrush = SolidColor(PleyColors.Bg.copy(alpha = 0.5f)),
-        drawerContent = {
-            if (rail.shown) {
-                TvRail(
-                    items = items,
-                    profile = profile,
-                    rail = rail,
-                    onSelect = { select(it.key) },
-                    onProfile = { select(PleyKey.Profiles()) },
-                    offline = offline.offline,
-                )
-            }
-        },
-    ) {
+    Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -214,6 +195,8 @@ private fun TvShell(
                 .focusGroup()
                 .drawWithContent {
                     drawContent()
+                    // The open rail dims the page behind it, at once.
+                    if (rail.hasFocus) drawRect(RailDim)
                     val a = curtain.value
                     if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
                 },
@@ -250,8 +233,21 @@ private fun TvShell(
             // Signing in and choosing a profile say for themselves when the server can't be reached.
             if (rail.shown) TvOfflineNotice(offline)
         }
+        if (rail.shown) {
+            TvRail(
+                items = items,
+                profile = profile,
+                rail = rail,
+                onSelect = { select(it.key) },
+                onProfile = { select(PleyKey.Profiles()) },
+                offline = offline.offline,
+            )
+        }
     }
 }
+
+/** The page under the open rail: [bg][PleyColors.Bg] at 50 %. */
+private val RailDim = PleyColors.Bg.copy(alpha = 0.5f)
 
 /**
  * Another activity (the player) had the window: when it comes back, focus
