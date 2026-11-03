@@ -141,8 +141,8 @@ describes how they are made.
   nothing, as in the Android TV and Samsung apps, rather than seeking,
   changing a track or playing the next episode under it.
 - The Play/Pause key no longer makes a seek that waits for OK at once, as
-  in the Android TV and Samsung apps: it only plays or pauses, and the
-  seek lands by itself. OK still makes it at once.
+  in the Samsung app: it only plays or pauses, and the seek lands by
+  itself. OK still makes it at once.
 - On a Live TV channel with sound only, the logo, "Sound only" and what's
   on rise above the bar at the foot while it shows, rather than sitting
   among its words.
