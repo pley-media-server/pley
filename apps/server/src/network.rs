@@ -29,7 +29,7 @@ const FIRST_RETRY: Duration = Duration::from_millis(50);
 /// How long a change waits, at most, for its new listeners to listen.
 const CHANGE_WAIT: Duration = Duration::from_secs(3);
 /// The most addresses of each kind.
-const MAX_ADDRESSES: usize = 32;
+pub(crate) const MAX_ADDRESSES: usize = 32;
 
 /// Where pley listens.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,10 +56,6 @@ pub struct Listen {
     /// guest Wi-Fi), the ones chosen only.
     #[serde(default)]
     pub bonjour_adapters: Vec<String>,
-    /// The web app's name on the local network, `{name}.local`, which Bonjour
-    /// announces: none when empty.
-    #[serde(default)]
-    pub web_host_name: String,
 }
 
 impl Listen {
@@ -71,7 +67,6 @@ impl Listen {
             discovery: config.discovery,
             bonjour: config.bonjour,
             bonjour_adapters: config.bonjour_adapters.clone(),
-            web_host_name: config.web_host_name.clone(),
         }
     }
 
@@ -105,7 +100,6 @@ impl Listen {
         if let Some(name) = self.bonjour_adapters.iter().find(|name| !crate::bonjour::adapter_name_ok(name)) {
             return Err(format!("{name:?} isn't a network adapter's name"));
         }
-        crate::bonjour::check_host_name(&self.web_host_name)?;
         let all: Vec<SocketAddr> = self.web.iter().chain(&self.jellyfin).copied().collect();
         for (i, addr) in all.iter().enumerate() {
             if addr.port() == 0 {
@@ -710,7 +704,6 @@ mod tests {
             discovery,
             bonjour: false,
             bonjour_adapters: Vec::new(),
-            web_host_name: String::new(),
         }
     }
 
@@ -745,26 +738,20 @@ mod tests {
     }
 
     #[test]
-    fn bonjour_takes_adapters_and_a_host_name_it_can_announce() {
-        let ok = |adapters: &[&str], host: &str| {
+    fn bonjour_takes_adapters_it_can_announce_on() {
+        let ok = |adapters: &[&str]| {
             let mut l = listen(&["0.0.0.0:7539"], &[], true);
             l.bonjour = true;
             l.bonjour_adapters = adapters.iter().map(|&a| a.to_owned()).collect();
-            l.web_host_name = host.into();
             l.check()
         };
-        assert!(ok(&[], "pley").is_ok());
-        assert!(ok(&["Ethernet", "Wi-Fi 2", "en0"], "media-room").is_ok());
-        assert!(ok(&[], "").is_ok(), "no name for the web app");
-        assert!(ok(&[""], "pley").is_err(), "an empty name");
-        assert!(ok(&["eth0\n"], "pley").is_err(), "a control character");
-        assert!(ok(&["x".repeat(257).as_str()], "pley").is_err(), "too long");
+        assert!(ok(&[]).is_ok());
+        assert!(ok(&["Ethernet", "Wi-Fi 2", "en0"]).is_ok());
+        assert!(ok(&[""]).is_err(), "an empty name");
+        assert!(ok(&["eth0\n"]).is_err(), "a control character");
+        assert!(ok(&["x".repeat(257).as_str()]).is_err(), "too long");
         let many: Vec<String> = (0..=MAX_ADDRESSES).map(|i| format!("eth{i}")).collect();
-        assert!(ok(&many.iter().map(String::as_str).collect::<Vec<_>>(), "pley").is_err(), "too many");
-        assert!(ok(&[], "pley.local").is_err(), "one label");
-        assert!(ok(&[], "-pley").is_err());
-        assert!(ok(&[], "pley_tv").is_err());
-        assert!(ok(&[], &"a".repeat(64)).is_err());
+        assert!(ok(&many.iter().map(String::as_str).collect::<Vec<_>>()).is_err(), "too many");
     }
 
     #[test]

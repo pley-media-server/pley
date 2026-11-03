@@ -55,7 +55,6 @@ interface Form {
   bonjour: boolean;
   /** The adapters Bonjour announces from: every one when empty. */
   bonjourAdapters: string[];
-  webHostName: string;
 }
 
 /** `192.168.1.10:7539` or `[::1]:7539`: its address and port. */
@@ -82,7 +81,6 @@ function formOf(choice: ListenChoice): Form {
     discovery: choice.discovery,
     bonjour: choice.bonjour,
     bonjourAdapters: choice.bonjour_adapters,
-    webHostName: choice.web_host_name,
   };
 }
 
@@ -100,14 +98,12 @@ function choiceOf(form: Form, network: Network): ListenChoice {
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
     bonjour: network.fixed.bonjour ? network.bonjour : form.bonjour,
     bonjour_adapters: [...form.bonjourAdapters].sort(),
-    web_host_name: form.webHostName.trim().toLowerCase(),
   };
 }
 
 const sameChoice = (a: ListenChoice, b: ListenChoice) =>
   a.discovery === b.discovery &&
   a.bonjour === b.bonjour &&
-  a.web_host_name === b.web_host_name &&
   a.bonjour_adapters.join("\n") === b.bonjour_adapters.join("\n") &&
   a.jellyfin_on_web === b.jellyfin_on_web &&
   a.web.join() === b.web.join() &&
@@ -122,14 +118,9 @@ function problemOf(form: Form): string | null {
     if (form.jellyfinPort === form.port) return "Choose another port for the Jellyfin-compatible API, or Pley's port.";
   }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
-  if (!hostNameOk(form.webHostName.trim())) {
-    return "The web app's name is letters, digits and hyphens (63 at most), not starting or ending with a hyphen.";
-  }
   return null;
 }
 
-/** A name on the local network, `{name}.local`: one DNS label, or empty for none. */
-export const hostNameOk = (name: string) => name === "" || /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name);
 
 /** This page's host as pley's addresses write it, or `null` for a name (a reverse proxy's, say), which says nothing. */
 function pageHost(url: URL): string | null {
@@ -316,7 +307,7 @@ export function NetworkSettings() {
   // (not when only how its listeners are does).
   const [form, setForm] = useState<Form | null>(() => (data ? formOf(data) : null));
   const shown = data
-    ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery, data.bonjour, data.bonjour_adapters, data.web_host_name])
+    ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery, data.bonjour, data.bonjour_adapters])
     : "";
   useOnChange(shown, () => {
     if (data) setForm(formOf(data));
@@ -512,7 +503,7 @@ export function NetworkSettings() {
               ? "Turned off by --no-bonjour, --no-discovery, PLEY_NO_BONJOUR or PLEY_NO_DISCOVERY."
               : form.mode === "local"
                 ? "On networks only: devices can't reach this computer's own address."
-                : "Apple's devices find this server by Bonjour, and browsers open the web app by its name below."
+                : "Apple's devices find this server by Bonjour."
           }
         >
           <Toggle
@@ -523,7 +514,6 @@ export function NetworkSettings() {
           />
         </Row>
         {form.bonjour && form.mode !== "local" ? (
-          <>
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium">Announced on</h4>
               <p className="text-xs text-subtle">
@@ -538,30 +528,6 @@ export function NetworkSettings() {
                 onChange={(bonjourAdapters) => set({ bonjourAdapters })}
               />
             </div>
-            <Row
-              label="Web app's name"
-              htmlFor="network-web-host-name"
-              hint={
-                form.webHostName.trim()
-                  ? `Browsers on these networks open http://${form.webHostName.trim().toLowerCase()}.local:${Number.isNaN(form.port) ? DEFAULT_PORT : form.port}, unless another device has that name.`
-                  : "Empty: the web app isn't announced by a name."
-              }
-            >
-              <div className="flex items-center gap-1.5">
-                <TextInput
-                  id="network-web-host-name"
-                  value={form.webHostName}
-                  maxLength={63}
-                  spellCheck={false}
-                  autoCapitalize="off"
-                  disabled={data.fixed.bonjour}
-                  onChange={(e) => set({ webHostName: e.target.value })}
-                  className="w-44"
-                />
-                <span className="text-sm text-muted">.local</span>
-              </div>
-            </Row>
-          </>
         ) : null}
       </Card>
 

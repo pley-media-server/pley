@@ -23,15 +23,12 @@
 # web port). Servers bound to 127.0.0.1 never answer.
 # discovery = true
 
-# Announce Pley by Bonjour, for Apple's apps and the web app's .local name
-# (like discovery when left out; --no-bonjour, PLEY_NO_BONJOUR).
+# Announce Pley by Bonjour, for Apple's apps (like discovery when left out;
+# --no-bonjour, PLEY_NO_BONJOUR).
 # bonjour = true
 # The network adapters to announce on, by name as Settings -> Network shows
 # them; every one Pley listens on when left out or empty.
 # bonjour_adapters = ["Ethernet"]
-# The web app's name on the local network: http://pley.local:7539. Empty for
-# none.
-# web_host_name = "pley"
 
 # Database, caches and artwork (default: %LOCALAPPDATA%\pley on Windows,
 # ~/Library/Application Support/pley on macOS, ~/.local/share/pley on Linux).

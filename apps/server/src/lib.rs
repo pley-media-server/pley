@@ -33,6 +33,7 @@ pub mod listing;
 pub mod livetv;
 pub mod logging;
 pub mod markers;
+pub mod mdns;
 pub mod metadata;
 pub mod network;
 pub mod oauth;

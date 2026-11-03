@@ -377,9 +377,8 @@ pub async fn put_network(
     // This computer's address first: pley must listen on the first as it
     // starts, and an adapter's may be gone by then (DHCP, a VPN off).
     listen.web.sort_by_key(|addr| !addr.ip().is_loopback());
-    // DNS names have no case; an adapter chosen twice is chosen once, and
-    // by its name as the system gives it.
-    listen.web_host_name = listen.web_host_name.trim().to_ascii_lowercase();
+    // An adapter chosen twice is chosen once, by its name as the system
+    // gives it.
     for name in &mut listen.bonjour_adapters {
         *name = name.trim().to_owned();
     }

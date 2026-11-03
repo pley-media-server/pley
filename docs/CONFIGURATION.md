@@ -44,8 +44,7 @@ Everything else is set in the web app:
   saved in `pley.toml`, unless `--bind`, `--jellyfin-bind`,
   `--no-discovery` or `--no-bonjour` (or their `PLEY_*` variables) set it.
   Bonjour has the networks it announces Pley on (`bonjour_adapters`, every
-  network Pley listens on unless some are chosen) and the web app's name
-  there (`web_host_name`, `pley` for `pley.local`, empty for none).
+  network Pley listens on unless some are chosen).
 - **Settings → Live TV**: IPTV sources, which channels show, and who may
   watch.
 - **Settings → Requests**: Discover and requests, their limits, and Radarr and

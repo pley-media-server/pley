@@ -968,12 +968,10 @@ export interface ListenChoice {
   jellyfin_on_web: boolean;
   /** Whether the pley apps on the networks find the server (UDP). */
   discovery: boolean;
-  /** Whether pley announces itself by Bonjour, for Apple's apps and the web app's `.local` name. */
+  /** Whether pley announces itself by Bonjour, for Apple's apps. */
   bonjour: boolean;
   /** The adapters Bonjour announces from, by name: every one the web app listens on when empty. */
   bonjour_adapters: string[];
-  /** The web app's name on the local network (`pley` for `pley.local`): none when empty. */
-  web_host_name: string;
 }
 
 export type ListenerKind = "web" | "jellyfin" | "discovery";

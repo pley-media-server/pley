@@ -12,7 +12,6 @@ const NETWORK: Network = {
   discovery: true,
   bonjour: true,
   bonjour_adapters: [],
-  web_host_name: "pley",
   fixed: { web: false, jellyfin: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
   adapters: [
@@ -59,7 +58,6 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: [],
-        web_host_name: "pley",
       }),
     );
     expect(await screen.findByText("Pley listens there now")).toBeInTheDocument();
@@ -85,7 +83,6 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: [],
-        web_host_name: "pley",
       }),
     );
 
@@ -107,7 +104,6 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: [],
-        web_host_name: "pley",
       }),
     );
 
@@ -123,12 +119,11 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: [],
-        web_host_name: "pley",
       }),
     );
   });
 
-  it("announces by Bonjour on the networks and by the name chosen", async () => {
+  it("announces by Bonjour on the networks chosen", async () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/network": () => ({ ...NETWORK, web: ["0.0.0.0:7539"] }),
@@ -137,19 +132,10 @@ describe("NetworkSettings", () => {
     renderWithProviders(<NetworkSettings />);
     expect(await screen.findByRole("switch", { name: "Bonjour" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).toBeChecked();
-    expect(screen.getByText(/http:\/\/pley\.local:7539/)).toBeInTheDocument();
 
     // The home network only, not the Wi-Fi.
     await user.click(within(screen.getByRole("group", { name: "Announced on" })).getByRole("checkbox", { name: /^Ethernet/ }));
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).not.toBeChecked();
-    const name = screen.getByRole("textbox", { name: "Web app's name" });
-    await user.clear(name);
-    await user.type(name, "media_room");
-    expect(screen.getByText(/The web app's name is letters, digits and hyphens/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    await user.clear(name);
-    await user.type(name, "Media-Room");
-    expect(screen.getByText(/http:\/\/media-room\.local:7539/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(requests.filter((r) => r.method === "PUT").at(-1)?.body).toEqual({
@@ -159,13 +145,12 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: ["Ethernet"],
-        web_host_name: "media-room",
       }),
     );
 
     // Off: its choices go with it from the page, and stay saved.
     await user.click(screen.getByRole("switch", { name: "Bonjour" }));
-    expect(screen.queryByRole("textbox", { name: "Web app's name" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.filter((r) => r.method === "PUT").at(-1)?.body).toMatchObject({ bonjour: false }));
   });

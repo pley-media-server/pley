@@ -148,11 +148,9 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   8096; `--jellyfin-bind 0.0.0.0:8096` on the command line).
 - **UDP 7539** lets the apps find servers on the local network, and
   **UDP 5353** (mDNS) lets Apple's find them by Bonjour. Allow them, or type
-  the server's address in the app. Bonjour also gives the web app the
-  address `http://pley.local:7539`, unless another device on the network
-  already has that name. **Settings → Network** chooses the networks
-  Bonjour announces Pley on and the web app's name, or turns it off. A container is found only on the host's
-  network (`--network host`, or Unraid's `br0`).
+  the server's address in the app. **Settings → Network** chooses the
+  networks Bonjour announces Pley on, or turns it off. A container is
+  found only on the host's network (`--network host`, or Unraid's `br0`).
 - **From outside your network**, put Pley behind a reverse proxy with TLS
   (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
   with a proxy on the same computer, publish Pley on `127.0.0.1` only.

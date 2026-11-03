@@ -89,34 +89,24 @@ async fn what_pley_cant_listen_on_is_refused() {
 }
 
 #[tokio::test]
-async fn bonjour_is_announced_from_the_adapters_and_on_the_name_chosen() {
+async fn bonjour_is_announced_from_the_adapters_chosen() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let change = json!({
         "web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": false, "bonjour": true,
-        "bonjour_adapters": ["Wi-Fi", "Ethernet ", "Ethernet"], "web_host_name": " Media-Room ",
+        "bonjour_adapters": ["Wi-Fi", "Ethernet ", "Ethernet"],
     });
     let reply = app.put("/api/network", &admin, change).await;
     assert_eq!(reply.status, StatusCode::OK, "{:?}", reply.body);
     assert_eq!(reply.body["bonjour"], json!(true));
     assert_eq!(reply.body["bonjour_adapters"], json!(["Ethernet", "Wi-Fi"]), "each once");
-    assert_eq!(reply.body["web_host_name"], json!("media-room"));
     let saved = std::fs::read_to_string(&app.state.config.config_file).unwrap();
     assert!(saved.contains("bonjour = true\n"), "{saved}");
     assert!(saved.contains("bonjour_adapters = [\"Ethernet\", \"Wi-Fi\"]\n"), "{saved}");
-    assert!(saved.contains("web_host_name = \"media-room\"\n"), "{saved}");
 
-    for (change, why) in [
-        (
-            json!({"web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": true, "web_host_name": "pley.local"}),
-            "two labels",
-        ),
-        (json!({"web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": true, "web_host_name": "my_pley"}), "underscore"),
-        (json!({"web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": true, "bonjour_adapters": [" "]}), "no name"),
-    ] {
-        let reply = app.put("/api/network", &admin, change).await;
-        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{why}: {:?}", reply.body);
-    }
+    let no_name = json!({"web": ["0.0.0.0:7539"], "jellyfin": [], "discovery": true, "bonjour_adapters": [" "]});
+    let reply = app.put("/api/network", &admin, no_name).await;
+    assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{:?}", reply.body);
 }
 
 #[tokio::test]
