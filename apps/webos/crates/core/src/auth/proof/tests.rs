@@ -411,9 +411,7 @@ fn base64url_reads_only_its_one_spelling() {
 
 /// The token answers and proofs of packages/tv/test/fixtures/auth.json,
 /// which the web TV app's and the native Samsung app's tests read too.
-/// `auth.json` here is a copy of its `tokenResponse` and `serverProof`
-/// cases: change both together.
-const SHARED: &str = include_str!("auth.json");
+const SHARED: &str = include_str!("../../../../../../../packages/tv/test/fixtures/auth.json");
 
 #[test]
 fn token_answers_read_as_the_shared_fixture_says() {

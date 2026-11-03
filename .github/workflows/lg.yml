@@ -7,11 +7,15 @@ name: LG TV
 # binary and packs the .ipk that a TV in Developer Mode or the Homebrew
 # Channel installs (LG's store takes no native apps). The Release workflow
 # calls it with `release: true`, which adds that .ipk as the release's file.
+# Its tests read the web TV app's sign-in fixture and the Android app's sample
+# media, so a change to either runs them too.
 on:
   push:
     branches: [master]
     paths:
       - apps/webos/**
+      - packages/tv/test/fixtures/auth.json
+      - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml
       - LICENSE
@@ -23,6 +27,8 @@ on:
   pull_request:
     paths:
       - apps/webos/**
+      - packages/tv/test/fixtures/auth.json
+      - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml
       - LICENSE
