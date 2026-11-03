@@ -31,6 +31,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.onboarding.QrCodeImage
 
@@ -45,6 +46,7 @@ internal fun TvWebDialog(server: String, path: String, onDismiss: () -> Unit) {
     val url = server.trimEnd('/') + path
     val close = remember { FocusRequester() }
     BackHandler(onBack = onDismiss)
+    OverlayShowing()
     LaunchedEffect(Unit) { runCatching { close.requestFocus() } }
     Box(Modifier.fillMaxSize().background(PleyColors.Scrim).testTag(TV_WEB_DIALOG), contentAlignment = Alignment.Center) {
         Surface(

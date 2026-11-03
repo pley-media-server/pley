@@ -34,6 +34,11 @@ data class EngineSource(
      * it starts at the live edge, whatever the start position.
      */
     val live: Boolean = false,
+    /**
+     * Dolby Vision profile 7 plays on the HEVC decoder, as its HDR10 base
+     * layer: a file on a drive, which has no server to make 8.1 of it.
+     */
+    val profile7BaseLayer: Boolean = false,
 )
 
 /**

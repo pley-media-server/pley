@@ -77,12 +77,16 @@ import app.pley.android.screens.item.ItemViewModel
 import app.pley.android.screens.item.extraSubtitle
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.BackdropScrim
+import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvRow
+import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.readOn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
+import app.pley.android.ui.tv.kit.rememberTvRowColumnFocus
+import app.pley.android.ui.tv.kit.tvRowColumnFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.TvNavigator
@@ -193,6 +197,8 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
     val sections = remember { SectionFocus() }
     val backdrop = remember(page.item, page.origin, tier) { ArtworkCandidates.backdrop(page.item, page.origin, tier) }
     val actions = remember(model, navigator) { TvPageActions(model, navigator) }
+    // What requests say of a movie or show: asked once the page has drawn.
+    val request by model.request.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(backdrop, page.context?.showTitle ?: page.title, scrim = BackdropScrim.Item)
@@ -208,6 +214,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                     onTracks = { panel = Panel.Tracks },
                     onMore = { panel = Panel.More },
                     onPrimaryActions = { panel = Panel.Actions(page.item, buttons.play) },
+                    request = request,
                 )
             }
             page.seasons?.let { seasons ->
@@ -377,7 +384,10 @@ private fun LazyListScope.rowsOf(
  * hero at the top; the season tabs at y = 218 and the episodes under them
  * at 272; other rows' tiles at 210, their header at 172; the details'
  * header there too — and, once focus has left the hero, draws nothing
- * above that line, so the rows pass under the info block. Tiles that
+ * above that line, so the rows pass under the info block. It moves itself
+ * to a row's tile, and back to the hero, as a page of rows does
+ * ([TvRowColumn]): over 150 ms, eased out, for a press, evenly under a
+ * held Up or Down; Compose scrolls to the tabs and the details. Tiles that
  * scroll left pass under the rail ([railFade]). Down past the last thing
  * that takes focus reads on through the details ([readOn]); the info block
  * steps aside then and the text has the screen down from the safe area.
@@ -385,14 +395,17 @@ private fun LazyListScope.rowsOf(
 @Composable
 private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, content: LazyListScope.() -> Unit) {
     val density = LocalDensity.current
-    val spec = remember(density, state, focus) { ItemPageSpec(density, state, focus) }
-    CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
+    val column = rememberTvRowColumnFocus(state, with(density) { RowTilesTop.toPx() })
+    column.tileTops[EPISODE_ROW] = with(density) { EpisodeTilesTop.toPx() }
+    val spec = remember(density, state, focus, column) { column.spec(ItemPageSpec(density, state, focus)) }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides column) {
         LazyColumn(
             state = state,
             contentPadding = PaddingValues(bottom = BottomRoom),
             verticalArrangement = Arrangement.spacedBy(PleyTv.RowGap),
             modifier = Modifier
                 .fillMaxSize()
+                .tvRowColumnFocus(column)
                 .readOn(state, line = PleyTv.FocusedRowHeaderY, onReading = { focus.reading = it })
                 .railFade()
                 .drawWithContent {

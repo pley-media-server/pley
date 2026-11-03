@@ -213,7 +213,8 @@ private fun ArtworkImage.cappedAt(cap: Int): ArtworkImage = if (maxWidth in 1..c
  * Loads backdrops before [TvBackdrop] shows them, at the size it asks for
  * (the window's, capped as it caps them), so it finds them in the cache
  * and swaps as soon as focus rests. Only the last ones asked for keep
- * loading.
+ * loading. Not for every tile a held key passes: while [gate] holds, only
+ * the last ones asked for load, once the key comes up.
  */
 @Stable
 class BackdropPrefetcher internal constructor(
@@ -221,9 +222,21 @@ class BackdropPrefetcher internal constructor(
     private val loader: ImageLoader,
     private val tier: Tier,
     private val size: IntSize,
+    private val gate: KeyRepeatGate,
 ) {
     /** What is loading or loaded, by picture and whether only to disk. */
     private var loading: Map<Pair<ArtworkImage, Boolean>, Disposable> = emptyMap()
+
+    /** Asked for while a key was held: loaded as it comes up. */
+    private var heldFocused: ArtworkImage? = null
+    private var heldBeside: List<ArtworkImage?>? = null
+    private val released: () -> Unit = {
+        val focused = heldFocused
+        val beside = heldBeside
+        heldFocused = null
+        heldBeside = null
+        if (beside != null) prefetch(focused, beside)
+    }
 
     /**
      * Loads [focused]'s backdrop and those [beside] it (only to the disk
@@ -232,6 +245,12 @@ class BackdropPrefetcher internal constructor(
      */
     fun prefetch(focused: ArtworkImage?, beside: List<ArtworkImage?>) {
         if (size.width <= 0 || size.height <= 0) return
+        if (gate.holding) {
+            heldFocused = focused
+            heldBeside = beside
+            gate.onRelease(released)
+            return
+        }
         val cap = ArtworkImage.backdropCap(tier)
         val wanted = LinkedHashMap<ArtworkImage, Boolean>()
         focused?.takeUnless { it.isEmpty }?.let { wanted[it.cappedAt(cap)] = false }
@@ -268,7 +287,8 @@ fun rememberBackdropPrefetcher(): BackdropPrefetcher {
     val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(context)
     val tier = LocalTvTier.current
     val size = LocalWindowInfo.current.containerSize
-    return remember(context, loader, tier, size) { BackdropPrefetcher(context, loader, tier, size) }
+    val gate = LocalKeyRepeatGate.current
+    return remember(context, loader, tier, size, gate) { BackdropPrefetcher(context, loader, tier, size, gate) }
 }
 
 /** Subjects sit right of centre and above the middle. */
@@ -310,8 +330,10 @@ private val BottomScrim by lazy { GradientBitmaps.vertical(0f to Color.Transpare
  * A side panel (design spec §2.7; Subtitles, Audio, Quality, Info): 360 dp
  * from the right edge, full height, [surface2][PleyColors.Surface2] with
  * 16 dp left corners, over a [scrim][PleyColors.Scrim]. It slides in over
- * 200 ms (in place with reduced motion), takes focus ([initialFocus] on
- * the row to start from), and Back closes it ([onDismiss]).
+ * 200 ms, eased out as the Samsung app's panels slide in, and out eased
+ * in, the scrim with it (in place with reduced motion); it takes focus
+ * ([initialFocus] on the row to start from), and Back closes it
+ * ([onDismiss]).
  */
 @Composable
 fun TvSidePanel(
@@ -322,15 +344,21 @@ fun TvSidePanel(
 ) {
     val reduced = reducedMotion()
     BackHandler(enabled = visible, onBack = onDismiss)
+    OverlayShowing(visible)
+    val ms = if (reduced) 0 else PleyMotion.OVERLAY_MS
     Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible, enter = fadeIn(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS)), exit = fadeOut(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS))) {
+        AnimatedVisibility(
+            visible,
+            enter = fadeIn(tween(ms, easing = PleyMotion.EaseOut)),
+            exit = fadeOut(tween(ms, easing = PleyMotion.EaseIn)),
+        ) {
             Box(Modifier.fillMaxSize().background(PleyColors.Scrim))
         }
         AnimatedVisibility(
             visible,
             modifier = Modifier.align(Alignment.CenterEnd),
-            enter = slideInHorizontally(PleyMotion.overlay(reduced)) { it },
-            exit = slideOutHorizontally(PleyMotion.overlay(reduced)) { it },
+            enter = slideInHorizontally(tween(ms, easing = PleyMotion.EaseOut)) { it },
+            exit = slideOutHorizontally(tween(ms, easing = PleyMotion.EaseIn)) { it },
         ) {
             Surface(
                 modifier = modifier.width(SidePanelWidth).fillMaxHeight().focusGroup(),

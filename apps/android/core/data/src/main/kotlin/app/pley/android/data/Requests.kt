@@ -123,7 +123,11 @@ data class RequestChange(val requestId: Long?, val kind: TitleKind?, val tmdbId:
 sealed interface RequestNotice {
     val key: Long
 
-    /** Ready to watch where [itemId] is: the whole of it ([complete]), or [seasons] of a show. */
+    /**
+     * Ready to watch where [itemId] is: the whole of it ([complete]), or
+     * [seasons] of a show. [posterUrl] is the title's poster on the server,
+     * which a TV's pop-up shows.
+     */
     data class Ready(
         override val key: Long,
         val requestId: Long,
@@ -132,6 +136,7 @@ sealed interface RequestNotice {
         val itemId: Long?,
         val seasons: List<Int>?,
         val complete: Boolean,
+        val posterUrl: String? = null,
     ) : RequestNotice
 
     data class Approved(override val key: Long, val requestId: Long, val title: String) : RequestNotice
@@ -282,6 +287,11 @@ interface RequestsRepository {
  * from [live], and [store], which keeps per server and profile the newest
  * `updated_at` announced, by catching up or by an event, so no request is
  * announced twice, across starts too.
+ *
+ * On a [tv], only what became ready to watch is told, as the Samsung and
+ * LG apps do: the TV's pop-up takes focus from the page, worth it for a
+ * title to open. The rest (approved, declined; for managers, new requests
+ * and those that couldn't be sent) shows as the number and in the lists.
  */
 internal class ServerRequests(
     private val cache: ResourceCache,
@@ -291,13 +301,14 @@ internal class ServerRequests(
     private val scopes: Flow<Set<String>?>,
     private val store: DataStore<Preferences>,
     private val app: CoroutineScope,
+    private val tv: Boolean = false,
 ) : RequestsRepository {
     /** Servers that answered as older ones do: asked again when the stream connects, or at the next start. */
     private val older: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private val summaryResource = Resource(SnapshotKeys.REQUESTS, RequestSummary.serializer()) { api, _ -> readSummary(api) }
 
-    // Read while something follows it: the phone's shell from the start; on a TV, which has no requests, nothing.
+    // Read while something follows it: the shells, from just after their first frame.
     private val summaries: StateFlow<Loadable<RequestSummary>> =
         cache.observe(summaryResource).stateIn(app, SharingStarted.WhileSubscribed(), Loadable.Loading)
 
@@ -421,9 +432,10 @@ internal class ServerRequests(
     }
 
     /**
-     * GET /api/requests?unseen=1: one notice for what wasn't announced yet.
-     * Then every request listed has been announced (now, by an event, or
-     * before), and the saved mark is raised past them all.
+     * GET /api/requests?unseen=1: one notice for what wasn't announced yet
+     * (on a TV, for what of it is ready to watch). Then every request
+     * listed has been announced (now, by an event, or before), and the
+     * saved mark is raised past them all.
      */
     private suspend fun catchUp(profile: ProfileScope) {
         // Events heard from here on set it again: their requests may come after this list.
@@ -445,7 +457,12 @@ internal class ServerRequests(
         if (owner != profile) return
         val fresh = unseen.requests.filter { it.updatedAt > mark && it.id !in announced }
         if (fresh.isNotEmpty()) {
-            val notice = if (fresh.size == 1) noticeOf(fresh.single()) else RequestNotice.News(keys.incrementAndGet(), fresh.size)
+            val told = if (tv) fresh.filter { it.stage == RequestStage.Available || it.stage == RequestStage.Partial } else fresh
+            val notice = when (told.size) {
+                0 -> null
+                1 -> noticeOf(told.single())
+                else -> RequestNotice.News(keys.incrementAndGet(), told.size)
+            }
             notice?.let(::post)
             announced += fresh.map { it.id }
         }
@@ -460,9 +477,12 @@ internal class ServerRequests(
     }
 
     private fun noticeOf(request: MediaRequest): RequestNotice? = when (request.stage) {
-        RequestStage.Available -> RequestNotice.Ready(keys.incrementAndGet(), request.id, request.title, request.kind, request.itemId, null, complete = true)
+        RequestStage.Available -> RequestNotice.Ready(
+            keys.incrementAndGet(), request.id, request.title, request.kind, request.itemId, null, complete = true, posterUrl = request.posterUrl,
+        )
         RequestStage.Partial -> RequestNotice.Ready(
             keys.incrementAndGet(), request.id, request.title, request.kind, request.itemId, request.availableSeasons, complete = false,
+            posterUrl = request.posterUrl,
         )
         RequestStage.Declined -> RequestNotice.Declined(keys.incrementAndGet(), request.id, request.title, request.reason)
         else -> null
@@ -476,6 +496,7 @@ internal class ServerRequests(
                 post(
                     RequestNotice.Ready(
                         keys.incrementAndGet(), event.requestId, event.title, event.kind, event.itemId, event.seasons, event.complete,
+                        posterUrl = event.posterUrl,
                     ),
                 )
                 changed(RequestChange(event.requestId, event.kind, event.tmdbId))
@@ -484,22 +505,22 @@ internal class ServerRequests(
                 when (event.status) {
                     RequestStatus.Declined -> {
                         told(event.requestId)
-                        post(RequestNotice.Declined(keys.incrementAndGet(), event.requestId, event.title, event.reason))
+                        if (!tv) post(RequestNotice.Declined(keys.incrementAndGet(), event.requestId, event.title, event.reason))
                     }
-                    RequestStatus.Approved -> post(RequestNotice.Approved(keys.incrementAndGet(), event.requestId, event.title))
+                    RequestStatus.Approved -> if (!tv) post(RequestNotice.Approved(keys.incrementAndGet(), event.requestId, event.title))
                     else -> Unit
                 }
                 changed(RequestChange(event.requestId, event.kind, event.tmdbId))
             }
             is ServerEvent.RequestCreated -> {
                 // Managers hear of every request; only those waiting for them are told.
-                if (event.status == RequestStatus.Pending) {
+                if (event.status == RequestStatus.Pending && !tv) {
                     post(RequestNotice.Asked(keys.incrementAndGet(), event.requestId, event.title, event.requestedBy?.name, event.seasons))
                 }
                 changed(RequestChange(event.requestId, event.kind, event.tmdbId))
             }
             is ServerEvent.RequestFailed -> {
-                post(RequestNotice.Failed(keys.incrementAndGet(), event.requestId, event.title, event.kind, event.reason))
+                if (!tv) post(RequestNotice.Failed(keys.incrementAndGet(), event.requestId, event.title, event.kind, event.reason))
                 changed(RequestChange(event.requestId, event.kind, null))
             }
             ServerEvent.RequestsSettingsChanged -> {

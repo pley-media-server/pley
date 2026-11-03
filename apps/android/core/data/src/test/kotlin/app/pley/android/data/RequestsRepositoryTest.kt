@@ -5,6 +5,7 @@ import app.pley.android.model.RequestAccess
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestQuery
 import app.pley.android.model.RequestScope
+import app.pley.android.model.RequestStage
 import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.ServerEvent
@@ -12,6 +13,7 @@ import app.pley.android.model.TitleKind
 import app.pley.android.network.ApiException
 import app.pley.android.network.LiveEvent
 import app.pley.android.testing.Fixtures
+import app.pley.android.testing.data.TestData
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -213,6 +215,7 @@ class RequestsRepositoryTest {
         assertEquals(listOf(1, 2), ready.seasons)
         assertEquals(230L, ready.itemId)
         assertTrue(!ready.complete)
+        assertEquals("/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg", ready.posterUrl)
 
         // Approved as made: nothing; someone else's approved request: not for managers' notices.
         data.events.send(LiveEvent.Event(ServerEvent.RequestCreated(51, "Dune", TitleKind.Movie, 438631, status = RequestStatus.Approved)))
@@ -231,6 +234,61 @@ class RequestsRepositoryTest {
 
         requests.dismiss(notices[0])
         assertEquals(notices.drop(1), requests.notices.value)
+    }
+
+    @Test
+    fun `a TV is told only what is ready to watch`() = runTest {
+        val data = signedIn(folder.newFolder(), profile = TestData.FIRE_TV_T0) { api.answer("requestSummary", summary.copy(unseen = 0)) }
+        val requests = data.graph.requests
+        requests.start()
+        testScheduler.runCurrent()
+        assertTrue(data.events.send(LiveEvent.Reconnected))
+        testScheduler.runCurrent()
+
+        data.events.send(LiveEvent.Event(Fixtures.decode<ServerEvent>("events/request_decided.json")))
+        data.events.send(LiveEvent.Event(ServerEvent.RequestDecided(51, "Dune", TitleKind.Movie, 438631, status = RequestStatus.Approved)))
+        data.events.send(LiveEvent.Event(Fixtures.decode<ServerEvent>("events/request_created.json")))
+        data.events.send(LiveEvent.Event(Fixtures.decode<ServerEvent>("events/request_failed.json")))
+        testScheduler.runCurrent()
+        assertEquals(emptyList<RequestNotice>(), requests.notices.value)
+
+        data.events.send(LiveEvent.Event(Fixtures.decode<ServerEvent>("events/request_available.json")))
+        testScheduler.runCurrent()
+        val ready = requests.notices.value.single() as RequestNotice.Ready
+        assertEquals("Breaking Bad", ready.title)
+        assertEquals("/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg", ready.posterUrl)
+    }
+
+    @Test
+    fun `a TV catches up on what is ready to watch, counting only that`() = runTest {
+        val list: RequestList = Fixtures.decode("requests/list.json")
+        val arrival = list.requests.first { it.id == 45L }
+        val declined = list.requests.first { it.id == 46L }.copy(unseen = true, updatedAt = 1761700000)
+        val partial = list.requests.first { it.id == 42L }
+            .copy(unseen = true, updatedAt = 1761700000, stage = RequestStage.Partial, availableSeasons = listOf(1), itemId = 230)
+        val tv = signedIn(folder.newFolder(), profile = TestData.FIRE_TV_T0) {
+            api.answer("requests", list.copy(requests = listOf(arrival, declined)))
+        }
+        tv.graph.requests.start()
+        testScheduler.runCurrent()
+        // Declined news isn't told on a TV: one title ready, by its words and with its poster.
+        val one = tv.graph.requests.notices.value.single() as RequestNotice.Ready
+        assertEquals("Arrival", one.title)
+        assertEquals(arrival.posterUrl, one.posterUrl)
+
+        val several = signedIn(folder.newFolder(), profile = TestData.FIRE_TV_T0) {
+            api.answer("requests", list.copy(requests = listOf(arrival, declined, partial)))
+        }
+        several.graph.requests.start()
+        testScheduler.runCurrent()
+        assertEquals(2, (several.graph.requests.notices.value.single() as RequestNotice.News).count)
+
+        // Nothing ready: nothing told.
+        val none = signedIn(folder.newFolder(), profile = TestData.FIRE_TV_T0) { api.answer("requests", list.copy(requests = listOf(declined))) }
+        none.graph.requests.start()
+        testScheduler.runCurrent()
+        assertEquals(1, none.api.calls("requests").size)
+        assertEquals(emptyList<RequestNotice>(), none.graph.requests.notices.value)
     }
 
     @Test

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Requests and Discover on TV, the words the phone has no use for
+        (packages/tv's discover.tsx, title.tsx, requests-page.tsx). The rest
+        are the shared ones in core/screens' strings_requests.xml.
+    -->
+
+    <!-- Discover and its grids. -->
+    <string name="tv_requests_loading">Loading Discover</string>
+    <string name="tv_requests_nothing_title">Nothing here right now</string>
+    <string name="tv_requests_nothing_body">TMDB\'s lists have nothing this profile can ask for. Search for a title instead.</string>
+    <string name="tv_requests_list_nothing_body">TMDB\'s list has nothing this profile can ask for.</string>
+    <string name="tv_requests_list_failed">Couldn\'t load it</string>
+    <!-- Beside a grid's lone Show more: the pages read so far had nothing. -->
+    <string name="tv_requests_none_yet">Nothing here yet</string>
+    <string name="tv_requests_search_none_yet">Nothing yet for “%1$s”</string>
+    <string name="tv_requests_none_yet_body">TMDB\'s pages read so far have nothing this profile can ask for.</string>
+    <string name="tv_requests_show_more">Show more</string>
+    <!-- Over the grid of everything TMDB finds: "Results for “dune”". -->
+    <string name="tv_requests_results_for">Results for “%1$s”</string>
+
+    <!-- A title's page. -->
+    <string name="tv_requests_overview">Overview</string>
+    <string name="tv_requests_back">Back</string>
+
+    <!-- Signing in again, so this TV may ask for movies and shows. -->
+    <string name="tv_requests_sign_in_title">Sign in again?</string>
+    <string name="tv_requests_sign_in_body">This TV shows a code to link it to %1$s again.</string>
+
+    <!-- The requests. -->
+    <string name="tv_requests_kind_all">Movies and shows</string>
+    <string name="tv_requests_asked_by">Asked by</string>
+    <string name="tv_requests_find">Find something to ask for</string>
+
+    <!-- The pop-up of what is ready to watch. -->
+    <string name="tv_requests_close">Close</string>
+</resources>

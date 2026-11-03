@@ -23,7 +23,20 @@ data class PlayRequest(
     val subtitleIndex: Long? = null,
     /** A playlist or collection to keep playing from, in order. */
     val queue: PlayQueue? = null,
-)
+    /**
+     * A video on a drive plugged into the TV, by its path: it plays as it
+     * is, with no server ([itemId] is [DRIVE_ITEM]).
+     */
+    val drivePath: String? = null,
+) {
+    companion object {
+        /** The item a video on a drive plays as: no server's item is negative. */
+        const val DRIVE_ITEM = -1L
+
+        /** The video at [path] on a drive, from where it stopped. */
+        fun drive(path: String): PlayRequest = PlayRequest(itemId = DRIVE_ITEM, drivePath = path)
+    }
+}
 
 /** Where the next item comes from when this one ends. */
 sealed interface PlayQueue {

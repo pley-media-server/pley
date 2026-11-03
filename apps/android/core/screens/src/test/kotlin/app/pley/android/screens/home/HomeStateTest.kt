@@ -56,22 +56,37 @@ class HomeStateTest {
     @Test
     fun anErrorShowsOnlyWithoutASnapshot() {
         val error = IOException("nothing answers there")
-        assertEquals(HomeState.Failed(error), homeState(Loadable.Failed(error), libraries, false, ""))
-        val stale = homeState(Loadable.Failed(error, HOME), libraries, false, FakeHomeSources.ORIGIN)
+        val failed = homeState(Loadable.Failed(error), libraries, false, "")
+        assertEquals(HomeState.Failed(error), failed)
+        assertEquals(Loadable.Failed(error, Unit), homeStatus(Loadable.Failed(error), failed))
+        val hubs = Loadable.Failed(error, HOME)
+        val stale = homeState(hubs, libraries, false, FakeHomeSources.ORIGIN)
         stale as HomeState.Ready
-        assertFalse(stale.fresh)
-        assertSame(error, stale.error)
         assertEquals(4, stale.rows.size)
+        // What was saved shows, and is said to be what was saved.
+        assertEquals(Loadable.Failed(error, Unit), homeStatus(hubs, stale))
     }
 
     @Test
     fun theSnapshotIsReadyButNotFresh() {
-        val state = homeState(Loadable.Ready(HOME, fresh = false), Loadable.Loading, false, FakeHomeSources.ORIGIN) as HomeState.Ready
-        assertFalse(state.fresh)
-        assertNull(state.error)
+        val saved = Loadable.Ready(HOME, fresh = false)
+        val state = homeState(saved, Loadable.Loading, false, FakeHomeSources.ORIGIN) as HomeState.Ready
+        assertEquals(Loadable.Ready(Unit, fresh = false), homeStatus(saved, state))
         assertEquals(FakeHomeSources.ORIGIN, state.origin)
-        val fresh = homeState(Loadable.Ready(HOME, fresh = true), libraries, false, FakeHomeSources.ORIGIN) as HomeState.Ready
-        assertTrue(fresh.fresh)
+        val answer = Loadable.Ready(HOME, fresh = true)
+        val fresh = homeState(answer, libraries, false, FakeHomeSources.ORIGIN)
+        assertEquals(Loadable.Ready(Unit, fresh = true), homeStatus(answer, fresh))
+        // The server saying what was saved is the same Home: only the status says it is fresh.
+        assertEquals(homeState(saved, libraries, false, FakeHomeSources.ORIGIN), fresh)
+    }
+
+    @Test
+    fun nothingToShowHasNothingToTell() {
+        assertNull(homeStatus(Loadable.Loading, HomeState.Loading))
+        val none = Loadable.Ready(emptyList<app.pley.android.model.Library>(), fresh = true)
+        val empty = Loadable.Ready(Hubs(), fresh = true)
+        assertNull(homeStatus(empty, homeState(empty, none, false, "")))
+        assertNull(homeStatus(empty, homeState(empty, libraries, false, "")))
     }
 
     @Test

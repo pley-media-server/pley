@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -74,6 +75,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonState
 import app.pley.android.designsystem.tile.SkeletonTile
@@ -97,6 +99,7 @@ import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
+import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.MediaCard
 import app.pley.android.ui.phone.kit.OfflineBanner
 import app.pley.android.ui.phone.kit.PleyIconButton
@@ -493,11 +496,22 @@ private fun ResultRow(group: SearchGroup<ArtworkTileModel>, onOpen: (Long) -> Un
     val metrics = LocalPhoneMetrics.current
     val kind = group.kind.tileKind
     val width = rowCardWidth(kind, metrics.contentWidth - metrics.margin * 2)
+    // Its pictures 1.5 screens ahead of the scroll, at the cards' size, as Home's rows load theirs.
+    val row = rememberHubRowState()
+    val density = LocalDensity.current
+    val images = remember(group.tiles) { group.tiles.map { it.image } }
+    rememberImagePrefetcher(
+        state = row,
+        images = images,
+        widthPx = with(density) { width.roundToPx() },
+        heightPx = with(density) { (width / kind.aspectRatio).roundToPx() },
+        tier = LocalPhoneDeviceTier.current,
+    )
     Column(Modifier.fillMaxWidth()) {
         RowHeader(groupName(group.kind), group.count)
         Spacer(Modifier.height(PleyPhone.HeaderToContent - PRESS_ROOM))
         LazyRow(
-            state = rememberHubRowState(),
+            state = row,
             modifier = Modifier.fillMaxWidth().testTag(SEARCH_ROW + group.kind.name),
             contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, top = PRESS_ROOM, bottom = PRESS_ROOM),
             horizontalArrangement = Arrangement.spacedBy(PleyPhone.TileGap),

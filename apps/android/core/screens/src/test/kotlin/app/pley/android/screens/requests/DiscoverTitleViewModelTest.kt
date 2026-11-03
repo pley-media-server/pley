@@ -92,6 +92,26 @@ class DiscoverTitleViewModelTest {
     }
 
     @Test
+    fun aSeasonsPosterOpensThePickerAtThatSeasonTickedToo() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val page = page(requests, PleyKey.DiscoverTitle(TitleKind.Show, 1396))
+        settle()
+        // The specials aren't ticked first, but chosen they are.
+        page.vm.openPicker(start = 0)
+        assertEquals(setOf(0, 3, 5), page.vm.picker.value!!.picked)
+        assertEquals(0, page.vm.picker.value!!.start)
+        page.vm.closePicker()
+        // Season 4 was declined: it opens there, unticked.
+        page.vm.openPicker(start = 4)
+        assertEquals(setOf(3, 5), page.vm.picker.value!!.picked)
+        assertEquals(4, page.vm.picker.value!!.start)
+        // Read again, the page keeps where the picker was opened.
+        requests.refreshTitle(TitleKind.Show, 1396)
+        settle()
+        assertEquals(4, page.vm.picker.value!!.start)
+    }
+
+    @Test
     fun aLimitSaysWhenMoreCanBeAskedFor() = runTest(dispatcher) {
         val requests = FakeRequests()
         requests.api.fail("ask", ApiException(429, "too_many_requests", "limit", details = ApiErrorBody("too_many_requests", "limit", retryAt = 1762000000)))
@@ -108,7 +128,10 @@ class DiscoverTitleViewModelTest {
         val requests = FakeRequests(summary.copy(signInAgain = RequestScope.Requests))
         val page = page(requests, PleyKey.DiscoverTitle(TitleKind.Movie, 1184918))
         settle()
-        assertEquals(RequestProblem.SignInAgain(RequestScope.Requests), (page.vm.state.value as TitleUiState.Problem).problem)
+        val problem = page.vm.state.value as TitleUiState.Problem
+        assertEquals(RequestProblem.SignInAgain(RequestScope.Requests), problem.problem)
+        // The server to sign in to again.
+        assertEquals("http://pley", problem.origin)
         assertTrue(requests.api.calls("discoverTitle").isEmpty())
     }
 

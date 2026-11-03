@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.livetv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -8,6 +9,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.LazyListState
@@ -58,6 +61,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import app.pley.android.screens.livetv.GroupSections
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -66,6 +75,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -105,6 +115,8 @@ import app.pley.android.screens.livetv.LiveTvEvent
 import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.screens.livetv.LiveView
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvSidePanel
@@ -129,10 +141,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * tiles, a page of channels loaded at a time, opening on the channel last
  * watched. OK on a channel watches it; holding OK (or Menu) opens a side
  * panel with what's on, Watch and the favourite.
+ *
+ * Back goes up a step at a time (Samsung's page, the web's search): the
+ * guide back to now first, a search back to the category before, the
+ * guide or the tiles to the categories, then the rail.
  */
 @Composable
-internal fun TvLiveTvScreen() {
-    val vm: LiveTvViewModel = viewModel(factory = LiveTvViewModel.Factory)
+internal fun TvLiveTvScreen(vm: LiveTvViewModel = viewModel(factory = LiveTvViewModel.Factory)) {
     val page by vm.state.collectAsStateWithLifecycle()
     val pages by vm.channels.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
@@ -162,6 +177,12 @@ internal fun TvLiveTvScreen() {
 
     /** …unless it was sent to them (a category chosen, a search made, the page opened) and they don't have it yet. */
     var toChannels by remember { mutableStateOf(true) }
+
+    /** Focus is in the guide or the tiles. */
+    var inContent by remember { mutableStateOf(false) }
+    // Composed before the guide's own Back (to now), which comes first; the side panel's after.
+    BackHandler(enabled = page.allowed && inContent) { toShownCategory() }
+    BackHandler(enabled = page.allowed && page.searching) { search.clearText() }
     LaunchedEffect(search) { snapshotFlow { search.text.toString() }.collect(vm::setQuery) }
     LaunchedEffect(vm) {
         vm.events.collect { event ->
@@ -227,7 +248,12 @@ internal fun TvLiveTvScreen() {
                 )
                 Spacer(Modifier.width(16.dp))
                 val total = pages.total
-                Box(Modifier.weight(1f).fillMaxHeight().onFocusChanged { if (it.hasFocus) toChannels = false }) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().onFocusChanged {
+                        inContent = it.hasFocus
+                        if (it.hasFocus) toChannels = false
+                    },
+                ) {
                     when {
                         total == null && pages.error != null -> Box(Modifier.focusRequester(content).focusGroup()) {
                             TvMessage(
@@ -347,6 +373,7 @@ private fun Categories(
     onShownIndex: (Int) -> Unit,
 ) {
     val rail = LocalTvRailFocus.current
+    val gate = LocalKeyRepeatGate.current
     CategoryColumn(
         state = state,
         onShownIndex = onShownIndex,
@@ -354,7 +381,7 @@ private fun Categories(
         selected = page.category,
         selectedRequester = selectedRequester,
         onSelect = onSelect,
-        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).testTag(TV_LIVE_CATEGORIES),
+        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).heldUpStays(gate).testTag(TV_LIVE_CATEGORIES),
         found = page.found,
         search = {
             TvSearchField(
@@ -402,42 +429,42 @@ internal fun CategoryColumn(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (search != null) {
-            item(key = "search") { search() }
+            item(key = "search", contentType = "search") { search() }
         }
         if (found.isNotEmpty()) {
-            item(key = "found") { SectionHeading(stringResource(R.string.tv_livetv_found_groups)) }
-            items(found, key = { "found:${it.name}" }) { g ->
+            item(key = "found", contentType = HEADING) { SectionHeading(stringResource(R.string.tv_livetv_found_groups)) }
+            items(found, key = { "found:${it.name}" }, contentType = { CATEGORY }) { g ->
                 CategoryRow(null, LiveTv.groupName(g, g.name), g.count, selected = false, indent = GROUP_INSET) { onSelect(LiveCategory.Group(g.name)) }
             }
         }
-        item(key = "favorites") {
+        item(key = "favorites", contentType = CATEGORY) {
             CategoryRow(PleyIcons.Star, stringResource(R.string.tv_livetv_category_favorites), groups?.favorites, selected == LiveCategory.Favorites) {
                 onSelect(LiveCategory.Favorites)
             }
         }
-        item(key = "recent") {
+        item(key = "recent", contentType = CATEGORY) {
             CategoryRow(PleyIcons.History, stringResource(R.string.tv_livetv_category_recent), groups?.recent, selected == LiveCategory.Recent) {
                 onSelect(LiveCategory.Recent)
             }
         }
-        item(key = "all") {
+        item(key = "all", contentType = CATEGORY) {
             CategoryRow(PleyIcons.LayoutGrid, stringResource(R.string.tv_livetv_category_all), groups?.total, selected == LiveCategory.All) {
                 onSelect(LiveCategory.All)
             }
         }
         val regions = sections.regions
         if (regions.isNotEmpty()) {
-            item(key = "regions") { SectionHeading(stringResource(R.string.tv_livetv_regions)) }
+            item(key = "regions", contentType = HEADING) { SectionHeading(stringResource(R.string.tv_livetv_regions)) }
             for (r in regions) {
                 // One open at a time, as the web's.
                 val expanded = open == r.region
-                item(key = "region:${r.region}") {
+                item(key = "region:${r.region}", contentType = CATEGORY) {
                     CategoryRow(if (expanded) PleyIcons.ChevronDown else PleyIcons.ChevronRight, r.region, r.count, selected = false) {
                         open = if (expanded) null else r.region
                     }
                 }
                 if (expanded) {
-                    items(r.groups, key = { "group:${it.name}" }) { g ->
+                    items(r.groups, key = { "group:${it.name}" }, contentType = { CATEGORY }) { g ->
                         val category = LiveCategory.Group(g.name)
                         CategoryRow(null, g.label, g.count, selected == category, indent = GROUP_INSET + 16.dp) { onSelect(category) }
                     }
@@ -446,10 +473,10 @@ internal fun CategoryColumn(
         }
         val others = sections.others
         if (others.size > 1 || (others.size == 1 && regions.isNotEmpty())) {
-            item(key = "others") {
+            item(key = "others", contentType = HEADING) {
                 SectionHeading(stringResource(if (regions.isEmpty()) R.string.tv_livetv_groups else R.string.tv_livetv_more_groups))
             }
-            items(others, key = { "group:${it.name}" }) { g ->
+            items(others, key = { "group:${it.name}" }, contentType = { CATEGORY }) { g ->
                 val category = LiveCategory.Group(g.name)
                 CategoryRow(null, g.name.ifEmpty { stringResource(R.string.tv_livetv_no_group_name) }, g.count, selected == category, indent = GROUP_INSET) { onSelect(category) }
             }
@@ -486,6 +513,29 @@ private fun shownIndexOf(selected: LiveCategory, sections: GroupSections, open: 
     val at = sections.others.indexOfFirst { it.name == name }
     return if (at >= 0) i + 1 + at else 0
 }
+
+/**
+ * Up from the top of the categories goes to the tabs on a press; a held Up
+ * stops there, as a held Left stops at a row's start (Samsung's page).
+ */
+private fun Modifier.heldUpStays(gate: KeyRepeatGate): Modifier = focusProperties {
+    val inner = onExit
+    onExit = {
+        inner()
+        if (requestedFocusDirection == FocusDirection.Up && gate.holding) cancelFocusChange()
+    }
+}
+
+/** The categories' kinds of row, for the column to reuse their layouts in kind. */
+private const val CATEGORY = "category"
+private const val HEADING = "heading"
+
+/**
+ * A guide row or a tile whose page is still loading: an item type of its
+ * own, so the list keeps the skeletons' layouts for skeletons and the
+ * channels' for channels.
+ */
+internal const val LOADING = "loading"
 
 /** A section's heading in the categories: "REGIONS", "MORE GROUPS". */
 @Composable
@@ -553,6 +603,7 @@ private fun ChannelTiles(
 ) {
     val grid = rememberLazyGridState()
     val memory = rememberFocusMemory()
+    val gate = LocalKeyRepeatGate.current
     val landing by vm.landing.collectAsStateWithLifecycle()
     val skeleton = rememberSkeleton(animated = false)
     val placed = remember { mutableStateOf<Landing?>(null) }
@@ -576,9 +627,15 @@ private fun ChannelTiles(
             .fillMaxSize()
             .focusProperties {
                 onExit = {
-                    if (requestedFocusDirection == FocusDirection.Left) {
-                        cancelFocusChange()
-                        onLeave()
+                    when (requestedFocusDirection) {
+                        // To the category shown on a press of its own: a held Left stops at the first column.
+                        FocusDirection.Left -> {
+                            cancelFocusChange()
+                            if (!gate.holding) onLeave()
+                        }
+                        // A held Up stops at the top row rather than run on to the tabs.
+                        FocusDirection.Up -> if (gate.holding) cancelFocusChange()
+                        else -> Unit
                     }
                 }
             }
@@ -588,7 +645,7 @@ private fun ChannelTiles(
         horizontalArrangement = Arrangement.spacedBy(PleyTv.WideTileGap),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        items(count = pages.total ?: 0, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { "channel" }) { index ->
+        items(count = pages.total ?: 0, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { index -> if (pages[index] == null) LOADING else "channel" }) { index ->
             val channel = pages[index]
             if (channel == null) {
                 Box(Modifier.size(TileKind.Episode.tvWidth, TileKind.Episode.tvHeight + 40.dp).skeleton(skeleton, PleyShape.TileTv))
@@ -610,7 +667,7 @@ private fun ChannelTiles(
 /**
  * A channel's tile: its logo with its number and how far what's on is,
  * captioned with its name and what's on (Live TV's cards, and search's).
- * The long press opens [onDetails], where there are any.
+ * The long press, Menu and Info open [onDetails], where there are any.
  */
 @Composable
 internal fun ChannelTileCard(
@@ -629,7 +686,16 @@ internal fun ChannelTileCard(
         onClick = { onWatch(channel) },
         onLongClick = onDetails?.let { { it(channel) } },
         modifier = modifier,
-        focusModifier = focusModifier,
+        focusModifier = if (onDetails == null) {
+            focusModifier
+        } else {
+            // Info too, as in the guide (Samsung's cards); Fire TV remotes have none: Menu, or OK held.
+            focusModifier.onKeyEvent { event ->
+                if (event.key != Key.Info) return@onKeyEvent false
+                if (event.type == KeyEventType.KeyUp) onDetails(channel)
+                true
+            }
+        },
         caption = { focused ->
             TileCaption(
                 name,
@@ -661,8 +727,11 @@ internal fun ChannelTileCard(
  * channel, the title, episode, day and times with its badges, how far it
  * is, what the guide says, then Watch and the favourite. Without a
  * programme, the channel alone.
+ *
+ * As Samsung's panel, the buttons keep their room at the foot and the
+ * text takes what is left above them: the title two lines at most, what
+ * the guide says the lines that fit, one to six ([PanelButtons]).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProgramPanel(
     channel: LiveChannel,
@@ -680,49 +749,14 @@ private fun ProgramPanel(
             Spacer(Modifier.width(12.dp))
             BasicText(listOfNotNull(channel.number, channel.name).joinToString("  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
         }
-        if (program != null) {
-            ArtworkImage.of(program.image, origin)?.let { image ->
-                Spacer(Modifier.height(14.dp))
-                Artwork(image, program.title, Modifier.fillMaxWidth().height(160.dp).clip(PleyShape.TileTv))
-            }
-            Spacer(Modifier.height(14.dp))
-            BasicText(program.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
-            if (episode.isNotEmpty()) BasicText(episode, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-                BasicText("${dayOf(program.start, now)} · ${spanOf(program, clock)}", style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
-                if (program.airingAt(now)) ProgramBadge(stringResource(R.string.tv_livetv_on_now), live = true)
-                if (program.isLive) ProgramBadge(stringResource(R.string.tv_livetv_badge_live), live = true)
-                if (program.isNew) ProgramBadge(stringResource(R.string.tv_livetv_badge_new), live = false)
-                program.rating?.let {
-                    BasicText(
-                        it,
-                        style = PleyType.Tv.Badge.copy(color = PleyColors.Muted),
-                        modifier = Modifier.border(1.dp, PleyColors.Outline, PleyShape.Badge).padding(horizontal = 5.dp, vertical = 2.dp),
-                    )
-                }
-            }
-            if (program.airingAt(now)) {
-                Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ProgramProgress(program, now, Modifier.weight(1f))
-                    Spacer(Modifier.width(10.dp))
-                    BasicText(timeLeft(program, now), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            BasicText(
-                program.description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.tv_livetv_no_description),
-                style = PleyType.Tv.Body.copy(color = if (program.description.isNullOrBlank()) PleyColors.Subtle else PleyColors.Fg),
-                maxLines = 6,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (program.stop <= now) {
-                BasicText(stringResource(R.string.tv_livetv_ended), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 8.dp))
-            }
+        // Measured after the buttons: they keep their height however long the programme's text. Cut at
+        // its foot: a picture, a long title and badges can leave the description less than a line,
+        // which would otherwise draw over the buttons.
+        Column(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
+            if (program != null) ProgramText(program, origin, now, clock)
         }
-        Spacer(Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap), modifier = Modifier.focusGroup()) {
+        Spacer(Modifier.height(12.dp))
+        PanelButtons {
             TvPillButton(
                 stringResource(if (airing) R.string.tv_livetv_watch_now else R.string.tv_livetv_watch_channel),
                 onClick = onWatch,
@@ -738,6 +772,79 @@ private fun ProgramPanel(
     }
 }
 
+/**
+ * The programme in [ProgramPanel], in the room above its buttons: what the
+ * guide says gets the lines left after the rest (and Ended under it), one
+ * at least, six at most, cut with "…" at the last that fits.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.ProgramText(program: LiveProgram, origin: String, now: Long, clock: (Long) -> String) {
+    ArtworkImage.of(program.image, origin)?.let { image ->
+        Spacer(Modifier.height(14.dp))
+        Artwork(image, program.title, Modifier.fillMaxWidth().height(160.dp).clip(PleyShape.TileTv))
+    }
+    Spacer(Modifier.height(14.dp))
+    BasicText(program.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
+    if (episode.isNotEmpty()) BasicText(episode, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+    Spacer(Modifier.height(8.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+        BasicText("${dayOf(program.start, now)} · ${spanOf(program, clock)}", style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
+        if (program.airingAt(now)) ProgramBadge(stringResource(R.string.tv_livetv_on_now), live = true)
+        if (program.isLive) ProgramBadge(stringResource(R.string.tv_livetv_badge_live), live = true)
+        if (program.isNew) ProgramBadge(stringResource(R.string.tv_livetv_badge_new), live = false)
+        program.rating?.let {
+            BasicText(
+                it,
+                style = PleyType.Tv.Badge.copy(color = PleyColors.Muted),
+                modifier = Modifier.border(1.dp, PleyColors.Outline, PleyShape.Badge).padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
+    }
+    if (program.airingAt(now)) {
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            ProgramProgress(program, now, Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            BasicText(timeLeft(program, now), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    // Weighted, it is measured last, in the height left: a text cut by height ends its last line with "…".
+    BasicText(
+        program.description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.tv_livetv_no_description),
+        style = PleyType.Tv.Body.copy(color = if (program.description.isNullOrBlank()) PleyColors.Subtle else PleyColors.Fg),
+        maxLines = 6,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f, fill = false).testTag(TV_LIVE_PROGRAM_TEXT),
+    )
+    if (program.stop <= now) {
+        BasicText(stringResource(R.string.tv_livetv_ended), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+/**
+ * Watch and the favourite at the panel's foot (Samsung's): side by side
+ * where both fit with room for the favourite's longer label, which changes
+ * as it is pressed ([FAVORITE_ROOM]); one under the other otherwise, as in
+ * the 360 dp panel they mostly are. In a row, the second pill was squeezed
+ * and its label wrapped.
+ */
+@Composable
+private fun PanelButtons(content: @Composable () -> Unit) {
+    Layout(content, Modifier.fillMaxWidth().focusGroup()) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val (watch, favorite) = measurables.map { it.measure(loose) }
+        val gap = PleyTv.ButtonGap.roundToPx()
+        val side = watch.width + gap + maxOf(favorite.width, FAVORITE_ROOM.roundToPx()) <= constraints.maxWidth
+        val height = if (side) maxOf(watch.height, favorite.height) else watch.height + gap + favorite.height
+        layout(constraints.maxWidth, constraints.constrainHeight(height)) {
+            watch.place(0, 0)
+            if (side) favorite.place(watch.width + gap, 0) else favorite.place(0, watch.height + gap)
+        }
+    }
+}
+
 /** Three 184 dp tiles, 18 apart, beside the categories. */
 private const val COLUMNS = 3
 
@@ -748,6 +855,9 @@ private val CATEGORY_INSET = 12.dp
 /** A group's name starts where the categories' names do, after their icons. */
 private val GROUP_INSET = CATEGORY_INSET + 26.dp
 
+/** The room kept beside Watch for the favourite, whichever its label (Samsung's 210). */
+private val FAVORITE_ROOM = 210.dp
+
 private const val NOTICE_MS = 4_000L
 
 internal const val TV_LIVE_TV = "pley.tv.live"
@@ -755,3 +865,4 @@ internal const val TV_LIVE_CATEGORIES = "pley.tv.live.categories"
 internal const val TV_LIVE_SEARCH = "pley.tv.live.search"
 internal const val TV_LIVE_TILES = "pley.tv.live.tiles"
 internal const val TV_LIVE_PROGRAM = "pley.tv.live.program"
+internal const val TV_LIVE_PROGRAM_TEXT = "pley.tv.live.program.text"

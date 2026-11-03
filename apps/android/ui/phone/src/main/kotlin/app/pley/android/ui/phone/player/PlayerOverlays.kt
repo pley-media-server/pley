@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -156,8 +157,9 @@ internal fun rememberSpinning(state: PlayerScreenState): Boolean {
  */
 @Composable
 internal fun BoxScope.SkipButton(state: PlayerScreenState) {
+    PlayerProbe.composed?.invoke("skip")
     val label = state.skipLabel
-    val shown = label != null && state.upNext == null && state.scrubMs == null && !state.locked && state.sheet == null
+    val shown = label != null && state.upNext == null && !state.scrubbing && !state.locked && state.sheet == null
     val lift by animateDpAsState(if (state.controlsVisible) AboveControls else 0.dp, PleyMotion.overlay(reducedMotion()), label = "skip")
     var last by remember { mutableStateOf(label) }
     if (label != null) last = label
@@ -330,11 +332,14 @@ internal fun BoxScope.SeekRunBadge(state: PlayerScreenState) {
 /** The volume or brightness while a drag sets it: an icon over a 4 dp bar, on the side dragged. */
 @Composable
 internal fun BoxScope.LevelIndicator(state: PlayerScreenState) {
-    val drag = state.levelDrag ?: return
-    val label = stringResource(if (drag.volume) R.string.player_volume else R.string.player_brightness)
+    PlayerProbe.composed?.invoke("level")
+    // Which level shows is read here; how far, only while drawing, so a drag moves the bar without recomposing.
+    val shown by remember(state) { derivedStateOf { state.levelDrag?.volume } }
+    val volume = shown ?: return
+    val label = stringResource(if (volume) R.string.player_volume else R.string.player_brightness)
     Column(
         Modifier
-            .align(if (drag.volume) Alignment.CenterEnd else Alignment.CenterStart)
+            .align(if (volume) Alignment.CenterEnd else Alignment.CenterStart)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 40.dp)
             .clip(PleyShape.Pill)
@@ -343,7 +348,7 @@ internal fun BoxScope.LevelIndicator(state: PlayerScreenState) {
             .semantics { contentDescription = label },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(if (drag.volume) PleyIcons.Volume2 else PleyIcons.Sun, contentDescription = null, size = 20.dp)
+        Icon(if (volume) PleyIcons.Volume2 else PleyIcons.Sun, contentDescription = null, size = 20.dp)
         Box(
             Modifier
                 .padding(top = 12.dp)

@@ -2,8 +2,10 @@ package app.pley.android.common
 
 /**
  * Tags on what tests and benchmark journeys look for on screen (Compose
- * testTag, exposed as resource ids to UI Automator). Shared by both
- * interfaces, so one journey drives the phone and the TV.
+ * testTag, exposed as resource ids to UI Automator: both interfaces' roots
+ * set testTagsAsResourceId, and so do the players', which have windows of
+ * their own). Shared by both interfaces, so one journey drives the phone
+ * and the TV.
  */
 object TestTags {
     const val PHONE_ROOT = "pley.phone.root"

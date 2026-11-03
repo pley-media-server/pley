@@ -46,6 +46,7 @@ import app.pley.android.screens.music.ArtistViewModel
 import app.pley.android.screens.music.MusicEvent
 import app.pley.android.screens.music.MusicPageState
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvPillButton
@@ -69,6 +70,7 @@ internal fun TvArtistScreen(artistId: Long) {
     val model: ArtistViewModel = viewModel(factory = ArtistViewModel.factory(artistId))
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     var problem by remember { mutableStateOf<String?>(null) }
     val nothing = stringResource(R.string.tv_music_nothing_to_play)
     LaunchedEffect(model) {
@@ -103,7 +105,7 @@ internal fun TvArtistScreen(artistId: Long) {
                 onPlay = { model.play(shuffle = false) },
                 onShuffle = { model.play(shuffle = true) },
                 onAlbum = { navigator.open(PleyKey.Album(it)) },
-                onActions = { navigator.open(PleyKey.ItemActions(it)) },
+                onActions = { actions.open(it, continueWatching = false) },
                 onNowPlaying = { navigator.open(PleyKey.NowPlaying) },
             )
         }

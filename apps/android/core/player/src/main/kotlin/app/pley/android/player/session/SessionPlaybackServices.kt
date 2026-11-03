@@ -8,7 +8,10 @@ import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
 import app.pley.android.data.DataGraph
 import app.pley.android.data.LocalMedia
+import app.pley.android.data.drive.Drives
+import app.pley.android.network.HttpPleyApi
 import app.pley.android.network.NetworkGraph
+import app.pley.android.network.OfflineException
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlaybackServices
@@ -21,6 +24,7 @@ import app.pley.android.player.subtitles.OkHttpSubtitleFetcher
 import app.pley.android.player.subtitles.PreferencesSubtitleOffsets
 import app.pley.android.player.trickplay.OkHttpSheetSource
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -34,12 +38,16 @@ import kotlinx.coroutines.flow.first
  * [PlaybackServices] with [SessionPlaybackController]s: [prepare] starts the
  * playback at once (the server's answer, the details and the decoders get
  * ready while the player screen opens). One video plays at a time: preparing
- * another closes the one before, whose session ends. Main thread only.
+ * another closes the one before, whose session ends. A video on a drive
+ * ([PlayRequest.drivePath]) plays in an environment of its own, with no
+ * server, signed in or not. Main thread only.
  */
 class SessionPlaybackServices(
     /** The environment of the server signed in to now; throws when there is none. */
     private val environment: () -> PlaybackEnvironment,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    /** The environment of the video on a drive at a path. */
+    private val drive: (path: String) -> PlaybackEnvironment = { throw IOException("No drives here") },
 ) : PlaybackServices {
     private val controllers = LinkedHashMap<String, PlaybackController>()
     private var counter = 0
@@ -50,7 +58,7 @@ class SessionPlaybackServices(
         controllers.values.toList().forEach { it.close() }
         val key = "play-${++counter}-${request.itemId}"
         val env = try {
-            environment()
+            request.drivePath?.let(drive) ?: environment()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -70,7 +78,8 @@ class SessionPlaybackServices(
          * The services of the app: the server and profile signed in to now
          * ([DataGraph.session]), the engines of [engines], the capability
          * probe of [caps], reports from the app's own scope, and the
-         * downloads of [local] (made when a playback first asks).
+         * downloads of [local] (made when a playback first asks), and
+         * videos on the drives of [drives].
          */
         fun create(
             context: Context,
@@ -80,6 +89,7 @@ class SessionPlaybackServices(
             profile: DeviceProfile,
             engines: PlayerEngine.Factory,
             local: () -> LocalMedia = { LocalMedia.None },
+            drives: () -> Drives = { Drives.None },
         ): SessionPlaybackServices {
             val app = context.applicationContext
             val reporter = SessionReporter(CoroutineScope(SupervisorJob() + Dispatchers.Default))
@@ -89,7 +99,27 @@ class SessionPlaybackServices(
             val offsets = PreferencesSubtitleOffsets(app)
             val ceilings = PreferencesCeilings(app)
             val pictureDir = File(app.cacheDir, PICTURE_SUBTITLES_DIR)
-            return SessionPlaybackServices({
+            // No server is behind a video on a drive: a call to one fails as if it were out of reach.
+            val noServer = HttpPleyApi(NO_SERVER, { throw OfflineException(IOException("A video on a drive has no server")) })
+            val drive: (String) -> PlaybackEnvironment = { path ->
+                val video = DriveVideo(path, drives())
+                PlaybackEnvironment(
+                    api = noServer,
+                    capabilities = caps.capabilities,
+                    policy = caps.policy,
+                    details = ItemDetails { video.detail(it) },
+                    engines = { Media3EngineLink(engines.create(app, profile, music = false)) },
+                    texts = texts,
+                    clientId = clientId,
+                    reporter = reporter,
+                    subtitles = DriveSubtitleFetcher(),
+                    lowMemory = profile.tier == Tier.T0,
+                    offsets = offsets,
+                    local = video,
+                    drive = true,
+                )
+            }
+            return SessionPlaybackServices(environment = {
                 val session = data.session.session.value ?: error("Sign in to play")
                 val api = network.api(session.issuer, session.me?.id)
                 PlaybackEnvironment(
@@ -123,11 +153,14 @@ class SessionPlaybackServices(
                     tracksChosen = { itemId, c -> data.watchState.streamsChosen(itemId, c.fileId, c.audioIndex, c.subtitleIndex) },
                     warmer = OkHttpStreamWarmer(network::media),
                 )
-            })
+            }, drive = drive)
         }
 
         /** Picture subtitles read beside a stream, in the app's cache while they show. */
         private const val PICTURE_SUBTITLES_DIR = "picture-subtitles"
+
+        /** The address a video on a drive's API answers for: none it reaches. */
+        private const val NO_SERVER = "http://localhost"
     }
 }
 

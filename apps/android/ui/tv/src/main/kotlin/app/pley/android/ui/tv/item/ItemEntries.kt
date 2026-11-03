@@ -11,9 +11,9 @@ import app.pley.android.ui.tv.shell.Placeholder
 
 /**
  * The TV's item and person pages and an item's actions (Item, Person,
- * ItemActions), added to the app's back stack. Item pages show actions in
- * a side panel; ItemActions is their screen for the pages that open them
- * by key.
+ * ItemActions), added to the app's back stack. Tiles show their actions
+ * in a side panel over the page; ItemActions is their screen for what
+ * opens them by key.
  */
 fun EntryProviderScope<NavKey>.itemEntries() {
     entry<PleyKey.Item> { key -> WithGraph(key) { TvItemScreen(key.itemId) } }

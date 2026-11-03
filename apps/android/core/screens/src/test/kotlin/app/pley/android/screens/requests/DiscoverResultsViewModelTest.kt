@@ -1,6 +1,7 @@
 package app.pley.android.screens.requests
 
 import app.pley.android.data.RequestChange
+import app.pley.android.model.DiscoverList
 import app.pley.android.model.DiscoverPage
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestScope
@@ -45,6 +46,18 @@ class DiscoverResultsViewModelTest {
         return vm
     }
 
+    /** A TV's grid of [source]: [screenful] titles wanted first, five pages at most at a time. */
+    private fun TestScope.tvGrid(requests: FakeRequests, source: DiscoverSource, screenful: Int = 28): DiscoverResultsViewModel {
+        val deps = RequestsDeps(requests, MutableStateFlow("http://pley"), MutableStateFlow(true), dispatcher)
+        val vm = DiscoverResultsViewModel(source, deps, screenful, DiscoverResultsViewModel.TV_FILL)
+        backgroundScope.launch { vm.state.collect {} }
+        return vm
+    }
+
+    /** Page [page] of 30: six titles of its own from page [from] on, none before. */
+    private fun page(page: Int, from: Int = 1) =
+        DiscoverPage(page, 30, if (page < from) emptyList() else trending.results.map { it.copy(tmdbId = it.tmdbId * 100 + page) })
+
     private fun DiscoverResultsViewModel.ready() = state.value.search as DiscoverSearch.Ready
 
     @Test
@@ -65,6 +78,87 @@ class DiscoverResultsViewModelTest {
         advanceUntilIdle()
         assertEquals(5, asked.last().second)
         assertEquals(30, vm.ready().pages.titles.size)
+    }
+
+    @Test
+    fun aDiscoverRowIsShownWholeFromItsList() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val asked = mutableListOf<Pair<DiscoverList, Int>>()
+        requests.pages = { list, n ->
+            asked += list to n
+            page(n)
+        }
+        val vm = tvGrid(requests, DiscoverSource.Row(DiscoverList.Movies), screenful = 12)
+        advanceUntilIdle()
+        assertEquals(listOf(DiscoverList.Movies to 1, DiscoverList.Movies to 2), asked)
+        assertEquals(DiscoverList.Movies, vm.state.value.list)
+        assertEquals("", vm.state.value.query)
+        assertEquals(12, vm.ready().pages.titles.size)
+        assertTrue(requests.api.calls("discoverSearch").isEmpty())
+
+        // Focus near the grid's end wants three rows more: read until they're in.
+        vm.want(24)
+        advanceUntilIdle()
+        assertEquals((1..4).map { DiscoverList.Movies to it }, asked)
+        assertEquals(24, vm.ready().pages.titles.size)
+    }
+
+    @Test
+    fun aTvGridStopsShortAfterFivePagesAndShowMoreReadsFiveMore() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val asked = mutableListOf<Int>()
+        // An age limit left nothing on the first seven pages.
+        requests.searches = { _, n, _ ->
+            asked += n
+            page(n, from = 8)
+        }
+        val vm = tvGrid(requests, DiscoverSource.Words("robot"))
+        advanceUntilIdle()
+        assertEquals((1..5).toList(), asked)
+        val stopped = vm.ready().pages
+        assertTrue(stopped.stopped && stopped.settled && stopped.titles.isEmpty())
+
+        // Focus can't come near an end without titles; and while stopped, wanting more reads nothing.
+        vm.want(40)
+        advanceUntilIdle()
+        assertEquals((1..5).toList(), asked)
+
+        vm.showMore()
+        advanceUntilIdle()
+        assertEquals((1..10).toList(), asked)
+        assertEquals(18, vm.ready().pages.titles.size)
+        assertTrue(vm.ready().pages.stopped)
+
+        vm.showMore()
+        advanceUntilIdle()
+        // Up to the 40 wanted, then it waits for focus to come near the end again.
+        assertEquals((1..14).toList(), asked)
+        assertEquals(42, vm.ready().pages.titles.size)
+        assertTrue(!vm.ready().pages.stopped)
+    }
+
+    @Test
+    fun aPageThatFailsAfterTheFirstKeepsTheTitlesAndShowMoreGoesOnFromIt() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        var down = false
+        val asked = mutableListOf<Int>()
+        requests.searches = { _, n, _ ->
+            asked += n
+            if (down) throw ApiException(503, "tmdb_down", "TMDB isn't answering") else page(n)
+        }
+        val vm = tvGrid(requests, DiscoverSource.Words("robot"), screenful = 12)
+        advanceUntilIdle()
+        down = true
+        vm.want(24)
+        advanceUntilIdle()
+        assertEquals(RequestProblem.TmdbDown, vm.ready().pages.problem)
+        assertEquals(12, vm.ready().pages.titles.size)
+        down = false
+        vm.showMore()
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2, 3, 3, 4), asked)
+        assertEquals(null, vm.ready().pages.problem)
+        assertEquals(24, vm.ready().pages.titles.size)
     }
 
     @Test

@@ -79,6 +79,12 @@ asks "Who's watching?". What differs:
 
 - Next and Previous move between a film's chapters (Next plays a playlist's
   or collection's next title).
+- In the player, OK with the controls hidden pauses, Down shows them on
+  Subtitles, Left and Right seek 400 ms after the last press (a held key
+  when let go), and the chapters are a side panel. The Android TV app and
+  the native Samsung app show the controls on OK (Down: on Play/Pause),
+  wait for OK before a seek, as YouTube's TV app does, and show the
+  chapters as a row of cards over the scrubber.
 - LG's Magic Remote works as a mouse: tiles come into view when pointed
   at, the wheel moves a row a notch, and a click on the player's bar seeks
   there.
@@ -657,7 +663,9 @@ rail stays closed; Left opens it.
 A video plays in Pley's player as it is, with no server
 (`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and
 the subtitles' look are the same; what only a server does isn't there:
-converting, seek previews, the next episode.
+converting, seek previews, the next episode. Android TV and Fire TV have
+the same page ([ANDROID.md](ANDROID.md#videos-on-a-usb-drive)), with
+Media3 reading the file, and without M2TS.
 
 - **Tracks and chapters** come from the file's head: an MKV's Info, Tracks
   and Chapters (`MatroskaHead`), an MP4's movie box (`Mp4Head`). The audio

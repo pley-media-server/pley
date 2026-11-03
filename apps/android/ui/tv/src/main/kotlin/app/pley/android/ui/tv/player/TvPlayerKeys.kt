@@ -6,15 +6,25 @@ import android.view.KeyEvent
 internal sealed interface PlayerKey {
     data object PlayPause : PlayerKey
 
+    /**
+     * OK on the scrubber, or with the controls hidden: a seek on its way, or
+     * just made, goes there; else it plays or pauses on the scrubber, and
+     * the controls show when hidden.
+     */
+    data object Ok : PlayerKey
+
     data object Play : PlayerKey
 
     data object Pause : PlayerKey
 
-    /** Seek by [deltaMs] at once (fast forward and rewind: ±30 s). */
+    /** Seek by [deltaMs] without waiting for OK (fast forward and rewind: ±30 s). */
     data class Jump(val deltaMs: Long) : PlayerKey
 
     /** Left or Right with the controls hidden or the scrubber focused: [direction] −1 or +1, held or not. */
     data class Step(val direction: Int) : PlayerKey
+
+    /** The chapters, as cards over the scrubber. */
+    data object Chapters : PlayerKey
 
     /** Show the controls, focus on [focus]. */
     data class Show(val focus: ControlFocus) : PlayerKey
@@ -39,14 +49,15 @@ internal enum class ControlFocus {
     Default,
     Scrubber,
 
-    /** The track buttons (Subtitles). */
-    Tracks,
+    /** Play/Pause, in the middle of the control row. */
+    PlayPause,
 }
 
 /**
  * The player's keys (TV addendum §5.2, design spec §2.7): which key does
  * what, apart from what focus does with it. Media keys work whatever
- * shows; the rest depends on whether the controls are hidden.
+ * shows but an error, which leaves only Stop; the rest depends on whether
+ * the controls are hidden.
  */
 internal object TvPlayerKeys {
     /** Fast forward and rewind. */
@@ -69,23 +80,31 @@ internal object TvPlayerKeys {
 
     /**
      * A key with the controls hidden; `null` leaves it to focus (a showing
-     * Skip button takes Centre) or to the system (Back, volume).
+     * Skip button takes Centre) or to the system (Back, volume). Centre
+     * shows the controls rather than pausing, as Up does: OK on the
+     * scrubber plays and pauses.
      */
     fun hidden(keyCode: Int, skipShowing: Boolean): PlayerKey? = when (keyCode) {
-        in SELECT -> if (skipShowing) null else PlayerKey.PlayPause
+        in SELECT -> if (skipShowing) null else PlayerKey.Ok
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
         KeyEvent.KEYCODE_DPAD_UP -> PlayerKey.Show(ControlFocus.Scrubber)
-        KeyEvent.KEYCODE_DPAD_DOWN -> PlayerKey.Show(ControlFocus.Tracks)
+        KeyEvent.KEYCODE_DPAD_DOWN -> PlayerKey.Show(ControlFocus.PlayPause)
         in OTHER_SHOW -> PlayerKey.Show(ControlFocus.Default)
         else -> null
     }
 
-    /** A key while the scrubber has focus: Left and Right seek, Centre plays or pauses. */
-    fun scrubber(keyCode: Int): PlayerKey? = when (keyCode) {
-        in SELECT -> PlayerKey.PlayPause
+    /**
+     * A key while the scrubber has focus: Left and Right seek, Centre goes
+     * to a seek waiting or plays or pauses. Up opens the chapters' cards while a seek waits for OK
+     * ([chaptersOnUp]), as YouTube's TV app does; otherwise Up and Down are
+     * left to focus (Skip above while it shows, the control row below).
+     */
+    fun scrubber(keyCode: Int, chaptersOnUp: Boolean = false): PlayerKey? = when (keyCode) {
+        in SELECT -> PlayerKey.Ok
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
+        KeyEvent.KEYCODE_DPAD_UP -> if (chaptersOnUp) PlayerKey.Chapters else null
         else -> null
     }
 

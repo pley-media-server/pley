@@ -80,6 +80,7 @@ import app.pley.android.screens.home.LibraryEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
+import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.menuKey
@@ -164,6 +165,8 @@ private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, o
         moving = null
     }
     BackHandler(enabled = inSort && moving == null) { sorting = false }
+    // While sorting, the keys are the cards': requests' news waits.
+    OverlayShowing(inSort)
 
     Column(Modifier.fillMaxSize().padding(top = TvSafeArea.Vertical)) {
         Row(

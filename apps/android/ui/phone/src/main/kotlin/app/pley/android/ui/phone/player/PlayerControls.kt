@@ -159,7 +159,7 @@ private fun BackButton(onClick: () -> Unit) {
 internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("centre")
     // The seek preview takes the middle while the seek bar is dragged.
-    val scrubbing = state.scrubMs != null
+    val scrubbing = state.scrubbing
     val playing = state.playing
     Box(modifier.size(PlayTarget).graphicsLayer { alpha = if (scrubbing || spinning) 0f else 1f }) {
         GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), PlayTarget, onClick = state::togglePlay) {

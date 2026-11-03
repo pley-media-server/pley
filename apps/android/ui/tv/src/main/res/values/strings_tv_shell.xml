@@ -8,6 +8,7 @@
     <string name="tv_shell_rail_playlists">Playlists</string>
     <string name="tv_shell_rail_collections">Collections</string>
     <string name="tv_shell_rail_now_playing">Now Playing</string>
+    <string name="tv_shell_rail_drive">USB drive</string>
     <string name="tv_shell_rail_settings">Settings</string>
     <string name="tv_shell_switch_profile">Switch profile</string>
 

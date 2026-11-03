@@ -343,7 +343,7 @@ public class MusicPlayerTests
     [Fact]
     public void A_video_takes_the_tvs_player_and_play_starts_a_new_session_where_it_was()
     {
-        // Android only pauses the music for a video; a Samsung TV has one media pipeline, so its session goes (packages/tv's yieldToVideo).
+        // As Android's MusicPlayback.pauseForVideo and packages/tv's yieldToVideo: the session goes, the place stays.
         var p = Player();
         p.Play(Album);
         Engine.SetPlaying(true);
