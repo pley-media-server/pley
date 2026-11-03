@@ -234,7 +234,13 @@ public actor APIClient {
               var components = URLComponents(string: origin + path),
               Addresses.origin(origin + path) == Addresses.origin(origin)
         else { return nil }
-        if !query.isEmpty { components.queryItems = (components.queryItems ?? []) + query }
+        if !query.isEmpty {
+            components.queryItems = (components.queryItems ?? []) + query
+            // URLComponents leaves "+" as it is, which the server reads as a
+            // space: "C++", a channel named "+1".
+            components.percentEncodedQuery = components.percentEncodedQuery?
+                .replacingOccurrences(of: "+", with: "%2B")
+        }
         return components.url
     }
 

@@ -257,8 +257,14 @@ public actor Tokens: TokenProvider {
     /// Saves `fresh` before anything uses it: a refresh token works once.
     private func keep(_ fresh: StoredTokens, replacing refresh: String) async throws {
         // A sign-in that replaced these meanwhile wins; this grant was ended
-        // with it, and what it just gave is ended too.
-        if let now = try await store.load(issuer: issuer), now.refreshToken != refresh {
+        // with it, and what it just gave is ended too. So is it when the
+        // sign-in ended meanwhile (signed out, or a token leaked): saving it
+        // would sign in again.
+        guard let now = try await store.load(issuer: issuer) else {
+            await Revocation.revoke(fresh, endpoints: endpoints)
+            throw PleyError.signedOut
+        }
+        if now.refreshToken != refresh {
             await Revocation.revoke(fresh, endpoints: endpoints)
             return
         }

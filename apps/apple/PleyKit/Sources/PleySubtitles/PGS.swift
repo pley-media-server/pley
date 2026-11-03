@@ -12,6 +12,9 @@ public final class PGSDecoder: PictureDecoder {
     static let pcs = 0x16
     static let wds = 0x17
     static let end = 0x80
+    /// A picture's side at most, in pixels: subtitles are drawn for 4K
+    /// screens at most, and a file's sizes are outside input.
+    static let maxSide = 4096
 
     struct Composition: Equatable {
         struct Placed: Equatable {
@@ -235,7 +238,8 @@ public final class PGSDecoder: PictureDecoder {
         }
         var bitmaps: [SubtitleBitmap] = []
         for placed in pcs.objects {
-            guard let object = objects[placed.id], object.width > 0, object.height > 0 else { continue }
+            guard let object = objects[placed.id], (1...Self.maxSide).contains(object.width),
+                  (1...Self.maxSide).contains(object.height) else { continue }
             let indexes = Self.decodeRle(object.rle, width: object.width, height: object.height)
             let crop = placed.crop ?? (0, 0, object.width, object.height)
             let w = max(0, min(crop.w, object.width - crop.x))

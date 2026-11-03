@@ -13,6 +13,9 @@ public final class DVBDecoder: PictureDecoder {
     static let clut = 0x12
     static let object = 0x13
     static let display = 0x14
+    /// A region's side at most, in pixels: subtitles are drawn for 4K
+    /// screens at most, and a file's sizes are outside input.
+    static let maxSide = 4096
 
     public struct Segment: Equatable, Sendable {
         public var type: Int
@@ -352,6 +355,7 @@ public final class DVBDecoder: PictureDecoder {
                     let fill = b.at(1) & 0x08 != 0
                     let w = b.u16(2)
                     let h = b.u16(4)
+                    guard w <= Self.maxSide, h <= Self.maxSide else { break }
                     let depths = [0, 2, 4, 8]
                     let code = (b.at(6) >> 2) & 7
                     let depth = code < depths.count ? depths[code] : 4

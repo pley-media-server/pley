@@ -35,6 +35,8 @@ public struct DeviceCode: Sendable, Hashable, CustomStringConvertible, CustomDeb
 public final class DeviceSignIn: Sendable {
     public static let defaultInterval = 5
     public static let slowDown = 5
+    /// The longest wait between polls, whatever the server asks.
+    public static let maxInterval = 60
     static let backoff = [2, 4, 8, 16, 30]
 
     public let metadata: ServerMetadata
@@ -81,7 +83,8 @@ public final class DeviceSignIn: Sendable {
         }
         guard Self.onIssuer(verification, metadata.issuer), complete.map({ Self.onIssuer($0, metadata.issuer) }) ?? true
         else { throw AuthError.linkElsewhere }
-        let interval = (answer.interval ?? 0) > 0 ? answer.interval! : Self.defaultInterval
+        let given = answer.interval ?? 0
+        let interval = given > 0 ? min(given, Self.maxInterval) : Self.defaultInterval
         return DeviceCode(userCode: userCode, verificationURL: verification, completeURL: complete,
                           expiresAt: clock().addingTimeInterval(TimeInterval(answer.expiresIn)),
                           deviceCode: answer.deviceCode, interval: interval, scope: scope)
@@ -112,7 +115,7 @@ public final class DeviceSignIn: Sendable {
                 switch body.error {
                 case "authorization_pending": continue
                 case "slow_down":
-                    interval += Self.slowDown
+                    interval = min(interval + Self.slowDown, Self.maxInterval)
                     continue
                 case "access_denied": throw AuthError.refused
                 case "expired_token": throw AuthError.expired

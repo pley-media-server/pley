@@ -806,6 +806,11 @@ public final class PlaybackController: ObservableObject {
         try Task.checkCancellation()
         reset(at: atMs)
         let (started, url) = try await startSession(at: atMs, keepPrevious: false)
+        // Cancelled while its address was checked: another start loads in its place.
+        guard !closed, !Task.isCancelled else {
+            started.discard()
+            throw CancellationError()
+        }
         load(started, url: url, at: atMs)
     }
 

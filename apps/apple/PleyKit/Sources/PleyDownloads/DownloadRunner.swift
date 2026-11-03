@@ -429,6 +429,11 @@ final class DownloadRunner {
             return done(key)
         }
         guard f.privateRoute else {
+            // The piece's token went to an address that isn't private: the
+            // sign-in it came from ends, as for any other request.
+            if let scope, r.belongs(to: (scope.origin, scope.profileId)), let tokens = scope.tokens {
+                await tokens.connectionLeaked()
+            }
             return failed(key, Failure(DownloadPlanner.notPrivate))
         }
         if f.failure != nil {

@@ -54,27 +54,44 @@ public actor ServerRepository {
     }
 
     public func saved() async -> [SavedServer] {
+        (try? await load()) ?? []
+    }
+
+    /// The list as kept. A Keychain error is thrown, not taken for an
+    /// empty list, and isn't kept: the next call reads again.
+    private func load() async throws -> [SavedServer] {
         if let cache { return cache }
-        let loaded = (try? await store.load()) ?? []
+        let loaded = try await store.load()
         cache = loaded
         return loaded
+    }
+
+    /// Saves `servers`, kept at once so that a change made while it is
+    /// saved starts from it; put back as it was when the save fails.
+    private func save(_ servers: [SavedServer], replacing before: [SavedServer]) async throws {
+        cache = servers
+        do {
+            try await store.save(servers)
+        } catch {
+            if cache == servers { cache = before }
+            throw error
+        }
     }
 
     /// Keeps `server`, replacing one with the same address or id; the
     /// least recently used go past 50.
     public func remember(_ server: SavedServer) async throws {
-        var servers = Servers.withServer(await saved(), server)
+        let before = try await load()
+        var servers = Servers.withServer(before, server)
         if servers.count > Self.maxServers {
             servers = Array(servers.sorted { $0.lastUsed > $1.lastUsed }.prefix(Self.maxServers))
         }
-        try await store.save(servers)
-        cache = servers
+        try await save(servers, replacing: before)
     }
 
     public func forget(origin: String) async throws {
-        let servers = await saved().filter { $0.origin != origin }
-        try await store.save(servers)
-        cache = servers
+        let before = try await load()
+        try await save(before.filter { $0.origin != origin }, replacing: before)
     }
 
     /// The server to open by itself at start: the one opened last.
