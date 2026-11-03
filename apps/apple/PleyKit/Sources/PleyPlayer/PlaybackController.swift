@@ -293,6 +293,9 @@ public final class PlaybackController: ObservableObject {
     /// The track drawn, and the loop that draws it.
     private var cueTrack: (any CueTrack)?
     private var cueTask: Task<Void, Never>?
+    /// Picture subtitles' decoder, off the main actor, and the decodes under way by sample.
+    private var renderer: PictureRenderer?
+    private var decodes: [Int: Task<Void, Never>] = [:]
     /// The picture subtitles downloaded by this playback, deleted at its end.
     private var pictureFiles: Set<URL> = []
     private let pictureToken = UUID().uuidString
@@ -1568,11 +1571,18 @@ public final class PlaybackController: ObservableObject {
                 do {
                     let (track, complete) = try await SubtitleFetch.pictures(client, path: path, file: file)
                     guard let self, !Task.isCancelled else { return }
-                    guard let pictures = PictureSubtitles.of(track, id: "\(fileId)-\(index)") else {
-                        return self.subtitlesFailed(nil)
+                    if let renderer = self.renderer, let pictures = self.cueTrack as? PictureCueTrack {
+                        // Read further: the renderer has the new samples before they are asked for.
+                        await renderer.grow(track)
+                        guard !Task.isCancelled else { return }
+                        pictures.grow(track)
+                        self.updateCues()
+                    } else {
+                        guard let renderer = PictureRenderer(track) else { return self.subtitlesFailed(nil) }
+                        self.renderer = renderer
+                        self.draw(PictureCueTrack(track, id: "\(fileId)-\(index)"))
                     }
                     shown = true
-                    self.draw(pictures)
                     if complete { return }
                 } catch {
                     guard let self, !Task.isCancelled else { return }
@@ -1634,6 +1644,9 @@ public final class PlaybackController: ObservableObject {
         cueTask?.cancel()
         cueTask = nil
         cueTrack = nil
+        for decode in decodes.values { decode.cancel() }
+        decodes = [:]
+        renderer = nil
         if state.cues != .none { state.cues = .none }
     }
 
@@ -1648,8 +1661,28 @@ public final class PlaybackController: ObservableObject {
         let at = SubtitleSync.trackTime(engine.positionMs(), offsetMs: subtitleOffset)
         let shown = cueTrack.shown(at: at)
         if state.cues != shown { state.cues = shown }
+        decodePictures()
         guard wantPlay, let next = cueTrack.nextChangeAfter(at) else { return Self.cueIdleMs }
         return min(max(next - at, Self.cueMinMs), Self.cueMaxMs)
+    }
+
+    /// Has the renderer decode the pictures the track wants next, away from
+    /// the main actor; each one in looks at the track again.
+    private func decodePictures() {
+        guard let pictures = cueTrack as? PictureCueTrack, let renderer else { return }
+        let track = ObjectIdentifier(pictures)
+        for index in pictures.wanted {
+            pictures.asking(index)
+            decodes[index] = Task { [weak self] in
+                let picture = await renderer.decode(index)
+                guard let self, !Task.isCancelled, let now = self.cueTrack as? PictureCueTrack,
+                      ObjectIdentifier(now) == track
+                else { return }
+                self.decodes[index] = nil
+                now.decoded(index, picture)
+                self.updateCues()
+            }
+        }
     }
 
     private func deletePictureFiles() {

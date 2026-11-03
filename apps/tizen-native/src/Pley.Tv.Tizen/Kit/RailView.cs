@@ -22,7 +22,8 @@ sealed record RailProfile(string Name, Color? Color = null)
 /// 96 % with a soft edge, and the page behind it is dimmed.
 ///
 /// It moves as tv-material's drawer does: the panel and the entries widen, the labels fade in as
-/// they slide in from the left and fade out where they are, and the dim comes and goes at once.
+/// they slide in from the left and fade out where they are, and the dim comes and goes at once. The
+/// panel fades over the last 15 % of its way, into the page's dark under the closed entries.
 /// Over 200 ms, as the design spec gives the drawer (PleyMotion.OverlayMs); with Reduce motion, it
 /// opens and closes in place.
 /// </summary>
@@ -36,6 +37,14 @@ sealed class RailView : View
     const float Shadow = 64;
     /// <summary>How far a label slides in from: a little, not tv-material's whole width, since an entry doesn't clip it and it would cross the icon.</summary>
     const float LabelSlide = 24;
+    /// <summary>
+    /// The last of the panel's way, as a part of it (30 dp), over which it fades into the closed
+    /// rail's dark, as on Android TV: on the cubic ease out, the first 5 % of the time opening and
+    /// the last 53 % closing.
+    /// </summary>
+    const float Fade = 0.15f;
+    static readonly int FadeInMs = (int)MathF.Round(PleyMotion.OverlayMs * (1 - MathF.Cbrt(1 - Fade)));
+    static readonly int FadeOutFromMs = (int)MathF.Round(PleyMotion.OverlayMs * (1 - MathF.Cbrt(Fade)));
 
     readonly FocusTree tree;
     readonly View panel;
@@ -254,6 +263,7 @@ sealed class RailView : View
         if (reduced())
         {
             panel.SizeWidth = Ui.Dp(PleyTv.RailExpanded);
+            panel.Opacity = 1;
             edge.PositionX = Ui.Dp(PleyTv.RailExpanded);
             edge.Opacity = 1;
             Panel(on);
@@ -267,12 +277,16 @@ sealed class RailView : View
         {
             // From the closed rail's width: the panel grows out of it, its edge riding on its right.
             panel.SizeWidth = Ui.Dp(PleyTv.RailCollapsed);
+            panel.Opacity = 0;
             edge.PositionX = Ui.Dp(PleyTv.RailCollapsed);
             edge.Opacity = 0;
             Panel(true);
         }
         var width = Ui.Dp(on ? PleyTv.RailExpanded : PleyTv.RailCollapsed);
         a.AnimateTo(panel, "SizeWidth", width);
+        // Closing, from where the panel has the last of its way to go, on the same curve: its strength follows its width.
+        if (on) a.AnimateTo(panel, "Opacity", 1f, 0, FadeInMs, new AlphaFunction(AlphaFunction.BuiltinFunctions.Linear));
+        else a.AnimateTo(panel, "Opacity", 0f, FadeOutFromMs, PleyMotion.OverlayMs, new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut));
         a.AnimateTo(edge, "PositionX", width);
         a.AnimateTo(edge, "Opacity", on ? 1f : 0f);
         avatar.Open(on, a);

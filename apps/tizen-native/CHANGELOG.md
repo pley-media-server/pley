@@ -294,6 +294,8 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- The rail's grey panel fades into the dark under its entries over the
+  last of its slide closed, where it went at once at the end.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both, and a picture the disc crops shows cropped.
 - On an item page in the native app, Details moves as on Android TV: a

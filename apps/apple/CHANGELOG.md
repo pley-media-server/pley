@@ -55,9 +55,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
   video in your caption style, with a sync control, and text subtitles'
   style in the player's menu too; picture subtitles never force a
-  conversion. Find Subtitles… in the player searches online
-  through your server and adds the subtitles you choose, which show at
-  once.
+  conversion, and a heavy one never holds up the screen or the remote.
+  Find Subtitles… in the player searches online through your server and
+  adds the subtitles you choose, which show at once.
 - Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
   watching in its last 30 seconds.
 - Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
