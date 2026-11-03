@@ -294,11 +294,14 @@ object FrameRate {
     }
 
     /**
-     * The box: white on translucent black in the top right corner, inside a
-     * TV's safe area or a phone's bars. Its width is fixed at its longest
-     * text's, so a new reading redraws it without laying the window out
-     * again. It takes no focus, touch or reader's attention. Its words are
-     * units, as the log's are, so they aren't translated.
+     * The box: white on translucent black where pages put nothing. On a TV,
+     * at the top right in the band above the safe area's top edge, which
+     * the pages leave empty (their tabs and buttons start below it); on a
+     * phone, at the top centre under the status bar, between the bar's
+     * title and its buttons. Its width is fixed at its longest text's, so a
+     * new reading redraws it without laying the window out again. It takes
+     * no focus, touch or reader's attention. Its words are units, as the
+     * log's are, so they aren't translated.
      */
     @SuppressLint("SetTextI18n")
     private fun boxFor(activity: Activity): TextView {
@@ -307,11 +310,13 @@ object FrameRate {
         return TextView(activity).apply {
             tag = BOX_TAG
             typeface = Typeface.MONOSPACE
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (tv) 14f else 12f)
+            // Short enough to fit above a TV's safe area, and above a phone's top bar's title.
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (tv) 12f else 11f)
             setTextColor(Color.WHITE)
             maxLines = 1
+            gravity = Gravity.CENTER
             val padH = (8 * dp).toInt()
-            val padV = (4 * dp).toInt()
+            val padV = ((if (tv) 3 else 2) * dp).toInt()
             setPadding(padH, padV, padH, padV)
             background = GradientDrawable().apply {
                 setColor(BACKGROUND)
@@ -322,17 +327,17 @@ object FrameRate {
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             val width = ceil(paint.measureText(WIDEST)).toInt() + 2 * padH
-            layoutParams = FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).apply {
-                // A TV's safe area (TvSafeArea); a phone's status bar until its insets say.
-                topMargin = ((if (tv) 27 else 32) * dp).toInt()
-                marginEnd = ((if (tv) 48 else 8) * dp).toInt()
+            val corner = Gravity.TOP or if (tv) Gravity.END else Gravity.CENTER_HORIZONTAL
+            layoutParams = FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT, corner).apply {
+                // A TV's band above its safe area (TvSafeArea: 27 dp down, 48 in); a phone's status bar until its insets say.
+                topMargin = ((if (tv) 3 else 24) * dp).toInt()
+                marginEnd = if (tv) (48 * dp).toInt() else 0
             }
             if (!tv) {
                 ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
                     val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
                     (view.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                        params.topMargin = bars.top + (8 * dp).toInt()
-                        params.marginEnd = bars.right + (8 * dp).toInt()
+                        params.topMargin = bars.top
                         view.layoutParams = params
                     }
                     insets

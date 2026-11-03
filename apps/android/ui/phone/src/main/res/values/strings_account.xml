@@ -122,7 +122,7 @@
     <string name="diagnostics_probe_again">Check again</string>
     <string name="diagnostics_report">What Pley tells the server</string>
     <string name="diagnostics_show_frame_rate">Show frame rate</string>
-    <string name="diagnostics_show_frame_rate_hint">In a corner while something moves: frames a second, the longest frame, and late frames</string>
+    <string name="diagnostics_show_frame_rate_hint">At the top while something moves: frames a second, the longest frame, and late frames</string>
     <string name="diagnostics_copy">Copy</string>
     <string name="diagnostics_copied">Copied</string>
 </resources>

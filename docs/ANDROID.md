@@ -638,15 +638,21 @@ missed=2 screen=Home`: frames drawn a second, the longest frame in
 milliseconds from its vsync to its drawing done, and how many missed
 their deadline (the deadline Android 12 and later give, else the
 display's refresh). The screen is the route shown in the TV's or phone's
-shell, else the activity (`TvPlayerActivity`). A box in the window's top
-corner shows the same, green with none late, amber with a few, red with a
-frame in four or more; dialogs and popups are windows of their own and
+shell, else the activity (`TvPlayerActivity`). A box shows the same, on
+a TV at the top right above the safe area, on a phone at the top centre
+under the status bar: green with none late, amber with a few, red with a
+frame in four or more. Dialogs and popups are windows of their own and
 aren't counted. At rest nothing is drawn, so nothing is told. Off, none
 of it runs.
 
-On an emulator, frame times (`dumpsys gfxinfo` while a key is held, as
-with `adb shell input keyevent --duration 3000 KEYCODE_DPAD_RIGHT`) say
-little about drawing: the emulator's GPU takes about the same time a frame
+A key held for a measure has to repeat as a remote's does: the TV app
+takes a key that sends no repeats for half a second past the system's
+first as up, so `adb shell input keyevent --duration`, which sends none,
+moves focus for about a second, whatever the duration. The benchmarks'
+journeys hold keys with the system's repeats (`Steps.hold`).
+
+On an emulator, frame times (the benchmarks', the counter's or
+`dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes about the same time a frame
 whatever is drawn, so its late frames are the GPU's, not the main
 thread's. A change that draws less shows in HWUI's overdraw view
 (`adb shell setprop debug.hwui.overdraw show`, then restart the app)
