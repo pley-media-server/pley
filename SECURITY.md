@@ -345,7 +345,8 @@ other apps (`pley_ct_…`), never with a session's
   one moment 1,024 display sets back and eight 4K screens' work. A
   moment's pictures are at most a 4K screen's pixels, 4096 pixels a side,
   2 of them for PGS and 32 for DVB. The frames kept decoded hold 128 MiB a
-  track at most, and the web app's pictures ready to draw as much again.
+  track at most, and the web app's pictures ready to draw as much again,
+  as do the native Samsung app's pictures leaving the screen.
 
 ### Transcoder
 

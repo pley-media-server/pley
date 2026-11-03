@@ -15,20 +15,28 @@ namespace Pley.Tv.Tizen.Screens;
 /// textures go a second later, once the renderer is done with them: freed at once, as a track
 /// being read out came again every few seconds (its frames new objects, the same pictures), the
 /// app closed natively. The same picture again is kept as it is. Unlike text, pictures stay
-/// where they are while the controls show, under them.
+/// where they are while the controls show, under them. The pictures leaving hold
+/// <see cref="LeavingMostBytes"/> at most: frames changing every tick, as a crafted file's may,
+/// would pile them up, so past that the next pictures wait for the sweep.
 /// </summary>
 sealed class PictureSubtitleView : View
 {
-    readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels)> shown = new List<(ImageView, ImageUrl, PixelData)>();
+    readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels, long Bytes)> shown = new List<(ImageView, ImageUrl, PixelData, long)>();
     /// <summary>
     /// Pictures off the screen, every view's, kept until the renderer is surely done with their
     /// textures: past the view itself, which may go with the player before then.
     /// </summary>
-    static readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels, long At)> Leaving = new List<(ImageView, ImageUrl, PixelData, long)>();
+    static readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels, long Bytes, long At)> Leaving = new List<(ImageView, ImageUrl, PixelData, long, long)>();
+    static long leavingBytes;
+    const long LeavingMostBytes = 128L << 20;
+    /// <summary>Views whose next pictures wait for <see cref="Leaving"/> to make room.</summary>
+    static readonly List<PictureSubtitleView> Waiting = new List<PictureSubtitleView>();
     /// <summary>Lets go of what left over a second ago; held here, as a timer nothing holds is collected while it runs.</summary>
     static Timer? sweep;
     const uint LetGoMs = 1000;
     PictureFrame? frame;
+    /// <summary>The frame showing now, while its pictures wait for room.</summary>
+    PictureFrame? held;
 
     public PictureSubtitleView()
     {
@@ -43,11 +51,19 @@ sealed class PictureSubtitleView : View
         if (Same(frame, next))
         {
             frame = next;
+            if (held != null) held = next;
             return;
         }
         frame = next;
+        held = null;
         Clear();
         if (next == null || next.PlaneWidth <= 0 || next.PlaneHeight <= 0) return;
+        if (leavingBytes + Bytes(next) > LeavingMostBytes)
+        {
+            held = next;
+            if (!Waiting.Contains(this)) Waiting.Add(this);
+            return;
+        }
         var sx = SizeWidth / next.PlaneWidth;
         var sy = SizeHeight / next.PlaneHeight;
         foreach (var b in next.Bitmaps)
@@ -63,18 +79,29 @@ sealed class PictureSubtitleView : View
                 Size = new Size((float)Math.Round(b.Width * sx), (float)Math.Round(b.Height * sy)),
             };
             Add(image);
-            shown.Add((image, url, pixels));
+            shown.Add((image, url, pixels, b.Rgba.Length));
         }
+    }
+
+    /// <summary>The frame held for room, now that the sweep let some pictures go: shown, or held again.</summary>
+    void ShowHeld()
+    {
+        var next = held;
+        if (Disposed || next == null) return;
+        held = null;
+        frame = null;
+        Show(next);
     }
 
     /// <summary>The pictures leave the screen now; their textures in a second (<see cref="sweep"/>).</summary>
     void Clear()
     {
         var now = Environment.TickCount64;
-        foreach (var (image, url, pixels) in shown)
+        foreach (var (image, url, pixels, bytes) in shown)
         {
             Remove(image);
-            Leaving.Add((image, url, pixels, now));
+            Leaving.Add((image, url, pixels, bytes, now));
+            leavingBytes += bytes;
         }
         shown.Clear();
         if (Leaving.Count == 0) return;
@@ -84,7 +111,10 @@ sealed class PictureSubtitleView : View
             sweep.Tick += (s, e) =>
             {
                 Sweep();
-                return Leaving.Count > 0;
+                var waiting = Waiting.ToArray();
+                Waiting.Clear();
+                foreach (var view in waiting) view.ShowHeld();
+                return Leaving.Count > 0 || Waiting.Count > 0;
             };
         }
         if (!sweep.IsRunning()) sweep.Start();
@@ -95,13 +125,21 @@ sealed class PictureSubtitleView : View
         var now = Environment.TickCount64;
         for (var i = Leaving.Count - 1; i >= 0; i--)
         {
-            var (image, url, pixels, at) = Leaving[i];
+            var (image, url, pixels, bytes, at) = Leaving[i];
             if (now - at < LetGoMs) continue;
             image.Dispose();
             url.Dispose();
             pixels.Dispose();
             Leaving.RemoveAt(i);
+            leavingBytes -= bytes;
         }
+    }
+
+    static long Bytes(PictureFrame frame)
+    {
+        long bytes = 0;
+        foreach (var b in frame.Bitmaps) bytes += b.Rgba.Length;
+        return bytes;
     }
 
     /// <summary>Whether two frames show the same pictures at the same places.</summary>
@@ -123,6 +161,8 @@ sealed class PictureSubtitleView : View
         // Off the screen with the view; their textures a second later, as any. Only when disposed
         // by the app: collected, its images may have gone first (Kit/Held.cs).
         if (type == DisposeTypes.Explicit) Clear();
+        held = null;
+        Waiting.Remove(this);
         base.Dispose(type);
     }
 }
