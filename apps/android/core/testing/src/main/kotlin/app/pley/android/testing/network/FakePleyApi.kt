@@ -3,6 +3,7 @@ package app.pley.android.testing.network
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastRequest
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -294,6 +295,8 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun stopSession(sessionId: String) = respond("stopSession", sessionId) { }
 
     override suspend fun remoteDevices(): List<RemoteDevice> = respond("remoteDevices") { fixture("remote/devices.json") }
+
+    override suspend fun cast(receiverId: String, request: CastRequest) = respond("cast", receiverId, request) { }
 
     /** The server's own network: nothing known, no speed test. */
     override suspend fun playbackNetwork(clientId: String): PlaybackNetwork = respond("playbackNetwork", clientId) { PlaybackNetwork(local = true) }

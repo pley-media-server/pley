@@ -73,6 +73,7 @@ class FakePleyApiTest {
         assertEquals(listOf("6f1c2a9e", "5d0f7f2a"), api.playingSessions().map { it.sessionId })
         api.sendCommand("6f1c2a9e", app.pley.android.model.PlayerCommandRequest(app.pley.android.model.Control.Pause))
         api.stopSession("6f1c2a9e")
+        api.cast("android-den", app.pley.android.model.CastRequest(channelId = 1))
         assertEquals(listOf("Living room TV", "Firefox on macOS"), api.remoteDevices().map { it.name })
         assertTrue(api.playbackNetwork("android-test").local)
         api.reportNetwork(app.pley.android.model.NetworkReport.Ceiling("android-test", 8_000))

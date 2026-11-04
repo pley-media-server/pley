@@ -98,6 +98,8 @@ import app.pley.android.screens.livetv.LivePlayerViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyChip
 import app.pley.android.ui.phone.kit.PleyIconButton
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
@@ -327,6 +329,8 @@ private fun Controls(
                     },
                     tint = if (channel.favorite) PleyColors.Accent else PleyColors.Fg,
                 )
+                // The channel moves to the device: this player closes once it took it.
+                PlayOnButton(CastTarget.channel(channel.id), plain = true)
             } else {
                 Spacer(Modifier.weight(1f))
             }

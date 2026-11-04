@@ -155,4 +155,27 @@ class RemoteControlTest {
         assertEquals(CommandRefusal.Other, refusal())
         assertEquals(CommandRefusal.Offline, CommandRefusal.of(OfflineException(java.net.ConnectException("away"))))
     }
+
+    @Test
+    fun aRefusedCastSaysWhy() = runTest {
+        val api = api(null)
+        suspend fun refusal(): CastRefusal = try {
+            api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204))
+            error("expected a refusal")
+        } catch (e: IOException) {
+            CastRefusal.of(e)
+        }
+        server.enqueue(MockPley.fixture("errors/not_found.json", code = 404))
+        assertEquals(CastRefusal.Gone, refusal())
+        server.enqueue(MockPley.error(409, "not_castable", "this device doesn't play titles from a remote"))
+        assertEquals(CastRefusal.NotCastable, refusal())
+        server.enqueue(MockPley.error(429, "too_many_requests", "10 casts a second at most: wait a moment"))
+        assertEquals(CastRefusal.TooMany, refusal())
+        // Another conflict, and everything else, says its own sentence.
+        server.enqueue(MockPley.fixture("errors/not_controllable.json", code = 409))
+        assertEquals(CastRefusal.Other, refusal())
+        server.enqueue(MockPley.error(403, "forbidden", "Live TV isn't open to you"))
+        assertEquals(CastRefusal.Other, refusal())
+        assertEquals(CastRefusal.Offline, CastRefusal.of(OfflineException(java.net.ConnectException("away"))))
+    }
 }

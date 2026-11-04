@@ -23,6 +23,7 @@ import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
 import app.pley.android.data.RemoteSession
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
@@ -471,6 +472,8 @@ class RemoteUiTest {
         override suspend fun stop(sessionId: String) {
             stopped += sessionId
         }
+
+        override suspend fun cast(receiverId: String, request: CastRequest) = Unit
 
         override fun here(player: Any, sessionId: String?) = Unit
     }

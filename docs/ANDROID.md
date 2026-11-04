@@ -179,8 +179,9 @@ heard it for that profile, the start asks "Who's watching?".
 
 ### Remote control
 
-The phone is a remote for the profile's other devices; a TV only obeys
-one and shows none.
+The phone is a remote for the profile's other devices, and sends them
+what to play (Play on…); phones and TVs alike obey a remote and play
+what one sends them. A TV shows no remote and has no Play on….
 
 On the phone, while another of the profile's devices is on, playing or
 not, a bar above the tabs, over the mini player when music plays here
@@ -275,6 +276,35 @@ phone's video player, its screen left, obeys nothing until it shows
 again: its engine is stopped, and a next episode would play with no
 screen. What the server's events change meanwhile is fetched again
 on coming back, not in the background.
+
+#### Play on…
+
+On the phone, what a page plays goes to another of the profile's devices
+that takes it ([API.md](API.md#casting)): a receiver whose `casts` names
+`item` for titles, music and playlists, or `live` for a channel. **Play
+on…** shows only while one does:
+
+- beside Play on a movie's, an episode's, a show's and a season's page:
+  a title being watched starts there where its Resume would
+  (`start_ms`), and a show or a season plays its next episode;
+- beside Play and Shuffle on an album's and an artist's page;
+- under Play on a playlist's page, where the row beside it is full;
+- as **Watch on…** under Watch in a programme's details in Live TV, and
+  in the live player's bar;
+- in an item's actions (a long press on its tile or row, a track's too),
+  after the ways to play it here.
+
+It opens a chooser of those devices as the remote lists them: an icon for
+the kind, the name, and what each plays now or **Ready to play**. An
+album, an artist or a playlist has a Shuffle switch, which makes it
+**Shuffle on…** and sends `shuffle`. Picking a device sends
+`POST /api/remote/devices/{id}/cast`; once it is on its way the chooser
+closes, **Playing on** the device shows in a toast, and the remote opens
+on that device, its controls showing once what it was sent plays. The
+live player closes as its channel goes to the device, and the shell says
+so. A refusal is said under the devices, and another can be picked: the
+device **isn't on any more** (`404`), **can't play that** (`409`), **Too
+many at once** (`429`), else the server's own words.
 
 #### Taking casts
 

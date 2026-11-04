@@ -64,6 +64,8 @@ import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.fullWidth
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -158,6 +160,7 @@ private fun ArtistContent(
                 busy = busy,
                 onPlay = onPlay,
                 onShuffle = onShuffle,
+                playOn = CastTarget(itemId = page.id, shuffles = true),
             )
         }
         if (page.summary != null) fullWidth("summary") { Summary(page.summary!!) }
@@ -190,8 +193,9 @@ private fun ArtistContent(
 /**
  * The top of an artist's or album's page (MusicViews.tsx MusicHeader):
  * the art (round for artists), what it is, the title, its [lines], and
- * Play and Shuffle; [extra] goes under the lines (the artist's link, the
- * rating).
+ * Play and Shuffle, with Play on… sending [playOn] beside them while
+ * another device takes it; [extra] goes under the lines (the artist's
+ * link, the rating).
  */
 @Composable
 internal fun MusicHeader(
@@ -204,6 +208,7 @@ internal fun MusicHeader(
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
     playEnabled: Boolean = true,
+    playOn: CastTarget? = null,
     extra: @Composable () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -234,6 +239,7 @@ internal fun MusicHeader(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             PrimaryButton(stringResource(R.string.music_play), onClick = onPlay, icon = PleyIcons.Play, enabled = playEnabled && !busy)
             TonalButton(stringResource(R.string.music_shuffle), onClick = onShuffle, icon = PleyIcons.Shuffle, enabled = playEnabled && !busy)
+            if (playOn != null && playEnabled) PlayOnButton(playOn)
         }
     }
 }

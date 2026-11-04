@@ -98,6 +98,9 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** A request to open the remote on a device ([RemoteSlot]): each one opens it, the same device's too. */
+internal class RemoteAsk(val deviceId: String)
+
 /**
  * The remote's place above the tabs (over the mini player when both
  * show): the bar while another of the profile's devices is on, playing or
@@ -105,16 +108,21 @@ import kotlinx.coroutines.launch
  * device is left and opens closed when one is on again. A command waiting
  * for its answer keeps the sheet: next ends a session before its player
  * lists the next one. The device chosen in the sheet is kept while it is
- * open.
+ * open. [asked] opens it on a device (Play on… sent it something).
  */
 @Composable
-internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, origin: String?) {
+internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, origin: String?, asked: RemoteAsk? = null) {
     if (remote == null) return
     var open by rememberSaveable { mutableStateOf(false) }
     var chosen by rememberSaveable { mutableStateOf<String?>(null) }
     var holding by remember { mutableStateOf(false) }
     var commands by remember { mutableIntStateOf(0) }
     val none = devices.isEmpty()
+    LaunchedEffect(asked) {
+        val ask = asked ?: return@LaunchedEffect
+        chosen = ask.deviceId
+        open = true
+    }
     LaunchedEffect(commands) {
         if (commands == 0) return@LaunchedEffect
         delay(RemoteRepository.ANSWER_WAIT_MS)
@@ -146,7 +154,7 @@ internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, o
 
 /** What the remote calls each device ([RemoteRepository.deviceNames]), numbered as the app says it. */
 @Composable
-private fun deviceNames(devices: List<OtherDevice>): Map<String, String> {
+internal fun deviceNames(devices: List<OtherDevice>): Map<String, String> {
     val unnamed = stringResource(R.string.remote_unknown_device)
     val resources = LocalResources.current
     return remember(devices, unnamed, resources) {
@@ -293,7 +301,7 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
 
 /** A device's kind as an icon in a 40 dp circle: in the accent while it plays. */
 @Composable
-private fun KindBadge(kind: DeviceKind, playing: Boolean) {
+internal fun KindBadge(kind: DeviceKind, playing: Boolean) {
     Box(Modifier.size(40.dp).clip(PleyShape.Circle).background(PleyColors.Surface3), contentAlignment = Alignment.Center) {
         Icon(kindIcon(kind), contentDescription = null, size = 20.dp, tint = if (playing) PleyColors.Accent else PleyColors.Fg)
     }
@@ -773,7 +781,7 @@ private fun titleOf(session: RemoteSession, liveTv: String): String = when (sess
 }
 
 /** What plays, as the list says it: the title as the web writes it, or the channel's number and name. */
-private fun lineOf(session: RemoteSession, liveTv: String): String {
+internal fun lineOf(session: RemoteSession, liveTv: String): String {
     val channel = session.session.channel
     return when {
         session.session.kind != PlayingKind.Live -> session.session.item?.let(::fullTitle).orEmpty()

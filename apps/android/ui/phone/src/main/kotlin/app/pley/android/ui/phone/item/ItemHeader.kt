@@ -62,6 +62,8 @@ import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.StarRating
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.ui.phone.theme.WidthClass
 
@@ -267,9 +269,10 @@ internal fun MetaLine(parts: List<MetaPart>, modifier: Modifier = Modifier) {
 }
 
 /**
- * Play or Resume across the width, or "Unavailable", and Download under
- * it for a movie or an episode; what is left of a title being watched is
- * under the metadata.
+ * Play or Resume across the width, or "Unavailable", with Play on… beside
+ * it while another device takes titles, and Download under it for a movie
+ * or an episode; what is left of a title being watched is under the
+ * metadata.
  */
 @Composable
 private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) {
@@ -279,12 +282,16 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         TonalButton(stringResource(R.string.item_unavailable), onClick = {}, enabled = false, modifier = width.height(48.dp))
         return
     }
-    PrimaryButton(
-        text = primaryLabel(primary),
-        onClick = { actions.play(fromStart = false) },
-        icon = PleyIcons.Play,
-        modifier = width.testTag(TestTags.ITEM_PLAY),
-    )
+    Row(if (fullWidth) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically) {
+        PrimaryButton(
+            text = primaryLabel(primary),
+            onClick = { actions.play(fromStart = false) },
+            icon = PleyIcons.Play,
+            modifier = (if (fullWidth) Modifier.weight(1f) else Modifier.widthIn(min = 220.dp)).testTag(TestTags.ITEM_PLAY),
+        )
+        // Where the page's Play starts it: a title being watched resumes there too.
+        CastTarget.of(page.item)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
+    }
     if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) {
         Spacer(Modifier.height(8.dp))
         DownloadButton(page.id, page.title, width)

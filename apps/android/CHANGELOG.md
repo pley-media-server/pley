@@ -35,6 +35,11 @@ describes how they are made.
   open: a title, a show's next episode, music, a playlist or a Live TV
   channel plays as Play would play it there, and says for a few seconds
   which device it came from.
+- Play on… sends a title, a show, a season, music or a playlist from the
+  phone to another of your devices, and Watch on… a Live TV channel:
+  beside Play on their pages, in an item's actions and in the live
+  player. Choose the device (an album, an artist or a playlist can go
+  shuffled), and the remote opens on it.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

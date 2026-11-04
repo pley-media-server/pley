@@ -98,6 +98,18 @@ internal class EventHub(private val state: State) {
     /** What receiver [id] of [profileId] plays when cast to; `null` when it isn't open. */
     fun casts(profileId: Long, id: String): List<CastKind>? = synchronized(receivers) { receivers[profileId]?.get(id)?.device?.casts }
 
+    /** When casts went to each receiver in the last second, by profile and receiver id. */
+    private val castsSent = HashMap<Pair<Long, String>, ArrayDeque<Long>>()
+
+    /** Counts a cast to receiver [id] of [profileId] at [nowMs]: `false` past [CASTS_PER_SECOND] a second, as on the server. */
+    fun takeCast(profileId: Long, id: String, nowMs: Long): Boolean = synchronized(receivers) {
+        val sent = castsSent.getOrPut(profileId to id) { ArrayDeque() }
+        while (sent.isNotEmpty() && nowMs - sent.first() >= 1_000) sent.removeFirst()
+        if (sent.size >= CASTS_PER_SECOND) return false
+        sent.addLast(nowMs)
+        true
+    }
+
     /**
      * The receiver [call]'s stream names, if it names a valid one: its id
      * (1 to 128 letters, digits, `.`, `_`, `:` and `-`), its device as
@@ -224,6 +236,9 @@ internal class EventHub(private val state: State) {
 
         /** The most receivers a profile has at once, as on the server. */
         const val MAX_RECEIVERS = 32
+
+        /** The most casts to one receiver a second, as on the server. */
+        const val CASTS_PER_SECOND = 10
 
         /** What the server keeps of a device's name. */
         const val DEVICE_NAME_MAX = 64

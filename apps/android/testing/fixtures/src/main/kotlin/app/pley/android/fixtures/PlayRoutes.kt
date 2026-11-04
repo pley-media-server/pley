@@ -1,5 +1,7 @@
 package app.pley.android.fixtures
 
+import app.pley.android.model.CastKind
+import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.DynamicRange
@@ -73,6 +75,7 @@ internal class PlayRoutes(private val s: State) {
         route("GET", "/api/sessions", PLAY) { _, c, _ -> Reply.json(ListSerializer(PlayingSession.serializer()), playing(c)) },
         route("POST", "/api/sessions/*/command", PLAY) { call, c, v -> command(call, c, v[0]) },
         route("GET", "/api/remote/devices", PLAY) { _, c, _ -> Reply.json(ListSerializer(RemoteDevice.serializer()), s.events.devices(c.profile.id)) },
+        route("POST", "/api/remote/devices/*/cast", PLAY) { call, c, v -> cast(call, c, v[0]) },
         route("GET", "/api/files/*/stream", PLAY, free = true) { call, _, v -> stream(call, v[0]) },
         route("GET", "/api/files/*/subtitles/*", PLAY) { _, _, v -> subtitles(v[0], v[1]) },
         route("GET", "/api/files/*/trickplay", PLAY, free = true) { _, _, v ->
@@ -383,6 +386,45 @@ internal class PlayRoutes(private val s: State) {
     @Serializable
     private data class StopBody(val message: String? = null)
 
+    /**
+     * POST /api/remote/devices/{id}/cast, refused in the server's order:
+     * a receiver that isn't the caller's own open one (404), not exactly one
+     * of a title, a playlist and a channel (400), a title there isn't (404)
+     * or of a kind that isn't cast (400), a playlist not the caller's (404),
+     * a channel (404: there is no Live TV here), what the receiver doesn't
+     * play (409 `not_castable`), a `start_ms` past a day (400), and more
+     * than 10 casts a second (429). The caller's streams hear `cast`, from
+     * the caller's User-Agent.
+     */
+    private fun cast(call: Call, caller: Caller, receiverId: String): MockResponse {
+        val body = call.body(CastRequest.serializer()) ?: return Reply.badRequest("the body isn't a cast")
+        val takes = s.events.casts(caller.profile.id, receiverId) ?: return Reply.notFound("no such device")
+        val itemId = body.itemId
+        val playlistId = body.playlistId
+        val kind = when {
+            listOfNotNull(itemId, playlistId, body.channelId).size != 1 -> return Reply.badRequest("name one of item_id, playlist_id and channel_id")
+            itemId != null -> {
+                val item = catalog.item(itemId) ?: return Reply.notFound("no such item")
+                if (item.kind !in CASTABLE) return Reply.badRequest("only movies, episodes, shows, seasons, tracks, albums and artists can be cast")
+                CastKind.Item
+            }
+            playlistId != null -> {
+                s.household.playlists[playlistId]?.takeIf { it.owner == caller.profile.id } ?: return Reply.notFound("playlist $playlistId not found")
+                CastKind.Item
+            }
+            else -> return Reply.notFound("no such channel")
+        }
+        if (kind !in takes) return Reply.error(409, "not_castable", "this device doesn't play titles from a remote")
+        if (body.startMs?.let { it !in 0..DAY_MS } == true) return Reply.badRequest("start_ms must be between 0 and $DAY_MS")
+        if (!s.events.takeCast(caller.profile.id, receiverId, s.nowMs())) return Reply.error(429, "too_many_requests", "10 casts a second at most: wait a moment")
+        val from = call.header("User-Agent")?.trim()?.take(DEVICE_NAME_MAX)?.ifEmpty { null }
+        s.events.emitTo(
+            caller.profile.id,
+            ServerEvent.Cast(receiverId, itemId, playlistId, body.channelId, body.startMs, shuffle = body.shuffle == true, from = from),
+        )
+        return MockResponse.Builder().code(202).build()
+    }
+
     /** GET /api/playback/{session}/{file}: the committed HLS stream of the 1080p clip, whatever the item. */
     private fun hls(sessionId: String, name: String, caller: Caller): MockResponse {
         s.stoppedSessions[sessionId]?.takeIf { it.profileId == caller.profile.id }?.let { stopped ->
@@ -620,6 +662,12 @@ internal class PlayRoutes(private val s: State) {
 
         /** How far a skip goes at most, either way. */
         const val SKIP_MS = 10 * 60 * 1_000L
+
+        /** What the server keeps of a device's name. */
+        const val DEVICE_NAME_MAX = 64
+
+        /** What a remote casts from the library: what plays itself, a show or a season, an album or an artist. */
+        private val CASTABLE = setOf(ItemKind.Movie, ItemKind.Episode, ItemKind.Show, ItemKind.Season, ItemKind.Track, ItemKind.Album, ItemKind.Artist)
     }
 }
 

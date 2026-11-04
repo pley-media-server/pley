@@ -106,6 +106,57 @@ class RemoteRoutesTest {
         assertEquals(emptyList<RemoteDevice>(), waitFor { devices().takeIf { it.isEmpty() } })
     }
 
+    @Test
+    fun aCastReachesItsReceiverAndIsRefusedAsTheServerRefuses() = withServer(FixtureServer.Options(scanEveryMs = 0, keepAliveMs = 100, clock = FakeClock())) { server ->
+        val alex = Client(server, server.accessToken())
+        val robin = Client(server, server.accessToken(FixtureIds.ROBIN))
+        val path = "/api/remote/devices/android-den/cast"
+        // No such receiver open yet.
+        assertEquals(404, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P}}""").code)
+        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item"
+        alex.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${alex.token}").build()).execute().use { response ->
+            val source = response.body.source()
+            assertEquals(": connected", source.readUtf8Line())
+            waitFor { alex.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).singleOrNull() }
+            // Someone else's is as unknown.
+            assertEquals(404, robin.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P}}""").code)
+            assertEquals(400, alex.send("POST", path, """{}""").code)
+            assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"playlist_id":${FixtureIds.PLAYLIST_VIDEO}}""").code)
+            assertEquals(404, alex.send("POST", path, """{"item_id":999999999}""").code)
+            assertEquals(404, robin.send("POST", "/api/remote/devices/nope/cast", """{"playlist_id":${FixtureIds.PLAYLIST_VIDEO}}""").code)
+            // A channel: this receiver doesn't take Live TV, and there is none here.
+            assertEquals(404, alex.send("POST", path, """{"channel_id":1}""").code)
+            assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"start_ms":-1}""").code)
+
+            assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.SHOW},"start_ms":60000}""").code)
+            var heard: ServerEvent.Cast? = null
+            while (heard == null) {
+                val line = source.readUtf8Line() ?: break
+                if (line.startsWith("data: ")) heard = ServerEvent.parse(line.removePrefix("data: ")) as? ServerEvent.Cast
+            }
+            assertEquals(ServerEvent.Cast("android-den", itemId = FixtureIds.SHOW, startMs = 60_000, from = heard?.from), heard)
+            assertTrue("from the caller's User-Agent", heard?.from?.isNotEmpty() == true)
+            assertEquals(202, alex.send("POST", path, """{"playlist_id":${FixtureIds.PLAYLIST_VIDEO},"shuffle":true}""").code)
+
+            // Ten a second to one receiver, as on the server: two went already.
+            repeat(8) { assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.TRACK}}""").code) }
+            assertEquals(429, alex.send("POST", path, """{"item_id":${FixtureIds.TRACK}}""").code)
+        }
+    }
+
+    @Test
+    fun aReceiverOfTitlesOnlyRefusesAChannelAsNotCastable() = withServer(FixtureServer.Options(scanEveryMs = 0, keepAliveMs = 100)) { server ->
+        val alex = Client(server, server.accessToken())
+        val url = "${server.url}/api/events?receiver=android-den&casts=live"
+        alex.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${alex.token}").build()).execute().use { response ->
+            assertEquals(": connected", response.body.source().readUtf8Line())
+            waitFor { alex.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).singleOrNull() }
+            val refused = alex.send("POST", "/api/remote/devices/android-den/cast", """{"item_id":${FixtureIds.SAMPLE_1080P}}""")
+            assertEquals(409, refused.code)
+            assertEquals("not_castable", refused.field("code"))
+        }
+    }
+
     /** [read]'s first answer that isn't `null`, asked for every 20 ms for 5 s at most. */
     private fun <T : Any> waitFor(read: () -> T?): T {
         val deadline = System.currentTimeMillis() + 5_000

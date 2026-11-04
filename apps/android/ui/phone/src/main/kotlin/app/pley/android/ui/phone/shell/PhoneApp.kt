@@ -97,6 +97,11 @@ import app.pley.android.ui.phone.music.musicEntries
 import app.pley.android.ui.phone.onboarding.onboardingEntries
 import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.playlists.playlistsEntries
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.CastsSent
+import app.pley.android.ui.phone.remote.LocalPlayOn
+import app.pley.android.ui.phone.remote.PlayOnHost
+import app.pley.android.ui.phone.remote.PlayOnSheet
 import app.pley.android.ui.phone.remote.RemoteSlot
 import app.pley.android.ui.phone.requests.RequestsTabIcon
 import app.pley.android.ui.phone.requests.requestsEntries
@@ -105,6 +110,7 @@ import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -174,9 +180,17 @@ internal fun PhoneShell(
     val entries = remember { shellEntries() }
     val downloadsLabel = stringResource(R.string.downloads_offline_action)
     val offlineAction = remember(navigation, downloadsLabel) { OfflineAction(downloadsLabel) { navigation.open(PleyKey.Downloads) } }
+    val playOn = remember(shell) {
+        object : PlayOnHost {
+            override val devices get() = shell.remoteDevices
+
+            override fun playOn(target: CastTarget) = shell.playOn(target)
+        }
+    }
     CompositionLocalProvider(
         LocalPhoneNavigator provides navigation,
         LocalPhoneShell provides shell,
+        LocalPlayOn provides playOn,
         LocalOffline provides shell.offlineState,
         LocalOfflineAction provides offlineAction.takeIf { navigation.inside },
         LocalPhoneDeviceTier provides tier,
@@ -195,9 +209,9 @@ internal fun PhoneShell(
  * listened, as when this device can't read its tokens anymore), the
  * server in use, live updates while the app is started, the music
  * playing, what plays on the profile's other devices (the remote), what
- * they cast here, requests (and their news, told while the app shows),
- * and the capability probe. The graph's parts are made off the main
- * thread.
+ * they cast here and what the live player sent them, requests (and their
+ * news, told while the app shows), and the capability probe. The graph's
+ * parts are made off the main thread.
  */
 @Composable
 private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
@@ -242,6 +256,16 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             val casts = withContext(Dispatchers.Default) { g.casts }
             casts.start()
             casts.music.collect { shell.toasts.show(it.from.notice(resources)) }
+        }
+        launch {
+            // Sent from the live player, which closed: said here, and the remote opens on the device.
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                CastsSent.pending.filterNotNull().collect { sent ->
+                    CastsSent.said(sent)
+                    shell.toasts.show(resources.getString(R.string.play_on_sent, sent.name))
+                    shell.openRemote(sent.deviceId)
+                }
+            }
         }
         launch {
             // The server's events connected again: it answers, and the offline banner goes.
@@ -377,12 +401,35 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
                 )
             }
-            RemoteSlot(shell.remoteDevices, shell.remote, shell.server)
+            RemoteSlot(shell.remoteDevices, shell.remote, shell.server, shell.remoteAsked)
             MiniPlayerSlot(shell.nowPlaying)
         }
     }
+    PlayOnSlot(shell)
     // Back from another tab's first screen goes to Home, then out of the app.
     BackHandler(enabled = tab != PhoneTab.Home && stacks.getValue(tab).size == 1) { navigation.select(PhoneTab.Home) }
+}
+
+/**
+ * Play on…'s chooser while a page asked for it: sent, it closes, says
+ * "Playing on" the device, and opens the remote on that device.
+ */
+@Composable
+private fun PlayOnSlot(shell: PhoneShellState) {
+    val target = shell.playingOn ?: return
+    val remote = shell.remote ?: return
+    val resources = LocalResources.current
+    PlayOnSheet(
+        target,
+        shell.remoteDevices,
+        remote,
+        onCast = { device, name ->
+            shell.playingOn = null
+            shell.toasts.show(resources.getString(R.string.play_on_sent, name))
+            shell.openRemote(device.deviceId)
+        },
+        onDismiss = { shell.playingOn = null },
+    )
 }
 
 @Composable

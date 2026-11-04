@@ -32,7 +32,10 @@ import app.pley.android.player.engine.VideoMediaSession
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveSessionPlayer
 import app.pley.android.screens.livetv.LivePlayerViewModel
+import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.ui.phone.remote.CastNotice
+import app.pley.android.ui.phone.remote.CastsSent
+import app.pley.android.ui.phone.remote.PlayOnWindow
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -64,11 +67,21 @@ class LivePlayerActivity : ComponentActivity() {
         }
         // Said once, as it opens: not again when the window is made anew.
         val cast = castFrom(intent).takeIf { savedInstanceState == null }?.notice(resources)
+        val remote = (application as PleyGraphOwner).screensGraph.data.remote
         setContent {
             PhoneTheme {
-                Box(Modifier.fillMaxSize()) {
-                    LivePlayerScreen(vm = vm, onBack = ::finish)
-                    CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
+                // Watch on…: the channel goes to the device, and the app's shell says so as this closes.
+                PlayOnWindow(
+                    remote,
+                    onCast = { device, name ->
+                        CastsSent.tell(device.deviceId, name)
+                        finish()
+                    },
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        LivePlayerScreen(vm = vm, onBack = ::finish)
+                        CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
+                    }
                 }
             }
         }

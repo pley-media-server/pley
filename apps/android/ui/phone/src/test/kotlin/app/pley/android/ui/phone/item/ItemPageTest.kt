@@ -15,6 +15,16 @@ import app.pley.android.screens.item.ItemUiState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import app.pley.android.ui.phone.theme.PhoneTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.onNodeWithContentDescription
+import app.pley.android.data.OtherDevice
+import app.pley.android.model.CastKind
+import app.pley.android.model.DeviceKind
+import app.pley.android.model.RemoteDevice
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.LocalPlayOn
+import app.pley.android.ui.phone.remote.PLAY_ON
+import app.pley.android.ui.phone.remote.PlayOnHost
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -47,17 +57,43 @@ class ItemPageTest {
         override fun restart(key: PleyKey) = Unit
     }
 
-    private fun show(detail: ItemDetail): ItemData {
+    /** Play on…'s chooser asked for, by what. */
+    private val castsAsked = mutableListOf<CastTarget>()
+
+    private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList()): ItemData {
         val data = ItemData(detail)
         val model = ItemViewModel(data, data.launcher, detail.id, compute = Dispatchers.Main.immediate)
+        val host = object : PlayOnHost {
+            override val devices: List<OtherDevice> = devices
+
+            override fun playOn(target: CastTarget) {
+                castsAsked += target
+            }
+        }
         compose.setContent {
             PhoneTheme {
-                val state by model.state.collectAsState()
-                (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator) }
+                CompositionLocalProvider(LocalPlayOn provides host) {
+                    val state by model.state.collectAsState()
+                    (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator) }
+                }
             }
         }
         compose.waitForIdle()
         return data
+    }
+
+    @Test
+    fun withoutAnotherDeviceTakingTitlesThereIsNoPlayOn() {
+        show(movie(positionMs = 3_480_000))
+        compose.onNodeWithTag(PLAY_ON).assertDoesNotExist()
+    }
+
+    @Test
+    fun playOnBesideResumeSendsTheTitleFromWhereItResumes() {
+        val tv = OtherDevice("app-12", RemoteDevice("tv-1", "app-12", "Living room TV", DeviceKind.Tv, listOf(CastKind.Item)))
+        show(movie(positionMs = 3_480_000), listOf(tv))
+        compose.onNodeWithContentDescription("Play on…").assertExists().performClick()
+        assertEquals(listOf(CastTarget(itemId = 1, startMs = 3_480_000)), castsAsked)
     }
 
     @Test

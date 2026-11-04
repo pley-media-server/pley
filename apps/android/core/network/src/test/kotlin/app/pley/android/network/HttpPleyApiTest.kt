@@ -2,6 +2,7 @@ package app.pley.android.network
 
 import app.pley.android.model.AddSubtitle
 import app.pley.android.model.Approval
+import app.pley.android.model.CastRequest
 import app.pley.android.model.ConversionState
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverList
@@ -191,6 +192,18 @@ class HttpPleyApiTest {
             ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Pause)) },
             Golden("stopSession", MockPley.noContent(), "DELETE /api/sessions/6f1c2a9e") { stopSession("6f1c2a9e") },
             Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices") { remoteDevices() },
+            Golden(
+                "cast",
+                MockPley.noContent(),
+                "POST /api/remote/devices/android-den/cast",
+                body = """{"item_id":204,"start_ms":600000}""",
+            ) { cast("android-den", CastRequest(itemId = 204, startMs = 600_000)) },
+            Golden(
+                "cast (a playlist, shuffled)",
+                MockPley.noContent(),
+                "POST /api/remote/devices/android-den/cast",
+                body = """{"playlist_id":9,"shuffle":true}""",
+            ) { cast("android-den", CastRequest(playlistId = 9, shuffle = true)) },
             Golden(
                 "sendCommand (a track)",
                 MockPley.noContent(),

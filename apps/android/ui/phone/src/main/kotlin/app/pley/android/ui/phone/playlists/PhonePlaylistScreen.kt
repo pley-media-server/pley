@@ -99,6 +99,8 @@ import app.pley.android.ui.phone.kit.ErrorState
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.kit.RowDrag
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.library.PhoneTiles
@@ -365,6 +367,10 @@ private fun Header(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistAction
                 RoundAction(PleyIcons.Pencil, stringResource(R.string.playlist_rename), onRename)
             }
             RoundAction(TrashIcon, stringResource(R.string.playlist_delete), onDelete)
+        }
+        // Under Play, with its words: the row beside it has no room left on a phone.
+        if (page.canPlay) {
+            PlayOnButton(CastTarget(playlistId = page.id, shuffles = page.canShuffle), Modifier.padding(top = 8.dp), labelled = true)
         }
     }
 }

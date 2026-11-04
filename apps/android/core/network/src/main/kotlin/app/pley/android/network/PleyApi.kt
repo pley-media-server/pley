@@ -3,6 +3,7 @@ package app.pley.android.network
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastRequest
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -353,6 +354,14 @@ interface PleyApi {
      * casts (docs/API.md, "Casting"), this one too, one each, by name.
      */
     suspend fun remoteDevices(): List<RemoteDevice>
+
+    /**
+     * POST /api/remote/devices/{id}/cast (scope play): sends receiver
+     * [receiverId] something to play, as its own Play would; `202` once it
+     * is on its way. Refusals are [ApiException]s; [CastRefusal.of] says
+     * which.
+     */
+    suspend fun cast(receiverId: String, request: CastRequest)
 
     /** POST /api/items/{id}/progress: where the player is, every ~10 s, on pause and on closing. */
     suspend fun reportProgress(itemId: Long, report: ProgressReport)

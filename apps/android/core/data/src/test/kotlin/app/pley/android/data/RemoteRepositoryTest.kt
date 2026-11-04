@@ -3,6 +3,7 @@
 package app.pley.android.data
 
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
@@ -207,6 +208,38 @@ class RemoteRepositoryTest {
         testScheduler.runCurrent()
         assertEquals(listOf("5d0f7f2a"), data.api.calls("stopSession").single().args)
         assertEquals(reads + 2, data.api.calls("playingSessions").size)
+    }
+
+    @Test
+    fun `a cast goes to the receiver, and one to a device gone or no longer taking it has the lists read again`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        val reads = data.api.calls("remoteDevices").size
+
+        remote.cast("tv-1", CastRequest(itemId = 204, startMs = 60_000))
+        testScheduler.runCurrent()
+        assertEquals(listOf("tv-1", CastRequest(itemId = 204, startMs = 60_000)), data.api.calls("cast").single().args)
+        // Its session tells the remote it plays, through the events.
+        assertEquals(reads, data.api.calls("remoteDevices").size)
+
+        data.api.fail("cast", ApiException(404, "not_found", "no such device"))
+        val gone = runCatching { remote.cast("tv-1", CastRequest(playlistId = 9)) }.exceptionOrNull()
+        testScheduler.runCurrent()
+        assertEquals(404, (gone as ApiException).status)
+        assertEquals(reads + 1, data.api.calls("remoteDevices").size)
+
+        data.api.fail("cast", ApiException(409, "not_castable", "this device doesn't play Live TV from a remote"))
+        runCatching { remote.cast("tv-1", CastRequest(channelId = 1)) }
+        testScheduler.runCurrent()
+        assertEquals(reads + 2, data.api.calls("remoteDevices").size)
+
+        // Too many at once changes nothing listed.
+        data.api.fail("cast", ApiException(429, "too_many_requests", "10 casts a second at most"))
+        runCatching { remote.cast("tv-1", CastRequest(itemId = 204)) }
+        testScheduler.runCurrent()
+        assertEquals(reads + 2, data.api.calls("remoteDevices").size)
     }
 
     @Test

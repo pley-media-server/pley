@@ -282,6 +282,21 @@ data class RemoteDevice(
     val casts: List<CastKind> = emptyList(),
 )
 
+/**
+ * The body of POST /api/remote/devices/{id}/cast: exactly one of [itemId]
+ * (a movie, an episode, a show, a season, a track, an album or an artist),
+ * [playlistId] and [channelId]; [startMs] where a title starts (0 to a
+ * day), [shuffle] for a playlist, an album or an artist.
+ */
+@Serializable
+data class CastRequest(
+    val itemId: Long? = null,
+    val playlistId: Long? = null,
+    val channelId: Long? = null,
+    val startMs: Long? = null,
+    val shuffle: Boolean? = null,
+)
+
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */
 @Serializable(with = ConversionState.Serializer::class)
 enum class ConversionState(override val wire: String) : WireEnum {

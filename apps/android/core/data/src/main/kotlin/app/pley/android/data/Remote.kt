@@ -1,6 +1,7 @@
 package app.pley.android.data
 
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlayerCommandRequest
@@ -134,6 +135,15 @@ interface RemoteRepository {
     suspend fun stop(sessionId: String)
 
     /**
+     * POST /api/remote/devices/{id}/cast: [receiverId]'s device plays
+     * [request] as its own Play would, and its session shows here once it
+     * starts. A refusal is thrown ([app.pley.android.network.CastRefusal.of]
+     * says which); a device gone (`404`) or no longer playing that (`409`)
+     * has the lists read again.
+     */
+    suspend fun cast(receiverId: String, request: CastRequest)
+
+    /**
      * [player], on this device, plays [sessionId] now (`null`: none): it
      * is left out of [sessions], as no remote for itself.
      */
@@ -235,6 +245,7 @@ interface RemoteRepository {
             override suspend fun refresh(): List<RemoteSession>? = null
             override suspend fun command(sessionId: String, command: PlayerCommandRequest) = throw unavailable()
             override suspend fun stop(sessionId: String) = throw unavailable()
+            override suspend fun cast(receiverId: String, request: CastRequest) = throw unavailable()
             override fun here(player: Any, sessionId: String?) = Unit
 
             private fun unavailable() = ApiException(404, "not_found", "Not found")
@@ -381,6 +392,16 @@ internal class ServerRemote(
             api().stopSession(sessionId)
         } finally {
             asks.tryEmit(Unit)
+        }
+    }
+
+    override suspend fun cast(receiverId: String, request: CastRequest) {
+        try {
+            api().cast(receiverId, request)
+        } catch (e: ApiException) {
+            // Its app closed, or takes other things now: the lists say what is left.
+            if (e.status == 404 || e.status == 409) asks.tryEmit(Unit)
+            throw e
         }
     }
 

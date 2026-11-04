@@ -51,4 +51,16 @@
     <string name="remote_gone">%1$s isn\'t playing any more.</string>
     <string name="remote_cant">%1$s can\'t do that.</string>
     <string name="remote_too_many">Too many at once: try again in a moment.</string>
+
+    <!-- Play on…: sending what a page plays to another of the profile's devices, and its chooser. -->
+    <string name="play_on">Play on…</string>
+    <string name="play_on_live">Watch on…</string>
+    <string name="play_on_shuffle">Shuffle on…</string>
+    <!-- The chooser's switch: what is sent plays shuffled. -->
+    <string name="play_on_shuffle_switch">Shuffle</string>
+    <!-- Sent: the toast, with the device's name. -->
+    <string name="play_on_sent">Playing on %1$s</string>
+    <!-- Refused, said under the chooser's devices. -->
+    <string name="play_on_gone">%1$s isn\'t on any more.</string>
+    <string name="play_on_cant">%1$s can\'t play that.</string>
 </resources>

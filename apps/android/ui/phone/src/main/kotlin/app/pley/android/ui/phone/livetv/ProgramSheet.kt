@@ -30,18 +30,23 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.model.CastKind
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveProgram
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.remote.CastTarget
+import app.pley.android.ui.phone.remote.PlayOnButton
+import app.pley.android.ui.phone.remote.canPlayOn
 
 /**
  * A programme's details (the web's ProgramModal), in a sheet: its
  * channel, picture, title, episode, day and times with On now, Live, New
  * and its rating, how far it is, what the guide says of it and its
- * categories; then Watch (now, or the channel) and the favourite.
+ * categories; then Watch (now, or the channel) and the favourite, and
+ * Watch on… under them while another device takes Live TV.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -147,6 +152,10 @@ internal fun ProgramSheet(
                     icon = if (channel.favorite) PleyIcons.Star else PleyIcons.StarOutline,
                     modifier = Modifier.height(48.dp),
                 )
+            }
+            if (canPlayOn(CastKind.Live)) {
+                Spacer(Modifier.height(12.dp))
+                PlayOnButton(CastTarget.channel(channel.id), Modifier.fillMaxWidth(), labelled = true, onOpen = onDismiss)
             }
             Spacer(Modifier.height(8.dp))
         }

@@ -5,6 +5,7 @@ import app.pley.android.common.ImageUrls
 import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
+import app.pley.android.model.CastRequest
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DeviceKind
@@ -362,6 +363,9 @@ class HttpPleyApi(
     override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
 
     override suspend fun remoteDevices(): List<RemoteDevice> = get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices")
+
+    override suspend fun cast(receiverId: String, request: CastRequest) =
+        call("POST", json(CastRequest.serializer(), request), "api", "remote", "devices", receiverId, "cast")
 
     override suspend fun reportProgress(itemId: Long, report: ProgressReport) =
         call("POST", json(ProgressReport.serializer(), report), "api", "items", itemId, "progress")

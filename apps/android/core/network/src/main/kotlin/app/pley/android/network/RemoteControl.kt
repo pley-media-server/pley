@@ -38,6 +38,39 @@ enum class CommandRefusal {
     }
 }
 
+/**
+ * Why POST /api/remote/devices/{id}/cast refused (docs/API.md, "Casting"),
+ * as Play on… says it.
+ */
+enum class CastRefusal {
+    /** `404`: the device isn't a receiver any more (or what was sent isn't there for the profile). */
+    Gone,
+
+    /** `409` `not_castable`: the device doesn't play that kind from a remote. */
+    NotCastable,
+
+    /** `429`: more than 10 casts a second to one device. */
+    TooMany,
+
+    /** The server can't be reached. */
+    Offline,
+
+    /** Anything else (`400`, `403`…): the error's own sentence. */
+    Other,
+    ;
+
+    companion object {
+        fun of(error: Throwable): CastRefusal = when {
+            error is OfflineException -> Offline
+            error !is ApiException -> Other
+            error.status == 404 -> Gone
+            error.status == 409 && error.code == "not_castable" -> NotCastable
+            error.status == 429 -> TooMany
+            else -> Other
+        }
+    }
+}
+
 /** What remotes call this device, sent with its playbacks (`device_name`). */
 object DeviceNames {
     /** The server keeps at most this many characters of it. */
