@@ -189,6 +189,15 @@ function tvFront(width, height) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<g transform="translate(${width / 2 - 32 * s} ${height / 2 - 32 * s}) scale(${s})">${glyph}</g></svg>`;
 }
 
+/**
+ * Apple TV's Top Shelf, width × height: the iPhone icon's picture made wide, the mark alone half the height
+ * in the middle (33 of the logo's 64 high, about its centre), on the tile's colour to the edges.
+ */
+function topShelf(width, height) {
+  const s = (height * 0.5) / 33;
+  return onTile(width, height, s, width / 2 - 32 * s, height / 2 - 32 * s);
+}
+
 /** The logo [inset] of a [size] square's side, in its middle, transparent around it. */
 function inset(size, inset) {
   const side = size * inset;
@@ -385,7 +394,7 @@ try {
     writeFileSync(join(appIcon, `mac-${size}.png`), mac[size]);
     writeFileSync(join(appIcon, `mac-${size}@2x.png`), mac[size * 2]);
   }
-  // Apple TV's: the layers at each size the brand assets ask for, the back opaque; the Top Shelf's the banner.
+  // Apple TV's: the layers at each size the brand assets ask for, the back opaque; the Top Shelf's the iPhone icon's mark, made wide.
   const tv = join(apple, "tvOS/Assets.xcassets/App Icon & Top Shelf Image.brandassets");
   for (const [stack, sizes] of [["App Icon", [[400, 240, ""], [800, 480, "@2x"]]], ["App Icon - App Store", [[1280, 768, ""]]]]) {
     for (const [width, height, scale] of sizes) {
@@ -397,7 +406,7 @@ try {
   for (const [set, width] of [["Top Shelf Image", 1920], ["Top Shelf Image Wide", 2320]]) {
     for (const scale of [1, 2]) {
       const [w, h] = [width * scale, 720 * scale];
-      writeFileSync(join(tv, `${set}.imageset`, `top-shelf${scale === 2 ? "@2x" : ""}.png`), rgb72(await r.png(banner(w, h), w, h)));
+      writeFileSync(join(tv, `${set}.imageset`, `top-shelf${scale === 2 ? "@2x" : ""}.png`), rgb72(await r.png(topShelf(w, h), w, h)));
     }
   }
 
