@@ -7,7 +7,7 @@ use axum::Json;
 use axum::body::{Body, Bytes};
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, Request, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
 use futures::FutureExt;
@@ -100,6 +100,7 @@ async fn decide_picked(
 pub async fn start(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     Json(mut req): Json<PlaybackRequest>,
 ) -> ApiResult<Json<PlaybackInfo>> {
     let row = item_or_404(&state, user.id, req.item_id).await?;
@@ -158,6 +159,7 @@ pub async fn start(
     }
     let start_ms = req.start_ms.unwrap_or(0).max(0);
     let client_id = req.client_id.clone().filter(|c| !c.is_empty() && c.len() <= 128);
+    let device = super::remote::device_name(req.device_name.as_deref(), &headers);
 
     // A client plays one thing at a time: end what it played before (a
     // quality or audio switch, the next episode) so its transcode slot is
@@ -187,6 +189,8 @@ pub async fn start(
         session.app_grant = user.app.as_ref().map(|app| app.grant_id);
         session.compatibility_token = user.compatibility.map(|c| c.token_id);
         session.media_key = req.keyed_urls.then(new_media_key);
+        session.controls = req.controls.clone();
+        session.device = device;
         // The transcoder doesn't see direct plays: its background work waits
         // for the player's first reads too.
         if state.transcoder.is_available() {
@@ -196,7 +200,7 @@ pub async fn start(
             });
         }
         let session = state.sessions.insert(session);
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
         let url = match &session.media_key {
             // Named for its container: some players go by the extension.
             Some(key) => format!("/api/media/{key}/file.{}", container_extension(file.container.as_deref())),
@@ -289,8 +293,10 @@ pub async fn start(
     session.app_grant = user.app.as_ref().map(|app| app.grant_id);
     session.compatibility_token = user.compatibility.map(|c| c.token_id);
     session.media_key = req.keyed_urls.then(new_media_key);
+    session.controls = req.controls.clone();
+    session.device = device;
     let session = state.sessions.insert_transcode(session, slot);
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     // Players that read multivariant playlists learn the codecs (Dolby
     // Vision, above all) before the first segment; one that moves between
     // sizes learns them there.
@@ -566,12 +572,15 @@ pub async fn stop_session(
 /// Stops session `id` for `user` (an administrator: any session; anyone
 /// else: their own): its transcode ends, its player hears `session_stopped`
 /// and its next requests answer `410`. A session stopped already is fine.
+/// A Live TV viewer's session is ended the same way.
 pub(crate) fn stop_by(state: &AppState, user: &AuthUser, id: &str, message: Option<String>) -> ApiResult<()> {
     let Some(session) = state.sessions.get(id) else {
         return match state.sessions.stopped(id) {
             Some(stopped) if stopped.user_id == user.id || user.is_admin => Ok(()),
             Some(_) => Err(AppError::forbidden("not your session")),
-            None => Err(AppError::not_found("no such session")),
+            None => {
+                state.live.tuners.stop(id, user, message).unwrap_or_else(|| Err(AppError::not_found("no such session")))
+            }
         };
     };
     if session.user_id != user.id && !user.is_admin {
@@ -600,7 +609,7 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
             }
         });
     }
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
 }
 
 /// The transcoder forgot the job (restart, expiry): create it again with the
@@ -873,7 +882,7 @@ pub async fn hls_file(
 /// `init.mp4`, `{n}.ts`, `{n}.m4s`) of a transcode session, for `user`.
 async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, file: &str) -> ApiResult<Response> {
     if session.touch() {
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     }
     if session.transcode.is_none() {
         return Err(AppError::not_found("not a transcode session"));
@@ -1027,7 +1036,7 @@ pub async fn keyed_media(
         return Err(AppError::not_found("unknown file"));
     }
     if session.touch() {
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     }
     let row = visible_file(&state, &user, session.file_id).await?;
     let mut response = serve_library_file(&row.path, request.method(), request.headers()).await?;

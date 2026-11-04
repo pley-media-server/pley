@@ -2047,6 +2047,11 @@ removed or reordered (`400`).
                                   // as it moves over)
   keyed_urls?: boolean;           // the player can't send the Authorization header: its addresses carry a
                                   // key (Keyed URLs)
+  controls?: Control[];           // the remote's commands this player obeys (Remote control); left out: none.
+                                  // Values the server doesn't know are left out
+  device_name?: string;           // what the player calls its device ("Living room TV"), as remotes show it:
+                                  // cleaned like an app's name, at most 64 characters. Left out: named from
+                                  // the User-Agent ("Firefox on macOS")
   caps?: {                        // what the client decodes natively (left out: nothing)
     containers: string[];         // ["mp4","m4v","mov","webm","mp3","m4a","flac","ogg","wav"]
     video_codecs: string[];       // ["h264","hevc","vp9","av1"]
@@ -3312,7 +3317,9 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
+| GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
+| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/events` | `library` | Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
@@ -3324,29 +3331,35 @@ they may open, with no `analysis` or `library_work`, and the counts 0; a
 session's `transcode.last_error` is "the conversion failed" for them.
 
 `/api/events`: each stream gets the events of the libraries its user may
-open, and the user's own events. A comment line keeps it alive every 15 s.
-The token is checked again every 30 s: the stream ends once it is signed
-out, expired or its account disabled, and the client connects again with a
-valid token. One token may keep 16 streams open; another answers `429`.
+open, and the user's own events; an administrator's gets everyone's
+`sessions_changed` too, for the dashboard. A comment line keeps it alive
+every 15 s. The token is checked again every 30 s: the stream ends once it
+is signed out, expired or its account disabled, and the client connects
+again with a valid token; one whose account became an administrator, or
+stopped being one, follows that. One token may keep 16 streams open; another answers `429`.
 
 ### Stopping a stream
 
 `DELETE /api/sessions/{id}` ends a playback session from somewhere other
-than its player. Administrators stop any session (the dashboard's *Stop*);
-anyone else, their own (on another of their devices). Someone else's
-answers `403`, an unknown one `404`, one stopped already `204`. Its
-transcode and HLS end at once. Then:
+than its player, or a Live TV viewer's session
+([Remote control](#remote-control)). Administrators stop any session (the
+dashboard's *Stop*); anyone else, their own (on another of their
+devices). Someone else's answers `403`, an unknown one `404`, one stopped
+already `204`. Its transcode and HLS end at once, and so does the
+`stream.ts` an app reads for a live session. Then:
 
 - the user's event streams get `{ type: "session_stopped", session_id,
   message, by_admin }`. `message` is the one given (trimmed) or `null`;
   `by_admin` is true when an administrator stopped another user's session.
-  Only that user's streams get it; `sessions_changed` goes to everyone, as
-  when any session ends;
+  Only that user's streams get it; `sessions_changed` goes to that user's
+  and administrators' streams, as when any session ends;
 - for 30 minutes, the session's next requests answer `410`
   `{ code: "session_stopped", error: "session_stopped", message }`: its
   status, playlists and segments, and progress reports naming it (which
   still keep the place). So a player without the event stream stops too.
-  Closing it (`DELETE /api/playback/{id}`) answers `204`;
+  Closing it (`DELETE /api/playback/{id}`) answers `204`. A live session's
+  playlist and segments answer the same, at its keyed address too, as
+  after a take-over;
 - the player stops, leaves, and says "Playback was stopped by the server's
   administrator", with the message if any.
 
@@ -3355,6 +3368,64 @@ The Plex-compatible API's `GET /status/sessions/terminate?sessionId=&reason=`
 with `reason` as the message. A Jellyfin app playing it hears of it on its
 socket (`Playstate` `Stop`). A player's progress reports through either API
 don't restart the stopped session.
+
+### Remote control
+
+A user's devices control what plays on their other devices: pause the TV
+from a phone, skip a track from the browser. Only the session's own user
+does; administrators stop other people's sessions (above) and nothing
+more.
+
+- **Players say what they obey.** A play request's `controls` lists the
+  commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
+  `previous`. Without it, the player obeys none, and remotes show only
+  *Stop*, which every player obeys. Its `device_name` is what remotes call
+  it; without one the server names it from the User-Agent. A Plex app's
+  session is named by `X-Plex-Device-Name` (else `X-Plex-Product`) and a
+  Jellyfin app's by its `Device` (else its `Client`). Plex apps obey only
+  *Stop*. A Jellyfin app obeys every command while it has its socket open,
+  once it has said it takes media control (see
+  [COMPATIBILITY.md](COMPATIBILITY.md)); the server passes them on to it
+  as `Playstate`.
+- **`GET /api/sessions`** lists the caller's own sessions whose players
+  have been heard from in the last 90 seconds, an administrator's too
+  (everyone's are on `/api/activity`). `age_ms` is how long ago its
+  player last reported, by the server's clock, as the answer was made:
+  while a session plays, a remote shows it at `position_ms` plus `age_ms`
+  plus the time since the answer came, by its own clock, so a device
+  whose clock is off still shows the right place. `updated_at` is when
+  that report was, in server time.
+- **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls` and
+  `device_name` too. Its session is listed with `kind: "live"`, its
+  `channel` and `item: null`, while its player is there (see Leaving,
+  under [Live TV](#live-tv)); it is always `playing`, at `position_ms` 0
+  with `duration_ms` `null`. Commands go to it the same way. `next` and
+  `previous` change channel, in the order the player tunes them; the
+  server only passes them on. A live player lists `pause`, `seek` and
+  `skip` only when it can go back in the channel, and its `seek` goes up
+  to a day, as with a title whose length isn't known. A viewer starting, ending or changing channel
+  sends `sessions_changed`.
+- **`POST /api/sessions/{id}/command`** answers `202` and sends the
+  user's event streams `{ type: "player_command", session_id, command,
+  position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
+  title's length (a day when it isn't known); `skip` needs `offset_ms`,
+  up to 10 minutes either way (back when negative). The other commands
+  take neither, and the event has them `null`. It answers:
+  - `400` for an unknown command, or a place or offset missing or out of
+    range;
+  - `403` for someone else's session, an administrator's request too;
+  - `404` for a session unknown, stopped, or whose player is gone;
+  - `409` `{ code: "not_controllable", message }` for a command the
+    player didn't list;
+  - `429` past 10 commands a second to one session.
+- **The player acts on it**, if `session_id` is the session it plays now:
+  `seek` stops at the start and the end, `skip` counts from where it is,
+  and `next` with nothing next or `previous` on a video does nothing. Then
+  it reports at once. A report whose place is more than 5 seconds from
+  where the session could be by now, played at any speed from half to
+  twice since the last report (a seek, a skip), sends `sessions_changed`,
+  as a pause does, so remotes fetch the list again. The first report
+  isn't compared: until then the session is starting.
 
 ### Watch state on other devices
 
@@ -3446,8 +3517,10 @@ interface ScanStatus {
 
 interface SessionInfo {
   session_id: string;
+  kind: "item";
   user_id: Id;
   username: string;
+  device: string | null;        // "Living room TV", "Firefox on macOS" (Remote control)
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
@@ -3455,6 +3528,23 @@ interface SessionInfo {
   started_at: Timestamp;
   updated_at: Timestamp;
   transcode: null | TranscodeInfo;
+}
+
+type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+
+interface PlayingSession {      // GET /api/sessions
+  session_id: string;
+  kind: "item" | "live";
+  device: string | null;        // as SessionInfo's
+  item: ItemSummary | null;     // kind "item"
+  channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null } | null;
+                                // kind "live"; `now`: the programme on
+  state: "playing" | "paused" | "buffering"; // live: "playing"
+  position_ms: number;          // live: 0
+  duration_ms: number | null;   // null when the length isn't known, and on live
+  updated_at: Timestamp;        // its player's last report (live: its last request for the channel)
+  age_ms: number;               // how long before the answer that was, by the server's clock
+  controls: Control[];          // what its player obeys; Stop always works
 }
 
 interface TranscodeInfo {
@@ -3495,10 +3585,14 @@ type ServerEvent =
                                                      // changed. To one user's streams only: their own order,
                                                      // or what they may see (is_admin, all_libraries,
                                                      // library_ids, max_age changed)
-  | { type: "sessions_changed" }
+  | { type: "sessions_changed" }                     // a session of the user's started, ended or changed (their
+                                                     // streams, and administrators', whose dashboard lists all)
   | { type: "watchlist_changed" }                    // the user's My List changed (their streams only)
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only
+  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null;
+      offset_ms: number | null }                     // the user's remote sent this command to their player of
+                                                     // session_id (theirs only): see Remote control
   | { type: "live_channels_changed" }                // Live TV's sources, channels or guide changed: refetch
   | { type: "live_tuners_changed" }                  // a channel was tuned or let go, or its viewers changed
   | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string }
@@ -3549,8 +3643,8 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
-| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below |
-| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`) |
+| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over?, controls?, device_name? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below; `controls` and `device_name` as a play request's ([Remote control](#remote-control)) |
+| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`). A reader that watches by itself obeys no remote and is named from its User-Agent |
 | GET | `/api/live/sessions/{session}/plan` | `play` | `LivePlan \| null`: what the transcoder makes of the channel, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
 | GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session; `410 session_stopped` once the session is over, with why as `message` |
 | GET | `/api/live/media/{key}/{file}` | `public` (the key) | the same, for a session watched with `keyed_urls` |
@@ -3668,8 +3762,8 @@ interface LiveTuner {                  // a connection in use
   `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
   streams at once, and its session answers `410` with the same `message`
   after it, at its keyed address too (the server remembers up to 500
-  sessions ended so, until it restarts). Every player of that channel on the
-  account stops (a player reading `stream.ts` knows no session, so players
+  sessions ended so or [stopped](#stopping-a-stream), until it
+  restarts). Every player of that channel on the account stops (a player reading `stream.ts` knows no session, so players
   go by `channel_id`; one viewer's HLS and stream sessions each send one)
   and shows the message until it is dismissed, even after the app goes
   to the background and back; it doesn't tune again by itself. The message
@@ -3683,7 +3777,9 @@ interface LiveTuner {                  // a connection in use
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
   same HLS stream, made once.
-- **Leaving.** An HLS viewer that asked for nothing for 45 s has left;
+- **Leaving.** An HLS viewer that asked for nothing for 45 s has left,
+  unless its device reads the channel's `stream.ts` for it instead (as
+  `<client_id>-stream`): it stays while that is read.
   `DELETE /api/live/sessions/{session}` says so at once.
 - **Large lineups.** Providers list tens of thousands of channels in
   hundreds of groups. Apps list them by group (`groups`), a page at a
