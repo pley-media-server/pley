@@ -1167,7 +1167,7 @@ async fn search_rows(
     query: &str,
     section: Option<i64>,
 ) -> PlexResult<Vec<ItemRow>> {
-    let rows = catalog::search(&state.db, user.id, query, 200).await?;
+    let rows = crate::search::items(&state.db, user.id, query, 200).await?;
     Ok(rows
         .into_iter()
         .filter(|r| libraries.iter().any(|l| l.id == r.library_id) && section.is_none_or(|s| s == r.library_id))

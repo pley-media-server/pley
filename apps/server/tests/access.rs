@@ -197,9 +197,15 @@ async fn seasons_and_episodes_go_by_their_show() {
     let admin_next = app.get(&format!("/api/items/{pilot}/next"), &w.admin).await;
     assert_eq!(admin_next.body["item"]["title"], json!("Second"));
 
-    // Search and the Jellyfin episode listing leave them out too.
+    // Search and the Jellyfin episode listing leave them out too, slips and
+    // titles found alike included.
     assert_eq!(app.get("/api/search?q=pilot", kid).await.body["items"], json!([]));
     assert_eq!(titles(&app.get("/api/search?q=pilot", &w.admin).await.body["items"]), ["Pilot"]);
+    for slip in ["pliot", "pilooot"] {
+        let q = format!("/api/search?q={slip}");
+        assert_eq!(app.get(&q, kid).await.body["items"], json!([]), "{slip}");
+        assert_eq!(titles(&app.get(&q, &w.admin).await.body["items"]), ["Pilot"], "{slip}");
+    }
     let tv = app.jf_library(w.tv);
     let episodes = app.jf_json(&format!("/Items?ParentId={tv}&IncludeItemTypes=Episode&Recursive=true"), kid).await;
     assert_eq!(jf_names(&episodes), ["Hello"]);
