@@ -83,8 +83,8 @@ const defs = logo.match(/<defs>[\s\S]*<\/defs>/)[0];
 // pictures here place and scale them themselves.
 const glyph = `<g>${logo.match(/<g[^>]*>([\s\S]*?)<\/g>/)[1]}</g>`;
 const TILE = "#0a1622";
-// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' own: the back
-// poster darker than the favicon's, which a browser tab may show on white.
+// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' and the iPhone's:
+// the back poster darker than the favicon's, which a browser tab may show on white.
 const tvGlyph = glyph.replace('fill="#0369a1"', 'fill="#0c4a6e"');
 if (tvGlyph === glyph) throw new Error("the favicon's back poster isn't #0369a1 any more");
 
@@ -202,7 +202,7 @@ function topShelf(width, height, icon) {
   // shows: the mark and the wordmark (about 1.86 em wide in the system's bold sans), close together, are
   // centred together.
   const mark = side * 0.625;
-  const gap = side * 0.06;
+  const gap = side * 0.09;
   const left = (width - (mark + gap + font * 1.86)) / 2;
   const x = left - side * 0.1875;
   const y = (height - side) / 2;
@@ -406,7 +406,7 @@ try {
   // the Mac's are icon.icns's, one file for each size and scale the asset catalog names.
   const apple = join(root, "apps/apple");
   const appIcon = join(apple, "Pley/Assets.xcassets/AppIcon.appiconset");
-  writeFileSync(join(appIcon, "icon-1024.png"), rgb72(await r.png(maskable(1024, 1024 / 64), 1024)));
+  writeFileSync(join(appIcon, "icon-1024.png"), rgb72(await r.png(maskable(1024, 1024 / 64, tvGlyph), 1024)));
   for (const size of [16, 32, 128, 256, 512]) {
     writeFileSync(join(appIcon, `mac-${size}.png`), mac[size]);
     writeFileSync(join(appIcon, `mac-${size}@2x.png`), mac[size * 2]);
