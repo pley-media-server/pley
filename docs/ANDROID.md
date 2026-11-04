@@ -683,6 +683,11 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   its own box, and its placeholder's title is laid out on a thread of its
   own. While a key holds pictures back, their requests are set aside off
   the main thread, and go on there when the key comes up.
+- A held Up or Down on a page of rows moves focus to the next row's
+  tile itself (the one nearest across, or the tile that row comes back
+  to), and stays at the page's ends and below a hero. Compose's own
+  focus search lays the focused row out again at every step, and the
+  whole page at its ends, to look for more beyond them.
 - Pictures are hardware bitmaps from Android 10 on, software ones before:
   Android 9 (Fire OS 7) makes each hardware bitmap on the RenderThread, 2
   to 8 ms a poster, and a held key's landing brings a screenful at once.

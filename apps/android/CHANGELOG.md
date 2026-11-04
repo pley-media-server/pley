@@ -17,11 +17,11 @@ describes how they are made.
 
 ### Changed
 
-- On Android TV and Fire TV, a key held through a library's grid or along
-  Home's rows scrolls more smoothly: tiles cost far less to bring in and
-  to draw, rows are made ahead of the screen, and a held step waits a
-  frame or two for its row rather than stall the picture. A show's page
-  and the guide make their next rows ahead too.
+- On Android TV and Fire TV, a key held through a library's grid, along
+  Home's rows or down through them scrolls more smoothly: tiles cost far
+  less to bring in and to draw, rows are made ahead of the screen, and a
+  held step waits a frame or two for its row rather than stall the
+  picture. A show's page and the guide make their next rows ahead too.
 - On Fire TV and other devices on Android 9 or earlier, the screen no
   longer stutters for half a second as a held key comes up and the
   pictures where it stopped arrive.

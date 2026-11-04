@@ -606,6 +606,35 @@ class TvRowFocusTest {
         assertEquals(210f, focusedTop(), 1f)
     }
 
+    /**
+     * A held Up or Down goes from row to row as a press does, each row
+     * coming back to its tile: the column moves focus itself under a held
+     * key rather than search for the next row's tile.
+     */
+    @Test
+    fun aHeldUpGoesRowByRowEachToItsTile() {
+        rows()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 3)
+        compose.focused().assertContentDescriptionEquals("R1 104")
+        compose.press(Key.DirectionDown, times = 2)
+        compose.focused().assertContentDescriptionEquals("R3 301")
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionUp)
+        // 32 frames, 512 ms: the press, then a step every 45 ms from 400 ms, to the first row and no further.
+        val passed = mutableListOf<String>()
+        repeat(32) {
+            compose.frameAndPrefetch()
+            val now = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].joinToString()
+            if (passed.lastOrNull() != now) passed += now
+        }
+        keyUp(Key.DirectionUp)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(listOf("R2 202", "R1 104", "R0 1"), passed)
+        assertEquals(210f, focusedTop(), 1f)
+    }
+
     @Test
     fun withReducedMotionAHeldDownStepsThePageARowAtATime() {
         rows(reduced = true)
