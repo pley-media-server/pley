@@ -394,6 +394,27 @@ public enum RequestWords {
 
     public static let deleteConfirm = "Delete this request? Radarr and Sonarr keep what they have."
 
+    // MARK: On Apple TV
+
+    public static let declineWithReason = "Decline with a reason…"
+    public static let showMore = "Show more"
+    public static let close = "Close"
+    public static let kindAll = "Movies and shows"
+    public static let askedBy = "Asked by"
+    public static let find = "Find something to ask for"
+    public static let nothingBody = "TMDB's lists have nothing this account can ask for. Search for a title instead."
+    public static let listNothingBody = "TMDB's list has nothing this account can ask for."
+    public static let gridFailed = "Couldn't load it"
+    /// Beside a grid's lone Show more: the pages read so far had nothing.
+    public static let noneYet = "Nothing here yet"
+    public static let noneYetBody = "TMDB's pages read so far have nothing this account can ask for."
+    public static func searchNoneYet(_ query: String) -> String { "Nothing yet for \u{201C}\(query)\u{201D}" }
+    public static let signInAsk = "Sign in again?"
+    /// "This Apple TV shows a code to link it to Home again."
+    public static func signInAskBody(_ server: String) -> String {
+        "This Apple TV shows a code to link it to \(server) again."
+    }
+
     // MARK: News and the badge
 
     /// The number on the way into requests, said for VoiceOver: "3
@@ -420,7 +441,7 @@ public enum RequestWords {
     public static func notice(_ news: RequestNews) -> String {
         func quoted(_ title: String) -> String { "\u{201C}\(title)\u{201D}" }
         switch news {
-        case .ready(_, let title, _, _, let seasons, let complete):
+        case .ready(_, let title, _, _, let seasons, let complete, _):
             let seasons = seasons ?? []
             if complete || seasons.isEmpty { return "\(quoted(title)) is ready to watch." }
             return "\(Self.seasons(seasons)) of \(quoted(title)) \(seasons.count == 1 ? "is" : "are") ready to watch."

@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import app.pley.android.model.LiveCategory
 import app.pley.android.screens.livetv.LiveTv
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.background
@@ -707,7 +709,7 @@ private fun CategoryChannels(
     if (pages.total == 0) {
         BasicText(stringResource(R.string.tv_livetv_no_match), style = PleyType.Tv.Label.copy(color = PleyColors.Subtle), modifier = Modifier.padding(8.dp))
     }
-    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag(TV_LIVE_PLAYER_CHANNELS)) {
+    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.heldKeyStaysIn(HeldEnds.UpDown).testTag(TV_LIVE_PLAYER_CHANNELS)) {
         items(count = pages.total ?: 0, key = { i -> pages[i]?.id ?: -i - 1L }, contentType = { i -> if (pages[i] == null) LOADING_ROW else CHANNEL_ROW }) { i ->
             val channel = pages[i]
             if (channel == null) {

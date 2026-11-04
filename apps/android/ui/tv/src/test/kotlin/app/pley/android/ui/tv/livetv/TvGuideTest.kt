@@ -129,7 +129,7 @@ class TvGuideTest {
 
     /**
      * [code] pressed at [at] and held for [ms], a frame at a time: the gate moves focus by
-     * itself, from 180 ms every 45, as on a TV, where it drops the system's repeats. The key
+     * itself, from 400 ms every 45, as on a TV, where it drops the system's repeats. The key
      * stays down until [release].
      */
     private fun hold(code: Int, at: Long, ms: Long) {

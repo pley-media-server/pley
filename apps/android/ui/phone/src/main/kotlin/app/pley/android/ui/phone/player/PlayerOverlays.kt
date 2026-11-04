@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -167,7 +166,7 @@ internal fun BoxScope.SkipButton(state: PlayerScreenState) {
         shown,
         Modifier
             .align(Alignment.BottomEnd)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(end = 24.dp, bottom = 24.dp)
             .offset { IntOffset(0, -lift.roundToPx()) },
         enter = fadeIn(PleyMotion.reveal()),
@@ -212,7 +211,7 @@ internal fun BoxScope.UpNextCard(state: PlayerScreenState) {
         card != null && !state.locked && state.sheet == null,
         Modifier
             .align(Alignment.BottomEnd)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(end = 24.dp, bottom = 24.dp)
             .offset { IntOffset(0, -lift.roundToPx()) },
         enter = fadeIn(PleyMotion.reveal()),
@@ -340,7 +339,7 @@ internal fun BoxScope.LevelIndicator(state: PlayerScreenState) {
     Column(
         Modifier
             .align(if (volume) Alignment.CenterEnd else Alignment.CenterStart)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(horizontal = 40.dp)
             .clip(PleyShape.Pill)
             .background(Color.Black.copy(alpha = 0.6f))
@@ -385,7 +384,7 @@ internal fun BoxScope.ModeLabel(state: PlayerScreenState) {
         color = PleyColors.Fg,
         modifier = Modifier
             .align(Alignment.TopCenter)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(top = 72.dp)
             .background(Color.Black.copy(alpha = 0.6f), PleyShape.Pill)
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -405,7 +404,7 @@ internal fun BoxScope.UnlockButton(state: PlayerScreenState) {
         Modifier
             // At the top, clear of subtitles.
             .align(Alignment.TopCenter)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(top = 24.dp)
             .heightIn(min = 48.dp)
             .clip(PleyShape.Pill)

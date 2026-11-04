@@ -1,15 +1,24 @@
 package app.pley.android.ui.tv.music
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
 import app.pley.android.player.MusicQueueState
@@ -19,7 +28,11 @@ import app.pley.android.player.sleep.SleepState
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.tv.item.LocalTvTileActions
 import app.pley.android.ui.tv.item.TvTileActions
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.focused
+import app.pley.android.ui.tv.kit.hold
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.settings.TvAccountTestApplication
 import app.pley.android.ui.tv.settings.TvAccountTestGraph
@@ -37,7 +50,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Music on TV with the D-pad: an album starts on Play and plays from a
- * track chosen on the right, opening Now Playing; an album opened from a
+ * track chosen on the right, opening Now Playing, and a held Up stops on
+ * its first track; an album opened from a
  * track starts on it; Now Playing starts on Play/Pause, the queue under it
  * jumps to a track, and Down from the controls lands on the track playing.
  * An artist's album opens its actions beside the page.
@@ -56,11 +70,20 @@ class TvMusicFocusTest {
         TvAccountTestApplication.graph = graph
     }
 
-    private fun show(content: @androidx.compose.runtime.Composable () -> Unit) {
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
+
+    /** [content], with something focusable above it when [above], as a page's list before is. */
+    private fun show(above: Boolean = false, content: @androidx.compose.runtime.Composable () -> Unit) {
         val navigator = TvNavigator(stack, RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = true) {
-                CompositionLocalProvider(LocalTvNavigator provides navigator) { content() }
+                CompositionLocalProvider(LocalTvNavigator provides navigator, LocalKeyRepeatGate provides gate) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
+                        Box(Modifier.weight(1f)) { content() }
+                    }
+                }
             }
         }
     }
@@ -82,6 +105,21 @@ class TvMusicFocusTest {
         compose.press(Key.DirectionCenter)
         assertEquals(TvAccountTestGraph.TRACKS.map { it.id } to 2, graph.music.played.single())
         assertEquals(PleyKey.NowPlaying, stack.last())
+    }
+
+    @Test
+    fun aHeldUpStopsOnAnAlbumsFirstTrackAndOnlyAPressGoesOnAbove() {
+        show(above = true) { TvAlbumScreen(TvAccountTestGraph.ALBUM, trackId = null) }
+        waitFor("Song 1")
+        compose.press(Key.DirectionRight, times = 2)
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Song 2"))
+        // The press moves up to Song 1; held from 400 ms, Up goes no further.
+        compose.hold(Key.DirectionUp)
+        compose.focused().assert(hasText("Song 1"))
+        compose.onNodeWithTag(ABOVE).assertIsNotFocused()
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag(ABOVE).assertIsFocused()
     }
 
     @Test
@@ -153,5 +191,9 @@ class TvMusicFocusTest {
         compose.press(Key.DirectionCenter)
         assertEquals(1, graph.music.keeps)
         assertEquals(SleepChoice.Minutes(30), graph.music.sleepState.value.choice)
+    }
+
+    private companion object {
+        const val ABOVE = "above"
     }
 }

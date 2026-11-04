@@ -37,5 +37,5 @@ class StartupBenchmark {
     }
 }
 
-/** The app under test. */
-const val TARGET = "com.formandelement.pley"
+/** The app under test: its id with the suffix it was built with (docs/ANDROID.md, "Performance"). */
+const val TARGET = BuildConfig.TARGET

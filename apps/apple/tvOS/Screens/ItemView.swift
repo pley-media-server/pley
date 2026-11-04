@@ -6,9 +6,12 @@ import SwiftUI
 
 /// A title's page for the sofa (docs/APPLE.md, Item pages): the backdrop
 /// fills the screen behind the title, where it sits, its facts and summary,
-/// and a row of buttons: Play or Resume, From start, Watched, My List, the
-/// trailer, the profile's rating, the version, audio and subtitles, and
-/// More. Below, rows: a show's seasons and episodes, extras, cast, More
+/// and a row of buttons: Play or Resume, From start, Request more seasons
+/// (a show some of whose seasons may still be asked for), Watched, My
+/// List, the trailer, the profile's rating, the version, audio and
+/// subtitles, and More. A movie or show someone asked for has its
+/// request's stage under its facts, with the download's bar while it
+/// comes. Below, rows: a show's seasons and episodes, extras, cast, More
 /// Like This, details and Media info. An item that isn't a title (an
 /// artist, an album, a track, an extra) shows the page it belongs on.
 struct ItemView: View {
@@ -109,6 +112,11 @@ struct ItemView: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("item.title")
             meta(page)
+            if let pill = model.requestBlock?.pill {
+                StagePillView(pill: pill)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("item.request")
+            }
             if let tagline = page.tagline {
                 Text(tagline).font(.headline).italic()
             }
@@ -189,6 +197,14 @@ struct ItemView: View {
                         .accessibilityLabel("Play from start")
                         .accessibilityIdentifier("item.playFromStart")
                     }
+                }
+                if let block = model.requestBlock, block.more {
+                    Button {
+                        app.shell.open(block.picker)
+                    } label: {
+                        Label(RequestWords.moreSeasons, systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("item.requestMore")
                 }
                 if page.markable {
                     Button {

@@ -72,6 +72,13 @@ class PlayerScreenState(
     /** An episode: Next episode is offered. */
     val episode: Boolean by derivedStateOf { ui.value.subtitle != null }
 
+    /**
+     * The server has said how the item plays, or it plays from a download
+     * or a drive: the bottom row's choices are known (a drive's own tracks
+     * join them once Media3 has read the file).
+     */
+    val answered: Boolean by derivedStateOf { ui.value.method != null }
+
     /** The subtitles chosen are drawn into the picture by the server. */
     val burnedSubtitles: Boolean by derivedStateOf { ui.value.subtitles.any { it.selected && it.burnIn } }
 

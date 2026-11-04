@@ -20,11 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -75,8 +77,19 @@ class TvGridLoadFocusTest {
     private lateinit var state: LazyGridState
     private lateinit var view: View
 
-    /** The grid, with something focusable above it when [above] (the library's chips). */
-    private fun grid(reduced: Boolean? = null, above: Boolean = false, hero: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
+    /**
+     * The grid of [total] cells, with something focusable above it when [above] (the library's chips)
+     * and below it when [below], [top] down the screen.
+     */
+    private fun grid(
+        reduced: Boolean? = null,
+        above: Boolean = false,
+        below: Boolean = false,
+        hero: Boolean = false,
+        top: Dp = 0.dp,
+        total: Int = tiles.size,
+        tileAt: (Int) -> ArtworkTileModel? = { tiles[it] },
+    ) {
         // A TV composes the cache window's rows off the screen.
         prefetchAsOnATv()
         compose.setContent {
@@ -86,9 +99,10 @@ class TvGridLoadFocusTest {
                 view = LocalView.current
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
                     Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        if (top > 0.dp) Spacer(Modifier.height(top))
                         if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
                         TvPosterGrid(
-                            total = tiles.size,
+                            total = total,
                             tileAt = tileAt,
                             keyAt = { it },
                             kind = TileKind.LibraryGrid,
@@ -114,6 +128,7 @@ class TvGridLoadFocusTest {
                             },
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
+                        if (below) Box(Modifier.size(40.dp).testTag(BELOW).focusable())
                     }
                 }
             }
@@ -162,6 +177,21 @@ class TvGridLoadFocusTest {
         assertEquals(Columns, focus.focused)
     }
 
+    /** The focused cell keeps its place while the grid moves under it, a press at a time: the cursor stays put. */
+    @Test
+    fun eachPressDownKeepsTheFocusedCellInPlace() {
+        grid()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        val top = compose.onNode(isFocused()).getBoundsInRoot().top
+        repeat(8) { press ->
+            compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+            compose.waitForIdle()
+            assertEquals(Columns * (press + 2), focus.focused)
+            assertEquals("press ${press + 2}", top.value, compose.onNode(isFocused()).getBoundsInRoot().top.value, 0.5f)
+        }
+    }
+
     @Test
     fun aHeldDownGlidesTheGridOnARowAStep() {
         grid()
@@ -169,20 +199,103 @@ class TvGridLoadFocusTest {
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
         var last = scrolled()
-        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
-        for (frame in 1..25) {
+        // 38 frames, 608 ms: the press, then a step every 45 ms from 400 ms, each glide running into the next.
+        for (frame in 1..38) {
             compose.mainClock.advanceTimeByFrame()
             val moved = scrolled() - last
             last += moved
             assertTrue("frame $frame moved $moved of $pitch", moved < pitch / 2)
-            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+            if (frame > 26) assertTrue("frame $frame stood still", moved > 0f)
         }
         compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
-        // The press and five held steps: six rows down, that row at the top.
-        assertEquals(Columns * 6, focus.focused)
-        assertEquals(6 * pitch, scrolled(), 1f)
+        // The press and four held steps: five rows down, that row at the top. The fifth, at 592 ms, was still waiting
+        // for its row (without the frames' prefetching) as the key came up, and doesn't go.
+        assertEquals(Columns * 5, focus.focused)
+        assertEquals(5 * pitch, scrolled(), 1f)
+    }
+
+    /**
+     * A held step waiting for its row ends with the hold: the key coming up
+     * takes no step after it, and a press right after goes from where focus
+     * is, rather than being taken by the wait.
+     */
+    @Test
+    fun aPressRightAfterAHoldGoesFromWhereTheHoldLeftFocus() {
+        grid()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        // The press, and held steps from 400 ms: the second, at 448 ms, comes while the first one's glide runs, and
+        // without the frames' prefetching the row it brings in isn't made, so it waits for it.
+        repeat(28) { compose.mainClock.advanceTimeByFrame() }
+        val held = focus.focused
+        compose.onRoot().performKeyInput {
+            keyUp(Key.DirectionDown)
+            pressKey(Key.DirectionUp)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(held - Columns, focus.focused)
+    }
+
+    @Test
+    fun aHeldDownStopsAtTheLastRowAndAPressGoesOn() {
+        // Two rows and two cells of a third.
+        grid(below = true, total = Columns * 2 + 2)
+        // In the third column, which the last row doesn't reach: held, Down neither leaves the grid nor goes aslant.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight) } }
+        holdDown()
+        assertEquals(Columns + 2, focus.focused)
+        compose.onNodeWithTag(BELOW).assertIsNotFocused()
+        // In the first column: held down to the last row, and no further.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionLeft) } }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        holdDown()
+        assertEquals(Columns * 2, focus.focused)
+        compose.onNodeWithTag(BELOW).assertIsNotFocused()
+        // A press of its own goes on below.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(BELOW).assertIsFocused()
+    }
+
+    /** Down held for most of a second: the press, then held steps from 400 ms. */
+    private fun holdDown() {
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        repeat(50) { frame() }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+    }
+
+    /**
+     * A library's grid starts below its tabs and chips, with not two rows on
+     * the screen. Held on, the grid keeps up with focus: each step lands on a
+     * row laid out on the screen, and none has to be scrolled in at a jump.
+     */
+    @Test
+    fun aLongHeldDownThroughALibrarysGridNeverJumps() {
+        val many = List(600) { ArtworkTileModel(id = it + 1L, title = "Title ${it + 1}", subtitle = "2024") }
+        grid(top = GridTop - TileRoom, total = many.size, tileAt = { many[it] })
+        val pitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        var last = scrolled()
+        // Three seconds, the rows ahead made between frames as on a TV.
+        for (frame in 1..180) {
+            frame()
+            val moved = scrolled() - last
+            last += moved
+            assertTrue("frame $frame moved $moved of $pitch", moved < pitch / 2)
+            assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())
+        }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertTrue("${focus.focused / Columns} rows down", focus.focused / Columns > 50)
     }
 
     @Test
@@ -193,7 +306,7 @@ class TvGridLoadFocusTest {
         assertEquals(Columns, focus.focused)
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
-        // The press moves up to the first row; held from 180 ms, Up goes no further.
+        // The press moves up to the first row; held from 400 ms, Up goes no further.
         compose.mainClock.advanceTimeBy(600)
         compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
         compose.mainClock.autoAdvance = true
@@ -243,7 +356,7 @@ class TvGridLoadFocusTest {
         compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
         // The press and five held steps, a frame at a time: six rows up, in the same column all the way,
         // on a cell laid out on the grid.
-        for (frame in 1..25) {
+        for (frame in 1..38) {
             frame()
             assertEquals("frame $frame", 3, focus.focused % Columns)
             assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())
@@ -342,6 +455,7 @@ class TvGridLoadFocusTest {
         val Columns = tvGridColumns(TileKind.LibraryGrid)
 
         const val ABOVE = "above"
+        const val BELOW = "below"
         const val HERO = "hero"
         val HeroHeight = 300.dp
     }

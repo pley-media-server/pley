@@ -3,6 +3,6 @@
 
     <!-- Macrobenchmark starts and inspects the app under test. -->
     <queries>
-        <package android:name="com.formandelement.pley" />
+        <package android:name="${target}" />
     </queries>
 </manifest>

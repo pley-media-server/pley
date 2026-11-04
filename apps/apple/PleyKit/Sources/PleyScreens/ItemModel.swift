@@ -106,7 +106,6 @@ public final class ItemModel: ObservableObject {
             guard self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
         }.store(in: &listeners)
-        #if !os(tvOS)
         // The gate opening or closing (a summary read late, as on a cold start
         // or a Top Shelf link, or signing in again) reads the block again.
         app.requests.$summary.dropFirst().map { RequestsGate.of($0).kind }.removeDuplicates().sink { [weak self] _ in
@@ -115,7 +114,6 @@ public final class ItemModel: ObservableObject {
                 self.loadRequest()
             }
         }.store(in: &listeners)
-        #endif
     }
 
     /// Reads the item and what the page shows beside it. What shows stays
@@ -183,10 +181,7 @@ public final class ItemModel: ObservableObject {
             }
             state = .loaded
             rebuild()
-            #if !os(tvOS)
-            // Apple TV doesn't show requests on a title's page: nothing is read for them.
             if requestTask == nil { loadRequest() }
-            #endif
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.

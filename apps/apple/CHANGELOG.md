@@ -94,3 +94,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or from Search, ask for them (picking a show's seasons), follow your
   requests, and hear when they're ready. Administrators approve and
   decline under Me, with a count on Me's tab.
+- Requests on Apple TV, as on Android TV: a Discover tab (Your requests,
+  or Requests for administrators, where you can't ask) with its count,
+  posters to browse and ask for, Which seasons? and each request's actions
+  in a panel down the side, Discover's titles in Search, and a pop-up when
+  something you asked for is ready to watch.

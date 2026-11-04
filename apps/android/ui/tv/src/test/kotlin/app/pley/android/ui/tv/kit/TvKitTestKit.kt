@@ -25,6 +25,21 @@ internal fun ComposeContentTestRule.press(key: Key, times: Int = 1) {
     }
 }
 
+/**
+ * Holds [key] down for [ms], frame by frame, then lets it go: its press,
+ * then held moves from 400 ms, for a [KeyRepeatGate] on the test's clock
+ * that the content has.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeContentTestRule.hold(key: Key, ms: Long = 600) {
+    mainClock.autoAdvance = false
+    onRoot().performKeyInput { keyDown(key) }
+    mainClock.advanceTimeBy(ms)
+    onRoot().performKeyInput { keyUp(key) }
+    mainClock.autoAdvance = true
+    waitForIdle()
+}
+
 /** The node that has focus now. */
 internal fun SemanticsNodeInteractionsProvider.focused(): SemanticsNodeInteraction = onNode(isFocused())
 

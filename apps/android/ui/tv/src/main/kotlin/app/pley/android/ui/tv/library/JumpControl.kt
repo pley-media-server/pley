@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +65,8 @@ internal fun JumpControl(
 ) {
     var focused by remember { mutableStateOf(false) }
     var letter by remember { mutableIntStateOf(0) }
-    val section = index.letterAt(focus.focused.coerceAtLeast(0))
+    // The section's letter, not the focused cell: a move within a letter recomposes nothing here.
+    val section by remember(index, focus) { derivedStateOf { index.letterAt(focus.focused.coerceAtLeast(0)) } }
     val shown = if (focused) letter else section
     val reduced = reducedMotion()
     val scale by animateFloatAsState(
