@@ -625,7 +625,10 @@ and the run's output names each.
 On a device that already has Pley, signed with another key, build both with
 `-Ppley.applicationIdSuffix=.bench`: the benchmarked app installs beside it
 as `com.formandelement.pley.bench`, and the benchmarks (which clear the
-app's data between runs) touch only that one.
+app's data between runs) touch only that one. The benchmarks take the
+suffix too (`app.pley.android.benchmark.bench`, in the commands and the
+traces' folder above), so copies built with different suffixes, and with
+different keys, install side by side.
 
 Any build, release ones too, counts its frames while "Show frame rate" is
 on: Settings → Diagnostics on a TV, Diagnostics on a phone, kept on the
