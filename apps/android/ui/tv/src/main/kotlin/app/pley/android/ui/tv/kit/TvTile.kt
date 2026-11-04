@@ -12,8 +12,6 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -166,7 +164,8 @@ fun TvTileFrame(
     // recorded drawing instead of drawing its caption and well again in every
     // frame (on a Google TV Streamer, a held Down through a library re-drew
     // some fifty tiles' text each frame, about 9 ms of it).
-    Column(modifier.width(kind.tvWidth).focusedOnTop(look).graphicsLayer()) {
+    // The caption's gap is the column's spacing rather than a Spacer: a node less in each tile.
+    Column(modifier.width(kind.tvWidth).focusedOnTop(look).graphicsLayer(), verticalArrangement = Arrangement.spacedBy(TileStyle.Tv.captionGap)) {
         Box(
             focusModifier
                 .onFocusChanged { look.focus(it.isFocused) }
@@ -193,7 +192,6 @@ fun TvTileFrame(
         ) {
             well()
         }
-        Spacer(Modifier.height(TileStyle.Tv.captionGap))
         caption(look.emphasized)
     }
 }
@@ -213,7 +211,8 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
     /** Whether the caption is bold: focused, and not quiet. Tiles without focus don't read the quiet at all. */
     val emphasized: Boolean by derivedStateOf { focused && quiet?.on != true }
 
-    val progress = Animatable(0f)
+    /** How much of the focus look it has, made at the first focus: most tiles in a grid never have it. */
+    private var progress by mutableStateOf<Animatable<Float, AnimationVector1D>?>(null)
 
     /** The press's scale, made at the first press: most tiles are never pressed. */
     private var pressed by mutableStateOf<Animatable<Float, AnimationVector1D>?>(null)
@@ -234,11 +233,12 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
             on -> TvMotion.FocusIn
             else -> TvMotion.FocusOut
         }
+        val amount = progress ?: Animatable(0f).also { progress = it }
         scope.launch {
             if (snap) {
-                progress.snapTo(target)
+                amount.snapTo(target)
             } else {
-                progress.animateTo(target, spec)
+                amount.animateTo(target, spec)
             }
         }
     }
@@ -251,7 +251,7 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
 
     /** How much of the focus look shows: [progress], none of it while quiet. */
     fun shown(): Float {
-        val p = progress.value
+        val p = progress?.value ?: 0f
         return if (p == 0f || quiet == null) p else p * (1f - quiet.amount)
     }
 

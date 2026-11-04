@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
@@ -157,7 +158,11 @@ fun Artwork(
     ArtworkBox(image, load, modifier.artworkPlaceholder(title, titleStyle, load), contentScale, alignment)
 }
 
-/** The box and its picture; [modifier] carries the placeholder and whatever is drawn over it. */
+/**
+ * The box and its picture; [modifier] carries the placeholder and whatever
+ * is drawn over it. One node either way, the picture drawn as its content:
+ * a grid brings in a row of these at each step of a held key.
+ */
 @Composable
 internal fun ArtworkBox(
     image: ArtworkImage?,
@@ -166,26 +171,36 @@ internal fun ArtworkBox(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
 ) {
-    Box(modifier) {
-        if (image != null && !image.isEmpty) {
-            val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(LocalPlatformContext.current)
-            load.known = remember(image, loader) { loader.shownArtwork?.has(image) == true }
-            // Reduced motion: no fading either, things change in place.
-            val reduced = reducedMotion()
-            val model = remember(image, reduced) { if (reduced && image.fade) image.copy(fade = false) else image }
-            val scope = rememberCoroutineScope()
-            val onState = remember(load, scope) { { state: AsyncImagePainter.State -> load.onState(state, scope) } }
-            AsyncImage(
-                model = rememberArtworkModel(model),
-                contentDescription = null,
-                imageLoader = loader,
-                modifier = Modifier.matchParentSize(),
-                contentScale = contentScale,
-                alignment = alignment,
-                onState = onState,
-            )
-        }
+    if (image == null || image.isEmpty) {
+        Box(modifier)
+        return
     }
+    val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(LocalPlatformContext.current)
+    load.known = remember(image, loader) { loader.shownArtwork?.has(image) == true }
+    // Reduced motion: no fading either, things change in place.
+    val reduced = reducedMotion()
+    val model = remember(image, reduced) { if (reduced && image.fade) image.copy(fade = false) else image }
+    val scope = rememberCoroutineScope()
+    val onState = remember(load, scope) { { state: AsyncImagePainter.State -> load.onState(state, scope) } }
+    AsyncImage(
+        model = rememberArtworkModel(model),
+        contentDescription = null,
+        imageLoader = loader,
+        modifier = modifier.then(BoxSized),
+        contentScale = contentScale,
+        alignment = alignment,
+        onState = onState,
+    )
+}
+
+/**
+ * The picture as big as an empty Box with [ArtworkBox]'s modifier would
+ * be, the least its constraints allow, whatever the picture's own size:
+ * the size its painter is given, as a Box's child that matched it was.
+ */
+private val BoxSized = Modifier.layout { measurable, constraints ->
+    val placeable = measurable.measure(Constraints.fixed(constraints.minWidth, constraints.minHeight))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /**

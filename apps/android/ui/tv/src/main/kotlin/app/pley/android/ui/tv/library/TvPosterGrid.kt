@@ -527,17 +527,18 @@ private fun GridCell(
     ) {
         if (tile == null) {
             Box(Modifier.tvTileSize(kind).skeleton(skeleton, TileStyle.Tv.shape(kind)))
+        } else if (badge == null) {
+            // No box around the tile without a count: one node less in each cell a held key brings in.
+            ArtworkTile(tile, kind, TileStyle.Tv, Modifier.tvTileSize(kind))
         } else {
             Box(Modifier.tvTileSize(kind)) {
                 ArtworkTile(tile, kind, TileStyle.Tv, Modifier.tvTileSize(kind))
-                if (badge != null) {
-                    QualityBadge(
-                        badge,
-                        TileStyle.Tv,
-                        onArt = true,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(TileStyle.Tv.inset).clearAndSetSemantics { },
-                    )
-                }
+                QualityBadge(
+                    badge,
+                    TileStyle.Tv,
+                    onArt = true,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(TileStyle.Tv.inset).clearAndSetSemantics { },
+                )
             }
         }
     }
