@@ -1,24 +1,23 @@
 ' The player (docs/API.md, "Playback"). Progress goes to the server about
 ' every 10 s while playing, on pause and every 30 s while paused, and as
-' "stopped" on the way out, then the session is closed. A stream that breaks is checked with the server:
-' stopped by an administrator (410), the player leaves and says so;
-' otherwise it starts again where it was, with a new session and the
-' current token (a token that ran out answers 401 to the Video node).
-' Skip Intro and Skip Credits follow the web player: an episode's credits
-' bring up Up Next instead. Down brings up pley's menu: the file's
-' subtitles and audio (every track, pictures too), Quality, subtitle
-' sync for a file with text subtitles or pictures drawn here
-' (SubtitleSync.brs), the file's
-' chapters, the sleep timer (Sleep.brs) and the playback's details
-' (Details.brs). Subtitles (or audio) the person picks
-' in Roku's options are remembered on the server for the show or the movie
-' (Tracks.brs), so the next episode starts with matching ones. The quality
-' is the one chosen in Settings or the menu; when it doesn't play well,
-' Automatic lowers a conversion's bitrate as it is sent, or opens the
-' stream again lower where it was once it stopped anyway (AutoQuality.brs).
-' PGS subtitles are drawn over the video from the server's pictures
-' (Pictures.brs), so the file plays as it is; the server burns them in
-' only where it can't make those.
+' "stopped" on the way out, then the session is closed. A stream that
+' breaks is checked with the server: stopped by an administrator (410),
+' the player leaves and says so; otherwise it starts again where it was,
+' with a new session and the current token (a token that ran out answers
+' 401 to the Video node). Skip Intro and Skip Credits follow the web
+' player: an episode's credits bring up Up Next instead. Down brings up
+' Pley's menu: the file's subtitles and audio (every track, pictures too),
+' Quality, subtitle sync for a file with text subtitles or pictures drawn
+' here (SubtitleSync.brs), the file's chapters, the sleep timer
+' (Sleep.brs) and the playback's details (Details.brs). Subtitles (or
+' audio) the person picks in Roku's options are remembered on the server
+' for the show or the movie (Tracks.brs), so the next episode starts with
+' matching ones. The quality is the one chosen in Settings or the menu;
+' when it doesn't play well, Automatic lowers a conversion's bitrate as it
+' is sent, or opens the stream again lower where it was once it stopped
+' anyway (AutoQuality.brs). PGS subtitles are drawn over the video from
+' the server's pictures (Pictures.brs), so the file plays as it is; the
+' server burns them in only where it can't make those.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -696,7 +695,7 @@ function syncSection() as object
     return CreateObject("roRegistrySection", "subtitleSync")
 end function
 
-' pley's menu is offered while a stream plays; subtitle sync in it for a
+' Pley's menu is offered while a stream plays; subtitle sync in it for a
 ' file with text subtitles, or picture ones drawn here.
 function menuOffered() as boolean
     return m.info <> invalid and not m.notice.visible and not m.upNext.visible and not m.sync.visible
@@ -817,7 +816,10 @@ sub saveTracks(file as dynamic, subtitlePicked as boolean, audioPicked as boolea
     body = tracksStreamsBody(m.info.file_id, audio, subtitle)
     uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.itemId) + "/streams", jsonText: FormatJson(body) }, "")
     if file <> invalid
-        if body.DoesExist("audio_index") then file.selected_audio = body.audio_index
+        if body.DoesExist("audio_index")
+            file.selected_audio = body.audio_index
+            file.audio_picked = body.audio_index >= 0
+        end if
         file.selected_subtitle = body.subtitle_index
     end if
     if subtitlePicked and m.pictureIndex >= 0 and subtitle <> m.pictureIndex
@@ -1369,7 +1371,7 @@ sub playNext()
 end sub
 
 ' While subtitle sync shows: left and right (rewind and fast forward too)
-' move the subtitles, Back closes it. While pley's menu shows: Back goes
+' move the subtitles, Back closes it. While Pley's menu shows: Back goes
 ' back in it, then closes it. While Up Next counts down: Back cancels it,
 ' and play, fast forward and rewind cancel it and act on the video.
 ' Otherwise Down brings up the menu, and Back leaves the player (the
@@ -1444,7 +1446,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     return false
 end function
 
-' --- pley's menu ---
+' --- Pley's menu ---
 
 ' Its entries: Subtitles and Audio for a file with them, Quality, Subtitle
 ' sync for a file with text subtitles or pictures drawn here, Chapters for

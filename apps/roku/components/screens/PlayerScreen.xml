@@ -2,7 +2,7 @@
 <!-- The player: the Video node with its own controls, the picture
      subtitles the app draws, the title as each item begins, Skip Intro and
      Skip Credits, Up Next before the end of an episode (and at its end),
-     pley's menu (Down: Subtitles, Audio, Quality, Subtitle sync,
+     Pley's menu (Down: Subtitles, Audio, Quality, Subtitle sync,
      Chapters, Sleep timer, Find subtitles…, Playback details), the sleep
      timer's notice, Automatic's notice of a lower quality, "Reconnecting…"
      while the server is out of reach, and what went wrong when it did. -->
@@ -70,7 +70,7 @@
             <Label translation="[48, 150]" width="360" wrap="true" maxLines="2" text="Left: earlier · Right: later" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ButtonGroup id="syncButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[440, 48]" minWidth="312" />
         </Group>
-        <!-- pley's menu, at the right over the video: its entries, a
+        <!-- Pley's menu, at the right over the video: its entries, a
              quality's or a chapter's choices, or the playback's details. -->
         <Group id="menu" visible="false">
             <Rectangle translation="[1240, 0]" width="680" height="1080" color="0x16191EF2" />
