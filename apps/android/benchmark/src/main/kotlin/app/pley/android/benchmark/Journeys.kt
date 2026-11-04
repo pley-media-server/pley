@@ -203,6 +203,22 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
     private var remoteNow = false
 
     /**
+     * After keys sent [unobserved], at the end of a measure: Macrobenchmark's
+     * shell keeps the UiAutomation it began with, which [remote] let go, and
+     * its next command (stopping the trace, killing the app for the next
+     * run) failed, "Calling from not trusted UID" on Android 14 and without
+     * a word on Fire OS 7. The shell gets the one connected now.
+     */
+    fun observed() {
+        if (!remoteNow) return
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val shells = Class.forName("androidx.benchmark.ShellImpl").getDeclaredField("uiAutomation")
+        shells.isAccessible = true
+        shells.set(null, automation)
+        remoteNow = false
+    }
+
+    /**
      * The element focus is on: the smallest of those that say so. The
      * window's own view says so too, and holds everything, so it never
      * counts: with only it, nothing in the page has focus.
