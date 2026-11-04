@@ -11,6 +11,7 @@ import type {
   PlaybackInfo,
   PlaybackMode,
   PlaybackRequest,
+  PlayingTracks,
   ServerEvent,
   SubtitleResult,
   SubtitleTrack,
@@ -52,7 +53,7 @@ import type { NetworkMemory } from "./network";
 import { PREPARE_LEAD_MS, warmStream, type StreamFetch } from "./prepare";
 import { AUTO, autoLadder, chooseQuality, fileHint, liveFloor, liveLabel, modeOf, namedFor, ORIGINAL, presetById, PRESETS, qualitiesFor, streamLines, type QualityPreset } from "./quality";
 import { failureText, Recovery, StruggleMeter, type EngineError, type RecoveryAction } from "./recovery";
-import { remoteAction, videoControls, type PlayerCommand } from "./remote";
+import { remoteAction, trackAction, videoControls, type PlayerCommand } from "./remote";
 import type { Reporter } from "./reporter";
 import { SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { SPEEDS } from "./speed";
@@ -280,6 +281,9 @@ interface Outage {
  *   make the .mks. Choices are saved with PUT /api/items/{id}/streams.
  * - **Markers, Up Next, the sleep timer**, and a session the server
  *   stopped: it says so and plays no more.
+ * - **The remote** on the user's other devices: play, pause, seek, skip,
+ *   next, and the audio and subtitles, through the menus' own paths; every
+ *   report says which tracks play (remote.ts has the rules).
  */
 export class PlaybackController {
   readonly state: Signal<PlayerState> = signal(INITIAL);
@@ -298,6 +302,14 @@ export class PlaybackController {
   /** The audio was picked (asked for, or in the menu), not chosen for this TV by the server: it is saved for next time. */
   private audioPicked = false;
   private subtitle: MediaStream | null = null;
+  /**
+   * The tracks the session playing plays, which its reports say: those
+   * chosen, once they play (a new session made ready beside it plays the
+   * ones before until it takes over).
+   */
+  private playingTracks: PlayingTracks = { audio: null, subtitle: -1 };
+  /** The remote changed a track with a new session: that session reports as it begins, so the remote sees it. */
+  private reportBegun = false;
   /** The quality chosen in the menu: Automatic, the original, or one of the conversions. */
   private quality: QualityPreset = ORIGINAL;
   /** Automatic, when chosen: where it plays now, and when it changes. */
@@ -587,7 +599,7 @@ export class PlaybackController {
     };
     const ask = (c: Choices): PlaybackRequest => {
       const req = playbackRequest(detail.id, c, this.env.clientId, this.caps, this.env.keyedUrls);
-      req.controls = videoControls(hasNext(detail.kind, this.current.queue));
+      req.controls = videoControls(hasNext(detail.kind, this.current.queue), audioStreams(chosen).length, subtitleStreams(chosen).length);
       if (alongside) req.keep_previous = true;
       return req;
     };
@@ -651,6 +663,7 @@ export class PlaybackController {
     this.info = info;
     // No track picked: the one the server chose for this TV plays, and the menu says so.
     this.audio = audio ?? playingAudio(chosen, info);
+    this.playingTracks = this.chosenTracks();
     this.sessionEnded = false;
     this.live = null;
     if (this.auto) {
@@ -666,6 +679,10 @@ export class PlaybackController {
     if (info.duration_ms > 0) this.setClock({ durationMs: info.duration_ms });
     this.publishChoices();
     this.armProgress();
+    if (this.reportBegun) {
+      this.reportBegun = false;
+      this.report(this.wantPlay ? "playing" : "paused", atMs);
+    }
     this.refreshDetails(false);
     const engine = this.engineRef;
     if (!engine) return;
@@ -704,7 +721,8 @@ export class PlaybackController {
     this.clearProgress();
     const itemId = this.item?.id ?? this.current.itemId;
     const api = this.env.api;
-    this.env.reporter.send(() => api.progress(itemId, positionMs, info.duration_ms, "stopped", info.session_id));
+    const tracks = this.playingTracks;
+    this.env.reporter.send(() => api.progress(itemId, positionMs, info.duration_ms, "stopped", info.session_id, tracks));
     this.env.reporter.send(() => api.stopSession(info.session_id));
     return true;
   }
@@ -1066,13 +1084,19 @@ export class PlaybackController {
     this.progressTimer = null;
   }
 
-  /** `position`: where the player went, when the TV's player may not say so yet (just after a seek). */
+  /** `position`: where the player went, when the TV's player may not say so yet (just after a seek). With the tracks playing. */
   private report(state: "playing" | "paused", position = this.livePosition()): void {
     const info = this.info;
     if (!info || this.sessionEnded) return;
     const itemId = this.item?.id ?? this.current.itemId;
     const api = this.env.api;
-    this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, state, info.session_id));
+    const tracks = this.playingTracks;
+    this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, state, info.session_id, tracks));
+  }
+
+  /** The tracks chosen, by stream index (`-1`: no subtitles). */
+  private chosenTracks(): PlayingTracks {
+    return { audio: this.audio?.index ?? null, subtitle: this.subtitle?.index ?? -1 };
   }
 
   private livePosition(): number {
@@ -1113,7 +1137,8 @@ export class PlaybackController {
       this.clearProgress();
       const itemId = this.item?.id ?? this.current.itemId;
       const api = this.env.api;
-      this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, "stopped", info.session_id));
+      const tracks = this.playingTracks;
+      this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, "stopped", info.session_id, tracks));
     }
     if (this.seekReportTimer !== null) clearTimeout(this.seekReportTimer);
     this.nextLookup++;
@@ -1135,6 +1160,10 @@ export class PlaybackController {
   private obey(command: PlayerCommand): void {
     const info = this.info;
     if (!info || this.closed || this.stopped || this.sessionEnded || this.state.value.phase.kind === "error") return;
+    if (command.command === "audio" || command.command === "subtitles") {
+      this.obeyTrack(info, command);
+      return;
+    }
     const detail = this.item;
     const duration = this.clock.value.durationMs;
     const action = remoteAction(
@@ -1172,6 +1201,38 @@ export class PlaybackController {
         this.playNext(true);
         break;
     }
+  }
+
+  /**
+   * The remote's audio or subtitles (remote.ts has the rule), through the
+   * track menus' own path, picks saved as theirs are. Switched in place, it
+   * reports at once; a new session (a stream's audio, pictures to burn in)
+   * reports as it begins. A pick of what is chosen already says so again.
+   */
+  private obeyTrack(info: PlaybackInfo, command: PlayerCommand): void {
+    const action = trackAction(
+      {
+        session: info.session_id,
+        audio: audioStreams(this.file).map((s) => s.index),
+        subtitles: subtitleStreams(this.file).map((s) => s.index),
+        audioIndex: this.audio?.index ?? null,
+        subtitleIndex: this.subtitle?.index ?? -1,
+      },
+      command,
+    );
+    if (action.act === "none") {
+      if (action.report) this.report(this.wantPlay ? "playing" : "paused");
+      return;
+    }
+    // Set first: a new session may begin before the switch returns.
+    this.reportBegun = true;
+    const generation = this.generation;
+    if (action.act === "audio") this.selectAudio(action.index);
+    else this.selectSubtitle(action.index < 0 ? null : action.index);
+    if (this.generation !== generation) return;
+    // Switched in place: no new session to say so.
+    this.reportBegun = false;
+    this.report(this.wantPlay ? "playing" : "paused");
   }
 
   // ---------------------------------------------------------------- commands
@@ -1254,6 +1315,7 @@ export class PlaybackController {
     const engine = this.engineRef;
     if (!info.hls && engine && audioPlaysHere(chosen, this.caps) && engine.selectAudio(audioStreams(this.file).indexOf(chosen), chosen.language)) {
       this.quietFrames();
+      this.playingTracks = { ...this.playingTracks, audio: chosen.index };
       return;
     }
     this.restart(this.livePosition(), true);
@@ -1271,7 +1333,10 @@ export class PlaybackController {
     // Pictures the TV can't draw are burned in: that is another session.
     const burn = isPicture(chosen) && !this.sideload;
     if (burn !== info.burn_subtitles || (burn && info.subtitle_index !== chosen?.index)) this.restart(this.livePosition(), true);
-    else this.applyTracks();
+    else {
+      this.applyTracks();
+      this.playingTracks = { ...this.playingTracks, subtitle: chosen?.index ?? -1 };
+    }
   }
 
   /** Subtitle files the server finds for what plays, in `language` (ISO 639-2; the profile's own when `null`). */

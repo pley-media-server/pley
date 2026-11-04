@@ -173,6 +173,23 @@ describe("what plays here", () => {
       { client_id: "tizen-tv", keyed_urls: true, controls: [], device_kind: "tv" },
     ]);
   });
+
+  it("reports a video's tracks with its place, by stream index; music's without", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const t = transport((req) => {
+      bodies.push(JSON.parse(req.body as string) as Record<string, unknown>);
+      return Promise.resolve({ status: 204, header: () => null, body: null });
+    });
+    const api = new Api("https://pley.example.com", tokens, t.http);
+    await api.progress(70, 600_000, 7_200_000, "playing", "s1", { audio: 2, subtitle: -1 });
+    await api.progress(70, 600_000, 7_200_000, "paused", "s1", { audio: null, subtitle: 4 });
+    await api.progress(31, 60_000, 240_000, "playing", "t1");
+    expect(bodies).toEqual([
+      { position_ms: 600_000, duration_ms: 7_200_000, state: "playing", session_id: "s1", audio_index: 2, subtitle_index: -1 },
+      { position_ms: 600_000, duration_ms: 7_200_000, state: "paused", session_id: "s1", subtitle_index: 4 },
+      { position_ms: 60_000, duration_ms: 240_000, state: "playing", session_id: "t1" },
+    ]);
+  });
 });
 
 describe("no answer", () => {

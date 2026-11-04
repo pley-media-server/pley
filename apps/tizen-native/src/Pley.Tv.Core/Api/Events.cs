@@ -35,13 +35,15 @@ public sealed record ServerEvent
     public bool? ByAdmin { get; init; }
     /// <summary>
     /// player_command: what the profile's remote, on another device, asks of the player of
-    /// <see cref="SessionId"/> ("play", "pause", "seek", "skip", "next", "previous"; a newer
-    /// server may send others), with <see cref="PositionMs"/> for a seek and
-    /// <see cref="OffsetMs"/> for a skip.
+    /// <see cref="SessionId"/> ("play", "pause", "seek", "skip", "next", "previous", "audio",
+    /// "subtitles"; a newer server may send others), with <see cref="PositionMs"/> for a seek,
+    /// <see cref="OffsetMs"/> for a skip and <see cref="StreamIndex"/> for a track.
     /// </summary>
     public string? Command { get; init; }
     public long? PositionMs { get; init; }
     public long? OffsetMs { get; init; }
+    /// <summary>player_command: the audio or subtitle track to play, by stream index; -1 turns the subtitles off.</summary>
+    public int? StreamIndex { get; init; }
     /// <summary>scan_progress: "queued", "walking", "probing", "metadata" or "done".</summary>
     public string? Phase { get; init; }
     /// <summary>scan_progress: the files read so far, of <see cref="Total"/>.</summary>

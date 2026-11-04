@@ -413,12 +413,18 @@ export interface PlaybackRequest {
 }
 
 /** A command of the user's remote, on another of their devices (docs/API.md, "Remote control"). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
 
 /** What kind of device a player plays on, as remotes show it. */
 export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 export type PlaybackState = "playing" | "paused" | "stopped";
+
+/** The tracks a video plays now, by stream index: its audio (`null` when it has none) and subtitles (`-1`: none). */
+export interface PlayingTracks {
+  audio: number | null;
+  subtitle: number;
+}
 
 /**
  * The server's events. Request events reach a sign-in with `requests`
@@ -434,8 +440,11 @@ export type ServerEvent =
   /** Watch state changed here or on another device: the item, then its parent and grandparent; `children`: everything under the first too. */
   | { type: "user_state_changed"; item_ids: Id[]; children?: boolean }
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
-  /** The user's remote, on another device, for the player of `session_id`: `position_ms` for `seek`, `offset_ms` for `skip`, else null. */
-  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null }
+  /**
+   * The user's remote, on another device, for the player of `session_id`: `position_ms` for `seek`, `offset_ms` for
+   * `skip`, `stream_index` for `audio` and `subtitles` (`-1`: subtitles off), else null (left out by an older server).
+   */
+  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null; stream_index?: number | null }
   | { type: "scan_started" | "scan_progress" | "scan_finished"; library_id: Id }
   /** Live TV's sources, channels or guide changed: ask again. */
   | { type: "live_channels_changed" }

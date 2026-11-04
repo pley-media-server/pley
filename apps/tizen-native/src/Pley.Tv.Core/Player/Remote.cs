@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Pley.Tv.Core.Api;
 
 namespace Pley.Tv.Core.Player;
@@ -60,10 +61,42 @@ public sealed record RemoteAction(RemoteAct Act, bool Report, long PositionMs = 
 }
 
 /// <summary>
+/// A video's tracks, as much as the remote's audio and subtitles need. <paramref name="Session"/> is
+/// the session it plays now, null while it has none; <paramref name="Audio"/> and
+/// <paramref name="Subtitles"/> are the stream indexes of its file's tracks;
+/// <paramref name="AudioIndex"/> is the audio chosen (null while not known) and
+/// <paramref name="SubtitleIndex"/> the subtitles (-1: off).
+/// </summary>
+public sealed record TrackPlayer(string? Session, IReadOnlyList<int> Audio, IReadOnlyList<int> Subtitles, int? AudioIndex, int SubtitleIndex);
+
+/// <summary>What a video does with the remote's audio or subtitles.</summary>
+public enum TrackAct
+{
+    None,
+    /// <summary>To the audio track <see cref="TrackAction.Index"/>.</summary>
+    Audio,
+    /// <summary>To the subtitles <see cref="TrackAction.Index"/>; -1 turns them off.</summary>
+    Subtitles,
+}
+
+/// <summary>
+/// What a video does with the remote's audio or subtitles: switch to <paramref name="Index"/> as its
+/// own track panels do, and report the tracks it plays then; or nothing, saying again what it plays
+/// (<paramref name="Report"/>) when the pick is the one it has, so a remote a little behind settles.
+/// </summary>
+public sealed record TrackAction(TrackAct Act, bool Report, int Index = 0)
+{
+    public static readonly TrackAction None = new TrackAction(TrackAct.None, false);
+
+    /// <summary>Chosen already: said again.</summary>
+    public static readonly TrackAction Same = new TrackAction(TrackAct.None, true);
+}
+
+/// <summary>
 /// The profile's remote, on another of its devices (docs/API.md, "Remote control"): what each
 /// player here obeys, and what it does with a command. The TV obeys and shows no remote of its
 /// own. The rules are the Android app's and the web's, pinned for both Samsung apps by
-/// packages/tv/test/fixtures/remote.json.
+/// packages/tv/test/fixtures/remote.json, and tracks.json for the tracks.
 /// </summary>
 public static class Remote
 {
@@ -76,8 +109,18 @@ public static class Remote
     /// <summary>Live is watched as it airs here: no pause or seek, only channel up and down.</summary>
     static readonly string[] LiveCommands = { "next", "previous" };
 
-    /// <summary>What a video obeys: next only when something may come after it.</summary>
-    public static IReadOnlyList<string> VideoControls(bool hasNext) => hasNext ? VideoWithNext : VideoCommands;
+    /// <summary>
+    /// What a video obeys: next only when something may come after it; audio and subtitles when its
+    /// file has tracks of them (<paramref name="audio"/> and <paramref name="subtitles"/> count them),
+    /// which a remote picks from.
+    /// </summary>
+    public static IReadOnlyList<string> VideoControls(bool hasNext, int audio = 0, int subtitles = 0)
+    {
+        var controls = new List<string>(hasNext ? VideoWithNext : VideoCommands);
+        if (audio > 0) controls.Add("audio");
+        if (subtitles > 0) controls.Add("subtitles");
+        return controls;
+    }
 
     /// <summary>What a live channel obeys: channel up and down when the player has an order to go through, else nothing but Stop.</summary>
     public static IReadOnlyList<string> LiveControls(bool hasOrder) => hasOrder ? LiveCommands : Array.Empty<string>();
@@ -120,6 +163,28 @@ public static class Remote
             default:
                 // A command a newer server knows.
                 return RemoteAction.None;
+        }
+    }
+
+    /// <summary>
+    /// The tracks' rule: a command for another session is someone else's player's; audio to one of
+    /// the file's audio tracks switches to it, and subtitles to one of its subtitles, or -1 to none;
+    /// a pick that is the one chosen already is said again; a track the file doesn't have (or a
+    /// command without one) does nothing.
+    /// </summary>
+    public static TrackAction Track(TrackPlayer p, ServerEvent c)
+    {
+        if (p.Session == null || c.SessionId != p.Session || c.StreamIndex is not int index) return TrackAction.None;
+        switch (c.Command)
+        {
+            case "audio":
+                if (!p.Audio.Contains(index)) return TrackAction.None;
+                return index == p.AudioIndex ? TrackAction.Same : new TrackAction(TrackAct.Audio, true, index);
+            case "subtitles":
+                if (index != -1 && !p.Subtitles.Contains(index)) return TrackAction.None;
+                return index == p.SubtitleIndex ? TrackAction.Same : new TrackAction(TrackAct.Subtitles, true, index);
+            default:
+                return TrackAction.None;
         }
     }
 

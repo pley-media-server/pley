@@ -5,7 +5,7 @@ import type { Control, ServerEvent } from "../api/types";
  * control"): what each player here obeys, and what it does with a
  * command. The TV obeys and shows no remote of its own. The rules are the
  * web's and the Android app's, pinned for both Samsung apps by the shared
- * fixture (test/fixtures/remote.json).
+ * fixtures (test/fixtures/remote.json, and tracks.json for the tracks).
  */
 
 export type PlayerCommand = Extract<ServerEvent, { type: "player_command" }>;
@@ -18,9 +18,16 @@ export const MUSIC_CONTROLS: Control[] = ["play", "pause", "seek", "skip", "next
 /** Live is live here: no pause or seek, only channel up and down. */
 const LIVE_CONTROLS: Control[] = ["next", "previous"];
 
-/** What a video obeys: next only when something may come after it. */
-export function videoControls(hasNext: boolean): Control[] {
-  return hasNext ? [...VIDEO_CONTROLS, "next"] : VIDEO_CONTROLS.slice();
+/**
+ * What a video obeys: next only when something may come after it; audio
+ * and subtitles when its file has tracks of them (`audio` and `subtitles`
+ * count them), which a remote picks from.
+ */
+export function videoControls(hasNext: boolean, audio = 0, subtitles = 0): Control[] {
+  const controls: Control[] = hasNext ? [...VIDEO_CONTROLS, "next"] : VIDEO_CONTROLS.slice();
+  if (audio > 0) controls.push("audio");
+  if (subtitles > 0) controls.push("subtitles");
+  return controls;
 }
 
 /** What a live channel obeys: channel up and down when the player has an order to go through, else nothing but Stop. */
@@ -102,6 +109,51 @@ export function remoteAction(p: RemotePlayer, c: PlayerCommand): RemoteAction {
       // A command a newer server knows.
       return NONE;
   }
+}
+
+/** A video's tracks, as much as the remote's `audio` and `subtitles` need. */
+export interface TrackPlayer {
+  /** The session it plays now; `null` while it has none. */
+  session: string | null;
+  /** The stream indexes of its file's audio tracks, and of its subtitles. */
+  audio: number[];
+  subtitles: number[];
+  /** The audio chosen (`null` while not known) and the subtitles (`-1`: off). */
+  audioIndex: number | null;
+  subtitleIndex: number;
+}
+
+/**
+ * What a video does with the remote's `audio` or `subtitles`: switch to
+ * `index` (`-1`: subtitles off) as its own track menu does, and report the
+ * tracks it plays then; or nothing, saying again what it plays when the
+ * pick is the one it has, so a remote a little behind settles.
+ */
+export type TrackAction = { report: boolean } & ({ act: "none" } | { act: "audio" | "subtitles"; index: number });
+
+const NO_TRACK: TrackAction = { act: "none", report: false };
+const SAME_TRACK: TrackAction = { act: "none", report: true };
+
+/**
+ * The tracks' rule: a command for another session is someone else's
+ * player's; audio to one of the file's audio tracks switches to it, and
+ * subtitles to one of its subtitles, or `-1` to none; a pick that is the
+ * one chosen already is said again; a track the file doesn't have (or a
+ * command without one) does nothing.
+ */
+export function trackAction(p: TrackPlayer, c: PlayerCommand): TrackAction {
+  if (p.session === null || c.session_id !== p.session) return NO_TRACK;
+  const index = c.stream_index;
+  if (typeof index !== "number") return NO_TRACK;
+  if (c.command === "audio") {
+    if (p.audio.indexOf(index) < 0) return NO_TRACK;
+    return index === p.audioIndex ? SAME_TRACK : { act: "audio", index, report: true };
+  }
+  if (c.command === "subtitles") {
+    if (index !== -1 && p.subtitles.indexOf(index) < 0) return NO_TRACK;
+    return index === p.subtitleIndex ? SAME_TRACK : { act: "subtitles", index, report: true };
+  }
+  return NO_TRACK;
 }
 
 /** Previous starts the track again (rather than playing the one before) past 3 s, or on the first track. */

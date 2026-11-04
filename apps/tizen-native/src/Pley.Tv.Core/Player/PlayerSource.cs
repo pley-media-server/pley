@@ -47,8 +47,8 @@ public interface IPlayerSource
     /// <summary>DELETE /api/playback/{session}.</summary>
     Task StopPlayback(string session);
 
-    /// <summary>POST /api/items/{id}/progress.</summary>
-    Task Progress(long itemId, long positionMs, long? durationMs, string state, string session);
+    /// <summary>POST /api/items/{id}/progress, with the <paramref name="tracks"/> playing.</summary>
+    Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null);
 
     /// <summary>GET /api/playback/{session}, waiting <paramref name="timeoutMs"/> at most.</summary>
     Task<SessionStatus> PlaybackStatus(string session, int timeoutMs);
@@ -127,7 +127,8 @@ public sealed class AppPlayerSource : IPlayerSource
 
     public Task StopPlayback(string session) => Api.StopPlayback(session);
 
-    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session) => Api.Progress(itemId, positionMs, durationMs, state, session);
+    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null) =>
+        Api.Progress(itemId, positionMs, durationMs, state, session, tracks);
 
     public Task<SessionStatus> PlaybackStatus(string session, int timeoutMs) => Api.PlaybackStatus(session, timeoutMs: timeoutMs);
 

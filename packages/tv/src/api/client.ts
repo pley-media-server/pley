@@ -32,6 +32,7 @@ import type {
   PlaybackInfo,
   PlaybackRequest,
   PlaybackState,
+  PlayingTracks,
   Playlist,
   PlaylistEntry,
   RequestList,
@@ -523,12 +524,19 @@ export class Api {
     return this.call("DELETE", `/api/playback/${encodeURIComponent(session)}`);
   }
 
-  progress(itemId: Id, positionMs: number, durationMs: number | null, state: PlaybackState, session: string | null): Promise<unknown> {
+  /**
+   * Where a playback is. `tracks`: a video's audio and subtitles playing
+   * (`subtitle` `-1`: none), by stream index, which the server keeps on the
+   * session for the user's remotes; music has none to say.
+   */
+  progress(itemId: Id, positionMs: number, durationMs: number | null, state: PlaybackState, session: string | null, tracks?: PlayingTracks): Promise<unknown> {
     return this.call("POST", `/api/items/${itemId}/progress`, {
       position_ms: Math.max(0, Math.round(positionMs)),
       duration_ms: durationMs && durationMs > 0 ? Math.round(durationMs) : undefined,
       state,
       session_id: session ?? undefined,
+      audio_index: tracks && tracks.audio !== null ? tracks.audio : undefined,
+      subtitle_index: tracks ? tracks.subtitle : undefined,
     });
   }
 

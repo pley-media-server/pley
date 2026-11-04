@@ -147,4 +147,12 @@ describe("music and the user's remote, on another device", () => {
     expect(media.paused).toBe(true);
     expect(calls).toEqual([]);
   });
+
+  it("has no tracks to change: audio and subtitles do nothing", async () => {
+    const { player, calls, requests } = await world([1, 2, 3], 1);
+    player.obey({ type: "player_command", session_id: "t1", command: "audio", position_ms: null, offset_ms: null, stream_index: 1 });
+    player.obey({ type: "player_command", session_id: "t1", command: "subtitles", position_ms: null, offset_ms: null, stream_index: -1 });
+    await settle();
+    expect([calls, requests.length]).toEqual([[], 1]);
+  });
 });

@@ -251,8 +251,8 @@ public sealed class LocalPlayerSource : IPlayerSource
 
     public Task StopPlayback(string session) => Task.CompletedTask;
 
-    /// <summary>Where it stopped, kept on the TV; near the end, it was watched and starts over next time.</summary>
-    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session)
+    /// <summary>Where it stopped, kept on the TV; near the end, it was watched and starts over next time. No remote hears of its tracks.</summary>
+    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null)
     {
         var key = ResumeKey();
         if (durationMs is long d && d > 0 && positionMs >= d * WatchedShare) Storage.Remove(key);

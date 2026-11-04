@@ -33,6 +33,9 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser changes the audio and subtitles of a film or
+  episode playing on the TV, as the player's own Audio and Subtitles do,
+  and sees which play.
 - Your phone or browser controls what plays on the TV: a film or episode
   plays, pauses, seeks and skips, and goes on to the next one; music does
   the same, and goes back a track; Live TV changes channel. Live TV

@@ -169,7 +169,10 @@ on a TV (`device_kind: "tv"`); the server names the TV from its web engine
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist or collection). Next at
   the end does nothing, and says nothing on the TV; a video has no
-  previous.
+  previous. The audio and subtitles, where the file has them (`audio`,
+  `subtitles`), change as the player's own Audio and Subtitles change
+  them, picks saved the same way: in place where the TV's player can, else
+  with a new session (a stream's audio, picture subtitles burned in).
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track, or on the first, goes back to its
   start. Music playing behind the other screens obeys too.
@@ -182,10 +185,15 @@ on a TV (`device_kind: "tv"`); the server names the TV from its web engine
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is
 reported at once, so the remote sees it; another title, track or channel
-tells the server with its own session. A play on a player already
-playing, or a pause on one already paused, says so again at once, so a
-remote a little behind settles. The rule is pinned for both Samsung
-apps by `packages/tv/test/fixtures/remote.json`.
+tells the server with its own session, and a new session for an audio or
+subtitle track reports as it begins. A play on a player already playing,
+a pause on one already paused, or a track picked that is the one chosen,
+says so again at once, so a remote a little behind settles; a track the
+file doesn't have does nothing. Every report of a video says which audio
+and subtitles play (`audio_index`, `subtitle_index`, `-1` for none), so
+the remote ticks them; music has none. The rule is pinned for both
+Samsung apps by `packages/tv/test/fixtures/remote.json`, and the tracks
+by `tracks.json` beside it.
 
 ### Requests
 
@@ -487,11 +495,13 @@ the music behind the other pages and the live player say what they obey
 (`controls`) and that they play on a TV (`device_kind: "tv"`, on the
 `stream.ts` it reads too), act only on their own session, and report each
 change at once; a film or music told to play or pause as it already is
-says so again. The remote's next and previous on Live TV go through the
+says so again. The player changes the audio and subtitles as its Audio
+and Subtitles panels do, and every report of it says which play. The
+remote's next and previous on Live TV go through the
 channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
 stopped it and, on a line of its own, their message, as on Android TV. The
-rule is `Player/Remote.cs`, pinned by the same fixture as the web app's.
+rule is `Player/Remote.cs`, pinned by the same fixtures as the web app's.
 
 | | |
 |---|---|

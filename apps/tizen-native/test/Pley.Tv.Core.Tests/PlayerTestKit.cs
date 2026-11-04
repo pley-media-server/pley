@@ -150,6 +150,8 @@ sealed class FakePlayerSource : IPlayerSource
     public Func<IReadOnlyDictionary<string, object?>, PlaybackInfo>? Answer { get; set; }
     public Exception? StartFailure { get; set; }
     public List<(long ItemId, long Position, string State, string Session)> Reports { get; } = new List<(long, long, string, string)>();
+    /// <summary>The tracks each of <see cref="Reports"/> said play, in the same order.</summary>
+    public List<PlayingTracks?> ReportTracks { get; } = new List<PlayingTracks?>();
     public List<string> Stopped { get; } = new List<string>();
     /// <summary>A session's status; null: it answers with no transcode.</summary>
     public Func<string, SessionStatus>? Status { get; set; }
@@ -210,9 +212,10 @@ sealed class FakePlayerSource : IPlayerSource
         return Task.CompletedTask;
     }
 
-    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session)
+    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null)
     {
         Reports.Add((itemId, positionMs, state, session));
+        ReportTracks.Add(tracks);
         return Task.CompletedTask;
     }
 

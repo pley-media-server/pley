@@ -471,12 +471,18 @@ public sealed class Api
     /// <summary>DELETE /api/playback/{session}: the session and its conversion end.</summary>
     public Task<JsonElement?> StopPlayback(string session) => Call("DELETE", $"/api/playback/{Uri.EscapeDataString(session)}");
 
-    /// <summary>POST /api/items/{id}/progress, with the session, so it and its conversion stay alive.</summary>
-    public Task<JsonElement?> Progress(long itemId, long positionMs, long? durationMs, string state, string? session)
+    /// <summary>
+    /// POST /api/items/{id}/progress, with the session, so it and its conversion stay alive.
+    /// <paramref name="tracks"/>: a video's tracks playing, which the server keeps on the session for
+    /// the profile's remotes; music has none to say.
+    /// </summary>
+    public Task<JsonElement?> Progress(long itemId, long positionMs, long? durationMs, string state, string? session, PlayingTracks? tracks = null)
     {
         var body = new Dictionary<string, object?> { ["position_ms"] = positionMs, ["state"] = state };
         if (durationMs != null) body["duration_ms"] = durationMs;
         if (session != null) body["session_id"] = session;
+        if (tracks?.Audio != null) body["audio_index"] = tracks.Audio;
+        if (tracks != null) body["subtitle_index"] = tracks.Subtitle;
         return Call("POST", $"/api/items/{itemId}/progress", body);
     }
 

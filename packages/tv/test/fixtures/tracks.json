@@ -1,0 +1,110 @@
+{
+  "controls": [
+    {
+      "in": { "has_next": false, "audio": 0, "subtitles": 0 },
+      "out": ["play", "pause", "seek", "skip"]
+    },
+    {
+      "in": { "has_next": false, "audio": 1, "subtitles": 0 },
+      "out": ["play", "pause", "seek", "skip", "audio"]
+    },
+    {
+      "in": { "has_next": false, "audio": 0, "subtitles": 2 },
+      "out": ["play", "pause", "seek", "skip", "subtitles"]
+    },
+    {
+      "in": { "has_next": false, "audio": 2, "subtitles": 2 },
+      "out": ["play", "pause", "seek", "skip", "audio", "subtitles"]
+    },
+    {
+      "in": { "has_next": true, "audio": 2, "subtitles": 3 },
+      "out": ["play", "pause", "seek", "skip", "next", "audio", "subtitles"]
+    }
+  ],
+  "commands": [
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s2", "command": "audio", "stream_index": 2 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s2", "command": "subtitles", "stream_index": -1 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": null, "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 2 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 2 } },
+      "out": { "act": "audio", "stream_index": 2, "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": null, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 1 } },
+      "out": { "act": "audio", "stream_index": 1, "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 1 } },
+      "out": { "act": "none", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 9 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": 3 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": -1 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "audio", "stream_index": null } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": 3 } },
+      "out": { "act": "subtitles", "stream_index": 3, "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": 4 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": 3 } },
+      "out": { "act": "subtitles", "stream_index": 3, "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": 4 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": -1 } },
+      "out": { "act": "subtitles", "stream_index": -1, "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": 4 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": 4 } },
+      "out": { "act": "none", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": -1 } },
+      "out": { "act": "none", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1], "subtitles": [], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": -1 } },
+      "out": { "act": "none", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": 9 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": 2 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": -2 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "subtitles", "stream_index": null } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "pause", "stream_index": null } },
+      "out": { "act": "none", "report": false }
+    }
+  ]
+}

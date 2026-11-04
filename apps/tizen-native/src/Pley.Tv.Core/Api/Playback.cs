@@ -37,6 +37,12 @@ public sealed record PlaybackInfo
     public bool LiveBitrate { get; init; }
 }
 
+/// <summary>
+/// The tracks a video plays now, by stream index, which its progress reports say for the profile's
+/// remotes (docs/API.md, "Remote control"): its audio (null when it has none) and its subtitles (-1: none).
+/// </summary>
+public sealed record PlayingTracks(int? Audio, int Subtitle);
+
 /// <summary>A subtitle track of the file being played, as a session lists it.</summary>
 public sealed record SubtitleTrack
 {
