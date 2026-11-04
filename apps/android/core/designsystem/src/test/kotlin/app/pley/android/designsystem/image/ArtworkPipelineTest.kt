@@ -300,13 +300,60 @@ class ArtworkPipelineTest {
         assertTrue("ran on ${threads.single()}", threads.single() != caller)
     }
 
+    @Test
+    fun aHeldRequestGoesOnAwayFromTheThreadThatEndsTheHold() = runTest {
+        val after = mutableListOf<Thread>()
+        val loader = ImageLoader.Builder(context)
+            .components {
+                addArtworkHold()
+                add(
+                    object : Interceptor {
+                        override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+                            synchronized(after) { after += Thread.currentThread() }
+                            return chain.proceed()
+                        }
+                    },
+                )
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T1, 1920)))
+                add(FakeFetcher(mutableListOf()))
+            }
+            .memoryCache(MemoryCache.Builder().maxSizeBytes(1L shl 20).build())
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        val hold = FakeHold()
+        val image = ArtworkImage(listOf("$origin/api/items/3/images/poster"))
+        val request = heldRequest(image, hold, context).newBuilder().size(248, 372).build()
+        val pending = async { loader.execute(request) }
+        runCurrent()
+        // Set aside, not in the memory cache: it waits for the key to come up.
+        val until = System.currentTimeMillis() + 5_000
+        while (!hold.waiting && System.currentTimeMillis() < until) Thread.sleep(10)
+        assertTrue(hold.waiting)
+        Thread.sleep(50)
+
+        // The key comes up, on the main thread: the request goes on elsewhere, as every one set aside does, rather
+        // than all of them there and then.
+        val main = Thread.currentThread()
+        hold.release()
+        assertTrue(pending.await() is SuccessResult)
+        assertTrue("went on on ${after.last()}", after.last() != main)
+    }
+
     /** A hold that holds until [release]. */
     private class FakeHold : ArtworkHold {
         override var holding = true
         private var released = CompletableDeferred<Unit>()
 
+        /** Whether a request waits for [release]. */
+        @Volatile
+        var waiting = false
+
         override suspend fun awaitRelease() {
-            if (holding) released.await()
+            if (holding) {
+                waiting = true
+                released.await()
+            }
         }
 
         fun release() {

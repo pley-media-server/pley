@@ -67,11 +67,21 @@ internal fun heldRequest(image: ArtworkImage, hold: ArtworkHold, context: Platfo
  * cache and setting it aside ([HoldInterceptor]) took a Google TV
  * Streamer's main thread 0.6 ms a tile, a dozen tiles for each step of a
  * grid. Those pictures can come a frame later.
+ *
+ * A request sent to the pool stays there: those set aside go on as the key
+ * comes up, and went on right there, on the main thread that ends the
+ * hold, a screenful of tiles at once.
  */
 private class HeldDispatch(private val hold: ArtworkHold) : CoroutineDispatcher() {
-    override fun isDispatchNeeded(context: CoroutineContext): Boolean = hold.holding
+    @Volatile
+    private var away = false
 
-    override fun dispatch(context: CoroutineContext, block: Runnable) = Dispatchers.Default.dispatch(context, block)
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean = away || hold.holding
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        away = true
+        Dispatchers.Default.dispatch(context, block)
+    }
 }
 
 /**
