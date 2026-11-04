@@ -46,6 +46,10 @@ sealed class RequestsScreen : ShellPage
     TextInput? titleField;
     string headShape = "";
     RequestListState? shownList;
+    /// <summary>The last list that came, and its filter: its counts don't depend on the tab, so they stay on the tabs while another tab's list comes.</summary>
+    RequestListState.Ready? counted;
+    RequestFilter? countedFilter;
+    Timer? skeletonTimer;
     object? shownNotice;
     PanelSheet? panel;
     long? panelFor;
@@ -91,6 +95,7 @@ sealed class RequestsScreen : ShellPage
     {
         foreach (var w in watches) w.Dispose();
         model.Told -= Told;
+        skeletonTimer?.Stop();
         panel?.Close();
         model.Dispose();
     }
@@ -137,6 +142,11 @@ sealed class RequestsScreen : ShellPage
             titleField = null;
             filters.Clear();
         }
+        if (s.List is RequestListState.Ready came)
+        {
+            counted = came;
+            countedFilter = s.Filter;
+        }
         Head(s);
         List(s);
         // The panel's request went (withdrawn, approved off Needs attention): the panel goes too.
@@ -148,9 +158,11 @@ sealed class RequestsScreen : ShellPage
     void Head(RequestsListState s)
     {
         var ready = s.List as RequestListState.Ready;
+        // Another tab's list on its way: the last list's counts, when only the tab changed since.
+        var known = ready ?? (countedFilter != null && countedFilter with { View = s.Filter.View } == s.Filter ? counted : null);
         var views = RequestViews.All.Where(v => v != RequestView.Attention || s.Manage).ToList();
-        var labels = views.Select(v => Count(v, s, ready) is > 0 and var n ? RequestText.Counted(RequestText.View(v), n) : RequestText.View(v)).ToList();
-        var people = ready?.People.FirstOrDefault(p => p.Id == s.Filter.UserId)?.Name;
+        var labels = views.Select(v => Count(v, s, ready, known) is > 0 and var n ? RequestText.Counted(RequestText.View(v), n) : RequestText.View(v)).ToList();
+        var people = known?.People.FirstOrDefault(p => p.Id == s.Filter.UserId)?.Name;
         var shape = string.Join("|", labels) + $"#{s.Filter.View}#{s.Manage}#{s.SignInForApprovals}#{s.Filter.Kind}#{people ?? s.Filter.UserId?.ToString(CultureInfo.InvariantCulture)}";
         if (shape == headShape) return;
         var hadFocus = Tree.Current?.Name;
@@ -228,14 +240,17 @@ sealed class RequestsScreen : ShellPage
         else if (inFilters) Tree.Enter(filters);
     }
 
-    /// <summary>A tab's number: Needs attention, what waits for managers; All, every status's; a status, its own. Null while not known.</summary>
-    static int? Count(RequestView view, RequestsListState s, RequestListState.Ready? ready)
+    /// <summary>
+    /// A tab's number: Needs attention, what waits for managers; All, every status's; a status, its own, from
+    /// <paramref name="known"/>'s counts (the list showing, or the last one with the same filters). Null while not known.
+    /// </summary>
+    static int? Count(RequestView view, RequestsListState s, RequestListState.Ready? ready, RequestListState.Ready? known)
     {
         if (view == RequestView.Attention)
             return s.Filter.Narrowed ? s.Filter.View == RequestView.Attention ? ready?.Total : null : s.Attention;
-        if (ready == null) return null;
-        if (view == RequestView.All) return ready.Counts.Values.Sum();
-        return view.Status() is { } status && ready.Counts.TryGetValue(status, out var n) ? n : 0;
+        if (known == null) return null;
+        if (view == RequestView.All) return known.Counts.Values.Sum();
+        return view.Status() is { } status && known.Counts.TryGetValue(status, out var n) ? n : 0;
     }
 
     /// <summary>Asked by: everyone, or one person with requests, in a panel beside the page.</summary>
@@ -272,19 +287,28 @@ sealed class RequestsScreen : ShellPage
         listGroup.Clear();
         cardIds.Clear();
         scroll?.Stop();
+        skeletonTimer?.Stop();
         cards.PositionY = 0;
         var pageHasFocus = Tree.Current != null && Tree.Current != Waiting && InPage(Tree.Current);
         switch (s.List)
         {
-            case RequestListState.Loading:
-                for (var i = 0; i < 4; i++)
-                    cards.Add(new View
-                    {
-                        Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(8 + i * CardPitch)),
-                        Size = new Size(Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal), Ui.Dp(CardHeight)),
-                        CornerRadius = Ui.Dp(PleyShape.ControlRadius),
-                        BackgroundColor = PleyColors.Surface2,
-                    });
+            case RequestListState.Loading loading:
+                // Still cards only after a moment: a list that comes quickly (another tab's) doesn't flash them first.
+                skeletonTimer = new Timer(300);
+                skeletonTimer.Tick += (_, _) =>
+                {
+                    if (!ReferenceEquals(shownList, loading)) return false;
+                    for (var i = 0; i < 4; i++)
+                        cards.Add(new View
+                        {
+                            Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(8 + i * CardPitch)),
+                            Size = new Size(Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal), Ui.Dp(CardHeight)),
+                            CornerRadius = Ui.Dp(PleyShape.ControlRadius),
+                            BackgroundColor = PleyColors.Surface2,
+                        });
+                    return false;
+                };
+                skeletonTimer.Start();
                 if (entered && !pageHasFocus && !Tree.Enter(tabs)) Wait();
                 return;
             case RequestListState.Failed failed:
