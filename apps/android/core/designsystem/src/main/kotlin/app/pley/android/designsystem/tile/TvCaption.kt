@@ -79,8 +79,8 @@ private class TvCaptionNode(
     private var subtitle: String,
     private var emphasized: Boolean,
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
-    private val titleLine = CaptionLine(PleyColors.Fg.toArgb())
-    private val subtitleLine = CaptionLine(PleyColors.Muted.toArgb())
+    private val titleLine = CaptionLine()
+    private val subtitleLine = CaptionLine()
     private var lineHeight = 0
 
     override val shouldAutoInvalidate: Boolean get() = false
@@ -95,21 +95,19 @@ private class TvCaptionNode(
     }
 
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
-        val style = TileStyle.Tv
-        val resolver = currentValueOf(LocalFontFamilyResolver)
-        val titleWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight ?: PleyType.Medium
-        setUp(titleLine.paint, style.captionTitle, titleWeight, resolver)
-        setUp(subtitleLine.paint, style.captionSubtitle, style.captionSubtitle.fontWeight ?: PleyType.Medium, resolver)
-        lineHeight = ceil(style.captionTitle.lineHeight.toPx()).toInt()
+        val paints = CaptionPaints.of(this, currentValueOf(LocalFontFamilyResolver))
+        titleLine.paint = if (emphasized) paints.titleBold else paints.title
+        subtitleLine.paint = paints.subtitle
+        lineHeight = paints.lineHeight
         val lines = if (subtitle.isEmpty()) 1 else 2
         val width = if (constraints.hasBoundedWidth) {
             constraints.maxWidth
         } else {
-            ceil(maxOf(titleLine.paint.measureText(title), if (lines > 1) subtitleLine.paint.measureText(subtitle) else 0f)).toInt()
+            ceil(maxOf(titleLine.paint.paint.measureText(title), if (lines > 1) subtitleLine.paint.paint.measureText(subtitle) else 0f)).toInt()
         }
         val rtl = layoutDirection == LayoutDirection.Rtl
-        titleLine.fit(title, width, lineHeight, rtl)
-        subtitleLine.fit(subtitle, width, lineHeight, rtl)
+        titleLine.fit(title, width, rtl)
+        subtitleLine.fit(subtitle, width, rtl)
         val w = constraints.constrainWidth(width)
         val h = constraints.constrainHeight(lineHeight * lines)
         val placeable = measurable.measure(Constraints.fixed(w, h))
@@ -124,22 +122,27 @@ private class TvCaptionNode(
     }
 }
 
-/** One line of a caption: its paint, the text as it fits, and where it sits. */
-private class CaptionLine(color: Int) {
-    val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+/** One line of a caption: its paint (shared, [CaptionPaints]), the text as it fits, and where it sits. */
+private class CaptionLine {
+    lateinit var paint: CaptionPaint
     private var shown: CharSequence = ""
     private var width = 0f
-    private var baseline = 0
     private var rtl = false
 
-    /** [text] on one line, cut with an ellipsis to [maxWidth], in a line box [lineHeight] tall, in a layout [rtl] or not. */
-    fun fit(text: String, maxWidth: Int, lineHeight: Int, rtl: Boolean) {
+    /** [text] on one line, cut with an ellipsis to [maxWidth], in a layout [rtl] or not. */
+    fun fit(text: String, maxWidth: Int, rtl: Boolean) {
         // One line, as BasicText's maxLines = 1 shows: what comes after a line break doesn't.
         val line = text.substringBefore('\n')
-        shown = TextUtils.ellipsize(line, paint, maxWidth.toFloat(), TextUtils.TruncateAt.END)
-        // The advance as it is: measureText rounds it up.
-        width = paint.getRunAdvance(shown, 0, shown.length, 0, shown.length, false, shown.length)
-        baseline = baselineIn(paint.fontMetricsInt, lineHeight)
+        val paint = paint.paint
+        // The advance as it is (measureText rounds it up): measured once, and cut only when it doesn't fit.
+        val whole = paint.getRunAdvance(line, 0, line.length, 0, line.length, false, line.length)
+        if (whole <= maxWidth) {
+            shown = line
+            width = whole
+        } else {
+            shown = TextUtils.ellipsize(line, paint, maxWidth.toFloat(), TextUtils.TruncateAt.END)
+            width = paint.getRunAdvance(shown, 0, shown.length, 0, shown.length, false, shown.length)
+        }
         this.rtl = rtl
     }
 
@@ -148,7 +151,54 @@ private class CaptionLine(color: Int) {
         // At the start: the left, or the right in a right-to-left layout. BasicText sat within a
         // pixel or so of that edge there, its box rounded up from the text's width.
         val x = if (rtl) boxWidth - width else 0f
-        canvas.drawText(shown, 0, shown.length, x, top + baseline, paint)
+        canvas.drawText(shown, 0, shown.length, x, top + paint.baseline, paint.paint)
+    }
+}
+
+/** A caption line's paint and its baseline in the line box. */
+private class CaptionPaint(val paint: TextPaint, val baseline: Int)
+
+/**
+ * The captions' paints, the same for every tile: made once for the
+ * screen's density and font scale, not for each tile a grid brings in.
+ * Used on the main thread only, where tiles are measured and drawn.
+ */
+private class CaptionPaints private constructor(
+    val title: CaptionPaint,
+    val titleBold: CaptionPaint,
+    val subtitle: CaptionPaint,
+    val lineHeight: Int,
+) {
+    companion object {
+        private var made: CaptionPaints? = null
+        private var density = 0f
+        private var fontScale = 0f
+        private var resolver: FontFamily.Resolver? = null
+
+        fun of(density: Density, resolver: FontFamily.Resolver): CaptionPaints {
+            made?.let {
+                if (density.density == this.density && density.fontScale == fontScale && resolver === this.resolver) return it
+            }
+            val style = TileStyle.Tv
+            val lineHeight = with(density) { ceil(style.captionTitle.lineHeight.toPx()).toInt() }
+            fun paint(text: TextStyle, weight: FontWeight, color: Int): CaptionPaint {
+                val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+                density.setUp(paint, text, weight, resolver)
+                return CaptionPaint(paint, baselineIn(paint.fontMetricsInt, lineHeight))
+            }
+            val medium = style.captionTitle.fontWeight ?: PleyType.Medium
+            return CaptionPaints(
+                title = paint(style.captionTitle, medium, PleyColors.Fg.toArgb()),
+                titleBold = paint(style.captionTitle, PleyType.Bold, PleyColors.Fg.toArgb()),
+                subtitle = paint(style.captionSubtitle, style.captionSubtitle.fontWeight ?: PleyType.Medium, PleyColors.Muted.toArgb()),
+                lineHeight = lineHeight,
+            ).also {
+                made = it
+                this.density = density.density
+                fontScale = density.fontScale
+                this.resolver = resolver
+            }
+        }
     }
 }
 
