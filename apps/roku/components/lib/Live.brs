@@ -758,6 +758,22 @@ function liveStopped(message as dynamic) as object
     return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
 end function
 
+' Watching stopped from another device or by the server's administrator
+' (the server's session_stopped for the player's session): who stopped
+' it, and their message on a line of its own, as on Android. An event
+' that doesn't say who is taken for the administrator, as
+' playerStoppedMessage takes it.
+function liveStoppedBy(event as dynamic) as object
+    data = httpObject(event)
+    words = "Live TV was stopped by the server's administrator."
+    if data <> invalid
+        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then words = "Live TV was stopped from another device."
+        message = httpSentence(data.message)
+        if message <> "" then words = words + Chr(10) + message
+    end if
+    return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
+end function
+
 ' Whether tuning the channel again may help after problem (liveTrouble's):
 ' the server let it go, it wasn't ready, or its stream broke ("other",
 ' "unavailable"); not after a refusal (every connection in use, stopped,

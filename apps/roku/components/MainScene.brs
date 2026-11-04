@@ -21,6 +21,7 @@ sub init()
     m.music = CreateObject("roSGNode", "MusicPlayer")
     m.top.appendChild(m.music)
     m.global.addFields({ music: m.music })
+    m.music.observeField("stoppedBy", "onMusicStoppedBy")
 
     ' What the person's other devices change, as it happens (an http://
     ' server's event stream): gathered for 0.3 s, then the screens follow.
@@ -147,11 +148,19 @@ end sub
 ' Watch state, My List, libraries or Live TV changed elsewhere: Home asks again
 ' (now if it shows, else as it shows); a stream of this Roku's stopped from
 ' elsewhere ends at once, as does a live channel whose connection someone
-' took over.
+' took over. The user's remote, on another device, controls the player on
+' top and the music (Remote.brs); each acts only on its own session, and
+' the music, playing behind the screens, hears of its own stop too.
 sub onServerEvent(event as object)
     data = event.getData()
     if httpString(data.type) = "session_stopped"
+        m.music.serverStopped = data
         if m.stack.Count() > 0 and m.stack.Peek().hasField("serverStopped") then m.stack.Peek().serverStopped = data
+        return
+    end if
+    if httpString(data.type) = "player_command"
+        m.music.playerCommand = data
+        if m.stack.Count() > 0 and m.stack.Peek().hasField("playerCommand") then m.stack.Peek().playerCommand = data
         return
     end if
     if httpString(data.type) = "live_taken_over"
@@ -564,6 +573,19 @@ end sub
 
 ' A dialog shows, from any screen, or the scene lets one go: a notice
 ' waiting may show once none does, and the card under one waits for it.
+' Music stopped from another device or by the server's administrator
+' while another screen is on top (it plays behind them): the scene says
+' who stopped it and their message. Now Playing, on top, says so itself.
+sub onMusicStoppedBy()
+    stoppedBy = m.music.stoppedBy
+    if stoppedBy = "" then return
+    if m.stack.Count() > 0 and m.stack.Peek().subtype() = "NowPlayingScreen" then return
+    lines = stoppedBy.Split(Chr(10))
+    message = []
+    if lines.Count() > 1 then message.Push(lines[1])
+    uiMessage(lines[0], message)
+end sub
+
 ' Each dialog's closing is watched, the Back key's too, which sets no
 ' close field.
 sub onDialog()

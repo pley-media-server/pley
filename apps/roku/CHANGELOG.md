@@ -10,6 +10,13 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser controls what plays on the Roku: a film or
+  episode plays, pauses, seeks and skips, and goes on to the next one;
+  music does the same, and goes back a track; Live TV changes channel.
+  Remotes list the Roku by the name it has in Roku's settings. Music
+  stopped from another device or by the server's administrator now stops
+  too, and Live TV stopped that way says who stopped it, with their
+  message.
 - The player's menu (Down) has Subtitles and Audio, listing every track of
   the file, picture subtitles too, as the other apps' players do. A pick is
   saved for the show or movie.

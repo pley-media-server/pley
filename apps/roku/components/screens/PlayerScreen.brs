@@ -213,6 +213,7 @@ sub init()
     m.detailsTimer.observeField("fire", "onDetailsTick")
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
+    m.top.observeField("playerCommand", "onPlayerCommand")
 end sub
 
 ' Paused, the progress goes on being told, so the session stays the
@@ -227,6 +228,43 @@ sub onServerStopped(event as object)
     data = event.getData()
     if m.sessionId <> "" and httpString(data.session_id) = m.sessionId then stopped(data)
 end sub
+
+' A command of the user's remote, on another device, for this playback's
+' session (Remote.brs has the rule). Only a video playing or paused obeys:
+' not one still starting, at its end, stopped, or saying what went wrong.
+' A play or pause is reported as the video's own are, when its state
+' changes; a seek at once; the next item with its own session.
+sub onPlayerCommand(event as object)
+    state = m.video.state
+    if m.sessionId = "" or not m.top.active or not m.played or m.ended or m.notice.visible then return
+    if state <> "playing" and state <> "paused" and state <> "buffering" then return
+    duration = invalid
+    if m.durationMs > 0 then duration = m.durationMs
+    player = { kind: "video", session: m.sessionId, playing: state <> "paused", positionMs: m.positionMs, durationMs: duration, hasNext: m.next <> invalid }
+    action = remoteAction(player, event.getData())
+    if action.act = "play"
+        m.video.control = "resume"
+    else if action.act = "pause"
+        m.video.control = "pause"
+    else if action.act = "report"
+        ' As it is already: said again, so a remote a little behind settles.
+        report(reportedState())
+    else if action.act = "seek"
+        seekTo(action.positionMs)
+        ' Told now, not as the next reading finds the playhead moved.
+        m.seenMs = m.positionMs
+        m.seenAt = m.clock.TotalMilliseconds()
+        report(reportedState())
+    else if action.act = "next"
+        playNext(false)
+    end if
+end sub
+
+' What the video is doing, as progress tells it.
+function reportedState() as string
+    if m.video.state = "paused" then return "paused"
+    return "playing"
+end function
 
 sub onActive()
     if not m.top.active
@@ -395,6 +433,8 @@ sub requestPlayback(choice as string, ceilingKbps as float)
     end if
     again = ""
     if choice = "auto" then again = m.autoQuality
+    ' What it obeys of the user's remote: next where something may come next.
+    spec.controls = remoteVideoControls(playerMayHaveNext(m.item, m.queue, m.queueAt))
     m.asked = aqAsk(choice, again, ceilingKbps, file)
     ' A file that failed to play as it is stays converted (broken()).
     if m.mode <> "transcode" then spec.mode = m.asked.mode
@@ -1352,12 +1392,14 @@ sub cancelUpNext()
 end sub
 
 ' Up Next shows at the credits: moving on counts the episode as watched.
-sub playNext()
+' The user's remote moves on from anywhere (finished false): the episode
+' keeps its place.
+sub playNext(finished = true as boolean)
     nextEpisode = m.next
     hideUpNext()
     if nextEpisode = invalid then return
     if m.sessionId <> ""
-        if m.durationMs > 0 then m.positionMs = m.durationMs
+        if finished and m.durationMs > 0 then m.positionMs = m.durationMs
         report("stopped")
         endSession()
     end if
