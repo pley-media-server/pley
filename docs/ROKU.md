@@ -77,7 +77,9 @@ yet, Scanning your libraries…, or Nothing here yet.
 | Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
-| Replay | Live TV | Search (Roku remotes have no search key for apps) |
+| Options (\*) | Live TV | A programme's details (a card's: what's on), Watch, Add to or remove from favourites |
+| Options (\*) | The live player | Add to or remove from favourites |
+| Replay | Live TV, the live player's channel list | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
 
@@ -370,19 +372,53 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 `components/lib/Live.brs`):
 
 - **Paging:** channels come 50 at a time, and the guide only for those 50
-  (`GET /api/live/guide?ids=`).
+  (`GET /api/live/guide?ids=`). A page of channels or a part of the guide
+  that didn't load is asked for again once 10 s have passed, as the list
+  moves (in the player, as the list moves or Up or Down is pressed); with
+  nothing to show, the screen says why, with Try again.
 - **Categories** run down the left under Search. Rewind and fast forward
-  move a screen at a time. The category and the tab are kept per server
-  and profile.
+  move a screen at a time. The category, the tab and the last channel
+  watched are kept per server and profile (registry section `liveViews`):
+  the list opens at that channel, back from the player and after a
+  restart.
+- **Search** (the entry over the categories, or Replay) is typed on
+  Roku's keyboard; Clear in it, or Back, goes back to the category shown
+  before.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details.
+  the channel; on a later programme it shows its details, as Options (\*)
+  does on any programme (on a card, what's on), with Watch and the
+  favourite.
 - **Channels:** the other tab, as cards with what's on and what's next.
+- **What's on moves on** each 15 s: the programme above the guide, the
+  cards in view and the player's banner and list show how far along it
+  is. Once a programme listed as on now has ended, the cards in view are
+  asked for again, and in the player the channel playing
+  (`GET /api/live/channels/{id}`), each at most once a minute. The guide's
+  programmes come six hours ahead, so the guide itself needs nothing new.
+- **Back** goes up a step at a time: the guide back to now (when another
+  time shows, or a programme not on now has focus), a search back to the
+  category before, the guide or the cards to the categories, then out of
+  Live TV.
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the
-  channel list; Right, OK or Options show the banner. Leaving, or changing
+  channel list; Right or OK show the banner. Options (\*) puts the channel
+  in the favourites or takes it out, in the list the channel in focus,
+  else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
+- **The channel list** opens on the category Up and Down go through, at
+  the channel playing. Left in it lists the categories as Live TV does
+  (OK on one lists its channels instead, Back goes back), and Replay
+  searches every channel (Back leaves the search). A channel chosen from
+  another category, or a search, makes Up and Down go through that one.
+- **Failures:** a playlist the server doesn't give (a `503` while the
+  provider sends nothing, or another failure of its), or a stream that
+  breaks while its playlist is still there, tunes the channel again twice,
+  after 1 s and then 3 s, before the notice says why; not when the server
+  refused it (`409` every connection in use, `410`, `403`, `404`). Try
+  again starts the count again. When the server doesn't answer at all,
+  the app says it can't be reached, as on any screen.
 - **Taken over:** the server's `live_taken_over` event for the channel
   playing (the scene hands it to the player) stops it at once, before its
   stream breaks off. A stream that breaks asks its playlist again, and a

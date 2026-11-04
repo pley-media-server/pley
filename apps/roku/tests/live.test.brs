@@ -134,6 +134,33 @@ sub test_live_search()
     tkEqual(liveGroupsMatching(groups, "  "), [])
 end sub
 
+sub test_live_search_goes_back_to_the_category_before()
+    before = liveBeforeSearch("group:UK| Sport", "all")
+    tkEqual(before, "group:UK| Sport", "the category shown as the search began")
+    tkEqual(liveBeforeSearch("search:bbc", before), "group:UK| Sport", "kept through another search")
+    tkEqual(liveBeforeSearch("favorites", before), "favorites", "a search from another category")
+    tkEqual(liveBeforeSearch("", "favorites"), "all")
+end sub
+
+sub test_live_rail_items()
+    groups = liveGroups(liveSampleGroups())
+    rail = liveRail(liveSummary(liveSampleGroups()), groups, "UK", "")
+    items = liveRailItems(rail, "UK", "group:UK| News")
+    tkEqual(items[0], { title: "Favourites", countText: "2", mark: "", inner: false, heading: false, current: false })
+    tkEqual(items[2].countText, "56,171")
+    tkTrue(items[3].heading, "Regions")
+    tkEqual(items[3].countText, "", "a heading has no count")
+    tkEqual(items[4].mark, "+", "a region closed")
+    tkEqual(items[5].mark, "−", "the region open")
+    tkTrue(items[7].current, "the category shown")
+    tkTrue(items[7].inner)
+    tkEqual(liveRailPast(rail, 3, 2), 4, "past a heading, on")
+    tkEqual(liveRailPast(rail, 3, 4), 2, "past a heading, back")
+    tkEqual(liveRailPast(rail, 2, 1), 2, "a category stays")
+    tkEqual(liveRailPast([{ kind: "heading" }, { kind: "category" }], 0, 1), 1, "a heading at the top: on")
+    tkEqual(liveRailPast([{ kind: "category" }, { kind: "heading" }], 1, 0), 1, "a heading at the end stays")
+end sub
+
 sub test_live_rail_pages()
     kinds = ["category", "category", "heading", "region", "region", "region", "heading", "category", "category", "category"]
     tkEqual(liveRailPage(kinds, 0, 4, 1), 4)
@@ -160,6 +187,17 @@ sub test_live_now_and_next()
     tkEqual(liveTimeLeft({ start: 0, ends: 7200 }, 0), "2 h left")
     tkEqual(liveTimeLeft({ start: 0, ends: 4000 }, 0), "1 h 7 min left")
     tkEqual(liveTimeLeft({ start: 0, ends: 10 }, 0), "1 min left")
+end sub
+
+sub test_live_whats_on_moves_on()
+    channels = liveChannels(liveSample(), "")
+    tkFalse(liveNowEnded(channels, 0, 3, 1500), "on now still")
+    tkTrue(liveNowEnded(channels, 0, 3, 2000), "a programme listed as on now ended")
+    tkFalse(liveNowEnded(channels, 2, 3, 2500), "a channel without a guide has nothing to end")
+    tkTrue(liveNowEnded(channels, -5, 99, 2500), "from and upto kept within the channels")
+    tkTrue(liveMayRefresh(-1, 100))
+    tkFalse(liveMayRefresh(1000, 60000), "within a minute")
+    tkTrue(liveMayRefresh(1000, 61000))
 end sub
 
 sub test_live_clock_text()
@@ -256,6 +294,23 @@ sub test_live_guide_window()
     tkInvalid(liveGuideMissing(0, 172800, 170000, 7200), "the span fetched")
 end sub
 
+sub test_live_failed_pages_asked_again()
+    tkTrue(liveMayAskAgain(-1, 500), "nothing failed")
+    tkFalse(liveMayAskAgain(20000, 25000), "within 10 s")
+    tkTrue(liveMayAskAgain(20000, 30000), "once 10 s have passed")
+end sub
+
+sub test_live_guide_back_to_now()
+    now = 10000
+    tkFalse(liveGuideAway(9000, 7200, 9000, 10800, now), "on what's on now")
+    tkTrue(liveGuideAway(9000, 7200, 10800, 12600, now), "on what comes after")
+    tkTrue(liveGuideAway(9000, 7200, 7200, 9000, now), "on what ended")
+    tkTrue(liveGuideAway(18000, 7200, 18000, 19800, now), "hours on")
+    tkTrue(liveGuideAway(1000, 7200, 9000, 10800, now), "now out of the time shown")
+    tkFalse(liveGuideAway(9000, 7200, 0, 0, now), "no programme: the time shown counts")
+    tkFalse(liveGuideAway(now, 7200, 0, 86400, now), "time without a guide, across now")
+end sub
+
 sub test_live_troubles()
     busy = liveTrouble({ status: 409, message: "The one connection of Test Provider is in use, watching Pley News HD (lab)." }, "Film Four")
     tkEqual(busy.kind, "busy")
@@ -267,6 +322,18 @@ sub test_live_troubles()
     tkEqual(liveTrouble({ status: 503, message: "the channel didn't start" }, "Film Four").title, "Film Four isn't playing")
     tkEqual(liveTrouble({ status: 500, message: "boom" }, "Film Four").title, "Film Four didn't start")
     tkEqual(liveTroubleButtons(busy), [{ label: "Try again", action: "retry", channelId: 0 }, { label: "Other channels", action: "list", channelId: 0 }, { label: "Back", action: "back", channelId: 0 }], "without what holds the connections")
+end sub
+
+sub test_live_retries()
+    tkTrue(liveRetried(liveTrouble({ status: 503, message: "the channel didn't start" }, "x")), "the provider sent nothing yet")
+    tkTrue(liveRetried(liveTrouble({ status: 500, message: "boom" }, "x")))
+    tkFalse(liveRetried(liveTrouble({ status: 409, message: "", data: { connections: [] } }, "x")), "every connection in use")
+    tkFalse(liveRetried(liveTrouble({ status: 410, message: "", data: invalid }, "x")), "stopped on the server")
+    tkFalse(liveRetried(liveTrouble({ status: 404, message: "" }, "x")), "gone")
+    tkFalse(liveRetried(liveTrouble({ status: 403, message: "" }, "x")), "not open to the account")
+    tkEqual(liveRetryDelay(0), 1000, "after a second")
+    tkEqual(liveRetryDelay(1), 3000, "then three")
+    tkEqual(liveRetryDelay(2), -1, "then the player says why")
 end sub
 
 sub test_live_stopped_on_the_server()
@@ -307,16 +374,35 @@ sub test_live_busy_connections()
     one = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 1, yours: true, can_take_over: true }] } }, "x")
     tkEqual(liveTroubleButtons(one)[0].label, "Watch here instead", "one to take: its channel goes without saying")
     tkEqual(one.lines, "Its one connection is watching:" + Chr(10) + "•  Sport 1080i  —  You, on another device")
+    none = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 2, yours: false, can_take_over: false }] } }, "x")
+    tkEqual(none.lines, "Its one connection is watching:" + Chr(10) + "•  Sport 1080i  —  2 people" + Chr(10) + Chr(10) + "A channel already being watched can be joined, or try again once one is stopped.", "none to take over: what can be done instead")
+    tkEqual(liveTroubleButtons(none)[0].action, "retry")
 end sub
 
 sub test_live_view_kept()
     section = tkRegistrySection()
     key = liveViewKey("http://tv:7539", 2)
-    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all" })
+    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all", channel: 0 })
     liveSaveView(section, key, { tab: "channels", category: "group:UK| Sport" })
-    tkEqual(liveLoadView(section, key), { tab: "channels", category: "group:UK| Sport" })
-    section.Write(key, "{""tab"":""elsewhere"",""category"":""group:""}")
-    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all" })
+    tkEqual(liveLoadView(section, key), { tab: "channels", category: "group:UK| Sport", channel: 0 })
+    section.Write(key, "{""tab"":""elsewhere"",""category"":""group:"",""channel"":""7""}")
+    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all", channel: 0 })
     section.Write(key, "garbage")
-    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all" })
+    tkEqual(liveLoadView(section, key), { tab: "guide", category: "all", channel: 0 })
+end sub
+
+sub test_live_last_channel_kept()
+    section = tkRegistrySection()
+    key = liveViewKey("http://tv:7539", 2)
+    liveSaveView(section, key, { tab: "channels", category: "favorites", channel: 0 })
+    liveSaveChannel(section, key, 101)
+    tkEqual(liveLoadView(section, key), { tab: "channels", category: "favorites", channel: 101 }, "the tab and the category stay")
+    liveSaveView(section, key, { tab: "guide", category: "recent", channel: 0 })
+    tkEqual(liveLoadView(section, key).channel, 101, "the channel stays as the tab changes")
+    flushes = section.flushes
+    liveSaveChannel(section, key, 101)
+    tkEqual(section.flushes, flushes, "the same channel isn't written again")
+    liveSaveChannel(section, key, 0)
+    tkEqual(liveLoadView(section, key).channel, 101, "no channel keeps the one before")
+    tkEqual(liveLoadView(section, liveViewKey("http://tv:7539", 3)).channel, 0, "another profile's own")
 end sub
