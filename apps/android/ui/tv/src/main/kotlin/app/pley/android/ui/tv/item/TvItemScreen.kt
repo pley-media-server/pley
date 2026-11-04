@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -86,6 +85,7 @@ import app.pley.android.ui.tv.kit.readOn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
 import app.pley.android.ui.tv.kit.rememberTvRowColumnFocus
+import app.pley.android.ui.tv.kit.rememberTvRowColumnState
 import app.pley.android.ui.tv.kit.tvRowColumnFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ReportOffline
@@ -186,7 +186,8 @@ internal sealed interface Panel {
 private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNavigator, toasts: TvToastState) {
     val focus = remember { ItemPageFocus() }
     val memory = rememberFocusMemory()
-    val list = rememberLazyListState()
+    // Composes the row below ahead, as Home does: Down onto Extras or Cast glides onto a row already made.
+    val list = rememberTvRowColumnState()
     val tier = LocalTvTier.current
     var panel by remember { mutableStateOf<Panel?>(null) }
     var summaryOpen by remember { mutableStateOf(false) }
