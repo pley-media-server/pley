@@ -49,19 +49,24 @@ export type RemotePlayer =
  * What the player does with a command. A play, pause or seek tells the
  * server where it is at once, so the remote sees it (a pause reports as
  * any pause does); another track or channel tells it with its own session.
+ * A play while playing, or a pause while paused, changes nothing but says
+ * where it is again (`report`), so a remote a little behind settles.
  */
 export type RemoteAction =
   | { act: "none" }
+  | { act: "report" }
   | { act: "play" | "pause" }
   | { act: "seek"; positionMs: number }
   | { act: "next" | "previous" }
   | { act: "channel"; by: 1 | -1 };
 
 const NONE: RemoteAction = { act: "none" };
+const REPORT: RemoteAction = { act: "report" };
 
 /**
  * The rule every receiver follows: a command for another session is
- * someone else's player's; a seek stays within the title and a skip
+ * someone else's player's; play while playing and pause while paused
+ * say again what it does; a seek stays within the title and a skip
  * counts from where it is; next with nothing next, or previous on a
  * video, does nothing; previous on music starts the track again past 3 s
  * or on the first track, else plays the one before; a live channel's
@@ -78,9 +83,9 @@ export function remoteAction(p: RemotePlayer, c: PlayerCommand): RemoteAction {
   }
   switch (c.command) {
     case "play":
-      return p.playing ? NONE : { act: "play" };
+      return p.playing ? REPORT : { act: "play" };
     case "pause":
-      return p.playing ? { act: "pause" } : NONE;
+      return p.playing ? { act: "pause" } : REPORT;
     case "seek":
       return c.position_ms === null ? NONE : { act: "seek", positionMs: within(c.position_ms, p.durationMs) };
     case "skip":

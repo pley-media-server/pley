@@ -18,13 +18,15 @@ const command = (c: Omit<PlayerCommand, "type">): PlayerCommand => ({ type: "pla
 
 /**
  * An action as the fixture writes it: what the player does, and whether
- * its session reports at once (a play, pause or seek does); a channel as
- * the one it tunes.
+ * its session reports at once (a play, pause or seek does, and a play or
+ * pause that finds it so already); a channel as the one it tunes.
  */
 function written(a: RemoteAction, channel: number | null = null): Record<string, unknown> {
   switch (a.act) {
     case "none":
       return { act: "none", report: false };
+    case "report":
+      return { act: "none", report: true };
     case "seek":
       return { act: "seek", position_ms: a.positionMs, report: true };
     case "channel":

@@ -1128,8 +1128,9 @@ export class PlaybackController {
    * A command of the user's remote, on another device, for the session
    * playing (remote.ts has the rule): what changed is reported at once, so
    * the remote sees it. A pause reports as any pause does, the next item
-   * with its own session; a remote's next that finds nothing says nothing
-   * here, whoever pressed it being elsewhere.
+   * with its own session; a play or pause that finds it so already says it
+   * again. A remote's next that finds nothing says nothing here, whoever
+   * pressed it being elsewhere.
    */
   private obey(command: PlayerCommand): void {
     const info = this.info;
@@ -1154,6 +1155,10 @@ export class PlaybackController {
         break;
       case "pause":
         this.pause();
+        break;
+      case "report":
+        // Playing or paused already: said again, so a remote a little behind settles.
+        this.report(this.wantPlay ? "playing" : "paused");
         break;
       case "seek":
         this.seekTo(action.positionMs);

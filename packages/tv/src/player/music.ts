@@ -377,7 +377,8 @@ export class MusicPlayer {
    * A command of the user's remote, on another device, for the track
    * playing (remote.ts has the rule), as the buttons here do it: what
    * changed is reported at once, so the remote sees it. A pause reports as
-   * any pause does, another track with its own session.
+   * any pause does, another track with its own session; a play or pause
+   * that finds it so already says it again.
    */
   obey(command: PlayerCommand): void {
     const s = this.session;
@@ -404,6 +405,10 @@ export class MusicPlayer {
         break;
       case "pause":
         this.audio.pause();
+        break;
+      case "report":
+        // Playing or paused already: said again, so a remote a little behind settles.
+        this.report(this.audio.paused ? "paused" : "playing");
         break;
       case "seek":
         if (this.seekTo(action.positionMs)) this.report(this.audio.paused ? "paused" : "playing");

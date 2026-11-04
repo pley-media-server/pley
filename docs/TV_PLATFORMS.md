@@ -182,7 +182,9 @@ server names the TV from its web engine ("Samsung TV"). They obey:
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is
 reported at once, so the remote sees it; another title, track or channel
-tells the server with its own session. The rule is pinned for every TV
+tells the server with its own session. A play on a player already
+playing, or a pause on one already paused, says so again at once, so a
+remote a little behind settles. The rule is pinned for every TV
 app by `packages/tv/test/fixtures/remote.json`.
 
 ### Requests
@@ -484,7 +486,8 @@ The remote on the profile's other devices is obeyed as by the web app
 the music behind the other pages and the live player say what they obey
 (`controls`) and that they play on a TV (`device_kind: "tv"`, on the
 `stream.ts` it reads too), act only on their own session, and report each
-change at once. The remote's next and previous on Live TV go through the
+change at once; a film or music told to play or pause as it already is
+says so again. The remote's next and previous on Live TV go through the
 channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
 stopped it and, on a line of its own, their message, as on Android TV. The

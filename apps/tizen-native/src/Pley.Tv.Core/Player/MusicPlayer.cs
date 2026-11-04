@@ -307,7 +307,8 @@ public sealed class MusicPlayer : IMusicControl
     /// A command of the profile's remote for the track playing, as Android's music obeys it
     /// (<see cref="Remote.Action"/>): a seek stays within the track, a skip goes from where it is
     /// now, next and previous as the buttons here. What changed is reported at once, so the
-    /// remote sees it: a pause reports by itself, and another track with its new session.
+    /// remote sees it: a pause reports by itself, and another track with its new session; a play
+    /// or pause that finds it so already says it again.
     /// </summary>
     public void Obey(ServerEvent command)
     {
@@ -325,6 +326,10 @@ public sealed class MusicPlayer : IMusicControl
                 break;
             case RemoteAct.Pause:
                 Pause();
+                break;
+            case RemoteAct.Report:
+                // Playing or paused already: said again, so a remote a little behind settles.
+                s.Progress(LastPosition(), wantPlay);
                 break;
             case RemoteAct.Seek:
                 o.SeekTo(action.PositionMs);

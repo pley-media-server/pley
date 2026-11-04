@@ -81,6 +81,17 @@ describe("music and the user's remote, on another device", () => {
     expect(calls).toEqual(["progress 2 paused 60000", "progress 2 playing 60000"]);
   });
 
+  it("says again that it plays, or is paused, when told so already, so a remote a little behind settles", async () => {
+    const { media, calls, send } = await world([1, 2, 3], 1);
+    media.at = 60;
+    send("t1", "play");
+    send("t1", "pause");
+    send("t1", "pause");
+    await settle();
+    expect(media.paused).toBe(true);
+    expect(calls).toEqual(["progress 2 playing 60000", "progress 2 paused 60000", "progress 2 paused 60000"]);
+  });
+
   it("seeks within the track and skips from where it is, reporting where it went", async () => {
     const { media, calls, send } = await world([1, 2, 3], 1);
     media.at = 60;

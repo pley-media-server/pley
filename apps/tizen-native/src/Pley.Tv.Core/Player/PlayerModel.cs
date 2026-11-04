@@ -940,7 +940,8 @@ public sealed class PlayerModel : IDisposable
     /// (<see cref="Remote.Action"/>): a seek stays within the title, a skip goes from where it is
     /// now, next plays what comes next (nothing at the end, and nothing said here), and a video
     /// has no previous. What changed is reported at once, so the remote sees it: a pause reports
-    /// by itself, and a new item with its new session.
+    /// by itself, and a new item with its new session; a play or pause that finds it so already
+    /// says it again.
     /// </summary>
     void Obey(ServerEvent command)
     {
@@ -958,6 +959,10 @@ public sealed class PlayerModel : IDisposable
                 break;
             case RemoteAct.Pause:
                 Pause();
+                break;
+            case RemoteAct.Report:
+                // Playing or paused already: said again, so a remote a little behind settles.
+                Report(wantPlay ? "playing" : "paused");
                 break;
             case RemoteAct.Seek:
                 SeekTo(action.PositionMs);

@@ -34,6 +34,8 @@ public sealed record RemotePlayer(
 public enum RemoteAct
 {
     None,
+    /// <summary>Nothing changes, but where it is is said again: a play while playing, a pause while paused.</summary>
+    Report,
     Play,
     Pause,
     /// <summary>To <see cref="RemoteAction.PositionMs"/>.</summary>
@@ -47,11 +49,13 @@ public enum RemoteAct
 /// <summary>
 /// What a player does with a command. A play, pause or seek tells the server where it is at once,
 /// so the remote sees it (a pause reports as any pause does); another track, title or channel
-/// tells the server with its own session.
+/// tells the server with its own session. A play while playing, or a pause while paused, says
+/// where it is again, so a remote a little behind settles.
 /// </summary>
 public sealed record RemoteAction(RemoteAct Act, long PositionMs = 0, int By = 0)
 {
     public static readonly RemoteAction None = new RemoteAction(RemoteAct.None);
+    public static readonly RemoteAction Report = new RemoteAction(RemoteAct.Report);
 }
 
 /// <summary>
@@ -79,7 +83,7 @@ public static class Remote
 
     /// <summary>
     /// The rule every receiver follows: a command for another session is someone else's player's;
-    /// a seek stays within the title and a skip counts from where it is; next with nothing next,
+    /// play while playing and pause while paused say again what it does; a seek stays within the title and a skip counts from where it is; next with nothing next,
     /// or previous on a video, does nothing; previous on music starts the track again past 3 s or
     /// on the first track, else plays the one before; a live channel's next and previous are
     /// channel up and down. A command the player didn't declare does nothing.
@@ -100,9 +104,9 @@ public static class Remote
         switch (c.Command)
         {
             case "play":
-                return p.Playing ? RemoteAction.None : new RemoteAction(RemoteAct.Play);
+                return p.Playing ? RemoteAction.Report : new RemoteAction(RemoteAct.Play);
             case "pause":
-                return p.Playing ? new RemoteAction(RemoteAct.Pause) : RemoteAction.None;
+                return p.Playing ? new RemoteAction(RemoteAct.Pause) : RemoteAction.Report;
             case "seek":
                 return c.PositionMs is long at ? new RemoteAction(RemoteAct.Seek, Within(at, p.DurationMs)) : RemoteAction.None;
             case "skip":

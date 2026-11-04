@@ -42,7 +42,7 @@ public class RemoteRuleTests
 
     /// <summary>
     /// An action as the fixture writes it: what the player does, and whether its session reports at
-    /// once (a play, pause or seek does).
+    /// once (a play, pause or seek does, and a play or pause that finds it so already).
     /// </summary>
     static string Written(RemoteAction a)
     {
@@ -50,6 +50,8 @@ public class RemoteRuleTests
         {
             case RemoteAct.None:
                 return Fixtures.Json(new Dictionary<string, object> { ["act"] = "none", ["report"] = false });
+            case RemoteAct.Report:
+                return Fixtures.Json(new Dictionary<string, object> { ["act"] = "none", ["report"] = true });
             case RemoteAct.Seek:
                 return Fixtures.Json(new Dictionary<string, object> { ["act"] = "seek", ["position_ms"] = a.PositionMs, ["report"] = true });
             default:
@@ -234,13 +236,25 @@ public class VideoRemoteTests
         h.Source.Emit(Command("pause"));
         Assert.False(h.Engine.Playing);
         Assert.Equal((4_000L, "paused"), (h.Source.Reports.Single().Position, h.Source.Reports.Single().State));
-        // Paused already: nothing to do, nothing to say.
-        h.Source.Emit(Command("pause"));
-        Assert.Single(h.Source.Reports);
         h.Source.Emit(Command("play"));
         Assert.True(h.Engine.Playing);
         Assert.Equal("playing", h.Source.Reports.Last().State);
         Assert.Equal(2, h.Source.Reports.Count);
+    }
+
+    [Fact]
+    public void Play_while_playing_and_pause_while_paused_say_so_again_so_a_remote_a_little_behind_settles()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        h.Play(4_000);
+        h.Source.Emit(Command("play"));
+        Assert.True(h.Engine.Playing);
+        Assert.Equal((4_000L, "playing"), (h.Source.Reports.Single().Position, h.Source.Reports.Single().State));
+        h.Source.Emit(Command("pause"));
+        h.Source.Emit(Command("pause"));
+        Assert.False(h.Engine.Playing);
+        Assert.Equal(new[] { "playing", "paused", "paused" }, h.Source.Reports.Select(r => r.State));
     }
 
     [Fact]
@@ -358,8 +372,20 @@ public class MusicRemoteTests
         p.Obey(Command("play"));
         Assert.True(Engine.Playing);
         Assert.Equal("playing 60000", server.Last.Reports.Last());
-        p.Obey(Command("play"));
         Assert.Equal(2, server.Last.Reports.Count);
+    }
+
+    [Fact]
+    public void Play_while_playing_and_pause_while_paused_say_so_again_so_a_remote_a_little_behind_settles()
+    {
+        var p = Playing();
+        var before = server.Last.Reports.Count;
+        p.Obey(Command("play"));
+        Assert.True(Engine.Playing);
+        p.Obey(Command("pause"));
+        p.Obey(Command("pause"));
+        Assert.False(Engine.Playing);
+        Assert.Equal(new[] { "playing 60000", "paused 60000", "paused 60000" }, server.Last.Reports.Skip(before));
     }
 
     [Fact]

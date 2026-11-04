@@ -1390,6 +1390,19 @@ describe("the user's remote, on another device", () => {
     c.close();
   });
 
+  it("says again that it plays, or is paused, when told so already, so a remote a little behind settles", async () => {
+    const { w, c } = await playing();
+    w.send(command({ session_id: "s1", command: "play" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(true);
+    w.send(command({ session_id: "s1", command: "pause" }));
+    w.send(command({ session_id: "s1", command: "pause" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(false);
+    expect(w.calls).toEqual(["progress playing 600000", "progress paused 600000", "progress paused 600000"]);
+    c.close();
+  });
+
   it("leaves another session's commands alone", async () => {
     const { w, c } = await playing();
     w.send(command({ session_id: "s2", command: "pause" }));
