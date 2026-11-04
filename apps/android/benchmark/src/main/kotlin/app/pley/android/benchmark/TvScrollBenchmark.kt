@@ -47,8 +47,8 @@ class TvScrollBenchmark {
     ) {
         with(TvJourney(this)) {
             repeat(ROWS) {
-                hold(Key.RIGHT, ROW_HOLD_MS)
-                tap(Key.DOWN)
+                hold(Key.RIGHT, ROW_HOLD_MS, unobserved = true)
+                tap(Key.DOWN, unobserved = true)
             }
         }
     }
@@ -69,7 +69,7 @@ class TvScrollBenchmark {
             }
         },
     ) {
-        TvJourney(this).hold(Key.DOWN, GRID_HOLD_MS)
+        TvJourney(this).hold(Key.DOWN, GRID_HOLD_MS, unobserved = true)
     }
 
     private companion object {

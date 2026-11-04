@@ -37,6 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -341,7 +345,8 @@ private val BottomScrim by lazy { GradientBitmaps.vertical(0f to Color.Transpare
  * 200 ms, eased out as the Samsung app's panels slide in, and out eased
  * in, the scrim with it (in place with reduced motion); it takes focus
  * ([initialFocus] on the row to start from), and Back closes it
- * ([onDismiss]).
+ * ([onDismiss]). A key held from before it came acts nowhere in it
+ * ([heldFromBefore]): OK held opens a tile's actions, and lets go of them.
  */
 @Composable
 fun TvSidePanel(
@@ -368,8 +373,14 @@ fun TvSidePanel(
             enter = slideInHorizontally(tween(ms, easing = PleyMotion.EaseOut)) { it },
             exit = slideOutHorizontally(tween(ms, easing = PleyMotion.EaseIn)) { it },
         ) {
+            // The keys pressed while it shows, each time it comes.
+            val pressedHere = remember { HashSet<Int>() }
             Surface(
-                modifier = modifier.width(SidePanelWidth).fillMaxHeight().focusGroup(),
+                modifier = modifier
+                    .width(SidePanelWidth)
+                    .fillMaxHeight()
+                    .onPreviewKeyEvent { event -> pressedHere.heldFromBefore(event) }
+                    .focusGroup(),
                 shape = RoundedCornerShape(topStart = PleyShape.DialogRadius, bottomStart = PleyShape.DialogRadius),
                 colors = SurfaceDefaults.colors(containerColor = PleyColors.Surface2, contentColor = PleyColors.Fg),
             ) {
@@ -382,6 +393,27 @@ fun TvSidePanel(
                 )
             }
         }
+    }
+}
+
+/**
+ * Whether [event] is of a key that went down before the panel came, which
+ * acts nowhere in it, its repeats and its release alike: OK held on a tile
+ * opens its actions at the long press, and the key, still held, went on to
+ * choose the first of them. A key pressed while the panel shows (these keys)
+ * goes on as it does anywhere.
+ */
+private fun MutableSet<Int>.heldFromBefore(event: KeyEvent): Boolean {
+    val code = event.nativeKeyEvent.keyCode
+    return when (event.type) {
+        KeyEventType.KeyDown -> if (event.nativeKeyEvent.repeatCount == 0) {
+            add(code)
+            false
+        } else {
+            code !in this
+        }
+        KeyEventType.KeyUp -> !remove(code)
+        else -> false
     }
 }
 

@@ -1,0 +1,4 @@
+# Compiled ahead whatever the profile journeys reach (docs/ANDROID.md, Performance):
+# the TV kit's rows, tiles, glides and panels, and the library grid a held key scrolls.
+HSPLapp/pley/android/ui/tv/kit/**;->**(**)**
+HSPLapp/pley/android/ui/tv/library/**;->**(**)**

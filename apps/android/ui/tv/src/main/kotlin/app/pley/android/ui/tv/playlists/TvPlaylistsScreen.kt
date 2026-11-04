@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -128,14 +129,16 @@ internal fun TvPlaylistsContent(state: Loadable<List<PlaylistCard>>, onRetry: ()
                 verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
                 itemsIndexed(list, key = { _, card -> card.id }, contentType = { _, _ -> "playlist" }) { index, card ->
+                    val subtitle = listOfNotNull(card.meta.ifEmpty { null }, smartWord(card)).joinToString(" · ")
                     TvTileFrame(
                         kind = TileKind.Square,
                         onClick = { navigator.open(PleyKey.Playlist(card.id)) },
                         onLongClick = null,
-                        focusModifier = Modifier.rememberedFocus(memory, "playlist/${card.id}", initial = index == 0),
-                        caption = { focused ->
-                            TileCaption(card.title, listOfNotNull(card.meta.ifEmpty { null }, smartWord(card)).joinToString(" · "), TileStyle.Tv, emphasized = focused)
-                        },
+                        // What the card says to screen readers: its caption, which (as every tile's) says nothing itself.
+                        focusModifier = Modifier
+                            .rememberedFocus(memory, "playlist/${card.id}", initial = index == 0)
+                            .semantics { contentDescription = listOf(card.title, subtitle).filter { it.isNotEmpty() }.joinToString(", ") },
+                        caption = { focused -> TileCaption(card.title, subtitle, TileStyle.Tv, emphasized = focused) },
                     ) {
                         TvPlaylistArt(card.artwork, card.origin, card.video, card.title, Modifier.tvTileSize(TileKind.Square))
                     }

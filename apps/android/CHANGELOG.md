@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
+  while something moves, a small box at the top gives the frames
+  drawn a second, the longest frame and how many were late, and the same
+  goes to the device's log.
+
 ### Changed
 
 - The banner on Android TV and Google TV's home screen shows Pley's mark
@@ -30,6 +37,11 @@ describes how they are made.
   starts moving by itself after 300 ms rather than 180.
 - Search no longer closes the app when a recent search is "discover" or
   "header" on a phone, or "pley.clear" on a TV.
+- On Android TV and Fire TV, OK held on a tile opens its actions and leaves
+  them open: the key, still held as they came, went on to choose the first
+  of them (Resume or Play) as it came up.
+- On Android TV and Fire TV, screen readers say each card on Playlists,
+  its title and what it holds; they said nothing.
 
 ## [0.1.5] - 2026-11-03
 
@@ -69,10 +81,6 @@ describes how they are made.
   have more than one: chips beside Genre and Year on phones, rows of the
   Filter panel on TVs with a chip for the one chosen. Clear filters clears
   them, Save as… keeps them, and the library opens with them next time.
-- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
-  while something moves, a small box at the top gives the frames
-  drawn a second, the longest frame and how many were late, and the same
-  goes to the device's log.
 
 ### Changed
 
