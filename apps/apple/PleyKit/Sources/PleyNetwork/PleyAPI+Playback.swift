@@ -109,7 +109,7 @@ extension PleyAPI {
     }
 
     /// A session id as a path segment: letters and digits only.
-    private static func segment(_ id: String) -> String {
+    static func segment(_ id: String) -> String {
         String(id.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
     }
 }

@@ -357,6 +357,12 @@ pub struct PlaybackRequest {
     /// the device from its User-Agent.
     #[serde(default)]
     pub device_name: Option<String>,
+    /// What kind of device the player plays on (a TV, a phone), for remotes
+    /// that pick TVs out from phones and browsers. Without one the server
+    /// goes by the app ([`crate::api::remote::device_kind_of`]). A value
+    /// this server doesn't know is left out rather than refused.
+    #[serde(default, deserialize_with = "known_device_kind")]
+    pub device_kind: Option<DeviceKind>,
     /// The transcoder keeps HDR in transcodes (its `hdr_transcode`
     /// capability): set by the server, never read from the player.
     #[serde(skip)]
@@ -395,6 +401,40 @@ pub type Controls = std::collections::BTreeSet<Control>;
 pub(crate) fn known_controls<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Controls, D::Error> {
     let listed = Option::<Vec<serde_json::Value>>::deserialize(deserializer)?.unwrap_or_default();
     Ok(listed.into_iter().filter_map(|value| serde_json::from_value(value).ok()).collect())
+}
+
+/// What kind of device a player plays on, as remotes tell TVs from phones
+/// and browsers: what the player said (`device_kind`), else what the
+/// server makes of its app ([`crate::api::remote::device_kind_of`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DeviceKind {
+    Tv,
+    Phone,
+    Tablet,
+    Computer,
+    /// The web app in a browser.
+    Browser,
+    /// Not known: the Android app until it says, an app by another
+    /// publisher, a Jellyfin or Plex app.
+    Other,
+}
+
+impl DeviceKind {
+    /// The kind named `name` (`"tv"`), if this server knows it.
+    pub fn from_name(name: &str) -> Option<DeviceKind> {
+        serde_json::from_value(serde_json::Value::String(name.to_owned())).ok()
+    }
+}
+
+/// A player's `device_kind`: the kind named, if this server knows it. One
+/// it doesn't (from a newer player), a number or `null` is left out rather
+/// than refusing the play request.
+pub(crate) fn known_device_kind<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<DeviceKind>, D::Error> {
+    let named = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(named.and_then(|value| serde_json::from_value(value).ok()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -1691,6 +1731,11 @@ pub struct Session {
     /// The device it plays on, as the user's remotes show it: what the
     /// player called it, or a name from its User-Agent.
     pub device: Option<String>,
+    /// Which device that is, the same for everything the device plays
+    /// ([`crate::api::remote::device_id_of`]); `session-<id>` until known.
+    pub device_id: String,
+    /// What kind of device it is ([`DeviceKind`]).
+    pub device_kind: DeviceKind,
     /// Commands sent to it lately, which [`Session::take_command`] counts.
     commands: Mutex<CommandWindow>,
     last_transcoder_touch: AtomicI64,
@@ -1716,8 +1761,10 @@ impl Session {
         start_ms: i64,
     ) -> Self {
         let now = now();
+        let id = uuid::Uuid::new_v4().simple().to_string();
+        let device_id = format!("session-{id}");
         Self {
-            id: uuid::Uuid::new_v4().simple().to_string(),
+            id,
             user_id,
             username,
             client_id,
@@ -1741,6 +1788,8 @@ impl Session {
             bitrate: Mutex::new(None),
             controls: Controls::new(),
             device: None,
+            device_id,
+            device_kind: DeviceKind::Other,
             commands: Mutex::new(CommandWindow::default()),
             last_transcoder_touch: AtomicI64::new(now),
             quiet: AtomicBool::new(false),
@@ -1749,6 +1798,15 @@ impl Session {
 
     pub fn job_id(&self) -> Option<String> {
         self.job_id.lock().clone()
+    }
+
+    /// Says which device it plays on ([`Session::device_id`]), when that is
+    /// known, and what kind of device it is.
+    pub fn on_device(&mut self, id: Option<String>, kind: DeviceKind) {
+        if let Some(id) = id {
+            self.device_id = id;
+        }
+        self.device_kind = kind;
     }
 
     pub fn position_ms(&self) -> i64 {
@@ -2633,6 +2691,7 @@ mod tests {
             keyed_urls: false,
             controls: Controls::new(),
             device_name: None,
+            device_kind: None,
             hdr_transcodes: false,
             fmp4_segments: false,
             download: false,
@@ -3546,6 +3605,26 @@ mod tests {
         assert_eq!(req.controls.into_iter().collect::<Vec<_>>(), [Control::Play, Control::Skip]);
         let req: PlaybackRequest = serde_json::from_value(serde_json::json!({"item_id": 1, "controls": null})).unwrap();
         assert!(req.controls.is_empty());
+    }
+
+    #[test]
+    fn a_device_kind_is_one_known_or_none() {
+        let kind = |value: serde_json::Value| {
+            let req: PlaybackRequest = serde_json::from_value(serde_json::json!({"item_id": 1, "device_kind": value}))
+                .unwrap_or_else(|e| panic!("{value}: {e}"));
+            req.device_kind
+        };
+        assert_eq!(kind(serde_json::json!("tv")), Some(DeviceKind::Tv));
+        assert_eq!(kind(serde_json::json!("browser")), Some(DeviceKind::Browser));
+        assert_eq!(kind(serde_json::json!("fridge")), None, "a kind this server doesn't know");
+        assert_eq!(kind(serde_json::json!("TV")), None, "names are lower case");
+        assert_eq!(kind(serde_json::json!(3)), None);
+        assert_eq!(kind(serde_json::Value::Null), None);
+        let req: PlaybackRequest = serde_json::from_value(serde_json::json!({"item_id": 1})).unwrap();
+        assert_eq!(req.device_kind, None);
+        assert_eq!(DeviceKind::from_name("tablet"), Some(DeviceKind::Tablet));
+        assert_eq!(DeviceKind::from_name("Tablet"), None);
+        assert_eq!(serde_json::to_string(&DeviceKind::Computer).unwrap(), "\"computer\"");
     }
 
     #[test]

@@ -1,18 +1,8 @@
-import { memo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { categoryKey, liveQueries, type Channel, type LiveCategory, type Program } from "@/api/livetv";
-import { cn } from "@/lib/cn";
-import { placeholderGradient, sizedImage } from "@/lib/images";
 
-/** The current time in unix seconds, updated every `everyMs`. */
-export function useNow(everyMs = 15_000): number {
-  const [now, setNow] = useState(() => Date.now() / 1000);
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now() / 1000), everyMs);
-    return () => window.clearInterval(id);
-  }, [everyMs]);
-  return now;
-}
+export { ChannelLogo } from "@/components/ChannelLogo";
+export { useNow } from "@/lib/hooks";
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
 const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -51,45 +41,6 @@ export function timeLeft(p: Pick<Program, "stop">, now: number): string {
   }
   return `${minutes} min left`;
 }
-
-/** A channel's logo on a dark tile, or its number and name when it has none. */
-export const ChannelLogo = memo(function ChannelLogo({
-  channel,
-  width,
-  className,
-  showName = true,
-}: {
-  channel: Pick<Channel, "logo" | "name" | "number">;
-  width: number;
-  className?: string;
-  /** The name on the placeholder (small tiles show the number only). */
-  showName?: boolean;
-}) {
-  const [failed, setFailed] = useState(false);
-  const src = !failed ? sizedImage(channel.logo, width) : null;
-  return (
-    <div
-      className={cn("relative flex items-center justify-center overflow-hidden", className)}
-      style={src ? undefined : { backgroundImage: placeholderGradient(channel.name) }}
-    >
-      {src ? (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          onError={() => setFailed(true)}
-          className="max-h-[78%] max-w-[82%] object-contain drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
-        />
-      ) : (
-        <span className="line-clamp-2 px-1.5 text-center text-xs font-bold leading-tight text-white/80 [text-wrap:balance]">
-          {showName ? channel.name : (channel.number ?? channel.name.slice(0, 3))}
-        </span>
-      )}
-    </div>
-  );
-});
 
 /**
  * A name's region and the rest, when it begins with one the way providers

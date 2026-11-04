@@ -161,6 +161,7 @@ export function useServerEvents(userId: Id | null) {
     const resync = () => {
       void qc.invalidateQueries({ queryKey: keys.libraries });
       void qc.invalidateQueries({ queryKey: keys.activity });
+      void qc.invalidateQueries({ queryKey: keys.sessions });
       void qc.invalidateQueries({ queryKey: ["hubs"] });
       void qc.invalidateQueries({ queryKey: ["library"] });
       void qc.invalidateQueries({ queryKey: ["item"] });
@@ -322,6 +323,10 @@ export function useServerEvents(userId: Id | null) {
           break;
         case "sessions_changed":
           void qc.invalidateQueries({ queryKey: keys.activity });
+          void qc.invalidateQueries({ queryKey: keys.sessions });
+          break;
+        case "session_stopped":
+          void qc.invalidateQueries({ queryKey: keys.sessions });
           break;
         case "watchlist_changed":
           void qc.invalidateQueries({ queryKey: keys.watchlist });

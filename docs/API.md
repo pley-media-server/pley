@@ -2052,6 +2052,8 @@ removed or reordered (`400`).
   device_name?: string;           // what the player calls its device ("Living room TV"), as remotes show it:
                                   // cleaned like an app's name, at most 64 characters. Left out: named from
                                   // the User-Agent ("Firefox on macOS")
+  device_kind?: DeviceKind;       // what kind of device it plays on, for remotes that pick TVs out (Remote
+                                  // control). Left out, or a value the server doesn't know: told from the app
   caps?: {                        // what the client decodes natively (left out: nothing)
     containers: string[];         // ["mp4","m4v","mov","webm","mp3","m4a","flac","ogg","wav"]
     video_codecs: string[];       // ["h264","hevc","vp9","av1"]
@@ -3388,6 +3390,23 @@ more.
   once it has said it takes media control (see
   [COMPATIBILITY.md](COMPATIBILITY.md)); the server passes them on to it
   as `Playstate`.
+- **Which device.** Each session says which device plays it (`device_id`),
+  the same for everything one sign-in plays, however many tabs, titles or
+  channels: `app-<grant>` for one of the user's apps, `token-<id>` for a
+  Jellyfin app's sign-in or a token made in Account (a Plex app's), by the
+  token's id, `web-<16 hex characters>` for a browser sign-in (derived from
+  its session token, never the token or its stored hash), and `session-<id>`
+  when none of these is known. Remotes and dashboards key players by it, so
+  a browser with three tabs is one device. Its `device_kind` is what the
+  player said in its play request (`tv`, `phone`, `tablet`, `computer`,
+  `browser`, `other`), else what the server makes of the app: Pley's Apple
+  TV, Roku, Samsung, LG and Kodi apps play on TVs; its iPhone and iPad app
+  on a phone or a tablet, by its User-Agent; its Mac and desktop apps on
+  computers; the web app is a browser. The Android app plays on TVs and
+  phones alike and says which when it knows; until it does, and for apps by
+  other publishers and Jellyfin and Plex apps, the kind is `other`. A Live
+  TV player that reads `stream.ts` says its kind in the query
+  (`device_kind=tv`).
 - **`GET /api/sessions`** lists the caller's own sessions whose players
   have been heard from in the last 90 seconds, an administrator's too
   (everyone's are on `/api/activity`). `age_ms` is how long ago its
@@ -3396,16 +3415,16 @@ more.
   plus the time since the answer came, by its own clock, so a device
   whose clock is off still shows the right place. `updated_at` is when
   that report was, in server time.
-- **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls` and
-  `device_name` too. Its session is listed with `kind: "live"`, its
-  `channel` and `item: null`, while its player is there (see Leaving,
-  under [Live TV](#live-tv)); it is always `playing`, at `position_ms` 0
-  with `duration_ms` `null`. Commands go to it the same way. `next` and
-  `previous` change channel, in the order the player tunes them; the
-  server only passes them on. A live player lists `pause`, `seek` and
-  `skip` only when it can go back in the channel, and its `seek` goes up
-  to a day, as with a title whose length isn't known. A viewer starting,
-  ending or changing channel sends `sessions_changed`.
+- **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
+  `device_name` and `device_kind` too. Its session is listed with
+  `kind: "live"`, its `channel` and `item: null`, while its player is there
+  (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
+  `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
+  `next` and `previous` change channel, in the order the player tunes them;
+  the server only passes them on. A live player lists `pause`, `seek` and
+  `skip` only when it can go back in the channel, and its `seek` goes up to
+  a day, as with a title whose length isn't known. A viewer starting, ending
+  or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
   position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
@@ -3522,6 +3541,8 @@ interface SessionInfo {
   user_id: Id;
   username: string;
   device: string | null;        // "Living room TV", "Firefox on macOS" (Remote control)
+  device_id: string;            // which device that is: "app-12", "web-9f2c…" (Remote control)
+  device_kind: DeviceKind;      // and what kind
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
@@ -3532,11 +3553,14 @@ interface SessionInfo {
 }
 
 type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 interface PlayingSession {      // GET /api/sessions
   session_id: string;
   kind: "item" | "live";
   device: string | null;        // as SessionInfo's
+  device_id: string;            // as SessionInfo's
+  device_kind: DeviceKind;
   item: ItemSummary | null;     // kind "item"
   channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null } | null;
                                 // kind "live"; `now`: the programme on
@@ -3644,8 +3668,8 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
-| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over?, controls?, device_name? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below; `controls` and `device_name` as a play request's ([Remote control](#remote-control)) |
-| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`). A reader that watches by itself obeys no remote and is named from its User-Agent |
+| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over?, controls?, device_name?, device_kind? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below; `controls`, `device_name` and `device_kind` as a play request's ([Remote control](#remote-control)) |
+| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=&device_kind=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`). A reader that watches by itself obeys no remote and is named from its User-Agent; `device_kind` says what it plays on ([Remote control](#remote-control)) |
 | GET | `/api/live/sessions/{session}/plan` | `play` | `LivePlan \| null`: what the transcoder makes of the channel, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
 | GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session; `410 session_stopped` once the session is over, with why as `message` |
 | GET | `/api/live/media/{key}/{file}` | `public` (the key) | the same, for a session watched with `keyed_urls` |

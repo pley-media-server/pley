@@ -129,9 +129,12 @@ public final class LiveTvRepository: ObservableObject {
     /// Throws the server's refusal (`PleyError.busy`: every connection of
     /// its source in use). `takeOver`: the channel whose connection to
     /// take, one the `409` said may be.
-    public func watch(_ channelId: Int, clientId: String, takeOver: Int? = nil) async throws -> (LiveWatch, URL) {
+    public func watch(_ channelId: Int, clientId: String, takeOver: Int? = nil, controls: [Control]? = nil,
+                      deviceName: String? = nil) async throws -> (LiveWatch, URL) {
         let api = try await api()
-        let watch = try await api.watchChannel(channelId, LiveWatchRequest(clientId: clientId, takeOver: takeOver))
+        let request = LiveWatchRequest(clientId: clientId, takeOver: takeOver, controls: controls,
+                                       deviceName: deviceName)
+        let watch = try await api.watchChannel(channelId, request)
         let url = try await api.liveMediaURL(watch.url)
         return (watch, url)
     }

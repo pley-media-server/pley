@@ -16,7 +16,7 @@ mod oauth;
 pub(crate) mod people;
 pub(crate) mod playback;
 mod playlists;
-mod remote;
+pub(crate) mod remote;
 mod requests;
 mod subtitles;
 mod two_step;

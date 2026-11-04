@@ -23,6 +23,7 @@ import { onServerEvent } from "@/api/events";
 import { fetchNext, invalidateWatchState, keys, useTrickplay } from "@/api/hooks";
 import { deleteSubtitle, trackStream } from "@/api/subtitles";
 import type {
+  Control,
   ItemDetail,
   ItemSummary,
   MediaFile,
@@ -41,6 +42,7 @@ import { canPlayNativeHls, videoCaps } from "@/lib/caps";
 import { cn } from "@/lib/cn";
 import { episodeLabel, fileResolution, formatBitrate, formatClock, streamLabel } from "@/lib/format";
 import { loadHls } from "@/lib/hls";
+import { playingHere } from "@/lib/playingHere";
 import { warmStream } from "./prepare";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import {
@@ -91,6 +93,9 @@ const PROGRESS_INTERVAL = 10_000;
 /** While paused: the server forgets players it hasn't heard from for 90 s. */
 const PAUSED_HEARTBEAT = 30_000;
 const HIDE_CONTROLS_AFTER = 3_000;
+/** The remote's commands a video obeys; `next` only where something can come next. */
+const VIDEO_CONTROLS: Control[] = ["play", "pause", "seek", "skip"];
+const VIDEO_CONTROLS_NEXT: Control[] = [...VIDEO_CONTROLS, "next"];
 
 type WebkitVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
 
@@ -592,6 +597,10 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   });
   useEffect(() => onServerEvent(onEvent), []);
 
+  // The remote leaves this tab's own session out.
+  const sessionHere = stopped ? null : (info?.session_id ?? null);
+  useEffect(() => (sessionHere ? playingHere(sessionHere) : undefined), [sessionHere]);
+
   /** A progress report answered 410: stopped on the server, heard without the event stream. */
   const onProgressGone = useEffectEvent((sessionId: string) => {
     if (sessionRef.current?.session_id === sessionId) stopPlayback({ message: null, byAdmin: null });
@@ -765,6 +774,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
           start_ms: Math.round(startSec * 1000),
           mode: requestMode,
           caps: videoCaps(),
+          controls: hasNext ? VIDEO_CONTROLS_NEXT : VIDEO_CONTROLS,
           ...(alongside ? { keep_previous: true } : {}),
         });
       let pinfo: PlaybackInfo;
@@ -1650,11 +1660,12 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     toast.info(next ? `Subtitles: ${streamLabel(next)}` : "Subtitles off");
   };
 
-  const playNext = async () => {
+  /** `remote`: asked for from another device, which is told nothing here when nothing comes next. */
+  const playNext = async (remote = false) => {
     try {
       const next = upNext ?? (await findNext());
       if (!next) {
-        toast.info(queue ? "This is the last one" : "This is the last episode");
+        if (!remote) toast.info(queue ? "This is the last one" : "This is the last episode");
         return;
       }
       // A running sleep timer goes on with the next one.
@@ -1664,6 +1675,45 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
       toast.error(errorMessage(err));
     }
   };
+
+  // The user's remote, on another device: this player acts on commands for
+  // the session it plays now, and reports at once, so the remote sees it.
+  const onCommand = useEffectEvent((ev: ServerEvent) => {
+    if (ev.type !== "player_command") return;
+    const v = videoRef.current;
+    const s = sessionRef.current;
+    if (!v || !s || ev.session_id !== s.session_id || error || stopped) return;
+    switch (ev.command) {
+      case "play":
+        if (v.paused || v.ended) {
+          void v.play().then(
+            () => report("playing"),
+            () => setNeedsGesture(true),
+          );
+        }
+        break;
+      case "pause":
+        // Its pause event reports.
+        if (!v.paused) v.pause();
+        break;
+      case "seek":
+      case "skip": {
+        const ms = ev.command === "seek" ? ev.position_ms : ev.offset_ms;
+        if (ms === null) break;
+        seekTo(ev.command === "seek" ? ms / 1000 : livePosition() + ms / 1000);
+        // Not when the seek lands, which a conversion starting there can take a while to.
+        report(v.paused ? "paused" : "playing");
+        break;
+      }
+      case "next":
+        if (hasNext) void playNext(true);
+        break;
+      case "previous":
+        // Videos have none.
+        break;
+    }
+  });
+  useEffect(() => onServerEvent(onCommand), []);
 
   // Skip Intro / Skip Credits; an episode's credits bring up Up Next.
   const markers = useMemo(() => fileMarkers(item, info?.file_id ?? file?.id), [item, info?.file_id, file?.id]);

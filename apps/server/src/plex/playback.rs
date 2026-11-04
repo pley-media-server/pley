@@ -15,7 +15,7 @@ use pley_transcoder_api::{JobStatus, VideoMode};
 
 use super::meta::{self, Detail, Sections};
 use super::{ClientInfo, Node, Params, PlexAdmin, PlexError, PlexResult, PlexUser};
-use crate::auth::{AuthUser, SourceIp, compatibility};
+use crate::auth::{AuthUser, CurrentToken, SourceIp, compatibility};
 use crate::catalog::{self, ItemRow};
 use crate::events::ServerEvent;
 use crate::library::list_libraries;
@@ -275,6 +275,10 @@ async fn report(
                     time_ms,
                 );
                 session.device = device.and_then(clean_name);
+                session.on_device(
+                    crate::api::remote::device_id_of(user, None),
+                    crate::api::remote::device_kind_of(None, user, None),
+                );
                 let session = state.sessions.insert(session);
                 session.update(time_ms, play_state);
                 remember(state, &session.id, client);
@@ -642,13 +646,15 @@ pub async fn universal_start(
         // Plex clients only ever hear of a stop.
         controls: Controls::new(),
         device_name: client.device_name.clone().or_else(|| client.product.clone()),
+        device_kind: None,
         hdr_transcodes: false,
         fmp4_segments: false,
         download: false,
     };
-    let Json(info) = crate::api::playback::start(State(state.clone()), user, HeaderMap::new(), Json(request))
-        .await
-        .map_err(PlexError::from)?;
+    let Json(info) =
+        crate::api::playback::start(State(state.clone()), user, HeaderMap::new(), CurrentToken(None), Json(request))
+            .await
+            .map_err(PlexError::from)?;
     remember(&state, &info.session_id, &client);
 
     let audio_only = row.kind == "track";

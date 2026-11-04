@@ -34,7 +34,7 @@ use super::{ChannelRow, LiveSettings};
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::events::{EventBus, ServerEvent};
-use crate::playback::{CommandWindow, Controls};
+use crate::playback::{CommandWindow, Controls, DeviceKind};
 use crate::transcoder::Transcoder;
 use crate::util::{now, now_ms};
 
@@ -102,6 +102,9 @@ struct Viewer {
     controls: Controls,
     /// The device it plays on, as the user's remotes show it.
     device: Option<String>,
+    /// Which device that is, and what kind ([`WatchAs::device_id`]).
+    device_id: String,
+    device_kind: DeviceKind,
     /// Commands sent to it lately (remote control).
     commands: CommandWindow,
     /// Cancelled when it is stopped from elsewhere: a stream reader's
@@ -146,6 +149,8 @@ pub struct RemoteViewer {
     pub user_id: i64,
     pub channel_id: i64,
     pub device: Option<String>,
+    pub device_id: String,
+    pub device_kind: DeviceKind,
     pub controls: Controls,
     pub started_at: i64,
     /// When its player last asked for the channel (unix ms).
@@ -159,6 +164,8 @@ impl From<&Viewer> for RemoteViewer {
             user_id: v.user_id,
             channel_id: v.channel_id,
             device: v.device.clone(),
+            device_id: v.device_id.clone(),
+            device_kind: v.device_kind,
             controls: v.controls.clone(),
             started_at: v.started_at,
             seen_at_ms: now_ms() - v.last_seen.elapsed().as_millis() as i64,
@@ -202,6 +209,11 @@ pub struct WatchAs {
     pub controls: Controls,
     /// The device, as the user's remotes show it.
     pub device: Option<String>,
+    /// Which device that is ([`crate::api::remote::device_id_of`]); `None`:
+    /// the session stands for itself.
+    pub device_id: Option<String>,
+    /// What kind of device it is ([`crate::api::remote::device_kind_of`]).
+    pub device_kind: DeviceKind,
 }
 
 /// A connection of a source whose connections are all in use, as someone
@@ -731,7 +743,7 @@ impl Tuners {
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
     pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
-        let WatchAs { client_id, kind, keyed, admin, take_over, home, controls, device } = how;
+        let WatchAs { client_id, kind, keyed, admin, take_over, home, controls, device, device_id, device_kind } = how;
         let channel_id = tune.channel.id;
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
@@ -776,6 +788,8 @@ impl Tuners {
                     admin,
                     controls,
                     device,
+                    device_id: device_id.unwrap_or_else(|| format!("session-{session_id}")),
+                    device_kind,
                     commands: CommandWindow::default(),
                     stopped: CancellationToken::new(),
                 },
@@ -1634,6 +1648,8 @@ mod tests {
             admin: false,
             controls: Controls::new(),
             device: None,
+            device_id: "session-s".into(),
+            device_kind: DeviceKind::Other,
             commands: CommandWindow::default(),
             stopped: CancellationToken::new(),
         }

@@ -2,7 +2,7 @@
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, qs } from "./client";
-import type { Id, Timestamp } from "./types";
+import type { Control, Id, Timestamp } from "./types";
 
 export interface LiveSummary {
   /** Live TV is open to this account and has channels. */
@@ -514,9 +514,12 @@ export function busyConnections(err: unknown): BusyConnection[] {
   return Array.isArray(body?.connections) ? body.connections : [];
 }
 
-/** Starts watching a channel on this device; `takeOver`: the channel whose connection to take. */
-export function watchChannel(id: Id, clientId: string, takeOver?: Id): Promise<Watching> {
-  return api.post<Watching>(`/api/live/channels/${id}/watch`, { client_id: clientId, take_over: takeOver });
+/**
+ * Starts watching a channel on this device; `takeOver`: the channel whose
+ * connection to take; `controls`: the remote's commands its player obeys.
+ */
+export function watchChannel(id: Id, clientId: string, takeOver?: Id, controls?: Control[]): Promise<Watching> {
+  return api.post<Watching>(`/api/live/channels/${id}/watch`, { client_id: clientId, take_over: takeOver, controls });
 }
 
 /**

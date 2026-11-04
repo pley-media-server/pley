@@ -5,7 +5,8 @@ import { useServerEvents } from "@/api/events";
 import type { ItemDetail, PlaybackInfo, ServerEvent } from "@/api/types";
 import { makeItem, makeStream } from "@/test/fixtures";
 import { pgsMks } from "@/test/pictures";
-import { mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
+import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
+import { isPlayingHere } from "@/lib/playingHere";
 import { forgetNetwork } from "./network";
 import { VideoPlayer, startSize } from "./VideoPlayer";
 
@@ -131,6 +132,7 @@ function renderPlayer(startMs = 0) {
 
 /** The media element methods the player calls, which jsdom only stubs. */
 const media = {
+  play: vi.fn<() => Promise<void>>(),
   pause: vi.fn<() => void>(),
   load: vi.fn<() => void>(),
 };
@@ -138,7 +140,7 @@ const media = {
 beforeEach(() => {
   hlsInstances.length = 0;
   // jsdom has media elements, but plays nothing.
-  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  media.play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   media.pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
   media.load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
   vi.spyOn(HTMLMediaElement.prototype, "addTextTrack").mockImplementation(
@@ -908,5 +910,134 @@ describe("VideoPlayer finding subtitles", () => {
     // Gone from the menu, which stays open, and turned off.
     expect(screen.queryByRole("menuitemradio", { name: /English/ })).not.toBeInTheDocument();
     expect(screen.getByRole("menuitemradio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("VideoPlayer obeying the remote", () => {
+  beforeEach(() => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const command = (
+    command: Extract<ServerEvent, { type: "player_command" }>["command"],
+    more: { session_id?: string; position_ms?: number; offset_ms?: number } = {},
+  ): ServerEvent => ({
+    type: "player_command",
+    session_id: more.session_id ?? "s1",
+    command,
+    position_ms: more.position_ms ?? null,
+    offset_ms: more.offset_ms ?? null,
+  });
+  const reports = (requests: FakeRequest[]) =>
+    requests.filter((r) => r.method === "POST" && r.path === "/api/items/7/progress").map((r) => r.body);
+
+  /** The player, started at `startMs`, playing (as far as it can tell). */
+  async function playing(startMs = 0, item = detail()) {
+    const requests = serve([session("s1")], {
+      [`POST /api/items/${item.id}/progress`]: () => undefined,
+      "DELETE /api/playback/s1": () => undefined,
+    });
+    function Player() {
+      useServerEvents(testUser.id);
+      return (
+        <>
+          <VideoPlayer item={item} startMs={startMs} fileId={null} audio={null} sub={null} />
+          <LocationDisplay />
+        </>
+      );
+    }
+    const { container } = renderWithProviders(<Player />);
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    const video = container.querySelector("video")!;
+    let paused = false;
+    Object.defineProperty(video, "paused", { configurable: true, get: () => paused });
+    // Starting pauses the element too.
+    media.pause.mockClear();
+    return { requests, video, setPaused: (p: boolean) => (paused = p) };
+  }
+
+  it("says what it obeys as it starts: Next only where something comes next", async () => {
+    const { requests } = await playing();
+    expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({ controls: ["play", "pause", "seek", "skip"] });
+  });
+
+  it("plays its session in this tab until it is stopped, so the remote leaves it out", async () => {
+    await playing();
+    await waitFor(() => expect(isPlayingHere("s1")).toBe(true));
+    act(() => FakeEventSource.last?.send({ type: "session_stopped", session_id: "s1", message: null, by_admin: false }));
+    await waitFor(() => expect(isPlayingHere("s1")).toBe(false));
+  });
+
+  it("leaves a command for another session alone", async () => {
+    const { requests, video } = await playing(60_000);
+    const before = requests.length;
+    act(() => FakeEventSource.last?.send(command("pause", { session_id: "other" })));
+    act(() => FakeEventSource.last?.send(command("seek", { session_id: "other", position_ms: 1_000 })));
+    expect(media.pause).not.toHaveBeenCalled();
+    expect(video.currentTime).not.toBe(1);
+    expect(requests.slice(before)).toEqual([]);
+  });
+
+  it("pauses and plays, and says it plays again at once", async () => {
+    const { requests, setPaused } = await playing();
+    act(() => FakeEventSource.last?.send(command("pause")));
+    expect(media.pause).toHaveBeenCalled();
+
+    setPaused(true);
+    media.play.mockClear();
+    act(() => FakeEventSource.last?.send(command("play")));
+    expect(media.play).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "s1" }));
+  });
+
+  it("seeks, no further than the end, and reports where at once", async () => {
+    const { requests, video } = await playing();
+    act(() => FakeEventSource.last?.send(command("seek", { position_ms: 120_000 })));
+    expect(video.currentTime).toBe(120);
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ position_ms: 120_000, state: "playing" }));
+
+    act(() => FakeEventSource.last?.send(command("seek", { position_ms: 99_000_000 })));
+    expect(video.currentTime).toBeLessThanOrEqual(6_000);
+    expect(video.currentTime).toBeGreaterThan(5_999);
+  });
+
+  it("skips from where it is, never before the start", async () => {
+    const { requests, video, setPaused } = await playing(60_000);
+    setPaused(true);
+    act(() => FakeEventSource.last?.send(command("skip", { offset_ms: 30_000 })));
+    expect(video.currentTime).toBe(90);
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ position_ms: 90_000, state: "paused" }));
+
+    act(() => FakeEventSource.last?.send(command("skip", { offset_ms: -600_000 })));
+    expect(video.currentTime).toBe(0);
+  });
+
+  it("plays the next episode, as its own Next does", async () => {
+    const episode = detail({ id: 8, kind: "episode", title: "Pilot" });
+    const next = makeItem({ id: 9, kind: "episode", title: "Second" });
+    const { requests } = await playing(0, episode);
+    expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
+      controls: ["play", "pause", "seek", "skip", "next"],
+    });
+    mockApi({
+      "GET /api/items/8/next": () => ({ item: next }),
+      "POST /api/items/8/progress": () => undefined,
+      "DELETE /api/playback/s1": () => undefined,
+    });
+    act(() => FakeEventSource.last?.send(command("next")));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/play\//));
+  });
+
+  it("does nothing for Next when nothing comes next", async () => {
+    const episode = detail({ id: 8, kind: "episode", title: "Finale" });
+    await playing(0, episode);
+    const requests = mockApi({ "GET /api/items/8/next": () => ({ item: null }), "POST /api/items/8/progress": () => undefined });
+    act(() => FakeEventSource.last?.send(command("next")));
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/items/8/next")).toBe(true));
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
+    expect(screen.queryByText("This is the last episode")).not.toBeInTheDocument();
   });
 });

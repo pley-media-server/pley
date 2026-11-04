@@ -189,6 +189,12 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
             {method.label}
           </Badge>
         </div>
+        {/* On a line of its own: beside the user, the time and Stop there is no room for it in two columns. */}
+        {s.device ? (
+          <div className="truncate text-xs text-muted" title={s.device}>
+            {s.device}
+          </div>
+        ) : null}
         <div className="flex items-center gap-1.5 text-xs text-muted">
           {s.state === "playing" ? (
             <Play className="size-3 fill-current text-success" />
@@ -199,14 +205,14 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
           )}
           <span className="font-medium text-fg/85">{s.username}</span>
           <span>·</span>
-          <span className="tabular-nums">
+          <span className="shrink-0 whitespace-nowrap tabular-nums">
             {formatClock(s.position_ms / 1000)}
             {duration ? ` / ${formatClock(duration / 1000)}` : ""}
           </span>
           <button
             type="button"
             onClick={onStop}
-            aria-label={`Stop ${fullTitle(s.item)} for ${s.username}`}
+            aria-label={`Stop ${fullTitle(s.item)} for ${s.username}${s.device ? ` on ${s.device}` : ""}`}
             title="Stop playback"
             className="-my-1 ml-auto flex items-center gap-1 rounded-md px-2 py-1 font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger"
           >

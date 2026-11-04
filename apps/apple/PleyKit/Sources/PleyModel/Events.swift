@@ -40,6 +40,8 @@ public enum ServerEvent: Hashable, Sendable {
     case libraryChanged(libraryId: Int)
     /// A library was created, changed or deleted, or the order changed.
     case librariesChanged
+    /// One of the profile's sessions started, ended or changed (a pause, a
+    /// seek, another channel): remotes read the list again.
     case sessionsChanged
     /// The profile's My List changed.
     case watchlistChanged
@@ -48,6 +50,9 @@ public enum ServerEvent: Hashable, Sendable {
     case userStateChanged(itemIds: [Int], children: Bool)
     /// One of the profile's playbacks was stopped from elsewhere.
     case sessionStopped(sessionId: String, message: String?, byAdmin: Bool)
+    /// The profile's remote, on another device, sent the player of
+    /// `sessionId` a command.
+    case playerCommand(sessionId: String, command: PlayerCommand)
     case liveChannelsChanged
     case liveTunersChanged
     /// A request changed (`requestId` with its title), or many did (all
@@ -91,6 +96,9 @@ public enum ServerEvent: Hashable, Sendable {
         var status: RequestStatus?
         var reason: String?
         var requestedBy: RequestUser?
+        var command: Control?
+        var positionMs: Int?
+        var offsetMs: Int?
     }
 
     /// The event in `data` (one `data:` line's JSON); `nil` when it isn't
@@ -118,6 +126,10 @@ public enum ServerEvent: Hashable, Sendable {
             return wire.sessionId.map {
                 .sessionStopped(sessionId: $0, message: wire.message, byAdmin: wire.byAdmin ?? false)
             }
+        case "player_command":
+            guard let id = wire.sessionId, let command = wire.command else { return .unknown(wire.type) }
+            return .playerCommand(sessionId: id, command: PlayerCommand(command, positionMs: wire.positionMs,
+                                                                         offsetMs: wire.offsetMs))
         case "live_channels_changed": return .liveChannelsChanged
         case "live_tuners_changed": return .liveTunersChanged
         case "requests_changed":

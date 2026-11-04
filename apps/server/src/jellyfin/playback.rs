@@ -25,7 +25,7 @@ use super::dto::{self, TICKS_PER_MS};
 use super::ids::Kind;
 use super::items::{libraries, visible_item};
 use super::{Body, Client, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
-use crate::auth::{AuthUser, SourceIp};
+use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::catalog::{self, FileRow, ItemRow};
 use crate::events::ServerEvent;
 use crate::oauth::clients::clean_name;
@@ -230,6 +230,7 @@ async fn playback_info(
             keyed_urls: false,
             controls: Controls::new(),
             device_name: None,
+            device_kind: None,
             hdr_transcodes: false,
             fmp4_segments: false,
             download: false,
@@ -488,12 +489,19 @@ async fn master(
                 keyed_urls: false,
                 controls: Controls::new(),
                 device_name: client.device.clone(),
+                device_kind: None,
                 hdr_transcodes: false,
                 fmp4_segments: false,
                 download: false,
             };
-            let Json(info) =
-                crate::api::playback::start(State(state.clone()), user.clone(), HeaderMap::new(), Json(req)).await?;
+            let Json(info) = crate::api::playback::start(
+                State(state.clone()),
+                user.clone(),
+                HeaderMap::new(),
+                CurrentToken(None),
+                Json(req),
+            )
+            .await?;
             let mut known = streams.0.lock();
             if known.len() >= FORGET_STREAMS_AT {
                 known.retain(|_, session| state.sessions.get(session).is_some());
@@ -774,6 +782,10 @@ async fn report(
                     position_ms,
                 );
                 session.device = device.and_then(clean_name);
+                session.on_device(
+                    crate::api::remote::device_id_of(user, None),
+                    crate::api::remote::device_kind_of(None, user, None),
+                );
                 let session = state.sessions.insert(session);
                 session.update(position_ms, play_state);
                 state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
