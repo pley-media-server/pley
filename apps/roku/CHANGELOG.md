@@ -13,7 +13,8 @@ describes how they are made.
 - Your phone or browser controls what plays on the Roku: a film or
   episode plays, pauses, seeks and skips, and goes on to the next one;
   music does the same, and goes back a track; Live TV changes channel.
-  Remotes list the Roku by the name it has in Roku's settings. Music
+  Remotes list the Roku by the name it has in Roku's settings, and need
+  an `http://` server: with `https://`, they offer only Stop. Music
   stopped from another device or by the server's administrator now stops
   too, and Live TV stopped that way says who stopped it, with their
   message.

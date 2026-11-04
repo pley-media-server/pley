@@ -24,6 +24,14 @@ function remoteLiveControls(hasOrder as boolean) as object
     return []
 end function
 
+' Whether the players here may say they obey anything: commands come on
+' the event stream, which connects only to an http:// server (ROKU.md,
+' Known limits). With https://, they say nothing, so remotes offer only
+' Stop, which reaches the Roku when its session is next reported.
+function remoteMayControl(server as dynamic) as boolean
+    return LCase(Left(httpString(server).Trim(), 7)) = "http://"
+end function
+
 ' What the players say they play on.
 function remoteDeviceKind() as string
     return "tv"
@@ -31,9 +39,13 @@ end function
 
 ' What remotes call this Roku: the name its owner gave it in Roku's
 ' settings ("Living room Roku"), at most 64 characters as the server
-' keeps; "" leaves the server to name it from the User-Agent.
+' keeps; "" leaves the server to name it from the User-Agent. A Roku
+' nobody named is called by its model and serial number ("Roku Ultra -
+' X00000ABCDEF"): the serial isn't shown to remotes and administrators.
 function remoteDeviceName(name as dynamic) as string
-    return httpClean(name, 64, false).Trim()
+    clean = httpClean(name, 64, false).Trim()
+    serial = CreateObject("roRegex", "\s+-\s+(?=[A-Z]*[0-9])[A-Z0-9]{8,}$", "")
+    return serial.Replace(clean, "").Trim()
 end function
 
 ' "Previous" this far into a track starts it again, as Now Playing's

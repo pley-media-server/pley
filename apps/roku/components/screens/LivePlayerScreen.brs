@@ -69,8 +69,8 @@ sub init()
     ' lead to before it is tuned.
     m.channel = invalid
     m.zapTo = invalid
-    ' Channels tuned other than by up and down (the list, Watch again), so a
-    ' step waiting for a page can tell one was chosen meanwhile, the same
+    ' Channels picked (the list, Watch again; Live.brs's liveTunePicks), so
+    ' a step waiting for a page can tell one was chosen meanwhile, the same
     ' channel again too.
     m.picks = 0
     ' The category up and down go through (the one the player was opened
@@ -312,14 +312,14 @@ sub closeList()
     end if
 end sub
 
-' Whether channel up or down from the channel with id may still go on:
-' that channel is still the one shown (or led to), none was chosen since
-' (picks), and watching hasn't stopped.
+' Whether channel up or down from the channel with id may still go on
+' (Live.brs's liveStepGoesOn has the rule).
 function stepStillFrom(id as dynamic, picks as dynamic) as boolean
-    if not m.top.active or m.trouble <> invalid or picks <> m.picks then return false
     from = m.zapTo
     if from = invalid then from = m.channel
-    return from <> invalid and from.id = id
+    shownId = invalid
+    if from <> invalid then shownId = from.id
+    return liveStepGoesOn(id, picks, m.picks, shownId, m.trouble <> invalid, m.top.active)
 end function
 
 ' The page that failed, when it was category's, asked for again.
@@ -612,10 +612,10 @@ end sub
 ' Watches channel: the session before it ends (the server ends it too,
 ' by the client_id), its logo shows while it starts. again: tuned again
 ' after a failure, which counts against the retries. stepped: led to by up
-' and down, which a step still waiting goes on from.
+' and down, which a step still waiting goes on from. Neither is a pick.
 sub tune(channel as object, takeOver = 0 as integer, again = false as boolean, stepped = false as boolean)
     m.attempt = m.attempt + 1
-    if not stepped then m.picks = m.picks + 1
+    m.picks = liveTunePicks(m.picks, again, stepped)
     abandonWatch()
     leave()
     if not again then m.retries = 0

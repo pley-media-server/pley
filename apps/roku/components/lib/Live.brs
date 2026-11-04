@@ -547,6 +547,26 @@ function liveZap(page as object, id as dynamic, by as integer) as dynamic
     return { offset: ((pageNo + 1) mod pages) * size, last: false }
 end function
 
+' The count of channels picked, after a tuning: the list, Watch again or
+' the remote's pick counts, so a step waiting for a page can tell a
+' channel was chosen meanwhile, the same one again too. A tuning that up
+' and down led to (stepped), or one tuned again after a failure (again),
+' isn't a pick: a stream's hiccup doesn't drop a step on its way.
+function liveTunePicks(picks as integer, again as boolean, stepped as boolean) as integer
+    if stepped or again then return picks
+    return picks + 1
+end function
+
+' Whether channel up or down that waited for a page goes on: from the
+' channel with fromId, picks counted when it was asked. It does while that
+' channel is still the one shown or led to (shownId, invalid for none),
+' no channel was picked since, and watching goes on (active, without
+' trouble), so it can't undo a channel chosen meanwhile.
+function liveStepGoesOn(fromId as dynamic, stepPicks as dynamic, picks as integer, shownId as dynamic, troubled as boolean, active as boolean) as boolean
+    if not active or troubled or stepPicks <> picks then return false
+    return shownId <> invalid and shownId = fromId
+end function
+
 ' "Channels 51–100 of 2,345", or "" for a list on one page.
 function liveRange(offset as integer, shown as integer, total as integer) as string
     if total <= shown or shown = 0 then return ""

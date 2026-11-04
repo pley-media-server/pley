@@ -571,8 +571,6 @@ sub coverNotice()
     m.shownNotice = invalid
 end sub
 
-' A dialog shows, from any screen, or the scene lets one go: a notice
-' waiting may show once none does, and the card under one waits for it.
 ' Music stopped from another device or by the server's administrator
 ' while another screen is on top (it plays behind them): the scene says
 ' who stopped it and their message. Now Playing, on top, says so itself.
@@ -586,6 +584,8 @@ sub onMusicStoppedBy()
     uiMessage(lines[0], message)
 end sub
 
+' A dialog shows, from any screen, or the scene lets one go: a notice
+' waiting may show once none does, and the card under one waits for it.
 ' Each dialog's closing is watched, the Back key's too, which sets no
 ' close field.
 sub onDialog()

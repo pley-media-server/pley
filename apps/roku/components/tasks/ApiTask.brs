@@ -1326,10 +1326,11 @@ sub apiPlay(request as object, spec as object)
 end sub
 
 ' What a play or watch request says for the user's remotes (docs/API.md,
-' "Remote control"): the commands its player obeys (spec.controls), that
-' it plays on a TV, and this Roku's name.
+' "Remote control"): the commands its player obeys (spec.controls, none
+' from an https:// server, whose commands can't reach it), that it plays
+' on a TV, and this Roku's name.
 sub apiRemote(body as object, spec as object)
-    if GetInterface(spec.controls, "ifArray") <> invalid then body.controls = spec.controls
+    if GetInterface(spec.controls, "ifArray") <> invalid and remoteMayControl(m.server) then body.controls = spec.controls
     body.device_kind = remoteDeviceKind()
     if m.deviceName <> "" then body.device_name = m.deviceName
 end sub

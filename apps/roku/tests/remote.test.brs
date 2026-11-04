@@ -110,6 +110,47 @@ sub test_remote_device_name_and_kind()
     tkEqual(Len(remoteDeviceName(String(80, "a"))), 64, "as long as the server keeps")
     tkEqual(remoteDeviceName("Den" + Chr(10) + "TV"), "Den TV", "no control characters")
     tkEqual(remoteDeviceName(invalid), "")
+    tkEqual(remoteDeviceName("Roku Ultra - X00000ABCDEF"), "Roku Ultra", "a Roku nobody named: no serial number")
+    tkEqual(remoteDeviceName("Roku Express 4K+ - YH00AB123456 "), "Roku Express 4K+")
+    tkEqual(remoteDeviceName("Kids - upstairs"), "Kids - upstairs", "a name with a dash of its own")
+    tkEqual(remoteDeviceName("Den - TV"), "Den - TV")
+    tkEqual(remoteDeviceName("Lounge - BEDROOMTV"), "Lounge - BEDROOMTV", "no digit: a word, not a serial")
+end sub
+
+' Commands come on the event stream, which connects only to http://: a
+' player of an https:// server says it obeys nothing, and remotes offer
+' only Stop.
+sub test_remote_controls_only_from_an_http_server()
+    tkTrue(remoteMayControl("http://192.168.1.20:8096"))
+    tkTrue(remoteMayControl("HTTP://media.lan"))
+    tkFalse(remoteMayControl("https://media.example.com"))
+    tkFalse(remoteMayControl(""))
+    tkFalse(remoteMayControl(invalid))
+end sub
+
+' Channel up or down that waits for the next page of the category goes on
+' only from the channel it started from with no channel picked since
+' (Live.brs), as on LG and Samsung.
+sub test_live_a_step_waiting_for_its_page_goes_on_only_from_where_it_started()
+    ' Channel 5 shows; the remote's next waits for a page, picks counted 3.
+    picks = 3
+    tkTrue(liveStepGoesOn(5, 3, picks, 5, false, true), "nothing happened meanwhile")
+    ' Watch again tunes 5 once more: the same channel, but a pick.
+    tkFalse(liveStepGoesOn(5, 3, liveTunePicks(picks, false, false), 5, false, true), "Watch again")
+    ' 7 from the list, then 5 again: back on the step's channel, picked.
+    after = liveTunePicks(liveTunePicks(picks, false, false), false, false)
+    tkFalse(liveStepGoesOn(5, 3, after, 5, false, true), "7 then 5")
+    ' The zap timer tunes the channel up or down led to: not a pick.
+    tkEqual(liveTunePicks(picks, false, true), picks)
+    tkTrue(liveStepGoesOn(5, 3, liveTunePicks(picks, false, true), 5, false, true), "the zap timer's tune")
+    ' A stream's hiccup tunes the channel again: not a pick either.
+    tkEqual(liveTunePicks(picks, true, false), picks)
+    tkTrue(liveStepGoesOn(5, 3, liveTunePicks(picks, true, false), 5, false, true), "a retry")
+    ' Up or down led on to another channel meanwhile, or watching stopped.
+    tkFalse(liveStepGoesOn(5, 3, picks, 6, false, true), "led to another channel")
+    tkFalse(liveStepGoesOn(5, 3, picks, invalid, false, true), "no channel")
+    tkFalse(liveStepGoesOn(5, 3, picks, 5, true, true), "it says what went wrong")
+    tkFalse(liveStepGoesOn(5, 3, picks, 5, false, false), "the player closed")
 end sub
 
 sub test_live_stopped_from_elsewhere_says_who()

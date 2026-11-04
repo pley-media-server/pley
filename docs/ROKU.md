@@ -430,11 +430,14 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 ### Remote control
 
 The Roku obeys the remote on the profile's other devices that have one
-([API.md](API.md#remote-control)) and shows no remote of its own. Its players say what they obey when they start (`controls`), that
-they play on a TV (`device_kind: "tv"`) and the name given to the Roku in
-its settings (`device_name`, "Living room Roku"). Commands come on the
+([API.md](API.md#remote-control)) and shows no remote of its own. Its
+players say what they obey when they start (`controls`), that they play
+on a TV (`device_kind: "tv"`) and the name given to the Roku in its
+settings (`device_name`, "Living room Roku"; a Roku nobody named goes by
+its model, without the serial number Roku adds). Commands come on the
 event stream, so like the other live updates they need an `http://`
-server. They obey:
+server: from an `https://` one the players say they obey nothing, and
+remotes offer only Stop. They obey:
 
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist's or collection's next
@@ -463,8 +466,12 @@ remote sees it; another title, track or channel tells the server with its
 own session. A play on a player already playing, or a pause on one
 already paused, says so again at once, so a remote a little behind
 settles. A channel step that waits for the next page of the category goes
-on only if the channel is still the one it started from. The rule is
-`components/lib/Remote.brs`, pinned by
+on only if the channel is still the one it started from and none was
+picked meanwhile (from the list, or Watch again), the same channel again
+too; tuning a channel again after its stream broke off isn't a pick. A
+seek or skip while Up Next counts down puts Up Next away, as Rewind does.
+The rule is `components/lib/Remote.brs` (the step's,
+`components/lib/Live.brs`), pinned by
 `packages/tv/test/fixtures/remote.json`, which the tests read.
 
 ### Requests and Discover
@@ -718,9 +725,10 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 - Live updates need an `http://` server; with `https://`, Home and the
   requests' summary refresh once a minute, the requests, Discover's Your
   requests and a title page with a request each 30 s. The remote on other
-  devices reaches the Roku only through them; with `https://`, a film or
-  music stopped from another device stops at its next report (within
-  10 s while playing), and a channel when its stream breaks off.
+  devices reaches the Roku only through them; with `https://`, the Roku
+  offers remotes only Stop, and a film or music stopped from another
+  device stops at its next report (within 10 s while playing, 30 s while
+  paused), a channel when its stream breaks off.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Not yet: an editable music queue.

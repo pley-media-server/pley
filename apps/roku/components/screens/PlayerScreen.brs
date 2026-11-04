@@ -250,6 +250,9 @@ sub onPlayerCommand(event as object)
         ' As it is already: said again, so a remote a little behind settles.
         report(reportedState())
     else if action.act = "seek"
+        ' As the rewind key does: left up, Up Next's countdown would play
+        ' the next episode over the place the remote asked for.
+        if m.upNext.visible then cancelUpNext()
         seekTo(action.positionMs)
         ' Told now, not as the next reading finds the playhead moved.
         m.seenMs = m.positionMs
