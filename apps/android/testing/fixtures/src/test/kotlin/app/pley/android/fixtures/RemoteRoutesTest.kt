@@ -1,6 +1,7 @@
 package app.pley.android.fixtures
 
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.PleyJson
 import app.pley.android.model.ProgressState
@@ -8,6 +9,7 @@ import app.pley.android.model.ServerEvent
 import kotlinx.serialization.builtins.ListSerializer
 import okhttp3.Request
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The remote's routes (docs/API.md, "Remote control"): the profile's sessions, and commands to their players. */
@@ -19,11 +21,13 @@ class RemoteRoutesTest {
         val session = robin.send(
             "POST",
             "/api/playback",
-            """{"item_id":${FixtureIds.SAMPLE_1080P},"start_ms":2000,"caps":{},"controls":["play","pause","seek"],"device_name":"Kitchen phone"}""",
+            """{"item_id":${FixtureIds.SAMPLE_1080P},"start_ms":2000,"caps":{},"controls":["play","pause","seek"],"device_name":"Kitchen phone","device_kind":"phone"}""",
         ).field("session_id")!!
         val listed = PleyJson.decodeFromString(ListSerializer(PlayingSession.serializer()), String(robin.get("/api/sessions").bytes)).single()
         assertEquals(session, listed.sessionId)
         assertEquals("Kitchen phone", listed.device)
+        assertEquals(DeviceKind.Phone, listed.deviceKind)
+        assertTrue(listed.deviceId.startsWith("app-"))
         assertEquals(FixtureIds.SAMPLE_1080P, listed.item?.id)
         assertEquals(listOf(Control.Play, Control.Pause, Control.Seek), listed.controls)
         assertEquals(2_000L, listed.positionMs)

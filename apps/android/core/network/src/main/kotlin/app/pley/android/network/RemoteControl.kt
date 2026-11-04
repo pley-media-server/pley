@@ -1,7 +1,9 @@
 package app.pley.android.network
 
 import android.content.Context
+import app.pley.android.common.DeviceProfile
 import app.pley.android.common.UserAgent
+import app.pley.android.model.DeviceKind
 
 /**
  * Why POST /api/sessions/{id}/command refused (docs/API.md, "Remote
@@ -46,4 +48,24 @@ object DeviceNames {
 
     /** [name] trimmed to what the server keeps; `null` when there's nothing left. */
     fun of(name: String?): String? = name?.trim()?.take(MAX)?.trimEnd()?.takeIf { it.isNotEmpty() }
+}
+
+/**
+ * What kind of device this is, sent with its playbacks (`device_kind`), so
+ * remotes can pick TVs out: the server can't tell, the same app running
+ * on TVs, phones and tablets.
+ */
+object DeviceKinds {
+    /** A phone interface this wide at its narrowest, or wider, is a tablet's: Android's own line between them. */
+    const val TABLET_DP = 600
+
+    /** A TV when the app runs its TV interface, else a tablet or a phone by the screen's smallest width. */
+    fun of(context: Context, profile: DeviceProfile): DeviceKind =
+        of(profile.isTv, context.resources.configuration.smallestScreenWidthDp)
+
+    fun of(tv: Boolean, smallestWidthDp: Int): DeviceKind = when {
+        tv -> DeviceKind.Tv
+        smallestWidthDp >= TABLET_DP -> DeviceKind.Tablet
+        else -> DeviceKind.Phone
+    }
 }

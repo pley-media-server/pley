@@ -211,7 +211,10 @@ play.
 The players obey the remote on the profile's other devices
 ([API.md](API.md#remote-control)), on phones and TVs alike, and say what
 they obey when they start (`controls`), with the device's name from
-Android's settings (else its model) as remotes show it:
+Android's settings (else its model) as remotes show it, and whether it
+is a TV, a tablet or a phone (`device_kind`: a TV in the TV interface,
+else a tablet when the screen is at least 600 dp at its narrowest). They
+obey:
 
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist or collection). Next at

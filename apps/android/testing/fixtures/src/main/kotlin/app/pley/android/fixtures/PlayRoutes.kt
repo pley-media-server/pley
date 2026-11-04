@@ -1,6 +1,7 @@
 package app.pley.android.fixtures
 
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
@@ -151,8 +152,9 @@ internal class PlayRoutes(private val s: State) {
         request.clientId?.takeIf { request.keepPrevious != true }?.let { client ->
             s.sessions.values.removeAll { it.profileId == caller.profile.id && it.clientId == client }
         }
+        val id = UUID.randomUUID().toString().replace("-", "")
         val session = PlaySession(
-            id = UUID.randomUUID().toString().replace("-", ""),
+            id = id,
             profileId = caller.profile.id,
             itemId = item.id,
             fileId = file.id,
@@ -160,6 +162,9 @@ internal class PlayRoutes(private val s: State) {
             clientId = request.clientId,
             controls = request.controls.orEmpty().filter { it != Control.Unknown },
             device = request.deviceName ?: call.header("User-Agent"),
+            // Pley's Android app is one device per sign-in, and of a kind only when it says.
+            deviceId = caller.grant?.let { "app-${it.id}" } ?: "session-$id",
+            deviceKind = request.deviceKind?.takeIf { it != DeviceKind.Unknown } ?: DeviceKind.Other,
             positionMs = request.startMs ?: 0,
             reportedAtMs = s.nowMs(),
         )
@@ -294,6 +299,8 @@ internal class PlayRoutes(private val s: State) {
                 sessionId = session.id,
                 kind = PlayingKind.Item,
                 device = session.device,
+                deviceId = session.deviceId,
+                deviceKind = session.deviceKind,
                 item = item?.toSummary(),
                 state = session.state,
                 positionMs = session.positionMs,

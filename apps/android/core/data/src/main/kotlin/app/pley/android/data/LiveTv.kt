@@ -11,7 +11,6 @@ import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveSummary
 import app.pley.android.model.LiveWatching
 import app.pley.android.model.WatchRequest
-import java.net.URLEncoder
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -68,7 +67,8 @@ interface LiveTvRepository {
     /**
      * The address of [channelId]'s MPEG-TS as the provider sends it
      * (`stream.ts`), absolute, for [clientId]: reading it ends that
-     * device's HLS viewer, as watching another channel does.
+     * device's HLS viewer, as watching another channel does. It says what
+     * kind of device reads it, as watching does.
      */
     suspend fun streamUrl(channelId: Long, clientId: String): String
 
@@ -198,7 +198,7 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
     override suspend fun plan(sessionId: String): LivePlan? = cache.api(cache.profile()).livePlan(sessionId)
 
     override suspend fun streamUrl(channelId: Long, clientId: String): String =
-        cache.api(cache.profile()).url("/api/live/channels/$channelId/stream.ts?client_id=${URLEncoder.encode(clientId, Charsets.UTF_8.name())}")
+        cache.api(cache.profile()).liveStreamUrl(channelId, clientId)
 
     override fun leave(sessionId: String) {
         cache.app.launch {

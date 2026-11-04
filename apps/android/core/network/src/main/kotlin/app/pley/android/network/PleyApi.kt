@@ -433,6 +433,13 @@ interface PleyApi {
      */
     suspend fun livePlan(sessionId: String): LivePlan?
 
+    /**
+     * GET /api/live/channels/{id}/stream.ts: the channel's MPEG-TS as the
+     * provider sends it, for [clientId] (reading it ends that device's HLS
+     * viewer), saying what kind of device reads it, as a watch request does.
+     */
+    fun liveStreamUrl(channelId: Long, clientId: String): String
+
     /** DELETE /api/live/sessions/{session} (scope play): stops watching now; a session already gone is fine. */
     suspend fun leaveChannel(sessionId: String)
 

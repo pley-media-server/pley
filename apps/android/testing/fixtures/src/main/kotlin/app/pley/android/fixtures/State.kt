@@ -1,6 +1,7 @@
 package app.pley.android.fixtures
 
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.ProgressState
 import java.util.concurrent.ConcurrentHashMap
@@ -74,6 +75,9 @@ internal class PlaySession(
     val clientId: String?,
     val controls: List<Control> = emptyList(),
     val device: String? = null,
+    /** Which device that is ("app-<grant>"), and what kind its player said, as the server keys them. */
+    val deviceId: String = "session-$id",
+    val deviceKind: DeviceKind = DeviceKind.Other,
     @Volatile var positionMs: Long = 0,
     @Volatile var state: ProgressState = ProgressState.Playing,
     /** When it was last heard from, on the server's clock (ms). */

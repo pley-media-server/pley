@@ -380,6 +380,8 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
 
     override suspend fun livePlan(sessionId: String): LivePlan? = respond("livePlan", sessionId) { fixture<LivePlan>("live/plan.json") }
 
+    override fun liveStreamUrl(channelId: Long, clientId: String): String = urls.liveStreamUrl(channelId, clientId)
+
     override suspend fun leaveChannel(sessionId: String) = respond("leaveChannel", sessionId) { }
 
     // ---------------------------------------------------------------- playlists (changing)

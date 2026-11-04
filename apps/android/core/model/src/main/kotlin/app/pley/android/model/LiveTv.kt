@@ -176,6 +176,8 @@ data class WatchRequest(
     val controls: List<Control>? = null,
     /** What remotes call this device, as a play request's. */
     val deviceName: String? = null,
+    /** What kind of device it plays on, as a play request's. */
+    val deviceKind: DeviceKind? = null,
 )
 
 /**

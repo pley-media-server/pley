@@ -7,6 +7,7 @@ import app.pley.android.common.Addresses
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
 import app.pley.android.common.sha1Hex
+import app.pley.android.model.DeviceKind
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -79,6 +80,7 @@ interface NetworkGraph {
                 route = LocalRoute(lans::bypass),
                 localNetworkOf = { PermissionsLocalNetworkAccess.of(app) },
                 deviceName = { DeviceNames.of(app) },
+                deviceKind = { DeviceKinds.of(app, profile) },
             )
         }
     }
@@ -99,6 +101,8 @@ internal class HttpNetworkGraph(
     localNetworkOf: () -> LocalNetworkAccess,
     /** What remotes call this device, read once when a playback first asks. */
     deviceName: () -> String? = { null },
+    /** What kind of device this is, read with every playback: a foldable is a phone folded and a tablet open. */
+    private val deviceKind: () -> DeviceKind? = { null },
 ) : NetworkGraph {
     private val device by lazy(deviceName)
 
@@ -114,7 +118,7 @@ internal class HttpNetworkGraph(
 
     override fun api(issuer: String, userId: Long?): PleyApi {
         val origin = originOf(issuer)
-        return apis.getOrPut(origin to userId) { HttpPleyApi(origin, { apiClient(origin, userId) }, deviceName = { device }) }
+        return apis.getOrPut(origin to userId) { HttpPleyApi(origin, { apiClient(origin, userId) }, deviceName = { device }, deviceKind = deviceKind) }
     }
 
     /**

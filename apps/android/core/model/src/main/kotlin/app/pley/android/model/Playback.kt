@@ -86,7 +86,28 @@ data class PlaybackRequest(
     val controls: List<Control>? = null,
     /** What remotes call this device ("Living room TV"); `null`: the server names it from the User-Agent. */
     val deviceName: String? = null,
+    /** What kind of device it plays on; `null`: the server tells from the app, which for this one is [DeviceKind.Other]. */
+    val deviceKind: DeviceKind? = null,
 )
+
+/**
+ * What kind of device a session plays on (docs/API.md, "Remote control"):
+ * what its player says in its play request, else what the server makes of
+ * the app.
+ */
+@Serializable(with = DeviceKind.Serializer::class)
+enum class DeviceKind(override val wire: String) : WireEnum {
+    Tv("tv"),
+    Phone("phone"),
+    Tablet("tablet"),
+    Computer("computer"),
+    Browser("browser"),
+    Other("other"),
+    Unknown("unknown"),
+    ;
+
+    object Serializer : LenientEnumSerializer<DeviceKind>("DeviceKind", DeviceKind.entries, DeviceKind.Unknown)
+}
 
 /**
  * A command of the remote, from another of the profile's devices
@@ -152,6 +173,13 @@ data class PlayingSession(
     val kind: PlayingKind = PlayingKind.Unknown,
     /** What the player calls its device; `null` when the server can't tell. */
     val device: String? = null,
+    /**
+     * Which device that is, the same for everything one sign-in plays
+     * ("app-12", "web-9f2c…"); empty from a server before it said.
+     */
+    val deviceId: String = "",
+    /** And what kind; [DeviceKind.Unknown] from a server before it said. */
+    val deviceKind: DeviceKind = DeviceKind.Unknown,
     val item: ItemSummary? = null,
     val channel: PlayingChannel? = null,
     /** Playing, paused or buffering; live is always playing. */

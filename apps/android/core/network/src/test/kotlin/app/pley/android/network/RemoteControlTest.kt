@@ -1,6 +1,7 @@
 package app.pley.android.network
 
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlaybackRequest
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingKind
@@ -43,9 +44,9 @@ class RemoteControlTest {
         server.close()
     }
 
-    private fun api(name: String?): PleyApi {
+    private fun api(name: String?, kind: DeviceKind? = null): PleyApi {
         val tokens = testTokens(issuer)
-        return testGraph(folder.newFolder(), { tokens }, deviceName = { name }).api(issuer, userId = 2)
+        return testGraph(folder.newFolder(), { tokens }, deviceName = { name }, deviceKind = { kind }).api(issuer, userId = 2)
     }
 
     private fun sent(): JsonObject {
@@ -70,6 +71,22 @@ class RemoteControlTest {
     }
 
     @Test
+    fun playbacksSayWhatKindOfDeviceThisIs() = runTest {
+        for ((kind, wire) in listOf(DeviceKind.Tv to "tv", DeviceKind.Phone to "phone", DeviceKind.Tablet to "tablet")) {
+            val api = api("Living room TV", kind)
+            server.enqueue(MockPley.fixture("playback/info_direct.json"))
+            api.startPlayback(PlaybackRequest(itemId = 101))
+            assertEquals(JsonPrimitive(wire), sent()["device_kind"])
+
+            server.enqueue(MockPley.fixture("live/watching.json"))
+            api.watchChannel(1, WatchRequest("android-1"))
+            assertEquals(JsonPrimitive(wire), sent()["device_kind"])
+
+            assertEquals("$issuer/api/live/channels/1/stream.ts?client_id=android-1&device_kind=$wire", api.liveStreamUrl(1, "android-1"))
+        }
+    }
+
+    @Test
     fun withoutANameOrControlsNeitherIsSent() = runTest {
         val api = api(null)
         server.enqueue(MockPley.fixture("playback/info_direct.json"))
@@ -77,6 +94,18 @@ class RemoteControlTest {
         val play = sent()
         assertFalse("controls" in play)
         assertFalse("device_name" in play)
+        assertFalse("device_kind" in play)
+        assertEquals("$issuer/api/live/channels/1/stream.ts?client_id=android-1", api.liveStreamUrl(1, "android-1"))
+    }
+
+    @Test
+    fun aTvInterfaceIsATvAndAPhoneInterfaceATabletFrom600dp() {
+        assertEquals(DeviceKind.Tv, DeviceKinds.of(tv = true, smallestWidthDp = 960))
+        assertEquals(DeviceKind.Tv, DeviceKinds.of(tv = true, smallestWidthDp = 360))
+        assertEquals(DeviceKind.Phone, DeviceKinds.of(tv = false, smallestWidthDp = 411))
+        assertEquals(DeviceKind.Phone, DeviceKinds.of(tv = false, smallestWidthDp = 599))
+        assertEquals(DeviceKind.Tablet, DeviceKinds.of(tv = false, smallestWidthDp = 600))
+        assertEquals(DeviceKind.Tablet, DeviceKinds.of(tv = false, smallestWidthDp = 800))
     }
 
     @Test
@@ -92,12 +121,16 @@ class RemoteControlTest {
         server.enqueue(MockPley.fixture("sessions/list.json"))
         val (tv, phone) = api(null).playingSessions()
         assertEquals("Living room TV", tv.device)
+        assertEquals("app-12", tv.deviceId)
+        assertEquals(DeviceKind.Tv, tv.deviceKind)
         assertEquals(PlayingKind.Item, tv.kind)
         assertEquals(204L, tv.item?.id)
         assertEquals(ProgressState.Playing, tv.state)
         assertEquals(4_200L, tv.ageMs)
         assertEquals(Control.Next, tv.controls.last())
         assertEquals(PlayingKind.Live, phone.kind)
+        assertEquals("app-15", phone.deviceId)
+        assertEquals(DeviceKind.Phone, phone.deviceKind)
         assertEquals("The Evening News", phone.channel?.now)
         assertNull(phone.durationMs)
         assertEquals(listOf(Control.Next, Control.Previous), phone.controls)

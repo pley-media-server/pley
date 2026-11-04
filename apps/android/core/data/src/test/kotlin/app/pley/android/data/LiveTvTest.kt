@@ -94,7 +94,7 @@ class LiveTvTest {
         val data = signedIn(folder.newFolder())
         assertEquals(true, data.graph.liveTv.plan("live-5")?.direct)
         assertEquals(listOf<Any?>("live-5"), data.api.calls("livePlan").single().args)
-        assertEquals("${data.issuer}/api/live/channels/5/stream.ts?client_id=android+1%2F2", data.graph.liveTv.streamUrl(5, "android 1/2"))
+        assertEquals("${data.issuer}/api/live/channels/5/stream.ts?client_id=android%201%2F2", data.graph.liveTv.streamUrl(5, "android 1/2"))
     }
 
     @Test
