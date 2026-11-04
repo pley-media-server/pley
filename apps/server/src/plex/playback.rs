@@ -254,7 +254,7 @@ async fn report(
                 });
             }
             if changed {
-                state.events.send(ServerEvent::SessionsChanged);
+                state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
         }
         None if play_state != "stopped" && !stopped => {
@@ -278,7 +278,7 @@ async fn report(
                 let session = state.sessions.insert(session);
                 session.update(time_ms, play_state);
                 remember(state, &session.id, client);
-                state.events.send(ServerEvent::SessionsChanged);
+                state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
         }
         // Its player has stopped as well: a play after this shows up again.
@@ -306,7 +306,7 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
             }
         });
     }
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
 }
 
 fn play_state(params: &Params) -> &'static str {

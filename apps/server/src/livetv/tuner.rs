@@ -36,7 +36,7 @@ use crate::error::AppError;
 use crate::events::{EventBus, ServerEvent};
 use crate::playback::{CommandWindow, Controls};
 use crate::transcoder::Transcoder;
-use crate::util::now;
+use crate::util::{now, now_ms};
 
 /// A channel nobody watches is let go this long after the last viewer left
 /// (unless its connection is wanted sooner): coming back to it is instant.
@@ -148,8 +148,8 @@ pub struct RemoteViewer {
     pub device: Option<String>,
     pub controls: Controls,
     pub started_at: i64,
-    /// When its player last asked for the channel (unix seconds).
-    pub seen_at: i64,
+    /// When its player last asked for the channel (unix ms).
+    pub seen_at_ms: i64,
 }
 
 impl From<&Viewer> for RemoteViewer {
@@ -161,7 +161,7 @@ impl From<&Viewer> for RemoteViewer {
             device: v.device.clone(),
             controls: v.controls.clone(),
             started_at: v.started_at,
-            seen_at: now() - v.last_seen.elapsed().as_secs() as i64,
+            seen_at_ms: now_ms() - v.last_seen.elapsed().as_millis() as i64,
         }
     }
 }
@@ -628,11 +628,9 @@ impl Tuners {
             let mut viewers = self.viewers.lock();
             let gone: Vec<String> = viewers.values().filter(|v| !is_there(&viewers, v)).map(|v| v.id.clone()).collect();
             if !gone.is_empty() {
-                for id in &gone {
-                    viewers.remove(id);
-                }
+                let users: Vec<i64> = gone.iter().filter_map(|id| viewers.remove(id)).map(|v| v.user_id).collect();
                 changed = true;
-                self.events.send(ServerEvent::SessionsChanged);
+                self.events.sessions_changed(users);
             }
         }
         let watched: HashMap<i64, usize> = self.viewers.lock().values().fold(HashMap::new(), |mut m, v| {
@@ -717,11 +715,15 @@ impl Tuners {
 
     fn end_viewers_of(&self, channel_id: i64) {
         let mut viewers = self.viewers.lock();
-        let before = viewers.len();
-        viewers.retain(|_, v| v.channel_id != channel_id);
-        if viewers.len() != before {
-            self.events.send(ServerEvent::SessionsChanged);
-        }
+        let mut users = Vec::new();
+        viewers.retain(|_, v| {
+            let watches = v.channel_id == channel_id;
+            if watches {
+                users.push(v.user_id);
+            }
+            !watches
+        });
+        self.events.sessions_changed(users);
     }
 
     /// Starts `user` watching `tune.channel`: through the tuner already
@@ -784,7 +786,7 @@ impl Tuners {
         self.events.send(ServerEvent::LiveTunersChanged);
         // A new session for the user's remotes, and the one this device
         // watched before gone from them: a change of channel.
-        self.events.send(ServerEvent::SessionsChanged);
+        self.events.send(ServerEvent::SessionsChanged { user_id: user.id });
         Ok(Watching { url, session_id, kind })
     }
 
@@ -891,6 +893,7 @@ impl Tuners {
             told
         };
         tracing::info!(channel = held.channel_id, by = %user.username, "live channel's connection taken over");
+        let users: Vec<i64> = told.iter().map(|(v, _)| v.user_id).collect();
         // Told before the stream stops: a player whose stream breaks off
         // knows why instead of tuning again.
         for (v, message) in told {
@@ -903,7 +906,7 @@ impl Tuners {
         }
         self.remove_tuner(held);
         self.events.send(ServerEvent::LiveTunersChanged);
-        self.events.send(ServerEvent::SessionsChanged);
+        self.events.sessions_changed(users);
     }
 
     /// Remembers that `viewer` was ended from elsewhere, and `why`: its
@@ -980,15 +983,15 @@ impl Tuners {
         let removed = {
             let mut viewers = self.viewers.lock();
             match viewers.get(session_id) {
-                Some(v) if v.user_id == user.id || user.is_admin => viewers.remove(session_id).is_some(),
-                _ => false,
+                Some(v) if v.user_id == user.id || user.is_admin => viewers.remove(session_id),
+                _ => None,
             }
         };
-        if removed {
+        if let Some(viewer) = &removed {
             self.events.send(ServerEvent::LiveTunersChanged);
-            self.events.send(ServerEvent::SessionsChanged);
+            self.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
         }
-        removed
+        removed.is_some()
     }
 
     /// The viewers of `user_id` whose players are still there, for their
@@ -1062,7 +1065,7 @@ impl Tuners {
             by_admin: viewer.user_id != user.id,
         });
         self.events.send(ServerEvent::LiveTunersChanged);
-        self.events.send(ServerEvent::SessionsChanged);
+        self.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
         Some(Ok(()))
     }
 
@@ -1291,9 +1294,10 @@ struct Leaves {
 
 impl Drop for Leaves {
     fn drop(&mut self) {
-        if self.tuners.viewers.lock().remove(&self.session_id).is_some() {
+        let gone = self.tuners.viewers.lock().remove(&self.session_id);
+        if let Some(viewer) = gone {
             self.tuners.events.send(ServerEvent::LiveTunersChanged);
-            self.tuners.events.send(ServerEvent::SessionsChanged);
+            self.tuners.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
         }
     }
 }

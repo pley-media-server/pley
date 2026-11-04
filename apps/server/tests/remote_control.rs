@@ -62,25 +62,44 @@ async fn command(w: &World, token: &str, session: &str, body: Value) -> common::
 /// The events stream of `token`'s user, read until `until` shows up (or
 /// `wait` has passed).
 async fn events_until(w: &World, token: &str, act: impl Future<Output = ()>, until: &str, wait: Duration) -> String {
-    let request = axum::http::Request::builder()
-        .uri("/api/events")
-        .header("authorization", format!("Bearer {token}"))
-        .body(axum::body::Body::empty())
-        .unwrap();
-    let response = tower::ServiceExt::oneshot(w.app.api.clone(), request).await.unwrap();
-    let mut stream = response.into_body().into_data_stream();
+    streams_until(w, &[token], act, until, wait).await.remove(0)
+}
+
+/// What the events stream of each of `tokens` sent while `act` ran, and
+/// for `wait` after it (or until it sent `until`).
+async fn streams_until(
+    w: &World,
+    tokens: &[&str],
+    act: impl Future<Output = ()>,
+    until: &str,
+    wait: Duration,
+) -> Vec<String> {
+    let mut streams = Vec::new();
+    for token in tokens {
+        let request = axum::http::Request::builder()
+            .uri("/api/events")
+            .header("authorization", format!("Bearer {token}"))
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = tower::ServiceExt::oneshot(w.app.api.clone(), request).await.unwrap();
+        streams.push(response.into_body().into_data_stream());
+    }
     act.await;
-    let mut received = String::new();
-    let read = async {
-        while let Some(chunk) = stream.next().await {
-            received.push_str(&String::from_utf8_lossy(&chunk.unwrap()));
-            if received.contains(until) {
-                return;
+    let mut out = Vec::new();
+    for mut stream in streams {
+        let mut received = String::new();
+        let read = async {
+            while let Some(chunk) = stream.next().await {
+                received.push_str(&String::from_utf8_lossy(&chunk.unwrap()));
+                if received.contains(until) {
+                    return;
+                }
             }
-        }
-    };
-    let _ = tokio::time::timeout(wait, read).await;
-    received
+        };
+        let _ = tokio::time::timeout(wait, read).await;
+        out.push(received);
+    }
+    out
 }
 
 /// The events of `kind` among what an events stream sent.
@@ -151,6 +170,20 @@ async fn a_users_players_are_listed_to_them_alone() {
     // A stopped session isn't listed.
     assert_eq!(app.delete(&format!("/api/sessions/{named}"), &w.viewer).await.status, StatusCode::NO_CONTENT);
     assert_eq!(app.get("/api/sessions", &w.viewer).await.body.as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn sessions_changed_goes_to_the_user_and_administrators() {
+    let w = world().await;
+    let start = async {
+        play(&w, &w.viewer).await;
+    };
+    let heard =
+        streams_until(&w, &[&w.viewer, &w.admin, &w.other], start, "sessions_changed", Duration::from_secs(1)).await;
+    let expected = vec![json!({"type": "sessions_changed"})];
+    assert_eq!(events_of(&heard[0], "sessions_changed"), expected, "the user's own: {}", heard[0]);
+    assert_eq!(events_of(&heard[1], "sessions_changed"), expected, "an administrator's: {}", heard[1]);
+    assert!(events_of(&heard[2], "sessions_changed").is_empty(), "nobody else's: {}", heard[2]);
 }
 
 #[tokio::test]
@@ -305,6 +338,15 @@ async fn a_report_after_a_seek_says_sessions_changed() {
     assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()));
     let listed = app.get("/api/sessions", &w.viewer).await.body;
     assert_eq!(listed[0]["position_ms"], json!(60_000));
+    // How long ago that report was, by the server's clock: remotes move the
+    // place on from it whatever their own clock says.
+    let age = listed[0]["age_ms"].as_i64().unwrap();
+    assert!((0..5_000).contains(&age), "just reported: {age}");
+    app.state.sessions.get(&session).unwrap().play.lock().reported_at_ms = Some(pley::util::now_ms() - 10_000);
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    let age = listed[0]["age_ms"].as_i64().unwrap();
+    assert!((10_000..15_000).contains(&age), "reported ten seconds ago: {age}");
+    assert_eq!(listed[0]["position_ms"], json!(60_000), "the place is still the report's");
 }
 
 #[tokio::test]
@@ -322,7 +364,7 @@ async fn reading_the_file_between_reports_is_no_jump() {
     assert_eq!(app.post(&progress, &w.viewer, report(1_000)).await.status, StatusCode::NO_CONTENT);
     // Ten seconds on, with the file read just now: the player is ten
     // seconds further, which is no jump.
-    app.state.sessions.get(session).unwrap().play.lock().reported_at = Some(pley::util::now() - 10);
+    app.state.sessions.get(session).unwrap().play.lock().reported_at_ms = Some(pley::util::now_ms() - 10_000);
     let read = app.call(Method::GET, url, Some(&w.viewer), None, &[("range", "bytes=0-99")]).await;
     assert_eq!(read.status, StatusCode::PARTIAL_CONTENT);
     let mut events = app.state.events.subscribe();
@@ -499,6 +541,8 @@ async fn live_viewers_are_listed_with_their_channel() {
     assert_eq!(live["state"], json!("playing"));
     assert_eq!((live["position_ms"].clone(), live["duration_ms"].clone()), (json!(0), Value::Null));
     assert_eq!(live["controls"], json!(["next", "previous"]));
+    let age = live["age_ms"].as_i64().unwrap();
+    assert!((0..5_000).contains(&age), "since the player last asked for the channel: {age}");
 
     // Changing channel on the device: the session it watched before is gone.
     drop(reader);

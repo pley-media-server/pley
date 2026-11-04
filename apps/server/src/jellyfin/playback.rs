@@ -567,7 +567,7 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
             }
         });
     }
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
 }
 
 // ------------------------------------------------------------------ subtitles
@@ -753,7 +753,7 @@ async fn report(
     match existing {
         Some(session) => {
             if session.update(position_ms, play_state) {
-                state.events.send(ServerEvent::SessionsChanged);
+                state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
             if play_state == "stopped" {
                 end_sessions(state, state.sessions.remove(&session.id).into_iter().collect());
@@ -776,7 +776,7 @@ async fn report(
                 session.device = device.and_then(clean_name);
                 let session = state.sessions.insert(session);
                 session.update(position_ms, play_state);
-                state.events.send(ServerEvent::SessionsChanged);
+                state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
         }
         None if stopped && play_state == "stopped" => {

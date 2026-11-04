@@ -22,7 +22,7 @@ use crate::livetv::tuner::RemoteViewer;
 use crate::oauth::clients::clean_name;
 use crate::playback::{COMMANDS_PER_SECOND, Control, Controls, Session};
 use crate::state::AppState;
-use crate::util::now;
+use crate::util::{now, now_ms};
 
 /// What the user's remotes call a player's device: the player's own name
 /// for it (`device_name`), or one from its User-Agent ("Firefox on macOS"),
@@ -68,13 +68,22 @@ pub struct PlayingSession {
     state: String,
     position_ms: i64,
     duration_ms: Option<i64>,
-    /// When its player last reported: remotes move the place on from here
-    /// while it plays.
+    /// When its player last reported, or a live one asked for the channel
+    /// (unix seconds).
     updated_at: i64,
+    /// How long ago that was as this answer is made, by the server's clock:
+    /// remotes move the place on by this and by the time since the answer
+    /// came, while it plays, so a device whose clock is off still shows
+    /// where the player is.
+    age_ms: i64,
     controls: Controls,
     /// For the order they are listed in.
     #[serde(skip)]
     started_at: i64,
+    /// When its player last reported, or a live one asked for the channel
+    /// (unix ms): what `age_ms` counts from.
+    #[serde(skip)]
+    reported_at_ms: i64,
 }
 
 /// `GET /api/sessions`: what the caller's own players play now, oldest
@@ -83,6 +92,10 @@ pub async fn list(State(state): State<AppState>, user: AuthUser) -> ApiResult<Js
     let mut playing = playing_items(&state, &user).await?;
     playing.extend(playing_live(&state, &user).await?);
     playing.sort_by_key(|s| s.started_at);
+    let now = now_ms();
+    for session in &mut playing {
+        session.age_ms = (now - session.reported_at_ms).max(0);
+    }
     Ok(Json(playing))
 }
 
@@ -112,9 +125,11 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             state: "playing".to_owned(),
             position_ms: 0,
             duration_ms: None,
-            updated_at: viewer.seen_at,
+            updated_at: viewer.seen_at_ms / 1000,
+            age_ms: 0,
             controls: viewer.controls,
             started_at: viewer.started_at,
+            reported_at_ms: viewer.seen_at_ms,
         });
     }
     Ok(out)
@@ -127,6 +142,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
     for session in state.sessions.active().into_iter().filter(|s| s.user_id == user.id) {
         let Some(row) = catalog::item(&state.db, user.id, session.item_id).await? else { continue };
         let play = session.play.lock().clone();
+        let reported_at_ms = play.reported_at_ms.unwrap_or(play.updated_at.saturating_mul(1000));
         out.push(PlayingSession {
             session_id: session.id.clone(),
             kind: SessionKind::Item,
@@ -138,9 +154,11 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             duration_ms: (session.duration_ms > 0).then_some(session.duration_ms),
             // Its place is as of its last report, which a remote moves on
             // from; a request for media since doesn't move it.
-            updated_at: play.reported_at.unwrap_or(play.updated_at),
+            updated_at: reported_at_ms / 1000,
+            age_ms: 0,
             controls: controls_of(state, &session),
             started_at: session.started_at,
+            reported_at_ms,
         });
     }
     Ok(out)

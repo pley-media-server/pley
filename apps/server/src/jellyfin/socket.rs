@@ -28,7 +28,7 @@ use crate::auth::{AuthUser, SourceIp};
 use crate::events::ServerEvent;
 use crate::playback::{Control, Controls, Session};
 use crate::state::AppState;
-use crate::util::now;
+use crate::util::now_ms;
 
 /// How often the token is checked again.
 const RECHECK: Duration = Duration::from_secs(30);
@@ -282,7 +282,7 @@ fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offs
 /// Where the session's player is by now: its last report's place, moved on
 /// since while it plays (players report every few seconds).
 fn position_now(session: &Session) -> i64 {
-    session.play.lock().position_now(now())
+    session.play.lock().position_now(now_ms())
 }
 
 #[cfg(test)]
@@ -301,8 +301,8 @@ mod tests {
         *session.play.lock() = crate::playback::PlayState {
             position_ms: 50_000,
             state: "playing".into(),
-            updated_at: now(),
-            reported_at: Some(now() - 10),
+            updated_at: now_ms() / 1000,
+            reported_at_ms: Some(now_ms() - 10_000),
         };
         let skip = |offset| data(playstate(&session, Control::Skip, None, Some(offset)))["SeekPositionTicks"].clone();
         // Ten seconds on since its report, a second more should the clock tick.
