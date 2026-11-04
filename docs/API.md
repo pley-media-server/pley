@@ -3336,7 +3336,8 @@ open, and the user's own events; an administrator's gets everyone's
 every 15 s. The token is checked again every 30 s: the stream ends once it
 is signed out, expired or its account disabled, and the client connects
 again with a valid token; one whose account became an administrator, or
-stopped being one, follows that. One token may keep 16 streams open; another answers `429`.
+stopped being one, follows that. One token may keep 16 streams open;
+another answers `429`.
 
 ### Stopping a stream
 
@@ -3403,8 +3404,8 @@ more.
   `previous` change channel, in the order the player tunes them; the
   server only passes them on. A live player lists `pause`, `seek` and
   `skip` only when it can go back in the channel, and its `seek` goes up
-  to a day, as with a title whose length isn't known. A viewer starting, ending or changing channel
-  sends `sessions_changed`.
+  to a day, as with a title whose length isn't known. A viewer starting,
+  ending or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
   position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
@@ -3763,8 +3764,9 @@ interface LiveTuner {                  // a connection in use
   streams at once, and its session answers `410` with the same `message`
   after it, at its keyed address too (the server remembers up to 500
   sessions ended so or [stopped](#stopping-a-stream), until it
-  restarts). Every player of that channel on the account stops (a player reading `stream.ts` knows no session, so players
-  go by `channel_id`; one viewer's HLS and stream sessions each send one)
+  restarts). Every player of that channel on the account stops (a player
+  reading `stream.ts` knows no session, so players go by `channel_id`;
+  one viewer's HLS and stream sessions each send one)
   and shows the message until it is dismissed, even after the app goes
   to the background and back; it doesn't tune again by itself. The message
   says who took the connection and for which channel only to the taker's

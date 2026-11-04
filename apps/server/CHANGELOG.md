@@ -22,6 +22,12 @@ describes how they are made.
   through their socket: pause, play, seek, skip, next and previous. Plex
   apps can still only be stopped.
 
+### Fixed
+
+- Someone who isn't an administrator no longer hears when other people's
+  playback starts or stops: the event for it goes only to that person's
+  own devices and to administrators.
+
 ## [0.1.6] - 2026-11-04
 
 ### Added
@@ -37,9 +43,6 @@ describes how they are made.
 
 ### Fixed
 
-- Someone who isn't an administrator no longer hears when other people's
-  playback starts or stops: the event for it goes only to that person's
-  own devices and to administrators.
 - The web app's search no longer keeps the Live TV channels of an earlier
   query on the page, under results that don't match them.
 - A search for a title with its year ("alien 1979") finds that year's
