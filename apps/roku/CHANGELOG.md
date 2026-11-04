@@ -28,6 +28,9 @@ describes how they are made.
   · Starring …"), and its More has Details: the whole summary, the crew,
   the original title, the release date, the studio or network and how
   many times it was played.
+- An album's page has Go to artist, and Now playing while music plays;
+  Now Playing's scrubber, Up from its buttons, moves 10 s with Left and
+  Right.
 
 ### Changed
 

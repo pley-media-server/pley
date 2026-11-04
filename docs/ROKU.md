@@ -208,13 +208,15 @@ when they are on several discs (the tracks' `parent_index`), each
 numbered on its disc; the focus passes over the headings. An album or a
 music playlist plays whole, from the track chosen, so Previous goes back
 past it; its Shuffle starts on any track and plays the others after it in
-a random order.
+a random order. As on the other TVs, an album's page also has Go to
+artist, and Now playing while music plays.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
 Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
 numbered, the track playing in bold, which stays in view unless the
 focus is on the list. OK on one plays it, and the queue goes on from
-there. A long queue is listed 250 tracks at a time, from 50 before the
+there. Up from the buttons goes to the scrubber, where Left and Right move
+10 s, as on Android TV. A long queue is listed 250 tracks at a time, from 50 before the
 one playing, the next part as playing nears the end of this one: each
 row is a node the Roku draws, and a playlist holds up to 5,000. Shuffle
 plays the other tracks after the one playing in a random order; Stop

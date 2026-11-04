@@ -5,7 +5,8 @@
 ' through its choices, and in the timer's last 30 s, while a line counts
 ' down, it is Keep listening. The remote's play pauses or goes on, fast
 ' forward and rewind go to the next track or back. Down goes from the
-' buttons to Up next, Up from its first track back. Its fields are
+' buttons to Up next, Up from its first track back; Up from the buttons
+' goes to the scrubber, where Left and Right move 10 s, as on Android TV. Its fields are
 ' followed only while this screen shows.
 
 sub init()
@@ -16,6 +17,8 @@ sub init()
     m.album = m.top.findNode("album")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
+    m.scrubber = m.top.findNode("scrubber")
+    m.scrubFocus = m.top.findNode("scrubFocus")
     m.elapsed = m.top.findNode("elapsed")
     m.left = m.top.findNode("left")
     m.buttons = m.top.findNode("buttons")
@@ -222,6 +225,26 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "rewind" or key = "replay"
         m.global.music.control = "previous"
+        return true
+    end if
+    if m.scrubber.hasFocus()
+        if key = "left" or key = "right"
+            music = m.global.music
+            moveMs = 10000
+            if key = "left" then moveMs = -moveMs
+            music.seek = music.positionMs + moveMs
+            return true
+        end if
+        if key = "down" or key = "back"
+            m.scrubFocus.visible = false
+            m.buttons.setFocus(true)
+            return true
+        end if
+        return key = "up"
+    end if
+    if key = "up" and m.buttons.isInFocusChain() and m.global.music.durationMs > 0
+        m.scrubber.setFocus(true)
+        m.scrubFocus.visible = true
         return true
     end if
     if key = "down" and m.buttons.hasFocus() and m.upNext.visible

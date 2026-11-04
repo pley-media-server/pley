@@ -18,6 +18,7 @@ sub init()
     m.top.observeField("play", "onPlay")
     m.top.observeField("control", "onControl")
     m.top.observeField("jump", "onJump")
+    m.top.observeField("seek", "onSeek")
     m.global.session.observeFieldScoped("accessToken", "onToken")
     m.clock = CreateObject("roTimespan")
     m.queue = musicQueue([], 0, false)
@@ -197,6 +198,20 @@ sub onPosition(event as object)
     if seconds = invalid or m.info = invalid then return
     m.top.positionMs = Int(seconds * 1000)
     if playerShouldReport(m.audio.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
+end sub
+
+' Now Playing's scrubber: the track goes on from there (its last second at
+' most), and the server hears of it at once, as after a video's seek.
+sub onSeek()
+    state = m.audio.state
+    if m.info = invalid or (state <> "playing" and state <> "paused") then return
+    target = m.top.seek
+    last = m.top.durationMs - 1000
+    if last > 0 and target > last then target = last
+    if target < 0 then target = 0
+    m.top.positionMs = target
+    m.audio.seek = target / 1000
+    report(state)
 end sub
 
 sub onControl()
