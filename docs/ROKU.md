@@ -45,6 +45,27 @@ why; a PIN locked after too many wrong tries is said on the screen, since
 Roku's pad can't be dimmed. A profile that needs its password is signed
 in to with a code, choosing it in the browser.
 
+### Home
+
+Home's menu, at the left, is in the order of the other TVs' rail: Search,
+Home, Discover and the requests (where the server has them), Live TV, the
+libraries, Playlists, Collections (every library's collections, a row
+each), Now Playing while music plays, and Settings.
+
+Beside it, as on Android TV and the native Samsung app, a hero shows the
+first of Continue Watching, else the newest title in the rows: its
+backdrop, its title (a show's name over an episode's "S2 E5 · Title"),
+year, length, content rating, stars and quality ("4K", "DV"), the time
+left, its summary, then Resume (or Play), From start, Info and Mark as
+watched. Resume has the focus as Home first shows. Down goes to the
+server's rows: there an info block about the title focus rests on (0.4 s)
+takes the hero's place, and the backdrop follows it. Up from the first row
+goes back to the hero; Left or Back, to the menu, the hero shown again.
+The hero's summary, content rating and quality come with its details
+(`GET /api/items/{id}`, which the API task reduces to what Home says), as
+do the info block's. With nothing to show, Home says why: No libraries
+yet, Scanning your libraries…, or Nothing here yet.
+
 ### Remote keys
 
 | Key | Where | What it does |
@@ -595,6 +616,5 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   each 30 s.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
-- Home has no hero over its rows, which the other TVs have.
 - Not yet: an editable music queue.
 

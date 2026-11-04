@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home: the menu on the left (Home, the libraries, Playlists, Search,
-     Discover and the requests where the server has them, Settings) and
-     the server's home rows (GET /api/hubs/home). -->
+<!-- Home: the menu on the left (Search, Home, Discover and the requests
+     where the server has them, Live TV, the libraries, Playlists,
+     Collections, Now Playing, Settings), then, as on Android TV and the
+     native Samsung app, a hero for the first of Continue Watching (its
+     backdrop, what it is, Resume or Play, From start, Info and the
+     watched mark) over the server's home rows (GET /api/hubs/home). In
+     the rows, an info block about the title focus rests on takes the
+     hero's place, and the backdrop follows it. -->
 <component name="HomeScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -25,14 +30,42 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Home.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
+        <!-- The hero's backdrop, or that of the title focus rests on in the
+             rows, drawn faint, darker under the text and the rows. -->
+        <Poster id="backdrop" translation="[380, 0]" width="1540" height="866" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" opacity="0.5" />
+        <Rectangle translation="[380, 0]" width="860" height="1080" color="0x16191EB3" />
+        <Rectangle translation="[380, 600]" width="1540" height="480" color="0x16191E99" />
         <Rectangle id="rail" width="380" height="1080" color="0x1E222AFF" />
         <Label id="wordmark" translation="[64, 56]" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />
         <MarkupList id="menu" translation="[40, 200]" itemComponentName="MenuRow" itemSize="[300, 72]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <RowList id="rows" translation="[440, 48]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
-        <Label id="message" translation="[440, 480]" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <!-- At rest: the hero, the first row under it. Only the labels with
+             text stay in it (layOut). -->
+        <LayoutGroup id="hero" translation="[440, 96]" layoutDirection="vert" visible="false">
+            <Label id="heroTitle" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="heroContext" width="1100" maxLines="1" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+            <Label id="heroMeta" width="1100" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <Label id="heroLeft" width="1100" maxLines="1" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="heroSummary" width="1000" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+            <!-- Side by side, Left and Right between them, as Now Playing's. -->
+            <ChipRow id="heroButtons" pad="80" />
+        </LayoutGroup>
+        <!-- In the rows: what the title focus rests on is, over them. -->
+        <LayoutGroup id="info" translation="[440, 56]" layoutDirection="vert" visible="false">
+            <Label id="infoTitle" width="1300" maxLines="1" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="infoMeta" width="1300" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <Label id="infoSummary" width="1100" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+        </LayoutGroup>
+        <RowList id="rows" translation="[440, 620]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
+        <LayoutGroup id="message" translation="[440, 440]" layoutDirection="vert" itemSpacings="[16]">
+            <Label id="messageTitle" width="1380" wrap="true" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="messageText" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        </LayoutGroup>
+        <!-- Focus resting on a tile: the info block and the backdrop follow. -->
+        <Timer id="rest" duration="0.4" />
     </children>
 </component>

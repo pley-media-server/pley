@@ -19,6 +19,11 @@ describes how they are made.
   "Reconnecting…" and goes on where it was, its queue kept, for up to
   90 s, where it used to leave for a screen saying the server can't be
   reached.
+- Home has a hero for the first of Continue Watching, with Resume, From
+  start, Info and the watched mark, and in its rows an info block about
+  the title focus rests on, the backdrop following it, as on the other TVs.
+- Collections, in Home's menu, shows every library's collections, a row
+  each.
 
 ### Changed
 
@@ -31,6 +36,11 @@ describes how they are made.
 - A title the server refuses to play offers Try again where asking again
   may help.
 - Playback details stay up to date while they show.
+- Home's menu is in the other TVs' order: Search, Home, Discover and the
+  requests, Live TV, the libraries, Playlists, Collections, Now Playing,
+  then Settings.
+- Home with nothing to show says why: no libraries yet, a scan under way,
+  or nothing in them yet.
 
 ### Fixed
 

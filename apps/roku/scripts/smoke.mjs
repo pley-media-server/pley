@@ -291,8 +291,9 @@ async function waitFor(pattern, since, what, { ms = 30000, settles = true } = {}
 }
 
 // brs-node drops a key now and then: menu entries are reached from the
-// top of the menu (twelve entries at most: Live TV, Discover and Requests come before
-// Settings) and checked by the request they lead to.
+// top of the menu (twelve entries at most, Settings the last, which 11
+// reaches whatever the menu holds) and checked by the request they lead
+// to.
 async function openFromMenu(index, pattern, what, then = async () => {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await press("left", 3);
@@ -394,8 +395,11 @@ async function walk() {
   twoStep.shown = seen(/^GET \/api\/server$/, 0) && (await drawnWithin(1000, twoStepDrawn));
   shoot("sign-in");
   await waitFor(/^GET \/api\/hubs\/home$/, 0, "Home");
+  await settle();
   shoot("home");
   let since = mark();
+  // The hero's Resume has the focus: Down to the rows.
+  await press("down");
   await press("select"); // the first of Continue Watching: an episode
   await waitFor(/^GET \/api\/items\/103$/, since, "its details");
   shoot("details");
@@ -555,7 +559,7 @@ async function walk() {
   // client_id), the channel list and a favourite, then a channel whose
   // source has no connection left; Back leaves to the guide at that
   // channel, then the Channels tab.
-  await openFromMenu(1, /^GET \/api\/live\/guide\?/, "Live TV's guide");
+  await openFromMenu(4, /^GET \/api\/live\/guide\?/, "Live TV's guide");
   await sleep(1500);
   shoot("live-guide");
   await press("right"); // the guide
@@ -607,7 +611,7 @@ async function walk() {
   await press("back"); // Home
   await settle();
   since = mark();
-  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
+  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
   // Sorted by title: the A to Z, once every title's letter came, right of
   // the grid's last column (a right press more than needed, which the
   // letters take). Down from "#" to W, whose first title is on the third
@@ -635,7 +639,7 @@ async function walk() {
   // Resolution and Dynamic range once the server says the movies differ in
   // them, and Resolution's 4K: the grid lists 4K titles only, and the chip
   // says so.
-  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
+  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
   await settle();
   await press("up"); // the tabs, on Library
   await press("right", 2); // past Collections to the sort
@@ -667,7 +671,7 @@ async function walk() {
   await settle();
   shoot("library-4k");
   await press("back");
-  await openFromMenu(3, /^GET \/api\/libraries\/2\/items/, "TV Shows");
+  await openFromMenu(6, /^GET \/api\/libraries\/2\/items/, "TV Shows");
   // Its tabs: Recommended, Collections, then Library again, sorted by year.
   since = mark();
   await press("up"); // the tabs, on Library
@@ -817,7 +821,7 @@ async function walk() {
   // shuffling, the album's order again (Previous plays the one before), and
   // the sleep timer's button. Now Playing stopped; then the album's second
   // disc played from its list and stopped, and Back to Home.
-  await openFromMenu(4, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
+  await openFromMenu(7, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
   shoot("music");
   since = mark();
   await press("select"); // the artist
@@ -894,7 +898,7 @@ async function walk() {
     await press("back"); // the artist, the library, Home
     await settle();
   }
-  await openFromMenu(6, /^GET \/api\/search\?.*q=mo/, "Search", async () => {
+  await openFromMenu(0, /^GET \/api\/search\?.*q=mo/, "Search", async () => {
     await sleep(800);
     await press("lit_m");
     await press("lit_o");
@@ -939,7 +943,7 @@ async function walk() {
   // first since one of its results was opened; OK on it searches it again
   // at once. Back to Home.
   since = mark();
-  await openFromMenu(6, /^GET \/api\/search\?.*q=mo/, "a recent search searched again", async () => {
+  await openFromMenu(0, /^GET \/api\/search\?.*q=mo/, "a recent search searched again", async () => {
     await sleep(800);
     shoot("search-recent");
     await press("right", 7); // past the keyboard's last column
@@ -952,7 +956,7 @@ async function walk() {
   // key's Move, then taken out, and the playlist played from the top. Then
   // New playlist, for Movies & TV, named on the keyboard: it opens, made.
   // Back to Home.
-  await openFromMenu(5, /^GET \/api\/playlists$/, "Playlists");
+  await openFromMenu(8, /^GET \/api\/playlists$/, "Playlists");
   shoot("playlists");
   since = mark();
   await press("select"); // the first playlist
@@ -1009,7 +1013,7 @@ async function walk() {
   // Discover: the first trending title over its backdrop, its Request
   // asked after a question (Anna's asks are approved as she asks), then a
   // show of the trending row, its seasons picked.
-  await openFromMenu(7, /^GET \/api\/discover\/trending\?page=1$/, "Discover");
+  await openFromMenu(2, /^GET \/api\/discover\/trending\?page=1$/, "Discover");
   shoot("discover");
   since = mark();
   await press("select"); // the hero's Request: its page, asking at once
@@ -1048,7 +1052,7 @@ async function walk() {
   // no event told of: the summary asked after Approve has news, and its
   // notice opens the title. Then Yours, the last tab, which marks Anna's
   // news seen.
-  await openFromMenu(8, /^GET \/api\/requests\?.*attention=1/, "Requests");
+  await openFromMenu(3, /^GET \/api\/requests\?.*attention=1/, "Requests");
   shoot("requests");
   since = mark();
   await press("options");
@@ -1135,7 +1139,7 @@ async function walk() {
   shoot("requests-yours");
   await press("back");
   await settle();
-  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
+  await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
   // Diagnostics and the licences, at the right; Left back to the settings.
   await press("right");
@@ -1197,7 +1201,7 @@ async function walk() {
   await press("back"); // Home, which asks for its libraries again
   await waitFor(/^GET \/api\/libraries$/, since, "Home's libraries after sorting");
   await press("right"); // the rows, where the next steps start
-  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
+  await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   // Subtitles: from "Only for foreign dialogue" to "Always", saved at once
   // with the languages left as they were; Subtitle language shows then.
   await settle();
@@ -1227,7 +1231,7 @@ async function walk() {
   fixture.down = true;
   await press("left", 3);
   await press("up", 11);
-  await press("down", 2);
+  await press("down", 5); // Movies, after Search, Home, Discover, Your requests and Live TV
   await press("select");
   await sleep(3000);
   shoot("unreachable");
@@ -1241,7 +1245,7 @@ async function walk() {
   // code shows on its own, the sign-in asks for no scope the server
   // doesn't know, and nothing is said of two-step sign-in.
   await press("back");
-  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
+  await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   fixture.qr = false;
   fixture.requestScopes = false;
   fixture.twoStep = false;

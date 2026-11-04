@@ -186,7 +186,9 @@ end function
 ' array may not keep invalid). build ("rows", "tiles", "seasons",
 ' "episodes") makes the answer's list into ContentNodes here, off the
 ' render thread (apiBuild); for "rows", known holds the signatures of the
-' rows Home shows, which aren't built again, and for "discoverTiles" the
+' rows Home shows, which aren't built again (the answer names the hero's
+' title too), "homeInfo" reduces a title's details to what Home says of it,
+' and for "discoverTiles" the
 ' titles shown already ({ "movie:603": true }); for "tiles", badges and
 ' bitrate say what a library's posters show of their files
 ' (contentTiles). manage: the requests are a manager's, who sees why one
@@ -436,7 +438,14 @@ sub apiBuild(job as object, answer as object)
             end if
         end for
         if listed = invalid then listed = []
-        answer.data = { rows: changes.summary, myList: listed }
+        ' The hero's title, and what the rows let it say before its details.
+        hero = invalid
+        heroItem = homeHeroItem(data.hubs)
+        if heroItem <> invalid then hero = homeInfo(heroItem, server, false)
+        answer.data = { rows: changes.summary, myList: listed, hero: hero }
+    else if job.build = "homeInfo"
+        ' A title's details as Home's hero and info block say them.
+        answer.data = homeInfo(data, server, true)
     else if job.build = "tiles"
         items = httpArray(data.items)
         tiles = contentTiles(items, server, job.badges, job.bitrate)
