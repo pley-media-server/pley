@@ -8,12 +8,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Fixed
-
-- On Fire TV, the app's tile shows Pley's name under the mark, as the
-  other apps' tiles show theirs. Android TV and Google TV keep the mark
-  alone.
-
 ## [0.1.5] - 2026-11-03
 
 ### Added

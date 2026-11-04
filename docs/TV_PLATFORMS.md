@@ -259,8 +259,7 @@ bun run --cwd apps/tizen build       # only the app's dist/; --dev keeps it read
   above the name, as the other apps' tiles there show theirs. One TV may
   have more than one of Pley's Samsung apps, so the web app's says WEB on
   blue under the mark, and a profiling build of the native app (an app of
-  its own, `app.pley.tizen.debug`, "Pley (debug)") says DEBUG on yellow
-  under the mark and name.
+  its own, `app.pley.tizen.debug`, "Pley (debug)") says DEBUG on yellow.
 
 ### Testing without a TV
 
