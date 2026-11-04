@@ -139,8 +139,8 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * [key] held for [holdMs], as a remote's is: the press, the repeats
      * Android makes of a held key (the first, a long press, after the
      * long-press time, then one every 50 ms), and the release. Injected
-     * rather than `input keyevent --duration`, which only API 33 and later
-     * have: Fire OS 7 is API 28. [unobserved]: without accessibility
+     * rather than `input keyevent --duration`, which sends no repeats and
+     * which many TVs' `input` doesn't have. [unobserved]: without accessibility
      * ([remote]), as a remote's keys come, for a measure.
      */
     fun hold(key: Key, holdMs: Long, unobserved: Boolean = false) {

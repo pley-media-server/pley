@@ -654,8 +654,12 @@ of it runs.
 
 A key held for a measure has to repeat as a remote's does: the TV app
 takes a key that sends no repeats for half a second past the system's
-first as up, so `adb shell input keyevent --duration`, which sends none,
-moves focus for about a second, whatever the duration. The benchmarks'
+first as up. `adb shell input keyevent --duration` sends none, and the
+`input` of many TVs (a Google TV Streamer's, on Android 14) has no such
+option at all: there `--duration 200 22` presses key 200, which the app
+takes as Select, and then 22. Quick presses in a loop on the device
+(`for i in 1 2 3; do input keyevent 22; sleep 0.15; done`) are single
+presses; for a hold, use the benchmarks' journeys. The benchmarks'
 journeys hold keys with the system's repeats (`Steps.hold`), injected
 without UI Automator's accessibility connection, as a remote's come:
 while an accessibility client is connected, Compose describes every
