@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -276,11 +277,13 @@ private class PlaceholderNode(
      * The title is asked for here rather than as it's first drawn: a lazy
      * list's prefetch measures the tiles it brings in between frames, so
      * it's ready by the frame that shows them. Not for a picture shown
-     * before, which comes straight back.
+     * before, which comes straight back. The picture's state is read
+     * unobserved: its coming measures nothing again (drawing asks too).
      */
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
         val placeable = measurable.measure(constraints)
-        if (!load.known && !load.loaded) askTitle(Size(placeable.width.toFloat(), placeable.height.toFloat()))
+        val waiting = Snapshot.withoutReadObservation { !load.known && !load.loaded }
+        if (waiting) askTitle(Size(placeable.width.toFloat(), placeable.height.toFloat()))
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
 
