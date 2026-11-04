@@ -5,7 +5,8 @@
 ' otherwise it starts again where it was, with a new session and the
 ' current token (a token that ran out answers 401 to the Video node).
 ' Skip Intro and Skip Credits follow the web player: an episode's credits
-' bring up Up Next instead. Down brings up pley's menu: Quality, subtitle
+' bring up Up Next instead. Down brings up pley's menu: the file's
+' subtitles and audio (every track, pictures too), Quality, subtitle
 ' sync for a file with text subtitles or pictures drawn here
 ' (SubtitleSync.brs), the file's
 ' chapters, the sleep timer (Sleep.brs) and the playback's details
@@ -180,6 +181,37 @@ sub init()
     m.nextButtons.observeField("buttonSelected", "onNextButton")
     m.noticeButtons.observeField("buttonSelected", "onNoticeButton")
     m.countdownTimer.observeField("fire", "onCountdown")
+    ' The title at the top as each item begins, once it plays.
+    m.banner = m.top.findNode("banner")
+    m.bannerTitle = m.top.findNode("bannerTitle")
+    m.bannerLine = m.top.findNode("bannerLine")
+    m.bannerDue = false
+    m.bannerTimer = m.top.findNode("bannerTimer")
+    m.bannerTimer.duration = playerBannerMs() / 1000
+    m.bannerTimer.observeField("fire", "hideBanner")
+    ' The server out of reach: since when (clock ms), -1 while it answers.
+    ' Until something played, that is said at once.
+    m.reconnectFrom = -1
+    m.everPlayed = false
+    m.reconnectTimer = m.top.findNode("reconnectTimer")
+    m.reconnectTimer.duration = playerReconnectEveryMs() / 1000
+    m.reconnectTimer.observeField("fire", "onReconnectTick")
+    ' The playhead standing still: where, and since when (clock ms); and
+    ' whether this opening said the server can't keep up.
+    m.stillAt = -1
+    m.stillSince = 0
+    m.slowSaid = false
+    m.stallTimer = m.top.findNode("stallTimer")
+    m.stallTimer.observeField("fire", "onStallTick")
+    ' The last position read, and when, to tell a seek by.
+    m.seenMs = -1
+    m.seenAt = 0
+    ' The media ended: Up Next waits at its end. When media last fell
+    ' short of its end (clock ms).
+    m.ended = false
+    m.shortAt = invalid
+    m.detailsTimer = m.top.findNode("detailsTimer")
+    m.detailsTimer.observeField("fire", "onDetailsTick")
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
 end sub
@@ -216,6 +248,7 @@ sub onActive()
     m.queueAt = 0
     if GetInterface(params.queue, "ifArray") <> invalid then m.queue = params.queue
     newTitle()
+    m.bannerDue = true
     open(params.itemId, Int(httpNumber(params.startMs, 0)), params.item, "auto")
 end sub
 
@@ -250,6 +283,9 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.next = invalid
     m.upNextShown = false
     m.upNextCancelled = false
+    m.ended = false
+    m.stallTimer.control = "stop"
+    m.slowSaid = false
     m.markers = []
     m.skipMarker = invalid
     m.skipKey = ""
@@ -439,6 +475,9 @@ end sub
 ' Plays once both the item and the session are there.
 sub begin()
     if m.item = invalid or m.info = invalid then return
+    m.stillAt = m.startMs
+    m.stillSince = m.clock.TotalMilliseconds()
+    m.stallTimer.control = "start"
     m.durationMs = httpNumber(m.info.duration_ms, 0)
     m.markers = playerFileMarkers(m.item, m.info.file_id)
     m.upNextAt = playerUpNextAt(m.durationMs, m.markers)
@@ -611,6 +650,24 @@ sub onToastTimer()
     m.toast.visible = false
 end sub
 
+' The title at the top for 4 s as an item begins to play (the first, the
+' next episode, a queue's next), not as the same one opens again.
+sub showBanner()
+    m.bannerDue = false
+    banner = playerBanner(m.item)
+    if banner.title = "" then return
+    m.bannerTitle.text = banner.title
+    m.bannerLine.text = banner.line
+    m.banner.visible = true
+    m.bannerTimer.control = "stop"
+    m.bannerTimer.control = "start"
+end sub
+
+sub hideBanner()
+    m.bannerTimer.control = "stop"
+    m.banner.visible = false
+end sub
+
 ' Gives the Video node stream, its text tracks moved as the sync says,
 ' showing the track subtitle ("" leaves it to the Roku).
 sub showStream(stream as object, subtitle as string)
@@ -779,20 +836,29 @@ end sub
 sub failed(answer as object)
     if answer.error = "signed_out" then return
     if answer.error = "network"
-        uiUnreachable({ to: "player", params: { itemId: m.itemId, startMs: m.positionMs } })
+        reconnect()
         return
     end if
-    notice("Can't play this item", answer.message, ["Back"])
+    buttons = ["Back"]
+    if playerMayTryAgain(answer.status) then buttons = ["Try again", "Back"]
+    notice("Can't play this item", answer.message, buttons)
 end sub
 
 sub onState(event as object)
     state = event.getData()
     watchState(state)
     drawPictures()
+    ' Played on from here: no seek in between.
+    m.seenMs = m.positionMs
+    m.seenAt = m.clock.TotalMilliseconds()
     if state <> "paused" then m.pausedTimer.control = "stop"
+    if state <> "playing" then hideBanner()
     if state = "playing"
         m.played = true
+        m.everPlayed = true
+        endReconnect()
         m.loading.visible = false
+        if m.bannerDue then showBanner()
         ' Played again after the sleep timer's pause: the player stays.
         if m.sleepPausedAt >= 0
             m.sleepPausedAt = -1#
@@ -823,8 +889,24 @@ sub onPosition(event as object)
     seconds = event.getData()
     if seconds = invalid then return
     m.positionMs = Int(seconds * 1000)
-    if m.watch <> invalid then aqPosition(m.watch, m.clock.TotalMilliseconds(), m.positionMs)
-    if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
+    now = m.clock.TotalMilliseconds()
+    if m.watch <> invalid then aqPosition(m.watch, now, m.positionMs)
+    if m.positionMs <> m.stillAt
+        m.stillAt = m.positionMs
+        m.stillSince = now
+    end if
+    ' A seek, here or in Roku's own bar, is told at once, as the other apps
+    ' tell it a second after: other devices resume from there.
+    sought = m.seenMs >= 0 and playerSought(m.seenMs, m.positionMs, now - m.seenAt)
+    m.seenMs = m.positionMs
+    m.seenAt = now
+    if sought
+        state = "playing"
+        if m.paused then state = "paused"
+        report(state)
+    else if playerShouldReport(m.video.state, now - m.lastReportAt)
+        report("playing")
+    end if
     if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
     followPictures()
@@ -933,6 +1015,14 @@ sub closeSession(sessionId as string)
 end sub
 
 sub ended()
+    m.stallTimer.control = "stop"
+    hideBanner()
+    ' Media that falls short of the title (resumed past the end of what the
+    ' file or stream holds) isn't its end: converted, or a new session, once.
+    if playerEndedShort(m.positionMs, m.startMs, m.durationMs)
+        endedShort()
+        return
+    end if
     if m.durationMs > 0 then m.positionMs = m.durationMs
     report("stopped")
     endSession()
@@ -941,11 +1031,38 @@ sub ended()
         uiNavigate({ back: true })
         return
     end if
-    if m.next <> invalid and not m.upNextCancelled and playerAutoplay(playbackSection())
-        playNext()
-    else
+    if m.next = invalid
         uiNavigate({ back: true })
+        return
     end if
+    if not m.upNextCancelled and playerAutoplay(playbackSection())
+        playNext()
+        return
+    end if
+    ' Up Next waits at the end, as on the other apps: counting down again
+    ' after a Cancel when the next plays by itself, for Play now when not.
+    m.ended = true
+    m.upNextCancelled = false
+    showUpNext()
+end sub
+
+' The media ended moments after it started, a minute or more before the
+' title's end, as on Android: a file played as it is is converted, and a
+' stream opened again; when it falls short again within the minute, the
+' player says so. Nothing is reported watched.
+sub endedShort()
+    if m.info <> invalid and httpString(m.info.method) <> "transcode" and m.mode <> "transcode"
+        open(m.itemId, m.startMs, m.item, "transcode")
+        return
+    end if
+    now = m.clock.TotalMilliseconds()
+    if m.shortAt <> invalid and now - m.shortAt < 60000
+        endSession()
+        notice("Can't play this item", "This video ends before the point it was to play from.", ["Back"])
+        return
+    end if
+    m.shortAt = now
+    open(m.itemId, m.startMs, m.item, m.mode)
 end sub
 
 ' Leaving the player: the place is kept and the session closed (or, still
@@ -958,6 +1075,10 @@ sub finish()
     m.sleepTimer.control = "stop"
     m.pausedTimer.control = "stop"
     m.sleepNotice.visible = false
+    m.stallTimer.control = "stop"
+    m.detailsTimer.control = "stop"
+    endReconnect()
+    hideBanner()
     newTitle()
     m.toastTimer.control = "stop"
     m.toast.visible = false
@@ -1019,10 +1140,108 @@ sub onSessionState(event as object)
     if meaning = "stopped"
         stopped(answer.data)
     else if meaning = "unreachable"
-        uiUnreachable({ to: "player", params: { itemId: m.itemId, startMs: m.positionMs } })
+        reconnect()
     else if meaning <> "signed_out"
         restart()
     end if
+end sub
+
+' The server doesn't answer. Once something played, the player keeps its
+' place (and its queue) and asks again every 2 s, saying "Reconnecting…",
+' as long as the server keeps a session it doesn't hear from (90 s), as the
+' other apps do; before anything played, or after that, it says so, with
+' Try again.
+sub reconnect()
+    now = m.clock.TotalMilliseconds()
+    if m.reconnectFrom < 0 then m.reconnectFrom = now
+    if not m.everPlayed or now - m.reconnectFrom >= playerReconnectMs()
+        session = m.global.session
+        notice("Can't reach " + session.serverName, "Pley for Roku can't reach the server at " + urlDisplayAddress(session.server) + ". Check that it's on, and that this TV is on the same network as the server.", ["Try again", "Back"])
+        return
+    end if
+    hideBanner()
+    m.loading.text = "Reconnecting…"
+    m.loading.visible = true
+    m.reconnectTimer.control = "start"
+end sub
+
+' The session asked about again, or, when none came, asked for again.
+sub onReconnectTick()
+    if m.reconnectFrom < 0 then return
+    if m.sessionId = ""
+        open(m.itemId, m.positionMs, m.item, m.mode)
+    else
+        uiRequest({ method: "GET", path: "/api/playback/" + urlEncode(m.sessionId), session: m.sessionId }, "onSessionState")
+    end if
+end sub
+
+' The server answers again (the video plays), or the player gave up.
+sub endReconnect()
+    m.reconnectFrom = -1
+    m.reconnectTimer.control = "stop"
+    m.loading.text = "Loading…"
+end sub
+
+' --- Stalls ---
+
+' Once a second: whether the playhead stood still 12 s while the video is
+' meant to play (not paused, ended, reconnecting or saying why it
+' stopped), as the other apps watch for.
+sub onStallTick()
+    now = m.clock.TotalMilliseconds()
+    state = m.video.state
+    meant = m.played and not m.ended and m.reconnectFrom < 0 and not m.notice.visible and (state = "playing" or state = "buffering")
+    if not meant then m.stillSince = now
+    if not meant or now - m.stillSince < playerStallMs() then return
+    m.stillSince = now
+    starving = false
+    if state = "buffering"
+        status = m.video.bufferingStatus
+        if GetInterface(status, "ifAssociativeArray") <> invalid and GetInterface(status.isUnderrun, "ifBoolean") <> invalid then starving = status.isUnderrun
+    end if
+    method = httpString(m.info.method)
+    ' A file that has its data and doesn't move doesn't play smoothly here:
+    ' converted, once.
+    if not starving and method = "direct" and m.mode <> "transcode"
+        open(m.itemId, m.positionMs, m.item, "transcode")
+        return
+    end if
+    ' A stream waits on the server: how fast it converts says whether a
+    ' lower quality would help.
+    if method <> "direct" and m.sessionId <> ""
+        uiRequest({ method: "GET", path: "/api/playback/" + urlEncode(m.sessionId), session: m.sessionId }, "onStallChecked")
+        return
+    end if
+    restart()
+end sub
+
+sub onStallChecked(event as object)
+    if event.getRoSGNode().spec.session <> m.sessionId then return
+    answer = event.getData()
+    meaning = playerSessionState(answer.status)
+    if meaning = "stopped"
+        stopped(answer.data)
+        return
+    end if
+    if meaning = "unreachable"
+        reconnect()
+        return
+    end if
+    if meaning = "signed_out" then return
+    speed = 0
+    if answer.ok and GetInterface(answer.data, "ifAssociativeArray") <> invalid
+        transcode = httpObject(answer.data.transcode)
+        if transcode <> invalid then speed = httpNumber(transcode.speed, 0)
+    end if
+    if speed > 0 and speed < 1
+        ' Automatic goes lower by itself; otherwise the person is told, once.
+        if m.watch = invalid and not m.slowSaid
+            m.slowSaid = true
+            showToast("The server can't keep up with this video. Try a lower quality: Down, then Quality.")
+        end if
+        return
+    end if
+    restart()
 end sub
 
 ' The session lives on (the token ran out) or expired: a new one from the
@@ -1039,6 +1258,9 @@ sub restart()
 end sub
 
 sub notice(title as string, text as string, buttons as object)
+    endReconnect()
+    hideBanner()
+    m.stallTimer.control = "stop"
     m.loading.visible = false
     closeMenu()
     hideSkip()
@@ -1113,6 +1335,11 @@ end sub
 sub cancelUpNext()
     m.upNextCancelled = true
     hideUpNext()
+    ' At the end, there is nothing left to play.
+    if m.ended
+        uiNavigate({ back: true })
+        return
+    end if
     m.video.setFocus(true)
     updateSkip()
 end sub
@@ -1130,6 +1357,7 @@ sub playNext()
     m.video.control = "stop"
     m.restarts = []
     newTitle()
+    m.bannerDue = true
     if m.queue <> invalid then m.queueAt = m.queueAt + 1
     open(nextEpisode.itemId, nextEpisode.startMs, invalid, "auto")
 end sub
@@ -1191,6 +1419,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
             cancelUpNext()
             return true
         end if
+        ' At the end, Play plays the next one.
+        if m.ended and key = "play"
+            playNext()
+            return true
+        end if
         if key = "play" or key = "fastforward" or key = "rewind" or key = "replay"
             cancelUpNext()
             playerKey(key)
@@ -1215,13 +1448,26 @@ sub openMenu()
     hideSkip()
     m.menuKind = "menu"
     m.menuTitle.text = "Playback"
-    items = [{ title: "Quality: " + qualityShown() }]
-    m.menuActions = ["quality"]
+    items = []
+    m.menuActions = []
+    ' Every track of the file, pictures too, as on the other apps' panels:
+    ' Roku's options list only text subtitles, and a conversion's one audio.
+    tracks = mediaTracks(playingFile())
+    if tracks.subtitles.labels.Count() > 0
+        items.Push({ title: "Subtitles: " + tracks.subtitles.labels[tracks.subtitles.current] })
+        m.menuActions.Push("subtitles")
+    end if
+    if tracks.audio.labels.Count() > 0
+        items.Push({ title: "Audio: " + tracks.audio.labels[tracks.audio.current] })
+        m.menuActions.Push("audio")
+    end if
+    items.Push({ title: "Quality: " + qualityShown() })
+    m.menuActions.Push("quality")
     if m.textTracks > 0 or m.pictureIndex >= 0
         items.Push({ title: "Subtitle sync: " + syncLabel(m.syncMs) })
         m.menuActions.Push("sync")
     end if
-    if detChapters(playingFile()).Count() > 0
+    if detChapters(playingFile()).Count() > 1
         items.Push({ title: "Chapters" })
         m.menuActions.Push("chapters")
     end if
@@ -1237,7 +1483,7 @@ sub openMenu()
     m.menuChoices.visible = false
     m.menuText.visible = false
     m.menuList.visible = true
-    m.menuHint.text = "Back closes this. Subtitles and audio: the Options key."
+    m.menuHint.text = "Back closes this."
     m.menu.visible = true
     m.menuList.setFocus(true)
 end sub
@@ -1291,6 +1537,8 @@ sub onMenuEntry(event as object)
     action = m.menuActions[event.getData()]
     if action = "find"
         findSubtitles()
+    else if action = "subtitles" or action = "audio"
+        openTracks(action)
     else if action = "quality"
         openQualities()
     else if action = "sync"
@@ -1303,6 +1551,62 @@ sub onMenuEntry(event as object)
     else
         openDetails()
     end if
+end sub
+
+' The file's subtitles (Off first) or audio (Automatic first), as on the
+' title's page, the one playing checked.
+sub openTracks(kind as string)
+    tracks = mediaTracks(playingFile())
+    m.menuKind = kind
+    if kind = "audio"
+        m.menuTitle.text = "Audio"
+        list = tracks.audio
+    else
+        m.menuTitle.text = "Subtitles"
+        list = tracks.subtitles
+    end if
+    items = []
+    for each label in list.labels
+        items.Push({ title: label })
+    end for
+    m.menuValues = list.values
+    m.trackCurrent = list.values[list.current]
+    showMenuChoices(items, list.current)
+end sub
+
+' A track picked in the menu is saved for the show or movie, as on the
+' title's page (PUT /api/items/{id}/streams): audio picked goes with the
+' subtitles shown, subtitles with the audio as it was picked. The stream
+' then opens again where it was with them, since a conversion has the
+' audio and the burned-in pictures it was made with.
+sub pickTrack(kind as string, index as integer)
+    file = playingFile()
+    if file = invalid then return
+    subtitle = Int(httpNumber(file.selected_subtitle, -1))
+    audio = -2
+    if kind = "audio"
+        audio = index
+    else
+        subtitle = index
+    end if
+    mediaPick(m.item, file.id, audio, subtitle)
+    body = tracksStreamsBody(file.id, audio, subtitle)
+    m.loading.visible = true
+    uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.itemId) + "/streams", jsonText: FormatJson(body), attempt: m.attempt }, "onTrackPicked")
+end sub
+
+' Saved or not, the stream opens again with the tracks picked: the item is
+' asked for again, for the server's word on them.
+sub onTrackPicked(event as object)
+    if not isCurrent(event) then return
+    answer = event.getData()
+    if answer.error = "signed_out" then return
+    if not answer.ok then showToast("Couldn't save that choice for next time.")
+    position = m.positionMs
+    seconds = m.video.position
+    if seconds <> invalid and seconds > 0 then position = Int(seconds * 1000)
+    stopPictures()
+    open(m.itemId, position, invalid, m.mode)
 end sub
 
 ' The qualities this file is offered, the one chosen checked.
@@ -1383,6 +1687,10 @@ sub onMenuChoice(event as object)
     closeMenu()
     if kind = "chapters"
         seekTo(value)
+        return
+    end if
+    if kind = "subtitles" or kind = "audio"
+        if value <> m.trackCurrent then pickTrack(kind, value)
         return
     end if
     if kind = "sleep"
@@ -1480,7 +1788,22 @@ sub openDetails()
     m.menuText.visible = true
     m.menuHint.text = ""
     m.top.setFocus(true)
-    if m.sessionId <> "" and httpString(m.info.method) <> "direct" then uiRequest({ method: "GET", path: "/api/playback/" + urlEncode(m.sessionId), session: m.sessionId }, "onDetails")
+    onDetailsTick()
+    m.detailsTimer.control = "start"
+end sub
+
+' While the details show, a conversion's are asked for again every 2 s, as
+' on Android, and the position in them moves on.
+sub onDetailsTick()
+    if m.menuKind <> "details" or not m.menu.visible
+        m.detailsTimer.control = "stop"
+        return
+    end if
+    if m.sessionId <> "" and httpString(m.info.method) <> "direct"
+        uiRequest({ method: "GET", path: "/api/playback/" + urlEncode(m.sessionId), session: m.sessionId }, "onDetails")
+    else
+        showDetails(invalid)
+    end if
 end sub
 
 sub onDetails(event as object)

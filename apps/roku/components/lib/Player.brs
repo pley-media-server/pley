@@ -223,3 +223,75 @@ function playerStartOf(positionMs as dynamic, durationMs as dynamic) as integer
     if fmtResumable(positionMs, durationMs) then return Int(httpNumber(positionMs, 0))
     return 0
 end function
+
+' While the server is out of reach, the player keeps its place and asks
+' again every 2 s, for as long as the server keeps a session it doesn't hear
+' from (90 s), as the other apps do.
+function playerReconnectMs() as integer
+    return 90000
+end function
+
+function playerReconnectEveryMs() as integer
+    return 2000
+end function
+
+' Whether a refusal before playback is worth trying again: not one the
+' same request would get again (a request the server can't take, the
+' sign-in, no access, no such title, one stopped), as the Samsung app.
+function playerMayTryAgain(status as integer) as boolean
+    return status <> 400 and status <> 401 and status <> 403 and status <> 404 and status <> 410
+end function
+
+' How long the playhead may stand still while the video is meant to play
+' before it counts as stalled (Android's and the web's STALL_MS).
+function playerStallMs() as integer
+    return 12000
+end function
+
+' Whether media that finished at reachedMs, having started at startMs,
+' ended short rather than at its end: a minute or more before the duration
+' the server gives, moments after where it started. The stream or file
+' doesn't hold that part (resuming past its real end), so it isn't watched.
+function playerEndedShort(reachedMs as dynamic, startMs as dynamic, durationMs as dynamic) as boolean
+    duration = httpNumber(durationMs, 0)
+    reached = httpNumber(reachedMs, 0)
+    if duration <= 0 then return false
+    return reached + 60000 < duration and reached < httpNumber(startMs, 0) + 5000
+end function
+
+' Whether the playhead jumped (a seek, Roku's own trick play included)
+' between two readings: it moved more than 3 s from where playing on would
+' have taken it. The server hears of a seek at once, as the other apps tell
+' it a second after one.
+function playerSought(fromMs as dynamic, toMs as dynamic, elapsedMs as dynamic) as boolean
+    expected = httpNumber(fromMs, 0) + httpNumber(elapsedMs, 0)
+    return Abs(httpNumber(toMs, 0) - expected) > 3000
+end function
+
+' The title shown at the top for 4 s as each item begins, as on Android TV
+' and the native Samsung app: { title, line }, a show's name over an
+' episode's "S1 E2 · Pilot".
+function playerBanner(item as dynamic) as object
+    data = httpObject(item)
+    banner = { title: "", line: "" }
+    if data = invalid then return banner
+    title = httpSentence(data.title)
+    if httpString(data.kind) = "episode"
+        showTitle = httpSentence(data.grandparent_title)
+        parts = []
+        code = fmtEpisode(data.parent_index, data.index)
+        if code <> "" then parts.Push(code)
+        if title <> "" then parts.Push(title)
+        if showTitle <> ""
+            banner.title = showTitle
+            banner.line = parts.Join(" · ")
+            return banner
+        end if
+    end if
+    banner.title = title
+    return banner
+end function
+
+function playerBannerMs() as integer
+    return 4000
+end function

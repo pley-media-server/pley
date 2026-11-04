@@ -168,3 +168,42 @@ sub test_player_starts_where_the_title_was_left()
     tkEqual(playerStartOf(5900000, 6000000), 0, "near the end: from the start")
     tkEqual(playerStartOf(0, 6000000), 0)
 end sub
+
+sub test_player_reconnects_while_the_server_keeps_the_session()
+    tkEqual(playerReconnectMs(), 90000)
+    tkTrue(playerReconnectEveryMs() < playerReconnectMs(), "several tries before giving up")
+end sub
+
+sub test_player_offers_try_again_where_it_may_help()
+    tkTrue(playerMayTryAgain(503), "the transcoder busy or away")
+    tkTrue(playerMayTryAgain(500))
+    tkTrue(playerMayTryAgain(409))
+    tkFalse(playerMayTryAgain(404), "no such title")
+    tkFalse(playerMayTryAgain(403), "no access")
+    tkFalse(playerMayTryAgain(401))
+    tkFalse(playerMayTryAgain(400))
+    tkFalse(playerMayTryAgain(410))
+end sub
+
+sub test_player_tells_media_that_ends_short_from_the_end()
+    ' Resumed at 40:00 of a 45:00 episode whose file holds 41:00.
+    tkTrue(playerEndedShort(2401000, 2400000, 2700000), "a few moments after the start, long before the end")
+    tkFalse(playerEndedShort(2699000, 2400000, 2700000), "at the end")
+    tkFalse(playerEndedShort(2650000, 2640000, 2700000), "within a minute of the end")
+    tkFalse(playerEndedShort(2410000, 2400000, 2700000), "played on 10 s first")
+    tkFalse(playerEndedShort(1000, 0, 0), "no duration known")
+end sub
+
+sub test_player_notices_a_seek()
+    tkFalse(playerSought(60000, 61000, 1000), "played on")
+    tkFalse(playerSought(60000, 60200, 1000), "a slow second")
+    tkTrue(playerSought(60000, 120000, 1000), "forward")
+    tkTrue(playerSought(60000, 30000, 1000), "back")
+end sub
+
+sub test_player_banner_names_the_show_over_the_episode()
+    tkEqual(playerBanner({ kind: "episode", title: "Pilot", grandparent_title: "The Office", parent_index: 1, index: 2 }), { title: "The Office", line: "S1 E2 · Pilot" })
+    tkEqual(playerBanner({ kind: "episode", title: "Pilot", parent_index: 1, index: 2 }), { title: "Pilot", line: "" })
+    tkEqual(playerBanner({ kind: "movie", title: "Dune" }), { title: "Dune", line: "" })
+    tkEqual(playerBanner(invalid), { title: "", line: "" })
+end sub

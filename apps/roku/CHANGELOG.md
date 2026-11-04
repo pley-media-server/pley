@@ -8,10 +8,38 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The player's menu (Down) has Subtitles and Audio, listing every track of
+  the file, picture subtitles too, as the other apps' players do. A pick is
+  saved for the show or movie.
+- The player shows the title at the top for a few seconds as each item
+  begins.
+- When the server is out of reach for a moment, the player says
+  "Reconnecting…" and goes on where it was, its queue kept, for up to
+  90 s, where it used to leave for a screen saying the server can't be
+  reached.
+
 ### Changed
 
 - The channel's tile on the home screen shows Pley's mark above its name,
   centred.
+- Up Next waits at the end of an episode once cancelled, or when the next
+  episode doesn't play by itself, where the player used to leave.
+- A video that stands still for 12 s is converted or opened again, and the
+  player says when the server can't convert it fast enough.
+- A title the server refuses to play offers Try again where asking again
+  may help.
+- Playback details stay up to date while they show.
+
+### Fixed
+
+- A video resumed past the end of what its file holds is converted or
+  opened again, instead of being counted as watched.
+- The server hears of a seek at once, so the title resumes from there on
+  other devices.
+- Chapters are offered in the player's menu only for a file with two or
+  more.
 
 ## [0.1.4] - 2026-11-03
 

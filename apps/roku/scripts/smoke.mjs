@@ -1,11 +1,12 @@
 // Runs the whole app, SceneGraph and Tasks included, in brs-node against
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
-// that requires two-step sign-in, Home, a title's details, the player, the
-// Options key, a library's grid, its A to Z and the pages a jump passes
-// over, a sort by bitrate and a filter by resolution with their quality
-// badges, filters saved as a smart playlist, collections played (movies
-// and a smart one of shows), a show's page, its episodes and a person's
+// that requires two-step sign-in, Home, a title's details, the player and
+// subtitles picked in its menu, the Options key, a library's grid, its A
+// to Z and the pages a jump passes over, a sort by bitrate and a filter
+// by resolution with their quality badges, filters saved as a smart
+// playlist, collections played (movies and a smart one of shows), a
+// show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search (and its Discover row's
@@ -336,6 +337,8 @@ const live = { busy: false };
 const sync = { label: false };
 // The picture subtitles the app draws: one of their PNGs loaded.
 const pictures = { loaded: false };
+// Subtitles picked in the player's own menu.
+const menuTracks = { picked: false };
 // Within ms, whether a picture subtitle's PNG was fetched.
 async function loadedWithin(ms) {
   const until = Date.now() + ms;
@@ -453,7 +456,7 @@ async function walk() {
   await press("down");
   await sleep(300);
   shoot("player-menu");
-  await press("down"); // Subtitle sync
+  await press("down", 2); // past Subtitles and Quality: Subtitle sync
   await press("select");
   await press("right", 3);
   sync.label = await drawnWithin(2500, syncDrawn);
@@ -506,6 +509,20 @@ async function walk() {
   await waitFor(/^POST \/api\/items\/103\/subtitles$/, since, "the subtitles picked, added");
   await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the added subtitles saved as the pick");
   await waitFor(/^POST \/api\/playback$/, since, "a session without the picture subtitles drawn");
+  await settle();
+  // The menu's Subtitles, at its top: the file's every track, English
+  // (SRT) picked, saved as the pick, and the stream opened again with it.
+  since = mark();
+  const streamsBefore = fixture.streams.length;
+  await press("down");
+  await press("up", 8);
+  await press("select");
+  await press("up", 3); // Off
+  await press("down"); // English (SRT)
+  await press("select");
+  await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the subtitles picked in the player's menu, saved");
+  await waitFor(/^POST \/api\/playback$/, since, "the stream opened again with the subtitles picked");
+  menuTracks.picked = fixture.streams.slice(streamsBefore).some((s) => s.item === 103 && s.subtitle_index === 3);
   since = mark();
   await press("back"); // stopped, then the session closed
   await waitFor(/^DELETE \/api\/playback\//, since, "closing the session");
@@ -1313,6 +1330,7 @@ const checks = [
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
   ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],
+  ["picked subtitles in the player's own menu, saved and played", menuTracks.picked],
   ["asked the server what it knows of the network before playing in Automatic", asked(/^GET \/api\/playback\/network\?client_id=/)],
   ["ran a speed test of 8 MiB where the server asked for one", fixture.speedTests.length > 0 && fixture.speedTests.every((n) => n === 8388608)],
   ["told the server what the speed test measured", fixture.networkTold.some((t) => t.probe_kbps > 0 && t.probe_complete === false && t.client_id)],

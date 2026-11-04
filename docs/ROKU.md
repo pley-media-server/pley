@@ -53,7 +53,7 @@ in to with a code, choosing it in the browser.
 | Options (\*) | Watch history | Removes it |
 | Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
+| Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
@@ -205,6 +205,36 @@ queue's end, turns the timer off.
 
 ### The player
 
+As each item begins (the first, the next episode, a playlist's or a
+collection's next), its title shows at the top for 4 s, a show's name over
+the episode's "S1 E2 · Pilot", as on Android TV.
+
+- **Up Next** shows at the credits (else 30 s before the end) with its
+  countdown. Cancelled, or with Play the next episode by itself off, it
+  waits at the end, paused, as on the other apps: Play now (or Play) plays
+  the next one, Cancel or Back leaves. With the setting on, the countdown
+  starts again there.
+- **The server out of reach:** once something played, the player keeps its
+  place and its queue and asks again every 2 s, saying "Reconnecting…",
+  for 90 s, as long as the server keeps a session it doesn't hear from;
+  then, or when the first playback can't start, it says it can't reach the
+  server, with Try again. A refusal says why, with Try again where asking
+  again may help (not for a title gone or out of reach of the profile).
+- **Stalls:** a playhead that stands still 12 s while meant to play is
+  looked at, as the other apps do: a file played as it is that has its
+  data is converted once; a stream asks the server how fast it converts,
+  and below real time says "The server can't keep up with this video"
+  (Automatic goes lower by itself); otherwise the stream opens again where
+  it was.
+- **Media that ends short** (moments after it started, a minute or more
+  before the title's end, as a file resumed past what it holds) isn't the
+  end: a file played as it is is converted, and a stream opened again;
+  falling short again within the minute, the player says so.
+- **Progress** goes to the server every 10 s while playing, every 30 s
+  paused, and at once after a seek, in Roku's own bar too.
+- **Playback details** are asked for again every 2 s while they show.
+- **Chapters** are in the menu for a file with two or more.
+
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
 media (`previews.bif`). While the server is still making them, the bar
@@ -246,7 +276,11 @@ next.
   frame while one shows, and one that fails to load loads again 3 s later.
   The Video node tells its position every 0.2 s while pictures are drawn,
   else every second.
-- Roku's options list only text tracks: PGS is picked on a title's page.
+- Roku's options list only text tracks, and a conversion's one audio.
+  Pley's menu (Down) lists every track of the file, as the title's page
+  does: Subtitles (Off, then each, PGS too) and Audio (Automatic, then
+  each). A pick there is saved for the show or movie, and the stream opens
+  again where it was with it.
   A text track picked in the options takes the place of the pictures, and
   captions turned off there turn them off; captions turned on without a
   text track leave them be.
@@ -527,7 +561,8 @@ bun run images    # the nine-patch focus and watched-mark images
   used twice. On the way it plays an episode whose PGS subtitles the app
   draws (their list asked for where it starts, then again until whole, and
   a picture loaded), then the same episode on a server without their
-  pictures, which burns them in; it jumps down a library with its A to Z,
+  pictures, which burns them in, and picks its subtitles from the
+  player's menu; it jumps down a library with its A to Z,
   sorts it by bitrate and filters it by resolution, saves another's
   filters as a smart playlist, plays a collection of movies and a smart
   one of shows, and an artist's tracks, makes a playlist, plays a track
