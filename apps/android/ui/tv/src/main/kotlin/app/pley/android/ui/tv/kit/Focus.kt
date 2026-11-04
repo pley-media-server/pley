@@ -105,6 +105,78 @@ private class RailOnLeftNode(var rail: TvRailFocus?, var stopRight: Boolean) :
 }
 
 /**
+ * D-pad rule 5 at a list's ends: while a key is held, focus leaving this
+ * list [toward] one of these directions is refused, so a held key stops
+ * on the list's first or last element rather than run on into what comes
+ * next (the chips or tabs above a grid, the row under a page's last). A
+ * press of its own still goes there, as on a TV's home screen. A row keeps
+ * its own ends ([railOnLeftStopOnRight]).
+ *
+ * The list is a focus group (a lazy list or grid is one): put this before
+ * it, after a focusRestorer, whose exit still runs first.
+ */
+fun Modifier.heldKeyStaysIn(toward: Set<FocusDirection>): Modifier = this then HeldKeyElement(toward, enter = false)
+
+/** The ends of a list that [heldKeyStaysIn] keeps a held key in. */
+object HeldEnds {
+    /** A column's top and bottom. */
+    val UpDown = setOf(FocusDirection.Up, FocusDirection.Down)
+
+    /** A row's start and end. */
+    val LeftRight = setOf(FocusDirection.Left, FocusDirection.Right)
+
+    /** A grid's every side. */
+    val All = UpDown + LeftRight
+}
+
+/**
+ * The other side of [heldKeyStaysIn], for what shares a list with the
+ * rows next to it (a page's hero, the first item of its column of rows):
+ * a held key's moves don't come into it, a press of its own does. Put it
+ * before the focus group it keeps.
+ */
+fun Modifier.heldKeyStaysOut(): Modifier = this then HeldKeyElement(emptySet(), enter = true)
+
+private data class HeldKeyElement(val toward: Set<FocusDirection>, val enter: Boolean) : ModifierNodeElement<HeldKeyNode>() {
+    override fun create() = HeldKeyNode(toward, enter)
+
+    override fun update(node: HeldKeyNode) {
+        node.toward = toward
+        node.enter = enter
+        node.invalidateFocusProperties()
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = if (enter) "heldKeyStaysOut" else "heldKeyStaysIn"
+        properties["toward"] = toward
+    }
+}
+
+private class HeldKeyNode(var toward: Set<FocusDirection>, var enter: Boolean) :
+    Modifier.Node(),
+    FocusPropertiesModifierNode,
+    CompositionLocalConsumerModifierNode {
+    override fun applyFocusProperties(focusProperties: FocusProperties) {
+        val gate = currentValueOf(LocalKeyRepeatGate)
+        if (enter) {
+            val inner = focusProperties.onEnter
+            focusProperties.onEnter = {
+                // Enter is focus asked for (coming back to a page), not a move. Refused, the group's own
+                // entry (a focusRestorer's choice of child) doesn't run.
+                if (gate.holding && requestedFocusDirection != FocusDirection.Enter) cancelFocusChange() else inner()
+            }
+        } else {
+            val toward = toward
+            val inner = focusProperties.onExit
+            focusProperties.onExit = {
+                inner()
+                if (gate.holding && requestedFocusDirection in toward) cancelFocusChange()
+            }
+        }
+    }
+}
+
+/**
  * Where focus was on a page, kept with the page's saved state, so coming
  * back to it (Back from an item) lands on the same tile (D-pad rule 2),
  * even though the page's composition was gone meanwhile.

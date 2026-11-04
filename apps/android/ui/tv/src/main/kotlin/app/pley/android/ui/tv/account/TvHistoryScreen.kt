@@ -57,6 +57,8 @@ import app.pley.android.screens.account.HistoryUiState
 import app.pley.android.screens.account.HistoryViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvPillButton
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -113,7 +115,7 @@ internal fun TvHistoryScreen() {
                 )
             } else {
                 LazyColumn(
-                    Modifier.fillMaxSize().focusGroup(),
+                    Modifier.fillMaxSize().heldKeyStaysIn(HeldEnds.UpDown).focusGroup(),
                     contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, bottom = 120.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {

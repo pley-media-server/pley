@@ -57,6 +57,8 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvTextButton
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
@@ -204,6 +206,7 @@ private fun AlbumContent(
                 .fillMaxSize()
                 .padding(end = TvSafeArea.Horizontal)
                 .focusRestorer(entry)
+                .heldKeyStaysIn(HeldEnds.UpDown)
                 .focusGroup()
                 .testTag(TV_ALBUM_TRACKS),
             state = list,

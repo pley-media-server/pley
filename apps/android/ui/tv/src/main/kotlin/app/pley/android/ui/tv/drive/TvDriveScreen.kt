@@ -71,6 +71,8 @@ import app.pley.android.screens.drive.DriveViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -207,6 +209,7 @@ private fun DriveLines(up: Boolean, lines: List<DriveLine>, onLine: (DriveLine) 
             .width(LIST_WIDTH)
             .fillMaxHeight()
             .railOnLeftStopOnRight(rail)
+            .heldKeyStaysIn(HeldEnds.UpDown)
             .focusGroup()
             .testTag(TV_DRIVE_LINES),
         contentPadding = PaddingValues(bottom = 120.dp),

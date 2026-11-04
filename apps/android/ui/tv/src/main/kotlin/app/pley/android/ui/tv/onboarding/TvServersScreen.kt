@@ -73,6 +73,8 @@ import app.pley.android.screens.onboarding.onboardingSource
 import app.pley.android.screens.onboarding.sentence
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvTextButton
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.menuKey
 import app.pley.android.ui.tv.shell.LocalTvNavigator
@@ -197,7 +199,7 @@ internal fun TvServersContent(
             }
             Spacer(Modifier.height(25.dp))
             LazyColumn(
-                Modifier.width(ROW_WIDTH + 16.dp).heightIn(max = 300.dp).focusGroup(),
+                Modifier.width(ROW_WIDTH + 16.dp).heightIn(max = 300.dp).heldKeyStaysIn(HeldEnds.UpDown).focusGroup(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(rows, key = { it.url }, contentType = { "server" }) { row ->

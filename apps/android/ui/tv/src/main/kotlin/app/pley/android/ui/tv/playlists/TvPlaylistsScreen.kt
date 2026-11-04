@@ -47,6 +47,8 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTileFrame
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
@@ -120,7 +122,7 @@ internal fun TvPlaylistsContent(state: Loadable<List<PlaylistCard>>, onRetry: ()
             }
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(COLUMNS),
-                modifier = Modifier.fillMaxSize().railFade().railOnLeftStopOnRight(rail).testTag(TV_PLAYLISTS_GRID),
+                modifier = Modifier.fillMaxSize().railFade().railOnLeftStopOnRight(rail).heldKeyStaysIn(HeldEnds.UpDown).testTag(TV_PLAYLISTS_GRID),
                 contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 28.dp, bottom = 48.dp),
                 horizontalArrangement = Arrangement.spacedBy(PleyTv.TileGap),
                 verticalArrangement = Arrangement.spacedBy(22.dp),

@@ -563,6 +563,7 @@ fun TvRowColumn(
                 .railFade()
                 .clearAboveHeader(state, headerY, clearAbove)
                 .tvRowColumnFocus(holder)
+                .heldKeyStaysIn(HeldEnds.UpDown)
                 // Coming back from the rail: the row focus was in, then (its own restorer) the tile.
                 // focusRestorer here would pick by composition key, which lazy rows share.
                 .focusProperties {
@@ -629,10 +630,12 @@ private class ColumnSpec(private val page: BringIntoViewSpec, private val column
  * Marks a [TvRowColumn]'s hero, its first item: focus coming into it
  * takes the page back to its top as the page goes to a row, over 150 ms,
  * eased out, as the native Samsung app's page does, where Compose's own
- * scrolling would spring there. Nothing outside a page of rows (a
+ * scrolling would spring there. A held Up stops on the first row
+ * ([heldKeyStaysOut]); a press of its own comes into the hero. The hero is
+ * a focus group, after this. Nothing outside a page of rows (a
  * [TvRowColumn], the item page's column).
  */
-fun Modifier.tvRowColumnHero(): Modifier = this then TvRowColumnHeroElement
+fun Modifier.tvRowColumnHero(): Modifier = heldKeyStaysOut() then TvRowColumnHeroElement
 
 private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHeroNode>() {
     override fun create() = TvRowColumnHeroNode()

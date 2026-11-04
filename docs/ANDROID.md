@@ -134,10 +134,13 @@ heard it for that profile, the start asks "Who's watching?".
   nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.
-- A held key never leaves its row or grid: a held Left stops at a row's
-  first tile, and a held Right or Up at a library grid's edge. The rail,
-  the A to Z jump and the chips above the grid take a press of their own.
-  In a grid, Up and Down keep the column, held too. Coming back to a
+- A held key never leaves its list, as on a TV's home screen: it stops
+  on a row's first or last tile, on a page's first or last row, and at a
+  grid's edges, wherever the list is (Home, a show's page, search, a
+  library, collections, playlists, Live TV, Settings). The rail, a
+  page's hero, the A to Z jump and the chips or tabs above a grid take a
+  press of their own, once the key has come up or at the edge. In a
+  grid, Up and Down keep the column, held too. Coming back to a
   grid (Back from a title or its actions, Right from the rail, Down from
   the chips) lands on the tile focus left.
 - On a show's page, Up from the episodes and Down from the buttons go to

@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.kit
 
 import android.view.View
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -111,7 +112,7 @@ class TvRowFocusTest {
                         ) {
                             if (withHero) {
                                 item("hero") {
-                                    Column(Modifier.height(400.dp).tvRowColumnHero()) {
+                                    Column(Modifier.height(400.dp).tvRowColumnHero().focusGroup()) {
                                         Spacer(Modifier.height(341.dp))
                                         Box(
                                             Modifier
@@ -271,6 +272,56 @@ class TvRowFocusTest {
         compose.press(Key.DirectionLeft)
         assertEquals(1, rail.asked)
         compose.onNodeWithTag("rail").assertIsFocused()
+    }
+
+    @Test
+    fun aHeldUpStopsAtTheFirstRowAndOnlyAPressEntersTheHero() {
+        page(withHero = true)
+        compose.press(Key.DirectionDown, times = 2)
+        compose.focused().assertContentDescriptionEquals("B 100")
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionUp)
+        // The press moves up to row A; held from 180 ms, Up goes no further, however long.
+        advance(600)
+        keyUp(Key.DirectionUp)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 1")
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag("resume").assertIsFocused()
+    }
+
+    @Test
+    fun aHeldDownStopsAtTheLastRowAndOnlyAPressGoesOnBelow() {
+        prefetchAsOnATv()
+        compose.setContent {
+            view = LocalView.current
+            list = rememberTvRowColumnState()
+            TvTheme {
+                CompositionLocalProvider(LocalTvRailFocus provides rail, LocalKeyRepeatGate provides gate) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        TvRowColumn(state = list, contentPadding = PaddingValues(top = 172.dp), modifier = Modifier.weight(1f)) {
+                            repeat(3) { r ->
+                                item("r$r") { TvRow("r$r", "Row $r", tiles("R$r", 4, from = r * 100L + 1), TileKind.Poster, onOpen = {}, initialFocus = r == 0) }
+                            }
+                        }
+                        Box(Modifier.size(40.dp).testTag("below").focusable())
+                    }
+                }
+            }
+        }
+        showWindow(view)
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionDown)
+        // The press and the held steps to the last row, and no further, however long.
+        advance(1_000)
+        keyUp(Key.DirectionDown)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("R2 201")
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag("below").assertIsFocused()
     }
 
     @Test

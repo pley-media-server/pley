@@ -106,6 +106,8 @@ import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.TvTextField
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.menuKey
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
@@ -265,6 +267,7 @@ private fun PlaylistContent(page: PlaylistPage<ArtworkTileModel>, vm: PlaylistVi
                 modifier = Modifier
                     .fillMaxSize()
                     .railOnLeftStopOnRight(rail, stopRight = false)
+                    .heldKeyStaysIn(HeldEnds.UpDown)
                     .testTag(TV_PLAYLIST_ENTRIES),
                 contentPadding = PaddingValues(bottom = 200.dp),
             ) {

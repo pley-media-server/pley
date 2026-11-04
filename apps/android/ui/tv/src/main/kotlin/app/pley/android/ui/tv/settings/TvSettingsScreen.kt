@@ -74,6 +74,8 @@ import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.onboarding.ProfileAvatar
@@ -195,6 +197,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                             }
                         }
                         .focusRestorer()
+                        .heldKeyStaysIn(HeldEnds.UpDown)
                         .focusGroup(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
@@ -225,6 +228,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                     Modifier
                         .padding(start = PANE_START - PleyTv.Gutter - CATEGORIES_WIDTH, end = TvSafeArea.Horizontal)
                         .fillMaxSize()
+                        .heldKeyStaysIn(HeldEnds.UpDown)
                         .focusGroup()
                         .testTag(TV_SETTINGS_PANE),
                     contentPadding = PaddingValues(bottom = TvSafeArea.Vertical),

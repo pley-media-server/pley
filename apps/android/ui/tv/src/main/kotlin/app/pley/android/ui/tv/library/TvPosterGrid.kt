@@ -86,6 +86,8 @@ import app.pley.android.ui.tv.kit.TvTileFrame
 import app.pley.android.ui.tv.kit.drawStillRing
 import app.pley.android.ui.tv.kit.focusSlot
 import app.pley.android.ui.tv.kit.TvGlide
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.CoroutineScope
@@ -462,6 +464,7 @@ internal fun TvPosterGrid(
             modifier = modifier
                 .testTag(TestTags.LIBRARY_GRID)
                 .comeBackTo(focus)
+                .heldKeyStaysIn(HeldEnds.All)
                 .focusGroup()
                 .onPlaced { motion.coordinates = it }
                 .onPreviewKeyEvent { event ->
@@ -472,7 +475,8 @@ internal fun TvPosterGrid(
                         // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
                         Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
                         Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus)
-                        Key.DirectionDown -> from + columns < total && motion.column(from, from + columns, focus)
+                        // Held, no cell below in the column (the last row, or a short one below): it stays.
+                        Key.DirectionDown -> if (from + columns >= total) gate.holding else motion.column(from, from + columns, focus)
                         else -> false
                     }
                 }

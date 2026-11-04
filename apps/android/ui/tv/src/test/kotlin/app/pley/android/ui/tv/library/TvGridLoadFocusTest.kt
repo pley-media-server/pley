@@ -77,12 +77,13 @@ class TvGridLoadFocusTest {
     private lateinit var view: View
 
     /**
-     * The grid of [total] cells, with something focusable above it when [above] (the library's chips),
-     * [top] down the screen.
+     * The grid of [total] cells, with something focusable above it when [above] (the library's chips)
+     * and below it when [below], [top] down the screen.
      */
     private fun grid(
         reduced: Boolean? = null,
         above: Boolean = false,
+        below: Boolean = false,
         hero: Boolean = false,
         top: Dp = 0.dp,
         total: Int = tiles.size,
@@ -126,6 +127,7 @@ class TvGridLoadFocusTest {
                             },
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
+                        if (below) Box(Modifier.size(40.dp).testTag(BELOW).focusable())
                     }
                 }
             }
@@ -195,6 +197,38 @@ class TvGridLoadFocusTest {
         // The press and five held steps: six rows down, that row at the top.
         assertEquals(Columns * 6, focus.focused)
         assertEquals(6 * pitch, scrolled(), 1f)
+    }
+
+    @Test
+    fun aHeldDownStopsAtTheLastRowAndAPressGoesOn() {
+        // Two rows and two cells of a third.
+        grid(below = true, total = Columns * 2 + 2)
+        // In the third column, which the last row doesn't reach: held, Down neither leaves the grid nor goes aslant.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight) } }
+        holdDown()
+        assertEquals(Columns + 2, focus.focused)
+        compose.onNodeWithTag(BELOW).assertIsNotFocused()
+        // In the first column: held down to the last row, and no further.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionLeft) } }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        holdDown()
+        assertEquals(Columns * 2, focus.focused)
+        compose.onNodeWithTag(BELOW).assertIsNotFocused()
+        // A press of its own goes on below.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(BELOW).assertIsFocused()
+    }
+
+    /** Down held for most of a second: the press, then held steps from 180 ms. */
+    private fun holdDown() {
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        repeat(50) { frame() }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
     }
 
     /**
@@ -381,6 +415,7 @@ class TvGridLoadFocusTest {
         val Columns = tvGridColumns(TileKind.LibraryGrid)
 
         const val ABOVE = "above"
+        const val BELOW = "below"
         const val HERO = "hero"
         val HeroHeight = 300.dp
     }

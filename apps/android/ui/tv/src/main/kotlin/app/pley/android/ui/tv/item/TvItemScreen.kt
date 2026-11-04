@@ -80,6 +80,8 @@ import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.readOn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -407,6 +409,7 @@ private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, content: Lazy
             modifier = Modifier
                 .fillMaxSize()
                 .tvRowColumnFocus(column)
+                .heldKeyStaysIn(HeldEnds.UpDown)
                 .readOn(state, line = PleyTv.FocusedRowHeaderY, onReading = { focus.reading = it })
                 .railFade()
                 .drawWithContent {
