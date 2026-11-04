@@ -543,16 +543,21 @@ sealed class TizenMediaEngine : IVideoEngine
         _ = Seek(p, to, mine);
     }
 
+    public event Action<long>? RestartAt;
+
     /// <summary>
-    /// A seek before the trimmed playlists begin (<see cref="StartWindow"/>): the film opened again
-    /// from there, with playlists that begin where it now goes, as a film starts.
+    /// The stream can't go on from <paramref name="ms"/> (a seek before the trimmed playlists begin,
+    /// an end said too soon): the player starts a session there, with playlists that begin where it
+    /// now goes, its cover and spinner up meanwhile. Opened again here, without them, the old player
+    /// went and the window showed the TV's menu until the new one's first picture.
     /// </summary>
     void Reopen(long ms)
     {
         var s = source;
         if (s == null) return;
-        Profile.Mark($"engine: {ms / 1000} s is before the playlist begins: opened again from there");
-        Prepare(s with { StartMs = ms }, wanted);
+        Profile.Mark($"engine: can't go on from {ms / 1000} s in this stream: a new session there");
+        if (RestartAt != null) RestartAt(ms);
+        else Prepare(s with { StartMs = ms }, wanted);
     }
 
     /// <summary>

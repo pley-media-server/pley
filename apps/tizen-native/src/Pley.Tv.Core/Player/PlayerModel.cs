@@ -557,6 +557,7 @@ public sealed class PlayerModel : IDisposable
         e.Started += OnFirstFrame;
         e.PlayingChanged += OnPlaying;
         e.Failed += OnError;
+        e.RestartAt += OnRestartAsked;
     }
 
     void Detach(IVideoEngine e)
@@ -565,6 +566,17 @@ public sealed class PlayerModel : IDisposable
         e.Started -= OnFirstFrame;
         e.PlayingChanged -= OnPlaying;
         e.Failed -= OnError;
+        e.RestartAt -= OnRestartAsked;
+    }
+
+    /// <summary>The engine can't go on from <paramref name="atMs"/> in the stream it has: a session there, as a seek after the end starts one.</summary>
+    void OnRestartAsked(long atMs)
+    {
+        if (closed || stopped) return;
+        HideUpNext();
+        lastPositionMs = atMs;
+        SetClock(positionMs: atMs);
+        Restart(atMs);
     }
 
     /// <summary>It plays again by itself (after waiting for data): the screen says so.</summary>

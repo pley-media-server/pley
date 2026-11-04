@@ -16,6 +16,10 @@ sealed class FakeVideoEngine : IVideoEngine
     public event Action? Started;
     public event Action<bool>? PlayingChanged;
     public event Action<EngineError>? Failed;
+    public event Action<long>? RestartAt;
+
+    /// <summary>The engine asks for a session at <paramref name="ms"/> (a trimmed stream sought before it begins).</summary>
+    public void AskRestart(long ms) => RestartAt?.Invoke(ms);
 
     public List<EngineSource> Prepared { get; } = new List<EngineSource>();
     public List<long> Seeks { get; } = new List<long>();

@@ -165,4 +165,11 @@ public interface IVideoEngine : IMediaEngine
     long? BandwidthKbps();
 
     EngineStats? Stats();
+
+    /// <summary>
+    /// The stream it plays can't go on from <c>ms</c>: a stream that begins later than a seek asks for
+    /// (a resumed film's, trimmed to where it resumed), or one the TV's player says ended far from the
+    /// film's end. The player starts a session there, as for any new stream, with its cover and spinner.
+    /// </summary>
+    event Action<long>? RestartAt;
 }

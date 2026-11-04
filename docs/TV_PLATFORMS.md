@@ -441,7 +441,8 @@ film resumes in and naming every segment by the server's own address: the
 player prepares there, a second or two before the resume point, with no
 seek, and the video still comes straight from the server. The player then
 counts from that segment, which the engine adds back to every position,
-seek and duration; a seek before it opens the stream again from there.
+seek and duration; a seek before it starts a session there, as any new
+stream starts, under its black cover.
 The player's calls that hold their caller (its position, its prepare, a
 seek, its streams' details) are made off the UI thread, one at a time, so
 the screen keeps drawing while a film opens; those bound to the window

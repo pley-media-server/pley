@@ -288,6 +288,24 @@ public class PlayerModelTests
     }
 
     [Fact]
+    public void An_engine_that_cant_go_on_from_a_place_gets_a_session_there_under_the_cover()
+    {
+        h.Add(PlayerHarness.Episode(1, 1));
+        h.Start(new PlayRequest(1, 1_800_000, false));
+        h.Play(1_000);
+        Assert.NotNull(h.State.FirstFrameMs);
+        // A seek before where the stream it has begins (a resumed film's, trimmed to where it resumed).
+        h.Engine.AskRestart(600_000);
+        Assert.Equal(new[] { "s1" }, h.Source.Stopped);
+        Assert.Equal(600_000L, (long)h.LastBody["start_ms"]!);
+        Assert.Equal(2, h.Engine.Prepared.Count);
+        Assert.Equal(600_000, h.Engine.Prepared[1].StartMs);
+        // Black until the new stream's first picture, as for any new stream.
+        Assert.Null(h.State.FirstFrameMs);
+        Assert.Equal(PhaseKind.Preparing, h.State.Phase.Kind);
+    }
+
+    [Fact]
     public void Without_autoplay_the_card_waits_and_cancelling_it_at_the_end_ends_playback()
     {
         var next = PlayerHarness.Episode(2, 2);
