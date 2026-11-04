@@ -252,11 +252,18 @@ sub onRequestsRow(event as object)
     extra = reqMoreTile("See all", "requests", "")
     if tiles.Count() = 0 then extra = reqNoticeTile(reqEmptyText("all", true, false), "note")
     setRow(spec.row, tiles, extra)
-    if answer.data.busy and m.top.active then m.busy.control = "start"
+    ' Asked again in 10 s while one of them downloads, in 30 s while the
+    ' event stream is down (reqListPoll).
+    m.busy.control = "stop"
+    seconds = reqListPoll(answer.data.busy, m.top.getScene().eventsLive)
+    if seconds > 0 and m.top.active
+        m.busy.duration = seconds
+        m.busy.control = "start"
+    end if
 end sub
 
-' Your requests asks again: requests changed, one of them downloads, or
-' the page shows again.
+' Your requests asks again: requests changed, one of them downloads, the
+' event stream is down, or the page shows again.
 sub reloadRequests()
     for i = 0 to m.lists.Count() - 1
         if m.lists[i].key = "requests" and m.lists[i].state = "shown" then askRow(i)

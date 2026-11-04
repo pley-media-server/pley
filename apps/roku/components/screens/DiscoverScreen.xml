@@ -57,7 +57,8 @@
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />
         </LayoutGroup>
-        <!-- Your requests asked again while one of them downloads. -->
+        <!-- Your requests asked again while one of them downloads, or
+             while the event stream is down. -->
         <Timer id="busy" duration="10" />
     </children>
 </component>

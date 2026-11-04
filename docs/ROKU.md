@@ -489,9 +489,10 @@ Rules the code keeps:
   (`GET /api/discover/{kind}/{tmdb_id}`, once a title for events that come
   together), never one request's. The screen on top that shows requests
   asks again; nothing reloads whole.
-  Without the stream a TMDB title's page showing a request asks each 30 s;
-  while something downloads, title pages (TMDB's and the libraries'), the
-  requests and Discover's Your requests ask each 10 s.
+  Without the stream the requests, Discover's Your requests and a TMDB
+  title's page showing a request ask each 30 s; while something
+  downloads, title pages (TMDB's and the libraries'), the requests and
+  Discover's Your requests ask each 10 s.
 - **Notices** are kept per server and profile (registry section
   `requests`, the newest 40): what was told of each request once its
   notice was seen (Open, OK or Back), so a title is told of once, on this
@@ -564,8 +565,8 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 
 - No playback speed or audio delay: the Video node has neither.
 - Live updates need an `http://` server; with `https://`, Home and the
-  requests' summary refresh once a minute, a title page with a request
-  each 30 s.
+  requests' summary refresh once a minute, the requests, Discover's Your
+  requests and a title page with a request each 30 s.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Home has no hero over its rows, which the other TVs have.

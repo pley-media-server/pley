@@ -1233,6 +1233,17 @@ function reqBusy(stage as string) as boolean
     return stage = "downloading" or stage = "importing"
 end function
 
+' How soon an open list of requests (the requests, Discover's Your
+' requests) is asked again, in seconds, 0 for not: in 10 while one of them
+' downloads or goes into a library (download progress sends no events),
+' in 30 while the event stream is down (live false), when nothing tells
+' of changes.
+function reqListPoll(busy as boolean, live as boolean) as integer
+    if busy then return 10
+    if not live then return 30
+    return 0
+end function
+
 function reqActionNames(actions as dynamic) as object
     out = []
     for each action in httpArray(actions)

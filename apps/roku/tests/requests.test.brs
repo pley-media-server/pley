@@ -314,6 +314,15 @@ sub test_requests_rows()
     tkFalse(reqBusy("waiting"))
 end sub
 
+' An open list is asked again while a download moves, which sends no
+' events, and while no event can tell it what changed.
+sub test_requests_lists_are_asked_again_without_events()
+    tkEqual(reqListPoll(true, true), 10, "a download moves")
+    tkEqual(reqListPoll(true, false), 10)
+    tkEqual(reqListPoll(false, false), 30, "the event stream is down")
+    tkEqual(reqListPoll(false, true), 0, "events tell of changes")
+end sub
+
 ' Discover's Your requests: the stage under the poster, in its colour;
 ' and the managers' person filter.
 sub test_requests_request_tiles_and_people()

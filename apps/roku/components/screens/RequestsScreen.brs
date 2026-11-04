@@ -2,12 +2,12 @@
 ' nears the end: a tab for each status with its number (lib/Requests.brs's
 ' reqTabs, reqTabCount), a manager's filters (movies or shows, who asked,
 ' words of the title), and what can be done with each request
-' (shared/RequestActions.brs). It asks
-' again as it shows, as requests change (the scene's requestsChanged),
-' each 10 s while one of them downloads, and after an action, the focus
-' staying on the request it was on. Shown to the account, its news is
-' seen (POST /api/requests/seen). params: { view (a tab's key; "mine"
-' opens a manager's Yours, everyone else's All) }.
+' (shared/RequestActions.brs). It asks again as it shows, as requests
+' change (the scene's requestsChanged), each 10 s while one of them
+' downloads, each 30 s while the event stream is down, and after an
+' action, the focus staying on the request it was on. Shown to the
+' account, its news is seen (POST /api/requests/seen). params: { view (a
+' tab's key; "mine" opens a manager's Yours, everyone else's All) }.
 
 sub init()
     m.heading = m.top.findNode("heading")
@@ -52,6 +52,8 @@ sub init()
     m.loading = false
     m.reloading = false
     m.reloadWanted = false
+    ' One of the requests listed downloads or goes into a library.
+    m.listBusy = false
     m.seeing = false
     m.problemShown = invalid
     m.sideAction = ""
@@ -216,6 +218,7 @@ sub startListing()
     m.listing = m.listing + 1
     m.offset = 0
     m.total = -1
+    m.listBusy = false
     m.loading = false
     m.reloading = false
     m.reloadWanted = false
@@ -259,7 +262,8 @@ sub onPage(event as object)
     if rows <> invalid and rows.getChildCount() > 0 then content.appendChildren(rows.getChildren(-1, 0))
     keepCounts(data.counts)
     showList()
-    if data.busy then keepAsking()
+    m.listBusy = m.listBusy or data.busy
+    keepAsking()
     markSeen()
     if m.reloadWanted then reload()
 end sub
@@ -320,9 +324,10 @@ sub onReloaded(event as object)
         putRows(rows)
         keepCounts(data.counts)
         showList()
-        if data.busy then keepAsking()
+        m.listBusy = data.busy
         markSeen()
     end if
+    keepAsking()
     if m.reloadWanted then reload()
 end sub
 
@@ -389,10 +394,14 @@ function rowChanged(shown as object, fresh as object) as boolean
     return FormatJson(shown.actions) <> FormatJson(fresh.actions) or FormatJson(shown.seasons) <> FormatJson(fresh.seasons)
 end function
 
-' Asked again in 10 s: one of the requests downloads or goes into a
-' library.
+' Asked again in 10 s while one of the requests downloads or goes into a
+' library, in 30 s while the event stream is down (reqListPoll).
 sub keepAsking()
-    if m.top.active then m.busy.control = "start"
+    m.busy.control = "stop"
+    seconds = reqListPoll(m.listBusy, m.top.getScene().eventsLive)
+    if seconds = 0 or not m.top.active then return
+    m.busy.duration = seconds
+    m.busy.control = "start"
 end sub
 
 ' The account's own requests shown (Your requests, a manager's Yours):
