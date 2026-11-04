@@ -83,7 +83,7 @@ const defs = logo.match(/<defs>[\s\S]*<\/defs>/)[0];
 // pictures here place and scale them themselves.
 const glyph = `<g>${logo.match(/<g[^>]*>([\s\S]*?)<\/g>/)[1]}</g>`;
 const TILE = "#0a1622";
-// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' and the iPhone's:
+// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' and Apple's:
 // the back poster darker than the favicon's, which a browser tab may show on white.
 const tvGlyph = glyph.replace('fill="#0369a1"', 'fill="#0c4a6e"');
 if (tvGlyph === glyph) throw new Error("the favicon's back poster isn't #0369a1 any more");
@@ -188,7 +188,7 @@ function tvBack(width, height) {
  */
 function tvFront(width, height) {
   const s = (height * 0.5) / 33;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<g transform="translate(${width / 2 - 32 * s} ${height / 2 - 32 * s}) scale(${s})">${glyph}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<g transform="translate(${width / 2 - 32 * s} ${height / 2 - 32 * s}) scale(${s})">${tvGlyph}</g></svg>`;
 }
 
 /**
@@ -238,7 +238,7 @@ function template(size, s) {
 /** Apple's macOS grid: the plate 824 of 1024 at (100, 100), corners about 185, a shadow 10 down. */
 const MAC = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${defs}
   <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/></filter>
-  <g filter="url(#shadow)"><g transform="translate(100 100) scale(12.875)"><rect width="64" height="64" rx="14.4" fill="${TILE}"/>${glyph}</g></g></svg>`;
+  <g filter="url(#shadow)"><g transform="translate(100 100) scale(12.875)"><rect width="64" height="64" rx="14.4" fill="${TILE}"/>${tvGlyph}</g></g></svg>`;
 
 /** A .ico of PNG entries, in the order given. */
 function ico(images) {
