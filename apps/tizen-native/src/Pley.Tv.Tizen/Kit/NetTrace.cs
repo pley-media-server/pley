@@ -141,14 +141,22 @@ static class NetTrace
     /// <summary>
     /// The listener's "wifi": the access point the TV is joined to (its BSSID: which mesh node), and
     /// every access point of the same network in the TV's last scan, strongest first, with signal,
-    /// band and rate. Other networks are left out: they are the neighbours'.
+    /// band and rate. Other networks are left out: they are the neighbours'. With <paramref name="scan"/>,
+    /// the TV scans first (the debug build has network.set for it), as its last scan may hold only its own.
     /// </summary>
-    public static void WiFi()
+    public static void WiFi(bool scan)
     {
-        _ = System.Threading.Tasks.Task.Run(() =>
+        _ = System.Threading.Tasks.Task.Run(async () =>
         {
             try
             {
+                // A scan by BSSID: the ordinary one lists a network once, however many access points it has.
+                if (scan)
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    await WiFiManager.BssidScanAsync();
+                    Profile.Mark($"wifi: scanned in {sw.ElapsedMilliseconds} ms");
+                }
                 using var ap = WiFiManager.GetConnectedAP();
                 if (ap == null)
                 {
@@ -158,13 +166,28 @@ static class NetTrace
                 ap.Refresh();
                 var me = ap.NetworkInformation;
                 Profile.Mark($"wifi: joined to {me.Bssid} rssi {me.Rssi} dBm ({me.RssiLevel}) {me.Frequency} MHz rate {me.MaxSpeed} Mbps, network \"{me.Essid}\"");
-                var found = WiFiManager.GetFoundAPs().ToList();
+                var found = (scan ? WiFiManager.GetFoundBssids() : WiFiManager.GetFoundAPs()).ToList();
+                if (scan)
+                {
+                    // Each way of scanning, as TVs differ in which gives every access point.
+                    Profile.Mark($"wifi: by BSSID {found.Count}, the ordinary scan {WiFiManager.GetFoundAPs().Count()}");
+                    await WiFiManager.ScanSpecificAPAsync(me.Essid);
+                    var named = WiFiManager.GetFoundSpecificAPs().ToList();
+                    Profile.Mark($"wifi: a scan for \"{me.Essid}\" heard {named.Count}");
+                    if (named.Count > found.Count(f => f.NetworkInformation.Essid == me.Essid)) found = named;
+                }
                 var ours = found.Where(f => f.NetworkInformation.Essid == me.Essid).OrderByDescending(f => f.NetworkInformation.Rssi).ToList();
                 Profile.Mark($"wifi: the last scan heard {found.Count} access points, {ours.Count} of this network");
                 foreach (var f in ours)
                 {
                     var n = f.NetworkInformation;
                     Profile.Mark($"wifi:   {n.Bssid} rssi {n.Rssi} dBm {n.Frequency} MHz rate {n.MaxSpeed} Mbps{(n.Bssid == me.Bssid ? "  <- joined" : "")}");
+                }
+                // Access points the scan heard without a name (hidden, or a mesh's own links), by signal: no neighbour's name in them.
+                foreach (var f in found.Where(f => string.IsNullOrEmpty(f.NetworkInformation.Essid)).OrderByDescending(f => f.NetworkInformation.Rssi).Take(8))
+                {
+                    var n = f.NetworkInformation;
+                    Profile.Mark($"wifi:   unnamed {n.Bssid} rssi {n.Rssi} dBm {n.Frequency} MHz");
                 }
                 foreach (var f in found) f.Dispose();
             }
@@ -355,7 +378,7 @@ static class NetTrace
 #else
     public static void Playing(string url, Func<long> at) { }
     public static void Speed() { }
-    public static void WiFi() { }
+    public static void WiFi(bool scan) { }
     public static void Buffered(int percent) { }
     public static void Start() { }
     public static void Stop() { }

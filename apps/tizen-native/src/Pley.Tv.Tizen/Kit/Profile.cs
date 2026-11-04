@@ -241,7 +241,7 @@ static class Profile
                 else if (wanted.StartsWith("keys ", StringComparison.Ordinal)) Press(wanted.Substring(5).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (wanted.StartsWith("record ", StringComparison.Ordinal)) Record(window, dataDir, root, wanted.Substring(7).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (wanted == "speed") NetTrace.Speed();
-                else if (wanted == "wifi") NetTrace.WiFi();
+                else if (wanted == "wifi" || wanted == "wifi scan") NetTrace.WiFi(wanted == "wifi scan");
             }
             catch (Exception)
             {

@@ -582,7 +582,9 @@ again (ready on the server, so the network alone), then four at once, and
 marks how long each took to start and how fast it came.
 `wifi` marks the access point the TV is joined to (its BSSID, which tells
 a mesh network's nodes apart) and those of the same network in the TV's
-last scan, with their signal, band and rate.
+last scan, with their signal, band and rate; `wifi scan` scans first (the
+profiling build alone has `network.set` for it), as Tizen lists a network
+once in an ordinary scan, however many access points it has.
 
 ```sh
 node apps/tizen-native/scripts/metrics.mjs --tv S89C speed
