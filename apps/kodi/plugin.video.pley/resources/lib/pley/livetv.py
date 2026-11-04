@@ -10,14 +10,17 @@ makes the sound AAC stereo, and starts a few segments behind.
 
 The plugin's play route first asks to watch (`POST …/watch`), which tunes
 the channel, says when every connection is in use (409), and gives what is
-on for the player's info; then hands Kodi the stream, whose reader ends the
-`watch` (the same `client_id`). A device watches one channel at a time:
-changing channel lets go of the one before.
+on for the player's info; then hands Kodi the stream, read for that watch
+session (`<client_id>-stream`), which stays while it is read. A device
+watches one channel at a time: changing channel lets go of the one before.
+The service leaves the session (`DELETE /api/live/sessions/{session}`)
+once Kodi stops reading it, rather than the server waiting 45 s.
 """
 
 from __future__ import annotations
 
 import datetime
+import json
 import re
 import time
 from urllib.parse import urlencode
@@ -25,7 +28,7 @@ from urllib.parse import urlencode
 import xbmc
 import xbmcgui
 
-from . import api, kodi, words
+from . import api, kodi, remote, words
 from .listing import image
 
 SUMMARY = "/api/live"
@@ -116,17 +119,24 @@ def watch(client, channel_id: int, client_id: str, take_over=None) -> dict:
     the channel, with what is on. Raises ApiError, 409 when every
     connection of its source is in use (its `details` say what holds
     each, `connections`); `take_over`, the channel whose connection to take
-    then, where the server lets this account."""
-    asked = {"client_id": client_id}
+    then, where the server lets this account. The session is the one the
+    user's remote lists and commands (its stream is read for it,
+    stream_path): the service is told it (kodi.LIVE)."""
+    asked = {"client_id": client_id, "controls": remote.controls("live", has_order=len(queued_channels() or []) > 1)}
+    asked.update(remote.device())
     if take_over is not None:
         asked["take_over"] = int(take_over)
     answer = client.post("%s/%d/watch" % (CHANNELS, channel_id), asked) or {}
+    if answer.get("session_id"):
+        kodi.set_property(kodi.LIVE, json.dumps({"session_id": answer["session_id"], "channel_id": channel_id}))
     return answer.get("channel") or {"id": channel_id, "name": ""}
 
 
 def stream_path(channel_id: int, client_id: str, take_over=None) -> str:
-    """The channel's MPEG-TS as the provider sends it, on the server."""
-    asked = {"client_id": client_id}
+    """The channel's MPEG-TS as the provider sends it, on the server, read
+    for this device's watch session (`<client_id>-stream`), which stays
+    while it is read: the remote reaches Kodi through that session."""
+    asked = {"client_id": client_id + "-stream", "device_kind": remote.device()["device_kind"]}
     if take_over is not None:
         asked["take_over"] = int(take_over)
     return "%s/%d/stream.ts?%s" % (CHANNELS, channel_id, urlencode(asked))
@@ -419,6 +429,20 @@ def is_ours(playlist) -> bool:
         return playlist.size() > 0 and "route=%s" % PLAY_ROUTE in playlist[0].getPath() and kodi.ADDON_ID in playlist[0].getPath()
     except (RuntimeError, IndexError, AttributeError, TypeError):
         return False
+
+
+def queued_channels():
+    """The channels of Kodi's video queue, in order, when it is a queue of
+    pley's channels; None otherwise."""
+    playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+    if not is_ours(playlist):
+        return None
+    found = []
+    for at in range(playlist.size()):
+        params = remote.entry_params(playlist, at)
+        if params.get("route") == PLAY_ROUTE and params.get("id", "").isdigit():
+            found.append(int(params["id"]))
+    return found
 
 
 def forget_queue() -> None:

@@ -137,10 +137,21 @@ sub markRow(at as integer, current as boolean)
     m.rows.replaceChild(fresh, index)
 end sub
 
-' Stopped (the queue played out, or Stop), the screen goes.
+' Stopped (the queue played out, or Stop), the screen goes; stopped from
+' another device or by the server's administrator, the scene says so over
+' the screen before, as after a video.
 sub onMusicState()
-    if m.global.music.state = "stopped"
-        if m.top.active then uiNavigate({ back: true })
+    music = m.global.music
+    if music.state = "stopped"
+        if not m.top.active then return
+        if music.stoppedBy = ""
+            uiNavigate({ back: true })
+            return
+        end if
+        lines = music.stoppedBy.Split(Chr(10))
+        message = []
+        if lines.Count() > 1 then message.Push(lines[1])
+        uiNavigate({ back: true, message: { title: lines[0], lines: message } })
         return
     end if
     showButtons()

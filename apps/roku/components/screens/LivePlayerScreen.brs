@@ -11,7 +11,9 @@
 ' category or a search), a page of it at a time (GET
 ' /api/live/browse?around=), round its ends. Leaving
 ' sends DELETE /api/live/sessions/{session}, so the connection goes at
-' once, and Live TV opens back at the channel watched.
+' once, and Live TV opens back at the channel watched. The user's remote,
+' on another device, changes channel as up and down do (Remote.brs), and
+' watching stopped from elsewhere stops here, saying who stopped it.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -67,6 +69,10 @@ sub init()
     ' lead to before it is tuned.
     m.channel = invalid
     m.zapTo = invalid
+    ' Channels picked (the list, Watch again; Live.brs's liveTunePicks), so
+    ' a step waiting for a page can tell one was chosen meanwhile, the same
+    ' channel again too.
+    m.picks = 0
     ' The category up and down go through (the one the player was opened
     ' from, or the one a channel was last chosen in from the list), the
     ' page of it held ({ total, offset, channels }) and its rows, and the
@@ -110,6 +116,10 @@ sub init()
     m.sessionId = ""
     m.playlist = ""
     m.played = false
+    ' The session of the channel tuned, kept after it failed (until another
+    ' tuning), so a stop from elsewhere that comes after its 410 still says
+    ' who stopped it.
+    m.watched = ""
     ' The times the channel was tuned again after failing, since it was
     ' tuned or Try again was chosen (liveRetryDelay), and the tuning the
     ' retry waiting belongs to.
@@ -132,6 +142,8 @@ sub init()
     m.bannerLogo.observeField("loadStatus", "onLogos")
     m.top.observeField("active", "onActive")
     m.top.observeField("liveTakenOver", "onTakenOver")
+    m.top.observeField("serverStopped", "onServerStopped")
+    m.top.observeField("playerCommand", "onPlayerCommand")
 end sub
 
 sub onActive()
@@ -184,13 +196,14 @@ end function
 ' "last" of it is the channel they lead to), for the list when it is the
 ' one the list shows (pick "top" or "bottom": where its focus goes).
 ' Within 10 s of a page of the category that failed, nothing more of it is
-' asked: the other categories, the list's or up and down's, go on.
-sub askPage(category as string, offset as integer, around as integer, pick as string)
+' asked: the other categories, the list's or up and down's, go on. from:
+' the channel up or down stepped from, for a pick.
+sub askPage(category as string, offset as integer, around as integer, pick as string, from = 0 as integer)
     if category = m.failedCategory and not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
     m.asks = m.asks + 1
     if category = m.category then m.pageAsked = m.asks
     if category = m.listCategory then m.listAsked = m.asks
-    uiRequest({ op: "livePage", kind: "list", category: category, offset: offset, limit: livePageSize(), around: around, asked: m.asks, pick: pick }, "onPage")
+    uiRequest({ op: "livePage", kind: "list", category: category, offset: offset, limit: livePageSize(), around: around, asked: m.asks, pick: pick, from: from, picks: m.picks }, "onPage")
 end sub
 
 sub onPage(event as object)
@@ -226,8 +239,13 @@ sub onPage(event as object)
             m.channel = page.channels[at]
             if m.banner.visible then showBanner(false)
         end if
-        if spec.pick = "first" and page.channels.Count() > 0 then zapTo(page.channels[0])
-        if spec.pick = "last" and page.channels.Count() > 0 then zapTo(page.channels[page.channels.Count() - 1])
+        ' The step waited for this page: it goes on only from where it
+        ' started, and while watching goes on, so it can't undo a channel
+        ' chosen meanwhile.
+        if stepStillFrom(spec.from, spec.picks)
+            if spec.pick = "first" and page.channels.Count() > 0 then zapTo(page.channels[0])
+            if spec.pick = "last" and page.channels.Count() > 0 then zapTo(page.channels[page.channels.Count() - 1])
+        end if
     end if
     if listed then showListPage(page, content, spec.pick)
 end sub
@@ -293,6 +311,16 @@ sub closeList()
         m.top.setFocus(true)
     end if
 end sub
+
+' Whether channel up or down from the channel with id may still go on
+' (Live.brs's liveStepGoesOn has the rule).
+function stepStillFrom(id as dynamic, picks as dynamic) as boolean
+    from = m.zapTo
+    if from = invalid then from = m.channel
+    shownId = invalid
+    if from <> invalid then shownId = from.id
+    return liveStepGoesOn(id, picks, m.picks, shownId, m.trouble <> invalid, m.top.active)
+end function
 
 ' The page that failed, when it was category's, asked for again.
 sub askAgain(category as string)
@@ -555,7 +583,7 @@ sub zap(by as integer)
     end if
     which = "first"
     if move.last then which = "last"
-    askPage(m.category, move.offset, 0, which)
+    askPage(m.category, move.offset, 0, which, from.id)
 end sub
 
 ' The channel's logo and name show at once, and it is tuned once the
@@ -578,14 +606,16 @@ sub onZapTimer()
         if m.played then m.card.visible = false
         return
     end if
-    tune(target)
+    tune(target, 0, false, true)
 end sub
 
 ' Watches channel: the session before it ends (the server ends it too,
 ' by the client_id), its logo shows while it starts. again: tuned again
-' after a failure, which counts against the retries.
-sub tune(channel as object, takeOver = 0 as integer, again = false as boolean)
+' after a failure, which counts against the retries. stepped: led to by up
+' and down, which a step still waiting goes on from. Neither is a pick.
+sub tune(channel as object, takeOver = 0 as integer, again = false as boolean, stepped = false as boolean)
     m.attempt = m.attempt + 1
+    m.picks = liveTunePicks(m.picks, again, stepped)
     abandonWatch()
     leave()
     if not again then m.retries = 0
@@ -593,6 +623,7 @@ sub tune(channel as object, takeOver = 0 as integer, again = false as boolean)
     m.zapTo = invalid
     m.zapTimer.control = "stop"
     m.channel = channel
+    m.watched = ""
     ' Kept for the server and profile: Live TV opens at it, after a
     ' restart too.
     session = m.global.session
@@ -607,7 +638,9 @@ sub tune(channel as object, takeOver = 0 as integer, again = false as boolean)
     hideBanner()
     markCurrent()
     if not m.list.visible then m.top.setFocus(true)
-    m.watchRequest = uiRequest({ op: "liveWatch", channelId: channel.id, takeOver: takeOver, attempt: m.attempt }, "onWatch")
+    ' The user's remote changes channel through the category, as up and
+    ' down do.
+    m.watchRequest = uiRequest({ op: "liveWatch", channelId: channel.id, takeOver: takeOver, attempt: m.attempt, controls: remoteLiveControls(true) }, "onWatch")
 end sub
 
 ' The watch asked for isn't wanted any more: the API task ends it if it
@@ -644,6 +677,7 @@ sub onWatch(event as object)
         return
     end if
     m.sessionId = httpString(answer.data.session_id)
+    m.watched = m.sessionId
     m.playlist = httpString(answer.data.url)
     fresh = liveChannel(answer.data.channel, m.global.session.server, liveLogoWidth(), m.category)
     if fresh <> invalid and fresh.id = m.channel.id then m.channel = fresh
@@ -731,8 +765,43 @@ sub onTakenOver(event as object)
         if m.trouble.kind = "stopped" and httpSentence(data.message) <> "" and m.trouble.message <> stopped.message then trouble(stopped)
         return
     end if
-    ' What is on its way belongs to watching that ended, and its session is
-    ' gone on the server: nothing to leave.
+    endWatching(stopped)
+end sub
+
+' The watching's session stopped from another device or by the server's
+' administrator (session_stopped): it stops as for a connection taken
+' over, saying who stopped it and their message. Said already from the
+' playlist's 410, these words show instead. Unlike a connection taken
+' over, a channel change on its way (Up or Down pressed) ends too: the
+' person stopped watching, not one channel.
+sub onServerStopped(event as object)
+    data = event.getData()
+    session = httpString(data.session_id)
+    if not m.started or session = "" or (session <> m.sessionId and session <> m.watched) then return
+    stopped = liveStoppedBy(data)
+    m.zapTo = invalid
+    m.zapTimer.control = "stop"
+    if m.trouble <> invalid
+        if m.trouble.kind = "stopped" and m.trouble.message <> stopped.message then trouble(stopped)
+        return
+    end if
+    endWatching(stopped)
+end sub
+
+' A command of the user's remote, on another device, for the watching's
+' session (Remote.brs has the rule): next and previous are channel up and
+' down, through the same category, the new channel's watch telling the
+' server. Watching that stopped, or says what went wrong, obeys nothing.
+sub onPlayerCommand(event as object)
+    if not m.top.active or m.sessionId = "" or m.trouble <> invalid or m.notice.visible then return
+    action = remoteAction({ kind: "live", session: m.sessionId, hasOrder: true }, event.getData())
+    if action.act = "channel" then zap(action.by)
+end sub
+
+' Watching ended on the server: what is on its way belongs to it, and its
+' session is gone there, so nothing is left; changing channel already (Up
+' or Down pressed), the change goes on to the channel chosen.
+sub endWatching(stopped as object)
     m.attempt = m.attempt + 1
     abandonWatch()
     m.sessionId = ""

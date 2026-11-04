@@ -16,6 +16,13 @@
         <!-- The server's live_taken_over: someone took over a channel's
              connection from this account ({ session_id, channel_id, message }). -->
         <field id="liveTakenOver" type="assocarray" alwaysNotify="true" />
+        <!-- The watching's session stopped from another device or by the
+             server's administrator ({ session_id, message, by_admin }). -->
+        <field id="serverStopped" type="assocarray" alwaysNotify="true" />
+        <!-- A command of the user's remote, on another device ({
+             session_id, command, position_ms, offset_ms }): next and
+             previous change channel. -->
+        <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -25,6 +32,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
         <Video id="video" width="1920" height="1080" enableUI="false" />

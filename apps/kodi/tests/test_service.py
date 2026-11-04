@@ -495,15 +495,15 @@ class RestartTest(unittest.TestCase):
         self.asked = []
         kodi.set_property(kodi.PROXY, "http://127.0.0.1:1/secret")
 
-        def prepare(client, base, item_id, start_ms, detail=None, restart=None):
-            self.asked.append((base, item_id, start_ms, restart))
+        def prepare(client, base, item_id, start_ms, detail=None, restart=None, kind=None):
+            self.asked.append((base, item_id, start_ms, restart, kind))
             kodi.set_property(kodi.PLAYING, json.dumps({"session_id": "new", "path": "http://proxy/new"}))
             return xbmcgui.ListItem(path="http://proxy/new")
 
         playback.prepare = prepare
         self.player = AutoPlayer()
         self.player.restart = Player.restart.__get__(self.player)
-        self.player.starts(automatic("s1"))
+        self.player.starts(dict(automatic("s1"), kind="movie"))
 
     def tearDown(self):
         self.playback.prepare = self.prepare
@@ -512,7 +512,8 @@ class RestartTest(unittest.TestCase):
 
     def test_it_plays_from_where_it_was(self):
         self.player.restart(7, 754_321, "8m")
-        self.assertEqual(self.asked, [("http://127.0.0.1:1/secret", 7, 754_321, "8m")])
+        # A movie still, for what the user's remote may do (playback.obeys).
+        self.assertEqual(self.asked, [("http://127.0.0.1:1/secret", 7, 754_321, "8m", "movie")])
         (path, li), = self.player.played
         self.assertEqual((path, li.properties["StartOffset"]), ("http://proxy/new", "754.321"))
 

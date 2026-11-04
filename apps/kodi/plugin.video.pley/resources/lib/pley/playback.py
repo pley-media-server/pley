@@ -13,7 +13,7 @@ import time
 import xbmc
 import xbmcgui
 
-from . import api, autoquality, kodi, listing, tracks
+from . import api, autoquality, kodi, listing, remote, tracks
 from .api import path_in
 
 # The quality setting (docs/QUALITY.md): a quality's id. Before Automatic
@@ -59,13 +59,17 @@ def beside(base: str, info: dict, file=None) -> list:
     ]
 
 
-def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None) -> xbmcgui.ListItem:
+def prepare(
+    client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None, kind=None
+) -> xbmcgui.ListItem:
     """Kodi's item for playing `item_id` from `start_ms`, its address set,
     once the server said how. The item's details (for Kodi's info) are
     asked for while the server decides, unless given. Tells the service
     what plays (kodi.PLAYING). `restart` is Automatic's quality when the
-    service plays the title again at another one."""
+    service plays the title again at another one. `kind` is the title's,
+    when known without its details (from a listing)."""
     started = time.perf_counter()
+    kind = (detail or {}).get("kind") or kind
     details = {"item": detail} if detail else {}
     loader = None
     if not detail:
@@ -80,7 +84,9 @@ def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=N
         "max_bitrate": asked["max_bitrate"],
         "max_height": asked["max_height"],
         "mode": asked["mode"],
+        "controls": obeys(item_id, kind),
     }
+    request.update(remote.device())
     # The account's subtitles, when they are pictures Kodi can't be given
     # as a file (VobSub, DVB): drawn onto the video if the file is
     # converted (the server draws nothing when Kodi shows them itself). PGS
@@ -129,7 +135,7 @@ def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=N
         "duration_ms": duration_ms,
         "path": url,
         # What the service needs for Skip and Up Next, so it asks for none of it again.
-        "kind": (detail or {}).get("kind"),
+        "kind": (detail or {}).get("kind") or kind,
         "markers": markers,
     }
     if (detail or {}).get("kind") not in listing.MUSIC:
@@ -143,6 +149,17 @@ def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=N
     elapsed = (time.perf_counter() - started) * 1000
     kodi.log("playing %d by %s, ready in %d ms%s" % (item_id, info.get("method"), elapsed, ": " + reason if reason else ""))
     return li
+
+
+def obeys(item_id: int, kind=None) -> list:
+    """What the user's remote may do with this playback (remote.controls):
+    a track's, one in Kodi's music queue or known to be music; a video's
+    otherwise, with next for an episode (the one after it, as Up Next
+    plays) or when Kodi's queue has something after it."""
+    place = remote.queue_place(item_id)
+    music = (place is not None and place[0] == "music") or kind in listing.MUSIC
+    has_next = (place is not None and place[1] + 1 < place[2]) or kind == "episode"
+    return remote.controls("music" if music else "video", has_next=has_next)
 
 
 def file_mime(detail, file_id):
