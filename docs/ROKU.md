@@ -312,13 +312,17 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   watched are kept per server and profile (registry section `liveViews`):
   the list opens at that channel, back from the player and after a
   restart.
+- **Search** (the entry over the categories, or Replay) is typed on
+  Roku's keyboard; Clear in it, or Back, goes back to the category shown
+  before.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details. Back goes up a
-  step at a time: the guide back to now (when another time shows, or a
-  programme not on now has focus), then to the categories, then out of
-  Live TV.
+  the channel; on a later programme it shows its details.
 - **Channels:** the other tab, as cards with what's on and what's next.
+- **Back** goes up a step at a time: the guide back to now (when another
+  time shows, or a programme not on now has focus), a search back to the
+  category before, the guide or the cards to the categories, then out of
+  Live TV.
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the

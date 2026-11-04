@@ -134,6 +134,14 @@ sub test_live_search()
     tkEqual(liveGroupsMatching(groups, "  "), [])
 end sub
 
+sub test_live_search_goes_back_to_the_category_before()
+    before = liveBeforeSearch("group:UK| Sport", "all")
+    tkEqual(before, "group:UK| Sport", "the category shown as the search began")
+    tkEqual(liveBeforeSearch("search:bbc", before), "group:UK| Sport", "kept through another search")
+    tkEqual(liveBeforeSearch("favorites", before), "favorites", "a search from another category")
+    tkEqual(liveBeforeSearch("", "favorites"), "all")
+end sub
+
 sub test_live_rail_pages()
     kinds = ["category", "category", "heading", "region", "region", "region", "heading", "category", "category", "category"]
     tkEqual(liveRailPage(kinds, 0, 4, 1), 4)

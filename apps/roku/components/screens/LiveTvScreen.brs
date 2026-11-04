@@ -38,6 +38,8 @@ sub init()
     m.railFocused = 0
     m.open = ""
     m.query = ""
+    ' The category shown before a search, which leaving it shows again.
+    m.beforeSearch = "all"
     ' The guide: where it starts, how far it is fetched, the page shown
     ' ({ total, offset, channels }), the focus as it was last seen (to tell
     ' a page's end gone round), and which asking an answer must be for.
@@ -177,8 +179,7 @@ sub buildRail()
     m.railFocused = at
     m.rail.content = nodesContent(items)
     m.rail.jumpToItem = at
-    searching = Left(m.view.category, 7) = "search:"
-    m.searchRow.content = nodesContent([{ title: liveSearchLabel(m.query), countText: "", mark: "", inner: false, heading: false, current: searching }])
+    m.searchRow.content = nodesContent([{ title: liveSearchLabel(m.query), countText: "", mark: "", inner: false, heading: false, current: searching() }])
 end sub
 
 ' Rewind and fast forward in the rail: a screen of categories back or on.
@@ -332,20 +333,33 @@ sub onSearchAnswered(event as object)
     label = labels[chosen]
     if label = "Cancel" then return
     if label = "Clear" or text = ""
-        ' Back to every channel.
-        m.query = ""
-        if Left(m.view.category, 7) = "search:"
-            m.view.category = ""
-            choose("all")
+        if searching()
+            leaveSearch()
         else
+            m.query = ""
             buildRail()
         end if
         return
     end if
+    m.beforeSearch = liveBeforeSearch(m.view.category, m.beforeSearch)
     m.query = httpSentence(text)
     m.view.category = ""
     choose("search:" + m.query)
     toChannels()
+end sub
+
+function searching() as boolean
+    return Left(m.view.category, 7) = "search:"
+end function
+
+' Out of a search, as Back or Clear leaves it: the category before it
+' again, the focus where it is.
+sub leaveSearch()
+    inContent = m.guide.isInFocusChain() or m.cards.isInFocusChain()
+    m.query = ""
+    m.view.category = ""
+    choose(m.beforeSearch)
+    if inContent then toChannels()
 end sub
 
 ' The category's channels from the start, or from the page around channel
@@ -504,7 +518,7 @@ sub onGuide(event as object)
 end sub
 
 function emptyText() as string
-    if Left(m.view.category, 7) = "search:" then return "No channel's name, number or programme on now has “" + m.query + "” in it."
+    if searching() then return "No channel's name, number or programme on now has “" + m.query + "” in it."
     if m.view.category = "favorites" then return "No favourites yet: the Options key (*) on a channel adds it."
     if m.view.category = "recent" then return "Nothing watched yet."
     return "No channels here."
@@ -823,14 +837,19 @@ sub onFavorite(event as object)
     end if
 end sub
 
-' Back goes up a step at a time: the guide back to now, then the channels
-' to the categories, and on the rail it leaves. Left from the channels
-' goes to the categories too, Right from them to the channels; up from the
-' rail's top, the tabs. The Options key on a programme or a card: the
-' channel's options.
+' Back goes up a step at a time: the guide back to now, a search back to
+' the category before, the channels to the categories, and on the rail it
+' leaves. Left from the channels goes to the categories too, Right from
+' them to the channels; up from the rail's top, the tabs. The Options key
+' on a programme or a card: the channel's options.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if key = "back" and m.guide.isInFocusChain() and backToNow() then return true
+    ' Then a search back to the category before.
+    if key = "back" and searching()
+        leaveSearch()
+        return true
+    end if
     content = m.guide.isInFocusChain() or m.cards.isInFocusChain()
     if content and (key = "back" or key = "left")
         m.rail.setFocus(true)

@@ -248,6 +248,15 @@ function liveSearchLabel(query as string) as string
     return "Search: “" + query + "”"
 end function
 
+' The category a search goes back to, on Back or Clear: the one shown as
+' the first of the searches in a row began. category: the one shown as
+' another search begins; before: the one kept until then.
+function liveBeforeSearch(category as string, before as string) as string
+    if Left(category, 7) = "search:" then return before
+    if category = "" then return "all"
+    return category
+end function
+
 ' The categories down the side, under the Search entry pinned above them:
 ' the groups whose names match the words searched for, as links,
 ' Favourites, Recently watched, All channels, then "Regions" in
