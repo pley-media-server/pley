@@ -264,6 +264,12 @@ sub test_live_guide_window()
     tkInvalid(liveGuideMissing(0, 172800, 170000, 7200), "the span fetched")
 end sub
 
+sub test_live_failed_pages_asked_again()
+    tkTrue(liveMayAskAgain(-1, 500), "nothing failed")
+    tkFalse(liveMayAskAgain(20000, 25000), "within 10 s")
+    tkTrue(liveMayAskAgain(20000, 30000), "once 10 s have passed")
+end sub
+
 sub test_live_guide_back_to_now()
     now = 10000
     tkFalse(liveGuideAway(9000, 7200, 9000, 10800, now), "on what's on now")

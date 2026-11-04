@@ -69,6 +69,12 @@ sub init()
     m.categoryName = "All channels"
     m.page = invalid
     m.pageAsked = 0
+    ' A page that failed ({ offset, around }) and when (m.span's ms): asked
+    ' for again once 10 s have passed, as the list moves or Up or Down is
+    ' pressed.
+    m.failedPage = invalid
+    m.failedAt = -1
+    m.span = CreateObject("roTimespan")
     ' Which tuning the answers belong to, the watch asked for last (until
     ' it answers), the session and its playlist.
     m.attempt = 0
@@ -139,8 +145,9 @@ end function
 
 ' A page of the category (from offset, or around a channel), as the list
 ' shows it; then pick "first" or "last" of it is the channel up or down
-' leads to.
+' leads to. Within 10 s of a page that failed, nothing is asked.
 sub askPage(offset as integer, around as integer, pick as string)
+    if not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
     m.pageAsked = m.pageAsked + 1
     uiRequest({ op: "livePage", kind: "list", category: m.category, offset: offset, limit: livePageSize(), around: around, asked: m.pageAsked, pick: pick }, "onPage")
 end sub
@@ -150,7 +157,15 @@ sub onPage(event as object)
     spec = request.spec
     if spec.asked <> m.pageAsked then return
     answer = event.getData()
-    if not answer.ok then return
+    if not answer.ok
+        ' Watching goes on; the list says why it is empty.
+        m.failedPage = { offset: spec.offset, around: spec.around }
+        m.failedAt = m.span.TotalMilliseconds()
+        if m.page = invalid then m.listRange.text = answer.message
+        return
+    end if
+    m.failedPage = invalid
+    m.failedAt = -1
     m.page = answer.data
     content = request.content
     if content = invalid then content = CreateObject("roSGNode", "ContentNode")
@@ -185,6 +200,7 @@ end sub
 
 sub openList()
     hideBanner()
+    if m.page = invalid then askAgain()
     m.list.visible = true
     if m.channel <> invalid and m.page <> invalid
         at = liveIndexOf(m.page.channels, m.channel.id)
@@ -202,6 +218,11 @@ sub closeList()
     else
         m.top.setFocus(true)
     end if
+end sub
+
+' The page that failed, when nothing of the category is held.
+sub askAgain()
+    if m.failedPage <> invalid then askPage(m.failedPage.offset, m.failedPage.around, "")
 end sub
 
 ' Past the list's ends, the page after it (or before), round the ends of
@@ -286,6 +307,7 @@ end sub
 sub zap(by as integer)
     from = m.zapTo
     if from = invalid then from = m.channel
+    if m.page = invalid then askAgain()
     if from = invalid or m.page = invalid then return
     move = liveZap(m.page, from.id, by)
     if move = invalid then return

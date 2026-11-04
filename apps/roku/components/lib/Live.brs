@@ -653,6 +653,13 @@ function liveGuideAway(left as integer, shown as integer, from as integer, upto 
     return upto > 0 and (from > now or upto <= now)
 end function
 
+' Whether a page of channels or a part of the guide that failed (at
+' failedAt, ms; -1 for none) may be asked for again as the list moves:
+' once 10 s have passed, as on Android and Samsung. Try again asks at once.
+function liveMayAskAgain(failedAt as integer, nowMs as integer) as boolean
+    return failedAt < 0 or nowMs - failedAt >= 10000
+end function
+
 ' "1,2,3": the ids of channels, for GET /api/live/guide?ids=.
 function liveIds(channels as object) as string
     ids = []

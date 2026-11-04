@@ -24,6 +24,7 @@ sub init()
     m.guide = m.top.findNode("guide")
     m.cards = m.top.findNode("cards")
     m.message = m.top.findNode("message")
+    m.retry = m.top.findNode("retry")
     m.hint = m.top.findNode("hint")
     m.started = false
     m.twelve = CreateObject("roDeviceInfo").GetClockFormat() <> "24h"
@@ -60,6 +61,15 @@ sub init()
     m.cardsLoading = false
     ' The channels take the focus as they come (toChannels).
     m.toContent = false
+    ' What Try again asks for again: "groups", or the category's channels
+    ' around a channel; and when a page or a part of the guide failed with
+    ' the list there (m.span's ms), asked for again as it moves.
+    m.retryWhat = ""
+    m.retryAround = 0
+    m.failedAt = -1
+    m.span = CreateObject("roTimespan")
+    m.retry.buttons = ["Try again"]
+    m.retry.observeField("buttonSelected", "onRetry")
     m.tabs.chips = [{ label: "Guide", width: 208 }, { label: "Channels", width: 208 }]
     m.tabs.observeField("chosen", "onTabChosen")
     m.rail.observeField("itemSelected", "onRailSelected")
@@ -80,6 +90,7 @@ sub onActive()
         if m.searchRow.isInFocusChain() then m.lastFocus = m.searchRow
         if m.guide.isInFocusChain() then m.lastFocus = m.guide
         if m.cards.isInFocusChain() then m.lastFocus = m.cards
+        if m.retry.isInFocusChain() then m.lastFocus = m.retry
         return
     end if
     scene = m.top.getScene()
@@ -131,10 +142,11 @@ sub onGroups(event as object)
     answer = event.getData()
     first = event.getRoSGNode().spec.first = true
     if not answer.ok
-        if first and not uiFailed(answer)
-            text = answer.message
-            if answer.status = 403 then text = "Live TV isn't open to this account." + Chr(10) + "An administrator can open it on the web, in Settings → Live TV."
-            showMessage(text)
+        if not first or uiFailed(answer) then return
+        if answer.status = 403
+            showMessage("Live TV isn't open to this account." + Chr(10) + "An administrator can open it on the web, in Settings → Live TV.")
+        else
+            showFailed(answer.message, "groups", 0)
         end if
         return
     end if
@@ -366,6 +378,7 @@ end sub
 ' around (one watched).
 sub showCategory(around as integer)
     m.categoryLabel.text = liveCategoryName(m.view.category, m.groups)
+    m.failedAt = -1
     m.page = invalid
     m.cardChannels = []
     m.cardsTotal = -1
@@ -405,13 +418,43 @@ sub onTabChosen(event as object)
 end sub
 
 sub showMessage(text as string)
+    focused = m.guide.isInFocusChain() or m.cards.isInFocusChain() or m.retry.isInFocusChain()
     m.guide.visible = false
     m.info.visible = false
     m.cards.visible = false
+    m.retry.visible = false
     m.hint.text = ""
     m.message.text = text
     m.message.visible = true
-    if m.guide.isInFocusChain() or m.cards.isInFocusChain() then m.rail.setFocus(true)
+    if focused then m.rail.setFocus(true)
+end sub
+
+' What failed with nothing to show, with Try again under it (what: the
+' groups, or the category's channels around a channel).
+sub showFailed(text as string, what as string, around as integer)
+    showMessage(text)
+    m.retryWhat = what
+    m.retryAround = around
+    m.retry.visible = true
+    if m.toContent then focusContent()
+end sub
+
+' Try again: what failed, asked for again, the focus going to the
+' channels as they come when Try again had it.
+sub onRetry()
+    m.toContent = m.retry.isInFocusChain()
+    if m.retryWhat = "groups"
+        showMessage("Loading…")
+        loadGroups(true)
+    else
+        showCategory(m.retryAround)
+    end if
+end sub
+
+' The channels show, or what failed: Try again gives the focus to them.
+sub hideRetry()
+    if m.retry.isInFocusChain() then m.toContent = true
+    m.retry.visible = false
 end sub
 
 sub focusContent()
@@ -421,8 +464,16 @@ sub focusContent()
     else if m.view.tab = "channels" and m.cards.visible
         m.toContent = false
         m.cards.setFocus(true)
+    else if m.retry.visible
+        m.toContent = false
+        m.retry.setFocus(true)
     end if
 end sub
+
+' Whether the right of the screen has something to take the focus.
+function contentShown() as boolean
+    return m.guide.visible or m.cards.visible or m.retry.visible
+end function
 
 ' The focus goes to the channels: at once when they show, else as they
 ' come (a category chosen shows "Loading…" first).
@@ -468,11 +519,18 @@ sub onGuide(event as object)
     m.loading = false
     answer = event.getData()
     if not answer.ok
-        if m.guide.content = invalid and not uiFailed(answer) then showMessage(answer.message)
+        if m.guide.content <> invalid
+            ' The guide stays as it was; what failed is asked for again as
+            ' it moves.
+            m.failedAt = m.span.TotalMilliseconds()
+        else if not uiFailed(answer)
+            showFailed(answer.message, "channels", spec.focusId)
+        end if
         return
     end if
     content = request.content
     if content = invalid then return
+    m.failedAt = -1
     data = answer.data
     if data.upto > m.loadedTo then m.loadedTo = data.upto
     ' From now at the left edge: the focus is on what's on now (at the
@@ -509,6 +567,7 @@ sub onGuide(event as object)
     m.guide.jumpToChannel = row
     m.guide.leftEdgeTargetTime = left
     m.message.visible = false
+    hideRetry()
     m.guide.visible = true
     m.info.visible = true
     showCount()
@@ -547,15 +606,16 @@ sub showCount()
     m.count.text = text
 end sub
 
-' Scrolled near what is fetched: the next six hours, for the channels shown.
+' Scrolled near what is fetched: the next six hours, for the channels
+' shown, counted as fetched once they come.
 sub onLeftEdge()
     if m.loading or m.page = invalid or m.guide.content = invalid then return
+    if not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
     missing = liveGuideMissing(m.guideStart, m.loadedTo, m.guide.leftEdgeTargetTime, Int(m.guide.duration))
     if missing = invalid then return
-    m.loadedTo = missing.to
     m.asked = m.asked + 1
     m.loading = true
-    uiRequest({ op: "liveGuide", channels: m.page.channels, start: m.guideStart, upto: m.loadedTo, asked: m.asked, focus: "keep", focusId: 0 }, "onGuide")
+    uiRequest({ op: "liveGuide", channels: m.page.channels, start: m.guideStart, upto: missing.to, asked: m.asked, focus: "keep", focusId: 0 }, "onGuide")
 end sub
 
 ' The focus moved: the programme above the guide, and past the page's last
@@ -570,7 +630,7 @@ sub onProgramFocused()
         m.lastRow = row
         if m.jumped
             m.jumped = false
-        else if m.page.total > count and count > 2 and not m.loading
+        else if m.page.total > count and count > 2 and not m.loading and liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds())
             size = livePageSize()
             pages = Int((m.page.total + size - 1) / size)
             pageNo = Int(m.page.offset / size)
@@ -709,10 +769,16 @@ sub onCards(event as object)
     m.cardsLoading = false
     answer = event.getData()
     if not answer.ok
-        if m.cardChannels.Count() = 0 and not uiFailed(answer) then showMessage(answer.message)
+        if m.cardChannels.Count() > 0
+            ' The cards stay; the page is asked for again as they move.
+            m.failedAt = m.span.TotalMilliseconds()
+        else if not uiFailed(answer)
+            showFailed(answer.message, "channels", spec.focusId)
+        end if
         return
     end if
     if m.view.tab <> "channels" or spec.category <> m.view.category then return
+    m.failedAt = -1
     data = answer.data
     m.cardsTotal = data.total
     fresh = request.content
@@ -748,6 +814,7 @@ sub onCards(event as object)
         return
     end if
     m.message.visible = false
+    hideRetry()
     m.cards.visible = true
     m.guide.visible = false
     m.info.visible = false
@@ -759,6 +826,7 @@ end sub
 ' Two rows from the ends of what the grid holds, the next page (or the
 ' one before) comes.
 sub onCardFocused(event as object)
+    if not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
     at = event.getData()
     loadedTo = m.cardsFrom + m.cardChannels.Count()
     if at >= m.cardChannels.Count() - 8 and loadedTo < m.cardsTotal
@@ -850,13 +918,13 @@ function onKeyEvent(key as string, press as boolean) as boolean
         leaveSearch()
         return true
     end if
-    content = m.guide.isInFocusChain() or m.cards.isInFocusChain()
+    content = m.guide.isInFocusChain() or m.cards.isInFocusChain() or m.retry.isInFocusChain()
     if content and (key = "back" or key = "left")
         m.rail.setFocus(true)
         return true
     end if
     if key = "right" and (m.rail.isInFocusChain() or m.tabs.isInFocusChain())
-        if m.guide.visible or m.cards.visible
+        if contentShown()
             focusContent()
             return true
         end if
@@ -876,7 +944,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         pageGuide(key)
         return true
     end if
-    if key = "right" and m.searchRow.isInFocusChain() and (m.guide.visible or m.cards.visible)
+    if key = "right" and m.searchRow.isInFocusChain() and contentShown()
         focusContent()
         return true
     end if

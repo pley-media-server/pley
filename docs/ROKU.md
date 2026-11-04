@@ -307,7 +307,10 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 `components/lib/Live.brs`):
 
 - **Paging:** channels come 50 at a time, and the guide only for those 50
-  (`GET /api/live/guide?ids=`).
+  (`GET /api/live/guide?ids=`). A page of channels or a part of the guide
+  that didn't load is asked for again once 10 s have passed, as the list
+  moves (in the player, as the list moves or Up or Down is pressed); with
+  nothing to show, the screen says why, with Try again.
 - **Categories** run down the left under Search. Rewind and fast forward
   move a screen at a time. The category, the tab and the last channel
   watched are kept per server and profile (registry section `liveViews`):
