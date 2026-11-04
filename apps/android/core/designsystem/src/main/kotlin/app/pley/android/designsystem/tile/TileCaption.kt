@@ -4,6 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
@@ -27,6 +28,8 @@ import app.pley.android.designsystem.text.WholeWordsText
  * ([emphasized]); the weight switches, it never animates. On phones a
  * large font scale lets the title take two lines. Captions always show,
  * so rows never jump. Screen readers hear the tile's description instead.
+ * On TV, where each line is one line, a single node draws both
+ * ([tvCaption]): grids bring in a row of these at each step of a held key.
  */
 @Composable
 fun TileCaption(
@@ -36,6 +39,10 @@ fun TileCaption(
     modifier: Modifier = Modifier,
     emphasized: Boolean = false,
 ) {
+    if (style == TileStyle.Tv && inCaptionFont(title) && inCaptionFont(subtitle)) {
+        Spacer(modifier.tvCaption(title, subtitle, emphasized))
+        return
+    }
     val titleLines = if (style == TileStyle.Phone && LocalDensity.current.fontScale > 1.3f) 2 else 1
     val titleStyle = remember(style, emphasized) {
         style.captionTitle.copy(color = PleyColors.Fg, fontWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight)
