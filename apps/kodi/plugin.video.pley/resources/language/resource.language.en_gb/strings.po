@@ -1369,3 +1369,11 @@ msgstr ""
 msgctxt "#30560"
 msgid "OK"
 msgstr ""
+
+msgctxt "#30561"
+msgid "Live TV was stopped from another device."
+msgstr ""
+
+msgctxt "#30562"
+msgid "Live TV was stopped by the server's administrator."
+msgstr ""

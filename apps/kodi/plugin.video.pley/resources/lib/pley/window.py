@@ -874,7 +874,9 @@ class Window(xbmcgui.WindowXML):
                     return self.toast(T("nothing_found"))
                 item = found
             start = 0 if from_start else (words.state(item).get("position_ms") or 0) if words.in_progress(item) else 0
-            li = playback.prepare(self.session.client, self.session.base, item["id"], start, self.session.cached(item["id"]))
+            li = playback.prepare(
+                self.session.client, self.session.base, item["id"], start, self.session.cached(item["id"]), kind=item.get("kind")
+            )
         except api.ApiError as e:
             return self.toast(T("server_error") % e.message, 6)
         if start:
