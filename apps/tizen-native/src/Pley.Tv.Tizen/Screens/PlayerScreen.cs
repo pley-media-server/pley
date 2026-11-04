@@ -163,8 +163,11 @@ sealed class PlayerScreen : Sheet
         seeker = new Seeker(model.LivePositionMs, () => model.Clock.Value.DurationMs, SeekTo);
         // Asked for before the screen is made, which holds the UI half a second: the server answers
         // meanwhile. Its answer comes after (the UI thread's), and the watches below take the state as it is.
+        var part = Profile.Start();
         Profile.Mark("player: asking");
         model.Start();
+        Profile.Took("player screen: asked", part);
+        part = Profile.Start();
 
         // Black until the first picture: the video plane under it shows nothing of the page meanwhile.
         black = new View { Size = Canvas(), BackgroundColor = Color.Black };
@@ -253,6 +256,8 @@ sealed class PlayerScreen : Sheet
         preview.Hide();
         controls.Add(preview);
 
+        Profile.Took("player screen: its picture layers, banner and scrubber", part);
+        part = Profile.Start();
         // The control row: Chapters · Sleep timer · Speed at the left; Previous · Play/Pause ·
         // Next centred; Subtitles · Audio · Quality · Info at the right.
         chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, OpenChapters);
@@ -281,6 +286,8 @@ sealed class PlayerScreen : Sheet
         foreach (var item in upNext.Group.Children.OfType<FocusItem>()) item.Shown = false;
         View.Add(upNext);
 
+        Profile.Took("player screen: its control row, Skip, Up Next", part);
+        part = Profile.Start();
         spinner = Spinner();
         spinner.Position = new Position(Ui.Dp(PleyTv.CanvasWidth / 2 - 20), Ui.Dp(PleyTv.CanvasHeight / 2 - 20));
         spinner.Hide();
@@ -351,6 +358,8 @@ sealed class PlayerScreen : Sheet
         Back = OnBack;
         Gone += Ended;
 
+        Profile.Took("player screen: spinner, focus and keys", part);
+        part = Profile.Start();
         tick = new Timer(250);
         tick.Tick += (_, _) =>
         {
@@ -362,6 +371,7 @@ sealed class PlayerScreen : Sheet
         watches.Add(model.Cues.Watch(subtitles.Show));
         watches.Add(model.Picture.Watch(pictures.Show));
         watches.Add(state.Settings.Watch(subtitles.Restyle));
+        Profile.Took("player screen: its first render", part);
     }
 
     bool Disposed => gone;

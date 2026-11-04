@@ -585,7 +585,14 @@ done
             busy = what;
         }
 
-        public static void Leave() => busy = null;
+        /// <summary>The call ends: one that held the UI thread for more than 50 ms says so, as a stall alone can't name it.</summary>
+        public static void Leave()
+        {
+            var what = busy;
+            busy = null;
+            var ms = Since.ElapsedMilliseconds - Interlocked.Read(ref busyAt);
+            if (what != null && ms > 50) Mark($"call: {what} took {ms} ms");
+        }
 
         /// <summary>
         /// A thread of its own watching the UI thread's beat: one missing for 1.5 s is a hang, told

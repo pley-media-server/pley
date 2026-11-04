@@ -133,12 +133,16 @@ sealed class TizenMediaEngine : IVideoEngine
         durationMs = 0;
         pendingSeek = null;
         lastPosition = source.Live ? 0 : Math.Max(0, source.StartMs);
+        Profile.Enter("player: made (the TV's object)");
         var p = new Media.Player();
+        Profile.Leave();
         player = p;
         Profile.Mark($"engine: {(source.Hls ? "HLS" : source.Live ? "live stream" : "file")} given, preparing");
         if (source.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) NetTrace.Start();
         NetTrace.Playing(source.Url, () => lastPosition);
+        Profile.Enter("engine: told buffering (the screen's update)");
         SetStatus(mine, EngineStatus.Buffering);
+        Profile.Leave();
         _ = Open(p, source, mine);
     }
 
@@ -165,7 +169,9 @@ sealed class TizenMediaEngine : IVideoEngine
             // went opaque already (Close), for longer than this.
             if (!opaque)
             {
+                Profile.Enter("window: its alpha off (open)");
                 Window.Instance.SetTransparency(false);
+                Profile.Leave();
                 opaque = true;
                 await Task.Delay(OpaqueMs);
                 if (mine != generation) return;
