@@ -24,6 +24,10 @@ describes how they are made.
   the title focus rests on, the backdrop following it, as on the other TVs.
 - Collections, in Home's menu, shows every library's collections, a row
   each.
+- A title's page says who made it and who is in it ("Directed by …
+  · Starring …"), and its More has Details: the whole summary, the crew,
+  the original title, the release date, the studio or network and how
+  many times it was played.
 
 ### Changed
 

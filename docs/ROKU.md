@@ -86,7 +86,9 @@ the left, Play (or Resume and Play from start) first, then Mark as
 watched, Audio and subtitles, My List, Trailer (where its extras have
 one: it plays from its start) and More…. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
-to the rows under them.
+to the rows under them. Over the summary, as on Android TV, a line says
+who made it and who is in it ("Directed by Grace Hopper · Starring Ada
+Lovelace, Alan Turing"; a show's "Created by").
 
 - **Audio and subtitles** (a movie or an episode with several files, or
   whose file has two audio tracks or more, or subtitles):
@@ -103,13 +105,18 @@ to the rows under them.
 - **More**, what is used less, as on the other TVs: Rate (Your rating,
   once given: No rating, or 1 to 5 stars, kept for the profile on the
   server), an episode's Go to show (the show's page) and Go to season
-  (its episodes), Media info and Add to playlist. The Options key on an
-  episode's tile goes to them alike.
+  (its episodes), Media info, Details and Add to playlist. The Options
+  key on an episode's tile goes to them alike.
 - **Media info** (a movie or an episode with a file): each file, under its
   edition or "VERSION 2" when there are several, and every stream in
   full, in the other apps' words (codec, profile and level, size, frame
   rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
   language, title, flags), as text that Up and Down scroll.
+- **Details**, Android TV's section of them: the whole summary, which the
+  page cuts, then who created, directed and wrote it (four names a role,
+  then "and 2 more"), the original title, when it came out, the studio (a
+  show's network) and how many times the profile played it. It is in More
+  when there is something the page doesn't say.
 
 ### Collections, people, artists and playlists
 
