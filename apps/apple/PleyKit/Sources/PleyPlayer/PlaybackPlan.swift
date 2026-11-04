@@ -119,9 +119,11 @@ public enum PlaybackPlan {
 
     /// The body of `POST /api/playback` for `choices`: keyed URLs always,
     /// since AVPlayer sends no token. `keepPrevious` when it is made ready
-    /// while the session before plays on.
+    /// while the session before plays on; `controls` and `deviceName` for
+    /// the profile's remotes.
     public static func request(itemId: Int, _ choices: Choices, clientId: String, caps: ClientCaps?,
-                               keepPrevious: Bool = false) -> PlaybackRequest {
+                               keepPrevious: Bool = false, controls: [Control]? = nil,
+                               deviceName: String? = nil) -> PlaybackRequest {
         let audioHere = audioPlaysHere(choices.audio, caps: caps)
         let notTheDetails = choices.audio.map { $0.index != detailsAudio(choices.file)?.index } ?? false
         let audioIndex = choices.audio.flatMap { audio in
@@ -134,7 +136,7 @@ public enum PlaybackPlan {
                                subtitleIndex: subtitleIndex, maxBitrate: choices.maxBitrate,
                                maxHeight: choices.maxHeight, startMs: choices.startMs, mode: choices.mode,
                                clientId: clientId, keepPrevious: keepPrevious ? true : nil, keyedUrls: true,
-                               caps: caps ?? ClientCaps())
+                               controls: controls, deviceName: deviceName, caps: caps ?? ClientCaps())
     }
 
     /// Whether `info`'s session must be asked again with the track indexes:

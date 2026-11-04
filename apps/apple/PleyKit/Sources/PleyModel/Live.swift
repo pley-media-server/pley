@@ -318,11 +318,18 @@ public struct LiveWatchRequest: Codable, Hashable, Sendable {
     public var clientId: String
     public var keyedUrls: Bool
     public var takeOver: Int?
+    /// The remote's commands the live player obeys, as a play request's.
+    public var controls: [Control]?
+    /// What remotes call this device; `nil`: the server names it from the User-Agent.
+    public var deviceName: String?
 
-    public init(clientId: String, keyedUrls: Bool = true, takeOver: Int? = nil) {
+    public init(clientId: String, keyedUrls: Bool = true, takeOver: Int? = nil, controls: [Control]? = nil,
+                deviceName: String? = nil) {
         self.clientId = clientId
         self.keyedUrls = keyedUrls
         self.takeOver = takeOver
+        self.controls = controls
+        self.deviceName = deviceName
     }
 }
 

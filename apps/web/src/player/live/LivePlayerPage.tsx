@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { ApiError, errorMessage, isApiError } from "@/api/client";
 import { onServerEvent } from "@/api/events";
-import type { ServerEvent } from "@/api/types";
+import type { Control, ServerEvent } from "@/api/types";
 import {
   busyConnections,
   CHANNEL_PAGE,
@@ -44,6 +44,7 @@ import { cn } from "@/lib/cn";
 import { canPlayNativeHls } from "@/lib/caps";
 import { loadHls } from "@/lib/hls";
 import { loadMpegts } from "@/lib/mpegts";
+import { playingHere } from "@/lib/playingHere";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { clientId } from "@/lib/progress";
 import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft, useNow } from "@/pages/livetv/common";
@@ -59,6 +60,8 @@ const BANNER_FOR = 5000;
 const TAKEN_OVER_GRACE = 1000;
 /** Digits typed for a channel number wait this long for more. */
 const NUMBER_WAIT = 1400;
+/** The remote's commands Live TV obeys: channel up and down. It doesn't go back in a channel, so no pause or seek. */
+const LIVE_CONTROLS: Control[] = ["next", "previous"];
 
 type Trouble = {
   kind: "busy" | "unavailable" | "stopped" | "missing" | "other";
@@ -241,7 +244,12 @@ function LivePlayer({
   const hlsRef = useRef<HlsType | null>(null);
   // A channel sent as it is plays straight from its stream (mpegts.js).
   const directRef = useRef<{ destroy: () => void } | null>(null);
-  const sessionRef = useRef<{ id: string; url: string } | null>(null);
+  // `leave`: no longer this tab's, for the remote.
+  const sessionRef = useRef<{ id: string; url: string; leave: () => void } | null>(null);
+  const forgetSession = () => {
+    sessionRef.current?.leave();
+    sessionRef.current = null;
+  };
   // Someone took the channel's connection over (`live_taken_over`): why,
   // until it is tuned again. Nothing tunes it again by itself meanwhile.
   const takenOver = useRef<Trouble | null>(null);
@@ -306,12 +314,13 @@ function LivePlayer({
       try {
         const taking = takeOver.current;
         takeOver.current = undefined;
-        const watching = await watchChannel(channel.id, clientId(), taking);
+        const watching = await watchChannel(channel.id, clientId(), taking, LIVE_CONTROLS);
         if (cancelled) {
           void leaveChannel(watching.session_id);
           return null;
         }
-        sessionRef.current = { id: watching.session_id, url: watching.url };
+        sessionRef.current?.leave();
+        sessionRef.current = { id: watching.session_id, url: watching.url, leave: playingHere(watching.session_id) };
         return watching;
       } catch (err) {
         fail(trouble(err, channel.name));
@@ -437,21 +446,22 @@ function LivePlayer({
       video.removeAttribute("src");
       video.load();
       if (sessionRef.current) void leaveChannel(sessionRef.current.id);
-      sessionRef.current = null;
+      forgetSession();
     };
   }, [channel.id, channel.name, attempt]);
 
-  // Someone else took the channel's connection: it stops here at once, and says why.
-  const onEvent = useEffectEvent((ev: ServerEvent) => {
-    if (ev.type !== "live_taken_over" || ev.channel_id !== channel.id || takenOver.current) return;
-    const why = stopped(ev.message);
+  /**
+   * Watching ended on the server (its connection taken over, or stopped
+   * from another device): it stops here at once, and says why.
+   */
+  const endHere = (why: Trouble) => {
     takenOver.current = why;
     hlsRef.current?.destroy();
     hlsRef.current = null;
     directRef.current?.destroy();
     directRef.current = null;
     // Already ended on the server: nothing to leave.
-    sessionRef.current = null;
+    forgetSession();
     // Its stream let go too, the picture kept: the browser's own HLS keeps a
     // source the players above don't, and with it Live TV's "plays on"
     // (onPause) would play the seconds it has buffered. The source goes
@@ -466,6 +476,30 @@ function LivePlayer({
     setBuffering(false);
     setProblem(why);
     setStatus("error");
+  };
+  const onEvent = useEffectEvent((ev: ServerEvent) => {
+    if (takenOver.current) return;
+    switch (ev.type) {
+      // Someone else took the channel's connection.
+      case "live_taken_over":
+        if (ev.channel_id === channel.id) endHere(stopped(ev.message));
+        break;
+      case "session_stopped":
+        if (ev.session_id === sessionRef.current?.id) {
+          const what = ev.by_admin
+            ? "Live TV was stopped by the server's administrator."
+            : "Live TV was stopped from another device.";
+          endHere(stopped(ev.message ? `${what} ${ev.message}` : what));
+        }
+        break;
+      // The user's remote, on another device: channel up and down, as here.
+      // The new channel's watch tells the server, and so the remote.
+      case "player_command":
+        if (ev.session_id !== sessionRef.current?.id) break;
+        if (ev.command === "next") onStep(1);
+        else if (ev.command === "previous") onStep(-1);
+        break;
+    }
   });
   useEffect(() => onServerEvent(onEvent), []);
 

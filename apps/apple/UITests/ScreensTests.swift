@@ -180,6 +180,20 @@ final class ScreensTests: XCTestCase {
         XCTAssertTrue(ended, "signing out ends music's session")
     }
 
+    /// The remote: Direct H264 playing on the administrator's TV (another
+    /// device, played through the server's API) shows in the remote's bar;
+    /// its sheet pauses it, says when the TV doesn't answer, and stops it.
+    func testRemote() async throws {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        await walk.startSignedIn()
+        await walk.remoteWalk(movies: await Admin.libraryIds()["Movies"] ?? 0)
+    }
+
     /// The player's extras on Direct H264: Find Subtitles… says the server
     /// has no subtitle search set up, its SRT brings Subtitle style, whose
     /// size is marked once picked, Speed 1.5× is marked once picked, and

@@ -211,6 +211,27 @@ describe("useServerEvents", () => {
     expect(FakeEventSource.all).toHaveLength(3);
   });
 
+  it("refreshes the user's own sessions, for the remote, as sessions change or stop", () => {
+    const { client, source } = setup();
+    client.setQueryData(keys.sessions, []);
+    client.setQueryData(keys.activity, { scans: [], sessions: [] });
+
+    act(() => source().send({ type: "sessions_changed" }));
+    expect(invalidated(client, keys.sessions)).toBe(true);
+    expect(invalidated(client, keys.activity)).toBe(true);
+
+    client.setQueryData(keys.sessions, []);
+    act(() => source().send({ type: "session_stopped", session_id: "s1", message: null, by_admin: false }));
+    expect(invalidated(client, keys.sessions)).toBe(true);
+
+    // A command is for the player: nothing to fetch.
+    client.setQueryData(keys.sessions, []);
+    act(() =>
+      source().send({ type: "player_command", session_id: "s1", command: "pause", position_ms: null, offset_ms: null }),
+    );
+    expect(invalidated(client, keys.sessions)).toBe(false);
+  });
+
   it("refreshes My List when it changed on another device", () => {
     const { client, source } = setup();
     client.setQueryData(keys.watchlist, { items: [] });

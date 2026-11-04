@@ -15,12 +15,12 @@
 # collection, a playlist made, changed and deleted, Me (Settings on Apple
 # TV), a switch back by PIN, a search, the profile's track defaults,
 # History, Settings, Diagnostics and About, on Apple TV Always start as
-# across a relaunch, and Sign out; and music, Live TV, the player's extras
-# and the largest text size, each a test of its own. Requests, whose
-# titles come from TMDB, which the test servers have no key for, are
-# walked on Apple TV against the package's fixture server
-# (pley-apple-fixtures), started afresh for each run of the tests. The
-# servers and their folders are removed afterwards, whatever happens.
+# across a relaunch, and Sign out; and music, Live TV, the player's extras,
+# the remote (iPhone and iPad) and the largest text size, each a test of
+# its own. Requests, whose titles come from TMDB, which the test servers
+# have no key for, are walked on Apple TV against the package's fixture
+# server (pley-apple-fixtures), started afresh for each run of the tests.
+# The servers and their folders are removed afterwards, whatever happens.
 # macOS only.
 #
 #   PLEY_IOS_SIMS      the iPhone and iPad simulators, separated by ";"

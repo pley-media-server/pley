@@ -154,6 +154,9 @@ public final class LivePlayback: ObservableObject {
     private let live: LiveTvRepository
     private let engines: @MainActor () -> any LiveEngine
     private let clientId: String
+    /// The remote's commands the player obeys, and what remotes call this device, sent with each tune.
+    private let controls: [Control]?
+    private let deviceName: String?
     private let clock: any PlayerClock
     private var session: String?
     private var tuning: Task<Void, Never>?
@@ -166,14 +169,17 @@ public final class LivePlayback: ObservableObject {
     private var generation = 0
 
     public init(live: LiveTvRepository, clientId: String, clock: any PlayerClock = SystemPlayerClock(),
-                engines: @escaping @MainActor () -> any LiveEngine = { AVLiveEngine() }) {
+                engines: @escaping @MainActor () -> any LiveEngine = { AVLiveEngine() }, controls: [Control]? = nil,
+                deviceName: String? = nil) {
         self.live = live
         self.clientId = clientId
+        self.controls = controls
+        self.deviceName = deviceName
         self.clock = clock
         self.engines = engines
     }
 
-    /// The session watching now, if any (for tests and the checks).
+    /// The session watching now, if any: the one the server's events name.
     public var sessionId: String? { session }
 
     /// Starts watching `channelId` in place of what played.
@@ -225,7 +231,8 @@ public final class LivePlayback: ObservableObject {
         tuning = Task { [weak self] in
             guard let self else { return }
             do {
-                let (watch, url) = try await self.live.watch(channelId, clientId: self.clientId, takeOver: takeOver)
+                let (watch, url) = try await self.live.watch(channelId, clientId: self.clientId, takeOver: takeOver,
+                                                             controls: self.controls, deviceName: self.deviceName)
                 guard self.generation == generation, !self.closed else {
                     // Tuned elsewhere, stopped or closed meanwhile: this one isn't wanted.
                     self.live.leave(watch.sessionId)

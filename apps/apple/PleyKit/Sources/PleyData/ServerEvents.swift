@@ -116,8 +116,9 @@ public struct ServerChange: Hashable, Sendable {
 /// Turns the server's events into changes for the screens (Android's
 /// `ServerEvents`): the changes of 0.3 seconds go out together, so a burst
 /// of events (a play reaching 90 % sends two) fetches once. The scans
-/// running are told as they move; a playback stopped from elsewhere is
-/// told at once, and so is a request's news.
+/// running are told as they move; a playback stopped from elsewhere, a
+/// remote's command, the sessions changing and a request's news are told
+/// at once.
 @MainActor
 public final class ServerEvents {
     /// How long changes are gathered before they go out.
@@ -129,6 +130,12 @@ public final class ServerEvents {
     public var onScans: ([Int: ScanStatus]) -> Void = { _ in }
     /// A playback of this profile's was stopped from elsewhere.
     public var onSessionStopped: (_ sessionId: String, _ message: String?, _ byAdmin: Bool) -> Void = { _, _, _ in }
+    /// The profile's remote, on another device, sent a player a command:
+    /// the player of `sessionId`, if it plays here, acts on it.
+    public var onPlayerCommand: (_ sessionId: String, _ command: PlayerCommand) -> Void = { _, _ in }
+    /// The profile's sessions started, ended or changed, or may have while
+    /// the stream was down (it connected again): remotes read them again.
+    public var onSessionsChanged: () -> Void = {}
     /// A request's news, as its event comes.
     public var onRequestNews: (RequestNews) -> Void = { _ in }
     /// Requests' changes, as their events come (before they are gathered).
@@ -193,6 +200,7 @@ public final class ServerEvents {
             if connections > 1 {
                 gather(ServerChange(home: true, libraries: true, watchlist: true, requests: .everything,
                                     everything: true))
+                onSessionsChanged()
             }
         case .disconnected:
             guard connected else { return }
@@ -229,6 +237,10 @@ public final class ServerEvents {
             gather(ServerChange(home: true, libraries: true, libraryIds: [id]))
         case .sessionStopped(let id, let message, let byAdmin):
             onSessionStopped(id, message, byAdmin)
+        case .playerCommand(let id, let command):
+            onPlayerCommand(id, command)
+        case .sessionsChanged:
+            onSessionsChanged()
         case .liveChannelsChanged:
             gather(ServerChange(live: true))
         case .requestsChanged(let id, let kind, let tmdbId):
@@ -255,7 +267,7 @@ public final class ServerEvents {
         case .requestsSettingsChanged:
             onRequestsSettings()
             requests(.everything)
-        case .sessionsChanged, .liveTunersChanged, .unknown:
+        case .liveTunersChanged, .unknown:
             break
         }
     }

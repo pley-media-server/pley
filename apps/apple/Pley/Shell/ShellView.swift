@@ -12,17 +12,25 @@ import SwiftUI
 /// the player is open VoiceOver reads only the player. While music has a
 /// queue, the mini player sits above the tab bar (in its bottom accessory
 /// from iOS 26.1) or at the foot of the sidebar layout's page, and Now
-/// Playing opens from it. Me's tab, and Me's row at the sidebar's foot,
-/// carry the number on the way into requests.
+/// Playing opens from it. While another of the profile's devices plays,
+/// the remote's bar opens the remote as a sheet on iPhone and iPad: in the
+/// tab bar's accessory from iOS 26.1, or, while music plays here, a button
+/// beside the mini player there; before, a card above the mini player. On
+/// the Mac the toolbar's remote button opens it.
+/// Me's tab, and Me's row at the sidebar's foot, carry the number on the
+/// way into requests.
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
+    @StateObject private var remote: RemoteModel
+    @State private var remoteOpen = false
     private let layout = WideLayout()
     @Environment(\.dynamicTypeSize) private var typeSize
 
     init(app: AppModel) {
         self.app = app
         _shell = ObservedObject(wrappedValue: app.shell)
+        _remote = StateObject(wrappedValue: RemoteModel(app: app))
     }
 
     var body: some View {
@@ -48,12 +56,34 @@ struct ShellView: View {
                 NowPlayingView(app: app) { shell.nowPlayingOpen = false }
             }
         }
+        // It closes by itself once nothing plays on another device, and opens closed when something plays again.
+        .sheet(isPresented: Binding(get: { remoteOpen && !remote.others.isEmpty }, set: { remoteOpen = $0 })) {
+            RemoteSheet(app: app, remote: remote) { remoteOpen = false }
+        }
+        .onValueChange(of: remote.others.isEmpty) { empty in
+            if empty { remoteOpen = false }
+        }
         #endif
+        // The profile's sessions are read again whenever they may have changed.
+        .task(id: app.sessionsVersion) { await remote.reload() }
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)
     }
 
-    /// Whether the tab bar holds the mini player itself (iOS 26.1's bottom
-    /// accessory); before, each section's page has it at its foot.
+    /// What sits at the foot of a page, above the tabs, unless the tab
+    /// bar's accessory holds it: the remote's bar, then the mini player.
+    @ViewBuilder private func foot(inAccessory: Bool) -> some View {
+        if !inAccessory {
+            VStack(spacing: 0) {
+                #if os(iOS)
+                RemoteBar(remote: remote) { remoteOpen = true }
+                #endif
+                FootMiniPlayer(app: app)
+            }
+        }
+    }
+
+    /// Whether the tab bar holds the mini player and the remote's bar itself
+    /// (iOS 26.1's bottom accessory); before, each section's page has them at its foot.
     private var accessoryHoldsMiniPlayer: Bool {
         #if os(iOS)
         if #available(iOS 26.1, *) { return true }
@@ -68,9 +98,7 @@ struct ShellView: View {
         let view = TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { shell.select($0) })) {
             ForEach(shell.sections, id: \.self) { section in
                 stack(section == Self.tab(shell.section) ? shell.section : section)
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !accessoryHoldsMiniPlayer { FootMiniPlayer(app: app) }
-                    }
+                    .safeAreaInset(edge: .bottom, spacing: 0) { foot(inAccessory: accessoryHoldsMiniPlayer) }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
                     .badge(section == .me ? shell.requestsEntry.badgeText.map { Text($0) } : nil)
                     #if os(iOS)
@@ -81,8 +109,15 @@ struct ShellView: View {
         }
         #if os(iOS)
         if #available(iOS 26.1, *) {
-            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying) {
-                MiniPlayer(app: app, inAccessory: true)
+            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying || !remote.others.isEmpty) {
+                if shell.nowPlaying {
+                    HStack(spacing: 0) {
+                        MiniPlayer(app: app, inAccessory: true)
+                        RemoteAccessoryButton(remote: remote) { remoteOpen = true }
+                    }
+                } else {
+                    RemoteBar(remote: remote, inAccessory: true) { remoteOpen = true }
+                }
             }
         } else {
             view
@@ -119,6 +154,13 @@ struct ShellView: View {
                 // Another section, another navigation.
                 .id(shell.section)
         }
+        #if os(macOS)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                RemoteToolbarButton(app: app, remote: remote)
+            }
+        }
+        #endif
     }
 
     /// The profile signed in, at the sidebar's foot: it opens Me.
@@ -165,15 +207,16 @@ struct ShellView: View {
     // MARK: Sections
 
     /// `section`'s navigation: its start, with the pages opened from it on top.
-    /// `footMiniPlayer`: each page has the mini player at its foot.
+    /// `footMiniPlayer`: each page has the mini player at its foot, and the
+    /// remote's bar above it (iPad; the Mac's remote is in the toolbar).
     private func stack(_ section: ShellSection, footMiniPlayer: Bool = false) -> some View {
         NavigationStack(path: Binding(get: { shell.path(for: section) },
                                       set: { shell.setPath($0, for: section) })) {
             start(section)
-                .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { FootMiniPlayer(app: app) } }
+                .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { foot(inAccessory: false) } }
                 .navigationDestination(for: Screen.self) { screen in
                     ScreenView(app: app, screen: screen)
-                        .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { FootMiniPlayer(app: app) } }
+                        .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { foot(inAccessory: false) } }
                 }
         }
     }

@@ -21,6 +21,11 @@ describes how they are made.
 - Jellyfin apps that say they take media control obey a user's remotes
   through their socket: pause, play, seek, skip, next and previous. Plex
   apps can still only be stopped.
+- The web and desktop apps have a remote in the header while something
+  plays on another of your devices: it shows what plays there and how far
+  along, and plays, pauses, seeks, skips, goes to the next or previous
+  title or channel and stops it. Their players obey the remote too, and
+  the dashboard says which device each session plays on.
 - Every session says which device plays it, the same for everything one
   sign-in plays, and what kind of device that is (a TV, a phone, a
   tablet, a computer, a browser): what the player says, else what the

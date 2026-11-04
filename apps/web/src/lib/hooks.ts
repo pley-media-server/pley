@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
+/** The current time in unix seconds, updated every `everyMs`. */
+export function useNow(everyMs = 15_000): number {
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now() / 1000), everyMs);
+    return () => window.clearInterval(id);
+  }, [everyMs]);
+  return now;
+}
+
 export function useDebouncedValue<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {

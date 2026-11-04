@@ -99,3 +99,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   posters to browse and ask for, Which seasons? and each request's actions
   in a panel down the side, Discover's titles in Search, and a pop-up when
   something you asked for is ready to watch.
+- A remote for your other devices on iPhone, iPad and Mac: a bar above
+  the tabs, or a toolbar button on the Mac, shows what plays on them, and
+  plays, pauses, seeks, skips, goes to the next or previous track (or
+  channel) and stops it. Every Apple device, Apple TV included, obeys
+  your remotes, the web's too, while Pley is open or music plays.

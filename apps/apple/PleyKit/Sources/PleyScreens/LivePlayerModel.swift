@@ -23,8 +23,13 @@ public struct LiveRequest: Hashable, Codable, Sendable {
 /// up and down through the category it was opened in (wrapping round its
 /// ends), a channel number typed on a remote or keyboard, the favourite,
 /// and the trouble a channel can run into. `playback` does the watching.
+/// The profile's remotes change channel the same way (`obey`).
 @MainActor
 public final class LivePlayerModel: ObservableObject, Identifiable {
+    /// The remote's commands the live player obeys: channel up and down. It
+    /// doesn't go back in a channel, so no pause or seek.
+    public static let controls: [Control] = [.next, .previous]
+
     /// A typed number tunes this long after its last digit.
     public static let numberWait: Duration = .milliseconds(1_400)
     /// "No channel 123" shows this long.
@@ -135,6 +140,19 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         let at = ((page.offset / size + (by > 0 ? 1 : -1)) % pages + pages) % pages
         let next = try await live.page(category, page: at).channels
         return by > 0 ? next.first : next.last
+    }
+
+    /// A command from the profile's remote on another device, for session
+    /// `sessionId` (`player_command`): next and previous are channel up and
+    /// down, as here, when it is the session watching now. The new
+    /// channel's watch tells the server, and so the remote.
+    public func obey(_ command: PlayerCommand, for sessionId: String) {
+        guard playback.sessionId == sessionId else { return }
+        switch command.command {
+        case .next: zap(by: 1)
+        case .previous: zap(by: -1)
+        default: break
+        }
     }
 
     /// The Channels list moved to another category: channel up and down follow it.
