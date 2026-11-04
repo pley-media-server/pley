@@ -273,6 +273,8 @@ class App : NUIApplication
         var shown = Profile.Start();
         tv.Restart(Home(tv));
         Profile.Took("Home shown", shown);
+        // The first film opens without making the TV's first player on the UI thread.
+        TizenMediaEngine.Warm();
         _ = state.LoadAccount();
         var home = state.LoadHome();
         Profile.Ends("Home's data", home);

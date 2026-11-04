@@ -49,29 +49,105 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>The picture's size in pixels, once known and when it changes: a screen draws black where the letterbox leaves the plane empty.</summary>
     public event Action<int, int>? VideoSize;
 
+    /// <summary>
+    /// Where it plays: the last position the TV's player said, read again off the UI thread as it's
+    /// asked (asked on it, each read held the UI 30 to 200 ms, several times a second), and moved on
+    /// by the time since while it plays, so the clock runs smooth between reads.
+    /// </summary>
     public long PositionMs
     {
         get
         {
             var p = player;
-            if (p != null && prepared && pendingSeek == null)
-            {
-                try
-                {
-                    var asked = Profile.Start();
-                    Profile.Enter("player: its position");
-                    if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) lastPosition = p.GetPlayPosition();
-                    Profile.Leave();
-                    Slow("its position", asked);
-                }
-                catch (Exception)
-                {
-                    // Between states: the last one known.
-                }
-            }
-            return pendingSeek ?? lastPosition;
+            if (p != null && prepared && pendingSeek == null) AskPosition(p);
+            if (pendingSeek is long seek) return seek;
+            if (playingNow && moved && status == EngineStatus.Ready && positionAt > 0)
+                return lastPosition + Math.Min(Environment.TickCount64 - positionAt, ProjectMs);
+            return lastPosition;
         }
     }
+
+    /// <summary>The most the position is moved on past the last read: no further, while a read is late or the player waits.</summary>
+    const long ProjectMs = 500;
+
+    /// <summary>When <see cref="lastPosition"/> was read from the TV's player.</summary>
+    long positionAt;
+    bool positionAsked;
+
+    void AskPosition(Media.Player p)
+    {
+        if (positionAsked) return;
+        positionAsked = true;
+        _ = ReadPosition(p, generation);
+    }
+
+    async Task ReadPosition(Media.Player p, int mine)
+    {
+        try
+        {
+            var read = await OffUi("its position", () => p.State is Media.PlayerState.Playing or Media.PlayerState.Paused ? p.GetPlayPosition() : -1);
+            if (read >= 0 && mine == generation && player == p && prepared && pendingSeek == null)
+            {
+                lastPosition = read;
+                positionAt = Environment.TickCount64;
+            }
+        }
+        catch (Exception)
+        {
+            // Between states: the last one known.
+        }
+        finally
+        {
+            positionAsked = false;
+        }
+    }
+
+    static readonly object offUiGate = new object();
+    static Task offUi = Task.CompletedTask;
+
+    /// <summary>
+    /// A call into the TV's player that holds its caller (its position, a seek, a prepare: 30 to 500
+    /// ms each), made off the UI thread so the screen keeps drawing; one after another, for every
+    /// engine, so two never meet in the player. Not those bound to the window (the picture's region,
+    /// letting a player go): made from another thread, letting go held the UI 8 s and the app died.
+    /// </summary>
+    static Task<T> OffUi<T>(string what, Func<T> call)
+    {
+        lock (offUiGate)
+        {
+            var next = offUi.ContinueWith(_ =>
+            {
+                var asked = Profile.Start();
+                try
+                {
+                    return call();
+                }
+                finally
+                {
+                    Slow(what + " (off the UI)", asked);
+                }
+            }, CancellationToken.None, TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
+            offUi = next;
+            return next;
+        }
+    }
+
+    /// <summary>
+    /// Makes and lets go of a player once, off the UI thread, before any film: the first made in the
+    /// app held the UI 435 ms as the first film opened; the next are quick.
+    /// </summary>
+    public static void Warm()
+    {
+        if (warmed) return;
+        warmed = true;
+        _ = OffUi("made to warm up", () =>
+        {
+            new Media.Player().Dispose();
+            return true;
+        });
+    }
+
+    static bool warmed;
 
     /// <summary>A call into the TV's player that held the UI thread: marked, in a profiling build.</summary>
     [System.Diagnostics.Conditional("PROFILE")]
@@ -213,82 +289,34 @@ sealed class TizenMediaEngine : IVideoEngine
         }
         try
         {
-            Profile.Enter("player: prepare (the call)");
-            preparing = p.PrepareAsync();
-            Profile.Leave();
+            preparing = OffUi("prepare (the call)", () => p.PrepareAsync()).Unwrap();
             await preparing;
             if (mine != generation) return;
             prepared = true;
             Profile.Mark("engine: prepared");
-            Profile.Enter("player: after prepare (display mode, streams, duration)");
             if (video)
             {
+                // Bound to the window: on the UI thread.
+                Profile.Enter("player: after prepare (display mode)");
                 p.DisplaySettings.Mode = Media.PlayerDisplayMode.LetterBox;
-                try
-                {
-                    var size = p.StreamInfo.GetVideoProperties().Size;
-                    if (size.Width > 0 && size.Height > 0) Picture(size.Width, size.Height);
-                }
-                catch (Exception)
-                {
-                    // No picture, or not known yet: the stream says when it is.
-                }
+                Profile.Leave();
             }
-            hasVideo ??= HasPicture(p);
-#if PROFILE
-            try
-            {
-                var v = p.StreamInfo.GetVideoProperties();
-                var a = p.StreamInfo.GetAudioProperties();
-                Profile.Mark($"engine: the player reads video {p.StreamInfo.GetVideoCodec()} {v.Size.Width}x{v.Size.Height} {v.Fps} fps, audio {p.StreamInfo.GetAudioCodec()} {a.Channels} ch, picture {hasVideo}");
-                var tracks = p.AudioTrackInfo;
-                var languages = string.Join(" ", Enumerable.Range(0, tracks.GetCount()).Select(i =>
-                {
-                    try
-                    {
-                        return tracks.GetLanguageCode(i) is { Length: > 0 } code ? code : "?";
-                    }
-                    catch (Exception)
-                    {
-                        return "?";
-                    }
-                }));
-                Profile.Mark($"engine: the player lists {tracks.GetCount()} audio tracks ({languages}), plays {tracks.Selected}");
-                try
-                {
-                    Profile.Mark($"engine: the sound is decoded by {p.AudioCodecType}; offload takes {string.Join(" ", p.AudioOffload.SupportedFormats)}");
-                }
-                catch (Exception e)
-                {
-                    Profile.Mark($"engine: the sound is decoded by {p.AudioCodecType}; offload: {e.GetType().Name} {e.Message}");
-                }
-            }
-            catch (Exception e)
-            {
-                Profile.Mark($"engine: the player says nothing of its streams ({e.GetType().Name})");
-            }
-#endif
-            try
-            {
-                durationMs = Math.Max(0, p.StreamInfo.GetDuration());
-            }
-            catch (Exception)
-            {
-                // A live stream has none.
-            }
-            Profile.Leave();
+            // What the streams are, off the UI thread: read on it, they held it up to 240 ms between the prepare and the seek.
+            var facts = await OffUi("its streams (after prepare)", () => StreamFacts(p));
+            if (mine != generation) return;
+            if (video && facts.Width > 0 && facts.Height > 0) Picture(facts.Width, facts.Height);
+            hasVideo ??= facts.HasVideo;
+            durationMs = facts.DurationMs;
             // A file's timeline is the file's: a conversion that starts there still seeks there. Live starts at its edge.
             var start = pendingSeek ?? (s.Live ? 0 : s.StartMs);
             if (start >= 1000)
             {
                 Profile.Mark($"engine: going to {start / 1000} s");
-                Profile.Enter("player: seek (the call)");
-                var going = p.SetPlayPositionAsync((int)start, false);
-                Profile.Leave();
-                await going;
+                await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)start, false)).Unwrap();
                 Profile.Mark("engine: there");
                 if (mine != generation) return;
                 lastPosition = start;
+                positionAt = 0;
             }
             pendingSeek = null;
             SetStatus(mine, EngineStatus.Ready);
@@ -298,6 +326,69 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             if (mine == generation) Post(mine, () => Fail(ErrorOf(e)));
         }
+    }
+
+    /// <summary>What the TV's player says of a prepared source's streams: the picture's size, whether it has one, its duration.</summary>
+    readonly record struct Facts(int Width, int Height, bool? HasVideo, long DurationMs);
+
+    /// <summary>Read off the UI thread (<see cref="OffUi"/>): none of these is bound to the window.</summary>
+    static Facts StreamFacts(Media.Player p)
+    {
+        int width = 0, height = 0;
+        try
+        {
+            var size = p.StreamInfo.GetVideoProperties().Size;
+            width = size.Width;
+            height = size.Height;
+        }
+        catch (Exception)
+        {
+            // No picture, or not known yet: the stream says when it is.
+        }
+        var hasVideo = HasPicture(p);
+#if PROFILE
+        try
+        {
+            var v = p.StreamInfo.GetVideoProperties();
+            var a = p.StreamInfo.GetAudioProperties();
+            Profile.Mark($"engine: the player reads video {p.StreamInfo.GetVideoCodec()} {v.Size.Width}x{v.Size.Height} {v.Fps} fps, audio {p.StreamInfo.GetAudioCodec()} {a.Channels} ch, picture {hasVideo}");
+            var tracks = p.AudioTrackInfo;
+            var languages = string.Join(" ", Enumerable.Range(0, tracks.GetCount()).Select(i =>
+            {
+                try
+                {
+                    return tracks.GetLanguageCode(i) is { Length: > 0 } code ? code : "?";
+                }
+                catch (Exception)
+                {
+                    return "?";
+                }
+            }));
+            Profile.Mark($"engine: the player lists {tracks.GetCount()} audio tracks ({languages}), plays {tracks.Selected}");
+            try
+            {
+                Profile.Mark($"engine: the sound is decoded by {p.AudioCodecType}; offload takes {string.Join(" ", p.AudioOffload.SupportedFormats)}");
+            }
+            catch (Exception e)
+            {
+                Profile.Mark($"engine: the sound is decoded by {p.AudioCodecType}; offload: {e.GetType().Name} {e.Message}");
+            }
+        }
+        catch (Exception e)
+        {
+            Profile.Mark($"engine: the player says nothing of its streams ({e.GetType().Name})");
+        }
+#endif
+        long duration = 0;
+        try
+        {
+            duration = Math.Max(0, p.StreamInfo.GetDuration());
+        }
+        catch (Exception)
+        {
+            // A live stream has none.
+        }
+        return new Facts(width, height, hasVideo, duration);
     }
 
     /// <summary>
@@ -370,10 +461,7 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         try
         {
-            Profile.Enter("player: seek (the call)");
-            var going = p.SetPlayPositionAsync((int)ms, false);
-            Profile.Leave();
-            await going;
+            await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ms, false)).Unwrap();
         }
         catch (Exception)
         {
@@ -382,6 +470,7 @@ sealed class TizenMediaEngine : IVideoEngine
         if (mine != generation || pendingSeek != ms) return;
         pendingSeek = null;
         lastPosition = ms;
+        positionAt = 0;
         if (status == EngineStatus.Ended)
         {
             // Back from the end: it can play again.
@@ -648,27 +737,43 @@ sealed class TizenMediaEngine : IVideoEngine
     void Watch()
     {
         var p = player;
-        if (p == null || !started || status == EngineStatus.Ended) return;
+        if (p == null || !started || status == EngineStatus.Ended || watchAsked) return;
+        watchAsked = true;
+        _ = Watch(p, generation);
+    }
+
+    bool watchAsked;
+
+    /// <summary>The position read off the UI thread (<see cref="OffUi"/>), then weighed on it.</summary>
+    async Task Watch(Media.Player p, int mine)
+    {
         bool playing;
         long position;
         try
         {
-            var asked = Profile.Start();
-            Profile.Enter("player: its position (watch)");
-            playing = p.State == Media.PlayerState.Playing;
-            position = playing ? lastPosition = p.GetPlayPosition() : lastPosition;
-            Profile.Leave();
-            Slow("its position (watch)", asked);
+            var read = await OffUi("its position (watch)", () => p.State == Media.PlayerState.Playing ? p.GetPlayPosition() : -1);
+            if (mine != generation || player != p || !started || status == EngineStatus.Ended) return;
+            playing = read >= 0;
+            if (playing && pendingSeek == null)
+            {
+                lastPosition = read;
+                positionAt = Environment.TickCount64;
+            }
+            position = lastPosition;
         }
         catch (Exception)
         {
             return;
         }
+        finally
+        {
+            watchAsked = false;
+        }
         if (!moved)
         {
             // Started: the position has moved on from where it began, so pictures come.
 #if PROFILE
-            if (++startWatches % 25 == 0) Profile.Mark($"engine: waiting for the picture to move: {p.State}, at {position} ms");
+            if (++startWatches % 25 == 0) Profile.Mark($"engine: waiting for the picture to move: {(playing ? "playing" : "not playing")}, at {position} ms");
 #endif
             if (!playing) return;
             if (firstAt < 0) firstAt = position;
@@ -871,6 +976,8 @@ sealed class TizenMediaEngine : IVideoEngine
                 // It failed: there is nothing to stop.
             }
         }
+        // The calls off the UI asked before (a position, a seek) done first: none meets the player let go.
+        await OffUi("let go after", () => true);
         // On the UI thread, though it holds it 100 to 300 ms: let go from another, the player, bound
         // to the window, held the UI 8 s as a film was left, and the app died moments later.
         var releasing = Profile.Start();
