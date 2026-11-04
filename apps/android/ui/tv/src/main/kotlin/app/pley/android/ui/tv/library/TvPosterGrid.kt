@@ -186,7 +186,7 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
             ringY = at.y - by
             quieten()
         }
-        glide.move(by, held, reduced)
+        glide.move(by, held, reduced, HELD_GLIDE_MS)
     }
 
     /** Focuses the cell at [position] once it is laid out ([column]). */
@@ -201,9 +201,49 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
      * next step left Compose's own search to drift to another column or
      * lose focus. A cell not laid out (a held key outrunning the rows on
      * the screen) is scrolled just into the grid and focused once it is.
+     *
+     * A held step that comes while the last one's glide still runs waits a
+     * frame or two for the row it brings onto the screen ([rowMade]), then
+     * goes all the same: the glide ([HELD_GLIDE_MS]) carries the grid on
+     * meanwhile. The first step of a hold, the grid at rest, goes at once.
      */
     fun column(from: Int, position: Int, focus: TvGridFocus): Boolean {
         if (bringing?.isActive == true) return true
+        val down = position > from
+        if (!gate.holding || !glide.moving || rowMade(down, focus)) return step(from, position, focus)
+        bringing = scope.launch {
+            var frames = 0
+            while (frames < ROW_WAIT_FRAMES && !rowMade(down, focus)) {
+                withFrameNanos { }
+                frames++
+            }
+            if (inCell == from) step(from, position, focus)
+        }
+        return true
+    }
+
+    /**
+     * Whether the row a held step brings onto the screen (the next past the
+     * bottom going down, past the top going up) is made. The grid makes
+     * rows ahead of the screen between frames; a held key's step, every
+     * 45 ms, made the next one itself, in the frame, when they fell behind:
+     * on a Google TV Streamer a row took 18 ms, and the steps never left the
+     * frames the time to get ahead again. A step waiting a frame or two for
+     * its row gives them that time, and the steps after it find theirs made.
+     */
+    private fun rowMade(down: Boolean, focus: TvGridFocus): Boolean {
+        val visible = state.layoutInfo.visibleItemsInfo
+        if (visible.isEmpty()) return true
+        val edge = (if (down) visible.last().index else visible.first().index) - leadNow()
+        if (edge < 0) return true
+        val row = edge / columns + if (down) 1 else -1
+        if (row < 0 || row * columns >= total) return true
+        val first = row * columns
+        return focus.slots.has(first) && focus.slots.has(minOf(first + columns, total) - 1)
+    }
+
+    /** [column]'s step: to [position], laid out or brought in. */
+    private fun step(from: Int, position: Int, focus: TvGridFocus): Boolean {
         val target = keyAt(position)
         if (laidOut(target) && focus.focus(position)) return true
         val info = state.layoutInfo
@@ -298,6 +338,16 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     private companion object {
         /** How many frames a cell scrolled into the grid has to be laid out in and take focus. */
         const val BRING_FRAMES = 3
+
+        /** How many frames a held step waits for the row it brings onto the screen ([rowMade]). */
+        const val ROW_WAIT_FRAMES = 2
+
+        /**
+         * A held step's glide: [KeyRepeatGate.GLIDE_MS] (a step and a quarter)
+         * reckoned from a step that may come [ROW_WAIT_FRAMES] late, so that the
+         * grid goes on gliding while one waits.
+         */
+        const val HELD_GLIDE_MS = ((KeyRepeatGate.MOVE_INTERVAL_MS + ROW_WAIT_FRAMES * 17) * 5 / 4).toInt()
     }
 }
 

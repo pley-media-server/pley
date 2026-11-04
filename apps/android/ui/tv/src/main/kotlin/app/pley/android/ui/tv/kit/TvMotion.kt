@@ -80,15 +80,18 @@ internal class TvGlide(private val state: ScrollableState, private val scope: Co
     /** Whether it is moving now. */
     val moving: Boolean get() = asked && job?.isActive == true
 
-    /** Moves [by] pixels from where it is now: a [held] key's step or a press's, or at once when [reduced]. */
-    fun move(by: Float, held: Boolean, reduced: Boolean) {
+    /**
+     * Moves [by] pixels from where it is now: a [held] key's step (evenly
+     * over [heldMs]) or a press's, or at once when [reduced].
+     */
+    fun move(by: Float, held: Boolean, reduced: Boolean, heldMs: Int = KeyRepeatGate.GLIDE_MS) {
         when {
             abs(by) < 0.5f -> stop()
             reduced -> {
                 stop()
                 scope.launch { state.scrollBy(by) }
             }
-            held -> start(by, KeyRepeatGate.GLIDE_MS, LinearEasing, null)
+            held -> start(by, heldMs, LinearEasing, null)
             else -> start(by, PleyMotion.FOCUS_MS, TvMotion.EaseOut, null)
         }
     }
