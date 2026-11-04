@@ -2,6 +2,7 @@ package app.pley.android.designsystem.image
 
 import android.graphics.BitmapShader
 import android.graphics.Matrix
+import android.util.LruCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -33,10 +34,10 @@ object Placeholder {
     }
 
     /** The gradient's two ends for [seed]. */
-    fun colors(seed: String): Pair<Color, Color> {
-        val hue = hue(seed)
-        return hsl(hue.toFloat(), 0.30f, 0.22f) to hsl(((hue + 40) % 360).toFloat(), 0.35f, 0.12f)
-    }
+    fun colors(seed: String): Pair<Color, Color> = colorsOf(hue(seed))
+
+    private fun colorsOf(hue: Int): Pair<Color, Color> =
+        hsl(hue.toFloat(), 0.30f, 0.22f) to hsl(((hue + 40) % 360).toFloat(), 0.35f, 0.12f)
 
     /**
      * The gradient over a box of [size], as CSS draws `linear-gradient(135deg, …)`:
@@ -71,19 +72,24 @@ object Placeholder {
     /** [seed]'s gradient: the colour matrix the ramp is drawn through. */
     class Look internal constructor(internal val filter: ColorFilter)
 
+    /** Looks made, by hue (all a look depends on): each tile a held key brings in asks for one. */
+    private val looks = LruCache<Int, Look>(48)
+
     /**
      * What [drawGradient] draws for [seed], to keep with the box: a matrix
      * taking the ramp's grey g (0 to 255) to from + (to - from) × g / 255
      * in each channel, the sRGB blend between the title's two colours.
      */
     fun look(seed: String): Look {
-        val (from, to) = colors(seed)
+        val hue = hue(seed)
+        looks.get(hue)?.let { return it }
+        val (from, to) = colorsOf(hue)
         fun row(channel: Int, a: Float, b: Float) = FloatArray(5).also {
             it[channel] = b - a
             it[4] = a * 255f
         }
         val matrix = row(0, from.red, to.red) + row(1, from.green, to.green) + row(2, from.blue, to.blue) + floatArrayOf(0f, 0f, 0f, 1f, 0f)
-        return Look(ColorFilter.colorMatrix(ColorMatrix(matrix)))
+        return Look(ColorFilter.colorMatrix(ColorMatrix(matrix))).also { looks.put(hue, it) }
     }
 
     /**
@@ -96,12 +102,30 @@ object Placeholder {
         if (outline == null) {
             drawStretched(ramp, Offset.Zero, size, colorFilter = look.filter)
         } else {
-            drawOutline(outline, rampBrush, colorFilter = look.filter)
+            drawOutline(outline, rampBrush(size), colorFilter = look.filter)
         }
     }
 
-    /** The ramp stretched over whatever box it fills, as [drawStretched] stretches it. */
-    private val rampBrush = object : ShaderBrush() {
+    /**
+     * A brush for each of the last few sizes of box the ramp filled (drawn
+     * on the main thread alone). A ShaderBrush keeps the shader for the last
+     * size it filled and makes another for any other: one brush for every
+     * tile made a shader for each tile of another size than the one before,
+     * as on a page with rows of posters and of landscape tiles.
+     */
+    private val rampBrushes = ArrayList<RampBrush>(RAMP_SIZES)
+
+    private fun rampBrush(size: Size): RampBrush {
+        for (i in rampBrushes.indices) {
+            val brush = rampBrushes[i]
+            if (brush.size == size) return brush
+        }
+        if (rampBrushes.size == RAMP_SIZES) rampBrushes.removeAt(0)
+        return RampBrush(size).also { rampBrushes += it }
+    }
+
+    /** The ramp stretched over a box of [size], as [drawStretched] stretches it. */
+    private class RampBrush(val size: Size) : ShaderBrush() {
         override fun createShader(size: Size): Shader {
             val bitmap = ramp.asAndroidBitmap()
             return BitmapShader(bitmap, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP).apply {
@@ -109,6 +133,9 @@ object Placeholder {
             }
         }
     }
+
+    /** The sizes [rampBrushes] keeps a brush for: a page's kinds of tile. */
+    private const val RAMP_SIZES = 8
 
     /** CSS's hsl(), hue in degrees, saturation and lightness 0 to 1. */
     fun hsl(hue: Float, saturation: Float, lightness: Float): Color {

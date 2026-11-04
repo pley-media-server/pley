@@ -252,6 +252,9 @@ private class PlaceholderNode(
     private var look: Placeholder.Look? = null
     private var layout: TextLayoutResult? = null
     private var layoutKey: TitleKey? = null
+
+    /** The box [layoutKey] was made for. */
+    private var layoutSize = Size.Unspecified
     private var request: TitleRequest? = null
     private var outline: Outline? = null
     private var outlinePath: Path? = null
@@ -349,6 +352,10 @@ private class PlaceholderNode(
      * the main thread ([TitleLayouts]) and drawn when it comes.
      */
     private fun Density.askTitle(size: Size) {
+        // Drawing asks at every frame it draws. While the box and the screen's density are as they were, the title
+        // asked for stands (a new title or style forgets it): no key needs making to say so.
+        val asked = layoutKey
+        if (asked != null && size == layoutSize && asked.density == density && asked.fontScale == fontScale) return
         val style = titleStyle ?: return
         if (title.isEmpty()) return
         val padding = 12.dp.roundToPx()
@@ -361,6 +368,7 @@ private class PlaceholderNode(
             fontScale = fontScale,
             direction = currentValueOf(LocalLayoutDirection),
         )
+        layoutSize = size
         if (key == layoutKey) return
         forgetTitle()
         layoutKey = key
