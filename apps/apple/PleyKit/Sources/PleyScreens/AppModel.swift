@@ -54,6 +54,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         public var nowPlaying: @MainActor () -> any NowPlayingSystem
         /// A random number below its argument, for shuffling music.
         public var random: @Sendable (Int) -> Int
+        /// What the profile's remotes call this device, read as each player starts.
+        public var deviceName: @MainActor () -> String?
 
         public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
                     quality: any QualityMemory = DefaultsQuality(),
@@ -64,7 +66,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
                     subtitleOffsets: any SubtitleOffsets = DefaultsSubtitleOffsets(),
                     musicOutputs: @escaping @MainActor () -> any MusicOutput = { AVMusicOutput() },
                     nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { SystemNowPlaying() },
-                    random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) }) {
+                    random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) },
+                    deviceName: @escaping @MainActor () -> String? = { DeviceName.current }) {
             self.clientId = clientId
             self.lateReports = lateReports
             self.quality = quality
@@ -76,6 +79,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             self.musicOutputs = musicOutputs
             self.nowPlaying = nowPlaying
             self.random = random
+            self.deviceName = deviceName
         }
     }
 
@@ -108,6 +112,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public var playerShown: PlaybackController? { pictureInPicture ? nil : player }
     /// The live player open, if any: one playback at a time, so it and `player` are never both open.
     @Published public private(set) var livePlayer: LivePlayerModel?
+    /// Goes up whenever the profile's sessions may have changed (`sessions_changed`, the event
+    /// stream connecting again, the app back in front): what lists them (the remote) reads them again.
+    @Published public private(set) var sessionsVersion = 0
     /// What changed on the server last (its events, gathered for 0.3 s,
     /// and this app's own writes): the screens showing it read it again.
     @Published public private(set) var change: ServerChange?
@@ -183,8 +190,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
     /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
     private let tv: Bool
-    /// Whether the app is in the foreground: the event stream runs, and
-    /// screens poll what moves, only then.
+    /// Whether the app is in the foreground: screens poll what moves only
+    /// then, and the event stream runs then, or while music plays in the background.
     public private(set) var active = true
     private var eventsRunning = false
 
@@ -293,6 +300,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
+        serverEvents.onPlayerCommand = { [weak self] id, command in self?.playerCommand(id, command) }
+        serverEvents.onSessionsChanged = { [weak self] in self?.sessionsVersion += 1 }
         #if os(iOS) || os(tvOS)
         audio.onPause = { [weak self] in
             self?.music.interrupted()
@@ -615,7 +624,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
             late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
             ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines,
             subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id,
-            autoplayNext: settings.autoplayNext, local: downloads.local, subtitleStyle: settings)
+            autoplayNext: settings.autoplayNext, local: downloads.local, subtitleStyle: settings,
+            deviceName: playerSetup.deviceName())
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()
@@ -631,6 +641,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         guard let current = player, controller == nil || controller === current else { return }
         player = nil
         pictureInPicture = false
+        followBackground()
         playerWatch = nil
         videoShown = nil
         nowPlaying.release(.video)
@@ -643,6 +654,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public func pictureInPictureStarted() {
         guard player != nil else { return }
         pictureInPicture = true
+        followBackground()
     }
 
     /// Picture in Picture asks for the player back: it shows again.
@@ -655,6 +667,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public func pictureInPictureClosed() {
         guard pictureInPicture else { return }
         pictureInPicture = false
+        followBackground()
         Task { await closePlayer() }
     }
 
@@ -670,7 +683,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         await closePlayer()
         guard asked == plays, user != nil else { return nil }
         let playback = LivePlayback(live: live, clientId: playerSetup.clientId, clock: playerSetup.clock,
-                                    engines: playerSetup.liveEngines)
+                                    engines: playerSetup.liveEngines, controls: LivePlayerModel.controls,
+                                    deviceName: playerSetup.deviceName())
         let model = LivePlayerModel(request: request, live: live, playback: playback, seen: seen,
                                     toast: { [weak self] text in self?.shell.show(text) })
         livePlayer = model
@@ -738,7 +752,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 guard let self, let user = self.user, let origin = await self.session.origin else { return nil }
                 return self.lateReports(origin: origin, profileId: user.id)
             },
-            clock: setup.clock, outputs: setup.musicOutputs, random: setup.random)
+            clock: setup.clock, outputs: setup.musicOutputs, random: setup.random, deviceName: setup.deviceName())
         let music = MusicPlayback(environment: environment)
         music.onChange = { [weak self] state in self?.musicChanged(state) }
         return music
@@ -747,6 +761,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private func musicChanged(_ state: MusicState) {
         shell.setNowPlaying(state.active)
         playbackChanged()
+        followBackground()
         guard state.active else {
             nowPlaying.release(.music)
             return
@@ -910,8 +925,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     // MARK: The server's events
 
     /// The app came to the foreground (`true`) or left it: the event
-    /// stream runs only in the foreground. Back in front, everything shown
-    /// is read again, since events were missed.
+    /// stream runs only in the foreground, or while something plays in
+    /// the background. Back in
+    /// front, everything shown is read again, since events were missed.
     public func sceneActive(_ active: Bool) {
         guard active != self.active else { return }
         self.active = active
@@ -922,10 +938,28 @@ public final class AppModel: ObservableObject, SnapshotCache {
             // Conversions on the server are followed only while Pley is open.
             downloads.resume()
             startEvents()
-            if user != nil { note(ServerChange(home: true, libraries: true, watchlist: true, everything: true)) }
-        } else {
+            if user != nil {
+                note(ServerChange(home: true, libraries: true, watchlist: true, everything: true))
+                sessionsVersion += 1
+            }
+        } else if !playsInBackground {
             stopEvents()
         }
+    }
+
+    /// Music, or a video in Picture in Picture, playing in the background
+    /// keeps the event stream, so the profile's remotes reach it, as on
+    /// Android; once it ends or music pauses, the system suspends the app,
+    /// and the stream goes until something plays or the app is back.
+    private func followBackground() {
+        guard !active else { return }
+        if playsInBackground { startEvents() } else { stopEvents() }
+    }
+
+    /// Music plays, or loads its next track meanwhile, or a video goes on in
+    /// Picture in Picture: its session keeps the controls it declared.
+    private var playsInBackground: Bool {
+        music.state.playing || music.state.loading || (pictureInPicture && player != nil)
     }
 
     /// A change this app made itself: the other screens showing it follow.
@@ -934,7 +968,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
     }
 
     private func startEvents() {
-        guard active, user != nil, !offline, !eventsRunning else { return }
+        guard active || playsInBackground, user != nil, !offline, !eventsRunning else { return }
         eventsRunning = true
         let signals = eventSignals
         Task { [weak self] in
@@ -1000,6 +1034,21 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// The news waiting for the player to close.
     public var newsHeld: [RequestNews] { heldNews }
+
+    /// The sessions playing on this device: a remote here lists the others.
+    public var sessionsHere: Set<String> {
+        var here = Set([music.sessionId, player?.session?.id, livePlayer?.playback.sessionId].compactMap { $0 })
+        here.remove("")
+        return here
+    }
+
+    /// A command from the profile's remote on another device: the player
+    /// of that session acts on it, if it plays here (each one checks).
+    private func playerCommand(_ id: String, _ command: PlayerCommand) {
+        music.obey(command, for: id)
+        player?.obey(command, for: id)
+        livePlayer?.obey(command, for: id)
+    }
 
     /// One of this profile's playbacks was stopped from elsewhere: the
     /// player showing it closes, and says why.
@@ -1126,6 +1175,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         signedInNow(self.user ?? user)
         downloads.resume()
         homeVersion += 1
+        // The remote's list may have gone on showing sessions that ended meanwhile.
+        sessionsVersion += 1
         note(ServerChange(home: true, libraries: true, watchlist: true, everything: true))
         return true
     }

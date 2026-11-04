@@ -45,6 +45,9 @@ public struct PlaybackEnvironment {
     public var local: (any LocalMedia)?
     /// The subtitle style, which the player's Subtitle style menu changes.
     public var subtitleStyle: any SubtitleStyleMemory
+    /// What the profile's remotes call this device (`DeviceName`); `nil`:
+    /// the server names it from the User-Agent.
+    public var deviceName: String?
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
@@ -53,8 +56,10 @@ public struct PlaybackEnvironment {
                 warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
                 subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
                 pictureFolder: URL? = nil, autoplayNext: Bool = true, followsScreen: Bool = Self.screensChange,
-                local: (any LocalMedia)? = nil, subtitleStyle: any SubtitleStyleMemory = MemorySubtitleStyle()) {
+                local: (any LocalMedia)? = nil, subtitleStyle: any SubtitleStyleMemory = MemorySubtitleStyle(),
+                deviceName: String? = nil) {
         self.api = api
+        self.deviceName = deviceName
         self.local = local
         self.subtitleStyle = subtitleStyle
         self.autoplayNext = autoplayNext
@@ -414,6 +419,64 @@ public final class PlaybackController: ObservableObject {
                 self.state.notice = episode ? PlayerTexts.lastEpisode : PlayerTexts.nothingNext
             }
         }
+    }
+
+    // MARK: The profile's remotes
+
+    /// The remote's commands a playback of `kind` (through `queue`) obeys:
+    /// a video has no previous, and next only where something can follow.
+    public static func controls(_ kind: ItemKind, queue: PlayQueue? = nil) -> [Control] {
+        NextUp.hasNext(kind, queue: queue) ? [.play, .pause, .seek, .skip, .next] : [.play, .pause, .seek, .skip]
+    }
+
+    /// What this playback's sessions say they obey.
+    private var controls: [Control]? {
+        item.map { Self.controls($0.kind, queue: request.queue) }
+    }
+
+    /// A command from the profile's remote on another device, for session
+    /// `sessionId` (`player_command`): acted on only when it is the session
+    /// playing now, then reported at once, so the remote sees it. A seek
+    /// stops at the start and the end, a skip counts from where it is, next
+    /// with nothing next does nothing, and a video has no previous.
+    public func obey(_ command: PlayerCommand, for sessionId: String) {
+        guard !closed, !stopped, !sessionId.isEmpty, let session, session.id == sessionId, !session.local else {
+            return
+        }
+        switch command.command {
+        case .play:
+            guard !wantPlay || ended else { return }
+            play()
+            report(.playing)
+        case .pause:
+            // A pause reports by itself.
+            if wantPlay { pause() }
+        case .seek:
+            guard let position = command.positionMs else { return }
+            seek(toMs: position)
+            reportSought()
+        case .skip:
+            guard let offset = command.offsetMs else { return }
+            seek(toMs: livePosition() + offset)
+            reportSought()
+        case .next:
+            guard let item, NextUp.hasNext(item.kind, queue: request.queue) else { return }
+            // The new session tells the server, and so the remote; nothing is said here when none follows.
+            if let next { return switchTo(next) }
+            lookUpNext { [weak self] found in
+                guard let self, let found, self.session === session else { return }
+                self.switchTo(found)
+            }
+        default:
+            // Videos have no previous; a newer remote's command is left alone.
+            break
+        }
+    }
+
+    /// Reports a remote's seek or skip at once, outside the schedule: at
+    /// the place sought, not the engine's, which may not have moved yet.
+    private func reportSought() {
+        session?.progress(positionMs: state.positionMs, state: wantPlay ? .playing : .paused)
     }
 
     /// Hides the Up Next card and stops its countdown. At the end, it comes
@@ -910,14 +973,16 @@ public final class PlaybackController: ObservableObject {
                                                                            audio: pickedAudio, caps: caps),
                                            sideload: sideloads)
         var sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
-                                        keepPrevious: keepPrevious)
+                                        keepPrevious: keepPrevious, controls: controls,
+                                        deviceName: env.deviceName)
         var started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
                                                             late: env.late)
         if PlaybackPlan.needsIndexes(started.info, sent: sent, choices) {
             started.discard()
             choices.streaming = true
             sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
-                                        keepPrevious: keepPrevious)
+                                        keepPrevious: keepPrevious, controls: controls,
+                                        deviceName: env.deviceName)
             started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
                                                             late: env.late)
         }

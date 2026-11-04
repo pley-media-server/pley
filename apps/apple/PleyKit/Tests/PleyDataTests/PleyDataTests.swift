@@ -419,6 +419,28 @@ private func waitFor(_ condition: () async -> Bool) async -> Bool {
         try await Task.sleep(for: .milliseconds(80))
         #expect(changes.count == 1 && changes[0].everything && changes[0].names(12345))
     }
+
+    @Test func aRemotesCommandAndTheSessionsChangingAreToldAtOnce() async throws {
+        let events = ServerEvents(window: 0.01)
+        var commands: [String] = []
+        var sessionsChanged = 0
+        var changes: [ServerChange] = []
+        events.onPlayerCommand = { id, command in commands.append("\(id) \(command.command)") }
+        events.onSessionsChanged = { sessionsChanged += 1 }
+        events.onChange = { changes.append($0) }
+        events.heard(.event(.playerCommand(sessionId: "s1", command: .skip(byMs: 30_000))))
+        events.heard(.event(.sessionsChanged))
+        #expect(commands == ["s1 skip"])
+        #expect(sessionsChanged == 1)
+        // The first connection misses nothing; one made again may have.
+        events.heard(.connected)
+        #expect(sessionsChanged == 1)
+        events.heard(.connected)
+        #expect(sessionsChanged == 2)
+        try await Task.sleep(for: .milliseconds(80))
+        // Neither is a change for the screens' rows but the reconnection.
+        #expect(changes.count == 1 && changes[0].everything)
+    }
 }
 
 /// The Mac's Larger and Smaller Tiles keys: the menu takes ⌘= and ⌘−, and

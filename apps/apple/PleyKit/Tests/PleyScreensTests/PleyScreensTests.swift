@@ -54,8 +54,9 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                     authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover,
                     caps: DeviceCaps(probe: RecordedProbe()),
                     playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
-                                       ceilings: { _ in MemoryCeiling() }, engines: engines, musicOutputs: music,
-                                       nowPlaying: nowPlaying),
+                                       ceilings: { _ in MemoryCeiling() }, engines: engines,
+                                       liveEngines: { QuietLiveEngine() }, musicOutputs: music,
+                                       nowPlaying: nowPlaying, deviceName: { "Living room" }),
                     settings: settings, tv: tv, downloads: downloads, snapshots: snapshots, shelf: shelf)
 }
 

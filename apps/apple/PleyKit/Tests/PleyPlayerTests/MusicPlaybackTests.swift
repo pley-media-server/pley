@@ -83,7 +83,7 @@ private struct MusicRig {
         let output = output
         music = MusicPlayback(environment: MusicEnvironment(
             api: { api }, caps: { await caps.warmUp().report }, clientId: "apple-test-music", reporter: reporter,
-            clock: clock, outputs: { output }, random: { _ in 0 }))
+            clock: clock, outputs: { output }, random: { _ in 0 }, deviceName: "Kitchen"))
     }
 
     func requests() async -> [PlaybackRequest] {
@@ -284,6 +284,89 @@ struct MusicPlaybackTests {
         #expect(rig.output.released)
         _ = await rig.reports()
         #expect(!rig.server.openSessions.contains(id))
+    }
+
+    @Test func itObeysTheProfilesRemotesForTheTrackPlayingNow() async throws {
+        let rig = try await MusicRig()
+        defer { rig.server.stop() }
+        rig.music.play(tracks: rig.tracks)
+        try await rig.playing(loads: 1)
+        let asked = try #require(await rig.requests().first)
+        #expect(asked.controls == [.play, .pause, .seek, .skip, .next, .previous])
+        #expect(asked.deviceName == "Kitchen")
+        let id = try #require(rig.music.sessionId)
+        let duration = rig.music.state.durationMs
+        #expect(duration > 60_000)
+        rig.output.positionMs = 20_000
+
+        // Another session's command changes nothing.
+        rig.music.obey(.pause, for: "other")
+        rig.music.obey(.seek(toMs: 5_000), for: "other")
+        #expect(rig.music.state.playing)
+        #expect(!rig.output.calls.contains { $0.hasPrefix("seek") })
+
+        // A skip counts from where the track is, and reports at once.
+        rig.music.obey(.skip(byMs: 30_000), for: id)
+        #expect(rig.output.calls.last == "seek 50000")
+        try await until("the skip's report") { await rig.reports().last?.positionMs == 50_000 }
+        // A seek stops at the start and the end.
+        rig.music.obey(.skip(byMs: -600_000), for: id)
+        #expect(rig.output.calls.last == "seek 0")
+        rig.music.obey(.seek(toMs: duration + 60_000), for: id)
+        #expect(rig.output.calls.last == "seek \(duration)")
+        try await until("the seek's report") { await rig.reports().last?.positionMs == duration }
+        #expect(await rig.reports().last?.state == .playing)
+        #expect(await rig.reports().allSatisfy { $0.sessionId == id })
+
+        // A pause reports itself; play reports at once.
+        rig.music.obey(.pause, for: id)
+        try await until("paused") { !rig.music.state.playing }
+        try await until("the pause's report") { await rig.reports().last?.state == .paused }
+        rig.music.obey(.play, for: id)
+        try await until("playing") { rig.music.state.playing }
+        try await until("the play's report") { await rig.reports().last?.state == .playing }
+        let reports = await rig.reports().count
+        // Play while playing, or pause while paused, does nothing.
+        rig.music.obey(.play, for: id)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(await rig.reports().count == reports)
+    }
+
+    @Test func remotesNextAndPreviousMoveAsItsOwnButtonsDo() async throws {
+        let rig = try await MusicRig()
+        defer { rig.server.stop() }
+        rig.music.play(tracks: rig.tracks, start: 1)
+        try await rig.playing(loads: 1)
+        var id = try #require(rig.music.sessionId)
+        // Previous a while into a track starts it again, reported at once.
+        rig.output.positionMs = 40_000
+        rig.music.obey(.previous, for: id)
+        #expect(rig.output.calls.last == "seek 0")
+        #expect(rig.music.sessionId == id)
+        try await until("the restart's report") { await rig.reports().last?.positionMs == 0 }
+        // Early in it, the track before.
+        rig.output.positionMs = 1_000
+        rig.music.obey(.previous, for: id)
+        try await until("the track before") { rig.output.loads.count == 2 }
+        #expect(rig.music.state.track?.id == 304)
+        // The old session's commands no longer reach anything.
+        rig.music.obey(.next, for: id)
+        try await rig.playing(loads: 2)
+        #expect(rig.music.state.track?.id == 304)
+        id = try #require(rig.music.sessionId)
+        rig.music.obey(.next, for: id)
+        try await rig.playing(loads: 3)
+        #expect(rig.music.state.track?.id == 303)
+        id = try #require(rig.music.sessionId)
+        rig.music.obey(.next, for: id)
+        try await rig.playing(loads: 4)
+        #expect(rig.music.state.track?.id == 305)
+        // Next at the queue's end does nothing.
+        id = try #require(rig.music.sessionId)
+        rig.music.obey(.next, for: id)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(rig.output.loads.count == 4)
+        #expect(rig.music.sessionId == id)
     }
 
     @Test func errorsAreSaidAsAndroidSaysThem() {

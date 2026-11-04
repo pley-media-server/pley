@@ -114,13 +114,16 @@ public struct MusicEnvironment {
     public var outputs: @MainActor () -> any MusicOutput
     /// A random number below its argument, for shuffling.
     public var random: @Sendable (Int) -> Int
+    /// What the profile's remotes call this device; `nil`: the server names it from the User-Agent.
+    public var deviceName: String?
 
     public init(api: @escaping @MainActor () async throws -> PleyAPI, caps: @escaping @MainActor () async -> ClientCaps,
                 clientId: String, reporter: SessionReporter, late: @escaping @MainActor () async -> LateReports? = { nil },
                 clock: any PlayerClock = SystemPlayerClock(),
                 outputs: @escaping @MainActor () -> any MusicOutput = { AVMusicOutput() },
-                random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) }) {
+                random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) }, deviceName: String? = nil) {
         self.api = api
+        self.deviceName = deviceName
         self.caps = caps
         self.clientId = clientId
         self.reporter = reporter
@@ -145,6 +148,8 @@ public struct MusicEnvironment {
 ///   it was, three times at most; `session_stopped` stops the music and
 ///   says so, and Play starts the track again.
 /// - **Previous** restarts a track that has played more than 3 s.
+/// - **The profile's remotes** (`obey`): play, pause, seek, skip, next and
+///   previous, for the track playing now, reported at once.
 /// - **The sleep timer** pauses after the minutes chosen, or at the end of
 ///   the track (the next one waits, paused).
 ///
@@ -154,6 +159,8 @@ public struct MusicEnvironment {
 public final class MusicPlayback: ObservableObject {
     /// Progress reports while playing, as on the web.
     public static let progressEveryMs: Int64 = 10_000
+    /// The remote's commands music obeys.
+    public static let controls: [Control] = [.play, .pause, .seek, .skip, .next, .previous]
     /// New sessions asked in a row for one track before it counts as failed.
     public static let maxRecreates = 3
     /// The longest a new track waits for the last one's reports.
@@ -293,6 +300,40 @@ public final class MusicPlayback: ObservableObject {
         out?.pause()
     }
 
+    /// A command from the profile's remote on another device, for session
+    /// `sessionId` (`player_command`): acted on only when it is the track
+    /// playing now, as this device's own buttons would, then reported at
+    /// once, so the remote sees it. A seek stops at the start and the end,
+    /// a skip counts from where the track is, and next at the queue's end
+    /// does nothing. A new track tells the server as its session starts.
+    public func obey(_ command: PlayerCommand, for sessionId: String) {
+        guard let session, session.id == sessionId, !ended, error == nil else { return }
+        switch command.command {
+        case .play:
+            guard !state.playing else { return }
+            play()
+            session.progress(positionMs: lastPosition, state: .playing)
+        case .pause:
+            // A pause reports by itself.
+            if state.playing { pause() }
+        case .seek, .skip:
+            let target = command.command == .seek ? command.positionMs : command.offsetMs.map { positionMs + $0 }
+            guard let target else { return }
+            let end = state.durationMs > 0 ? state.durationMs : Int.max
+            let at = min(max(target, 0), end)
+            seek(toMs: at)
+            session.progress(positionMs: at, state: state.playing ? .playing : .paused)
+        case .next:
+            next()
+        case .previous:
+            previous()
+            // Back to the start of this track: the same session, moved.
+            if self.session === session { session.progress(positionMs: 0, state: state.playing ? .playing : .paused) }
+        default:
+            break
+        }
+    }
+
     /// The server stopped this track's session (`session_stopped`, or a
     /// report's `410`): the music stops and says so. Play starts the track again.
     public func stoppedByServer() {
@@ -401,7 +442,8 @@ public final class MusicPlayback: ObservableObject {
                 let caps = await env.caps()
                 let late = await env.late()
                 let request = PlaybackRequest(itemId: track.id, startMs: atMs > 0 ? atMs : nil, mode: mode,
-                                              clientId: env.clientId, keyedUrls: true, caps: caps)
+                                              clientId: env.clientId, keyedUrls: true, controls: Self.controls,
+                                              deviceName: env.deviceName, caps: caps)
                 let started = try await ServerPlaybackSession.start(api: api, request: request,
                                                                     reporter: env.reporter, late: late)
                 guard let self, asked == self.generation, !Task.isCancelled else {

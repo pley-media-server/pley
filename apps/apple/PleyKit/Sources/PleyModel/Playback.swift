@@ -52,13 +52,17 @@ public struct PlaybackRequest: Codable, Hashable, Sendable {
     public var keepPrevious: Bool?
     /// The player can't send the Authorization header: its addresses carry a key.
     public var keyedUrls: Bool?
+    /// The remote's commands this player obeys (Remote control); `nil`: none.
+    public var controls: [Control]?
+    /// What remotes call this device; `nil`: the server names it from the User-Agent.
+    public var deviceName: String?
     /// What this device plays.
     public var caps: ClientCaps
 
     public init(itemId: Int, fileId: Int? = nil, audioIndex: Int? = nil, subtitleIndex: Int? = nil,
                 maxBitrate: Int? = nil, maxHeight: Int? = nil, startMs: Int? = nil, mode: PlaybackMode = .auto,
                 clientId: String? = nil, keepPrevious: Bool? = nil, keyedUrls: Bool? = nil,
-                caps: ClientCaps = ClientCaps()) {
+                controls: [Control]? = nil, deviceName: String? = nil, caps: ClientCaps = ClientCaps()) {
         self.itemId = itemId
         self.fileId = fileId
         self.audioIndex = audioIndex
@@ -70,6 +74,8 @@ public struct PlaybackRequest: Codable, Hashable, Sendable {
         self.clientId = clientId
         self.keepPrevious = keepPrevious
         self.keyedUrls = keyedUrls
+        self.controls = controls
+        self.deviceName = deviceName
         self.caps = caps
     }
 
@@ -86,6 +92,8 @@ public struct PlaybackRequest: Codable, Hashable, Sendable {
         clientId = try c.decodeIfPresent(String.self, forKey: .clientId)
         keepPrevious = try c.decodeIfPresent(Bool.self, forKey: .keepPrevious)
         keyedUrls = try c.decodeIfPresent(Bool.self, forKey: .keyedUrls)
+        controls = try c.decodeIfPresent([Control].self, forKey: .controls)
+        deviceName = try c.decodeIfPresent(String.self, forKey: .deviceName)
         caps = try c.value(.caps, or: ClientCaps())
     }
 }
