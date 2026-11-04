@@ -374,11 +374,12 @@ its number counts what waits: a manager's pending and failed requests
   a reason… (the keyboard), Mark as added by hand and Delete; Withdraw,
   Remove and Delete ask first. Opening the account's own requests marks
   their news seen.
-- **Search** shows the titles the libraries lack in a **Discover** row
-  after the libraries' own, for those who may ask; OK opens a title's
-  page. When TMDB isn't answering, refuses the server's key or isn't open
-  to the account, a tile says so, with Select to try again where that
-  helps. TMDB is searched for the first 200 characters of the words. See
+- **Search** shows up to 20 titles the libraries lack, read from at most
+  3 of TMDB's pages, in a **Discover** row after the libraries' own, for
+  those who may ask; OK opens a title's page. When TMDB isn't answering,
+  refuses the server's key or isn't open to the account, a tile says so,
+  with Select to try again where that helps. TMDB is searched for the
+  first 200 characters of the words. See
   all ends the row: a grid titled for the words ("Results for “dune”")
   of every title TMDB has for them, with its badge, a page at a time as
   See all's are; Back goes back to Search. A library title that

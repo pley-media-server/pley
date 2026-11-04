@@ -391,6 +391,20 @@ function reqSearchWords(text as string) as string
     return Left(text.Trim(), 200).Trim()
 end function
 
+' How many of TMDB's titles Search's Discover row shows; See all has the
+' rest.
+function reqSearchShown() as integer
+    return 20
+end function
+
+' Whether Search's Discover row reads TMDB's next page: fewer than
+' reqSearchShown() titles the libraries lack came (count) and pages are
+' left, three at most (read). A page can come short, even empty, its
+' titles in a library.
+function reqSearchWantsPage(count as integer, page as integer, totalPages as integer, read as integer) as boolean
+    return count < reqSearchShown() and page < totalPages and read < 3
+end function
+
 ' What a See all grid of TMDB's titles shows: one of Discover's lists (a
 ' key of reqLists), or TMDB's results for query, the words searched.
 ' { title, path (asked a page at a time), empty (said when it has none) }.

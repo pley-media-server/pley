@@ -397,6 +397,17 @@ sub test_requests_search_says_what_stops_tmdb()
     tkEqual(other.kind, "retry")
 end sub
 
+' Search's Discover row reads on while too few titles the libraries lack
+' came: 20 at most, from three of TMDB's pages at most.
+sub test_requests_search_reads_up_to_three_pages()
+    tkTrue(reqSearchWantsPage(0, 1, 40, 1), "the first page all in a library")
+    tkTrue(reqSearchWantsPage(12, 2, 40, 2))
+    tkFalse(reqSearchWantsPage(12, 3, 40, 3), "three pages read")
+    tkFalse(reqSearchWantsPage(20, 1, 40, 1), "enough to show")
+    tkFalse(reqSearchWantsPage(4, 1, 1, 1), "the last page came")
+    tkEqual(reqSearchShown(), 20)
+end sub
+
 ' The See all of Search's Discover row: TMDB's results for the words as its search takes
 ' them, at most 200 characters.
 sub test_requests_see_all_of_a_list_or_a_search()
