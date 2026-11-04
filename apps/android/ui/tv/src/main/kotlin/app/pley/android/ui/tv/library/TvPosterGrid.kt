@@ -194,6 +194,10 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     /** Focuses the cell at [position] once it is laid out ([column]). */
     private var bringing: Job? = null
 
+    /** A held step waiting for its row ([column]). */
+    private var waiting: Job? = null
+    private val stopWaiting: () -> Unit = { waiting?.cancel() }
+
     /**
      * Up or Down from the focused cell, [from], to [position] in its
      * column, as the Samsung app's grid moves; whether the key is used.
@@ -208,14 +212,24 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
      * frame or two for the row it brings onto the screen ([rowMade]), then
      * goes all the same: the glide is spread over the wait
      * ([TvGlide.linger]), so the grid goes on gliding meanwhile. The first
-     * step of a hold, the grid at rest, goes at once.
+     * step of a hold, the grid at rest, goes at once. The key coming up
+     * ends the wait without the step: focus stays where the hold left it.
+     *
+     * Held steps wait for a step under way; a key [pressed] doesn't: it
+     * ends whatever a step left waiting or bringing in, and goes from the
+     * focused cell.
      */
-    fun column(from: Int, position: Int, focus: TvGridFocus): Boolean {
-        if (bringing?.isActive == true) return true
+    fun column(from: Int, position: Int, focus: TvGridFocus, pressed: Boolean): Boolean {
+        if (pressed) {
+            waiting?.cancel()
+            bringing?.cancel()
+        } else if (waiting?.isActive == true || bringing?.isActive == true) {
+            return true
+        }
         val down = position > from
         if (!gate.holding || !glide.moving || rowMade(down, focus)) return step(from, position, focus)
         glide.linger(ROW_WAIT_FRAMES * FRAME_MS)
-        bringing = scope.launch {
+        waiting = scope.launch {
             var frames = 0
             while (frames < ROW_WAIT_FRAMES && !rowMade(down, focus)) {
                 withFrameNanos { }
@@ -223,6 +237,7 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
             }
             if (inCell == from) step(from, position, focus)
         }
+        gate.onRelease(stopWaiting)
         return true
     }
 
@@ -471,12 +486,14 @@ internal fun TvPosterGrid(
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     val from = motion.inCell
                     if (from < 0) return@onPreviewKeyEvent false
+                    // The gate's held moves are repeats; a press is the key's first down.
+                    val pressed = event.nativeKeyEvent.repeatCount == 0
                     when (event.key) {
                         // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
                         Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
-                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus)
+                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus, pressed)
                         // Held, no cell below in the column (the last row, or a short one below): it stays.
-                        Key.DirectionDown -> if (from + columns >= total) gate.holding else motion.column(from, from + columns, focus)
+                        Key.DirectionDown -> if (from + columns >= total) gate.holding else motion.column(from, from + columns, focus, pressed)
                         else -> false
                     }
                 }

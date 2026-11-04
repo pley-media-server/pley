@@ -210,9 +210,33 @@ class TvGridLoadFocusTest {
         compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
-        // The press and five held steps: six rows down, that row at the top.
-        assertEquals(Columns * 6, focus.focused)
-        assertEquals(6 * pitch, scrolled(), 1f)
+        // The press and four held steps: five rows down, that row at the top. The fifth, at 592 ms, was still waiting
+        // for its row (without the frames' prefetching) as the key came up, and doesn't go.
+        assertEquals(Columns * 5, focus.focused)
+        assertEquals(5 * pitch, scrolled(), 1f)
+    }
+
+    /**
+     * A held step waiting for its row ends with the hold: the key coming up
+     * takes no step after it, and a press right after goes from where focus
+     * is, rather than being taken by the wait.
+     */
+    @Test
+    fun aPressRightAfterAHoldGoesFromWhereTheHoldLeftFocus() {
+        grid()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        // The press, and held steps from 400 ms: the second, at 448 ms, comes while the first one's glide runs, and
+        // without the frames' prefetching the row it brings in isn't made, so it waits for it.
+        repeat(28) { compose.mainClock.advanceTimeByFrame() }
+        val held = focus.focused
+        compose.onRoot().performKeyInput {
+            keyUp(Key.DirectionDown)
+            pressKey(Key.DirectionUp)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(held - Columns, focus.focused)
     }
 
     @Test

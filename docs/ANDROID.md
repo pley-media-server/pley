@@ -682,6 +682,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   frames for it, the glide under way spread over the wait so the grid
   goes on moving, rather than make it in the frame: once behind, steps
   that made their own rows left the frames no time to get ahead again.
+  The key coming up ends the wait, and the step with it, and a press
+  right after goes from where focus is.
   Each held glide stays a step and a quarter long, so focus never runs
   further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
