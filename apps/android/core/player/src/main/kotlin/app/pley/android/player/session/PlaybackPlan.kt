@@ -3,6 +3,7 @@ package app.pley.android.player.session
 import app.pley.android.caps.CapsDecision
 import app.pley.android.caps.CapsSnapshot
 import app.pley.android.caps.PlaybackCapsPolicy
+import app.pley.android.model.Control
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.MediaFile
@@ -215,9 +216,17 @@ object PlaybackPlan {
      * The body of POST /api/playback for [choices]. Automatic audio names no
      * track, even for a stream: the server picks it. [keepPrevious] when it
      * is made ready while the session before plays on: the server leaves
-     * that one to the player to end.
+     * that one to the player to end. [controls]: what the player obeys
+     * from the remote.
      */
-    fun request(itemId: Long, choices: Choices, clientId: String, caps: CapsSnapshot?, keepPrevious: Boolean = false): PlaybackRequest {
+    fun request(
+        itemId: Long,
+        choices: Choices,
+        clientId: String,
+        caps: CapsSnapshot?,
+        keepPrevious: Boolean = false,
+        controls: List<Control>? = null,
+    ): PlaybackRequest {
         val audioHere = audioPlaysHere(choices.audio, caps)
         // Named when the server must convert it, or when it isn't the one the
         // details give (without a track named, the server plays that one or
@@ -235,6 +244,7 @@ object PlaybackPlan {
             clientId = clientId,
             keepPrevious = true.takeIf { keepPrevious },
             caps = caps?.report ?: ClientCaps(),
+            controls = controls,
         )
     }
 

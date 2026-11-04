@@ -6,6 +6,7 @@ import app.pley.android.caps.CapsSnapshot
 import app.pley.android.common.describe
 import app.pley.android.data.LocalFile
 import app.pley.android.model.AddSubtitle
+import app.pley.android.model.Control
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -121,6 +122,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   one picked is added on the server and shown as any subtitle file.
  * - **Sleep timer**, and a session the server stopped: it says so and
  *   plays no more.
+ * - **The remote**, on another of the profile's devices (docs/API.md,
+ *   "Remote control"): play, pause, seek and skip, and next when something
+ *   can come next, as the web's; each reported at once ([obey]).
  * - **Downloads.** A file downloaded to the device plays from there as it
  *   is, with no session on the server; its progress goes through
  *   [PlaybackEnvironment.local], which keeps it while the server is out of
@@ -206,6 +210,13 @@ class SessionPlaybackController(
 
     private val sessionState = MutableStateFlow<ServerPlaybackSession?>(null)
     private val session: ServerPlaybackSession? get() = sessionState.value
+
+    /**
+     * Who holds, for the remote ([PlaybackEnvironment.here]), a session
+     * started and not playing yet: one getting ready beside the one playing,
+     * or asked again with other choices. The server lists it at once.
+     */
+    private val starting = Any()
     private var sessionJob: Job? = null
     private var startJob: Job? = null
 
@@ -306,7 +317,9 @@ class SessionPlaybackController(
         scope.launch { ticker() }
         scope.launch { progressReports() }
         scope.launch { subtitleCues() }
-        scope.launch { serverStops() }
+        scope.launch { serverEvents() }
+        // The remote leaves out what plays here; another episode is another session.
+        scope.launch { sessionState.collect { env.here(this@SessionPlaybackController, it?.id) } }
         scope.launch { sleep.state.collect { s -> ui.update { it.copy(sleep = s) } } }
     }
 
@@ -523,6 +536,7 @@ class SessionPlaybackController(
                     // As when the session before ended first: it ends, and the screen says what failed.
                     lastPositionMs = livePosition()
                     endSession(lastPositionMs)
+                    env.playing(this, false)
                     throw e
                 }
                 null
@@ -537,14 +551,14 @@ class SessionPlaybackController(
             try {
                 if (started.info.hls) withTimeoutOrNull(PREPARE_MAX_MS) { env.warmer.warm(env.api.url(started.info.url), atMs + PREPARE_LEAD_MS) }
             } catch (e: CancellationException) {
-                started.discard()
+                discardStarted(started)
                 throw e
             } catch (_: Exception) {
                 // Not asked for ahead: the player moves over all the same, and waits for it there.
             }
             // The session playing ended meanwhile (its end, the server's stop): this one isn't needed.
             if (session !== playing || closed || stopped) {
-                started.discard()
+                discardStarted(started)
                 return
             }
             // From where the last one got to while this one got ready.
@@ -602,28 +616,47 @@ class SessionPlaybackController(
      */
     private suspend fun startSession(detail: ItemDetail, chosen: MediaFile, first: PlaybackPlan.Choices, keepPrevious: Boolean): ServerPlaybackSession {
         var choices = first
-        var sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
-        var started = ServerPlaybackSession.start(env.api, sent, env.reporter)
+        val controls = remoteControls(nextUp.hasNext(detail.kind, current.queue))
+        var sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious, controls)
+        try {
+            var started = held(ServerPlaybackSession.start(env.api, sent, env.reporter))
 
-        DvGuards.retryMode(started.info, chosen, fileCaps)?.let { guarded ->
-            started.discard()
-            guardMode = guarded
-            choices = choices.copy(mode = guarded, streaming = true)
-            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
-            started = ServerPlaybackSession.start(env.api, sent, env.reporter)
+            DvGuards.retryMode(started.info, chosen, fileCaps)?.let { guarded ->
+                started.discard()
+                guardMode = guarded
+                choices = choices.copy(mode = guarded, streaming = true)
+                sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious, controls)
+                started = held(ServerPlaybackSession.start(env.api, sent, env.reporter))
+            }
+            if (PlaybackPlan.needsIndexes(started.info, sent, choices)) {
+                started.discard()
+                choices = choices.copy(streaming = true)
+                sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious, controls)
+                started = held(ServerPlaybackSession.start(env.api, sent, env.reporter))
+            }
+            return started
+        } catch (e: Exception) {
+            env.here(starting, null)
+            throw e
         }
-        if (PlaybackPlan.needsIndexes(started.info, sent, choices)) {
-            started.discard()
-            choices = choices.copy(streaming = true)
-            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
-            started = ServerPlaybackSession.start(env.api, sent, env.reporter)
-        }
-        return started
+    }
+
+    /** [started], left out of the remote from now: the server lists it before it plays. */
+    private fun held(started: ServerPlaybackSession): ServerPlaybackSession = started.also { env.here(starting, it.id) }
+
+    /** Ends [started], never played: the next session is not needed after all. */
+    private fun discardStarted(started: ServerPlaybackSession) {
+        started.discard()
+        env.here(starting, null)
     }
 
     /** Plays [started] from [atMs]: the session playing from now on, loaded into the engine. */
     private fun loadSession(detail: ItemDetail, chosen: MediaFile, started: ServerPlaybackSession, atMs: Long) {
+        // Held as the one playing from now on (start()'s watch of sessionState).
+        env.here(starting, null)
         sessionState.value = started
+        // From the first session to the end, the next ones included: the event stream stays open in the background for the remote.
+        env.playing(this, true)
         live = null
         playingLocal = false
         playingConvertedSound = serverDecodes
@@ -1055,6 +1088,8 @@ class SessionPlaybackController(
         val duration = s?.info?.durationMs?.takeIf { it > 0 } ?: link?.durationMs?.takeIf { it > 0 } ?: lastPositionMs
         lastPositionMs = duration
         endSession(duration)
+        // No session until the next title starts, if one does: nothing for the remote to reach in the background.
+        env.playing(this, false)
         ui.update { it.copy(positionMs = duration, skipLabel = null) }
         val detail = item ?: return phase(PlayerPhase.Ended)
         if (!nextUp.hasNext(detail.kind, current.queue)) return phase(PlayerPhase.Ended)
@@ -1271,11 +1306,50 @@ class SessionPlaybackController(
             }
     }
 
-    /** The server's word that it stopped this playback's session (an administrator, or the profile elsewhere). */
-    private suspend fun serverStops() {
+    /**
+     * The server's word about this playback's session: stopped (an
+     * administrator, or the profile elsewhere), or a command of the
+     * profile's remote. Another session's are someone else's.
+     */
+    private suspend fun serverEvents() {
         env.events.collect { event ->
-            if (event is ServerEvent.SessionStopped && event.sessionId == session?.id) stopByServer(event.message, event.byAdmin)
+            when {
+                event is ServerEvent.SessionStopped && event.sessionId == session?.id -> stopByServer(event.message, event.byAdmin)
+                event is ServerEvent.PlayerCommand && event.sessionId == session?.id -> obey(event)
+            }
         }
+    }
+
+    /**
+     * A command of the profile's remote, as the web's player obeys it: a
+     * seek stays within the title, a skip goes from where it is now, next
+     * plays what comes next (nothing at the end, and nothing said here:
+     * whoever sent it is elsewhere), and a video has no previous. What
+     * changed is reported at once, so the remote sees it (a pause reports
+     * by itself, and a new item with its new session).
+     */
+    private fun obey(command: ServerEvent.PlayerCommand) {
+        if (closed || stopped || ui.value.phase is PlayerPhase.Error) return
+        when (command.command) {
+            Control.Play -> if (!wantPlay.value || ended) {
+                play()
+                if (!ended) report(ProgressState.Playing)
+            }
+            Control.Pause -> if (wantPlay.value) pause()
+            Control.Seek -> command.positionMs?.let { seekNow(it) }
+            Control.Skip -> command.offsetMs?.let { seekNow(livePosition() + it) }
+            Control.Next -> if (item?.let { nextUp.hasNext(it.kind, current.queue) } == true) advance(fromRemote = true)
+            Control.Previous, Control.Unknown -> Unit
+        }
+    }
+
+    /** Seeks to [positionMs] and reports where it went straight away, not a second later as after the screen's seeks. */
+    private fun seekNow(positionMs: Long) {
+        seekTo(positionMs)
+        // Seeking past the end starts a new session, which reports itself.
+        if (ended || session == null) return
+        seekReport?.cancel()
+        report(if (wantPlay.value) ProgressState.Playing else ProgressState.Paused)
     }
 
     /**
@@ -1286,6 +1360,7 @@ class SessionPlaybackController(
     private fun stopByServer(message: String?, byAdmin: Boolean) {
         if (closed || stopped) return
         stopped = true
+        env.playing(this, false)
         val position = livePosition()
         lastPositionMs = position
         session?.let { s ->
@@ -1654,7 +1729,10 @@ class SessionPlaybackController(
         seekTo(if (duration > 0) minOf(Markers.skipTarget(marker), duration) else Markers.skipTarget(marker))
     }
 
-    override fun playNext() {
+    override fun playNext() = advance(fromRemote = false)
+
+    /** What comes next plays; at the end, the screen says so, unless the remote asked ([fromRemote]). */
+    private fun advance(fromRemote: Boolean) {
         if (closed || stopped) return
         val known = next
         if (known != null) {
@@ -1662,10 +1740,10 @@ class SessionPlaybackController(
             return
         }
         lookUpNext { found ->
-            if (found == null) {
-                notice(if (current.queue != null) texts.lastInQueue else texts.lastEpisode)
-            } else {
+            if (found != null) {
                 switchTo(found)
+            } else if (!fromRemote) {
+                notice(if (current.queue != null) texts.lastInQueue else texts.lastEpisode)
             }
         }
     }
@@ -1757,6 +1835,9 @@ class SessionPlaybackController(
         val position = livePosition()
         closed = true
         endSession(position)
+        env.playing(this, false)
+        env.here(this, null)
+        env.here(starting, null)
         sleep.cancel()
         hideServerSubtitles()
         dropTrickplay()
@@ -2054,6 +2135,13 @@ class SessionPlaybackController(
 
         /** Seeks stop this short of the end, so the end isn't reached by a seek. */
         const val SEEK_END_MARGIN_MS = 250L
+
+        /** What a video obeys from the remote (the web's): Next too when something can come next ([hasNext]: an episode, a queue). */
+        fun remoteControls(hasNext: Boolean): List<Control> = if (hasNext) VIDEO_CONTROLS + Control.Next else VIDEO_CONTROLS
+
+        /** What every video obeys from the remote. */
+        private val VIDEO_CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip)
+
         const val UP_NEXT_IMAGE_WIDTH = 480
         private const val CUE_MIN_MS = 20L
         private const val CUE_MAX_MS = 250L

@@ -16,6 +16,7 @@ import app.pley.android.common.sentenceOf
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
+import app.pley.android.model.Control
 import app.pley.android.model.LivePlan
 import app.pley.android.model.PleyJson
 import app.pley.android.model.ServerEvent
@@ -23,6 +24,7 @@ import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
+import app.pley.android.player.R
 import app.pley.android.player.session.clientIdOf
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -51,7 +53,7 @@ data class LiveTrouble(val kind: Kind, val message: String, val connections: Lis
         /** `409`: every connection of the channel's source is in use. */
         Busy,
 
-        /** `410` or `live_taken_over`: someone took the channel's connection, or the server stopped it. */
+        /** `410`, `live_taken_over` or `session_stopped`: someone took the channel's connection, or the server stopped it. */
         Stopped,
 
         /** `404`: the channel was hidden or its source removed. */
@@ -161,6 +163,14 @@ data class LiveState(
  *   `live_taken_over`, for the channel rather than the session:
  *   `stream.ts` has none of its own) stops it at once and says why, the
  *   same as the `410` that follows; nothing tunes it again by itself;
+ * - the session stopped from elsewhere (the server's `session_stopped`:
+ *   an administrator, or the profile on another device) stops it the
+ *   same way, saying who and why;
+ * - the profile's remote, on another device, changes channel: its next
+ *   and previous are channel up and down, in the order the player [zap]s
+ *   through, which a player declares only when it has one;
+ * - while it has a session, the event stream stays open in the background
+ *   too ([playing]);
  * - [stop] lets the session and the engine go (the screen went to the
  *   background), [resume] tunes the channel again unless the server
  *   stopped it, [close] ends it all.
@@ -175,8 +185,14 @@ class LivePlayback(
     private val scope: CoroutineScope,
     /** The server's events, to hear of the channel's connection being taken over. */
     events: Flow<ServerEvent> = emptyFlow(),
+    /** Told whether it has a session on the server now (LiveUpdates.playing): the event stream stays open meanwhile. */
+    private val playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
+    /** Told which session it watches now, `null` once none (RemoteRepository.here): no remote shows it here. */
+    private val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
     /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
     private val caps: () -> CapsSnapshot? = { null },
+    /** Who stopped watching, and their message: the app's strings ([create]), English in tests. */
+    private val stoppedText: (message: String?, byAdmin: Boolean) -> String = ::stoppedSentence,
 ) {
     private val mutableState = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
@@ -187,6 +203,19 @@ class LivePlayback(
     val engine: StateFlow<PlayerEngine?> = mutableEngine.asStateFlow()
 
     private var session: String? = null
+        set(value) {
+            field = value
+            playing(this, value != null)
+            here(this, value)
+        }
+
+    /**
+     * Channel up ([by] 1) or down (-1), in the order the player goes
+     * through them: the remote's next and previous do the same. `null`, as
+     * long as the player has no order, declares neither.
+     */
+    var zap: ((by: Int) -> Unit)? = null
+
     private var tuning: Job? = null
     private var closed = false
     private val listener = Listener()
@@ -209,10 +238,42 @@ class LivePlayback(
     init {
         scope.launch {
             events.collect { event ->
-                if (event is ServerEvent.LiveTakenOver) takenOver(event.channelId, event.message)
+                when (event) {
+                    is ServerEvent.LiveTakenOver -> takenOver(event.channelId, event.message)
+                    is ServerEvent.SessionStopped -> if (event.sessionId == session) stoppedElsewhere(event.message, event.byAdmin)
+                    is ServerEvent.PlayerCommand -> if (event.sessionId == session && !closed) obey(event.command)
+                    else -> Unit
+                }
             }
         }
     }
+
+    /**
+     * The server stopped this device's session (an administrator, or the
+     * profile on another device): it stops now and says so, as for a
+     * connection taken over. Watching ended at the server: nothing to let go.
+     */
+    private fun stoppedElsewhere(message: String?, byAdmin: Boolean) {
+        if (closed) return
+        tuning?.cancel()
+        session = null
+        direct = false
+        holding = false
+        fail(LiveTrouble(LiveTrouble.Kind.Stopped, stoppedText(message, byAdmin)))
+    }
+
+    /** The remote's next and previous: channel up and down. The new channel's watch tells the server, and so the remote. */
+    private fun obey(command: Control) {
+        val step = zap ?: return
+        when (command) {
+            Control.Next -> step(1)
+            Control.Previous -> step(-1)
+            else -> Unit
+        }
+    }
+
+    /** What the remote may ask of this player: channel up and down when it has an order to go through ([zap]). */
+    private fun controls(): List<Control> = if (zap != null) ZAP_CONTROLS else emptyList()
 
     /**
      * Someone took [channelId]'s connection over: if it is what this device
@@ -252,7 +313,7 @@ class LivePlayback(
         tuning = scope.launch {
             val asked = async {
                 try {
-                    Result.success(live.watch(channelId, clientId(), takeOver))
+                    Result.success(live.watch(channelId, clientId(), takeOver, controls()))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -492,6 +553,15 @@ class LivePlayback(
     }
 
     companion object {
+        /** The remote's commands a player that goes through channels obeys. */
+        private val ZAP_CONTROLS = listOf(Control.Next, Control.Previous)
+
+        /** Who stopped a session (the web's words), and their [message] when given. */
+        fun stoppedSentence(message: String?, byAdmin: Boolean): String {
+            val who = if (byAdmin) "Live TV was stopped by the server's administrator." else "Live TV was stopped from another device."
+            return message?.trim()?.takeIf { it.isNotEmpty() }?.let { "$who ${asSentence(it)}" } ?: who
+        }
+
         /** A stall shows the spinner once it has lasted this long (the web's 0.7 s). */
         const val STALL_SHOWN_MS = 700L
 
@@ -538,7 +608,8 @@ class LivePlayback(
         /**
          * Watching on this device: [live]'s server, engines of [engines],
          * the device's own client id (the one its playbacks send), what it
-         * plays as [caps] last probed it.
+         * plays as [caps] last probed it; [playing] keeps the event stream
+         * open while it has a session, [here] tells the remote which.
          */
         fun create(
             context: Context,
@@ -547,10 +618,16 @@ class LivePlayback(
             profile: DeviceProfile,
             scope: CoroutineScope,
             events: Flow<ServerEvent> = emptyFlow(),
+            playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
+            here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
             caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, caps)
+            val stopped = { message: String?, byAdmin: Boolean ->
+                val who = app.getString(if (byAdmin) R.string.live_stopped_by_admin else R.string.live_stopped_elsewhere)
+                if (message.isNullOrBlank()) who else app.getString(R.string.session_stopped_message, who, message.trim())
+            }
+            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps, stopped)
         }
     }
 }

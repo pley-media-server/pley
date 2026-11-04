@@ -641,6 +641,14 @@ object PleyIcons {
         "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2z",
     )
 
+    /** Lucide `circle-stop`. */
+    val CircleStop = PleyIcon(
+        "circle-stop",
+        false,
+        "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0z",
+        "M10 9h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1z",
+    )
+
     /** Lucide `loader-circle`. */
     val LoaderCircle = PleyIcon(
         "loader-circle",

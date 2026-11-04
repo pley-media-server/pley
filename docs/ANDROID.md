@@ -177,6 +177,61 @@ heard it for that profile, the start asks "Who's watching?".
   this screen doesn't show Dolby Vision)"). Their Decoded line names what
   the decoder makes: HEVC and HDR10 for a base layer.
 
+### Remote control
+
+The phone is a remote for the profile's other devices; a TV only obeys
+one and shows none.
+
+On the phone, while one of the profile's other devices plays something
+(`GET /api/sessions`, read again on `sessions_changed`,
+`session_stopped` and each time the event stream connects), a bar above
+the tabs, over the mini player when music plays here too, says
+**Playing on** the device and what plays there, or how many devices and
+their names. Tapping it opens the remote, a sheet with a card for each
+device:
+
+- its name (**Unknown device** when the server can't name it; two of the
+  same name are numbered), the poster or the channel's logo, the title
+  (an episode as "Show — S1 · E2 — Title") or the channel and what's on;
+- how far it is, estimated each second while it plays from the last
+  report, its age and the time since, by the phone's clock;
+- only the controls its player declares: previous, back 10 s, play or
+  pause, forward 30 s, next (channel down and up on Live TV), a slider
+  when it seeks, and Stop always.
+
+A command waits up to 5 s for the list to show it acted (a new state, a
+new title, a report from where it was sent), and the card says it's
+waiting meanwhile; without one it says the device **didn't answer**,
+until the device reports again. A next or previous with nothing there
+changes nothing, and isn't a failure. Refusals are said plainly: the
+device isn't playing any more, can't do that, or too many commands at
+once. The phone's own sessions are left out: its players say which they
+play.
+
+The players obey the remote on the profile's other devices
+([API.md](API.md#remote-control)), on phones and TVs alike, and say what
+they obey when they start (`controls`), with the device's name from
+Android's settings (else its model) as remotes show it:
+
+- **Movies and episodes:** play, pause, seek and skip, and next where
+  something can come next (an episode, a playlist or collection). Next at
+  the end does nothing, and says nothing on the device; a video has no
+  previous.
+- **Music:** play, pause, seek, skip, next and previous, as the buttons:
+  previous more than 3 s into a track goes back to its start.
+- **Live TV:** next and previous, channel up and down in the order the
+  player goes through. It has no pause or seek. Stopped from another
+  device or by an administrator, it shows **Live TV stopped** and says who
+  and why, as for a connection taken over.
+
+Only the player of the session named acts on a command, a seek stays
+within the title, and a skip counts from where it is. Each change is
+reported at once, so the remote sees it. While a player has a session,
+the event stream stays open in the background too, so music playing with
+the screen off still hears the remote; it closes once playback ends, or on
+signing out. What the server's events change meanwhile is fetched again
+on coming back, not in the background.
+
 ### Libraries
 
 A library's Library tab sorts and filters its grid as the web app does:
@@ -281,7 +336,8 @@ connections are set up in the web app's Settings → Live TV
   guide asks only for the rows in view, six hours at a time, so a lineup of
   50,000 channels opens at once.
 - **Live only:** no pause, rewind or seeking; play, pause, rewind and fast
-  forward do nothing in the player.
+  forward do nothing in the player, and the remote offers only next and
+  previous ([Remote control](#remote-control)).
 - **Changing channel:** channel up and down stay in the category the player
   was opened from, wrapping round its ends. A typed number tunes that
   channel among all channels.

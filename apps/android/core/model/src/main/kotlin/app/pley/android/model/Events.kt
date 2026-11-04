@@ -153,6 +153,26 @@ sealed interface ServerEvent {
         }
     }
 
+    /**
+     * The profile's remote, on another device, sent the player of
+     * [sessionId] a command (POST /api/sessions/{id}/command): [positionMs]
+     * for a seek, [offsetMs] for a skip, `null` otherwise. Only the player
+     * playing that session acts on it.
+     */
+    @Serializable
+    data class PlayerCommand(
+        val sessionId: String,
+        val command: Control = Control.Unknown,
+        val positionMs: Long? = null,
+        val offsetMs: Long? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "player_command"
+        }
+    }
+
     /** Live TV's sources, channels or guide changed: the channels and the guide are asked for again. */
     data object LiveChannelsChanged : ServerEvent {
         const val TYPE = "live_channels_changed"
@@ -307,6 +327,7 @@ sealed interface ServerEvent {
                 LibrariesChanged.TYPE -> LibrariesChanged
                 SessionsChanged.TYPE -> SessionsChanged
                 SessionStopped.TYPE -> json.decodeFromJsonElement(SessionStopped.serializer(), fields)
+                PlayerCommand.TYPE -> json.decodeFromJsonElement(PlayerCommand.serializer(), fields)
                 WatchlistChanged.TYPE -> WatchlistChanged
                 UserStateChanged.TYPE -> json.decodeFromJsonElement(UserStateChanged.serializer(), fields)
                 LiveChannelsChanged.TYPE -> LiveChannelsChanged
@@ -331,6 +352,7 @@ sealed interface ServerEvent {
                 is ScanFinished -> json.encodeToJsonElement(ScanFinished.serializer(), value).jsonObject
                 is LibraryChanged -> json.encodeToJsonElement(LibraryChanged.serializer(), value).jsonObject
                 is SessionStopped -> json.encodeToJsonElement(SessionStopped.serializer(), value).jsonObject
+                is PlayerCommand -> json.encodeToJsonElement(PlayerCommand.serializer(), value).jsonObject
                 is LiveTakenOver -> json.encodeToJsonElement(LiveTakenOver.serializer(), value).jsonObject
                 is UserStateChanged -> json.encodeToJsonElement(UserStateChanged.serializer(), value).jsonObject
                 is RequestsChanged -> json.encodeToJsonElement(RequestsChanged.serializer(), value).jsonObject

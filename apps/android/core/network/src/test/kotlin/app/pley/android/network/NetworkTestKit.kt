@@ -83,6 +83,7 @@ internal fun testGraph(
     profile: DeviceProfile = testProfile(),
     root: OkHttpClient = HttpRoot.create(TEST_AGENT),
     lans: LanNetworks = NoLans,
+    deviceName: () -> String? = { null },
 ) = HttpNetworkGraph(
     root = root,
     tokens = tokens,
@@ -91,4 +92,5 @@ internal fun testGraph(
     lans = lans,
     route = null,
     localNetworkOf = { PermissionsLocalNetworkAccess(sdk = 37, fireTv = false, granted = { true }) },
+    deviceName = deviceName,
 )

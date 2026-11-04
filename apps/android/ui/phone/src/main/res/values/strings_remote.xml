@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The remote of the profile's other devices: the bar above the tabs and its sheet (apps/web/src/components/Remote.tsx). -->
+    <string name="remote_playing_on">Playing on %1$s</string>
+    <plurals name="remote_playing_on_devices">
+        <item quantity="one">Playing on %1$d device</item>
+        <item quantity="other">Playing on %1$d devices</item>
+    </plurals>
+    <string name="remote_open">Open the remote</string>
+    <string name="remote_title">Playing on your devices</string>
+    <string name="remote_unknown_device">Unknown device</string>
+    <string name="remote_live_tv">Live TV</string>
+
+    <!-- What TalkBack says of each control: "Pause on Living room TV". -->
+    <string name="remote_play">Play on %1$s</string>
+    <string name="remote_pause">Pause on %1$s</string>
+    <string name="remote_previous">Previous on %1$s</string>
+    <string name="remote_next">Next on %1$s</string>
+    <string name="remote_previous_channel">Previous channel on %1$s</string>
+    <string name="remote_next_channel">Next channel on %1$s</string>
+    <string name="remote_back">Back 10 seconds on %1$s</string>
+    <string name="remote_forward">Forward 30 seconds on %1$s</string>
+    <string name="remote_seek">Seek on %1$s</string>
+    <string name="remote_progress">Progress on %1$s</string>
+    <string name="remote_stop">Stop</string>
+    <string name="remote_stop_on">Stop on %1$s</string>
+    <string name="remote_waiting">Waiting for %1$s</string>
+    <string name="remote_position">%1$s of %2$s</string>
+
+    <!-- A command that didn't go through, said under the device's controls. -->
+    <string name="remote_no_answer">%1$s didn\'t answer.</string>
+    <string name="remote_gone">%1$s isn\'t playing any more.</string>
+    <string name="remote_cant">%1$s can\'t do that.</string>
+    <string name="remote_too_many">Too many at once: try again in a moment.</string>
+</resources>

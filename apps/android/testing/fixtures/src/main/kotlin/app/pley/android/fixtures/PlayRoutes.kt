@@ -1,5 +1,6 @@
 package app.pley.android.fixtures
 
+import app.pley.android.model.Control
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
@@ -11,6 +12,9 @@ import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingKind
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.RatingRequest
@@ -27,6 +31,7 @@ import app.pley.android.model.TrickplayInfo
 import app.pley.android.model.caps.ClientCaps
 import java.util.UUID
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -37,7 +42,8 @@ import mockwebserver3.MockResponse
  * sessions answered direct or as HLS, the files with Range, the HLS stream,
  * subtitles as WebVTT (one track partial the first time) and pictures as
  * .mks, seek previews and chapter pictures; sessions stopped from elsewhere
- * (`session_stopped`, then 410); progress, watched marks, ratings, track
+ * (`session_stopped`, then 410), listed for the remote and sent its
+ * commands (`player_command`); progress, watched marks, ratings, track
  * choices and track defaults, which change what the profile reads next
  * (watch state changes tell its streams: `user_state_changed`).
  */
@@ -59,21 +65,8 @@ internal class PlayRoutes(private val s: State) {
         },
         route("GET", "/api/playback/*/*", PLAY) { _, c, v -> hls(v[0], v[1], c) },
         route("DELETE", "/api/sessions/*", PLAY) { call, c, v -> stopSession(call, c, v[0]) },
-        // The fixtures' own (pley lists sessions in /api/activity, for its web app): to stop one by hand (adb forward, curl).
-        route("GET", "/api/sessions", PLAY) { _, c, _ ->
-            val admin = c.profile.id == FixtureIds.ALEX
-            val list = s.sessions.values.filter { admin || it.profileId == c.profile.id }.map { session ->
-                JsonObject(
-                    mapOf(
-                        "session_id" to JsonPrimitive(session.id),
-                        "profile_id" to JsonPrimitive(session.profileId),
-                        "item_id" to JsonPrimitive(session.itemId),
-                        "method" to JsonPrimitive(session.method.wire),
-                    ),
-                )
-            }
-            Reply.json(JsonObject(mapOf("sessions" to kotlinx.serialization.json.JsonArray(list))).toString())
-        },
+        route("GET", "/api/sessions", PLAY) { _, c, _ -> Reply.json(ListSerializer(PlayingSession.serializer()), playing(c)) },
+        route("POST", "/api/sessions/*/command", PLAY) { call, c, v -> command(call, c, v[0]) },
         route("GET", "/api/files/*/stream", PLAY, free = true) { call, _, v -> stream(call, v[0]) },
         route("GET", "/api/files/*/subtitles/*", PLAY) { _, _, v -> subtitles(v[0], v[1]) },
         route("GET", "/api/files/*/trickplay", PLAY, free = true) { _, _, v ->
@@ -158,7 +151,18 @@ internal class PlayRoutes(private val s: State) {
         request.clientId?.takeIf { request.keepPrevious != true }?.let { client ->
             s.sessions.values.removeAll { it.profileId == caller.profile.id && it.clientId == client }
         }
-        val session = PlaySession(UUID.randomUUID().toString().replace("-", ""), caller.profile.id, item.id, file.id, method, request.clientId)
+        val session = PlaySession(
+            id = UUID.randomUUID().toString().replace("-", ""),
+            profileId = caller.profile.id,
+            itemId = item.id,
+            fileId = file.id,
+            method = method,
+            clientId = request.clientId,
+            controls = request.controls.orEmpty().filter { it != Control.Unknown },
+            device = request.deviceName ?: call.header("User-Agent"),
+            positionMs = request.startMs ?: 0,
+            reportedAtMs = s.nowMs(),
+        )
         s.sessions[session.id] = session
         s.events.emit(ServerEvent.SessionsChanged)
         val hls = method != PlaybackMethod.Direct
@@ -275,6 +279,60 @@ internal class PlayRoutes(private val s: State) {
         s.events.emitTo(session.profileId, ServerEvent.SessionStopped(id, message, byAdmin = session.profileId != caller.profile.id))
         s.events.emit(ServerEvent.SessionsChanged)
         return Reply.noContent()
+    }
+
+    /**
+     * GET /api/sessions: the caller's own sessions (an administrator's
+     * too), oldest first, as the server lists them. The fixtures keep no
+     * live viewers here, and drop no player that went quiet.
+     */
+    private fun playing(caller: Caller): List<PlayingSession> {
+        val now = s.nowMs()
+        return s.sessions.values.filter { it.profileId == caller.profile.id }.map { session ->
+            val item = catalog.item(session.itemId)
+            PlayingSession(
+                sessionId = session.id,
+                kind = PlayingKind.Item,
+                device = session.device,
+                item = item?.toSummary(),
+                state = session.state,
+                positionMs = session.positionMs,
+                durationMs = catalog.file(session.fileId)?.second?.durationMs ?: item?.durationMs,
+                updatedAt = session.reportedAtMs / 1_000,
+                ageMs = (now - session.reportedAtMs).coerceAtLeast(0),
+                controls = session.controls,
+            )
+        }
+    }
+
+    /**
+     * POST /api/sessions/{id}/command: the caller's own session only (an
+     * administrator stops others', no more), a command its player listed,
+     * a seek within its length and a skip of up to 10 minutes. The
+     * player's streams hear `player_command`.
+     */
+    private fun command(call: Call, caller: Caller, id: String): MockResponse {
+        val body = call.body(PlayerCommandRequest.serializer()) ?: return Reply.badRequest("the body isn't a command")
+        val session = s.sessions[id] ?: return Reply.notFound("no such session")
+        if (session.profileId != caller.profile.id) return Reply.error(403, "forbidden", "not your session")
+        val length = catalog.file(session.fileId)?.second?.durationMs ?: DAY_MS
+        when (body.command) {
+            Control.Unknown -> return Reply.badRequest("unknown command")
+            Control.Seek -> if (body.positionMs == null || body.positionMs !in 0..length) return Reply.badRequest("position_ms is out of range")
+            Control.Skip -> if (body.offsetMs == null || body.offsetMs !in -SKIP_MS..SKIP_MS) return Reply.badRequest("offset_ms is out of range")
+            else -> Unit
+        }
+        if (body.command !in session.controls) {
+            return Reply.error(409, "not_controllable", "this player doesn't take ${body.command.wire} from a remote")
+        }
+        val event = ServerEvent.PlayerCommand(
+            id,
+            body.command,
+            body.positionMs.takeIf { body.command == Control.Seek },
+            body.offsetMs.takeIf { body.command == Control.Skip },
+        )
+        s.events.emitTo(session.profileId, event)
+        return MockResponse.Builder().code(202).build()
     }
 
     /** The body of DELETE /api/sessions/{id}. */
@@ -414,6 +472,11 @@ internal class PlayRoutes(private val s: State) {
         val report = call.body(ProgressReport.serializer()) ?: return Reply.badRequest("the body isn't a progress report")
         val duration = report.durationMs ?: item.durationMs ?: 0
         val now = s.now()
+        report.sessionId?.let { s.sessions[it] }?.takeIf { it.profileId == caller.profile.id }?.let { session ->
+            session.positionMs = report.positionMs
+            if (report.state != ProgressState.Stopped) session.state = report.state
+            session.reportedAtMs = s.nowMs()
+        }
         val done = duration > 0 && report.positionMs >= duration * 9 / 10
         val before = caller.profile.state(item.id)
         // A play counts once: reports after the 90 % mark find it watched with no position.
@@ -502,6 +565,12 @@ internal class PlayRoutes(private val s: State) {
 
         /** How often the .mks of picture subtitles has a cue. */
         const val PICTURE_EVERY_MS = 6_000L
+
+        /** A seek's limit when a title's length isn't known. */
+        const val DAY_MS = 24 * 60 * 60 * 1_000L
+
+        /** How far a skip goes at most, either way. */
+        const val SKIP_MS = 10 * 60 * 1_000L
     }
 }
 

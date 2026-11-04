@@ -10,6 +10,19 @@ describes how they are made.
 
 ### Added
 
+- The phone is a remote for your other devices: while something plays on
+  one of them, a bar above the tabs says where and what, and opens a
+  remote with what plays on each, how far, and the controls its player
+  obeys (play and pause, back 10 s and forward 30 s, next and previous,
+  channel up and down, a slider to seek), and Stop. A device that doesn't
+  act on a command within a few seconds is said not to have answered.
+  TVs show no remote.
+- The players obey the remote on your other devices, on phones and TVs:
+  videos play, pause, seek, skip and go to the next episode; music does
+  all that and goes back a track; Live TV changes channel, and stops with
+  a word when stopped from elsewhere. Music playing with the screen off
+  still hears it. Remotes show the device by its name in Android's
+  settings.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

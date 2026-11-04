@@ -78,6 +78,7 @@ interface NetworkGraph {
                 lans = lans,
                 route = LocalRoute(lans::bypass),
                 localNetworkOf = { PermissionsLocalNetworkAccess.of(app) },
+                deviceName = { DeviceNames.of(app) },
             )
         }
     }
@@ -96,7 +97,11 @@ internal class HttpNetworkGraph(
     private val lans: LanNetworks,
     private val route: LocalRoute?,
     localNetworkOf: () -> LocalNetworkAccess,
+    /** What remotes call this device, read once when a playback first asks. */
+    deviceName: () -> String? = { null },
 ) : NetworkGraph {
+    private val device by lazy(deviceName)
+
     private val base: OkHttpClient by lazy { root.newBuilder().apply { route?.applyTo(this) }.build() }
 
     private val auths = ConcurrentHashMap<String, IssuerAuth>()
@@ -109,7 +114,7 @@ internal class HttpNetworkGraph(
 
     override fun api(issuer: String, userId: Long?): PleyApi {
         val origin = originOf(issuer)
-        return apis.getOrPut(origin to userId) { HttpPleyApi(origin, { apiClient(origin, userId) }) }
+        return apis.getOrPut(origin to userId) { HttpPleyApi(origin, { apiClient(origin, userId) }, deviceName = { device }) }
     }
 
     /**

@@ -1,0 +1,19 @@
+[
+  {
+    "session_id": "6f1c2a9e", "kind": "item", "device": "Living room TV",
+    "item": {
+      "id": 204, "library_id": 2, "kind": "episode", "title": "Half Loop", "sort_title": "Half Loop", "year": 2022, "index": 2,
+      "parent_id": 202, "parent_title": "Season 1", "parent_index": 1, "grandparent_id": 201, "grandparent_title": "Severance",
+      "duration_ms": 3209000, "poster_url": "/api/items/202/images/poster?v=1761200400",
+      "thumb_url": "/api/items/204/images/thumb?v=1761200400"
+    },
+    "channel": null, "state": "playing", "position_ms": 1185000, "duration_ms": 3209000,
+    "updated_at": 1761390000, "age_ms": 4200, "controls": ["play", "pause", "seek", "skip", "next"]
+  },
+  {
+    "session_id": "5d0f7f2a", "kind": "live", "device": "Kitchen phone", "item": null,
+    "channel": { "id": 1, "name": "Pley News HD", "number": "101", "logo": "/api/live/channels/1/logo", "now": "The Evening News" },
+    "state": "playing", "position_ms": 0, "duration_ms": null, "updated_at": 1761390010, "age_ms": 900,
+    "controls": ["next", "previous"]
+  }
+]

@@ -60,6 +60,8 @@ import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
@@ -283,6 +285,12 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     }
 
     override suspend fun stopPlayback(sessionId: String) = respond("stopPlayback", sessionId) { }
+
+    override suspend fun playingSessions(): List<PlayingSession> = respond("playingSessions") { fixture("sessions/list.json") }
+
+    override suspend fun sendCommand(sessionId: String, command: PlayerCommandRequest) = respond("sendCommand", sessionId, command) { }
+
+    override suspend fun stopSession(sessionId: String) = respond("stopSession", sessionId) { }
 
     /** The server's own network: nothing known, no speed test. */
     override suspend fun playbackNetwork(clientId: String): PlaybackNetwork = respond("playbackNetwork", clientId) { PlaybackNetwork(local = true) }

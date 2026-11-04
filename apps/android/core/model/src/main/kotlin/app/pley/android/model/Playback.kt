@@ -82,6 +82,102 @@ data class PlaybackRequest(
     val keepPrevious: Boolean? = null,
     /** What this device decodes. */
     val caps: ClientCaps = ClientCaps(),
+    /** The remote's commands this player obeys (Remote control); `null` leaves them out: none but Stop. */
+    val controls: List<Control>? = null,
+    /** What remotes call this device ("Living room TV"); `null`: the server names it from the User-Agent. */
+    val deviceName: String? = null,
+)
+
+/**
+ * A command of the remote, from another of the profile's devices
+ * (docs/API.md, "Remote control"): what a player says it obeys in its play
+ * request, and what a remote sends it. Stop is always obeyed, and isn't one.
+ */
+@Serializable(with = Control.Serializer::class)
+enum class Control(override val wire: String) : WireEnum {
+    Play("play"),
+    Pause("pause"),
+
+    /** To a place: `position_ms`. */
+    Seek("seek"),
+
+    /** Back or forward from where it is: `offset_ms`. */
+    Skip("skip"),
+
+    /** The next episode or track; on Live TV, the next channel. */
+    Next("next"),
+
+    /** The track before, or the start of this one; on Live TV, the channel before. */
+    Previous("previous"),
+    Unknown("unknown"),
+    ;
+
+    object Serializer : LenientEnumSerializer<Control>("Control", Control.entries, Control.Unknown)
+}
+
+/** What a session of GET /api/sessions plays. */
+@Serializable(with = PlayingKind.Serializer::class)
+enum class PlayingKind(override val wire: String) : WireEnum {
+    /** A movie, an episode or a track: [PlayingSession.item]. */
+    Item("item"),
+
+    /** A Live TV channel: [PlayingSession.channel]. */
+    Live("live"),
+    Unknown("unknown"),
+    ;
+
+    object Serializer : LenientEnumSerializer<PlayingKind>("PlayingKind", PlayingKind.entries, PlayingKind.Unknown)
+}
+
+/** The channel a live session of GET /api/sessions watches; [now] is the programme on. */
+@Serializable
+data class PlayingChannel(
+    val id: Long,
+    val name: String = "",
+    val number: String? = null,
+    val logo: String? = null,
+    val now: String? = null,
+)
+
+/**
+ * One of the profile's sessions whose player is there (GET /api/sessions),
+ * on this device or another. While it plays, it is at [positionMs] plus
+ * [ageMs] plus the time since the answer came, by this device's clock: the
+ * server says how long ago its player reported rather than when, so the
+ * two clocks are never compared.
+ */
+@Serializable
+data class PlayingSession(
+    val sessionId: String,
+    val kind: PlayingKind = PlayingKind.Unknown,
+    /** What the player calls its device; `null` when the server can't tell. */
+    val device: String? = null,
+    val item: ItemSummary? = null,
+    val channel: PlayingChannel? = null,
+    /** Playing, paused or buffering; live is always playing. */
+    val state: ProgressState = ProgressState.Unknown,
+    /** Live: 0. */
+    val positionMs: Long = 0,
+    /** `null` when the length isn't known, and on live. */
+    val durationMs: Long? = null,
+    /** Its player's last report: unix seconds, by the server's clock. */
+    val updatedAt: Long = 0,
+    /** How long before the answer that report was, by the server's clock. */
+    val ageMs: Long = 0,
+    /** What its player obeys; Stop always works. */
+    val controls: List<Control> = emptyList(),
+)
+
+/**
+ * The body of POST /api/sessions/{id}/command: [positionMs] for
+ * [Control.Seek] (0 to the length), [offsetMs] for [Control.Skip] (up to
+ * 10 minutes either way); the other commands take neither.
+ */
+@Serializable
+data class PlayerCommandRequest(
+    val command: Control,
+    val positionMs: Long? = null,
+    val offsetMs: Long? = null,
 )
 
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */

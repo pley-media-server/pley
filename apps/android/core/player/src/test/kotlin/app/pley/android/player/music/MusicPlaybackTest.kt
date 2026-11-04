@@ -2,6 +2,7 @@
 
 package app.pley.android.player.music
 
+import app.pley.android.model.Control
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaybackInfo
@@ -43,6 +44,12 @@ class MusicPlaybackTest {
     private val output = FakeOutput()
     private val events = MutableSharedFlow<ServerEvent>()
 
+    /** What the music told the app, in order (LiveUpdates.playing). */
+    private val held = mutableListOf<Boolean>()
+
+    /** The sessions it said it plays, in order (RemoteRepository.here). */
+    private val here = mutableListOf<String?>()
+
     private fun TestScope.music(): MusicPlayback {
         val env = MusicEnvironment(
             api = { api },
@@ -51,6 +58,8 @@ class MusicPlaybackTest {
             reporter = SessionReporter(backgroundScope),
             output = { output },
             events = events,
+            playing = { _, playing -> held += playing },
+            here = { _, id -> here += id },
         )
         return MusicPlayback(env, backgroundScope, Random(1))
     }
@@ -325,6 +334,102 @@ class MusicPlaybackTest {
         runCurrent()
         assertEquals(MusicError.Stopped, music.nowPlaying.value?.error)
         assertEquals(2, starts().size)
+    }
+
+    @Test
+    fun musicObeysEveryCommandOfTheRemote() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicPlayback.CONTROLS, starts().single().controls)
+        output.startPlaying()
+        output.position = 20_000
+
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Pause))
+        runCurrent()
+        assertFalse(output.playWhenReady)
+        assertEquals(ProgressState.Paused, reports().last().state)
+
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Play))
+        runCurrent()
+        assertTrue(output.playWhenReady)
+        assertEquals(ProgressState.Playing, reports().last().state)
+
+        // A seek stays within the track, a skip goes from where it is; each is reported straight away.
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Seek, positionMs = 400_000))
+        runCurrent()
+        assertEquals(180_000L, output.seeks.last())
+        assertEquals(180_000L, reports().last().positionMs)
+        output.position = 60_000
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Skip, offsetMs = -10_000))
+        runCurrent()
+        assertEquals(50_000L, output.seeks.last())
+        assertEquals(50_000L, reports().last().positionMs)
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Skip, offsetMs = -600_000))
+        runCurrent()
+        assertEquals(0L, output.seeks.last())
+
+        // Previous: more than 3 s in, the start of the same track.
+        output.position = 30_000
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Previous))
+        runCurrent()
+        assertEquals(0L, output.seeks.last())
+        assertEquals(0L, reports().last().positionMs)
+        assertEquals(1, starts().size)
+
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Next))
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        // Previous at the start of a track goes to the one before.
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Previous))
+        settle()
+        assertEquals(listOf(1L, 2L, 1L), starts().map { it.itemId })
+    }
+
+    @Test
+    fun anotherSessionsCommandsChangeNothing() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        val count = reports().size
+        events.emit(ServerEvent.PlayerCommand("someone-else", Control.Pause))
+        events.emit(ServerEvent.PlayerCommand("someone-else", Control.Next))
+        settle()
+        assertTrue(output.playWhenReady)
+        assertEquals(1, starts().size)
+        assertEquals(count, reports().size)
+        assertTrue(music.nowPlaying.value!!.playing)
+    }
+
+    @Test
+    fun theEventStreamIsHeldWhileMusicIsUnderWayBetweenTracksToo() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        assertEquals(true, held.last())
+        output.end()
+        settle()
+        // The next track's session starts: never let go in between.
+        assertTrue(held.all { it })
+        music.pauseForVideo()
+        assertEquals(false, held.last())
+        music.play()
+        settle()
+        assertEquals(true, held.last())
+        music.stop()
+        assertEquals(false, held.last())
+    }
+
+    @Test
+    fun theRemoteIsToldWhichTracksSessionPlaysHere() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        assertEquals(DIRECT_SESSION, here.last())
+        music.stop()
+        assertNull(here.last())
     }
 
     @Test
