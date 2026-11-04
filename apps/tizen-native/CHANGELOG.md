@@ -12,6 +12,7 @@ It has no releases yet: it is built and installed by hand
 
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
+- Holding Left or Right in the chapters glides through the cards.
 - A film the TV's player says has ended part-way plays on from there, and
   a seek before where a resumed film's stream begins opens it there under
   the black, where the TV's menu showed.

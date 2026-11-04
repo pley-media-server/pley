@@ -249,7 +249,7 @@ sealed class PlayerScreen : Sheet
         controls.Add(thumbRing);
         thumb = new View { Size = new Size(Ui.Dp(Thumb), Ui.Dp(Thumb)), CornerRadius = Ui.Dp(Thumb / 2), BackgroundColor = PleyColors.Fg };
         controls.Add(thumb);
-        chapterStrip = new ChapterStrip(images, model.Preview, GoToChapter, CloseChapters);
+        chapterStrip = new ChapterStrip(images, model.Preview, GoToChapter, CloseChapters, gate);
         chapterStrip.PositionY = Ui.Dp(ChaptersTop);
         controls.Add(chapterStrip);
         preview = new SeekPreviewView(images);

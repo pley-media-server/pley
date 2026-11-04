@@ -34,13 +34,16 @@ sealed class ChapterStrip : View
     /// <summary>The card drawn focused; -1 when none is.</summary>
     int looked = -1;
     Animation? slide;
+    readonly KeyRepeatGate gate;
 
     /// <param name="previewAt">The server's preview at a time (the player model's), null without.</param>
     /// <param name="go">Goes to a time: the chapter chosen's start.</param>
     /// <param name="close">The strip closes: focus back to the scrubber.</param>
-    public ChapterStrip(Images images, Func<long, TrickplayFrame?> previewAt, Action<long> go, Action close)
+    /// <param name="gate">The remote's held keys: under a hold, the strip glides from card to card.</param>
+    public ChapterStrip(Images images, Func<long, TrickplayFrame?> previewAt, Action<long> go, Action close, KeyRepeatGate gate)
     {
         this.images = images;
+        this.gate = gate;
         this.previewAt = previewAt;
         this.go = go;
         this.close = close;
@@ -156,7 +159,9 @@ sealed class ChapterStrip : View
             strip.PositionX = Ui.Dp(x);
             return;
         }
-        slide = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
+        // Eased for a press; even, and into the next move, under a held key: eased each time, the strip
+        // braked and set off again at every card, and looked to run at a low frame rate.
+        slide = Scrolling.Glide(gate);
         slide.AnimateTo(strip, "PositionX", Ui.Dp(x));
         slide.Play();
     }
