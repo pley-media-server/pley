@@ -1,5 +1,7 @@
 """Stand-ins for Kodi's modules, enough for the add-on's tests."""
 
+import json
+
 LOGDEBUG, LOGINFO, LOGWARNING, LOGERROR = 0, 1, 2, 3
 info_labels = {}
 conditions = set()
@@ -35,7 +37,14 @@ def executebuiltin(command, wait=False):
     builtins.append(command)
 
 
+# Kodi's own settings, by name, as Settings.GetSettingValue answers them.
+setting_values = {}
+
+
 def executeJSONRPC(request):
+    asked = json.loads(request)
+    if asked.get("method") == "Settings.GetSettingValue":
+        return json.dumps({"result": {"value": setting_values.get(asked["params"]["setting"])}})
     return '{"result": {"value": null}}'
 
 
@@ -43,15 +52,19 @@ PLAYLIST_MUSIC, PLAYLIST_VIDEO = 0, 1
 # What Player.play was given: (item, listitem, startpos).
 played = []
 # What else the player was asked to do: ("pause",), ("seekTime", seconds),
-# ("playnext",), ("playprevious",), ("playselected", place).
+# ("playnext",), ("playprevious",), ("playselected", place, playlist).
 asked = []
 
 
 class Player:
     def __init__(self):
-        pass
+        # As Kodi's: the playlist this player last played itself, which its
+        # playselected switches to first (music, until it plays one).
+        self.playlist = PLAYLIST_MUSIC
 
     def play(self, item=None, listitem=None, windowed=False, startpos=-1):
+        if isinstance(item, PlayList):
+            self.playlist = item.kind
         played.append((item, listitem, startpos))
 
     def pause(self):
@@ -67,7 +80,7 @@ class Player:
         asked.append(("playprevious",))
 
     def playselected(self, selected):
-        asked.append(("playselected", selected))
+        asked.append(("playselected", selected, self.playlist))
 
 
 class PlayList:

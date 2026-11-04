@@ -68,14 +68,21 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(remote.obey(player, {"session_id": "s1", "command": "skip", "offset_ms": True}), none)
         self.assertEqual(remote.obey(dict(player, session_id=None), {"session_id": None, "command": "pause"}), none)
 
-    def test_kodi_is_named_as_it_names_itself(self):
+    def test_kodi_is_named_by_the_name_it_was_given(self):
+        self.addCleanup(xbmc.setting_values.pop, "services.devicename", None)
         self.addCleanup(xbmc.info_labels.pop, "System.FriendlyName", None)
-        xbmc.info_labels["System.FriendlyName"] = "  Living   room "
-        self.assertEqual(remote.device(), {"device_kind": "tv", "device_name": "Living room"})
-        xbmc.info_labels["System.FriendlyName"] = "K" * 80
-        self.assertEqual(len(remote.device()["device_name"]), 64)
-        xbmc.info_labels["System.FriendlyName"] = ""
+        # Kodi says its own name with the computer's host name: not for remotes.
+        xbmc.info_labels["System.FriendlyName"] = "Kodi (DESKTOP-1A2B3C4)"
+        xbmc.setting_values["services.devicename"] = "Kodi"
         self.assertEqual(remote.device(), {"device_kind": "tv"}, "the server names it from the User-Agent")
+        xbmc.setting_values["services.devicename"] = "  Living   room "
+        self.assertEqual(remote.device(), {"device_kind": "tv", "device_name": "Living room"})
+        xbmc.setting_values["services.devicename"] = "K" * 80
+        self.assertEqual(len(remote.device()["device_name"]), 64)
+        xbmc.setting_values["services.devicename"] = ""
+        self.assertEqual(remote.device(), {"device_kind": "tv"})
+        del xbmc.setting_values["services.devicename"]
+        self.assertEqual(remote.device(), {"device_kind": "tv"}, "no such setting")
 
 
 def queue(kind, ids, at):
@@ -174,6 +181,34 @@ class VideoTest(Wiring):
         self.player.heard(command("s1", "seek", 9_000_000))
         self.assertEqual(xbmc.asked[-1], ("seekTime", 7200.0), "no further than its end")
 
+    def test_a_seek_puts_up_next_away(self):
+        self.start("episode")
+        moments = self.player.moments
+        moments.next_since = 0.0
+        closed = []
+
+        class Shown:
+            choice = None
+
+            def close(self):
+                closed.append(True)
+
+        self.player.overlay, self.player.shown = Shown(), ("next",)
+        self.player.heard(command("s1", "skip", -30_000))
+        self.assertEqual((closed, self.player.overlay), ([True], None))
+        self.assertIsNone(moments.next_since, "its countdown starts again should the place still be in the credits")
+        self.assertEqual(xbmc.asked, [("seekTime", 570.0)])
+
+    def test_a_command_that_fails_leaves_the_event_stream_alone(self):
+        self.start()
+
+        def stopped(seconds):
+            raise RuntimeError("Kodi is not playing any media file")
+
+        self.player.seekTime = stopped
+        self.player.heard(command("s1", "seek", 0))
+        self.assertTrue(any("failed" in message for _, message in xbmc.logged))
+
     def test_another_sessions_command_or_another_playback_is_left_alone(self):
         self.start()
         self.player.heard(command("other", "pause"))
@@ -247,7 +282,10 @@ class LiveTest(Wiring):
         self.assertEqual(livetv.queued_channels(), [3, 5, 8])
         self.player.heard(command("w1", "next"))
         self.player.heard(command("w1", "previous"))
-        self.assertEqual(xbmc.asked, [("playselected", 2), ("playselected", 0)])
+        # In Kodi's video queue of channels, whatever this player played before.
+        played = [(item.kind, start) for item, _, start in xbmc.played]
+        self.assertEqual(played, [(xbmc.PLAYLIST_VIDEO, 2), (xbmc.PLAYLIST_VIDEO, 0)])
+        self.assertEqual(xbmc.asked, [])
 
     def test_only_the_channel_playing_obeys(self):
         self.player.heard(command("w0", "next"))
@@ -283,13 +321,13 @@ class RequestsTest(unittest.TestCase):
     def setUp(self):
         self.profile = tempfile.mkdtemp()
         xbmcaddon.settings["_profile"] = self.profile
-        xbmc.info_labels["System.FriendlyName"] = "Den"
+        xbmc.setting_values["services.devicename"] = "Den"
         xbmc.PlayList.entries.clear()
         xbmc.PlayList.positions.clear()
 
     def tearDown(self):
         xbmcaddon.settings.pop("_profile", None)
-        xbmc.info_labels.pop("System.FriendlyName", None)
+        xbmc.setting_values.pop("services.devicename", None)
         xbmc.PlayList.entries.clear()
         xbmc.PlayList.positions.clear()
         kodi.clear_property(kodi.PLAYING)

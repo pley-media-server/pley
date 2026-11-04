@@ -335,7 +335,13 @@ class Player(xbmc.Player):
         elif kind == "live_taken_over":
             self.taken_over(event.get("channel_id"), event.get("message"))
         elif kind == "player_command":
-            self.obey(event)
+            try:
+                self.obey(event)
+            except Exception as e:  # noqa: BLE001 - one command never ends the stream
+                # Kodi stopped between the check and the call, say (seekTime
+                # raises then): out of here, it would drop the event stream,
+                # which misses what happens while it connects again.
+                kodi.log("the remote's %s failed: %r" % (event.get("command"), e), xbmc.LOGWARNING)
 
     def live_session(self):
         """The live channel's watch session (kodi.LIVE): {session_id,
@@ -452,6 +458,13 @@ class Player(xbmc.Player):
             # onPlayBackResumed, at once.
             self.pause()
         elif act == "seek":
+            # Up Next goes first, as the TV apps' does, its countdown starting
+            # again should the place still be in the credits: left counting, it
+            # would play the next episode over the place the remote asked for.
+            with self.ui:
+                if moments is not None:
+                    moments.next_since = None
+                self.close_overlay()
             self.seekTime(action["position_ms"] / 1000.0)
         elif act == "next" and queued:
             self.playnext()
@@ -483,7 +496,10 @@ class Player(xbmc.Player):
         channels = livetv.queued_channels()
         action = remote.obey_live({"session_id": live["session_id"], "channel": channel, "channels": channels}, command)
         if action["act"] == "channel":
-            self.playselected(channels.index(action["channel"]))
+            # Kodi's video queue, which window.play_channels started: this
+            # player's playselected would first switch to the playlist it last
+            # played itself (music, unless it played one).
+            self.play(xbmc.PlayList(xbmc.PLAYLIST_VIDEO), startpos=channels.index(action["channel"]))
 
     # ----------------------------------------------------- what is playing
 

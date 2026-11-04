@@ -206,10 +206,12 @@ here, by the shared remote-control rule, written in `remote.py` and
 tested against every case of `packages/tv/test/fixtures/remote.json`:
 
 - **What it says:** each play request and Live TV watch lists what Kodi
-  obeys (`controls`), names it as Kodi names itself (`System.FriendlyName`,
-  set in Kodi's Settings, Services, General, Device name; at most 64
-  characters) and says it is a TV (`device_kind: tv`): Kodi is made for the
-  TV, on a computer too, so remotes list it with the TVs.
+  obeys (`controls`), names it by the name it was given in Kodi's Settings,
+  Services, General, Device name (at most 64 characters) and says it is a
+  TV (`device_kind: tv`): Kodi is made for the TV, on a computer too, so
+  remotes list it with the TVs. Until it is given a name, Kodi calls itself
+  "Kodi" with the computer's host name after it, which isn't sent: the
+  server names it from the add-on instead.
 - **Movies and episodes:** play, pause, seek, skip, and next when Kodi's
   queue has something after it. An episode always lists next: with nothing
   queued after it, Next plays the episode after it, as Up Next does (and

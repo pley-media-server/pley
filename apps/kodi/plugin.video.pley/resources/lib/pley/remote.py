@@ -37,6 +37,8 @@ LIVE = ["next", "previous"]
 RESTART_AFTER_MS = 3000
 # What remotes call a device, at most (the server cuts it there too).
 NAME_LENGTH = 64
+# Kodi's own device name, until it is given one.
+DEFAULT_NAME = "Kodi"
 
 NONE = {"act": "none", "report": False}
 REPORT = {"act": "none", "report": True}
@@ -141,11 +143,17 @@ def queue_place(item_id: int):
 
 
 def device_name():
-    """What remotes call this Kodi: its own name (Settings, Services,
-    General, Device name), as Kodi says it; None when it says nothing,
-    and the server names it from the add-on's User-Agent."""
-    name = " ".join((xbmc.getInfoLabel("System.FriendlyName") or "").split())
-    return name[:NAME_LENGTH] or None
+    """What remotes call this Kodi: the name it was given (Settings,
+    Services, General, Device name), at most NAME_LENGTH characters. None
+    while it has Kodi's own, which Kodi says with its computer's host name
+    added (System.FriendlyName, "Kodi (<host>)"), not for remotes and
+    administrators to see: the server then names it from the add-on's
+    User-Agent."""
+    given = kodi.setting_value("services.devicename")
+    name = " ".join(given.split()) if isinstance(given, str) else ""
+    if not name or name == DEFAULT_NAME:
+        return None
+    return name[:NAME_LENGTH]
 
 
 def device() -> dict:
