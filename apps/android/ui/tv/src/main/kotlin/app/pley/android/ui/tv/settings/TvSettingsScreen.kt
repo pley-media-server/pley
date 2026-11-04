@@ -196,8 +196,8 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                                 false
                             }
                         }
-                        .focusRestorer()
                         .heldKeyStaysIn(HeldEnds.UpDown)
+                        .focusRestorer()
                         .focusGroup(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {

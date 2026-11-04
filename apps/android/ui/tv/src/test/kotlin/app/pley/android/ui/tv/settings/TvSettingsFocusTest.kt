@@ -1,15 +1,24 @@
 package app.pley.android.ui.tv.settings
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
 import app.pley.android.common.perf.FrameRate
@@ -18,7 +27,11 @@ import app.pley.android.data.Settings
 import app.pley.android.data.TrackDefaultsUnsupported
 import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.focused
+import app.pley.android.ui.tv.kit.hold
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.RailState
@@ -37,10 +50,10 @@ import org.robolectric.annotation.Config
 
 /**
  * The TV's settings with the D-pad (design spec §4.8): focus starts on the
- * first category and the rows follow it; Right goes into the rows; a
- * choice opens a side panel on the current value and gives focus back to
- * its row; switches toggle on Select; Sign out asks first, with focus on
- * Cancel.
+ * first category and the rows follow it; a held Down stops on the last
+ * category; Right goes into the rows; a choice opens a side panel on the
+ * current value and gives focus back to its row; switches toggle on
+ * Select; Sign out asks first, with focus on Cancel.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi", application = TvAccountTestApplication::class)
@@ -61,11 +74,20 @@ class TvSettingsFocusTest {
         FrameRate.show(compose.activity, false)
     }
 
-    private fun show() {
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
+
+    /** The page, with something focusable under it when [below], as a page's next list is. */
+    private fun show(below: Boolean = false) {
         val navigator = TvNavigator(stack, RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = true) {
-                CompositionLocalProvider(LocalTvNavigator provides navigator) { TvSettingsScreen() }
+                CompositionLocalProvider(LocalTvNavigator provides navigator, LocalKeyRepeatGate provides gate) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        Box(Modifier.weight(1f)) { TvSettingsScreen() }
+                        if (below) Box(Modifier.size(40.dp).testTag(BELOW).focusable())
+                    }
+                }
             }
         }
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Anna").fetchSemanticsNodes().isNotEmpty() }
@@ -82,6 +104,19 @@ class TvSettingsFocusTest {
         category(Category.Playback).assertIsFocused()
         compose.onNodeWithText("Match the refresh rate").assertExists()
         compose.onNodeWithText("Audio language").assertDoesNotExist()
+    }
+
+    @Test
+    fun aHeldDownStopsOnTheLastCategoryAndOnlyAPressGoesOnBelow() {
+        show(below = true)
+        compose.press(Key.DirectionDown, times = 6)
+        category(Category.About).assertIsFocused()
+        // The press moves down to Sign out; held from 400 ms, Down goes no further.
+        compose.hold(Key.DirectionDown)
+        category(Category.SignOut).assertIsFocused()
+        compose.onNodeWithTag(BELOW).assertIsNotFocused()
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag(BELOW).assertIsFocused()
     }
 
     @Test
@@ -207,5 +242,9 @@ class TvSettingsFocusTest {
         compose.waitUntil(5_000) { stack.firstOrNull() is PleyKey.Link }
         assertNull(graph.sessionFlow.value)
         assertEquals(listOf<NavKey>(PleyKey.Link(TvAccountTestGraph.SERVER)), stack.toList())
+    }
+
+    private companion object {
+        const val BELOW = "below"
     }
 }

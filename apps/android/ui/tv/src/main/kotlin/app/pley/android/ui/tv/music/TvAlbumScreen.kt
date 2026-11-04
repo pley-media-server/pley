@@ -205,8 +205,8 @@ private fun AlbumContent(
             Modifier
                 .fillMaxSize()
                 .padding(end = TvSafeArea.Horizontal)
-                .focusRestorer(entry)
                 .heldKeyStaysIn(HeldEnds.UpDown)
+                .focusRestorer(entry)
                 .focusGroup()
                 .testTag(TV_ALBUM_TRACKS),
             state = list,

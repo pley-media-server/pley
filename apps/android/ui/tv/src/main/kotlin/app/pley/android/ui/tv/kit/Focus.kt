@@ -113,7 +113,11 @@ private class RailOnLeftNode(var rail: TvRailFocus?, var stopRight: Boolean) :
  * its own ends ([railOnLeftStopOnRight]).
  *
  * The list is a focus group (a lazy list or grid is one): put this before
- * it, after a focusRestorer, whose exit still runs first.
+ * it, and before its focusRestorer or a focusProperties that sets onExit.
+ * The group's properties are set from the modifier nearest it outward, and
+ * those set onExit in place of what was set before them, where this one
+ * runs the exit set before it first (the restorer's, saving the focused
+ * child): after them, it would have no effect.
  */
 fun Modifier.heldKeyStaysIn(toward: Set<FocusDirection>): Modifier = this then HeldKeyElement(toward, enter = false)
 
@@ -133,7 +137,8 @@ object HeldEnds {
  * The other side of [heldKeyStaysIn], for what shares a list with the
  * rows next to it (a page's hero, the first item of its column of rows):
  * a held key's moves don't come into it, a press of its own does. Put it
- * before the focus group it keeps.
+ * before the focus group it keeps, and before its focusRestorer, as
+ * [heldKeyStaysIn].
  */
 fun Modifier.heldKeyStaysOut(): Modifier = this then HeldKeyElement(emptySet(), enter = true)
 

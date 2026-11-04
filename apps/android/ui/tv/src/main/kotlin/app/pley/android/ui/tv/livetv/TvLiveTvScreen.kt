@@ -613,6 +613,7 @@ private fun ChannelTiles(
         state = grid,
         modifier = modifier
             .fillMaxSize()
+            .heldKeyStaysIn(setOf(FocusDirection.Right, FocusDirection.Down))
             .focusProperties {
                 onExit = {
                     when (requestedFocusDirection) {
@@ -627,7 +628,6 @@ private fun ChannelTiles(
                     }
                 }
             }
-            .heldKeyStaysIn(setOf(FocusDirection.Right, FocusDirection.Down))
             .focusGroup()
             .testTag(TV_LIVE_TILES),
         contentPadding = PaddingValues(end = TvSafeArea.Horizontal, top = 8.dp, bottom = 48.dp),
