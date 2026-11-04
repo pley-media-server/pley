@@ -97,6 +97,7 @@ import app.pley.android.ui.phone.music.musicEntries
 import app.pley.android.ui.phone.onboarding.onboardingEntries
 import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.playlists.playlistsEntries
+import app.pley.android.ui.phone.remote.RemoteSlot
 import app.pley.android.ui.phone.requests.RequestsTabIcon
 import app.pley.android.ui.phone.requests.requestsEntries
 import app.pley.android.ui.phone.search.searchEntries
@@ -193,7 +194,8 @@ internal fun PhoneShell(
  * (signed out by the server) and the session (signed out before the shell
  * listened, as when this device can't read its tokens anymore), the
  * server in use, live updates while the app is started, the music
- * playing, requests (and their news, told while the app shows), and the
+ * playing, what plays on the profile's other devices (the remote),
+ * requests (and their news, told while the app shows), and the
  * capability probe. The graph's parts are made off the main thread.
  */
 @Composable
@@ -223,6 +225,14 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
         launch {
             val music = withContext(Dispatchers.Default) { g.player.music.nowPlaying }
             music.collect { shell.nowPlaying = it }
+        }
+        launch {
+            // The profile's other devices, for the remote: read while the app shows.
+            val remote = withContext(Dispatchers.Default) { g.data.remote }
+            shell.remote = remote
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                remote.sessions.collect { shell.remoteSessions = it }
+            }
         }
         launch {
             // The server's events connected again: it answers, and the offline banner goes.
@@ -282,7 +292,7 @@ private fun GettingIn(navigation: PhoneNavigation, shell: PhoneShellState, entri
     }
 }
 
-/** In: the navigation bar or rail, each tab's back stack, the mini player and the toasts above the bar. */
+/** In: the navigation bar or rail, each tab's back stack, the remote's bar, the mini player and the toasts above the bar. */
 @Composable
 private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (NavKey) -> NavEntry<NavKey>) {
     val stacks: Map<PhoneTab, NavBackStack<NavKey>> = PhoneTab.entries.associateWith { rememberNavBackStack(it.root) }
@@ -358,6 +368,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
                 )
             }
+            RemoteSlot(shell.remoteSessions, shell.remote, shell.server)
             MiniPlayerSlot(shell.nowPlaying)
         }
     }

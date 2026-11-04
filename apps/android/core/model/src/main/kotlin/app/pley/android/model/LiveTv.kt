@@ -172,6 +172,12 @@ data class LiveGuide(
 data class WatchRequest(
     val clientId: String? = null,
     val takeOver: Long? = null,
+    /** The remote's commands this player obeys, as a play request's. */
+    val controls: List<Control>? = null,
+    /** What remotes call this device, as a play request's. */
+    val deviceName: String? = null,
+    /** What kind of device it plays on, as a play request's. */
+    val deviceKind: DeviceKind? = null,
 )
 
 /**

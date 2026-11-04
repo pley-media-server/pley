@@ -4,6 +4,8 @@
     <!-- A playback the server stopped (docs/API.md, DELETE /api/sessions/{id}). -->
     <string name="session_stopped_by_admin">Playback was stopped by the server\'s administrator.</string>
     <string name="session_stopped_elsewhere">Playback was stopped from another device.</string>
+    <string name="live_stopped_by_admin">Live TV was stopped by the server\'s administrator.</string>
+    <string name="live_stopped_elsewhere">Live TV was stopped from another device.</string>
     <!-- Who stopped it, then their message on its own line. -->
     <string name="session_stopped_message">%1$s\n%2$s</string>
 

@@ -54,6 +54,8 @@ import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
@@ -326,6 +328,25 @@ interface PleyApi {
     /** GET /api/files/{id}/chapters/{n}.jpg: the picture of chapter [chapter] (0-based), once the file has previews. */
     fun chapterImageUrl(fileId: Long, chapter: Int, version: String? = null): String
 
+    // ---------------------------------------------------------------- remote control (docs/API.md, "Remote control")
+
+    /** GET /api/sessions (scope play): the profile's sessions whose players are there, this device's too, oldest first. */
+    suspend fun playingSessions(): List<PlayingSession>
+
+    /**
+     * POST /api/sessions/{id}/command (scope play): sends the player of
+     * [sessionId] a command, which it acts on and then reports. Refusals
+     * are [ApiException]s; [CommandRefusal.of] says which.
+     */
+    suspend fun sendCommand(sessionId: String, command: PlayerCommandRequest)
+
+    /**
+     * DELETE /api/sessions/{id} (scope play): stops one of the profile's
+     * sessions, on another device, at once; its player says so. One
+     * stopped already is fine.
+     */
+    suspend fun stopSession(sessionId: String)
+
     /** POST /api/items/{id}/progress: where the player is, every ~10 s, on pause and on closing. */
     suspend fun reportProgress(itemId: Long, report: ProgressReport)
 
@@ -411,6 +432,13 @@ interface PleyApi {
      * when it isn't known by then.
      */
     suspend fun livePlan(sessionId: String): LivePlan?
+
+    /**
+     * GET /api/live/channels/{id}/stream.ts: the channel's MPEG-TS as the
+     * provider sends it, for [clientId] (reading it ends that device's HLS
+     * viewer), saying what kind of device reads it, as a watch request does.
+     */
+    fun liveStreamUrl(channelId: Long, clientId: String): String
 
     /** DELETE /api/live/sessions/{session} (scope play): stops watching now; a session already gone is fine. */
     suspend fun leaveChannel(sessionId: String)

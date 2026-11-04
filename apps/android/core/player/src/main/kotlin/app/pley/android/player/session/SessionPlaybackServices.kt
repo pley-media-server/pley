@@ -149,6 +149,8 @@ class SessionPlaybackServices(
                     profileId = session.me?.id,
                     pictures = OkHttpPictureSource({ network.subtitles(session.issuer) }, pictureDir),
                     events = data.liveUpdates.events,
+                    playing = data.liveUpdates::playing,
+                    here = data.remote::here,
                     local = local(),
                     tracksChosen = { itemId, c -> data.watchState.streamsChosen(itemId, c.fileId, c.audioIndex, c.subtitleIndex) },
                     warmer = OkHttpStreamWarmer(network::media),
