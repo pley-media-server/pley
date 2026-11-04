@@ -19,7 +19,8 @@ namespace Pley.Tv.Core.Player;
 /// film resumes in, every segment named by the server's own address, so the video still comes
 /// straight from the server and only playlists pass through here. <see cref="OffsetMs"/> is where
 /// that segment begins on the film's timeline: a player that counts from the playlist's first
-/// segment is that far behind the film.
+/// segment is that far behind the film. The playlists are asked for as soon as it's made, while
+/// the TV's player is still being set up: the server takes a third of a second for the first.
 /// </summary>
 public sealed class StartWindow : IDisposable
 {
@@ -27,24 +28,71 @@ public sealed class StartWindow : IDisposable
     readonly long startMs;
     readonly HttpClient http;
     readonly bool ownsClient;
+
+    /// <summary>
+    /// One client for every film: its connection to the server stays open from one film to the next.
+    /// A client of each window's own had every film open a new connection (TLS and all) for two playlists.
+    /// </summary>
+    static readonly HttpClient Shared = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
     readonly Action<string> mark;
     readonly TcpListener listener;
     long offsetMs = -1;
     volatile bool gone;
+    /// <summary>The playlists asked for ahead of the player, by address; each is given once.</summary>
+    readonly Dictionary<string, Task<Answer>> ahead = new Dictionary<string, Task<Answer>>();
+    readonly Task askedAhead;
+
+    sealed record Answer(HttpStatusCode Status, bool Ok, string? ContentType, string Body);
 
     public StartWindow(Uri source, long startMs, HttpMessageHandler? handler = null, Action<string>? mark = null)
     {
         upstream = new Uri(source.GetLeftPart(UriPartial.Authority));
         this.startMs = startMs;
-        ownsClient = handler == null;
-        http = handler == null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
-        http.Timeout = TimeSpan.FromSeconds(30);
+        ownsClient = handler != null;
+        http = handler == null ? Shared : new HttpClient(handler, disposeHandler: false) { Timeout = Shared.Timeout };
         this.mark = mark ?? (_ => { });
         listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         Url = new Uri($"http://127.0.0.1:{port.ToString(CultureInfo.InvariantCulture)}{source.PathAndQuery}");
+        var first = Get(source);
+        lock (ahead) ahead[source.AbsoluteUri] = first;
+        askedAhead = AskAhead(first, source);
         _ = Accept();
+    }
+
+    /// <summary>A multivariant playlist's first playlist, asked for once it came: the one the TV's player takes next.</summary>
+    async Task AskAhead(Task<Answer> master, Uri at)
+    {
+        try
+        {
+            var answer = await master.ConfigureAwait(false);
+            if (!answer.Ok || answer.Body.Contains("#EXTINF") || gone) return;
+            foreach (var raw in answer.Body.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal)) continue;
+                var next = new Uri(at, line);
+                // One on another host is the player's to ask for: it doesn't pass through here.
+                if (next.GetLeftPart(UriPartial.Authority) != upstream.GetLeftPart(UriPartial.Authority)) return;
+                lock (ahead) ahead[next.AbsoluteUri] = Get(next);
+                return;
+            }
+        }
+        catch (Exception)
+        {
+            // The player asks for it itself.
+        }
+    }
+
+    async Task<Answer> Get(Uri at)
+    {
+        var asked = System.Diagnostics.Stopwatch.StartNew();
+        using var response = await http.GetAsync(at).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        // Its name only: the query carries the stream's key.
+        mark($"{Path.GetFileName(at.AbsolutePath)} from the server in {asked.ElapsedMilliseconds} ms");
+        return new Answer(response.StatusCode, response.IsSuccessStatusCode, response.Content.Headers.ContentType?.ToString(), body);
     }
 
     /// <summary>What the player is given in place of the source.</summary>
@@ -168,9 +216,16 @@ public sealed class StartWindow : IDisposable
                 var target = await Target(stream).ConfigureAwait(false);
                 if (target == null) return;
                 var at = new Uri(upstream, target);
-                using var response = await http.GetAsync(at).ConfigureAwait(false);
-                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                if (response.IsSuccessStatusCode && target.Split('?')[0].EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase))
+                Task<Answer>? early;
+                lock (ahead)
+                {
+                    if (ahead.TryGetValue(at.AbsoluteUri, out early)) ahead.Remove(at.AbsoluteUri);
+                }
+                var response = await (early ?? Get(at)).ConfigureAwait(false);
+                // The playlist after it asked for first: the player, told of it, finds it on its way.
+                if (early != null) await askedAhead.ConfigureAwait(false);
+                var body = response.Body;
+                if (response.Ok && target.Split('?')[0].EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase))
                 {
                     var (trimmed, offset) = Trim(body, at, startMs);
                     if (offset >= 0)
@@ -182,8 +237,8 @@ public sealed class StartWindow : IDisposable
                 }
                 var bytes = Encoding.UTF8.GetBytes(body);
                 var head = Encoding.ASCII.GetBytes(
-                    $"HTTP/1.1 {((int)response.StatusCode).ToString(CultureInfo.InvariantCulture)} {(response.IsSuccessStatusCode ? "OK" : "Error")}\r\n" +
-                    $"Content-Type: {response.Content.Headers.ContentType?.ToString() ?? "application/vnd.apple.mpegurl"}\r\n" +
+                    $"HTTP/1.1 {((int)response.Status).ToString(CultureInfo.InvariantCulture)} {(response.Ok ? "OK" : "Error")}\r\n" +
+                    $"Content-Type: {response.ContentType ?? "application/vnd.apple.mpegurl"}\r\n" +
                     $"Content-Length: {bytes.Length.ToString(CultureInfo.InvariantCulture)}\r\nConnection: close\r\n\r\n");
                 await stream.WriteAsync(head, 0, head.Length).ConfigureAwait(false);
                 await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);

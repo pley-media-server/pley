@@ -439,7 +439,10 @@ A film resumed 10 s or more in is given its playlists by the app instead,
 from the TV's loopback, its media playlist beginning at the segment the
 film resumes in and naming every segment by the server's own address: the
 player prepares there, a second or two before the resume point, with no
-seek, and the video still comes straight from the server. The player then
+seek, and the video still comes straight from the server. The app asks the
+server for both playlists as soon as it has the stream, while the TV's
+player is still being set up: the server takes a third of a second for
+the first. The player then
 counts from that segment, which the engine adds back to every position,
 seek and duration; a seek before it starts a session there, as any new
 stream starts, under its black cover.

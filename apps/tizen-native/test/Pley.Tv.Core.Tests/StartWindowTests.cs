@@ -85,6 +85,21 @@ public class StartWindowTests
     }
 
     [Fact]
+    public async Task Both_playlists_are_asked_for_before_the_player_asks_and_once_only()
+    {
+        var server = new Server();
+        using var window = new StartWindow(new Uri("http://pley.example.com/api/media/k3y/master.m3u8"), 3_000, server);
+        for (var i = 0; i < 200 && server.Asked.Count < 2; i++) await Task.Delay(10);
+        Assert.Equal(new[] { "/api/media/k3y/master.m3u8", "/api/media/k3y/index.m3u8" }, server.Asked);
+        using var player = new HttpClient();
+        Assert.Equal(Master, await player.GetStringAsync(window.Url));
+        Assert.Equal(3, Uris(await player.GetStringAsync(new Uri(window.Url, "index.m3u8"))).Length);
+        // Asked again (a player that reads a playlist twice), it comes from the server again.
+        Assert.Equal(Master, await player.GetStringAsync(window.Url));
+        Assert.Equal(3, server.Asked.Count);
+    }
+
+    [Fact]
     public async Task What_the_server_refuses_the_player_hears()
     {
         using var window = new StartWindow(new Uri("http://pley.example.com/api/media/k3y/master.m3u8"), 3_000, new Server());
