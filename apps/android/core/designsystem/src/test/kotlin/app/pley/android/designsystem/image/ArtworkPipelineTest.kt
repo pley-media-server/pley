@@ -256,10 +256,94 @@ class ArtworkPipelineTest {
         assertTrue(first.await() is SuccessResult)
         assertEquals(listOf("$origin/api/items/1/images/poster?w=320"), fetched)
 
-        // Held again: in the memory cache now, it comes at once, fetching nothing.
+        // Held again: in the memory cache now, it comes, fetching nothing.
         hold.hold()
         assertTrue(loader.execute(request) is SuccessResult)
         assertEquals(1, fetched.size)
+    }
+
+    @Test
+    fun aHeldRequestsLoaderWorkLeavesTheCallingThreadOnlyWhileHeld() = runTest {
+        val threads = mutableListOf<Thread>()
+        val loader = ImageLoader.Builder(context)
+            .components {
+                add(
+                    object : Interceptor {
+                        override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+                            synchronized(threads) { threads += Thread.currentThread() }
+                            return chain.proceed()
+                        }
+                    },
+                )
+                addArtworkHold()
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T1, 1920)))
+                add(FakeFetcher(mutableListOf()))
+            }
+            .memoryCache(MemoryCache.Builder().maxSizeBytes(1L shl 20).build())
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        val hold = FakeHold()
+        val image = ArtworkImage(listOf("$origin/api/items/2/images/poster"))
+        val request = heldRequest(image, hold, context).newBuilder().size(248, 372).build()
+        val caller = Thread.currentThread()
+
+        // Not held: on the caller's thread, so that a picture in the memory cache shows in the same frame.
+        hold.release()
+        assertTrue(loader.execute(request) is SuccessResult)
+        assertEquals(listOf(caller), threads)
+
+        // Held: on another thread, and from the memory cache all the same.
+        threads.clear()
+        hold.hold()
+        assertTrue(loader.execute(request) is SuccessResult)
+        assertTrue("ran on ${threads.single()}", threads.single() != caller)
+
+        // The same request once nothing is held: on the caller's thread again.
+        threads.clear()
+        hold.release()
+        assertTrue(loader.execute(request) is SuccessResult)
+        assertEquals(listOf(caller), threads)
+    }
+
+    @Test
+    fun aHeldRequestGoesOnAwayFromTheThreadThatEndsTheHold() = runTest {
+        val after = mutableListOf<Thread>()
+        val loader = ImageLoader.Builder(context)
+            .components {
+                addArtworkHold()
+                add(
+                    object : Interceptor {
+                        override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+                            synchronized(after) { after += Thread.currentThread() }
+                            return chain.proceed()
+                        }
+                    },
+                )
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T1, 1920)))
+                add(FakeFetcher(mutableListOf()))
+            }
+            .memoryCache(MemoryCache.Builder().maxSizeBytes(1L shl 20).build())
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        val hold = FakeHold()
+        val image = ArtworkImage(listOf("$origin/api/items/3/images/poster"))
+        val request = heldRequest(image, hold, context).newBuilder().size(248, 372).build()
+        val pending = async { loader.execute(request) }
+        runCurrent()
+        // Set aside, not in the memory cache: it waits for the key to come up.
+        val until = System.currentTimeMillis() + 5_000
+        while (!hold.waiting && System.currentTimeMillis() < until) Thread.sleep(10)
+        assertTrue(hold.waiting)
+        Thread.sleep(50)
+
+        // The key comes up, on the main thread: the request goes on elsewhere, as every one set aside does, rather
+        // than all of them there and then.
+        val main = Thread.currentThread()
+        hold.release()
+        assertTrue(pending.await() is SuccessResult)
+        assertTrue("went on on ${after.last()}", after.last() != main)
     }
 
     /** A hold that holds until [release]. */
@@ -267,8 +351,15 @@ class ArtworkPipelineTest {
         override var holding = true
         private var released = CompletableDeferred<Unit>()
 
+        /** Whether a request waits for [release]. */
+        @Volatile
+        var waiting = false
+
         override suspend fun awaitRelease() {
-            if (holding) released.await()
+            if (holding) {
+                waiting = true
+                released.await()
+            }
         }
 
         fun release() {

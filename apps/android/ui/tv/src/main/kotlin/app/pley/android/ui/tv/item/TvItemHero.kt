@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.item
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,6 +87,7 @@ internal fun TvHero(
             .onPlaced { places.hero = it }
             .onFocusChanged { if (it.hasFocus) focus.area = Area.Hero }
             .tvRowColumnHero()
+            .focusGroup()
             .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = HeroTop, bottom = 8.dp),
     ) {
         Box(Modifier.width(TextColumn).heightIn(min = TitleBox), contentAlignment = Alignment.BottomStart) {

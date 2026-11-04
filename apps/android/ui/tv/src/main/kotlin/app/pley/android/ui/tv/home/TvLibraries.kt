@@ -84,6 +84,8 @@ import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvSidePanel
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.menuKey
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -217,7 +219,7 @@ private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, o
             contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 8.dp, bottom = TvSafeArea.Vertical),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().heldKeyStaysIn(HeldEnds.UpDown),
         ) {
             itemsIndexed(state.libraries, key = { _, entry -> entry.library.id }, contentType = { _, _ -> "library" }) { index, entry ->
                 val id = entry.library.id

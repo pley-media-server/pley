@@ -59,6 +59,8 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import app.pley.android.screens.livetv.GroupSections
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -115,7 +117,6 @@ import app.pley.android.screens.livetv.LiveTvEvent
 import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.screens.livetv.LiveView
 import app.pley.android.ui.tv.R
-import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
@@ -373,7 +374,6 @@ private fun Categories(
     onShownIndex: (Int) -> Unit,
 ) {
     val rail = LocalTvRailFocus.current
-    val gate = LocalKeyRepeatGate.current
     CategoryColumn(
         state = state,
         onShownIndex = onShownIndex,
@@ -381,7 +381,7 @@ private fun Categories(
         selected = page.category,
         selectedRequester = selectedRequester,
         onSelect = onSelect,
-        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).heldUpStays(gate).testTag(TV_LIVE_CATEGORIES),
+        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).heldKeyStaysIn(HeldEnds.UpDown).testTag(TV_LIVE_CATEGORIES),
         found = page.found,
         search = {
             TvSearchField(
@@ -514,18 +514,6 @@ private fun shownIndexOf(selected: LiveCategory, sections: GroupSections, open: 
     return if (at >= 0) i + 1 + at else 0
 }
 
-/**
- * Up from the top of the categories goes to the tabs on a press; a held Up
- * stops there, as a held Left stops at a row's start (Samsung's page).
- */
-private fun Modifier.heldUpStays(gate: KeyRepeatGate): Modifier = focusProperties {
-    val inner = onExit
-    onExit = {
-        inner()
-        if (requestedFocusDirection == FocusDirection.Up && gate.holding) cancelFocusChange()
-    }
-}
-
 /** The categories' kinds of row, for the column to reuse their layouts in kind. */
 private const val CATEGORY = "category"
 private const val HEADING = "heading"
@@ -625,6 +613,7 @@ private fun ChannelTiles(
         state = grid,
         modifier = modifier
             .fillMaxSize()
+            .heldKeyStaysIn(setOf(FocusDirection.Right, FocusDirection.Down))
             .focusProperties {
                 onExit = {
                     when (requestedFocusDirection) {

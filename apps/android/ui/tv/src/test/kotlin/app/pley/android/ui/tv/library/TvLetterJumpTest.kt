@@ -131,7 +131,7 @@ class TvLetterJumpTest {
         press(Key.DirectionRight, 5)
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionRight) }
-        // The press moves to the last column; held from 180 ms, Right goes no further.
+        // The press moves to the last column; held from 400 ms, Right goes no further.
         compose.mainClock.advanceTimeBy(600)
         compose.onRoot().performKeyInput { keyUp(Key.DirectionRight) }
         compose.mainClock.autoAdvance = true

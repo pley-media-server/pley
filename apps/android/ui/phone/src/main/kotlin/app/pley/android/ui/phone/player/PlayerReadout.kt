@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -58,7 +57,7 @@ internal fun BoxScope.DetailsReadout(state: PlayerScreenState, enabled: Boolean)
 private fun Readout(details: PlaybackDetailsUi) {
     Column(
         Modifier
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(16.dp)
             .widthIn(max = READOUT_WIDTH)
             .background(Color.Black.copy(alpha = 0.6f), PleyShape.Card)

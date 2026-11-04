@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
@@ -95,8 +96,12 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
         }
         val barHeight = if (s.progress > 0f) s.style.progressHeight.toPx() else 0f
         if (barHeight > 0f) {
-            drawRect(PleyColors.ProgressTrackOnArt, Offset(0f, size.height - barHeight), Size(size.width, barHeight))
-            drawRect(PleyColors.Accent, Offset(0f, size.height - barHeight), Size(size.width * s.progress.coerceIn(0f, 1f), barHeight))
+            // The tile's own rounded rectangle cut to the bar: its bottom corners round with the tile's
+            // while the tile isn't clipped (artworkPlaceholder), and a rectangle's clip costs the GPU nothing.
+            val top = size.height - barHeight
+            val corner = if (s.kind.round) CornerRadius(size.minDimension / 2f) else CornerRadius(s.style.cornerRadius.toPx())
+            clipRect(top = top) { drawRoundRect(PleyColors.ProgressTrackOnArt, cornerRadius = corner) }
+            clipRect(top = top, right = size.width * s.progress.coerceIn(0f, 1f)) { drawRoundRect(PleyColors.Accent, cornerRadius = corner) }
         }
         when {
             s.unwatched > 0 -> drawCount(s, inset)

@@ -131,6 +131,8 @@
     <string name="tv_settings_switch_server">Switch server</string>
     <string name="tv_settings_open_diagnostics">Open diagnostics</string>
     <string name="tv_settings_open_diagnostics_value">What this TV decodes and shows, and why</string>
+    <string name="tv_settings_show_frame_rate">Show frame rate</string>
+    <string name="tv_settings_show_frame_rate_hint">At the top while something moves: frames a second, the longest frame, and late frames</string>
     <string name="tv_settings_version">Version</string>
     <string name="tv_settings_licences">Open-source licences</string>
     <string name="tv_settings_credits">Credits</string>

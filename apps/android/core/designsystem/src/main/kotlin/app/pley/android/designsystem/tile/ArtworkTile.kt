@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import app.pley.android.designsystem.PleyColors
@@ -42,8 +41,7 @@ fun ArtworkTile(
         load = load,
         modifier = modifier
             .clearAndSetSemantics { contentDescription = model.description }
-            .clip(shape)
-            .artworkPlaceholder(model.title, if (kind.round) null else style.placeholderText, load, well = PleyColors.Surface2)
+            .artworkPlaceholder(model.title, if (kind.round) null else style.placeholderText, load, well = PleyColors.Surface2, shape = shape)
             .tileOverlays(model, kind, style, load),
     )
 }

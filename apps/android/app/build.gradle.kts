@@ -31,6 +31,9 @@ android {
         // The id Google Play and the Amazon Appstore know the app by. The code
         // keeps its namespace, and sign-in its app.pley.android: scheme.
         applicationId = "com.formandelement.pley"
+        // -Ppley.applicationIdSuffix=.bench: a build that installs beside the
+        // app already on a device (another key's), for benchmarks and profiles.
+        providers.gradleProperty("pley.applicationIdSuffix").orNull?.let { applicationIdSuffix = it }
         // A rebuild of the same version for the stores, which take each code
         // once: PLEY_BUILD, 1 to 99, on top of the version's.
         versionCode = versionCodeOf(appVersion) +

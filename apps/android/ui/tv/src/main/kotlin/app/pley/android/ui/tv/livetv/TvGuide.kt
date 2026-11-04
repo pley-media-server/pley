@@ -1,9 +1,12 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package app.pley.android.ui.tv.livetv
 
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -198,7 +202,8 @@ internal fun TvGuide(
     val x = remember(slide) { { slide.value } }
     val nowState = rememberUpdatedState(now)
     val nowAt = remember(nowState) { { nowState.value } }
-    val rows = rememberLazyListState()
+    // Two rows made ahead each way: a held Up or Down steps onto rows already composed.
+    val rows = rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = ROW_HEIGHT * 2, behind = ROW_HEIGHT * 2) })
     val rowPx = with(density) { ROW_HEIGHT.roundToPx() }
     // The rows scroll when the focused one reaches the first or the last in view, bringing it second
     // (Samsung's): in 150 ms for a press; at once for a landing, and a row at a time with the gate's
