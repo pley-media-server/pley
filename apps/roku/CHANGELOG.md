@@ -44,8 +44,6 @@ describes how they are made.
 
 ### Changed
 
-- The channel's tile on the home screen shows Pley's mark above its name,
-  centred.
 - Up Next waits at the end of an episode once cancelled, or when the next
   episode doesn't play by itself, where the player used to leave.
 - A video that stands still for 12 s is converted or opened again, and the
@@ -91,6 +89,13 @@ describes how they are made.
   more.
 - Choosing a Live TV category or searching takes the focus to its
   channels.
+
+## [0.1.5] - 2026-11-04
+
+### Changed
+
+- The channel's tile on the home screen shows Pley's mark above its name,
+  centred.
 
 ## [0.1.4] - 2026-11-03
 
@@ -333,7 +338,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-03...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
