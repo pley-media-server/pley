@@ -646,8 +646,10 @@ export interface PlayingSession {
   position_ms: number;
   /** Null when the length isn't known, and on live. */
   duration_ms: number | null;
-  /** Its player's last report: a remote moves the place on from it while it plays. */
+  /** Its player's last report, by the server's clock. */
   updated_at: Timestamp;
+  /** How long ago that report was, by the server's clock: a remote moves the place on from it while it plays. */
+  age_ms: number;
   /** What its player obeys; Stop always works. */
   controls: Control[];
 }

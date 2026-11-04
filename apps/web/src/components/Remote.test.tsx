@@ -31,6 +31,7 @@ function episode(overrides: Partial<PlayingSession> = {}): PlayingSession {
     position_ms: 60_000,
     duration_ms: 1_800_000,
     updated_at: nowSecs(),
+    age_ms: 0,
     controls: [],
     ...overrides,
   };
@@ -46,6 +47,7 @@ const live: PlayingSession = {
   position_ms: 0,
   duration_ms: null,
   updated_at: nowSecs(),
+  age_ms: 0,
   controls: ["next", "previous"],
 };
 
@@ -116,7 +118,8 @@ describe("RemoteButton", () => {
 
   it("moves the place on each second while it plays", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
-    mockApi({ "GET /api/sessions": () => [episode({ state: "playing", updated_at: nowSecs() - 60 })] });
+    // Reported a minute before the answer came, by a server clock ten minutes ahead of this one.
+    mockApi({ "GET /api/sessions": () => [episode({ state: "playing", updated_at: nowSecs() + 600, age_ms: 60_000 })] });
     renderWithProviders(<RemoteButton />);
     fireEvent.click(await screen.findByRole("button", { name: /^Remote/ }));
     const panel = screen.getByRole("dialog");

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import type { RemoteSession } from "@/lib/remote";
 import { makeItem } from "@/test/fixtures";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { FIRST_PAGE, keys, sessionCommandError, useLibraryItems, useSessionCommand } from "./hooks";
@@ -101,8 +102,11 @@ describe("useSessionCommand", () => {
     position_ms: 60_000,
     duration_ms: 6_000_000,
     updated_at: 1_700_000_000,
+    age_ms: 0,
     controls: ["pause", "seek"],
   };
+  // The same, as the sessions query keeps it.
+  const kept: RemoteSession = { ...tv, reported_at_ms: 1_700_000_000_000 };
 
   it("sends the command with what it needs", async () => {
     const requests = mockApi({ "POST /api/sessions/s%201/command": () => undefined });
@@ -120,13 +124,13 @@ describe("useSessionCommand", () => {
       "GET /api/sessions": () => [tv],
     });
     const { client, wrapper } = clientWrapper();
-    client.setQueryData(keys.sessions, [tv, { ...tv, session_id: "s2" }]);
+    client.setQueryData(keys.sessions, [kept, { ...kept, session_id: "s2" }]);
     const { result } = renderHook(() => useSessionCommand(), { wrapper });
 
     await act(() => result.current.mutateAsync({ sessionId: "s 1", command: "pause" }).catch(() => undefined));
-    expect(client.getQueryData<PlayingSession[]>(keys.sessions)?.map((s) => s.session_id)).toEqual(["s2"]);
+    expect(client.getQueryData<RemoteSession[]>(keys.sessions)?.map((s) => s.session_id)).toEqual(["s2"]);
 
-    client.setQueryData(keys.sessions, [{ ...tv, session_id: "s2" }]);
+    client.setQueryData(keys.sessions, [{ ...kept, session_id: "s2" }]);
     await act(() => result.current.mutateAsync({ sessionId: "s2", command: "pause" }).catch(() => undefined));
     expect(client.getQueryState(keys.sessions)?.isInvalidated).toBe(true);
   });

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleStop, MonitorSmartphone, Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import { queries, sessionCommandError, usePlayingSessions, useSessionCommand, useStopSession, type SessionCommand } from "@/api/hooks";
-import type { Control, PlayingSession } from "@/api/types";
+import type { Control } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { formatClock, fullTitle, pluralize } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
@@ -14,6 +14,7 @@ import {
   estimatedPosition,
   SKIP_BACK_MS,
   SKIP_FORWARD_MS,
+  type RemoteSession,
   type SentCommand,
 } from "@/lib/remote";
 import { Artwork } from "./Artwork";
@@ -25,7 +26,7 @@ import { IconButton, ProgressBar } from "./ui";
 const UNNAMED = "Unknown device";
 
 /** The user's sessions that play somewhere other than this tab: what its remote controls. */
-function useOtherSessions(): PlayingSession[] {
+function useOtherSessions(): RemoteSession[] {
   const sessions = usePlayingSessions();
   const here = useSessionsHere();
   return (sessions.data ?? []).filter((s) => !here.has(s.session_id));
@@ -36,7 +37,7 @@ function useOtherSessions(): PlayingSession[] {
  * tabs of one browser, two of the same TV) are numbered, so every label and
  * message says which one it means.
  */
-function deviceNames(sessions: PlayingSession[]): Map<string, string> {
+function deviceNames(sessions: RemoteSession[]): Map<string, string> {
   const total = new Map<string, number>();
   for (const s of sessions) {
     const name = s.device ?? UNNAMED;
@@ -123,7 +124,7 @@ export function RemoteButton() {
 }
 
 /** One device in the remote: what plays there, how far, and the controls its player listed. */
-function RemoteRow({ session, device }: { session: PlayingSession; device: string }) {
+function RemoteRow({ session, device }: { session: RemoteSession; device: string }) {
   const qc = useQueryClient();
   const command = useSessionCommand();
   const stop = useStopSession();

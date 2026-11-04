@@ -7,20 +7,31 @@ export const ANSWER_WAIT_MS = 5_000;
 export const SKIP_BACK_MS = 10_000;
 export const SKIP_FORWARD_MS = 30_000;
 
+/** A session as the remote keeps it: when its player last reported, by this browser's clock. */
+export interface RemoteSession extends PlayingSession {
+  reported_at_ms: number;
+}
+
 /**
- * Where `session` is at `nowMs`: its last report, moved on by the time since
- * while it plays (never past its end, nor back for a clock that is behind).
+ * The list `GET /api/sessions` answered at `nowMs`, this browser's clock.
+ * The server says how long ago each report was rather than when, so this
+ * browser never compares its clock with the server's.
  */
-export function estimatedPosition(session: PlayingSession, nowMs: number): number {
+export function received(sessions: PlayingSession[], nowMs: number): RemoteSession[] {
+  return sessions.map((s) => ({ ...s, reported_at_ms: nowMs - s.age_ms }));
+}
+
+/** Where `session` is at `nowMs`: its last report, moved on by the time since while it plays (never past its end). */
+export function estimatedPosition(session: RemoteSession, nowMs: number): number {
   if (session.state !== "playing") return session.position_ms;
-  const at = session.position_ms + Math.max(0, nowMs - session.updated_at * 1000);
+  const at = session.position_ms + Math.max(0, nowMs - session.reported_at_ms);
   return session.duration_ms != null ? Math.min(at, session.duration_ms) : at;
 }
 
 /** A command sent, and what its session looked like then. */
 export interface SentCommand {
   command: Control;
-  before: PlayingSession;
+  before: RemoteSession;
   /** This browser's clock, as `nowMs` given to `commandAnswered` is. */
   sentAt: number;
   /** `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted. */
@@ -37,9 +48,9 @@ const JUMP_MS = 5_000;
  * title, has reported since from somewhere new or where it was sent to.
  *
  * Server times are only compared with server times, and this browser's with
- * its own: the two clocks can be seconds apart.
+ * its own (`reported_at_ms`): the two clocks can be seconds apart.
  */
-export function commandAnswered(sent: SentCommand, now: PlayingSession | undefined, nowMs: number): boolean {
+export function commandAnswered(sent: SentCommand, now: RemoteSession | undefined, nowMs: number): boolean {
   const { before } = sent;
   if (!now) return true;
   if (now.item?.id !== before.item?.id || now.channel?.id !== before.channel?.id) return true;
@@ -47,7 +58,7 @@ export function commandAnswered(sent: SentCommand, now: PlayingSession | undefin
   if (sent.command !== "seek" && sent.command !== "skip" && sent.command !== "previous") return false;
   const reportedSince = now.updated_at > before.updated_at || now.position_ms !== before.position_ms;
   if (!reportedSince) return false;
-  const moved = Math.abs(now.position_ms - estimatedPosition(before, now.updated_at * 1000)) > JUMP_MS;
+  const moved = Math.abs(now.position_ms - estimatedPosition(before, now.reported_at_ms)) > JUMP_MS;
   // It may have played on from the target since, for as long as the command has been out.
   const there = sent.target != null && Math.abs(now.position_ms - sent.target) <= JUMP_MS + Math.max(0, nowMs - sent.sentAt);
   return moved || there;

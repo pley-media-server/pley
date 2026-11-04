@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { queryOptions, useInfiniteQuery, useMutation, useMutationState, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, errorMessage, isApiError, qs, request } from "./client";
 import { reordered } from "./lists";
+import { received, type RemoteSession } from "@/lib/remote";
 import type {
   Activity,
   Backup,
@@ -350,7 +351,11 @@ export const queries = {
   activity: () => queryOptions({ queryKey: keys.activity, queryFn: () => api.get<Activity>("/api/activity"), staleTime: 2_000 }),
   /** The user's own sessions whose players are there: what a remote controls. */
   sessions: () =>
-    queryOptions({ queryKey: keys.sessions, queryFn: () => api.get<PlayingSession[]>("/api/sessions"), staleTime: 2_000 }),
+    queryOptions({
+      queryKey: keys.sessions,
+      queryFn: () => api.get<PlayingSession[]>("/api/sessions").then((list) => received(list, Date.now())),
+      staleTime: 2_000,
+    }),
   item: (id: Id) => queryOptions({ queryKey: keys.item(id), queryFn: ({ signal }) => api.get<ItemDetail>(`/api/items/${id}`, { signal }) }),
 };
 
@@ -930,7 +935,7 @@ export function useStopSession() {
 
 /** A session gone from the user's own list until it is fetched again. */
 function dropSession(qc: QueryClient, sessionId: string) {
-  qc.setQueryData<PlayingSession[]>(keys.sessions, (old) => old?.filter((s) => s.session_id !== sessionId));
+  qc.setQueryData<RemoteSession[]>(keys.sessions, (old) => old?.filter((s) => s.session_id !== sessionId));
   void qc.invalidateQueries({ queryKey: keys.sessions });
 }
 
