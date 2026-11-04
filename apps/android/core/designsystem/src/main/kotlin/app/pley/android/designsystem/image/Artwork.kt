@@ -210,9 +210,10 @@ private val BoxSized = Modifier.layout { measurable, constraints ->
  * [well] (when specified) under pictures that don't cover the box. Given a
  * [shape], all of it takes that shape: the placeholder and the well are
  * drawn in it, and the content (the picture and what's drawn over it) is
- * clipped to it only while there is a picture. A tile shaped this way has
- * no clip while its picture waits, which is every tile a held key brings
- * in: Modifier.clip would give each its own layer and the GPU a clip pass.
+ * clipped to it only while there is a picture, fading in or in. A tile
+ * shaped this way has no clip while its picture waits, which is every tile
+ * a held key brings in: Modifier.clip would give each its own layer and
+ * the GPU a clip pass.
  */
 internal fun Modifier.artworkPlaceholder(
     title: String,
@@ -308,7 +309,9 @@ private class PlaceholderNode(
             fill(outline, well)
         }
         val path = outlinePath
-        if (outline != null && path != null && (load.loaded || load.known)) {
+        // A picture is drawn over the whole box from the first frame of its fade, before it counts as loaded.
+        val picture = load.known || (load.settled && !load.failed)
+        if (outline != null && path != null && picture) {
             clipPath(path) { this@draw.drawContent() }
         } else {
             drawContent()

@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PixelMap
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.IdlingResource
@@ -26,26 +27,34 @@ import app.pley.android.designsystem.LocalReducedMotion
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
+import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.ArtworkPolicy
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.designsystem.image.Placeholder
 import app.pley.android.designsystem.image.TitleLayouts
+import app.pley.android.designsystem.image.artworkPlaceholder
 import app.pley.android.designsystem.image.shownArtwork
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
 import coil3.ImageLoader
 import coil3.asImage
+import coil3.compose.AsyncImagePainter
+import coil3.decode.DataSource
 import coil3.intercept.Interceptor
 import coil3.network.HttpException
 import coil3.network.NetworkResponse
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.crossfade
 import coil3.request.transitionFactory
 import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import coil3.transition.CrossfadeTransition
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -346,6 +355,39 @@ class ArtworkTileTest {
         val inside = image[w / 2, h / 3]
         if (picture) assertNear(Color(red), inside) else assertTrue("the gradient, $inside", abs(inside.red - magenta.red) + abs(inside.green - magenta.green) > 0.3f)
         assertNear(Color(0xFF38BDF8), image[20, h - 3])
+    }
+
+    /**
+     * A picture fading in (from disk or the network, where pictures fade) is
+     * drawn over the whole box from the fade's first frame, while the
+     * placeholder stays under it: the tile's corners are round then too, not
+     * only once the fade is over.
+     */
+    @Test
+    fun aPictureFadingInIsRounded() {
+        val magenta = Color(0xFFFF00FF)
+        val request = ImageRequest.Builder(context).data("$origin/api/items/1/images/poster?w=240").crossfade(150).build()
+        val load = ArtworkLoad()
+        val success = SuccessResult(FakeImage(width = 216, height = 324, color = red), request, DataSource.NETWORK)
+        // Its fade counted on a scope that never runs: it stays partway.
+        load.onState(AsyncImagePainter.State.Success(ColorPainter(Color(red)), success), CoroutineScope(Job().apply { cancel() }))
+        assertTrue(load.settled && !load.loaded)
+        compose.setContent {
+            Box(Modifier.background(magenta).testTag("ground")) {
+                // The fading picture stands in as a red box over the whole tile.
+                Box(
+                    Modifier
+                        .tvTileSize(TileKind.Poster)
+                        .artworkPlaceholder("Saltwind", null, load, PleyColors.Surface2, TileStyle.Tv.shape(TileKind.Poster))
+                        .background(Color(red)),
+                )
+            }
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("ground").captureToImage().toPixelMap()
+        val (w, h) = image.width to image.height
+        for ((x, y) in listOf(1 to 1, w - 2 to 1, 1 to h - 2, w - 2 to h - 2)) assertNear(magenta, image[x, y])
+        assertNear(Color(red), image[w / 2, h / 2])
     }
 
     @Test
