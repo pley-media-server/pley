@@ -675,7 +675,7 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   drawing its two lines with the platform's paint, its picture draws in
   its own box, and its placeholder's title is laid out on a thread of its
   own. While a key holds pictures back, their requests are set aside off
-  the main thread.
+  the main thread, and go on there when the key comes up.
 - A tile is drawn in its rounded shape, not clipped to it (a clip is a
   pass of its own for a TV's GPU, for each tile), on a layer of its own
   that scrolling moves rather than draws again, and its placeholder's
