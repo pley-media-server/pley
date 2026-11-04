@@ -733,8 +733,27 @@ sub test_requests_ready_notices()
     tkEqual(reqReadyText("Severance", "show", [2]), "Season 2 of “Severance” is ready to watch.")
     tkEqual(reqReadyText("Severance", "show", [1, 2]), "Seasons 1–2 of “Severance” are ready to watch.")
     tkEqual(reqReadyText("Severance", "show", invalid), "“Severance” is ready to watch.")
-    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12 }]), { text: "“Dune” is ready to watch.", itemId: 12 })
-    tkEqual(reqNotice([{}, {}, {}]), { text: "3 of your requests have news", itemId: 0 })
+    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12, poster: "/api/discover/images/poster/d.jpg" }], "http://nas:7539"), { text: "“Dune” is ready to watch.", itemId: 12, poster: "http://nas:7539/api/discover/images/poster/d.jpg?w=80" })
+    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12, poster: "" }], "http://nas:7539").poster, "", "no poster: a tick")
+    tkEqual(reqNotice([{}, {}, {}], "http://nas:7539"), { text: "3 of your requests have news", itemId: 0, poster: "" })
+end sub
+
+' A notice shows once the remote has rested 1.5 s, and never where it
+' would be in the way.
+sub test_requests_notices_wait_for_the_remote_to_rest()
+    tkFalse(reqRested(0, 0, -1), "a key within the second")
+    tkFalse(reqRested(1, -1, -1), "a key 1 to 2 s ago, not known when")
+    tkFalse(reqRested(1, 1200, -1))
+    tkTrue(reqRested(1, 1500, -1), "a look found the key 1.5 s ago")
+    tkTrue(reqRested(2, -1, -1))
+    tkFalse(reqRested(5, -1, 800), "a screen changed just now")
+    tkTrue(reqRested(5, -1, 1600))
+    tkTrue(reqNoticeOver("home"))
+    tkTrue(reqNoticeOver("discover"))
+    tkTrue(reqNoticeOver("details"))
+    for each route in ["player", "livePlayer", "link", "profiles", "requests", "requestSeasons", "sortLibraries"]
+        tkFalse(reqNoticeOver(route), route)
+    end for
 end sub
 
 sub test_requests_news_is_told_once()
@@ -747,6 +766,7 @@ sub test_requests_news_is_told_once()
     told = reqToAnnounce([movie, show, declined, unopenable], mark)
     tkEqual(told.Count(), 2, "ready ones a library it can open has: a declined one shows as the badge")
     tkEqual(told[0].requestId, 7)
+    tkEqual(told[0].poster, "/api/discover/images/poster/abc.jpg")
     tkInvalid(told[0].seasons, "the whole movie")
     tkEqual(told[1].seasons, [1])
     tkEqual(mark.at, now - 10)
@@ -765,11 +785,12 @@ end sub
 
 sub test_requests_events_tell_news_once()
     mark = { at: 0, ready: {} }
-    event = { type: "request_available", request_id: 8, title: "Severance", kind: "show", tmdb_id: 95396, item_id: 99, seasons: [1], complete: false }
+    event = { type: "request_available", request_id: 8, title: "Severance", kind: "show", tmdb_id: 95396, item_id: 99, poster_url: "/api/discover/images/poster/s.jpg", seasons: [1], complete: false }
     first = reqAnnounceEvent(event, mark)
     tkEqual(first.Count(), 1)
     tkEqual(first[0].seasons, [1])
     tkEqual(first[0].itemId, 99)
+    tkEqual(first[0].poster, "/api/discover/images/poster/s.jpg")
     tkEqual(reqAnnounceEvent(event, mark).Count(), 0, "the same news")
     event.seasons = [2]
     tkEqual(reqAnnounceEvent(event, mark)[0].seasons, [2])
@@ -791,7 +812,7 @@ sub test_requests_news_is_kept_as_told_once_its_notice_is_seen()
     told = reqToAnnounce([movie], mark)
     tkEqual(told.Count(), 1)
     tkEqual(before, { at: now - 600, ready: { "5": "all" } }, "the copy stays as it was")
-    notice = reqNotice(told)
+    notice = reqNotice(told, "")
     notice.before = before
     kept = reqMarkToKeep(mark, [notice])
     tkFalse(kept.ready.DoesExist("7"), "waiting: not kept as told")

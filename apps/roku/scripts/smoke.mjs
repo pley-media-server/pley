@@ -10,8 +10,8 @@
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search (and its Discover row's
 // See all), Discover (a movie asked for, a show's seasons picked), the
-// managers' Requests (Approve, a ready-to-watch notice whose movie's
-// audio and subtitles are picked on its page, then Yours), Settings, the
+// managers' Requests (Approve, then Yours), a ready-to-watch notice on
+// Home whose movie's audio and subtitles are picked on its page, Settings, the
 // server gone and Try again, then signing out and in again on a server
 // too old for QR codes, requests and two-step sign-in. Then it starts
 // the app again, signed in,
@@ -155,6 +155,20 @@ function noticeDrawn() {
     for (let x = 100; x < 600; x += 2) {
       const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
       if (frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
+// The ready-to-watch card's Open, focused (in the accent), at the bottom
+// right (MainScene.xml's card at 1104, 702; RequestNotice.xml's buttons
+// from 308, 180 in it).
+function readyNoticeDrawn() {
+  if (!frame) return false;
+  for (let y = 896; y < 930; y += 4) {
+    for (let x = 1424; x < 1580; x += 4) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
     }
   }
   return false;
@@ -350,8 +364,9 @@ const pages = { diagnostics: false, licences: false };
 const home = { kept: false };
 // From when the server knew nothing of requests (an older one).
 const older = { since: -1 };
-// The ready-to-watch notice's Open led to the title.
-const notice = { opened: false };
+// The ready-to-watch notice: it waited while the requests showed, then
+// showed on Home, where its Open led to the title.
+const notice = { waited: false, shown: false, opened: false };
 // What Play played on a collection's page: its first movie, a show's next
 // episode.
 const collections = { movies: false, shows: false };
@@ -1028,9 +1043,9 @@ async function walk() {
   }
   // The managers' Requests, on Needs attention: the Options key on the
   // oldest, Approve. Meanwhile Anna's download came into a library, which
-  // no event told of: the summary asked after Approve has news, and its
-  // notice opens the title. Then Yours, the last tab, which marks Anna's
-  // news seen.
+  // no event told of: the summary asked after Approve has news, whose
+  // notice waits while the requests show. Then Yours, the last tab, which
+  // marks Anna's news seen.
   await openFromMenu(8, /^GET \/api\/requests\?.*attention=1/, "Requests");
   shoot("requests");
   since = mark();
@@ -1041,6 +1056,22 @@ async function walk() {
   await press("select"); // Approve
   await waitFor(/^POST \/api\/requests\/1\/approve$/, since, "a request approved");
   await waitFor(/^GET \/api\/requests\?.*unseen=1/, since, "the requests with news");
+  notice.waited = !(await drawnWithin(2500, readyNoticeDrawn));
+  shoot("requests-approved");
+  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
+    await press("up"); // the tabs
+    await press("left", 8);
+    await press("right", 7); // Yours
+    await press("select");
+    await sleep(1500);
+  }
+  await waitFor(/^POST \/api\/requests\/seen$/, since, "the news marked seen");
+  shoot("requests-yours");
+  // Home: the notice's card, once the remote has rested, with Open
+  // focused.
+  await press("back");
+  notice.shown = await drawnWithin(8000, readyNoticeDrawn);
+  // An OK in the card's first 0.6 s was meant for the page.
   await sleep(800);
   shoot("ready-to-watch");
   since = mark();
@@ -1084,7 +1115,7 @@ async function walk() {
   await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the version's session closed");
   // Back on its page, its Trailer, past My List, played from its start;
   // then More…: Media info, its two files and their streams; Back to More,
-  // to the buttons, to the requests.
+  // to the buttons, to Home.
   await settle();
   shoot("movie-details");
   pickedSince = mark();
@@ -1104,19 +1135,7 @@ async function walk() {
   shoot("movie-media-info");
   await press("back");
   await press("back");
-  await press("back"); // the requests
-  await settle();
-  shoot("requests-approved");
-  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
-    await press("up"); // the tabs
-    await press("left", 8);
-    await press("right", 7); // Yours
-    await press("select");
-    await sleep(1500);
-  }
-  await waitFor(/^POST \/api\/requests\/seen$/, since, "the news marked seen");
-  shoot("requests-yours");
-  await press("back");
+  await press("back"); // Home
   await settle();
   await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
@@ -1407,6 +1426,7 @@ const checks = [
   ["asked for a show's missing seasons, ticked to start with", fixture.requestsAsked.some((a) => a.kind === "show" && a.tmdb_id === 8004 && JSON.stringify(a.seasons) === "[1,2,3]")],
   ["approved a request from the Options key", fixture.requestsActed.some((a) => a.id === 1 && a.action === "approve")],
   ["marked the profile's news seen once its requests showed", fixture.requestsActed.some((a) => a.action === "seen")],
+  ["kept a ready-to-watch notice from the requests, showing it in a card once they were left and the remote rested", notice.waited && notice.shown],
   ["told of a title ready to watch, which Open opened", notice.opened],
   ["asked a show's page what of it may still be asked for", asked(/^GET \/api\/items\/99\/request$/)],
   [

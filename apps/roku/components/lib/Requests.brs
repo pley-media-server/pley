@@ -1515,15 +1515,44 @@ function reqReadyText(title as string, kind as string, seasons as dynamic) as st
     return label + " of " + quoted + verb + " ready to watch."
 end function
 
-' One notice for what is newly ready: a title's words, or "3 of your
-' requests have news". { text, itemId (what Open opens; 0 for the
-' requests) }.
-function reqNotice(announced as object) as object
+' One notice for what is newly ready: a title's words and poster, or "3
+' of your requests have news" (what came while the app wasn't
+' listening). { text, itemId (what Open opens; 0 for the requests),
+' poster (its address, "" for none) }.
+function reqNotice(announced as object, server as string) as object
     if announced.Count() = 1
         one = announced[0]
-        return { text: reqReadyText(one.title, one.kind, one.seasons), itemId: one.itemId }
+        return { text: reqReadyText(one.title, one.kind, one.seasons), itemId: one.itemId, poster: urlImage(server, one.poster, reqNoticePosterWidth()) }
     end if
-    return { text: urlValue(announced.Count()) + " of your requests have news", itemId: 0 }
+    return { text: urlValue(announced.Count()) + " of your requests have news", itemId: 0, poster: "" }
+end function
+
+' The notice's poster, 80 pixels wide.
+function reqNoticePosterWidth() as integer
+    return 80
+end function
+
+' Whether a notice may show over the screen on top (its route): never
+' over video, signing in, "Who's watching?", the server being away, the
+' requests (which show the news themselves), Which seasons? (a panel on
+' the other TVs) or libraries being sorted.
+function reqNoticeOver(route as string) as boolean
+    for each other in ["player", "livePlayer", "link", "servers", "profiles", "unreachable", "requests", "requestSeasons", "sortLibraries"]
+        if route = other then return false
+    end for
+    return true
+end function
+
+' Whether the remote has rested long enough for a notice to show (1.5 s),
+' so it never takes a press meant for the page. seconds: Roku's whole
+' seconds since the last key (TimeSinceLastKeypress); keyMs: how long ago
+' a look found a key within the second (the looks come four times a
+' second), -1 for none since they began; pressMs: how long ago the app
+' counted something as a press (a screen changing, a notice closing).
+function reqRested(seconds as integer, keyMs as integer, pressMs as integer) as boolean
+    if pressMs >= 0 and pressMs < 1500 then return false
+    if seconds >= 2 then return true
+    return seconds >= 1 and keyMs >= 1500
 end function
 
 ' What a request has ready to watch, as the notices keep it: "all" once
@@ -1591,7 +1620,7 @@ end function
 ' the notices last told of it. Changes mark (reqLoadAnnounced's): what it
 ' tells is kept, and requests not updated since aren't looked at again.
 ' [{ title, kind, seasons (invalid: the whole request), itemId,
-' requestId }].
+' requestId, poster (its poster_url) }].
 function reqToAnnounce(requests as dynamic, mark as object) as object
     out = []
     newest = mark.at
@@ -1607,7 +1636,7 @@ function reqToAnnounce(requests as dynamic, mark as object) as object
             fresh = reqNewlyReady(ready, told)
             if updated > mark.at and ready <> "" and (fresh = invalid or fresh.Count() > 0)
                 mark.ready[key] = ready
-                if itemId > 0 then out.Push({ title: httpSentence(request.title), kind: httpString(request.kind), seasons: fresh, itemId: itemId, requestId: httpNumber(request.id, 0) })
+                if itemId > 0 then out.Push({ title: httpSentence(request.title), kind: httpString(request.kind), seasons: fresh, itemId: itemId, requestId: httpNumber(request.id, 0), poster: httpString(request.poster_url) })
             end if
         end if
     end for
@@ -1633,7 +1662,7 @@ function reqAnnounceEvent(event as object, mark as object) as object
     fresh = reqNewlyReady(ready, told)
     if fresh <> invalid and fresh.Count() = 0 then return []
     mark.ready[key] = ready
-    return [{ title: httpSentence(event.title), kind: httpString(event.kind), seasons: fresh, itemId: httpNumber(event.item_id, 0), requestId: httpNumber(event.request_id, 0) }]
+    return [{ title: httpSentence(event.title), kind: httpString(event.kind), seasons: fresh, itemId: httpNumber(event.item_id, 0), requestId: httpNumber(event.request_id, 0), poster: httpString(event.poster_url) }]
 end function
 
 ' mark (reqLoadAnnounced's) as it is now, which telling more leaves be.

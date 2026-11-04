@@ -341,11 +341,11 @@ its number counts what waits: a manager's pending and failed requests
   (its main action and Details; once nothing of its kind is left to ask
   for, the limit's line in place of Request); when trending has nothing
   the profile may ask for, every row loads at once and the hero is the
-  first title of the next one with any. Then rows of posters with
-  their badges ("In library", "Partly in library", "Requested",
-  "Declined"): Trending this week, Popular movies, Popular shows, Coming to
-  cinemas, Popular anime, each loaded as it comes into view and ending with
-  See all (a grid, a page at a time; after five pages in a row that leave
+  first title of the next one with any. Then rows of posters with their
+  badges ("In library", "Partly in library", "Requested", "Declined"):
+  Trending this week, Popular movies, Popular shows, Coming to cinemas,
+  Popular anime, each loaded as it comes into view and ending with See
+  all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
   more, and after a page that failed, a tile says so, Select asking for
   it again); then Your requests, from the first one asked for. At the top,
@@ -366,10 +366,10 @@ its number counts what waits: a manager's pending and failed requests
   and failed ones the server won't retry, oldest first), Yours holds
   their own, and Filter keeps movies or shows, one person, or titles with
   some words (the Roku's keyboard). A card per request: poster, seasons,
-  a stage pill (amber
-  waiting for approval; blue approved, searching, or downloading with a
-  bar and the time left; green in library; red declined or failed; gray
-  gone), who asked and when, the reason or note. OK opens the title; the
+  a stage pill (amber waiting for approval; blue approved, searching, or
+  downloading with a bar and the time left; green in library; red
+  declined or failed; gray gone), who asked and when, the reason or
+  note. OK opens the title; the
   Options key (\*) offers Watch, Withdraw, Remove, Stop following or
   Request again, and to managers Approve, Try again, Decline, Decline with
   a reason… (the keyboard), Mark as added by hand and Delete; Withdraw,
@@ -380,17 +380,23 @@ its number counts what waits: a manager's pending and failed requests
   those who may ask; OK opens a title's page. When TMDB isn't answering,
   refuses the server's key or isn't open to the account, a tile says so,
   with Select to try again where that helps. TMDB is searched for the
-  first 200 characters of the words. See
-  all ends the row: a grid titled for the words ("Results for “dune”")
-  of every title TMDB has for them, with its badge, a page at a time as
-  See all's are; Back goes back to Search. A library title that
-  was asked for shows its request's stage under the poster, and a show
-  with seasons left to ask for ends its seasons with Request more seasons.
-- **Ready to watch:** a requested title that arrives is told of ("“The
-  Last Lighthouse” is ready to watch." with Open and OK; "3 of your
-  requests have news" for several), never over playing video, a sign-in or
-  another dialog: it waits for them, and shows again after a dialog that
-  takes its place.
+  first 200 characters of the words. See all ends the row: a grid titled
+  for the words ("Results for “dune”") of every title TMDB has for them,
+  with its badge, a page at a time as See all's are; Back goes back to
+  Search. A library title that was asked for shows its request's stage
+  under the poster, and a show with seasons left to ask for ends its
+  seasons with Request more seasons.
+- **Ready to watch:** a requested title that arrives is told of in a
+  card at the bottom right: its poster, "“The Last Lighthouse” is ready
+  to watch." (a show's seasons once each batch is ready; "3 of your
+  requests have news" for several that came while the app wasn't
+  listening), Open and Close. It shows once the remote has rested for
+  1.5 s and nothing else holds the focus: never over playing video, a
+  sign-in, "Who's watching?", a dialog, a panel or a keyboard, nor on
+  the requests, Which seasons? or Sort libraries; it waits for them. It
+  takes the focus and gives it back when it closes: Close, Back, Up or
+  Down, or 10 s untouched. Open opens the title (the requests, for
+  several). A dialog over it leaves it waiting under the dialog.
 
 Not offered: Approve's choices of profile, folder and seasons (on the web
 and phones; Approve here approves what was asked), bulk approve and
@@ -429,7 +435,7 @@ then shows it. It is kept on the Roku for each server.
 | `components/MusicPlayer.*` | The music queue on the scene's Audio node |
 | `components/screens/` | One component per screen |
 | `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`) |
-| `components/items/` | Tiles, rows, the player's skip button |
+| `components/items/` | Tiles, rows, the player's skip button, the ready-to-watch card |
 | `components/tasks/ApiTask` | The only code that talks to the server |
 | `components/tasks/DiscoveryTask` | `pley?` to UDP port 7539 (`apps/server/src/discovery.rs`) |
 | `components/tasks/EventsTask` | The server's event stream, on a socket |
@@ -495,8 +501,10 @@ Rules the code keeps:
   Discover's Your requests ask each 10 s.
 - **Notices** are kept per server and profile (registry section
   `requests`, the newest 40): what was told of each request once its
-  notice was seen (Open, OK or Back), so a title is told of once, on this
-  Roku.
+  card closed, so a title is told of once, on this Roku. The remote's
+  rest comes from `TimeSinceLastKeypress` (whole seconds), looked at
+  four times a second while a notice waits; a screen changing and a
+  card closing count as presses.
 - **Times** come as unix seconds, and the app writes them ("in 20 min",
   "3 days ago", "Nov 4", "9:05 PM") in the Roku's time zone; TMDB's days
   ("2026-11-04") are written as they are.
@@ -544,7 +552,8 @@ bun run images    # the nine-patch focus and watched-mark images
   steps the music's sleep timer through its choices, plays a track from
   under an album's "Disc 2", opens the See all of Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
-  opens a title from its ready-to-watch notice, and checks that a server
+  opens a title from its ready-to-watch card on Home (which waited while
+  the requests showed), and checks that a server
   without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next, the sleep timers' ends and picture subtitles shown in time have
