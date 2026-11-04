@@ -42,6 +42,10 @@ describes how they are made.
   of them (Resume or Play) as it came up.
 - On Android TV and Fire TV, screen readers say each card on Playlists,
   its title and what it holds; they said nothing.
+- On phones and tablets, the player's controls are in their place as it
+  opens, rather than moving a moment later: the buttons along the bottom
+  show once the server has answered, and the controls keep clear of the
+  status and navigation bars whether they show or not.
 
 ## [0.1.5] - 2026-11-03
 
