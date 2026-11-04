@@ -157,6 +157,12 @@ private func searches(_ server: FixtureServer) -> [String] {
         #expect(settings.recentSearches(origin: origin, profileId: 2).first == "dune")
         #expect(settings.recentSearches(origin: origin, profileId: 4) == ["cartoons"])
 
+        // A long query is kept cut short, and once when searched again.
+        let long = String(repeating: "north ", count: 50)
+        settings.rememberSearch(long, origin: origin, profileId: 4)
+        settings.rememberSearch(long, origin: origin, profileId: 4)
+        #expect(settings.recentSearches(origin: origin, profileId: 4) == [String(long.prefix(200)), "cartoons"])
+
         model.clearRecent()
         #expect(model.recent.isEmpty)
         #expect(settings.recentSearches(origin: origin, profileId: 4) == ["cartoons"])

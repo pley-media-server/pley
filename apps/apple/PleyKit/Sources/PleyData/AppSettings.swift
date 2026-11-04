@@ -157,11 +157,12 @@ public final class AppSettings: @unchecked Sendable {
 
     /// Puts `query` first among the profile's recent searches, once, keeping the last 10.
     public func rememberSearch(_ query: String, origin: String, profileId: Int) {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Kept as it is stored, so a long query searched again replaces itself.
+        let query = String(query.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
         guard !query.isEmpty else { return }
         var recent = recentSearches(origin: origin, profileId: profileId)
         recent.removeAll { $0.caseInsensitiveCompare(query) == .orderedSame }
-        recent.insert(String(query.prefix(200)), at: 0)
+        recent.insert(query, at: 0)
         setRecent(Array(recent.prefix(Self.recentSearches)), origin: origin, profileId: profileId)
     }
 
