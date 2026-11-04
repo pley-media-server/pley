@@ -36,6 +36,7 @@ import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -260,7 +261,8 @@ private class PlaceholderNode(
     override val shouldAutoInvalidate: Boolean get() = false
 
     fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color, shape: Shape?) {
-        if (title != this.title || titleStyle != this.titleStyle) {
+        val retitled = title != this.title || titleStyle != this.titleStyle
+        if (retitled) {
             look = null
             forgetTitle()
         }
@@ -270,6 +272,10 @@ private class PlaceholderNode(
         this.load = load
         this.well = well
         this.shape = shape
+        // A lazy list's item used again for another title keeps its constraints, so nothing measures it again by
+        // itself: the new title is asked for as it's measured ahead of the screen, as a new item's is, not a frame
+        // or two late as it's first drawn.
+        if (retitled && isAttached && !load.known && !load.loaded) invalidateMeasurement()
         invalidateDraw()
     }
 

@@ -6,10 +6,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -21,6 +26,9 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.LocalReducedMotion
@@ -31,6 +39,7 @@ import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.ArtworkPolicy
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.designsystem.image.Placeholder
+import app.pley.android.designsystem.image.TitleKey
 import app.pley.android.designsystem.image.TitleLayouts
 import app.pley.android.designsystem.image.artworkPlaceholder
 import app.pley.android.designsystem.image.shownArtwork
@@ -58,6 +67,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -327,6 +337,34 @@ class ArtworkTileTest {
         assertTrue("$light light pixels", light > 100)
     }
 
+    /**
+     * A tile a lazy list uses again for another title, measured ahead of the
+     * frame that shows it, asks for its new title as it's measured, as a new
+     * tile does, so that it's ready by then. Here nothing draws it.
+     */
+    @Test
+    fun aPlaceholderGivenAnotherTitleAsksForItAsItIsMeasured() {
+        var title by mutableStateOf("A first title for a tile used again")
+        val style = TileStyle.Tv.placeholderText
+        val load = ArtworkLoad()
+        compose.setContent {
+            Box(Modifier.drawWithContent { }) {
+                Box(Modifier.size(PlaceholderSide).artworkPlaceholder(title, style, load))
+            }
+        }
+        compose.waitForIdle()
+        assertNotNull(TitleLayouts.kept(titleKey(title, style)))
+        title = "A second title for a tile used again"
+        compose.waitForIdle()
+        assertNotNull(TitleLayouts.kept(titleKey(title, style)))
+    }
+
+    /** What a placeholder [PlaceholderSide] square lays [title] out for: the box inside its 12 dp padding. */
+    private fun titleKey(title: String, style: TextStyle): TitleKey = with(compose.density) {
+        val inside = PlaceholderSide.roundToPx() - 2 * 12.dp.roundToPx()
+        TitleKey(title, style, inside, inside, density, fontScale, LayoutDirection.Ltr)
+    }
+
     @Test
     fun aTileWaitingForItsPictureIsRoundedWithoutAClip() = assertRoundCorners(loader())
 
@@ -454,5 +492,9 @@ class ArtworkTileTest {
         val poster = ArtworkTileModel.of(show, TileKind.Poster, origin, locale = java.util.Locale.US)
         assertEquals(6, poster.unwatched)
         assertEquals("2 seasons", poster.subtitle)
+    }
+
+    private companion object {
+        val PlaceholderSide = 200.dp
     }
 }
