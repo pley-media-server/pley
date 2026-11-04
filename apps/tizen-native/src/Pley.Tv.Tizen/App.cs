@@ -90,6 +90,7 @@ class App : NUIApplication
     protected override void OnPause()
     {
         base.OnPause();
+        Profile.Mark("app: hidden by the TV");
         shell.Visible(false);
         state.Listen(false);
     }
@@ -98,6 +99,7 @@ class App : NUIApplication
     protected override void OnResume()
     {
         base.OnResume();
+        Profile.Mark("app: shown again");
         // Back from the TV's other apps or standby, maybe on another network.
         Core.Auth.ServerProofs.NetworkMayHaveChanged();
         shell.Visible(true);

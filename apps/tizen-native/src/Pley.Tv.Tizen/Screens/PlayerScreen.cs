@@ -460,7 +460,7 @@ sealed class PlayerScreen : Sheet
         if (s.StoppedByServer && !stoppedLeaving)
         {
             stoppedLeaving = true;
-            After(PlayerText.StoppedLeaveMs, Close);
+            After(PlayerText.StoppedLeaveMs, () => Close("playback stopped from elsewhere"));
         }
         // Paused by the sleep timer for 10 minutes: the player leaves.
         var asleep = s.Sleep.Fired && s.Phase.Kind == PhaseKind.Paused;
@@ -470,7 +470,7 @@ sealed class PlayerScreen : Sheet
             var token = ++sleepToken;
             After(SleepTimer.LeaveAfterMs, () =>
             {
-                if (token == sleepToken) Close();
+                if (token == sleepToken) Close("the sleep timer");
             });
         }
         else if (!asleep && sleepLeaving)
@@ -479,7 +479,7 @@ sealed class PlayerScreen : Sheet
             sleepToken++;
         }
         // The end, with nothing next: back to where playing started.
-        if (s.Phase.Kind == PhaseKind.Ended) OnUi(Close);
+        if (s.Phase.Kind == PhaseKind.Ended) OnUi(() => Close("the end, nothing next"));
         if (shown) Layout();
     }
 
@@ -933,7 +933,7 @@ sealed class PlayerScreen : Sheet
                 model.Previous(seeker.Target ?? model.LivePositionMs());
                 break;
             case MediaAction.Stop:
-                Close();
+                Close("the Stop key");
                 break;
         }
     }
@@ -1163,9 +1163,9 @@ sealed class PlayerScreen : Sheet
         if (phase.CanRetry)
         {
             first = buttons.Add(new ButtonView(PlayerText.TryAgain, ButtonKind.Pill, model.Retry, iconName: "refresh-cw"));
-            buttons.Add(new ButtonView(PlayerText.BackLabel, ButtonKind.Text, Close));
+            buttons.Add(new ButtonView(PlayerText.BackLabel, ButtonKind.Text, () => Close("the error's Back")));
         }
-        else first = buttons.Add(new ButtonView(PlayerText.BackLabel, ButtonKind.Pill, Close, iconName: "arrow-left"));
+        else first = buttons.Add(new ButtonView(PlayerText.BackLabel, ButtonKind.Pill, () => Close("the error's Back"), iconName: "arrow-left"));
         var block = PleyType.PageTitle.Line + 12 + messageHeight + 32 + PleyTv.ButtonHeight;
         var top = (PleyTv.CanvasHeight - block) / 2;
         heading.Position = new Position(Ui.Dp(160), Ui.Dp(top));
@@ -1202,9 +1202,10 @@ sealed class PlayerScreen : Sheet
 
     // ---- leaving
 
-    void Close()
+    void Close(string why = "Back")
     {
         if (gone) return;
+        Profile.Mark($"player screen: closed by {why}");
         ClosePanel();
         shell.Pop(this);
     }

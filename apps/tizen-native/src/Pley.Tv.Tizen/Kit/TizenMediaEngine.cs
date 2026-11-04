@@ -113,15 +113,16 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         if (positionAsked) return;
         positionAsked = true;
-        _ = ReadPosition(p, generation);
+        _ = ReadPosition(p, generation, positionEpoch);
     }
 
-    async Task ReadPosition(Media.Player p, int mine)
+    async Task ReadPosition(Media.Player p, int mine, long epoch)
     {
         try
         {
             var read = await OffUi("its position", () => p.State is Media.PlayerState.Playing or Media.PlayerState.Paused ? p.GetPlayPosition() : -1);
-            if (read >= 0 && mine == generation && player == p && prepared && pendingSeek == null)
+            // Asked before a seek, read after it: where it was, not where it is.
+            if (read >= 0 && mine == generation && epoch == positionEpoch && player == p && prepared && pendingSeek == null)
             {
                 if (playingNow) Learn(read);
                 lastPosition = FromPlayer(read);
@@ -142,10 +143,11 @@ sealed class TizenMediaEngine : IVideoEngine
     static Task offUi = Task.CompletedTask;
 
     /// <summary>
-    /// A call into the TV's player that holds its caller (its position, a seek, a prepare: 30 to 500
-    /// ms each), made off the UI thread so the screen keeps drawing; one after another, for every
-    /// engine, so two never meet in the player. Not those bound to the window (the picture's region,
-    /// letting a player go): made from another thread, letting go held the UI 8 s and the app died.
+    /// A call into the TV's player that holds its caller (its position, its streams' details, a
+    /// prepare, a seek: 30 to 500 ms each), made off the UI thread so the screen keeps drawing; one
+    /// after another, for every engine, so two never meet in the player. Not those bound to the window
+    /// (the picture's region, letting a player go): made from another thread, letting go held the UI
+    /// 8 s and the app died.
     /// </summary>
     static Task<T> OffUi<T>(string what, Func<T> call)
     {
@@ -300,9 +302,21 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             Profile.Enter("player: set up (display, source)");
             if (video) p.Display = new Media.Display(Window.Instance);
-            p.ErrorOccurred += (_, e) => Post(mine, () => Fail(ErrorOf(e.Error)));
-            p.PlaybackCompleted += (_, _) => Post(mine, Completed);
-            p.PlaybackInterrupted += (_, _) => Post(mine, () => Fail(new EngineError.Other("the TV took its player for something else")));
+            p.ErrorOccurred += (_, e) => Post(mine, () =>
+            {
+                Profile.Mark($"engine: the TV's player failed: {e.Error}");
+                Fail(ErrorOf(e.Error));
+            });
+            p.PlaybackCompleted += (_, _) => Post(mine, () =>
+            {
+                Profile.Mark("engine: the TV's player says the source ended");
+                Completed();
+            });
+            p.PlaybackInterrupted += (_, e) => Post(mine, () =>
+            {
+                Profile.Mark($"engine: the TV took its player: {e.Reason}");
+                Fail(new EngineError.Other("the TV took its player for something else"));
+            });
             p.VideoStreamChanged += (_, e) => Post(mine, () =>
             {
                 stats = null;
@@ -316,7 +330,7 @@ sealed class TizenMediaEngine : IVideoEngine
                 url = window.Url.ToString();
             }
             p.SetSource(new Media.MediaUriSource(url));
-            Buffer(p, s);
+            Buffer(p, s, trimmed: window != null);
 #if PROFILE
             // Off the player's thread, its first and last only: a callback of the TV's player returns at once.
             p.BufferingProgressChanged += (_, e) =>
@@ -372,11 +386,12 @@ sealed class TizenMediaEngine : IVideoEngine
             else if (start >= 1000)
             {
                 Profile.Mark($"engine: going to {start / 1000} s");
-                await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)start, false)).Unwrap();
+                await SeekCall(p, start);
                 Profile.Mark("engine: there");
                 if (mine != generation) return;
                 lastPosition = start;
                 positionAt = 0;
+                positionEpoch++;
             }
             if (mine != generation) return;
             pendingSeek = null;
@@ -462,8 +477,10 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>
     /// The source's buffering as the Android app's. Left to the TV, a channel waited seconds after
     /// each stall and stalled again soon after, and a film took 0.5 s more to show its first picture.
+    /// A film started from a trimmed playlist (<see cref="StartWindow"/>) waits for what a seek does
+    /// before it plays: started on the first, a 4K remux stuttered for a second or two.
     /// </summary>
-    static void Buffer(Media.Player p, EngineSource s)
+    static void Buffer(Media.Player p, EngineSource s, bool trimmed)
     {
         // A file on a drive isn't streamed, and has no buffering to set: once its buffering was
         // only read, the TV's player said Playing and stood at 0 for good.
@@ -473,7 +490,8 @@ sealed class TizenMediaEngine : IVideoEngine
             var before = p.BufferingTime;
             Profile.Mark($"engine: the TV's own buffering {before.PreBufferMillisecond} ms, {before.ReBufferMillisecond} ms after a stall");
             var home = s.Live || Addresses.AtHome(s.Url);
-            p.BufferingTime = new Media.PlayerBufferingTime(home ? StartHomeMs : StartRemoteMs, home ? RestartHomeMs : RestartRemoteMs);
+            var restart = home ? RestartHomeMs : RestartRemoteMs;
+            p.BufferingTime = new Media.PlayerBufferingTime(trimmed ? restart : home ? StartHomeMs : StartRemoteMs, restart);
         }
         catch (Exception)
         {
@@ -519,6 +537,7 @@ sealed class TizenMediaEngine : IVideoEngine
             return;
         }
         pendingSeek = to;
+        positionEpoch++;
         if (!prepared) return;
         var mine = generation;
         _ = Seek(p, to, mine);
@@ -536,22 +555,29 @@ sealed class TizenMediaEngine : IVideoEngine
         Prepare(s with { StartMs = ms }, wanted);
     }
 
+    /// <summary>
+    /// The TV's player sent to <paramref name="ms"/> on the film's timeline, off the UI thread (it holds
+    /// its caller 70 to 480 ms), after any read asked before it.
+    /// </summary>
+    Task SeekCall(Media.Player p, long ms) => OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ToPlayer(ms), false)).Unwrap();
+
     /// <summary>The player sent to <paramref name="ms"/> on the film's timeline, then taken to be there.</summary>
     async Task SeekPlayer(Media.Player p, long ms, int mine)
     {
         Profile.Mark($"engine: going to {ms / 1000} s");
-        await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ToPlayer(ms), false)).Unwrap();
+        await SeekCall(p, ms);
         Profile.Mark("engine: there");
         if (mine != generation) return;
         lastPosition = ms;
         positionAt = 0;
+        positionEpoch++;
     }
 
     async Task Seek(Media.Player p, long ms, int mine)
     {
         try
         {
-            await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ToPlayer(ms), false)).Unwrap();
+            await SeekCall(p, ms);
         }
         catch (Exception)
         {
@@ -561,6 +587,7 @@ sealed class TizenMediaEngine : IVideoEngine
         pendingSeek = null;
         lastPosition = ms;
         positionAt = 0;
+        positionEpoch++;
         if (status == EngineStatus.Ended)
         {
             // Back from the end: it can play again.
@@ -829,20 +856,20 @@ sealed class TizenMediaEngine : IVideoEngine
         var p = player;
         if (p == null || !started || status == EngineStatus.Ended || watchAsked) return;
         watchAsked = true;
-        _ = Watch(p, generation);
+        _ = Watch(p, generation, positionEpoch);
     }
 
     bool watchAsked;
 
     /// <summary>The position read off the UI thread (<see cref="OffUi"/>), then weighed on it.</summary>
-    async Task Watch(Media.Player p, int mine)
+    async Task Watch(Media.Player p, int mine, long epoch)
     {
         bool playing;
         long position;
         try
         {
             var read = await OffUi("its position (watch)", () => p.State == Media.PlayerState.Playing ? p.GetPlayPosition() : -1);
-            if (mine != generation || player != p || !started || status == EngineStatus.Ended) return;
+            if (mine != generation || epoch != positionEpoch || player != p || !started || status == EngineStatus.Ended) return;
             playing = read >= 0;
             if (playing && pendingSeek == null)
             {
@@ -940,10 +967,33 @@ sealed class TizenMediaEngine : IVideoEngine
         }
     }
 
+    /// <summary>
+    /// The TV's player says the source ended. Now and then it said so in the middle of a film, after
+    /// seeks: taken as the end, the film was reported watched and the next one played. Said more than
+    /// <see cref="EarlyEndMs"/> before the film's end, it is opened again where it was, once; said
+    /// again there, it is the end (a film shorter than the item says).
+    /// </summary>
     void Completed()
     {
+        var at = PositionMs;
+        var duration = DurationMs;
+        if (duration > 0 && duration - at > EarlyEndMs && Math.Abs(at - earlyEndAt) > EarlyEndMs)
+        {
+            earlyEndAt = at;
+            Profile.Mark($"engine: the end said at {at / 1000} s of {duration / 1000} s: opened again there");
+            Reopen(at);
+            return;
+        }
         SetStatus(generation, EngineStatus.Ended);
     }
+
+    const long EarlyEndMs = 60_000;
+
+    /// <summary>Where an end said too soon was last opened again from.</summary>
+    long earlyEndAt = -1;
+
+    /// <summary>Counts seeks, asked and done: a read of the position asked before one is dropped.</summary>
+    long positionEpoch;
 
     void Fail(EngineError error)
     {
