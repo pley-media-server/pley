@@ -615,7 +615,9 @@ adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvSta
 ```
 
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
-are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
+are in `/storage/emulated/0/Android/media/app.pley.android.benchmark` (on
+Android 10 and earlier, `.../Android/data/app.pley.android.benchmark/cache`),
+and the run's output names each.
 
 On a device that already has Pley, signed with another key, build both with
 `-Ppley.applicationIdSuffix=.bench`: the benchmarked app installs beside it
@@ -649,7 +651,28 @@ A key held for a measure has to repeat as a remote's does: the TV app
 takes a key that sends no repeats for half a second past the system's
 first as up, so `adb shell input keyevent --duration`, which sends none,
 moves focus for about a second, whatever the duration. The benchmarks'
-journeys hold keys with the system's repeats (`Steps.hold`).
+journeys hold keys with the system's repeats (`Steps.hold`), injected
+without UI Automator's accessibility connection, as a remote's come:
+while an accessibility client is connected, Compose describes every
+change of the screen to it.
+
+A key held through a TV grid or along a row brings in a row of tiles
+every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
+
+- Rows are made ahead of the screen between frames (each list's cache
+  window). A held step that finds its row not made yet waits up to two
+  frames for it, under a glide long enough to carry the grid on, rather
+  than make it in the frame: once behind, steps that made their own rows
+  left the frames no time to get ahead again.
+- A tile is few nodes, and costs little to make: its caption is one node
+  drawing its two lines with the platform's paint, its picture draws in
+  its own box, and its placeholder's title is laid out on a thread of its
+  own. While a key holds pictures back, their requests are set aside off
+  the main thread.
+- A tile is drawn in its rounded shape, not clipped to it (a clip is a
+  pass of its own for a TV's GPU, for each tile), on a layer of its own
+  that scrolling moves rather than draws again, and its placeholder's
+  gradient is one draw of one small picture shared by every title.
 
 On an emulator, frame times (the benchmarks', the counter's or
 `dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes about the same time a frame

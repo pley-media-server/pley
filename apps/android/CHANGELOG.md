@@ -12,6 +12,12 @@ describes how they are made.
 
 - The banner on Android TV and Google TV's home screen shows Pley's mark
   and name centred, larger, the name closer to the mark.
+- On Android TV and Fire TV, a key held through a library's grid or along
+  Home's rows scrolls smoothly, close to 60 frames a second on a Google TV
+  Streamer: tiles cost far less to bring in and to draw, rows are made
+  ahead of the screen, and a held step waits a frame or two for its row
+  rather than stall the picture. A show's page and the guide make their
+  next rows ahead too.
 
 ## [0.1.5] - 2026-11-03
 
