@@ -1,11 +1,18 @@
 package app.pley.android.designsystem.image
 
+import android.graphics.BitmapShader
+import android.graphics.Matrix
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import kotlin.math.abs
 import kotlin.math.cos
@@ -79,9 +86,28 @@ object Placeholder {
         return Look(ColorFilter.colorMatrix(ColorMatrix(matrix)))
     }
 
-    /** Draws [look]'s gradient over the box of [size]. */
-    fun DrawScope.drawGradient(look: Look, size: Size) {
-        drawStretched(ramp, Offset.Zero, size, colorFilter = look.filter)
+    /**
+     * Draws [look]'s gradient over the box, or filling [outline] (a tile's
+     * rounded shape) when given: shaped as it's drawn, not clipped, as the
+     * native Samsung app draws its tiles. A clip is a pass of its own for a
+     * TV's GPU, for each tile.
+     */
+    fun DrawScope.drawGradient(look: Look, outline: Outline? = null) {
+        if (outline == null) {
+            drawStretched(ramp, Offset.Zero, size, colorFilter = look.filter)
+        } else {
+            drawOutline(outline, rampBrush, colorFilter = look.filter)
+        }
+    }
+
+    /** The ramp stretched over whatever box it fills, as [drawStretched] stretches it. */
+    private val rampBrush = object : ShaderBrush() {
+        override fun createShader(size: Size): Shader {
+            val bitmap = ramp.asAndroidBitmap()
+            return BitmapShader(bitmap, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP).apply {
+                setLocalMatrix(Matrix().apply { setScale(size.width / bitmap.width, size.height / bitmap.height) })
+            }
+        }
     }
 
     /** CSS's hsl(), hue in degrees, saturation and lightness 0 to 1. */

@@ -15,8 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -205,24 +212,31 @@ private val BoxSized = Modifier.layout { measurable, constraints ->
 
 /**
  * Draws the placeholder behind the content while [load] hasn't loaded, then
- * [well] (when specified) under pictures that don't cover the box.
+ * [well] (when specified) under pictures that don't cover the box. Given a
+ * [shape], all of it takes that shape: the placeholder and the well are
+ * drawn in it, and the content (the picture and what's drawn over it) is
+ * clipped to it only while there is a picture. A tile shaped this way has
+ * no clip while its picture waits, which is every tile a held key brings
+ * in: Modifier.clip would give each its own layer and the GPU a clip pass.
  */
 internal fun Modifier.artworkPlaceholder(
     title: String,
     titleStyle: TextStyle?,
     load: ArtworkLoad,
     well: Color = Color.Unspecified,
-): Modifier = this then PlaceholderElement(title, titleStyle, load, well)
+    shape: Shape? = null,
+): Modifier = this then PlaceholderElement(title, titleStyle, load, well, shape)
 
 private data class PlaceholderElement(
     val title: String,
     val titleStyle: TextStyle?,
     val load: ArtworkLoad,
     val well: Color,
+    val shape: Shape?,
 ) : ModifierNodeElement<PlaceholderNode>() {
-    override fun create() = PlaceholderNode(title, titleStyle, load, well)
+    override fun create() = PlaceholderNode(title, titleStyle, load, well, shape)
 
-    override fun update(node: PlaceholderNode) = node.update(title, titleStyle, load, well)
+    override fun update(node: PlaceholderNode) = node.update(title, titleStyle, load, well, shape)
 
     override fun InspectorInfo.inspectableProperties() {
         name = "artworkPlaceholder"
@@ -235,22 +249,29 @@ private class PlaceholderNode(
     var titleStyle: TextStyle?,
     var load: ArtworkLoad,
     var well: Color,
+    var shape: Shape?,
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
     private var look: Placeholder.Look? = null
     private var layout: TextLayoutResult? = null
     private var layoutSize = Size.Unspecified
+    private var outline: Outline? = null
+    private var outlinePath: Path? = null
+    private var outlineSize = Size.Unspecified
+    private var outlineDirection = LayoutDirection.Ltr
 
     override val shouldAutoInvalidate: Boolean get() = false
 
-    fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color) {
+    fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color, shape: Shape?) {
         if (title != this.title || titleStyle != this.titleStyle) {
             look = null
             layout = null
         }
+        if (shape != this.shape) outline = null
         this.title = title
         this.titleStyle = titleStyle
         this.load = load
         this.well = well
+        this.shape = shape
         invalidateDraw()
     }
 
@@ -267,11 +288,12 @@ private class PlaceholderNode(
     }
 
     override fun ContentDrawScope.draw() {
+        val outline = outline()
         if (!load.loaded && load.known && !load.failed) {
             // Shown before and on its way back: the well as it is under the picture.
-            if (well.isSpecified) drawRect(well)
+            if (well.isSpecified) fill(outline, well)
         } else if (!load.loaded) {
-            with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, size) }
+            with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, outline) }
             titleLayout(size)?.let { text ->
                 drawText(
                     text,
@@ -284,9 +306,31 @@ private class PlaceholderNode(
             }
         } else if (well.isSpecified && !load.opaque) {
             // Under an opaque picture (filling the box, ContentScale.Crop) the well would never show.
-            drawRect(well)
+            fill(outline, well)
         }
-        drawContent()
+        val path = outlinePath
+        if (outline != null && path != null && (load.loaded || load.known)) {
+            clipPath(path) { this@draw.drawContent() }
+        } else {
+            drawContent()
+        }
+    }
+
+    /** The shape's outline at this size, kept while the size and direction are the same; null without a shape. */
+    private fun ContentDrawScope.outline(): Outline? {
+        val shape = shape ?: return null
+        val kept = outline
+        if (kept != null && outlineSize == size && outlineDirection == layoutDirection) return kept
+        return shape.createOutline(size, layoutDirection, this).also {
+            outline = it
+            outlineSize = size
+            outlineDirection = layoutDirection
+            outlinePath = Path().apply { addOutline(it) }
+        }
+    }
+
+    private fun DrawScope.fill(outline: Outline?, color: Color) {
+        if (outline == null) drawRect(color) else drawOutline(outline, color)
     }
 
     private fun Density.titleLayout(size: Size): TextLayoutResult? {

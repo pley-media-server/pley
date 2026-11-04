@@ -2,6 +2,7 @@ package app.pley.android.designsystem.tile
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -286,6 +287,36 @@ class ArtworkTileTest {
         assertNear(Color(0xFF38BDF8), pixel("tile", 52, 320))
         val track = pixel("tile", 166, 320)
         assertTrue("track $track", track.red < 0.45f)
+    }
+
+    @Test
+    fun aTileWaitingForItsPictureIsRoundedWithoutAClip() = assertRoundCorners(loader())
+
+    @Test
+    fun aTileWithItsPictureIsRounded() = assertRoundCorners(loader("$origin/api/items/9/images/poster?w=240"), picture = true)
+
+    /**
+     * A tile on magenta, with its progress bar: its corners (16 px at xhdpi)
+     * show the magenta, the gradient's or the picture's, and the bar's, and
+     * inside them the tile is drawn.
+     */
+    private fun assertRoundCorners(loader: ImageLoader, picture: Boolean = false) {
+        val magenta = Color(0xFFFF00FF)
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader) {
+                Box(Modifier.background(magenta).testTag("ground")) {
+                    ArtworkTile(model(progress = 0.5f), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster))
+                }
+            }
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("ground").captureToImage().toPixelMap()
+        val (w, h) = image.width to image.height
+        // Top corners: outside the arc; bottom corners, the bar's too.
+        for ((x, y) in listOf(1 to 1, w - 2 to 1, 1 to h - 2, w - 2 to h - 2)) assertNear(magenta, image[x, y])
+        val inside = image[w / 2, h / 3]
+        if (picture) assertNear(Color(red), inside) else assertTrue("the gradient, $inside", abs(inside.red - magenta.red) + abs(inside.green - magenta.green) > 0.3f)
+        assertNear(Color(0xFF38BDF8), image[20, h - 3])
     }
 
     @Test
