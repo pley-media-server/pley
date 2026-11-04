@@ -11,6 +11,8 @@
 //! tab are kept per server, profile and library, read off the main thread before the page shows
 //! (500 ms at most); a row's See all opens the Library tab in its order, kept only once changed.
 
+use std::time::{Duration, Instant};
+
 use pley_base::{Icon, Point, Size, TextOpts};
 use pley_core::model::{
     CollectionList, CollectionSummary, Hub, Hubs, Library, LibraryFilters, LibraryKind, LibraryQuery, LibrarySort,
@@ -70,7 +72,7 @@ pub struct LibraryScreen {
     asked_tab: Option<LibraryTab>,
     see_all: Option<LibrarySort>,
     kept: Option<Promise<Kept>>,
-    asked_at: Option<f64>,
+    asked_at: Option<Instant>,
     /// The view and tab kept, once read (or given up on).
     ready: Option<Kept>,
     tab: Option<LibraryTab>,
@@ -119,8 +121,12 @@ impl LibraryScreen {
             let store = cx.store().clone();
             let (view, tab) =
                 (keys::library_view(&server, profile, self.id), keys::library_tab(&server, profile, self.id));
-            self.kept = Some(cx.tasks().spawn(move || (store.get::<LibraryQuery>(&view), store.get::<String>(&tab))));
-            self.asked_at = Some(cx.now);
+            // On the store's thread, behind the views this TV just kept and never behind requests.
+            self.kept =
+                Some(cx.tasks().spawn_store(move || (store.get::<LibraryQuery>(&view), store.get::<String>(&tab))));
+            // The wait is timed from the read, as Android's is, not by frames: a slow frame that
+            // asked would otherwise have used it up before the read began.
+            self.asked_at = Some(Instant::now());
         }
         if let Some(p) = &mut self.kept
             && let Some(kept) = p.take()
@@ -128,7 +134,7 @@ impl LibraryScreen {
             self.ready = Some(kept);
             self.kept = None;
         } else if self.kept.as_ref().is_some_and(|p| p.failed())
-            || self.asked_at.is_some_and(|t| cx.now - t >= KEPT_WAIT)
+            || self.asked_at.is_some_and(|t| t.elapsed() >= Duration::from_secs_f64(KEPT_WAIT))
         {
             self.ready = Some((None, None));
             self.kept = None;
@@ -138,7 +144,7 @@ impl LibraryScreen {
     fn keep_tab(&self, cx: &mut AppCx, tab: LibraryTab) {
         let (Some(server), Some(profile)) = (cx.state.server(), cx.state.profile()) else { return };
         let (store, key) = (cx.store().clone(), keys::library_tab(server, profile, self.id));
-        cx.tasks().detach(move || {
+        cx.tasks().detach_store(move || {
             if let Err(e) = store.set(&key, tab.as_str()) {
                 log::warn!("library tab not kept: {e}");
             }
@@ -430,7 +436,7 @@ impl GridTab {
         if keep && let (Some(server), Some(profile)) = (cx.state.server(), cx.state.profile()) {
             let (store, key, value) =
                 (cx.store().clone(), keys::library_view(server, profile, library.id), view.clone());
-            cx.tasks().detach(move || {
+            cx.tasks().detach_store(move || {
                 if let Err(e) = store.set(&key, &value) {
                     log::warn!("library view not kept: {e}");
                 }

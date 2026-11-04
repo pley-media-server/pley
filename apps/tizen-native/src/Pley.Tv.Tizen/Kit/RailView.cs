@@ -300,6 +300,7 @@ sealed class RailView : View
             foreach (var e in entries) e.Closed();
         };
         motion = a;
+        Profile.Slowed(a);
         a.Play();
         Mark();
     }

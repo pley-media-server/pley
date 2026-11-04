@@ -347,8 +347,11 @@ output is set to Dolby; TrueHD and DTS only when Settings → Playback asks.
 
 AVPlay rules the engine keeps: one call at a time while a seek runs; no
 seek to 0; stop and close before the next source; the picture placed in
-1920×1080 coordinates; the screen saver off during playback. When the TV
-hides the app, the session closes and reopens at the same place.
+1920×1080 coordinates; the screen saver off during playback. AVPlay, and
+the native player too, can say one failure twice (its error, and the call
+that failed): the apps act on a session's first only, so the fallbacks go
+one step at a time. When the TV hides the app, the session closes and
+reopens at the same place.
 
 ## Releases
 
@@ -542,7 +545,8 @@ PLEY_TIZEN_METRICS=http://<computer>:7531 bun run tizen-native
 ```
 
 While the listener runs, the same script drives the app from the computer.
-The app asks it every second for something to do: a screenshot of its
+The app asks it for something to do, and the listener holds the ask until
+it has a command, so a command reaches the TV at once: a screenshot of its
 window, saved in `apps/tizen-native/out` (the video's plane comes out
 black), or the remote's keys, pressed 300 ms apart. `--tv` picks the TV
 whose model name holds the text given.
@@ -551,6 +555,19 @@ whose model name holds the text given.
 node apps/tizen-native/scripts/metrics.mjs shot                 # prints the screenshot's path
 node apps/tizen-native/scripts/metrics.mjs keys Left Down OK    # Up, Down, Left, Right, OK, Back, Menu
 node apps/tizen-native/scripts/metrics.mjs --tv S89C shot
+```
+
+An animation takes the TV longer to capture than it lasts, so `record`
+slows the animations that allow it (those whose code calls
+`Profile.Slowed`: the rail, and Home's tiles, rows and hero) as many times
+as it says, presses the keys given, and catches an area of the window, in
+its pixels, as JPEGs one after another for as long as it says. The frames
+are saved in `apps/tizen-native/out/rec-<time>-<model>`, each named with
+when it was caught at the animation's own speed; at 20 times slower, a
+frame comes every 3 ms of it for half the screen, every 6 for all of it.
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs record 20 6000 0,0,960,1080 Right   # 20× slower, 6 s, the left half
 ```
 
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of

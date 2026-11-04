@@ -10,6 +10,9 @@ SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO
 SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO
 
 INFOPLIST_FILE = Config/Pley-Info.plist
+// Pley/Assets.xcassets, from scripts/render-icons.mjs: one picture for
+// iPhone and iPad, the Mac's sizes beside it.
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphone*] = YES
 INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphone*] = YES
 INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad[sdk=iphone*] = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight

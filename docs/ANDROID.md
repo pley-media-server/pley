@@ -640,6 +640,30 @@ there, saying where. The phone signs in through the browser, or with a
 code where it has none: on a new device with a browser, open it once
 first, past its welcome pages.
 
+### Recording an animation
+
+A pull request that changes an animation shows it moving
+([DEVELOPMENT.md](DEVELOPMENT.md), "Screenshots for a pull request").
+`scripts/record-android.mjs` records the app as it is installed, any
+build, with adb and FFmpeg: it sets the device's animator duration scale
+to slow its animations as many times as it says (Compose follows the scale
+at once), presses the keys given 300 ms apart, records the screen with
+`screenrecord` for as long as it says, and puts the scale back. The frames,
+cut to an area of the recording in its pixels, are saved in
+`apps/android/build/rec-<time>-<model>`, each named with when it was shown
+at the animation's own speed, for `scripts/mark-animation.mjs`.
+The recording is the display's size, or its override size where
+`adb shell wm size` shows one (a 4K TV's interface is usually 1920×1080);
+the script says the size, and refuses an area that isn't inside it.
+`screenrecord` gives a frame each time the screen changes, up to 60 a
+second, but some devices give five or so a second while an animation plays
+slowly; slowing it more gives more frames of it.
+
+```sh
+bun scripts/record-android.mjs 20 6000 0,0,960,1080 Right                         # 20× slower, 6 s, the left half
+bun scripts/record-android.mjs 40 4000 0,0,1920,1080 Down OK --serial <device>    # adb's serial, where more than one is attached
+```
+
 ## Releases
 
 Versions, version codes and the release steps are in

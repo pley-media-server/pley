@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A library opens in the sort and filters it was left in, and Live TV in
+  the view it was left in, also while the server is slow to answer or
+  right after they were changed.
+
 ## [0.1.4] - 2026-11-03
 
 ### Added

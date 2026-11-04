@@ -87,6 +87,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Continue Watching on Apple TV's Top Shelf: with Pley in the top row,
   your titles in progress show with their pictures and progress, and one
   opens its page or plays.
+- Pley's icon on iPhone, iPad, Mac and Apple TV. On Apple TV it moves in
+  layers as it's focused, and the Top Shelf shows Pley's banner until
+  there's something to continue.
 - Requests on iPhone, iPad and Mac: discover movies and shows in Discover
   or from Search, ask for them (picking a show's seasons), follow your
   requests, and hear when they're ready. Administrators approve and
