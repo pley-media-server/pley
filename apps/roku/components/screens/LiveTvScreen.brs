@@ -60,6 +60,8 @@ sub init()
     m.cardChannels = []
     m.cardsTotal = -1
     m.cardsLoading = false
+    ' The card page asked for last, whose answer alone counts.
+    m.cardsRequest = invalid
     ' The channels take the focus as they come (toChannels).
     m.toContent = false
     ' What Try again asks for again: "groups", or the category's channels
@@ -378,11 +380,12 @@ sub showCategory(around as integer)
     if m.view.tab = "guide"
         loadGuidePage(0, around, "first")
     else
-        loadCards(0, around, false, false)
+        ' In place of a page still loading for the category before.
+        loadCards(0, around, false, true)
     end if
 end sub
 
-'' The list again at channel id, as it shows meanwhile (and the focus with
+' The list again at channel id, as it shows meanwhile (and the focus with
 ' it): back from watching it.
 sub returnTo(id as integer)
     if m.view.tab = "guide"
@@ -448,6 +451,7 @@ sub hideRetry()
 end sub
 
 sub focusContent()
+    if not m.top.isInFocusChain() then return
     if m.view.tab = "guide" and m.guide.visible
         m.toContent = false
         m.guide.setFocus(true)
@@ -750,12 +754,16 @@ sub loadCards(offset as integer, around as integer, before as boolean, replace a
     if m.cardsLoading and not replace then return
     m.cardsLoading = true
     if m.cardChannels.Count() = 0 then showMessage("Loading…")
-    uiRequest({ op: "livePage", kind: "cards", category: m.view.category, offset: offset, limit: livePageSize(), around: around, before: before, replace: replace, focusId: around }, "onCards")
+    m.cardsRequest = uiRequest({ op: "livePage", kind: "cards", category: m.view.category, offset: offset, limit: livePageSize(), around: around, before: before, replace: replace, focusId: around }, "onCards")
 end sub
 
 sub onCards(event as object)
     request = event.getRoSGNode()
     spec = request.spec
+    ' Only the page asked for last: one asked for before it (another tab or
+    ' category, or one a new category replaced) changes nothing.
+    if m.cardsRequest = invalid or not request.isSameNode(m.cardsRequest) then return
+    m.cardsRequest = invalid
     m.cardsLoading = false
     answer = event.getData()
     if not answer.ok

@@ -99,6 +99,7 @@ sub init()
     ' pressed.
     m.failedPage = invalid
     m.failedAt = -1
+    m.failedCategory = ""
     m.span = CreateObject("roTimespan")
     ' When the channel playing was last asked for again (m.span's ms).
     m.refreshedAt = -1
@@ -182,9 +183,10 @@ end function
 ' down when it is the category they go through (then pick "first" or
 ' "last" of it is the channel they lead to), for the list when it is the
 ' one the list shows (pick "top" or "bottom": where its focus goes).
-' Within 10 s of a page that failed, nothing is asked.
+' Within 10 s of a page of the category that failed, nothing more of it is
+' asked: the other categories, the list's or up and down's, go on.
 sub askPage(category as string, offset as integer, around as integer, pick as string)
-    if not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
+    if category = m.failedCategory and not liveMayAskAgain(m.failedAt, m.span.TotalMilliseconds()) then return
     m.asks = m.asks + 1
     if category = m.category then m.pageAsked = m.asks
     if category = m.listCategory then m.listAsked = m.asks
@@ -202,11 +204,15 @@ sub onPage(event as object)
         ' Watching goes on; the list says why it is empty.
         m.failedPage = { category: spec.category, offset: spec.offset, around: spec.around }
         m.failedAt = m.span.TotalMilliseconds()
+        m.failedCategory = spec.category
         if listed and m.listPage = invalid then m.listRange.text = answer.message
         return
     end if
-    m.failedPage = invalid
-    m.failedAt = -1
+    if spec.category = m.failedCategory
+        m.failedPage = invalid
+        m.failedAt = -1
+        m.failedCategory = ""
+    end if
     page = answer.data
     content = request.content
     if content = invalid then content = CreateObject("roSGNode", "ContentNode")
@@ -353,6 +359,7 @@ sub showListCategory(category as string)
     m.listRange.text = "Loading…"
     ' Chosen: asked for at once, whatever failed before.
     m.failedAt = -1
+    m.failedCategory = ""
     askPage(category, 0, aroundIn(category, m.channel), "")
 end sub
 
@@ -922,7 +929,7 @@ sub onChannelFresh(event as object)
     if m.banner.visible then showBanner(false)
     if m.list.visible then redrawList()
     ' Radio shows what's on in its card.
-    if m.played and m.card.visible then showCard(m.channel, "radio")
+    if m.played and m.card.visible and m.zapTo = invalid then showCard(m.channel, "radio")
 end sub
 
 ' The list's channels, what's on each and how far along.
