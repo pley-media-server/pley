@@ -88,5 +88,5 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   your titles in progress show with their pictures and progress, and one
   opens its page or plays.
 - Pley's icon on iPhone, iPad, Mac and Apple TV. On Apple TV it moves in
-  layers as it's focused, and the Top Shelf shows Pley's banner until
+  layers as it's focused, and the Top Shelf shows Pley's mark until
   there's something to continue.
