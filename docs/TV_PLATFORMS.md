@@ -258,8 +258,10 @@ bun run --cwd apps/tizen build       # only the app's dist/; --dev keeps it read
   as the TV's menu draws its other apps. The native app's has the mark
   above the name, as the other apps' tiles there show theirs. One TV may
   have more than one of Pley's Samsung apps, so the web app's says WEB on
-  blue under the mark, and a profiling build of the native app (an app of
-  its own, `app.pley.tizen.debug`, "Pley (debug)") says DEBUG on yellow.
+  blue under the mark. A profiling build of the native app (an app of its
+  own, `app.pley.tizen.debug`, "Pley (debug)") has the native app's icon
+  with a yellow DEBUG ribbon across its top right corner, set in from the
+  corner so the apps bar's rounded corners leave the word whole.
 
 ### Testing without a TV
 
