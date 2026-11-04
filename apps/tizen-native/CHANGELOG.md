@@ -28,6 +28,10 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- The profiling build traces the network, the Wi-Fi link and the TV's CPUs
+  once a second, times each step of opening, seeking and closing a film,
+  and takes commands to measure the network (`speed`, `wifi`) and to try
+  other buffering (`buffer`, `rebuffer`, `trim`).
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with a DEBUG icon on a yellow band, so it installs beside the app rather
   than in its place; the app's own icon is the plain logo. The metrics

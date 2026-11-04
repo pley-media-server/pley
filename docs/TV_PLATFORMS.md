@@ -617,6 +617,13 @@ a mesh network's nodes apart) and those of the same network in the TV's
 last scan, with their signal, band and rate; `wifi scan` scans first (the
 profiling build alone has `network.set` for it), as Tizen lists a network
 once in an ordinary scan, however many access points it has.
+`trace on` keeps the trace going between videos, as a film opens and
+closes, with the app's memory and how busy the TV's CPUs are, until
+`trace off`. `buffer 1000` and `rebuffer 2000` have the next film wait
+for that much video before it plays from where it resumed, and after a
+stall or a seek (`buffer 0`, `rebuffer 0`: as the app has it). The trace
+marks each seek's time until the picture moves again, the engine's status
+as it changes and the player screen's spinner as it shows and goes.
 
 ```sh
 node apps/tizen-native/scripts/metrics.mjs --tv S89C speed

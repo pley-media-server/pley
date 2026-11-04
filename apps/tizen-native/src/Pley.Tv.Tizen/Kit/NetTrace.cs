@@ -222,6 +222,16 @@ static class NetTrace
         return (bytes, ms, firstByte);
     }
 
+    /// <summary>On between films too ("trace on"): the TV's load as a film starts, stops and seeks, not only while it plays.</summary>
+    public static void Pin(bool on)
+    {
+        pinned = on;
+        if (on) Start();
+        else Stop();
+    }
+
+    static volatile bool pinned;
+
     public static void Start()
     {
         lock (gate)
@@ -243,7 +253,7 @@ static class NetTrace
     {
         lock (gate)
         {
-            if (timer == null) return;
+            if (timer == null || pinned) return;
             timer.Dispose();
             timer = null;
         }
@@ -288,6 +298,7 @@ static class NetTrace
             if (wifi.Length > 0) parts.Add(wifi);
 
             if (Cpu() is { } cpu) parts.Add(cpu);
+            if (Memory() is { } memory) parts.Add(memory);
             if (Queued() is { } q) parts.Add(q);
             parts.Add($"buffering {(buffered < 0 ? "?" : buffered + " %")}");
             Profile.Mark("net: " + string.Join(" | ", parts));
@@ -385,6 +396,15 @@ static class NetTrace
         return said;
     }
 
+    /// <summary>The app's resident memory and its managed heap.</summary>
+    static string? Memory()
+    {
+        var rss = File.ReadLines("/proc/self/status").FirstOrDefault(l => l.StartsWith("VmRSS:", StringComparison.Ordinal));
+        if (rss == null) return null;
+        var kb = rss.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[1];
+        return $"app {long.Parse(kb, CultureInfo.InvariantCulture) / 1024} MB (heap {GC.GetTotalMemory(false) / 1048576} MB)";
+    }
+
     /// <summary>The established TCP connections' unread bytes (rx_queue), largest first: the player's sockets among them.</summary>
     static string? Queued()
     {
@@ -412,5 +432,6 @@ static class NetTrace
     public static void Buffered(int percent) { }
     public static void Start() { }
     public static void Stop() { }
+    public static void Pin(bool on) { }
 #endif
 }

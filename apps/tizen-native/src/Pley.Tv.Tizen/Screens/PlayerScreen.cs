@@ -505,11 +505,13 @@ sealed class PlayerScreen : Sheet
         {
             spinner.Show();
             spin.Play();
+            Profile.Mark($"player screen: spinner on ({model.State.Value.Phase.Kind}{(covered ? ", under the black" : "")})");
         }
         else if (!on && spinner.Visibility)
         {
             spinner.Hide();
             spin.Stop();
+            Profile.Mark($"player screen: spinner off ({model.State.Value.Phase.Kind})");
         }
         if (on && model.State.Value.Reconnecting) reconnecting.Show();
         else reconnecting.Hide();
