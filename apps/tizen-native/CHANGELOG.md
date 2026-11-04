@@ -12,6 +12,9 @@ It has no releases yet: it is built and installed by hand
 
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
+- Back from a film, Home and the film's page answer sooner and don't
+  blink: Home updates its tiles in place, the film's page draws its
+  updates once, and what didn't change stays as it is.
 - A seek plays again in under a second, where it took about two; a film
   resumed part-way buffers 1.5 s before it plays, so its sound doesn't
   break off in its first second.

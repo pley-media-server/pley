@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
@@ -27,7 +28,11 @@ sealed class RowView : View
     /// <summary>Puts focus on a tile: where a slide lands.</summary>
     readonly Func<FocusItem, bool>? focusItem;
     readonly View strip;
-    readonly IReadOnlyList<TileModel> models;
+    readonly List<TileModel> models;
+    readonly string? title;
+    readonly Action<TileModel> onOpen;
+    readonly Action<TileModel>? onActions;
+    readonly Action<TileModel>? onFocus;
     /// <summary>The tiles a screen's width holds.</summary>
     readonly int perScreen;
     /// <summary>Each tile's place in the focus tree, there from the start, whether its tile is made yet or not.</summary>
@@ -56,7 +61,11 @@ sealed class RowView : View
         this.gate = gate;
         this.images = images;
         this.focusItem = focusItem;
-        this.models = models;
+        this.models = new List<TileModel>(models);
+        this.title = title;
+        this.onOpen = onOpen;
+        this.onActions = onActions;
+        this.onFocus = onFocus;
         perScreen = RowReach.PerScreen(kind);
         Group = new FocusGroup(Axis.Row, title);
         // D-pad rule 3: Left from the first tile goes to the rail's current item; Right stops at the end.
@@ -85,18 +94,7 @@ sealed class RowView : View
         };
         slideRing.Hide();
         var step = Ui.Dp(kind.Width + kind.Gap);
-        foreach (var model in models)
-        {
-            var item = Group.Add(new FocusItem($"{title}/{model.Id}"));
-            item.Selected = () => onOpen(model);
-            if (onActions != null)
-            {
-                item.LongSelected = () => onActions(model);
-                item.Menu = () => onActions(model);
-            }
-            if (onFocus != null) item.FocusChanged += on => { if (on) onFocus(model); };
-            items.Add(item);
-        }
+        foreach (var model in models) items.Add(Group.Add(ItemFor(items.Count, model)));
         if (seeAll is { } more)
         {
             var item = Group.Add(new FocusItem($"{title}/see-all") { Selected = more.Open });
@@ -112,6 +110,38 @@ sealed class RowView : View
         Group.ChildFocused += ScrollTo;
         gate.HoldEnded += Landed;
         Size = new Size(Ui.Dp(PleyTv.CanvasWidth), top + Ui.Dp(kind.Height + PleyTv.TilesToCaption + PleyTv.CaptionHeight));
+    }
+
+    /// <summary>The focus item of the tile at <paramref name="index"/>: what it opens is the tile there when it is chosen.</summary>
+    FocusItem ItemFor(int index, TileModel model)
+    {
+        var item = new FocusItem($"{title}/{model.Id}") { Selected = () => onOpen(models[index]) };
+        if (onActions != null)
+        {
+            item.LongSelected = () => onActions(models[index]);
+            item.Menu = () => onActions(models[index]);
+        }
+        if (onFocus != null) item.FocusChanged += on => { if (on) onFocus(models[index]); };
+        return item;
+    }
+
+    /// <summary>Whether two tiles look the same: their lists compared by what they hold, not by which list they are.</summary>
+    static bool Same(TileModel a, TileModel b) =>
+        ReferenceEquals(a, b) || (a.Id == b.Id && a.Title == b.Title && a.Subtitle == b.Subtitle && a.Progress == b.Progress && a.Watched == b.Watched
+            && a.Unwatched == b.Unwatched && a.Description == b.Description && a.Images.SequenceEqual(b.Images) && a.Badges.SequenceEqual(b.Badges));
+
+    /// <summary>
+    /// The row's tiles take their new look from <paramref name="next"/>, the same items in the same
+    /// order (the progress a film just played left): focus and the tiles stay where they are.
+    /// </summary>
+    public void Update(IReadOnlyList<TileModel> next)
+    {
+        for (var i = 0; i < Math.Min(models.Count, next.Count); i++)
+        {
+            if (Same(models[i], next[i])) continue;
+            models[i] = next[i];
+            if (i < tiles.Count) tiles[i].Bind(next[i], items[i]);
+        }
     }
 
     public FocusGroup Group { get; }
