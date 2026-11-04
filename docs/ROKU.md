@@ -56,7 +56,8 @@ in to with a code, choosing it in the browser.
 | Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
-| Options (\*) | Live TV, the live player | Add to or remove from favourites |
+| Options (\*) | Live TV | A programme's details (a card's: what's on), Watch, Add to or remove from favourites |
+| Options (\*) | The live player | Add to or remove from favourites |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
@@ -321,7 +322,9 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   before.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details.
+  the channel; on a later programme it shows its details, as Options (\*)
+  does on any programme (on a card, what's on), with Watch and the
+  favourite.
 - **Channels:** the other tab, as cards with what's on and what's next.
 - **What's on moves on** each 15 s: the programme above the guide, the
   cards in view and the player's banner and list show how far along it

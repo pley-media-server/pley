@@ -751,7 +751,7 @@ sub onProgramSelected()
     if program <> invalid and program.id <> "gap"
         p = programTimes(program)
         if p.start > now or p.ends <= now
-            channelOptions(focused.channel, program)
+            channelOptions(focused.channel, programOf(program))
             return
         end if
     end if
@@ -909,9 +909,29 @@ sub watch(channel as object)
     uiNavigate({ to: "livePlayer", params: { channel: channel, category: m.view.category, categoryName: liveCategoryName(m.view.category, m.groups) } })
 end sub
 
-' The Options key on a channel (or OK on a programme not on now): its
-' name, the programme, Watch, and Add to or Remove from favourites.
-sub channelOptions(channel as object, program as dynamic)
+' A programme of the guide (its ContentNode) as Live.brs keeps one ({
+' start, ends, title, description }), or invalid for time without a guide.
+function programOf(program as dynamic) as dynamic
+    if program = invalid or program.id = "gap" then return invalid
+    p = programTimes(program)
+    p.title = program.title
+    p.description = program.description
+    return p
+end function
+
+' The programme the Options key shows the details of: the one in focus in
+' the guide, what's on now on a card.
+function programInFocus(channel as object) as dynamic
+    if m.view.tab = "channels" then return liveOnNow(channel, nowSeconds())
+    focused = focusedGuide()
+    if focused = invalid then return invalid
+    return programOf(focused.program)
+end function
+
+' The Options key on a programme or a card (or OK on a programme not on
+' now): the channel's name, the programme's details (p, as Live.brs keeps
+' one, or invalid), Watch, and Add to or Remove from favourites.
+sub channelOptions(channel as object, p as dynamic)
     m.optionsChannel = channel
     buttons = ["Watch " + channel.name]
     if channel.favorite
@@ -922,9 +942,9 @@ sub channelOptions(channel as object, program as dynamic)
     buttons.Push("Cancel")
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = liveTitle(channel)
-    if program <> invalid and program.id <> "gap"
-        lines = [program.title, daySpan(programTimes(program), nowSeconds())]
-        if program.description <> "" then lines.Push(program.description)
+    if p <> invalid
+        lines = [p.title, daySpan(p, nowSeconds())]
+        if p.description <> "" then lines.Push(p.description)
         dialog.message = lines
     end if
     dialog.buttons = buttons
@@ -1031,7 +1051,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "options" and content
         focused = channelInFocus()
-        if focused <> invalid then channelOptions(focused, invalid)
+        if focused <> invalid then channelOptions(focused, programInFocus(focused))
         return true
     end if
     return false
