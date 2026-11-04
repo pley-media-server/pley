@@ -26,6 +26,8 @@ static class NetTrace
     static Dictionary<string, long> lastRx = new Dictionary<string, long>();
     static long[]? lastTcp;
     static long[]? lastWireless;
+    /// <summary>The whole TV's CPU time (busy, all) and this app's, in ticks, at the last sample.</summary>
+    static long lastBusy, lastAll, lastApp;
     static int wifiTick;
     static string wifi = "";
     static volatile int buffered = -1;
@@ -229,6 +231,7 @@ static class NetTrace
             lastRx = new Dictionary<string, long>();
             lastTcp = null;
             lastWireless = null;
+            lastAll = 0;
             wifiTick = 0;
             buffered = -1;
             timer = new Timer(_ => Sample(), null, 0, EveryMs);
@@ -284,6 +287,7 @@ static class NetTrace
             if (wifiTick++ % 3 == 0) wifi = WiFiNow();
             if (wifi.Length > 0) parts.Add(wifi);
 
+            if (Cpu() is { } cpu) parts.Add(cpu);
             if (Queued() is { } q) parts.Add(q);
             parts.Add($"buffering {(buffered < 0 ? "?" : buffered + " %")}");
             Profile.Mark("net: " + string.Join(" | ", parts));
@@ -353,6 +357,32 @@ static class NetTrace
         {
             return $"wifi: {e.GetType().Name}";
         }
+    }
+
+    /// <summary>
+    /// How busy the TV's CPUs were since the last sample, all of them and this app's share, from
+    /// /proc/stat and /proc/self/stat: a TV whose CPUs are full draws the app's frames late.
+    /// </summary>
+    static string? Cpu()
+    {
+        var first = File.ReadLines("/proc/stat").FirstOrDefault(l => l.StartsWith("cpu ", StringComparison.Ordinal));
+        if (first == null) return null;
+        var t = first.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(v => long.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0).ToArray();
+        if (t.Length < 5) return null;
+        var all = t.Sum();
+        // idle and iowait are the time not busy.
+        var busy = all - t[3] - t[4];
+        var self = File.ReadAllText("/proc/self/stat");
+        // After the name, in brackets, which may hold spaces: utime and stime are the 12th and 13th fields from there.
+        var after = self.Substring(self.LastIndexOf(')') + 2).Split(' ');
+        var app = after.Length > 12 ? long.Parse(after[11], CultureInfo.InvariantCulture) + long.Parse(after[12], CultureInfo.InvariantCulture) : 0;
+        string? said = null;
+        if (lastAll > 0 && all > lastAll)
+            said = $"cpu {100.0 * (busy - lastBusy) / (all - lastAll):0}% (the app {100.0 * (app - lastApp) / (all - lastAll):0}%, of {Environment.ProcessorCount} cores)";
+        lastBusy = busy;
+        lastAll = all;
+        lastApp = app;
+        return said;
     }
 
     /// <summary>The established TCP connections' unread bytes (rx_queue), largest first: the player's sockets among them.</summary>
