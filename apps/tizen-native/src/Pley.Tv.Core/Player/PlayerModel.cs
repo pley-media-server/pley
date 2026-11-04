@@ -488,6 +488,11 @@ public sealed class PlayerModel : IDisposable
         var s = info;
         if (s == null || engine == null) return;
         ApplyAudio();
+        ApplySubtitle(s);
+    }
+
+    void ApplySubtitle(PlaybackInfo s)
+    {
         var sub = subtitle;
         if (sub == null)
         {
@@ -499,8 +504,28 @@ public sealed class PlayerModel : IDisposable
             var path = s.Subtitles.FirstOrDefault(t => t.Index == sub.Index)?.Url ?? PlaybackPlan.TextSubtitlesPath(s.FileId, sub.Index);
             presenter.Show(source.Url(path));
         }
-        else if (!s.BurnSubtitles && Sideload) presenter.ShowPictures(source.Url(PlaybackPlan.PictureSubtitlesPath(s.FileId, sub.Index)));
+        else if (!s.BurnSubtitles && Sideload)
+        {
+            var url = source.Url(PlaybackPlan.PictureSubtitlesPath(s.FileId, sub.Index));
+            // A new track's .mks (a film's is tens of MB) is asked for once the picture shows: asked
+            // for at once, it took the network and the CPUs from the video's first seconds, as the
+            // TV's player fills its buffer and starts decoding. One showing already stays.
+            picturesWaiting = !mediaShown && presenter.Showing != url;
+            if (picturesWaiting) presenter.Hide();
+            else presenter.ShowPictures(url);
+        }
         else presenter.Hide();
+    }
+
+    /// <summary>The picture track chosen waits for the picture (<see cref="ApplyTracks"/>).</summary>
+    bool picturesWaiting;
+
+    /// <summary>The picture shows: a picture track waiting for it is asked for now.</summary>
+    void PicturesNow()
+    {
+        if (!picturesWaiting) return;
+        picturesWaiting = false;
+        if (info is { } s && engine != null) ApplySubtitle(s);
     }
 
     /// <summary>
@@ -605,6 +630,7 @@ public sealed class PlayerModel : IDisposable
                     engineReady = true;
                     ApplyAudio();
                 }
+                PicturesNow();
                 if (outage == null) Phase(engine?.Playing == true ? PlayerPhase.Playing : PlayerPhase.Paused);
                 break;
             case EngineStatus.Ended:
@@ -626,6 +652,7 @@ public sealed class PlayerModel : IDisposable
             pressedAt = null;
             Update(s => s with { FirstFrameMs = scheduler.Elapsed - from });
         }
+        PicturesNow();
         presenter.Refresh();
     }
 

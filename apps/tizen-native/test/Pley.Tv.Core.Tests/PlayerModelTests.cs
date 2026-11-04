@@ -221,6 +221,28 @@ public class PlayerModelTests
         Assert.Single(h.Source.MksAsked);
     }
 
+    /// <summary>
+    /// A picture track chosen as the film starts is asked for once its picture shows: its .mks is
+    /// tens of MB, and asked for at once it took the network and the CPUs from the video's first
+    /// seconds. A new session of the same film keeps it.
+    /// </summary>
+    [Fact]
+    public void Picture_subtitles_are_asked_for_once_the_picture_shows()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Source.Mks[PgsMks] = PgsTrack();
+        h.Start(new PlayRequest(1, 0, true, SubtitleIndex: 4), show: false);
+        Assert.Empty(h.Source.MksAsked);
+        h.Engine.Show();
+        Assert.Single(h.Source.MksAsked);
+        h.Play(1_000);
+        Assert.NotNull(h.Model.Picture.Value);
+        h.Engine.AskRestart(500);
+        Assert.Single(h.Source.MksAsked);
+        h.Engine.Show();
+        Assert.Single(h.Source.MksAsked);
+    }
+
     [Fact]
     public void Picture_subtitles_that_cant_be_read_say_so_and_play_on()
     {
