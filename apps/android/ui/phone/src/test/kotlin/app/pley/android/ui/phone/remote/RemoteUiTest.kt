@@ -218,6 +218,39 @@ class RemoteUiTest {
     }
 
     @Test
+    fun aCommandWaitingForItsAnswerKeepsTheSheetWhileTheSessionChangesOver() {
+        remote.sessions.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Next on Living room TV").performClick()
+        compose.waitForIdle()
+        // The episode's session ends before the next one's is listed.
+        remote.sessions.value = emptyList()
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS - 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
+        remote.sessions.value = listOf(episode(id = "s4"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_CARD + "s4").assertExists()
+    }
+
+    @Test
+    fun nothingListedOnceTheAnswerWaitIsOverClosesTheSheet() {
+        remote.sessions.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Next on Living room TV").performClick()
+        compose.waitForIdle()
+        remote.sessions.value = emptyList()
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+    }
+
+    @Test
     fun refusalsAreSaidPlainly() {
         remote.sessions.value = listOf(episode())
         show()

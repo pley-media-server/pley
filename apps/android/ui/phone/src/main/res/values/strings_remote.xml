@@ -9,6 +9,10 @@
     <string name="remote_open">Open the remote</string>
     <string name="remote_title">Playing on your devices</string>
     <string name="remote_unknown_device">Unknown device</string>
+    <!-- Two devices of the same name, told apart: "Living room TV (2)". -->
+    <string name="remote_device_numbered">%1$s (%2$d)</string>
+    <!-- Between the devices' names on the bar: "Living room TV, Pixel 8". -->
+    <string name="remote_device_separator">", "</string>
     <string name="remote_live_tv">Live TV</string>
 
     <!-- What TalkBack says of each control: "Pause on Living room TV". -->

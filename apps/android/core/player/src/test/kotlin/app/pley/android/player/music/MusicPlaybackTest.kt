@@ -387,6 +387,29 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun playAndPauseThatChangeNothingAreSaidAgainSoARemoteALittleBehindSettles() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        val before = reports().size
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Play))
+        runCurrent()
+        assertTrue(output.playWhenReady)
+        assertEquals(before + 1, reports().size)
+        assertEquals(ProgressState.Playing, reports().last().state)
+
+        music.pause()
+        runCurrent()
+        val paused = reports().size
+        events.emit(ServerEvent.PlayerCommand(DIRECT_SESSION, Control.Pause))
+        runCurrent()
+        assertFalse(output.playWhenReady)
+        assertEquals(paused + 1, reports().size)
+        assertEquals(ProgressState.Paused, reports().last().state)
+    }
+
+    @Test
     fun anotherSessionsCommandsChangeNothing() = runTest {
         val music = music()
         music.play(album)
@@ -420,6 +443,38 @@ class MusicPlaybackTest {
         assertEquals(true, held.last())
         music.stop()
         assertEquals(false, held.last())
+    }
+
+    @Test
+    fun musicPausedForAWhileLetsTheEventStreamGoUntilItPlaysAgain() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pause()
+        runCurrent()
+        advanceTimeBy(MusicPlayback.PAUSED_HOLD_MS - 1_000)
+        runCurrent()
+        assertEquals(true, held.last())
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(false, held.last())
+        // The session is kept all the same: the paused reports go on.
+        val count = reports().size
+        advanceTimeBy(MusicPlayback.PAUSED_EVERY_MS)
+        runCurrent()
+        assertEquals(count + 1, reports().size)
+
+        music.play()
+        runCurrent()
+        assertEquals(true, held.last())
+        // Paused again, the wait starts over.
+        music.pause()
+        advanceTimeBy(MusicPlayback.PAUSED_HOLD_MS / 2)
+        music.play()
+        advanceTimeBy(MusicPlayback.PAUSED_HOLD_MS)
+        runCurrent()
+        assertEquals(true, held.last())
     }
 
     @Test

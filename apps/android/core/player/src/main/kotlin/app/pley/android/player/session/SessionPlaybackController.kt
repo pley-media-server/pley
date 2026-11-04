@@ -202,6 +202,9 @@ class SessionPlaybackController(
     /** A download plays, with no session on the server. */
     private var playingLocal = false
 
+    /** The screen is stopped ([setAway]): nothing here shows or is heard, so the remote's commands are left alone. */
+    private var away = false
+
     /** A video on a drive: the tracks asked for (its window came back), chosen once Media3 has read them. */
     private var pendingAudio: Long? = null
     private var pendingSubtitle: Long? = null
@@ -655,8 +658,9 @@ class SessionPlaybackController(
         // Held as the one playing from now on (start()'s watch of sessionState).
         env.here(starting, null)
         sessionState.value = started
-        // From the first session to the end, the next ones included: the event stream stays open in the background for the remote.
-        env.playing(this, true)
+        // From the first session to the end, the next ones included: the event stream stays open in the background for the
+        // remote. Not while the screen is stopped, which obeys none.
+        env.playing(this, !away)
         live = null
         playingLocal = false
         playingConvertedSound = serverDecodes
@@ -736,6 +740,8 @@ class SessionPlaybackController(
         )
         val length = { info.durationMs.takeIf { it > 0 } ?: link?.durationMs?.takeIf { it > 0 } }
         sessionState.value = ServerPlaybackSession(LocalReportsApi(env.api, env.local), detail.id, info, env.reporter, length)
+        // No session on the server, nothing for the remote to reach: the stream a session before held is let go.
+        env.playing(this, false)
         live = null
         playingLocal = true
         playingConvertedSound = false
@@ -1329,13 +1335,15 @@ class SessionPlaybackController(
      * by itself, and a new item with its new session).
      */
     private fun obey(command: ServerEvent.PlayerCommand) {
-        if (closed || stopped || ui.value.phase is PlayerPhase.Error) return
+        if (closed || stopped || away || ui.value.phase is PlayerPhase.Error) return
         when (command.command) {
-            Control.Play -> if (!wantPlay.value || ended) {
-                play()
+            Control.Play -> {
+                // Playing already: said again, so a remote a little behind settles.
+                if (!wantPlay.value || ended) play()
                 if (!ended) report(ProgressState.Playing)
             }
-            Control.Pause -> if (wantPlay.value) pause()
+            // A pause reports by itself; paused already, it is said again.
+            Control.Pause -> if (wantPlay.value) pause() else report(ProgressState.Paused)
             Control.Seek -> command.positionMs?.let { seekNow(it) }
             Control.Skip -> command.offsetMs?.let { seekNow(livePosition() + it) }
             Control.Next -> if (item?.let { nextUp.hasNext(it.kind, current.queue) } == true) advance(fromRemote = true)
@@ -1422,6 +1430,15 @@ class SessionPlaybackController(
     override fun pause() {
         if (closed) return
         link?.pause()
+    }
+
+    override fun setAway(away: Boolean) {
+        if (closed || this.away == away) return
+        this.away = away
+        // A stopped engine would say it plays and play nothing, and a next
+        // title would sound with no screen: the remote is not obeyed
+        // meanwhile, nor the event stream held for it; shown again, both are.
+        if (!stopped && !ended && session != null && !playingLocal) env.playing(this, !away)
     }
 
     override fun seekTo(positionMs: Long) {

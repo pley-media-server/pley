@@ -81,7 +81,8 @@ class MusicEnvironment(
  *   queue and the place stay, and Play starts a new session there;
  * - the remote, on another of the profile's devices, plays and pauses,
  *   seeks, skips, and goes to the next or previous track ([obey]); the
- *   event stream stays open while music is under way, the screen off too.
+ *   event stream stays open while music is under way, the screen off too,
+ *   and is let go once it has been paused for 90 s.
  *
  * It lives as long as the app's process, so it plays on with no screen
  * open; the [MusicService] shows it in the notification and on the lock
@@ -122,6 +123,10 @@ class MusicPlayback(
     private var yielded = false
     private var error: MusicError? = null
 
+    /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
+    private var rested = false
+    private var resting: Job? = null
+
     private val timer = SleepTimer(scope, env.now, ::trackLeftMs, { queue.current?.id }) { pause() }
 
     /** The sleep timer. */
@@ -149,11 +154,13 @@ class MusicPlayback(
         val s = session ?: return
         val o = out ?: return
         when (command.command) {
-            Control.Play -> if (!o.playWhenReady) {
-                play()
+            Control.Play -> {
+                // Playing already: said again, so a remote a little behind settles.
+                if (!o.playWhenReady) play()
                 s.progress(lastPosition(), ProgressState.Playing)
             }
-            Control.Pause -> if (o.playWhenReady) pause()
+            // A pause reports by itself; paused already, it is said again.
+            Control.Pause -> if (o.playWhenReady) pause() else s.progress(lastPosition(), ProgressState.Paused)
             Control.Seek -> command.positionMs?.let { seekNow(s, o, it) }
             Control.Skip -> command.offsetMs?.let { seekNow(s, o, lastPosition() + it) }
             Control.Next -> next()
@@ -531,8 +538,10 @@ class MusicPlayback(
 
     private fun publish() {
         // Under way, between tracks too, so the stream doesn't drop and open again at each: not after the end, a
-        // failure or a video, which let the session go.
-        env.playing(this, !queue.isEmpty && !ended && !yielded && error == null)
+        // failure or a video, which let the session go, nor once paused for a while.
+        val underWay = !queue.isEmpty && !ended && !yielded && error == null
+        watchRest(underWay)
+        env.playing(this, underWay && !rested)
         val track = queue.current
         order.value = queue.state
         now.value = track?.let {
@@ -556,6 +565,29 @@ class MusicPlayback(
         }
     }
 
+    /**
+     * Paused as long as the server keeps a session it hasn't heard from,
+     * music lets go of the event stream in the background: held, it would
+     * reconnect, and the server's keep-alives wake the radio, for as long as
+     * the app lives. Play holds it again; the paused reports go on meanwhile.
+     */
+    private fun watchRest(underWay: Boolean) {
+        if (underWay && out?.playWhenReady == false) {
+            if (resting == null && !rested) {
+                resting = scope.launch {
+                    delay(PAUSED_HOLD_MS)
+                    resting = null
+                    rested = true
+                    publish()
+                }
+            }
+        } else {
+            resting?.cancel()
+            resting = null
+            rested = false
+        }
+    }
+
     private fun currentApi(): PleyApi? = try {
         env.api().also { api = it }
     } catch (_: Exception) {
@@ -575,6 +607,9 @@ class MusicPlayback(
 
         /** While paused: the server forgets a session it hasn't heard from for 90 s, and its transcode with it. */
         const val PAUSED_EVERY_MS = 30_000L
+
+        /** Paused this long, the event stream is let go in the background: the server's window for a session unheard. */
+        const val PAUSED_HOLD_MS = 90_000L
 
         /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3

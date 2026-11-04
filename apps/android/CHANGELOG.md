@@ -21,7 +21,7 @@ describes how they are made.
   videos play, pause, seek, skip and go to the next episode; music does
   all that and goes back a track; Live TV changes channel, and stops with
   a word when stopped from elsewhere. Music playing with the screen off
-  still hears it. Remotes show the device by its name in Android's
+  still hears it, until it has been paused for a minute and a half. Remotes show the device by its name in Android's
   settings.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames

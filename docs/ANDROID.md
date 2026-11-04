@@ -203,7 +203,9 @@ A command waits up to 5 s for the list to show it acted (a new state, a
 new title, a report from where it was sent), and the card says it's
 waiting meanwhile; without one it says the device **didn't answer**,
 until the device reports again. A next or previous with nothing there
-changes nothing, and isn't a failure. Refusals are said plainly: the
+changes nothing, and isn't a failure. While a command waits, the sheet
+stays open with nothing listed, as when a next ends one session before
+the next one's is listed. Refusals are said plainly: the
 device isn't playing any more, can't do that, or too many commands at
 once. The phone's own sessions are left out: its players say which they
 play.
@@ -229,10 +231,15 @@ obey:
 
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is
-reported at once, so the remote sees it. While a player has a session,
-the event stream stays open in the background too, so music playing with
-the screen off still hears the remote; it closes once playback ends, or on
-signing out. What the server's events change meanwhile is fetched again
+reported at once, so the remote sees it, and a play or pause that changes
+nothing is reported too, so a remote a little behind settles. While a
+player has a session, the event stream stays open in the background too,
+so music playing with the screen off still hears the remote; it closes
+once playback ends, once music has been paused for 90 s (the server's
+window for a session it hasn't heard from), or on signing out. The
+phone's video player, its screen left, obeys nothing until it shows
+again: its engine is stopped, and a next episode would play with no
+screen. What the server's events change meanwhile is fetched again
 on coming back, not in the background.
 
 ### Libraries

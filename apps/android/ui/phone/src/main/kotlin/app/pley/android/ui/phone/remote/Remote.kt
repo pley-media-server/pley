@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -87,16 +88,45 @@ import kotlinx.coroutines.launch
  * The remote's place above the tabs (over the mini player when both
  * show): the bar while [sessions] has any, and the sheet it opens, which
  * closes when nothing is left to control and opens closed when something
- * plays again.
+ * plays again. A command waiting for its answer keeps the sheet: next
+ * ends a session before its player lists the next one.
  */
 @Composable
 internal fun RemoteSlot(sessions: List<RemoteSession>, remote: RemoteRepository?, origin: String?) {
     if (remote == null) return
     var open by rememberSaveable { mutableStateOf(false) }
+    var holding by remember { mutableStateOf(false) }
+    var commands by remember { mutableIntStateOf(0) }
     val none = sessions.isEmpty()
-    LaunchedEffect(none) { if (none) open = false }
+    LaunchedEffect(commands) {
+        if (commands == 0) return@LaunchedEffect
+        delay(RemoteRepository.ANSWER_WAIT_MS)
+        holding = false
+    }
+    LaunchedEffect(none, holding) { if (none && !holding) open = false }
     RemoteBar(sessions, onOpen = { open = true })
-    if (open && !none) RemoteSheet(sessions, remote, origin, onDismiss = { open = false })
+    if (open && (!none || holding)) {
+        RemoteSheet(
+            sessions,
+            remote,
+            origin,
+            onCommand = {
+                holding = true
+                commands++
+            },
+            onDismiss = { open = false },
+        )
+    }
+}
+
+/** What the remote calls each session's device ([RemoteRepository.deviceNames]), numbered as the app says it. */
+@Composable
+private fun deviceNames(sessions: List<RemoteSession>): Map<String, String> {
+    val unnamed = stringResource(R.string.remote_unknown_device)
+    val resources = LocalResources.current
+    return remember(sessions, unnamed, resources) {
+        RemoteRepository.deviceNames(sessions, unnamed) { name, n -> resources.getString(R.string.remote_device_numbered, name, n) }
+    }
 }
 
 /**
@@ -108,8 +138,7 @@ internal fun RemoteSlot(sessions: List<RemoteSession>, remote: RemoteRepository?
 @Composable
 internal fun RemoteBar(sessions: List<RemoteSession>, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     if (sessions.isEmpty()) return
-    val unnamed = stringResource(R.string.remote_unknown_device)
-    val names = remember(sessions, unnamed) { RemoteRepository.deviceNames(sessions, unnamed) }
+    val names = deviceNames(sessions)
     val single = sessions.singleOrNull()
     val headline = if (single != null) {
         stringResource(R.string.remote_playing_on, names.getValue(single.sessionId))
@@ -117,7 +146,8 @@ internal fun RemoteBar(sessions: List<RemoteSession>, onOpen: () -> Unit, modifi
         pluralStringResource(R.plurals.remote_playing_on_devices, sessions.size, sessions.size)
     }
     val liveTv = stringResource(R.string.remote_live_tv)
-    val detail = if (single != null) titleOf(single, liveTv) else sessions.joinToString(", ") { names.getValue(it.sessionId) }
+    val separator = stringResource(R.string.remote_device_separator)
+    val detail = if (single != null) titleOf(single, liveTv) else sessions.joinToString(separator) { names.getValue(it.sessionId) }
     Row(
         modifier
             .fillMaxWidth()
@@ -144,12 +174,17 @@ internal fun RemoteBar(sessions: List<RemoteSession>, onOpen: () -> Unit, modifi
  * The remote: a card for each of the profile's other devices playing,
  * with what plays there, how far (estimated each second while it plays),
  * and only the controls its player obeys, Stop always. Pictures come from
- * [origin], the server in use.
+ * [origin], the server in use; [onCommand] is told of each command sent.
  */
 @Composable
-internal fun RemoteSheet(sessions: List<RemoteSession>, remote: RemoteRepository, origin: String?, onDismiss: () -> Unit) {
-    val unnamed = stringResource(R.string.remote_unknown_device)
-    val names = remember(sessions, unnamed) { RemoteRepository.deviceNames(sessions, unnamed) }
+internal fun RemoteSheet(
+    sessions: List<RemoteSession>,
+    remote: RemoteRepository,
+    origin: String?,
+    onCommand: () -> Unit = {},
+    onDismiss: () -> Unit,
+) {
+    val names = deviceNames(sessions)
     val now by produceState(remote.clock(), remote) {
         while (true) {
             delay(TICK_MS)
@@ -161,7 +196,7 @@ internal fun RemoteSheet(sessions: List<RemoteSession>, remote: RemoteRepository
             sessions.forEachIndexed { index, session ->
                 if (index > 0) HorizontalDivider(color = PleyColors.Surface4)
                 key(session.sessionId) {
-                    RemoteCard(session, names.getValue(session.sessionId), now, remote, origin)
+                    RemoteCard(session, names.getValue(session.sessionId), now, remote, origin, onCommand)
                 }
             }
         }
@@ -170,7 +205,7 @@ internal fun RemoteSheet(sessions: List<RemoteSession>, remote: RemoteRepository
 
 /** One device: what plays there and its controls; a command it didn't act on within [RemoteRepository.ANSWER_WAIT_MS] says so. */
 @Composable
-private fun RemoteCard(session: RemoteSession, device: String, now: Long, remote: RemoteRepository, origin: String?) {
+private fun RemoteCard(session: RemoteSession, device: String, now: Long, remote: RemoteRepository, origin: String?, onCommand: () -> Unit) {
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val current by rememberUpdatedState(session)
@@ -216,6 +251,7 @@ private fun RemoteCard(session: RemoteSession, device: String, now: Long, remote
     fun send(command: Control, positionMs: Long? = null, offsetMs: Long? = null) {
         say(null)
         sending = true
+        onCommand()
         scope.launch {
             val before = current
             val sentAt = remote.clock()
@@ -223,6 +259,8 @@ private fun RemoteCard(session: RemoteSession, device: String, now: Long, remote
             try {
                 remote.command(before.sessionId, PlayerCommandRequest(command, positionMs, offsetMs))
                 sent = SentCommand(command, before, sentAt, target)
+                // Its answer is waited for from now.
+                onCommand()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -78,6 +78,8 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
 
     override fun pause() = record("pause")
 
+    override fun setAway(away: Boolean) = record("setAway", away)
+
     override fun seekTo(positionMs: Long) = record("seekTo", positionMs)
 
     override fun selectAudio(index: Long) = record("selectAudio", index)

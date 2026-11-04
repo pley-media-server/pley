@@ -191,8 +191,8 @@ class LivePlayback(
     private val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
     /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
     private val caps: () -> CapsSnapshot? = { null },
-    /** Who stopped watching, and their message: the app's strings ([create]), English in tests. */
-    private val stoppedText: (message: String?, byAdmin: Boolean) -> String = ::stoppedSentence,
+    /** Who stopped watching, and their message, in the app's words ([stoppedText]); without them, the message alone. */
+    private val stoppedText: (message: String?, byAdmin: Boolean) -> String = { message, _ -> message?.trim().orEmpty() },
 ) {
     private val mutableState = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
@@ -556,10 +556,10 @@ class LivePlayback(
         /** The remote's commands a player that goes through channels obeys. */
         private val ZAP_CONTROLS = listOf(Control.Next, Control.Previous)
 
-        /** Who stopped a session (the web's words), and their [message] when given. */
-        fun stoppedSentence(message: String?, byAdmin: Boolean): String {
-            val who = if (byAdmin) "Live TV was stopped by the server's administrator." else "Live TV was stopped from another device."
-            return message?.trim()?.takeIf { it.isNotEmpty() }?.let { "$who ${asSentence(it)}" } ?: who
+        /** Who stopped a session, in the app's strings, and their message when given. */
+        fun stoppedText(context: Context): (message: String?, byAdmin: Boolean) -> String = { message, byAdmin ->
+            val who = context.getString(if (byAdmin) R.string.live_stopped_by_admin else R.string.live_stopped_elsewhere)
+            if (message.isNullOrBlank()) who else context.getString(R.string.session_stopped_message, who, message.trim())
         }
 
         /** A stall shows the spinner once it has lasted this long (the web's 0.7 s). */
@@ -623,11 +623,7 @@ class LivePlayback(
             caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            val stopped = { message: String?, byAdmin: Boolean ->
-                val who = app.getString(if (byAdmin) R.string.live_stopped_by_admin else R.string.live_stopped_elsewhere)
-                if (message.isNullOrBlank()) who else app.getString(R.string.session_stopped_message, who, message.trim())
-            }
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps, stopped)
+            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps, stoppedText(app))
         }
     }
 }

@@ -7,6 +7,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
+import androidx.test.core.app.ApplicationProvider
 import app.pley.android.caps.CapsSnapshot
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.Control
@@ -57,6 +58,7 @@ class LivePlaybackTest {
         events = events,
         playing = { _, playing -> held += playing },
         here = { _, id -> here += id },
+        stoppedText = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext()),
     )
 
     @After
@@ -483,11 +485,12 @@ class LivePlaybackTest {
         events.tryEmit(ServerEvent.SessionStopped("live-1", "Server maintenance", byAdmin = true))
         settle()
         val trouble = (playback.state.value.phase as LivePhase.Failed).trouble
-        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, "Live TV was stopped by the server's administrator. Server maintenance."), trouble)
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, "Live TV was stopped by the server's administrator.\nServer maintenance"), trouble)
         assertTrue(trouble.canRetry)
         // Gone at the server already: nothing is let go, and nothing tunes it again by itself.
         assertEquals(listOf("watch 1 android-1"), live.sent)
-        assertEquals("Live TV was stopped from another device.", LivePlayback.stoppedSentence(null, byAdmin = false))
+        val texts = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext())
+        assertEquals("Live TV was stopped from another device.", texts(null, false))
     }
 
     @Test

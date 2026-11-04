@@ -1,5 +1,7 @@
 package app.pley.android.player.session
 
+import app.pley.android.data.LocalFile
+import app.pley.android.data.LocalMedia
 import app.pley.android.fixtures.FixtureIds
 import app.pley.android.model.Control
 import app.pley.android.model.ProgressState
@@ -9,6 +11,7 @@ import app.pley.android.player.PlayerPhase
 import app.pley.android.testing.caps.TestDevices
 import app.pley.android.testing.caps.capsOf
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -93,6 +96,23 @@ class RemoteTest {
     }
 
     @Test
+    fun `play and pause that change nothing are said again, so a remote a little behind settles`() {
+        playing()
+        val before = h.progress(SessionHarness.S1E1).size
+        command(Control.Play)
+        assertTrue(h.engine.playWhenReady)
+        assertEquals(before + 1, h.progress(SessionHarness.S1E1).size)
+        assertEquals(ProgressState.Playing, h.progress(SessionHarness.S1E1).last().second.state)
+
+        command(Control.Pause)
+        val paused = h.progress(SessionHarness.S1E1).size
+        command(Control.Pause)
+        assertFalse(h.engine.playWhenReady)
+        assertEquals(paused + 1, h.progress(SessionHarness.S1E1).size)
+        assertEquals(ProgressState.Paused, h.progress(SessionHarness.S1E1).last().second.state)
+    }
+
+    @Test
     fun `a seek goes there and is reported straight away, within the title`() {
         val c = playing()
         val before = h.progress(SessionHarness.S1E1).size
@@ -159,6 +179,41 @@ class RemoteTest {
         assertTrue(held.all { it })
         c.close()
         h.settle()
+        assertEquals(false, held.last())
+    }
+
+    @Test
+    fun `a screen stopped obeys nothing and lets the event stream go, until it shows again`() {
+        val c = playing()
+        c.pause()
+        c.setAway(true)
+        h.settle()
+        assertEquals(false, held.last())
+        val requests = h.playbackRequests().size
+        // Its engine stopped, it would say it plays and play nothing; a next episode would sound with no screen.
+        command(Control.Play)
+        command(Control.Next)
+        assertFalse(h.engine.playWhenReady)
+        assertEquals(requests, h.playbackRequests().size)
+        assertEquals(PlayerPhase.Paused, c.state.value.phase)
+
+        c.setAway(false)
+        assertEquals(true, held.last())
+        command(Control.Play)
+        assertTrue(h.engine.playWhenReady)
+    }
+
+    @Test
+    fun `a next episode downloaded lets the event stream go, having no session on the server`() {
+        val second = runBlocking { h.api.item(FixtureIds.SHOW_S1E2) }
+        h.local = object : LocalMedia {
+            override fun file(fileId: Long) = LocalFile("file:///downloads/e2/media.mkv").takeIf { fileId == second.files.first().id }
+        }
+        val c = playing()
+        assertEquals(true, held.last())
+        command(Control.Next)
+        assertEquals(FixtureIds.SHOW_S1E2, c.state.value.itemId)
+        assertEquals("file:///downloads/e2/media.mkv", h.engine.source?.url)
         assertEquals(false, held.last())
     }
 

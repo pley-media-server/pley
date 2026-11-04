@@ -5,6 +5,7 @@ package app.pley.android.data
 import app.pley.android.model.Control
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.Me
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
@@ -13,7 +14,10 @@ import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.network.ApiException
 import app.pley.android.network.LiveEvent
+import app.pley.android.testing.Fixtures
+import app.pley.android.testing.network.FakePleyApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -119,6 +123,32 @@ class RemoteRepositoryTest {
         data.events.send(LiveEvent.Event(ServerEvent.PlayerCommand("6f1c2a9e", Control.Pause)))
         testScheduler.runCurrent()
         assertEquals(reads + 3, data.api.calls("playingSessions").size)
+    }
+
+    @Test
+    fun `a read that comes back after a profile switch leaves the new profile's list as it is`() = runTest {
+        val data = signedIn(folder.newFolder()) {
+            apiOf[3] = FakePleyApi(issuer).apply { answer("playingSessions", listOf(session(id = "sams"))) }
+        }
+        val remote = data.graph.remote
+        collect(remote.sessions)
+        testScheduler.runCurrent()
+        assertEquals(listOf("6f1c2a9e", "5d0f7f2a"), remote.sessions.value.map { it.sessionId })
+
+        // Alex's list is asked for, and comes back once Sam's is read.
+        data.api.hold()
+        val late = async { remote.refresh() }
+        testScheduler.runCurrent()
+        val me: Me = Fixtures.decode("me/app_token.json")
+        data.api.answer("me", me.copy(id = 3, username = "sam", name = "Sam", displayName = "Sam"))
+        data.graph.session.switchProfile(3, pin = "1234")
+        testScheduler.runCurrent()
+        assertEquals(listOf("sams"), remote.sessions.value.map { it.sessionId })
+        data.api.release()
+        testScheduler.runCurrent()
+
+        assertNull(late.await())
+        assertEquals(listOf("sams"), remote.sessions.value.map { it.sessionId })
     }
 
     @Test
@@ -244,7 +274,7 @@ class RemoteRepositoryTest {
         )
         assertEquals(
             mapOf("a" to "Living room TV (1)", "b" to "Unknown device", "c" to "Living room TV (2)", "d" to "Kitchen phone"),
-            RemoteRepository.deviceNames(sessions, "Unknown device"),
+            RemoteRepository.deviceNames(sessions, "Unknown device") { name, n -> "$name ($n)" },
         )
     }
 

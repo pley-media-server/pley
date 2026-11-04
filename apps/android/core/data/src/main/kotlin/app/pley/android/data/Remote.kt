@@ -76,7 +76,7 @@ interface RemoteRepository {
     /** The clock [RemoteSession.reportedAt] is on, monotonic, in ms. */
     val clock: () -> Long
 
-    /** Reads the sessions again now, and gives them; `null` when the server didn't answer. */
+    /** Reads the sessions again now, and gives them; `null` when the server didn't answer, or another profile is in use since. */
     suspend fun refresh(): List<RemoteSession>?
 
     /**
@@ -145,16 +145,16 @@ interface RemoteRepository {
         /**
          * What the remote calls each session's device, by session id: its
          * name, else [unnamed]. Two of the same name (two of the same TV)
-         * are numbered, "Living room TV (2)", so every label and message
-         * says which one it means.
+         * are numbered by [numbered] ("Living room TV (2)"), so every label
+         * and message says which one it means.
          */
-        fun deviceNames(sessions: List<RemoteSession>, unnamed: String): Map<String, String> {
+        fun deviceNames(sessions: List<RemoteSession>, unnamed: String, numbered: (name: String, n: Int) -> String): Map<String, String> {
             val total = sessions.groupingBy { it.session.device ?: unnamed }.eachCount()
             val seen = HashMap<String, Int>()
             return sessions.associate { s ->
                 val name = s.session.device ?: unnamed
                 val n = seen.merge(name, 1, Int::plus)!!
-                s.sessionId to if ((total[name] ?: 0) > 1) "$name ($n)" else name
+                s.sessionId to if ((total[name] ?: 0) > 1) numbered(name, n) else name
             }
         }
 
@@ -234,6 +234,8 @@ internal class ServerRemote(
         }
         val now = clock()
         val sessions = answer.map { RemoteSession(it, now - it.ageMs) }
+        // Another profile since it was asked: its list isn't overwritten with this one's.
+        if ((cache.scopes.value as? ScopeState.Ready)?.profile != profile) return null
         listed.value = Listed(profile, sessions)
         return sessions
     }
