@@ -26,6 +26,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -174,6 +175,21 @@ class TvGridLoadFocusTest {
         compose.mainClock.advanceTimeBy(128)
         assertEquals(pitch, scrolled(), 1f)
         assertEquals(Columns, focus.focused)
+    }
+
+    /** The focused cell keeps its place while the grid moves under it, a press at a time: the cursor stays put. */
+    @Test
+    fun eachPressDownKeepsTheFocusedCellInPlace() {
+        grid()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        val top = compose.onNode(isFocused()).getBoundsInRoot().top
+        repeat(8) { press ->
+            compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+            compose.waitForIdle()
+            assertEquals(Columns * (press + 2), focus.focused)
+            assertEquals("press ${press + 2}", top.value, compose.onNode(isFocused()).getBoundsInRoot().top.value, 0.5f)
+        }
     }
 
     @Test

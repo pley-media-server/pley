@@ -36,6 +36,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import org.junit.Assert.assertEquals
@@ -182,6 +183,9 @@ class TvRowFocusTest {
     /** The focused tile's top, in dp from the screen's. */
     private fun focusedTop(): Float = compose.focused().getBoundsInRoot().top.value
 
+    /** The focused tile's left, in dp from the screen's. */
+    private fun focusedLeft(): Float = compose.focused().getBoundsInRoot().left.value
+
     /**
      * [ms] of frames, a multiple of a frame's 16, each with the main looper's
      * work after it: the lazy lists' prefetching, composing their cache
@@ -243,6 +247,41 @@ class TvRowFocusTest {
         compose.focused().assertContentDescriptionEquals("A 4")
         compose.press(Key.DirectionRight, times = 20)
         compose.focused().assertContentDescriptionEquals("A 20")
+    }
+
+    /**
+     * The focused tile keeps its place while the row moves under it, a
+     * press at a time, until the row's end, where there is nothing more to
+     * bring in and focus steps across the last tiles.
+     */
+    @Test
+    fun eachPressKeepsTheFocusedTileInPlaceUntilTheRowsEnd() {
+        page()
+        val home = focusedLeft()
+        val lefts = (2..20).map { n ->
+            compose.press(Key.DirectionRight)
+            advance(2_000)
+            compose.waitForIdle()
+            compose.focused().assertContentDescriptionEquals("A $n")
+            focusedLeft()
+        }
+        // Until the last tiles fit on the screen: in place, to the pixel.
+        val held = lefts.takeWhile { abs(it - home) < 1f }
+        assertTrue("in place for ${held.size} of ${lefts.size}: $lefts", held.size >= 14)
+        // Then across them, only ever onward.
+        val after = lefts.drop(held.size)
+        assertTrue("$after", after.zipWithNext().all { (a, b) -> b > a })
+    }
+
+    @Test
+    fun eachPressDownKeepsTheFocusedRowAtTheLine() {
+        rows()
+        repeat(8) {
+            compose.press(Key.DirectionDown)
+            advance(2_000)
+            compose.waitForIdle()
+            assertEquals("row ${it + 1}", 210f, focusedTop(), 1f)
+        }
     }
 
     @Test
