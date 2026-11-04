@@ -159,7 +159,7 @@ public sealed class PlayerModel : IDisposable
         pressedAt = scheduler.Elapsed;
         offsets = new SubtitleOffsets(source.Storage, () => source.ProfileId);
         presenter = new SubtitlePresenter(scheduler, source.Subtitles, LivePositionMs, () => offset, () => State.Value.Speed, () => Notice(SessionText.SubtitlesFailed),
-            source.PictureSubtitles, PicturesFailed, source.Local);
+            source.PictureSubtitles, PicturesFailed, source.Local, source.PictureSubtitlesPart);
         sleep = new SleepTimer(scheduler, ItemLeftMs, () => item?.Id, OnSleep);
         sleep.State.Changed += s => Update(st => st with { Sleep = s });
         lastPositionMs = request.StartMs;

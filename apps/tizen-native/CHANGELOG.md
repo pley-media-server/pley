@@ -12,6 +12,10 @@ It has no releases yet: it is built and installed by hand
 
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
+- Picture subtitles show within a second of a film's picture and of a
+  seek: the app reads the pictures around the film, then those ahead as
+  it plays, rather than the whole track (20 MB for a film's PGS) each
+  time the film opens.
 - Back from a film, Home and the film's page answer sooner and don't
   blink: Home updates its tiles in place, the film's page draws its
   updates once, and what didn't change stays as it is.

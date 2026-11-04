@@ -416,8 +416,12 @@ controls, the scrubber with its chapters (Up while a seek waits opens
 them as a row of cards to go to) and the control row, the title
 for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
-DVB) decoded from the server's `.mks` and drawn as the web app draws them,
-burned in by the server only when it can't make that file, the side
+DVB) decoded from the server's `.mks` and drawn as the web app draws them
+(a whole one read in parts by its Cues, `Player/PictureRanges.cs`: the
+pictures from 30 s before the film to 5 minutes after it once its picture
+shows, the next as it plays on, those around a seek as it lands; one the
+server is still making, or without Cues, read whole), burned in by the
+server only when it can't make that file, the side
 panels (Subtitles with Sync and, for text subtitles, their look, Audio,
 Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest

@@ -365,6 +365,8 @@ public class LocalTests
         public Task Reachable(int timeoutMs) => throw new NotSupportedException();
         public Task<SubtitleText> Subtitles(string url) => throw new NotSupportedException();
         public Task<SubtitlePictures> PictureSubtitles(string url) => throw new NotSupportedException();
+
+        public Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to) => throw new NotSupportedException();
         public Task<TrickplayInfo?> Trickplay(long fileId) => throw new NotSupportedException();
         public string TrickplaySheetUrl(long fileId, int sheet, string version) => "";
         public Task<ItemSummary?> Next(long itemId) => throw new NotSupportedException();

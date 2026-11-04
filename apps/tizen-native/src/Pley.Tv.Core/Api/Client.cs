@@ -214,20 +214,20 @@ public sealed class Api
     /// (a live channel's MPEG-TS); refused, an <see cref="ApiException"/>, as <see cref="Send"/>'s.
     /// The server may stay silent <paramref name="timeoutMs"/> before it answers (null: the API's).
     /// </summary>
-    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*", int? timeoutMs = null)
+    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*", int? timeoutMs = null, string? range = null)
     {
         StreamResponse res;
         try
         {
             var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-            res = await OpenOnce(path, token, cancel, accept, timeoutMs).ConfigureAwait(false);
+            res = await OpenOnce(path, token, cancel, accept, timeoutMs, range).ConfigureAwait(false);
             if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
             {
                 var fresh = await Refreshed(token).ConfigureAwait(false);
                 if (fresh != null)
                 {
                     res.Dispose();
-                    res = await OpenOnce(path, fresh, cancel, accept, timeoutMs).ConfigureAwait(false);
+                    res = await OpenOnce(path, fresh, cancel, accept, timeoutMs, range).ConfigureAwait(false);
                 }
             }
         }
@@ -248,9 +248,10 @@ public sealed class Api
         }
     }
 
-    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel, string accept, int? timeoutMs)
+    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel, string accept, int? timeoutMs, string? range = null)
     {
         var headers = new Dictionary<string, string> { ["Accept"] = accept };
+        if (range != null) headers["Range"] = range;
         if (OwnServer(path)) headers["Authorization"] = "Bearer " + token;
         return streams(new HttpRequest { Url = Url(path), Headers = headers, Cancel = cancel, TimeoutMs = timeoutMs ?? Transports.ReadTimeoutMs });
     }
@@ -527,6 +528,33 @@ public sealed class Api
     /// making "couldn't be loaded".
     /// </summary>
     public const int PicturesTimeoutMs = 60_000;
+
+    /// <summary>
+    /// Bytes <paramref name="from"/> to <paramref name="to"/> (inclusive) of a picture track's .mks:
+    /// a whole one is served from the server's cache with ranges, so the pictures around where the
+    /// film is can be read without the rest (<see cref="Player.PictureRanges"/>). A server that
+    /// answers whole (200) gives the file from its start; one still making it says so
+    /// (<see cref="SubtitlePart.Complete"/>).
+    /// </summary>
+    public async Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to, CancellationToken cancel = default)
+    {
+        using var res = await Open(url, cancel, "video/x-matroska", PicturesTimeoutMs, $"bytes={from}-{to}").ConfigureAwait(false);
+        var bytes = await ReadAll(res, cancel).ConfigureAwait(false);
+        var complete = (res.Header("X-Pley-Complete") ?? "").Trim() != "0";
+        if (res.Status == 206 && ContentRange(res.Header("Content-Range")) is { } range) return new SubtitlePart(bytes, range.Start, range.Total, complete);
+        return new SubtitlePart(bytes, 0, complete ? bytes.Length : null, complete);
+    }
+
+    /// <summary>"bytes 0-65535/20997000": where the part starts and the whole's length (null: "*", not known yet); null for a header that isn't one.</summary>
+    internal static (long Start, long? Total)? ContentRange(string? header)
+    {
+        var m = ContentRangeForm.Match(header ?? "");
+        if (!m.Success || !long.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var start)) return null;
+        if (m.Groups[3].Value == "*") return (start, null);
+        return long.TryParse(m.Groups[3].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var total) ? (start, total) : null;
+    }
+
+    static readonly System.Text.RegularExpressions.Regex ContentRangeForm = new System.Text.RegularExpressions.Regex(@"^\s*bytes\s+(\d+)-(\d+)/(\d+|\*)\s*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     /// <summary>The whole body of <paramref name="res"/>: into one array when its length is said, else gathered.</summary>
     static async Task<byte[]> ReadAll(StreamResponse res, CancellationToken cancel)

@@ -239,6 +239,33 @@ public class PlayerModelTests
     }
 
     /// <summary>
+    /// A whole .mks with Cues is read in parts: the pictures around where the film resumed, then
+    /// those around a seek; never the whole file.
+    /// </summary>
+    [Fact]
+    public void Picture_subtitles_are_read_around_the_film_in_parts()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Source.Mks[PgsMks] = new SubtitlePictures(CuedMks.Pgs(Enumerable.Range(0, 10).Select(i => i * 120_000).ToArray()), Complete: true);
+        h.Start(new PlayRequest(1, 600_000, false, SubtitleIndex: 4), show: false);
+        h.Engine.PositionMs = 600_000;
+        h.Engine.Show();
+        // Its header, its Cues, the clusters around 600 s.
+        Assert.Equal(3, h.Source.MksParts.Count);
+        Assert.Empty(h.Source.MksAsked);
+        h.Play(500);
+        Assert.NotNull(h.Model.Picture.Value);
+        h.Model.SeekTo(1_000_000);
+        Assert.Equal(4, h.Source.MksParts.Count);
+        h.Play(500);
+        Assert.NotNull(h.Model.Picture.Value);
+        // Back where it was read: not asked for again.
+        h.Model.SeekTo(650_000);
+        h.Play(500);
+        Assert.Equal(4, h.Source.MksParts.Count);
+    }
+
+    /// <summary>
     /// A picture track chosen as the film starts is asked for once its picture shows: its .mks is
     /// tens of MB, and asked for at once it took the network and the CPUs from the video's first
     /// seconds. A new session of the same film keeps it.

@@ -44,6 +44,9 @@ public sealed class PictureSubtitles
     /// <summary>The track's subtitles; null for a codec this app can't decode.</summary>
     public static PictureSubtitles? Of(PictureTrack track) => DecoderFor(track) is IPictureDecoder decoder ? new PictureSubtitles(track, decoder) : null;
 
+    /// <summary>When sample <paramref name="i"/> shows, in the track's time.</summary>
+    public long TimeOf(int i) => times[i];
+
     /// <summary>The sample showing at <paramref name="ms"/> (track time), or -1.</summary>
     public int SampleAt(long ms)
     {
