@@ -355,6 +355,9 @@ sub test_live_busy_connections()
     one = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 1, yours: true, can_take_over: true }] } }, "x")
     tkEqual(liveTroubleButtons(one)[0].label, "Watch here instead", "one to take: its channel goes without saying")
     tkEqual(one.lines, "Its one connection is watching:" + Chr(10) + "•  Sport 1080i  —  You, on another device")
+    none = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 2, yours: false, can_take_over: false }] } }, "x")
+    tkEqual(none.lines, "Its one connection is watching:" + Chr(10) + "•  Sport 1080i  —  2 people" + Chr(10) + Chr(10) + "A channel already being watched can be joined, or try again once one is stopped.", "none to take over: what can be done instead")
+    tkEqual(liveTroubleButtons(none)[0].action, "retry")
 end sub
 
 sub test_live_view_kept()

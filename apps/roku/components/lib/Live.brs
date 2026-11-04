@@ -779,7 +779,8 @@ function liveHolders(c as object) as string
 end function
 
 ' The busy notice's text: the server's message, then what each connection
-' watches and who.
+' watches and who, and when none may be taken over, what can be done
+' instead (Android's words).
 function liveBusyLines(message as string, connections as object) as string
     lines = []
     if message <> "" then lines.Push(message)
@@ -790,9 +791,15 @@ function liveBusyLines(message as string, connections as object) as string
         else
             lines.Push("Its " + connections.Count().ToStr() + " connections are watching:")
         end if
+        takeable = false
         for each c in connections
             lines.Push("•  " + c.channelName + "  —  " + c.holders)
+            if c.canTakeOver then takeable = true
         end for
+        if not takeable
+            lines.Push("")
+            lines.Push("A channel already being watched can be joined, or try again once one is stopped.")
+        end if
     end if
     return lines.Join(Chr(10))
 end function
