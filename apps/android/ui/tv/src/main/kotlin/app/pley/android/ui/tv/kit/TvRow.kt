@@ -63,7 +63,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -155,10 +157,12 @@ fun TvRow(
     )
     val group = remember { FocusRequester() }
     if (column != null) {
-        DisposableEffect(column, rowKey) {
+        DisposableEffect(column, rowKey, motion) {
             column.rows[rowKey] = group
+            column.motions[rowKey] = motion
             onDispose {
                 if (column.rows[rowKey] === group) column.rows.remove(rowKey)
+                if (column.motions[rowKey] === motion) column.motions.remove(rowKey)
                 // Its focus is cleared by then: whether it had it is what the column last saw.
                 if (column.focusedRow == rowKey && column.hadFocus) column.lost(rowKey)
             }
@@ -292,10 +296,12 @@ internal fun <T> TvTileRow(
     motion.measure(density, kind, items.size, reducedMotion())
     val group = remember { FocusRequester() }
     if (column != null) {
-        DisposableEffect(column, rowKey) {
+        DisposableEffect(column, rowKey, motion) {
             column.rows[rowKey] = group
+            column.motions[rowKey] = motion
             onDispose {
                 if (column.rows[rowKey] === group) column.rows.remove(rowKey)
+                if (column.motions[rowKey] === motion) column.motions.remove(rowKey)
                 // As a TvRow: a row that goes with focus in it hands it to the row now in its place.
                 if (column.focusedRow == rowKey && column.hadFocus) column.lost(rowKey)
             }
@@ -361,9 +367,12 @@ private val TileKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Ke
  * its index times the pitch; sizes are in pixels, from [measure].
  */
 @Stable
-internal class RowMotion(private val state: LazyListState, private val gate: KeyRepeatGate, private val scope: CoroutineScope) {
+internal class RowMotion(val state: LazyListState, private val gate: KeyRepeatGate, private val scope: CoroutineScope) {
     val slots = FocusSlots()
     val quiet = TileQuiet()
+
+    /** The tile that has focus, or had it last; -1 before any. */
+    val focusedIndex: Int get() = focused
 
     /**
      * Whether focus is in the row: a slide that ends elsewhere lands without
@@ -563,6 +572,7 @@ fun TvRowColumn(
                 .railFade()
                 .clearAboveHeader(state, headerY, clearAbove)
                 .tvRowColumnFocus(holder)
+                .heldKeyStaysIn(HeldEnds.UpDown)
                 // Coming back from the rail: the row focus was in, then (its own restorer) the tile.
                 // focusRestorer here would pick by composition key, which lazy rows share.
                 .focusProperties {
@@ -610,9 +620,9 @@ internal fun rememberTvRowColumnFocus(state: LazyListState, tileTop: Float): TvR
     return holder
 }
 
-/** Tells [column] whether focus is in this column and where it is laid out. */
+/** Tells [column] whether focus is in this column and where it is laid out, and gives it held Up and Down first. */
 internal fun Modifier.tvRowColumnFocus(column: TvRowColumnFocus): Modifier =
-    onFocusChanged { column.hasFocus = it.hasFocus }.onPlaced { column.coordinates = it }
+    onFocusChanged { column.hasFocus = it.hasFocus }.onPlaced { column.coordinates = it }.onPreviewKeyEvent(column::onKey)
 
 /**
  * The page's own spec for what isn't a row; nothing for a row's tiles or
@@ -629,10 +639,12 @@ private class ColumnSpec(private val page: BringIntoViewSpec, private val column
  * Marks a [TvRowColumn]'s hero, its first item: focus coming into it
  * takes the page back to its top as the page goes to a row, over 150 ms,
  * eased out, as the native Samsung app's page does, where Compose's own
- * scrolling would spring there. Nothing outside a page of rows (a
+ * scrolling would spring there. A held Up stops on the first row
+ * ([heldKeyStaysOut]); a press of its own comes into the hero. The hero is
+ * a focus group, after this. Nothing outside a page of rows (a
  * [TvRowColumn], the item page's column).
  */
-fun Modifier.tvRowColumnHero(): Modifier = this then TvRowColumnHeroElement
+fun Modifier.tvRowColumnHero(): Modifier = heldKeyStaysOut() then TvRowColumnHeroElement
 
 private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHeroNode>() {
     override fun create() = TvRowColumnHeroNode()
@@ -644,8 +656,28 @@ private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHero
     }
 }
 
-private class TvRowColumnHeroNode : Modifier.Node(), FocusEventModifierNode, CompositionLocalConsumerModifierNode {
+private class TvRowColumnHeroNode :
+    Modifier.Node(),
+    FocusEventModifierNode,
+    CompositionLocalConsumerModifierNode,
+    ObserverModifierNode {
     private var hadFocus = false
+
+    /** The column this hero is counted in ([TvRowColumnFocus.heroes]). */
+    private var column: TvRowColumnFocus? = null
+
+    override fun onAttach() = onObservedReadsChanged()
+
+    override fun onObservedReadsChanged() = observeReads { countIn(currentValueOf(LocalTvRowColumn)) }
+
+    override fun onDetach() = countIn(null)
+
+    private fun countIn(next: TvRowColumnFocus?) {
+        if (next === column) return
+        column?.let { it.heroes-- }
+        next?.let { it.heroes++ }
+        column = next
+    }
 
     override fun onFocusEvent(focusState: FocusState) {
         if (focusState.hasFocus == hadFocus) return
@@ -683,6 +715,9 @@ internal class TvRowColumnFocus {
 
     /** Each row's focus group, by its key, while it is composed. */
     val rows = HashMap<Any, FocusRequester>()
+
+    /** Each row's tiles and how it moves, by its key, while it is composed: where held Up and Down go ([onKey]). */
+    val motions = HashMap<Any, RowMotion>()
 
     /** Whether focus is in the column. */
     var hasFocus = false
@@ -736,9 +771,54 @@ internal class TvRowColumnFocus {
         if (following == rowKey) following = null
     }
 
+    /**
+     * A key the column gets before its rows: a held Up or Down from a row's
+     * tile goes to the next row's tile nearest across ([heldStep]).
+     */
+    fun onKey(event: KeyEvent): Boolean {
+        if (event.type != KeyEventType.KeyDown || gate?.holding != true) return false
+        return when (event.key) {
+            Key.DirectionDown -> heldStep(down = true)
+            Key.DirectionUp -> heldStep(down = false)
+            else -> false
+        }
+    }
+
+    /**
+     * A held step from the focused row's tile to the tile of the row next
+     * to it, [down] or up, whose middle is nearest the tile's: where
+     * Compose's own search goes, without it. That search lays the focused
+     * row out again at every step, and the whole column at its ends, to
+     * look past them for more (on a Google TV Streamer, a seventh of the
+     * main thread's time under a held key). At the column's ends the key
+     * stays, as it would ([heldKeyStaysIn]), and so it does below a hero
+     * ([heldKeyStaysOut]). What else isn't a row's tile on either side (an
+     * item page's section) is left to the search. Whether the key is used.
+     */
+    private fun heldStep(down: Boolean): Boolean {
+        val list = state ?: return false
+        val key = following ?: return false
+        val from = motions[key] ?: return false
+        val info = list.layoutInfo
+        val items = info.visibleItemsInfo
+        val at = items.indexOfFirst { it.key == key }
+        if (at < 0) return false
+        val nextIndex = items[at].index + if (down) 1 else -1
+        if (nextIndex !in 0 until info.totalItemsCount || (nextIndex == 0 && heroes > 0)) return true
+        val next = items.getOrNull(if (down) at + 1 else at - 1)?.takeIf { it.index == nextIndex } ?: return false
+        val to = motions[next.key] ?: return false
+        val tile = from.state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == from.focusedIndex } ?: return false
+        val middle = tile.offset + tile.size / 2
+        val target = to.state.layoutInfo.visibleItemsInfo.minByOrNull { abs(it.offset + it.size / 2 - middle) } ?: return false
+        return to.slots.focus(target.index)
+    }
+
     /** Whether focus is in the hero ([tvRowColumnHero]), which the column takes back to its top itself. */
     var inHero = false
         private set
+
+    /** How many heroes ([tvRowColumnHero]) are composed: the column's first item is one while this isn't 0. */
+    var heroes = 0
 
     /**
      * Focus came into the hero: the column glides back to its top. From a

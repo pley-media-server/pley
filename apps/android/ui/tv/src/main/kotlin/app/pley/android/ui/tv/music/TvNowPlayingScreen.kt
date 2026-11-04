@@ -90,6 +90,8 @@ import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvRoundButton
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.player.MoonIcon
 import app.pley.android.ui.tv.shell.LocalTvNavigator
@@ -364,6 +366,7 @@ private fun Queue(state: NowPlayingState, onPick: (Int) -> Unit) {
             .fillMaxSize()
             .onFocusChanged { browsing = it.hasFocus }
             .focusProperties { onEnter = { landing.enter() } }
+            .heldKeyStaysIn(HeldEnds.UpDown)
             .focusGroup()
             .testTag(TV_QUEUE),
         state = list,

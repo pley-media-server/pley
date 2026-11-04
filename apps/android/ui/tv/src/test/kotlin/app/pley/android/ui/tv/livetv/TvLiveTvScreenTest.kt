@@ -1,12 +1,25 @@
 package app.pley.android.ui.tv.livetv
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -14,6 +27,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -30,6 +44,10 @@ import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.screens.livetv.LiveView
 import app.pley.android.testing.data.FakeLiveTv
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.hold
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlin.reflect.KClass
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +61,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Live TV's page on TV with the remote: Back a step at a time, a search left, a programme's details. */
+/** Live TV's page on TV with the remote: Back a step at a time, a search left, a programme's details, a held key at a row's end. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 @OptIn(ExperimentalTestApi::class)
@@ -55,10 +73,13 @@ class TvLiveTvScreenTest {
     private val live = FakeLiveTv()
     private lateinit var vm: LiveTvViewModel
 
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
+
     @After
     fun clear() = store.clear()
 
-    private fun show(clock: () -> Long = System::currentTimeMillis) {
+    private fun show(clock: () -> Long = System::currentTimeMillis, beside: Boolean = false) {
         val deps = LiveTvDeps(
             live = live,
             launcher = object : PlayerLauncher {
@@ -75,7 +96,13 @@ class TvLiveTvScreenTest {
         vm = ViewModelProvider.create(store, factory)[LiveTvViewModel::class]
         compose.setContent {
             TvTheme {
-                TvLiveTvScreen(vm)
+                CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
+                    Row(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        Box(Modifier.weight(1f)) { TvLiveTvScreen(vm) }
+                        // Something to go on to beside the page, when asked for.
+                        if (beside) Box(Modifier.size(40.dp).testTag(BESIDE).focusable())
+                    }
+                }
             }
         }
         compose.waitForIdle()
@@ -114,6 +141,20 @@ class TvLiveTvScreenTest {
         compose.onNodeWithTag(TV_LIVE_TILES).assertExists()
         press(Key.Info)
         compose.onNodeWithTag(TV_LIVE_PROGRAM).assertExists()
+    }
+
+    @Test
+    fun `a held Right stops on a row's last channel, and only a press goes on beside`() {
+        show(beside = true)
+        vm.setView(LiveView.Channels)
+        compose.waitForIdle()
+        // Three channels, one row: the press moves to the second; held from 400 ms, Right goes to the third (105) and
+        // no further.
+        compose.hold(Key.DirectionRight)
+        compose.onNode(isFocused() and hasAnyAncestor(hasTestTag(TV_LIVE_TILES))).assert(hasText("105"))
+        compose.onNodeWithTag(BESIDE).assertIsNotFocused()
+        press(Key.DirectionRight)
+        compose.onNodeWithTag(BESIDE).assertIsFocused()
     }
 
     @Test
@@ -164,5 +205,9 @@ class TvLiveTvScreenTest {
         assertEquals("sport", vm.state.value.query)
         back()
         assertEquals("", vm.state.value.query)
+    }
+
+    private companion object {
+        const val BESIDE = "beside"
     }
 }

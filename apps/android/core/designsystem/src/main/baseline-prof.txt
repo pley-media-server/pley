@@ -1,0 +1,4 @@
+# Compiled ahead whatever the profile journeys reach (docs/ANDROID.md, Performance):
+# tiles and their artwork are drawn in every list a held key scrolls, on TVs and phones.
+HSPLapp/pley/android/designsystem/tile/**;->**(**)**
+HSPLapp/pley/android/designsystem/image/**;->**(**)**

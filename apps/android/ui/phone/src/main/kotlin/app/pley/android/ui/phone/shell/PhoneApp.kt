@@ -72,6 +72,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import app.pley.android.common.TestTags
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.data.SessionState
 import app.pley.android.designsystem.PleyColors
@@ -154,6 +155,11 @@ internal fun PhoneShell(
     val shell = remember(navigation) { PhoneShellState(navigation, resources, start.server) }
     val graphs by rememberUpdatedState(graph)
     LaunchedEffect(shell) { onReady(shell, navigation) }
+    // The screen the frame-rate counter's lines name, read outside composition.
+    LaunchedEffect(navigation) {
+        snapshotFlow { if (navigation.inside) navigation.stack()?.lastOrNull() else navigation.root.lastOrNull() }
+            .collect { FrameRate.route = it }
+    }
     AfterFirstFrame(shell, graphs)
 
     if (first == app.pley.android.screens.PleyKey.Home) {

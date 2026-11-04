@@ -85,6 +85,8 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.digitKeys
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -174,7 +176,7 @@ private fun Picker(state: ProfilesUiState, onPick: (Long) -> Unit, onRetry: () -
         val profiles = state.profiles
         if (profiles.isNotEmpty()) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(top = 204.dp - RowBleed).focusGroup(),
+                modifier = Modifier.fillMaxWidth().padding(top = 204.dp - RowBleed).heldKeyStaysIn(HeldEnds.LeftRight).focusGroup(),
                 horizontalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterHorizontally),
                 contentPadding = PaddingValues(horizontal = 48.dp, vertical = RowBleed),
             ) {

@@ -93,6 +93,19 @@ internal class TvGlide(private val state: ScrollableState, private val scope: Co
         }
     }
 
+    /**
+     * Spreads what is left of the move over [ms] more, from where it is now:
+     * a held step that waits for its row keeps the grid gliding, slower,
+     * rather than leave it standing. A glide made longer for every step
+     * instead would let focus run further ahead of the grid than the rows
+     * on the screen.
+     */
+    fun linger(ms: Int) {
+        if (!moving) return
+        val left = (duration - elapsed).coerceAtLeast(0L) / NANOS_PER_MS
+        start(distance - covered, (left + ms).toInt(), easing, then)
+    }
+
     /** Moves [by] pixels evenly over [ms] (a row's slide), then calls [then] unless another move took over. */
     fun slide(by: Float, ms: Int, then: () -> Unit) = start(by, ms, LinearEasing, then)
 

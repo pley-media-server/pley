@@ -52,6 +52,7 @@ import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
@@ -182,6 +183,8 @@ private fun TvShell(
     // Signing in and choosing a profile are full screen.
     rail.shown = root !is PleyKey.Servers && root !is PleyKey.Link && root !is PleyKey.SignIn && root !is PleyKey.Profiles
     val curtain = rememberCurtain(backStack.lastOrNull())
+    // The screen the frame-rate counter's lines name, read outside composition.
+    LaunchedEffect(backStack) { snapshotFlow { backStack.lastOrNull() }.collect { FrameRate.route = it } }
     ReturnFocus(rail, content, pages)
     // The app is fully drawn (Android's time to full display) once Home has its
     // rows and pictures; a start elsewhere (sign-in, "Who's watching?") is at once.

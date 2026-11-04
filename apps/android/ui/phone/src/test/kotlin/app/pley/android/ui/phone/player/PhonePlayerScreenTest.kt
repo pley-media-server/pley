@@ -1,5 +1,9 @@
 package app.pley.android.ui.phone.player
 
+import android.view.View
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getBoundsInRoot
@@ -11,6 +15,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import app.pley.android.model.Marker
 import app.pley.android.model.MarkerKind
 import app.pley.android.model.MarkerSource
@@ -452,6 +459,78 @@ class PhonePlayerScreenTest {
         compose.waitForIdle()
         assertEquals(1, asked.size)
         bar.performTouchInput { up() }
+    }
+
+    @Test
+    fun theBottomButtonsShowInTheirPlaceAsThePlayerOpens() {
+        // The screen opens before the server has answered: nothing is known of the item yet.
+        val fake = FakePlaybackController(PlayerUiState())
+        show(fake)
+        val seekBar = compose.onNodeWithContentDescription("Position").getBoundsInRoot()
+        val locks = mutableListOf<Rect>()
+        fun look() {
+            compose.waitForIdle()
+            assertEquals(seekBar, compose.onNodeWithContentDescription("Position").getBoundsInRoot())
+            locks += compose.onAllNodes(hasText("Lock")).fetchSemanticsNodes().map { it.boundsInRoot }
+        }
+        look()
+
+        // The item's details: its title, chapters, tracks and qualities.
+        fake.update { playing { s -> s.copy(phase = PlayerPhase.Preparing, method = null) } }
+        look()
+        // The server's answer, then the first frame.
+        fake.update { it.copy(method = "Direct play") }
+        look()
+        fake.update { it.copy(phase = PlayerPhase.Playing) }
+        look()
+
+        // Lock shows, and only ever where it ends up.
+        assertTrue(locks.isNotEmpty())
+        assertEquals("Lock was at $locks", 1, locks.distinct().size)
+    }
+
+    @Test
+    fun theControlsStayPutAsTheSystemBarsHide() {
+        val fake = FakePlaybackController(playing())
+        lateinit var view: View
+        compose.setContent {
+            view = LocalView.current
+            PhoneTheme {
+                PhonePlayerScreen(fake, host, PictureState(), CaptionLook(), SubtitleChoice(), {}, inPip = false)
+            }
+        }
+        compose.waitForIdle()
+        val status = Insets.of(0, 24, 0, 0)
+        val navigation = Insets.of(0, 0, 0, 48)
+        fun bars(shown: Boolean) {
+            val insets = WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.statusBars(), if (shown) status else Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars(), status)
+                .setVisible(WindowInsetsCompat.Type.statusBars(), shown)
+                .setInsets(WindowInsetsCompat.Type.navigationBars(), if (shown) navigation else Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars(), navigation)
+                .setVisible(WindowInsetsCompat.Type.navigationBars(), shown)
+                .build()
+            compose.runOnUiThread { ViewCompat.dispatchApplyWindowInsets(view, insets) }
+            compose.waitForIdle()
+        }
+        fun bounds(node: SemanticsNodeInteraction) = node.fetchSemanticsNode().boundsInRoot
+        fun controls() = listOf(
+            bounds(compose.onNodeWithContentDescription("Back")),
+            bounds(compose.onNodeWithContentDescription("Position")),
+            bounds(compose.onNodeWithText("Lock")),
+        )
+
+        // The player's first frame, before the bars have gone: the controls are clear of them.
+        bars(shown = true)
+        val screen = bounds(compose.onNodeWithTag(TAG_PLAYER))
+        val first = controls()
+        assertTrue(first[0].top >= screen.top + status.top)
+        assertTrue(first[2].bottom <= screen.bottom - navigation.bottom)
+
+        // The bars go a moment later: nothing moves.
+        bars(shown = false)
+        assertEquals(first, controls())
     }
 
     @Test

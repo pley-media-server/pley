@@ -1831,6 +1831,7 @@ fn jumped(play: &PlayState, reported_at_ms: i64, now_ms: i64, position_ms: i64) 
     };
     position_ms < low.saturating_sub(JUMP_MS) || position_ms > high.saturating_add(JUMP_MS)
 }
+
 /// Commands a session takes each second at most ([`Session::take_command`]).
 pub const COMMANDS_PER_SECOND: u32 = 10;
 

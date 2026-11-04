@@ -109,35 +109,38 @@ heard it for that profile, the start asks "Who's watching?".
   Chapters button shows them on the one playing. Left and Right go
   through them, OK goes to one, Down or Back closes them, and so does a
   media key's seek (Previous, Next, fast forward or rewind).
-- A direction key held for 180 ms moves focus by itself, every 45 ms
-  (about 22 a second), on the app's own clock: the system's repeats start
-  later and come unevenly, so the app drops them. A held Left or Right
-  slides a row on at that pace, a tile every 45 ms, under a ring that
-  stays still at the row's left edge, the tiles keeping their resting
-  look; when the key comes up, focus lands on the tile under the ring (or
-  the next one the way the row was going) and the row settles there. Near
-  a row's end, where tiles no longer reach that edge, focus steps across
-  them instead. A held Up or Down glides a page of rows (Home, an item
-  page, search) or a grid on a row at each step, each glide a little
-  longer than the step, so the page never stops; in a grid the tiles keep
-  their resting look under one ring that stays still where focus is
-  going, until the key comes up. A press moves a row, a page or a grid
-  over 150 ms, eased out, and so does Up from the rows of Home or an item
-  page, or from a collection's grid, to its top. A tile's focus look
-  comes in over 150 ms, eased out, and goes over 120 ms, eased in, with
-  the native Samsung app's curves; where a held key's slide or glide
-  stops, the still ring goes at
-  once and the tile's look comes in that way. Elsewhere under a held key a
-  tile's focus look changes evenly from one tile to the next, and
-  backdrops and info blocks wait until focus has rested 400 ms. With
-  Reduce motion a held key steps focus a tile or a row at a time and
-  nothing slides.
+- A direction key held for 400 ms, about when the system's own repeats
+  begin, moves focus by itself, every 45 ms (about 22 a second), on the
+  app's own clock: the system's repeats come unevenly, so the app drops
+  them. A press that lasts a little longer than most, as a remote's can,
+  still moves focus once. A held Left or Right slides a row on at that
+  pace, a tile every 45 ms, under a ring that stays still at the row's
+  left edge, the tiles keeping their resting look; when the key comes up,
+  focus lands on the tile under the ring (or the next one the way the row
+  was going) and the row settles there. Near a row's end, where tiles no
+  longer reach that edge, focus steps across them instead. A held Up or
+  Down glides a page of rows (Home, an item page, search) or a grid on a
+  row at each step, each glide a little longer than the step, so the page
+  never stops; in a grid the tiles keep their resting look under one ring
+  that stays still where focus is going, until the key comes up. A press
+  moves a row, a page or a grid over 150 ms, eased out, and so does Up
+  from the rows of Home or an item page, or from a collection's grid, to
+  its top. A tile's focus look comes in over 150 ms, eased out, and goes
+  over 120 ms, eased in, with the native Samsung app's curves; where a
+  held key's slide or glide stops, the still ring goes at once and the
+  tile's look comes in that way. Elsewhere under a held key a tile's focus
+  look changes evenly from one tile to the next, and backdrops and info
+  blocks wait until focus has rested 400 ms. With Reduce motion a held key
+  steps focus a tile or a row at a time and nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.
-- A held key never leaves its row or grid: a held Left stops at a row's
-  first tile, and a held Right or Up at a library grid's edge. The rail,
-  the A to Z jump and the chips above the grid take a press of their own.
-  In a grid, Up and Down keep the column, held too. Coming back to a
+- A held key never leaves its list, as on a TV's home screen: it stops
+  on a row's first or last tile, on a page's first or last row, and at a
+  grid's edges, wherever the list is (Home, a show's page, search, a
+  library, collections, playlists, Live TV, Settings). The rail, a
+  page's hero, the A to Z jump and the chips or tabs above a grid take a
+  press of their own, once the key has come up or at the edge. In a
+  grid, Up and Down keep the column, held too. Coming back to a
   grid (Back from a title or its actions, Right from the rail, Down from
   the chips) lands on the tile focus left.
 - On a show's page, Up from the episodes and Down from the buttons go to
@@ -615,17 +618,97 @@ adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvSta
 ```
 
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
-are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
+are in `/storage/emulated/0/Android/media/app.pley.android.benchmark` (on
+Android 10 and earlier, `.../Android/data/app.pley.android.benchmark/cache`),
+and the run's output names each.
 
-On an emulator, frame times (`dumpsys gfxinfo` while a key is held, as
-with `adb shell input keyevent --duration 3000 KEYCODE_DPAD_RIGHT`) say
-little about drawing: the emulator's GPU takes about the same time a frame
-whatever is drawn, so its late frames are the GPU's, not the main
-thread's. A change that draws less shows in HWUI's overdraw view
-(`adb shell setprop debug.hwui.overdraw show`, then restart the app)
-instead. What an emulator does show is compilation: the first flings after
-a start run far slower, with many more janky frames, when the app isn't
-compiled from its profile.
+On a device that already has Pley, signed with another key, build both with
+`-Ppley.applicationIdSuffix=.bench`: the benchmarked app installs beside it
+as `com.formandelement.pley.bench`, and the benchmarks (which clear the
+app's data between runs) touch only that one. The benchmarks take the
+suffix too (`app.pley.android.benchmark.bench`, in the commands and the
+traces' folder above), so copies built with different suffixes, and with
+different keys, install side by side. Each copy runs its own demo server
+on port 7740 when it can, and on any free port when another copy holds
+that one; signed in to such a port, a copy finds nothing there once it
+restarts and shows only what it had saved. Stop the other copies
+(`adb shell am force-stop <id>`) before signing one in or measuring it:
+one cached in the background keeps the port, and where Android freezes
+cached apps (Android 12 and later), answers nothing on it.
+
+Any build, release ones too, counts its frames while "Show frame rate" is
+on: Settings → Diagnostics on a TV, Diagnostics on a phone, kept on the
+device. For one run, the launch intent's `frames` extra turns it on (or
+off), also when the app is already open:
+
+```powershell
+adb -s <device> shell am start -n com.formandelement.pley/app.pley.android.TvActivity --ez frames true
+adb -s <device> logcat -s PleyFrames
+```
+
+Each half second something moves, the window shown (its frame metrics,
+read on a thread of its own) gives a line, `fps=58 longest=21.4
+missed=2 screen=Home`: frames drawn a second, the longest frame in
+milliseconds from its vsync to its drawing done, and how many missed
+their deadline (the deadline Android 12 and later give, else the
+display's refresh, which also counts as late a frame that took longer
+than a refresh but still showed in time, its drawing overlapping the
+next one's). The screen is the route shown in the TV's or phone's
+shell, else the activity (`TvPlayerActivity`). A box shows the same, on
+a TV at the top right above the safe area, on a phone at the top centre
+under the status bar: green with none late, amber with a few, red with a
+frame in four or more. Dialogs and popups are windows of their own and
+aren't counted. At rest nothing is drawn, so nothing is told. Off, none
+of it runs.
+
+A key held for a measure has to repeat as a remote's does: the TV app
+takes a key that sends no repeats for half a second past the system's
+first as up. `adb shell input keyevent --duration` sends none, and the
+`input` of many TVs (a Google TV Streamer's, on Android 14) has no such
+option at all: there `--duration 200 22` presses key 200, which the app
+takes as Select, and then 22. Quick presses in a loop on the device
+(`for i in 1 2 3; do input keyevent 22; sleep 0.15; done`) are single
+presses; for a hold, use the benchmarks' journeys. The benchmarks'
+journeys hold keys with the system's repeats (`Steps.hold`), injected
+without UI Automator's accessibility connection, as a remote's come:
+while an accessibility client is connected, Compose describes every
+change of the screen to it.
+
+A key held through a TV grid or along a row brings in a row of tiles
+every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
+
+- Rows are made ahead of the screen between frames (each list's cache
+  window). A held step that finds its row not made yet waits up to two
+  frames for it, the glide under way spread over the wait so the grid
+  goes on moving, rather than make it in the frame: once behind, steps
+  that made their own rows left the frames no time to get ahead again.
+  The key coming up ends the wait, and the step with it, and a press
+  right after goes from where focus is.
+  Each held glide stays a step and a quarter long, so focus never runs
+  further ahead of the grid than the rows on the screen.
+- A tile is few nodes, and costs little to make: its caption is one node
+  drawing its two lines with the platform's paint, its picture draws in
+  its own box, and its placeholder's title is laid out on a thread of its
+  own. While a key holds pictures back, their requests are set aside off
+  the main thread, and go on there when the key comes up.
+- A held Up or Down on a page of rows moves focus to the next row's
+  tile itself (the one nearest across, or the tile that row comes back
+  to), and stays at the page's ends and below a hero. Compose's own
+  focus search lays the focused row out again at every step, and the
+  whole page at its ends, to look for more beyond them.
+- A tile is drawn in its rounded shape, not clipped to it (a clip is a
+  pass of its own for a TV's GPU, for each tile), on a layer of its own
+  that scrolling moves rather than draws again, and its placeholder's
+  gradient is one draw of one small picture shared by every title.
+
+On an emulator, frame times (the benchmarks', the counter's or
+`dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes
+about the same time a frame whatever is drawn, so its late frames are the
+GPU's, not the main thread's. A change that draws less shows in HWUI's
+overdraw view (`adb shell setprop debug.hwui.overdraw show`, then
+restart the app) instead. What an emulator does show is compilation: the
+first flings after a start run far slower, with many more janky frames,
+when the app isn't compiled from its profile.
 
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
 journeys against the demo server: a cold start (the Startup Profile, which
@@ -642,7 +725,10 @@ TV and a phone (or their emulators, API 33 or later) attached. Each step
 waits for the screen it leads to, and a journey that goes astray fails
 there, saying where. The phone signs in through the browser, or with a
 code where it has none: on a new device with a browser, open it once
-first, past its welcome pages.
+first, past its welcome pages. Besides, `:core:designsystem` and `:ui:tv`
+each name in their own `src/main/baseline-prof.txt` the packages every
+list a held key scrolls goes through (tiles and their artwork, the TV
+kit, the library grid), compiled ahead whatever the journeys reach.
 
 ### Recording an animation
 

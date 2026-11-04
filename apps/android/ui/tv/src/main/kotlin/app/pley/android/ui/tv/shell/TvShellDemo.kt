@@ -2,6 +2,7 @@ package app.pley.android.ui.tv.shell
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.foundation.focusGroup
 import androidx.core.graphics.createBitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
@@ -253,7 +254,7 @@ private val HeroHeight = 432.dp - PleyTv.RowGap
 /** The hero's stack at x = 96 (design spec §2.2): title, context, metadata, progress, summary, buttons. */
 @Composable
 private fun Hero(details: DemoDetails, memory: app.pley.android.ui.tv.kit.FocusMemory, modifier: Modifier) {
-    Column(modifier.padding(start = PleyTv.Gutter, top = 58.dp)) {
+    Column(modifier.focusGroup().padding(start = PleyTv.Gutter, top = 58.dp)) {
         Box(Modifier.height(84.dp), contentAlignment = Alignment.BottomStart) {
             BasicText(details.title, style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = 1)
         }

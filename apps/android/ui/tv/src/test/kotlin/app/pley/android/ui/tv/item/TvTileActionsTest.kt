@@ -1,5 +1,7 @@
 package app.pley.android.ui.tv.item
 
+import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
@@ -127,6 +129,34 @@ class TvTileActionsTest {
         back()
         waitUntil { !exists(hasTestTag(TV_TILE_ACTIONS)) }
         assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
+    }
+
+    @Test
+    fun okHeldOpensTheActionsAndItsRepeatsAndReleaseChooseNothing() {
+        home(reduced = false)
+        // OK held a second, as a remote holds it: down, the actions at the long press, then the
+        // key's repeats every 50 ms from half a second, and up, over them.
+        compose.mainClock.autoAdvance = false
+        val down = SystemClock.uptimeMillis()
+        fun key(action: Int, repeat: Int, at: Long) = compose.runOnUiThread {
+            compose.activity.dispatchKeyEvent(KeyEvent(down, down + at, action, KeyEvent.KEYCODE_DPAD_CENTER, repeat))
+        }
+        key(KeyEvent.ACTION_DOWN, 0, 0)
+        var at = 0L
+        var repeat = 0
+        while (at < 1_000) {
+            frame()
+            at += 16
+            if (at >= 500 && (at - 500) / 50 >= repeat) key(KeyEvent.ACTION_DOWN, ++repeat, at)
+        }
+        key(KeyEvent.ACTION_UP, 0, at)
+        compose.mainClock.autoAdvance = true
+        waitUntil { exists(panel and isFocused()) }
+        compose.waitForIdle()
+        // Still open, on its first action, and nothing chosen.
+        assertTrue(exists(panel and isFocused() and hasText("Resume")))
+        assertTrue(sources.watched.isEmpty())
+        compose.onNodeWithTag(TestTags.HOME_ROWS).assertExists()
     }
 
     private fun frame() {
