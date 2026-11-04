@@ -526,8 +526,22 @@ end function
 ' Select to try again.") and else only says so ("TMDB refused this
 ' server's key.").
 function reqSearchProblemTile(answer as object, manage as boolean) as object
+    return reqProblemTile(answer, manage, "Couldn't load these.")
+end function
+
+' The tile that ends a grid of TMDB's titles whose next page failed
+' (answer): Select asks for it again ("Couldn't load more. Select to try
+' again."), unless trying again can't help ("TMDB refused this server's
+' key.").
+function reqMoreProblemTile(answer as object, manage as boolean) as object
+    return reqProblemTile(answer, manage, "Couldn't load more.")
+end function
+
+' What stops TMDB's titles (answer) as a tile, which asks again where that
+' may help; failed says any other failure.
+function reqProblemTile(answer as object, manage as boolean, failed as string) as object
     problem = reqProblem(answer, manage)
-    if problem = invalid then return reqNoticeTile("Couldn't load these. Select to try again.", "retry")
+    if problem = invalid then return reqNoticeTile(failed + " Select to try again.", "retry")
     if problem.retry then return reqNoticeTile(problem.title + ". Select to try again.", "retry")
     return reqNoticeTile(problem.title + ".", "note")
 end function

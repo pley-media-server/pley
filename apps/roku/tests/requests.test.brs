@@ -209,6 +209,19 @@ sub test_requests_grids_load_five_pages_until_the_focus_moves()
     tkInvalid(navForTile(further), "the grid asks for more itself")
 end sub
 
+' A grid's later page that fails ends it in a tile saying so, which asks
+' again where that may help.
+sub test_requests_a_grid_s_failed_page_offers_retry()
+    away = reqMoreProblemTile({ status: 0, error: "network", message: "" }, false)
+    tkEqual(away.title, "Couldn't load more. Select to try again.")
+    tkEqual(away.kind, "retry")
+    tkInvalid(navForTile(away), "the grid asks again itself")
+    tkEqual(reqMoreProblemTile({ status: 503, error: "tmdb_down" }, false).title, "TMDB isn't answering. Select to try again.")
+    key = reqMoreProblemTile({ status: 503, error: "tmdb_key" }, false)
+    tkEqual(key.title, "TMDB refused this server's key.")
+    tkEqual(key.kind, "note")
+end sub
+
 sub test_requests_badges_come_from_the_title()
     library = reqTestDetail({ status: "library", item_id: 12 })
     tkEqual(reqTitleNote("movie:27205", { ok: true, status: 200, data: library }), { key: "movie:27205", status: "library", libraryId: 12 })

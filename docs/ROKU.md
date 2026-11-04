@@ -347,7 +347,8 @@ its number counts what waits: a manager's pending and failed requests
   cinemas, Popular anime, each loaded as it comes into view and ending with
   See all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
-  more); then Your requests, from the first one asked for. At the top,
+  more, and after a page that failed, a tile says so, Select asking for
+  it again); then Your requests, from the first one asked for. At the top,
   the way to the requests, with the menu's number of what waits there.
   TMDB is searched from Search.
 - **A TMDB title's page:** backdrop and poster, year, runtime or seasons,
