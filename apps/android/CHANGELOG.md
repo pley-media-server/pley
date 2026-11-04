@@ -30,6 +30,9 @@ describes how they are made.
 
 - Search no longer closes the app when a recent search is "discover" or
   "header" on a phone, or "pley.clear" on a TV.
+- On Android TV and Fire TV, OK held on a tile opens its actions and leaves
+  them open: the key, still held as they came, went on to choose the first
+  of them (Resume or Play) as it came up.
 
 ## [0.1.5] - 2026-11-03
 
