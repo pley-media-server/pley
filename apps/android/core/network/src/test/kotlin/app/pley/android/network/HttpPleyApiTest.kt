@@ -24,6 +24,8 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.Control
 import app.pley.android.model.PlaylistPatch
 import app.pley.android.model.PleyJson
 import app.pley.android.model.ProgressReport
@@ -174,6 +176,20 @@ class HttpPleyApiTest {
                 body = PleyJson.encodeToString(PlaybackRequest.serializer(), playback.copy(keepPrevious = true)),
             ) { startPlayback(playback.copy(keepPrevious = true)) },
             Golden("playbackStatus", json("playback/status_transcode.json"), "GET /api/playback/6f1c2a9e") { playbackStatus("6f1c2a9e") },
+            Golden("playingSessions", json("sessions/list.json"), "GET /api/sessions") { playingSessions() },
+            Golden(
+                "sendCommand",
+                MockPley.noContent(),
+                "POST /api/sessions/6f1c2a9e/command",
+                body = """{"command":"seek","position_ms":600000}""",
+            ) { sendCommand("6f1c2a9e", request("sessions/command_request.json")) },
+            Golden(
+                "sendCommand (no value)",
+                MockPley.noContent(),
+                "POST /api/sessions/6f1c2a9e/command",
+                body = """{"command":"pause"}""",
+            ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Pause)) },
+            Golden("stopSession", MockPley.noContent(), "DELETE /api/sessions/6f1c2a9e") { stopSession("6f1c2a9e") },
             Golden("stopPlayback", MockPley.noContent(), "DELETE /api/playback/6f1c2a9e") { stopPlayback("6f1c2a9e") },
             Golden("playbackNetwork", jsonAnswer(NETWORK), "GET /api/playback/network?client_id=android-1") { playbackNetwork("android-1") },
             Golden(
@@ -425,6 +441,7 @@ class HttpPleyApiTest {
             "playback/progress_request.json" to ProgressReport.serializer(),
             "playback/streams_request.json" to StreamChoice.serializer(),
             "playback/rating_request.json" to RatingRequest.serializer(),
+            "sessions/command_request.json" to PlayerCommandRequest.serializer(),
             "playlists/add_items_request.json" to ItemIds.serializer(),
             "playlists/order_request.json" to EntryIds.serializer(),
         )) {

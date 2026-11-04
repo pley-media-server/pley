@@ -70,9 +70,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - picture in picture by itself when leaving while it plays (Android 12
  *   and later; Home on older ones), growing from the video, with play and
  *   pause; never while paused;
- * - leaving otherwise pauses, reports and lets go of the decoders; back
- *   within 90 s it carries on with the same server session, later with a
- *   new one at the same place.
+ * - leaving otherwise pauses, reports and lets go of the decoders, and
+ *   the remote isn't obeyed meanwhile; back within 90 s it carries on with
+ *   the same server session, later with a new one at the same place.
  */
 class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     private lateinit var services: PlaybackServices
@@ -236,6 +236,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             // Within 90 s: the same session, at the same place, still paused.
             controller.value?.engine?.player?.prepare()
         }
+        controller.value?.setAway(false)
         decodersReleased = false
         attachEngine()
         immersive()
@@ -250,6 +251,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         // picture in picture (onPictureInPictureModeChanged).
         val c = controller.value ?: return
         c.pause()
+        c.setAway(true)
         // Lets go of the decoders and the buffers; the session stays for 90 s.
         c.engine?.player?.let {
             it.stop()

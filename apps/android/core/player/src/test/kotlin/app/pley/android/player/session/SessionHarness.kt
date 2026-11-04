@@ -157,6 +157,10 @@ class SessionHarness(
     val events: Flow<ServerEvent> = emptyFlow(),
     /** Subtitle offsets, shared by the playbacks of this harness. */
     val offsets: SubtitleOffsets = SubtitleOffsets.memory(),
+    /** Told whether a playback has a session on the server (LiveUpdates.playing). */
+    val playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
+    /** Told which session a playback plays (RemoteRepository.here). */
+    val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
 ) : AutoCloseable {
     /** The profile watching the playbacks started from now on. */
     var profileId: Long? = null
@@ -215,6 +219,8 @@ class SessionHarness(
         work = dispatcher,
         pictures = pictures,
         events = events,
+        playing = playing,
+        here = here,
         local = local,
         offsets = offsets,
         profileId = profileId,

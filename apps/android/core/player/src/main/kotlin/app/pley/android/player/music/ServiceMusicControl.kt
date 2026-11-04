@@ -149,6 +149,8 @@ class ServiceMusicControl(
                     }
                 },
                 events = data.liveUpdates.events,
+                playing = data.liveUpdates::playing,
+                here = data.remote::here,
             )
             val playback = MusicPlayback(env, main)
             MusicHub.playback = playback

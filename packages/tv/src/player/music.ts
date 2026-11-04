@@ -6,6 +6,7 @@ import { NetworkError } from "../net/transport";
 import type { AppState } from "../state";
 import { SLEEP_CHOICES, SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { emptyCaps } from "./plan";
+import { MUSIC_CONTROLS, remoteAction, restartsTrack, type PlayerCommand } from "./remote";
 
 /** What the music player is doing, for the pages that show it. */
 export interface NowPlaying {
@@ -24,8 +25,6 @@ export interface NowPlaying {
 const REPORT_MS = 10_000;
 /** While paused: the server forgets players it hasn't heard from for 90 s, and their addresses with them. */
 const PAUSED_REPORT_MS = 30_000;
-/** "Previous" past this restarts the track. */
-const RESTART_MS = 3_000;
 /** New sessions for a track that keeps failing. */
 const MAX_RETRIES = 3;
 
@@ -141,7 +140,7 @@ export class MusicPlayer {
   }
 
   previous(): void {
-    if (this.audio.currentTime * 1000 > RESTART_MS || this.index === 0) {
+    if (restartsTrack(this.audio.currentTime * 1000, this.index)) {
       this.seekTo(0);
       return;
     }
@@ -157,9 +156,16 @@ export class MusicPlayer {
     void this.start(0, null);
   }
 
-  seekTo(ms: number): void {
-    if (this.session?.method === "direct" || this.audio.seekable.length) this.audio.currentTime = Math.max(0, ms) / 1000;
-    else void this.start(ms, null);
+  /** Whether it moved within the session playing; else a new session starts there. */
+  seekTo(ms: number): boolean {
+    if (this.session?.method === "direct" || this.audio.seekable.length) {
+      this.audio.currentTime = Math.max(0, ms) / 1000;
+      return true;
+    }
+    // The track's session ends first, as for the next track: a pause while the new one loads has nothing to pause.
+    this.endSession();
+    void this.start(ms, null);
+    return false;
   }
 
   setShuffle(on: boolean): void {
@@ -247,6 +253,7 @@ export class MusicPlayer {
         mode: mode ?? "auto",
         client_id: `${this.app.installId()}-music`,
         keyed_urls: true,
+        controls: MUSIC_CONTROLS,
         caps: probe?.caps ?? emptyCaps(),
       });
       if (mine !== this.generation) {
@@ -368,6 +375,55 @@ export class MusicPlayer {
     this.reportTimer = null;
   }
 
+  /**
+   * A command of the user's remote, on another device, for the track
+   * playing (remote.ts has the rule), as the buttons here do it: what
+   * changed is reported at once, so the remote sees it. A pause reports as
+   * any pause does, another track with its own session; a play or pause
+   * that finds it so already says it again.
+   */
+  obey(command: PlayerCommand): void {
+    const s = this.session;
+    const now = this.now.value;
+    if (!s || !now || now.error || now.ended) return;
+    const action = remoteAction(
+      {
+        kind: "music",
+        session: s.session_id,
+        playing: !this.audio.paused,
+        positionMs: this.audio.currentTime * 1000,
+        durationMs: this.durationMs() || null,
+        hasNext: this.index + 1 < this.order.length,
+        index: this.index,
+      },
+      command,
+    );
+    switch (action.act) {
+      case "play":
+        void this.audio.play().then(
+          () => this.session === s && this.report("playing"),
+          () => undefined,
+        );
+        break;
+      case "pause":
+        this.audio.pause();
+        break;
+      case "none":
+        // Playing or paused already: said again, so a remote a little behind settles.
+        if (action.report) this.report(this.audio.paused ? "paused" : "playing");
+        break;
+      case "seek":
+        if (this.seekTo(action.positionMs)) this.report(this.audio.paused ? "paused" : "playing");
+        break;
+      case "next":
+        this.next();
+        break;
+      case "previous":
+        this.previous();
+        break;
+    }
+  }
+
   /** The server stopped this session (session_stopped). */
   stoppedByServer(session: string): void {
     if (this.session?.session_id !== session) return;
@@ -393,6 +449,7 @@ export function initMusic(app: AppState): MusicPlayer {
     player = new MusicPlayer(app);
     app.onEvent((e) => {
       if (e.type === "session_stopped") player?.stoppedByServer(e.session_id);
+      else if (e.type === "player_command") player?.obey(e);
     });
   }
   return player;

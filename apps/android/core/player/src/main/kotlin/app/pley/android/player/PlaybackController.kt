@@ -29,6 +29,14 @@ interface PlaybackController {
 
     fun pause()
 
+    /**
+     * The screen was stopped ([away]), its playback paused with the engine
+     * stopped and its session kept a while, or it shows again: meanwhile
+     * the remote's commands are left alone, as nothing would show or be
+     * heard of them here.
+     */
+    fun setAway(away: Boolean) {}
+
     fun seekTo(positionMs: Long)
 
     /** Another audio track by the server's stream index; remembered for the item. */

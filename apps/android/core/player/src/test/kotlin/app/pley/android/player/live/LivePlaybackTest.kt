@@ -7,8 +7,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
+import androidx.test.core.app.ApplicationProvider
 import app.pley.android.caps.CapsSnapshot
 import app.pley.android.model.BusyConnection
+import app.pley.android.model.Control
 import app.pley.android.model.LivePlan
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.caps.ClientCaps
@@ -43,7 +45,21 @@ class LivePlaybackTest {
     private val live = FakeLiveTv()
     private val engines = mutableListOf<FakePlayerEngine>()
     private val events = MutableSharedFlow<ServerEvent>(extraBufferCapacity = 8)
-    private val playback = LivePlayback(live, { FakePlayerEngine().also { engines += it } }, { "android-1" }, scope, events = events)
+    /** What the playback told the app of its session, in order (LiveUpdates.playing). */
+    private val held = mutableListOf<Boolean>()
+
+    /** The sessions it said it watches, in order (RemoteRepository.here). */
+    private val here = mutableListOf<String?>()
+    private val playback = LivePlayback(
+        live,
+        { FakePlayerEngine().also { engines += it } },
+        { "android-1" },
+        scope,
+        events = events,
+        playing = { _, playing -> held += playing },
+        here = { _, id -> here += id },
+        stoppedText = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext()),
+    )
 
     @After
     fun close() {
@@ -119,7 +135,7 @@ class LivePlaybackTest {
     @Test
     fun `sound the server converts plays from stream ts where this device decodes it or sends it on as it is`() {
         var caps: CapsSnapshot? = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "ac3")), emptyList())
-        val playback = LivePlayback(live, { FakePlayerEngine().also { engines += it } }, { "android-1" }, scope) { caps }
+        val playback = LivePlayback(live, { FakePlayerEngine().also { engines += it } }, { "android-1" }, scope, caps = { caps })
         live.plan = Fixtures.decode<LivePlan>("live/plan.json").copy(audio = "aac", audioCodec = "ac3", audioChannels = 6)
         playback.tune(1)
         settle()
@@ -454,6 +470,79 @@ class LivePlaybackTest {
         settle()
         assertEquals(2, live.sent.count { it.startsWith("watch 1") })
         assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
+    fun `stopped from elsewhere, it stops and says who and why`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        events.tryEmit(ServerEvent.SessionStopped("someone-else", "Bye", byAdmin = true))
+        settle()
+        assertEquals(LivePhase.Playing, playback.state.value.phase)
+
+        events.tryEmit(ServerEvent.SessionStopped("live-1", "Server maintenance", byAdmin = true))
+        settle()
+        val trouble = (playback.state.value.phase as LivePhase.Failed).trouble
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, "Live TV was stopped by the server's administrator.\nServer maintenance"), trouble)
+        assertTrue(trouble.canRetry)
+        // Gone at the server already: nothing is let go, and nothing tunes it again by itself.
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        val texts = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext())
+        assertEquals("Live TV was stopped from another device.", texts(null, false))
+    }
+
+    @Test
+    fun `the remote's next and previous change channel, where the player goes through channels`() {
+        val zaps = mutableListOf<Int>()
+        playback.zap = { by -> zaps += by }
+        playback.tune(1)
+        settle()
+        assertEquals(listOf(listOf(Control.Next, Control.Previous)), live.watchedControls)
+        events.tryEmit(ServerEvent.PlayerCommand("live-1", Control.Next))
+        events.tryEmit(ServerEvent.PlayerCommand("live-1", Control.Previous))
+        // No pausing or going back on Live TV, and another session's are someone else's.
+        events.tryEmit(ServerEvent.PlayerCommand("live-1", Control.Pause))
+        events.tryEmit(ServerEvent.PlayerCommand("someone-else", Control.Next))
+        settle()
+        assertEquals(listOf(1, -1), zaps)
+    }
+
+    @Test
+    fun `without channels to go through, it declares and obeys nothing`() {
+        playback.tune(1)
+        settle()
+        assertEquals(listOf(emptyList<Control>()), live.watchedControls)
+        events.tryEmit(ServerEvent.PlayerCommand("live-1", Control.Next))
+        settle()
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+    }
+
+    @Test
+    fun `the event stream is held while a session is`() {
+        playback.tune(1)
+        settle()
+        assertEquals(true, held.last())
+        playback.stop()
+        settle()
+        assertEquals(false, held.last())
+        playback.resume()
+        settle()
+        assertEquals(true, held.last())
+        playback.close()
+        assertEquals(false, held.last())
+    }
+
+    @Test
+    fun `the remote is told which session watches here`() {
+        playback.tune(1)
+        settle()
+        assertEquals("live-1", here.last())
+        playback.stop()
+        settle()
+        assertNull(here.last())
+        playback.close()
     }
 
     @Test

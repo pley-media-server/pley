@@ -17,7 +17,8 @@ data class ScanState(
 /**
  * Keeps what the screens show in step with the server while the app is in
  * the foreground and signed in: a changed library refreshes what shows it,
- * and coming back refreshes what is old.
+ * and coming back refreshes what is old. While something plays, the
+ * stream stays open in the background too, for the remote's commands.
  */
 interface LiveUpdates {
     /**
@@ -29,11 +30,21 @@ interface LiveUpdates {
     /**
      * Starts following the server, once, after the first frame: from then
      * on the event stream is open whenever the app is in the foreground and
-     * signed in, and closed otherwise. Calling it again does nothing. A
-     * stream that comes back after failing (a server that wasn't listening
-     * yet) asks again for what failed.
+     * signed in, or signed in while something plays ([playing]), and closed
+     * otherwise. Calling it again does nothing. A stream that comes back
+     * after failing (a server that wasn't listening yet) asks again for
+     * what failed.
      */
     fun start() {}
+
+    /**
+     * Whether [player] has a session on the server now: while any has, the
+     * event stream stays open in the background too, so the profile's
+     * remote reaches it (a phone playing music with its screen off) and
+     * the server's stop does. A player says false once it lets its session
+     * go, and when it closes; saying the same twice changes nothing.
+     */
+    fun playing(player: Any, playing: Boolean) {}
 
     /**
      * Every event heard, as it comes, while the stream is open (the player
@@ -49,7 +60,8 @@ interface LiveUpdates {
 
     /**
      * The event stream is open and connected now: false while it is closed
-     * (in the background, signed out, refused) or lost and trying again.
+     * (in the background with nothing playing, signed out, refused) or lost
+     * and trying again.
      * What can't wait for events polls while it is false.
      */
     val streaming: StateFlow<Boolean> get() = NotStreaming

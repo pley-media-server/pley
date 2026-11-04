@@ -1,5 +1,6 @@
 import { signal } from "@preact/signals";
 import type { LiveChannel, LiveChannelPage } from "../api/types";
+import { channelStep } from "../player/remote";
 import { browseQuery, CHANNEL_PAGE, type LiveCategory } from "./data";
 
 /** What the pages need of the server (the Api; tests give their own). */
@@ -114,9 +115,8 @@ export class ChannelPages {
    */
   async neighbor(id: number, by: number): Promise<LiveChannel | null> {
     const at = await this.indexOf(id);
-    const total = this.total.value;
-    if (!total) return null;
-    const j = at === null ? 0 : (((at + by) % total) + total) % total;
+    const j = channelStep(at, by, this.total.value ?? 0);
+    if (j === null) return null;
     if (!this.at(j)) await this.load(Math.floor(j / CHANNEL_PAGE));
     return this.at(j) ?? null;
   }

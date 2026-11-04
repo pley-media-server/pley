@@ -61,8 +61,12 @@ public interface ILiveServer
     /// <summary>An absolute address on the server for <paramref name="path"/>.</summary>
     string Url(string path);
 
-    /// <summary>Starts watching <paramref name="channelId"/> with a keyed playlist address; <paramref name="takeOver"/>, the connection to take.</summary>
-    Task<LiveWatching> Watch(long channelId, long? takeOver, CancellationToken cancel);
+    /// <summary>
+    /// Starts watching <paramref name="channelId"/> with a keyed playlist address;
+    /// <paramref name="takeOver"/>, the connection to take; <paramref name="controls"/>, what the
+    /// player obeys from the remote.
+    /// </summary>
+    Task<LiveWatching> Watch(long channelId, long? takeOver, IReadOnlyList<string> controls, CancellationToken cancel);
 
     /// <summary>Asks for the playlist at <paramref name="url"/> as the player will, waiting for its first segments.</summary>
     Task Prefetch(string url, int timeoutMs, CancellationToken cancel);
@@ -87,10 +91,11 @@ public interface ILiveServer
     void Leave(string session);
 
     /// <summary>
-    /// Calls <paramref name="taken"/> with the channel and the server's words each time someone
-    /// takes over a channel's connection from this profile (the server's <c>live_taken_over</c>).
+    /// Calls <paramref name="listener"/> with the server's events: someone taking over a channel's
+    /// connection from this profile (<c>live_taken_over</c>), a session stopped from elsewhere
+    /// (<c>session_stopped</c>), and the profile's remote (<c>player_command</c>).
     /// </summary>
-    IDisposable OnTakenOver(Action<long, string?> taken);
+    IDisposable OnEvent(Action<ServerEvent> listener);
 }
 
 /// <summary>Live TV's source in the app: <see cref="AppState"/> and its API.</summary>
@@ -135,7 +140,8 @@ public sealed class AppLiveSource : ILiveSource, ILiveServer
 
     public Task SetFavorite(long channelId, bool favorite) => Api.SetFavoriteChannel(channelId, favorite);
 
-    public Task<LiveWatching> Watch(long channelId, long? takeOver, CancellationToken cancel) => Api.WatchChannel(channelId, ClientId, takeOver, cancel);
+    public Task<LiveWatching> Watch(long channelId, long? takeOver, IReadOnlyList<string> controls, CancellationToken cancel) =>
+        Api.WatchChannel(channelId, ClientId, takeOver, controls, cancel);
 
     public Task Prefetch(string url, int timeoutMs, CancellationToken cancel) => Api.Media(url, timeoutMs, cancel);
 
@@ -148,7 +154,7 @@ public sealed class AppLiveSource : ILiveSource, ILiveServer
     {
         var api = app.Api.Value;
         if (api == null) return null;
-        var path = $"/api/live/channels/{channelId}/stream.ts?client_id={Uri.EscapeDataString(clientId)}";
+        var path = Core.Api.Api.LiveStreamPath(channelId, clientId);
         try
         {
             return relay.Serve(cancel => api.Open(path, cancel));
@@ -182,10 +188,7 @@ public sealed class AppLiveSource : ILiveSource, ILiveServer
         _ = Quietly(api.LeaveChannel(session));
     }
 
-    public IDisposable OnTakenOver(Action<long, string?> taken) => app.OnEvent(e =>
-    {
-        if (e.Type == "live_taken_over" && e.ChannelId is { } channel) taken(channel, e.Message);
-    });
+    public IDisposable OnEvent(Action<ServerEvent> listener) => app.OnEvent(listener);
 
     static async Task Quietly(Task task)
     {

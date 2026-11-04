@@ -42,6 +42,24 @@ class ServerEventTest {
     }
 
     @Test
+    fun playerCommandsRead() {
+        assertEquals(
+            ServerEvent.PlayerCommand("s1", Control.Seek, positionMs = 600_000, offsetMs = null),
+            ServerEvent.parse("""{"type":"player_command","session_id":"s1","command":"seek","position_ms":600000,"offset_ms":null}"""),
+        )
+        assertEquals(
+            ServerEvent.PlayerCommand("s1", Control.Skip, positionMs = null, offsetMs = -10_000),
+            ServerEvent.parse("""{"type":"player_command","session_id":"s1","command":"skip","position_ms":null,"offset_ms":-10000}"""),
+        )
+        assertEquals(ServerEvent.PlayerCommand("s2", Control.Previous), ServerEvent.parse("""{"type":"player_command","session_id":"s2","command":"previous"}"""))
+        // A command a newer server adds is read, and no player acts on it.
+        assertEquals(ServerEvent.PlayerCommand("s2", Control.Unknown), ServerEvent.parse("""{"type":"player_command","session_id":"s2","command":"shuffle"}"""))
+        val pause = ServerEvent.PlayerCommand("s3", Control.Pause)
+        assertEquals("""{"type":"player_command","session_id":"s3","command":"pause"}""", PleyJson.encodeToString(ServerEvent.serializer(), pause))
+        assertEquals(pause, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), pause)))
+    }
+
+    @Test
     fun requestEventsRead() {
         assertEquals(
             ServerEvent.RequestsChanged(42, TitleKind.Show, 1396),

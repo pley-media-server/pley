@@ -2,6 +2,7 @@ package app.pley.android.testing.data
 
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.data.Loadable
+import app.pley.android.model.Control
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveChannelPage
@@ -38,6 +39,9 @@ class FakeLiveTv : LiveTvRepository {
     val recent = MutableStateFlow(listOf(2L, 1L))
     val guides = HashMap<Long, MutableStateFlow<Loadable<LiveGuide>>>()
     val sent = mutableListOf<String>()
+
+    /** What each watch said the player obeys from the remote, in order. */
+    val watchedControls = mutableListOf<List<Control>>()
 
     /** Watching fails with this until set back to `null`. */
     var watchFails: Exception? = null
@@ -120,8 +124,9 @@ class FakeLiveTv : LiveTvRepository {
         lineup.value = lineup.value.map { if (it.id == channelId) it.copy(favorite = favorite) else it }
     }
 
-    override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?): LiveWatching {
+    override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?, controls: List<Control>): LiveWatching {
         sent += "watch $channelId $clientId" + (takeOver?.let { " taking $it" } ?: "")
+        watchedControls += listOf(controls)
         if (watchTakesMs > 0) delay(watchTakesMs)
         watchFails?.let { throw it }
         return LiveWatching("live-$channelId", "http://127.0.0.1:7539/api/live/sessions/live-$channelId/index.m3u8")

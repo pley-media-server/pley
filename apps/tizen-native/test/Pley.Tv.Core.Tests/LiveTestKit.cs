@@ -93,12 +93,30 @@ sealed class FakeLive : ILiveSource, ILiveServer
         return Task.FromResult(new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() });
     }
 
+    /// <summary>The pages around a channel wait for <see cref="AnswerAround"/>: a channel step's neighbour found late.</summary>
+    public bool HoldAround { get; set; }
+    readonly List<(LiveChannelPage Page, TaskCompletionSource<LiveChannelPage> Answer)> heldAround = new List<(LiveChannelPage, TaskCompletionSource<LiveChannelPage>)>();
+
     public Task<LiveChannelPage> Around(LiveCategory category, long channelId)
     {
         var all = Of(category, "");
         var at = all.Select((c, i) => (c, i)).FirstOrDefault(x => x.c.Id == channelId);
         var page = at.c == null ? 0 : at.i / LiveRules.Page;
-        return Task.FromResult(new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() });
+        var answer = new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() };
+        if (!HoldAround) return Task.FromResult(answer);
+        var held = new TaskCompletionSource<LiveChannelPage>();
+        heldAround.Add((answer, held));
+        return held.Task;
+    }
+
+    public void AnswerAround()
+    {
+        HoldAround = false;
+        foreach (var (page, answer) in heldAround.ToList())
+        {
+            heldAround.Remove((page, answer));
+            answer.SetResult(page);
+        }
     }
 
     public Task<LiveChannel> Channel(long channelId) => Task.FromResult(Lineup.First(c => c.Id == channelId));
@@ -152,8 +170,12 @@ sealed class FakeLive : ILiveSource, ILiveServer
         foreach (var l in listeners.ToList()) l();
     }
 
-    public Task<LiveWatching> Watch(long channelId, long? takeOver, CancellationToken cancel)
+    /// <summary>What each watch said the player obeys from the remote, in order.</summary>
+    public List<IReadOnlyList<string>> Controls { get; } = new List<IReadOnlyList<string>>();
+
+    public Task<LiveWatching> Watch(long channelId, long? takeOver, IReadOnlyList<string> controls, CancellationToken cancel)
     {
+        Controls.Add(controls);
         Sent.Add(takeOver == null ? $"watch {channelId} {ClientId}" : $"watch {channelId} {ClientId} take {takeOver}");
         if (WatchFailure != null) return Task.FromException<LiveWatching>(WatchFailure);
         return Task.FromResult(new LiveWatching { SessionId = $"s{++sessions}", Url = WatchUrl(channelId) });
@@ -196,22 +218,25 @@ sealed class FakeLive : ILiveSource, ILiveServer
 
     public void Leave(string session) => Left.Add(session);
 
-    readonly List<Action<long, string?>> takers = new List<Action<long, string?>>();
+    readonly List<Action<ServerEvent>> hearers = new List<Action<ServerEvent>>();
 
-    public IDisposable OnTakenOver(Action<long, string?> taken)
+    public IDisposable OnEvent(Action<ServerEvent> listener)
     {
-        takers.Add(taken);
-        return new Unlisten(() => takers.Remove(taken));
+        hearers.Add(listener);
+        return new Unlisten(() => hearers.Remove(listener));
+    }
+
+    /// <summary>One of the server's events, to every player listening.</summary>
+    public void Emit(ServerEvent e)
+    {
+        foreach (var h in hearers.ToList()) h(e);
     }
 
     /// <summary>The server's <c>live_taken_over</c>: someone took over <paramref name="channelId"/>'s connection.</summary>
-    public void TakeOver(long channelId, string? message)
-    {
-        foreach (var t in takers.ToList()) t(channelId, message);
-    }
+    public void TakeOver(long channelId, string? message) => Emit(new ServerEvent { Type = "live_taken_over", ChannelId = channelId, Message = message });
 
-    /// <summary>The players listening for a take-over.</summary>
-    public int TakeOverListeners => takers.Count;
+    /// <summary>The players listening for the server's events (a take-over among them).</summary>
+    public int TakeOverListeners => hearers.Count;
 
     public string LastWatch => Sent.Last(s => s.StartsWith("watch", StringComparison.Ordinal));
 

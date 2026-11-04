@@ -28,6 +28,9 @@ namespace Pley.Tv.Core.Player;
 /// /api/items/{id}/streams, the audio only when picked.</item>
 /// <item><b>Markers, Up Next, the sleep timer, speed</b>, and a session the server stopped: it says
 /// so and plays no more.</item>
+/// <item><b>The remote</b>, on another of the profile's devices (docs/API.md, "Remote control"):
+/// play, pause, seek and skip, and next when something can come next, as Android's; each
+/// reported at once (<see cref="Obey"/>).</item>
 /// </list>
 /// Automatic plays the original: the steps down and up of the Android app's AutoQuality aren't
 /// ported, and a slow server is offered a lower quality instead. The UI thread only; the engine's
@@ -207,7 +210,9 @@ public sealed class PlayerModel : IDisposable
         ArmTick();
         unsubscribe = source.OnEvent(e =>
         {
-            if (e.Type == "session_stopped" && info != null && e.SessionId == info.SessionId) StopByServer(e.Message, e.ByAdmin ?? true);
+            if (info == null || e.SessionId != info.SessionId) return;
+            if (e.Type == "session_stopped") StopByServer(e.Message, e.ByAdmin ?? true);
+            else if (e.Type == "player_command") Obey(e);
         });
         _ = PrepareFirst();
     }
@@ -421,7 +426,8 @@ public sealed class PlayerModel : IDisposable
     }
 
     Dictionary<string, object?> Body(long itemId, PlaybackPlan.Choices choices) =>
-        PlayRequests.Body(itemId, choices, source.ClientId, report ?? new Dictionary<string, object?>(), caps);
+        PlayRequests.Body(itemId, choices, source.ClientId, report ?? new Dictionary<string, object?>(), caps,
+            controls: Remote.VideoControls(item != null && NextUp.HasNext(item.Kind, current.Queue)));
 
     /// <summary>Keyed playback addresses live under /api/media/ (docs/API.md, "Keyed URLs").</summary>
     internal static bool IsKeyed(string url)
@@ -869,12 +875,13 @@ public sealed class PlayerModel : IDisposable
         progressTimer = null;
     }
 
-    void Report(string state)
+    /// <summary>Reports <paramref name="state"/> where the video is, or at <paramref name="atMs"/>: a seek the engine may not have caught up with.</summary>
+    void Report(string state, long? atMs = null)
     {
         var s = info;
         if (s == null || sessionEnded) return;
         var itemId = item?.Id ?? current.ItemId;
-        var position = Math.Max(0, LivePositionMs());
+        var position = Math.Max(0, atMs ?? LivePositionMs());
         var duration = s.DurationMs > 0 ? s.DurationMs : (long?)null;
         reporter.Send(() => source.Progress(itemId, position, duration, state, s.SessionId));
     }
@@ -924,6 +931,51 @@ public sealed class PlayerModel : IDisposable
         sleep.Cancel();
         engine?.Stop();
         Update(st => st with { Phase = PlayerPhase.Error(SessionText.Stopped(message, byAdmin), canRetry: false, PlayerText.StoppedTitle), SkipLabel = null, StoppedByServer = true });
+    }
+
+    // ---------------------------------------------------------------- the remote
+
+    /// <summary>
+    /// A command of the profile's remote for the session playing, as Android's player obeys it
+    /// (<see cref="Remote.Action"/>): a seek stays within the title, a skip goes from where it is
+    /// now, next plays what comes next (nothing at the end, and nothing said here), and a video
+    /// has no previous. What changed is reported at once, so the remote sees it: a pause reports
+    /// by itself, and a new item with its new session; a play or pause that finds it so already
+    /// says it again.
+    /// </summary>
+    void Obey(ServerEvent command)
+    {
+        var s = info;
+        if (closed || stopped || s == null || sessionEnded || State.Value.Phase.Kind == PhaseKind.Error) return;
+        var duration = Clock.Value.DurationMs;
+        var player = new RemotePlayer(RemoteKind.Video, s.SessionId, wantPlay, LivePositionMs(), duration > 0 ? duration : null,
+            item != null && NextUp.HasNext(item.Kind, current.Queue));
+        var action = Remote.Action(player, command);
+        switch (action.Act)
+        {
+            case RemoteAct.Play:
+                Play();
+                Report("playing");
+                break;
+            case RemoteAct.Pause:
+                Pause();
+                break;
+            case RemoteAct.None:
+                // Playing or paused already: said again, so a remote a little behind settles.
+                if (action.Report) Report(wantPlay ? "playing" : "paused");
+                break;
+            case RemoteAct.Seek:
+                SeekTo(action.PositionMs);
+                // Seeking past the end starts a new session, which reports itself.
+                if (ended || info == null || sessionEnded) return;
+                seekReportTimer?.Dispose();
+                seekReportTimer = null;
+                Report(wantPlay ? "playing" : "paused", lastPositionMs);
+                break;
+            case RemoteAct.Next:
+                Advance(fromRemote: true);
+                break;
+        }
     }
 
     // ---------------------------------------------------------------- commands
@@ -1202,7 +1254,10 @@ public sealed class PlayerModel : IDisposable
     }
 
     /// <summary>What comes next, at once (Up Next's Play now, the Next button of an episode); says so when nothing does.</summary>
-    public void PlayNext()
+    public void PlayNext() => Advance(fromRemote: false);
+
+    /// <summary>What comes next plays; at the end, the screen says so, unless the remote asked (<paramref name="fromRemote"/>): whoever sent it is elsewhere.</summary>
+    void Advance(bool fromRemote)
     {
         if (closed || stopped) return;
         if (next != null)
@@ -1212,8 +1267,8 @@ public sealed class PlayerModel : IDisposable
         }
         LookUpNext(found =>
         {
-            if (found == null) Notice(current.Queue != null ? SessionText.LastInQueue : SessionText.LastEpisode);
-            else SwitchTo(found);
+            if (found != null) SwitchTo(found);
+            else if (!fromRemote) Notice(current.Queue != null ? SessionText.LastInQueue : SessionText.LastEpisode);
         });
     }
 
