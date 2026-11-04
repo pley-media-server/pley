@@ -200,7 +200,7 @@ pub async fn start(
             });
         }
         let session = state.sessions.insert(session);
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
         let url = match &session.media_key {
             // Named for its container: some players go by the extension.
             Some(key) => format!("/api/media/{key}/file.{}", container_extension(file.container.as_deref())),
@@ -296,7 +296,7 @@ pub async fn start(
     session.controls = req.controls.clone();
     session.device = device;
     let session = state.sessions.insert_transcode(session, slot);
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     // Players that read multivariant playlists learn the codecs (Dolby
     // Vision, above all) before the first segment; one that moves between
     // sizes learns them there.
@@ -609,7 +609,7 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
             }
         });
     }
-    state.events.send(ServerEvent::SessionsChanged);
+    state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
 }
 
 /// The transcoder forgot the job (restart, expiry): create it again with the
@@ -882,7 +882,7 @@ pub async fn hls_file(
 /// `init.mp4`, `{n}.ts`, `{n}.m4s`) of a transcode session, for `user`.
 async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, file: &str) -> ApiResult<Response> {
     if session.touch() {
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     }
     if session.transcode.is_none() {
         return Err(AppError::not_found("not a transcode session"));
@@ -1036,7 +1036,7 @@ pub async fn keyed_media(
         return Err(AppError::not_found("unknown file"));
     }
     if session.touch() {
-        state.events.send(ServerEvent::SessionsChanged);
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     }
     let row = visible_file(&state, &user, session.file_id).await?;
     let mut response = serve_library_file(&row.path, request.method(), request.headers()).await?;

@@ -309,7 +309,8 @@ impl MarkerService {
             let mut events = this.events.subscribe();
             loop {
                 match events.recv().await {
-                    Ok(ServerEvent::SessionsChanged) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    Ok(ServerEvent::SessionsChanged { .. })
+                    | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                         if let Err(err) = this.watch_playing().await {
                             tracing::warn!("intro/credits detection of what plays: {err:#}");
                         }

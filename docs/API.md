@@ -3312,10 +3312,12 @@ they may open, with no `analysis` or `library_work`, and the counts 0; a
 session's `transcode.last_error` is "the conversion failed" for them.
 
 `/api/events`: each stream gets the events of the libraries its user may
-open, and the user's own events. A comment line keeps it alive every 15 s.
-The token is checked again every 30 s: the stream ends once it is signed
-out, expired or its account disabled, and the client connects again with a
-valid token. One token may keep 16 streams open; another answers `429`.
+open, and the user's own events; an administrator's gets everyone's
+`sessions_changed` too, for the dashboard. A comment line keeps it alive
+every 15 s. The token is checked again every 30 s: the stream ends once it
+is signed out, expired or its account disabled, and the client connects
+again with a valid token; one whose account became an administrator, or
+stopped being one, follows that. One token may keep 16 streams open; another answers `429`.
 
 ### Stopping a stream
 
@@ -3330,8 +3332,8 @@ already `204`. Its transcode and HLS end at once, and so does the
 - the user's event streams get `{ type: "session_stopped", session_id,
   message, by_admin }`. `message` is the one given (trimmed) or `null`;
   `by_admin` is true when an administrator stopped another user's session.
-  Only that user's streams get it; `sessions_changed` goes to everyone, as
-  when any session ends;
+  Only that user's streams get it; `sessions_changed` goes to that user's
+  and administrators' streams, as when any session ends;
 - for 30 minutes, the session's next requests answer `410`
   `{ code: "session_stopped", error: "session_stopped", message }`: its
   status, playlists and segments, and progress reports naming it (which
@@ -3368,8 +3370,12 @@ more.
   as `Playstate`.
 - **`GET /api/sessions`** lists the caller's own sessions whose players
   have been heard from in the last 90 seconds, an administrator's too
-  (everyone's are on `/api/activity`). A remote moves the place on from
-  `updated_at`, its last report, while a session plays.
+  (everyone's are on `/api/activity`). `age_ms` is how long ago its
+  player last reported, by the server's clock, as the answer was made:
+  while a session plays, a remote shows it at `position_ms` plus `age_ms`
+  plus the time since the answer came, by its own clock, so a device
+  whose clock is off still shows the right place. `updated_at` is when
+  that report was, in server time.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls` and
   `device_name` too. Its session is listed with `kind: "live"`, its
   `channel` and `item: null`, while its player is there (see Leaving,
@@ -3518,6 +3524,7 @@ interface PlayingSession {      // GET /api/sessions
   position_ms: number;          // live: 0
   duration_ms: number | null;   // null when the length isn't known, and on live
   updated_at: Timestamp;        // its player's last report (live: its last request for the channel)
+  age_ms: number;               // how long before the answer that was, by the server's clock
   controls: Control[];          // what its player obeys; Stop always works
 }
 
@@ -3559,7 +3566,8 @@ type ServerEvent =
                                                      // changed. To one user's streams only: their own order,
                                                      // or what they may see (is_admin, all_libraries,
                                                      // library_ids, max_age changed)
-  | { type: "sessions_changed" }
+  | { type: "sessions_changed" }                     // a session of the user's started, ended or changed (their
+                                                     // streams, and administrators', whose dashboard lists all)
   | { type: "watchlist_changed" }                    // the user's My List changed (their streams only)
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only

@@ -20,9 +20,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 
 use crate::catalog::FileRow;
-use crate::events::{EventBus, ServerEvent};
+use crate::events::EventBus;
 use crate::transcoder::Transcoder;
-use crate::util::now;
+use crate::util::{now, now_ms};
 
 /// What a player plays as it is, sent with every play request.
 ///
@@ -1625,21 +1625,21 @@ pub struct PlayState {
     pub state: String,
     /// Its player was last heard from: a report, or a request for media.
     pub updated_at: i64,
-    /// Its player's last progress report, which `position_ms` is as of;
-    /// none before the first. Requests for media move `updated_at` but not
-    /// the place, so where the player is by now counts from this.
+    /// Its player's last progress report (unix ms), which `position_ms` is
+    /// as of; none before the first. Requests for media move `updated_at`
+    /// but not the place, so where the player is by now counts from this.
+    /// In milliseconds: remotes move the place on from it, and whole
+    /// seconds would put them up to a second out.
     #[serde(skip)]
-    pub reported_at: Option<i64>,
+    pub reported_at_ms: Option<i64>,
 }
 
 impl PlayState {
     /// Where its player is by now: the last report's place, moved on since
-    /// at normal speed while it plays.
-    pub fn position_now(&self, now: i64) -> i64 {
-        match self.reported_at {
-            Some(at) if self.state == "playing" => {
-                self.position_ms.saturating_add((now - at).max(0).saturating_mul(1000))
-            }
+    /// at normal speed while it plays (`now_ms`: unix ms).
+    pub fn position_now(&self, now_ms: i64) -> i64 {
+        match self.reported_at_ms {
+            Some(at) if self.state == "playing" => self.position_ms.saturating_add((now_ms - at).max(0)),
             _ => self.position_ms,
         }
     }
@@ -1732,7 +1732,7 @@ impl Session {
                 position_ms: start_ms,
                 state: "playing".into(),
                 updated_at: now,
-                reported_at: None,
+                reported_at_ms: None,
             }),
             app_grant: None,
             compatibility_token: None,
@@ -1766,16 +1766,16 @@ impl Session {
     /// stopped) changed, the place jumped (a seek, a skip) or the session
     /// woke, which the dashboard and the user's remotes hear about at once.
     pub fn update(&self, position_ms: i64, state: &str) -> bool {
-        let now = now();
+        let now_ms = now_ms();
         let mut play = self.play.lock();
         let changed = play.state != state;
-        let jumped = play.reported_at.is_some_and(|at| jumped(&play, at, now, position_ms));
+        let jumped = play.reported_at_ms.is_some_and(|at| jumped(&play, at, now_ms, position_ms));
         play.position_ms = position_ms;
         if changed {
             play.state = state.to_owned();
         }
-        play.updated_at = now;
-        play.reported_at = Some(now);
+        play.updated_at = now_ms / 1000;
+        play.reported_at_ms = Some(now_ms);
         drop(play);
         let woke = self.quiet.swap(false, Ordering::SeqCst);
         changed || jumped || woke
@@ -1817,13 +1817,13 @@ const SLOWEST_SPEED: (i64, i64) = (1, 2);
 const FASTEST_SPEED: (i64, i64) = (2, 1);
 
 /// Whether a report at `position_ms` jumped from the last one, made at
-/// `reported_at` (a seek, a skip). Playing, the place may have moved on at
+/// `reported_at_ms` (a seek, a skip). Playing, the place may have moved on at
 /// any speed a player offers since; otherwise it stays where it was. There
 /// is no expected place before a session's first report: until then its
 /// transcode starts and its player buffers, which takes a while.
-fn jumped(play: &PlayState, reported_at: i64, now: i64, position_ms: i64) -> bool {
+fn jumped(play: &PlayState, reported_at_ms: i64, now_ms: i64, position_ms: i64) -> bool {
     let (low, high) = if play.state == "playing" {
-        let elapsed_ms = (now - reported_at).max(0).saturating_mul(1000);
+        let elapsed_ms = (now_ms - reported_at_ms).max(0);
         let at = |(num, den): (i64, i64)| play.position_ms.saturating_add(elapsed_ms.saturating_mul(num) / den);
         (at(SLOWEST_SPEED), at(FASTEST_SPEED))
     } else {
@@ -2270,9 +2270,7 @@ impl Sessions {
                 for job in stop.filter_map(|s| s.job_id()).collect::<Vec<_>>() {
                     let _ = transcoder.delete_job(&job).await;
                 }
-                if !sweep.quieted.is_empty() || !sweep.forgotten.is_empty() {
-                    events.send(ServerEvent::SessionsChanged);
-                }
+                events.sessions_changed(sweep.quieted.iter().chain(&sweep.forgotten).map(|s| s.user_id));
             }
         });
     }
@@ -3485,7 +3483,7 @@ mod tests {
     #[test]
     fn a_report_somewhere_else_than_expected_is_a_change() {
         let s = session(1, None, false);
-        let reported = |ago: i64| s.play.lock().reported_at = Some(now() - ago);
+        let reported = |ago: i64| s.play.lock().reported_at_ms = Some(now_ms() - ago * 1000);
         assert!(!s.update(0, "playing"), "where it started");
         // Twenty seconds on, playing: twenty seconds further is no jump.
         reported(20);
@@ -3504,7 +3502,7 @@ mod tests {
     fn a_report_at_another_speed_is_no_jump() {
         let s = session(1, None, false);
         assert!(!s.update(0, "playing"));
-        let reported = |ago: i64| s.play.lock().reported_at = Some(now() - ago);
+        let reported = |ago: i64| s.play.lock().reported_at_ms = Some(now_ms() - ago * 1000);
         reported(10);
         assert!(!s.update(20_000, "playing"), "ten seconds at twice the speed");
         reported(10);
@@ -3517,7 +3515,7 @@ mod tests {
     fn requests_for_media_between_reports_are_no_jump() {
         let s = session(1, None, false);
         assert!(!s.update(0, "playing"));
-        s.play.lock().reported_at = Some(now() - 10);
+        s.play.lock().reported_at_ms = Some(now_ms() - 10_000);
         // A segment fetched just now says it is alive, not where it is.
         s.touch();
         assert!(!s.update(10_000, "playing"));
@@ -3528,7 +3526,7 @@ mod tests {
         let s = session(1, None, false);
         s.play.lock().updated_at = now() - 30;
         assert!(!s.update(0, "playing"), "it started where it began, thirty seconds later");
-        assert!(s.play.lock().reported_at.is_some());
+        assert!(s.play.lock().reported_at_ms.is_some());
     }
 
     #[test]

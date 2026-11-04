@@ -86,7 +86,14 @@ pub enum ServerEvent {
         #[serde(skip)]
         user_id: i64,
     },
-    SessionsChanged,
+    /// One of the user's playback or Live TV sessions started, stopped,
+    /// went quiet or changed (paused, played, moved): to their streams, whose
+    /// remotes list their sessions again, and to administrators', whose
+    /// dashboard lists everyone's ([`ServerEvent::to_administrators`]).
+    SessionsChanged {
+        #[serde(skip)]
+        user_id: i64,
+    },
     /// The user's My List changed (added, removed, or a movie in it was
     /// watched): their other devices fetch Home again.
     WatchlistChanged {
@@ -233,7 +240,7 @@ impl ServerEvent {
             | ServerEvent::LibraryChanged { library_id } => Some(*library_id),
             ServerEvent::LibrariesChanged
             | ServerEvent::OwnLibrariesChanged { .. }
-            | ServerEvent::SessionsChanged
+            | ServerEvent::SessionsChanged { .. }
             | ServerEvent::WatchlistChanged { .. }
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
@@ -256,6 +263,7 @@ impl ServerEvent {
         match self {
             ServerEvent::WatchlistChanged { user_id }
             | ServerEvent::OwnLibrariesChanged { user_id }
+            | ServerEvent::SessionsChanged { user_id }
             | ServerEvent::UserStateChanged { user_id, .. }
             | ServerEvent::SessionStopped { user_id, .. }
             | ServerEvent::PlayerCommand { user_id, .. }
@@ -263,6 +271,12 @@ impl ServerEvent {
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
             _ => None,
         }
+    }
+
+    /// Whether administrators' streams get the event too, whoever's it is:
+    /// their dashboard lists everyone's sessions.
+    pub fn to_administrators(&self) -> bool {
+        matches!(self, ServerEvent::SessionsChanged { .. })
     }
 
     /// Whom a request's event is for.
@@ -297,6 +311,14 @@ impl EventBus {
 
     pub fn send(&self, event: ServerEvent) {
         let _ = self.tx.send(event);
+    }
+
+    /// `sessions_changed` to each of these users once, however many of
+    /// their sessions changed together (a sweep, a take-over).
+    pub fn sessions_changed(&self, users: impl IntoIterator<Item = i64>) {
+        for user_id in users.into_iter().collect::<std::collections::BTreeSet<_>>() {
+            self.send(ServerEvent::SessionsChanged { user_id });
+        }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<ServerEvent> {
@@ -347,6 +369,11 @@ mod tests {
         })
         .unwrap();
         assert_eq!(json, r#"{"type":"session_stopped","session_id":"s1","message":null,"by_admin":true}"#);
+        // Sessions' changes go to their user, and administrators.
+        let event = ServerEvent::SessionsChanged { user_id: 4 };
+        assert_eq!((event.user_id(), event.to_administrators()), (Some(4), true));
+        assert_eq!(serde_json::to_string(&event).unwrap(), r#"{"type":"sessions_changed"}"#);
+        assert!(!ServerEvent::WatchlistChanged { user_id: 4 }.to_administrators());
         let event = ServerEvent::PlayerCommand {
             user_id: 4,
             session_id: "s1".into(),
@@ -407,6 +434,18 @@ mod tests {
         assert_eq!(serde_json::to_string(&everyone).unwrap(), r#"{"type":"requests_settings_changed"}"#);
         let one = ServerEvent::RequestsSettingsChanged { user_id: Some(4) };
         assert_eq!((one.user_id(), one.audience()), (Some(4), None));
+    }
+
+    #[test]
+    fn sessions_changed_goes_once_to_each_user() {
+        let bus = EventBus::new();
+        let mut events = bus.subscribe();
+        bus.sessions_changed([7, 4, 7]);
+        let mut users = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            users.push(event.user_id());
+        }
+        assert_eq!(users, vec![Some(4), Some(7)]);
     }
 
     #[test]

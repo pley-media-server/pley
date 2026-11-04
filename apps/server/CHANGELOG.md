@@ -24,6 +24,9 @@ describes how they are made.
 
 ### Fixed
 
+- Someone who isn't an administrator no longer hears when other people's
+  playback starts or stops: the event for it goes only to that person's
+  own devices and to administrators.
 - The web app's search no longer keeps the Live TV channels of an earlier
   query on the page, under results that don't match them.
 

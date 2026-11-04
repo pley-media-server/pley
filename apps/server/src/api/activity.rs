@@ -159,12 +159,16 @@ pub async fn events(
     // those for managers to managers' streams, while the session is one.
     let asks = user.allowed(Scope::Requests);
     let manager = Arc::new(AtomicBool::new(user.manages_requests()));
+    // Everyone's sessions' changes go to administrators' streams, whose
+    // dashboard lists them, while the session is one.
+    let admin = Arc::new(AtomicBool::new(user.is_admin));
     // The session or app token is checked again every so often
     // (`Config::event_recheck`): the stream ends once it is signed out, it
     // expires or its user is disabled, and follows changes of access.
     let ended = tokio_util::sync::CancellationToken::new();
     {
-        let (state, libraries, manager, ended) = (state.clone(), libraries.clone(), manager.clone(), ended.clone());
+        let (state, libraries, manager, admin, ended) =
+            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone());
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(state.config.event_recheck);
             tick.tick().await;
@@ -185,6 +189,7 @@ pub async fn events(
                 }
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
+                admin.store(user.is_admin, Ordering::Relaxed);
             }
         });
     }
@@ -195,10 +200,14 @@ pub async fn events(
     let stream = BroadcastStream::new(state.events.subscribe())
         .filter_map(|event| event.ok())
         // Events for one user (their My List, their stopped session) go to
-        // that user's streams only; requests' to those they name.
+        // that user's streams only, and their sessions' changes to
+        // administrators' too; requests' to those they name.
         .filter(move |event| match event.audience() {
             Some(to) => asks && to.reaches(me, manager.load(Ordering::Relaxed), &key),
-            None => event.user_id().is_none_or(|id| id == me),
+            None => {
+                event.user_id().is_none_or(|id| id == me)
+                    || (event.to_administrators() && admin.load(Ordering::Relaxed))
+            }
         })
         .filter(move |event| match (event.library_id(), &*libraries.read()) {
             (Some(id), Some(ids)) => ids.contains(&id),
