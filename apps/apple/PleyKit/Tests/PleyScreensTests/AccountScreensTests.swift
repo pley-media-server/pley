@@ -163,9 +163,10 @@ private func searches(_ server: FixtureServer) -> [String] {
         settings.rememberSearch(long, origin: origin, profileId: 4)
         #expect(settings.recentSearches(origin: origin, profileId: 4) == [String(long.prefix(200)), "cartoons"])
 
+        // Clearing this profile's leaves the other's.
         model.clearRecent()
         #expect(model.recent.isEmpty)
-        #expect(settings.recentSearches(origin: origin, profileId: 4) == ["cartoons"])
+        #expect(settings.recentSearches(origin: origin, profileId: 4) == [String(long.prefix(200)), "cartoons"])
     }
 }
 
