@@ -73,10 +73,10 @@ in to another server starts every section again at Home.
   Playlists, Now Playing while music has a queue (a music note alone),
   and Settings (a gear alone; it holds what Me holds elsewhere). Seven
   tabs at most show, and no more than fit the screen's width, unless the
-  requests' tab, Live TV and Now Playing all show: then there are eight
-  and the tabs scroll, as Android TV's rail does. VoiceOver reads the
-  symbols' names. The focus engine and the Siri Remote move through it;
-  Menu goes back, then to the tabs, then out of the app.
+  requests' tab, Live TV and Now Playing all show: then Libraries is an
+  eighth tab and the tabs scroll, as Android TV's rail does. VoiceOver
+  reads the symbols' names. The focus engine and the Siri Remote move
+  through it; Menu goes back, then to the tabs, then out of the app.
 
 **On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
 and About Pley are windows of their own. The pointer on a tile grows it a
@@ -1481,9 +1481,8 @@ On Apple TV, as on Android TV:
 - **Way in**: a tab after Home, Discover where the account may ask, else
   Your requests (Requests for administrators). tvOS's tabs have no
   badges, so the number waiting shows on Discover's way to the requests
-  and in the list's tabs, not on the tab. It takes room
-  as Live TV does, so with Live TV, Now Playing and a library the tabs
-  scroll.
+  and in the list's tabs, not on the tab. It takes room as Live TV does,
+  so with Live TV, Now Playing and a library the tabs scroll.
 - **Discover**: the hero's backdrop, title, facts, a line of overview,
   its main action and Details, with the request's stage under them; at
   the top, the way to the person's requests with their number; TMDB's
@@ -1532,12 +1531,12 @@ On Apple TV, as on Android TV:
   once the remote has rested for 1.5 s and nothing holds it (a panel, a
   sheet, a question, the keyboard, Search's keyboard); never over the
   player or on the requests, and coming back to the front or from the
-  player counts as a press. It takes the focus, VoiceOver reads it out, and it goes by
-  itself after 10 s untouched; Close, Menu, or moving up or down close
-  it. Open opens the title, or the requests when no library has it yet.
-  Three wait at most; the rest shows as the requests' number and in
-  the lists. What came while the app was closed is told once at the next
-  start, only what is ready to watch.
+  player counts as a press. It takes the focus, VoiceOver reads it out,
+  and it goes by itself after 10 s untouched; Close, Menu, or moving up
+  or down close it. Open opens the title, or the requests when no library
+  has it yet. Three wait at most; the rest shows as the requests' number
+  and in the lists. What came while the app was closed is told once at
+  the next start, only what is ready to watch.
 
 Sign in again on Apple TV asks first, "Sign in again?", as the server
 then shows a new code to link the TV; Cancel and Menu on the code go back

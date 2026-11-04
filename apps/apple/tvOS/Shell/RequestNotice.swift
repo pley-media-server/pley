@@ -10,15 +10,16 @@ import UIKit
 /// without one), the news, Open and Close.
 ///
 /// It shows once the remote has rested `rest` (Pley coming back to the
-/// front, and the player closing, count as a press), with no player open, nothing presented over
-/// the shell (a panel, a sheet, a question, the keyboard), and neither the
-/// Search tab's keyboard nor the requests list showing; there the news is
-/// already in sight. On screen it is off the queue (`noticeShown`), so
-/// newer news can't push it out. It takes the focus, on Open; VoiceOver
-/// reads it out. Open opens the title where it is in a library, else the
-/// requests. Close, Menu, or moving up or down out of it close it, as do
-/// `showsFor` untouched; the focus goes back to the page. A Select
-/// in its first moments was meant for the page: it does nothing.
+/// front, and the player closing, count as a press), with no player open,
+/// nothing presented over the shell (a panel, a sheet, a question, the
+/// keyboard), and neither the Search tab's keyboard nor the requests list
+/// showing; there the news is already in sight. On screen it is off the
+/// queue (`noticeShown`), so newer news can't push it out. It takes the
+/// focus, on Open; VoiceOver reads it out. Open opens the title where it
+/// is in a library, else the requests. Close, Menu, or moving up or down
+/// out of it close it, as do `showsFor` untouched; the focus goes back to
+/// the page. A Select in its first moments was meant for the page: it does
+/// nothing.
 struct RequestNoticeView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
