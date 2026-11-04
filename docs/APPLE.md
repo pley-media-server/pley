@@ -526,7 +526,8 @@ when it ends or fails, after 1, 2 and 5 seconds and then every 15; `429`
 again, or the app coming back to the front, reads everything showing
 again, since events were missed. It stops when the app goes to the
 background, unless music or a video in Picture in Picture plays there
-([Remote control](#remote-control)), and for good when the sign-in ends or the server refuses the stream.
+([Remote control](#remote-control)), and for good when the sign-in ends
+or the server refuses the stream.
 
 When the server stops this device's playback (`session_stopped`, from
 another device or by the administrator), the player closes and a toast
