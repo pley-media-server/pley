@@ -70,8 +70,10 @@ struct RemoteBar: View {
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                 }
             }
-            .padding(.horizontal, inAccessory ? 0 : 8)
-            .padding(.vertical, inAccessory ? 0 : 6)
+            // Clear of the page's edges, and of an iPad window's rounded corners below.
+            .padding(.horizontal, inAccessory ? 0 : 16)
+            .padding(.top, inAccessory ? 0 : 8)
+            .padding(.bottom, inAccessory ? 0 : 16)
         }
     }
 
