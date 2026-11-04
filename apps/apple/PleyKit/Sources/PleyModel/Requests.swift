@@ -1173,8 +1173,10 @@ public struct Allowance: Hashable, Sendable {
 
 /// Something to tell the person about their requests, once: a toast.
 public enum RequestNews: Hashable, Sendable {
-    /// Ready to watch where `itemId` is: the whole of it (`complete`), or `seasons` of a show.
-    case ready(requestId: Int, title: String, kind: TitleKind, itemId: Int?, seasons: [Int]?, complete: Bool)
+    /// Ready to watch where `itemId` is: the whole of it (`complete`), or
+    /// `seasons` of a show; `poster`, its poster's path on the server.
+    case ready(requestId: Int, title: String, kind: TitleKind, itemId: Int?, seasons: [Int]?, complete: Bool,
+               poster: String? = nil)
     case approved(requestId: Int, title: String)
     /// `reason`: the manager's, `nil` without one (and for followers).
     case declined(requestId: Int, title: String, reason: String?)

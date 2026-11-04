@@ -24,6 +24,7 @@ let package = Package(
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
         .executable(name: "pley-apple-play", targets: ["pley-apple-play"]),
+        .executable(name: "pley-apple-fixtures", targets: ["pley-apple-fixtures"]),
     ],
     targets: [
         .target(name: "PleyModel"),
@@ -59,6 +60,8 @@ let package = Package(
                                                                   "PleyCaps", "PleyAuth",
                                                                   "PleyData", "PleyNetwork", "PleyModel", "PleyCommon",
                                                                   "PleyTesting"]),
+        // Serves the fixture server for the UI tests of requests (scripts/check-screens.sh). macOS only.
+        .executableTarget(name: "pley-apple-fixtures", dependencies: ["PleyTesting"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyNetworkTests", dependencies: ["PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),

@@ -17,7 +17,9 @@ import PleyNetwork
 /// News comes from the server's events as they happen; what came while the
 /// app wasn't listening is caught up on from the summary's `unseen`, with
 /// a mark per server and profile (`AppSettings.requestNewsMark`) so nothing
-/// is told twice, across starts too.
+/// is told twice, across starts too. On a TV only what became ready to
+/// watch is told, as on Android TV and the Samsung and LG apps: there its
+/// news takes the focus from the page, which only that is worth.
 @MainActor
 public final class RequestsRepository: ObservableObject {
     /// How long request events are gathered before the summary is read again.
@@ -44,6 +46,8 @@ public final class RequestsRepository: ObservableObject {
     private let settings: AppSettings
     private let debounce: Double
     private let pollEvery: Double
+    /// A TV's: only what became ready to watch is told.
+    private let tv: Bool
 
     /// The server and profile whose requests these are.
     private var owner: (origin: String, profileId: Int)?
@@ -67,16 +71,27 @@ public final class RequestsRepository: ObservableObject {
 
     public init(api: @escaping @Sendable () async throws -> PleyAPI, settings: AppSettings,
                 debounce: Double = RequestsRepository.summaryDebounce,
-                pollEvery: Double = RequestsRepository.summaryPollSeconds) {
+                pollEvery: Double = RequestsRepository.summaryPollSeconds, tv: Bool = RequestsRepository.isTV) {
         self.api = api
         self.settings = settings
         self.debounce = debounce
         self.pollEvery = pollEvery
+        self.tv = tv
     }
 
     /// Requests on one server's API (tests).
-    public convenience init(api: PleyAPI, settings: AppSettings, debounce: Double = 0.05, pollEvery: Double = 60) {
-        self.init(api: { api }, settings: settings, debounce: debounce, pollEvery: pollEvery)
+    public convenience init(api: PleyAPI, settings: AppSettings, debounce: Double = 0.05, pollEvery: Double = 60,
+                            tv: Bool = false) {
+        self.init(api: { api }, settings: settings, debounce: debounce, pollEvery: pollEvery, tv: tv)
+    }
+
+    /// Whether this is the Apple TV app.
+    public nonisolated static var isTV: Bool {
+        #if os(tvOS)
+        true
+        #else
+        false
+        #endif
     }
 
     // MARK: Following the app
@@ -142,13 +157,15 @@ public final class RequestsRepository: ObservableObject {
     /// News from an event: told now, and noted so catching up doesn't tell it again.
     public func heard(_ news: RequestNews) {
         switch news {
-        case .ready(let id, _, _, _, _, _), .declined(let id, _, _):
+        case .ready(let id, _, _, _, _, _, _), .declined(let id, _, _):
             explained += 1
             announced.insert(id)
             unmarked = true
         default:
             break
         }
+        // A TV tells only what became ready to watch.
+        if tv { guard case .ready = news else { return } }
         onNews(news)
     }
 
@@ -251,9 +268,10 @@ public final class RequestsRepository: ObservableObject {
         }
     }
 
-    /// `GET /api/requests?unseen=1`: one notice for what wasn't told yet.
-    /// Then every request listed has been told (now, by an event, or
-    /// before), and the saved mark is raised past them all.
+    /// `GET /api/requests?unseen=1`: one notice for what wasn't told yet
+    /// (on a TV, for what of it is ready to watch). Then every request
+    /// listed has been told (now, by an event, or before), and the saved
+    /// mark is raised past them all.
     private func catchUp() async {
         guard let owner else { return }
         // Events heard from here on set it again: their requests may come after this list.
@@ -270,10 +288,11 @@ public final class RequestsRepository: ObservableObject {
         let mark = settings.requestNewsMark(origin: owner.origin, profileId: owner.profileId)
         let fresh = list.requests.filter { $0.updatedAt > mark && !announced.contains($0.id) }
         if !fresh.isEmpty {
-            if fresh.count == 1 {
-                if let news = Self.news(fresh[0]) { onNews(news) }
-            } else {
-                onNews(.news(count: fresh.count))
+            let told = tv ? fresh.filter { $0.stage == .available || $0.stage == .partial } : fresh
+            if told.count == 1 {
+                if let news = Self.news(told[0]) { onNews(news) }
+            } else if told.count > 1 {
+                onNews(.news(count: told.count))
             }
             announced.formUnion(fresh.map(\.id))
         }
@@ -286,10 +305,10 @@ public final class RequestsRepository: ObservableObject {
         switch request.stage {
         case .available:
             .ready(requestId: request.id, title: request.title, kind: request.kind, itemId: request.itemId,
-                   seasons: nil, complete: true)
+                   seasons: nil, complete: true, poster: request.posterUrl)
         case .partial:
             .ready(requestId: request.id, title: request.title, kind: request.kind, itemId: request.itemId,
-                   seasons: request.availableSeasons, complete: false)
+                   seasons: request.availableSeasons, complete: false, poster: request.posterUrl)
         case .declined:
             .declined(requestId: request.id, title: request.title, reason: request.reason)
         default:

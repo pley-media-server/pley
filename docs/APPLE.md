@@ -65,16 +65,18 @@ in to another server starts every section again at Home.
   picture, name and server, which opens Me. The Mac's window is at least
   800 by 560 points, and opens at 1100 by 720. While music has a queue,
   the mini player sits at the foot of the page beside the sidebar.
-- **Apple TV**: seven tabs at most across the top, and no more than fit
-  the screen's width, so none is cut off: Search (a magnifying glass
-  alone, first, as in Apple's apps), Home, Live TV when it shows, a tab
-  per library with its name while they all fit (the first that fit
+- **Apple TV**: tabs across the top: Search (a magnifying glass alone,
+  first, as in Apple's apps), Home, Discover (or Your requests, Requests
+  for administrators) where requests are open, Live TV when it shows, a
+  tab per library with its name while they all fit (the first that fit
   otherwise, and a Libraries tab for the rest; a long name fits fewer),
   Playlists, Now Playing while music has a queue (a music note alone),
-  and Settings (a gear alone; it holds what Me holds elsewhere).
-  VoiceOver reads the symbols' names. The focus engine and the Siri
-  Remote move through it; Menu goes back, then to the tabs, then out of
-  the app.
+  and Settings (a gear alone; it holds what Me holds elsewhere). Seven
+  tabs at most show, and no more than fit the screen's width, unless the
+  requests' tab, Live TV and Now Playing all show: then Libraries is an
+  eighth tab and the tabs scroll, as Android TV's rail does. VoiceOver
+  reads the symbols' names. The focus engine and the Siri Remote move
+  through it; Menu goes back, then to the tabs, then out of the app.
 
 **On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
 and About Pley are windows of their own. The pointer on a tile grows it a
@@ -220,7 +222,7 @@ behind it.
   profile" for one without a password of its own), Switch profile (when
   the household has another profile), Discover and Your requests
   (Requests for administrators, with its number) where requests are open
-  ([Requests](#requests); not on Apple TV), the profile's **audio and subtitle
+  ([Requests](#requests); on Apple TV, a tab of its own), the profile's **audio and subtitle
   defaults**, Downloads (iPhone, iPad and Mac: "Watch without your
   server", [Downloads and offline](#downloads-and-offline)), History,
   Settings (on iPhone and iPad; the Mac's are in its Settings window, ⌘,),
@@ -249,10 +251,10 @@ behind it.
   **recent searches** show, newest first: the last 10 searched or opened,
   kept on the device for each server and profile, each searched again
   when chosen, and Clear. Nothing found says so ("No results for
-  “clip”"); a failed search says why, with Try again. On iPhone, iPad
-  and Mac, where requests are open, Discover heads the page before
-  anything is typed, and TMDB's titles that no library has follow the
-  results in the Discover row ([Requests](#requests)).
+  “clip”"); a failed search says why, with Try again. Where requests
+  are open, TMDB's titles that no library has follow the results in the
+  Discover row, and on iPhone, iPad and Mac Discover heads the page
+  before anything is typed ([Requests](#requests)).
 - **History**: the profile's plays, newest first, 15 at a time with Show
   more (`GET /api/history`). Each says what played ("The Office", "S2 · E3
   · Office Olympics"), when ("3 hours ago", "yesterday") and on which
@@ -465,9 +467,10 @@ behind it.
   downloads on this device, with what they take and what is free
   ([Downloads and offline](#downloads-and-offline)).
 - **Discover**, **Results for “dune”** (Search's See all), **a TMDB
-  title** and **Requests** (iPhone, iPad and Mac, from Me and Search):
-  finding movies and shows, asking for them, and following and deciding
-  requests ([Requests](#requests)).
+  title** and **Requests** (from Me and Search on iPhone, iPad and Mac;
+  from their own tab and Search on Apple TV): finding movies and shows,
+  asking for them, and following and deciding requests
+  ([Requests](#requests)).
 
 ### Accessibility
 
@@ -1384,9 +1387,10 @@ servers with why.
 
 Where the server takes requests ([API.md](API.md#requests)), people ask
 for movies and shows found on TMDB and administrators decide; Radarr and
-Sonarr fetch what is approved. The Apple apps follow the Android app on
-phones and tablets: its rules, words and timings are ported to
-`PleyScreens` and tested on its fixtures. On iPhone, iPad and Mac:
+Sonarr fetch what is approved. iPhone, iPad and Mac follow the Android
+app on phones and tablets, and Apple TV the Android TV app: their rules,
+words and timings are ported to `PleyScreens` and tested on their
+fixtures. On iPhone, iPad and Mac:
 
 - **Ways in**: Me's rows, Discover ("Find movies and shows to ask for")
   and Your requests (Requests for administrators, "Approve, decline and
@@ -1472,9 +1476,71 @@ says its percentage; a page that can't show, and the Discover row's
 failure, are read out as they appear. At the accessibility text sizes the
 hero's words go under its picture and a card's poster above its words.
 
-Apple TV has no requests' pages: nothing leads to them there, no toast
-tells their news, and neither Search nor a title's page reads anything
-of requests.
+On Apple TV, as on Android TV:
+
+- **Way in**: a tab after Home, Discover where the account may ask, else
+  Your requests (Requests for administrators). tvOS's tabs have no
+  badges, so the number waiting shows on Discover's way to the requests
+  and in the list's tabs, not on the tab. It takes room as Live TV does,
+  so with Live TV, Now Playing and a library the tabs scroll.
+- **Discover**: the hero's backdrop, title, facts, a line of overview,
+  its main action and Details, with the request's stage under them; at
+  the top, the way to the person's requests with their number; TMDB's
+  rows of posters, each read as it comes near, whose See all opens the
+  whole list in a grid; the person's requests, with See all; and TMDB's
+  credit. The backdrop follows the title the focus rests on. Menu from
+  the rows goes back to the hero, then to the tabs. A page that can't
+  show says only why, with Retry or Sign in again.
+- **The grid** (a row's See all, and Search's): posters six across. As
+  the focus comes within two rows of the end it reads three rows more,
+  five pages at most at a time, as an age limit can leave page after
+  page empty; then Show more (Retry when a page failed) is at its end,
+  beside why while nothing has come.
+- **A title's page**, laid out as a library's on Apple TV: the backdrop
+  filling the screen, the title, facts, genres, tagline and overview;
+  the one main action, Requested and Following focusable as every TV
+  button is, with the request's stage and the allowance (red when it is
+  used up); the requests for it, whose cards open the request's panel;
+  the seasons as posters with their state, where Select on one that may
+  be asked for opens Which seasons? at it; the cast; TMDB's credit.
+  **Which seasons?** is a panel down the right: a toggle per season, the
+  allowance, Request and Cancel; Menu closes it.
+- **Requests**: views with their counts, Movies and shows, Movies or
+  Shows, and for administrators Asked by, a title's words (on the TV's
+  keyboard) and Yours; the approvals banner with Sign in again; a card
+  per request with its poster, stage and bar, who asked, the reason, the
+  note and where it went. Select on a card opens a panel down the right:
+  the request's head, then Open where a library has it, the server's
+  actions in its order, and Details. Approve is plain: the server's
+  settings choose the quality profile and folder. Withdraw, Remove and
+  Delete ask in the panel, Cancel first; Decline with a reason… takes the
+  words on the TV's keyboard. Menu from a question goes back to the
+  actions, and from the actions closes the panel, with the focus back on
+  the card.
+- **Search's Discover row**, after the libraries' results: up to 20 of
+  TMDB's titles that no library has, with See all; with nothing in the
+  libraries, "Nothing in your libraries matches" above it. When TMDB
+  can't be searched, the row says why, with Retry where trying again may
+  help. Before anything is typed there is no Discover card: the tab is
+  the way in.
+- **A library title** from a request shows its stage under its facts,
+  with the download's bar, and a show with seasons left to ask for offers
+  Request more seasons beside Play.
+- **News**: only what became ready to watch pops up, at the bottom right
+  with the title's poster (a green tick without one), Open and Close,
+  once the remote has rested for 1.5 s and nothing holds it (a panel, a
+  sheet, a question, the keyboard, Search's keyboard); never over the
+  player or on the requests, and coming back to the front or from the
+  player counts as a press. It takes the focus, VoiceOver reads it out,
+  and it goes by itself after 10 s untouched; Close, Menu, or moving up
+  or down close it. Open opens the title, or the requests when no library
+  has it yet. Three wait at most; the rest shows as the requests' number
+  and in the lists. What came while the app was closed is told once at
+  the next start, only what is ready to watch.
+
+Sign in again on Apple TV asks first, "Sign in again?", as the server
+then shows a new code to link the TV; Cancel and Menu on the code go back
+to the app as it was. Settings → About credits TMDB, as its terms ask.
 
 ## Top Shelf
 
@@ -1758,6 +1824,25 @@ A person's page is a test of its own, which opens the first title with
 cast; the test server has no metadata source, so no title has cast, and
 the test reports itself skipped.
 
+Requests are a test of their own on Apple TV (`testRequests`). Their
+titles come from TMDB, which the test server has no key for, so this test
+walks against the package's fixture server instead (`pley-apple-fixtures`,
+which answers from the Android app's fixtures): it signs out of the test
+server, adds the fixture server, whose code is allowed as soon as it is
+asked for, and goes on as Alex, an administrator. The news that Arrival
+is ready pops up once the remote rests, with the focus on Open, which
+opens Arrival's page; the Discover tab comes after Home;
+the hero's Request asks for The Wild Robot; Trending's See all shows its
+six titles, the list ended with no Show more; Breaking Bad's page opens
+Which seasons? from Request more seasons (Menu closes it) and from season
+3, which Select unticks and ticks again before Request asks; the requests
+open on Needs attention, where Arcane's panel approves it (the focus
+going to the card that took its place) and The Substance's declines it
+with a reason typed on the keyboard; and Search's Discover row, after
+what the libraries have, opens its grid with See all. What the app sent
+is checked in the fixture server's log. It signs out of the fixture
+server at the end, so the next test signs in to the test server again.
+
 They need a server set up for them, so a script runs them:
 
 ```sh
@@ -1783,12 +1868,16 @@ title, before and after it.
 It boots each simulator afresh, removes the app from it and empties the
 simulator's Keychain, which outlives the app, so the first test starts at
 the servers; the tests after it keep that sign-in rather than sign in
-again, and only the sign-in walk, and those that check what signing out
-does, sign out. A lock per simulator keeps two runs of the script off the
+again, and only the sign-in walk, those that check what signing out
+does, and Apple TV's requests walk, which uses a server of its own, sign
+out. A lock per simulator keeps two runs of the script off the
 same one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
 (turned to landscape, where the sidebar shows) and `PleyTVUITests` on Apple
 TV 4K (4th generation) with `xcodebuild test-without-building`, and stops
-the servers and deletes their folders afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
+the servers and deletes their folders afterwards. For Apple TV it also
+builds `pley-apple-fixtures` and starts it afresh for each run of the
+tests, passing its address and its log to the tests
+(`PLEY_FIXTURES_ORIGIN`, `PLEY_FIXTURES_LOG`). `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
 `PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed and
 the last minute of each failed test's screen recording, and
@@ -1832,9 +1921,9 @@ apps/apple/scripts/check-screens.sh` stops them. A full run, without
 | `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV`, Apple TV's Top Shelf extension `PleyTopShelf` (embedded in `PleyTV`), and the UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes for the apps and tests. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
 | `Config/` | Build settings (`.xcconfig`), the Info.plist keys, the Mac's entitlements and Apple TV's app group; `project.pbxproj` holds no settings |
 | `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, the request screens' posters, stage pills and problem states in `RequestsKit`, and `Metrics` and `Motion` for sizes and Reduce Motion), `Screens/` (requests' in `DiscoverViews`, `DiscoverTitleView`, `RequestsViews` and `RequestsEntries`), and `Assets.xcassets` with the icon ([Icons](#icons)) |
-| `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine), `Screens/`, and `Assets.xcassets` with the icon and the Top Shelf's picture ([Icons](#icons)) |
+| `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs, Settings, and requests' news in `RequestNotice`), `Kit/` (the same views, built for the focus engine, with the request screens' posters, request tiles, rows, stage pills, problem states, side panel and grid in `RequestsKit`), `Screens/` (requests' in `DiscoverViews`, `DiscoverTitleView` and `RequestsViews`), and `Assets.xcassets` with the icon and the Top Shelf's picture ([Icons](#icons)) |
 | `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift` and `LargeTextWalk.swift` (the largest text size) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus) and `ShelfWalk.swift` (the Top Shelf's links) on Apple TV |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift` and `LargeTextWalk.swift` (the largest text size) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus), `ShelfWalk.swift` (the Top Shelf's links) and `RequestsWalk.swift` (requests, against the fixture server) on Apple TV |
 | `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
@@ -1857,6 +1946,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and the server's proofs, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, requests and Discover from the Android app's fixtures (`FixtureServer+Requests`), an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
+| `pley-apple-fixtures` | A command-line tool, on the Mac only, that serves `PleyTesting`'s fixture server for Apple TV's requests walk ([UI tests](#ui-tests)): it prints its origin, then a line per request it gets, without tokens |
 
 The rules: modules depend only downwards; the two apps never import each
 other's code, and their views hold no logic of their own beyond layout (it
@@ -2032,8 +2122,5 @@ Delete the folder afterwards.
 - No audio delay, which the Android app has: AVPlayer has no way to play
   a track's sound earlier or later than its picture, and the apps don't
   decode the sound themselves.
-- Apple TV has no requests: Discover, asking for a title, approving and
-  their news are on iPhone, iPad and Mac, as in Pley on the web and the
-  other apps.
 - No Handoff: a video started on one Apple device isn't offered on
   another. Continue Watching, on every device, resumes it there.
