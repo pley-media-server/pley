@@ -183,13 +183,13 @@ class TvGridLoadFocusTest {
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
         var last = scrolled()
-        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
-        for (frame in 1..25) {
+        // 32 frames, 512 ms: the press, then a step every 45 ms from 300 ms, each glide running into the next.
+        for (frame in 1..32) {
             compose.mainClock.advanceTimeByFrame()
             val moved = scrolled() - last
             last += moved
             assertTrue("frame $frame moved $moved of $pitch", moved < pitch / 2)
-            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+            if (frame > 20) assertTrue("frame $frame stood still", moved > 0f)
         }
         compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
         compose.mainClock.autoAdvance = true
@@ -220,7 +220,7 @@ class TvGridLoadFocusTest {
         compose.onNodeWithTag(BELOW).assertIsFocused()
     }
 
-    /** Down held for most of a second: the press, then held steps from 180 ms. */
+    /** Down held for most of a second: the press, then held steps from 300 ms. */
     private fun holdDown() {
         compose.waitForIdle()
         compose.mainClock.autoAdvance = false
@@ -266,7 +266,7 @@ class TvGridLoadFocusTest {
         assertEquals(Columns, focus.focused)
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
-        // The press moves up to the first row; held from 180 ms, Up goes no further.
+        // The press moves up to the first row; held from 300 ms, Up goes no further.
         compose.mainClock.advanceTimeBy(600)
         compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
         compose.mainClock.autoAdvance = true
@@ -316,7 +316,7 @@ class TvGridLoadFocusTest {
         compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
         // The press and five held steps, a frame at a time: six rows up, in the same column all the way,
         // on a cell laid out on the grid.
-        for (frame in 1..25) {
+        for (frame in 1..32) {
             frame()
             assertEquals("frame $frame", 3, focus.focused % Columns)
             assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())

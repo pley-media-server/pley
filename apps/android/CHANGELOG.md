@@ -25,6 +25,9 @@ describes how they are made.
 
 ### Fixed
 
+- On Android TV and Fire TV, a press of a direction key that lasts a
+  little long (200 ms or so) moves focus once, not twice: a held key
+  starts moving by itself after 300 ms rather than 180.
 - Search no longer closes the app when a recent search is "discover" or
   "header" on a phone, or "pley.clear" on a TV.
 

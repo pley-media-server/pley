@@ -265,8 +265,12 @@ class KeyRepeatGate(
     }
 
     companion object {
-        /** How long a key is down before it moves focus by itself. */
-        const val HOLD_DELAY_MS = 180L
+        /**
+         * How long a key is down before it moves focus by itself. A remote's
+         * press can last 200 ms and more: at 180 ms, such a press moved focus
+         * twice. Still sooner than the system's repeats.
+         */
+        const val HOLD_DELAY_MS = 300L
 
         /** The time between moves while a key is held: about 22 a second. */
         const val MOVE_INTERVAL_MS = 45L

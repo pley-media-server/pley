@@ -18,7 +18,7 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * D-pad rule 5 on a fake clock: a held key moves focus by itself from
- * 180 ms, every 45 ms on the gate's own clock whatever the frames do, the
+ * 300 ms, every 45 ms on the gate's own clock whatever the frames do, the
  * system's repeats are dropped, a hold ends with its key-up (or 500 ms
  * without a sign of the key), and focus rests 400 ms after the last move.
  */
@@ -67,9 +67,9 @@ class KeyRepeatGateTest {
     }
 
     @Test
-    fun aHeldKeyMovesBy180MsAsARepeatOfItself() {
+    fun aHeldKeyMovesBy300MsAsARepeatOfItself() {
         assertTrue(press())
-        now += 179
+        now += 299
         assertNull(gate.tick())
         assertFalse(gate.holding)
         now += 1
@@ -87,9 +87,22 @@ class KeyRepeatGateTest {
     }
 
     @Test
+    fun aPressOfAQuarterSecondMovesOnce() {
+        // A remote's press can last that long: no held move comes of it, every frame meanwhile.
+        assertTrue(press())
+        repeat(15) {
+            now += 16
+            assertNull(gate.tick())
+        }
+        assertFalse(gate.holding)
+        assertTrue(gate.admit(up()))
+        assertNull(gate.tick())
+    }
+
+    @Test
     fun heldMovesKeepA45MsPaceWhateverTheFrames() {
         press()
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         assertNotNull(gate.tick())
         // Frames that divide the pace: a move exactly every 45 ms.
         assertEquals((1..20).map { it * 45L }, frames(900) { 15 })
@@ -102,7 +115,7 @@ class KeyRepeatGateTest {
     @Test
     fun aStallBringsOneMoveNotABurst() {
         press()
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         gate.tick()
         // Nothing drew for 200 ms: one move, then the next 22 ms later at the soonest.
         now += 200
@@ -136,19 +149,19 @@ class KeyRepeatGateTest {
     @Test
     fun anotherKeysPressEndsTheHold() {
         press()
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         gate.tick()
         assertTrue(gate.holding)
         assertTrue(gate.admit(down(NativeKeyEvent.KEYCODE_DPAD_DOWN)))
         assertFalse(gate.holding)
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         assertEquals(NativeKeyEvent.KEYCODE_DPAD_DOWN, gate.tick()?.keyCode)
     }
 
     @Test
     fun theKeyUpEndsTheHoldAndFocusRests400MsLater() {
         press()
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         gate.tick()
         now += 30
         assertTrue(gate.admit(up()))
@@ -172,11 +185,11 @@ class KeyRepeatGateTest {
     @Test
     fun aLostKeyUpEndsTheHold() {
         press()
-        now += 180
+        now += KeyRepeatGate.HOLD_DELAY_MS
         gate.tick()
         assertTrue(gate.holding)
         // No repeat came: the first may take 500 ms, then 500 more without one and the key is up.
-        now += 820
+        now += 1_000 - KeyRepeatGate.HOLD_DELAY_MS
         gate.tick()
         assertTrue(gate.holding)
         now += 1
@@ -219,7 +232,7 @@ class KeyRepeatGateTest {
         // No hold: at once.
         gate.awaitRelease()
         gate.admit(KeyEvent(NativeKeyEvent(0, 0, NativeKeyEvent.ACTION_DOWN, NativeKeyEvent.KEYCODE_DPAD_RIGHT, 0)))
-        advanceTimeBy(180)
+        advanceTimeBy(KeyRepeatGate.HOLD_DELAY_MS)
         gate.tick()
         assertTrue(gate.holding)
         val released = async { gate.awaitRelease() }

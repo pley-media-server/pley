@@ -262,7 +262,7 @@ class TvRowFocusTest {
         compose.press(Key.DirectionRight)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionLeft)
-        // The press moves back to A 1; held from 180 ms, Left goes no further, however long.
+        // The press moves back to A 1; held from 300 ms, Left goes no further, however long.
         advance(600)
         keyUp(Key.DirectionLeft)
         compose.mainClock.autoAdvance = true
@@ -281,7 +281,7 @@ class TvRowFocusTest {
         compose.focused().assertContentDescriptionEquals("B 100")
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionUp)
-        // The press moves up to row A; held from 180 ms, Up goes no further, however long.
+        // The press moves up to row A; held from 300 ms, Up goes no further, however long.
         advance(600)
         keyUp(Key.DirectionUp)
         compose.mainClock.autoAdvance = true
@@ -370,8 +370,8 @@ class TvRowFocusTest {
         page()
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        // The press moves to A 2; from 180 ms the row slides on by itself, a tile every 45 ms.
-        advance(304)
+        // The press moves to A 2; from 300 ms the row slides on by itself, a tile every 45 ms.
+        advance(416)
         compose.focused().assertContentDescriptionEquals("A 2")
         val early = scrolledA()
         assertTrue("$early", early > 2 * pitch)
@@ -409,7 +409,7 @@ class TvRowFocusTest {
         compose.focused().assertContentDescriptionEquals("A 13")
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionLeft)
-        // The press moves back to A 12; from 180 ms the row slides back by itself, a tile every 45 ms.
+        // The press moves back to A 12; from 300 ms the row slides back by itself, a tile every 45 ms.
         advance(400)
         compose.focused().assertContentDescriptionEquals("A 12")
         val under = scrolledA() / pitch
@@ -506,8 +506,8 @@ class TvRowFocusTest {
         page(reduced = true)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        // The press, then a move every 45 ms from 180 ms: five more by 400 ms, each in place.
-        advance(400)
+        // The press, then a move every 45 ms from 300 ms: five more by 512 ms, each in place.
+        advance(512)
         keyUp(Key.DirectionRight)
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
@@ -550,14 +550,14 @@ class TvRowFocusTest {
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionDown)
         var last = scrolledPage()
-        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
-        for (frame in 1..25) {
+        // 32 frames, 512 ms: the press, then a step every 45 ms from 300 ms, each glide running into the next.
+        for (frame in 1..32) {
             compose.frameAndPrefetch()
             val moved = scrolledPage() - last
             last += moved
             assertTrue("frame $frame moved $moved of $rowPitch", moved < rowPitch / 2)
-            // Once the held steps have begun (192 ms, gliding from the frame after), every frame moves on.
-            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+            // Once the held steps have begun (304 ms, gliding from the frame after), every frame moves on.
+            if (frame > 20) assertTrue("frame $frame stood still", moved > 0f)
         }
         keyUp(Key.DirectionDown)
         compose.mainClock.autoAdvance = true
@@ -572,7 +572,7 @@ class TvRowFocusTest {
         rows(reduced = true)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionDown)
-        advance(400)
+        advance(512)
         // Each step's row is at the line by the next frame: nothing glides.
         compose.focused().assertContentDescriptionEquals("R6 601")
         assertEquals(210f, focusedTop(), 1f)
