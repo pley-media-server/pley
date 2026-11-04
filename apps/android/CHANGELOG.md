@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- On Fire TV, the sideloaded app's tile is one piece: Pley's mark, larger,
+  on the tile's grey, not a dark square between grey bars.
+
 ## [0.1.5] - 2026-11-03
 
 ### Added
