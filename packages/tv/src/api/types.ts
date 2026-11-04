@@ -405,8 +405,18 @@ export interface PlaybackRequest {
   keep_previous?: boolean;
   /** The TV's own player can't send the Authorization header: its URLs carry a key (docs/API.md, "Keyed URLs"). */
   keyed_urls?: boolean;
+  /** The remote's commands this player obeys (docs/API.md, "Remote control"); left out: none, only Stop. */
+  controls?: Control[];
+  /** Always "tv" from here: remotes tell the TVs among the user's devices by it. */
+  device_kind?: DeviceKind;
   caps: ClientCaps;
 }
+
+/** A command of the user's remote, on another of their devices (docs/API.md, "Remote control"). */
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+
+/** What kind of device a player plays on, as remotes show it. */
+export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 export type PlaybackState = "playing" | "paused" | "stopped";
 
@@ -424,6 +434,8 @@ export type ServerEvent =
   /** Watch state changed here or on another device: the item, then its parent and grandparent; `children`: everything under the first too. */
   | { type: "user_state_changed"; item_ids: Id[]; children?: boolean }
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
+  /** The user's remote, on another device, for the player of `session_id`: `position_ms` for `seek`, `offset_ms` for `skip`, else null. */
+  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null }
   | { type: "scan_started" | "scan_progress" | "scan_finished"; library_id: Id }
   /** Live TV's sources, channels or guide changed: ask again. */
   | { type: "live_channels_changed" }

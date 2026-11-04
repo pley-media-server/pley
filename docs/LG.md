@@ -281,6 +281,39 @@ app and, if it was playing, plays on from there when the app is back. The
 remote's media keys work it from every page but a player's: play, pause
 and Stop (which pauses), play/pause, next, previous, and ◀◀ and ▶▶ 10 s.
 
+### Remote control
+
+The TV obeys the remote on the profile's other devices (the web app, the
+Android phone app, the Apple apps; [API.md](API.md#remote-control)) and
+shows no remote of its own. Its players say what they obey when they
+start (`controls`) and that they play on a TV (`device_kind: "tv"`, on the
+`stream.ts` it reads too); webOS gives the app no name of the set's own,
+so the server names the TV from its `User-Agent`. They obey:
+
+- **Movies and episodes:** play, pause, seek and skip, and next where
+  something can come next (an episode, a playlist or collection). Next at
+  the end does nothing, and says nothing on the TV; a video has no
+  previous.
+- **Music:** play, pause, seek, skip, next and previous, as the buttons:
+  previous more than 3 s into a track, or on the first, goes back to its
+  start. Music playing behind the other pages obeys too; music that gave
+  way to a video or a channel has no session, and obeys nothing until it
+  plays again.
+- **Live TV:** next and previous, channel up and down through the
+  category the player was opened from, round its ends, as CH+ and CH− go.
+  It has no pause or seek. Stopped from another device or by an
+  administrator (`session_stopped`), it shows **Live TV stopped** with
+  who stopped it and, on a line of its own, their message, with Watch
+  again, as for a connection taken over.
+
+Only the player of the session named acts on a command, a seek stays
+within the title, and a skip counts from where it is. Each change is
+reported at once, so the remote sees it; another title, track or channel
+tells the server with its own session. A play on a player already
+playing, or a pause on one already paused, says so again at once, so a
+remote a little behind settles. The rule is `crates/player/src/remote.rs`,
+pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`.
+
 ### Requests
 
 Where the server takes requests, they work as in the Samsung app

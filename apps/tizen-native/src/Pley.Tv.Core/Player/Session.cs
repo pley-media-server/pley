@@ -156,8 +156,11 @@ public static class PlayRequests
     /// (<see cref="PlaybackPlan.AudioIndexFor"/>, <see cref="PlaybackPlan.SubtitleIndexFor"/>); a
     /// quality's caps; <paramref name="keepPrevious"/> when it is made ready while the session
     /// before plays on. <paramref name="read"/> is <paramref name="caps"/> as the plan reads it.
+    /// <paramref name="controls"/>: what the player obeys from the remote (<see cref="Remote"/>);
+    /// null leaves them out, and it obeys none but Stop.
     /// </summary>
-    public static Dictionary<string, object?> Body(long itemId, PlaybackPlan.Choices choices, string clientId, IReadOnlyDictionary<string, object?> caps, ClientCaps? read, bool keepPrevious = false)
+    public static Dictionary<string, object?> Body(long itemId, PlaybackPlan.Choices choices, string clientId, IReadOnlyDictionary<string, object?> caps, ClientCaps? read, bool keepPrevious = false,
+        IReadOnlyList<string>? controls = null)
     {
         var body = Base(itemId, choices.StartMs, choices.Mode, clientId, caps);
         body["file_id"] = choices.File.Id;
@@ -166,6 +169,7 @@ public static class PlayRequests
         if (choices.Quality.MaxBitrateKbps is int kbps) body["max_bitrate"] = kbps;
         if (choices.Quality.MaxHeight is int lines) body["max_height"] = lines;
         if (keepPrevious) body["keep_previous"] = true;
+        if (controls != null) body["controls"] = controls;
         return body;
     }
 
@@ -178,13 +182,15 @@ public static class PlayRequests
             ["client_id"] = clientId,
             ["keyed_urls"] = true,
             ["caps"] = caps,
+            // Everything plays on the TV, which remotes are told (docs/API.md, "Remote control").
+            ["device_kind"] = "tv",
         };
 
     /// <summary>
     /// The body for a music track: from <paramref name="startMs"/> when past its start, as the
     /// server chooses unless <paramref name="transcode"/> (the TV couldn't decode it as it is),
     /// under music's own client id (<c>{install id}-music</c>), so a video starting doesn't end the
-    /// music's session nor the other way round.
+    /// music's session nor the other way round. Music obeys every command of the remote.
     /// </summary>
     public static Dictionary<string, object?> MusicBody(long itemId, long startMs, bool transcode, string clientId, IReadOnlyDictionary<string, object?> caps)
     {
@@ -194,6 +200,8 @@ public static class PlayRequests
         body["client_id"] = clientId + "-music";
         body["keyed_urls"] = true;
         body["caps"] = caps;
+        body["controls"] = Remote.MusicControls;
+        body["device_kind"] = "tv";
         return body;
     }
 }

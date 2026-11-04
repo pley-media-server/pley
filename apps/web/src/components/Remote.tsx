@@ -201,6 +201,8 @@ function RemoteRow({ session, device }: { session: RemoteSession; device: string
             width={40}
             alt=""
             title={session.item.title}
+            // Too small for the title's text, which the line beside it says anyway.
+            bare
             className={cn("w-10 shrink-0 rounded", session.item.kind === "track" ? "aspect-square" : "aspect-[2/3]")}
           />
         ) : null}

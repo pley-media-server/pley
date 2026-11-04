@@ -625,7 +625,8 @@ impl Api {
     /// (this TV's id with `-stream` after it, so the HLS session beside it stays) for as long as
     /// it runs: the answer once its headers are in, its body read as it comes, until `cancel`.
     /// It takes the token, which goes, as every request's, only once the server has proved
-    /// itself at its address. Uncompressed: a live stream isn't held back to be packed.
+    /// itself at its address. Uncompressed: a live stream isn't held back to be packed. It says it
+    /// plays on a TV (`device_kind`), for remotes; a reader of its own obeys none.
     pub fn live_stream(
         &self,
         channel: i64,
@@ -634,7 +635,7 @@ impl Api {
     ) -> Result<crate::http::Streamed, ApiError> {
         let path = with_query(
             &id_path("/api/live/channels/{id}/stream.ts", channel),
-            &[("client_id", Some(client_id.to_string()))],
+            &[("client_id", Some(client_id.to_string())), ("device_kind", Some(DeviceKind::Tv.to_string()))],
         );
         let req = Request::new(Method::Get, self.url(&path))
             .header("Accept", "video/mp2t, */*")

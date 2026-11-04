@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Deserializer};
 
-use super::{RequestUser, TitleKind, nd, wire_enum};
+use super::{Control, RequestUser, TitleKind, nd, wire_enum};
 
 wire_enum! {
     /// Where a library scan is.
@@ -56,6 +56,14 @@ pub enum ServerEvent {
         session_id: String,
         message: Option<String>,
         by_admin: bool,
+    },
+    /// The user's remote, on another of their devices, for the player of `session_id`
+    /// (docs/API.md, "Remote control"): `position_ms` for a seek, `offset_ms` for a skip.
+    PlayerCommand {
+        session_id: String,
+        command: Control,
+        position_ms: Option<i64>,
+        offset_ms: Option<i64>,
     },
     /// Live TV's sources, channels or guide changed.
     LiveChannelsChanged,
@@ -148,6 +156,12 @@ struct Raw {
     by_admin: bool,
     #[serde(default, deserialize_with = "nd")]
     channel_id: i64,
+    #[serde(default, deserialize_with = "nd")]
+    command: Control,
+    #[serde(default)]
+    position_ms: Option<i64>,
+    #[serde(default)]
+    offset_ms: Option<i64>,
     #[serde(default)]
     request_id: Option<i64>,
     #[serde(rename = "kind", default)]
@@ -197,6 +211,12 @@ impl<'de> Deserialize<'de> for ServerEvent {
             "session_stopped" => {
                 ServerEvent::SessionStopped { session_id: r.session_id, message: r.message, by_admin: r.by_admin }
             }
+            "player_command" => ServerEvent::PlayerCommand {
+                session_id: r.session_id,
+                command: r.command,
+                position_ms: r.position_ms,
+                offset_ms: r.offset_ms,
+            },
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,
             "live_tuners_changed" => ServerEvent::LiveTunersChanged,
             "live_taken_over" => {
@@ -270,6 +290,7 @@ impl ServerEvent {
             ServerEvent::WatchlistChanged => "watchlist_changed",
             ServerEvent::UserStateChanged { .. } => "user_state_changed",
             ServerEvent::SessionStopped { .. } => "session_stopped",
+            ServerEvent::PlayerCommand { .. } => "player_command",
             ServerEvent::LiveChannelsChanged => "live_channels_changed",
             ServerEvent::LiveTunersChanged => "live_tuners_changed",
             ServerEvent::LiveTakenOver { .. } => "live_taken_over",

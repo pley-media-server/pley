@@ -3466,12 +3466,13 @@ administrators stop other people's sessions (above) and nothing more.
   `seek` stops at the start and the end, `skip` counts from where it is,
   and `next` with nothing next or `previous` on a video does nothing;
   `audio` and `subtitles` change track as the player's own menu would.
-  Then it reports at once, with the tracks it plays. A report whose place
-  is more than 5 seconds from where the session could be by now, played at
-  any speed from half to twice since the last report (a seek, a skip),
-  sends `sessions_changed`, as a pause does, so remotes fetch the list
-  again. The first report isn't compared: until then the session is
-  starting.
+  Then it reports at once, with the tracks it plays; a `play` or `pause`
+  that changes nothing reports too, so a remote that missed a change
+  settles. A report whose place is more than 5 seconds from where the
+  session could be by now, played at any speed from half to twice since
+  the last report (a seek, a skip), sends `sessions_changed`, as a pause
+  does, so remotes fetch the list again. The first report isn't compared:
+  until then the session is starting.
 
 ### Casting
 
@@ -3479,8 +3480,8 @@ A remote also starts something on another of the user's devices: a title,
 a playlist or a Live TV channel, played there as that device's own *Play*
 would.
 
-- **Receivers.** A player that plays what it is sent (an app, the web
-  app) opens its event stream as a receiver, with `receiver`,
+- **Receivers.** A player that plays what it is sent (one of Pley's
+  apps) opens its event stream as a receiver, with `receiver`,
   `device_name`, `device_kind` and `casts` in the query
   (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live`).
   `receiver` is the app's own id for the device, 1 to 128 letters, digits,

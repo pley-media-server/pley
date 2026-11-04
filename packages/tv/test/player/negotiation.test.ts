@@ -1347,3 +1347,106 @@ describe("subtitles found on the server", () => {
     c.close();
   });
 });
+
+describe("the user's remote, on another device", () => {
+  const command = (c: Omit<Extract<ServerEvent, { type: "player_command" }>, "type" | "position_ms" | "offset_ms"> & { position_ms?: number; offset_ms?: number }): ServerEvent => ({
+    type: "player_command",
+    position_ms: null,
+    offset_ms: null,
+    ...c,
+  });
+
+  async function playing(detail = item(file())) {
+    const w = world(detail, () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.firstFrame();
+    w.engine.listener?.status("ready");
+    await settle();
+    w.calls.length = 0;
+    return { w, c };
+  }
+
+  it("is told what the player obeys: next only when something may come after it", async () => {
+    const film = await playing();
+    expect(film.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip"]);
+    film.c.close();
+    const episode = await playing(item(file(), { kind: "episode" }));
+    expect(episode.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "next"]);
+    episode.c.close();
+  });
+
+  it("pauses and plays, reporting each at once", async () => {
+    const { w, c } = await playing();
+    w.send(command({ session_id: "s1", command: "pause" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(false);
+    w.send(command({ session_id: "s1", command: "play" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(true);
+    expect(w.calls).toEqual(["progress paused 600000", "progress playing 600000"]);
+    c.close();
+  });
+
+  it("says again that it plays, or is paused, when told so already, so a remote a little behind settles", async () => {
+    const { w, c } = await playing();
+    w.send(command({ session_id: "s1", command: "play" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(true);
+    w.send(command({ session_id: "s1", command: "pause" }));
+    w.send(command({ session_id: "s1", command: "pause" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(false);
+    expect(w.calls).toEqual(["progress playing 600000", "progress paused 600000", "progress paused 600000"]);
+    c.close();
+  });
+
+  it("leaves another session's commands alone", async () => {
+    const { w, c } = await playing();
+    w.send(command({ session_id: "s2", command: "pause" }));
+    w.send(command({ session_id: "s2", command: "seek", position_ms: 0 }));
+    await settle();
+    expect(c.wantsToPlay).toBe(true);
+    expect(w.calls).toEqual([]);
+    c.close();
+  });
+
+  it("seeks within the title, skips from where it is, and reports where it went at once", async () => {
+    const { w, c } = await playing();
+    w.send(command({ session_id: "s1", command: "skip", offset_ms: -30_000 }));
+    await settle();
+    w.send(command({ session_id: "s1", command: "seek", position_ms: 9_000_000 }));
+    await settle();
+    // The end, less the margin every seek keeps.
+    expect(w.calls).toEqual(["progress playing 570000", "progress playing 7199750"]);
+    c.close();
+  });
+
+  it("does nothing for previous, nor for next with nothing after it, and says nothing of it", async () => {
+    const { w, c } = await playing(item(file(), { kind: "episode" }));
+    w.send(command({ session_id: "s1", command: "previous" }));
+    w.send(command({ session_id: "s1", command: "next" }));
+    await settle();
+    expect(w.requests).toHaveLength(1);
+    expect(c.state.value.notice).toBeNull();
+    c.close();
+  });
+
+  it("obeys nothing once the server stopped its session", async () => {
+    const { w, c } = await playing(item(file(), { kind: "episode" }));
+    c.pause();
+    w.send({ type: "session_stopped", session_id: "s1", message: null, by_admin: false });
+    await settle();
+    w.calls.length = 0;
+    w.send(command({ session_id: "s1", command: "play" }));
+    w.send(command({ session_id: "s1", command: "seek", position_ms: 0 }));
+    w.send(command({ session_id: "s1", command: "next" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(false);
+    expect(w.requests).toHaveLength(1);
+    expect(w.calls).toEqual([]);
+    c.close();
+  });
+});

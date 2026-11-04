@@ -993,6 +993,19 @@ describe("VideoPlayer obeying the remote", () => {
     await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "s1" }));
   });
 
+  it("says again that it plays, or is paused, when told so already, so a remote a little behind settles", async () => {
+    const { requests, setPaused } = await playing();
+    media.play.mockClear();
+    act(() => FakeEventSource.last?.send(command("play")));
+    expect(media.play).not.toHaveBeenCalled();
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "s1" }));
+
+    setPaused(true);
+    act(() => FakeEventSource.last?.send(command("pause")));
+    expect(media.pause).not.toHaveBeenCalled();
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "paused", session_id: "s1" }));
+  });
+
   it("seeks, no further than the end, and reports where at once", async () => {
     const { requests, video } = await playing();
     act(() => FakeEventSource.last?.send(command("seek", { position_ms: 120_000 })));

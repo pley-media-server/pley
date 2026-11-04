@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use common::TestApp;
 use pley_base::Key;
-use pley_fixtures::ids;
+use pley_fixtures::{ServerEvent, ids};
 use pley_shell::{AppCx, PlayRequest, Requests, Route};
 
 /// The first album's tracks: ten of 20 s.
@@ -303,4 +303,72 @@ fn an_album_that_isnt_there_says_so() {
     assert!(app.until(|a| a.shows("Album not found")));
     assert!(app.shows("It may have been removed, or this profile can't see it."));
     assert!(app.shows("Back"));
+}
+
+/// The session the music plays in once the server lists it with what it obeys, and the event
+/// stream it hears the remote on is open.
+fn remote_session(app: &mut TestApp) -> String {
+    let mut found = None;
+    let heard = app.until(|a| {
+        let playing = a.music().and_then(|m| m.session_id().map(str::to_string));
+        found = a.server.sessions_of(ids::ALEX).into_iter().find(|s| {
+            s["session_id"].as_str() == playing.as_deref() && s["controls"].as_array().is_some_and(|c| c.len() == 6)
+        });
+        found.is_some() && a.server.event_listeners() > 0
+    });
+    assert!(heard, "the music never said it obeys the remote, or the events never connected");
+    let session = found.unwrap();
+    assert_eq!(session["device_kind"], "tv");
+    session["session_id"].as_str().unwrap().to_string()
+}
+
+fn remote(session: &str, command: &str) -> ServerEvent {
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command: command.into(),
+        position_ms: None,
+        offset_ms: None,
+    }
+}
+
+#[test]
+fn the_remote_reaches_the_music_playing_behind_other_pages() {
+    let mut app = TestApp::start();
+    album(&mut app, None);
+    app.press(Key::Ok);
+    assert!(playing(&mut app));
+    app.open(Route::Home);
+    let session = remote_session(&mut app);
+    app.server.emit(remote(&session, "pause"));
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, false))), "the remote's pause didn't pause");
+    app.server.emit(remote(&session, "play"));
+    assert!(playing(&mut app), "the remote's play didn't play");
+    app.server.emit(remote(&session, "next"));
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK + 1, true))), "the remote's next didn't play the next");
+    // The track before's session is gone: its commands do nothing.
+    app.server.emit(remote(&session, "next"));
+    app.advance(0.5);
+    assert_eq!(app.now_playing().map(|n| n.0), Some(FIRST_TRACK + 1));
+    let second = remote_session(&mut app);
+    app.server.emit(remote(&second, "previous"));
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, true))), "the remote's previous didn't go back");
+}
+
+#[test]
+fn the_remotes_pause_while_the_track_starts_opens_it_paused() {
+    let mut app = TestApp::start();
+    album(&mut app, None);
+    app.press(Key::Ok);
+    let session = remote_session(&mut app);
+    let starting = app.music().unwrap().now_playing().is_some_and(|n| n.loading && !n.playing);
+    assert!(starting, "the track was already playing");
+    app.server.emit(remote(&session, "pause"));
+    let opened = |a: &mut TestApp| a.music().unwrap().now_playing().is_some_and(|n| !n.loading && !n.playing);
+    assert!(app.until(opened), "the track never opened paused");
+    std::thread::sleep(Duration::from_millis(300));
+    app.until(|_| true);
+    assert_eq!(app.now_playing(), Some((FIRST_TRACK, false)), "it played on");
+    // The remote's Play then plays it.
+    app.server.emit(remote(&session, "play"));
+    assert!(playing(&mut app), "the remote's play didn't play");
 }

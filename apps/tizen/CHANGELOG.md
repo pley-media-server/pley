@@ -33,6 +33,11 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser controls what plays on the TV: a film or episode
+  plays, pauses, seeks and skips, and goes on to the next one; music does
+  the same, and goes back a track; Live TV changes channel. Live TV
+  stopped from another device, or by the server's administrator, stops
+  on the TV and says who, with their message.
 - Live TV, where the server has IPTV channels for the profile, by
   category: Favourites, Recently watched, All
   channels, the regions in alphabetical order, each opening to its
@@ -116,6 +121,11 @@ describes how they are made.
 
 ### Fixed
 
+- Live TV's channel up or down, still finding the next channel when another
+  is picked from the list or the app is hidden, no longer changes channel
+  a moment later.
+- Seeking in a track the server converts ends the track's session before
+  the new one starts, so a pause meanwhile no longer pauses the old one.
 - A film the TV can't play falls back one step at a time, to a conversion
   of its audio before one of the whole film: the TV's player says a failure
   twice, and the second skipped a step and started a second session.

@@ -156,6 +156,25 @@ describe("a live session", () => {
   });
 });
 
+describe("what plays here", () => {
+  it("plays on a TV, as the remote on the user's other devices is told, with what the player obeys", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const t = transport((req) => {
+      bodies.push(JSON.parse(req.body as string) as Record<string, unknown>);
+      return ok({ session_id: "s1", url: "/api/live/media/pley_mk_1/index.m3u8", kind: "hls", channel: {} });
+    });
+    const api = new Api("https://pley.example.com", tokens, t.http);
+    await api.play({ item_id: 70, client_id: "tizen-tv", controls: ["play", "pause"], caps: {} as never });
+    await api.watchChannel(4, "tizen-tv", undefined, undefined, ["next", "previous"]);
+    await api.watchChannel(4, "tizen-tv");
+    expect(bodies).toEqual([
+      { item_id: 70, client_id: "tizen-tv", controls: ["play", "pause"], caps: {}, device_kind: "tv" },
+      { client_id: "tizen-tv", keyed_urls: true, controls: ["next", "previous"], device_kind: "tv" },
+      { client_id: "tizen-tv", keyed_urls: true, controls: [], device_kind: "tv" },
+    ]);
+  });
+});
+
 describe("no answer", () => {
   it("is a failed connection, a timeout or a gateway with nothing behind it, never a cancelled request", () => {
     expect(unreachable(new NetworkError("Can't reach the server"))).toBe(true);
