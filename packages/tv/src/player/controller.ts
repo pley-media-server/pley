@@ -52,6 +52,7 @@ import type { NetworkMemory } from "./network";
 import { PREPARE_LEAD_MS, warmStream, type StreamFetch } from "./prepare";
 import { AUTO, autoLadder, chooseQuality, fileHint, liveFloor, liveLabel, modeOf, namedFor, ORIGINAL, presetById, PRESETS, qualitiesFor, streamLines, type QualityPreset } from "./quality";
 import { failureText, Recovery, StruggleMeter, type EngineError, type RecoveryAction } from "./recovery";
+import { remoteAction, videoControls, type PlayerCommand } from "./remote";
 import type { Reporter } from "./reporter";
 import { SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { SPEEDS } from "./speed";
@@ -407,6 +408,7 @@ export class PlaybackController {
     this.tickTimer = setInterval(() => this.tick(), TICK_MS);
     this.unsubscribe = this.env.events((e) => {
       if (e.type === "session_stopped" && this.info && e.session_id === this.info.session_id) this.stopByServer(e.message, e.by_admin);
+      else if (e.type === "player_command") this.obey(e);
     });
     void this.prepareFirst();
   }
@@ -585,6 +587,7 @@ export class PlaybackController {
     };
     const ask = (c: Choices): PlaybackRequest => {
       const req = playbackRequest(detail.id, c, this.env.clientId, this.caps, this.env.keyedUrls);
+      req.controls = videoControls(hasNext(detail.kind, this.current.queue));
       if (alongside) req.keep_previous = true;
       return req;
     };
@@ -1063,11 +1066,11 @@ export class PlaybackController {
     this.progressTimer = null;
   }
 
-  private report(state: "playing" | "paused"): void {
+  /** `position`: where the player went, when the TV's player may not say so yet (just after a seek). */
+  private report(state: "playing" | "paused", position = this.livePosition()): void {
     const info = this.info;
     if (!info || this.sessionEnded) return;
     const itemId = this.item?.id ?? this.current.itemId;
-    const position = this.livePosition();
     const api = this.env.api;
     this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, state, info.session_id));
   }
@@ -1119,6 +1122,56 @@ export class PlaybackController {
     this.sleep.cancel();
     this.engineRef?.stop();
     this.update({ phase: { kind: "error", message: stoppedText(message, byAdmin), canRetry: false }, skipLabel: null, stoppedByServer: true });
+  }
+
+  /**
+   * A command of the user's remote, on another device, for the session
+   * playing (remote.ts has the rule): what changed is reported at once, so
+   * the remote sees it. A pause reports as any pause does, the next item
+   * with its own session; a play or pause that finds it so already says it
+   * again. A remote's next that finds nothing says nothing here, whoever
+   * pressed it being elsewhere.
+   */
+  private obey(command: PlayerCommand): void {
+    const info = this.info;
+    if (!info || this.closed || this.stopped || this.sessionEnded || this.state.value.phase.kind === "error") return;
+    const detail = this.item;
+    const duration = this.clock.value.durationMs;
+    const action = remoteAction(
+      {
+        kind: "video",
+        session: info.session_id,
+        playing: this.wantPlay && !this.ended,
+        positionMs: this.livePosition(),
+        durationMs: duration > 0 ? duration : null,
+        hasNext: !!detail && hasNext(detail.kind, this.current.queue),
+      },
+      command,
+    );
+    switch (action.act) {
+      case "play":
+        this.play();
+        this.report("playing");
+        break;
+      case "pause":
+        this.pause();
+        break;
+      case "none":
+        // Playing or paused already: said again, so a remote a little behind settles.
+        if (action.report) this.report(this.wantPlay ? "playing" : "paused");
+        break;
+      case "seek":
+        this.seekTo(action.positionMs);
+        // Not a second later, as after the screen's seeks; a seek that started a new session has that report itself.
+        if (this.seekReportTimer === null) break;
+        clearTimeout(this.seekReportTimer);
+        this.seekReportTimer = null;
+        this.report(this.wantPlay ? "playing" : "paused", this.lastPositionMs);
+        break;
+      case "next":
+        this.playNext(true);
+        break;
+    }
   }
 
   // ---------------------------------------------------------------- commands
@@ -1337,7 +1390,8 @@ export class PlaybackController {
     this.seekTo(duration > 0 ? Math.min(skipTarget(marker), duration) : skipTarget(marker));
   }
 
-  playNext(): void {
+  /** `quiet`: nothing next says nothing (the remote's next, pressed elsewhere). */
+  playNext(quiet = false): void {
     if (this.closed || this.stopped) return;
     const known = this.next;
     if (known) {
@@ -1345,8 +1399,8 @@ export class PlaybackController {
       return;
     }
     this.lookUpNext((found) => {
-      if (!found) this.notice(this.current.queue ? T.lastInQueue : T.lastEpisode);
-      else this.switchTo(found);
+      if (found) this.switchTo(found);
+      else if (!quiet) this.notice(this.current.queue ? T.lastInQueue : T.lastEpisode);
     });
   }
 

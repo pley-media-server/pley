@@ -123,7 +123,11 @@ public sealed record LiveState(long? ChannelId = null, LivePhase? Phase = null, 
 ///   once the server has said watching didn't end there.
 /// - Someone taking over the channel's connection (the server's <c>live_taken_over</c>, sent
 ///   before the stream breaks off) stops it at once with the server's words; it isn't tuned again
-///   by itself.
+///   by itself. The session stopped from elsewhere (<c>session_stopped</c>: an administrator, or
+///   the profile on another device) stops it the same way, saying who and why.
+/// - The profile's remote, on another device, changes channel: its next and previous are channel
+///   up and down, in the order the player goes through (<see cref="Zap"/>), which a player
+///   declares only when it has one.
 /// - <see cref="Stop"/> lets the session and the player go (the app went to the background),
 ///   <see cref="Resume"/> tunes the channel again (not one that stopped on the server: its card
 ///   stays), <see cref="Close"/> ends it all.
@@ -177,15 +181,21 @@ public sealed class LivePlayback
     /// <summary>What plays is the channel's stream.ts: failing, it is watched again as HLS.</summary>
     bool direct;
     IDisposable? startTimer, pictureTimer, retryTimer, stallShown, stallCheck;
-    readonly IDisposable takenOver;
+    readonly IDisposable events;
 
     public LivePlayback(ILiveServer server, Func<IMediaEngine> engines, IScheduler scheduler)
     {
         this.server = server;
         this.engines = engines;
         this.scheduler = scheduler;
-        takenOver = server.OnTakenOver(TakenOver);
+        events = server.OnEvent(OnEvent);
     }
+
+    /// <summary>
+    /// Channel up (1) or down (-1), in the order the player goes through them: the remote's next
+    /// and previous do the same. Null, as long as the player has no order, declares neither.
+    /// </summary>
+    public Action<int>? Zap { get; set; }
 
     public Signal<LiveState> State { get; } = new Signal<LiveState>(new LiveState());
 
@@ -247,7 +257,42 @@ public sealed class LivePlayback
     {
         Stop();
         closed = true;
-        takenOver.Dispose();
+        events.Dispose();
+    }
+
+    void OnEvent(ServerEvent e)
+    {
+        if (closed) return;
+        switch (e.Type)
+        {
+            case "live_taken_over" when e.ChannelId is { } channel:
+                TakenOver(channel, e.Message);
+                break;
+            case "session_stopped" when session != null && e.SessionId == session:
+                StoppedElsewhere(e.Message, e.ByAdmin ?? true);
+                break;
+            case "player_command":
+                Obey(e);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The server stopped this TV's session (an administrator, or the profile on another device):
+    /// it stops now and says so, as for a connection taken over. Watching ended at the server:
+    /// nothing to leave.
+    /// </summary>
+    void StoppedElsewhere(string? message, bool byAdmin)
+    {
+        session = null;
+        Fail(new LiveTrouble(LiveTroubleKind.Stopped, LiveText.StoppedBy(message, byAdmin)));
+    }
+
+    /// <summary>The remote's next and previous: channel up and down. The new channel's watch tells the server, and so the remote.</summary>
+    void Obey(ServerEvent command)
+    {
+        var action = Remote.Action(new RemotePlayer(RemoteKind.Live, session, HasOrder: Zap != null), command);
+        if (action.Act == RemoteAct.Channel) Zap?.Invoke(action.By);
     }
 
     /// <summary>
@@ -294,7 +339,8 @@ public sealed class LivePlayback
         // Asked for with the channel, as the server tunes for whichever comes first; after it when a
         // connection is taken over, as only the watch takes it.
         var stream = allowDirect && takeOver == null ? server.Stream(channelId, server.ClientId + StreamClient) : null;
-        Plays.When(scheduler, () => server.Watch(channelId, takeOver, token), watching =>
+        var controls = Remote.LiveControls(Zap != null);
+        Plays.When(scheduler, () => server.Watch(channelId, takeOver, controls, token), watching =>
         {
             if (mine != generation)
             {
