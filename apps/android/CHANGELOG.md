@@ -10,8 +10,9 @@ describes how they are made.
 
 ### Fixed
 
-- On Fire TV, the sideloaded app's tile is one piece: Pley's mark, larger,
-  on the tile's grey, not a dark square between grey bars.
+- On Fire TV, the app's tile shows Pley's name under the mark, as the
+  other apps' tiles show theirs. Android TV and Google TV keep the mark
+  alone.
 
 ## [0.1.5] - 2026-11-03
 

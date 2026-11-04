@@ -42,6 +42,9 @@
 //   apps/android/app/src/main/res/drawable-{xhdpi,xxhdpi,xxxhdpi}/tv_banner.png
 //                                           the Android TV app's banner, 320×180 dp,
 //                                           on Android TV's home screen
+//   apps/android/app/src/main/res/mipmap-television-notnight-xxxhdpi/ic_launcher.png
+//                                           Fire TV's icon, the mark above the
+//                                           wordmark: the tile of a sideloaded app
 //   apps/{server,transcoder}/assets/pley.ico
 //                                           the programs' and the installer's icon
 //   apps/server/assets/tray-{32,64}.png     the tray icon on Windows and Linux
@@ -87,7 +90,7 @@ function onTile(width, height, s, x, y) {
 
 /**
  * The mark on the tile's colour above a band saying [label] in [ink] on [fill], a width × height picture:
- * which of Pley's Samsung apps it is, told apart on a TV that has more than one.
+ * Samsung's web app, told apart from the native one on a TV that has both.
  */
 function labelled(width, height, label, fill, ink) {
   const band = Math.round(height * 0.22);
@@ -99,6 +102,34 @@ function labelled(width, height, label, fill, ink) {
   <g transform="translate(${x} ${y}) scale(${s})">${glyph}</g>
   <rect y="${height - band}" width="${width}" height="${band}" fill="${fill}"/>
   <text x="${width / 2}" y="${height - band / 2}" dominant-baseline="central" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="${Math.round(band * 0.6)}" font-weight="700" letter-spacing="2" fill="${ink}">${label}</text></svg>`;
+}
+
+/**
+ * A large TV tile's icon, a size × size square: the mark above the wordmark, on the banner's colours to the
+ * edges, as the other apps' tiles there show their names (Samsung's apps bar, Fire TV's tile for a
+ * sideloaded app). With a [label], a band along the bottom says it in [ink] on [fill]: a profiling build
+ * of the native Samsung app, told apart from the app itself.
+ */
+function named(size, label, fill, ink) {
+  const s = size / 512;
+  // In a 512 square: the mark (40 × 33 of the logo's 64, from (12, 15.5)) [g] times the logo, its top left
+  // at (256 - 20g, top), and the wordmark's baseline at [baseline]: the mark's top to the baseline centred
+  // in the square (or above the band), the y's tail below as the eye allows.
+  const [g, top, font, baseline] = label ? [4.5, 83, 96, 317] : [6, 99, 128, 411];
+  const band = label
+    ? `<rect y="399" width="512" height="113" fill="${fill}"/>
+    <text x="256" y="455.5" dominant-baseline="central" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="68" font-weight="700" letter-spacing="2" fill="${ink}">${label}</text>`
+    : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${defs}
+  <radialGradient id="corner" cx="${size}" cy="${size}" r="${size * 0.9}" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="${size}" height="${size}" fill="${TILE}"/><rect width="${size}" height="${size}" fill="url(#corner)"/>
+  <g transform="scale(${s})">
+    <g transform="translate(${256 - 20 * g - 12 * g} ${top - 15.5 * g}) scale(${g})">${glyph}</g>
+    <text x="256" y="${baseline}" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="${font}" font-weight="700" letter-spacing="-2" fill="#e9ebef">Pley</text>
+    ${band}
+  </g></svg>`;
 }
 
 /**
@@ -117,6 +148,27 @@ function banner(width, height) {
   <g transform="translate(${(width - 320 * s) / 2} ${(height - 180 * s) / 2}) scale(${s})">
     <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
     <text x="160" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
+  </g></svg>`;
+}
+
+/**
+ * The Amazon Appstore's Fire TV icon, 1280 × 720, which Fire TV shows as the app's tile: the banner's mark
+ * and wordmark centred and about four fifths of the width, as the other apps' tiles fill theirs.
+ */
+function fireTvIcon() {
+  // The banner's lockup with the wordmark closer to the mark, from 152 rather than 160: it spans about 70 to
+  // 274 across the banner's 320 × 180, centred at 172; down, the mark and the wordmark's capitals span 56 to
+  // 114, centred at 85 (the y's tail hangs below).
+  const s = 1000 / 204;
+  const g = 1.75;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">${defs}
+  <radialGradient id="corner" cx="1280" cy="720" r="666" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="1280" height="720" fill="${TILE}"/><rect width="1280" height="720" fill="url(#corner)"/>
+  <g transform="translate(${640 - 172 * s} ${360 - 85 * s}) scale(${s})">
+    <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
+    <text x="152" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
   </g></svg>`;
 }
 
@@ -322,14 +374,13 @@ try {
     ]),
   );
 
-  // Samsung's, square as the TV's menu draws its other apps: a 380 px logo centred, the tile's colour to the edges.
-  // The native app's plain; the web app's and a native profiling build's marked, as all three may be
-  // on one TV.
+  // Samsung's, square as the TV's apps bar draws its other apps. The native app's with the name, as
+  // theirs have it; the web app's and a native profiling build's marked, as all three may be on one TV.
   const tizen = join(root, "apps/tizen/assets");
   writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(labelled(512, 512, "WEB", "#0284c7", "#ffffff"), 512, 512)));
   const native = join(root, "apps/tizen-native/src/Pley.Tv.Tizen");
-  writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(onTile(512, 512, 380 / 64, 66, 66), 512, 512)));
-  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(labelled(512, 512, "DEBUG", "#facc15", "#0a1622"), 512, 512)));
+  writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(named(512), 512, 512)));
+  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(named(512, "DEBUG", "#facc15", "#0a1622"), 512, 512)));
 
   // LG's: the logo at full size without its rounded corners, on the colour appinfo.json's iconColor
   // gives the TV's tile; and the launch picture with the mark's middle (32, 32 of the logo's 64)
@@ -360,6 +411,12 @@ try {
     mkdirSync(join(res, `drawable-${density}`), { recursive: true });
     writeFileSync(join(res, `drawable-${density}`, "tv_banner.png"), rgb72(await r.png(banner(width, height), width, height)));
   }
+  // Fire TV's icon, where the tile for a sideloaded app is drawn from it: on TVs out of night mode, as
+  // Fire OS runs (Android TV and Google TV run in night mode and keep the adaptive icon, the mark alone).
+  // 128 dp square at xxxhdpi: Android scales it down for the TV's density, and Fire TV to its tile's square.
+  const fire = join(res, "mipmap-television-notnight-xxxhdpi");
+  mkdirSync(fire, { recursive: true });
+  writeFileSync(join(fire, "ic_launcher.png"), rgb72(await r.png(named(512), 512, 512)));
   // The stores': Google Play rounds the square icon's corners itself, so the mark sits as on the
   // Android app's adaptive icon; the feature graphic and TV banner are the banner, opaque.
   const stores = join(root, "deploy/stores");
@@ -367,6 +424,7 @@ try {
   writeFileSync(join(stores, "icon-114.png"), rgb72(await r.png(maskable(114, (114 / 512) * 7.449), 114)));
   writeFileSync(join(stores, "feature-graphic-1024x500.png"), rgb72(await r.png(banner(1024, 500), 1024, 500)));
   writeFileSync(join(stores, "tv-banner-1280x720.png"), rgb72(await r.png(banner(1280, 720), 1280, 720)));
+  writeFileSync(join(stores, "fire-tv-icon-1280x720.png"), rgb72(await r.png(fireTvIcon(), 1280, 720)));
   writeFileSync(join(stores, "fire-tv-background-1920x1080.jpg"), await r.jpeg(fireTvBackground(), 1920, 1080, 90));
   // Inno Setup's square in the top right of the installer's pages, at 100 to 250 % (its help's
   // WizardSmallImageFile): the logo flush in it would touch the window's edge, so it's inset.

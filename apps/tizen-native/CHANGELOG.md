@@ -8,6 +8,11 @@ It has no releases yet: it is built and installed by hand
 
 ## [Unreleased]
 
+### Changed
+
+- The icon shows Pley's name under the mark, as the other apps in the
+  TV's apps bar show theirs.
+
 ### Added
 
 - A profiling build of the native app is an app of its own, "Pley (debug)",

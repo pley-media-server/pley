@@ -81,8 +81,8 @@
           TVs, with the 320x180 banner on Android TV's home screen. Its icon
           is the app's: Google TV's home screen draws it in a circle, and Fire
           TV's shows a sideloaded app by the app's icon in a square, between
-          grey bars, whatever its shape (the sideloaded APK's TV icon is
-          made for that, in src/direct). A remote or keyboard connecting
+          grey bars, whatever its shape (mipmap-television-notnight is that
+          icon, with the name). A remote or keyboard connecting
           doesn't restart it.
         -->
         <activity
