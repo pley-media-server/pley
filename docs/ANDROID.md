@@ -698,7 +698,10 @@ TV and a phone (or their emulators, API 33 or later) attached. Each step
 waits for the screen it leads to, and a journey that goes astray fails
 there, saying where. The phone signs in through the browser, or with a
 code where it has none: on a new device with a browser, open it once
-first, past its welcome pages.
+first, past its welcome pages. Besides, `:core:designsystem` and `:ui:tv`
+each name in their own `src/main/baseline-prof.txt` the packages every
+list a held key scrolls goes through (tiles and their artwork, the TV
+kit, the library grid), compiled ahead whatever the journeys reach.
 
 ### Recording an animation
 
