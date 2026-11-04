@@ -176,26 +176,16 @@ sub buildRail()
     focusedKey = invalid
     if m.rail.content <> invalid and m.rail.itemFocused >= 0 and m.rail.itemFocused < m.railEntries.Count() then focusedKey = m.railEntries[m.rail.itemFocused].key
     m.railEntries = liveRail(m.summary, m.groups, m.open, m.query)
-    items = []
     at = 0
     for i = 0 to m.railEntries.Count() - 1
         entry = m.railEntries[i]
-        mark = ""
-        if entry.kind = "region"
-            mark = "+"
-            if entry.key = m.open then mark = "−"
-        end if
-        countText = ""
-        if entry.count >= 0 then countText = liveThousands(entry.count)
-        current = (entry.kind = "category" or entry.kind = "search") and entry.key = m.view.category
-        items.Push({ title: entry.label, countText: countText, mark: mark, inner: entry.inner, heading: entry.kind = "heading", current: current })
         if entry.kind <> "heading"
             if focusedKey = invalid and entry.key = m.view.category then at = i
             if focusedKey <> invalid and entry.key = focusedKey then at = i
         end if
     end for
     m.railFocused = at
-    m.rail.content = nodesContent(items)
+    m.rail.content = nodesContent(liveRailItems(m.railEntries, m.open, m.view.category))
     m.rail.jumpToItem = at
     m.searchRow.content = nodesContent([{ title: liveSearchLabel(m.query), countText: "", mark: "", inner: false, heading: false, current: searching() }])
 end sub
@@ -275,15 +265,9 @@ end function
 ' was going.
 sub onRailFocused(event as object)
     at = event.getData()
-    was = m.railFocused
-    m.railFocused = at
-    if at < 0 or at >= m.railEntries.Count() or m.railEntries[at].kind <> "heading" then return
-    target = at + 1
-    if was > at then target = at - 1
-    if target < 0 or target >= m.railEntries.Count() then target = at + 1
-    if target >= m.railEntries.Count() then return
+    target = liveRailPast(m.railEntries, at, m.railFocused)
     m.railFocused = target
-    m.rail.jumpToItem = target
+    if target <> at then m.rail.jumpToItem = target
 end sub
 
 ' OK on Search asks what to find; on a category, it shows and the focus

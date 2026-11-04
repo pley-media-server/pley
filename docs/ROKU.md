@@ -58,7 +58,7 @@ in to with a code, choosing it in the browser.
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Options (\*) | Live TV | A programme's details (a card's: what's on), Watch, Add to or remove from favourites |
 | Options (\*) | The live player | Add to or remove from favourites |
-| Replay | Live TV | Search (Roku remotes have no search key for apps) |
+| Replay | Live TV, the live player's channel list | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
 
@@ -343,6 +343,11 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   in the favourites or takes it out, in the list the channel in focus,
   else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
+- **The channel list** opens on the category Up and Down go through, at
+  the channel playing. Left in it lists the categories as Live TV does
+  (OK on one lists its channels instead, Back goes back), and Replay
+  searches every channel (Back leaves the search). A channel chosen from
+  another category, or a search, makes Up and Down go through that one.
 - **Failures:** a playlist the server doesn't give (a `503` while the
   provider sends nothing, or another failure of its), or a stream that
   breaks while its playlist is still there, tunes the channel again twice,

@@ -7,8 +7,9 @@
 // badges, filters saved as a smart playlist, collections played (movies
 // and a smart one of shows), a show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
-// guide, a channel watched, the next one, the channel list, a favourite,
-// every connection in use, the Channels tab), Search (and its Discover row's
+// guide, a channel watched, the next one, the channel list, a favourite
+// and another category listed there, every connection in use, the
+// Channels tab), Search (and its Discover row's
 // See all), Discover (a movie asked for, a show's seasons picked), the
 // managers' Requests (Approve, a ready-to-watch notice whose movie's
 // audio and subtitles are picked on its page, then Yours), Settings, the
@@ -535,7 +536,8 @@ async function walk() {
   // Live TV: the categories and the guide of every channel (a page, its
   // programmes for those channels), OK on what's on now watches the
   // channel, Up the next one (the server ends the first by the
-  // client_id), the channel list and a favourite, then a channel whose
+  // client_id), the channel list, a favourite and another category
+  // listed there, then a channel whose
   // source has no connection left; Back leaves to the guide at that
   // channel, then the Channels tab.
   await openFromMenu(1, /^GET \/api\/live\/guide\?/, "Live TV's guide");
@@ -558,6 +560,19 @@ async function walk() {
   since = mark();
   await press("options");
   await waitFor(/^PUT \/api\/live\/channels\/2\/favorite$/, since, "a channel put in the favourites");
+  // Left in the list: the categories, on All channels; Favourites, two up,
+  // lists its channels there. Back closes the list: up and down still go
+  // through All channels.
+  since = mark();
+  await press("left");
+  await waitFor(/^GET \/api\/live\/groups$/, since, "the categories in the player's list");
+  await settle();
+  await press("up", 2);
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/live\/browse\?.*category=favorites/, since, "the favourites listed in the player");
+  await sleep(800);
+  shoot("live-list-favourites");
   await press("back");
   since = mark();
   await press("up");
@@ -1395,6 +1410,7 @@ const checks = [
   ["watched channels with one client_id, so zapping holds one connection", fixture.liveWatches.length >= 2 && new Set(fixture.liveWatches.map((w) => w.client_id)).size === 1 && fixture.liveWatches[0].client_id !== null],
   ["asked for a channel's playlist before playing it", fixture.livePlaylists.length >= 2],
   ["put a channel in the favourites from the player's list", fixture.liveFavoriteChanges.some((c) => c.id === 2 && c.favorite)],
+  ["listed another category's channels in the player's list", fixture.liveBrowses.some((b) => b.category === "favorites")],
   ["said every connection is in use", live.busy],
   ["took over the connection with Watch here instead", fixture.liveWatches.some((w) => w.id === 3 && w.take_over === 1)],
   ["left the channels it watched", fixture.liveLeft.length > 0 && fixture.liveSessions.size === 0],

@@ -142,6 +142,25 @@ sub test_live_search_goes_back_to_the_category_before()
     tkEqual(liveBeforeSearch("", "favorites"), "all")
 end sub
 
+sub test_live_rail_items()
+    groups = liveGroups(liveSampleGroups())
+    rail = liveRail(liveSummary(liveSampleGroups()), groups, "UK", "")
+    items = liveRailItems(rail, "UK", "group:UK| News")
+    tkEqual(items[0], { title: "Favourites", countText: "2", mark: "", inner: false, heading: false, current: false })
+    tkEqual(items[2].countText, "56,171")
+    tkTrue(items[3].heading, "Regions")
+    tkEqual(items[3].countText, "", "a heading has no count")
+    tkEqual(items[4].mark, "+", "a region closed")
+    tkEqual(items[5].mark, "−", "the region open")
+    tkTrue(items[7].current, "the category shown")
+    tkTrue(items[7].inner)
+    tkEqual(liveRailPast(rail, 3, 2), 4, "past a heading, on")
+    tkEqual(liveRailPast(rail, 3, 4), 2, "past a heading, back")
+    tkEqual(liveRailPast(rail, 2, 1), 2, "a category stays")
+    tkEqual(liveRailPast([{ kind: "heading" }, { kind: "category" }], 0, 1), 1, "a heading at the top: on")
+    tkEqual(liveRailPast([{ kind: "category" }, { kind: "heading" }], 1, 0), 1, "a heading at the end stays")
+end sub
+
 sub test_live_rail_pages()
     kinds = ["category", "category", "heading", "region", "region", "region", "heading", "category", "category", "category"]
     tkEqual(liveRailPage(kinds, 0, 4, 1), 4)

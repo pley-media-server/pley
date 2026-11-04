@@ -299,6 +299,36 @@ function liveRail(summary as object, groups as object, open as string, query as 
     return rail
 end function
 
+' The rail's entries as LiveRailItem draws them ([{ title, countText,
+' mark, inner, heading, current }]): a region's mark says whether it is
+' open, and the category shown stands out.
+function liveRailItems(entries as object, open as string, shown as string) as object
+    items = []
+    for each entry in entries
+        mark = ""
+        if entry.kind = "region"
+            mark = "+"
+            if entry.key = open then mark = "−"
+        end if
+        countText = ""
+        if entry.count >= 0 then countText = liveThousands(entry.count)
+        items.Push({ title: entry.label, countText: countText, mark: mark, inner: entry.inner, heading: entry.kind = "heading", current: entry.kind = "category" and entry.key = shown })
+    end for
+    return items
+end function
+
+' Where the rail's focus goes as it lands on at, coming from was: past a
+' heading ("Regions", "More groups"), the way it was going (on, at the
+' top); at itself on anything else.
+function liveRailPast(entries as object, at as integer, was as integer) as integer
+    if at < 0 or at >= entries.Count() or entries[at].kind <> "heading" then return at
+    target = at + 1
+    if was > at then target = at - 1
+    if target < 0 then target = at + 1
+    if target >= entries.Count() then return at
+    return target
+end function
+
 ' The region a group category is gathered under in the rail (open there),
 ' or "".
 function liveRegionOf(category as string, groups as object) as string
