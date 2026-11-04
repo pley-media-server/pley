@@ -156,6 +156,18 @@ describe("AudioPlayer obeying the remote", () => {
     await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "t1" }));
   });
 
+  it("says again that it plays, or is paused, when told so already, so a remote a little behind settles", async () => {
+    const { requests, setPaused } = await playing();
+    send(command("play"));
+    expect(media.play).not.toHaveBeenCalled();
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "t1" }));
+
+    setPaused(true);
+    send(command("pause"));
+    expect(media.pause).not.toHaveBeenCalled();
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "paused", session_id: "t1" }));
+  });
+
   it("seeks, no further than the track's end, and reports where at once", async () => {
     const { requests, audio } = await playing();
     send(command("seek", { position_ms: 30_000 }));

@@ -108,6 +108,14 @@ describe("RemoteButton", () => {
     ]);
   });
 
+  it("leaves the title off a poster too small for it, the line beside it saying it", async () => {
+    const film = makeItem({ id: 9, kind: "movie", title: "Test Pattern", poster_url: null });
+    mockApi({ "GET /api/sessions": () => [episode({ item: film })] });
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    expect(within(panel).getAllByText(/Test Pattern/)).toHaveLength(1);
+  });
+
   it("shows a player that obeys nothing with its progress and Stop", async () => {
     mockApi({ "GET /api/sessions": () => [episode()] });
     renderWithProviders(<RemoteButton />);

@@ -1690,11 +1690,15 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
             () => report("playing"),
             () => setNeedsGesture(true),
           );
+        } else {
+          // Playing already: said again, so a remote a little behind settles.
+          report("playing");
         }
         break;
       case "pause":
-        // Its pause event reports.
+        // Its pause event reports; paused already, it is said again.
         if (!v.paused) v.pause();
+        else report("paused");
         break;
       case "seek":
       case "skip": {
