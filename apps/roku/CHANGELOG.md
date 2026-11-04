@@ -38,6 +38,9 @@ describes how they are made.
   a channel chosen there makes channel up and down go through that one.
 - The Options key on a programme in Live TV's guide, or on a card, shows
   its details.
+- The requests' tabs say how many each holds, and Discover's way to the
+  requests how many wait there, in red while some couldn't be sent.
+- A Discover grid whose next page fails ends in a tile to try again.
 
 ### Changed
 
@@ -66,6 +69,17 @@ describes how they are made.
 - What's on in Live TV and in the live player moves on as programmes end.
 - When every connection is in use and none can be taken over, the notice
   says what can be done instead.
+- When trending has nothing the profile may ask for, Discover's hero is
+  the first title of the next row that has one.
+- Search's Discover row looks through up to 3 of TMDB's pages for up to
+  20 titles the libraries lack, so it no longer goes missing when TMDB's
+  first page is all in the libraries.
+- Without the event stream, the requests and Discover's Your requests are
+  asked again every 30 s.
+- Ready-to-watch news shows in a card at the bottom right with the
+  title's poster, Open and Close, once the remote rests, as on the other
+  TVs. It gives the focus back when closed, goes by itself after 10 s,
+  and never shows on the requests.
 
 ### Fixed
 
