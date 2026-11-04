@@ -2,6 +2,7 @@ package app.pley.android.player.music
 
 import android.os.SystemClock
 import app.pley.android.auth.AuthException
+import app.pley.android.model.Control
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
@@ -49,8 +50,15 @@ class MusicEnvironment(
     val output: () -> MusicOutput,
     /** A monotonic clock in ms, for the sleep timer. */
     val now: () -> Long = SystemClock::elapsedRealtime,
-    /** The server's events, to hear of the track's session being stopped. */
+    /** The server's events, to hear of the track's session being stopped, and the remote's commands. */
     val events: Flow<ServerEvent> = emptyFlow(),
+    /**
+     * Told whether music is under way (LiveUpdates.playing): the event
+     * stream stays open in the background meanwhile, for the remote.
+     */
+    val playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
+    /** Told which track's session plays now, `null` once none (RemoteRepository.here): no remote shows it here. */
+    val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
 )
 
 /**
@@ -70,7 +78,11 @@ class MusicEnvironment(
  * - a sleep timer pauses after the minutes chosen, or at the end of the
  *   track (the next one waits, paused);
  * - a video or a channel ends the music's session ([pauseForVideo]): the
- *   queue and the place stay, and Play starts a new session there.
+ *   queue and the place stay, and Play starts a new session there;
+ * - the remote, on another of the profile's devices, plays and pauses,
+ *   seeks, skips, and goes to the next or previous track ([obey]); the
+ *   event stream stays open while music is under way, the screen off too,
+ *   and is let go once it has been paused for 90 s.
  *
  * It lives as long as the app's process, so it plays on with no screen
  * open; the [MusicService] shows it in the notification and on the lock
@@ -90,6 +102,10 @@ class MusicPlayback(
 
     private var out: MusicOutput? = null
     private var session: ServerPlaybackSession? = null
+        set(value) {
+            field = value
+            env.here(this, value?.id)
+        }
     private var api: PleyApi? = null
     private var loadJob: Job? = null
     private var ticker: Job? = null
@@ -107,6 +123,10 @@ class MusicPlayback(
     private var yielded = false
     private var error: MusicError? = null
 
+    /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
+    private var rested = false
+    private var resting: Job? = null
+
     private val timer = SleepTimer(scope, env.now, ::trackLeftMs, { queue.current?.id }) { pause() }
 
     /** The sleep timer. */
@@ -115,9 +135,50 @@ class MusicPlayback(
     init {
         scope.launch {
             env.events.collect { event ->
-                if (event is ServerEvent.SessionStopped && event.sessionId == session?.id) stoppedByServer()
+                when {
+                    event is ServerEvent.SessionStopped && event.sessionId == session?.id -> stoppedByServer()
+                    event is ServerEvent.PlayerCommand && event.sessionId == session?.id -> obey(event)
+                }
             }
         }
+    }
+
+    /**
+     * A command of the profile's remote for the track playing, as the
+     * web's music obeys it: a seek stays within the track, a skip goes from
+     * where it is now, next and previous as the buttons here. What changed
+     * is reported at once, so the remote sees it (a pause reports by
+     * itself, and another track with its new session).
+     */
+    private fun obey(command: ServerEvent.PlayerCommand) {
+        val s = session ?: return
+        val o = out ?: return
+        when (command.command) {
+            Control.Play -> {
+                // Playing already: said again, so a remote a little behind settles.
+                if (!o.playWhenReady) play()
+                s.progress(lastPosition(), ProgressState.Playing)
+            }
+            // A pause reports by itself; paused already, it is said again.
+            Control.Pause -> if (o.playWhenReady) pause() else s.progress(lastPosition(), ProgressState.Paused)
+            Control.Seek -> command.positionMs?.let { seekNow(s, o, it) }
+            Control.Skip -> command.offsetMs?.let { seekNow(s, o, lastPosition() + it) }
+            Control.Next -> next()
+            Control.Previous -> {
+                previous()
+                // Back to the start of the same track: the same session, moved.
+                if (session === s) s.progress(0, if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
+            }
+            Control.Unknown -> Unit
+        }
+    }
+
+    /** Seeks to [positionMs], within the track, and reports where it went. */
+    private fun seekNow(s: ServerPlaybackSession, o: MusicOutput, positionMs: Long) {
+        val duration = o.durationMs.takeIf { it > 0 } ?: s.info.durationMs.takeIf { it > 0 } ?: queue.current?.durationMs
+        val target = (if (duration != null) positionMs.coerceAtMost(duration) else positionMs).coerceAtLeast(0)
+        seekTo(target)
+        s.progress(target, if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
     }
 
     /**
@@ -254,6 +315,7 @@ class MusicPlayback(
         error = null
         now.value = null
         order.value = MusicQueueState()
+        env.playing(this, false)
         onStopped?.invoke()
     }
 
@@ -292,6 +354,7 @@ class MusicPlayback(
                     mode = fallback ?: PlaybackMode.Auto,
                     clientId = env.clientId(),
                     caps = capsOrNone(),
+                    controls = CONTROLS,
                 )
                 ServerPlaybackSession.start(server, request, env.reporter)
             } catch (e: CancellationException) {
@@ -474,6 +537,11 @@ class MusicPlayback(
     }
 
     private fun publish() {
+        // Under way, between tracks too, so the stream doesn't drop and open again at each: not after the end, a
+        // failure or a video, which let the session go, nor once paused for a while.
+        val underWay = !queue.isEmpty && !ended && !yielded && error == null
+        watchRest(underWay)
+        env.playing(this, underWay && !rested)
         val track = queue.current
         order.value = queue.state
         now.value = track?.let {
@@ -497,6 +565,29 @@ class MusicPlayback(
         }
     }
 
+    /**
+     * Paused as long as the server keeps a session it hasn't heard from,
+     * music lets go of the event stream in the background: held, it would
+     * reconnect, and the server's keep-alives wake the radio, for as long as
+     * the app lives. Play holds it again; the paused reports go on meanwhile.
+     */
+    private fun watchRest(underWay: Boolean) {
+        if (underWay && out?.playWhenReady == false) {
+            if (resting == null && !rested) {
+                resting = scope.launch {
+                    delay(PAUSED_HOLD_MS)
+                    resting = null
+                    rested = true
+                    publish()
+                }
+            }
+        } else {
+            resting?.cancel()
+            resting = null
+            rested = false
+        }
+    }
+
     private fun currentApi(): PleyApi? = try {
         env.api().also { api = it }
     } catch (_: Exception) {
@@ -517,11 +608,17 @@ class MusicPlayback(
         /** While paused: the server forgets a session it hasn't heard from for 90 s, and its transcode with it. */
         const val PAUSED_EVERY_MS = 30_000L
 
+        /** Paused this long, the event stream is let go in the background: the server's window for a session unheard. */
+        const val PAUSED_HOLD_MS = 90_000L
+
         /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3
 
         /** The longest a new track waits for the last one's reports to go out. */
         const val FLUSH_WAIT_MS = 3_000L
+
+        /** What music obeys from the remote: everything (the web's). */
+        val CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Previous)
 
         /** The notification's art: the server's 480 bucket. */
         const val NOTIFICATION_ART_PX = 480

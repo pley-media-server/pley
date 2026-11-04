@@ -1,6 +1,7 @@
 package app.pley.android.data
 
 import app.pley.android.common.NotBuiltYet
+import app.pley.android.model.Control
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveChannelPage
@@ -10,7 +11,6 @@ import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveSummary
 import app.pley.android.model.LiveWatching
 import app.pley.android.model.WatchRequest
-import java.net.URLEncoder
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -56,9 +56,10 @@ interface LiveTvRepository {
      * server's refusal (`409`: every connection of its source in use,
      * [app.pley.android.network.ApiException.connections] saying what holds
      * each). [takeOver]: the channel whose connection to take, one the
-     * `409` said may be.
+     * `409` said may be. [controls]: what the player obeys from the
+     * remote (channel up and down).
      */
-    suspend fun watch(channelId: Long, clientId: String, takeOver: Long? = null): LiveWatching
+    suspend fun watch(channelId: Long, clientId: String, takeOver: Long? = null, controls: List<Control> = emptyList()): LiveWatching
 
     /** What [sessionId]'s channel is made into, waiting a few seconds for it; `null` when not known by then. */
     suspend fun plan(sessionId: String): LivePlan?
@@ -66,7 +67,8 @@ interface LiveTvRepository {
     /**
      * The address of [channelId]'s MPEG-TS as the provider sends it
      * (`stream.ts`), absolute, for [clientId]: reading it ends that
-     * device's HLS viewer, as watching another channel does.
+     * device's HLS viewer, as watching another channel does. It says what
+     * kind of device reads it, as watching does.
      */
     suspend fun streamUrl(channelId: Long, clientId: String): String
 
@@ -103,7 +105,8 @@ interface LiveTvRepository {
 
             override suspend fun setFavorite(channelId: Long, favorite: Boolean) = throw NotBuiltYet("Live TV")
 
-            override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?): LiveWatching = throw NotBuiltYet("Live TV")
+            override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?, controls: List<Control>): LiveWatching =
+                throw NotBuiltYet("Live TV")
 
             override suspend fun plan(sessionId: String): LivePlan? = null
 
@@ -182,9 +185,9 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
         cache.revalidate { key, _ -> key == SnapshotKeys.LIVE_GROUPS || key.startsWith("live:page:favorites:") || key.startsWith("live:around:favorites:") }
     }
 
-    override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?): LiveWatching {
+    override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?, controls: List<Control>): LiveWatching {
         val api = cache.api(cache.profile())
-        val watching = api.watchChannel(channelId, WatchRequest(clientId, takeOver))
+        val watching = api.watchChannel(channelId, WatchRequest(clientId, takeOver, controls.takeIf { it.isNotEmpty() }))
         // Recently watched has it first now: asked again when next shown.
         cache.markStale { key, _ ->
             key == SnapshotKeys.LIVE || key == SnapshotKeys.LIVE_GROUPS || key.startsWith("live:page:recent:") || key.startsWith("live:around:recent:")
@@ -195,7 +198,7 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
     override suspend fun plan(sessionId: String): LivePlan? = cache.api(cache.profile()).livePlan(sessionId)
 
     override suspend fun streamUrl(channelId: Long, clientId: String): String =
-        cache.api(cache.profile()).url("/api/live/channels/$channelId/stream.ts?client_id=${URLEncoder.encode(clientId, Charsets.UTF_8.name())}")
+        cache.api(cache.profile()).liveStreamUrl(channelId, clientId)
 
     override fun leave(sessionId: String) {
         cache.app.launch {

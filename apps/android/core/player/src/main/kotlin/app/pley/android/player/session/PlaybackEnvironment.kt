@@ -197,8 +197,15 @@ class PlaybackEnvironment(
     val profileId: Long? = null,
     /** Reads picture subtitles beside a stream (the server's .mks); `null`: they are burned in instead. */
     val pictures: PictureSource? = null,
-    /** The server's events, to hear of this playback being stopped. */
+    /** The server's events, to hear of this playback being stopped, and the remote's commands. */
     val events: Flow<ServerEvent> = emptyFlow(),
+    /**
+     * Told whether a playback has a session on the server now (LiveUpdates.playing):
+     * the event stream stays open in the background meanwhile, for the remote.
+     */
+    val playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
+    /** Told which session a playback plays now, `null` once none (RemoteRepository.here): no remote shows it here. */
+    val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
     /** Downloads: files played as they are on the device, without the server. */
     val local: LocalMedia = LocalMedia.None,
     /**

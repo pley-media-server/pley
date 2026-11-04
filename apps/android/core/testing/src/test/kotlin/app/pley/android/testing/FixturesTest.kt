@@ -56,6 +56,8 @@ import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
@@ -145,6 +147,8 @@ class FixturesTest {
         "playback/progress_request.json" to ProgressReport.serializer(),
         "playback/streams_request.json" to StreamChoice.serializer(),
         "playback/rating_request.json" to RatingRequest.serializer(),
+        "sessions/list.json" to ListSerializer(PlayingSession.serializer()),
+        "sessions/command_request.json" to PlayerCommandRequest.serializer(),
         "conversions/direct.json" to ConversionInfo.serializer(),
         "conversions/running.json" to ConversionInfo.serializer(),
         "trickplay/info.json" to TrickplayInfo.serializer(),
@@ -156,6 +160,7 @@ class FixturesTest {
         "events/library_changed.json" to ServerEvent.Serializer,
         "events/libraries_changed.json" to ServerEvent.Serializer,
         "events/sessions_changed.json" to ServerEvent.Serializer,
+        "events/player_command.json" to ServerEvent.Serializer,
         "events/unknown_type.json" to ServerEvent.Serializer,
         "live/summary.json" to LiveSummary.serializer(),
         "live/channels.json" to ListSerializer(LiveChannel.serializer()),
@@ -184,6 +189,7 @@ class FixturesTest {
         "errors/tmdb_down.json" to ApiErrorBody.serializer(),
         "errors/declined.json" to ApiErrorBody.serializer(),
         "errors/conflict_request.json" to ApiErrorBody.serializer(),
+        "errors/not_controllable.json" to ApiErrorBody.serializer(),
     )
 
     @Test
@@ -200,7 +206,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(92, files.size)
+        assertEquals(96, files.size)
     }
 
     @Test

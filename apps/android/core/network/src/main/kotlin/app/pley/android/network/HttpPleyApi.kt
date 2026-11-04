@@ -7,6 +7,7 @@ import app.pley.android.model.Approval
 import app.pley.android.model.Asked
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverList
 import app.pley.android.model.DiscoverPage
@@ -56,6 +57,8 @@ import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
@@ -105,6 +108,10 @@ class HttpPleyApi(
     issuer: String,
     client: () -> OkHttpClient,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** What remotes call this device, sent with playbacks and Live TV ([DeviceNames.of]); `null`: left out. */
+    private val deviceName: () -> String? = { null },
+    /** What kind of device this is, sent with playbacks and Live TV ([DeviceKinds.of]); `null`: left out. */
+    private val deviceKind: () -> DeviceKind? = { null },
 ) : PleyApi {
     /** The server's origin: `http://nas:7539`. */
     val issuer: String = Addresses.origin(issuer) ?: issuer.trimEnd('/')
@@ -245,8 +252,10 @@ class HttpPleyApi(
 
     // ---------------------------------------------------------------- playback
 
-    override suspend fun startPlayback(request: PlaybackRequest): PlaybackInfo =
-        send("POST", PlaybackInfo.serializer(), json(PlaybackRequest.serializer(), request), "api", "playback")
+    override suspend fun startPlayback(request: PlaybackRequest): PlaybackInfo {
+        val named = request.copy(deviceName = request.deviceName ?: deviceName(), deviceKind = request.deviceKind ?: deviceKind())
+        return send("POST", PlaybackInfo.serializer(), json(PlaybackRequest.serializer(), named), "api", "playback")
+    }
 
     override suspend fun convert(request: PlaybackRequest): ConversionInfo =
         send("POST", ConversionInfo.serializer(), json(PlaybackRequest.serializer(), request), "api", "conversions")
@@ -344,6 +353,13 @@ class HttpPleyApi(
     override fun chapterImageUrl(fileId: Long, chapter: Int, version: String?): String =
         picture(listOf("api", "files", fileId, "chapters", "$chapter.jpg"), width = null, version = version)
 
+    override suspend fun playingSessions(): List<PlayingSession> = get(ListSerializer(PlayingSession.serializer()), "api", "sessions")
+
+    override suspend fun sendCommand(sessionId: String, command: PlayerCommandRequest) =
+        call("POST", json(PlayerCommandRequest.serializer(), command), "api", "sessions", sessionId, "command")
+
+    override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
+
     override suspend fun reportProgress(itemId: Long, report: ProgressReport) =
         call("POST", json(ProgressReport.serializer(), report), "api", "items", itemId, "progress")
 
@@ -401,10 +417,17 @@ class HttpPleyApi(
             call("DELETE", null, "api", "live", "channels", channelId, "favorite")
         }
 
-    override suspend fun watchChannel(channelId: Long, request: WatchRequest): LiveWatching =
-        send("POST", LiveWatching.serializer(), json(WatchRequest.serializer(), request), "api", "live", "channels", channelId, "watch")
+    override suspend fun watchChannel(channelId: Long, request: WatchRequest): LiveWatching {
+        val named = request.copy(deviceName = request.deviceName ?: deviceName(), deviceKind = request.deviceKind ?: deviceKind())
+        return send("POST", LiveWatching.serializer(), json(WatchRequest.serializer(), named), "api", "live", "channels", channelId, "watch")
+    }
 
     override suspend fun livePlan(sessionId: String): LivePlan? = get(LivePlan.serializer().nullable, "api", "live", "sessions", sessionId, "plan")
+
+    override fun liveStreamUrl(channelId: Long, clientId: String): String = address(
+        listOf("api", "live", "channels", channelId, "stream.ts"),
+        listOf("client_id" to clientId, "device_kind" to deviceKind()?.wire),
+    ).toString()
 
     override suspend fun leaveChannel(sessionId: String) {
         val request = jsonRequest(address(listOf("api", "live", "sessions", sessionId))).delete().build()

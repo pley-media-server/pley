@@ -66,7 +66,8 @@ data class ChannelDigits(val typed: String = "", val notFound: String? = null)
  * at a time for the channel list, which can show another category's (a
  * channel tuned from there makes channel up and down go through that one,
  * as the web's does); watched as it airs, without pausing or going back; a
- * favourite. The channel and its category are kept with the screen's saved
+ * favourite; the profile's remote changes channel as channel up and down
+ * do. The channel and its category are kept with the screen's saved
  * state, and the channel for the profile too: the guide opens back at it.
  * The playback ends with the ViewModel.
  */
@@ -79,7 +80,8 @@ class LivePlayerViewModel(
     /** What the page that opened the player knew of [channelId] ([ChannelHandoff]): shown at once. */
     seen: LiveChannel? = ChannelHandoff.take(channelId),
 ) : ViewModel() {
-    private val playback = deps.playback(viewModelScope)
+    // The remote's next and previous are channel up and down, as here.
+    private val playback = deps.playback(viewModelScope).also { it.zap = { by -> step(by) } }
     private val mutableDigits = MutableStateFlow(ChannelDigits())
     private var digitsJob: Job? = null
     private var zapping: Job? = null
@@ -316,9 +318,16 @@ class LivePlayerViewModel(
                 val deps = LivePlayerDeps(
                     live = graph.data.liveTv,
                     playback = { scope ->
-                        LivePlayback.create(app, graph.data.liveTv, graph.player.engines, graph.device, scope, graph.data.liveUpdates.events) {
-                            graph.caps.capabilities.snapshot.value
-                        }
+                        LivePlayback.create(
+                            app,
+                            graph.data.liveTv,
+                            graph.player.engines,
+                            graph.device,
+                            scope,
+                            graph.data.liveUpdates.events,
+                            graph.data.liveUpdates::playing,
+                            graph.data.remote::here,
+                        ) { graph.caps.capabilities.snapshot.value }
                     },
                     origin = graph.data.servers.active,
                     views = graph.data.liveTvViews,
