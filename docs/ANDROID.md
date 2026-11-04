@@ -642,7 +642,9 @@ read on a thread of its own) gives a line, `fps=58 longest=21.4
 missed=2 screen=Home`: frames drawn a second, the longest frame in
 milliseconds from its vsync to its drawing done, and how many missed
 their deadline (the deadline Android 12 and later give, else the
-display's refresh). The screen is the route shown in the TV's or phone's
+display's refresh, which also counts as late a frame that took longer
+than a refresh but still showed in time, its drawing overlapping the
+next one's). The screen is the route shown in the TV's or phone's
 shell, else the activity (`TvPlayerActivity`). A box shows the same, on
 a TV at the top right above the safe area, on a phone at the top centre
 under the status bar: green with none late, amber with a few, red with a
@@ -680,13 +682,13 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   gradient is one draw of one small picture shared by every title.
 
 On an emulator, frame times (the benchmarks', the counter's or
-`dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes about the same time a frame
-whatever is drawn, so its late frames are the GPU's, not the main
-thread's. A change that draws less shows in HWUI's overdraw view
-(`adb shell setprop debug.hwui.overdraw show`, then restart the app)
-instead. What an emulator does show is compilation: the first flings after
-a start run far slower, with many more janky frames, when the app isn't
-compiled from its profile.
+`dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes
+about the same time a frame whatever is drawn, so its late frames are the
+GPU's, not the main thread's. A change that draws less shows in HWUI's
+overdraw view (`adb shell setprop debug.hwui.overdraw show`, then
+restart the app) instead. What an emulator does show is compilation: the
+first flings after a start run far slower, with many more janky frames,
+when the app isn't compiled from its profile.
 
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
 journeys against the demo server: a cold start (the Startup Profile, which
