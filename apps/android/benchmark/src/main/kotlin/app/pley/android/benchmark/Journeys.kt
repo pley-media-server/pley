@@ -43,6 +43,7 @@ internal object Tags {
     const val TV_EPISODES = TV_ROW + "episode"
     const val TV_ITEM_PANEL = "pley.tv.item.panel"
     const val TV_ITEM_ACTIONS = "pley.tv.item.actions"
+    const val TV_TILE_ACTIONS = "pley.tv.tile.actions"
     const val TV_PERSON = "pley.tv.person"
     const val TV_SEARCH_FIELD = "pley.tv.search.field"
     const val TV_SEARCH_RESULTS = "pley.tv.search.results"
@@ -362,8 +363,8 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     fun walkHome(rows: Int = 4, tiles: Int = 6) {
         intoRows()
         hold(Key.CENTER, LONG_PRESS_MS)
-        // A page of actions, or a panel over Home.
-        val actions = By.res(Pattern.compile(Pattern.quote(Tags.TV_ITEM_ACTIONS) + "|" + Pattern.quote(Tags.TV_ITEM_PANEL)))
+        // A page of actions, or a panel over Home: the tile's actions, which every page shares, or an item page's.
+        val actions = By.res(Pattern.compile(listOf(Tags.TV_ITEM_ACTIONS, Tags.TV_TILE_ACTIONS, Tags.TV_ITEM_PANEL).joinToString("|") { Pattern.quote(it) }))
         await(actions, "a tile's actions after OK held", START_MS)
         press(Key.BACK, restMs = PAGE_MS)
         check(device.wait(Until.gone(actions), AWAIT_MS)) { "Journey: Back didn't close a tile's actions" }
