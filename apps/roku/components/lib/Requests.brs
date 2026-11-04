@@ -109,6 +109,13 @@ function reqBadge(summary as object) as object
     return { count: summary.unseen, danger: false }
 end function
 
+' Discover's way to the requests, as its chip (ChipRow) shows it: their
+' name and the menu's number, in the accent (red while some failed).
+function reqRequestsChip(summary as object) as object
+    badge = reqBadge(summary)
+    return { label: reqPageName(summary), width: 0, count: reqCountText(badge.count, 99), accent: true, danger: badge.danger }
+end function
+
 ' Whether a server event is about requests: the summary is asked again.
 function reqIsEvent(event as object) as boolean
     kind = httpString(event.type)

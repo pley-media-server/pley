@@ -113,15 +113,12 @@ sub showPage()
     ensureRows(1)
 end sub
 
-' The requests, where the summary has them. Without them the focus leaves
-' the empty row.
+' The requests, where the summary has them, with the menu's number of
+' what waits there. Without them the focus leaves the empty row.
 sub showChips(summary as object)
     chips = []
-    if reqShowsRequests(summary)
-        name = reqPageName(summary)
-        chips.Push({ label: name, width: 120 + Len(name) * 15 })
-    end if
-    m.chips.chips = chips
+    if reqShowsRequests(summary) then chips.Push(reqRequestsChip(summary))
+    if FormatJson(m.chips.chips) <> FormatJson(chips) then m.chips.chips = chips
     m.chips.visible = chips.Count() > 0
     if not m.chips.visible and m.chips.isInFocusChain() then focusRows(false)
 end sub

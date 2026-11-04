@@ -133,6 +133,10 @@ sub test_requests_badge_counts()
     tkEqual(reqBadge(reqTestSummary({ unseen: 2 })), { count: 2, danger: false })
     tkEqual(reqBadge(reqTestSummary({ manage: true, pending: 3, failed: 0, unseen: 1 })), { count: 4, danger: false })
     tkEqual(reqBadge(reqTestSummary({ manage: true, pending: 3, failed: 2, unseen: 1 })), { count: 6, danger: true })
+    ' Discover's way to them says the same.
+    tkEqual(reqRequestsChip(reqTestSummary({ manage: true, pending: 3, failed: 2, unseen: 1 })), { label: "Requests", width: 0, count: "6", accent: true, danger: true })
+    tkEqual(reqRequestsChip(reqTestSummary({ unseen: 0, own: 2 })).count, "", "nothing new: no number")
+    tkEqual(reqRequestsChip(reqTestSummary({ unseen: 120 })).count, "99+")
 end sub
 
 sub test_requests_allowance_words()
