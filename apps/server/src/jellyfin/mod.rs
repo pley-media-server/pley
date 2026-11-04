@@ -19,6 +19,8 @@ mod socket;
 mod system;
 mod users;
 
+pub(crate) use socket::Remotes;
+
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -69,7 +71,10 @@ impl From<AppError> for JfError {
             | AppError::CompatibilityToken => JfError::Unauthorized,
             AppError::Forbidden(_) | AppError::ForbiddenAs(..) | AppError::InsufficientScope(_) => JfError::Forbidden,
             AppError::NotFound(_) | AppError::SessionStopped(_) => JfError::NotFound,
-            AppError::BadRequest(m) | AppError::Conflict(m) | AppError::ConflictWith(m, _) => JfError::BadRequest(m),
+            AppError::BadRequest(m)
+            | AppError::Conflict(m)
+            | AppError::ConflictWith(m, _)
+            | AppError::ConflictAs(_, m) => JfError::BadRequest(m),
             AppError::Unavailable(m) | AppError::TooManyRequests(m) | AppError::NotImplemented(m) => {
                 JfError::Unavailable(m)
             }

@@ -346,6 +346,17 @@ pub struct PlaybackRequest {
     /// of their own instead ([`Session::media_key`]).
     #[serde(default)]
     pub keyed_urls: bool,
+    /// The commands this player obeys from a remote (`player_command`):
+    /// none unless it says so, so a remote never shows a button the player
+    /// ignores. Values this server doesn't know are left out.
+    #[serde(default, deserialize_with = "known_controls")]
+    pub controls: Controls,
+    /// What the player calls the device it plays on ("Living room TV"),
+    /// shown to the user's remotes. Cleaned like an app's name
+    /// ([`crate::oauth::clients::clean_name`]); without one the server names
+    /// the device from its User-Agent.
+    #[serde(default)]
+    pub device_name: Option<String>,
     /// The transcoder keeps HDR in transcodes (its `hdr_transcode`
     /// capability): set by the server, never read from the player.
     #[serde(skip)]
@@ -359,6 +370,31 @@ pub struct PlaybackRequest {
     /// player: set by the server, never read from the player.
     #[serde(skip)]
     pub download: bool,
+}
+
+/// A command a remote sends a player (`POST /api/sessions/{id}/command`),
+/// and what a player says it obeys. Stopping isn't one: every player obeys
+/// `session_stopped`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Control {
+    Play,
+    Pause,
+    Seek,
+    Skip,
+    Next,
+    Previous,
+}
+
+/// The commands a player obeys, each once, in a fixed order.
+pub type Controls = std::collections::BTreeSet<Control>;
+
+/// A player's `controls`: those this server knows. Others (from a newer
+/// player, or not strings at all) are left out rather than refusing the
+/// play request, and so is `null`.
+pub(crate) fn known_controls<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Controls, D::Error> {
+    let listed = Option::<Vec<serde_json::Value>>::deserialize(deserializer)?.unwrap_or_default();
+    Ok(listed.into_iter().filter_map(|value| serde_json::from_value(value).ok()).collect())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -1587,7 +1623,26 @@ pub fn subtitle_tracks(file_id: i64, streams: &[MediaStream]) -> Vec<SubtitleTra
 pub struct PlayState {
     pub position_ms: i64,
     pub state: String,
+    /// Its player was last heard from: a report, or a request for media.
     pub updated_at: i64,
+    /// Its player's last progress report, which `position_ms` is as of;
+    /// none before the first. Requests for media move `updated_at` but not
+    /// the place, so where the player is by now counts from this.
+    #[serde(skip)]
+    pub reported_at: Option<i64>,
+}
+
+impl PlayState {
+    /// Where its player is by now: the last report's place, moved on since
+    /// at normal speed while it plays.
+    pub fn position_now(&self, now: i64) -> i64 {
+        match self.reported_at {
+            Some(at) if self.state == "playing" => {
+                self.position_ms.saturating_add((now - at).max(0).saturating_mul(1000))
+            }
+            _ => self.position_ms,
+        }
+    }
 }
 
 /// What a transcode session asked the transcoder for, kept to re-create the
@@ -1630,6 +1685,14 @@ pub struct Session {
     /// The video bitrate its player asked for since it started (kbps),
     /// which a recreated job goes on at too.
     pub bitrate: Mutex<Option<u32>>,
+    /// The commands its player obeys from a remote
+    /// ([`PlaybackRequest::controls`]); none for players that never said.
+    pub controls: Controls,
+    /// The device it plays on, as the user's remotes show it: what the
+    /// player called it, or a name from its User-Agent.
+    pub device: Option<String>,
+    /// Commands sent to it lately, which [`Session::take_command`] counts.
+    commands: Mutex<CommandWindow>,
     last_transcoder_touch: AtomicI64,
     /// Not heard from for [`ACTIVE_WINDOW_SECS`] (no report, heartbeat or
     /// request for media): out of "Now playing", its transcode stopped. The
@@ -1665,12 +1728,20 @@ impl Session {
             transcode,
             job_id: Mutex::new(job_id),
             started_at: now,
-            play: Mutex::new(PlayState { position_ms: start_ms, state: "playing".into(), updated_at: now }),
+            play: Mutex::new(PlayState {
+                position_ms: start_ms,
+                state: "playing".into(),
+                updated_at: now,
+                reported_at: None,
+            }),
             app_grant: None,
             compatibility_token: None,
             media_key: None,
             recreate: tokio::sync::Mutex::new(()),
             bitrate: Mutex::new(None),
+            controls: Controls::new(),
+            device: None,
+            commands: Mutex::new(CommandWindow::default()),
             last_transcoder_touch: AtomicI64::new(now),
             quiet: AtomicBool::new(false),
         }
@@ -1692,19 +1763,29 @@ impl Session {
     }
 
     /// Records a progress report; whether the play state (playing, paused,
-    /// stopped) changed or the session woke, which the dashboard hears about
-    /// at once.
+    /// stopped) changed, the place jumped (a seek, a skip) or the session
+    /// woke, which the dashboard and the user's remotes hear about at once.
     pub fn update(&self, position_ms: i64, state: &str) -> bool {
+        let now = now();
         let mut play = self.play.lock();
         let changed = play.state != state;
+        let jumped = play.reported_at.is_some_and(|at| jumped(&play, at, now, position_ms));
         play.position_ms = position_ms;
         if changed {
             play.state = state.to_owned();
         }
-        play.updated_at = now();
+        play.updated_at = now;
+        play.reported_at = Some(now);
         drop(play);
         let woke = self.quiet.swap(false, Ordering::SeqCst);
-        changed || woke
+        changed || jumped || woke
+    }
+
+    /// Counts a command sent to it: whether it may go to its player, at
+    /// most [`COMMANDS_PER_SECOND`] each second. A remote held down, or a
+    /// script, mustn't flood the user's event streams.
+    pub fn take_command(&self) -> bool {
+        self.commands.lock().take()
     }
 
     /// Playing or paused, with a player that was heard from lately: what
@@ -1724,6 +1805,58 @@ impl Session {
         } else {
             false
         }
+    }
+}
+
+/// How far a report's place may be from where the session would be by now
+/// before it counts as a jump: more than reports drift between themselves.
+const JUMP_MS: i64 = 5_000;
+/// The slowest and fastest speeds players offer, as fractions: playing, a
+/// report may be anywhere between them from the last without a jump.
+const SLOWEST_SPEED: (i64, i64) = (1, 2);
+const FASTEST_SPEED: (i64, i64) = (2, 1);
+
+/// Whether a report at `position_ms` jumped from the last one, made at
+/// `reported_at` (a seek, a skip). Playing, the place may have moved on at
+/// any speed a player offers since; otherwise it stays where it was. There
+/// is no expected place before a session's first report: until then its
+/// transcode starts and its player buffers, which takes a while.
+fn jumped(play: &PlayState, reported_at: i64, now: i64, position_ms: i64) -> bool {
+    let (low, high) = if play.state == "playing" {
+        let elapsed_ms = (now - reported_at).max(0).saturating_mul(1000);
+        let at = |(num, den): (i64, i64)| play.position_ms.saturating_add(elapsed_ms.saturating_mul(num) / den);
+        (at(SLOWEST_SPEED), at(FASTEST_SPEED))
+    } else {
+        (play.position_ms, play.position_ms)
+    };
+    position_ms < low.saturating_sub(JUMP_MS) || position_ms > high.saturating_add(JUMP_MS)
+}
+/// Commands a session takes each second at most ([`Session::take_command`]).
+pub const COMMANDS_PER_SECOND: u32 = 10;
+
+/// The commands of the current second sent to one session (an item's or
+/// a Live TV viewer's), counted by [`CommandWindow::take`].
+#[derive(Debug, Clone, Default)]
+pub struct CommandWindow {
+    started: Option<std::time::Instant>,
+    count: u32,
+}
+
+impl CommandWindow {
+    /// Counts a command: whether it may go, at most [`COMMANDS_PER_SECOND`]
+    /// each second.
+    pub fn take(&mut self) -> bool {
+        let at = std::time::Instant::now();
+        match self.started {
+            Some(started) if at.duration_since(started) < Duration::from_secs(1) => {
+                if self.count >= COMMANDS_PER_SECOND {
+                    return false;
+                }
+                self.count += 1;
+            }
+            _ => *self = CommandWindow { started: Some(at), count: 1 },
+        }
+        true
     }
 }
 
@@ -2499,6 +2632,8 @@ mod tests {
             client_id: None,
             keep_previous: false,
             keyed_urls: false,
+            controls: Controls::new(),
+            device_name: None,
             hdr_transcodes: false,
             fmp4_segments: false,
             download: false,
@@ -3345,6 +3480,73 @@ mod tests {
         let forgotten = ids(sessions.sweep(later).forgotten);
         assert_eq!(forgotten.len(), 4);
         assert!(sessions.list().is_empty());
+    }
+
+    #[test]
+    fn a_report_somewhere_else_than_expected_is_a_change() {
+        let s = session(1, None, false);
+        let reported = |ago: i64| s.play.lock().reported_at = Some(now() - ago);
+        assert!(!s.update(0, "playing"), "where it started");
+        // Twenty seconds on, playing: twenty seconds further is no jump.
+        reported(20);
+        assert!(!s.update(20_000, "playing"));
+        reported(20);
+        assert!(s.update(60_000 + JUMP_MS + 2_000, "playing"), "a seek forward");
+        assert!(s.update(5_000, "playing"), "a seek back");
+        assert!(s.update(5_000, "paused"));
+        // Paused, it stays where it was however long it has been.
+        reported(60);
+        assert!(!s.update(5_000, "paused"));
+        assert!(s.update(5_000 + JUMP_MS + 1, "paused"), "a seek while paused");
+    }
+
+    #[test]
+    fn a_report_at_another_speed_is_no_jump() {
+        let s = session(1, None, false);
+        assert!(!s.update(0, "playing"));
+        let reported = |ago: i64| s.play.lock().reported_at = Some(now() - ago);
+        reported(10);
+        assert!(!s.update(20_000, "playing"), "ten seconds at twice the speed");
+        reported(10);
+        assert!(!s.update(25_000, "playing"), "ten seconds at half the speed");
+        reported(10);
+        assert!(s.update(10_000, "playing"), "ten seconds back after ten seconds");
+    }
+
+    #[test]
+    fn requests_for_media_between_reports_are_no_jump() {
+        let s = session(1, None, false);
+        assert!(!s.update(0, "playing"));
+        s.play.lock().reported_at = Some(now() - 10);
+        // A segment fetched just now says it is alive, not where it is.
+        s.touch();
+        assert!(!s.update(10_000, "playing"));
+    }
+
+    #[test]
+    fn the_first_report_is_no_jump_however_long_it_took_to_start() {
+        let s = session(1, None, false);
+        s.play.lock().updated_at = now() - 30;
+        assert!(!s.update(0, "playing"), "it started where it began, thirty seconds later");
+        assert!(s.play.lock().reported_at.is_some());
+    }
+
+    #[test]
+    fn commands_are_limited_each_second() {
+        let s = session(1, None, false);
+        assert!((0..COMMANDS_PER_SECOND).all(|_| s.take_command()));
+        assert!(!s.take_command());
+        s.commands.lock().started = Some(std::time::Instant::now() - Duration::from_secs(1));
+        assert!(s.take_command(), "the next second");
+    }
+
+    #[test]
+    fn controls_are_only_those_known() {
+        let listed = serde_json::json!({"item_id": 1, "controls": ["skip", "fly", 3, "play", "skip"]});
+        let req: PlaybackRequest = serde_json::from_value(listed).unwrap();
+        assert_eq!(req.controls.into_iter().collect::<Vec<_>>(), [Control::Play, Control::Skip]);
+        let req: PlaybackRequest = serde_json::from_value(serde_json::json!({"item_id": 1, "controls": null})).unwrap();
+        assert!(req.controls.is_empty());
     }
 
     #[test]

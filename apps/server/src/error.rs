@@ -26,6 +26,11 @@ pub enum AppError {
     /// `{ code: "conflict", message, ...details }`.
     #[error("{0}")]
     ConflictWith(String, serde_json::Value),
+    /// A conflict the client tells apart by its code: `409` with
+    /// `{ code, message }` (a remote's command its player doesn't obey:
+    /// `not_controllable`).
+    #[error("{1}")]
+    ConflictAs(&'static str, String),
     #[error("{0}")]
     Unavailable(String),
     /// Something this server can't do at all (its transcoder is too old for
@@ -97,6 +102,7 @@ impl AppError {
             Self::NotFound(m) => Self::NotFound(m.clone()),
             Self::Conflict(m) => Self::Conflict(m.clone()),
             Self::ConflictWith(m, d) => Self::ConflictWith(m.clone(), d.clone()),
+            Self::ConflictAs(code, m) => Self::ConflictAs(code, m.clone()),
             Self::Unavailable(m) => Self::Unavailable(m.clone()),
             Self::NotImplemented(m) => Self::NotImplemented(m.clone()),
             Self::TooManyRequests(m) => Self::TooManyRequests(m.clone()),
@@ -119,6 +125,7 @@ impl AppError {
             Self::ForbiddenAs(code, _) => (StatusCode::FORBIDDEN, *code),
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             Self::Conflict(_) | Self::ConflictWith(..) => (StatusCode::CONFLICT, "conflict"),
+            Self::ConflictAs(code, _) => (StatusCode::CONFLICT, *code),
             Self::Unavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable"),
             Self::NotImplemented(_) => (StatusCode::NOT_IMPLEMENTED, "not_implemented"),
             Self::TooManyRequests(_) => (StatusCode::TOO_MANY_REQUESTS, "too_many_requests"),
@@ -223,6 +230,7 @@ mod tests {
             (AppError::forbidden("no"), 403, "forbidden"),
             (AppError::not_found("no"), 404, "not_found"),
             (AppError::conflict("no"), 409, "conflict"),
+            (AppError::ConflictAs("not_controllable", "no".into()), 409, "not_controllable"),
             (AppError::TooManyRequests("no".into()), 429, "too_many_requests"),
             (AppError::Unavailable("no".into()), 503, "unavailable"),
             (AppError::TwoStep("no".into()), 401, "two_step"),

@@ -4,6 +4,7 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 
 use crate::discover::TitleKind;
+use crate::playback::Control;
 use crate::requests::{RequestStatus, RequestUser};
 
 /// Whom a request's event is for: the accounts it names (its maker, its
@@ -115,6 +116,19 @@ pub enum ServerEvent {
         message: Option<String>,
         by_admin: bool,
     },
+    /// The user's remote (another of their devices) sent the player of
+    /// `session_id` a command it said it obeys: to that user's streams,
+    /// whose player of that session acts on it and reports at once.
+    /// `position_ms` is where `seek` goes, `offset_ms` how far `skip` goes
+    /// (back when negative); both are `null` for the other commands.
+    PlayerCommand {
+        #[serde(skip)]
+        user_id: i64,
+        session_id: String,
+        command: Control,
+        position_ms: Option<i64>,
+        offset_ms: Option<i64>,
+    },
     /// Live TV's sources, channels or guide changed: apps fetch the
     /// channels and the guide again.
     LiveChannelsChanged,
@@ -223,6 +237,7 @@ impl ServerEvent {
             | ServerEvent::WatchlistChanged { .. }
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
+            | ServerEvent::PlayerCommand { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
             | ServerEvent::LiveTakenOver { .. }
@@ -243,6 +258,7 @@ impl ServerEvent {
             | ServerEvent::OwnLibrariesChanged { user_id }
             | ServerEvent::UserStateChanged { user_id, .. }
             | ServerEvent::SessionStopped { user_id, .. }
+            | ServerEvent::PlayerCommand { user_id, .. }
             | ServerEvent::LiveTakenOver { user_id, .. } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
             _ => None,
@@ -331,6 +347,18 @@ mod tests {
         })
         .unwrap();
         assert_eq!(json, r#"{"type":"session_stopped","session_id":"s1","message":null,"by_admin":true}"#);
+        let event = ServerEvent::PlayerCommand {
+            user_id: 4,
+            session_id: "s1".into(),
+            command: Control::Seek,
+            position_ms: Some(90_000),
+            offset_ms: None,
+        };
+        assert_eq!(event.user_id(), Some(4), "to the session's user only");
+        assert_eq!(
+            serde_json::to_string(&event).unwrap(),
+            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":90000,"offset_ms":null}"#
+        );
         // Request events say whom they are for, and stay off the
         // per-user path.
         let event = ServerEvent::RequestsChanged {

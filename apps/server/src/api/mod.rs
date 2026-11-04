@@ -16,6 +16,7 @@ mod oauth;
 pub(crate) mod people;
 pub(crate) mod playback;
 mod playlists;
+mod remote;
 mod requests;
 mod subtitles;
 mod two_step;
@@ -188,7 +189,9 @@ pub fn router(state: AppState) -> Router {
         .route("/files/{id}/trickplay", get(playback::trickplay))
         .route("/files/{id}/trickplay/{sheet}", get(playback::trickplay_sheet))
         .route("/files/{id}/chapters/{image}", get(playback::chapter_image))
+        .route("/sessions", get(remote::list))
         .route("/sessions/{id}", delete(playback::stop_session))
+        .route("/sessions/{id}/command", post(remote::command))
         .route("/activity", get(activity::activity))
         .route("/events", get(activity::events))
         .route("/users", get(accounts::list_users).post(accounts::create_user))

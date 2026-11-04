@@ -2,9 +2,12 @@
 //! (`ForceKeepAlive`, `KeepAlive`) and hear of changes: `LibraryChanged`
 //! for the libraries the user may open (home rows and Jellyfin for Kodi's
 //! library refresh), `UserDataChanged` for their watch state, `Playstate`
-//! `Stop` when someone else stops their playback. The token is checked
-//! again every 30 s, and the socket closes once it is revoked.
+//! `Stop` when someone else stops their playback, and the commands of the
+//! user's remotes as `Playstate` for a device that takes them ([`Remotes`]).
+//! The token is checked again every 30 s, and the socket closes once it is
+//! revoked.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,14 +17,18 @@ use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::Response;
 use axum::routing::get;
+use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tokio::sync::broadcast::error::RecvError;
 
+use super::dto::TICKS_PER_MS;
 use super::ids::Kind;
 use super::{Jellyfin, JfUser, Q};
 use crate::auth::{AuthUser, SourceIp};
 use crate::events::ServerEvent;
+use crate::playback::{Control, Controls, Session};
 use crate::state::AppState;
+use crate::util::now;
 
 /// How often the token is checked again.
 const RECHECK: Duration = Duration::from_secs(30);
@@ -29,6 +36,84 @@ const RECHECK: Duration = Duration::from_secs(30);
 const KEEP_ALIVE_SECS: i64 = 60;
 /// The most a message from a client may be, in bytes.
 const MAX_MESSAGE: usize = 64 * 1024;
+
+/// The most devices kept as taking media control, in memory. Once that
+/// many are, those without a socket open are forgotten: a client says so
+/// again each time it starts.
+const MAX_CONTROLLABLE: usize = 1024;
+
+/// What the user's remotes may send Jellyfin clients: a device that said it
+/// takes media control (`SupportsMediaControl` in
+/// `/Sessions/Capabilities[/Full]`) and has its socket open obeys
+/// [`JELLYFIN_CONTROLS`] there. Both are by user and device id, the
+/// `DeviceId` its sessions' `client_id` is.
+#[derive(Default)]
+pub struct Remotes {
+    controllable: Mutex<HashSet<(i64, String)>>,
+    /// Open sockets, how many each device has.
+    sockets: Mutex<HashMap<(i64, String), usize>>,
+}
+
+/// What a Jellyfin client's `Playstate` messages do.
+const JELLYFIN_CONTROLS: [Control; 6] =
+    [Control::Play, Control::Pause, Control::Seek, Control::Skip, Control::Next, Control::Previous];
+
+impl Remotes {
+    /// Records whether `device` of `user_id` takes media control.
+    pub(super) fn declare(&self, user_id: i64, device: &str, supports: bool) {
+        let key = (user_id, device.to_owned());
+        let mut controllable = self.controllable.lock();
+        if !supports {
+            controllable.remove(&key);
+            return;
+        }
+        if controllable.len() >= MAX_CONTROLLABLE && !controllable.contains(&key) {
+            let sockets = self.sockets.lock();
+            controllable.retain(|k| sockets.contains_key(k));
+            if controllable.len() >= MAX_CONTROLLABLE {
+                return;
+            }
+        }
+        controllable.insert(key);
+    }
+
+    /// The commands the player of `session` obeys through its Jellyfin
+    /// socket: none unless its device took media control and has one open.
+    pub(crate) fn controls(&self, session: &Session) -> Controls {
+        let Some(device) = session.client_id.as_deref() else { return Controls::new() };
+        let key = (session.user_id, device.to_owned());
+        if self.controllable.lock().contains(&key) && self.sockets.lock().contains_key(&key) {
+            JELLYFIN_CONTROLS.into_iter().collect()
+        } else {
+            Controls::new()
+        }
+    }
+
+    /// Counts a socket of `device` open until the guard is dropped.
+    fn open(self: &Arc<Self>, user_id: i64, device: Option<&str>) -> Option<OpenSocket> {
+        let key = (user_id, device?.to_owned());
+        *self.sockets.lock().entry(key.clone()).or_default() += 1;
+        Some(OpenSocket { remotes: self.clone(), key })
+    }
+}
+
+/// A device's socket, counted in [`Remotes`] while it is open.
+struct OpenSocket {
+    remotes: Arc<Remotes>,
+    key: (i64, String),
+}
+
+impl Drop for OpenSocket {
+    fn drop(&mut self) {
+        let mut sockets = self.remotes.sockets.lock();
+        if let Some(count) = sockets.get_mut(&self.key) {
+            *count -= 1;
+            if *count == 0 {
+                sockets.remove(&self.key);
+            }
+        }
+    }
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/socket", get(socket))
@@ -71,6 +156,8 @@ async fn run(
     mut socket: WebSocket,
 ) {
     let mut events = state.events.subscribe();
+    // Remotes control this device while its socket is open, and no longer.
+    let _open = state.jellyfin_remotes.open(user.id, device.as_deref());
     if socket.send(message("ForceKeepAlive", json!(KEEP_ALIVE_SECS))).await.is_err() {
         return;
     }
@@ -161,6 +248,71 @@ async fn translate(
                 message("Playstate", json!({"Command": "Stop"}))
             })
         }
+        ServerEvent::PlayerCommand { user_id, session_id, command, position_ms, offset_ms } if *user_id == user.id => {
+            // Only the device that plays it obeys, as for Stop.
+            let session = state.sessions.get(session_id)?;
+            (device.is_some() && session.client_id.as_deref() == device)
+                .then(|| playstate(&session, *command, *position_ms, *offset_ms))
+        }
         _ => None,
+    }
+}
+
+/// A remote's command as the `Playstate` message Jellyfin clients obey.
+/// Jellyfin has no skip: it is a seek from where the player is by now.
+fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> Message {
+    let seek = |ms: i64| json!({"Command": "Seek", "SeekPositionTicks": ms.max(0).saturating_mul(TICKS_PER_MS)});
+    let data = match command {
+        Control::Play => json!({"Command": "Unpause"}),
+        Control::Pause => json!({"Command": "Pause"}),
+        Control::Seek => seek(position_ms.unwrap_or(0)),
+        Control::Skip => {
+            let mut to = position_now(session).saturating_add(offset_ms.unwrap_or(0));
+            if session.duration_ms > 0 {
+                to = to.min(session.duration_ms);
+            }
+            seek(to)
+        }
+        Control::Next => json!({"Command": "NextTrack"}),
+        Control::Previous => json!({"Command": "PreviousTrack"}),
+    };
+    message("Playstate", data)
+}
+
+/// Where the session's player is by now: its last report's place, moved on
+/// since while it plays (players report every few seconds).
+fn position_now(session: &Session) -> i64 {
+    session.play.lock().position_now(now())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::playback::Method;
+
+    fn data(message: Message) -> Value {
+        let Message::Text(text) = message else { panic!("a text message") };
+        serde_json::from_str::<Value>(&text).unwrap()["Data"].clone()
+    }
+
+    #[test]
+    fn a_skip_is_a_seek_from_where_the_player_is_by_now() {
+        let session = Session::new(1, "u".into(), Some("d".into()), 1, 1, Method::Direct, 100_000, None, None, 0);
+        *session.play.lock() = crate::playback::PlayState {
+            position_ms: 50_000,
+            state: "playing".into(),
+            updated_at: now(),
+            reported_at: Some(now() - 10),
+        };
+        let skip = |offset| data(playstate(&session, Control::Skip, None, Some(offset)))["SeekPositionTicks"].clone();
+        // Ten seconds on since its report, a second more should the clock tick.
+        let ticks = skip(30_000).as_i64().unwrap();
+        assert!((90_000 * TICKS_PER_MS..=91_000 * TICKS_PER_MS).contains(&ticks), "{ticks}");
+        assert_eq!(skip(-600_000), json!(0), "not before the start");
+        assert_eq!(skip(600_000), json!(100_000 * TICKS_PER_MS), "not past the end");
+        session.play.lock().state = "paused".into();
+        assert_eq!(skip(-20_000), json!(30_000 * TICKS_PER_MS), "paused, where it was");
+        assert_eq!(data(playstate(&session, Control::Play, None, None)), json!({"Command": "Unpause"}));
+        assert_eq!(data(playstate(&session, Control::Next, None, None)), json!({"Command": "NextTrack"}));
     }
 }

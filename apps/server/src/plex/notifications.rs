@@ -235,6 +235,7 @@ impl Listener {
             | ServerEvent::OwnLibrariesChanged { .. }
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
+            | ServerEvent::PlayerCommand { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
             | ServerEvent::LiveTakenOver { .. }

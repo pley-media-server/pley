@@ -13,6 +13,7 @@ use serde::Serialize;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 
+use super::remote::SessionKind;
 use crate::access;
 use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken};
@@ -27,8 +28,11 @@ use crate::state::AppState;
 #[derive(Serialize)]
 pub struct SessionInfo {
     session_id: String,
+    kind: SessionKind,
     user_id: i64,
     username: String,
+    /// The device it plays on (see [`crate::playback::Session::device`]).
+    device: Option<String>,
     item: ItemSummary,
     method: Method,
     position_ms: i64,
@@ -72,8 +76,10 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
         let play = session.play.lock().clone();
         out.push(SessionInfo {
             session_id: session.id.clone(),
+            kind: SessionKind::Item,
             user_id: session.user_id,
             username: session.username.clone(),
+            device: session.device.clone(),
             item: row.to_summary(),
             method: session.method,
             position_ms: play.position_ms,

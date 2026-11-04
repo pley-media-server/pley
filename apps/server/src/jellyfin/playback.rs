@@ -28,7 +28,8 @@ use super::{Body, Client, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
 use crate::auth::{AuthUser, SourceIp};
 use crate::catalog::{self, FileRow, ItemRow};
 use crate::events::ServerEvent;
-use crate::playback::{Caps, Method, PlaybackMode, PlaybackRequest, Session};
+use crate::oauth::clients::clean_name;
+use crate::playback::{Caps, Controls, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -227,6 +228,8 @@ async fn playback_info(
             client_id: client.device_id.clone(),
             keep_previous: false,
             keyed_urls: false,
+            controls: Controls::new(),
+            device_name: None,
             hdr_transcodes: false,
             fmp4_segments: false,
             download: false,
@@ -483,11 +486,14 @@ async fn master(
                 client_id: device,
                 keep_previous: false,
                 keyed_urls: false,
+                controls: Controls::new(),
+                device_name: client.device.clone(),
                 hdr_transcodes: false,
                 fmp4_segments: false,
                 download: false,
             };
-            let Json(info) = crate::api::playback::start(State(state.clone()), user.clone(), Json(req)).await?;
+            let Json(info) =
+                crate::api::playback::start(State(state.clone()), user.clone(), HeaderMap::new(), Json(req)).await?;
             let mut known = streams.0.lock();
             if known.len() >= FORGET_STREAMS_AT {
                 known.retain(|_, session| state.sessions.get(session).is_some());
@@ -755,7 +761,7 @@ async fn report(
         }
         None if play_state != "stopped" && !stopped => {
             if let Some(file) = catalog::files_for_item(&state.db, row.id).await?.into_iter().next() {
-                let session = state.sessions.insert(Session::new(
+                let mut session = Session::new(
                     user.id,
                     user.username.clone(),
                     device_id.clone(),
@@ -766,7 +772,9 @@ async fn report(
                     None,
                     None,
                     position_ms,
-                ));
+                );
+                session.device = device.and_then(clean_name);
+                let session = state.sessions.insert(session);
                 session.update(position_ms, play_state);
                 state.events.send(ServerEvent::SessionsChanged);
             }

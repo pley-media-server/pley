@@ -7,7 +7,7 @@ use axum::Json;
 use axum::body::{Body, Bytes};
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, Request, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
 use futures::FutureExt;
@@ -100,6 +100,7 @@ async fn decide_picked(
 pub async fn start(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     Json(mut req): Json<PlaybackRequest>,
 ) -> ApiResult<Json<PlaybackInfo>> {
     let row = item_or_404(&state, user.id, req.item_id).await?;
@@ -158,6 +159,7 @@ pub async fn start(
     }
     let start_ms = req.start_ms.unwrap_or(0).max(0);
     let client_id = req.client_id.clone().filter(|c| !c.is_empty() && c.len() <= 128);
+    let device = super::remote::device_name(req.device_name.as_deref(), &headers);
 
     // A client plays one thing at a time: end what it played before (a
     // quality or audio switch, the next episode) so its transcode slot is
@@ -187,6 +189,8 @@ pub async fn start(
         session.app_grant = user.app.as_ref().map(|app| app.grant_id);
         session.compatibility_token = user.compatibility.map(|c| c.token_id);
         session.media_key = req.keyed_urls.then(new_media_key);
+        session.controls = req.controls.clone();
+        session.device = device;
         // The transcoder doesn't see direct plays: its background work waits
         // for the player's first reads too.
         if state.transcoder.is_available() {
@@ -289,6 +293,8 @@ pub async fn start(
     session.app_grant = user.app.as_ref().map(|app| app.grant_id);
     session.compatibility_token = user.compatibility.map(|c| c.token_id);
     session.media_key = req.keyed_urls.then(new_media_key);
+    session.controls = req.controls.clone();
+    session.device = device;
     let session = state.sessions.insert_transcode(session, slot);
     state.events.send(ServerEvent::SessionsChanged);
     // Players that read multivariant playlists learn the codecs (Dolby
@@ -566,12 +572,15 @@ pub async fn stop_session(
 /// Stops session `id` for `user` (an administrator: any session; anyone
 /// else: their own): its transcode ends, its player hears `session_stopped`
 /// and its next requests answer `410`. A session stopped already is fine.
+/// A Live TV viewer's session is ended the same way.
 pub(crate) fn stop_by(state: &AppState, user: &AuthUser, id: &str, message: Option<String>) -> ApiResult<()> {
     let Some(session) = state.sessions.get(id) else {
         return match state.sessions.stopped(id) {
             Some(stopped) if stopped.user_id == user.id || user.is_admin => Ok(()),
             Some(_) => Err(AppError::forbidden("not your session")),
-            None => Err(AppError::not_found("no such session")),
+            None => {
+                state.live.tuners.stop(id, user, message).unwrap_or_else(|| Err(AppError::not_found("no such session")))
+            }
         };
     };
     if session.user_id != user.id && !user.is_admin {

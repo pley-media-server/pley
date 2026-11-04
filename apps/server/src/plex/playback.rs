@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 use axum::Json;
 use axum::extract::{Path, Request, State};
-use axum::http::{HeaderValue, header};
+use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use parking_lot::Mutex;
 use pley_transcoder_api::{JobStatus, VideoMode};
@@ -20,7 +20,8 @@ use crate::catalog::{self, ItemRow};
 use crate::events::ServerEvent;
 use crate::library::list_libraries;
 use crate::library::sidecar::EXTERNAL_INDEX_BASE;
-use crate::playback::{Caps, Method, PlaybackMode, PlaybackRequest, Session};
+use crate::oauth::clients::clean_name;
+use crate::playback::{Caps, Controls, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
 /// Plex client details of a server's sessions (by pley session id) and the
@@ -261,7 +262,7 @@ async fn report(
                 end_sessions(state, state.sessions.take_client_sessions(user.id, client_id));
             }
             if let Some(file) = catalog::files_for_item(&state.db, row.id).await?.into_iter().next() {
-                let session = state.sessions.insert(Session::new(
+                let mut session = Session::new(
                     user.id,
                     user.username.clone(),
                     client.identifier.clone(),
@@ -272,7 +273,9 @@ async fn report(
                     None,
                     None,
                     time_ms,
-                ));
+                );
+                session.device = device.and_then(clean_name);
+                let session = state.sessions.insert(session);
                 session.update(time_ms, play_state);
                 remember(state, &session.id, client);
                 state.events.send(ServerEvent::SessionsChanged);
@@ -636,12 +639,16 @@ pub async fn universal_start(
         client_id,
         keep_previous: false,
         keyed_urls: false,
+        // Plex clients only ever hear of a stop.
+        controls: Controls::new(),
+        device_name: client.device_name.clone().or_else(|| client.product.clone()),
         hdr_transcodes: false,
         fmp4_segments: false,
         download: false,
     };
-    let Json(info) =
-        crate::api::playback::start(State(state.clone()), user, Json(request)).await.map_err(PlexError::from)?;
+    let Json(info) = crate::api::playback::start(State(state.clone()), user, HeaderMap::new(), Json(request))
+        .await
+        .map_err(PlexError::from)?;
     remember(&state, &info.session_id, &client);
 
     let audio_only = row.kind == "track";
