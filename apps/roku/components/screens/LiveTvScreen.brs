@@ -56,6 +56,8 @@ sub init()
     m.cardChannels = []
     m.cardsTotal = -1
     m.cardsLoading = false
+    ' The channels take the focus as they come (toChannels).
+    m.toContent = false
     m.tabs.chips = [{ label: "Guide", width: 208 }, { label: "Channels", width: 208 }]
     m.tabs.observeField("chosen", "onTabChosen")
     m.rail.observeField("itemSelected", "onRailSelected")
@@ -287,7 +289,7 @@ sub onRailSelected(event as object)
         return
     end if
     choose(entry.key)
-    focusContent()
+    toChannels()
 end sub
 
 ' Shows a category, kept on the Roku (a search isn't).
@@ -343,7 +345,7 @@ sub onSearchAnswered(event as object)
     m.query = httpSentence(text)
     m.view.category = ""
     choose("search:" + m.query)
-    focusContent()
+    toChannels()
 end sub
 
 ' The category's channels from the start, or from the page around channel
@@ -400,10 +402,19 @@ end sub
 
 sub focusContent()
     if m.view.tab = "guide" and m.guide.visible
+        m.toContent = false
         m.guide.setFocus(true)
     else if m.view.tab = "channels" and m.cards.visible
+        m.toContent = false
         m.cards.setFocus(true)
     end if
+end sub
+
+' The focus goes to the channels: at once when they show, else as they
+' come (a category chosen shows "Loading…" first).
+sub toChannels()
+    m.toContent = true
+    focusContent()
 end sub
 
 ' The channel in focus in the guide or the cards, or invalid.
@@ -462,6 +473,7 @@ sub onGuide(event as object)
     if data.channels.Count() = 0
         m.page = invalid
         m.guide.content = invalid
+        m.toContent = false
         showMessage(emptyText())
         return
     end if
@@ -488,6 +500,7 @@ sub onGuide(event as object)
     showCount()
     m.hint.text = "OK: watch   ·   Options (*): favourite   ·   Rewind and fast forward: earlier and later   ·   Play: now   ·   Replay: search"
     showProgram()
+    if m.toContent then focusContent()
 end sub
 
 function emptyText() as string
@@ -716,6 +729,7 @@ sub onCards(event as object)
         m.cards.content.appendChildren(nodes)
     end if
     if m.cardChannels.Count() = 0
+        m.toContent = false
         showMessage(emptyText())
         return
     end if
@@ -725,6 +739,7 @@ sub onCards(event as object)
     m.info.visible = false
     m.hint.text = "OK: watch   ·   Options (*): favourite   ·   Replay: search"
     showCount()
+    if m.toContent then focusContent()
 end sub
 
 ' Two rows from the ends of what the grid holds, the next page (or the
