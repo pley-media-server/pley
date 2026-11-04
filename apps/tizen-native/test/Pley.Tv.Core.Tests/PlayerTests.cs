@@ -169,6 +169,8 @@ public class PlayRequestTests
         Assert.Equal(new[] { "ts", "fmp4" }, caps.GetProperty("hls").GetProperty("segments").EnumerateArray().Select(e => e.GetString()));
         Assert.Empty(caps.GetProperty("audio_passthrough").EnumerateArray());
         Assert.Equal(6, caps.GetProperty("audio_channels").GetInt32());
+        // Samsung's media specifications: 8 to 48 kHz, for every codec.
+        Assert.Equal(48_000, caps.GetProperty("audio_max_sample_rate").GetInt32());
         Assert.Contains("ac4", caps.GetProperty("audio_decode").EnumerateArray().Select(e => e.GetString()));
         Assert.DoesNotContain("dts", caps.GetProperty("audio_codecs").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal("high", caps.GetProperty("device").GetProperty("tier").GetString());

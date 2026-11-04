@@ -116,6 +116,9 @@ describes how they are made.
 
 ### Fixed
 
+- Audio above 48 kHz (AAC 5.1 at 96 kHz, say) plays clean: the TV decodes
+  up to 48 kHz and garbled it without an error, so the server now converts
+  such a track to 48 kHz while the video plays as it is.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both, and a picture the disc crops shows cropped.
 - Settings' Always start as no longer starts the TV as a profile with a

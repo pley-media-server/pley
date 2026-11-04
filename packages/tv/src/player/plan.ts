@@ -101,9 +101,20 @@ export function pictureUrlAt(url: string, atMs: number): string {
   return `${url}${url.indexOf("?") >= 0 ? "&" : "?"}at=${at}`;
 }
 
+/**
+ * Whether the TV takes `stream`'s sample rate: no higher than the report's
+ * `audio_max_sample_rate`, as the server judges it. A rate or a limit not
+ * known is taken.
+ */
+export function ratePlaysHere(stream: MediaStream | null, caps: ClientCaps | null): boolean {
+  const most = caps?.audio_max_sample_rate;
+  return stream?.sample_rate == null || most == null || stream.sample_rate <= most;
+}
+
 /** Whether this TV decodes `stream`'s audio or sends it as it is to the receiver. */
 export function audioPlaysHere(stream: MediaStream | null, caps: ClientCaps | null): boolean {
   if (!stream || !caps) return true;
+  if (!ratePlaysHere(stream, caps)) return false;
   const codec = stream.codec.toLowerCase();
   return caps.audio_codecs.concat(caps.audio_decode, caps.audio_passthrough).some((c) => c.toLowerCase() === codec);
 }

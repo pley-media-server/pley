@@ -10,6 +10,13 @@ import type { TizenFacts } from "./facts";
  * TVs show no Dolby Vision; HDR10+ they do from 2017. Pure.
  */
 
+/**
+ * The highest audio sample rate the TV decodes: Samsung's media
+ * specifications list 8 to 48 kHz for every codec, and AAC 5.1 at 96 kHz
+ * played as it is comes out garbled, its player saying nothing.
+ */
+export const MOST_SAMPLE_RATE = 48000;
+
 const CONTAINERS = ["mkv", "mp4", "m4v", "mov", "ts", "m2ts", "mpegts", "webm", "avi", "mpg", "mpeg", "mp3", "m4a", "aac", "flac", "ogg", "oga", "wav", "mka"];
 
 /** Subtitles the app draws itself: text as WebVTT from the server, pictures from their .mks. */
@@ -77,6 +84,7 @@ export function tizenCaps(f: TizenFacts, o: CapsOverrides = { truehd: false, dts
     audio_decode: decode,
     audio_passthrough: unique(passthrough),
     audio_channels: passthrough.length ? 8 : 6,
+    audio_max_sample_rate: MOST_SAMPLE_RATE,
     subtitle_codecs: SUBTITLES,
     audio_track_switching: true,
     picture_subtitles_sideload: true,

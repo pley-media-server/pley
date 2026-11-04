@@ -371,6 +371,8 @@ export interface ClientCaps {
   audio_decode: string[];
   audio_passthrough: string[];
   audio_channels: number;
+  /** The highest sample rate the TV decodes audio at, in Hz; left out, not checked. */
+  audio_max_sample_rate?: number;
   subtitle_codecs: string[];
   audio_track_switching: boolean;
   picture_subtitles_sideload: boolean;

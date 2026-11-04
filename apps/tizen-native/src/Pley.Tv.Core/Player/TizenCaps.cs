@@ -53,6 +53,12 @@ public static class TizenCaps
     /// <summary>The sound every Samsung TV decodes itself, whatever its year (later years add more).</summary>
     public static readonly IReadOnlyList<string> DecodedAudio = new[] { "aac", "ac3", "eac3", "mp3", "mp2", "flac", "vorbis", "pcm_s16le", "pcm_s24le" };
 
+    /// <summary>
+    /// The highest audio sample rate the TV decodes: Samsung's media specifications list 8 to 48 kHz
+    /// for every codec, and AAC 5.1 at 96 kHz played as it is comes out garbled, its player saying nothing.
+    /// </summary>
+    public const int MostSampleRate = 48_000;
+
     static readonly string[] Containers = { "mkv", "mp4", "m4v", "mov", "ts", "m2ts", "mpegts", "webm", "avi", "mpg", "mpeg", "mp3", "m4a", "aac", "flac", "ogg", "oga", "wav", "mka" };
 
     /// <summary>Subtitles the app draws itself as WebVTT from the server; pictures come from their .mks.</summary>
@@ -130,6 +136,7 @@ public static class TizenCaps
             ["audio_decode"] = decode,
             ["audio_passthrough"] = passthrough.Distinct().ToArray(),
             ["audio_channels"] = passthrough.Count > 0 ? 8 : 6,
+            ["audio_max_sample_rate"] = MostSampleRate,
             // Pictures it can't draw aren't claimed: the server burns them in instead.
             ["subtitle_codecs"] = f.PictureSubtitles ? TextSubtitles.Concat(PictureSubtitles).ToArray() : TextSubtitles,
             ["audio_track_switching"] = true,

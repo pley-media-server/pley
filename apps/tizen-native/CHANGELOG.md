@@ -294,6 +294,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- Audio above 48 kHz (AAC 5.1 at 96 kHz, say) plays clean: the TV decodes
+  up to 48 kHz and garbled it without an error, so the server now converts
+  such a track to 48 kHz while the video plays as it is.
 - The rail's grey panel fades into the dark under its entries over the
   last of its slide closed, where it went at once at the end.
 - Blu-ray subtitles that show two pictures at once, the first one forced,

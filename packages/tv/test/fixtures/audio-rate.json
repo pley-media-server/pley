@@ -1,0 +1,12 @@
+{
+  "plays": [
+    { "in": { "codec": "aac", "sample_rate": 48000, "most": 48000 }, "out": true },
+    { "in": { "codec": "aac", "sample_rate": 44100, "most": 48000 }, "out": true },
+    { "in": { "codec": "aac", "sample_rate": null, "most": 48000 }, "out": true },
+    { "in": { "codec": "aac", "sample_rate": 88200, "most": 48000 }, "out": false },
+    { "in": { "codec": "aac", "sample_rate": 96000, "most": 48000 }, "out": false },
+    { "in": { "codec": "aac", "sample_rate": 96000, "most": null }, "out": true },
+    { "in": { "codec": "eac3", "sample_rate": 48000, "most": 48000 }, "out": true },
+    { "in": { "codec": "opus", "sample_rate": 48000, "most": 48000 }, "out": false }
+  ]
+}

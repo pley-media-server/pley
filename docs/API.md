@@ -2053,6 +2053,7 @@ removed or reordered (`400`).
     audio_decode?: string[];      // decoded on the device
     audio_passthrough?: string[]; // sent as they are to a receiver: "ac3", "eac3", "truehd", "dts"
     audio_channels?: number;      // the most channels the output takes: 2, 6, 8
+    audio_max_sample_rate?: number; // the highest sample rate decoded, in Hz (48000); left out, not checked
     subtitle_codecs?: string[];   // shown by the player itself, pictures included ("hdmv_pgs_subtitle")
     picture_subtitles_sideload?: boolean; // shows picture subtitles from their `.mks` next to HLS too
     picture_subtitles_sideload_codecs?: string[]; // the picture codecs it shows so; left out: those in subtitle_codecs
@@ -2335,7 +2336,11 @@ reports still send the version 1 fields: `containers` always counts;
   Dolby Vision + HDR10+ streams change: see
   [Dolby Vision remuxes](#dolby-vision-remuxes).
 - **Audio** plays as it is when its codec is in `audio_decode` or
-  `audio_passthrough`. With `audio_track_switching`, a track other than the
+  `audio_passthrough`, at a sample rate no higher than
+  `audio_max_sample_rate` when the player gives one (Samsung's TVs garble
+  AAC at 96 kHz without an error); a track above it is converted, which
+  resamples it to 48 kHz, and the reason says so ("AAC at 96 kHz is above
+  this device's 48 kHz."). With `audio_track_switching`, a track other than the
   file's default needs no HLS: the player switches to it itself.
 - **Picture subtitles** (PGS, VobSub, DVB) in `subtitle_codecs` are shown
   by the player when the file plays as it is. When it doesn't, or a
@@ -2354,7 +2359,7 @@ reports still send the version 1 fields: `containers` always counts;
   largest H.264 entry (a 4K file is made in 1080p for a 1080p stick, even
   when a higher quality is picked). HDR video the player can show stays
   HDR, in HEVC Main 10 ([HDR transcodes](#hdr-transcodes)). Audio in AAC,
-  MP3, AC-3 or E-AC-3 that the player takes is copied; anything else is
+  MP3, AC-3 or E-AC-3 that the player takes, at its sample rate, is copied; anything else is
   converted to:
   - E-AC-3 5.1 at 640 kbit/s when `audio_channels` is 6 or more, the source
     has more than two channels, and `eac3` is decoded or passed through;

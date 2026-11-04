@@ -137,13 +137,22 @@ public static class PlaybackPlan
     /// <summary>Where the server's WebVTT of a text track is, when the session doesn't name it.</summary>
     public static string TextSubtitlesPath(long fileId, int index) => $"/api/files/{fileId}/subtitles/{index}.vtt";
 
+    /// <summary>
+    /// Whether the TV takes <paramref name="stream"/>'s sample rate: no higher than the report's
+    /// <c>audio_max_sample_rate</c>, as the server judges it. A rate or a limit not known is taken.
+    /// </summary>
+    public static bool RatePlaysHere(MediaStream? stream, ClientCaps? caps) =>
+        stream?.SampleRate is not int rate || caps?.AudioMaxSampleRate is not int most || rate <= most;
+
     /// <summary>Whether this TV decodes <paramref name="stream"/>'s audio or sends it as it is to the receiver.</summary>
     public static bool AudioPlaysHere(MediaStream? stream, ClientCaps? caps)
     {
         if (stream == null || caps == null) return true;
+        if (!RatePlaysHere(stream, caps)) return false;
         var codec = stream.Codec.ToLowerInvariant();
         return caps.AudioCodecs.Concat(caps.AudioDecode).Concat(caps.AudioPassthrough).Any(c => string.Equals(c, codec, StringComparison.OrdinalIgnoreCase));
     }
+
 
     /// <summary>Whether this TV opens <paramref name="file"/>'s container as it is.</summary>
     public static bool ContainerPlaysHere(MediaFile? file, ClientCaps? caps)

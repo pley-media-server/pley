@@ -171,6 +171,11 @@ pub trait AudioOut {
     fn switches_tracks(&self) -> bool;
     /// The most channels its output takes, when it says.
     fn channels(&self) -> Option<i64>;
+    /// Decodes audio at this sample rate (Hz); a track above the player's
+    /// highest is converted, which resamples it. A rate not known is taken.
+    fn takes_rate(&self, _rate: Option<i64>) -> bool {
+        true
+    }
     /// Copies this codec as it is into a stream (HLS), for a track it can't
     /// have with the file as it is; the others are converted.
     fn stream_copies(&self, codec: &str) -> bool {
@@ -200,6 +205,9 @@ impl AudioOut for Streamed<'_> {
     }
     fn channels(&self) -> Option<i64> {
         self.0.channels()
+    }
+    fn takes_rate(&self, rate: Option<i64>) -> bool {
+        self.0.takes_rate(rate)
     }
     fn stream_copies(&self, codec: &str) -> bool {
         self.0.stream_copies(codec)
@@ -232,7 +240,10 @@ struct Sound {
 /// copied.
 fn fit(s: &MediaStream, out: &dyn AudioOut, default_audio: Option<&MediaStream>) -> (bool, Sound) {
     let channels = s.channels.unwrap_or(2);
-    if !out.plays(&s.codec) || !(as_is(s, out, default_audio) || out.stream_copies(&s.codec)) {
+    if !out.plays(&s.codec)
+        || !out.takes_rate(s.sample_rate)
+        || !(as_is(s, out, default_audio) || out.stream_copies(&s.codec))
+    {
         let most = out.channels().unwrap_or(2).min(6);
         let sound = Sound { channels: channels.min(most), native: channels <= most, ..Sound::default() };
         return (false, sound);
@@ -353,11 +364,13 @@ pub fn resolve(
     Selection { audio, subtitle }
 }
 
-/// Whether `out` plays `s` with the file as it is: it plays the codec, and
-/// the track is the file's default or the player switches tracks itself.
+/// Whether `out` plays `s` with the file as it is: it plays the codec at
+/// its rate, and the track is the file's default or the player switches
+/// tracks itself.
 fn as_is(s: &MediaStream, out: &dyn AudioOut, default_audio: Option<&MediaStream>) -> bool {
     !out.streams()
         && out.plays(&s.codec)
+        && out.takes_rate(s.sample_rate)
         && (out.switches_tracks() || default_audio.is_some_and(|d| d.index == s.index))
 }
 
