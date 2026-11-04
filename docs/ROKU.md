@@ -56,6 +56,7 @@ in to with a code, choosing it in the browser.
 | Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
+| Options (\*) | Live TV, the live player | Add to or remove from favourites |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
@@ -326,7 +327,9 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the
-  channel list; Right, OK or Options show the banner. Leaving, or changing
+  channel list; Right or OK show the banner. Options (\*) puts the channel
+  in the favourites or takes it out, in the list the channel in focus,
+  else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
 - **Taken over:** the server's `live_taken_over` event for the channel
   playing (the scene hands it to the player) stops it at once, before its

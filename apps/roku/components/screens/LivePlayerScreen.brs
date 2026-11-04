@@ -223,25 +223,48 @@ sub onListSelected(event as object)
 end sub
 
 ' The Options key in the list: the channel in focus in or out of the
-' favourites (PUT or DELETE /api/live/channels/{id}/favorite).
-sub toggleFavorite()
+' favourites.
+sub toggleListed()
     if m.page = invalid then return
     at = m.channelList.itemFocused
     if at < 0 or at >= m.page.channels.Count() then return
-    channel = m.page.channels[at]
+    toggleFavorite(m.page.channels[at])
+end sub
+
+' A channel in or out of the favourites (PUT or DELETE
+' /api/live/channels/{id}/favorite): its star changes at once wherever it
+' shows, and goes back if the server refuses.
+sub toggleFavorite(channel as object)
     favorite = not channel.favorite
+    markFavorite(channel.id, favorite)
     method = "DELETE"
     if favorite then method = "PUT"
-    channel.favorite = favorite
-    item = m.channelList.content.getChild(at)
-    if item <> invalid then item.favorite = favorite
-    uiRequest({ method: method, path: "/api/live/channels/" + urlValue(channel.id) + "/favorite", favorite: favorite, name: channel.name }, "onFavorite")
+    uiRequest({ method: method, path: "/api/live/channels/" + urlValue(channel.id) + "/favorite", channelId: channel.id, favorite: favorite, name: channel.name }, "onFavorite")
+end sub
+
+' The channel's star: on the channel playing (or the one Up or Down leads
+' to), in the list, and on the banner.
+sub markFavorite(id as integer, favorite as boolean)
+    for each channel in [m.channel, m.zapTo]
+        if channel <> invalid and channel.id = id then channel.favorite = favorite
+    end for
+    if m.page <> invalid
+        at = liveIndexOf(m.page.channels, id)
+        if at >= 0
+            m.page.channels[at].favorite = favorite
+            item = invalid
+            if m.channelList.content <> invalid then item = m.channelList.content.getChild(at)
+            if item <> invalid then item.favorite = favorite
+        end if
+    end if
+    if m.banner.visible then showBanner(false)
 end sub
 
 sub onFavorite(event as object)
     answer = event.getData()
     spec = event.getRoSGNode().spec
     if not answer.ok
+        markFavorite(spec.channelId, not spec.favorite)
         if not uiFailed(answer) then showToast(answer.message)
         return
     end if
@@ -250,7 +273,6 @@ sub onFavorite(event as object)
     else
         showToast(spec.name + " is out of your favourites")
     end if
-    if m.channel <> invalid and m.channel.name = spec.name then m.channel.favorite = spec.favorite
 end sub
 
 ' --- Tuning ---
@@ -578,7 +600,7 @@ sub showBanner(hides as boolean)
     if coming <> invalid then m.bannerNext.text = "Next   " + liveClock(coming.start, m.twelve) + "   " + coming.title
     m.star.text = ""
     if channel.favorite then m.star.text = "★ Favourite"
-    m.bannerHint.text = "Up and down: channels   ·   Left: " + m.categoryName + "   ·   OK: close"
+    m.bannerHint.text = "Up and down: channels   ·   Left: " + m.categoryName + "   ·   Options (*): favourite   ·   OK: close"
     if m.list.visible or m.notice.visible then return
     m.banner.visible = true
     m.bannerTimer.control = "stop"
@@ -683,9 +705,10 @@ sub finish()
 end sub
 
 ' Up and down change channel (Up: the next number); Left opens the
-' category's channels, Right, OK and the Options key (*) show what's on
-' (it never shows by itself as a channel starts); play, rewind, fast
-' forward and Replay do nothing. In the list:
+' category's channels, Right and OK show what's on (it never shows by
+' itself as a channel starts), and the Options key (*) puts the channel in
+' the favourites or takes it out, the banner showing its star; play,
+' rewind, fast forward and Replay do nothing. In the list:
 ' the Options key adds to or takes out of the favourites, up and down past
 ' its ends go to the page before or after, Back and Right close it. Back
 ' with the banner showing hides it; otherwise it leaves (the scene).
@@ -697,7 +720,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
         if key = "options"
-            toggleFavorite()
+            toggleListed()
             return true
         end if
         if key = "up" and m.channelList.itemFocused = 0
@@ -725,7 +748,16 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     ' Live is live: no pause, rewind or skip.
     if key = "play" or key = "rewind" or key = "fastforward" or key = "replay" then return true
-    if key = "right" or key = "OK" or key = "options"
+    if key = "options"
+        channel = m.zapTo
+        if channel = invalid then channel = m.channel
+        if channel <> invalid
+            toggleFavorite(channel)
+            showBanner(true)
+        end if
+        return true
+    end if
+    if key = "right" or key = "OK"
         if m.banner.visible
             hideBanner()
         else

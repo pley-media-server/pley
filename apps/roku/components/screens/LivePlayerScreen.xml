@@ -41,7 +41,8 @@
             <Label id="cardTitle" translation="[160, 580]" width="1600" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="cardLine" translation="[160, 646]" width="1600" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
-        <!-- What's on, when asked for (OK, Right or the Options key). -->
+        <!-- What's on, when asked for (OK or Right, or the Options key as
+             it changes the favourite, whose star shows here). -->
         <Group id="banner" visible="false">
             <Rectangle translation="[0, 720]" width="1920" height="360" color="0x16191EE6" />
             <Rectangle translation="[96, 792]" width="240" height="120" color="0x2E3440FF" />
