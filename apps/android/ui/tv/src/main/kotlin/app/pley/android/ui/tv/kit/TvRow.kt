@@ -63,7 +63,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -654,17 +656,27 @@ private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHero
     }
 }
 
-private class TvRowColumnHeroNode : Modifier.Node(), FocusEventModifierNode, CompositionLocalConsumerModifierNode {
+private class TvRowColumnHeroNode :
+    Modifier.Node(),
+    FocusEventModifierNode,
+    CompositionLocalConsumerModifierNode,
+    ObserverModifierNode {
     private var hadFocus = false
+
+    /** The column this hero is counted in ([TvRowColumnFocus.heroes]). */
     private var column: TvRowColumnFocus? = null
 
-    override fun onAttach() {
-        column = currentValueOf(LocalTvRowColumn)?.also { it.heroes++ }
-    }
+    override fun onAttach() = onObservedReadsChanged()
 
-    override fun onDetach() {
+    override fun onObservedReadsChanged() = observeReads { countIn(currentValueOf(LocalTvRowColumn)) }
+
+    override fun onDetach() = countIn(null)
+
+    private fun countIn(next: TvRowColumnFocus?) {
+        if (next === column) return
         column?.let { it.heroes-- }
-        column = null
+        next?.let { it.heroes++ }
+        column = next
     }
 
     override fun onFocusEvent(focusState: FocusState) {
