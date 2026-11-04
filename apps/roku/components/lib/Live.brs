@@ -248,6 +248,15 @@ function liveSearchLabel(query as string) as string
     return "Search: “" + query + "”"
 end function
 
+' The category a search goes back to, on Back or Clear: the one shown as
+' the first of the searches in a row began. category: the one shown as
+' another search begins; before: the one kept until then.
+function liveBeforeSearch(category as string, before as string) as string
+    if Left(category, 7) = "search:" then return before
+    if category = "" then return "all"
+    return category
+end function
+
 ' The categories down the side, under the Search entry pinned above them:
 ' the groups whose names match the words searched for, as links,
 ' Favourites, Recently watched, All channels, then "Regions" in
@@ -288,6 +297,36 @@ function liveRail(summary as object, groups as object, open as string, query as 
         end for
     end if
     return rail
+end function
+
+' The rail's entries as LiveRailItem draws them ([{ title, countText,
+' mark, inner, heading, current }]): a region's mark says whether it is
+' open, and the category shown stands out.
+function liveRailItems(entries as object, open as string, shown as string) as object
+    items = []
+    for each entry in entries
+        mark = ""
+        if entry.kind = "region"
+            mark = "+"
+            if entry.key = open then mark = "−"
+        end if
+        countText = ""
+        if entry.count >= 0 then countText = liveThousands(entry.count)
+        items.Push({ title: entry.label, countText: countText, mark: mark, inner: entry.inner, heading: entry.kind = "heading", current: entry.kind = "category" and entry.key = shown })
+    end for
+    return items
+end function
+
+' Where the rail's focus goes as it lands on at, coming from was: past a
+' heading ("Regions", "More groups"), the way it was going (on, at the
+' top); at itself on anything else.
+function liveRailPast(entries as object, at as integer, was as integer) as integer
+    if at < 0 or at >= entries.Count() or entries[at].kind <> "heading" then return at
+    target = at + 1
+    if was > at then target = at - 1
+    if target < 0 then target = at + 1
+    if target >= entries.Count() then return at
+    return target
 end function
 
 ' The region a group category is gathered under in the rail (open there),
@@ -405,6 +444,25 @@ function liveOnNow(channel as object, now as integer) as dynamic
         if p <> invalid and p.start <= now and p.ends > now then return p
     end for
     return invalid
+end function
+
+' Whether a programme listed as on now has ended on one of channels,
+' from index from to upto - 1 (those in view): what they show is then
+' asked for again, as on Android.
+function liveNowEnded(channels as object, from as integer, upto as integer, now as integer) as boolean
+    if from < 0 then from = 0
+    if upto > channels.Count() then upto = channels.Count()
+    for i = from to upto - 1
+        p = channels[i].now
+        if p <> invalid and p.ends <= now then return true
+    end for
+    return false
+end function
+
+' What's on is asked for again at most once a minute (askedAt and nowMs
+' in ms; askedAt -1 for never), the guide having nothing new at times.
+function liveMayRefresh(askedAt as integer, nowMs as integer) as boolean
+    return askedAt < 0 or nowMs - askedAt >= 60000
 end function
 
 ' What comes on next: the first of now and after that hasn't begun.
@@ -634,6 +692,23 @@ function liveGuideMissing(start as integer, loadedTo as integer, leftEdge as int
     return { from: loadedTo, to: upto }
 end function
 
+' Whether the guide is away from now, so that Back brings it back first:
+' now isn't in the time shown (left, and shown seconds on), or the
+' programme in focus (from, upto; upto 0 for none) isn't on at now. Time
+' without a guide is a programme too (liveGuideRows), on now where it
+' spans now.
+function liveGuideAway(left as integer, shown as integer, from as integer, upto as integer, now as integer) as boolean
+    if now < left or now >= left + shown then return true
+    return upto > 0 and (from > now or upto <= now)
+end function
+
+' Whether a page of channels or a part of the guide that failed (at
+' failedAt, ms; -1 for none) may be asked for again as the list moves:
+' once 10 s have passed, as on Android and Samsung. Try again asks at once.
+function liveMayAskAgain(failedAt as integer, nowMs as integer) as boolean
+    return failedAt < 0 or nowMs - failedAt >= 10000
+end function
+
 ' "1,2,3": the ids of channels, for GET /api/live/guide?ids=.
 function liveIds(channels as object) as string
     ids = []
@@ -683,6 +758,24 @@ function liveStopped(message as dynamic) as object
     return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
 end function
 
+' Whether tuning the channel again may help after problem (liveTrouble's):
+' the server let it go, it wasn't ready, or its stream broke ("other",
+' "unavailable"); not after a refusal (every connection in use, stopped,
+' gone, not open to the account).
+function liveRetried(problem as object) as boolean
+    return problem.kind = "other" or problem.kind = "unavailable"
+end function
+
+' How long the player waits before tuning a channel again after a
+' failure, tried tries times since it was tuned or Try again was chosen:
+' 1 s, then 3 s, as on Android and Samsung; -1 after the second, when the
+' player says why.
+function liveRetryDelay(tries as integer) as integer
+    if tries = 0 then return 1000
+    if tries = 1 then return 3000
+    return -1
+end function
+
 ' The connections of a 409 ({ connections: [{ channel_id, channel_name,
 ' watchers, people, yours, can_take_over }] }): [{ channelId, channelName,
 ' holders, canTakeOver }].
@@ -716,7 +809,8 @@ function liveHolders(c as object) as string
 end function
 
 ' The busy notice's text: the server's message, then what each connection
-' watches and who.
+' watches and who, and when none may be taken over, what can be done
+' instead (Android's words).
 function liveBusyLines(message as string, connections as object) as string
     lines = []
     if message <> "" then lines.Push(message)
@@ -727,9 +821,15 @@ function liveBusyLines(message as string, connections as object) as string
         else
             lines.Push("Its " + connections.Count().ToStr() + " connections are watching:")
         end if
+        takeable = false
         for each c in connections
             lines.Push("•  " + c.channelName + "  —  " + c.holders)
+            if c.canTakeOver then takeable = true
         end for
+        if not takeable
+            lines.Push("")
+            lines.Push("A channel already being watched can be joined, or try again once one is stopped.")
+        end if
     end if
     return lines.Join(Chr(10))
 end function
@@ -759,24 +859,43 @@ function liveTroubleButtons(problem as object) as object
     return out
 end function
 
-' The registry key of the Live TV screen's tab and category for a server
-' and profile.
+' The registry key of the Live TV screen's tab and category, and the
+' channel last watched, for a server and profile.
 function liveViewKey(server as string, profileId as dynamic) as string
     return server + "|" + urlValue(profileId)
 end function
 
-' { tab: "guide" | "channels", category } kept for key, or the defaults.
+' { tab: "guide" | "channels", category, channel } kept for key, or the
+' defaults (channel 0: none watched yet).
 function liveLoadView(section as object, key as string) as object
-    view = { tab: "guide", category: "all" }
+    view = { tab: "guide", category: "all", channel: 0 }
     saved = httpObject(httpJson(section.Read(key)))
     if saved = invalid then return view
     if httpString(saved.tab) = "channels" then view.tab = "channels"
     category = httpString(saved.category)
     if category = "favorites" or category = "recent" or (Left(category, 6) = "group:" and Len(category) > 6) then view.category = category
+    channel = Int(httpNumber(saved.channel, 0))
+    if channel > 0 then view.channel = channel
     return view
 end function
 
+' The tab and the category; the channel last watched stays as kept.
 sub liveSaveView(section as object, key as string, view as object)
-    section.Write(key, FormatJson({ tab: view.tab, category: view.category }))
+    liveWriteView(section, key, view.tab, view.category, liveLoadView(section, key).channel)
+end sub
+
+' The channel last watched, the player's: Live TV opens at it, after a
+' restart too. Written only when it changes, as zapping tunes one channel
+' after another.
+sub liveSaveChannel(section as object, key as string, channelId as integer)
+    kept = liveLoadView(section, key)
+    if channelId <= 0 or kept.channel = channelId then return
+    liveWriteView(section, key, kept.tab, kept.category, channelId)
+end sub
+
+sub liveWriteView(section as object, key as string, shownTab as string, category as string, channel as integer)
+    view = { tab: shownTab, category: category }
+    if channel > 0 then view.channel = channel
+    section.Write(key, FormatJson(view))
     section.Flush()
 end sub

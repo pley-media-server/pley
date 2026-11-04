@@ -45,18 +45,41 @@ why; a PIN locked after too many wrong tries is said on the screen, since
 Roku's pad can't be dimmed. A profile that needs its password is signed
 in to with a code, choosing it in the browser.
 
+### Home
+
+Home's menu, at the left, is in the order of the other TVs' rail: Search,
+Home, Discover and the requests (where the server has them), Live TV, the
+libraries, Playlists, Collections (every library's collections, a row
+each), Now Playing while music plays, and Settings.
+
+Beside it, as on Android TV and the native Samsung app, a hero shows the
+first of Continue Watching, else the newest title in the rows: its
+backdrop, its title (a show's name over an episode's "S2 E5 · Title"),
+year, length, content rating, stars and quality ("4K", "DV"), the time
+left, its summary, then Resume (or Play), From start, Info and Mark as
+watched. Resume has the focus as Home first shows. Down goes to the
+server's rows: there an info block about the title focus rests on (0.4 s)
+takes the hero's place, and the backdrop follows it. Up from the first row
+goes back to the hero; Left or Back, to the menu, the hero shown again.
+The hero's summary, content rating and quality come with its details
+(`GET /api/items/{id}`, which the API task reduces to what Home says), as
+do the info block's. With nothing to show, Home says why: No libraries
+yet, Scanning your libraries…, or Nothing here yet.
+
 ### Remote keys
 
 | Key | Where | What it does |
 |---|---|---|
 | Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show, Go to season |
 | Options (\*) | Watch history | Removes it |
-| Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
+| Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist, Go to its title's page |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
+| Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
-| Replay | Live TV | Search (Roku remotes have no search key for apps) |
+| Options (\*) | Live TV | A programme's details (a card's: what's on), Watch, Add to or remove from favourites |
+| Options (\*) | The live player | Add to or remove from favourites |
+| Replay | Live TV, the live player's channel list | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
 
@@ -65,7 +88,9 @@ the left, Play (or Resume and Play from start) first, then Mark as
 watched, Audio and subtitles, My List, Trailer (where its extras have
 one: it plays from its start) and More…. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
-to the rows under them.
+to the rows under them. Over the summary, as on Android TV, a line says
+who made it and who is in it ("Directed by Grace Hopper · Starring Ada
+Lovelace, Alan Turing"; a show's "Created by").
 
 - **Audio and subtitles** (a movie or an episode with several files, or
   whose file has two audio tracks or more, or subtitles):
@@ -82,13 +107,18 @@ to the rows under them.
 - **More**, what is used less, as on the other TVs: Rate (Your rating,
   once given: No rating, or 1 to 5 stars, kept for the profile on the
   server), an episode's Go to show (the show's page) and Go to season
-  (its episodes), Media info and Add to playlist. The Options key on an
-  episode's tile goes to them alike.
+  (its episodes), Media info, Details and Add to playlist. The Options
+  key on an episode's tile goes to them alike.
 - **Media info** (a movie or an episode with a file): each file, under its
   edition or "VERSION 2" when there are several, and every stream in
   full, in the other apps' words (codec, profile and level, size, frame
   rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
   language, title, flags), as text that Up and Down scroll.
+- **Details**, Android TV's section of them: the whole summary, which the
+  page cuts, then who created, directed and wrote it (four names a role,
+  then "and 2 more"), the original title, when it came out, the studio (a
+  show's network) and how many times the profile played it. It is in More
+  when there is something the page doesn't say.
 
 ### Collections, people, artists and playlists
 
@@ -180,18 +210,20 @@ when they are on several discs (the tracks' `parent_index`), each
 numbered on its disc; the focus passes over the headings. An album or a
 music playlist plays whole, from the track chosen, so Previous goes back
 past it; its Shuffle starts on any track and plays the others after it in
-a random order.
+a random order. As on the other TVs, an album's page also has Go to
+artist, and Now playing while music plays.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
 Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
 numbered, the track playing in bold, which stays in view unless the
 focus is on the list. OK on one plays it, and the queue goes on from
-there. A long queue is listed 250 tracks at a time, from 50 before the
-one playing, the next part as playing nears the end of this one: each
-row is a node the Roku draws, and a playlist holds up to 5,000. Shuffle
-plays the other tracks after the one playing in a random order; Stop
-shuffling puts them back in the album's or playlist's order, at the same
-track. Play pauses or goes on; fast forward and rewind go to the next
+there. Up from the buttons goes to the scrubber, where Left and Right move
+10 s, as on Android TV. A long queue is listed 250 tracks at a time, from
+50 before the one playing, the next part as playing nears the end of this
+one: each row is a node the Roku draws, and a playlist holds up to
+5,000. Shuffle plays the other tracks after the one playing in a random
+order; Stop shuffling puts them back in the album's or playlist's order,
+at the same track. Play pauses or goes on; fast forward and rewind go to the next
 track or back.
 
 The sleep timer belongs to the music, not to Now Playing: it runs while
@@ -204,6 +236,36 @@ apps; at the end of a track, the next one waits, paused. Stop, or the
 queue's end, turns the timer off.
 
 ### The player
+
+As each item begins (the first, the next episode, a playlist's or a
+collection's next), its title shows at the top for 4 s, a show's name over
+the episode's "S1 E2 · Pilot", as on Android TV.
+
+- **Up Next** shows at the credits (else 30 s before the end) with its
+  countdown. Cancelled, or with Play the next episode by itself off, it
+  waits at the end, paused, as on the other apps: Play now (or Play) plays
+  the next one, Cancel or Back leaves. With the setting on, the countdown
+  starts again there.
+- **The server out of reach:** once something played, the player keeps its
+  place and its queue and asks again every 2 s, saying "Reconnecting…",
+  for 90 s, as long as the server keeps a session it doesn't hear from;
+  then, or when the first playback can't start, it says it can't reach the
+  server, with Try again. A refusal says why, with Try again where asking
+  again may help (not for a title gone or out of reach of the profile).
+- **Stalls:** a playhead that stands still 12 s while meant to play is
+  looked at, as the other apps do: a file played as it is that has its
+  data is converted once; a stream asks the server how fast it converts,
+  and below real time says "The server can't keep up with this video"
+  (Automatic goes lower by itself); otherwise the stream opens again where
+  it was.
+- **Media that ends short** (moments after it started, a minute or more
+  before the title's end, as a file resumed past what it holds) isn't the
+  end: a file played as it is is converted, and a stream opened again;
+  falling short again within the minute, the player says so.
+- **Progress** goes to the server every 10 s while playing, every 30 s
+  paused, and at once after a seek, in Roku's own bar too.
+- **Playback details** are asked for again every 2 s while they show.
+- **Chapters** are in the menu for a file with two or more.
 
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
@@ -246,7 +308,11 @@ next.
   frame while one shows, and one that fails to load loads again 3 s later.
   The Video node tells its position every 0.2 s while pictures are drawn,
   else every second.
-- Roku's options list only text tracks: PGS is picked on a title's page.
+- Roku's options list only text tracks, and a conversion's one audio.
+  Pley's menu (Down) lists every track of the file, as the title's page
+  does: Subtitles (Off, then each, PGS too) and Audio (Automatic, then
+  each). A pick there is saved for the show or movie, and the stream opens
+  again where it was with it.
   A text track picked in the options takes the place of the pictures, and
   captions turned off there turn them off; captions turned on without a
   text track leave them be.
@@ -306,19 +372,53 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 `components/lib/Live.brs`):
 
 - **Paging:** channels come 50 at a time, and the guide only for those 50
-  (`GET /api/live/guide?ids=`).
+  (`GET /api/live/guide?ids=`). A page of channels or a part of the guide
+  that didn't load is asked for again once 10 s have passed, as the list
+  moves (in the player, as the list moves or Up or Down is pressed); with
+  nothing to show, the screen says why, with Try again.
 - **Categories** run down the left under Search. Rewind and fast forward
-  move a screen at a time. The category and the tab are kept per server
-  and profile.
+  move a screen at a time. The category, the tab and the last channel
+  watched are kept per server and profile (registry section `liveViews`):
+  the list opens at that channel, back from the player and after a
+  restart.
+- **Search** (the entry over the categories, or Replay) is typed on
+  Roku's keyboard; Clear in it, or Back, goes back to the category shown
+  before.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details.
+  the channel; on a later programme it shows its details, as Options (\*)
+  does on any programme (on a card, what's on), with Watch and the
+  favourite.
 - **Channels:** the other tab, as cards with what's on and what's next.
+- **What's on moves on** each 15 s: the programme above the guide, the
+  cards in view and the player's banner and list show how far along it
+  is. Once a programme listed as on now has ended, the cards in view are
+  asked for again, and in the player the channel playing
+  (`GET /api/live/channels/{id}`), each at most once a minute. The guide's
+  programmes come six hours ahead, so the guide itself needs nothing new.
+- **Back** goes up a step at a time: the guide back to now (when another
+  time shows, or a programme not on now has focus), a search back to the
+  category before, the guide or the cards to the categories, then out of
+  Live TV.
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the
-  channel list; Right, OK or Options show the banner. Leaving, or changing
+  channel list; Right or OK show the banner. Options (\*) puts the channel
+  in the favourites or takes it out, in the list the channel in focus,
+  else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
+- **The channel list** opens on the category Up and Down go through, at
+  the channel playing. Left in it lists the categories as Live TV does
+  (OK on one lists its channels instead, Back goes back), and Replay
+  searches every channel (Back leaves the search). A channel chosen from
+  another category, or a search, makes Up and Down go through that one.
+- **Failures:** a playlist the server doesn't give (a `503` while the
+  provider sends nothing, or another failure of its), or a stream that
+  breaks while its playlist is still there, tunes the channel again twice,
+  after 1 s and then 3 s, before the notice says why; not when the server
+  refused it (`409` every connection in use, `410`, `403`, `404`). Try
+  again starts the count again. When the server doesn't answer at all,
+  the app says it can't be reached, as on any screen.
 - **Taken over:** the server's `live_taken_over` event for the channel
   playing (the scene hands it to the player) stops it at once, before its
   stream breaks off. A stream that breaks asks its playlist again, and a
@@ -339,14 +439,18 @@ its number counts what waits: a manager's pending and failed requests
 
 - **Discover**, for those who may ask: a hero for the first trending title
   (its main action and Details; once nothing of its kind is left to ask
-  for, the limit's line in place of Request), then rows of posters with
-  their badges ("In library", "Partly in library", "Requested",
-  "Declined"): Trending this week, Popular movies, Popular shows, Coming to
-  cinemas, Popular anime, each loaded as it comes into view and ending with
-  See all (a grid, a page at a time; after five pages in a row that leave
+  for, the limit's line in place of Request); when trending has nothing
+  the profile may ask for, every row loads at once and the hero is the
+  first title of the next one with any. Then rows of posters with their
+  badges ("In library", "Partly in library", "Requested", "Declined"):
+  Trending this week, Popular movies, Popular shows, Coming to cinemas,
+  Popular anime, each loaded as it comes into view and ending with See
+  all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
-  more); then Your requests, from the first one asked for. TMDB is
-  searched from Search.
+  more, and after a page that failed, a tile says so, Select asking for
+  it again); then Your requests, from the first one asked for. At the top,
+  the way to the requests, with the menu's number of what waits there.
+  TMDB is searched from Search.
 - **A TMDB title's page:** backdrop and poster, year, runtime or seasons,
   certification, genres, rating, tagline and overview; one main action
   (Open, Request, Request more seasons, Tell me too) or the line that says
@@ -355,34 +459,44 @@ its number counts what waits: a manager's pending and failed requests
   each saying how it stands, and the cast. A movie's Request asks first,
   saying what will happen; a show's opens **Which seasons?**, those left to
   ask for ticked, OK ticking or unticking one, then Request 3 seasons.
-- **Your requests** (a manager's **Requests**): tabs by status. A
-  manager's open on Needs attention (pending, and failed ones the server
-  won't retry, oldest first), Yours holds their own, and Filter keeps
-  movies or shows, one person, or titles with some words (the Roku's
-  keyboard). A card per request: poster, seasons, a stage pill (amber
-  waiting for approval; blue approved, searching, or downloading with a
-  bar and the time left; green in library; red declined or failed; gray
-  gone), who asked and when, the reason or note. OK opens the title; the
+- **Your requests** (a manager's **Requests**): tabs by status, each
+  with how many it holds (the statuses' counts come with a tab's list,
+  and are asked for beside Needs attention's and Yours', which count
+  only what they hold). A manager's open on Needs attention (pending,
+  and failed ones the server won't retry, oldest first), Yours holds
+  their own, and Filter keeps movies or shows, one person, or titles with
+  some words (the Roku's keyboard). A card per request: poster, seasons,
+  a stage pill (amber waiting for approval; blue approved, searching, or
+  downloading with a bar and the time left; green in library; red
+  declined or failed; gray gone), who asked and when, the reason or
+  note. OK opens the title; the
   Options key (\*) offers Watch, Withdraw, Remove, Stop following or
   Request again, and to managers Approve, Try again, Decline, Decline with
   a reason… (the keyboard), Mark as added by hand and Delete; Withdraw,
   Remove and Delete ask first. Opening the account's own requests marks
   their news seen.
-- **Search** shows the titles the libraries lack in a **Discover** row
-  after the libraries' own, for those who may ask; OK opens a title's
-  page. When TMDB isn't answering, refuses the server's key or isn't open
-  to the account, a tile says so, with Select to try again where that
-  helps. TMDB is searched for the first 200 characters of the words. See
-  all ends the row: a grid titled for the words ("Results for “dune”")
-  of every title TMDB has for them, with its badge, a page at a time as
-  See all's are; Back goes back to Search. A library title that
-  was asked for shows its request's stage under the poster, and a show
-  with seasons left to ask for ends its seasons with Request more seasons.
-- **Ready to watch:** a requested title that arrives is told of ("“The
-  Last Lighthouse” is ready to watch." with Open and OK; "3 of your
-  requests have news" for several), never over playing video, a sign-in or
-  another dialog: it waits for them, and shows again after a dialog that
-  takes its place.
+- **Search** shows up to 20 titles the libraries lack, read from at most
+  3 of TMDB's pages, in a **Discover** row after the libraries' own, for
+  those who may ask; OK opens a title's page. When TMDB isn't answering,
+  refuses the server's key or isn't open to the account, a tile says so,
+  with Select to try again where that helps. TMDB is searched for the
+  first 200 characters of the words. See all ends the row: a grid titled
+  for the words ("Results for “dune”") of every title TMDB has for them,
+  with its badge, a page at a time as See all's are; Back goes back to
+  Search. A library title that was asked for shows its request's stage
+  under the poster, and a show with seasons left to ask for ends its
+  seasons with Request more seasons.
+- **Ready to watch:** a requested title that arrives is told of in a
+  card at the bottom right: its poster, "“The Last Lighthouse” is ready
+  to watch." (a show's seasons once each batch is ready; "3 of your
+  requests have news" for several that came while the app wasn't
+  listening), Open and Close. It shows once the remote has rested for
+  1.5 s and nothing else holds the focus: never over playing video, a
+  sign-in, "Who's watching?", a dialog, a panel or a keyboard, nor on
+  the requests, Which seasons? or Sort libraries; it waits for them. It
+  takes the focus and gives it back when it closes: Close, Back, Up or
+  Down, or 10 s untouched. Open opens the title (the requests, for
+  several). A dialog over it leaves it waiting under the dialog.
 
 Not offered: Approve's choices of profile, folder and seasons (on the web
 and phones; Approve here approves what was asked), bulk approve and
@@ -421,7 +535,7 @@ then shows it. It is kept on the Roku for each server.
 | `components/MusicPlayer.*` | The music queue on the scene's Audio node |
 | `components/screens/` | One component per screen |
 | `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`) |
-| `components/items/` | Tiles, rows, the player's skip button |
+| `components/items/` | Tiles, rows, the player's skip button, the ready-to-watch card |
 | `components/tasks/ApiTask` | The only code that talks to the server |
 | `components/tasks/DiscoveryTask` | `pley?` to UDP port 7539 (`apps/server/src/discovery.rs`) |
 | `components/tasks/EventsTask` | The server's event stream, on a socket |
@@ -481,13 +595,16 @@ Rules the code keeps:
   (`GET /api/discover/{kind}/{tmdb_id}`, once a title for events that come
   together), never one request's. The screen on top that shows requests
   asks again; nothing reloads whole.
-  Without the stream a TMDB title's page showing a request asks each 30 s;
-  while something downloads, title pages (TMDB's and the libraries'), the
-  requests and Discover's Your requests ask each 10 s.
+  Without the stream the requests, Discover's Your requests and a TMDB
+  title's page showing a request ask each 30 s; while something
+  downloads, title pages (TMDB's and the libraries'), the requests and
+  Discover's Your requests ask each 10 s.
 - **Notices** are kept per server and profile (registry section
   `requests`, the newest 40): what was told of each request once its
-  notice was seen (Open, OK or Back), so a title is told of once, on this
-  Roku.
+  card closed, so a title is told of once, on this Roku. The remote's
+  rest comes from `TimeSinceLastKeypress` (whole seconds), looked at
+  four times a second while a notice waits; a screen changing and a
+  card closing count as presses.
 - **Times** come as unix seconds, and the app writes them ("in 20 min",
   "3 days ago", "Nov 4", "9:05 PM") in the Roku's time zone; TMDB's days
   ("2026-11-04") are written as they are.
@@ -527,7 +644,8 @@ bun run images    # the nine-patch focus and watched-mark images
   used twice. On the way it plays an episode whose PGS subtitles the app
   draws (their list asked for where it starts, then again until whole, and
   a picture loaded), then the same episode on a server without their
-  pictures, which burns them in; it jumps down a library with its A to Z,
+  pictures, which burns them in, and picks its subtitles from the
+  player's menu; it jumps down a library with its A to Z,
   sorts it by bitrate and filters it by resolution, saves another's
   filters as a smart playlist, plays a collection of movies and a smart
   one of shows, and an artist's tracks, makes a playlist, plays a track
@@ -535,12 +653,14 @@ bun run images    # the nine-patch focus and watched-mark images
   steps the music's sleep timer through its choices, plays a track from
   under an album's "Disc 2", opens the See all of Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
-  opens a title from its ready-to-watch notice, and checks that a server
+  opens a title from its ready-to-watch card on Home (which waited while
+  the requests showed), and checks that a server
   without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
-  Next, the sleep timers' ends and picture subtitles shown in time have
-  only unit tests), one fetch at a time, the odd dropped key, and no
-  measure of a Roku's speed.
+  Next and its wait at the end, the title as an item begins, reconnecting,
+  stalls, media that ends short, the sleep timers' ends and picture
+  subtitles shown in time have only unit tests), one fetch at a time, the
+  odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.
@@ -556,10 +676,9 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 
 - No playback speed or audio delay: the Video node has neither.
 - Live updates need an `http://` server; with `https://`, Home and the
-  requests' summary refresh once a minute, a title page with a request
-  each 30 s.
+  requests' summary refresh once a minute, the requests, Discover's Your
+  requests and a title page with a request each 30 s.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
-- Home has no hero over its rows, which the other TVs have.
 - Not yet: an editable music queue.
 

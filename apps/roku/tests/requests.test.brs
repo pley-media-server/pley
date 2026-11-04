@@ -133,6 +133,10 @@ sub test_requests_badge_counts()
     tkEqual(reqBadge(reqTestSummary({ unseen: 2 })), { count: 2, danger: false })
     tkEqual(reqBadge(reqTestSummary({ manage: true, pending: 3, failed: 0, unseen: 1 })), { count: 4, danger: false })
     tkEqual(reqBadge(reqTestSummary({ manage: true, pending: 3, failed: 2, unseen: 1 })), { count: 6, danger: true })
+    ' Discover's way to them says the same.
+    tkEqual(reqRequestsChip(reqTestSummary({ manage: true, pending: 3, failed: 2, unseen: 1 })), { label: "Requests", width: 0, count: "6", accent: true, danger: true })
+    tkEqual(reqRequestsChip(reqTestSummary({ unseen: 0, own: 2 })).count, "", "nothing new: no number")
+    tkEqual(reqRequestsChip(reqTestSummary({ unseen: 120 })).count, "99+")
 end sub
 
 sub test_requests_allowance_words()
@@ -203,6 +207,19 @@ sub test_requests_grids_load_five_pages_until_the_focus_moves()
     further = reqFurtherTile()
     tkEqual(further.kind, "further")
     tkInvalid(navForTile(further), "the grid asks for more itself")
+end sub
+
+' A grid's later page that fails ends it in a tile saying so, which asks
+' again where that may help.
+sub test_requests_a_grid_s_failed_page_offers_retry()
+    away = reqMoreProblemTile({ status: 0, error: "network", message: "" }, false)
+    tkEqual(away.title, "Couldn't load more. Select to try again.")
+    tkEqual(away.kind, "retry")
+    tkInvalid(navForTile(away), "the grid asks again itself")
+    tkEqual(reqMoreProblemTile({ status: 503, error: "tmdb_down" }, false).title, "TMDB isn't answering. Select to try again.")
+    key = reqMoreProblemTile({ status: 503, error: "tmdb_key" }, false)
+    tkEqual(key.title, "TMDB refused this server's key.")
+    tkEqual(key.kind, "note")
 end sub
 
 sub test_requests_badges_come_from_the_title()
@@ -295,6 +312,15 @@ sub test_requests_rows()
     tkEqual(other.who, "Asked for by Ben · 3 days ago")
     tkTrue(reqBusy("downloading"))
     tkFalse(reqBusy("waiting"))
+end sub
+
+' An open list is asked again while a download moves, which sends no
+' events, and while no event can tell it what changed.
+sub test_requests_lists_are_asked_again_without_events()
+    tkEqual(reqListPoll(true, true), 10, "a download moves")
+    tkEqual(reqListPoll(true, false), 10)
+    tkEqual(reqListPoll(false, false), 30, "the event stream is down")
+    tkEqual(reqListPoll(false, true), 0, "events tell of changes")
 end sub
 
 ' Discover's Your requests: the stage under the poster, in its colour;
@@ -391,6 +417,17 @@ sub test_requests_search_says_what_stops_tmdb()
     other = reqSearchProblemTile({ status: 500, error: "internal", message: "database is locked" }, false)
     tkEqual(other.title, "Couldn't load these. Select to try again.")
     tkEqual(other.kind, "retry")
+end sub
+
+' Search's Discover row reads on while too few titles the libraries lack
+' came: 20 at most, from three of TMDB's pages at most.
+sub test_requests_search_reads_up_to_three_pages()
+    tkTrue(reqSearchWantsPage(0, 1, 40, 1), "the first page all in a library")
+    tkTrue(reqSearchWantsPage(12, 2, 40, 2))
+    tkFalse(reqSearchWantsPage(12, 3, 40, 3), "three pages read")
+    tkFalse(reqSearchWantsPage(20, 1, 40, 1), "enough to show")
+    tkFalse(reqSearchWantsPage(4, 1, 1, 1), "the last page came")
+    tkEqual(reqSearchShown(), 20)
 end sub
 
 ' The See all of Search's Discover row: TMDB's results for the words as its search takes
@@ -607,6 +644,26 @@ sub test_requests_hero()
     tkEqual(reqHero({ kind: "movie", tmdb_id: 27205, title: "Inception", status: "none" }, reqTestSummary({ access: "off" }), "", now).note, "", "nothing to say where Discover doesn't show")
 end sub
 
+' The hero is the first title of the first list with any: trending's,
+' else the next list's once trending came with none or failed.
+sub test_requests_hero_comes_from_the_first_list_with_a_title()
+    dune = { kind: "movie", tmdb_id: 438631, title: "Dune" }
+    arrival = { kind: "movie", tmdb_id: 329865, title: "Arrival" }
+    lists = [{ key: "trending", state: "asked", first: invalid }, { key: "movies", state: "shown", first: dune }]
+    tkInvalid(reqHeroOf(lists), "trending still comes")
+    lists[0].first = arrival
+    tkEqual(reqHeroOf(lists), arrival, "trending's first, its later pages still coming")
+    lists[0].first = invalid
+    lists[0].state = "shown"
+    tkEqual(reqHeroOf(lists), dune, "trending had none the profile may ask for")
+    lists = [{ key: "trending", state: "shown", first: invalid }, { key: "movies", state: "waiting", first: invalid }, { key: "shows", state: "shown", first: dune }]
+    tkInvalid(reqHeroOf(lists), "the lists before it come first")
+    lists[1].state = "shown"
+    tkEqual(reqHeroOf(lists), dune)
+    none = [{ key: "trending", state: "shown", first: invalid }, { key: "requests", state: "waiting", first: invalid }]
+    tkEqual(reqHeroOf(none), {}, "no title anywhere: no hero; Your requests aren't waited for")
+end sub
+
 sub test_requests_list_queries_and_empty_lists()
     tkEqual(reqListQuery("attention", "", 0, "", 0), { attention: 1, order: "oldest", offset: 0, limit: 50 })
     tkEqual(reqListQuery("mine", "show", 0, "", 50), { mine: 1, kind: "show", offset: 50, limit: 50 })
@@ -620,6 +677,39 @@ sub test_requests_list_queries_and_empty_lists()
     tkEqual(reqEmptyText("all", false, false), "No one has asked for anything yet.")
     tkEqual(reqEmptyText("all", true, false), "You haven't asked for anything yet.")
     tkEqual(reqEmptyText("pending", false, true), "Nothing matches.")
+end sub
+
+sub test_requests_tabs_say_how_many_each_holds()
+    manager = reqTestSummary({ manage: true, access: "auto", pending: 2, failed: 1, own: 5 })
+    counts = { pending: 2, approved: 4, available: 30, declined: 0, failed: 1 }
+    tkEqual(reqTabCount("attention", manager, invalid, false, "attention", 3), 3, "what waits, before the counts come")
+    tkEqual(reqTabCount("all", manager, counts, false, "attention", 3), 37)
+    tkEqual(reqTabCount("approved", manager, counts, false, "attention", 3), 4)
+    tkEqual(reqTabCount("declined", manager, counts, false, "attention", 3), 0)
+    tkEqual(reqTabCount("all", manager, invalid, false, "all", -1), 0, "not known yet")
+    tkEqual(reqTabCount("mine", manager, counts, false, "all", 37), 5, "the account's own")
+    ' Filtered: the counts of what the filters keep.
+    narrow = { pending: 1, approved: 0, available: 2, declined: 0, failed: 0 }
+    tkEqual(reqTabCount("attention", manager, narrow, true, "all", 3), 1)
+    tkEqual(reqTabCount("mine", manager, narrow, true, "mine", 2), 2, "what Yours lists")
+    tkEqual(reqTabCount("mine", manager, narrow, true, "all", 3), 0, "not known while another tab shows")
+    tkEqual(reqTabCount("pending", reqTestSummary({}), { pending: 1 }, false, "all", 1), 1, "a status the answer lacks counts none")
+    chips = reqTabChips(true, manager, counts, false, "attention", 3)
+    tkEqual(chips[0], { label: "Needs attention", width: 0, count: "3" })
+    tkEqual(chips[5].count, "", "none: no number")
+    tkEqual(reqTabChips(false, reqTestSummary({}), invalid, false, "all", -1).Count(), 6)
+    tkEqual(reqCountText(1200, 999), "999+")
+    tkEqual(reqCountText(0, 99), "")
+    tkEqual(reqCountText(100, 99), "99+")
+end sub
+
+' Needs attention's and Yours' lists count only what they hold: the
+' statuses' counts are asked for beside them, with the same filters.
+sub test_requests_counts_are_asked_beside_narrow_tabs()
+    tkEqual(reqCountsQuery("attention", "movie", 3, "dune"), { kind: "movie", user_id: 3, q: "dune", offset: 0, limit: 1 })
+    tkEqual(reqCountsQuery("mine", "", 0, ""), { offset: 0, limit: 1 })
+    tkInvalid(reqCountsQuery("all", "", 0, ""), "All's list counts every status")
+    tkInvalid(reqCountsQuery("pending", "", 0, ""))
 end sub
 
 sub test_requests_open_on_a_tab_the_person_has()
@@ -643,8 +733,27 @@ sub test_requests_ready_notices()
     tkEqual(reqReadyText("Severance", "show", [2]), "Season 2 of “Severance” is ready to watch.")
     tkEqual(reqReadyText("Severance", "show", [1, 2]), "Seasons 1–2 of “Severance” are ready to watch.")
     tkEqual(reqReadyText("Severance", "show", invalid), "“Severance” is ready to watch.")
-    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12 }]), { text: "“Dune” is ready to watch.", itemId: 12 })
-    tkEqual(reqNotice([{}, {}, {}]), { text: "3 of your requests have news", itemId: 0 })
+    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12, poster: "/api/discover/images/poster/d.jpg" }], "http://nas:7539"), { text: "“Dune” is ready to watch.", itemId: 12, poster: "http://nas:7539/api/discover/images/poster/d.jpg?w=80" })
+    tkEqual(reqNotice([{ title: "Dune", kind: "movie", seasons: invalid, itemId: 12, poster: "" }], "http://nas:7539").poster, "", "no poster: a tick")
+    tkEqual(reqNotice([{}, {}, {}], "http://nas:7539"), { text: "3 of your requests have news", itemId: 0, poster: "" })
+end sub
+
+' A notice shows once the remote has rested 1.5 s, and never where it
+' would be in the way.
+sub test_requests_notices_wait_for_the_remote_to_rest()
+    tkFalse(reqRested(0, 0, -1), "a key within the second")
+    tkFalse(reqRested(1, -1, -1), "a key 1 to 2 s ago, not known when")
+    tkFalse(reqRested(1, 1200, -1))
+    tkTrue(reqRested(1, 1500, -1), "the key 1.5 s ago, a look having found a second gone")
+    tkTrue(reqRested(2, -1, -1))
+    tkFalse(reqRested(5, -1, 800), "a screen changed just now")
+    tkTrue(reqRested(5, -1, 1600))
+    tkTrue(reqNoticeOver("home"))
+    tkTrue(reqNoticeOver("discover"))
+    tkTrue(reqNoticeOver("details"))
+    for each route in ["player", "livePlayer", "link", "profiles", "requests", "requestSeasons", "sortLibraries"]
+        tkFalse(reqNoticeOver(route), route)
+    end for
 end sub
 
 sub test_requests_news_is_told_once()
@@ -657,6 +766,7 @@ sub test_requests_news_is_told_once()
     told = reqToAnnounce([movie, show, declined, unopenable], mark)
     tkEqual(told.Count(), 2, "ready ones a library it can open has: a declined one shows as the badge")
     tkEqual(told[0].requestId, 7)
+    tkEqual(told[0].poster, "/api/discover/images/poster/abc.jpg")
     tkInvalid(told[0].seasons, "the whole movie")
     tkEqual(told[1].seasons, [1])
     tkEqual(mark.at, now - 10)
@@ -675,11 +785,12 @@ end sub
 
 sub test_requests_events_tell_news_once()
     mark = { at: 0, ready: {} }
-    event = { type: "request_available", request_id: 8, title: "Severance", kind: "show", tmdb_id: 95396, item_id: 99, seasons: [1], complete: false }
+    event = { type: "request_available", request_id: 8, title: "Severance", kind: "show", tmdb_id: 95396, item_id: 99, poster_url: "/api/discover/images/poster/s.jpg", seasons: [1], complete: false }
     first = reqAnnounceEvent(event, mark)
     tkEqual(first.Count(), 1)
     tkEqual(first[0].seasons, [1])
     tkEqual(first[0].itemId, 99)
+    tkEqual(first[0].poster, "/api/discover/images/poster/s.jpg")
     tkEqual(reqAnnounceEvent(event, mark).Count(), 0, "the same news")
     event.seasons = [2]
     tkEqual(reqAnnounceEvent(event, mark)[0].seasons, [2])
@@ -701,7 +812,7 @@ sub test_requests_news_is_kept_as_told_once_its_notice_is_seen()
     told = reqToAnnounce([movie], mark)
     tkEqual(told.Count(), 1)
     tkEqual(before, { at: now - 600, ready: { "5": "all" } }, "the copy stays as it was")
-    notice = reqNotice(told)
+    notice = reqNotice(told, "")
     notice.before = before
     kept = reqMarkToKeep(mark, [notice])
     tkFalse(kept.ready.DoesExist("7"), "waiting: not kept as told")

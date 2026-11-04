@@ -174,8 +174,8 @@ sub onChanged(event as object)
 end sub
 
 ' The Options key on an entry: Move and Remove from playlist (not in a
-' smart one, which its filter fills and orders), then what can be done with
-' its title.
+' smart one, which its filter fills and orders), Go to its title's page
+' (OK plays it), as on Android TV, then what can be done with its title.
 sub entryOptions()
     entry = m.entries.content.getChild(m.entries.itemFocused)
     if entry = invalid then return
@@ -185,6 +185,7 @@ sub entryOptions()
         if m.entries.content.getChildCount() > 1 then options.Push({ label: "Move", action: "move" })
         options.Push({ label: "Remove from playlist", action: "remove" })
     end if
+    if navForTile(tile) <> invalid then options.Push({ label: "Go to " + httpSentence(entry.title), action: "open" })
     for each option in pageTileOptions(tile, false, invalid)
         if option.action <> "playlist" then options.Push(option)
     end for
@@ -213,6 +214,8 @@ sub onEntryOption(event as object)
         lift(m.entries.itemFocused)
     else if action = "remove"
         uiRequest({ method: "DELETE", path: "/api/playlists/" + urlValue(m.top.params.id) + "/items/" + urlValue(state.entryId) }, "onChanged")
+    else if action = "open"
+        uiOpenTile(state.tile)
     else
         uiTitleAction(state.tile, action)
     end if

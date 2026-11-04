@@ -4,6 +4,8 @@
 ' its title where it shows (the scene's requestNote), never the lists.
 
 sub init()
+    ' Whether Your requests showed: a poll that fails then leaves them be.
+    m.requestsShown = false
     m.backdrop = m.top.findNode("backdrop")
     m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
@@ -24,12 +26,15 @@ sub init()
     m.started = false
     ' The rows in order: { key (a list's, or "requests"), title, state
     ' ("waiting", "asked", "shown"), page (the last one asked for), seen
-    ' (the titles shown: { "movie:603": true }) }.
+    ' (the titles shown: { "movie:603": true }), first (its first title,
+    ' a DiscoverTitle, or invalid) }.
     m.lists = []
     m.generation = 0
-    ' The hero's title (DiscoverTitle), and how it shows (reqHero's).
+    ' The hero's title (DiscoverTitle), and how it shows (reqHero's);
+    ' whether it was found, or none can be.
     m.heroTitle = invalid
     m.heroShown = invalid
+    m.heroFound = false
     ' A row answered: a problem after that is only that row's.
     m.answered = false
     ' The problem shown in place of the page (reqProblem's), or invalid;
@@ -80,6 +85,7 @@ sub showPage()
     m.answered = false
     m.heroTitle = invalid
     m.heroShown = invalid
+    m.heroFound = false
     m.hero.visible = false
     m.backdrop.uri = ""
     m.problem.visible = false
@@ -97,9 +103,9 @@ sub showPage()
     m.generation = m.generation + 1
     m.lists = []
     for each list in reqLists()
-        m.lists.Push({ key: list.key, title: list.title, state: "waiting", page: 0, seen: {} })
+        m.lists.Push({ key: list.key, title: list.title, state: "waiting", page: 0, seen: {}, first: invalid })
     end for
-    if reqShowsRequests(summary) and summary.own > 0 then m.lists.Push({ key: "requests", title: "Your requests", state: "waiting", page: 0, seen: {} })
+    if reqShowsRequests(summary) and summary.own > 0 then m.lists.Push({ key: "requests", title: "Your requests", state: "waiting", page: 0, seen: {}, first: invalid })
     content = CreateObject("roSGNode", "ContentNode")
     for each list in m.lists
         row = content.createChild("ContentNode")
@@ -113,15 +119,12 @@ sub showPage()
     ensureRows(1)
 end sub
 
-' The requests, where the summary has them. Without them the focus leaves
-' the empty row.
+' The requests, where the summary has them, with the menu's number of
+' what waits there. Without them the focus leaves the empty row.
 sub showChips(summary as object)
     chips = []
-    if reqShowsRequests(summary)
-        name = reqPageName(summary)
-        chips.Push({ label: name, width: 120 + Len(name) * 15 })
-    end if
-    m.chips.chips = chips
+    if reqShowsRequests(summary) then chips.Push(reqRequestsChip(summary))
+    if FormatJson(m.chips.chips) <> FormatJson(chips) then m.chips.chips = chips
     m.chips.visible = chips.Count() > 0
     if not m.chips.visible and m.chips.isInFocusChain() then focusRows(false)
 end sub
@@ -194,18 +197,21 @@ sub onListRow(event as object)
             showProblem(problem)
             return
         end if
-        if list.key = "trending" and m.heroTitle = invalid then showHero({})
         ' What came before stays, See all going on from it.
         if shown.Count() > 0
             setRow(spec.row, shown, reqMoreTile("See all", list.key, ""))
         else
             setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
         end if
+        ' Without trending, the hero comes from the other lists: every one
+        ' at once, as when trending has nothing to ask for.
+        if list.key = "trending" and list.first = invalid then ensureRows(m.lists.Count() - 1)
+        findHero()
         return
     end if
     m.answered = true
     page = answer.data
-    if list.page = 0 and list.key = "trending" then showHero(page.first)
+    if list.first = invalid and httpNumber(page.first.tmdb_id, 0) > 0 then list.first = page.first
     ' A server that answers the same page again has no more.
     more = page.page < page.totalPages and page.page > list.page
     list.page = page.page
@@ -228,7 +234,11 @@ sub onListRow(event as object)
         askRow(spec.row)
     else
         list.state = "shown"
+        ' Trending has nothing the profile may ask for: every list comes
+        ' at once, for a hero.
+        if list.key = "trending" and list.first = invalid then ensureRows(m.lists.Count() - 1)
     end if
+    findHero()
 end sub
 
 ' Your requests: their posters and stages, then See all.
@@ -239,19 +249,38 @@ sub onRequestsRow(event as object)
     if not isCurrent(spec, "requests") then return
     m.lists[spec.row].state = "shown"
     if not answer.ok
-        if not uiFailed(answer) then setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+        if uiFailed(answer) then return
+        ' A poll that fails leaves the requests shown, and asks again in
+        ' its time; with none shown yet, the row says so.
+        if m.requestsShown
+            restartPoll(false)
+        else
+            setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+        end if
         return
     end if
+    m.requestsShown = true
     tiles = []
     if request.content <> invalid then tiles = request.content.getChildren(-1, 0)
     extra = reqMoreTile("See all", "requests", "")
     if tiles.Count() = 0 then extra = reqNoticeTile(reqEmptyText("all", true, false), "note")
     setRow(spec.row, tiles, extra)
-    if answer.data.busy and m.top.active then m.busy.control = "start"
+    restartPoll(answer.data.busy)
 end sub
 
-' Your requests asks again: requests changed, one of them downloads, or
-' the page shows again.
+' Your requests asked again in 10 s while one of them downloads, in 30 s
+' while the event stream is down (reqListPoll).
+sub restartPoll(busy as boolean)
+    m.busy.control = "stop"
+    seconds = reqListPoll(busy, m.top.getScene().eventsLive)
+    if seconds > 0 and m.top.active
+        m.busy.duration = seconds
+        m.busy.control = "start"
+    end if
+end sub
+
+' Your requests asks again: requests changed, one of them downloads, the
+' event stream is down, or the page shows again.
 sub reloadRequests()
     for i = 0 to m.lists.Count() - 1
         if m.lists[i].key = "requests" and m.lists[i].state = "shown" then askRow(i)
@@ -308,7 +337,16 @@ end sub
 
 ' --- The hero ---
 
-' The first trending title, or none: the rows move up.
+' The hero, once the lists say which it is (reqHeroOf).
+sub findHero()
+    if m.heroFound then return
+    title = reqHeroOf(m.lists)
+    if title = invalid then return
+    m.heroFound = true
+    showHero(title)
+end sub
+
+' The hero's title, or none: the rows move up.
 sub showHero(title as object)
     if httpNumber(title.tmdb_id, 0) = 0
         placeRows(false)

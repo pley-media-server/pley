@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ready-to-watch news over the pages (MainScene), as on the other TVs: a
+     card at the bottom right with the title's poster (a tick without
+     one), the news, Open and Close. It takes the focus; Close, Back, Up and
+     Down close it, as do 10 s untouched, and Open opens what it tells of.
+     An OK in its first 0.6 s was meant for the page: it does nothing. -->
+<component name="RequestNotice" extends="Group">
+    <interface>
+        <!-- { text, poster (its address, "" for none) }: the card shows,
+             with the focus. -->
+        <field id="notice" type="assocarray" onChange="onNotice" />
+        <!-- What happened: "open", "close" (Close, Back, Up, Down, its time
+             up), "lost" (the focus went elsewhere: the scene says whether
+             a dialog covers it) or "stray" (the focus came back to it gone). -->
+        <field id="event" type="string" alwaysNotify="true" />
+        <!-- Set by the scene: true while a dialog covers it (its time
+             stops), false once none does (it takes the focus back). -->
+        <field id="cover" type="boolean" alwaysNotify="true" onChange="onCover" />
+        <!-- Set by the scene: it goes without a word. -->
+        <field id="hide" type="boolean" alwaysNotify="true" onChange="onHide" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/RequestNotice.brs" />
+    <children>
+        <Rectangle width="720" height="276" color="0x191D24F5" />
+        <Rectangle width="720" height="2" color="0x2E3440FF" />
+        <Rectangle id="frame" translation="[32, 32]" width="80" height="120" color="0x2E3440FF" />
+        <Poster id="poster" translation="[32, 32]" width="80" height="120" loadWidth="80" loadHeight="120" loadDisplayMode="scaleToZoom" />
+        <!-- Without a poster to say which title it is, a tick says it's
+             good news. -->
+        <Poster id="tick" translation="[32, 72]" width="40" height="40" uri="pkg:/images/watched.png" visible="false" />
+        <Label id="text" translation="[140, 32]" width="548" height="120" wrap="true" maxLines="3" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+        <ButtonGroup id="buttons" translation="[308, 180]" layoutDirection="horiz" itemSpacings="[20]" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="180" maxWidth="180" buttonHeight="64" />
+        <!-- Untouched this long, it goes by itself. -->
+        <Timer id="untouched" duration="10" />
+    </children>
+</component>

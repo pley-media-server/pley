@@ -8,6 +8,88 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The player's menu (Down) has Subtitles and Audio, listing every track of
+  the file, picture subtitles too, as the other apps' players do. A pick is
+  saved for the show or movie.
+- The player shows the title at the top for a few seconds as each item
+  begins.
+- When the server is out of reach for a moment, the player says
+  "Reconnecting…" and goes on where it was, its queue kept, for up to
+  90 s, where it used to leave for a screen saying the server can't be
+  reached.
+- Home has a hero for the first of Continue Watching, with Resume, From
+  start, Info and the watched mark, and in its rows an info block about
+  the title focus rests on, the backdrop following it, as on the other TVs.
+- Collections, in Home's menu, shows every library's collections, a row
+  each.
+- A title's page says who made it and who is in it ("Directed by …
+  · Starring …"), and its More has Details: the whole summary, the crew,
+  the original title, the release date, the studio or network and how
+  many times it was played.
+- An album's page has Go to artist, and Now playing while music plays;
+  Now Playing's scrubber, Up from its buttons, moves 10 s with Left and
+  Right.
+- A playlist entry's Options key goes to its title's page.
+- The live player's Options key adds the channel playing to the
+  favourites or takes it out.
+- The live player's channel list shows another category or a search, and
+  a channel chosen there makes channel up and down go through that one.
+- The Options key on a programme in Live TV's guide, or on a card, shows
+  its details.
+- The requests' tabs say how many each holds, and Discover's way to the
+  requests how many wait there, in red while some couldn't be sent.
+- A Discover grid whose next page fails ends in a tile to try again.
+
+### Changed
+
+- Up Next waits at the end of an episode once cancelled, or when the next
+  episode doesn't play by itself, where the player used to leave.
+- A video that stands still for 12 s is converted or opened again, and the
+  player says when the server can't convert it fast enough.
+- A title the server refuses to play offers Try again where asking again
+  may help.
+- Playback details stay up to date while they show.
+- Home's menu is in the other TVs' order: Search, Home, Discover and the
+  requests, Live TV, the libraries, Playlists, Collections, Now Playing,
+  then Settings.
+- Home with nothing to show says why: no libraries yet, a scan under way,
+  or nothing in them yet.
+- Live TV opens at the last channel watched, after a restart too.
+- Back in Live TV's guide goes back to now first, and from a search to the
+  category before, then to the categories; Clear in the search goes back
+  to the category before too.
+- A Live TV channel that fails is tuned again after 1 s and then 3 s
+  before the player says why.
+- A page of channels or a part of the guide that didn't load is asked for
+  again; with nothing to show, Live TV offers Try again.
+- What's on in Live TV and in the live player moves on as programmes end.
+- When every connection is in use and none can be taken over, the notice
+  says what can be done instead.
+- When trending has nothing the profile may ask for, Discover's hero is
+  the first title of the next row that has one.
+- Search's Discover row looks through up to 3 of TMDB's pages for up to
+  20 titles the libraries lack, so it no longer goes missing when TMDB's
+  first page is all in the libraries.
+- Without the event stream, the requests and Discover's Your requests are
+  asked again every 30 s.
+- Ready-to-watch news shows in a card at the bottom right with the
+  title's poster, Open and Close, once the remote rests, as on the other
+  TVs. It gives the focus back when closed, goes by itself after 10 s,
+  and never shows on the requests.
+
+### Fixed
+
+- A video resumed past the end of what its file holds is converted or
+  opened again, instead of being counted as watched.
+- The server hears of a seek at once, so the title resumes from there on
+  other devices.
+- Chapters are offered in the player's menu only for a file with two or
+  more.
+- Choosing a Live TV category or searching takes the focus to its
+  channels.
+
 ## [0.1.5] - 2026-11-04
 
 ### Changed

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The player: the Video node with its own controls, the picture
-     subtitles the app draws, Skip Intro and Skip Credits, Up Next before
-     the end of an episode, pley's menu (Down:
-     Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…,
-     Playback details), the sleep timer's notice, Automatic's notice of a
-     lower quality, and what went wrong when it did. -->
+     subtitles the app draws, the title as each item begins, Skip Intro and
+     Skip Credits, Up Next before the end of an episode (and at its end),
+     Pley's menu (Down: Subtitles, Audio, Quality, Subtitle sync,
+     Chapters, Sleep timer, Find subtitles…, Playback details), the sleep
+     timer's notice, Automatic's notice of a lower quality, "Reconnecting…"
+     while the server is out of reach, and what went wrong when it did. -->
 <component name="PlayerScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -28,6 +29,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Tracks.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/AutoQuality.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Media.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
@@ -43,6 +45,13 @@
             </Group>
             <SkipButton id="skip" translation="[1544, 924]" visible="false" />
         </Video>
+        <!-- The title for 4 s as each item begins, at the top. -->
+        <Group id="banner" visible="false">
+            <Rectangle width="1920" height="200" color="0x000000A6" />
+            <Label id="bannerTitle" translation="[96, 56]" width="1500" maxLines="1" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="bannerLine" translation="[96, 116]" width="1500" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        </Group>
+        <!-- "Loading…", or "Reconnecting…" while the server is out of reach. -->
         <Label id="loading" translation="[0, 500]" width="1920" horizAlign="center" text="Loading…" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <Group id="upNext" translation="[0, 700]" visible="false">
             <Rectangle width="1920" height="380" color="0x16191EE6" />
@@ -61,7 +70,7 @@
             <Label translation="[48, 150]" width="360" wrap="true" maxLines="2" text="Left: earlier · Right: later" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ButtonGroup id="syncButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[440, 48]" minWidth="312" />
         </Group>
-        <!-- pley's menu, at the right over the video: its entries, a
+        <!-- Pley's menu, at the right over the video: its entries, a
              quality's or a chapter's choices, or the playback's details. -->
         <Group id="menu" visible="false">
             <Rectangle translation="[1240, 0]" width="680" height="1080" color="0x16191EF2" />
@@ -99,5 +108,13 @@
         <Timer id="picturesTimer" duration="3" />
         <!-- Automatic's look at the playback, once a second while it plays. -->
         <Timer id="autoTimer" duration="1" repeat="true" />
+        <!-- The title's banner as an item begins. -->
+        <Timer id="bannerTimer" duration="4" />
+        <!-- The server asked again while it is out of reach. -->
+        <Timer id="reconnectTimer" duration="2" />
+        <!-- A look once a second at whether the playhead stands still. -->
+        <Timer id="stallTimer" duration="1" repeat="true" />
+        <!-- Playback details asked again while they show. -->
+        <Timer id="detailsTimer" duration="2" repeat="true" />
     </children>
 </component>

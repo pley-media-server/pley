@@ -34,6 +34,10 @@
             <!-- The sleep timer's countdown, or what went wrong with a track. -->
             <Label id="message" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
         </LayoutGroup>
+        <!-- The scrubber: Up from the buttons, then Left and Right move
+             10 s, as on Android TV. -->
+        <Poster id="scrubFocus" translation="[540, 436]" width="1304" height="48" uri="pkg:/images/button-footprint.9.png" visible="false" />
+        <Group id="scrubber" focusable="true" />
         <Rectangle id="track" translation="[560, 456]" width="1264" height="8" color="0x2E3440FF" />
         <Rectangle id="fill" translation="[560, 456]" width="0" height="8" color="0x38BDF8FF" />
         <Label id="elapsed" translation="[560, 476]" width="300" color="0xA1A9B6FF" font="font:SmallestSystemFont" />

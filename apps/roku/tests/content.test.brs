@@ -230,7 +230,7 @@ sub test_content_episode_details_name_show_and_episode()
     episode.files = [{ id: 8, container: "mp4" }]
     detail = contentDetail(episode, contentTestServer())
     tkEqual(detail.buttons, ["Play", "Mark as unwatched", "More…"], "watched; no My List for an episode")
-    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Go to season", action: "season" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Go to season", action: "season" }, { label: "Media info", action: "info" }, { label: "Details", action: "about" }, { label: "Add to playlist", action: "playlist" }], "Details: played once")
     episode.parent_id = invalid
     tkEqual(contentDetail(episode, contentTestServer()).more[2].action, "info", "no season to go to")
     tkEqual(detail.showId, 99)
@@ -349,4 +349,37 @@ sub test_content_up_next_card()
     tkEqual(card.startMs, 0)
     nextEpisode.user_state.position_ms = 120000
     tkEqual(contentUpNext(nextEpisode, contentTestServer()).startMs, 120000, "its own place")
+end sub
+
+sub test_content_credits_name_the_makers_and_the_cast()
+    movie = { kind: "movie", title: "Dune", crew: [{ id: 9, name: "Grace Hopper", role: "director" }, { id: 9, name: "Grace Hopper", role: "director" }, { id: 10, name: "Ada", role: "writer" }], cast: [{ id: 1, name: "A" }, { id: 2, name: "B" }, { id: 3, name: "C" }, { id: 4, name: "D" }] }
+    tkEqual(contentCredits(movie), "Directed by Grace Hopper · Starring A, B, C")
+    show = { kind: "show", crew: [{ id: 5, name: "Vince", role: "creator" }], cast: [] }
+    tkEqual(contentCredits(show), "Created by Vince")
+    tkEqual(contentCredits({ kind: "movie" }), "")
+end sub
+
+sub test_content_about_has_the_whole_summary_and_the_facts()
+    now = 1767225600 ' 2026-01-01
+    movie = { kind: "movie", title: "Dune", original_title: "Dune: Part One", release_date: "2021-10-22", studio: "Legendary", summary: "Paul goes to Arrakis.", user_state: { play_count: 2 }, crew: [{ id: 1, name: "A", role: "writer" }, { id: 2, name: "B", role: "writer" }, { id: 3, name: "C", role: "writer" }, { id: 4, name: "D", role: "writer" }, { id: 5, name: "E", role: "writer" }, { id: 6, name: "F", role: "director" }] }
+    lines = contentAbout(movie, now, 0).Split(Chr(10))
+    tkEqual(lines[0], "Paul goes to Arrakis.")
+    tkEqual(lines[1], "")
+    tkEqual(lines[2], "Director: F")
+    tkEqual(lines[3], "Writers: A, B, C, D and 1 more")
+    tkEqual(lines[4], "Original title: Dune: Part One")
+    tkEqual(lines[5], "Released: Oct 22, 2021")
+    tkEqual(lines[6], "Studio: Legendary")
+    tkEqual(lines[7], "Plays: 2")
+    tkEqual(contentAbout({ kind: "show", studio: "HBO", summary: "" }, now, 0), "Network: HBO")
+    tkEqual(contentAbout({ kind: "movie", title: "Dune", original_title: "Dune", summary: "Short." }, now, 0), "", "nothing beyond the page")
+end sub
+
+sub test_content_details_offers_details_in_more()
+    movie = { id: 5, kind: "movie", title: "Dune", studio: "Legendary", files: [{ id: 1 }], user_state: {} }
+    actions = []
+    for each entry in contentDetail(movie, contentTestServer()).more
+        actions.Push(entry.action)
+    end for
+    tkEqual(actions, ["rate", "info", "about", "playlist"])
 end sub

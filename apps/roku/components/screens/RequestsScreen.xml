@@ -4,7 +4,7 @@
      filters in a panel at the right). Tabs by status; a row for each
      request with its poster, its stage and what to know of it. OK opens
      the title's page; the Options key offers what can be done with the
-     request. -->
+     request. Each tab says how many it holds. -->
 <component name="RequestsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -33,7 +33,8 @@
              approve, how to make it. -->
         <Label id="count" translation="[1024, 60]" width="800" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <!-- Closer chips than a library's: a manager's eight tabs leave
-             room for the filters. -->
+             room for the filters (closer still where their numbers need
+             it). -->
         <ChipRow id="tabs" translation="[96, 132]" pad="44" visible="false" />
         <!-- A manager's filters, or Sign in again. -->
         <ChipRow id="side" translation="[1600, 132]" pad="44" visible="false" />
@@ -53,7 +54,8 @@
             <RadioButtonList id="choices" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
             <LabelList id="menu" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
-        <!-- The list asked again while one of its requests downloads. -->
+        <!-- The list asked again while one of its requests downloads, or
+             while the event stream is down. -->
         <Timer id="busy" duration="10" />
     </children>
 </component>

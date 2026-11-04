@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Discover: titles on TMDB to ask for. A hero of the first trending
-     title (its backdrop, what it is, a line of its overview, its main
+     title, or of the next list's while trending has none for the profile
+     (its backdrop, what it is, a line of its overview, its main
      action), then rows of posters with their badges (Trending this week,
      Popular movies, Popular shows, Coming to cinemas, Popular anime), each
      loaded as it comes into view and ending with See all, then Your
-     requests for those who have any. The requests at the top; Down
+     requests for those who have any. The requests at the top, with the
+     number that waits there; Down
      slides the page up to the rows. A sign-in from before apps could
      ask sees only how to sign in again. -->
 <component name="DiscoverScreen" extends="Group">
@@ -55,7 +57,8 @@
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />
         </LayoutGroup>
-        <!-- Your requests asked again while one of them downloads. -->
+        <!-- Your requests asked again while one of them downloads, or
+             while the event stream is down. -->
         <Timer id="busy" duration="10" />
     </children>
 </component>

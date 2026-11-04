@@ -1,12 +1,14 @@
 ' Now Playing: what the music player (m.global.music) plays, and Up next,
 ' the queue with the track playing marked (Music.brs lists a long one a
-' part at a time): OK on one plays it, and the queue goes on from there. Shuffle plays the other tracks after this one in a random order;
-' Stop shuffling puts the order back. The sleep timer's button steps
-' through its choices, and in the timer's last 30 s, while a line counts
-' down, it is Keep listening. The remote's play pauses or goes on, fast
-' forward and rewind go to the next track or back. Down goes from the
-' buttons to Up next, Up from its first track back. Its fields are
-' followed only while this screen shows.
+' part at a time): OK on one plays it, and the queue goes on from there.
+' Shuffle plays the other tracks after this one in a random order; Stop
+' shuffling puts the order back. The sleep timer's button steps through
+' its choices, and in the timer's last 30 s, while a line counts down, it
+' is Keep listening. The remote's play pauses or goes on, fast forward and
+' rewind go to the next track or back. Down goes from the buttons to Up
+' next, Up from its first track back; Up from the buttons goes to the
+' scrubber, where Left and Right move 10 s, as on Android TV. Its fields
+' are followed only while this screen shows.
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
@@ -16,6 +18,8 @@ sub init()
     m.album = m.top.findNode("album")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
+    m.scrubber = m.top.findNode("scrubber")
+    m.scrubFocus = m.top.findNode("scrubFocus")
     m.elapsed = m.top.findNode("elapsed")
     m.left = m.top.findNode("left")
     m.buttons = m.top.findNode("buttons")
@@ -222,6 +226,26 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "rewind" or key = "replay"
         m.global.music.control = "previous"
+        return true
+    end if
+    if m.scrubber.hasFocus()
+        if key = "left" or key = "right"
+            music = m.global.music
+            moveMs = 10000
+            if key = "left" then moveMs = -moveMs
+            music.seek = music.positionMs + moveMs
+            return true
+        end if
+        if key = "down" or key = "back"
+            m.scrubFocus.visible = false
+            m.buttons.setFocus(true)
+            return true
+        end if
+        return key = "up"
+    end if
+    if key = "up" and m.buttons.isInFocusChain() and m.global.music.durationMs > 0
+        m.scrubber.setFocus(true)
+        m.scrubFocus.visible = true
         return true
     end if
     if key = "down" and m.buttons.hasFocus() and m.upNext.visible

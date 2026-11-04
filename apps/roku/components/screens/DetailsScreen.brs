@@ -8,6 +8,7 @@ sub init()
     m.heading = m.top.findNode("heading")
     m.line = m.top.findNode("line")
     m.genres = m.top.findNode("genres")
+    m.credits = m.top.findNode("credits")
     m.tagline = m.top.findNode("tagline")
     m.summary = m.top.findNode("summary")
     m.note = m.top.findNode("note")
@@ -133,11 +134,14 @@ sub showDetail()
     m.heading.text = m.detail.heading
     m.line.text = m.detail.line
     m.genres.text = m.detail.genres
+    m.credits.text = m.detail.credits
     m.tagline.text = m.detail.tagline
-    ' Seven buttons take a line from the summary (three, as on Android TV):
-    ' under a heading of two lines they would reach the rows' title.
+    ' Seven buttons take a line from the summary (three, as on Android TV),
+    ' and so does the credits line: under a heading of two lines they would
+    ' reach the rows' title. More's Details has the whole of it.
     m.summary.maxLines = 4
     if m.detail.buttons.Count() > 6 then m.summary.maxLines = 3
+    if m.detail.credits <> "" then m.summary.maxLines = m.summary.maxLines - 1
     m.summary.text = m.detail.summary
     m.note.text = m.detail.note
     layoutText()
@@ -180,7 +184,7 @@ end sub
 sub layoutText()
     shown = [m.heading]
     spacings = []
-    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
+    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 8 }, { label: m.credits, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
         if part.label.text <> ""
             spacings.Push(part.gap)
             shown.Push(part.label)
@@ -477,6 +481,21 @@ sub showInfo()
     m.info.setFocus(true)
 end sub
 
+' Details: the whole summary, then who made the title, its original
+' title, when it came out, its studio and how often it was played, as on
+' Android TV, in text that Up and Down scroll; Back goes back to More.
+sub showAbout()
+    m.panelKind = "info"
+    m.panelBack = "more"
+    m.panelTitle.text = "Details"
+    m.info.text = contentAbout(m.item, CreateObject("roDateTime").AsSeconds(), fmtZoneSeconds())
+    m.menu.visible = false
+    m.choices.visible = false
+    m.info.visible = true
+    m.panel.visible = true
+    m.info.setFocus(true)
+end sub
+
 sub closePanel()
     m.panel.visible = false
     m.panelKind = ""
@@ -508,6 +527,10 @@ sub onMenu(event as object)
     end if
     if action = "info"
         showInfo()
+        return
+    end if
+    if action = "about"
+        showAbout()
         return
     end if
     closePanel()

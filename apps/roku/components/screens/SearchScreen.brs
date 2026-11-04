@@ -7,8 +7,9 @@
 ' Artists, Albums, Tracks, Live TV (cards; OK watches the channel), People.
 ' Where the person may ask for titles (the scene's summary), Discover (GET
 ' /api/discover/search?missing=1), asked at the same time and never waited
-' for, comes after them, ending with See all: all of TMDB's results for
-' the words, with their badges (DiscoverListScreen).
+' for, comes after them: up to 20 titles, from 3 of TMDB's pages at most,
+' ending with See all: all of TMDB's results for the words, with their
+' badges (DiscoverListScreen).
 
 sub init()
     m.keyboard = m.top.findNode("keyboard")
@@ -34,6 +35,14 @@ sub init()
     m.libraryRows = invalid
     m.tmdbTiles = invalid
     m.libraryMessage = ""
+    ' TMDB's search as its pages come: which one (answers to another are
+    ' left out), the titles found and shown ({ "movie:603": true }), the
+    ' last page and how many were read.
+    m.tmdbAsked = 0
+    m.tmdbFound = []
+    m.tmdbSeen = {}
+    m.tmdbPage = 0
+    m.tmdbRead = 0
     m.rowKeys = []
     m.lastFocus = m.keyboard
     m.keyboard.observeField("text", "onText")
@@ -225,26 +234,66 @@ end sub
 ' --- Discover, with the libraries' titles ---
 
 ' TMDB's first titles the libraries lack, for the words searched (as many
-' as TMDB's search takes).
+' as TMDB's search takes). A page can come short, even empty, its titles
+' in a library: the next is read until there are enough to show.
 sub askTmdb()
     m.tmdbPath = urlWithQuery("/api/discover/search", { q: reqSearchWords(m.query), missing: 1 })
-    uiRequest({ method: "GET", path: m.tmdbPath, build: "discoverTiles", known: {} }, "onTmdb")
+    m.tmdbAsked = m.tmdbAsked + 1
+    m.tmdbFound = []
+    m.tmdbSeen = {}
+    m.tmdbPage = 0
+    m.tmdbRead = 0
+    askTmdbPage()
 end sub
 
-' TMDB's titles and See all. What stops TMDB's search
-' (TMDB not answering, its key refused, no access) is a tile that says
-' so, asking again where that may help; the server not answering is the
-' libraries' search's to say.
+sub askTmdbPage()
+    uiRequest({ method: "GET", path: m.tmdbPath, query: { page: m.tmdbPage + 1 }, build: "discoverTiles", known: m.tmdbSeen, asked: m.tmdbAsked }, "onTmdb")
+end sub
+
+' A page of TMDB's titles: the next is asked for while too few came
+' (reqSearchWantsPage), then they show.
 sub onTmdb(event as object)
     request = event.getRoSGNode()
-    if request.spec.path <> m.tmdbPath then return
+    if request.spec.path <> m.tmdbPath or request.spec.asked <> m.tmdbAsked then return
     answer = event.getData()
+    if not answer.ok
+        showTmdb(answer)
+        return
+    end if
+    page = answer.data
+    ' A server that answers the same page again has no more.
+    fresh = page.page > m.tmdbPage
+    m.tmdbPage = page.page
+    m.tmdbRead = m.tmdbRead + 1
+    if request.content <> invalid
+        for each node in request.content.getChildren(-1, 0)
+            if not m.tmdbSeen.DoesExist(node.key)
+                m.tmdbSeen[node.key] = true
+                m.tmdbFound.Push(node)
+            end if
+        end for
+    end if
+    if fresh and reqSearchWantsPage(m.tmdbFound.Count(), m.tmdbPage, page.totalPages, m.tmdbRead)
+        askTmdbPage()
+        return
+    end if
+    showTmdb(invalid)
+end sub
+
+' TMDB's titles, 20 at most, and See all. A page that failed (failed, its
+' answer) leaves what came before; with none, what stops TMDB's search
+' (TMDB not answering, its key refused, no access) is a tile that says
+' so, asking again where that may help. The server not answering is the
+' libraries' search's to say.
+sub showTmdb(failed as dynamic)
     tiles = []
-    if answer.ok
-        if request.content <> invalid then tiles = request.content.getChildren(-1, 0)
-        if tiles.Count() > 0 then tiles.Push(nodesContent([reqMoreTile("See all", "", m.query)]).getChild(0))
-    else if answer.error <> "network" and answer.error <> "signed_out"
-        tiles.Push(nodesContent([reqSearchProblemTile(answer, reqSummaryOf(m.top.requestSummary).manage)]).getChild(0))
+    for each node in m.tmdbFound
+        if tiles.Count() < reqSearchShown() then tiles.Push(node)
+    end for
+    if tiles.Count() > 0
+        tiles.Push(nodesContent([reqMoreTile("See all", "", m.query)]).getChild(0))
+    else if failed <> invalid and failed.error <> "network" and failed.error <> "signed_out"
+        tiles.Push(nodesContent([reqSearchProblemTile(failed, reqSummaryOf(m.top.requestSummary).manage)]).getChild(0))
     end if
     m.tmdbTiles = tiles
     showRows()

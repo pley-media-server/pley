@@ -4,8 +4,9 @@
      channel's logo with a spinner under it while it tunes, a banner of
      what's on and next, up and down to change channel within the
      category it was opened from, the category's channels at the left
-     (Left), and what went wrong when it did (every connection in use, the
-     channel not playing). -->
+     (Left; another category, or a search, can be listed there), and what
+     went wrong when it did (every connection in use, the channel not
+     playing). -->
 <component name="LivePlayerScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -23,7 +24,6 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
-    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
@@ -41,7 +41,8 @@
             <Label id="cardTitle" translation="[160, 580]" width="1600" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="cardLine" translation="[160, 646]" width="1600" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
-        <!-- What's on, when asked for (OK, Right or the Options key). -->
+        <!-- What's on, when asked for (OK or Right, or the Options key as
+             it changes the favourite, whose star shows here). -->
         <Group id="banner" visible="false">
             <Rectangle translation="[0, 720]" width="1920" height="360" color="0x16191EE6" />
             <Rectangle translation="[96, 792]" width="240" height="120" color="0x2E3440FF" />
@@ -72,7 +73,10 @@
             <Label id="listTitle" translation="[64, 56]" width="672" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="listRange" translation="[64, 120]" width="672" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <MarkupList id="channelList" translation="[40, 176]" itemComponentName="LiveChannelRow" itemSize="[720, 100]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-            <Label id="listHint" translation="[64, 1032]" width="672" color="0x8B95A5FF" text="OK: watch   ·   Options (*): favourite   ·   Back: close" font="font:TinySystemFont" />
+            <!-- Left in the list: another category to list. -->
+            <MarkupList id="categoryList" translation="[40, 176]" itemComponentName="LiveRailItem" itemSize="[720, 56]" itemSpacing="[0, 4]" numRows="14" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <!-- Two lines: what the channels do, then the categories and search. -->
+            <Label id="listHint" translation="[64, 1010]" width="672" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
@@ -88,5 +92,7 @@
         <Timer id="toastTimer" duration="3" />
         <!-- A stall this long shows the spinner. -->
         <Timer id="stallTimer" duration="0.7" />
+        <!-- A channel that failed is tuned again after this (1 s, then 3 s). -->
+        <Timer id="retryTimer" duration="1" />
     </children>
 </component>

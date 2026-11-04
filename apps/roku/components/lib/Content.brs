@@ -458,6 +458,7 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         if httpNumber(detail.parent_id, 0) > 0 then more.Push({ label: "Go to season", action: "season" })
     end if
     if (kind = "movie" or kind = "episode") and files.Count() > 0 then more.Push({ label: "Media info", action: "info" })
+    if contentAbout(detail, 0, 0) <> "" then more.Push({ label: "Details", action: "about" })
     if rateable then more.Push({ label: "Add to playlist", action: "playlist" })
     if more.Count() > 0
         buttons.Push("More…")
@@ -477,6 +478,7 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         line: line,
         tagline: tagline,
         genres: genres.Join(", "),
+        credits: contentCredits(detail),
         summary: httpClean(detail.summary, 1200, true),
         backdrop: backdrop,
         poster: contentTileImage(detail, server, false, contentDetailPosterWidth()),
@@ -493,6 +495,109 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         more: more,
         note: note
     }
+end function
+
+' Who made a title and who is in it, as Android TV's title page says it:
+' "Directed by Grace Hopper · Starring Ada Lovelace, Alan Turing" (a
+' show's creators: "Created by"), two of the makers and three of the cast.
+function contentCredits(detail as object) as string
+    makers = contentCrew(detail, "director")
+    made = "Directed by "
+    if makers.Count() = 0
+        makers = contentCrew(detail, "creator")
+        made = "Created by "
+    end if
+    parts = []
+    if makers.Count() > 0
+        while makers.Count() > 2
+            makers.Pop()
+        end while
+        parts.Push(made + makers.Join(", "))
+    end if
+    stars = []
+    for each credit in httpArray(detail.cast)
+        name = ""
+        if GetInterface(credit, "ifAssociativeArray") <> invalid then name = httpSentence(credit.name)
+        if name <> "" and stars.Count() < 3 then stars.Push(name)
+    end for
+    if stars.Count() > 0 then parts.Push("Starring " + stars.Join(", "))
+    return parts.Join(" · ")
+end function
+
+' The names of a title's crew in role, each once, in the server's order.
+function contentCrew(detail as object, role as string) as object
+    names = []
+    seen = {}
+    for each credit in httpArray(detail.crew)
+        if GetInterface(credit, "ifAssociativeArray") <> invalid and httpString(credit.role) = role
+            name = httpSentence(credit.name)
+            key = urlValue(credit.id) + ":" + name
+            if name <> "" and not seen.DoesExist(key)
+                seen[key] = true
+                names.Push(name)
+            end if
+        end if
+    end for
+    return names
+end function
+
+' A title's Details, its More's panel, as Android TV's Details section
+' says them: the whole summary (the page cuts it), then who created,
+' directed and wrote it (four names a role, then "and 2 more"), the
+' original title, when it came out, the studio (a show's or an episode's
+' network) and how many times the profile played it. "" when there is
+' nothing to say beyond the page. now and zone write the day (0 for none:
+' whether there is anything only).
+function contentAbout(detail as object, now as integer, zone as integer) as string
+    lines = []
+    facts = []
+    kind = httpString(detail.kind)
+    for each role in [["creator", "Created by", "Created by"], ["director", "Director", "Directors"], ["writer", "Writer", "Writers"]]
+        names = contentCrew(detail, role[0])
+        if names.Count() > 0
+            label = role[1]
+            if names.Count() > 1 then label = role[2]
+            shown = []
+            for i = 0 to names.Count() - 1
+                if i < 4 then shown.Push(names[i])
+            end for
+            text = shown.Join(", ")
+            if names.Count() > 4 then text = text + " and " + urlValue(names.Count() - 4) + " more"
+            facts.Push(label + ": " + text)
+        end if
+    end for
+    original = httpSentence(detail.original_title)
+    if original <> "" and original <> httpSentence(detail.title) then facts.Push("Original title: " + original)
+    released = httpString(detail.release_date)
+    if kind <> "episode" and released <> ""
+        day = fmtDateText(released, now, zone)
+        if day = "" then day = released
+        facts.Push("Released: " + day)
+    end if
+    studio = httpSentence(detail.studio)
+    if studio <> ""
+        if kind = "show" or kind = "episode"
+            facts.Push("Network: " + studio)
+        else
+            facts.Push("Studio: " + studio)
+        end if
+    end if
+    state = httpObject(detail.user_state)
+    plays = 0
+    if state <> invalid then plays = httpNumber(state.play_count, 0)
+    if plays > 0 then facts.Push("Plays: " + urlValue(plays))
+    summary = httpClean(detail.summary, 4000, true)
+    ' The page shows two lines of the summary at the least (seven buttons
+    ' and the credits line): anything longer may be cut there.
+    if facts.Count() = 0 and Len(summary) <= 140 then return ""
+    if summary <> "" then lines.Push(summary)
+    if facts.Count() > 0
+        if lines.Count() > 0 then lines.Push("")
+        for each fact in facts
+            lines.Push(fact)
+        end for
+    end if
+    return lines.Join(Chr(10))
 end function
 
 ' The title's first trailer among its extras (extra_type "trailer"), which

@@ -828,6 +828,11 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(200, { "Content-Type": "image/png" });
       return res.end(STILL);
     }
+    // A channel with what's on now: the player asks once its programme ends.
+    if ((match = path.match(/^\/api\/live\/channels\/(\d+)$/)) && req.method === "GET") {
+      const channel = liveChannels().find((c) => c.id === Number(match[1]));
+      return channel ? json(200, channel) : json(404, { code: "not_found", message: "No such channel." });
+    }
     if ((match = path.match(/^\/api\/live\/channels\/(\d+)\/watch$/)) && req.method === "POST") {
       const id = Number(match[1]);
       const ask = body ? JSON.parse(body) : {};

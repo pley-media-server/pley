@@ -8,8 +8,10 @@ import { DashboardSettings } from "./DashboardSettings";
 
 const playing: SessionInfo = {
   session_id: "abc",
+  kind: "item",
   user_id: 2,
   username: "sam",
+  device: "Firefox on macOS",
   item: makeItem({ id: 7, title: "Heat", duration_ms: 6_000_000 }),
   method: "transcode",
   position_ms: 60_000,
@@ -32,12 +34,18 @@ function serve(stop: () => unknown = () => undefined) {
 }
 
 describe("DashboardSettings stopping playback", () => {
+  it("says what each session plays on", async () => {
+    serve();
+    renderWithProviders(<DashboardSettings />);
+    expect(await screen.findByText("Firefox on macOS")).toBeInTheDocument();
+  });
+
   it("stops a session, with a message for the viewer", async () => {
     const user = userEvent.setup();
     const requests = serve();
     renderWithProviders(<DashboardSettings />);
 
-    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam" }));
+    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Firefox on macOS" }));
     const dialog = screen.getByRole("dialog", { name: "Stop playback" });
     expect(dialog).toHaveTextContent("Heat stops for sam right away.");
     await user.type(within(dialog).getByLabelText("Message"), "Server going down for updates");
@@ -54,7 +62,7 @@ describe("DashboardSettings stopping playback", () => {
     const user = userEvent.setup();
     const requests = serve();
     renderWithProviders(<DashboardSettings />);
-    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam" }));
+    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Firefox on macOS" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Stop" }));
     await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/abc")).toBe(true));
     expect(requests.find((r) => r.method === "DELETE")?.body).toBeUndefined();
@@ -64,7 +72,7 @@ describe("DashboardSettings stopping playback", () => {
     const user = userEvent.setup();
     serve(() => apiError(403, "forbidden", "only administrators can stop other people's playback"));
     renderWithProviders(<DashboardSettings />);
-    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam" }));
+    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Firefox on macOS" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Stop" }));
     expect(await screen.findByText("Only administrators can stop other people's playback")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();

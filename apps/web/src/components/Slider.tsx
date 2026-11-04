@@ -10,12 +10,14 @@ export interface SliderProps {
   onPreview?: (v: number) => void;
   buffered?: number;
   label: string;
+  /** What a screen reader says for a value, where the bare number means little (milliseconds). */
+  valueText?: (v: number) => string;
   className?: string;
   step?: number;
 }
 
 /** Thin range slider with an accent fill; native <input type=range> underneath for a11y. */
-export function Slider({ value, max, onCommit, onPreview, buffered, label, className, step }: SliderProps) {
+export function Slider({ value, max, onCommit, onPreview, buffered, label, valueText, className, step }: SliderProps) {
   const [drag, setDrag] = useState<number | null>(null);
   const v = drag ?? value;
   const pct = max > 0 ? Math.min(100, Math.max(0, (v / max) * 100)) : 0;
@@ -40,6 +42,7 @@ export function Slider({ value, max, onCommit, onPreview, buffered, label, class
       <input
         type="range"
         aria-label={label}
+        aria-valuetext={valueText?.(v)}
         min={0}
         max={max > 0 ? max : 1}
         step={step ?? "any"}

@@ -14,6 +14,7 @@ function navScreen(name as string) as string
         details: "DetailsScreen",
         grid: "GridScreen",
         collection: "CollectionScreen",
+        collections: "CollectionsScreen",
         person: "PersonScreen",
         artist: "ArtistScreen",
         album: "AlbumScreen",

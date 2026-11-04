@@ -13,6 +13,8 @@
         <field id="control" type="string" alwaysNotify="true" />
         <!-- Plays the track at this place in the queue. -->
         <field id="jump" type="integer" alwaysNotify="true" />
+        <!-- Goes to this place (ms) in the track playing. -->
+        <field id="seek" type="integer" alwaysNotify="true" />
         <!-- "stopped", "loading", "playing", "paused". -->
         <field id="state" type="string" value="stopped" />
         <!-- The queue: its tracks in the order they play, and a number
