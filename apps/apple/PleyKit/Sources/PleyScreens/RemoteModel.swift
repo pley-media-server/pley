@@ -258,6 +258,8 @@ public final class RemoteModel: ObservableObject {
     }
 
     private func forget() {
+        // A reading still on its way was for the profile before: its answer is dropped.
+        shown = reading
         for check in checks.values { check.cancel() }
         checks = [:]
         sent = [:]

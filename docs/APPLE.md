@@ -525,8 +525,8 @@ when it ends or fails, after 1, 2 and 5 seconds and then every 15; `429`
 (too many streams for the sign-in) waits 30 seconds. A connection made
 again, or the app coming back to the front, reads everything showing
 again, since events were missed. It stops when the app goes to the
-background, unless music plays there ([Remote control](#remote-control)),
-and for good when the sign-in ends or the server refuses the stream.
+background, unless music or a video in Picture in Picture plays there
+([Remote control](#remote-control)), and for good when the sign-in ends or the server refuses the stream.
 
 When the server stops this device's playback (`session_stopped`, from
 another device or by the administrator), the player closes and a toast
@@ -1376,8 +1376,8 @@ Picture in Picture, keeps the event stream, as on Android, so a remote
 reaches it on the lock screen or over other apps too. Once the music
 pauses or the video ends, the system suspends the app, so the stream goes
 until something plays again or the app comes back to the front, and
-remotes reach it only then. Apple TV obeys only while Pley is open: tvOS suspends
-apps in the background.
+remotes reach it only then. Apple TV obeys while Pley is open, or while
+its music plays in the background: otherwise tvOS suspends the app.
 
 ## Downloads and offline
 
@@ -2182,9 +2182,10 @@ Delete the folder afterwards.
   video, with no pause or seeking, not the system's player, which brings
   both.
 - Events aren't read while the app is in the background, except while
-  music plays there; back in front, what shows is read again. So Apple TV
-  obeys a remote only while Pley is open, and music paused in the
-  background hears none until it plays again or the app is back.
+  music or a video in Picture in Picture plays there; back in front, what
+  shows is read again. So Apple TV obeys a remote only while Pley is open
+  or its music plays, and music paused in the background hears none until
+  it plays again or the app is back.
 - Live TV stopped from a remote closes once its stream fails, not as the
   event comes: its player then asks for the session's plan, which says
   why.

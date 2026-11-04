@@ -174,6 +174,8 @@ struct RemoteToolbarButton: View {
             .help(Words.remoteLabel(count))
             .accessibilityLabel(Words.remoteLabel(count))
             .accessibilityIdentifier("remote.button")
+            // Gone once nothing plays elsewhere: it opens closed when something plays again.
+            .onDisappear { open = false }
             .popover(isPresented: Binding(get: { open && count > 0 }, set: { open = $0 }), arrowEdge: .bottom) {
                 ScrollView {
                     RemotePanel(app: app, remote: remote)

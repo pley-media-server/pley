@@ -326,10 +326,11 @@ struct MusicPlaybackTests {
         try await until("playing") { rig.music.state.playing }
         try await until("the play's report") { await rig.reports().last?.state == .playing }
         let reports = await rig.reports().count
-        // Play while playing, or pause while paused, does nothing.
+        // Play while playing changes nothing but says so again, so a remote a little behind settles.
         rig.music.obey(.play, for: id)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(await rig.reports().count == reports)
+        try await until("play's report again") { await rig.reports().count == reports + 1 }
+        #expect(rig.music.state.playing)
+        #expect(await rig.reports().last?.state == .playing)
     }
 
     @Test func remotesNextAndPreviousMoveAsItsOwnButtonsDo() async throws {

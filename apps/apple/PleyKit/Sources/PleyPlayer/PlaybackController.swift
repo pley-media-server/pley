@@ -445,12 +445,13 @@ public final class PlaybackController: ObservableObject {
         }
         switch command.command {
         case .play:
-            guard !wantPlay || ended else { return }
+            // Playing already: said again, so a remote a little behind settles.
+            guard !wantPlay || ended else { return report(.playing) }
             play()
             report(.playing)
         case .pause:
-            // A pause reports by itself.
-            if wantPlay { pause() }
+            // A pause reports by itself; paused already, it is said again.
+            if wantPlay { pause() } else { report(.paused) }
         case .seek:
             guard let position = command.positionMs else { return }
             seek(toMs: position)

@@ -85,9 +85,12 @@ struct RemoteControllerTests {
         #expect(rig.engine.calls.last == "pause")
         #expect(rig.controller.state.phase == .paused)
         #expect(await rig.reports().last.map { [$0.state] } == [.paused])
+        // Paused already: it says so again, so a remote a little behind settles.
         let paused = await rig.reports().count
         rig.controller.obey(.pause, for: session.id)
-        #expect(await rig.reports().count == paused)
+        #expect(rig.engine.calls.last == "pause")
+        #expect(await rig.reports().count == paused + 1)
+        #expect(await rig.reports().last?.state == .paused)
         rig.controller.obey(.play, for: session.id)
         #expect(rig.engine.calls.last == "play")
         #expect(await rig.reports().last.map { [$0.state, $0.positionMs] as [AnyHashable] }

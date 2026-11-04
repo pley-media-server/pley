@@ -56,9 +56,12 @@ struct ShellView: View {
                 NowPlayingView(app: app) { shell.nowPlayingOpen = false }
             }
         }
-        // It closes by itself once nothing plays on another device.
+        // It closes by itself once nothing plays on another device, and opens closed when something plays again.
         .sheet(isPresented: Binding(get: { remoteOpen && !remote.others.isEmpty }, set: { remoteOpen = $0 })) {
             RemoteSheet(app: app, remote: remote) { remoteOpen = false }
+        }
+        .onValueChange(of: remote.others.isEmpty) { empty in
+            if empty { remoteOpen = false }
         }
         #endif
         // The profile's sessions are read again whenever they may have changed.

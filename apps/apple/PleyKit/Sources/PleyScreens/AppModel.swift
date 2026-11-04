@@ -302,7 +302,11 @@ public final class AppModel: ObservableObject, SnapshotCache {
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
         serverEvents.onPlayerCommand = { [weak self] id, command in self?.playerCommand(id, command) }
-        serverEvents.onSessionsChanged = { [weak self] in self?.sessionsVersion += 1 }
+        // In the background nothing shows the list: coming back to the front reads it.
+        serverEvents.onSessionsChanged = { [weak self] in
+            guard let self, self.active else { return }
+            self.sessionsVersion += 1
+        }
         #if os(iOS) || os(tvOS)
         audio.onPause = { [weak self] in
             self?.music.interrupted()
@@ -475,6 +479,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             signedInNow(user)
         }
         homeVersion += 1
+        sessionsVersion += 1
         heldNews = []
         notices = []
         shell.reset()
@@ -1047,7 +1052,11 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// A command from the profile's remote on another device: the player
     /// of that session acts on it, if it plays here (each one checks).
     private func playerCommand(_ id: String, _ command: PlayerCommand) {
-        music.obey(command, for: id)
+        if music.sessionId == id {
+            music.obey(command, for: id)
+            // The place may have moved without the state changing: the system's clock follows.
+            nowPlaying.update(.music, info: musicInfo(music.state))
+        }
         player?.obey(command, for: id)
         livePlayer?.obey(command, for: id)
     }

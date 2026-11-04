@@ -310,12 +310,12 @@ public final class MusicPlayback: ObservableObject {
         guard let session, session.id == sessionId, !ended, error == nil else { return }
         switch command.command {
         case .play:
-            guard !state.playing else { return }
-            play()
+            // Playing already: said again, so a remote a little behind settles.
+            if !state.playing { play() }
             session.progress(positionMs: lastPosition, state: .playing)
         case .pause:
-            // A pause reports by itself.
-            if state.playing { pause() }
+            // A pause reports by itself; paused already, it is said again.
+            if state.playing { pause() } else { session.progress(positionMs: lastPosition, state: .paused) }
         case .seek, .skip:
             let target = command.command == .seek ? command.positionMs : command.offsetMs.map { positionMs + $0 }
             guard let target else { return }
