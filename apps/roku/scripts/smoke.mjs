@@ -1389,6 +1389,8 @@ const checks = [
   ["closed a session that came after Back", fixture.closed.includes("s1")],
   ["closed the session it played", fixture.closed.length > 1],
   ["reported where it stopped", fixture.progress.some((p) => p.state === "stopped" && p.session_id)],
+  // The fake server says so when a report has them wrong, or music's has them.
+  ["said which audio and subtitles play in a video's reports", fixture.videoReports > 0],
   ["loaded a library's next page", asked(/^GET \/api\/libraries\/1\/items\?.*offset=70/)],
   ["showed the A to Z beside a library sorted by title, W in focus", library.letters],
   [

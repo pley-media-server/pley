@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser changes the audio and subtitles of a film or
+  episode playing on the Roku, as the player's own menu does (a pick is
+  saved for the show or movie), and sees which play. Like the rest of the
+  remote, it needs an `http://` server.
 - Your phone or browser controls what plays on the Roku: a film or
   episode plays, pauses, seeks and skips, and goes on to the next one;
   music does the same, and goes back a track; Live TV changes channel.

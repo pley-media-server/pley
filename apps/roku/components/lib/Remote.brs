@@ -5,10 +5,14 @@
 ' by packages/tv/test/fixtures/remote.json.
 
 ' What a film or episode obeys: next only where something may come after
-' it (an episode, a playlist's next entry).
-function remoteVideoControls(hasNext as boolean) as object
+' it (an episode, a playlist's next entry); audio and subtitles where its
+' file has tracks of them (audio and subtitles count them), which the
+' remote picks from.
+function remoteVideoControls(hasNext as boolean, audio = 0 as integer, subtitles = 0 as integer) as object
     controls = ["play", "pause", "seek", "skip"]
     if hasNext then controls.Push("next")
+    if audio > 0 then controls.Push("audio")
+    if subtitles > 0 then controls.Push("subtitles")
     return controls
 end function
 
@@ -107,6 +111,49 @@ function remoteAction(player as object, command as dynamic) as object
     end if
     ' A command a newer server knows.
     return none
+end function
+
+' What a video does with the remote's audio or subtitles, as { act, index,
+' report }:
+' - act "audio" or "subtitles": that track (index; -1 turns subtitles
+'   off), picked as Pley's menu picks it, then reported;
+' - act "none" with report true: the track picked is the one it has, said
+'   again at once, so a remote a little behind settles;
+' - act "none" with report false: nothing (another session's command, a
+'   track the file doesn't have, or one without its stream_index).
+' player: { session (its session id, "" while it has none), audio and
+' subtitles (the stream indexes of its file's tracks), audioIndex (the
+' audio it plays, -1 while not known), subtitleIndex (the subtitles it
+' shows: -1 none, -2 not known) }. command: the event's fields
+' (session_id, command, stream_index).
+function remoteTrackAction(player as object, command as dynamic) as object
+    none = { act: "none", index: -1, report: false }
+    data = httpObject(command)
+    if data = invalid then return none
+    session = httpString(player.session)
+    if session = "" or httpString(data.session_id) <> session then return none
+    index = httpNumber(data.stream_index, invalid)
+    if index = invalid then return none
+    index = Int(index)
+    what = httpString(data.command)
+    if what = "audio"
+        if not remoteHas(player.audio, index) then return none
+        if index = httpNumber(player.audioIndex, -1) then return { act: "none", index: -1, report: true }
+    else if what = "subtitles"
+        if index <> -1 and not remoteHas(player.subtitles, index) then return none
+        if index = httpNumber(player.subtitleIndex, -2) then return { act: "none", index: -1, report: true }
+    else
+        return none
+    end if
+    return { act: what, index: index, report: true }
+end function
+
+' Whether indexes (an array of stream indexes) has index.
+function remoteHas(indexes as dynamic, index as integer) as boolean
+    for each value in httpArray(indexes)
+        if httpNumber(value, -9) = index then return true
+    end for
+    return false
 end function
 
 ' From the start to the end; past the start only while the length isn't

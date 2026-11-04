@@ -23,6 +23,10 @@ end sub
 sub test_player_progress_bodies()
     tkEqual(playerProgress(61500.7, 6960000, "playing", "s1"), { position_ms: 61500, state: "playing", duration_ms: 6960000, session_id: "s1" })
     tkEqual(playerProgress(-3, 0, "stopped", ""), { position_ms: 0, state: "stopped" })
+    ' A video's tracks, for the user's remotes; one not known left out.
+    tkEqual(playerProgress(1000, 6960000, "paused", "s1", { audio: 2, subtitle: -1 }), { position_ms: 1000, state: "paused", duration_ms: 6960000, session_id: "s1", audio_index: 2, subtitle_index: -1 })
+    tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: -1, subtitle: 3 }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: -1, subtitle_index: 3 }, "a file without audio")
+    tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: 1, subtitle: -2 }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: 1 }, "subtitles not known")
 end sub
 
 sub test_player_tells_media_errors_from_stream_errors()

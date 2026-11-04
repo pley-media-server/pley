@@ -186,3 +186,69 @@ sub test_remote_previous_as_the_music_button()
         tkEqual(action.act = "seek", restarts, FormatJson(c))
     end for
 end sub
+
+' A video declares audio and subtitles where its file has tracks of them
+' (one audio track too: the remote may pick it); music declares neither.
+sub test_remote_video_declares_the_tracks_its_file_has()
+    tkEqual(remoteVideoControls(false, 0, 0), ["play", "pause", "seek", "skip"])
+    tkEqual(remoteVideoControls(false, 1, 0), ["play", "pause", "seek", "skip", "audio"])
+    tkEqual(remoteVideoControls(false, 0, 2), ["play", "pause", "seek", "skip", "subtitles"])
+    tkEqual(remoteVideoControls(true, 2, 3), ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
+    for each control in remoteMusicControls()
+        tkTrue(control <> "audio" and control <> "subtitles", control)
+    end for
+    file = { streams: [{ kind: "video", index: 0 }, { kind: "audio", index: 1 }, { kind: "audio", index: 2 }, { kind: "subtitle", index: 3 }, { kind: "subtitle", index: 10001, external: true }, { kind: "attachment", index: 5 }] }
+    tkEqual(tracksIndexes(file), { audio: [1, 2], subtitles: [3, 10001] }, "sidecar and added subtitles too")
+    tkEqual(tracksIndexes(invalid), { audio: [], subtitles: [] })
+end sub
+
+' The remote's audio and subtitles (remoteTrackAction), for a film whose
+' file has audio 1 and 2 and subtitles 3 and 4, playing audio 1 without
+' subtitles: another track is picked and reported, the one playing is
+' said again, and what the file doesn't have does nothing.
+sub test_remote_audio_and_subtitles()
+    player = { session: "s1", audio: [1, 2], subtitles: [3, 4], audioIndex: 1, subtitleIndex: -1 }
+    none = { act: "none", index: -1, report: false }
+    same = { act: "none", index: -1, report: true }
+    cases = [
+        { command: { session_id: "s2", command: "audio", stream_index: 2 }, out: none },
+        { command: { session_id: "s2", command: "subtitles", stream_index: -1 }, out: none },
+        { command: { session_id: "s1", command: "audio", stream_index: 2 }, out: { act: "audio", index: 2, report: true } },
+        { command: { session_id: "s1", command: "audio", stream_index: 1 }, out: same },
+        { command: { session_id: "s1", command: "audio", stream_index: 9 }, out: none },
+        { command: { session_id: "s1", command: "audio", stream_index: 3 }, out: none },
+        { command: { session_id: "s1", command: "audio", stream_index: -1 }, out: none },
+        { command: { session_id: "s1", command: "audio", stream_index: invalid }, out: none },
+        { command: { session_id: "s1", command: "subtitles", stream_index: 3 }, out: { act: "subtitles", index: 3, report: true } },
+        { command: { session_id: "s1", command: "subtitles", stream_index: -1 }, out: same },
+        { command: { session_id: "s1", command: "subtitles", stream_index: 9 }, out: none },
+        { command: { session_id: "s1", command: "subtitles", stream_index: 2 }, out: none },
+        { command: { session_id: "s1", command: "subtitles", stream_index: -2 }, out: none },
+        { command: { session_id: "s1", command: "pause", stream_index: invalid }, out: none }
+    ]
+    for each c in cases
+        tkEqual(remoteTrackAction(player, c.command), c.out, FormatJson(c.command))
+    end for
+    showing = { session: "s1", audio: [1, 2], subtitles: [3, 4], audioIndex: 1, subtitleIndex: 4 }
+    tkEqual(remoteTrackAction(showing, { session_id: "s1", command: "subtitles", stream_index: 3 }), { act: "subtitles", index: 3, report: true })
+    tkEqual(remoteTrackAction(showing, { session_id: "s1", command: "subtitles", stream_index: -1 }), { act: "subtitles", index: -1, report: true }, "off")
+    tkEqual(remoteTrackAction(showing, { session_id: "s1", command: "subtitles", stream_index: 4 }), same, "the subtitles showing")
+    unknown = { session: "s1", audio: [1, 2], subtitles: [3, 4], audioIndex: -1, subtitleIndex: -2 }
+    tkEqual(remoteTrackAction(unknown, { session_id: "s1", command: "audio", stream_index: 1 }), { act: "audio", index: 1, report: true }, "the audio playing not known")
+    tkEqual(remoteTrackAction(unknown, { session_id: "s1", command: "subtitles", stream_index: -1 }), { act: "subtitles", index: -1, report: true }, "the subtitles shown not known")
+    bare = { session: "s1", audio: [1], subtitles: [], audioIndex: 1, subtitleIndex: -1 }
+    tkEqual(remoteTrackAction(bare, { session_id: "s1", command: "subtitles", stream_index: -1 }), same, "off on a file without subtitles")
+    starting = { session: "", audio: [1, 2], subtitles: [3, 4], audioIndex: 1, subtitleIndex: -1 }
+    tkEqual(remoteTrackAction(starting, { session_id: "", command: "audio", stream_index: 2 }), none, "no session yet")
+    tkEqual(remoteTrackAction(player, invalid), none)
+end sub
+
+' What the reports say shows: subtitles burned in while no others show,
+' else those shown (pictures drawn here or a text track).
+sub test_remote_reports_the_subtitles_showing()
+    tkEqual(tracksSubtitlePlaying(3, -1), 3, "a text track")
+    tkEqual(tracksSubtitlePlaying(-1, -1), -1, "none")
+    tkEqual(tracksSubtitlePlaying(-1, 4), 4, "burned in")
+    tkEqual(tracksSubtitlePlaying(-2, 4), 4, "burned in, captions not known")
+    tkEqual(tracksSubtitlePlaying(-2, -1), -2, "not known")
+end sub

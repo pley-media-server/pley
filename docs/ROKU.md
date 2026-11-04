@@ -312,7 +312,8 @@ next.
   Pley's menu (Down) lists every track of the file, as the title's page
   does: Subtitles (Off, then each, PGS too) and Audio (Automatic, then
   each). A pick there is saved for the show or movie, and the stream opens
-  again where it was with it.
+  again where it was with it. The remote on the profile's other devices
+  picks them the same way ([Remote control](#remote-control)).
   A text track picked in the options takes the place of the pictures, and
   captions turned off there turn them off; captions turned on without a
   text track leave them be.
@@ -442,7 +443,10 @@ remotes offer only Stop. They obey:
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist's or collection's next
   entry). Next moves on without counting the title as watched; next with
-  nothing after it does nothing; a video has no previous.
+  nothing after it does nothing; a video has no previous. The audio and
+  subtitles, where the file has them (`audio`, `subtitles`), change as a
+  pick in Pley's menu changes them: saved for the show or movie, and the
+  stream opened again where it was with them.
 - **Music:** play, pause, seek, skip, next and previous, as Now Playing's
   buttons and scrubber do, while other screens show too: previous more
   than 3 s into a track, or on the first, goes back to its start. Music
@@ -463,16 +467,21 @@ channel is still tuning too, as Up and Down do, but not after it stopped
 or while it says what went wrong. A seek stays within the title and a
 skip counts from where it is. Each change is reported at once, so the
 remote sees it; another title, track or channel tells the server with its
-own session. A play on a player already playing, or a pause on one
-already paused, says so again at once, so a remote a little behind
-settles. A channel step that waits for the next page of the category goes
-on only if the channel is still the one it started from and none was
-picked meanwhile (from the list, or Watch again), the same channel again
-too; tuning a channel again after its stream broke off isn't a pick. A
-seek or skip while Up Next counts down puts Up Next away, as Rewind does.
-The rule is `components/lib/Remote.brs` (the step's,
-`components/lib/Live.brs`), pinned by
-`packages/tv/test/fixtures/remote.json`, which the tests read.
+own session, and the stream opened again for an audio or subtitle track
+tells it as it plays. A play on a player already playing, a pause on one
+already paused, or the audio or subtitles playing picked again, says so
+again at once, so a remote a little behind settles; a track the file
+doesn't have does nothing. Every report of a video says which audio and
+subtitles play (`audio_index`, `subtitle_index`, `-1` for none), so the
+remote ticks them; music's say neither. A channel step that waits for the
+next page of the category goes on only if the channel is still the one it
+started from and none was picked meanwhile (from the list, or Watch
+again), the same channel again too; tuning a channel again after its
+stream broke off isn't a pick. A seek or skip while Up Next counts down
+puts Up Next away, as Rewind does. The rule is
+`components/lib/Remote.brs` (the step's, `components/lib/Live.brs`),
+pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
+(the tracks by cases of their own).
 
 ### Requests and Discover
 
@@ -702,11 +711,14 @@ bun run images    # the nine-patch focus and watched-mark images
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
   the requests showed), and checks that a server
-  without requests is asked nothing but the summary.
+  without requests is asked nothing but the summary. The fake server also
+  checks that a video's reports say which audio and subtitles play, and
+  music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and its wait at the end, the title as an item begins, reconnecting,
-  stalls, media that ends short, the sleep timers' ends and picture
-  subtitles shown in time have only unit tests), one fetch at a time, the
+  stalls, media that ends short, the sleep timers' ends, picture
+  subtitles shown in time and the remote's commands, which a player obeys
+  only once it plays, have only unit tests), one fetch at a time, the
   odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from

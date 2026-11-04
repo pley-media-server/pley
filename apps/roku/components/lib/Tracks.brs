@@ -240,6 +240,33 @@ function tracksStreamsBody(fileId as dynamic, audioIndex as integer, subtitleInd
     return body
 end function
 
+' The stream indexes of a file's audio tracks and of its subtitles, in the
+' file's order, as Pley's menu lists them: { audio, subtitles }, what the
+' user's remote picks from.
+function tracksIndexes(file as dynamic) as object
+    out = { audio: [], subtitles: [] }
+    data = httpObject(file)
+    if data = invalid then return out
+    for each stream in httpArray(data.streams)
+        s = httpObject(stream)
+        if s <> invalid and httpNumber(s.index, -1) >= 0
+            kind = httpString(s.kind)
+            if kind = "audio" then out.audio.Push(Int(s.index))
+            if kind = "subtitle" then out.subtitles.Push(Int(s.index))
+        end if
+    end for
+    return out
+end function
+
+' The subtitles a playback shows, as its reports say them: those the
+' server burns in (burned; -1 for none) while no others show, else those
+' shown (shown: pictures drawn here or a text track; -1 none, -2 not
+' known).
+function tracksSubtitlePlaying(shown as integer, burned as integer) as integer
+    if burned >= 0 and shown < 0 then return burned
+    return shown
+end function
+
 ' Whether the person's pick of subtitleIndex needs another session: the
 ' server draws picture subtitles onto the video (burnedIndex, -1 for none),
 ' and they are other subtitles now.

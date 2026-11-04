@@ -17,14 +17,23 @@ function playerShouldReport(state as string, sinceLastMs as integer) as boolean
     return state = "playing" and sinceLastMs >= playerReportEveryMs()
 end function
 
-' The body of POST /api/items/{id}/progress.
-function playerProgress(positionMs as dynamic, durationMs as dynamic, state as string, sessionId as string) as object
+' The body of POST /api/items/{id}/progress. A video's tracks ({ audio,
+' subtitle }: the stream indexes it plays, -1 for none) go with it, for
+' the user's remotes to tick; one not known (-2) is left out, which keeps
+' what the server knew. Music has none.
+function playerProgress(positionMs as dynamic, durationMs as dynamic, state as string, sessionId as string, tracks = invalid as dynamic) as object
     position = Int(httpNumber(positionMs, 0))
     if position < 0 then position = 0
     body = { position_ms: position, state: state }
     duration = Int(httpNumber(durationMs, 0))
     if duration > 0 then body.duration_ms = duration
     if sessionId <> "" then body.session_id = sessionId
+    if tracks <> invalid
+        audio = Int(httpNumber(tracks.audio, -2))
+        subtitle = Int(httpNumber(tracks.subtitle, -2))
+        if audio >= -1 then body.audio_index = audio
+        if subtitle >= -1 then body.subtitle_index = subtitle
+    end if
     return body
 end function
 

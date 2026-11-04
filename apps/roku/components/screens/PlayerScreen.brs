@@ -12,9 +12,10 @@
 ' (Sleep.brs) and the playback's details (Details.brs). Subtitles (or
 ' audio) the person picks in Roku's options are remembered on the server
 ' for the show or the movie (Tracks.brs), so the next episode starts with
-' matching ones. The quality is the one chosen in Settings or the menu;
-' when it doesn't play well, Automatic lowers a conversion's bitrate as it
-' is sent, or opens the stream again lower where it was once it stopped
+' matching ones; the user's remote, on another device, picks them as the
+' menu does. The quality is the one chosen in Settings or the menu; when
+' it doesn't play well, Automatic lowers a conversion's bitrate as it is
+' sent, or opens the stream again lower where it was once it stopped
 ' anyway (AutoQuality.brs). PGS subtitles are drawn over the video from
 ' the server's pictures (Pictures.brs), so the file plays as it is; the
 ' server burns them in only where it can't make those.
@@ -73,6 +74,9 @@ sub init()
     m.durationMs = 0
     m.lastReportAt = 0
     m.paused = false
+    ' Whether the stream opening was asked for by the user's remote (a
+    ' track picked), which hears of it as it plays.
+    m.reportAtPlay = false
     ' Whether this opening's video has played yet (errors before are the file's).
     m.played = false
     m.next = invalid
@@ -233,15 +237,22 @@ end sub
 ' session (Remote.brs has the rule). Only a video playing or paused obeys:
 ' not one still starting, at its end, stopped, or saying what went wrong.
 ' A play or pause is reported as the video's own are, when its state
-' changes; a seek at once; the next item with its own session.
+' changes; a seek at once; the next item with its own session; audio and
+' subtitles as Pley's menu picks them (obeyTrack).
 sub onPlayerCommand(event as object)
     state = m.video.state
     if m.sessionId = "" or not m.top.active or not m.played or m.ended or m.notice.visible then return
     if state <> "playing" and state <> "paused" and state <> "buffering" then return
+    command = event.getData()
+    what = httpString(command.command)
+    if what = "audio" or what = "subtitles"
+        obeyTrack(command)
+        return
+    end if
     duration = invalid
     if m.durationMs > 0 then duration = m.durationMs
     player = { kind: "video", session: m.sessionId, playing: state <> "paused", positionMs: m.positionMs, durationMs: duration, hasNext: m.next <> invalid }
-    action = remoteAction(player, event.getData())
+    action = remoteAction(player, command)
     if action.act = "play"
         m.video.control = "resume"
     else if action.act = "pause"
@@ -262,6 +273,30 @@ sub onPlayerCommand(event as object)
         playNext(false)
     end if
 end sub
+
+' The remote's audio or subtitles (Remote.brs's remoteTrackAction), on the
+' path of Pley's menu: saved for the show or the movie, and the stream
+' opened again with it, which tells the server at once as it plays. The
+' track playing already is said again at once.
+sub obeyTrack(command as object)
+    tracks = tracksIndexes(playingFile())
+    player = { session: m.sessionId, audio: tracks.audio, subtitles: tracks.subtitles, audioIndex: m.audioPlaying, subtitleIndex: subtitlePlaying() }
+    action = remoteTrackAction(player, command)
+    if action.act = "none"
+        if action.report then report(reportedState())
+        return
+    end if
+    m.reportAtPlay = true
+    pickTrack(action.act, action.index)
+end sub
+
+' The subtitles showing, as the reports and the remote name them: those
+' burned in, else those shown (Tracks.brs).
+function subtitlePlaying() as integer
+    burned = -1
+    if m.info <> invalid and httpTrue(m.info.burn_subtitles) then burned = Int(httpNumber(m.info.subtitle_index, -1))
+    return tracksSubtitlePlaying(m.subtitleShown, burned)
+end function
 
 ' What the video is doing, as progress tells it.
 function reportedState() as string
@@ -436,8 +471,10 @@ sub requestPlayback(choice as string, ceilingKbps as float)
     end if
     again = ""
     if choice = "auto" then again = m.autoQuality
-    ' What it obeys of the user's remote: next where something may come next.
-    spec.controls = remoteVideoControls(playerMayHaveNext(m.item, m.queue, m.queueAt))
+    ' What it obeys of the user's remote: next where something may come
+    ' next, and the file's audio and subtitles.
+    tracks = tracksIndexes(file)
+    spec.controls = remoteVideoControls(playerMayHaveNext(m.item, m.queue, m.queueAt), tracks.audio.Count(), tracks.subtitles.Count())
     m.asked = aqAsk(choice, again, ceilingKbps, file)
     ' A file that failed to play as it is stays converted (broken()).
     if m.mode <> "transcode" then spec.mode = m.asked.mode
@@ -914,8 +951,9 @@ sub onState(event as object)
             if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
         end if
         if m.tracksFrom < 0 then m.tracksFrom = m.clock.TotalMilliseconds() + tracksSettleMs()
-        if m.paused
+        if m.paused or m.reportAtPlay
             m.paused = false
+            m.reportAtPlay = false
             report("playing")
         end if
         updateSkip()
@@ -1049,7 +1087,9 @@ sub report(state as string)
     if state = "stopped" then uiNoteChange({ itemId: m.itemId, action: "played", positionMs: m.positionMs, durationMs: m.durationMs, watched: playerWatched(m.positionMs, m.durationMs) })
     m.lastReportAt = m.clock.TotalMilliseconds()
     path = "/api/items/" + urlValue(m.itemId) + "/progress"
-    uiRequest({ method: "POST", path: path, json: playerProgress(m.positionMs, m.durationMs, state, m.sessionId), session: m.sessionId }, "onReported")
+    ' With the tracks playing, which the user's remotes tick.
+    tracks = { audio: m.audioPlaying, subtitle: subtitlePlaying() }
+    uiRequest({ method: "POST", path: path, json: playerProgress(m.positionMs, m.durationMs, state, m.sessionId, tracks), session: m.sessionId }, "onReported")
 end sub
 
 sub onReported(event as object)
@@ -1121,6 +1161,7 @@ sub finish()
     abandonPlayback()
     m.attempt = m.attempt + 1
     m.tracksFrom = -1
+    m.reportAtPlay = false
     m.countdownTimer.control = "stop"
     m.sleepTimer.control = "stop"
     m.pausedTimer.control = "stop"
@@ -1626,11 +1667,12 @@ sub openTracks(kind as string)
     showMenuChoices(items, list.current)
 end sub
 
-' A track picked in the menu is saved for the show or movie, as on the
-' title's page (PUT /api/items/{id}/streams): audio picked goes with the
-' subtitles shown, subtitles with the audio as it was picked. The stream
-' then opens again where it was with them, since a conversion has the
-' audio and the burned-in pictures it was made with.
+' A track picked in the menu, or by the user's remote, is saved for the
+' show or movie, as on the title's page (PUT /api/items/{id}/streams):
+' audio picked goes with the subtitles shown, subtitles with the audio as
+' it was picked. The stream then opens again where it was with them,
+' since a conversion has the audio and the burned-in pictures it was made
+' with.
 sub pickTrack(kind as string, index as integer)
     file = playingFile()
     if file = invalid then return
