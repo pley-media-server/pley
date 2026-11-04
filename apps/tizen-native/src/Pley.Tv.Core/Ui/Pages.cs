@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Requests;
 
 namespace Pley.Tv.Core.Ui;
 
@@ -28,6 +29,16 @@ public abstract record PageKey
     public sealed record NowPlaying : PageKey;
     /// <summary>A folder of the drive plugged into the TV; null: the drive's top.</summary>
     public sealed record Storage(string? Path = null) : PageKey;
+    /// <summary>Discover: TMDB's lists, to ask for what the libraries lack.</summary>
+    public sealed record Discover : PageKey;
+    /// <summary>One of Discover's lists whole (a row's See all).</summary>
+    public sealed record DiscoverList(Pley.Tv.Core.Requests.DiscoverList List) : PageKey;
+    /// <summary>Every title TMDB finds for <paramref name="Query"/> (Search's Discover row's See all).</summary>
+    public sealed record DiscoverResults(string Query) : PageKey;
+    /// <summary>A title found on TMDB; <paramref name="Pick"/>: Which seasons? opens with the page.</summary>
+    public sealed record DiscoverTitle(string Kind, long TmdbId, bool Pick = false) : PageKey;
+    /// <summary>Your requests, or for managers everyone's.</summary>
+    public sealed record Requests : PageKey;
 }
 
 /// <summary>The kinds of place the rail goes to.</summary>
@@ -35,6 +46,8 @@ public enum RailSlot
 {
     Search,
     Home,
+    Discover,
+    Requests,
     LiveTv,
     Library,
     Libraries,
@@ -48,13 +61,16 @@ public enum RailSlot
 /// <summary>One rail entry: where it goes, and for a library its name and kind.</summary>
 /// <param name="Id">Stable across library changes: "home", "library:3", "settings".</param>
 /// <param name="Name">A library's name, as the server has it; the other slots have their own words.</param>
-public sealed record RailItem(string Id, RailSlot Slot, PageKey Key, string? Name = null, string? LibraryKind = null)
+/// <param name="Requests">The way into requests: whose requests it leads to (the managers' Requests), and the number that waits there.</param>
+public sealed record RailItem(string Id, RailSlot Slot, PageKey Key, string? Name = null, string? LibraryKind = null, RequestsEntry? Requests = null)
 {
     /// <summary>The entry's icon, by Lucide's name.</summary>
     public string Icon => Slot switch
     {
         RailSlot.Search => "search",
         RailSlot.Home => "house",
+        RailSlot.Discover => "compass",
+        RailSlot.Requests => "list-video",
         RailSlot.LiveTv => "tv-minimal",
         RailSlot.Library => LibraryKind switch
         {
@@ -76,6 +92,8 @@ public sealed record RailItem(string Id, RailSlot Slot, PageKey Key, string? Nam
     {
         RailSlot.Search => "Search",
         RailSlot.Home => "Home",
+        RailSlot.Discover => RequestText.Discover,
+        RailSlot.Requests => Requests?.Manage == true ? RequestText.Manage : RequestText.Yours,
         RailSlot.LiveTv => "Live TV",
         RailSlot.Library => Name ?? "",
         RailSlot.Libraries => "Libraries",
@@ -123,16 +141,18 @@ public static class Rail
     /// The entries above Settings: Search, Home, the first 6 libraries in the server's order,
     /// Playlists and Collections. With more libraries a "Libraries" entry, which lists them all,
     /// takes Collections' place. Live TV, where it has channels, comes after Home; while music has
-    /// a queue, Now Playing comes last; while a drive is plugged in, the drive after it. Every entry
-    /// is listed: those that don't fit scroll.
+    /// a queue, Now Playing comes last; while a drive is plugged in, the drive after it. The way into requests (<paramref name="requests"/>,
+    /// <see cref="RequestsItem"/>) comes after Home, before Live TV. Every entry is listed: those that
+    /// don't fit scroll.
     /// </summary>
-    public static IReadOnlyList<RailItem> Items(IReadOnlyList<Library> libraries, bool nowPlaying = false, bool liveTv = false, bool storage = false)
+    public static IReadOnlyList<RailItem> Items(IReadOnlyList<Library> libraries, bool nowPlaying = false, bool liveTv = false, bool storage = false, RailItem? requests = null)
     {
         var items = new List<RailItem>
         {
             new RailItem("search", RailSlot.Search, new PageKey.Search()),
             new RailItem("home", RailSlot.Home, new PageKey.Home()),
         };
+        if (requests != null) items.Add(requests);
         if (liveTv) items.Add(LiveTvItem);
         foreach (var library in libraries.Take(MaxLibraries))
             items.Add(new RailItem($"library:{library.Id}", RailSlot.Library, new PageKey.Library(library.Id), library.Name, library.Kind));
@@ -182,6 +202,15 @@ public static class Rail
     }
 
     /// <summary>
+    /// The rail's way into requests, as Android TV has it: Discover where the profile may ask, else
+    /// its requests (the managers' Requests) where it has any to see, else none. It carries their number.
+    /// </summary>
+    public static RailItem? RequestsItem(RequestsEntry entry) =>
+        entry.Discover ? new RailItem("discover", RailSlot.Discover, new PageKey.Discover(), Requests: entry)
+        : entry.Requests ? new RailItem("requests", RailSlot.Requests, new PageKey.Requests(), Requests: entry)
+        : null;
+
+    /// <summary>
     /// Which entry is current for a back stack whose first page is <paramref name="root"/>: the
     /// entry that opened it, "libraries" for a library not in the rail, or null (Who's watching?,
     /// sign-in).
@@ -193,6 +222,9 @@ public static class Rail
         PageKey.Collections c => items.FirstOrDefault(i => i.Slot == RailSlot.Collections)?.Id
             ?? Current(new PageKey.Library(c.LibraryId), items),
         PageKey.Search => "search",
+        // Discover's pages, and the requests reached from it, under whichever of the two the rail has.
+        PageKey.Discover or PageKey.Requests or PageKey.DiscoverList or PageKey.DiscoverResults or PageKey.DiscoverTitle =>
+            (items.FirstOrDefault(i => i.Key == root) ?? items.FirstOrDefault(i => i.Slot is RailSlot.Discover or RailSlot.Requests))?.Id,
         PageKey.Storage => StorageItem.Id,
         PageKey.Settings => SettingsItem.Id,
         PageKey.Profiles => ProfileItem,

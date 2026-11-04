@@ -25,6 +25,10 @@ sealed class TextInput : View
     readonly ImageView? icon;
     IDisposable? keys;
     bool editing;
+    static int typing;
+
+    /// <summary>Some field has the TV's keyboard open: what would take focus from the page (requests' news) waits.</summary>
+    public static bool Typing => typing > 0;
 
     public TextInput(Input input, float width, string placeholder, InputMethod.PanelLayoutType layout = InputMethod.PanelLayoutType.Normal,
         InputMethod.ActionButtonTitleType action = InputMethod.ActionButtonTitleType.Search, string? iconName = null)
@@ -104,6 +108,7 @@ sealed class TextInput : View
     {
         if (editing) return;
         editing = true;
+        typing++;
         // The remote's keys go to the keyboard and the field; what they leave (Up, Down) moves nothing.
         keys = input.Push((key, down) =>
         {
@@ -120,6 +125,7 @@ sealed class TextInput : View
     {
         if (!editing) return;
         editing = false;
+        typing--;
         keys?.Dispose();
         keys = null;
         var context = field.GetInputMethodContext();

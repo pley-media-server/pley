@@ -59,12 +59,15 @@ public abstract record DevicePoll
 /// </summary>
 public sealed class DeviceSignIn
 {
-    /// <summary>
-    /// What this app asks for (docs/API.md, "Scopes"). Pley's other TV apps also ask for
-    /// requests and approvals where the server lists them; this one has no requests yet, so it
-    /// asks for the rest.
-    /// </summary>
+    /// <summary>What this app asks for (docs/API.md, "Scopes"), as the Android app does.</summary>
     public static readonly string[] AllScopes = { "library", "play", "playlists", "profiles" };
+
+    /// <summary>
+    /// What it asks for too, only where the server lists it in <c>scopes_supported</c>: asking for
+    /// movies and shows, and approving them on an administrator's account. A server that doesn't
+    /// know a scope refuses the whole sign-in for it.
+    /// </summary>
+    public static readonly string[] ListedScopes = { "requests", "approvals" };
 
     /// <summary>RFC 8628 §3.2: without an interval, 5 seconds.</summary>
     public const int DefaultIntervalSeconds = 5;
@@ -94,15 +97,17 @@ public sealed class DeviceSignIn
     }
 
     /// <summary>
-    /// The scope to ask for: what the server offers of Pley's own. Servers without profile
-    /// switching don't know "profiles" and would refuse the whole sign-in for it; one that offers
-    /// none of them is asked for "library".
+    /// The scope to ask for: what the server offers of Pley's own, and those of
+    /// <see cref="ListedScopes"/> it lists. Servers without profile switching don't know "profiles",
+    /// nor older ones "requests", and would refuse the whole sign-in for them; one that offers none
+    /// of the first is asked for "library".
     /// </summary>
     public static string ScopeFor(ServerMetadata metadata)
     {
         var offered = metadata.ScopesSupported;
         var asked = offered == null ? AllScopes : AllScopes.Where(offered.Contains).ToArray();
-        return string.Join(" ", asked.Length == 0 ? new[] { "library" } : asked);
+        var listed = offered == null ? Array.Empty<string>() : ListedScopes.Where(offered.Contains);
+        return string.Join(" ", (asked.Length == 0 ? new[] { "library" } : asked).Concat(listed));
     }
 
     public async Task<DeviceCode> Start(string server)

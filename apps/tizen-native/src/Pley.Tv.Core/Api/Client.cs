@@ -25,6 +25,13 @@ public class ApiException : Exception
     public string Code { get; }
     /// <summary>The answer's JSON, when it had some (fields past <c>code</c> and <c>message</c>).</summary>
     public JsonElement? Body { get; }
+    /// <summary>The <c>error</c> of the refusal's Bearer challenge (RFC 6750 §3): "insufficient_scope".</summary>
+    public string? BearerError { get; init; }
+    /// <summary>The scope a 403 <c>insufficient_scope</c> names: the one that would open the route; null when none does.</summary>
+    public string? Scope { get; init; }
+
+    /// <summary>The app wasn't allowed this: signing in again can ask for <see cref="Scope"/>.</summary>
+    public bool NeedsScope => Status == 403 && (Code == "insufficient_scope" || BearerError == "insufficient_scope");
 }
 
 /// <summary>A playback session stopped from elsewhere (<c>410 session_stopped</c>), with what the one who stopped it wrote.</summary>
@@ -692,6 +699,63 @@ public sealed class Api
 
     static readonly Regex KeyedMedia = new Regex(@"^(https?://[^/]+)?/api/(live/)?media/", RegexOptions.CultureInvariant);
 
+    // ---- requests (docs/API.md, "Requests")
+
+    public Task<Core.Requests.RequestSummary> RequestSummary(CancellationToken cancel = default) => Get<Core.Requests.RequestSummary>("/api/requests/summary", cancel: cancel);
+
+    public Task<Core.Requests.DiscoverPage> Discover(Core.Requests.DiscoverList list, int page, CancellationToken cancel = default) =>
+        Get<Core.Requests.DiscoverPage>($"/api/discover/{Core.Requests.DiscoverLists.Wire(list)}", new[] { Q("page", page) }, cancel);
+
+    /// <summary>TMDB's titles for <paramref name="q"/>; <paramref name="missing"/> leaves out those a library has.</summary>
+    public Task<Core.Requests.DiscoverPage> DiscoverSearch(string q, int page, bool missing = false, CancellationToken cancel = default) =>
+        Get<Core.Requests.DiscoverPage>("/api/discover/search", new[] { Q("q", q), Q("page", page), Q("missing", missing ? "1" : null) }, cancel);
+
+    public Task<Core.Requests.DiscoverDetail> DiscoverTitle(string kind, long tmdbId, CancellationToken cancel = default) =>
+        Get<Core.Requests.DiscoverDetail>($"/api/discover/{Uri.EscapeDataString(kind)}/{tmdbId}", cancel: cancel);
+
+    public Task<Core.Requests.ItemRequest> ItemRequest(long itemId, CancellationToken cancel = default) => Get<Core.Requests.ItemRequest>($"/api/items/{itemId}/request", cancel: cancel);
+
+    public Task<Core.Requests.RequestList> Requests(Core.Requests.RequestQuery query, CancellationToken cancel = default) =>
+        Get<Core.Requests.RequestList>("/api/requests", new[]
+        {
+            Q("status", query.Statuses.Count > 0 ? string.Join(",", query.Statuses) : null),
+            Q("attention", query.Attention ? "1" : null),
+            Q("kind", query.Kind),
+            Q("user_id", query.UserId),
+            Q("q", string.IsNullOrWhiteSpace(query.Q) ? null : query.Q),
+            Q("order", query.Oldest ? "oldest" : null),
+            Q("mine", query.Mine ? "1" : null),
+            Q("unseen", query.Unseen ? "1" : null),
+            Q("changed_since", query.ChangedSince),
+            Q("offset", query.Offset),
+            Q("limit", query.Limit),
+        }, cancel);
+
+    public Task<Core.Requests.MediaRequest> Request(long id, CancellationToken cancel = default) => Get<Core.Requests.MediaRequest>($"/api/requests/{id}", cancel: cancel);
+
+    /// <summary>POST /api/requests: 201, a new request; 200, what was asked for is asked for already, and now followed.</summary>
+    public async Task<Core.Requests.Asked> Ask(Core.Requests.NewRequest request)
+    {
+        var res = await Send("/api/requests", "POST", request.Body()).ConfigureAwait(false);
+        return new Core.Requests.Asked(Read<Core.Requests.MediaRequest>(res), res.Status == 201);
+    }
+
+    public Task<JsonElement?> DeleteRequest(long id) => Call("DELETE", $"/api/requests/{id}");
+
+    public Task<JsonElement?> UnwatchRequest(long id) => Call("DELETE", $"/api/requests/{id}/watch");
+
+    public Task<JsonElement?> RequestsSeen() => Call("POST", "/api/requests/seen");
+
+    public Task<Core.Requests.MediaRequest> ApproveRequest(long id, Core.Requests.Approval approval) => Call<Core.Requests.MediaRequest>("POST", $"/api/requests/{id}/approve", approval.Body());
+
+    /// <summary>Declines, with the administrator's <paramref name="reason"/> when there is one.</summary>
+    public Task<Core.Requests.MediaRequest> DeclineRequest(long id, string? reason) =>
+        Call<Core.Requests.MediaRequest>("POST", $"/api/requests/{id}/decline", reason == null ? new Dictionary<string, object?>() : new Dictionary<string, object?> { ["reason"] = reason });
+
+    public Task<Core.Requests.MediaRequest> RequestHandled(long id) => Call<Core.Requests.MediaRequest>("POST", $"/api/requests/{id}/handled");
+
+    public Task<Core.Requests.RequestOptions> RequestOptions(CancellationToken cancel = default) => Get<Core.Requests.RequestOptions>("/api/requests/options", cancel: cancel);
+
     /// <summary>
     /// The refusal <paramref name="res"/> is: Pley's JSON, or the plain text a body or query the
     /// server couldn't read gets (400, 415, 422), as one short line; never a page's HTML.
@@ -720,7 +784,27 @@ public sealed class Api
             : json == null && !start.StartsWith("<", StringComparison.Ordinal) && Plain.FirstLine(text, MaxErrorText) is { Length: > 0 } line ? line
             : $"the server refused (HTTP {res.Status})";
         if (res.Status == 410 && code == "session_stopped") return new SessionStoppedException(bodyMessage.Length > 0 ? bodyMessage : null);
-        return new ApiException(res.Status, code, message, json);
+        var (error, scope) = Challenge(res.Header("WWW-Authenticate"));
+        return new ApiException(res.Status, code, message, json) { BearerError = error, Scope = scope };
+    }
+
+    static readonly Regex ChallengeParam = new Regex(@"([A-Za-z_]+)\s*=\s*(?:""((?:[^""\\]|\\.)*)""|([^\s,]+))", RegexOptions.CultureInvariant);
+    static readonly Regex Escaped = new Regex(@"\\(.)", RegexOptions.CultureInvariant);
+
+    /// <summary>The <c>error</c> and <c>scope</c> of a Bearer challenge: <c>Bearer error="insufficient_scope", scope="requests"</c>.</summary>
+    internal static (string? Error, string? Scope) Challenge(string? header)
+    {
+        var h = (header ?? "").Trim();
+        if (!h.StartsWith("Bearer", StringComparison.OrdinalIgnoreCase) || (h.Length > 6 && !char.IsWhiteSpace(h[6]))) return (null, null);
+        string? error = null, scope = null;
+        foreach (Match m in ChallengeParam.Matches(h.Substring(6)))
+        {
+            var value = m.Groups[2].Success ? Escaped.Replace(m.Groups[2].Value, "$1") : m.Groups[3].Value;
+            var name = m.Groups[1].Value.ToLowerInvariant();
+            if (name == "error") error ??= value;
+            else if (name == "scope" && value.Length > 0) scope ??= value;
+        }
+        return (error, scope);
     }
 
     static string StatusCode(int status) => status switch

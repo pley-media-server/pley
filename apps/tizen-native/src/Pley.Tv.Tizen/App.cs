@@ -4,6 +4,7 @@ using Pley.Tv.Core;
 using Pley.Tv.Core.Local;
 using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Live;
+using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Pley.Tv.Tizen.Screens;
@@ -20,6 +21,8 @@ class App : NUIApplication
     Images images = null!;
     KeyRepeatGate gate = null!;
     AppLiveSource live = null!;
+    /// <summary>Requests and Discover for the profile in use: the rail's way in, its number, and the news that pops up.</summary>
+    AppRequests requests = null!;
     LiveTvEntry? liveEntry;
     /// <summary>The players' reports to the server, in order: one for the app, so a player's last report goes out after it closed.</summary>
     readonly SessionReporter reporter = new SessionReporter();
@@ -59,6 +62,7 @@ class App : NUIApplication
         state.Api.Watch(api => images.Api = api);
         var services = Profile.Start();
         live = new AppLiveSource(state);
+        requests = new AppRequests(state, new ContextScheduler());
         // The lineup changed (the server's events, a reconnection): whether Live TV has channels may have too.
         live.OnChange(() => liveEntry?.Refresh());
         drives = new Drives();
@@ -91,6 +95,7 @@ class App : NUIApplication
     {
         base.OnPause();
         shell.Visible(false);
+        state.Visible.Value = false;
         state.Listen(false);
     }
 
@@ -101,6 +106,7 @@ class App : NUIApplication
         // Back from the TV's other apps or standby, maybe on another network.
         Core.Auth.ServerProofs.NetworkMayHaveChanged();
         shell.Visible(true);
+        state.Visible.Value = true;
         state.Listen(true);
     }
 
@@ -215,14 +221,15 @@ class App : NUIApplication
             () => Go(new PageKey.Profiles()));
         tv.PageOf = key => key switch
         {
-            PageKey.Item item => new ItemScreen(tv, shell, new ItemModel(new AppItemSource(state), item.ItemId, new ContextScheduler()), images, gate, k => Go(tv, k)),
+            PageKey.Item item => new ItemScreen(tv, shell, new ItemModel(new AppItemSource(state), item.ItemId, new ContextScheduler()), images, gate, k => Go(tv, k),
+                new ItemRequestModel(requests, new ContextScheduler(), item.ItemId)),
             PageKey.Home => Home(tv),
             PageKey.Libraries => new LibrariesScreen(tv, shell, new LibrariesModel(new AppLibrarySource(state), new ContextScheduler()), gate, k => Go(tv, k)),
             PageKey.Library library => new LibraryScreen(tv, shell, new LibraryModel(new AppLibrarySource(state), library, new ContextScheduler()), images, gate, k => Go(tv, k)),
             PageKey.Person person => new PersonScreen(tv, new PersonModel(new AppPersonSource(state), person.PersonId, new ContextScheduler()), images, gate, k => Go(tv, k)),
             // A channel found plays over the search, which is there again when it's left.
             PageKey.Search search => new SearchScreen(tv, shell, new SearchModel(new AppSearchSource(state), new ContextScheduler(), search.Query), images, gate, k => Go(tv, k),
-                watch => WatchLive(watch, () => { })),
+                watch => WatchLive(watch, () => { }), new SearchDiscoverModel(requests)),
             // Every movie and show library's collections, whichever library the key names, as the Android TV app has it.
             PageKey.Collections collections => new CollectionsScreen(tv, collections, new CollectionsModel(new AppCollectionSource(state), new ContextScheduler(), only: null), images, gate, k => Go(tv, k)),
             PageKey.Collection collection => new CollectionScreen(tv, new CollectionModel(new AppCollectionSource(state), collection.CollectionId, new ContextScheduler()), images, gate, k => Go(tv, k)),
@@ -240,6 +247,12 @@ class App : NUIApplication
             ArtistPage artist => new ArtistScreen(tv, new ArtistModel(new AppItemSource(state), music, new ContextScheduler(), artist.ArtistId), images, gate, k => Go(tv, k)),
             AlbumPage album => new AlbumScreen(tv, new AlbumModel(new AppItemSource(state), music, new ContextScheduler(), album.AlbumId, album.TrackId), images, gate, k => Go(tv, k)),
             PageKey.NowPlaying => new NowPlayingScreen(tv, shell, new NowPlayingModel(music, state.Server.Value ?? ""), images, gate),
+            PageKey.Discover => new DiscoverScreen(tv, shell, new DiscoverModel(requests, new ContextScheduler()), images, gate, k => Go(tv, k), k => Restart(tv, k)),
+            PageKey.DiscoverList or PageKey.DiscoverResults => new DiscoverGridScreen(tv, shell,
+                new DiscoverGridModel(requests, key is PageKey.DiscoverList l ? new DiscoverSource.Row(l.List) : new DiscoverSource.Words(((PageKey.DiscoverResults)key).Query),
+                    DiscoverGridScreen.Columns * DiscoverGridScreen.FirstRows), images, gate, k => Go(tv, k), k => Restart(tv, k)),
+            PageKey.DiscoverTitle title => new DiscoverTitleScreen(tv, shell, new DiscoverTitleModel(requests, new ContextScheduler(), title), title, images, gate, k => Go(tv, k), k => Restart(tv, k)),
+            PageKey.Requests => new RequestsScreen(tv, shell, new RequestsModel(requests, new ContextScheduler()), images, gate, k => Go(tv, k), k => Restart(tv, k)),
             PageKey.Storage storage => new StorageScreen(tv, storage.Path, drives.Root, state.Storage, gate, k => Go(tv, k), (path, startMs) =>
             {
                 music.YieldToVideo();
@@ -256,6 +269,11 @@ class App : NUIApplication
         tv.Follow(music.Now);
         // The USB drive in the rail while one is plugged in.
         tv.Follow(drives.Root);
+        // Discover, or the requests, in the rail as the summary says, with their number.
+        tv.Follow(requests);
+        // What became ready to watch pops up over the pages.
+        var notices = new RequestNotices(requests, tv, shell, gate, images, () => state.Visible.Value, k => Go(tv, k));
+        tv.Gone += notices.Dispose;
         // While the player is on top, Home and the pages wait; back from it, they ask again (its reports
         // moved resume points and watched marks), and the item details kept go.
         tv.Play = request =>
@@ -273,6 +291,8 @@ class App : NUIApplication
         var shown = Profile.Start();
         tv.Restart(Home(tv));
         Profile.Took("Home shown", shown);
+        // Requests are followed from just after the first frame: reading them starts their events, catching up and polling.
+        requests.Start();
         _ = state.LoadAccount();
         var home = state.LoadHome();
         Profile.Ends("Home's data", home);

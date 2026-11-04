@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Pley.Tv.Core;
 using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Tizen.NUI;
@@ -37,6 +38,9 @@ sealed class ItemScreen : ShellPage
     RowColumnView? column;
     SeasonsView? seasons;
     ItemPage? shown;
+    /// <summary>What requests say of a movie or show: its request's stage, and Request more seasons.</summary>
+    readonly ItemRequestModel? requests;
+    FocusItem? moreSeasons;
     string shownSections = "";
     EpisodeLine? focusedEpisode;
     EpisodeLine? restedEpisode;
@@ -48,8 +52,10 @@ sealed class ItemScreen : ShellPage
 
     /// <param name="layers">The app's sheets, for the side panels and dialogs.</param>
     /// <param name="go">Opens another page: an item, a person, a collection.</param>
-    public ItemScreen(TvShell shell, Shell layers, ItemModel model, Images images, KeyRepeatGate gate, Action<PageKey> go) : base(shell, new PageKey.Item(model.ItemId), "item")
+    public ItemScreen(TvShell shell, Shell layers, ItemModel model, Images images, KeyRepeatGate gate, Action<PageKey> go, ItemRequestModel? requests = null)
+        : base(shell, new PageKey.Item(model.ItemId), "item")
     {
+        this.requests = requests;
         this.layers = layers;
         this.model = model;
         this.images = images;
@@ -78,7 +84,17 @@ sealed class ItemScreen : ShellPage
         model.PlayRequested += OnPlay;
         model.OpenRequested += go;
         watches.Add(model.State.Watch(Show));
+        if (requests != null) watches.Add(requests.State.Watch(_ =>
+        {
+            if (shown == null) return;
+            ShowHero(shown, false);
+            // The hero grew or shrank by the request's line: the rows under it follow.
+            column?.MoveTop(RowsTop());
+        }));
     }
+
+    /// <summary>Where the rows start while the page is at its top: under the hero's buttons, in dp.</summary>
+    float RowsTop() => HeroTop + heroButtons.PositionY / Ui.Scale + PleyTv.ButtonHeight + 8 + PleyTv.RowGap;
 
     public override void Gone()
     {
@@ -88,6 +104,7 @@ sealed class ItemScreen : ShellPage
         model.OpenRequested -= go;
         episodeRest.Stop();
         model.Dispose();
+        requests?.Dispose();
     }
 
     public override void Enter()
@@ -198,6 +215,8 @@ sealed class ItemScreen : ShellPage
         backdrop.Show(HomeRules.Backdrop(page.Item, page.Origin));
         ShowHero(page, first);
         ShowSections(page, first);
+        // Drawn: what requests say of it may be asked now.
+        requests?.Shown(page.Item.Kind);
         if (inSections) ShowInfoBlock();
     }
 
@@ -232,6 +251,21 @@ sealed class ItemScreen : ShellPage
         meta.PositionY = Ui.Dp(y);
         heroText.Add(meta);
         y += 18;
+        // Its request's stage under the facts: the small pill, and a download's 120 dp bar beside it.
+        if (requests?.State.Value is { Request: { } asked } request)
+        {
+            y += 10;
+            var pill = RequestKit.StagePill(RequestRules.Pill(asked, request.Manage), small: true);
+            pill.PositionY = Ui.Dp(y);
+            heroText.Add(pill);
+            if (asked.Download is { } download)
+            {
+                var bar = RequestKit.DownloadBar(RequestRules.DownloadProgress(asked) ?? 0f, download.State, 120);
+                bar.Position = new Position(pill.SizeWidth + Ui.Dp(12), Ui.Dp(y + 9));
+                heroText.Add(bar);
+            }
+            y += 22;
+        }
         if (ItemText.TimeLeft(page) is { } left) Line(Text.Label(left, PleyType.Caption, PleyColors.Fg, width: TextColumn), 8, PleyType.Caption.Line);
         var genres = ItemText.GenresLine(page);
         if (genres.Length > 0) Line(Text.Label(genres, PleyType.Caption, PleyColors.Muted, width: TextColumn), 6, PleyType.Caption.Line);
@@ -269,6 +303,8 @@ sealed class ItemScreen : ShellPage
     void ShowButtons(ItemPage page, bool first)
     {
         HeroButtonKind? focusedKind = Tree.Current != null && buttonKinds.TryGetValue(Tree.Current, out var k) ? k : null;
+        var wasMore = moreSeasons != null && Tree.Current == moreSeasons;
+        moreSeasons = null;
         buttonKinds.Clear();
         // Let go only once focus is on their replacements: the one with focus hears it leave.
         var old = heroButtons.Children.ToList();
@@ -303,6 +339,17 @@ sealed class ItemScreen : ShellPage
             x += view.SizeWidth / Ui.Scale + PleyTv.ButtonGap;
             if (b.Kind == ItemText.FirstFocus(page)) start = item;
             if (b.Kind == focusedKind) again = item;
+            // After Play, a show with seasons to ask for: its Discover page, Which seasons? open.
+            if (b.Kind == HeroButtonKind.Primary && requests?.State.Value is { More: true } request)
+            {
+                var more = new ButtonView(RequestText.MoreSeasons, ButtonKind.Pill, () => go(request.Picker), iconName: "plus");
+                more.PositionX = Ui.Dp(x);
+                heroButtons.Add(more);
+                heroButtons.Group.Add(more.Item);
+                x += more.WidthDp + PleyTv.ButtonGap;
+                if (wasMore) again = more.Item;
+                moreSeasons = more.Item;
+            }
         }
         heroButtons.SizeWidth = Ui.Dp(x);
         if (first)
@@ -312,8 +359,8 @@ sealed class ItemScreen : ShellPage
             if (start != null) heroButtons.Group.RememberChild(heroButtons.Group.Children.ToList().IndexOf(start));
         }
         if (again != null) Tree.Focus(again);
-        // The focused button went (Trailer, From start): focus to where the page starts.
-        else if ((first || focusedKind != null) && start != null) Tree.Focus(start);
+        // The focused button went (Trailer, From start, Request more seasons once asked): focus to where the page starts.
+        else if ((first || focusedKind != null || wasMore) && start != null) Tree.Focus(start);
         foreach (var child in old) child.Dispose();
     }
 
@@ -427,8 +474,7 @@ sealed class ItemScreen : ShellPage
             Group.Remove(old.Group);
             old.Unparent();
         }
-        var top = HeroTop + heroButtons.PositionY / Ui.Scale + PleyTv.ButtonHeight + 8 + PleyTv.RowGap;
-        column = new RowColumnView(gate, top: top, firstAtTop: false);
+        column = new RowColumnView(gate, top: RowsTop(), firstAtTop: false);
         seasons = null;
         if (page.Seasons is { } s)
         {

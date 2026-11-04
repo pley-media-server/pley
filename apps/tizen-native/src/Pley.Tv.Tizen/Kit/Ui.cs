@@ -55,6 +55,10 @@ static class PleyColors
     public static readonly Color Success = Hex(0x3FB27F);
     public static readonly Color Danger = Hex(0xE5484D);
     public static readonly Color DangerText = Hex(0xFF6B70);
+    /// <summary>Requests waiting for approval.</summary>
+    public static readonly Color Amber = Hex(0xF2B347);
+    /// <summary>Requests on their way: the tint behind their pill, a download's bar.</summary>
+    public static readonly Color Info = Hex(0x4C9AFF);
     /// <summary>Badges, the watched tick and round buttons on art: Bg at 80 %.</summary>
     public static readonly Color OnArt = Hex(0x0B0D10, 0.8f);
     /// <summary>The progress track over art: black at 60 %.</summary>

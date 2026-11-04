@@ -31,6 +31,8 @@ public sealed class KeyRepeatGate
     long lastMove = long.MinValue / 2;
     long nextMove;
     long lastKey = long.MinValue / 2;
+    /// <summary>When any key last went down, or the app came back to the front.</summary>
+    long lastTouch = long.MinValue / 2;
     long pressedAt;
     string? held;
     /// <summary>The direction pressed and not let go yet: held once <see cref="HoldDelayMs"/> has passed.</summary>
@@ -52,6 +54,12 @@ public sealed class KeyRepeatGate
     /// <summary>The time between moves while a key is held.</summary>
     public long Interval => MoveIntervalMs;
 
+    /// <summary>How long since a key last went down (or <see cref="Touched"/>): news waits for the remote to rest, so it never takes a press meant for the page.</summary>
+    public long QuietFor() => clock() - lastTouch;
+
+    /// <summary>The app came back to the front: as a press, so what waits for the remote to rest waits from now.</summary>
+    public void Touched() => lastTouch = clock();
+
     /// <summary>A hold ended: the key came up, or its key-up was lost. A row sliding under it settles.</summary>
     public event Action? HoldEnded;
 
@@ -64,6 +72,7 @@ public sealed class KeyRepeatGate
     /// </summary>
     public bool Admit(string key, bool isDown)
     {
+        if (isDown) lastTouch = clock();
         if (!Directions.Contains(key)) return true;
         var now = clock();
         if (isDown)

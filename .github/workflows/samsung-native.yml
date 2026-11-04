@@ -11,6 +11,8 @@ on:
     paths:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
+      - apps/android/core/testing/src/main/resources/fixtures/discover/**
+      - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
       - scripts/commit.mjs
       - .github/workflows/samsung-native.yml
@@ -19,6 +21,8 @@ on:
     paths:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
+      - apps/android/core/testing/src/main/resources/fixtures/discover/**
+      - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
       - scripts/commit.mjs
       - .github/workflows/samsung-native.yml

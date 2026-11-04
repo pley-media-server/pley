@@ -410,7 +410,12 @@ doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
-from any of them, and pausing for a video; and the player: the stream on
+from any of them, and pausing for a video; Discover and requests, ported from Android TV
+([Requests](#requests): the rail's entry and its number, Discover's hero
+and rows, a title's page and Which seasons?, the requests and their
+actions, Discover's row in Search, Request more seasons on a show's page,
+and what is ready to watch popping up; Overview opens in a panel beside
+the page, where the TV's dialogs hold four lines); and the player: the stream on
 the TV's own player, chosen with the TV's capabilities, seeking with Left
 and Right with previews of where to (as YouTube's TV app: it waits for OK,
 and a held key runs faster the longer it's held), OK showing the

@@ -18,7 +18,8 @@ namespace Pley.Tv.Core.Api;
 /// One of the server's events (docs/API.md, "Activity &amp; events"). Types: library_changed,
 /// libraries_changed, sessions_changed, watchlist_changed, user_state_changed, session_stopped,
 /// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed,
-/// live_taken_over.
+/// live_taken_over, and requests' requests_changed, request_available, request_decided,
+/// request_created, request_failed and requests_settings_changed.
 /// </summary>
 public sealed record ServerEvent
 {
@@ -38,6 +39,28 @@ public sealed record ServerEvent
     /// <summary>scan_progress: the files read so far, of <see cref="Total"/>.</summary>
     public long Processed { get; init; }
     public long Total { get; init; }
+
+    // Requests' events (the Android app's RequestsChanged, RequestAvailable, RequestDecided,
+    // RequestCreated and RequestFailed). requests_changed names none of them when many changed.
+    public long? RequestId { get; init; }
+    /// <summary>The request's title's kind: "movie" or "show".</summary>
+    public string? Kind { get; init; }
+    public long? TmdbId { get; init; }
+    public string? Title { get; init; }
+    /// <summary>request_available: where this account can open it.</summary>
+    public long? ItemId { get; init; }
+    /// <summary>request_available: the title's poster on the server, which the TV's pop-up shows.</summary>
+    public string? PosterUrl { get; init; }
+    /// <summary>request_available: the seasons ready, when not all are; request_created: those asked for.</summary>
+    public IReadOnlyList<int>? Seasons { get; init; }
+    /// <summary>request_available: the whole request is ready, not only <see cref="Seasons"/>.</summary>
+    public bool Complete { get; init; } = true;
+    /// <summary>request_decided and request_created: "approved", "declined", "pending"…</summary>
+    public string? Status { get; init; }
+    /// <summary>request_decided: the administrator's (null for followers); request_failed: what went wrong.</summary>
+    public string? Reason { get; init; }
+    public Requests.RequestUser? RequestedBy { get; init; }
+    public long? RetryAt { get; init; }
 }
 
 /// <summary>A library scan under way: how far, 0 to 1, when the server has said.</summary>
@@ -101,6 +124,8 @@ public sealed class SseReader
         "session_stopped" => !string.IsNullOrEmpty(e.SessionId),
         "live_taken_over" => e.ChannelId != null,
         "libraries_changed" or "sessions_changed" or "watchlist_changed" or "user_state_changed" or "live_channels_changed" or "live_tuners_changed" => true,
+        "requests_changed" or "requests_settings_changed" => true,
+        "request_available" or "request_decided" or "request_created" or "request_failed" => e.RequestId != null,
         _ => false,
     };
 }
@@ -136,14 +161,17 @@ public sealed class EventStream
     readonly EventConnect connect;
     readonly IScheduler scheduler;
     readonly string? userAgent;
+    readonly Action? onDrop;
     CancellationTokenSource? running;
     IDisposable? timer;
     int failures;
     bool stopped = true;
 
+    /// <param name="onDrop">A connection that opened ended, or the stream was stopped: events can't come until the next <c>onReconnect</c>.</param>
     public EventStream(string server, Tokens tokens, Action<ServerEvent> onEvent, Action onReconnect, EventConnect connect, IScheduler scheduler,
-        string? userAgent = null)
+        string? userAgent = null, Action? onDrop = null)
     {
+        this.onDrop = onDrop;
         this.server = server;
         this.tokens = tokens;
         this.onEvent = onEvent;
@@ -171,6 +199,7 @@ public sealed class EventStream
         timer = null;
         running?.Cancel();
         running = null;
+        onDrop?.Invoke();
     }
 
     long RetryDelay()
@@ -259,6 +288,7 @@ public sealed class EventStream
         }
         if (running != mine) return;
         running = null;
+        if (openedAt >= 0) onDrop?.Invoke();
         if (stopped) return;
         // Nothing answered, or the stream broke off: the server proves itself again before the next token.
         if (end.Status == 0) tokens.DoubtServer();

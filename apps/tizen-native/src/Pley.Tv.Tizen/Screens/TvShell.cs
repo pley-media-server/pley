@@ -4,6 +4,7 @@ using Pley.Tv.Core;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Player;
+using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Tizen.NUI;
@@ -81,6 +82,8 @@ sealed class TvShell : Sheet
     LiveTvEntry? liveTv;
     bool nowPlaying;
     bool storage;
+    /// <summary>The way into requests and its number, while the profile has any.</summary>
+    RequestsEntry requests = RequestsEntry.None;
 
     public TvShell(AppState state, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
     {
@@ -222,7 +225,8 @@ sealed class TvShell : Sheet
     /// <summary>The rail's entries for the libraries, with Live TV while it has channels and Now Playing while music has a queue.</summary>
     void RailItems()
     {
-        railItems = Pley.Tv.Core.Ui.Rail.Items(state.Libraries.Value ?? Array.Empty<Library>(), nowPlaying: nowPlaying, liveTv: liveTv?.Channels.Value > 0, storage: storage);
+        railItems = Pley.Tv.Core.Ui.Rail.Items(state.Libraries.Value ?? Array.Empty<Library>(), nowPlaying: nowPlaying, liveTv: liveTv?.Channels.Value > 0, storage: storage,
+            requests: Pley.Tv.Core.Ui.Rail.RequestsItem(requests));
         Rail.SetItems(railItems);
         MarkCurrent();
     }
@@ -241,6 +245,18 @@ sealed class TvShell : Sheet
         {
             if ((n != null) == nowPlaying) return;
             nowPlaying = n != null;
+            RailItems();
+        }));
+    }
+
+    /// <summary>The way into requests shows in the rail as <paramref name="source"/>'s summary says, with its number.</summary>
+    public void Follow(IRequestsSource source)
+    {
+        watches.Add(source.State.Watch(s =>
+        {
+            var entry = RequestsEntry.Of(s);
+            if (entry == requests) return;
+            requests = entry;
             RailItems();
         }));
     }

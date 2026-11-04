@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
@@ -202,6 +203,7 @@ sealed class RailView : View
     Entry AddEntry(RailItem item, float y, View parent)
     {
         var e = new Entry(this, item.Id, item.Icon, item.Label, y, EntryHeight, () => onSelect(item));
+        if (item.Requests is { Badge: > 0 } requests) e.SetCount(requests);
         e.Open(open, null);
         entries.Add(e);
         parent.Add(e.Box);
@@ -334,6 +336,9 @@ sealed class RailView : View
         readonly TextLabel label;
         TextLabel? second;
         readonly View mark;
+        /// <summary>The number on the way into requests, ringed in the page's colour, astride the icon's upper right.</summary>
+        View? countRing;
+        CountBadge? count;
         readonly float height;
         bool lastOpen, lastCurrent, lastFocused, labelsShown;
         Animation? focusAnimation;
@@ -378,6 +383,26 @@ sealed class RailView : View
         public View Box { get; }
 
         public void SetLabel(string text) => Text.Show(label, text);
+
+        /// <summary>
+        /// The number waiting in requests (the Android app's RailCount): 18 dp, ringed 2 dp in the page's
+        /// colour, astride the icon's upper right; red while failed requests wait for a manager.
+        /// </summary>
+        public void SetCount(RequestsEntry entry)
+        {
+            count = new CountBadge(entry.Badge, entry.Alarm, height: 18);
+            countRing = new View
+            {
+                Size = new Size(count.SizeWidth + Ui.Dp(4), count.SizeHeight + Ui.Dp(4)),
+                Position = new Position(Ui.Dp(18 + 9), Ui.Dp((height - PleyTv.IconSize) / 2 - 10)),
+                CornerRadius = (count.SizeHeight + Ui.Dp(4)) / 2,
+                BackgroundColor = PleyColors.Bg,
+            };
+            count.Position = new Position(Ui.Dp(2), Ui.Dp(2));
+            countRing.Add(count);
+            Box.Add(countRing);
+            count.Focused(Item.Focused);
+        }
 
         /// <summary>The avatar's second line, under its name.</summary>
         public void SetSecondLine(string text)
@@ -450,6 +475,7 @@ sealed class RailView : View
             var ink = focused ? PleyColors.OnAccent : current ? PleyColors.Fg : PleyColors.Muted;
             if (icon != null) icon.Color = ink;
             label.TextColor = ink;
+            count?.Focused(focused);
             if (second != null) second.TextColor = focused ? PleyColors.OnAccent : PleyColors.Muted;
             if (current && !open) mark.Show();
             else mark.Hide();
