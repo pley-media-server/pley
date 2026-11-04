@@ -1,6 +1,7 @@
 package app.pley.android.designsystem
 
 import android.content.Context
+import android.os.Build
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.image.ArtworkInterceptor
@@ -27,7 +28,8 @@ import okio.Path.Companion.toOkioPath
  * - Disk: cacheDir/images, 512 MB on phones (256 MB on low-RAM ones),
  *   128 MB on TVs. The server's `?v=` addresses never change content, so
  *   cached pictures never go stale.
- * - Hardware bitmaps; two decodes at a time on T0.
+ * - Hardware bitmaps from Android 10 on, software ones before ([hardwareBitmaps]);
+ *   two decodes at a time on T0.
  * - [ArtworkImage][app.pley.android.designsystem.image.ArtworkImage]s are
  *   asked for at their box's width and fall back in order ([ArtworkInterceptor]),
  *   and wait while a TV's direction key is held unless the memory cache
@@ -64,11 +66,21 @@ object PleyImageLoader {
                     .maxSizeBytes(diskCacheBytes(profile))
                     .build()
             }
-            .allowHardware(true)
+            .allowHardware(hardwareBitmaps())
             .memoryCacheMaxSizePercentWhileInBackground(if (profile.tier == Tier.T0) 0.0 else 0.1)
             .apply { if (profile.tier == Tier.T0) bitmapFactoryMaxParallelism(2) }
             .build()
     }
+
+    /**
+     * Whether pictures decode into hardware bitmaps on Android [sdk]: from
+     * Android 10, which uploads them off the RenderThread. Android 9 and
+     * earlier make each on the RenderThread, between the frames it draws: on
+     * a Fire TV (Fire OS 7) 2 ms a poster, up to 8, and a screenful of them
+     * at once as a held key comes up, which left frames late for half a
+     * second. A software bitmap's upload there takes under 1 ms a poster.
+     */
+    internal fun hardwareBitmaps(sdk: Int = Build.VERSION.SDK_INT): Boolean = sdk >= Build.VERSION_CODES.Q
 
     private fun memoryCache(context: Context, profile: DeviceProfile): MemoryCache {
         val builder = MemoryCache.Builder()
