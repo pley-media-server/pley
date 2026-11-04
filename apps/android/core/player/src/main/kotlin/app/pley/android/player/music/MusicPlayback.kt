@@ -169,7 +169,8 @@ class MusicPlayback(
                 // Back to the start of the same track: the same session, moved.
                 if (session === s) s.progress(0, if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
             }
-            Control.Unknown -> Unit
+            // Music has no tracks to pick, and doesn't say it takes these.
+            Control.Audio, Control.Subtitles, Control.Unknown -> Unit
         }
     }
 

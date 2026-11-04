@@ -69,4 +69,36 @@ class RemoteRoutesTest {
         }
         assertEquals(202, robin.send("POST", path, """{"command":"pause"}""").code)
     }
+
+    @Test
+    fun sessionsListTheirTracksWhichCommandsAndReportsName() = withServer { server ->
+        val robin = Client(server, server.accessToken(FixtureIds.ROBIN))
+        val session = robin.send(
+            "POST",
+            "/api/playback",
+            """{"item_id":${FixtureIds.SAMPLE_HDR10},"caps":{},"controls":["audio","subtitles"]}""",
+        ).field("session_id")!!
+        fun listed() = PleyJson.decodeFromString(ListSerializer(PlayingSession.serializer()), String(robin.get("/api/sessions").bytes)).single()
+        val started = listed()
+        assertEquals(listOf(1), started.tracks.audio.map { it.index })
+        assertEquals(listOf(FixtureIds.SAMPLE_HDR10_SUBTITLE, FixtureIds.SAMPLE_HDR10_EXTERNAL_SUBTITLE), started.tracks.subtitles.map { it.index })
+        // As it started: the audio chosen, no subtitles.
+        assertEquals(1, started.audioIndex)
+        assertEquals(PlayingSession.SUBTITLES_OFF, started.subtitleIndex)
+
+        val path = "/api/sessions/$session/command"
+        assertEquals(400, robin.send("POST", path, """{"command":"audio","stream_index":7}""").code)
+        assertEquals(400, robin.send("POST", path, """{"command":"subtitles"}""").code)
+        assertEquals(202, robin.send("POST", path, """{"command":"subtitles","stream_index":-1}""").code)
+        assertEquals(202, robin.send("POST", path, """{"command":"subtitles","stream_index":${FixtureIds.SAMPLE_HDR10_SUBTITLE}}""").code)
+
+        // The player's report says what it plays now; a track not of the file changes nothing.
+        val report = """{"position_ms":1000,"session_id":"$session","audio_index":1,"subtitle_index":${FixtureIds.SAMPLE_HDR10_SUBTITLE}}"""
+        assertEquals(204, robin.send("POST", "/api/items/${FixtureIds.SAMPLE_HDR10}/progress", report).code)
+        assertEquals(FixtureIds.SAMPLE_HDR10_SUBTITLE, listed().subtitleIndex)
+        val stray = """{"position_ms":2000,"session_id":"$session","audio_index":9}"""
+        assertEquals(204, robin.send("POST", "/api/items/${FixtureIds.SAMPLE_HDR10}/progress", stray).code)
+        assertEquals(1, listed().audioIndex)
+        assertEquals(FixtureIds.SAMPLE_HDR10_SUBTITLE, listed().subtitleIndex)
+    }
 }

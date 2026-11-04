@@ -130,6 +130,12 @@ enum class Control(override val wire: String) : WireEnum {
 
     /** The track before, or the start of this one; on Live TV, the channel before. */
     Previous("previous"),
+
+    /** Another audio track of the title: `stream_index`. */
+    Audio("audio"),
+
+    /** Other subtitles of the title, or none: `stream_index`, `-1` for none. */
+    Subtitles("subtitles"),
     Unknown("unknown"),
     ;
 
@@ -194,18 +200,54 @@ data class PlayingSession(
     val ageMs: Long = 0,
     /** What its player obeys; Stop always works. */
     val controls: List<Control> = emptyList(),
+    /** The audio track it plays, by stream index; `null` when not known, and on live. */
+    val audioIndex: Int? = null,
+    /** The subtitles it shows, by stream index, [SUBTITLES_OFF] for none; `null` when not known, and on live. */
+    val subtitleIndex: Int? = null,
+    /** Its file's tracks, which [Control.Audio] and [Control.Subtitles] pick from; none on live. */
+    val tracks: SessionTracks = SessionTracks(),
+) {
+    companion object {
+        /** The subtitle index of none, in sessions, commands and progress reports. */
+        const val SUBTITLES_OFF = -1
+    }
+}
+
+/** The tracks of a session's file (GET /api/sessions): the audio and the subtitles a remote picks from. */
+@Serializable
+data class SessionTracks(
+    val audio: List<TrackOption> = emptyList(),
+    val subtitles: List<TrackOption> = emptyList(),
+)
+
+/** One of [SessionTracks]: [index] is the stream index commands and reports name. */
+@Serializable
+data class TrackOption(
+    val index: Int,
+    /** "eng". */
+    val language: String? = null,
+    val title: String? = null,
+    /** "eac3", "subrip". */
+    val codec: String? = null,
+    /** Audio only. */
+    val channels: Int? = null,
+    val default: Boolean = false,
+    val forced: Boolean = false,
 )
 
 /**
  * The body of POST /api/sessions/{id}/command: [positionMs] for
  * [Control.Seek] (0 to the length), [offsetMs] for [Control.Skip] (up to
- * 10 minutes either way); the other commands take neither.
+ * 10 minutes either way), [streamIndex] for [Control.Audio] and
+ * [Control.Subtitles] (one of the session's tracks; subtitles
+ * [PlayingSession.SUBTITLES_OFF] for none); the other commands take none.
  */
 @Serializable
 data class PlayerCommandRequest(
     val command: Control,
     val positionMs: Long? = null,
     val offsetMs: Long? = null,
+    val streamIndex: Int? = null,
 )
 
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */
@@ -432,6 +474,10 @@ data class ProgressReport(
      * to the item since.
      */
     val ageMs: Long? = null,
+    /** The audio track the player plays, by stream index; `null` leaves it out, and the server keeps what it knew. */
+    val audioIndex: Int? = null,
+    /** The subtitles it shows, by stream index, [PlayingSession.SUBTITLES_OFF] for none; `null` leaves it out. */
+    val subtitleIndex: Int? = null,
 )
 
 /**

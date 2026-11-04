@@ -3,9 +3,12 @@ package app.pley.android.player.session
 import app.pley.android.data.LocalFile
 import app.pley.android.data.LocalMedia
 import app.pley.android.fixtures.FixtureIds
+import app.pley.android.caps.CapsSnapshot
 import app.pley.android.model.Control
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
+import app.pley.android.model.StreamKind
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerPhase
 import app.pley.android.testing.caps.TestDevices
@@ -21,7 +24,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** The profile's remote, on another device (docs/API.md, "Remote control"): what a video obeys, and that it reports at once. */
+/**
+ * The profile's remote, on another device (docs/API.md, "Remote control"):
+ * what a video obeys, its tracks included, and that it reports at once.
+ */
 @RunWith(RobolectricTestRunner::class)
 class RemoteTest {
     private val events = MutableSharedFlow<ServerEvent>(extraBufferCapacity = 8)
@@ -34,8 +40,11 @@ class RemoteTest {
 
     /** The sessions held for the remote now, by who said so. */
     private val holding = mutableMapOf<Any, String>()
-    private val h = SessionHarness(
-        caps = capsOf(TestDevices.sdrPhone),
+    private var h = harness(capsOf(TestDevices.sdrPhone))
+
+    /** A phone (or [caps]'s device) that hears [events], telling the app what it holds. */
+    private fun harness(caps: CapsSnapshot) = SessionHarness(
+        caps = caps,
         events = events,
         playing = { _, playing -> held += playing },
         here = { player, id ->
@@ -57,18 +66,38 @@ class RemoteTest {
 
     private fun sessionId(itemId: Long = SessionHarness.S1E1): String = h.progress(itemId).last().second.sessionId!!
 
-    private fun command(control: Control, positionMs: Long? = null, offsetMs: Long? = null, session: String = sessionId()) {
-        events.tryEmit(ServerEvent.PlayerCommand(session, control, positionMs, offsetMs))
+    private fun command(
+        control: Control,
+        positionMs: Long? = null,
+        offsetMs: Long? = null,
+        session: String = sessionId(),
+        streamIndex: Int? = null,
+    ) {
+        events.tryEmit(ServerEvent.PlayerCommand(session, control, positionMs, offsetMs, streamIndex))
         h.settle()
     }
 
     @Test
-    fun `a video says what it obeys, next only when something can come next`() {
+    fun `a video says what it obeys, next only when something can come next, tracks when its file has them`() {
         playing()
-        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next), h.playbackRequests().last().controls)
+        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Audio), h.playbackRequests().last().controls)
         val movie = h.play(PlayRequest(FixtureIds.SAMPLE_1080P, startMs = 0))
-        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip), h.playbackRequests().last().controls)
+        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio), h.playbackRequests().last().controls)
         movie.close()
+        val tracks = h.play(PlayRequest(Catalogue.movieWithTracks(h.api).id, startMs = 0))
+        assertEquals(
+            listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio, Control.Subtitles),
+            h.playbackRequests().last().controls,
+        )
+        tracks.close()
+    }
+
+    @Test
+    fun `every report says the tracks playing, -1 for no subtitles`() {
+        playing()
+        val first = h.progress(SessionHarness.S1E1).last().second
+        assertEquals(1, first.audioIndex)
+        assertEquals(PlayingSession.SUBTITLES_OFF, first.subtitleIndex)
     }
 
     @Test
@@ -266,5 +295,74 @@ class RemoteTest {
         events.tryEmit(ServerEvent.SessionStopped(sessionId(), null, byAdmin = true))
         h.settle()
         assertEquals(false, held.last())
+    }
+
+    @Test
+    fun `the remote's audio and subtitles change as the player's menu changes them, each reported at once`() {
+        h.close()
+        h = harness(TestCaps.hdrTv())
+        val movie = Catalogue.movieWithTracks(h.api)
+        val streams = movie.files.first().streams
+        val audio = streams.filter { it.kind == StreamKind.Audio }
+        val text = streams.first { it.kind == StreamKind.Subtitle && it.textBased == true }
+        val c = playing(movie.id)
+        // Played as it is: the engine switches, nothing is asked of the server again.
+        val reports = h.progress(movie.id).size
+        command(Control.Audio, streamIndex = audio[1].index, session = sessionId(movie.id))
+        assertEquals(1 to audio[1].language, h.engine.audioChoices.last())
+        assertTrue(c.state.value.audio.first { it.index == audio[1].index.toLong() }.selected)
+        assertEquals(1, h.playbackRequests().size)
+        // Saved for the title, as the menu's choice is.
+        assertEquals(audio[1].index, h.tracksChosen.last().second.audioIndex)
+        val picked = h.progress(movie.id)
+        assertEquals(reports + 1, picked.size)
+        assertEquals(audio[1].index, picked.last().second.audioIndex)
+
+        command(Control.Subtitles, streamIndex = text.index, session = sessionId(movie.id))
+        assertEquals(text.index, h.progress(movie.id).last().second.subtitleIndex)
+        assertTrue(c.state.value.subtitles.first { it.index == text.index.toLong() }.selected)
+        command(Control.Subtitles, streamIndex = PlayingSession.SUBTITLES_OFF, session = sessionId(movie.id))
+        assertEquals(null to null, h.engine.textChoices.last())
+        assertEquals(PlayingSession.SUBTITLES_OFF, h.progress(movie.id).last().second.subtitleIndex)
+        assertEquals(reports + 3, h.progress(movie.id).size)
+    }
+
+    @Test
+    fun `a pick of what plays already is said again at once, so a remote a little behind settles`() {
+        val c = playing()
+        val before = h.progress(SessionHarness.S1E1).size
+        command(Control.Audio, streamIndex = 1)
+        command(Control.Subtitles, streamIndex = PlayingSession.SUBTITLES_OFF)
+        assertEquals(before + 2, h.progress(SessionHarness.S1E1).size)
+        assertEquals(1, h.playbackRequests().size)
+        assertTrue(h.tracksChosen.isEmpty())
+        assertEquals(PlayerPhase.Playing, c.state.value.phase)
+    }
+
+    @Test
+    fun `a stream's track from the remote needs a new session, which says it as soon as it starts`() {
+        val movie = Catalogue.movieWithTracks(h.api)
+        val audio = movie.files.first().streams.filter { it.kind == StreamKind.Audio }
+        playing(movie.id)
+        assertTrue(h.engine.source!!.hls)
+        val first = sessionId(movie.id)
+        val reports = h.progress(movie.id).size
+        command(Control.Audio, streamIndex = audio[1].index, session = first)
+        // The session playing doesn't say the new track: it still plays the old one.
+        assertTrue(h.progress(movie.id).drop(reports).none { it.second.sessionId == first && it.second.audioIndex == audio[1].index })
+        assertEquals(audio[1].index, h.playbackRequests().last().audioIndex)
+        val next = h.progress(movie.id).last().second
+        assertTrue(next.sessionId != first)
+        assertEquals(audio[1].index, next.audioIndex)
+    }
+
+    @Test
+    fun `a screen stopped takes no track from the remote`() {
+        val c = playing()
+        c.setAway(true)
+        h.settle()
+        val before = h.progress(SessionHarness.S1E1).size
+        command(Control.Subtitles, streamIndex = PlayingSession.SUBTITLES_OFF)
+        assertEquals(before, h.progress(SessionHarness.S1E1).size)
     }
 }

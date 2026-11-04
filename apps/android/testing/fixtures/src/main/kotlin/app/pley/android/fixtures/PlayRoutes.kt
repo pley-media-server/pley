@@ -21,12 +21,14 @@ import app.pley.android.model.ProgressState
 import app.pley.android.model.RatingRequest
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.SessionStatus
+import app.pley.android.model.SessionTracks
 import app.pley.android.model.StreamAction
 import app.pley.android.model.StreamChoice
 import app.pley.android.model.StreamKind
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.SubtitleTrack
 import app.pley.android.model.TrackDefaults
+import app.pley.android.model.TrackOption
 import app.pley.android.model.TranscodeInfo
 import app.pley.android.model.TrickplayInfo
 import app.pley.android.model.caps.ClientCaps
@@ -43,10 +45,11 @@ import mockwebserver3.MockResponse
  * sessions answered direct or as HLS, the files with Range, the HLS stream,
  * subtitles as WebVTT (one track partial the first time) and pictures as
  * .mks, seek previews and chapter pictures; sessions stopped from elsewhere
- * (`session_stopped`, then 410), listed for the remote and sent its
- * commands (`player_command`); progress, watched marks, ratings, track
- * choices and track defaults, which change what the profile reads next
- * (watch state changes tell its streams: `user_state_changed`).
+ * (`session_stopped`, then 410), listed for the remote with their
+ * tracks and sent its commands (`player_command`); progress, watched
+ * marks, ratings, track choices and track defaults, which change what the
+ * profile reads next (watch state changes tell its streams:
+ * `user_state_changed`).
  */
 internal class PlayRoutes(private val s: State) {
     private val catalog get() = s.catalog
@@ -167,6 +170,9 @@ internal class PlayRoutes(private val s: State) {
             deviceKind = request.deviceKind?.takeIf { it != DeviceKind.Unknown } ?: DeviceKind.Other,
             positionMs = request.startMs ?: 0,
             reportedAtMs = s.nowMs(),
+            // What it starts with: the audio picked or chosen, the subtitles burned in or those the profile's choices pick.
+            audioIndex = audioIndex,
+            subtitleIndex = burn?.index ?: s.views.withChoices(item, file, caller.profile).selectedSubtitle ?: PlayingSession.SUBTITLES_OFF,
         )
         s.sessions[session.id] = session
         s.events.emit(ServerEvent.SessionsChanged)
@@ -308,25 +314,53 @@ internal class PlayRoutes(private val s: State) {
                 updatedAt = session.reportedAtMs / 1_000,
                 ageMs = (now - session.reportedAtMs).coerceAtLeast(0),
                 controls = session.controls,
+                audioIndex = session.audioIndex,
+                subtitleIndex = session.subtitleIndex,
+                tracks = tracksOf(session.fileId),
             )
         }
+    }
+
+    /** A file's audio and subtitles (added ones too), as sessions list them for the remote to pick from. */
+    private fun tracksOf(fileId: Long): SessionTracks {
+        val streams = catalog.file(fileId)?.second?.streams.orEmpty()
+        fun option(stream: MediaStream) = TrackOption(
+            index = stream.index,
+            language = stream.language,
+            title = stream.title,
+            codec = stream.codec,
+            channels = stream.channels,
+            default = stream.default,
+            forced = stream.forced,
+        )
+        val added = s.addedSubtitles[fileId].orEmpty().map { TrackOption(it.index, it.language, it.title, it.codec, forced = it.forced) }
+        return SessionTracks(
+            audio = streams.filter { it.kind == StreamKind.Audio }.map(::option),
+            subtitles = streams.filter { it.kind == StreamKind.Subtitle }.map(::option) + added,
+        )
     }
 
     /**
      * POST /api/sessions/{id}/command: the caller's own session only (an
      * administrator stops others', no more), a command its player listed,
-     * a seek within its length and a skip of up to 10 minutes. The
-     * player's streams hear `player_command`.
+     * a seek within its length, a skip of up to 10 minutes, and audio or
+     * subtitles of the session's file (`-1`: subtitles off). The player's
+     * streams hear `player_command`.
      */
     private fun command(call: Call, caller: Caller, id: String): MockResponse {
         val body = call.body(PlayerCommandRequest.serializer()) ?: return Reply.badRequest("the body isn't a command")
         val session = s.sessions[id] ?: return Reply.notFound("no such session")
         if (session.profileId != caller.profile.id) return Reply.error(403, "forbidden", "not your session")
         val length = catalog.file(session.fileId)?.second?.durationMs ?: DAY_MS
+        val tracks = tracksOf(session.fileId)
         when (body.command) {
             Control.Unknown -> return Reply.badRequest("unknown command")
             Control.Seek -> if (body.positionMs == null || body.positionMs !in 0..length) return Reply.badRequest("position_ms is out of range")
             Control.Skip -> if (body.offsetMs == null || body.offsetMs !in -SKIP_MS..SKIP_MS) return Reply.badRequest("offset_ms is out of range")
+            Control.Audio -> if (tracks.audio.none { it.index == body.streamIndex }) return Reply.badRequest("stream_index must be one of the file's audio tracks")
+            Control.Subtitles -> if (body.streamIndex != PlayingSession.SUBTITLES_OFF && tracks.subtitles.none { it.index == body.streamIndex }) {
+                return Reply.badRequest("stream_index must be one of the file's subtitle tracks, or -1 for none")
+            }
             else -> Unit
         }
         if (body.command !in session.controls) {
@@ -337,6 +371,7 @@ internal class PlayRoutes(private val s: State) {
             body.command,
             body.positionMs.takeIf { body.command == Control.Seek },
             body.offsetMs.takeIf { body.command == Control.Skip },
+            body.streamIndex.takeIf { body.command == Control.Audio || body.command == Control.Subtitles },
         )
         s.events.emitTo(session.profileId, event)
         return MockResponse.Builder().code(202).build()
@@ -483,6 +518,11 @@ internal class PlayRoutes(private val s: State) {
             session.positionMs = report.positionMs
             if (report.state != ProgressState.Stopped) session.state = report.state
             session.reportedAtMs = s.nowMs()
+            // The tracks it says it plays; one left out, or not of its file, keeps what was known.
+            val tracks = tracksOf(session.fileId)
+            report.audioIndex?.takeIf { index -> tracks.audio.any { it.index == index } }?.let { session.audioIndex = it }
+            report.subtitleIndex?.takeIf { index -> index == PlayingSession.SUBTITLES_OFF || tracks.subtitles.any { it.index == index } }
+                ?.let { session.subtitleIndex = it }
         }
         val done = duration > 0 && report.positionMs >= duration * 9 / 10
         val before = caller.profile.state(item.id)

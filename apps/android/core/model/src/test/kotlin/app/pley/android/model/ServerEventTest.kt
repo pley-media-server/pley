@@ -57,6 +57,32 @@ class ServerEventTest {
         val pause = ServerEvent.PlayerCommand("s3", Control.Pause)
         assertEquals("""{"type":"player_command","session_id":"s3","command":"pause"}""", PleyJson.encodeToString(ServerEvent.serializer(), pause))
         assertEquals(pause, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), pause)))
+        // Tracks name their stream; subtitles off is -1.
+        assertEquals(
+            ServerEvent.PlayerCommand("s4", Control.Audio, streamIndex = 2),
+            ServerEvent.parse("""{"type":"player_command","session_id":"s4","command":"audio","position_ms":null,"offset_ms":null,"stream_index":2}"""),
+        )
+        assertEquals(
+            ServerEvent.PlayerCommand("s4", Control.Subtitles, streamIndex = -1),
+            ServerEvent.parse("""{"type":"player_command","session_id":"s4","command":"subtitles","stream_index":-1}"""),
+        )
+    }
+
+    @Test
+    fun sessionsSayTheirTracks() {
+        val session = PleyJson.decodeFromString(
+            PlayingSession.serializer(),
+            """{"session_id":"s1","kind":"item","audio_index":1,"subtitle_index":-1,"tracks":{"audio":[{"index":1,"language":"eng","title":null,""" +
+                """"codec":"eac3","channels":6,"default":true,"forced":false}],"subtitles":[{"index":3,"language":"fre","codec":"subrip","forced":true}]}}""",
+        )
+        assertEquals(1, session.audioIndex)
+        assertEquals(PlayingSession.SUBTITLES_OFF, session.subtitleIndex)
+        assertEquals(listOf(TrackOption(1, "eng", null, "eac3", 6, default = true)), session.tracks.audio)
+        assertEquals(listOf(TrackOption(3, "fre", codec = "subrip", forced = true)), session.tracks.subtitles)
+        // An older server's: no tracks, nothing known.
+        val older = PleyJson.decodeFromString(PlayingSession.serializer(), """{"session_id":"s2","kind":"live"}""")
+        assertEquals(SessionTracks(), older.tracks)
+        assertEquals(null, older.audioIndex)
     }
 
     @Test

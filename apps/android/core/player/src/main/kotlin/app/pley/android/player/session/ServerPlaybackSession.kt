@@ -53,11 +53,19 @@ class SessionReporter(scope: CoroutineScope) {
 }
 
 /**
+ * The tracks a video plays, as its progress reports say them for the
+ * profile's remotes: stream indexes, [subtitle] [PlayingSession.SUBTITLES_OFF][app.pley.android.model.PlayingSession.SUBTITLES_OFF]
+ * for none; [audio] `null` while it isn't known.
+ */
+data class PlayedTracks(val audio: Int?, val subtitle: Int)
+
+/**
  * One session on the server (POST /api/playback): its progress reports and
  * its end. Video and music both play through one. Ending it reports
  * `stopped` at the last position, then deletes it (and any transcode); it
  * ends once. Reports give the item's length as [durationMs] says it: the
- * server's, or for a file on a drive the player's, once it knows it.
+ * server's, or for a file on a drive the player's, once it knows it, and
+ * the tracks [tracks] says play (a video's; music's say none).
  */
 class ServerPlaybackSession(
     private val api: PleyApi,
@@ -65,6 +73,7 @@ class ServerPlaybackSession(
     val info: PlaybackInfo,
     private val reporter: SessionReporter,
     private val durationMs: () -> Long? = { info.durationMs.takeIf { it > 0 } },
+    private val tracks: () -> PlayedTracks? = { null },
 ) {
     val id: String get() = info.sessionId
 
@@ -108,21 +117,31 @@ class ServerPlaybackSession(
         reporter.send { api.stopPlayback(id) }
     }
 
-    private fun report(positionMs: Long, state: ProgressState) = ProgressReport(
-        positionMs = positionMs.coerceAtLeast(0),
-        durationMs = durationMs(),
-        state = state,
-        sessionId = id,
-    )
+    private fun report(positionMs: Long, state: ProgressState): ProgressReport {
+        val played = tracks()
+        return ProgressReport(
+            positionMs = positionMs.coerceAtLeast(0),
+            durationMs = durationMs(),
+            state = state,
+            sessionId = id,
+            audioIndex = played?.audio,
+            subtitleIndex = played?.subtitle,
+        )
+    }
 
     companion object {
         /**
-         * Starts a session for [request]. The request isn't cancelled
-         * halfway: the server may have made the session (and its
-         * transcode) already, so a caller cancelled meanwhile gets it
-         * deleted, then the cancellation.
+         * Starts a session for [request], whose reports say the [tracks]
+         * playing. The request isn't cancelled halfway: the server may have
+         * made the session (and its transcode) already, so a caller
+         * cancelled meanwhile gets it deleted, then the cancellation.
          */
-        suspend fun start(api: PleyApi, request: PlaybackRequest, reporter: SessionReporter): ServerPlaybackSession {
+        suspend fun start(
+            api: PleyApi,
+            request: PlaybackRequest,
+            reporter: SessionReporter,
+            tracks: () -> PlayedTracks? = { null },
+        ): ServerPlaybackSession {
             val info = withContext(NonCancellable) { api.startPlayback(request) }
             try {
                 currentCoroutineContext().ensureActive()
@@ -130,7 +149,7 @@ class ServerPlaybackSession(
                 reporter.send { api.stopPlayback(info.sessionId) }
                 throw e
             }
-            return ServerPlaybackSession(api, request.itemId, info, reporter)
+            return ServerPlaybackSession(api, request.itemId, info, reporter, tracks = tracks)
         }
     }
 }

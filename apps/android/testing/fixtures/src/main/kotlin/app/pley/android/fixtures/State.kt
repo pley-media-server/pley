@@ -64,7 +64,8 @@ internal val PLAYLISTS = Need.Scope("playlists")
 
 /**
  * A playback session: the file it plays and how, what its player obeys from
- * the remote and calls its device, and where its last report had it.
+ * the remote and calls its device, and where its last report had it, with
+ * the tracks it plays.
  */
 internal class PlaySession(
     val id: String,
@@ -82,6 +83,9 @@ internal class PlaySession(
     @Volatile var state: ProgressState = ProgressState.Playing,
     /** When it was last heard from, on the server's clock (ms). */
     @Volatile var reportedAtMs: Long = 0,
+    /** The audio and the subtitles it plays (`-1`: none), as its player last said, else as it started; `null`: not known. */
+    @Volatile var audioIndex: Int? = null,
+    @Volatile var subtitleIndex: Int? = null,
 )
 
 /** A session the server stopped, and why. */

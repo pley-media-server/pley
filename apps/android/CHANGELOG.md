@@ -23,6 +23,9 @@ describes how they are made.
   a word when stopped from elsewhere. Music playing with the screen off
   still hears it, until it has been paused for a minute and a half. Remotes show the device by its name in Android's
   settings.
+- The video players change their audio and subtitles when your remote on
+  another device asks, as their own track menus do, and tell your remotes
+  which tracks they play.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

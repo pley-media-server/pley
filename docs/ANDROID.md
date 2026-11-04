@@ -221,7 +221,11 @@ obey:
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist or collection). Next at
   the end does nothing, and says nothing on the device; a video has no
-  previous.
+  previous. Audio and subtitles, where the file has them, change as the
+  player's own track menu changes them, and are remembered the same way:
+  another track in the file as it plays switches at once, one a stream
+  doesn't carry, or picture subtitles to burn in, starts a new session
+  where it is. A pick of what plays already is said again at once.
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track goes back to its start.
 - **Live TV:** next and previous, channel up and down in the order the
@@ -232,7 +236,10 @@ obey:
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is
 reported at once, so the remote sees it, and a play or pause that changes
-nothing is reported too, so a remote a little behind settles. While a
+nothing is reported too, so a remote a little behind settles. A video's
+reports say the audio and subtitles it plays (`audio_index` and
+`subtitle_index`, `-1` for none); a track that needs a new session is said
+by that session as it starts, not by the one it replaces. While a
 player has a session, the event stream stays open in the background too,
 so music playing with the screen off still hears the remote; it closes
 once playback ends, once music has been paused for 90 s (the server's

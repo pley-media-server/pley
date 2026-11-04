@@ -156,8 +156,9 @@ sealed interface ServerEvent {
     /**
      * The profile's remote, on another device, sent the player of
      * [sessionId] a command (POST /api/sessions/{id}/command): [positionMs]
-     * for a seek, [offsetMs] for a skip, `null` otherwise. Only the player
-     * playing that session acts on it.
+     * for a seek, [offsetMs] for a skip, [streamIndex] for audio and
+     * subtitles (`-1`: none), `null` otherwise. Only the player playing that
+     * session acts on it.
      */
     @Serializable
     data class PlayerCommand(
@@ -165,6 +166,7 @@ sealed interface ServerEvent {
         val command: Control = Control.Unknown,
         val positionMs: Long? = null,
         val offsetMs: Long? = null,
+        val streamIndex: Int? = null,
     ) : ServerEvent {
         override val type: String get() = TYPE
 
