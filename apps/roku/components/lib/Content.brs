@@ -587,7 +587,9 @@ function contentAbout(detail as object, now as integer, zone as integer) as stri
     if state <> invalid then plays = httpNumber(state.play_count, 0)
     if plays > 0 then facts.Push("Plays: " + urlValue(plays))
     summary = httpClean(detail.summary, 4000, true)
-    if facts.Count() = 0 and Len(summary) < 240 then return ""
+    ' The page shows two lines of the summary at the least (seven buttons
+    ' and the credits line): anything longer may be cut there.
+    if facts.Count() = 0 and Len(summary) <= 140 then return ""
     if summary <> "" then lines.Push(summary)
     if facts.Count() > 0
         if lines.Count() > 0 then lines.Push("")

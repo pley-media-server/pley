@@ -1,13 +1,14 @@
 ' Now Playing: what the music player (m.global.music) plays, and Up next,
 ' the queue with the track playing marked (Music.brs lists a long one a
-' part at a time): OK on one plays it, and the queue goes on from there. Shuffle plays the other tracks after this one in a random order;
-' Stop shuffling puts the order back. The sleep timer's button steps
-' through its choices, and in the timer's last 30 s, while a line counts
-' down, it is Keep listening. The remote's play pauses or goes on, fast
-' forward and rewind go to the next track or back. Down goes from the
-' buttons to Up next, Up from its first track back; Up from the buttons
-' goes to the scrubber, where Left and Right move 10 s, as on Android TV. Its fields are
-' followed only while this screen shows.
+' part at a time): OK on one plays it, and the queue goes on from there.
+' Shuffle plays the other tracks after this one in a random order; Stop
+' shuffling puts the order back. The sleep timer's button steps through
+' its choices, and in the timer's last 30 s, while a line counts down, it
+' is Keep listening. The remote's play pauses or goes on, fast forward and
+' rewind go to the next track or back. Down goes from the buttons to Up
+' next, Up from its first track back; Up from the buttons goes to the
+' scrubber, where Left and Right move 10 s, as on Android TV. Its fields
+' are followed only while this screen shows.
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")

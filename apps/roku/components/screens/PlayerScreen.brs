@@ -206,10 +206,10 @@ sub init()
     ' The last position read, and when, to tell a seek by.
     m.seenMs = -1
     m.seenAt = 0
-    ' The media ended: Up Next waits at its end. When media last fell
-    ' short of its end (clock ms).
+    ' The media ended: Up Next waits at its end. How often this title's
+    ' stream was opened again for falling short of its end.
     m.ended = false
-    m.shortAt = invalid
+    m.shortTries = 0
     m.detailsTimer = m.top.findNode("detailsTimer")
     m.detailsTimer.observeField("fire", "onDetailsTick")
     m.top.observeField("active", "onActive")
@@ -249,6 +249,7 @@ sub onActive()
     if GetInterface(params.queue, "ifArray") <> invalid then m.queue = params.queue
     newTitle()
     m.bannerDue = true
+    m.shortTries = 0
     open(params.itemId, Int(httpNumber(params.startMs, 0)), params.item, "auto")
 end sub
 
@@ -286,6 +287,7 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.ended = false
     m.stallTimer.control = "stop"
     m.slowSaid = false
+    m.seenMs = -1
     m.markers = []
     m.skipMarker = invalid
     m.skipKey = ""
@@ -831,8 +833,9 @@ sub saveTracks(file as dynamic, subtitlePicked as boolean, audioPicked as boolea
     open(m.itemId, position, m.item, m.mode)
 end sub
 
-' A request before playback failed: the server doesn't answer (its own
-' screen), the sign-in ended (the scene shows sign-in), or a refusal.
+' A request before playback failed: the server doesn't answer (the player
+' reconnects, or says so), the sign-in ended (the scene shows sign-in), or
+' a refusal (Try again where asking again may help).
 sub failed(answer as object)
     if answer.error = "signed_out" then return
     if answer.error = "network"
@@ -848,8 +851,9 @@ sub onState(event as object)
     state = event.getData()
     watchState(state)
     drawPictures()
-    ' Played on from here: no seek in between.
-    m.seenMs = m.positionMs
+    ' The playhead is read again from now: a pause, or a seek's wait, isn't
+    ' time it should have moved in. The last reading stays, so a seek made
+    ' here (Skip intro, Chapters) moves the next one away from it.
     m.seenAt = m.clock.TotalMilliseconds()
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state <> "playing" then hideBanner()
@@ -879,7 +883,13 @@ sub onState(event as object)
         report("paused")
         m.pausedTimer.control = "start"
     else if state = "finished"
-        ended()
+        ' Media that falls short of the title (resumed past the end of what
+        ' the file or stream holds) isn't its end.
+        if playerEndedShort(m.positionMs, m.startMs, m.durationMs)
+            endedShort()
+        else
+            ended()
+        end if
     else if state = "error"
         broken()
     end if
@@ -1017,12 +1027,6 @@ end sub
 sub ended()
     m.stallTimer.control = "stop"
     hideBanner()
-    ' Media that falls short of the title (resumed past the end of what the
-    ' file or stream holds) isn't its end: converted, or a new session, once.
-    if playerEndedShort(m.positionMs, m.startMs, m.durationMs)
-        endedShort()
-        return
-    end if
     if m.durationMs > 0 then m.positionMs = m.durationMs
     report("stopped")
     endSession()
@@ -1048,20 +1052,21 @@ end sub
 
 ' The media ended moments after it started, a minute or more before the
 ' title's end, as on Android: a file played as it is is converted, and a
-' stream opened again; when it falls short again within the minute, the
+' stream opened again once for the title; falling short after that, the
 ' player says so. Nothing is reported watched.
 sub endedShort()
+    m.stallTimer.control = "stop"
+    hideBanner()
     if m.info <> invalid and httpString(m.info.method) <> "transcode" and m.mode <> "transcode"
         open(m.itemId, m.startMs, m.item, "transcode")
         return
     end if
-    now = m.clock.TotalMilliseconds()
-    if m.shortAt <> invalid and now - m.shortAt < 60000
+    if m.shortTries > 0
         endSession()
         notice("Can't play this item", "This video ends before the point it was to play from.", ["Back"])
         return
     end if
-    m.shortAt = now
+    m.shortTries = m.shortTries + 1
     open(m.itemId, m.startMs, m.item, m.mode)
 end sub
 
@@ -1358,6 +1363,7 @@ sub playNext()
     m.restarts = []
     newTitle()
     m.bannerDue = true
+    m.shortTries = 0
     if m.queue <> invalid then m.queueAt = m.queueAt + 1
     open(nextEpisode.itemId, nextEpisode.startMs, invalid, "auto")
 end sub
@@ -1440,10 +1446,9 @@ end function
 
 ' --- pley's menu ---
 
-' Its entries: Quality, Subtitle sync for a file with text subtitles or
-' pictures drawn here,
-' Chapters for a file that has them, Sleep timer, Find subtitles…,
-' Playback details.
+' Its entries: Subtitles and Audio for a file with them, Quality, Subtitle
+' sync for a file with text subtitles or pictures drawn here, Chapters for
+' a file with two or more, Sleep timer, Find subtitles…, Playback details.
 sub openMenu()
     hideSkip()
     m.menuKind = "menu"

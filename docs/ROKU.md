@@ -216,12 +216,12 @@ Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
 numbered, the track playing in bold, which stays in view unless the
 focus is on the list. OK on one plays it, and the queue goes on from
 there. Up from the buttons goes to the scrubber, where Left and Right move
-10 s, as on Android TV. A long queue is listed 250 tracks at a time, from 50 before the
-one playing, the next part as playing nears the end of this one: each
-row is a node the Roku draws, and a playlist holds up to 5,000. Shuffle
-plays the other tracks after the one playing in a random order; Stop
-shuffling puts them back in the album's or playlist's order, at the same
-track. Play pauses or goes on; fast forward and rewind go to the next
+10 s, as on Android TV. A long queue is listed 250 tracks at a time, from
+50 before the one playing, the next part as playing nears the end of this
+one: each row is a node the Roku draws, and a playlist holds up to
+5,000. Shuffle plays the other tracks after the one playing in a random
+order; Stop shuffling puts them back in the album's or playlist's order,
+at the same track. Play pauses or goes on; fast forward and rewind go to the next
 track or back.
 
 The sleep timer belongs to the music, not to Now Playing: it runs while
@@ -603,9 +603,10 @@ bun run images    # the nine-patch focus and watched-mark images
   opens a title from its ready-to-watch notice, and checks that a server
   without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
-  Next, the sleep timers' ends and picture subtitles shown in time have
-  only unit tests), one fetch at a time, the odd dropped key, and no
-  measure of a Roku's speed.
+  Next and its wait at the end, the title as an item begins, reconnecting,
+  stalls, media that ends short, the sleep timers' ends and picture
+  subtitles shown in time have only unit tests), one fetch at a time, the
+  odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.
