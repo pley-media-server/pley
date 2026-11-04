@@ -226,14 +226,17 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
   };
   // The channel before or after this one in the category, round its ends; one change at a time.
   // The remote's, pressed elsewhere, says nothing here, and leaves a channel alone that has no other.
+  // Found late, after another channel was picked or the player stopped watching, it tunes nothing.
   const zapping = useRef(false);
   const zap = (by: number, remote = false) => {
     if (zapping.current) return;
     zapping.current = true;
     const from = c.state.value.channel.id;
+    const current = c.stepStarts(remote);
     zapPages.neighbor(from, by).then(
       (next) => {
         zapping.current = false;
+        if (!current()) return;
         if (!remote || (next && next.id !== from)) tune(next);
       },
       () => {

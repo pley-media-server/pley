@@ -93,12 +93,30 @@ sealed class FakeLive : ILiveSource, ILiveServer
         return Task.FromResult(new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() });
     }
 
+    /// <summary>The pages around a channel wait for <see cref="AnswerAround"/>: a channel step's neighbour found late.</summary>
+    public bool HoldAround { get; set; }
+    readonly List<(LiveChannelPage Page, TaskCompletionSource<LiveChannelPage> Answer)> heldAround = new List<(LiveChannelPage, TaskCompletionSource<LiveChannelPage>)>();
+
     public Task<LiveChannelPage> Around(LiveCategory category, long channelId)
     {
         var all = Of(category, "");
         var at = all.Select((c, i) => (c, i)).FirstOrDefault(x => x.c.Id == channelId);
         var page = at.c == null ? 0 : at.i / LiveRules.Page;
-        return Task.FromResult(new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() });
+        var answer = new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() };
+        if (!HoldAround) return Task.FromResult(answer);
+        var held = new TaskCompletionSource<LiveChannelPage>();
+        heldAround.Add((answer, held));
+        return held.Task;
+    }
+
+    public void AnswerAround()
+    {
+        HoldAround = false;
+        foreach (var (page, answer) in heldAround.ToList())
+        {
+            heldAround.Remove((page, answer));
+            answer.SetResult(page);
+        }
     }
 
     public Task<LiveChannel> Channel(long channelId) => Task.FromResult(Lineup.First(c => c.Id == channelId));

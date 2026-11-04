@@ -162,6 +162,8 @@ export class MusicPlayer {
       this.audio.currentTime = Math.max(0, ms) / 1000;
       return true;
     }
+    // The track's session ends first, as for the next track: a pause while the new one loads has nothing to pause.
+    this.endSession();
     void this.start(ms, null);
     return false;
   }
@@ -406,9 +408,9 @@ export class MusicPlayer {
       case "pause":
         this.audio.pause();
         break;
-      case "report":
+      case "none":
         // Playing or paused already: said again, so a remote a little behind settles.
-        this.report(this.audio.paused ? "paused" : "playing");
+        if (action.report) this.report(this.audio.paused ? "paused" : "playing");
         break;
       case "seek":
         if (this.seekTo(action.positionMs)) this.report(this.audio.paused ? "paused" : "playing");

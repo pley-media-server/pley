@@ -4,7 +4,7 @@ import type { Control, ServerEvent } from "../api/types";
  * The user's remote, on another of their devices (docs/API.md, "Remote
  * control"): what each player here obeys, and what it does with a
  * command. The TV obeys and shows no remote of its own. The rules are the
- * web's and the Android app's, pinned for every TV app by the shared
+ * web's and the Android app's, pinned for both Samsung apps by the shared
  * fixture (test/fixtures/remote.json).
  */
 
@@ -46,22 +46,24 @@ export type RemotePlayer =
   | { kind: "live"; session: string | null; hasOrder: boolean };
 
 /**
- * What the player does with a command. A play, pause or seek tells the
- * server where it is at once, so the remote sees it (a pause reports as
- * any pause does); another track or channel tells it with its own session.
- * A play while playing, or a pause while paused, changes nothing but says
- * where it is again (`report`), so a remote a little behind settles.
+ * What the player does with a command, and whether it tells the server
+ * where it is at once (`report`), so the remote sees it: a play, pause or
+ * seek does (a pause as any pause does); another track or channel tells
+ * it with its own session. A play while playing, or a pause while paused,
+ * changes nothing but says where it is again, so a remote a little behind
+ * settles.
  */
-export type RemoteAction =
+export type RemoteAction = { report: boolean } & (
   | { act: "none" }
-  | { act: "report" }
   | { act: "play" | "pause" }
   | { act: "seek"; positionMs: number }
   | { act: "next" | "previous" }
-  | { act: "channel"; by: 1 | -1 };
+  | { act: "channel"; by: 1 | -1 }
+);
 
-const NONE: RemoteAction = { act: "none" };
-const REPORT: RemoteAction = { act: "report" };
+const NONE: RemoteAction = { act: "none", report: false };
+/** Playing or paused already: said again. */
+const SAID_AGAIN: RemoteAction = { act: "none", report: true };
 
 /**
  * The rule every receiver follows: a command for another session is
@@ -77,24 +79,25 @@ export function remoteAction(p: RemotePlayer, c: PlayerCommand): RemoteAction {
   if (p.session === null || c.session_id !== p.session) return NONE;
   if (p.kind === "live") {
     if (!p.hasOrder) return NONE;
-    if (c.command === "next") return { act: "channel", by: 1 };
-    if (c.command === "previous") return { act: "channel", by: -1 };
+    if (c.command === "next") return { act: "channel", by: 1, report: false };
+    if (c.command === "previous") return { act: "channel", by: -1, report: false };
     return NONE;
   }
   switch (c.command) {
     case "play":
-      return p.playing ? REPORT : { act: "play" };
+      return p.playing ? SAID_AGAIN : { act: "play", report: true };
     case "pause":
-      return p.playing ? { act: "pause" } : REPORT;
+      return p.playing ? { act: "pause", report: true } : SAID_AGAIN;
     case "seek":
-      return c.position_ms === null ? NONE : { act: "seek", positionMs: within(c.position_ms, p.durationMs) };
+      // Not a number (left out, say): nowhere to go.
+      return typeof c.position_ms !== "number" ? NONE : { act: "seek", positionMs: within(c.position_ms, p.durationMs), report: true };
     case "skip":
-      return c.offset_ms === null ? NONE : { act: "seek", positionMs: within(p.positionMs + c.offset_ms, p.durationMs) };
+      return typeof c.offset_ms !== "number" ? NONE : { act: "seek", positionMs: within(p.positionMs + c.offset_ms, p.durationMs), report: true };
     case "next":
-      return p.hasNext ? { act: "next" } : NONE;
+      return p.hasNext ? { act: "next", report: false } : NONE;
     case "previous":
       if (p.kind === "video") return NONE;
-      return restartsTrack(p.positionMs, p.index ?? 0) ? { act: "seek", positionMs: 0 } : { act: "previous" };
+      return restartsTrack(p.positionMs, p.index ?? 0) ? { act: "seek", positionMs: 0, report: true } : { act: "previous", report: false };
     default:
       // A command a newer server knows.
       return NONE;

@@ -160,9 +160,8 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 
 ### Remote control
 
-The TV obeys the remote on the profile's other devices (the web app, the
-Android phone app, the Apple apps; [API.md](API.md#remote-control)) and
-shows no remote of its own. Its players say what they obey when they
+The TV obeys the remote on the profile's other devices that have one
+([API.md](API.md#remote-control)) and shows no remote of its own. Its players say what they obey when they
 start (`controls`) and that they play on a TV (`device_kind: "tv"`); the
 server names the TV from its web engine ("Samsung TV"). They obey:
 
@@ -184,8 +183,8 @@ within the title, and a skip counts from where it is. Each change is
 reported at once, so the remote sees it; another title, track or channel
 tells the server with its own session. A play on a player already
 playing, or a pause on one already paused, says so again at once, so a
-remote a little behind settles. The rule is pinned for every TV
-app by `packages/tv/test/fixtures/remote.json`.
+remote a little behind settles. The rule is pinned for both Samsung
+apps by `packages/tv/test/fixtures/remote.json`.
 
 ### Requests
 

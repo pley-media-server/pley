@@ -113,6 +113,10 @@
     {
       "in": { "player": { "session_id": "s1", "state": "playing", "position_ms": 60000, "duration_ms": 7200000, "has_next": false }, "command": { "session_id": "s1", "command": "previous", "position_ms": null, "offset_ms": null } },
       "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "state": "playing", "position_ms": 600000, "duration_ms": 7200000, "has_next": true }, "command": { "session_id": "s1", "command": "rewind", "position_ms": null, "offset_ms": null } },
+      "out": { "act": "none", "report": false }
     }
   ],
   "music": [
@@ -195,6 +199,10 @@
     {
       "in": { "player": { "session_id": "t1", "state": "paused", "position_ms": 1000, "duration_ms": 240000, "has_next": false, "index": 2 }, "command": { "session_id": "t1", "command": "previous", "position_ms": null, "offset_ms": null } },
       "out": { "act": "previous", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "t1", "state": "playing", "position_ms": 60000, "duration_ms": 240000, "has_next": true, "index": 2 }, "command": { "session_id": "t1", "command": "rewind", "position_ms": null, "offset_ms": null } },
+      "out": { "act": "none", "report": false }
     }
   ],
   "live": [
@@ -256,6 +264,10 @@
     },
     {
       "in": { "player": { "session_id": "l1", "channel": 5, "channels": [3, 5, 8] }, "command": { "session_id": "l1", "command": "skip", "position_ms": null, "offset_ms": -30000 } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "l1", "channel": 5, "channels": [3, 5, 8] }, "command": { "session_id": "l1", "command": "rewind", "position_ms": null, "offset_ms": null } },
       "out": { "act": "none", "report": false }
     }
   ]

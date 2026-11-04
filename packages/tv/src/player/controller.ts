@@ -1156,9 +1156,9 @@ export class PlaybackController {
       case "pause":
         this.pause();
         break;
-      case "report":
+      case "none":
         // Playing or paused already: said again, so a remote a little behind settles.
-        this.report(this.wantPlay ? "playing" : "paused");
+        if (action.report) this.report(this.wantPlay ? "playing" : "paused");
         break;
       case "seek":
         this.seekTo(action.positionMs);

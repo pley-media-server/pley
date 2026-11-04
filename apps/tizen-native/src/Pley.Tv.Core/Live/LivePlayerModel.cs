@@ -72,7 +72,7 @@ public sealed class LivePlayerModel : IDisposable
         this.playback = playback;
         this.scheduler = scheduler;
         // The remote's next and previous are channel up and down, as here.
-        playback.Zap = Step;
+        playback.Zap = by => Step(by, remote: true);
         if (seen != null) known[seen.Id] = seen;
         var category = LiveCategory.Parse(categoryKey);
         Category = new Signal<LiveCategory>(category);
@@ -152,7 +152,15 @@ public sealed class LivePlayerModel : IDisposable
     }
 
     /// <summary>Channel up (<paramref name="by"/> 1, the next in the category) or down (-1), round its ends.</summary>
-    public async void Step(int by)
+    public void Step(int by) => Step(by, remote: false);
+
+    /// <summary>
+    /// A step, from the TV's keys or the remote. Its channel, found a moment later, is tuned only if
+    /// nothing was tuned meanwhile (another step, a channel from the list or by its number) and the
+    /// player still watches: not in the background, and for the remote not stopped on the server
+    /// either, as it obeys nothing then. A late step would undo what came since.
+    /// </summary>
+    async void Step(int by, bool remote)
     {
         var at = ++zaps;
         LiveChannel? next;
@@ -166,6 +174,8 @@ public sealed class LivePlayerModel : IDisposable
             return;
         }
         if (gone || at != zaps || next == null) return;
+        var phase = State.Value.Is;
+        if (phase is LivePhase.Idle || (remote && phase is LivePhase.Failed)) return;
         Tune(next.Id, next);
     }
 
@@ -269,6 +279,8 @@ public sealed class LivePlayerModel : IDisposable
 
     void TuneNow(long channelId)
     {
+        // A step still looking for its channel is late now.
+        zaps++;
         current = channelId;
         endedAsked = null;
         source.Keep(channel: channelId);

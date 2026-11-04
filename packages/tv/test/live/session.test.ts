@@ -591,4 +591,86 @@ describe("a live channel and the user's remote, on another device", () => {
     send(command("s1", "next"));
     expect(zaps).toEqual([]);
   });
+
+  /**
+   * A player with the screen's channel step (CH+ and CH−, and the remote's
+   * next and previous), whose neighbour, the channel `by` from the one
+   * playing, is found only when `found()` is called.
+   */
+  function stepping() {
+    const pending: (() => void)[] = [];
+    let c: LiveController | null = null;
+    const step = (by: 1 | -1, remote: boolean) => {
+      const current = c!.stepStarts(remote);
+      const to = c!.state.value.channel.id + by;
+      pending.push(() => current() && c!.tune(channel(to)));
+    };
+    const w = setup(undefined, (by) => step(by, true));
+    c = w.c;
+    const found = () => pending.splice(0).forEach((f) => f());
+    return { ...w, step, found };
+  }
+
+  it("leaves a channel picked while the remote's step looked for its neighbour playing", async () => {
+    const { c, engine, asked, send, found } = stepping();
+    c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    engine.listener!.firstFrame();
+    send(command("s1", "next"));
+    // Picked from the channel list before the step's answer came.
+    c.tune(channel(7));
+    await vi.advanceTimersByTimeAsync(0);
+    found();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(asked)).toEqual(["watch 1 tizen-tv", "watch 7 tizen-tv"]);
+    expect(c.state.value.channel.id).toBe(7);
+  });
+
+  it("watches nothing for a step whose neighbour came once the app was hidden, or the session stopped", async () => {
+    const hidden = stepping();
+    hidden.c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    hidden.engine.listener!.firstFrame();
+    hidden.send(command("s1", "next"));
+    hidden.c.suspend();
+    hidden.found();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(hidden.asked)).toEqual(["watch 1 tizen-tv"]);
+
+    const stoppedHere = stepping();
+    stoppedHere.c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    stoppedHere.engine.listener!.firstFrame();
+    stoppedHere.send(command("s1", "next"));
+    stoppedHere.send(stopped("s1", null, false));
+    stoppedHere.found();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(stoppedHere.asked)).toEqual(["watch 1 tizen-tv"]);
+    expect(stoppedHere.c.state.value.trouble?.kind).toBe("stopped");
+  });
+
+  it("still changes channel for CH+ on the TV pressed as the session stopped, and for a step once the app shows again", async () => {
+    const tv = stepping();
+    tv.c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    tv.engine.listener!.firstFrame();
+    tv.step(1, false);
+    tv.send(stopped("s1", null, false));
+    tv.found();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(tv.asked)).toEqual(["watch 1 tizen-tv", "watch 2 tizen-tv"]);
+
+    const shown = stepping();
+    shown.c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    shown.engine.listener!.firstFrame();
+    shown.c.suspend();
+    shown.c.resume();
+    await vi.advanceTimersByTimeAsync(0);
+    shown.engine.listener!.firstFrame();
+    shown.send(command("s2", "next"));
+    shown.found();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(shown.asked)).toEqual(["watch 1 tizen-tv", "watch 1 tizen-tv", "watch 2 tizen-tv"]);
+  });
 });

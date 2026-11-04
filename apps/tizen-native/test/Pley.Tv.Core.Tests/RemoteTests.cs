@@ -42,22 +42,11 @@ public class RemoteRuleTests
 
     /// <summary>
     /// An action as the fixture writes it: what the player does, and whether its session reports at
-    /// once (a play, pause or seek does, and a play or pause that finds it so already).
+    /// once, as the rule says.
     /// </summary>
-    static string Written(RemoteAction a)
-    {
-        switch (a.Act)
-        {
-            case RemoteAct.None:
-                return Fixtures.Json(new Dictionary<string, object> { ["act"] = "none", ["report"] = false });
-            case RemoteAct.Report:
-                return Fixtures.Json(new Dictionary<string, object> { ["act"] = "none", ["report"] = true });
-            case RemoteAct.Seek:
-                return Fixtures.Json(new Dictionary<string, object> { ["act"] = "seek", ["position_ms"] = a.PositionMs, ["report"] = true });
-            default:
-                return Fixtures.Json(new Dictionary<string, object> { ["act"] = a.Act.ToString().ToLowerInvariant(), ["report"] = a.Act is RemoteAct.Play or RemoteAct.Pause });
-        }
-    }
+    static string Written(RemoteAction a) => a.Act == RemoteAct.Seek
+        ? Fixtures.Json(new Dictionary<string, object> { ["act"] = "seek", ["position_ms"] = a.PositionMs, ["report"] = a.Report })
+        : Fixtures.Json(new Dictionary<string, object> { ["act"] = a.Act.ToString().ToLowerInvariant(), ["report"] = a.Report });
 
     static string Played(RemoteKind kind, JsonElement input)
     {
@@ -129,9 +118,11 @@ public class RemoteRuleTests
         command = command with { SessionId = command.SessionId == p.GetProperty("session_id").GetString() ? "s1" : "s9" };
         var watches = live.Controls.Count;
         live.Emit(command);
+        // Whether its session reports at once, as the rule says: a new channel tells the server with its own.
+        var report = Remote.Action(new RemotePlayer(RemoteKind.Live, "s1", HasOrder: order != null), command).Report;
         var tuned = live.Controls.Count > watches
-            ? new Dictionary<string, object> { ["act"] = "channel", ["channel"] = long.Parse(live.LastWatch.Split(' ')[1]), ["report"] = false }
-            : new Dictionary<string, object> { ["act"] = "none", ["report"] = false };
+            ? new Dictionary<string, object> { ["act"] = "channel", ["channel"] = long.Parse(live.LastWatch.Split(' ')[1]), ["report"] = report }
+            : new Dictionary<string, object> { ["act"] = "none", ["report"] = report };
         Assert.Equal(Fixtures.Normalize(c.GetProperty("out").GetRawText()), Fixtures.Json(tuned));
     }
 
@@ -473,6 +464,50 @@ public class LiveRemoteTests
         vm.Dispose();
         live.Emit(Command("next", session: "s4"));
         Assert.Equal(4, live.Controls.Count);
+    }
+
+    [Fact]
+    public void A_channel_picked_while_the_remotes_step_looks_for_its_neighbour_stays()
+    {
+        using var vm = new LivePlayerModel(live, Playback(), scheduler, 1, new LiveCategory.All().Key);
+        live.HoldAround = true;
+        live.Emit(Command("next"));
+        vm.Tune(5);
+        live.AnswerAround();
+        Assert.Equal(new[] { "watch 1 tizen-1", "watch 5 tizen-1" }, live.Sent.Where(s => s.StartsWith("watch")));
+        Assert.Equal(5, vm.State.Value.ChannelId);
+    }
+
+    [Fact]
+    public void A_step_whose_neighbour_comes_in_the_background_or_once_stopped_watches_nothing()
+    {
+        using var vm = new LivePlayerModel(live, Playback(), scheduler, 1, new LiveCategory.All().Key);
+        live.HoldAround = true;
+        live.Emit(Command("next"));
+        vm.Stop();
+        live.AnswerAround();
+        Assert.Single(live.Controls);
+        // Back in front: the channel it left, and nothing else.
+        vm.Resume();
+        Assert.Equal(new[] { "watch 1 tizen-1", "watch 1 tizen-1" }, live.Sent.Where(s => s.StartsWith("watch")));
+
+        live.HoldAround = true;
+        live.Emit(Command("next", session: "s2"));
+        live.Emit(new ServerEvent { Type = "session_stopped", SessionId = "s2", ByAdmin = false });
+        live.AnswerAround();
+        Assert.Equal(2, live.Controls.Count);
+        Assert.Equal(LiveTroubleKind.Stopped, vm.State.Value.Trouble?.Kind);
+    }
+
+    [Fact]
+    public void Channel_up_on_the_tv_pressed_as_it_stopped_still_changes_channel()
+    {
+        using var vm = new LivePlayerModel(live, Playback(), scheduler, 1, new LiveCategory.All().Key);
+        live.HoldAround = true;
+        vm.Step(1);
+        live.Emit(new ServerEvent { Type = "session_stopped", SessionId = "s1", ByAdmin = false });
+        live.AnswerAround();
+        Assert.Equal("watch 2 tizen-1", live.LastWatch);
     }
 
     [Fact]

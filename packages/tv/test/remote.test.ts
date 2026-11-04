@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LiveChannel } from "../src/api/types";
 import { ChannelPages, type LiveBrowser } from "../src/live/pages";
 import { liveControls, MUSIC_CONTROLS, remoteAction, videoControls, type PlayerCommand, type RemoteAction } from "../src/player/remote";
-// Shared with the other TV apps' tests, which must answer the same.
+// Shared with the native Samsung app's tests, which must answer the same.
 import fixture from "./fixtures/remote.json";
 
 interface Player {
@@ -18,21 +18,17 @@ const command = (c: Omit<PlayerCommand, "type">): PlayerCommand => ({ type: "pla
 
 /**
  * An action as the fixture writes it: what the player does, and whether
- * its session reports at once (a play, pause or seek does, and a play or
- * pause that finds it so already); a channel as the one it tunes.
+ * its session reports at once, as the rule says; a channel as the one it
+ * tunes.
  */
 function written(a: RemoteAction, channel: number | null = null): Record<string, unknown> {
   switch (a.act) {
-    case "none":
-      return { act: "none", report: false };
-    case "report":
-      return { act: "none", report: true };
     case "seek":
-      return { act: "seek", position_ms: a.positionMs, report: true };
+      return { act: "seek", position_ms: a.positionMs, report: a.report };
     case "channel":
-      return channel === null ? { act: "none", report: false } : { act: "channel", channel, report: false };
+      return channel === null ? { act: "none", report: a.report } : { act: "channel", channel, report: a.report };
     default:
-      return { act: a.act, report: a.act === "play" || a.act === "pause" };
+      return { act: a.act, report: a.report };
   }
 }
 

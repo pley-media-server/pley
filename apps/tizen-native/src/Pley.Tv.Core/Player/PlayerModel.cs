@@ -960,9 +960,9 @@ public sealed class PlayerModel : IDisposable
             case RemoteAct.Pause:
                 Pause();
                 break;
-            case RemoteAct.Report:
+            case RemoteAct.None:
                 // Playing or paused already: said again, so a remote a little behind settles.
-                Report(wantPlay ? "playing" : "paused");
+                if (action.Report) Report(wantPlay ? "playing" : "paused");
                 break;
             case RemoteAct.Seek:
                 SeekTo(action.PositionMs);

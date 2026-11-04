@@ -148,6 +148,8 @@ export class LiveController {
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
   private closed = false;
+  /** The TV hid the app: nothing is watched until it shows again. */
+  private hidden = false;
 
   constructor(channel: LiveChannel, env: LiveEnv) {
     this.env = env;
@@ -228,6 +230,19 @@ export class LiveController {
     if (this.state.value.phase === "error") return;
     const action = remoteAction({ kind: "live", session: this.session, hasOrder: !!step }, command);
     if (action.act === "channel") step?.(action.by);
+  }
+
+  /**
+   * A channel step starts (CH+ or CH−, or the remote's next or previous):
+   * the answer says whether the channel it finds, a moment later, may
+   * still be tuned. Not once another was tuned meanwhile (from the
+   * channel list, say), nor once the player stopped watching (hidden or
+   * gone; for the remote, stopped on the server too, as it obeys nothing
+   * then): the step would undo what came since.
+   */
+  stepStarts(remote: boolean): () => boolean {
+    const tunes = this.state.value.tunes;
+    return () => !this.closed && !this.hidden && this.state.value.tunes === tunes && !(remote && this.state.value.phase === "error");
   }
 
   /** The same channel again (Try again). */
@@ -416,6 +431,7 @@ export class LiveController {
    * shows, unless it had stopped there (taken over, say).
    */
   suspend(): void {
+    this.hidden = true;
     this.generation++;
     this.cancel?.cancel();
     this.clearTimers();
@@ -430,6 +446,7 @@ export class LiveController {
    */
   resume(): void {
     if (this.closed) return;
+    this.hidden = false;
     const st = this.state.value;
     if (st.phase === "error" && st.trouble?.kind === "stopped") return;
     this.retries = 0;

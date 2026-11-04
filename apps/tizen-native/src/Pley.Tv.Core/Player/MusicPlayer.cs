@@ -327,9 +327,9 @@ public sealed class MusicPlayer : IMusicControl
             case RemoteAct.Pause:
                 Pause();
                 break;
-            case RemoteAct.Report:
+            case RemoteAct.None:
                 // Playing or paused already: said again, so a remote a little behind settles.
-                s.Progress(LastPosition(), wantPlay);
+                if (action.Report) s.Progress(LastPosition(), wantPlay);
                 break;
             case RemoteAct.Seek:
                 o.SeekTo(action.PositionMs);

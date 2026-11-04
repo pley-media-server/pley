@@ -11,7 +11,7 @@ function track(id: number): ItemSummary {
 }
 
 /** The music player with the server and an <audio> element the test drives: what was asked, and where it plays. */
-async function world(tracks: number[], at: number) {
+async function world(tracks: number[], at: number, method: "direct" | "transcode" = "direct") {
   const calls: string[] = [];
   const requests: PlaybackRequest[] = [];
   let n = 0;
@@ -21,7 +21,7 @@ async function world(tracks: number[], at: number) {
       requests.push(req);
       n++;
       calls.push(`start ${req.item_id}`);
-      return { session_id: `t${n}`, method: "direct", url: `/api/media/pley_mk_${n}/file.flac`, hls: false, file_id: req.item_id, duration_ms: 240_000, audio_index: 0, subtitle_index: null, burn_subtitles: false, subtitles: [], reason: null };
+      return { session_id: `t${n}`, method, url: `/api/media/pley_mk_${n}/file.flac`, hls: false, file_id: req.item_id, duration_ms: 240_000, audio_index: 0, subtitle_index: null, burn_subtitles: false, subtitles: [], reason: null };
     },
     progress: async (id: number, pos: number, _d: number | null, state: string) => void calls.push(`progress ${id} ${state} ${Math.round(pos)}`),
     stopSession: async (id: string) => void calls.push(`delete ${id}`),
@@ -38,6 +38,8 @@ async function world(tracks: number[], at: number) {
   const media = { paused: true, at: 0 };
   Object.defineProperty(audio, "paused", { get: () => media.paused });
   Object.defineProperty(audio, "currentTime", { get: () => media.at, set: (s: number) => (media.at = s) });
+  // A conversion moves only where it has come to, and here it has come nowhere.
+  Object.defineProperty(audio, "seekable", { get: () => ({ length: 0 }) });
   audio.play = () => {
     media.paused = false;
     audio.dispatchEvent(new Event("playing"));
@@ -120,5 +122,29 @@ describe("music and the user's remote, on another device", () => {
     last.send("t1", "next");
     await settle();
     expect(last.calls).toEqual([]);
+  });
+
+  it("ends the track's session before a seek that can't move within it starts another, so a pause meanwhile pauses nothing", async () => {
+    const { media, calls, send } = await world([1, 2, 3], 1, "transcode");
+    media.at = 60;
+    send("t1", "seek", { position_ms: 120_000 });
+    send("t1", "pause");
+    await settle();
+    expect(calls).toEqual(["progress 2 stopped 60000", "delete t1", "start 2"]);
+    expect(media.paused).toBe(false);
+  });
+
+  it("obeys nothing once the server stopped it", async () => {
+    const { player, media, calls, send } = await world([1, 2, 3], 1);
+    player.pause();
+    player.stoppedByServer("t1");
+    await settle();
+    calls.length = 0;
+    send("t1", "play");
+    send("t1", "seek", { position_ms: 0 });
+    send("t1", "next");
+    await settle();
+    expect(media.paused).toBe(true);
+    expect(calls).toEqual([]);
   });
 });

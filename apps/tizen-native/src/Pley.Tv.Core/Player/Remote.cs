@@ -34,8 +34,6 @@ public sealed record RemotePlayer(
 public enum RemoteAct
 {
     None,
-    /// <summary>Nothing changes, but where it is is said again: a play while playing, a pause while paused.</summary>
-    Report,
     Play,
     Pause,
     /// <summary>To <see cref="RemoteAction.PositionMs"/>.</summary>
@@ -47,21 +45,24 @@ public enum RemoteAct
 }
 
 /// <summary>
-/// What a player does with a command. A play, pause or seek tells the server where it is at once,
-/// so the remote sees it (a pause reports as any pause does); another track, title or channel
-/// tells the server with its own session. A play while playing, or a pause while paused, says
-/// where it is again, so a remote a little behind settles.
+/// What a player does with a command, and whether it tells the server where it is at once
+/// (<paramref name="Report"/>), so the remote sees it: a play, pause or seek does (a pause as any
+/// pause does); another track, title or channel tells the server with its own session. A play
+/// while playing, or a pause while paused, changes nothing but says where it is again, so a remote
+/// a little behind settles.
 /// </summary>
-public sealed record RemoteAction(RemoteAct Act, long PositionMs = 0, int By = 0)
+public sealed record RemoteAction(RemoteAct Act, bool Report, long PositionMs = 0, int By = 0)
 {
-    public static readonly RemoteAction None = new RemoteAction(RemoteAct.None);
-    public static readonly RemoteAction Report = new RemoteAction(RemoteAct.Report);
+    public static readonly RemoteAction None = new RemoteAction(RemoteAct.None, false);
+
+    /// <summary>Playing or paused already: said again.</summary>
+    public static readonly RemoteAction SaidAgain = new RemoteAction(RemoteAct.None, true);
 }
 
 /// <summary>
 /// The profile's remote, on another of its devices (docs/API.md, "Remote control"): what each
 /// player here obeys, and what it does with a command. The TV obeys and shows no remote of its
-/// own. The rules are the Android app's and the web's, pinned for every TV app by
+/// own. The rules are the Android app's and the web's, pinned for both Samsung apps by
 /// packages/tv/test/fixtures/remote.json.
 /// </summary>
 public static class Remote
@@ -96,26 +97,26 @@ public static class Remote
             if (!p.HasOrder) return RemoteAction.None;
             return c.Command switch
             {
-                "next" => new RemoteAction(RemoteAct.Channel, By: 1),
-                "previous" => new RemoteAction(RemoteAct.Channel, By: -1),
+                "next" => new RemoteAction(RemoteAct.Channel, false, By: 1),
+                "previous" => new RemoteAction(RemoteAct.Channel, false, By: -1),
                 _ => RemoteAction.None,
             };
         }
         switch (c.Command)
         {
             case "play":
-                return p.Playing ? RemoteAction.Report : new RemoteAction(RemoteAct.Play);
+                return p.Playing ? RemoteAction.SaidAgain : new RemoteAction(RemoteAct.Play, true);
             case "pause":
-                return p.Playing ? new RemoteAction(RemoteAct.Pause) : RemoteAction.Report;
+                return p.Playing ? new RemoteAction(RemoteAct.Pause, true) : RemoteAction.SaidAgain;
             case "seek":
-                return c.PositionMs is long at ? new RemoteAction(RemoteAct.Seek, Within(at, p.DurationMs)) : RemoteAction.None;
+                return c.PositionMs is long at ? new RemoteAction(RemoteAct.Seek, true, Within(at, p.DurationMs)) : RemoteAction.None;
             case "skip":
-                return c.OffsetMs is long by ? new RemoteAction(RemoteAct.Seek, Within(p.PositionMs + by, p.DurationMs)) : RemoteAction.None;
+                return c.OffsetMs is long by ? new RemoteAction(RemoteAct.Seek, true, Within(p.PositionMs + by, p.DurationMs)) : RemoteAction.None;
             case "next":
-                return p.HasNext ? new RemoteAction(RemoteAct.Next) : RemoteAction.None;
+                return p.HasNext ? new RemoteAction(RemoteAct.Next, false) : RemoteAction.None;
             case "previous":
                 if (p.Kind == RemoteKind.Video) return RemoteAction.None;
-                return RestartsTrack(p.PositionMs, p.Index) ? new RemoteAction(RemoteAct.Seek, 0) : new RemoteAction(RemoteAct.Previous);
+                return RestartsTrack(p.PositionMs, p.Index) ? new RemoteAction(RemoteAct.Seek, true, 0) : new RemoteAction(RemoteAct.Previous, false);
             default:
                 // A command a newer server knows.
                 return RemoteAction.None;

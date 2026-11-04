@@ -1433,4 +1433,20 @@ describe("the user's remote, on another device", () => {
     expect(c.state.value.notice).toBeNull();
     c.close();
   });
+
+  it("obeys nothing once the server stopped its session", async () => {
+    const { w, c } = await playing(item(file(), { kind: "episode" }));
+    c.pause();
+    w.send({ type: "session_stopped", session_id: "s1", message: null, by_admin: false });
+    await settle();
+    w.calls.length = 0;
+    w.send(command({ session_id: "s1", command: "play" }));
+    w.send(command({ session_id: "s1", command: "seek", position_ms: 0 }));
+    w.send(command({ session_id: "s1", command: "next" }));
+    await settle();
+    expect(c.wantsToPlay).toBe(false);
+    expect(w.requests).toHaveLength(1);
+    expect(w.calls).toEqual([]);
+    c.close();
+  });
 });
