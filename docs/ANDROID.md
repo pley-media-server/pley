@@ -153,7 +153,11 @@ heard it for that profile, the start asks "Who's watching?".
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,
   Alexa's play and pause). Fire OS 16 asks for the nearby-devices
-  permission before the app searches the network.
+  permission before the app searches the network. An Appstore app's
+  tile is the 16:9 icon in its listing
+  (`deploy/stores/tv-banner-1280x720.png`, the mark and name); a
+  sideloaded app's is drawn from the app's icon, squeezed into a square in
+  the middle of a grey tile, whatever its shape or banner.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows
   the profile's Continue Watching, ten at most.
 - **Dolby Vision and HDR** go by the display mode each video plays in: the
