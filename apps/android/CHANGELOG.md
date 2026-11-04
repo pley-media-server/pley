@@ -13,6 +13,11 @@ describes how they are made.
 - The banner on Android TV and Google TV's home screen shows Pley's mark
   and name centred, larger, the name closer to the mark.
 
+### Fixed
+
+- Search no longer closes the app when a recent search is "discover" or
+  "header" on a phone, or "pley.clear" on a TV.
+
 ## [0.1.5] - 2026-11-03
 
 ### Added

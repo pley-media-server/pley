@@ -326,7 +326,7 @@ private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: ()
                 PleyTextButton(stringResource(R.string.search_recent_clear), onClick = onClear)
             }
         }
-        items(recent, key = { it }, contentType = { "recent" }) { query ->
+        items(recent, key = { "recent:$it" }, contentType = { "recent" }) { query ->
             Row(
                 Modifier
                     .fillMaxWidth()
