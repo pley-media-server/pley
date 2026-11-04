@@ -6,6 +6,7 @@ import { useServerEvents } from "@/api/events";
 import type { Channel } from "@/api/livetv";
 import type { ServerEvent } from "@/api/types";
 import { isPlayingHere } from "@/lib/playingHere";
+import { makeReceiver } from "@/test/fixtures";
 import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { LivePlayerPage } from "./LivePlayerPage";
 
@@ -289,6 +290,29 @@ describe("LivePlayerPage and the remote", () => {
     await waitFor(() => expect(isPlayingHere("5-2")).toBe(true));
     act(() => FakeEventSource.last?.send(command("5-2", "previous")));
     await waitFor(() => expect(watched(requests).at(-1)).toBe("/api/live/channels/7/watch"));
+  });
+
+  it("watches the channel on another device, and leaves it here", async () => {
+    const requests = mockApi({
+      "GET /api/live/channels/5": () => news,
+      "POST /api/live/channels/5/watch": () => ({ session_id: "5-1", url: "/api/live/sessions/5-1/index.m3u8", kind: "hls", channel: news }),
+      "DELETE /api/live/sessions/5-1": () => undefined,
+      "GET /api/sessions": () => [],
+      // A phone without Live TV isn't offered.
+      "GET /api/remote/devices": () => [makeReceiver(), makeReceiver({ receiver_id: "phone-1", device_id: "app-3", name: "Phone", casts: ["item"] })],
+      "POST /api/remote/devices/tv-1/cast": () => undefined,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<Player />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+
+    await user.click(await screen.findByRole("button", { name: "Watch on…" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.getAttribute("aria-label"))).toEqual(["Living room TV"]);
+    await user.click(screen.getByRole("menuitem", { name: "Living room TV" }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/live$/));
+    expect(await screen.findByText("Playing on Living room TV")).toBeInTheDocument();
+    expect(requests.find((r) => r.path === "/api/remote/devices/tv-1/cast")?.body).toEqual({ channel_id: 5 });
+    await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/live/sessions/5-1")).toBe(true));
   });
 
   it("stops when it is stopped from another device, and says so", async () => {

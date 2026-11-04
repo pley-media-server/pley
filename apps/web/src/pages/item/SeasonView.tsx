@@ -3,6 +3,7 @@ import { ChevronRight, Play } from "lucide-react";
 import { useChildren, useOnDeck, type ChildItem } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
+import { PlayOn } from "@/components/PlayOn";
 import { Button, SectionTitle, Skeleton } from "@/components/ui";
 import { episodeLabel, formatDate, formatDuration, pluralize, progressFraction, seasonTitle } from "@/lib/format";
 import { thumbCandidates } from "@/lib/images";
@@ -99,6 +100,8 @@ export function SeasonView({ item }: { item: ItemDetail }) {
             >
               {ep ? `${resuming ? "Resume" : "Play"} ${episodeLabel(ep)}` : "Play"}
             </Button>
+            {/* The device plays the episode its own Play would. */}
+            {episodes.data?.length === 0 ? null : <PlayOn kind="item" cast={() => ({ item_id: item.id })} />}
             <WatchedButton item={item} />
             <MoreActions item={item} />
           </div>

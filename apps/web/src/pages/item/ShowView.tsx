@@ -3,6 +3,7 @@ import { useChildren, useOnDeck } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { CardSkeleton, MediaCard } from "@/components/cards";
 import { PartOfCollections } from "@/components/lists/PartOfCollections";
+import { PlayOn } from "@/components/PlayOn";
 import { StarRating } from "@/components/StarRating";
 import { Button, SectionTitle } from "@/components/ui";
 import { episodeLabel, pluralize } from "@/lib/format";
@@ -73,6 +74,8 @@ export function ShowView({ item }: { item: ItemDetail }) {
             >
               {playLabel}
             </Button>
+            {/* The device plays the episode its own Play would. */}
+            {item.leaf_count || ep ? <PlayOn kind="item" cast={() => ({ item_id: item.id })} /> : null}
             <MyListButton item={item} />
             <WatchedButton item={item} />
             <MoreActions item={item} />

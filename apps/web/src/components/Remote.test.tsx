@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
 import { playingHere } from "@/lib/playingHere";
+import { openRemoteOn } from "@/lib/remote";
 import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
 import { RemoteButton } from "./Remote";
@@ -147,6 +148,24 @@ describe("RemoteButton", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: /^Remote/ }));
     expect(within(screen.getByRole("dialog")).queryByRole("group")).toBeNull();
+  });
+
+  it("opens on the device a page cast to, once the header shows, and once only", async () => {
+    serve(
+      () => [episode()],
+      () => [phone],
+    );
+    // Cast from a player, which hides the header and leaves.
+    openRemoteOn("app-3");
+    const { unmount } = renderWithProviders(<RemoteButton />);
+    const remote = await screen.findByRole("dialog", { name: "Your devices" });
+    expect(within(remote).getByRole("button", { name: "Phone" })).toHaveAttribute("aria-current", "true");
+    expect(within(remote).getByRole("group", { name: "Phone" })).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<RemoteButton />);
+    await screen.findByRole("button", { name: /^Remote/ });
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("says how to send something to a device ready to play", async () => {

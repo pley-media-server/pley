@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { AudioLines, Play, Shuffle } from "lucide-react";
+import { AudioLines, Cast, Play, Shuffle } from "lucide-react";
 import { useChildren, type ChildItem } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
 import { CardSkeleton, MediaCard } from "@/components/cards";
+import { PlayOn } from "@/components/PlayOn";
 import { StarRating } from "@/components/StarRating";
-import { Button, SectionTitle, Skeleton } from "@/components/ui";
+import { Button, IconButton, SectionTitle, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { formatClock, formatDuration, pluralize } from "@/lib/format";
 import { useElementWidth } from "@/lib/hooks";
@@ -58,6 +59,8 @@ export function ArtistView({ item }: { item: ItemDetail }) {
             <Button size="lg" icon={<Shuffle className="size-4" />} onClick={() => void play(item, { shuffle: true })}>
               Shuffle
             </Button>
+            <PlayOn kind="item" cast={() => ({ item_id: item.id })} />
+            <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
             <MoreActions item={item} />
           </>
         }
@@ -135,6 +138,12 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
             >
               Shuffle
             </Button>
+            {tracks.isSuccess && list.length === 0 ? null : (
+              <>
+                <PlayOn kind="item" cast={() => ({ item_id: item.id })} />
+                <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
+              </>
+            )}
             <MoreActions item={item} />
           </>
         }
@@ -226,9 +235,33 @@ function TrackRow({
             {playing ? <AudioLines className="size-4 animate-pulse" /> : <Play className="size-4 fill-current" />}
           </button>
         </span>
-        <span role="cell" className="min-w-0">
-          <span className={cn("block truncate font-medium", current ? "text-accent" : "text-fg")}>{track.title}</span>
-          {artist ? <span className="block truncate text-xs text-muted">{artist}</span> : null}
+        <span role="cell" className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 flex-1">
+            <span className={cn("block truncate font-medium", current ? "text-accent" : "text-fg")}>{track.title}</span>
+            {artist ? <span className="block truncate text-xs text-muted">{artist}</span> : null}
+          </span>
+          {/* A double click here isn't one on the row, which plays the track here. */}
+          <span onDoubleClick={(e) => e.stopPropagation()}>
+            <PlayOn
+              kind="item"
+              align="right"
+              cast={() => ({ item_id: track.id })}
+              trigger={({ open, toggle }) => (
+                <IconButton
+                  label={`Play ${track.title} on…`}
+                  size="xs"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  active={open}
+                  onClick={toggle}
+                  // With the pointer over the row or focus in it, as the row's Play.
+                  className="opacity-100 transition-opacity [@media(hover:hover)]:sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+                >
+                  <Cast className="size-3.5" />
+                </IconButton>
+              )}
+            />
+          </span>
         </span>
         <span role="cell" className="text-right tabular-nums text-muted">
           {track.duration_ms ? formatClock(track.duration_ms / 1000) : ""}

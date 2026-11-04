@@ -88,4 +88,45 @@ describe("Menu", () => {
     await user.keyboard("{Enter}");
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
+
+  it("tells its owner it opened and closed, and closed when it went while open", async () => {
+    const user = userEvent.setup();
+    const heard: boolean[] = [];
+    const menu = (
+      <Menu
+        onOpenChange={(open) => heard.push(open)}
+        trigger={({ toggle }) => (
+          <button type="button" onClick={toggle}>
+            More
+          </button>
+        )}
+      >
+        {(close) => <MenuItem onClick={close}>Refresh metadata</MenuItem>}
+      </Menu>
+    );
+    const { rerender } = render(menu);
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Refresh metadata" }));
+    await user.click(screen.getByRole("button", { name: "More" }));
+    rerender(<p>gone</p>);
+    expect(heard).toEqual([true, false, true, false]);
+  });
+
+  it("keeps the keys it takes from the page's own shortcuts", async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const heard: string[] = [];
+    const onKey = (e: KeyboardEvent) => heard.push(e.key);
+    window.addEventListener("keydown", onKey);
+    try {
+      await user.click(screen.getByRole("button", { name: "More" }));
+      await user.keyboard("{ArrowDown}{End}{m}{Escape}");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      // Only what the menu doesn't take goes on to the page.
+      expect(heard).toEqual(["m"]);
+    } finally {
+      window.removeEventListener("keydown", onKey);
+    }
+  });
 });

@@ -1,4 +1,5 @@
-import type { Control, DeviceKind, PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
+import { useSyncExternalStore } from "react";
+import type { CastKind, Control, DeviceKind, PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
 import { streamLabel } from "./format";
 
 /** How long a remote waits for a player to show it acted on a command. */
@@ -78,6 +79,49 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
     seen.set(d.name, n);
     return (total.get(d.name) ?? 0) > 1 ? { ...d, name: `${d.name} (${n})` } : d;
   });
+}
+
+/** The devices that take `kind` when cast to, in the list's order. */
+export function castTargets(devices: OtherDevice[], kind: CastKind): OtherDevice[] {
+  return devices.filter((d) => d.receiver?.casts.includes(kind));
+}
+
+/** A page's wish for the header's remote to open on a device: one cast just went there. */
+export interface RemoteAsk {
+  deviceId: string;
+}
+
+let ask: RemoteAsk | null = null;
+const askListeners = new Set<() => void>();
+
+function asked(next: RemoteAsk | null) {
+  ask = next;
+  for (const listener of askListeners) listener();
+}
+
+/**
+ * Opens the header's remote on `deviceId`: at once, or as the header shows
+ * again (a player, which hides it, casts and leaves).
+ */
+export function openRemoteOn(deviceId: string) {
+  asked({ deviceId });
+}
+
+/** The remote opened as `done` asked: a later wish stays. */
+export function remoteOpened(done: RemoteAsk) {
+  if (ask === done) asked(null);
+}
+
+function subscribeAsk(listener: () => void): () => void {
+  askListeners.add(listener);
+  return () => {
+    askListeners.delete(listener);
+  };
+}
+
+/** The wish not yet heard, kept up to date. */
+export function useRemoteAsk(): RemoteAsk | null {
+  return useSyncExternalStore(subscribeAsk, () => ask);
 }
 
 /** `device`'s newest session in `sessions`, leaving out those `mine` says play here. */

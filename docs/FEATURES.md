@@ -49,6 +49,11 @@ What Pley does, in full. The [README](../README.md) has the short version.
   previous title (or channel, on Live TV), changes the audio track and the
   subtitles, and stops what plays there. Each player obeys the commands it
   can; any can be stopped ([API.md](API.md#remote-control)).
+- Play on… in the web and desktop apps, beside Play on a movie, an episode,
+  a show, a season, an artist, an album, a track and a playlist (Shuffle
+  on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
+  on another of your devices that takes casts, as that device's own Play
+  would, and the remote opens on it ([API.md](API.md#casting)).
 
 ## Live TV
 

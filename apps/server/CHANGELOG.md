@@ -41,7 +41,10 @@ describes how they are made.
   Jellyfin apps that take media control switch track too.
 - The web and desktop apps' remote lists your other devices that are on,
   those playing first, then those ready to play, and changes the audio
-  track and the subtitles of what plays on one.
+  track and the subtitles of what plays on one. Play on… beside Play
+  (Shuffle on… beside Shuffle, Watch on… for a Live TV channel) plays a
+  title, music, a playlist or a channel on one of them, and opens the
+  remote on it.
 
 ### Fixed
 

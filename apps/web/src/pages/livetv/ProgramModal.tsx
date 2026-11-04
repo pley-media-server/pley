@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Play, Radio, Star } from "lucide-react";
 import { episodeLabel, programProgress, useSetFavorite, type Channel, type LiveCategory, type Program } from "@/api/livetv";
 import { Modal } from "@/components/Modal";
+import { PlayOn } from "@/components/PlayOn";
 import { Badge, Button, ProgressBar } from "@/components/ui";
 import { sizedImage } from "@/lib/images";
 import { ChannelLogo, formatGuideDay, formatSpan, liveUrl, timeLeft, useNow } from "./common";
@@ -50,6 +51,16 @@ export function ProgramModal({
           >
             {channel.favorite ? "Favourite" : "Add to favourites"}
           </Button>
+          {/* Its menu opens above the footer; once a device took the channel, the dialog makes way for the remote. */}
+          <PlayOn
+            kind="live"
+            label="Watch on…"
+            size="md"
+            placement="above"
+            align="right"
+            cast={() => ({ channel_id: channel.id })}
+            onCast={onClose}
+          />
           <Button variant="primary" icon={<Play className="size-4 fill-current" />} onClick={() => void navigate(liveUrl(channel, category))}>
             {airing ? "Watch now" : "Watch channel"}
           </Button>

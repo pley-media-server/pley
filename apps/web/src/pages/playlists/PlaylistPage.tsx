@@ -9,6 +9,7 @@ import { defaultCardTitles } from "@/components/cards";
 import { PlaylistArt } from "@/components/lists/PlaylistArt";
 import { moved, useDragReorder } from "@/components/lists/reorder";
 import { ConfirmModal } from "@/components/Modal";
+import { PlayOn } from "@/components/PlayOn";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, EmptyState, IconButton, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -93,6 +94,10 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
             <Button size="lg" icon={<Shuffle className="size-4" />} onClick={() => playFrom(0, true)} disabled={items.length < 2}>
               Shuffle
             </Button>
+            {items.length ? <PlayOn kind="item" cast={() => ({ playlist_id: p.id })} /> : null}
+            {items.length > 1 ? (
+              <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ playlist_id: p.id, shuffle: true })} />
+            ) : null}
             <IconButton label="Rename playlist" size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setRenaming(true)}>
               <Pencil className="size-5" />
             </IconButton>

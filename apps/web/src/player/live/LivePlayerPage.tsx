@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import type HlsType from "hls.js";
 import {
   ArrowLeft,
+  Cast,
   ChevronDown,
   ChevronUp,
   List,
@@ -39,6 +40,7 @@ import {
   type LiveCategory,
 } from "@/api/livetv";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
+import { PlayOn } from "@/components/PlayOn";
 import { Slider } from "@/components/Slider";
 import { cn } from "@/lib/cn";
 import { canPlayNativeHls } from "@/lib/caps";
@@ -268,6 +270,8 @@ function LivePlayer({
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [panel, setPanel] = useState(false);
+  // Watch on…'s menu is open: the controls it hangs from stay.
+  const [watchOn, setWatchOn] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [banner, setBanner] = useState(false);
   const [digits, setDigits] = useState("");
@@ -582,7 +586,7 @@ function LivePlayer({
     hideTimer.current = window.setTimeout(() => setShowControls(false), HIDE_CONTROLS_AFTER);
     return () => window.clearTimeout(hideTimer.current);
   }, []);
-  const controlsVisible = showControls || !playing || panel || status !== "playing";
+  const controlsVisible = showControls || !playing || panel || watchOn || status !== "playing";
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement != null);
@@ -778,6 +782,28 @@ function LivePlayer({
           >
             <Star className={cn("size-5", channel.favorite && "fill-accent text-accent")} />
           </button>
+          {/* The channel moves to the device: this one leaves it, for the remote on the device to show. */}
+          <PlayOn
+            kind="live"
+            label="Watch on…"
+            align="right"
+            cast={() => ({ channel_id: channel.id })}
+            onOpenChange={setWatchOn}
+            onCast={goBack}
+            trigger={({ open, toggle, label }) => (
+              <button
+                type="button"
+                aria-label={label}
+                title={label}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={toggle}
+                className={cn(button, open && "bg-white/15")}
+              >
+                <Cast className="size-5" />
+              </button>
+            )}
+          />
           <button type="button" aria-label="Channels" title="Channels (G)" onClick={() => setPanel((p) => !p)} className={cn(button, panel && "bg-white/15")}>
             <List className="size-5" />
           </button>

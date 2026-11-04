@@ -693,6 +693,20 @@ export interface RemoteDevice {
   casts: CastKind[];
 }
 
+/**
+ * What a remote sends a device to play (`POST /api/remote/devices/{id}/cast`):
+ * exactly one of a title, a playlist and a channel.
+ */
+export interface CastRequest {
+  item_id?: Id;
+  playlist_id?: Id;
+  channel_id?: Id;
+  /** Where a title starts (ms); left out, where the device's own Play would. */
+  start_ms?: number;
+  /** A playlist, an album or an artist, shuffled. */
+  shuffle?: boolean;
+}
+
 export interface Activity {
   scans: ScanStatus[];
   sessions: SessionInfo[];
@@ -765,6 +779,21 @@ export type ServerEvent =
    * has `position_ms`, `skip` has `offset_ms` (back when negative).
    */
   | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null }
+  /**
+   * The user's remote sent their device of `receiver_id` something to play
+   * (`from`: the remote's device name). For apps that take casts: the web
+   * app is a remote only, and leaves it.
+   */
+  | {
+      type: "cast";
+      receiver_id: string;
+      item_id: Id | null;
+      playlist_id: Id | null;
+      channel_id: Id | null;
+      start_ms: number | null;
+      shuffle: boolean;
+      from: string | null;
+    }
   /** Live TV's sources, channels or guide changed. */
   | { type: "live_channels_changed" }
   /** A live channel started or stopped being watched: the connections in use changed. */

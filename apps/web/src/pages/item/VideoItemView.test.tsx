@@ -1,9 +1,9 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ItemDetail, MediaFile } from "@/api/types";
-import { makeItem, makeStream } from "@/test/fixtures";
-import { renderWithProviders } from "@/test/render";
+import { makeItem, makeReceiver, makeStream } from "@/test/fixtures";
+import { mockApi, renderWithProviders } from "@/test/render";
 import { VideoItemView } from "./VideoItemView";
 
 const saveStreamChoice = vi.hoisted(() => vi.fn<(itemId: number, body: unknown) => Promise<void>>(() => Promise.resolve()));
@@ -91,6 +91,31 @@ describe("the title page's audio", () => {
     await user.selectOptions(audioMenu(), "Automatic (English)");
     expect(audioMenu().selectedOptions[0]?.textContent).toBe("Automatic (English)");
     expect(saveStreamChoice).toHaveBeenLastCalledWith(5, { file_id: 7, audio_index: null, subtitle_index: null });
+  });
+});
+
+describe("the title page's Play on…", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** What casting a film in `user_state` to the living room TV asks it to play. */
+  async function castFrom(user_state: ItemDetail["user_state"]) {
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [makeReceiver()],
+      "POST /api/remote/devices/tv-1/cast": () => undefined,
+    });
+    const user = userEvent.setup();
+    const { unmount } = renderWithProviders(<VideoItemView item={{ ...movie(file()), title: "Test Pattern", user_state }} />);
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    await user.click(screen.getByRole("menuitem", { name: "Living room TV" }));
+    await waitFor(() => expect(requests.some((r) => r.method === "POST")).toBe(true));
+    unmount();
+    return requests.find((r) => r.method === "POST")?.body;
+  }
+
+  it("plays it on another device from where Play would resume, and as Play would otherwise", async () => {
+    expect(await castFrom({ position_ms: 90_000, watched: false, play_count: 0 })).toEqual({ item_id: 5, start_ms: 90_000 });
+    expect(await castFrom({ position_ms: 0, watched: true, play_count: 1 })).toEqual({ item_id: 5 });
   });
 });
 

@@ -40,10 +40,13 @@ import {
   estimatedPosition,
   newestOn,
   otherDevices,
+  remoteOpened,
   SKIP_BACK_MS,
   SKIP_FORWARD_MS,
   trackLabel,
+  useRemoteAsk,
   type OtherDevice,
+  type RemoteAsk,
   type RemoteSession,
   type SentCommand,
 } from "@/lib/remote";
@@ -137,6 +140,21 @@ export function RemoteButton() {
     setOpen(false);
     setChosen(null);
   };
+
+  // Play on…: the remote opens on the device it went to, its controls
+  // showing once its session does.
+  const ask = useRemoteAsk();
+  const [heard, setHeard] = useState<RemoteAsk | null>(null);
+  if (ask && ask !== heard) {
+    setHeard(ask);
+    setOpen(true);
+    setChosen(ask.deviceId);
+  }
+  useEffect(() => {
+    if (!ask) return;
+    remoteOpened(ask);
+    buttonRef.current?.focus();
+  }, [ask]);
   useDismiss(ref, shown, () => {
     if (panelRef.current?.contains(document.activeElement)) buttonRef.current?.focus();
     close();

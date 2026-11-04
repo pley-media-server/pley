@@ -7,6 +7,7 @@ import type {
   Activity,
   Backup,
   Backups,
+  CastRequest,
   CleanReport,
   Control,
   Device,
@@ -1001,6 +1002,31 @@ export function sessionCommandError(err: unknown, device: string | null): string
   const it = device ?? "This device";
   if (isApiError(err, 404)) return `${it} isn't playing any more`;
   if (isApiError(err, 409)) return `${it} can't do that`;
+  if (isApiError(err, 429)) return "Too many at once: try again in a moment";
+  return errorMessage(err);
+}
+
+/**
+ * Sends one of the user's own devices that take casts something to play
+ * (`receiverId`: its `receiver_id`). It plays it as its own Play would, and
+ * its session shows in the list as it starts.
+ */
+export function useCast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ receiverId, cast }: { receiverId: string; cast: CastRequest }) =>
+      api.post<void>(`/api/remote/devices/${encodeURIComponent(receiverId)}/cast`, cast),
+    onError: (err) => {
+      // It went, or takes other things now: the list says what is left.
+      if (isApiError(err, 404) || isApiError(err, 409)) void qc.invalidateQueries({ queryKey: keys.remoteDevices });
+    },
+  });
+}
+
+/** What "Play on…" says when `device` didn't take a cast. */
+export function castError(err: unknown, device: string): string {
+  if (isApiError(err, 404)) return `${device} isn't on any more`;
+  if (isApiError(err, 409)) return `${device} can't play that`;
   if (isApiError(err, 429)) return "Too many at once: try again in a moment";
   return errorMessage(err);
 }
