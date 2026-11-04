@@ -17,8 +17,6 @@ sub init()
     m.infoMeta = m.top.findNode("infoMeta")
     m.infoSummary = m.top.findNode("infoSummary")
     m.rest = m.top.findNode("rest")
-    ' The backdrop has no agent of its own: the scene's, which a new token
-    ' replaces, carries it.
     m.started = false
     m.libraries = []
     ' GET /api/libraries' answer, for why Home is empty; invalid until it
@@ -443,8 +441,12 @@ sub layOut(column as object, parts as object, last as dynamic, lastGap as intege
     if focused then last.setFocus(true)
 end sub
 
+' The scene's agent as each backdrop is asked for, as the other screens
+' do: a new token makes the scene a new one.
 sub setBackdrop(uri as string)
-    if m.backdrop.uri <> uri then m.backdrop.uri = uri
+    if m.backdrop.uri = uri then return
+    m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
+    m.backdrop.uri = uri
 end sub
 
 ' At rest the hero shows, the rows under it; in the rows, the info block
