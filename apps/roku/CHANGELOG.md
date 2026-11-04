@@ -32,6 +32,12 @@ describes how they are made.
   Now Playing's scrubber, Up from its buttons, moves 10 s with Left and
   Right.
 - A playlist entry's Options key goes to its title's page.
+- The live player's Options key adds the channel playing to the
+  favourites or takes it out.
+- The live player's channel list shows another category or a search, and
+  a channel chosen there makes channel up and down go through that one.
+- The Options key on a programme in Live TV's guide, or on a card, shows
+  its details.
 
 ### Changed
 
@@ -49,6 +55,17 @@ describes how they are made.
   then Settings.
 - Home with nothing to show says why: no libraries yet, a scan under way,
   or nothing in them yet.
+- Live TV opens at the last channel watched, after a restart too.
+- Back in Live TV's guide goes back to now first, and from a search to the
+  category before, then to the categories; Clear in the search goes back
+  to the category before too.
+- A Live TV channel that fails is tuned again after 1 s and then 3 s
+  before the player says why.
+- A page of channels or a part of the guide that didn't load is asked for
+  again; with nothing to show, Live TV offers Try again.
+- What's on in Live TV and in the live player moves on as programmes end.
+- When every connection is in use and none can be taken over, the notice
+  says what can be done instead.
 
 ### Fixed
 
@@ -58,6 +75,8 @@ describes how they are made.
   other devices.
 - Chapters are offered in the player's menu only for a file with two or
   more.
+- Choosing a Live TV category or searching takes the focus to its
+  channels.
 
 ## [0.1.4] - 2026-11-03
 
