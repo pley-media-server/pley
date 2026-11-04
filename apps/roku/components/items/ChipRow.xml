@@ -2,11 +2,13 @@
 <!-- A row of chips, left and right between them, OK choosing one: a
      library's tabs, and its sort and filters. The current one (a tab
      shown) stands out; the focused one is in the accent while the row has
-     the focus. -->
+     the focus. A chip may end with a number (the requests' tabs). -->
 <component name="ChipRow" extends="Group">
     <interface>
-        <!-- [{ label, width }]: a chip's width in pixels; 0, as wide as
-             its words. -->
+        <!-- [{ label, width, count, accent, danger }]: a chip's width in
+             pixels; 0, as wide as its words. count (optional): its
+             number's words, "" for none; accent or danger: the number in
+             that colour, as the menu's. -->
         <field id="chips" type="array" onChange="onChips" />
         <!-- The room either side of a chip's words, both sides together,
              for chips of width 0. -->

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's one scene: it starts the API task and keeps the stack of
-     screens; Back on the first screen leaves the app. -->
+     screens, with the ready-to-watch card over them; Back on the first
+     screen leaves the app. -->
 <component name="MainScene" extends="Scene">
     <interface>
         <!-- Roku's AppLaunchComplete went (uiLaunched). -->
@@ -56,6 +57,11 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
         <Group id="screens" />
+        <!-- Ready-to-watch news, at the bottom right over the pages. -->
+        <RequestNotice id="notice" translation="[1104, 702]" visible="false" />
+        <!-- While a notice waits: whether the remote has rested and the
+             page is free for it, four times a second. -->
+        <Timer id="noticeWait" duration="0.25" repeat="true" />
         <Timer id="gather" duration="0.3" />
         <!-- Request events, gathered for a second: the summary is asked
              once for those that come together. -->

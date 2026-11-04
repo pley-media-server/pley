@@ -54,12 +54,25 @@ sub init()
     ' meanwhile, so asked once more).
     m.badgeTitles = {}
     m.badgesAsked = {}
-    ' Ready-to-watch notices waiting to show, the one shown and its dialog,
-    ' and what was told already (reqLoadAnnounced's) for the profile.
+    ' Ready-to-watch notices waiting to show, the one shown in the card and
+    ' where the focus was before it, and what was told already
+    ' (reqLoadAnnounced's) for the profile.
     m.notices = []
     m.shownNotice = invalid
-    m.noticeDialog = invalid
+    m.noticeFocus = invalid
+    m.noticeCard = m.top.findNode("notice")
+    m.noticeCard.observeField("event", "onNoticeEvent")
     m.announced = invalid
+    ' A notice waits for the remote to rest, looked at four times a second
+    ' while one waits: when a look last found a key within the second
+    ' (invalid for none since they began), and when the app last counted
+    ' something as a press (a screen changing, a notice closing).
+    m.device = CreateObject("roDeviceInfo")
+    m.noticeWait = m.top.findNode("noticeWait")
+    m.noticeWait.observeField("fire", "onNoticeWait")
+    m.noticeWaiting = false
+    m.keyAt = invalid
+    m.pressAt = CreateObject("roTimespan")
     ' The dialog last closed (one may stay in the scene's field).
     m.closedDialog = invalid
     session.observeField("profileId", "onProfile")
@@ -168,12 +181,14 @@ sub onProfile()
     m.newsEvents = 0
     m.badgeTitles = {}
     m.badgesAsked = {}
-    ' The notices were the profile before's: one open closes.
+    ' The notices were the profile before's: one shown goes.
     m.notices = []
-    dialog = m.noticeDialog
-    m.shownNotice = invalid
-    m.noticeDialog = invalid
-    if dialog <> invalid then dialog.close = true
+    if m.shownNotice <> invalid
+        m.noticeCard.hide = true
+        m.shownNotice = invalid
+        giveFocusBack()
+    end if
+    showNotice()
     m.announced = invalid
     if session.profileId > 0
         m.announced = reqLoadAnnounced(requestsSection(), session.server, session.profileId)
@@ -264,7 +279,7 @@ sub onRequestEvent(data as object)
     if kind = "request_available" and m.announced <> invalid
         before = reqMarkCopy(m.announced)
         told = reqAnnounceEvent(data, m.announced)
-        if told.Count() > 0 and told[0].itemId > 0 then notify(reqNotice(told), before)
+        if told.Count() > 0 and told[0].itemId > 0 then notify(reqNotice(told, m.global.session.server), before)
         keepAnnounced()
     end if
     if kind <> "requests_settings_changed" then gatherRequestChange(data)
@@ -364,7 +379,7 @@ sub onUnseen(event as object)
     if data = invalid then return
     before = reqMarkCopy(m.announced)
     told = reqToAnnounce(data.requests, m.announced)
-    if told.Count() > 0 then notify(reqNotice(told), before)
+    if told.Count() > 0 then notify(reqNotice(told, m.global.session.server), before)
     keepAnnounced()
 end sub
 
@@ -379,9 +394,9 @@ sub keepAnnounced()
     reqSaveAnnounced(requestsSection(), session.server, session.profileId, reqMarkToKeep(m.announced, waiting))
 end sub
 
-' A notice of what is ready to watch, shown when it can be: never over
-' playing video, signing in or another dialog. The last three wait.
-' before: the notices' mark before its news (reqMarkCopy's).
+' A notice of what is ready to watch, shown in the card when it can be
+' (showNotice). The last three wait. before: the notices' mark before its
+' news (reqMarkCopy's).
 sub notify(notice as object, before as object)
     notice.before = before
     m.notices.Push(notice)
@@ -391,84 +406,154 @@ sub notify(notice as object, before as object)
     showNotice()
 end sub
 
+' The first notice waiting shows once the remote has rested and the page
+' is free for it (noticeFree), looked at four times a second meanwhile.
 sub showNotice()
-    if m.notices.Count() = 0 or m.stack.Count() = 0 then return
-    ' Shown once that one closes (onDialog).
-    if dialogShowing() then return
-    route = m.stack.Peek().route
-    if route = "player" or route = "livePlayer" or route = "link" or route = "servers" or route = "profiles" or route = "unreachable" then return
-    m.shownNotice = m.notices.Shift()
-    dialog = CreateObject("roSGNode", "StandardMessageDialog")
-    dialog.title = "Ready to watch"
-    dialog.message = [m.shownNotice.text]
-    dialog.buttons = ["Open", "OK"]
-    dialog.observeField("buttonSelected", "onNoticeButton")
-    m.noticeDialog = dialog
-    m.top.dialog = dialog
+    if m.shownNotice <> invalid or m.notices.Count() = 0
+        m.noticeWaiting = false
+        m.noticeWait.control = "stop"
+        return
+    end if
+    if m.noticeWaiting then return
+    ' A key before the looks began says nothing of when it came.
+    m.noticeWaiting = true
+    m.keyAt = invalid
+    m.noticeWait.control = "start"
+    onNoticeWait()
 end sub
 
-' Open: the title, or the requests when several have news.
-sub onNoticeButton(event as object)
-    dialog = event.getRoSGNode()
-    notice = invalid
-    if m.noticeDialog <> invalid and dialog.isSameNode(m.noticeDialog)
-        notice = m.shownNotice
-        noticeSeen()
+sub onNoticeWait()
+    if m.shownNotice <> invalid or m.notices.Count() = 0
+        showNotice()
+        return
     end if
-    dialog.close = true
-    if event.getData() = 0 and notice <> invalid
+    seconds = m.device.TimeSinceLastKeypress()
+    if seconds < 1
+        if m.keyAt = invalid then m.keyAt = CreateObject("roTimespan")
+        m.keyAt.Mark()
+    end if
+    keyMs = -1
+    if m.keyAt <> invalid then keyMs = m.keyAt.TotalMilliseconds()
+    if not reqRested(seconds, keyMs, m.pressAt.TotalMilliseconds()) or not noticeFree() then return
+    m.noticeWaiting = false
+    m.noticeWait.control = "stop"
+    ' The card takes the focus, and gives it back here when it closes.
+    m.noticeFocus = focusedNode()
+    m.shownNotice = m.notices.Shift()
+    m.noticeCard.notice = { text: m.shownNotice.text, poster: m.shownNotice.poster }
+end sub
+
+' Whether a notice may show now: over a screen it may (reqNoticeOver), no
+' dialog up, and the focus on that screen, not in a panel or a keyboard.
+function noticeFree() as boolean
+    if m.stack.Count() = 0 or dialogShowing() then return false
+    top = m.stack.Peek()
+    if not reqNoticeOver(top.route) then return false
+    inside = false
+    node = focusedNode()
+    while node <> invalid
+        if node.isSameNode(top) then inside = true
+        if node.id = "panel" then return false
+        kind = node.subtype()
+        if Instr(1, kind, "Keyboard") > 0 or Instr(1, kind, "PinPad") > 0 then return false
+        node = node.getParent()
+    end while
+    return inside
+end function
+
+' The node with the focus, or invalid.
+function focusedNode() as dynamic
+    node = m.top.focusedChild
+    for i = 1 to 40
+        if node = invalid or node.hasFocus() then return node
+        node = node.focusedChild
+    end for
+    return node
+end function
+
+' What the card did. Open opens the title (the requests, for news of
+' several); Close, Back, Up, Down or its time up give the focus back where
+' it was. The focus taken from it by a dialog leaves it under that,
+' waiting; taken by the page, it was seen.
+sub onNoticeEvent()
+    what = m.noticeCard.event
+    if what = "stray"
+        giveFocusBack()
+        return
+    end if
+    notice = m.shownNotice
+    if notice = invalid then return
+    if what = "lost"
+        if dialogShowing()
+            m.noticeCard.cover = true
+            return
+        end if
+        m.noticeCard.hide = true
+    end if
+    noticeSeen()
+    if what = "open"
         if notice.itemId > 0
             show({ to: "details", params: { itemId: notice.itemId } })
         else
             show({ to: "requests", params: { view: "mine" } })
         end if
+    else if what = "close"
+        giveFocusBack()
     end if
-    ' The next one waiting, if any.
+    ' As a press: the next waits for the remote to rest from it too.
+    m.pressAt.Mark()
     showNotice()
 end sub
 
-' The notice shown was seen (Open, OK or Back): what it told is kept.
+' The focus where it was before the card, while that is still on the
+' screen on top; else on that screen.
+sub giveFocusBack()
+    if m.stack.Count() = 0 then return
+    top = m.stack.Peek()
+    node = m.noticeFocus
+    while node <> invalid
+        if node.isSameNode(top)
+            m.noticeFocus.setFocus(true)
+            return
+        end if
+        node = node.getParent()
+    end while
+    top.setFocus(true)
+end sub
+
+' The notice shown was seen: what it told is kept.
 sub noticeSeen()
     m.shownNotice = invalid
-    m.noticeDialog = invalid
     keepAnnounced()
 end sub
 
-' Another dialog took the notice's place before it was seen: it waits
-' first in line, to show again once that one closes.
-sub noticeCovered()
-    if m.shownNotice <> invalid then m.notices.Unshift(m.shownNotice)
+' Another screen came over the card before its notice was seen: it waits
+' first in line, to show again.
+sub coverNotice()
+    if m.shownNotice = invalid then return
+    m.noticeCard.hide = true
+    m.notices.Unshift(m.shownNotice)
     m.shownNotice = invalid
-    m.noticeDialog = invalid
 end sub
 
 ' A dialog shows, from any screen, or the scene lets one go: a notice
-' waiting may show once none does, and one shown that another replaced
-' waits again. Each dialog's closing is watched, the Back key's too, which
-' sets no close field.
+' waiting may show once none does, and the card under one waits for it.
+' Each dialog's closing is watched, the Back key's too, which sets no
+' close field.
 sub onDialog()
     dialog = m.top.dialog
     if dialog <> invalid
         if m.closedDialog <> invalid and dialog.isSameNode(m.closedDialog) then m.closedDialog = invalid
         if dialog.hasField("wasClosed") then dialog.observeField("wasClosed", "onDialogClosed")
-        if m.noticeDialog <> invalid and not dialog.isSameNode(m.noticeDialog) then noticeCovered()
+        if m.shownNotice <> invalid and dialogShowing() then m.noticeCard.cover = true
     end if
     showNotice()
 end sub
 
-' The notice's own dialog, closing while another holds the scene's field,
-' was replaced by it; else Back closed it.
+' A dialog closed: the card under it, if any, has the focus again.
 sub onDialogClosed(event as object)
-    closed = event.getRoSGNode()
-    m.closedDialog = closed
-    if m.noticeDialog <> invalid and closed.isSameNode(m.noticeDialog)
-        shown = m.top.dialog
-        if shown <> invalid and not shown.isSameNode(closed)
-            noticeCovered()
-        else
-            noticeSeen()
-        end if
-    end if
+    m.closedDialog = event.getRoSGNode()
+    if m.shownNotice <> invalid and not dialogShowing() then m.noticeCard.cover = false
     showNotice()
 end sub
 
@@ -517,6 +602,10 @@ sub show(nav as object)
     if name = "UnreachableScreen" and m.stack.Count() > 0
         if m.stack.Peek().subtype() = name then return
     end if
+    ' A notice shown waits for the next rest; a new screen counts as a
+    ' press.
+    coverNotice()
+    m.pressAt.Mark()
     if httpTrue(nav.reset)
         ' Another profile, sign-in or server: what it played ends.
         m.music.control = "stop"
@@ -547,12 +636,15 @@ end sub
 
 sub pop()
     if m.stack.Count() <= 1 then return
+    coverNotice()
+    m.pressAt.Mark()
     closeScreen(m.stack.Pop())
     top = m.stack.Peek()
     top.visible = true
     top.active = true
     launchDialogDone()
-    ' Played video, or signing in, ended: a notice waiting shows.
+    ' Played video, or signing in, ended: a notice waiting shows, once the
+    ' remote rests from coming back.
     showNotice()
 end sub
 
