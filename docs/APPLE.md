@@ -58,13 +58,17 @@ in to another server starts every section again at Home.
   Libraries. While music has a queue, the mini player sits above the tab
   bar (on iOS 26.1 and later, in the tab bar's own accessory, whose words
   stop growing at the largest size below the accessibility sizes, as the
-  tab bar's own do).
+  tab bar's own do). While another of the profile's devices plays, the
+  remote's bar sits there too ([Remote control](#remote-control)).
 - **iPad** at regular width, and the **Mac**: a sidebar with Home, Live
   TV when it shows, Search and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
   spinner while it is scanned, and at its foot the profile signed in, its
   picture, name and server, which opens Me. The Mac's window is at least
   800 by 560 points, and opens at 1100 by 720. While music has a queue,
-  the mini player sits at the foot of the page beside the sidebar.
+  the mini player sits at the foot of the page beside the sidebar. While
+  another of the profile's devices plays, the remote's card sits above it
+  on iPad, and the Mac's toolbar has the remote's button
+  ([Remote control](#remote-control)).
 - **Apple TV**: seven tabs at most across the top, and no more than fit
   the screen's width, so none is cut off: Search (a magnifying glass
   alone, first, as in Apple's apps), Home, Live TV when it shows, a tab
@@ -518,8 +522,8 @@ when it ends or fails, after 1, 2 and 5 seconds and then every 15; `429`
 (too many streams for the sign-in) waits 30 seconds. A connection made
 again, or the app coming back to the front, reads everything showing
 again, since events were missed. It stops when the app goes to the
-background, and for good when the sign-in ends or the server refuses the
-stream.
+background, unless music plays there ([Remote control](#remote-control)),
+and for good when the sign-in ends or the server refuses the stream.
 
 When the server stops this device's playback (`session_stopped`, from
 another device or by the administrator), the player closes and a toast
@@ -1301,6 +1305,77 @@ The player logs under the subsystem `app.pley.apple`, category `player`:
 the session's method and the first 8 characters of its id, never a keyed
 address or a token.
 
+### Remote control
+
+A profile's devices control what plays on its other devices
+([API.md](API.md#remote-control)): pause the TV from the phone, skip a
+track playing on the Mac. iPhone, iPad and Mac are remotes and players;
+Apple TV is only a player, as the other TV apps are.
+
+**The remote** lists the profile's sessions (`GET /api/sessions`) other
+than the ones this device plays, read again on `sessions_changed`, when
+the event stream connects again and when the app comes back to the
+front.
+
+- **iPhone and iPad**: a bar above the tabs with the device and what
+  plays there, or how many devices and their names, and Play or Pause
+  when one device plays and its player obeys it: pausing the TV takes one
+  tap. From iOS 26.1 it is the tab bar's own accessory, where the mini
+  player sits too; the accessory holds one of them, so while music plays
+  here the mini player keeps it and has the remote's button at its end.
+  Before iOS 26.1, and at the foot of the page beside the iPad's sidebar,
+  it is a card above the mini player. Choosing it opens the remote as a
+  sheet, which closes by itself once nothing plays on another device.
+- **Mac**: a remote button in the toolbar, as in the web app's header,
+  opens the same remote as a popover.
+
+The remote has a row per device, one after another: the poster (a
+channel's logo on Live TV), the title (the channel and what's on), the
+device's name ("Living room TV", numbered when two have the same), and
+for a title how far it is, with a seek slider when its player seeks.
+Under them are the buttons the player listed: Previous (Previous channel
+on Live TV), Back 10 seconds, Play or Pause, Forward 30 seconds and Next
+(Next channel), and Stop, which every player obeys. The place moves on
+while it plays: the last report, plus how long ago the server says that
+was, plus the time since the answer came, by this device's clock. A
+command dims the buttons until the list shows the player acted on it (a
+new state, title or channel, or a report from the place sent to); after
+5 seconds without that the list is read once more, and the row says
+"Living room TV didn't answer." A Next or Previous with nothing there
+says nothing. A `404` means the device stopped meanwhile: its row goes.
+Other refusals say what happened: "… can't do that." (`409`, the list is
+read again), "Too many at once: try again in a moment." (`429`), and the
+server's own words otherwise. VoiceOver reads each button with its
+device ("Pause on Living room TV"), the slider's swipes go back 10 and
+forward 30 seconds, and a refusal is read out as it shows.
+
+**The players obey** `player_command` for the session they play now and
+ignore any other, then report at once. Each says what it obeys in its
+play request (`controls`), with the device's name (`device_name`): on the
+Mac the computer's name from System Settings; on iPhone, iPad and Apple
+TV the name the system gives when it is one of the person's own, and
+none otherwise (the system says only "iPhone" without Apple's
+entitlement for it), so the server names the device from the app's
+User-Agent ("Pley for iPhone").
+
+| What plays | Obeys | How |
+|---|---|---|
+| A movie or an episode | Play, Pause, Seek, Skip, and Next for an episode, or a title of a collection or playlist with one after it | A seek stops at the start and 250 ms before the end; a skip counts from where it is; Next plays what Up Next would |
+| Music | Play, Pause, Seek, Skip, Next, Previous | Previous does as Now Playing's: the track again after 3 seconds of it, the one before otherwise; Next at the end of the queue does nothing |
+| Live TV | Next, Previous | Channel up and down, through the category the player was opened in, round at its ends. No pause or seek: the live player can't go back in a channel |
+
+Stop is the stop from another device the players already obeyed
+([Updates from the server](#updates-from-the-server)): a video's player
+closes and says so, and music stops.
+
+**In the background.** Music playing in the background, or a video in
+Picture in Picture, keeps the event stream, as on Android, so a remote
+reaches it on the lock screen or over other apps too. Once the music
+pauses or the video ends, the system suspends the app, so the stream goes
+until something plays again or the app comes back to the front, and
+remotes reach it only then. Apple TV obeys only while Pley is open: tvOS suspends
+apps in the background.
+
 ## Downloads and offline
 
 iPhone, iPad and Mac download movies and episodes to watch without the
@@ -1732,6 +1807,14 @@ holding the connection, the player says "All connections are in use" and
 Watch here instead takes it, the other device's playlist answering 410;
 and Search finds the channels.
 
+The remote is a test of its own on iPhone and iPad (`testRemote`): the
+test plays Direct H264 on the administrator's "Living room TV" through
+the server's API, as a TV's player would, and the remote's bar names it
+and has its Pause; its sheet's Pause, once the TV reports the pause, turns into Play;
+Forward 30 seconds, which the TV doesn't act on, brings "Living room TV
+didn't answer."; and Stop ends the TV's session at the server, and the
+sheet and the bar go.
+
 The Top Shelf is a test of its own on Apple TV (`testTopShelfLink`):
 with Two Audio part way through, the app (launched with `-PleyShelfLinks
 YES`, which in a debug build shows the first title's signed links for the
@@ -1834,7 +1917,7 @@ apps/apple/scripts/check-screens.sh` stops them. A full run, without
 | `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, the request screens' posters, stage pills and problem states in `RequestsKit`, and `Metrics` and `Motion` for sizes and Reduce Motion), `Screens/` (requests' in `DiscoverViews`, `DiscoverTitleView`, `RequestsViews` and `RequestsEntries`), and `Assets.xcassets` with the icon ([Icons](#icons)) |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine), `Screens/`, and `Assets.xcassets` with the icon and the Top Shelf's picture ([Icons](#icons)) |
 | `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift` and `LargeTextWalk.swift` (the largest text size) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus) and `ShelfWalk.swift` (the Top Shelf's links) on Apple TV |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift`, `LargeTextWalk.swift` (the largest text size) and `RemoteWalk.swift` (the remote) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus) and `ShelfWalk.swift` (the Top Shelf's links) on Apple TV |
 | `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
@@ -1843,7 +1926,7 @@ PleyKit's modules, each depending only on those before it:
 | Module | What |
 |---|---|
 | `PleyShelf` | Apple TV's Top Shelf, for the app and its extension, on Foundation and CryptoKit only: the row (`ShelfSnapshot`), its files in the app group's container (`ShelfStore`) and the signed links (`ShelfLink`) |
-| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's); requests' answers, events and stages (`Requests`) and their words (`RequestWords` in `Words+Requests`, the Android app's) |
+| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's); requests' answers, events and stages (`Requests`) and their words (`RequestWords` in `Words+Requests`, the Android app's); the remote's words (`Words+Remote`, the web's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`; requests and Discover in `PleyAPI+Requests`), and the server's events (`EventStream`, `EventParser`), and the network's changes that ask for new proofs (`NetworkChanges`) |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the server's proofs before a token goes (`ServerProof`), the scope guard and profile switching |
@@ -1853,7 +1936,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), requests (`DiscoverModel`, `DiscoverResultsModel`, `DiscoverTitleModel`, `RequestsListModel`, the cards' words in `RequestCards`, the actions and Approve… in `RequestActions`, and `RequestRules`, the Android app's), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), requests (`DiscoverModel`, `DiscoverResultsModel`, `DiscoverTitleModel`, `RequestsListModel`, the cards' words in `RequestCards`, the actions and Approve… in `RequestActions`, and `RequestRules`, the Android app's), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), the remote (`RemoteModel`), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and the server's proofs, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, requests and Discover from the Android app's fixtures (`FixtureServer+Requests`), an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -2008,8 +2091,13 @@ Delete the folder afterwards.
   frame rate or range, as on Android: its player is Pley's own view of the
   video, with no pause or seeking, not the system's player, which brings
   both.
-- Events aren't read while the app is in the background; back in front,
-  what shows is read again.
+- Events aren't read while the app is in the background, except while
+  music plays there; back in front, what shows is read again. So Apple TV
+  obeys a remote only while Pley is open, and music paused in the
+  background hears none until it plays again or the app is back.
+- Live TV stopped from a remote closes once its stream fails, not as the
+  event comes: its player then asks for the session's plan, which says
+  why.
 - The Mac app has no UI tests: driving it needs Accessibility and Screen
   Recording permissions that only a person can grant. Its views are
   checked by building it, and its models and menus' state by the
