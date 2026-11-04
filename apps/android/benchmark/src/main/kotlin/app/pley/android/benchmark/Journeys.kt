@@ -14,6 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -199,7 +200,20 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * window's own view says so too, and holds everything, so it never
      * counts: with only it, nothing in the page has focus.
      */
-    fun focused(): UiObject2? = device.findObjects(By.focused(true))
+    fun focused(): UiObject2? {
+        // An element can go between finding it and reading its bounds (the rail closing, a row
+        // sliding): it's looked for again, a few times.
+        repeat(STALE_TRIES - 1) {
+            try {
+                return focusedNow()
+            } catch (_: StaleObjectException) {
+                SystemClock.sleep(STEP_MS)
+            }
+        }
+        return focusedNow()
+    }
+
+    private fun focusedNow(): UiObject2? = device.findObjects(By.focused(true))
         .filter { !it.fillsTheScreen() }
         .minByOrNull { it.visibleBounds.area() }
 
@@ -273,6 +287,9 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         const val PAGE_MS = 1_500L
 
         const val STEP_MS = 300L
+
+        /** How many times [focused] looks while what it finds goes before it reads it. */
+        const val STALE_TRIES = 3
 
         /** How long the screen takes to hear that accessibility went: Compose stops describing it. */
         const val UNOBSERVED_SETTLE_MS = 500L
