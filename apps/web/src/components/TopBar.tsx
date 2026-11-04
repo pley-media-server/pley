@@ -14,6 +14,7 @@ import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
 import { AppDownloads, DOWNLOADS_PLACE } from "./AppDownloads";
 import { Avatar } from "./Avatar";
 import { Menu, MenuItem, MenuSeparator } from "./Menu";
+import { RemoteButton } from "./Remote";
 import { IconButton } from "./ui";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -270,6 +271,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
       <SearchBox className="min-w-0 max-w-xl flex-1" />
       <div className="ml-auto flex items-center gap-1.5">
         {appShell() === "desktop" ? <AppDownloads /> : null}
+        <RemoteButton />
         <ScanIndicator />
         <UserMenu />
       </div>

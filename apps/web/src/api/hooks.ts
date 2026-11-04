@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from "react";
 import { queryOptions, useInfiniteQuery, useMutation, useMutationState, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { api, qs, request } from "./client";
+import { api, errorMessage, isApiError, qs, request } from "./client";
 import { reordered } from "./lists";
 import type {
   Activity,
   Backup,
   Backups,
   CleanReport,
+  Control,
   Device,
   FsListing,
   HistoryPage,
@@ -25,6 +26,7 @@ import type {
   LoginResponse,
   NetworkSettings,
   PersonDetail,
+  PlayingSession,
   RecoveryCodes,
   RequestAccess,
   Resources,
@@ -66,6 +68,7 @@ export const keys = {
   related: (id: Id) => ["item", id, "related"] as const,
   history: (scope: HistoryScope, pageSize: number) => ["history", scope, pageSize] as const,
   activity: ["activity"] as const,
+  sessions: ["sessions"] as const,
   users: ["users"] as const,
   userDevices: (id: Id) => ["users", id, "devices"] as const,
   profiles: ["profiles"] as const,
@@ -345,6 +348,9 @@ export const queries = {
   network: () => queryOptions({ queryKey: keys.network, queryFn: () => api.get<NetworkSettings>("/api/network") }),
   system: () => queryOptions({ queryKey: keys.system, queryFn: () => api.get<SystemInfo>("/api/system"), staleTime: 10_000 }),
   activity: () => queryOptions({ queryKey: keys.activity, queryFn: () => api.get<Activity>("/api/activity"), staleTime: 2_000 }),
+  /** The user's own sessions whose players are there: what a remote controls. */
+  sessions: () =>
+    queryOptions({ queryKey: keys.sessions, queryFn: () => api.get<PlayingSession[]>("/api/sessions"), staleTime: 2_000 }),
   item: (id: Id) => queryOptions({ queryKey: keys.item(id), queryFn: ({ signal }) => api.get<ItemDetail>(`/api/items/${id}`, { signal }) }),
 };
 
@@ -916,9 +922,62 @@ export function useStopSession() {
       qc.setQueryData<Activity>(keys.activity, (old) =>
         old ? { ...old, sessions: old.sessions.filter((s) => s.session_id !== sessionId) } : old,
       );
+      dropSession(qc, sessionId);
       void qc.invalidateQueries({ queryKey: keys.activity });
     },
   });
+}
+
+/** A session gone from the user's own list until it is fetched again. */
+function dropSession(qc: QueryClient, sessionId: string) {
+  qc.setQueryData<PlayingSession[]>(keys.sessions, (old) => old?.filter((s) => s.session_id !== sessionId));
+  void qc.invalidateQueries({ queryKey: keys.sessions });
+}
+
+/**
+ * The user's own sessions on their devices, this tab's included (see
+ * `lib/playingHere`). Fetched again as sessions change (the event stream).
+ */
+export function usePlayingSessions() {
+  return useQuery(queries.sessions());
+}
+
+export interface SessionCommand {
+  sessionId: string;
+  command: Control;
+  /** `seek`: where to (ms). */
+  positionMs?: number;
+  /** `skip`: how far (ms), back when negative. */
+  offsetMs?: number;
+}
+
+/**
+ * Sends one of the user's own players a command. The player acts on it and
+ * reports, which brings `sessions_changed`: its new state shows from there.
+ */
+export function useSessionCommand() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, command, positionMs, offsetMs }: SessionCommand) =>
+      request<void>(`/api/sessions/${encodeURIComponent(sessionId)}/command`, {
+        method: "POST",
+        body: { command, position_ms: positionMs, offset_ms: offsetMs },
+      }),
+    onError: (err, { sessionId }) => {
+      // Its player is gone, or no longer obeys that: the list says what is left.
+      if (isApiError(err, 404)) dropSession(qc, sessionId);
+      else if (isApiError(err, 409)) void qc.invalidateQueries({ queryKey: keys.sessions });
+    },
+  });
+}
+
+/** What a remote says when `device` didn't take a command. */
+export function sessionCommandError(err: unknown, device: string | null): string {
+  const it = device ?? "This device";
+  if (isApiError(err, 404)) return `${it} isn't playing any more`;
+  if (isApiError(err, 409)) return `${it} can't do that`;
+  if (isApiError(err, 429)) return "Too many at once: try again in a moment";
+  return errorMessage(err);
 }
 
 // ---------------------------------------------------------------------------

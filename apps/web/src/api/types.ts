@@ -550,6 +550,10 @@ export interface PlaybackRequest {
   client_id?: string;
   /** Started while the last session plays on, to move to it once it is ready: that one is left to the player to end. */
   keep_previous?: boolean;
+  /** The remote's commands this player obeys; left out: none (Stop always works). */
+  controls?: Control[];
+  /** What remotes call this device; left out: the server names it from the User-Agent ("Firefox on macOS"). */
+  device_name?: string;
   caps: ClientCaps;
 }
 
@@ -610,8 +614,11 @@ export interface TranscodeInfo {
 
 export interface SessionInfo {
   session_id: string;
+  kind: "item";
   user_id: Id;
   username: string;
+  /** The device it plays on ("Living room TV", "Firefox on macOS"); null when it isn't known. */
+  device: string | null;
   item: ItemSummary;
   method: PlaybackMethod;
   position_ms: number;
@@ -619,6 +626,30 @@ export interface SessionInfo {
   started_at: Timestamp;
   updated_at: Timestamp;
   transcode: TranscodeInfo | null;
+}
+
+/** A command a remote sends one of the user's players (`POST /api/sessions/{id}/command`). */
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+
+/** One of the user's own sessions whose player is there (`GET /api/sessions`): what remotes control. */
+export interface PlayingSession {
+  session_id: string;
+  kind: "item" | "live";
+  device: string | null;
+  /** What plays (kind "item"). */
+  item: ItemSummary | null;
+  /** The channel watched (kind "live"); `now`: the programme on. */
+  channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null } | null;
+  /** Live: always "playing". */
+  state: "playing" | "paused" | "buffering";
+  /** Live: 0. */
+  position_ms: number;
+  /** Null when the length isn't known, and on live. */
+  duration_ms: number | null;
+  /** Its player's last report: a remote moves the place on from it while it plays. */
+  updated_at: Timestamp;
+  /** What its player obeys; Stop always works. */
+  controls: Control[];
 }
 
 export interface Activity {
@@ -688,6 +719,11 @@ export type ServerEvent =
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean }
   /** A playback session was ended on the server (`DELETE /api/sessions/{id}`): the device playing it stops. */
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
+  /**
+   * The user's remote sent their player of `session_id` a command: `seek`
+   * has `position_ms`, `skip` has `offset_ms` (back when negative).
+   */
+  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null }
   /** Live TV's sources, channels or guide changed. */
   | { type: "live_channels_changed" }
   /** A live channel started or stopped being watched: the connections in use changed. */
