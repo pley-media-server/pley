@@ -217,9 +217,11 @@ private func movie(_ server: FixtureServer, bytes: Int = 4_500, container: Strin
         // The details are saved for playing without the server.
         let detail = await h.downloads.local?.detail(61)
         #expect(detail?.title == "Direct H264")
-        // The subtitles came partial: they are asked for again.
-        let asked = server.journal.filter { $0.path == "/api/files/610/subtitles/2.vtt" }.count
-        #expect(asked >= 2)
+        // The subtitles came partial: they are asked for again, once the download is done.
+        func asked() -> Int { server.journal.filter { $0.path == "/api/files/610/subtitles/2.vtt" }.count }
+        let end = Date().addingTimeInterval(5)
+        while asked() < 2 && Date() < end { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(asked() >= 2)
     }
 
     @Test func anotherNetworkStopsThePieceUntilTheServerProvesItself() async throws {
