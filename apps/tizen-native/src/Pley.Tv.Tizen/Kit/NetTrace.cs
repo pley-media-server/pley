@@ -259,7 +259,7 @@ static class NetTrace
             // Each interface's received bytes, as Mbps.
             var rx = Rx();
             var rates = rx.Where(kv => kv.Key != "lo")
-                .Select(kv => seconds > 0 && lastRx.TryGetValue(kv.Key, out var before) ? $"{kv.Key} {(kv.Value - before) * 8 / seconds / 1e6:0.0}" : null)
+                .Select(kv => seconds > 0 && lastRx.TryGetValue(kv.Key, out var before) && kv.Value >= before ? $"{kv.Key} {(kv.Value - before) * 8 / seconds / 1e6:0.0}" : null)
                 .Where(s => s != null).ToList();
             lastRx = rx;
             if (rates.Count > 0) parts.Add("rx Mbps " + string.Join(", ", rates));
