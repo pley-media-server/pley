@@ -304,6 +304,10 @@ sub tune(channel as object, takeOver = 0 as integer)
     m.zapTo = invalid
     m.zapTimer.control = "stop"
     m.channel = channel
+    ' Kept for the server and profile: Live TV opens at it, after a
+    ' restart too.
+    session = m.global.session
+    liveSaveChannel(CreateObject("roRegistrySection", "liveViews"), liveViewKey(session.server, session.profileId), channel.id)
     m.played = false
     m.trouble = invalid
     m.pictureTimer.control = "stop"

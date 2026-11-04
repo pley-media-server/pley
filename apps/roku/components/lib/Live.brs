@@ -759,24 +759,43 @@ function liveTroubleButtons(problem as object) as object
     return out
 end function
 
-' The registry key of the Live TV screen's tab and category for a server
-' and profile.
+' The registry key of the Live TV screen's tab and category, and the
+' channel last watched, for a server and profile.
 function liveViewKey(server as string, profileId as dynamic) as string
     return server + "|" + urlValue(profileId)
 end function
 
-' { tab: "guide" | "channels", category } kept for key, or the defaults.
+' { tab: "guide" | "channels", category, channel } kept for key, or the
+' defaults (channel 0: none watched yet).
 function liveLoadView(section as object, key as string) as object
-    view = { tab: "guide", category: "all" }
+    view = { tab: "guide", category: "all", channel: 0 }
     saved = httpObject(httpJson(section.Read(key)))
     if saved = invalid then return view
     if httpString(saved.tab) = "channels" then view.tab = "channels"
     category = httpString(saved.category)
     if category = "favorites" or category = "recent" or (Left(category, 6) = "group:" and Len(category) > 6) then view.category = category
+    channel = Int(httpNumber(saved.channel, 0))
+    if channel > 0 then view.channel = channel
     return view
 end function
 
+' The tab and the category; the channel last watched stays as kept.
 sub liveSaveView(section as object, key as string, view as object)
-    section.Write(key, FormatJson({ tab: view.tab, category: view.category }))
+    liveWriteView(section, key, view.tab, view.category, liveLoadView(section, key).channel)
+end sub
+
+' The channel last watched, the player's: Live TV opens at it, after a
+' restart too. Written only when it changes, as zapping tunes one channel
+' after another.
+sub liveSaveChannel(section as object, key as string, channelId as integer)
+    kept = liveLoadView(section, key)
+    if channelId <= 0 or kept.channel = channelId then return
+    liveWriteView(section, key, kept.tab, kept.category, channelId)
+end sub
+
+sub liveWriteView(section as object, key as string, shownTab as string, category as string, channel as integer)
+    view = { tab: shownTab, category: category }
+    if channel > 0 then view.channel = channel
+    section.Write(key, FormatJson(view))
     section.Flush()
 end sub

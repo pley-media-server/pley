@@ -5,8 +5,9 @@
 ' /api/live/guide?ids=) six hours at a time as it is scrolled to, two days
 ' at most, or as cards. A provider's lineup runs to tens of thousands of
 ' channels in hundreds of groups: nothing here asks for all of them. The
-' tab and the category are kept on the Roku for each server and profile;
-' back from watching, the list opens at the channel watched.
+' tab, the category and the channel last watched are kept on the Roku for
+' each server and profile; the list opens at that channel, back from
+' watching it and after a restart.
 
 sub init()
     m.tabs = m.top.findNode("tabs")
@@ -81,6 +82,9 @@ sub onActive()
         session = m.global.session
         m.viewKey = liveViewKey(session.server, session.profileId)
         m.view = liveLoadView(viewSection(), m.viewKey)
+        ' The channel last watched, kept from before the app started: the
+        ' list opens at it, as it does back from the player.
+        if scene.liveChannel = 0 then scene.liveChannel = m.view.channel
         m.tabs.current = 0
         if m.view.tab = "channels" then m.tabs.current = 1
         m.tabs.focusIndex = m.tabs.current

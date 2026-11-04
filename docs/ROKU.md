@@ -308,8 +308,10 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 - **Paging:** channels come 50 at a time, and the guide only for those 50
   (`GET /api/live/guide?ids=`).
 - **Categories** run down the left under Search. Rewind and fast forward
-  move a screen at a time. The category and the tab are kept per server
-  and profile.
+  move a screen at a time. The category, the tab and the last channel
+  watched are kept per server and profile (registry section `liveViews`):
+  the list opens at that channel, back from the player and after a
+  restart.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
   the channel; on a later programme it shows its details.

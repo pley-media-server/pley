@@ -1391,6 +1391,7 @@ const checks = [
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
   ["listed channels a page at a time", fixture.liveBrowses.length > 0 && fixture.liveBrowses.every((b) => b.limit <= 50)],
   ["opened Live TV back at the channel watched", fixture.liveBrowses.some((b) => b.around === 3)],
+  ["kept the last channel watched on the Roku for the server and profile", registry !== null && /liveViews\.http[^"]*\|1","\{[^}]*\\"channel\\":3\b/.test(JSON.stringify([...registry]))],
   ["watched channels with one client_id, so zapping holds one connection", fixture.liveWatches.length >= 2 && new Set(fixture.liveWatches.map((w) => w.client_id)).size === 1 && fixture.liveWatches[0].client_id !== null],
   ["asked for a channel's playlist before playing it", fixture.livePlaylists.length >= 2],
   ["put a channel in the favourites from the player's list", fixture.liveFavoriteChanges.some((c) => c.id === 2 && c.favorite)],
