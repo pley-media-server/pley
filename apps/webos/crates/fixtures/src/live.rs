@@ -291,7 +291,7 @@ impl Live {
     }
 
     /// The viewers `me` sees in the fixture's own session list: their own, or everyone's for an
-    /// administrator.
+    /// administrator. Live TV has no tracks to pick.
     pub(crate) fn listed(&self, me: i64, admin: bool) -> Vec<Value> {
         let mut list: Vec<(&String, &Viewer)> =
             self.sessions.iter().filter(|(_, v)| admin || v.profile == me).collect();
@@ -301,6 +301,7 @@ impl Live {
                 json!({
                     "session_id": id, "kind": "live", "profile_id": v.profile, "channel_id": v.channel,
                     "controls": v.controls, "device_kind": v.device_kind,
+                    "audio_index": null, "subtitle_index": null, "tracks": { "audio": [], "subtitles": [] },
                 })
             })
             .collect()

@@ -200,8 +200,12 @@ fn progress_and_track_choices_send_what_the_server_reads() {
         state: ProgressState::Paused,
         session_id: Some("9c1e".into()),
         age_ms: None,
+        audio_index: Some(2),
+        subtitle_index: Some(-1),
     };
     api.progress(42, &report).unwrap();
+    // Music's reports name no tracks.
+    api.progress(43, &ProgressReport { position_ms: 1_000, ..ProgressReport::default() }).unwrap();
     api.set_streams(42, &StreamChoice { file_id: Some(7), audio: AudioChoice::Keep, subtitle_index: None }).unwrap();
     api.set_streams(42, &StreamChoice { file_id: None, audio: AudioChoice::Automatic, subtitle_index: Some(3) })
         .unwrap();
@@ -211,7 +215,11 @@ fn progress_and_track_choices_send_what_the_server_reads() {
     assert_eq!(
         bodies,
         [
-            json!({"position_ms": 754000, "duration_ms": 5400000, "state": "paused", "session_id": "9c1e"}),
+            json!({
+                "position_ms": 754000, "duration_ms": 5400000, "state": "paused", "session_id": "9c1e",
+                "audio_index": 2, "subtitle_index": -1,
+            }),
+            json!({"position_ms": 1000, "state": "playing"}),
             json!({"file_id": 7}),
             json!({"audio_index": null, "subtitle_index": 3}),
             json!({}),

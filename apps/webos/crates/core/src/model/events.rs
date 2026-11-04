@@ -58,12 +58,14 @@ pub enum ServerEvent {
         by_admin: bool,
     },
     /// The user's remote, on another of their devices, for the player of `session_id`
-    /// (docs/API.md, "Remote control"): `position_ms` for a seek, `offset_ms` for a skip.
+    /// (docs/API.md, "Remote control"): `position_ms` for a seek, `offset_ms` for a skip,
+    /// `stream_index` for another audio track or other subtitles (-1: none).
     PlayerCommand {
         session_id: String,
         command: Control,
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
+        stream_index: Option<i64>,
     },
     /// Live TV's sources, channels or guide changed.
     LiveChannelsChanged,
@@ -163,6 +165,8 @@ struct Raw {
     #[serde(default)]
     offset_ms: Option<i64>,
     #[serde(default)]
+    stream_index: Option<i64>,
+    #[serde(default)]
     request_id: Option<i64>,
     #[serde(rename = "kind", default)]
     title_kind: Option<TitleKind>,
@@ -216,6 +220,7 @@ impl<'de> Deserialize<'de> for ServerEvent {
                 command: r.command,
                 position_ms: r.position_ms,
                 offset_ms: r.offset_ms,
+                stream_index: r.stream_index,
             },
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,
             "live_tuners_changed" => ServerEvent::LiveTunersChanged,

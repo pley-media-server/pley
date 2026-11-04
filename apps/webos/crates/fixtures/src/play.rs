@@ -4,9 +4,10 @@
 //! subtitles as WebVTT (one track partial the first time) and pictures as
 //! `.mks`, seek previews and chapter pictures, bitrate changes, sessions
 //! stopped from elsewhere (`session_stopped`, then `410`), the user's remote
-//! (`player_command`, to what a player said it obeys); progress, watched
-//! marks, ratings, track choices and track defaults, which change what the
-//! profile reads next.
+//! (`player_command`, to what a player said it obeys, a track one of the
+//! session file's); progress, with the tracks a player plays, watched marks,
+//! ratings, track choices and track defaults, which change what the profile
+//! reads next.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::catalog::{FileEntry, trickplay_id};
+use crate::catalog::{Catalog, FileEntry, trickplay_id};
 use crate::http::{Body, Request, Response, lock};
 use crate::media::{Clip, HLS_SEGMENTS};
 use crate::model::{ItemDetail, Kind, MediaFile, MediaStream, is_false};
@@ -44,6 +45,9 @@ const HLS_PTS_OFFSET_MS: i64 = 1_400;
 const PICTURE_EVERY_MS: i64 = 6_000;
 /// Added subtitles' indexes start here, clear of the file's and its sidecars'.
 const ADDED_FROM: i64 = 9_000;
+/// The highest stream index a report may name: files' own below 1000, subtitle files and added
+/// subtitles below 10,000.
+const MAX_STREAM_INDEX: i64 = 9_999;
 
 /// A playback session: the file it plays and how.
 pub(crate) struct PlaySession {
@@ -61,11 +65,30 @@ pub(crate) struct PlaySession {
     /// The remote's commands its player obeys, and what it plays on (docs/API.md, "Remote control").
     pub controls: Vec<String>,
     pub device_kind: Option<String>,
+    /// The audio it plays and the subtitles it shows (-1: none): what its player last said, else
+    /// what its play request started with; none while not known.
+    pub audio_index: Option<i64>,
+    pub subtitle_index: Option<i64>,
+}
+
+impl PlaySession {
+    /// Keeps the tracks a report says its player plays: one left out, or out of range, keeps
+    /// what was known. Whether either changed.
+    fn report_tracks(&mut self, audio_index: Option<i64>, subtitle_index: Option<i64>) -> bool {
+        let before = (self.audio_index, self.subtitle_index);
+        if let Some(index) = audio_index.filter(|i| (0..=MAX_STREAM_INDEX).contains(i)) {
+            self.audio_index = Some(index);
+        }
+        if let Some(index) = subtitle_index.filter(|i| (-1..=MAX_STREAM_INDEX).contains(i)) {
+            self.subtitle_index = Some(index);
+        }
+        (self.audio_index, self.subtitle_index) != before
+    }
 }
 
 /// The remote's commands a body's `controls` names; the ones the server doesn't know are left out.
 pub(crate) fn controls_of(controls: &Value) -> Vec<String> {
-    const KNOWN: [&str; 6] = ["play", "pause", "seek", "skip", "next", "previous"];
+    const KNOWN: [&str; 8] = ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles"];
     let named = controls.as_array().into_iter().flatten().filter_map(Value::as_str);
     let mut list: Vec<String> = named.filter(|c| KNOWN.contains(c)).map(str::to_string).collect();
     list.dedup();
@@ -205,7 +228,7 @@ pub(crate) fn routes() -> Vec<Route> {
         // its web app): to find one to stop or command by hand.
         locked("GET", "/api/sessions", play, |cx, state| {
             let me = cx.caller().profile;
-            Ok(json(200, &json!({ "sessions": listed(state, me, me == ids::ALEX) })))
+            Ok(json(200, &json!({ "sessions": listed(cx.catalog(), state, me, me == ids::ALEX) })))
         }),
         free("GET", "/api/files/*/stream", play, |cx| {
             let (entry, _) = file_of(cx)?;
@@ -630,6 +653,13 @@ fn start(cx: &Cx<'_>, state: &mut State) -> Answer {
     if let Some(key) = &key {
         state.playback.keys.insert(key.clone(), id.clone());
     }
+    // Until the player says, remotes see what it starts with: the subtitles burned in, else those
+    // the profile's choices pick (which players start with), none for a file without subtitles.
+    let subtitle_index = match burn {
+        Some(s) => Some(s.index),
+        None if info.subtitles.is_empty() => None,
+        None => Some(views::with_choices(item, file, state.profile(me)).selected_subtitle.unwrap_or(-1)),
+    };
     state.playback.sessions.insert(
         id.clone(),
         PlaySession {
@@ -644,6 +674,8 @@ fn start(cx: &Cx<'_>, state: &mut State) -> Answer {
             bitrate_kbps: ceiling,
             controls: controls_of(&body["controls"]),
             device_kind: body["device_kind"].as_str().map(str::to_string),
+            audio_index: chosen_audio.map(|a| a.index),
+            subtitle_index,
         },
     );
     cx.shared.events.emit(&ServerEvent::SessionsChanged);
@@ -787,16 +819,20 @@ fn stop_from_elsewhere(cx: &Cx<'_>, state: &mut State) -> Answer {
 }
 
 /// The sessions `me` sees in the fixture's own list: their own, or everyone's for an administrator;
-/// videos and music (`kind: "item"`) then live viewers.
-pub(crate) fn listed(state: &State, me: i64, admin: bool) -> Vec<Value> {
+/// videos and music (`kind: "item"`), with the tracks their file has and which play, then live
+/// viewers.
+pub(crate) fn listed(catalog: &Catalog, state: &State, me: i64, admin: bool) -> Vec<Value> {
     let mut list: Vec<&PlaySession> = state.playback.sessions.values().filter(|s| admin || s.profile == me).collect();
     list.sort_by(|a, b| a.id.cmp(&b.id));
     let mut list: Vec<Value> = list
         .into_iter()
         .map(|s| {
+            let tracks = catalog.file(s.file).map(|(_, f)| track_options(state, f));
             json!({
                 "session_id": s.id, "kind": "item", "profile_id": s.profile, "item_id": s.item,
                 "method": s.method, "controls": s.controls, "device_kind": s.device_kind,
+                "audio_index": s.audio_index, "subtitle_index": s.subtitle_index,
+                "tracks": tracks.unwrap_or_else(|| json!({ "audio": [], "subtitles": [] })),
             })
         })
         .collect();
@@ -804,10 +840,39 @@ pub(crate) fn listed(state: &State, me: i64, admin: bool) -> Vec<Value> {
     list
 }
 
-/// POST /api/sessions/{id}/command `{ command, position_ms?, offset_ms? }` (docs/API.md, "Remote
-/// control"): one of the caller's own players, a video's, the music's or a live viewer's, is sent
-/// `player_command`. Someone else's session is refused, an administrator's request too; a command
-/// its player didn't list answers `409`.
+/// A file's tracks as remotes pick among them (`PlayingSession.tracks`): its audio, then its
+/// subtitles with those added to it.
+fn track_options(state: &State, file: &MediaFile) -> Value {
+    let option = |s: &MediaStream| {
+        json!({
+            "index": s.index, "language": s.language, "title": s.title,
+            "codec": Some(&s.codec).filter(|c| !c.is_empty()),
+            "channels": if s.is("audio") { s.channels } else { None },
+            "default": s.default, "forced": s.forced,
+        })
+    };
+    let audio: Vec<Value> = file.streams.iter().filter(|s| s.is("audio")).map(option).collect();
+    let mut subtitles: Vec<Value> = file.streams.iter().filter(|s| s.is("subtitle")).map(option).collect();
+    if let Some(added) = state.added_subtitles.get(&file.id) {
+        subtitles.extend(added.iter().map(|a| option(&a.stream())));
+    }
+    json!({ "audio": audio, "subtitles": subtitles })
+}
+
+/// Whether `index` is one of file `file`'s tracks of `kind` (`audio`, `subtitle`): its own, or a
+/// subtitle added to it.
+fn has_track(catalog: &Catalog, state: &State, file: i64, kind: &str, index: i64) -> bool {
+    let own = catalog.file(file).is_some_and(|(_, f)| f.streams.iter().any(|s| s.is(kind) && s.index == index));
+    let added =
+        kind == "subtitle" && state.added_subtitles.get(&file).is_some_and(|a| a.iter().any(|a| a.index == index));
+    own || added
+}
+
+/// POST /api/sessions/{id}/command `{ command, position_ms?, offset_ms?, stream_index? }`
+/// (docs/API.md, "Remote control"): one of the caller's own players, a video's, the music's or a
+/// live viewer's, is sent `player_command`. Someone else's session is refused, an administrator's
+/// request too; a track must be one of the session file's (subtitles -1: none), and Live TV has
+/// none; a command its player didn't list answers `409`.
 fn command(cx: &Cx<'_>, state: &mut State) -> Answer {
     let (id, me) = (cx.value(0).to_string(), cx.caller().profile);
     let body = cx.req.json().unwrap_or(Value::Null);
@@ -816,30 +881,46 @@ fn command(cx: &Cx<'_>, state: &mut State) -> Answer {
         return Err(bad_request("unknown command"));
     }
     let (position_ms, offset_ms) = (body["position_ms"].as_i64(), body["offset_ms"].as_i64());
+    let stream_index = body["stream_index"].as_i64();
     match command.as_str() {
         "seek" if position_ms.is_none_or(|p| p < 0) => return Err(bad_request("seek needs position_ms")),
         "skip" if offset_ms.is_none_or(|o| o.abs() > 600_000) => return Err(bad_request("skip needs offset_ms")),
         _ => {}
     }
-    let (owner, controls) = match state.live.viewer(&id) {
-        Some(viewer) => viewer,
+    let (owner, controls, file) = match state.live.viewer(&id) {
+        Some((owner, controls)) => (owner, controls, None),
         None => {
             let s = state.playback.sessions.get(&id).ok_or_else(|| not_found("no such session"))?;
-            (s.profile, s.controls.clone())
+            (s.profile, s.controls.clone(), Some(s.file))
         }
     };
     if owner != me {
         return Err(forbidden("not your session"));
     }
+    let track = match command.as_str() {
+        "audio" => Some("audio"),
+        "subtitles" => Some("subtitle"),
+        _ => None,
+    };
+    if let Some(kind) = track {
+        let file = file.ok_or_else(|| bad_request("Live TV has no tracks to pick"))?;
+        let index = stream_index.ok_or_else(|| bad_request(&format!("{command} needs stream_index")))?;
+        let off = kind == "subtitle" && index == -1;
+        if !off && !has_track(cx.catalog(), state, file, kind, index) {
+            return Err(bad_request(&format!("stream_index must be one of the file's {kind} tracks")));
+        }
+    }
     if !controls.contains(&command) {
         return Err(json(409, &json!({ "code": "not_controllable", "message": "That player doesn't do that." })));
     }
-    let (position_ms, offset_ms) = match command.as_str() {
-        "seek" => (position_ms, None),
-        "skip" => (None, offset_ms),
-        _ => (None, None),
+    let (position_ms, offset_ms, stream_index) = match command.as_str() {
+        "seek" => (position_ms, None, None),
+        "skip" => (None, offset_ms, None),
+        "audio" | "subtitles" => (None, None, stream_index),
+        _ => (None, None, None),
     };
-    cx.shared.events.emit_to(owner, &ServerEvent::PlayerCommand { session_id: id, command, position_ms, offset_ms });
+    let event = ServerEvent::PlayerCommand { session_id: id, command, position_ms, offset_ms, stream_index };
+    cx.shared.events.emit_to(owner, &event);
     Ok(Response::new(202))
 }
 
@@ -1132,6 +1213,14 @@ fn progress(cx: &Cx<'_>, state: &mut State) -> Answer {
         && let Some(stopped) = state.playback.stopped.get(session).filter(|s| s.profile == me)
     {
         return Err(session_stopped(stopped.message.as_deref()));
+    }
+    // The tracks its player plays are kept on its session for the profile's remotes, which hear
+    // of a change at once.
+    if let Some(session) = body["session_id"].as_str().and_then(|s| state.playback.sessions.get_mut(s))
+        && session.profile == me
+        && session.report_tracks(body["audio_index"].as_i64(), body["subtitle_index"].as_i64())
+    {
+        cx.shared.events.emit(&ServerEvent::SessionsChanged);
     }
     Ok(no_content())
 }

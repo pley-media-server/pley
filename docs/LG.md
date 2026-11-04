@@ -294,11 +294,22 @@ so the server names the TV from its `User-Agent`. They obey:
   something can come next (an episode, a playlist or collection). Next at
   the end does nothing, and says nothing on the TV; a video has no
   previous.
+- **Audio and subtitles** of a movie or episode (`audio`, `subtitles`,
+  declared where its file has tracks of that kind), picked as the
+  player's own Audio and Subtitles panels pick them, and kept for the
+  show or movie as those are: an audio track the TV's pipeline switches
+  in place, else in a new session; text subtitles, and picture ones drawn
+  from the server's `.mks`, at once; burned-in ones in a new session.
+  Every progress report says which play (`audio_index`, and
+  `subtitle_index`, -1 for none), so a pick played in place, or one that
+  is playing already, is said at once; a new session says its tracks as
+  it starts.
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track, or on the first, goes back to its
-  start. Music playing behind the other pages obeys too; music that gave
-  way to a video or a channel has no session, and obeys nothing until it
-  plays again.
+  start. Music has no tracks to pick, and its reports name none. Music
+  playing behind the other pages obeys too; music that gave way to a
+  video or a channel has no session, and obeys nothing until it plays
+  again.
 - **Live TV:** next and previous, channel up and down through the
   category the player was opened from, round its ends, as CH+ and CH− go.
   It has no pause or seek. Stopped from another device or by an
@@ -312,7 +323,8 @@ reported at once, so the remote sees it; another title, track or channel
 tells the server with its own session. A play on a player already
 playing, or a pause on one already paused, says so again at once, so a
 remote a little behind settles. The rule is `crates/player/src/remote.rs`,
-pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`.
+pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`
+(and a video's tracks, which the fixture doesn't have, by its own tests).
 
 ### Requests
 

@@ -232,6 +232,8 @@ pub struct Fake {
     answer: Answer,
     calls: Mutex<Vec<String>>,
     requests: Mutex<Vec<PlaybackRequest>>,
+    /// Every progress report, whole.
+    reports: Mutex<Vec<ProgressReport>>,
     saved: Mutex<Vec<(AudioChoice, Option<i64>)>>,
     searched: Mutex<Vec<Search>>,
     /// The subtitle files asked for, by address.
@@ -280,6 +282,7 @@ impl Fake {
             answer: Box::new(answer),
             calls: Mutex::default(),
             requests: Mutex::default(),
+            reports: Mutex::default(),
             saved: Mutex::default(),
             searched: Mutex::default(),
             subtitle_asks: Mutex::default(),
@@ -316,6 +319,11 @@ impl Fake {
 
     pub fn modes(&self) -> Vec<PlaybackMode> {
         self.requests().iter().map(|r| r.mode).collect()
+    }
+
+    /// Every progress report, in order.
+    pub fn reports(&self) -> Vec<ProgressReport> {
+        self.reports.lock().unwrap().clone()
     }
 
     pub fn saved(&self) -> Vec<(AudioChoice, Option<i64>)> {
@@ -481,6 +489,7 @@ impl PlayerServer for Fake {
 
     fn progress(&self, _item_id: i64, report: &ProgressReport) -> Result<(), ApiError> {
         self.log(format!("progress {} {}", report.state.as_str(), report.position_ms));
+        self.reports.lock().unwrap().push(report.clone());
         Ok(())
     }
 

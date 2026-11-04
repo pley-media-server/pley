@@ -1,7 +1,8 @@
 //! The user's remote, on another of their devices (docs/API.md, "Remote control"): what each
 //! player here obeys, and what it does with a command. The TV obeys and shows no remote of its
 //! own. The rules are the other apps' players' (the Apple apps' `Remote.swift`), pinned by the
-//! TV apps' shared fixture (packages/tv/test/fixtures/remote.json).
+//! TV apps' shared fixture (packages/tv/test/fixtures/remote.json); a video's tracks, which the
+//! fixture doesn't have, by the tests here.
 
 use pley_core::model::{Control, ServerEvent};
 
@@ -24,6 +25,19 @@ pub fn video_controls(has_next: bool) -> Vec<Control> {
     controls
 }
 
+/// What a video obeys with its tracks: [`video_controls`], then `audio` and `subtitles` where its
+/// file has tracks of that kind, which the remote picks among as the player's own menu does.
+pub fn video_controls_with_tracks(has_next: bool, audio: bool, subtitles: bool) -> Vec<Control> {
+    let mut controls = video_controls(has_next);
+    if audio {
+        controls.push(Control::Audio);
+    }
+    if subtitles {
+        controls.push(Control::Subtitles);
+    }
+    controls
+}
+
 /// What a live channel obeys: channel up and down when the player has an order to go through,
 /// else nothing but Stop.
 pub fn live_controls(has_order: bool) -> Vec<Control> {
@@ -40,15 +54,21 @@ pub struct Command<'a> {
     pub position_ms: Option<i64>,
     /// How far, for a skip (back when negative).
     pub offset_ms: Option<i64>,
+    /// Which track, for another audio track or other subtitles (-1: none).
+    pub stream_index: Option<i64>,
 }
 
 impl Command<'_> {
     /// The command `event` carries, if it is one.
     pub fn of(event: &ServerEvent) -> Option<Command<'_>> {
         match event {
-            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms } => {
-                Some(Command { session_id, command: *command, position_ms: *position_ms, offset_ms: *offset_ms })
-            }
+            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index } => Some(Command {
+                session_id,
+                command: *command,
+                position_ms: *position_ms,
+                offset_ms: *offset_ms,
+                stream_index: *stream_index,
+            }),
             _ => None,
         }
     }
@@ -111,14 +131,19 @@ pub enum RemoteAction {
     Previous,
     /// Channel up (1) or down (-1).
     Channel(i64),
+    /// A video's audio track, by stream index, picked as its menu picks it.
+    Audio(i64),
+    /// A video's subtitles, by stream index; none turns them off.
+    Subtitles(Option<i64>),
 }
 
 /// The rule every receiver follows: a command for another session is someone else's player's;
 /// play while playing and pause while paused say again what it does; a seek stays within the
 /// title and a skip counts from where it is; next with nothing next, or previous on a video, does
 /// nothing; previous on music starts the track again past 3 s or on the first track, else plays
-/// the one before; a live channel's next and previous are channel up and down. A command the
-/// player didn't declare does nothing.
+/// the one before; a live channel's next and previous are channel up and down; a video's audio
+/// and subtitles are its tracks of that stream index (subtitles -1: off), which music and live
+/// channels don't have. A command the player didn't declare does nothing.
 pub fn remote_action(p: &RemotePlayer, c: &Command) -> RemoteAction {
     if p.session != Some(c.session_id) {
         return RemoteAction::None;
@@ -150,6 +175,12 @@ pub fn remote_action(p: &RemotePlayer, c: &Command) -> RemoteAction {
             Some(i) if restarts_track(p.position_ms, i) => RemoteAction::Seek(0),
             Some(_) => RemoteAction::Previous,
         },
+        // Music has no tracks to pick.
+        Control::Audio | Control::Subtitles if index.is_some() => RemoteAction::None,
+        Control::Audio => c.stream_index.map_or(RemoteAction::None, RemoteAction::Audio),
+        Control::Subtitles => {
+            c.stream_index.map_or(RemoteAction::None, |i| RemoteAction::Subtitles((i >= 0).then_some(i)))
+        }
         // A command a newer server knows.
         Control::Unknown => RemoteAction::None,
     }
@@ -202,6 +233,7 @@ mod tests {
             command: Control::from_wire(c["command"].as_str().unwrap()),
             position_ms: c["position_ms"].as_i64(),
             offset_ms: c["offset_ms"].as_i64(),
+            stream_index: c["stream_index"].as_i64(),
         }
     }
 
@@ -221,6 +253,9 @@ mod tests {
                 Some(c) => json!({ "act": "channel", "channel": c, "report": false }),
                 None => json!({ "act": "none", "report": false }),
             },
+            // The shared fixture has no tracks yet: the tests below have them.
+            RemoteAction::Audio(i) => json!({ "act": "audio", "stream_index": i }),
+            RemoteAction::Subtitles(i) => json!({ "act": "subtitles", "stream_index": i.unwrap_or(-1) }),
         }
     }
 
@@ -287,6 +322,59 @@ mod tests {
             };
             assert_eq!(written(action, to), case["out"], "{}", case["in"]);
         }
+    }
+
+    /// What a player of `kind` playing session `s1` does with `command` for `session`.
+    fn pick_in(kind: RemoteKind, session: &str, command: Control, stream_index: Option<i64>) -> RemoteAction {
+        let player = RemotePlayer {
+            kind,
+            session: Some("s1"),
+            playing: true,
+            position_ms: 60_000,
+            duration_ms: Some(7_200_000),
+            has_next: false,
+        };
+        let c = Command { session_id: session, command, position_ms: None, offset_ms: None, stream_index };
+        remote_action(&player, &c)
+    }
+
+    fn pick(kind: RemoteKind, command: Control, stream_index: Option<i64>) -> RemoteAction {
+        pick_in(kind, "s1", command, stream_index)
+    }
+
+    #[test]
+    fn a_video_declares_its_tracks_after_the_rest_where_its_file_has_them() {
+        let names = |c: Vec<Control>| c.iter().map(|c| c.as_str()).collect::<Vec<_>>();
+        assert_eq!(names(video_controls_with_tracks(false, false, false)), ["play", "pause", "seek", "skip"]);
+        assert_eq!(
+            names(video_controls_with_tracks(true, true, true)),
+            ["play", "pause", "seek", "skip", "next", "audio", "subtitles"]
+        );
+        assert_eq!(names(video_controls_with_tracks(false, true, false)), ["play", "pause", "seek", "skip", "audio"]);
+        assert_eq!(
+            names(video_controls_with_tracks(false, false, true)),
+            ["play", "pause", "seek", "skip", "subtitles"]
+        );
+    }
+
+    #[test]
+    fn a_video_picks_the_track_named_and_minus_one_turns_subtitles_off() {
+        assert_eq!(pick(RemoteKind::Video, Control::Audio, Some(2)), RemoteAction::Audio(2));
+        assert_eq!(pick(RemoteKind::Video, Control::Subtitles, Some(4)), RemoteAction::Subtitles(Some(4)));
+        assert_eq!(pick(RemoteKind::Video, Control::Subtitles, Some(-1)), RemoteAction::Subtitles(None));
+        // Without a track there is nothing to pick.
+        assert_eq!(pick(RemoteKind::Video, Control::Audio, None), RemoteAction::None);
+        assert_eq!(pick(RemoteKind::Video, Control::Subtitles, None), RemoteAction::None);
+    }
+
+    #[test]
+    fn music_and_live_channels_have_no_tracks_to_pick() {
+        for kind in [RemoteKind::Music { index: 1 }, RemoteKind::Live { has_order: true }] {
+            assert_eq!(pick(kind, Control::Audio, Some(2)), RemoteAction::None, "{kind:?}");
+            assert_eq!(pick(kind, Control::Subtitles, Some(-1)), RemoteAction::None, "{kind:?}");
+        }
+        // Another session's track is someone else's player's.
+        assert_eq!(pick_in(RemoteKind::Video, "s2", Control::Audio, Some(2)), RemoteAction::None);
     }
 
     #[test]

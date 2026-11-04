@@ -419,6 +419,7 @@ mod tests {
                 command: Control::Seek,
                 position_ms: Some(1_200_000),
                 offset_ms: None,
+                stream_index: None,
             })
         );
         assert_eq!(e.map(|e| e.kind().to_string()), Some("player_command".into()));
@@ -427,6 +428,26 @@ mod tests {
         // A command a newer server knows reads as one nothing obeys.
         let newer = parse_event(r#"{"type":"player_command","session_id":"s1","command":"shuffle"}"#);
         assert!(matches!(newer, Some(ServerEvent::PlayerCommand { command: Control::Unknown, .. })));
+    }
+
+    #[test]
+    fn a_remotes_track_names_the_stream_and_minus_one_turns_subtitles_off() {
+        use crate::model::Control;
+        let audio = parse_event(
+            r#"{"type":"player_command","session_id":"s1","command":"audio","position_ms":null,"offset_ms":null,"stream_index":2}"#,
+        );
+        assert!(matches!(
+            audio,
+            Some(ServerEvent::PlayerCommand { command: Control::Audio, stream_index: Some(2), .. })
+        ));
+        let off = parse_event(r#"{"type":"player_command","session_id":"s1","command":"subtitles","stream_index":-1}"#);
+        assert!(matches!(
+            off,
+            Some(ServerEvent::PlayerCommand { command: Control::Subtitles, stream_index: Some(-1), .. })
+        ));
+        // An older server's commands have none.
+        let play = parse_event(r#"{"type":"player_command","session_id":"s1","command":"play"}"#);
+        assert!(matches!(play, Some(ServerEvent::PlayerCommand { stream_index: None, .. })));
     }
 
     #[test]

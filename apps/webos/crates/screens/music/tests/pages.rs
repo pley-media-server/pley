@@ -328,6 +328,7 @@ fn remote(session: &str, command: &str) -> ServerEvent {
         command: command.into(),
         position_ms: None,
         offset_ms: None,
+        stream_index: None,
     }
 }
 

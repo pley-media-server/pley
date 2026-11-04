@@ -476,7 +476,7 @@ impl MusicSession {
             }
             RemoteAction::Next => self.next(),
             RemoteAction::Previous => self.previous(),
-            RemoteAction::None | RemoteAction::Channel(_) => {}
+            RemoteAction::None | RemoteAction::Channel(_) | RemoteAction::Audio(_) | RemoteAction::Subtitles(_) => {}
         }
         action
     }
@@ -755,12 +755,13 @@ impl MusicSession {
     /// `position_ms`: where the track went, when the TV's player may not say so yet (just after a seek).
     fn report_from(&mut self, state: ProgressState, position_ms: i64) {
         let (Some(s), Some(track)) = (self.session.as_ref(), self.order.get(self.index)) else { return };
+        // A track has no tracks for the remote to pick: its reports name none.
         let report = ProgressReport {
             position_ms,
             duration_ms: Some(self.duration_ms()).filter(|d| *d > 0),
             state,
             session_id: Some(s.session_id.clone()),
-            age_ms: None,
+            ..ProgressReport::default()
         };
         let (server, item) = (self.env.server.clone(), track.id);
         self.last_report_at = self.now;

@@ -15,6 +15,9 @@ describes how they are made.
   the same, and goes back a track; Live TV changes channel. Live TV
   stopped from another device, or by the server's administrator, stops
   on the TV and says who, with their message.
+- Your phone or browser changes the audio and subtitles of the film or
+  episode on the TV, as the player's own menu does, and shows which
+  play.
 
 ### Fixed
 

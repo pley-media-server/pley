@@ -658,7 +658,13 @@ fn a_take_over_leaves_the_words_of_a_stop_that_came_first() {
 // ---- the user's remote, on another device
 
 fn command(session: &str, command: Control) -> ServerEvent {
-    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms: None, offset_ms: None }
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command,
+        position_ms: None,
+        offset_ms: None,
+        stream_index: None,
+    }
 }
 
 fn stopped(session: &str, message: Option<&str>, by_admin: bool) -> ServerEvent {

@@ -194,12 +194,18 @@ fn a_viewer_obeys_the_remote_it_said_and_is_stopped_from_elsewhere() {
         (&viewer["kind"], &viewer["channel_id"], &viewer["controls"], &viewer["device_kind"]),
         (&json!("live"), &json!(9), &json!(["next", "previous"]), &json!("tv"))
     );
+    // Live TV has no tracks.
+    assert_eq!(
+        (&viewer["audio_index"], &viewer["subtitle_index"], &viewer["tracks"]),
+        (&Value::Null, &Value::Null, &json!({ "audio": [], "subtitles": [] }))
+    );
 
     let path = format!("/api/sessions/{session}/command");
     assert_eq!(api.post(&path, &json!({ "command": "next" })).status, 202);
     let heard = events.wait_for("player_command", Duration::from_secs(5)).expect("the viewer hears it");
     assert_eq!((heard["session_id"].as_str(), heard["command"].as_str()), (Some(session.as_str()), Some("next")));
     assert_eq!(api.post(&path, &json!({ "command": "pause" })).status, 409);
+    assert_eq!(api.post(&path, &json!({ "command": "subtitles", "stream_index": -1 })).status, 400);
 
     let stop = api.json("DELETE", &format!("/api/sessions/{session}"), &json!({ "message": "Time for bed" }));
     assert_eq!(stop.status, 204);

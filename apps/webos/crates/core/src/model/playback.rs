@@ -46,6 +46,10 @@ wire_enum! {
         Skip = "skip",
         Next = "next",
         Previous = "previous",
+        /// Another audio track, by its stream index.
+        Audio = "audio",
+        /// Other subtitles, by their stream index; -1 turns them off.
+        Subtitles = "subtitles",
         /// A command a newer server knows: nothing obeys it.
         #[default]
         Unknown = "unknown",
@@ -299,6 +303,13 @@ pub struct ProgressReport {
     /// How long ago a late report was made.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub age_ms: Option<i64>,
+    /// The audio track a video plays, by stream index, for the user's remotes; left out while it
+    /// isn't known, and by music.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_index: Option<i64>,
+    /// The subtitles a video shows, by stream index, -1 for none; left out by music.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtitle_index: Option<i64>,
 }
 
 /// What a track choice says of the audio.

@@ -251,7 +251,7 @@ fn a_session_the_server_stops_stops_the_music() {
 }
 
 fn command(session: &str, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
-    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms }
+    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms, stream_index: None }
 }
 
 #[test]
@@ -307,6 +307,32 @@ fn music_says_it_obeys_the_whole_remote_and_does_as_its_buttons_reporting_at_onc
     w.m.server_event(&command("m1", Control::Next, None, None));
     w.settle();
     assert_eq!(w.m.now_playing().unwrap().index, 1);
+}
+
+#[test]
+fn music_has_no_tracks_for_the_remote_to_pick() {
+    let mut w = Music::new();
+    w.m.play(vec![track(1), track(2)], 0, false);
+    w.settle();
+    w.advance(SIM_LOAD_MS + 10_000);
+    let req = w.fake.requests()[0].clone();
+    assert!(!req.controls.contains(&Control::Audio) && !req.controls.contains(&Control::Subtitles));
+    let reports = w.fake.reports();
+    assert!(!reports.is_empty(), "no report in 10 s");
+    assert!(reports.iter().all(|r| r.audio_index.is_none() && r.subtitle_index.is_none()), "{reports:?}");
+    // A track picked anyway changes nothing, and says nothing.
+    let before = w.calls().len();
+    let pick = ServerEvent::PlayerCommand {
+        session_id: "m1".into(),
+        command: Control::Audio,
+        position_ms: None,
+        offset_ms: None,
+        stream_index: Some(1),
+    };
+    w.m.server_event(&pick);
+    w.settle();
+    assert_eq!(w.calls().len(), before);
+    assert_eq!(w.m.now_playing().map(|n| (n.index, n.playing)), Some((0, true)));
 }
 
 /// A track opening counts as playing, as Android's `playWhenReady` does: the remote that sees its

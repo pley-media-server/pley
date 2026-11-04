@@ -458,10 +458,10 @@ impl FixtureServer {
         self.shared.events.emit_text(json.to_string(), None);
     }
 
-    /// `profile`'s own sessions, as `GET /api/sessions` lists them: what its players obey, and
-    /// their ids for [`ServerEvent::PlayerCommand`].
+    /// `profile`'s own sessions, as `GET /api/sessions` lists them: what its players obey, the
+    /// tracks they play, and their ids for [`ServerEvent::PlayerCommand`].
     pub fn sessions_of(&self, profile: i64) -> Vec<serde_json::Value> {
-        play::listed(&lock(&self.shared.state), profile, false)
+        play::listed(&self.shared.catalog, &lock(&self.shared.state), profile, false)
     }
 
     /// Event streams open now: tests wait for one before sending.

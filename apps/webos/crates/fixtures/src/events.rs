@@ -55,12 +55,13 @@ pub enum ServerEvent {
         by_admin: bool,
     },
     /// The user's remote, on another device, for the player of `session_id`: `position_ms` for a
-    /// seek, `offset_ms` for a skip.
+    /// seek, `offset_ms` for a skip, `stream_index` for a track (subtitles -1: none).
     PlayerCommand {
         session_id: String,
         command: String,
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
+        stream_index: Option<i64>,
     },
     LiveChannelsChanged,
     LiveTunersChanged,
@@ -97,9 +98,9 @@ impl ServerEvent {
             ServerEvent::SessionStopped { session_id, message, by_admin } => json!({
                 "type": "session_stopped", "session_id": session_id, "message": message, "by_admin": by_admin,
             }),
-            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms } => json!({
+            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index } => json!({
                 "type": "player_command", "session_id": session_id, "command": command,
-                "position_ms": position_ms, "offset_ms": offset_ms,
+                "position_ms": position_ms, "offset_ms": offset_ms, "stream_index": stream_index,
             }),
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),
