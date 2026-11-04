@@ -1506,6 +1506,23 @@ PLEY_BONJOUR_TEST=1 swift test --package-path apps/apple/PleyKit --filter aServe
 server bound only to 127.0.0.1 announces nothing: announcements go out on
 the adapters with addresses on the local network.
 
+### Icons
+
+`bun scripts/render-icons.mjs` at the repository root draws the apps'
+icons from the logo, as it does the other apps', into the asset catalogs
+each target's `ASSETCATALOG_COMPILER_APPICON_NAME` names:
+
+- `Pley/Assets.xcassets`, `AppIcon`: one 1024 px picture for iPhone and
+  iPad, full bleed and opaque, which the system rounds (the web app's
+  `apple-touch-icon.png`, larger), and the Mac's sizes on Apple's grid,
+  as the desktop app's `icon.icns`.
+- `tvOS/Assets.xcassets`, `App Icon & Top Shelf Image`: Apple TV's icon
+  in two layers, the tile's colour behind and the mark in front, which
+  part as it's focused, at 400×240 (800×480 at 2×) and the App Store's
+  1280×768; and the Top Shelf's own picture, the TV banner at 1920×720
+  and 2320×720, shown while the app has no row there
+  ([Top Shelf](#top-shelf)).
+
 ### UI tests
 
 Two UI-test targets drive the apps on the simulators: `PleyUITests`
@@ -1702,8 +1719,8 @@ apps/apple/scripts/check-screens.sh` stops them. A full run, without
 |---|---|
 | `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV`, Apple TV's Top Shelf extension `PleyTopShelf` (embedded in `PleyTV`), and the UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes for the apps and tests. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
 | `Config/` | Build settings (`.xcconfig`), the Info.plist keys, the Mac's entitlements and Apple TV's app group; `project.pbxproj` holds no settings |
-| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
-| `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
+| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion), `Screens/`, and `Assets.xcassets` with the icon ([Icons](#icons)) |
+| `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine), `Screens/`, and `Assets.xcassets` with the icon and the Top Shelf's picture ([Icons](#icons)) |
 | `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
 | `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift` and `LargeTextWalk.swift` (the largest text size) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus) and `ShelfWalk.swift` (the Top Shelf's links) on Apple TV |
 | `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |

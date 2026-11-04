@@ -6,6 +6,9 @@ SUPPORTED_PLATFORMS = appletvos appletvsimulator
 TARGETED_DEVICE_FAMILY = 3
 
 INFOPLIST_FILE = Config/PleyTV-Info.plist
+// tvOS/Assets.xcassets, from scripts/render-icons.mjs: the layered icon and
+// the Top Shelf's pictures.
+ASSETCATALOG_COMPILER_APPICON_NAME = App Icon & Top Shelf Image
 INFOPLIST_KEY_UILaunchScreen_Generation = YES
 
 // The app group shared with the Top Shelf extension; Signing.xcconfig has
