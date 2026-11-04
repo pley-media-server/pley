@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.ContentScale
@@ -222,7 +221,7 @@ private class PlaceholderNode(
     var load: ArtworkLoad,
     var well: Color,
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
-    private var picture: ImageBitmap? = null
+    private var look: Placeholder.Look? = null
     private var layout: TextLayoutResult? = null
     private var layoutSize = Size.Unspecified
 
@@ -230,7 +229,7 @@ private class PlaceholderNode(
 
     fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color) {
         if (title != this.title || titleStyle != this.titleStyle) {
-            picture = null
+            look = null
             layout = null
         }
         this.title = title
@@ -257,12 +256,12 @@ private class PlaceholderNode(
             // Shown before and on its way back: the well as it is under the picture.
             if (well.isSpecified) drawRect(well)
         } else if (!load.loaded) {
-            drawStretched(picture ?: Placeholder.picture(title).also { picture = it }, Offset.Zero, size)
+            with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, size) }
             titleLayout(size)?.let { text ->
                 drawText(
                     text,
                     color = PleyColors.Fg.copy(alpha = 0.7f),
-                    topLeft = androidx.compose.ui.geometry.Offset(
+                    topLeft = Offset(
                         (size.width - text.size.width) / 2f,
                         (size.height - text.size.height) / 2f,
                     ),

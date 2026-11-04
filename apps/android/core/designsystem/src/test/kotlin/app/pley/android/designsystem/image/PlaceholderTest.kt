@@ -35,17 +35,6 @@ class PlaceholderTest {
         assertEquals(rgb(0, 0, 255), bytes(Placeholder.hsl(240f, 1f, 0.5f)))
     }
 
-    @Test
-    fun theDiagonalBlendsInSrgbAsCssDoes() {
-        val from = 0xFF492727.toInt()
-        val to = 0xFF29221A.toInt()
-        assertEquals(from, GradientBitmaps.lerpArgb(from, to, 0f))
-        assertEquals(to, GradientBitmaps.lerpArgb(from, to, 1f))
-        // Halfway, each channel halfway: 0x49→0x29 is 0x39, 0x27→0x22 rounds to 0x25, 0x27→0x1A to 0x21.
-        assertEquals(0xFF392521.toInt(), GradientBitmaps.lerpArgb(from, to, 0.5f))
-        assertEquals(0x80000000.toInt(), GradientBitmaps.lerpArgb(0x00000000, 0xFF000000.toInt(), 0.5f))
-    }
-
     private fun rgb(r: Int, g: Int, b: Int) = Triple(r, g, b)
 
     private fun bytes(c: Color) = Triple((c.red * 255).roundToInt(), (c.green * 255).roundToInt(), (c.blue * 255).roundToInt())

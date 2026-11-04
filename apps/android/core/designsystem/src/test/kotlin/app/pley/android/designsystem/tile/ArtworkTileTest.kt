@@ -119,6 +119,24 @@ class ArtworkTileTest {
     }
 
     @Test
+    fun theGradientRunsToItsSecondColourBlendedInSrgb() {
+        val model = model()
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
+                ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+            }
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        val (from, to) = Placeholder.colors(model.title)
+        // Near the bottom right corner, about its second colour; halfway along the diagonal (top right, clear of
+        // the title in the middle), halfway between the two in sRGB, as CSS blends them.
+        assertNear(to, image[image.width - 14, image.height - 14])
+        val half = Color((from.red + to.red) / 2f, (from.green + to.green) / 2f, (from.blue + to.blue) / 2f)
+        assertNear(half, image[image.width * 9 / 10, image.height / 10])
+    }
+
+    @Test
     fun aPictureShownBeforeWaitsInThePlainWell() {
         val model = model(id = 5, title = "Saltwind")
         // Its picture is on its way and doesn't come yet; it loaded once before.

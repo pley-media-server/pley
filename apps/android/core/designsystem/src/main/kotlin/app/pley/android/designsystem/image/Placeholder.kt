@@ -2,8 +2,11 @@ package app.pley.android.designsystem.image
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -47,20 +50,29 @@ object Placeholder {
         )
     }
 
-    /** Every hue's picture once made: 360 of 16 × 16 pixels, under 400 KB. */
-    private val pictures = android.util.LruCache<Int, androidx.compose.ui.graphics.ImageBitmap>(360)
-
     /**
-     * The gradient for [seed] as a small picture, to draw stretched
-     * ([drawStretched]): a gradient shader over a tile or a backdrop costs far
-     * more on a TV's GPU. Kept per hue, all of them: a grid of a library's
-     * titles goes through most hues, each tile that comes in needing its own.
+     * The gradient's shape, the same for every title ([GradientBitmaps.diagonalRamp]):
+     * [drawGradient] fills the box with its first colour and stretches this over it
+     * tinted with its second. A gradient shader over a tile or a backdrop
+     * costs far more on a TV's GPU, and a picture per title was a texture
+     * to make for each tile a held key brought in (on a Google TV Streamer,
+     * up to 10 ms of the frame each).
      */
-    fun picture(seed: String): androidx.compose.ui.graphics.ImageBitmap {
-        val hue = hue(seed)
-        pictures.get(hue)?.let { return it }
+    private val ramp by lazy { GradientBitmaps.diagonalRamp() }
+
+    /** [seed]'s gradient over the box of [size], from its top left: its ends and the tint the ramp is drawn with. */
+    class Look internal constructor(val from: Color, val tint: ColorFilter)
+
+    /** What [drawGradient] draws for [seed], to keep with the box. */
+    fun look(seed: String): Look {
         val (from, to) = colors(seed)
-        return GradientBitmaps.diagonal(from, to).also { pictures.put(hue, it) }
+        return Look(from, ColorFilter.tint(to, BlendMode.SrcIn))
+    }
+
+    /** Draws [look]'s gradient over the box of [size]. */
+    fun DrawScope.drawGradient(look: Look, size: Size) {
+        drawRect(look.from, size = size)
+        drawStretched(ramp, Offset.Zero, size, colorFilter = look.tint)
     }
 
     /** CSS's hsl(), hue in degrees, saturation and lightness 0 to 1. */

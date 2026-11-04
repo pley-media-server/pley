@@ -5,6 +5,7 @@ import android.util.LruCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -44,33 +45,25 @@ object GradientBitmaps {
     }
 
     /**
-     * A square of [side] pixels from [from] at the top left to [to] at the
-     * bottom right, along its diagonal (CSS's `linear-gradient(135deg, …)`
-     * on a square; stretched to other boxes, close to it). Blended in sRGB,
-     * as CSS blends the web's `hsl()` colours. It changes only along x + y,
-     * so one ramp of 2 × [side] - 1 colours fills it; and a linear gradient
-     * stays one when stretched (the filter blends between pixels linearly),
-     * so a small square serves any box. Tiles build these while drawing, as
-     * a held key brings them in: a few microseconds each.
+     * A square of [side] white pixels, clear at the top left and opaque at
+     * the bottom right, along its diagonal: drawn tinted with a colour over
+     * another, it is the gradient between them (CSS's
+     * `linear-gradient(135deg, …)` on a square, blended in sRGB as CSS
+     * blends the web's `hsl()` colours), so one picture, one texture on the
+     * GPU, serves every gradient of that shape. A linear gradient stays one
+     * when stretched (the filter blends between pixels linearly), so a small
+     * square serves any box.
      */
-    fun diagonal(from: Color, to: Color, side: Int = 16): ImageBitmap {
-        val a = from.toArgb()
-        val b = to.toArgb()
+    fun diagonalRamp(side: Int = 16): ImageBitmap {
         val last = (2 * (side - 1)).coerceAtLeast(1)
-        val ramp = IntArray(last + 1) { i -> lerpArgb(a, b, i.toFloat() / last) }
         val pixels = IntArray(side * side)
-        for (y in 0 until side) for (x in 0 until side) pixels[y * side + x] = ramp[x + y]
-        return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
-    }
-
-    /** [a] to [b] at [t] (0 to 1), channel by channel in sRGB, alpha included. */
-    internal fun lerpArgb(a: Int, b: Int, t: Float): Int {
-        fun channel(shift: Int): Int {
-            val from = (a ushr shift) and 0xFF
-            val to = (b ushr shift) and 0xFF
-            return (from + (to - from) * t).roundToInt().coerceIn(0, 255) shl shift
+        for (y in 0 until side) {
+            for (x in 0 until side) {
+                val alpha = ((x + y) * 255f / last).roundToInt()
+                pixels[y * side + x] = (alpha shl 24) or 0xFFFFFF
+            }
         }
-        return channel(24) or channel(16) or channel(8) or channel(0)
+        return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
     }
 
     private fun colorAt(stops: List<Pair<Float, Color>>, t: Float): Color {
@@ -87,8 +80,14 @@ object GradientBitmaps {
     }
 }
 
-/** Draws [image] stretched over the box at [topLeft] of [size], filtered, at [alpha]. */
-fun DrawScope.drawStretched(image: ImageBitmap, topLeft: Offset, size: Size, alpha: Float = 1f) {
+/** Draws [image] stretched over the box at [topLeft] of [size], filtered, at [alpha], through [colorFilter]. */
+fun DrawScope.drawStretched(
+    image: ImageBitmap,
+    topLeft: Offset,
+    size: Size,
+    alpha: Float = 1f,
+    colorFilter: ColorFilter? = null,
+) {
     if (size.width <= 0f || size.height <= 0f || alpha <= 0f) return
     drawImage(
         image = image,
@@ -97,6 +96,7 @@ fun DrawScope.drawStretched(image: ImageBitmap, topLeft: Offset, size: Size, alp
         dstOffset = IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt()),
         dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
         alpha = alpha,
+        colorFilter = colorFilter,
         filterQuality = FilterQuality.Low,
     )
 }
