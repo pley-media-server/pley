@@ -382,6 +382,19 @@ public final class ItemModel: ObservableObject {
         return PlayRequest(itemId: playable.id, fileId: pickedFileId, fromStart: fromStart)
     }
 
+    /// What "Play on…" sends another of the profile's devices: a movie or
+    /// an episode from where Play starts it here (its resume point); a show
+    /// or a season, whose device plays its next episode as Play does here.
+    /// `nil` when there's nothing to play.
+    public var castTarget: CastTarget? {
+        guard let item, request() != nil else { return nil }
+        switch item.kind {
+        case .movie, .episode: return .item(item.id, startMs: resumeMs)
+        case .show, .season: return .item(item.id)
+        default: return nil
+        }
+    }
+
     /// What playing `item` (an episode of the list, an extra, the trailer) asks for.
     public func request(for item: ItemSummary, fromStart: Bool = false) -> PlayRequest? {
         if item.id == playable?.id { return request(fromStart: fromStart) }

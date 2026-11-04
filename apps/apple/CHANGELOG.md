@@ -109,3 +109,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The remote lists all your other devices that are on, playing or ready
   to play, each with its kind: choose one for its controls, with Audio and
   Subtitles, and Next wherever there is one.
+- Play on… sends a title, a show, an album, an artist, a track or a
+  playlist (Watch on…, a Live TV channel) to another of your devices.
+  Every Apple device, Apple TV included, plays what you send it as its own
+  Play would, and says where it came from; on Apple TV the player's other
+  notices show too.

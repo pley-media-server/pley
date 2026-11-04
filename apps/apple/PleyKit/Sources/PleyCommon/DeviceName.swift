@@ -32,6 +32,22 @@ public enum DeviceName {
         #endif
     }
 
+    /// What kind of device this is, as the server names kinds
+    /// (`device_kind`): `tv` (Apple TV), `tablet` (iPad), `phone`
+    /// (iPhone) or `computer` (Mac).
+    @MainActor
+    public static var kind: String {
+        #if os(tvOS)
+        "tv"
+        #elseif os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone"
+        #elseif os(macOS)
+        "computer"
+        #else
+        "other"
+        #endif
+    }
+
     /// `name` trimmed, at most 64 characters; `nil` when nothing is left.
     public static func cleaned(_ name: String) -> String? {
         let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxLength))

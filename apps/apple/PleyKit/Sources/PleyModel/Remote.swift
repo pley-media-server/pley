@@ -321,3 +321,65 @@ public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
     /// Whether it plays `kind` when cast to.
     public func takes(_ kind: CastKind) -> Bool { casts.contains(kind) }
 }
+
+/// What a remote casts to one of the profile's devices (the body of
+/// `POST /api/remote/devices/{id}/cast`, and what the device hears in
+/// `cast`): a title (a movie, an episode, a show, a season, a track, an
+/// album or an artist), a playlist or a Live TV channel; where a title
+/// starts, and whether an album, an artist or a playlist plays shuffled.
+public struct CastTarget: Encodable, Hashable, Sendable {
+    public enum What: Hashable, Sendable {
+        case item(Int)
+        case playlist(Int)
+        case channel(Int)
+    }
+
+    public var what: What
+    /// Where a title starts, in ms; `nil`: where its Play starts.
+    public var startMs: Int?
+    public var shuffle: Bool
+
+    public init(_ what: What, startMs: Int? = nil, shuffle: Bool = false) {
+        self.what = what
+        self.startMs = startMs
+        self.shuffle = shuffle
+    }
+
+    public static func item(_ id: Int, startMs: Int? = nil, shuffle: Bool = false) -> CastTarget {
+        CastTarget(.item(id), startMs: startMs, shuffle: shuffle)
+    }
+
+    public static func playlist(_ id: Int, shuffle: Bool = false) -> CastTarget {
+        CastTarget(.playlist(id), shuffle: shuffle)
+    }
+
+    public static func channel(_ id: Int) -> CastTarget { CastTarget(.channel(id)) }
+
+    /// What a device must take to play it: `live` for a channel, `item` for the rest.
+    public var kind: CastKind {
+        if case .channel = what { return .live }
+        return .item
+    }
+
+    /// The same, shuffled ("Shuffle on…").
+    public var shuffled: CastTarget {
+        var target = self
+        target.shuffle = true
+        return target
+    }
+
+    private enum CodingKeys: String, CodingKey { case itemId, playlistId, channelId, startMs, shuffle }
+
+    /// Exactly one of `item_id`, `playlist_id` and `channel_id`; `start_ms`
+    /// and `shuffle` only when they say something.
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch what {
+        case .item(let id): try c.encode(id, forKey: .itemId)
+        case .playlist(let id): try c.encode(id, forKey: .playlistId)
+        case .channel(let id): try c.encode(id, forKey: .channelId)
+        }
+        try c.encodeIfPresent(startMs, forKey: .startMs)
+        if shuffle { try c.encode(true, forKey: .shuffle) }
+    }
+}

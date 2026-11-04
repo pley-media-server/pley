@@ -140,6 +140,31 @@ struct RemoteDecodingTests {
         #expect(try decode(RemoteDevice.self, #"{"receiver_id":"x"}"#) == RemoteDevice(receiverId: "x"))
     }
 
+    @Test func aCastsBodyNamesOneThing() throws {
+        #expect(try object(CastTarget.item(101)) as? [String: AnyHashable] == ["item_id": 101])
+        #expect(try object(CastTarget.item(101, startMs: 61_000)) as? [String: AnyHashable]
+            == ["item_id": 101, "start_ms": 61_000])
+        let playlist = try object(CastTarget.playlist(5, shuffle: true))
+        #expect(Set(playlist.keys) == ["playlist_id", "shuffle"])
+        #expect(playlist["playlist_id"] as? Int == 5 && playlist["shuffle"] as? Bool == true)
+        #expect(try object(CastTarget.channel(3)) as? [String: AnyHashable] == ["channel_id": 3])
+        #expect(CastTarget.channel(3).kind == .live && CastTarget.playlist(5).kind == .item)
+        #expect(CastTarget.item(302).shuffled == CastTarget.item(302, shuffle: true))
+    }
+
+    @Test func aCastAsAnEvent() {
+        func event(_ json: String) -> ServerEvent? { ServerEvent.parse(Data(json.utf8)) }
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":61000,"shuffle":false,"from":"Pley for iPhone"}"#)
+            == .cast(receiverId: "apple-1", target: .item(12, startMs: 61_000), from: "Pley for iPhone"))
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","item_id":null,"playlist_id":5,"channel_id":null,"start_ms":null,"shuffle":true,"from":null}"#)
+            == .cast(receiverId: "apple-1", target: .playlist(5, shuffle: true), from: nil))
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","channel_id":3}"#)
+            == .cast(receiverId: "apple-1", target: .channel(3), from: nil))
+        // Nothing to play, or no device to play it: read as unknown, so it does nothing.
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","item_id":null}"#) == .unknown("cast"))
+        #expect(event(#"{"type":"cast","item_id":12}"#) == .unknown("cast"))
+    }
+
     @Test func reportsSayTheTracksPlaying() throws {
         let report = try object(ProgressReport(positionMs: 5_000, state: .playing, sessionId: "a1", audioIndex: 2,
                                                subtitleIndex: SessionTracks.off))

@@ -7,7 +7,7 @@ import PleyNetwork
 /// the profile's other devices that are on, the ones that take casts
 /// (`GET /api/remote/devices`) with what plays on each (`GET /api/sessions`),
 /// merged by `device_id` and read again whenever `AppModel.sessionsVersion`
-/// goes up; and the commands to their players.
+/// goes up; the commands to their players, and what "Play on…" sends them.
 /// This device itself is left out: the sessions it plays, its own
 /// receiver, and whatever else has its `device_id`. Apple TV only obeys,
 /// so it has none.
@@ -48,6 +48,8 @@ public final class RemoteModel: ObservableObject {
         public var kind: DeviceKind { receiver?.kind ?? entry?.session.deviceKind ?? .other }
         /// Its name as the server gives it.
         public var given: String? { receiver?.name ?? entry?.session.device }
+        /// Whether "Play on…" sends it what is of `kind`.
+        public func takes(_ kind: CastKind) -> Bool { receiver?.takes(kind) ?? false }
     }
 
     /// A command sent, and what its session looked like then.
@@ -177,6 +179,9 @@ public final class RemoteModel: ObservableObject {
         return chosen.flatMap { id in devices.first { $0.id == id } }
     }
 
+    /// The devices "Play on…" offers for what is of `kind`, as the list orders them.
+    public func takers(_ kind: CastKind) -> [Device] { devices.filter { $0.takes(kind) } }
+
     /// The remote, open on the device of `id`.
     public func show(_ id: String) {
         presented = true
@@ -278,6 +283,30 @@ public final class RemoteModel: ObservableObject {
             drop(id)
         } catch {
             refused(error, id: id, device: device)
+        }
+    }
+
+    /// Sends `device` `target` to play ("Play on…"): "Playing on Living
+    /// room TV" says it went, and the remote opens on that device, whose
+    /// controls show once its session does. A refusal says why, in the
+    /// remote's words.
+    public func cast(_ target: CastTarget, to device: Device) async {
+        guard let receiver = device.receiver else { return }
+        let name = name(device)
+        do {
+            guard let api = await app.session.api else { throw PleyError.signedOut }
+            try await api.cast(target, to: receiver.receiverId)
+            app.shell.show(Words.playingOn(name))
+            show(device.id)
+        } catch {
+            let status: Int? = switch error as? PleyError {
+            case .api(let status, _, _)?, .refused(let status, _, _, _, _)?: status
+            default: nil
+            }
+            let words = status.flatMap { Words.castRefusal(status: $0, device: name) } ?? asSentence(describe(error))
+            app.shell.show(words, action: nil, error: true)
+            // Gone, or no longer taking that: the list is read again.
+            if status == 404 || status == 409 { Task { await reload() } }
         }
     }
 

@@ -56,6 +56,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         public var random: @Sendable (Int) -> Int
         /// What the profile's remotes call this device, read as each player starts.
         public var deviceName: @MainActor () -> String?
+        /// What kind of device this is, as the event stream tells the profile's remotes.
+        public var deviceKind: @MainActor () -> DeviceKind?
 
         public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
                     quality: any QualityMemory = DefaultsQuality(),
@@ -67,7 +69,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
                     musicOutputs: @escaping @MainActor () -> any MusicOutput = { AVMusicOutput() },
                     nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { SystemNowPlaying() },
                     random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) },
-                    deviceName: @escaping @MainActor () -> String? = { DeviceName.current }) {
+                    deviceName: @escaping @MainActor () -> String? = { DeviceName.current },
+                    deviceKind: @escaping @MainActor () -> DeviceKind? = { DeviceKind(rawValue: DeviceName.kind) }) {
             self.clientId = clientId
             self.lateReports = lateReports
             self.quality = quality
@@ -80,6 +83,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             self.nowPlaying = nowPlaying
             self.random = random
             self.deviceName = deviceName
+            self.deviceKind = deviceKind
         }
     }
 
@@ -115,6 +119,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// Goes up whenever the profile's sessions may have changed (`sessions_changed`, the event
     /// stream connecting again, the app back in front): what lists them (the remote) reads them again.
     @Published public private(set) var sessionsVersion = 0
+    /// The Mac: a playback a cast from another device asked for, which the
+    /// app's window opens in a window of its own (`castOpened`), as its
+    /// pages do. iPhone, iPad and Apple TV play it at once.
+    @Published public private(set) var castOpening: CastOpening?
     /// What changed on the server last (its events, gathered for 0.3 s,
     /// and this app's own writes): the screens showing it read it again.
     @Published public private(set) var change: ServerChange?
@@ -161,8 +169,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     #endif
     /// The item actions and the marks they made.
     public private(set) lazy var actions = ItemActionsModel(app: self)
-    /// The profile's other devices and what plays on them: the remote
-    /// (iPhone, iPad and Mac).
+    /// The profile's other devices and what plays on them: the remote, and
+    /// "Play on…" (iPhone, iPad and Mac; Apple TV only takes casts).
     public private(set) lazy var remote = RemoteModel(app: self)
     /// The downloads (iPhone, iPad and Mac); none on Apple TV.
     public let downloads: any DownloadsService
@@ -189,8 +197,16 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private var paths: NWPathMonitor?
     /// The network changed since the last try.
     private var pathChanged = false
-    /// The event stream of a server's API (the tests give their own).
-    private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
+    /// The event stream of a server's API, naming this device as a
+    /// receiver (the tests give their own).
+    private let eventSignals: @Sendable (PleyAPI, EventReceiver?) -> AsyncStream<EventSignal>
+    /// The receiver the event stream running names: it opens again when
+    /// what the device takes changes (Live TV comes or goes).
+    private var streamedReceiver: EventReceiver?
+    private var receiverWatch: AnyCancellable?
+    /// "Playing from …" for the playback a cast opens: its player says it
+    /// as it starts (on the Mac, in the window it opens).
+    private var pendingCastSaid: (opening: CastOpening, text: String)?
     /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
     private let tv: Bool
     /// Whether the app is in the foreground: screens poll what moves only
@@ -236,8 +252,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV,
                 downloads: (any DownloadsService)? = nil, snapshots: SnapshotStore? = nil,
                 shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil,
-                eventSignals: @escaping @Sendable (PleyAPI) -> AsyncStream<EventSignal> = {
-                    EventStream(api: $0).signals()
+                eventSignals: @escaping @Sendable (PleyAPI, EventReceiver?) -> AsyncStream<EventSignal> = {
+                    EventStream(api: $0, receiver: $1).signals()
                 }) {
         self.session = session
         self.downloads = downloads ?? NoDownloads()
@@ -305,6 +321,15 @@ public final class AppModel: ObservableObject, SnapshotCache {
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
         serverEvents.onPlayerCommand = { [weak self] id, command in self?.playerCommand(id, command) }
+        serverEvents.onCast = { [weak self] receiverId, target, from in
+            self?.heardCast(receiverId, target, from: from)
+        }
+        // Live TV coming or going changes what this device takes from a remote: the stream says it again.
+        receiverWatch = shell.$liveTv.map { $0?.available == true }.removeDuplicates().dropFirst()
+            .sink { [weak self] _ in
+                // `@Published` tells before it sets: read once it has.
+                Task { @MainActor in self?.receiverMayHaveChanged() }
+            }
         // In the background nothing shows the list: coming back to the front reads it.
         serverEvents.onSessionsChanged = { [weak self] in
             guard let self, self.active else { return }
@@ -640,6 +665,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()
+        if let said = castSaid(for: .video(request)) { controller.say(said) }
         player = controller
         follow(controller)
         return controller
@@ -698,6 +724,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
                                     deviceName: playerSetup.deviceName())
         let model = LivePlayerModel(request: request, live: live, playback: playback, seen: seen,
                                     toast: { [weak self] text in self?.shell.show(text) })
+        if let said = castSaid(for: .live(request)) { model.showBanner(said) }
         livePlayer = model
         follow(model)
         return model
@@ -984,17 +1011,41 @@ public final class AppModel: ObservableObject, SnapshotCache {
         let signals = eventSignals
         Task { [weak self] in
             guard let self, let api = await self.session.api, self.eventsRunning else { return }
-            self.serverEvents.start(signals(api))
+            // What this device takes says whether Live TV shows: not known yet (a sign-in, another
+            // profile), it is read first, so the stream opens once, saying it.
+            if self.shell.liveTv == nil, let summary = try? await self.live.summary(), self.user != nil {
+                self.shell.setLiveTv(summary)
+            }
+            guard self.eventsRunning else { return }
+            let receiver = self.receiver
+            self.streamedReceiver = receiver
+            self.serverEvents.start(signals(api, receiver))
         }
     }
 
     private func stopEvents() {
         eventsRunning = false
+        streamedReceiver = nil
         serverEvents.stop()
+    }
+
+    /// This device as the event stream names it, so the profile's remotes
+    /// cast to it: this install's client id, the name and kind its play
+    /// requests give, and what it plays: titles, music and playlists
+    /// always, and Live TV's channels while Live TV shows.
+    var receiver: EventReceiver {
+        EventReceiver(id: receiverId, deviceName: playerSetup.deviceName(), deviceKind: playerSetup.deviceKind(),
+                      casts: shell.showsLiveTv ? [.item, .live] : [.item])
     }
 
     /// The id the profile's remotes cast to this device by: its client id.
     public var receiverId: String { playerSetup.clientId }
+
+    /// What this device takes may have changed: a stream running says it again.
+    private func receiverMayHaveChanged() {
+        guard eventsRunning, let streamed = streamedReceiver, streamed != receiver else { return }
+        restartEvents()
+    }
 
     private func restartEvents() {
         stopEvents()
@@ -1065,6 +1116,102 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
         player?.obey(command, for: id)
         livePlayer?.obey(command, for: id)
+    }
+
+    /// Something the profile's remote on another device sent this device
+    /// to play (`cast`): played as this device's own Play would on its
+    /// page, when it is for this device and the app is in front, signed in
+    /// as the profile. One for another device, or one that comes while the
+    /// app is in the background, does nothing.
+    private func heardCast(_ receiverId: String, _ target: CastTarget, from: String?) {
+        guard receiverId == self.receiverId, active, user != nil, root == .signedIn else { return }
+        Task { await playCast(target, from: from) }
+    }
+
+    /// Plays what a remote cast here as this device's own Play does on its
+    /// page (docs/APPLE.md, Remote control): a movie or an episode where
+    /// Play starts it (at `startMs` when the remote gave one), a show or a
+    /// season its next episode, a track its album from it, an album, an
+    /// artist or a playlist what it holds, in order or shuffled, and a
+    /// channel live. What plays is replaced, and "Playing from …" says
+    /// where it came from: over the player, or as a toast for music.
+    func playCast(_ target: CastTarget, from: String?) async {
+        let said = Words.playingFrom(from)
+        guard let api = await session.api else { return }
+        switch target.what {
+        case .channel(let id):
+            openCast(.live(LiveRequest(channelId: id, category: .all)), saying: said)
+        case .playlist(let id):
+            let playlist = PlaylistModel(app: self, playlistId: id)
+            await playlist.load()
+            guard playlist.canPlay else { return }
+            if playlist.video {
+                guard let request = playlist.play(shuffle: target.shuffle) else { return }
+                openCast(.video(request), saying: said)
+            } else {
+                // Music starts playing here at once.
+                _ = playlist.play(shuffle: target.shuffle)
+                shell.show(said)
+            }
+        case .item(let id):
+            guard let item = try? await api.item(id) else { return }
+            switch item.kind {
+            case .movie, .episode:
+                openCast(.video(PlayRequest(itemId: id, startMs: target.startMs)), saying: said)
+            case .show, .season:
+                guard let next = try? await api.onDeck(id) else { return }
+                openCast(.video(PlayRequest(itemId: next.id)), saying: said)
+            case .track:
+                // As choosing it on its album's page: the album from it, else the track alone.
+                let album = item.summary.parentId.map { AlbumModel(app: self, itemId: $0, track: id) }
+                await album?.load()
+                if await album?.play(from: id) != true { await playMusic([item.summary]) }
+                shell.show(said)
+            case .album:
+                let album = AlbumModel(app: self, itemId: id)
+                await album.load()
+                guard album.canPlay else { return }
+                await album.play(shuffle: target.shuffle)
+                shell.show(said)
+            case .artist:
+                let artist = ArtistModel(app: self, itemId: id)
+                await artist.load()
+                guard artist.canPlay else { return }
+                await artist.play(shuffle: target.shuffle)
+                shell.show(said)
+            default:
+                return
+            }
+        }
+    }
+
+    /// Opens the player for a cast, "Playing from …" said over it as it
+    /// starts: at once on iPhone, iPad and Apple TV, in a window of its own
+    /// on the Mac (`castOpening`).
+    private func openCast(_ opening: CastOpening, saying said: String) {
+        pendingCastSaid = (opening, said)
+        #if os(macOS)
+        castOpening = opening
+        #else
+        switch opening {
+        case .video(let request): Task { await self.play(request) }
+        case .live(let request): Task { await self.watchLive(request) }
+        }
+        #endif
+    }
+
+    /// The Mac's window opened what a cast asked for.
+    public func castOpened() {
+        castOpening = nil
+    }
+
+    /// What the playback `opening` starts says, when a cast opened it; the
+    /// next playback takes it either way, so it never says it twice.
+    private func castSaid(for opening: CastOpening) -> String? {
+        let said = pendingCastSaid
+        pendingCastSaid = nil
+        guard let said, said.opening == opening else { return nil }
+        return said.text
     }
 
     /// Apple TV's pop-up shows `news`: it's off the queue, so newer news can't push it out.
@@ -1475,4 +1622,11 @@ public enum StartGate {
         guard let always = alwaysStartAs, household.contains(always) else { return .profiles }
         return always == current ? .home : .switchTo(always)
     }
+}
+
+/// What a cast from another device opens on the Mac, in a window of its
+/// own: a player, or Live TV's.
+public enum CastOpening: Hashable, Sendable {
+    case video(PlayRequest)
+    case live(LiveRequest)
 }

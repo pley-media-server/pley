@@ -6,8 +6,8 @@ import SwiftUI
 /// Live TV: the categories (a sheet on iPhone, a column on iPad and the
 /// Mac), and the category's channels as the guide (channels by time, the
 /// channel column pinned while the times scroll) or as cards. A channel
-/// opens the live player; a programme opens its sheet. The list opens on
-/// the channel watched last.
+/// opens the live player, and its menu has Watch on…; a programme opens
+/// its sheet. The list opens on the channel watched last.
 struct LiveTvView: View {
     @ObservedObject var app: AppModel
     @StateObject private var model: LiveTvModel
@@ -381,6 +381,7 @@ private struct GuideView: View {
         }
         .buttonStyle(.plain)
         .overlay(alignment: .trailing) { Divider() }
+        .contextMenu { PlayOnMenu(remote: app.remote, target: .channel(channel.id), prefix: "live.channel") }
         .accessibilityLabel("\(channel.name)\(channel.number.map { ", \($0)" } ?? ""), watch")
         .accessibilityIdentifier("live.guide.channel.\(channel.id)")
     }
@@ -494,6 +495,7 @@ private struct ChannelCards: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .contextMenu { PlayOnMenu(remote: app.remote, target: .channel(channel.id), prefix: "live.channel") }
             .accessibilityElement(children: .combine)
             .accessibilityHint("Watch")
             .accessibilityIdentifier("live.channel.\(channel.id)")
@@ -546,7 +548,7 @@ struct ChannelLogo: View {
 // MARK: A programme
 
 /// A programme of the guide: its picture, its time, Live and New, what
-/// it is about, and Watch now while it is on.
+/// it is about, and Watch now while it is on, with Watch on… beside it.
 private struct ProgramSheet: View {
     let app: AppModel
     @ObservedObject var model: LiveTvModel
@@ -584,6 +586,11 @@ private struct ProgramSheet: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .accessibilityIdentifier("live.program.watch")
+                        PlayOnMenu(remote: app.remote, target: .channel(channel.id), prefix: "live.program",
+                                   chosen: { dismiss() })
+                            .menuStyle(.button)
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
                     } else if program.stop <= model.now {
                         Text("It has ended.").foregroundStyle(.secondary)
                     }

@@ -130,10 +130,14 @@ extension FixtureServer {
         }
     }
 
-    /// Ends every open stream, as the server does when a token expires.
+    /// Ends every open stream, as the server does when a token expires;
+    /// the receivers they named go with them.
     public func endEvents() {
         let clients = state.withLock { s -> [EventClient] in
-            defer { s.browse.events = [] }
+            defer {
+                s.browse.events = []
+                s.remote.receivers = s.remote.receivers.filter { !$0.value.streamed }
+            }
             return s.browse.events
         }
         for client in clients { client.connection.cancel() }
@@ -151,12 +155,13 @@ extension FixtureServer {
             }
             s.journal.append(Recorded(method: request.method, path: request.path, query: request.query,
                                       headers: headers, grantType: nil, formKeys: []))
-            let checked = Self.withToken(&s, request, scope: "library") { s, _ in
+            let checked = Self.withToken(&s, request, scope: "library") { s, access in
                 if let status = s.browse.eventsRefusal {
                     return Self.json(status, ["code": "too_many_streams", "message": "too many event streams"])
                 }
                 s.browse.eventConnects += 1
                 s.browse.events.append(EventClient(connection))
+                Self.openedReceiver(&s, request.query, deviceId: Self.deviceId(access))
                 return Answer(status: 0, headers: [:], body: Data())
             }
             return checked.status == 0 ? nil : checked

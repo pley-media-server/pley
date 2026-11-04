@@ -1,18 +1,20 @@
 import Foundation
 import PleyModel
 
-/// Remote control, as the server does it (docs/API.md, "Remote control"
-/// and "Casting"): the profile's sessions whose players are there
-/// (`GET /api/sessions`), each with its device and its file's tracks;
-/// commands to them, checked and passed on as `player_command` on the
-/// event streams; a stop from another device (`DELETE /api/sessions/{id}`);
-/// and the devices that take casts (`GET /api/remote/devices`), which a
-/// test adds. Sessions starting and ending, reports that pause, play, jump
+/// Remote control and casting, as the server does them (docs/API.md,
+/// "Remote control" and "Casting"): the profile's sessions whose players
+/// are there (`GET /api/sessions`), each with its device and its file's
+/// tracks; commands to them, checked and passed on as `player_command` on
+/// the event streams; a stop from another device (`DELETE /api/sessions/{id}`);
+/// the devices that take casts (`GET /api/remote/devices`), which event
+/// streams name as receivers or a test adds, and casts to them, passed on
+/// as `cast`. Sessions starting and ending, reports that pause, play, jump
 /// or change track, and receivers a test adds or takes away send
-/// `sessions_changed`.
+/// `sessions_changed`; a stream's own receiver appears without one, so a
+/// test counting the app's events counts only those it makes.
 ///
-/// A device is a sign-in, as on the server: what one token plays shares
-/// `app-<grant>`.
+/// A device is a sign-in, as on the server: what one token plays, and the
+/// stream it opens, share `app-<grant>`.
 extension FixtureServer {
     struct Remote {
         /// Sessions started, titles' and live ones', for their order.
@@ -26,6 +28,9 @@ extension FixtureServer {
         var receivers: [String: FixtureReceiver] = [:]
         /// Receivers named so far, for their order: the newest of a device is its own.
         var named = 0
+        var casts: [CastRecord] = []
+        /// Casts answer this status and code from now on (`nil`: as the server would).
+        var castRefusal: (status: Int, code: String)?
     }
 
     /// A device that takes casts.
@@ -35,12 +40,20 @@ extension FixtureServer {
         var name: String?
         var kind: String
         var casts: [String]
+        /// Named by an event stream, which takes it with it; else a test's.
+        var streamed: Bool
         var order: Int
     }
 
     /// A command as it came: the session and the JSON body.
     public struct CommandRecord: Sendable, Hashable {
         public let sessionId: String
+        public let body: Data
+    }
+
+    /// A cast as it came: the receiver and the JSON body.
+    public struct CastRecord: Sendable, Hashable {
+        public let receiverId: String
         public let body: Data
     }
 
@@ -55,9 +68,17 @@ extension FixtureServer {
     /// The commands received, in order, whether or not they were refused.
     public var sessionCommands: [CommandRecord] { state.withLock { $0.remote.commands } }
 
+    /// The casts received, in order, whether or not they were refused.
+    public var castsReceived: [CastRecord] { state.withLock { $0.remote.casts } }
+
     /// Commands answer `status` with `code` from now on; `nil`: as the server would.
     public func refuseCommands(status: Int?, code: String = "not_controllable") {
         state.withLock { s in s.remote.refusal = status.map { ($0, code) } }
+    }
+
+    /// Casts answer `status` with `code` from now on; `nil`: as the server would.
+    public func refuseCasts(status: Int?, code: String = "too_many_requests") {
+        state.withLock { s in s.remote.castRefusal = status.map { ($0, code) } }
     }
 
     /// A title's session `id` reports `state` at `positionMs`, as its player
@@ -84,7 +105,7 @@ extension FixtureServer {
         state.withLock { s in
             s.remote.named += 1
             s.remote.receivers[id] = FixtureReceiver(receiverId: id, deviceId: deviceId, name: name, kind: kind,
-                                                     casts: casts, order: s.remote.named)
+                                                     casts: casts, streamed: false, order: s.remote.named)
         }
         pushEvent(Self.sessionsChanged)
     }
@@ -117,6 +138,18 @@ extension FixtureServer {
         return id
     }
 
+    /// A remote on another device cast `body`'s title, playlist or channel
+    /// (`item_id`, `playlist_id`, `channel_id`, `start_ms`, `shuffle`) to
+    /// receiver `receiverId`, from the device `from`: the streams hear `cast`.
+    public func sendCast(to receiverId: String, _ body: [String: Any], from: String?) {
+        var event: [String: Any] = ["type": "cast", "receiver_id": receiverId, "item_id": NSNull(),
+                                    "playlist_id": NSNull(), "channel_id": NSNull(), "start_ms": NSNull(),
+                                    "shuffle": false, "from": from ?? NSNull()]
+        for (key, value) in body { event[key] = value }
+        guard let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) else { return }
+        pushEvent(String(decoding: data, as: UTF8.self))
+    }
+
     // MARK: Routes
 
     static func remote(_ s: inout State, _ request: Request, _ parts: [String]) -> Answer? {
@@ -125,6 +158,8 @@ extension FixtureServer {
             switch (request.method, parts.count) {
             case ("GET", 3):
                 return withToken(&s, request, scope: "play") { s, _ in json(200, devices(s)) }
+            case ("POST", 5) where parts[4] == "cast":
+                return withToken(&s, request, scope: "play") { s, _ in cast(&s, parts[3], request) }
             default:
                 return nil
             }
@@ -144,6 +179,20 @@ extension FixtureServer {
 
     /// The device a token's sign-in is, as the server names one of its apps.
     static func deviceId(_ access: Access) -> String { "app-\(access.grant)" }
+
+    /// An event stream that names its device (`receiver`) makes it one that
+    /// takes casts, as the server checks the id; the device is its sign-in's.
+    static func openedReceiver(_ s: inout State, _ query: [String: String], deviceId: String) {
+        guard let id = query["receiver"], (1...128).contains(id.count),
+              id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || ".:_-".contains($0)) })
+        else { return }
+        let casts = (query["casts"] ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { ["item", "live"].contains($0) }
+        s.remote.named += 1
+        s.remote.receivers[id] = FixtureReceiver(receiverId: id, deviceId: deviceId, name: query["device_name"],
+                                                 kind: query["device_kind"] ?? "other", casts: casts, streamed: true,
+                                                 order: s.remote.named)
+    }
 
     /// A title's report: its place, state and tracks, and `sessions_changed` when it paused, played, jumped
     /// or changed track.
@@ -233,6 +282,50 @@ extension FixtureServer {
             json["name"] = receiver.name.map { $0 as Any } ?? NSNull()
             return json
         }
+    }
+
+    /// Checks a cast as the server does, in its order, and passes it on to the event streams. The titles,
+    /// playlists and channels aren't looked up: the test sends what it plays.
+    private static func cast(_ s: inout State, _ receiverId: String, _ request: Request) -> Answer {
+        s.remote.casts.append(CastRecord(receiverId: receiverId, body: request.body))
+        if let refusal = s.remote.castRefusal {
+            return json(refusal.status, ["code": refusal.code, "message": "refused"])
+        }
+        guard let receiver = s.remote.receivers[receiverId] else {
+            return json(404, ["code": "not_found", "message": "no such device"])
+        }
+        let asked = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+        let named = ["item_id", "playlist_id", "channel_id"].filter { asked[$0] as? Int != nil }
+        guard named.count == 1 else {
+            return json(400, ["code": "bad_request", "message": "name one of item_id, playlist_id and channel_id"])
+        }
+        let kind = named[0] == "channel_id" ? "live" : "item"
+        guard receiver.casts.contains(kind) else {
+            return json(409, ["code": "not_castable", "message": "this device doesn't play that from a remote"])
+        }
+        if let start = asked["start_ms"] as? Int, !(0...maxUnknownSeekMs).contains(start) {
+            return json(400, ["code": "bad_request", "message": "start_ms out of range"])
+        }
+        var event: [String: Any] = ["type": "cast", "receiver_id": receiverId,
+                                    "shuffle": asked["shuffle"] as? Bool ?? false]
+        for key in ["item_id", "playlist_id", "channel_id", "start_ms"] {
+            event[key] = (asked[key] as? Int).map { $0 as Any } ?? NSNull()
+        }
+        event["from"] = from(request.headers["user-agent"]).map { $0 as Any } ?? NSNull()
+        if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
+            s.outbox.append(String(decoding: data, as: UTF8.self))
+        }
+        return Answer(status: 202, headers: [:], body: Data())
+    }
+
+    /// The remote's device as the server names it from its User-Agent:
+    /// "Pley for iPhone" for `pleyApple/1.0 (iOS 18.1; iPhone)`.
+    private static func from(_ agent: String?) -> String? {
+        guard let agent, agent.hasPrefix("pleyApple/"), let open = agent.lastIndex(of: ";"),
+              let close = agent.lastIndex(of: ")"), open < close
+        else { return nil }
+        let device = agent[agent.index(after: open)..<close].trimmingCharacters(in: .whitespaces)
+        return device.isEmpty ? nil : "Pley for \(device)"
     }
 
     /// Checks a command as the server does and passes it on to the event streams.

@@ -117,8 +117,8 @@ public struct ServerChange: Hashable, Sendable {
 /// `ServerEvents`): the changes of 0.3 seconds go out together, so a burst
 /// of events (a play reaching 90 % sends two) fetches once. The scans
 /// running are told as they move; a playback stopped from elsewhere, a
-/// remote's command, the sessions changing and a request's news are told
-/// at once.
+/// remote's command or cast, the sessions changing and a request's news
+/// are told at once.
 @MainActor
 public final class ServerEvents {
     /// How long changes are gathered before they go out.
@@ -133,6 +133,9 @@ public final class ServerEvents {
     /// The profile's remote, on another device, sent a player a command:
     /// the player of `sessionId`, if it plays here, acts on it.
     public var onPlayerCommand: (_ sessionId: String, _ command: PlayerCommand) -> Void = { _, _ in }
+    /// The profile's remote, on another device, sent the device of
+    /// `receiverId` something to play: this device plays it, if it is this one.
+    public var onCast: (_ receiverId: String, _ target: CastTarget, _ from: String?) -> Void = { _, _, _ in }
     /// The profile's sessions started, ended or changed, or may have while
     /// the stream was down (it connected again): remotes read them again.
     public var onSessionsChanged: () -> Void = {}
@@ -239,6 +242,8 @@ public final class ServerEvents {
             onSessionStopped(id, message, byAdmin)
         case .playerCommand(let id, let command):
             onPlayerCommand(id, command)
+        case .cast(let receiverId, let target, let from):
+            onCast(receiverId, target, from)
         case .sessionsChanged:
             onSessionsChanged()
         case .liveChannelsChanged:

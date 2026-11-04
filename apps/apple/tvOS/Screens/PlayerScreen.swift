@@ -10,12 +10,14 @@ import SwiftUI
 /// video, a Details tab in its info panel, Skip Intro, Skip Credits, Up
 /// Next and the sleep timer's Keep Watching as its contextual actions,
 /// and the chapters as its navigation markers. The sleep timer's last
-/// 30 s show at the top. Menu closes it (when the transport bar isn't
-/// showing), which ends the session.
+/// 30 s show at the top, and the player's notices ("Playing from …", as a
+/// cast from another device starts) for 4 seconds. Menu closes it (when
+/// the transport bar isn't showing), which ends the session.
 struct PlayerScreen: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
     @State private var search: SubtitleSearchModel?
+    @State private var notice: String?
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
@@ -37,6 +39,16 @@ struct PlayerScreen: View {
                         .padding(.vertical, 14)
                         .background(.regularMaterial, in: Capsule())
                         .accessibilityIdentifier("player.sleepNotice")
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            } else if let notice {
+                VStack {
+                    Text(notice)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 14)
+                        .background(.regularMaterial, in: Capsule())
+                        .accessibilityIdentifier("player.notice")
                     Spacer()
                 }
                 .allowsHitTesting(false)
@@ -64,6 +76,22 @@ struct PlayerScreen: View {
         }
         .fullScreenCover(item: $search) { model in
             SubtitleSearchView(model: model)
+        }
+        // Said as it opened ("Playing from …", a cast): it shows too.
+        .onAppear { showNotice(controller.state.notice) }
+        .onChange(of: controller.state.notice) { _, text in
+            showNotice(text)
+        }
+    }
+
+    /// The controller's notice, at the top for 4 seconds, without taking the focus.
+    private func showNotice(_ text: String?) {
+        guard let text else { return }
+        notice = text
+        controller.dismissNotice()
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text { notice = nil }
         }
     }
 

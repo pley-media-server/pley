@@ -312,8 +312,10 @@ behind it.
   and the file's quality badges ("4K", "DV", "Atmos"). Then **Play** or
   **Resume**, with how far it was played and the time left (a show or
   season plays its next episode: "Play S1 · E3"), **From start** when
-  part played, **Watched**, **My List** (movies and shows), **Trailer**
-  when there is one, and **More** with the rest of the title's actions.
+  part played, **Play on…** while another of the profile's devices takes
+  it (iPhone, iPad and Mac, [Remote control](#remote-control)),
+  **Watched**, **My List** (movies and shows), **Trailer** when there is
+  one, and **More** with the rest of the title's actions.
   The profile's own rating, in half stars: a tap on iPhone, iPad and Mac
   (the left half of a star for a half star; a scroll that starts on the
   stars only scrolls), the arrow keys and Delete on the Mac, one
@@ -443,7 +445,9 @@ behind it.
   what's on with its progress and what's next, the star, channel up and
   down (through the category it was opened in, round its ends; Recently
   watched in the order it had when the player opened), Channels (the
-  category's list, and Other channels for another), AirPlay and "Live". A
+  category's list, and Other channels for another), Watch on… while
+  another of the profile's devices takes channels
+  ([Remote control](#remote-control)), AirPlay and "Live". A
   keyboard's digits tune a number (up to five, 1.4 seconds after the last,
   or Return), and ↑ and ↓ change channel; on the Mac, F fills the screen,
   ⌘W leaves, and the Playback menu has Channel Up (⌘↑) and Channel Down
@@ -915,11 +919,11 @@ playback on that server and profile.
   front of it answering `502` or `504`): AVPlayer plays what it has
   loaded, and the new session is asked for again, 0.5 to 2 seconds apart,
   for 90 seconds from when the server was lost, as long as the server
-  keeps a session it doesn't hear from. "Reconnecting…" shows once
-  (iPhone, iPad and Mac); once the server answers, it plays on where it
-  stood, and after 90 seconds it says the server can't be reached, with
-  Try again. A server that answers, even with an error, isn't waited for,
-  and neither is one out of reach before anything played.
+  keeps a session it doesn't hear from. "Reconnecting…" shows once; once
+  the server answers, it plays on where it stood, and after 90 seconds it
+  says the server can't be reached, with Try again. A server that
+  answers, even with an error, isn't waited for, and neither is one out
+  of reach before anything played.
 
 AVPlayer decodes video with or without a view on screen: a video output
 is attached to every item, and the frames it gives are counted for that
@@ -1279,7 +1283,9 @@ are drawn by the app in the player's content overlay, under the controls
   picture's size fitted to the screen. Skip Intro, Skip
   Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
   Watching are the player's own contextual buttons, and the chapters its chapter markers, with their
-  pictures. Menu closes the player when the transport bar isn't showing.
+  pictures. The player's notices ("Reconnecting…", "Playing from …")
+  show at the top for 4 seconds, as on the other devices, without taking
+  the focus. Menu closes the player when the transport bar isn't showing.
   The display's frame rate and dynamic range follow the video when the
   Apple TV is set to match content.
 - **Mac**: a window of its own per playback, opened from the item's page;
@@ -1311,11 +1317,11 @@ address or a token.
 
 ### Remote control
 
-A profile's devices control what plays on its other devices
-([API.md](API.md#remote-control), [Casting](API.md#casting)): pause the
-TV from the phone, change its subtitles, skip a track playing on the
-Mac. iPhone, iPad and Mac are remotes and players; Apple TV is only a
-player, as the other TV apps are.
+A profile's devices control what plays on its other devices, and start
+something there ([API.md](API.md#remote-control), [Casting](API.md#casting)):
+pause the TV from the phone, change its subtitles, skip a track playing on
+the Mac, or start a film on the TV. iPhone, iPad and Mac are remotes and
+players; Apple TV is only a player, as the other TV apps are.
 
 **The remote** lists the profile's other devices that are on: those that
 take casts (`GET /api/remote/devices`), whose apps are open, and what
@@ -1392,6 +1398,44 @@ its device ("Pause on Living room TV", "Audio on Living room TV"), the
 slider's swipes go back 10 and forward 30 seconds, and a refusal is read
 out as it shows.
 
+**Play on…** On iPhone, iPad and Mac, beside the Play of a movie, an
+episode, a show or a season (with the title page's other buttons), an
+album, an artist and a playlist (beside Play and Shuffle), in a track's
+menu on its album's page, and as **Watch on…** for a Live TV channel (a
+channel's menu in the guide and the cards, beside a programme's Watch
+now, and in the live player's overlay). It shows while another device's
+app takes that (`casts`: `item` for titles, music and playlists, `live`
+for channels), and lists those devices as the remote does, with what each
+plays now. An album's, an artist's and a playlist's has **Shuffle on…**
+in it. Choosing a device sends `POST /api/remote/devices/{id}/cast` with
+the title (a movie or an episode from where its Play starts it here, its
+resume point; a show or a season, whose device plays its next episode),
+the playlist or the channel; "Playing on Living room TV" says it went,
+and the remote opens on that device, whose controls show once its session
+does. A refusal says why: "Living room TV isn't on any more" (`404`),
+"Living room TV can't play that" (`409`), "Too many at once: try again
+in a moment" (`429`), and the server's own words otherwise.
+
+**Taking casts.** Every Apple app, Apple TV included, opens its event
+stream as a receiver
+(`/api/events?receiver=&device_name=&device_kind=&casts=`): this
+install's client id (the play requests' `client_id`), the device's name
+as its play requests give it (where they do), its kind (`tv`, `phone`,
+`tablet`, `computer`), and `item`, with `live` while Live TV shows for the
+profile (the stream reads that before it opens, and opens again when it
+changes). A `cast` for this device's id, while the app is in front and
+signed in, plays as the app's own Play does on that page: a movie or an
+episode from the remote's `start_ms` (else its resume point), a show or a
+season its next episode (On Deck), a track its album from it, an album,
+an artist or a playlist what it holds, in order or shuffled, and a
+channel live. What played is replaced. "Playing from Kitchen tablet"
+(from another device the server can't name: "Playing from another
+device") says where it came from for 4 seconds: over the player, or the
+live player, on every device (Apple TV's included), and as a toast for
+music. On the Mac a video or a channel opens in a window of its own, as
+from its page. A cast for another device, or one that comes while the
+app is in the background, does nothing.
+
 **The players obey** `player_command` for the session they play now and
 ignore any other, then report at once. Each says what it obeys in its
 play request (`controls`), with the device's name (`device_name`): on the
@@ -1415,11 +1459,13 @@ closes and says so, and music stops.
 
 **In the background.** Music playing in the background, or a video in
 Picture in Picture, keeps the event stream, as on Android, so a remote
-reaches it on the lock screen or over other apps too. Once the music
-pauses or the video ends, the system suspends the app, so the stream goes
-until something plays again or the app comes back to the front, and
-remotes reach it only then. Apple TV obeys while Pley is open, or while
-its music plays in the background: otherwise tvOS suspends the app.
+reaches it on the lock screen or over other apps too; a cast that comes
+meanwhile does nothing, since casts play only while the app is in front.
+Once the music pauses or the video ends, the system suspends the app, so
+the stream goes until something plays again or the app comes back to the
+front, and remotes reach it only then. Apple TV obeys while Pley is open,
+or while its music plays in the background: otherwise tvOS suspends the
+app.
 
 ## Downloads and offline
 

@@ -9,7 +9,8 @@ import SwiftUI
 /// channel; Select opens the overlay (Channels, Channel number,
 /// Favourite, Back to the guide); Play/Pause shows the banner, as live
 /// plays on. Menu hides the overlay, then leaves. The number pad tunes a
-/// channel on OK, or 1.4 seconds after its last digit.
+/// channel on OK, or 1.4 seconds after its last digit. A channel cast from
+/// another device says where it came from at the top for 4 seconds.
 struct LivePlayerScreen: View {
     let app: AppModel
     @ObservedObject var model: LivePlayerModel
@@ -54,6 +55,17 @@ struct LivePlayerScreen: View {
                 screen
             }
             if bannerShown && !overlay && !numberPad { bannerView }
+            // "Playing from …", as a cast from another device starts.
+            if let said = model.banner {
+                Text(said)
+                    .padding(.horizontal, 30)
+                    .padding(.vertical, 14)
+                    .background(.regularMaterial, in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 60)
+                    .allowsHitTesting(false)
+                    .accessibilityIdentifier("live.castBanner")
+            }
             if !model.digits.isEmpty || model.notice != nil {
                 Text(model.notice ?? model.digits)
                     .font(.system(size: 64, weight: .semibold, design: .rounded).monospacedDigit())

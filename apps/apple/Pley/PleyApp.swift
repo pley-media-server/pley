@@ -95,10 +95,14 @@ final class PhoneAppDelegate: NSObject, UIApplicationDelegate {
 
 /// What `app.root` names: the servers with a server's sign-in on top,
 /// "Who's watching?", or the signed-in shell. On iPhone and iPad the
-/// player covers it all.
+/// player covers it all; on the Mac it opens in a window of its own, also
+/// when a cast from another device starts it.
 struct RootView: View {
     @ObservedObject var app: AppModel
     @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     var body: some View {
         root
@@ -131,6 +135,17 @@ struct RootView: View {
         .onValueChange(of: scenePhase) { phase in
             app.sceneActive(phase != .background)
         }
+        #if os(macOS)
+        // What a cast from another device plays opens as a page's Play opens it.
+        .onValueChange(of: app.castOpening) { opening in
+            guard let opening else { return }
+            app.castOpened()
+            switch opening {
+            case .video(let request): openWindow(id: PlayerWindow.id, value: request)
+            case .live(let request): openWindow(id: LiveWindow.id, value: request)
+            }
+        }
+        #endif
     }
 
     @ViewBuilder private var root: some View {

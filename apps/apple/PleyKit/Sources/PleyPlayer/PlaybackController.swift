@@ -491,6 +491,13 @@ public final class PlaybackController: ObservableObject {
         }
     }
 
+    /// Says `text` over the player for a moment, as its own notices show
+    /// ("Playing from Kitchen tablet").
+    public func say(_ text: String) {
+        guard !closed else { return }
+        state.notice = text
+    }
+
     /// Reports a remote's seek or skip at once, outside the schedule: at
     /// the place sought, not the engine's, which may not have moved yet.
     private func reportSought() {

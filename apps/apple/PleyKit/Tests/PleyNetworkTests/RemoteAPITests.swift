@@ -101,6 +101,58 @@ import Testing
         #expect(after.audioIndex == 2 && after.subtitleIndex == 3)
     }
 
+    @Test func devicesThatTakeCastsAreListedAndSentWhatToPlay() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        server.addReceiver("kitchen", deviceId: "app-91", name: "Kitchen tablet", kind: "tablet")
+        let api = api(server)
+        let devices = try await api.remoteDevices()
+        #expect(devices == [RemoteDevice(receiverId: "den-tv", deviceId: "app-90", name: "Den TV", kind: .tv,
+                                         casts: [.item]),
+                            RemoteDevice(receiverId: "kitchen", deviceId: "app-91", name: "Kitchen tablet",
+                                         kind: .tablet, casts: [.item, .live])])
+
+        try await api.cast(.item(7, startMs: 61_000), to: "den-tv")
+        try await api.cast(.channel(3), to: "kitchen")
+        let sent = server.castsReceived
+        #expect(sent.map(\.receiverId) == ["den-tv", "kitchen"])
+        #expect(sent.map { String(decoding: $0.body, as: UTF8.self) }
+            == [#"{"item_id":7,"start_ms":61000}"#, #"{"channel_id":3}"#])
+        #expect(server.requests("/api/remote/devices/den-tv/cast").allSatisfy { $0.token != nil })
+    }
+
+    @Test func castsAreRefusedAsTheServerRefusesThem() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        let api = api(server)
+        // A device gone, or never the profile's.
+        await #expect(throws: PleyError.api(status: 404, code: "not_found", message: "no such device")) {
+            try await api.cast(.item(7), to: "gone")
+        }
+        // What it doesn't take.
+        do {
+            try await api.cast(.channel(3), to: "den-tv")
+            Issue.record("the channel was taken")
+        } catch let error as PleyError {
+            guard case .api(409, "not_castable", _) = error else { throw error }
+        }
+        // An id no server gives isn't asked for at all.
+        let asked = server.castsReceived.count
+        await #expect(throws: PleyError.api(status: 404, code: "not_found", message: "no such device")) {
+            try await api.cast(.item(7), to: "../sessions")
+        }
+        #expect(server.castsReceived.count == asked)
+        server.refuseCasts(status: 429)
+        do {
+            try await api.cast(.item(7), to: "den-tv")
+            Issue.record("the cast was taken")
+        } catch let error as PleyError {
+            guard case .api(429, _, _) = error else { throw error }
+        }
+    }
+
     @Test func aSessionIsStoppedFromHereWithAMessage() async throws {
         let server = try await fixture()
         defer { server.stop() }

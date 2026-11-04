@@ -41,15 +41,24 @@ struct PlayerScreen: View {
         .sheet(item: $search) { model in
             SubtitleSearchView(model: model)
         }
-        .onAppear { showControls() }
+        .onAppear {
+            showControls()
+            // Said as it opened ("Playing from …", a cast): it shows too.
+            showNotice(controller.state.notice)
+        }
         .onChange(of: controller.state.notice) { text in
-            guard let text else { return }
-            notice = text
-            controller.dismissNotice()
-            Task {
-                try? await Task.sleep(for: .seconds(4))
-                if notice == text { notice = nil }
-            }
+            showNotice(text)
+        }
+    }
+
+    /// The controller's notice, at the top for 4 seconds.
+    private func showNotice(_ text: String?) {
+        guard let text else { return }
+        notice = text
+        controller.dismissNotice()
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text { notice = nil }
         }
     }
 
@@ -220,14 +229,21 @@ private struct PlayerWindowContent: View {
             SubtitleSearchView(model: model)
         }
         .focusedSceneValue(\.findSubtitles, controller.state.canFindSubtitles ? FindSubtitlesAction(run: findSubtitles) : nil)
+        // Said as it opened ("Playing from …", a cast): it shows too.
+        .onAppear { showNotice(controller.state.notice) }
         .onChange(of: controller.state.notice) { _, text in
-            guard let text else { return }
-            notice = text
-            controller.dismissNotice()
-            Task {
-                try? await Task.sleep(for: .seconds(4))
-                if notice == text { notice = nil }
-            }
+            showNotice(text)
+        }
+    }
+
+    /// The controller's notice, at the top for 4 seconds.
+    private func showNotice(_ text: String?) {
+        guard let text else { return }
+        notice = text
+        controller.dismissNotice()
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text { notice = nil }
         }
     }
 

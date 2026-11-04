@@ -34,6 +34,8 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     public static let numberWait: Duration = .milliseconds(1_400)
     /// "No channel 123" shows this long.
     public static let notFoundShown: Duration = .seconds(2)
+    /// What a cast from another device says shows this long.
+    public static let bannerShown: Duration = .seconds(4)
     /// A channel number has this many digits at most.
     public static let maxDigits = 5
 
@@ -49,6 +51,8 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     @Published public private(set) var digits = ""
     /// "No channel 123", for a moment.
     @Published public private(set) var notice: String?
+    /// "Playing from Kitchen tablet", as a cast from another device starts, for a moment.
+    @Published public private(set) var banner: String?
     /// The time now (unix seconds), moved every `LiveTvRules.playerTick`.
     @Published public private(set) var now: Int64
 
@@ -59,6 +63,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     private var recentOrder: [Int]?
     private var typing: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    private var bannerTask: Task<Void, Never>?
     private var ticking: Task<Void, Never>?
     private var zapping: Task<Void, Never>?
     private var lastRefresh: Int64 = 0
@@ -221,6 +226,17 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         }
     }
 
+    /// Shows `text` over the player for a moment (`bannerShown`).
+    public func showBanner(_ text: String) {
+        banner = text
+        bannerTask?.cancel()
+        bannerTask = Task { [weak self] in
+            try? await Task.sleep(for: LivePlayerModel.bannerShown)
+            guard !Task.isCancelled else { return }
+            self?.banner = nil
+        }
+    }
+
     // MARK: Favourite
 
     /// Stars the channel playing, or takes its star off: at once, put back with a toast if refused.
@@ -268,6 +284,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     public func close() {
         typing?.cancel()
         noticeTask?.cancel()
+        bannerTask?.cancel()
         ticking?.cancel()
         zapping?.cancel()
         playback.close()

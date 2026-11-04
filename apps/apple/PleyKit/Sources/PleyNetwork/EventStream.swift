@@ -12,6 +12,36 @@ public enum EventSignal: Hashable, Sendable {
     case event(ServerEvent)
 }
 
+/// A device that plays what the profile's remotes cast to it (docs/API.md,
+/// "Casting"): the event stream names it, and the server counts it as one
+/// while the stream is open.
+public struct EventReceiver: Hashable, Sendable {
+    /// The app's own id for this install, as its play requests' `client_id`.
+    public var id: String
+    /// What remotes call the device, as its play requests say it; `nil`:
+    /// the server names it from the User-Agent.
+    public var deviceName: String?
+    public var deviceKind: DeviceKind?
+    /// What it plays when cast to.
+    public var casts: [CastKind]
+
+    public init(id: String, deviceName: String? = nil, deviceKind: DeviceKind? = nil, casts: [CastKind] = [.item]) {
+        self.id = id
+        self.deviceName = deviceName
+        self.deviceKind = deviceKind
+        self.casts = casts
+    }
+
+    /// The stream's query: `receiver`, `device_name`, `device_kind` and `casts`.
+    public var query: [URLQueryItem] {
+        var query = [URLQueryItem(name: "receiver", value: id)]
+        if let deviceName { query.append(URLQueryItem(name: "device_name", value: deviceName)) }
+        if let deviceKind { query.append(URLQueryItem(name: "device_kind", value: deviceKind.rawValue)) }
+        query.append(URLQueryItem(name: "casts", value: casts.map(\.rawValue).joined(separator: ",")))
+        return query
+    }
+}
+
 /// The server's events (`GET /api/events`, server-sent events), kept
 /// connected while they are read:
 ///
@@ -26,7 +56,8 @@ public enum EventSignal: Hashable, Sendable {
 ///
 /// It goes through the app's API client, so the token is the open
 /// server's, refreshed as for every request, and plain http follows
-/// Pley's rule.
+/// Pley's rule. With a `receiver`, the stream makes this device one the
+/// profile's remotes cast to.
 public struct EventStream: Sendable {
     /// The longest line read.
     public static let maxLine = 64 << 10
@@ -36,12 +67,15 @@ public struct EventStream: Sendable {
     public static let tooManyWait: Double = 30
 
     public let api: PleyAPI
+    /// What the stream says of this device as a receiver; `nil`: it takes no casts.
+    public let receiver: EventReceiver?
     private let sleep: @Sendable (Double) async throws -> Void
 
     /// `sleep` waits that many seconds (the tests wait less).
-    public init(api: PleyAPI,
+    public init(api: PleyAPI, receiver: EventReceiver? = nil,
                 sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }) {
         self.api = api
+        self.receiver = receiver
         self.sleep = sleep
     }
 
@@ -50,6 +84,7 @@ public struct EventStream: Sendable {
     public func signals() -> AsyncStream<EventSignal> {
         let api = api
         let sleep = sleep
+        let receiver = receiver
         return AsyncStream { continuation in
             let task = Task {
                 var failures = 0
@@ -58,8 +93,9 @@ public struct EventStream: Sendable {
                     let opened = OSAllocatedUnfairLock(initialState: false)
                     var wait: Double
                     do {
-                        try await api.client.stream("/api/events", headers: ["Accept": "text/event-stream",
-                                                                            "Cache-Control": "no-cache"],
+                        try await api.client.stream("/api/events", query: receiver?.query ?? [],
+                                                    headers: ["Accept": "text/event-stream",
+                                                              "Cache-Control": "no-cache"],
                                                     opened: { status in
                                                         guard (200..<300).contains(status) else { return }
                                                         opened.withLock { $0 = true }

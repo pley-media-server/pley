@@ -67,7 +67,7 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(Words.remoteLabel(2) == "Remote, 2 devices")
     }
 
-    @Test func devicesAreTheReceiversWithWhatTheyPlay() async throws {
+    @Test func devicesAreTheReceiversWithWhatTheyPlayThisOneLeftOut() async throws {
         let server = try await fixture()
         defer { server.stop() }
         server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000))
@@ -78,7 +78,13 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         let bedroom = server.playElsewhere(7, deviceId: "app-91", device: "Bedroom TV")
         // An app that takes no casts (a Jellyfin app's): listed all the same.
         let other = server.playElsewhere(7, deviceId: "token-5", device: "Other app", kind: "other", controls: [])
+        // A session of this device's own sign-in that doesn't play here (its end not heard yet): this device's.
+        let api = try #require(await app.session.api)
+        _ = try await api.startPlayback(PlaybackRequest(itemId: 7, clientId: "apple-test-gone"))
         await model.reload()
+        // This device's own stream named it: it is a receiver, but not one of the remote's devices.
+        #expect(model.receivers.contains { $0.receiverId == app.receiverId })
+        #expect(model.entries.count == 3)
         let devices = model.devices
         // Those playing first, then those ready to play, each by name.
         #expect(devices.map(\.id) == ["app-91", "token-5", "app-90"])
@@ -86,6 +92,9 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(devices[0].kind == .tv && model.name(devices[0]) == "Bedroom TV")
         #expect(devices[1].receiver == nil && devices[1].entry?.id == other && devices[1].kind == .other)
         #expect(devices[2].entry == nil && model.name(devices[2]) == "Den TV")
+        // "Play on…" offers those that take it.
+        #expect(model.takers(.item).map(\.id) == ["app-91", "app-90"])
+        #expect(model.takers(.live).map(\.id) == ["app-90"])
         // Several devices: none chosen until one is; closed, the choice goes.
         #expect(model.selected == nil)
         model.show("app-90")
@@ -134,6 +143,39 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         await model.send(.subtitles(3), to: again)
         #expect(await eventually { model.errors[tv] == "Bedroom TV didn't answer." })
         #expect(model.waiting.isEmpty)
+    }
+
+    @Test func playOnSendsItThereAndOpensTheRemoteOnThatDevice() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        await model.reload()
+        let den = try #require(model.devices.first)
+        #expect(model.takers(.item).map(\.id) == ["app-90"] && model.takers(.live).isEmpty)
+
+        await model.cast(.item(7, startMs: 5_000), to: den)
+        let sent = try #require(server.castsReceived.last)
+        #expect(sent.receiverId == "den-tv")
+        #expect(String(decoding: sent.body, as: UTF8.self) == #"{"item_id":7,"start_ms":5000}"#)
+        #expect(app.shell.toast?.text == "Playing on Den TV")
+        #expect(model.presented && model.selected?.id == "app-90")
+
+        // Refusals say why, in every app's words.
+        server.refuseCasts(status: 429)
+        await model.cast(.item(7), to: den)
+        #expect(app.shell.toast?.text == "Too many at once: try again in a moment")
+        #expect(app.shell.toast?.style == .error)
+        server.refuseCasts(status: 409, code: "not_castable")
+        await model.cast(.item(7), to: den)
+        #expect(app.shell.toast?.text == "Den TV can't play that")
+        server.refuseCasts(status: nil)
+        server.removeReceiver("den-tv")
+        await model.cast(.item(7), to: den)
+        #expect(app.shell.toast?.text == "Den TV isn't on any more")
+        // It goes from the list.
+        #expect(await eventually { model.devices.isEmpty })
     }
 
     @Test func thePlaceMovesOnWhilePlayingByThisDevicesClock() {

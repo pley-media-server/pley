@@ -20,6 +20,12 @@ extension Words {
     public static let nothingPlaying = "Nothing playing"
     public static let castHint = "Find something to watch or listen to, then choose Play on… and this device."
 
+    /// Beside a page's Play: what plays it on another device. Live TV
+    /// watches; Shuffle shuffles there.
+    public static let playOn = "Play on…"
+    public static let watchOn = "Watch on…"
+    public static let shuffleOn = "Shuffle on…"
+
     /// The remote's track pickers, and the subtitles' choice of none.
     public static let remoteAudioTitle = "Audio"
     public static let remoteSubtitlesTitle = "Subtitles"
@@ -119,6 +125,26 @@ extension Words {
         case 404: "\(device) isn't playing any more."
         case 409: "\(device) can't do that."
         case 429: "Too many at once: try again in a moment."
+        default: nil
+        }
+    }
+
+    /// After "Play on…": where it went.
+    public static func playingOn(_ device: String) -> String { "Playing on \(device)" }
+
+    /// As something cast from another device starts here: that device, as
+    /// the server names it, else "another device".
+    public static func playingFrom(_ device: String?) -> String {
+        "Playing from \(device.flatMap { $0.isEmpty ? nil : $0 } ?? "another device")"
+    }
+
+    /// What "Play on…" says when the server refused it with `status`;
+    /// `nil` for a refusal said in the server's own words.
+    public static func castRefusal(status: Int, device: String) -> String? {
+        switch status {
+        case 404: "\(device) isn't on any more"
+        case 409: "\(device) can't play that"
+        case 429: "Too many at once: try again in a moment"
         default: nil
         }
     }

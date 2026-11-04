@@ -72,7 +72,7 @@ struct PlaylistsView: View {
 }
 
 /// One playlist: its mosaic, title, Smart badge, count and length, its
-/// filter in words, Play and Shuffle, then its entries. On iPhone and iPad,
+/// filter in words, Play and Shuffle with Play on…, then its entries. On iPhone and iPad,
 /// Edit moves entries and a swipe removes one; on the Mac they are dragged,
 /// and removed from their context menu. A removal can be undone for 5
 /// seconds. Rename and Delete are in the More menu. Smart playlists are
@@ -225,7 +225,8 @@ struct PlaylistView: View {
     private var buttons: some View {
         PlayShuffleButtons(prefix: "playlist", canPlay: model.canPlay, canShuffle: model.canShuffle,
                            play: { launcher.play(app, model.play()) },
-                           shuffle: { launcher.play(app, model.play(shuffle: true)) })
+                           shuffle: { launcher.play(app, model.play(shuffle: true)) },
+                           remote: model.canPlay ? app.remote : nil, cast: .playlist(model.playlistId))
     }
 
     private func entry(_ row: PlaylistRow) -> some View {

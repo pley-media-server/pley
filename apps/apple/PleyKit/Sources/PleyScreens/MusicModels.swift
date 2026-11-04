@@ -250,6 +250,15 @@ public final class AlbumModel: ObservableObject {
         await app.playMusic(tracks, start: shuffle ? app.playerSetup.random(tracks.count) : 0, shuffle: shuffle)
     }
 
+    /// Plays the album from track `trackId`, whatever plays now (a track
+    /// cast from another device); false when the album hasn't it.
+    @discardableResult
+    public func play(from trackId: Int) async -> Bool {
+        guard let tracks, let at = tracks.firstIndex(where: { $0.id == trackId }) else { return false }
+        await app.playMusic(tracks, start: at)
+        return true
+    }
+
     /// A track's row: the track playing pauses or plays on; another one
     /// plays the album from it.
     public func playOrToggle(_ trackId: Int) async {

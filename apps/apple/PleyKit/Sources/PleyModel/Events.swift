@@ -53,6 +53,10 @@ public enum ServerEvent: Hashable, Sendable {
     /// The profile's remote, on another device, sent the player of
     /// `sessionId` a command.
     case playerCommand(sessionId: String, command: PlayerCommand)
+    /// The profile's remote, on another device, sent the device of
+    /// `receiverId` something to play; `from` is the remote's device, as
+    /// the server names it.
+    case cast(receiverId: String, target: CastTarget, from: String?)
     case liveChannelsChanged
     case liveTunersChanged
     /// A request changed (`requestId` with its title), or many did (all
@@ -100,6 +104,12 @@ public enum ServerEvent: Hashable, Sendable {
         var positionMs: Int?
         var offsetMs: Int?
         var streamIndex: Int?
+        var receiverId: String?
+        var playlistId: Int?
+        var channelId: Int?
+        var startMs: Int?
+        var shuffle: Bool?
+        var from: String?
     }
 
     /// The event in `data` (one `data:` line's JSON); `nil` when it isn't
@@ -132,6 +142,19 @@ public enum ServerEvent: Hashable, Sendable {
             return .playerCommand(sessionId: id, command: PlayerCommand(command, positionMs: wire.positionMs,
                                                                          offsetMs: wire.offsetMs,
                                                                          streamIndex: wire.streamIndex))
+        case "cast":
+            // One of a title, a playlist and a channel; without one, or a receiver, there is nothing to play.
+            let what: CastTarget.What?
+            if let id = wire.itemId {
+                what = .item(id)
+            } else if let id = wire.playlistId {
+                what = .playlist(id)
+            } else {
+                what = wire.channelId.map { CastTarget.What.channel($0) }
+            }
+            guard let receiver = wire.receiverId, let what else { return .unknown(wire.type) }
+            let target = CastTarget(what, startMs: wire.startMs, shuffle: wire.shuffle ?? false)
+            return .cast(receiverId: receiver, target: target, from: wire.from)
         case "live_channels_changed": return .liveChannelsChanged
         case "live_tuners_changed": return .liveTunersChanged
         case "requests_changed":

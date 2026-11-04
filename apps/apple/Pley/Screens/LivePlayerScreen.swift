@@ -8,8 +8,10 @@ import SwiftUI
 /// of its own on the Mac: the channel's picture, and over it, for 3
 /// seconds after a tap, Close, the channel's logo, number and name, what's
 /// on with its progress and what's next, the star, channel up and down,
-/// the Channels list, AirPlay and "Live". Live can't pause or seek. Digits
-/// on a keyboard tune a number, ↑ and ↓ change channel.
+/// the Channels list, Watch on… (another of the profile's devices), AirPlay
+/// and "Live". Live can't pause or seek. Digits on a keyboard tune a
+/// number, ↑ and ↓ change channel. A cast from another device says where
+/// it came from at the top.
 struct LivePlayerScreen: View {
     let app: AppModel
     @ObservedObject var model: LivePlayerModel
@@ -43,9 +45,23 @@ struct LivePlayerScreen: View {
             }
             if case .failed(let trouble) = model.state.phase {
                 TroubleView(model: model, trouble: trouble, close: close)
-            } else if controlsShown {
+            } else {
+                // Hidden, it stays where it is, unseen and out of reach: Watch on…'s menu, open as it hides, stays.
                 overlay
-                    .transition(.opacity)
+                    .opacity(controlsShown ? 1 : 0)
+                    .allowsHitTesting(controlsShown)
+                    .accessibilityHidden(!controlsShown)
+            }
+            if let banner = model.banner {
+                Text(banner)
+                    .font(.callout)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 8)
+                    .allowsHitTesting(false)
+                    .accessibilityIdentifier("live.banner")
             }
             if !model.digits.isEmpty || model.notice != nil {
                 Text(model.notice ?? model.digits)
@@ -147,6 +163,12 @@ struct LivePlayerScreen: View {
                 }
                 .accessibilityLabel("Channels")
                 .accessibilityIdentifier("live.channels")
+                if let channelId = model.channelId {
+                    PlayOnMenu(remote: app.remote, target: .channel(channelId), prefix: "live", iconOnly: true)
+                        .menuStyle(.button)
+                        .menuIndicator(.hidden)
+                        .font(.title2)
+                }
             }
             .padding()
             .background(LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)

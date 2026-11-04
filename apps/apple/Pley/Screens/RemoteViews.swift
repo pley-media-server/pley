@@ -7,6 +7,8 @@ import SwiftUI
 // iPhone and iPad a bar above the tabs opens it as a sheet; on the Mac a
 // toolbar button opens it as a popover. Its list of devices is
 // `RemoteDeviceList`, a device's controls `RemoteDeviceControls`.
+// "Play on…" (`PlayOnMenu`) sends a page's title, music, playlist or
+// channel to one of them.
 
 extension DeviceKind {
     /// The symbol the remote shows for a device of this kind.
@@ -169,6 +171,8 @@ struct RemoteSheet: View {
                     page(id)
                 }
         }
+        // "Playing on …" after a cast, over the sheet that opens with it.
+        .overlay(alignment: .bottom) { ToastView(shell: app.shell) }
         .presentationDetents([.medium, .large])
         .accessibilityIdentifier("remote.sheet")
     }
@@ -699,5 +703,69 @@ private struct RemotePlayingControls: View {
 
     private func seek(_ positionMs: Int) {
         send(.seek(toMs: positionMs))
+    }
+}
+
+/// "Play on…" beside a page's Play ("Watch on…" for a channel): the
+/// profile's other devices that take what it plays, each with what it
+/// plays now, as the remote lists them; choosing one sends it there. Beside
+/// Shuffle, "Shuffle on…" in it sends it shuffled. Nothing shows while no
+/// other device takes it.
+struct PlayOnMenu: View {
+    @ObservedObject var remote: RemoteModel
+    let target: CastTarget
+    /// "Shuffle on…" in it too (an album, an artist, a playlist).
+    var shuffle = false
+    /// Its accessibility identifier: "album" makes "album.playOn".
+    var prefix = "item"
+    /// Its symbol alone (the live player's overlay); VoiceOver reads its words.
+    var iconOnly = false
+    /// Told as a device is chosen: a sheet it is on closes, so the remote can show.
+    var chosen: (() -> Void)?
+
+    var body: some View {
+        let devices = remote.takers(target.kind)
+        if !devices.isEmpty {
+            let names = remote.names
+            let title = target.kind == .live ? Words.watchOn : Words.playOn
+            Menu {
+                ForEach(devices) { device in
+                    choice(device, names: names, target: target)
+                }
+                if shuffle {
+                    Menu(Words.shuffleOn) {
+                        ForEach(devices) { device in
+                            choice(device, names: names, target: target.shuffled)
+                        }
+                    }
+                }
+            } label: {
+                if iconOnly {
+                    // A target of its own, among the overlay's other buttons.
+                    Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
+                } else {
+                    Label(title, systemImage: "play.tv")
+                }
+            }
+            .accessibilityLabel(title)
+            .accessibilityIdentifier("\(prefix).playOn")
+        }
+    }
+
+    /// A device: its kind's symbol, its name, and what it plays now.
+    private func choice(_ device: RemoteModel.Device, names: [String: String], target: CastTarget) -> some View {
+        let name = names[device.id] ?? device.given ?? Words.unnamedDevice
+        return Button {
+            chosen?()
+            Task { await remote.cast(target, to: device) }
+        } label: {
+            Label {
+                Text(name)
+                Text(device.line)
+            } icon: {
+                Image(systemName: device.kind.symbol)
+            }
+        }
+        .accessibilityIdentifier("\(prefix).playOn.\(device.id)")
     }
 }

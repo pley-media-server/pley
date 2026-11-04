@@ -6,7 +6,7 @@ import SwiftUI
 
 /// A title's page (docs/APPLE.md, Item pages): the backdrop and poster,
 /// the title and where it sits (show, season), the line of facts, Play or
-/// Resume, From start, Watched, My List, the trailer and More; the stage
+/// Resume, From start, Play on…, Watched, My List, the trailer and More; the stage
 /// of a request for it and Request more seasons; the profile's rating;
 /// the version, audio and subtitle pickers; the summary; a show's seasons
 /// and episodes; extras, cast, More Like This, crew and details, and
@@ -338,6 +338,10 @@ struct ItemView: View {
 
     private func buttons(_ page: ItemPage) -> some View {
         FlowLayout(spacing: 10) {
+            if let target = model.castTarget {
+                PlayOnMenu(remote: app.remote, target: target)
+                    .menuStyle(.button)
+            }
             if page.markable {
                 Button {
                     Task { await model.toggleWatched() }
