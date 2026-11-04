@@ -15,7 +15,8 @@ import org.junit.runner.RunWith
  * against the demo server of benchmark builds: Right held along each of
  * Home's rows in turn, and Down held through a library's grid of 1,500
  * posters. FrameTimingMetric gives each frame's time on the main thread and
- * how far past its deadline it was presented. Each run starts the app cold
+ * how far past its deadline it was presented. The keys come as a remote's,
+ * without UiAutomator's accessibility (Steps.hold). Each run starts the app cold
  * and goes to where it scrolls (Who's watching? answered) unmeasured. On a
  * TV or a TV emulator only, skipped elsewhere; run it with adb on one
  * device (docs/ANDROID.md). The demo server has no Live TV, so the guide
@@ -47,7 +48,7 @@ class TvScrollBenchmark {
         with(TvJourney(this)) {
             repeat(ROWS) {
                 hold(Key.RIGHT, ROW_HOLD_MS)
-                press(Key.DOWN)
+                tap(Key.DOWN)
             }
         }
     }

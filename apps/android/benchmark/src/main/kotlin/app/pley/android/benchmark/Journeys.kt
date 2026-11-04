@@ -1,5 +1,6 @@
 package app.pley.android.benchmark
 
+import android.app.UiAutomation
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
@@ -137,10 +138,11 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * Android makes of a held key (the first, a long press, after the
      * long-press time, then one every 50 ms), and the release. Injected
      * rather than `input keyevent --duration`, which only API 33 and later
-     * have: Fire OS 7 is API 28.
+     * have: Fire OS 7 is API 28. Without accessibility ([remote]), as a
+     * remote's keys come.
      */
     fun hold(key: Key, holdMs: Long) {
-        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val automation = remote()
         val down = SystemClock.uptimeMillis()
         fun send(action: Int, repeat: Int, flags: Int = 0) {
             val event = KeyEvent(down, SystemClock.uptimeMillis(), action, key.code, repeat, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags, InputDevice.SOURCE_DPAD)
@@ -159,6 +161,38 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         send(KeyEvent.ACTION_UP, 0)
         SystemClock.sleep(STEP_MS)
     }
+
+    /** One press of [key] as [hold] sends it: without accessibility, then [restMs]. */
+    fun tap(key: Key, restMs: Long = STEP_MS) {
+        val automation = remote()
+        val down = SystemClock.uptimeMillis()
+        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+            val event = KeyEvent(down, SystemClock.uptimeMillis(), action, key.code, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_DPAD)
+            automation.injectInputEvent(event, false)
+        }
+        SystemClock.sleep(restMs)
+    }
+
+    /**
+     * Keys injected as a remote's come: with UiAutomator's accessibility
+     * connection let go. While it's connected, Compose describes every
+     * change of the screen to it (in a held scroll on a Google TV Streamer,
+     * a fifth of the main thread), which nobody without an accessibility
+     * service pays. The next step that looks for something on the screen
+     * connects it again. The first call of a journey lets the screen settle
+     * without it.
+     */
+    private fun remote(): UiAutomation {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val first = !remoteNow
+        remoteNow = true
+        return instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_USE_ACCESSIBILITY).also {
+            if (first) SystemClock.sleep(UNOBSERVED_SETTLE_MS)
+        }
+    }
+
+    /** Whether this journey has sent keys without accessibility yet. */
+    private var remoteNow = false
 
     /**
      * The element focus is on: the smallest of those that say so. The
@@ -239,6 +273,9 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         const val PAGE_MS = 1_500L
 
         const val STEP_MS = 300L
+
+        /** How long the screen takes to hear that accessibility went: Compose stops describing it. */
+        const val UNOBSERVED_SETTLE_MS = 500L
         const val POLL_MS = 100L
         const val FOCUS_STEPS = 24
     }
