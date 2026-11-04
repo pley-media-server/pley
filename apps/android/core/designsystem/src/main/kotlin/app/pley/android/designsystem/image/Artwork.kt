@@ -36,16 +36,11 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -253,7 +248,8 @@ private class PlaceholderNode(
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
     private var look: Placeholder.Look? = null
     private var layout: TextLayoutResult? = null
-    private var layoutSize = Size.Unspecified
+    private var layoutKey: TitleKey? = null
+    private var request: TitleRequest? = null
     private var outline: Outline? = null
     private var outlinePath: Path? = null
     private var outlineSize = Size.Unspecified
@@ -264,7 +260,7 @@ private class PlaceholderNode(
     fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color, shape: Shape?) {
         if (title != this.title || titleStyle != this.titleStyle) {
             look = null
-            layout = null
+            forgetTitle()
         }
         if (shape != this.shape) outline = null
         this.title = title
@@ -276,16 +272,18 @@ private class PlaceholderNode(
     }
 
     /**
-     * The title is laid out here rather than as it's first drawn: a lazy
+     * The title is asked for here rather than as it's first drawn: a lazy
      * list's prefetch measures the tiles it brings in between frames, so
-     * the frame that shows them only draws. Not for a picture shown before,
-     * which comes straight back.
+     * it's ready by the frame that shows them. Not for a picture shown
+     * before, which comes straight back.
      */
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
         val placeable = measurable.measure(constraints)
-        if (!load.known && !load.loaded) titleLayout(Size(placeable.width.toFloat(), placeable.height.toFloat()))
+        if (!load.known && !load.loaded) askTitle(Size(placeable.width.toFloat(), placeable.height.toFloat()))
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
+
+    override fun onDetach() = forgetTitle()
 
     override fun ContentDrawScope.draw() {
         val outline = outline()
@@ -294,7 +292,8 @@ private class PlaceholderNode(
             if (well.isSpecified) fill(outline, well)
         } else if (!load.loaded) {
             with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, outline) }
-            titleLayout(size)?.let { text ->
+            askTitle(size)
+            layout?.let { text ->
                 drawText(
                     text,
                     color = PleyColors.Fg.copy(alpha = 0.7f),
@@ -333,49 +332,42 @@ private class PlaceholderNode(
         if (outline == null) drawRect(color) else drawOutline(outline, color)
     }
 
-    private fun Density.titleLayout(size: Size): TextLayoutResult? {
-        val style = titleStyle ?: return null
-        if (title.isEmpty()) return null
-        if (layout != null && layoutSize == size) return layout
+    /**
+     * The title for a box of [size]: kept from before, or laid out away from
+     * the main thread ([TitleLayouts]) and drawn when it comes.
+     */
+    private fun Density.askTitle(size: Size) {
+        val style = titleStyle ?: return
+        if (title.isEmpty()) return
         val padding = 12.dp.roundToPx()
-        val width = (size.width.toInt() - 2 * padding).coerceAtLeast(0)
-        val height = (size.height.toInt() - 2 * padding).coerceAtLeast(0)
-        val textMeasurer = TitleMeasurer.of(
-            currentValueOf(LocalFontFamilyResolver),
-            currentValueOf(LocalDensity),
-            currentValueOf(LocalLayoutDirection),
+        val key = TitleKey(
+            title = title,
+            style = style,
+            width = (size.width.toInt() - 2 * padding).coerceAtLeast(0),
+            height = (size.height.toInt() - 2 * padding).coerceAtLeast(0),
+            density = density,
+            fontScale = fontScale,
+            direction = currentValueOf(LocalLayoutDirection),
         )
-        val centred = style.copy(textAlign = TextAlign.Center)
-        val constraints = Constraints(minWidth = width, maxWidth = width, maxHeight = height)
-        var text = textMeasurer.measure(title, centred, TextOverflow.Ellipsis, maxLines = 4, constraints = constraints)
-        // A word wider than the box broke across lines: smaller, so that it fits whole.
-        if (text.lineCount > 1 && brokeAWord(title, (0 until text.lineCount - 1).map { text.getLineEnd(it) })) {
-            val scale = wholeWordScale(title, width) { word -> textMeasurer.measure(word, centred, maxLines = 1, softWrap = false).size.width }
-            if (scale < 1f) text = textMeasurer.measure(title, centred.scaled(scale), TextOverflow.Ellipsis, maxLines = 4, constraints = constraints)
+        if (key == layoutKey) return
+        forgetTitle()
+        layoutKey = key
+        layout = TitleLayouts.kept(key)
+        if (layout != null) return
+        val ask = TitleRequest().also { request = it }
+        TitleLayouts.layOut(key, currentValueOf(LocalContext), ask) { text ->
+            if (request === ask && isAttached) {
+                layout = text
+                invalidateDraw()
+            }
         }
-        layout = text
-        layoutSize = size
-        return layout
     }
-}
 
-/**
- * One measurer for every placeholder's title, keeping its last layouts: a
- * grid scrolled back and forth shows the same titles again, in tiles made
- * anew. Used on the main thread only, as the tiles' layout and drawing are.
- */
-private object TitleMeasurer {
-    private var made: TextMeasurer? = null
-    private var resolver: FontFamily.Resolver? = null
-    private var density: Density? = null
-    private var direction: LayoutDirection? = null
-
-    fun of(resolver: FontFamily.Resolver, density: Density, direction: LayoutDirection): TextMeasurer {
-        made?.let { if (resolver == this.resolver && density == this.density && direction == this.direction) return it }
-        this.resolver = resolver
-        this.density = density
-        this.direction = direction
-        return TextMeasurer(resolver, density, direction, cacheSize = 64).also { made = it }
+    private fun forgetTitle() {
+        request?.dropped = true
+        request = null
+        layout = null
+        layoutKey = null
     }
 }
 
@@ -431,7 +423,7 @@ private fun Char.inWord(): Boolean = isLetterOrDigit() && when (Character.Unicod
 }
 
 /** This style [scale] of its size, down to the half sp, and its line height with it. */
-private fun TextStyle.scaled(scale: Float): TextStyle {
+internal fun TextStyle.scaled(scale: Float): TextStyle {
     if (!fontSize.isSp) return this
     val size = floor(fontSize.value * scale * 2f) / 2f
     val ratio = size / fontSize.value

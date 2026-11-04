@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.IdlingResource
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -28,6 +29,7 @@ import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkPolicy
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.designsystem.image.Placeholder
+import app.pley.android.designsystem.image.TitleLayouts
 import app.pley.android.designsystem.image.shownArtwork
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -48,6 +50,7 @@ import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,6 +69,12 @@ class ArtworkTileTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val origin = "http://192.168.1.20:7539"
     private val red = 0xFFE5484D.toInt()
+
+    /** Placeholders' titles come from a thread of their own: the tests wait for it as they wait for Compose. */
+    @Before
+    fun waitForTitles() = compose.registerIdlingResource(object : IdlingResource {
+        override val isIdleNow: Boolean get() = TitleLayouts.idle
+    })
 
     @After
     fun forgetProbe() {
@@ -287,6 +296,26 @@ class ArtworkTileTest {
         assertNear(Color(0xFF38BDF8), pixel("tile", 52, 320))
         val track = pixel("tile", 166, 320)
         assertTrue("track $track", track.red < 0.45f)
+    }
+
+    @Test
+    fun aPlaceholdersTitleIsLaidOutAwayFromTheMainThreadAndDrawn() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
+                ArtworkTile(model(title = "Northern Lights"), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+            }
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        // The title, in light text across the middle of the gradient (darker in every channel).
+        var light = 0
+        for (y in image.height / 3 until image.height * 2 / 3) {
+            for (x in 0 until image.width) {
+                val p = image[x, y]
+                if (p.red > 0.6f && p.green > 0.6f && p.blue > 0.6f) light++
+            }
+        }
+        assertTrue("$light light pixels", light > 100)
     }
 
     @Test
