@@ -244,8 +244,13 @@ struct DiscoverResultsView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     init(app: AppModel, query: String) {
+        self.init(app: app, source: .words(query))
+    }
+
+    /// One of Discover's lists in full, or every title found for some words.
+    init(app: AppModel, source: DiscoverSource) {
         self.app = app
-        _model = StateObject(wrappedValue: DiscoverResultsModel(app: app, query: query))
+        _model = StateObject(wrappedValue: DiscoverResultsModel(app: app, source: source))
     }
 
     private var width: CGFloat {

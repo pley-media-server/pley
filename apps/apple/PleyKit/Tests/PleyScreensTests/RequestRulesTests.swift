@@ -336,6 +336,27 @@ private func decode<T: Decodable>(_ type: T.Type, _ path: String) throws -> T {
         #expect(CardAction.allCases.allSatisfy { !$0.title.isEmpty && !$0.symbol.isEmpty })
     }
 
+    @Test func appleTVsPanelOffersTheServersActionsInItsOrder() {
+        var pending = request(44)
+        pending.actions = [.approve, .decline, .handled, .delete, RequestAction(rawValue: "snooze"), .decline]
+        // Approve plain (the settings' choices), Decline with Decline with a reason… after it; once each.
+        #expect(CardAction.panel(pending) == [.approve, .decline, .declineWithReason, .handled, .delete])
+        pending.actions = [.delete, .decline, .approve]
+        #expect(CardAction.panel(pending) == [.delete, .decline, .declineWithReason, .approve])
+        #expect(CardAction.panel(request(44)) == [.withdraw])
+        var declined = request(46)
+        declined.actions = [.withdraw, .askAgain]
+        #expect(CardAction.panel(declined) == [.remove, .askAgain])
+        #expect(CardAction.panel(request(47)) == [.stopFollowing])
+        var retry = request(48)
+        retry.actions = [.retry]
+        #expect(CardAction.panel(retry) == [.tryAgain])
+        // Open and Details are the panel's own: no Watch, no Approve….
+        let all = list.requests.flatMap(CardAction.panel) + attention.requests.flatMap(CardAction.panel)
+        #expect(!all.contains(.watch) && !all.contains(.approveWith))
+        #expect(CardAction.declineWithReason.title == "Decline with a reason…" && !CardAction.declineWithReason.confirms)
+    }
+
     @Test func cardsOpenTheLibraryOnceThere() {
         let ready = request(45)
         #expect(RequestRules.opens(ready, mayAsk: true) == .item(101))

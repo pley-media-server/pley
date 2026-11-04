@@ -117,11 +117,64 @@ private func soon(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(repository.summary == nil && repository.gate == .unknown)
     }
 
+    @Test func aTVTellsOnlyWhatBecameReadyToWatch() async throws {
+        let server = try await started()
+        defer { server.stop() }
+        // While the app was away Arrival became ready, Alien: Romulus was
+        // declined and The Substance changed: a phone tells all three at once.
+        server.setUnseenRequests([44, 45, 46])
+        let phone = RequestsRepository(api: try await api(server), settings: settings())
+        var phoneNews: [RequestNews] = []
+        phone.onNews = { phoneNews.append($0) }
+        phone.start(origin: server.origin, profileId: 2)
+        #expect(await soon { phoneNews == [.news(count: 3)] })
+
+        // A TV, only Arrival.
+        let saved = settings()
+        let tv = RequestsRepository(api: try await api(server), settings: saved, tv: true)
+        var news: [RequestNews] = []
+        tv.onNews = { news.append($0) }
+        tv.start(origin: server.origin, profileId: 2)
+        #expect(await soon { !news.isEmpty })
+        #expect(news.map(RequestWords.notice) == ["“Arrival” is ready to watch."])
+        guard case .ready(45, _, _, _, _, true, let poster?) = news.first else {
+            Issue.record("news is \(news)")
+            return
+        }
+        #expect(poster.hasPrefix("/api/discover/images/poster/"))
+        #expect(saved.requestNewsMark(origin: server.origin, profileId: 2) > 0)
+
+        // Events: what was declined, asked for, approved or failed isn't told; what's ready is.
+        tv.heard(.declined(requestId: 46, title: "Alien: Romulus", reason: nil))
+        tv.heard(.asked(requestId: 49, title: "Arcane", by: "Kit", seasons: nil))
+        tv.heard(.approved(requestId: 44, title: "The Substance"))
+        let ready = RequestNews.ready(requestId: 42, title: "Breaking Bad", kind: .show, itemId: 230, seasons: [1, 2],
+                                      complete: false)
+        tv.heard(ready)
+        #expect(news.count == 2 && news.last == ready)
+    }
+
+    @Test func aTVCaughtUpOnNothingReadyTellsNothingButMarksItTold() async throws {
+        let server = try await started()
+        defer { server.stop() }
+        server.setUnseenRequests([46])
+        let saved = settings()
+        let tv = RequestsRepository(api: try await api(server), settings: saved, tv: true)
+        var news: [RequestNews] = []
+        tv.onNews = { news.append($0) }
+        tv.start(origin: server.origin, profileId: 2)
+        #expect(await soon { saved.requestNewsMark(origin: server.origin, profileId: 2) > 0 })
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(news.isEmpty)
+    }
+
     @Test func caughtUpNewsSaysReadyOrDeclined() throws {
         let list = try PleyJSON.decoder.decode(RequestList.self, from: Fixtures.data("requests/list.json"))
         let ready = try #require(list.requests.first { $0.id == 45 })
         #expect(RequestsRepository.news(ready) == .ready(requestId: 45, title: ready.title, kind: .movie,
-                                                         itemId: ready.itemId, seasons: nil, complete: true))
+                                                         itemId: ready.itemId, seasons: nil, complete: true,
+                                                         poster: ready.posterUrl))
+        #expect(ready.posterUrl != nil)
         let declined = try #require(list.requests.first { $0.id == 46 })
         #expect(RequestsRepository.news(declined) == .declined(requestId: 46, title: declined.title,
                                                                reason: declined.reason))
@@ -149,7 +202,8 @@ private func soon(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(news.isEmpty && heard == [RequestChange(id: 42, kind: .show, tmdbId: 1396)])
         events.heard(try event("request_available"))
         #expect(news.last == .ready(requestId: 42, title: "Breaking Bad", kind: .show, itemId: 230, seasons: [1, 2],
-                                    complete: false))
+                                    complete: false,
+                                    poster: "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg"))
         events.heard(try event("request_decided"))
         #expect(news.last == .declined(requestId: 46, title: "Alien: Romulus", reason: "We have enough aliens for now"))
         events.heard(try event("request_created"))

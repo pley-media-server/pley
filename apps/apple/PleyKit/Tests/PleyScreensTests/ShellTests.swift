@@ -111,7 +111,8 @@ import Testing
     }
 
     @Test func sectionsKeepTheirNames() {
-        for section in [ShellSection.home, .libraries, .search, .playlists, .me, .settings, .liveTv, .library(12)] {
+        for section in [ShellSection.home, .libraries, .search, .playlists, .me, .settings, .liveTv, .requests,
+                        .library(12)] {
             #expect(ShellSection(key: section.key) == section)
         }
         #expect(ShellSection(key: "library:x") == nil)
@@ -251,6 +252,102 @@ import Testing
         shell.reset()
         #expect(shell.requestsEntry == .none)
     }
+
+    @Test func appleTVHasATabIntoRequestsAfterHome() {
+        let two = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        let discover = RequestsEntry(discover: true, requests: true, badge: 1)
+        #expect(ShellModel.sections(tv: true, libraries: two, requests: discover)
+            == [.search, .home, .requests, .library(1), .library(2), .playlists, .settings])
+        // Before Live TV, and like it, it takes a tab's room.
+        #expect(ShellModel.sections(tv: true, libraries: two, liveTv: true, requests: discover)
+            == [.search, .home, .requests, .liveTv, .libraries, .playlists, .settings])
+        // Nothing to see or ask for: no tab. The phone's five don't change.
+        #expect(!ShellModel.sections(tv: true, libraries: two, requests: .none).contains(.requests))
+        #expect(!ShellModel.sections(tv: true, libraries: two, requests: RequestsEntry(badge: 2)).contains(.requests))
+        #expect(ShellModel.sections(tv: false, libraries: two, requests: discover)
+            == [.home, .libraries, .search, .playlists, .me])
+
+        // Discover where the account may ask; else its requests, or the managers' Requests.
+        #expect(ShellModel.requestsTitle(discover) == "Discover")
+        #expect(ShellModel.requestsTitle(RequestsEntry(requests: true)) == "Your requests")
+        #expect(ShellModel.requestsTitle(RequestsEntry(requests: true, manage: true, badge: 4)) == "Requests")
+
+        // Its title takes room across the screen, and no number with it (tvOS's tabs have no badges).
+        let yours = RequestsEntry(requests: true, badge: 2)
+        #expect(ShellModel.tabWidth(.requests, libraries: two, requests: yours)
+            == ShellModel.tabWidth(.requests, libraries: two, requests: RequestsEntry(requests: true)))
+        #expect(ShellModel.sections(tv: true, libraries: two, requests: yours)
+            == [.search, .home, .requests, .libraries, .playlists, .settings])
+        for entry in [discover, yours, RequestsEntry(requests: true, manage: true, badge: 120)] {
+            for (live, music) in [(false, false), (true, false), (false, true)] {
+                for count in 0...6 {
+                    let libraries = (0..<count).map { Library(id: $0 + 1, name: "L\($0 + 1)", kind: .movies) }
+                    let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live, nowPlaying: music,
+                                                   requests: entry)
+                    #expect(tabs.count <= ShellModel.maxTabs && tabs[2] == .requests)
+                    // Beside Live TV or Now Playing too, Libraries alone can be past the screen's edge: tvOS scrolls.
+                    guard !live && !music else { continue }
+                    let width = tabs.reduce(0) { $0 + ShellModel.tabWidth($1, libraries: libraries, requests: entry) }
+                    #expect(width <= ShellModel.tabRoom)
+                }
+            }
+        }
+        // With Live TV and music too, nothing else gives way: Libraries is an eighth tab, and the bar scrolls.
+        #expect(ShellModel.sections(tv: true, libraries: two, liveTv: true, nowPlaying: true, requests: discover)
+            == [.search, .home, .requests, .liveTv, .libraries, .playlists, .nowPlaying, .settings])
+        #expect(ShellModel.sections(tv: true, libraries: [], liveTv: true, nowPlaying: true, requests: discover)
+            == [.search, .home, .requests, .liveTv, .playlists, .nowPlaying, .settings])
+    }
+
+    @Test func appleTVsTabFollowsTheSummary() {
+        let shell = ShellModel(settings: freshSettings(), tv: true)
+        let two = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        shell.setLibraries(two)
+        shell.setRequestsEntry(RequestsEntry(discover: true, requests: true))
+        #expect(shell.sections == [.search, .home, .requests, .library(1), .library(2), .playlists, .settings])
+        shell.select(.requests)
+        #expect(shell.section == .requests)
+        // Asking no longer works: the tab is the person's requests, which leaves the libraries no room.
+        shell.setRequestsEntry(RequestsEntry(requests: true, badge: 1))
+        #expect(shell.sections == [.search, .home, .requests, .libraries, .playlists, .settings])
+        #expect(shell.section == .requests)
+        // Requests went: back to Home.
+        shell.setRequestsEntry(.none)
+        #expect(!shell.sections.contains(.requests) && shell.section == .home)
+    }
+
+    @Test func appleTVsRequestsTabShownLastComesBackOnceTheSummaryIsRead() {
+        let settings = freshSettings()
+        let libraries = [Library(id: 1, name: "Movies", kind: .movies)]
+        let entry = RequestsEntry(discover: true, requests: true)
+        let first = ShellModel(settings: settings, tv: true)
+        first.setRequestsEntry(entry)
+        first.select(.requests)
+        #expect(settings.lastSection == "requests")
+        // Home until the summary is read: the libraries alone don't decide.
+        let shell = ShellModel(settings: settings, tv: true)
+        #expect(shell.section == .home)
+        shell.setRequestsEntry(.none, known: false)
+        shell.setLibraries(libraries)
+        #expect(shell.section == .home)
+        shell.setRequestsEntry(entry)
+        #expect(shell.section == .requests)
+        // Read, and nothing to see: it stays on Home.
+        let gone = ShellModel(settings: settings, tv: true)
+        gone.setLibraries(libraries)
+        gone.setRequestsEntry(.none)
+        #expect(gone.section == .home && !gone.sections.contains(.requests))
+        // A tab chosen meanwhile wins.
+        settings.lastSection = ShellSection.requests.key
+        let chosen = ShellModel(settings: settings, tv: true)
+        chosen.select(.search)
+        chosen.setRequestsEntry(entry)
+        #expect(chosen.section == .search)
+        // A reset forgets the summary: the next one is waited for again.
+        chosen.select(.requests)
+        chosen.reset()
+        #expect(chosen.section == .home && !chosen.sections.contains(.requests))
+    }
 }
 
 @MainActor
@@ -278,7 +375,8 @@ import Testing
                       settings: settings, tv: true)
         await app.start()
         #expect(app.shell.section == .search)
-        #expect(await eventually { app.shell.sections.contains(.library(1)) })
+        // The fixture's libraries, beside Live TV and Discover, are under Libraries.
+        #expect(await eventually { app.shell.sections.contains(.libraries) })
         #expect(app.shell.section == .search)
     }
 
