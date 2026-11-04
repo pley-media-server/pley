@@ -221,6 +221,11 @@ impl Live {
         self.channels.iter().find(|c| c.id == id)
     }
 
+    /// Whether channel `id` is in the lineup.
+    pub(crate) fn has_channel(&self, id: i64) -> bool {
+        self.channel(id).is_some()
+    }
+
     fn json(&self, channel: &Channel, profile: &Profile, now: i64) -> ChannelJson {
         let (on_now, next) = if channel.has_guide { now_and_next(channel, now) } else { (None, None) };
         let source = channel.group().source;

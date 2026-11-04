@@ -25,8 +25,8 @@ use pley_core::model::{AppProfile, Hub, Hubs, ItemDetail, Library, LiveCategory,
 use pley_core::model::{RequestList, RequestQuery, RequestSummary, ScanPhase, ServerEvent, TitleKind};
 use pley_core::requests::title_key;
 use pley_core::store::{SavedServer, Snapshots, keys, snapshot_keys};
-use pley_core::{Api, ApiError, CapsOverrides, CapsReport, Device, EventStream, Http, Promise, Settings, Store};
-use pley_core::{StreamNews, Tasks};
+use pley_core::{Api, ApiError, CapsOverrides, CapsReport, CastReceiver, Device, EventStream, Http, Promise, Settings};
+use pley_core::{Store, StreamNews, Tasks};
 
 use crate::cx::BackgroundSession;
 use crate::players::Players;
@@ -86,6 +86,14 @@ impl Fetch for CurrentFetch {
             None => Err(FetchError::Unreachable),
         }
     }
+}
+
+/// The server's event stream while the app follows it, and whether it named the TV a receiver of
+/// Live TV channels as well as titles.
+struct Listening {
+    stream: EventStream,
+    news: Receiver<StreamNews>,
+    live: bool,
 }
 
 /// An answer on its way, with the generation (server, sign-in and profile) it was asked for:
@@ -180,7 +188,7 @@ pub struct AppState {
     profiles_task: Option<Pending<Result<Vec<AppProfile>, ApiError>>>,
     reach_task: Option<Pending<Result<(), ApiError>>>,
     caps_task: Option<Promise<CapsReport>>,
-    events: Option<(EventStream, Receiver<StreamNews>)>,
+    events: Option<Listening>,
     out: Vec<AppEvent>,
     players: Players,
 }
@@ -1153,21 +1161,48 @@ impl AppState {
         }
     }
 
-    /// Follows the server's events while the app shows and is signed in.
+    /// Follows the server's events while the app shows and is signed in. The stream names the TV
+    /// a receiver, which the user's remotes cast to while it is open (docs/API.md, "Casting"): by
+    /// its install id, as a TV, of titles and playlists, and of Live TV channels where the profile
+    /// has Live TV.
     pub fn listen(&mut self, on: bool) {
         let Some(api) = self.api.clone().filter(|_| on && self.signed_in()) else {
             self.stop_events();
             return;
         };
         if self.events.is_none() {
-            let (tx, rx) = mpsc::channel();
-            self.events = Some((EventStream::start(api, tx, self.waker.clone()), rx));
+            let (tx, news) = mpsc::channel();
+            let live = self.casts_live();
+            let receiver = CastReceiver { id: self.install_id.clone(), live };
+            let stream = EventStream::start(api, Some(receiver), tx, self.waker.clone());
+            self.events = Some(Listening { stream, news, live });
+        }
+    }
+
+    /// Whether the TV takes Live TV channels when cast to: the profile has Live TV, as last
+    /// heard. Before the server first says (no answer saved), it takes them, so that most
+    /// households' streams needn't open again once it does; the server refuses a channel to an
+    /// account without Live TV whatever the TV says, and remotes offer channels only to accounts
+    /// that have it.
+    fn casts_live(&self) -> bool {
+        match (&self.live, self.fetched.live) {
+            (Some(summary), _) => summary.available,
+            (None, heard) => heard.is_none(),
+        }
+    }
+
+    /// Live TV came or went for the profile: a stream open says anew, from a new connection, what
+    /// the TV plays when cast to.
+    fn casts_changed(&mut self) {
+        if self.events.as_ref().is_some_and(|l| l.live != self.casts_live()) {
+            self.stop_events();
+            self.listen(self.visible);
         }
     }
 
     fn stop_events(&mut self) {
-        if let Some((mut stream, _)) = self.events.take() {
-            stream.stop();
+        if let Some(mut listening) = self.events.take() {
+            listening.stream.stop();
         }
     }
 
@@ -1439,6 +1474,7 @@ impl AppState {
             // Out of reach: what was kept stays.
             Err(e) => self.report_failure(&e),
         }
+        self.casts_changed();
     }
 
     fn collect_profiles(&mut self) {
@@ -1475,8 +1511,8 @@ impl AppState {
             Ok(()) => {
                 // A stream waiting out its back-off connects now; the app asks again itself, in
                 // case the stream stayed connected through a short blip.
-                if let Some((stream, _)) = &self.events {
-                    stream.retry_now();
+                if let Some(listening) = &self.events {
+                    listening.stream.retry_now();
                 }
                 self.server_answered();
                 self.items.clear();
@@ -1490,9 +1526,9 @@ impl AppState {
     fn collect_events(&mut self) {
         let mut news = Vec::new();
         let mut stopped = false;
-        if let Some((_, rx)) = &self.events {
+        if let Some(listening) = &self.events {
             loop {
-                match rx.try_recv() {
+                match listening.news.try_recv() {
                     Ok(n) => news.push(n),
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {

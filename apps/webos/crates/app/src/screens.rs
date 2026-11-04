@@ -1,6 +1,6 @@
 //! Every page's screen: each screen crate's factory (`fn(&Route, &mut AppCx) ->
 //! Option<Box<dyn Screen>>`) goes into the registry here; a route no factory draws shows the
-//! shell's placeholder.
+//! shell's placeholder. Music a remote casts plays in the music screens' player.
 
 use pley_shell::Registry;
 
@@ -19,7 +19,8 @@ pub fn registry() -> Registry {
         .add(pley_requests::screen)
         .add(pley_storage::screen)
         .add(pley_player_ui::screen)
-        .tile_actions(pley_item::tile_actions);
+        .tile_actions(pley_item::tile_actions)
+        .cast_music(pley_music::cast);
     screens
 }
 

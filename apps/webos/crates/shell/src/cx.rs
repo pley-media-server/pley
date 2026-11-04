@@ -42,11 +42,13 @@ pub enum NavCommand {
 }
 
 /// A message shown at the top right for a few seconds.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ToastRequest {
     pub text: String,
     /// Shown in DangerText, for 6 s instead of 3.5.
     pub error: bool,
+    /// How long it shows, when not as long as the others of its kind.
+    pub seconds: Option<f64>,
 }
 
 /// What a frame asked of the shell; carried out after it.
@@ -265,11 +267,11 @@ impl<'a> AppCx<'a> {
 
     /// Shows `text` at the top right for 3.5 s.
     pub fn toast(&mut self, text: impl Into<String>) {
-        self.requests.toasts.push(ToastRequest { text: text.into(), error: false });
+        self.requests.toasts.push(ToastRequest { text: text.into(), error: false, seconds: None });
     }
 
     /// Shows `text` as an error, in DangerText, for 6 s.
     pub fn toast_error(&mut self, text: impl Into<String>) {
-        self.requests.toasts.push(ToastRequest { text: text.into(), error: true });
+        self.requests.toasts.push(ToastRequest { text: text.into(), error: true, seconds: None });
     }
 }

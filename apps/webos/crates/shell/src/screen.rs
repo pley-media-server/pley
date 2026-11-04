@@ -7,6 +7,7 @@ use pley_core::model::ServerEvent;
 use pley_ui::theme::{self, focus::PILL};
 use pley_ui::{Motion, Ui};
 
+use crate::cast::CastTracks;
 use crate::cx::AppCx;
 use crate::route::Route;
 
@@ -113,14 +114,20 @@ pub type ScreenFactory = Box<dyn Fn(&Route, &mut AppCx) -> Option<Box<dyn Screen
 /// Watching.
 pub type TileActionsFactory = Box<dyn Fn(i64, bool, &mut AppCx) -> Box<dyn Overlay>>;
 
+/// Plays tracks a remote cast in the app's music player (the music screens' own); whether they
+/// play.
+pub type CastMusic = Box<dyn Fn(&mut AppCx, CastTracks) -> bool>;
+
 /// Every page's screen: the app adds each screen crate's factory (a function
 /// `fn(&Route, &mut AppCx) -> Option<Box<dyn Screen>>`); a route no factory draws gets the
 /// [`PlaceholderScreen`]. A tile's actions open in the side panel the app gives
-/// ([`Registry::tile_actions`]), else as their page ([`Route::ItemActions`]).
+/// ([`Registry::tile_actions`]), else as their page ([`Route::ItemActions`]); music a remote casts
+/// plays in the music player the app gives ([`Registry::cast_music`]).
 #[derive(Default)]
 pub struct Registry {
     factories: Vec<ScreenFactory>,
     tile_actions: Option<TileActionsFactory>,
+    music: Option<CastMusic>,
 }
 
 impl Registry {
@@ -155,6 +162,17 @@ impl Registry {
     /// The side panel of item `id`'s actions, if the app has one.
     pub fn make_tile_actions(&self, id: i64, continue_watching: bool, cx: &mut AppCx) -> Option<Box<dyn Overlay>> {
         self.tile_actions.as_ref().map(|f| f(id, continue_watching, cx))
+    }
+
+    /// Sets what plays music a remote casts.
+    pub fn cast_music(&mut self, play: impl Fn(&mut AppCx, CastTracks) -> bool + 'static) -> &mut Registry {
+        self.music = Some(Box::new(play));
+        self
+    }
+
+    /// Plays `tracks` a remote cast; false when the app has no music player, or it can't play them.
+    pub fn play_cast_music(&self, cx: &mut AppCx, tracks: CastTracks) -> bool {
+        self.music.as_ref().is_some_and(|play| play(cx, tracks))
     }
 
     /// Whether a factory draws `route` (rather than the placeholder).

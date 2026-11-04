@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser plays a film, an episode, a show, an album, an
+  artist, a track, a playlist or a Live TV channel on the TV ("Play on…"):
+  it starts as the TV's own Play would, in place of what plays, and the
+  TV says "Playing from" the device it came from.
 - Your phone or browser controls what plays on the TV: a film or episode
   plays, pauses, seeks and skips, and goes on to the next one; music does
   the same, and goes back a track; Live TV changes channel. Live TV

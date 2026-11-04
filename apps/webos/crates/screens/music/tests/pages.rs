@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use common::TestApp;
 use pley_base::Key;
-use pley_fixtures::{ServerEvent, ids};
+use pley_fixtures::{CastBody, ServerEvent, ids};
 use pley_shell::{AppCx, PlayRequest, Requests, Route};
 
 /// The first album's tracks: ten of 20 s.
@@ -353,6 +353,22 @@ fn the_remote_reaches_the_music_playing_behind_other_pages() {
     let second = remote_session(&mut app);
     app.server.emit(remote(&second, "previous"));
     assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, true))), "the remote's previous didn't go back");
+}
+
+#[test]
+fn a_cast_track_plays_its_album_from_it_in_now_playing() {
+    let mut app = TestApp::start();
+    let id = app.state.install_id().to_string();
+    let receiving = |a: &TestApp| a.server.receivers_of(ids::ALEX).iter().any(|r| r["receiver_id"] == *id);
+    assert!(app.until(|a| receiving(a)), "the TV never took casts");
+    let fourth = CastBody { start_ms: Some(5_000), ..CastBody::item(FIRST_TRACK + 3) };
+    assert_eq!(app.server.cast(ids::ALEX, &id, &fourth, Some("pleyAndroid/0.1.5 (Android 14; phone)")), 202);
+    assert!(app.until(|a| a.route() == Some(&Route::NowPlaying)), "Now Playing never opened");
+    assert!(app.until(|a| a.shows("Playing from Pley for Android")), "no word of where it came from");
+    assert!(playing(&mut app), "the track never played");
+    let m = app.music().unwrap();
+    assert_eq!(m.now_playing().map(|n| (n.track.id, n.index, n.count)), Some((FIRST_TRACK + 3, 3, 10)));
+    assert!(m.position_ms() >= 5_000, "it started at the track's start: {}", m.position_ms());
 }
 
 #[test]

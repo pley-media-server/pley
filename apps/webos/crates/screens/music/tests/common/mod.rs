@@ -41,7 +41,7 @@ impl TestApp {
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
         sign_in(&server, ids::ALEX, &store, &http);
         let mut registry = Registry::new();
-        registry.add(pley_music::screen);
+        registry.add(pley_music::screen).cast_music(pley_music::cast);
         let mut state = AppState::new(device, store, http, Tasks::new(Waker::noop()));
         let mut ui = UiState::new();
         let mut shell = Shell::new(registry);

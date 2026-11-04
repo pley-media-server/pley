@@ -7,7 +7,7 @@ mod common;
 use common::TestApp;
 use pley_base::{Cmd, Key, KeyEvent};
 use pley_core::model::LiveCategory;
-use pley_fixtures::{Mode, ServerEvent, ids};
+use pley_fixtures::{CastBody, Mode, ServerEvent, ids};
 use pley_live::picture_aside;
 use pley_shell::Route;
 use pley_ui::InputEvent;
@@ -405,6 +405,33 @@ fn watch_again_while_the_remotes_step_finds_its_channel_stays() {
     assert!(app.until(|a| a.watches(2) == 2), "Watch again didn't watch the channel again");
     wait(&mut app, 2.5);
     assert_eq!(app.watches(ids::LIVE_CHANNEL), 0, "the remote's step tuned over Watch again");
+}
+
+#[test]
+fn a_cast_channel_is_tuned_in_the_live_player_with_where_it_came_from_over_it() {
+    let mut app = TestApp::start();
+    let id = app.state.install_id().to_string();
+    // The TV takes Live TV once the server said the profile has it.
+    let live = |a: &TestApp| {
+        a.server.receivers_of(ids::ALEX).iter().any(|r| r["receiver_id"] == *id && r["casts"][1] == "live")
+    };
+    assert!(app.until(|a| live(a)), "the TV never took casts of Live TV: {:?}", app.server.receivers_of(ids::ALEX));
+    let phone = Some("pleyAndroid/0.1.5 (Android 14; phone)");
+    assert_eq!(app.server.cast(ids::ALEX, &id, &CastBody::channel(2), phone), 202);
+    assert!(app.until(|a| a.watches(2) == 1), "the channel cast was never watched");
+    assert!(matches!(app.route(), Some(Route::LivePlayer { channel_id: 2, category: LiveCategory::All, .. })));
+    assert!(app.until(|a| a.shows("Playing from Pley for Android")), "no word of where it came from");
+    // Channel up goes on through every channel, as from search.
+    app.press(Key::ChannelUp);
+    assert!(tuned(&mut app, 3), "channel up from the cast channel");
+
+    // Another channel cast takes this one's place: it leaves, and the other is watched.
+    assert_eq!(app.server.cast(ids::ALEX, &id, &CastBody::channel(12), phone), 202);
+    assert!(app.until(|a| a.watches(12) == 1), "the second channel cast was never watched");
+    assert!(app.until(|a| {
+        a.server.journal().iter().any(|e| e.method == "DELETE" && e.path.starts_with("/api/live/sessions/"))
+    }));
+    assert_eq!(app.shell.depth(), 2, "the second player opened over the first");
 }
 
 #[test]

@@ -1,7 +1,8 @@
 //! GET /api/events: the server's events as Server-Sent Events, to every open
 //! stream. Each stream starts with a comment, gets a keep-alive comment every
 //! [`Options::keep_alive`](crate::Options::keep_alive) (the server's 15 s) and
-//! ends when its access token does, as the server's. Every
+//! ends when its access token does, as the server's. One that names its device
+//! makes it a receiver of casts while it is open ([`crate::cast`]). Every
 //! [`Options::scan_every`](crate::Options::scan_every) one library is
 //! "scanned" (scan_started, its progress, scan_finished, library_changed);
 //! writes add their own, and tests send any with
@@ -15,6 +16,7 @@ use std::time::Duration;
 
 use serde_json::json;
 
+use crate::cast::{self, MAX_RECEIVERS};
 use crate::http::{Body, Response, lock};
 use crate::server::{Answer, Cx};
 
@@ -63,6 +65,17 @@ pub enum ServerEvent {
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
     },
+    /// The user's remote, on another device, sends receiver `receiver_id` one of a title, a
+    /// playlist or a channel to play; `from` names the remote's device.
+    Cast {
+        receiver_id: String,
+        item_id: Option<i64>,
+        playlist_id: Option<i64>,
+        channel_id: Option<i64>,
+        start_ms: Option<i64>,
+        shuffle: bool,
+        from: Option<String>,
+    },
     LiveChannelsChanged,
     LiveTunersChanged,
     /// To each viewer a take-over ended: the channel, and why.
@@ -102,6 +115,10 @@ impl ServerEvent {
                 "type": "player_command", "session_id": session_id, "command": command,
                 "position_ms": position_ms, "offset_ms": offset_ms, "stream_index": stream_index,
             }),
+            ServerEvent::Cast { receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle, from } => json!({
+                "type": "cast", "receiver_id": receiver_id, "item_id": item_id, "playlist_id": playlist_id,
+                "channel_id": channel_id, "start_ms": start_ms, "shuffle": shuffle, "from": from,
+            }),
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),
             ServerEvent::LiveTakenOver { session_id, channel_id, message } => json!({
@@ -121,9 +138,11 @@ struct Subscriber {
     id: u64,
     profile: i64,
     tx: Sender<Message>,
+    /// The device it makes a receiver of casts while it is open.
+    receiver: Option<cast::Receiver>,
 }
 
-/// The open event streams.
+/// The open event streams, in the order they opened.
 #[derive(Default)]
 pub(crate) struct EventHub {
     next: AtomicU64,
@@ -131,15 +150,71 @@ pub(crate) struct EventHub {
 }
 
 impl EventHub {
-    fn subscribe(&self, profile: i64) -> (u64, Receiver<Message>) {
+    /// A stream of `profile`'s, as `receiver` when it names one: past the most a profile has, it
+    /// still gets its events but isn't one. A receiver new, or described anew, sends
+    /// `sessions_changed`, for the profile's remotes to list devices again.
+    fn subscribe(&self, profile: i64, receiver: Option<cast::Receiver>) -> (u64, Receiver<Message>) {
         let (tx, rx) = mpsc::channel();
         let id = self.next.fetch_add(1, Ordering::Relaxed);
-        lock(&self.subscribers).push(Subscriber { id, profile, tx });
+        let changed = {
+            let mut subscribers = lock(&self.subscribers);
+            let theirs: Vec<&cast::Receiver> =
+                subscribers.iter().filter(|s| s.profile == profile).filter_map(|s| s.receiver.as_ref()).collect();
+            let receiver = receiver.filter(|r| {
+                let mut ids: Vec<&str> = theirs.iter().map(|t| t.id.as_str()).collect();
+                ids.sort_unstable();
+                ids.dedup();
+                ids.contains(&r.id.as_str()) || ids.len() < MAX_RECEIVERS
+            });
+            let changed =
+                receiver.as_ref().is_some_and(|r| theirs.iter().rev().find(|t| t.id == r.id).is_none_or(|t| *t != r));
+            subscribers.push(Subscriber { id, profile, tx, receiver });
+            changed
+        };
+        if changed {
+            self.emit_to(profile, &ServerEvent::SessionsChanged);
+        }
         (id, rx)
     }
 
+    /// The stream `id` ended: its receiver goes with the last of its streams, which sends
+    /// `sessions_changed`.
     fn unsubscribe(&self, id: u64) {
-        lock(&self.subscribers).retain(|s| s.id != id);
+        let gone = {
+            let mut subscribers = lock(&self.subscribers);
+            let Some(at) = subscribers.iter().position(|s| s.id == id) else { return };
+            let ended = subscribers.remove(at);
+            let still = |r: &cast::Receiver| {
+                subscribers
+                    .iter()
+                    .any(|s| s.profile == ended.profile && s.receiver.as_ref().is_some_and(|o| o.id == r.id))
+            };
+            ended.receiver.filter(|r| !still(r)).map(|_| ended.profile)
+        };
+        if let Some(profile) = gone {
+            self.emit_to(profile, &ServerEvent::SessionsChanged);
+        }
+    }
+
+    /// `profile`'s receivers, one per device (the one whose stream opened last), by name.
+    pub fn receivers(&self, profile: i64) -> Vec<cast::Receiver> {
+        let mut newest: Vec<cast::Receiver> = Vec::new();
+        for r in lock(&self.subscribers).iter().filter(|s| s.profile == profile).filter_map(|s| s.receiver.clone()) {
+            newest.retain(|n| n.device_id != r.device_id);
+            newest.push(r);
+        }
+        newest.sort_by_cached_key(|r| (r.name.is_none(), r.name.as_deref().map(str::to_lowercase), r.id.clone()));
+        newest
+    }
+
+    /// `profile`'s receiver `id` as its newest stream says, while one is open.
+    pub fn receiver(&self, profile: i64, id: &str) -> Option<cast::Receiver> {
+        let subscribers = lock(&self.subscribers);
+        subscribers
+            .iter()
+            .rev()
+            .filter(|s| s.profile == profile)
+            .find_map(|s| s.receiver.clone().filter(|r| r.id == id))
     }
 
     /// Sends `event` to every stream.
@@ -186,14 +261,14 @@ impl Drop for Subscription {
     }
 }
 
-/// GET /api/events: the stream for the caller, until its token ends, it goes
-/// away or the server stops.
+/// GET /api/events `?receiver=&device_name=&device_kind=&casts=`: the stream for the caller, as a
+/// receiver of casts when it names one, until its token ends, it goes away or the server stops.
 pub(crate) fn stream(cx: &Cx<'_>) -> Answer {
     let caller = cx.caller().clone();
     let hub = cx.shared.events.clone();
     let clock = cx.shared.options.clock.clone();
     let keep_alive = cx.shared.options.keep_alive;
-    let (id, rx) = hub.subscribe(caller.profile);
+    let (id, rx) = hub.subscribe(caller.profile, cast::Receiver::of(cx));
     let subscription = Subscription { hub, id };
     let run = move |out: &mut crate::http::ChunkWriter<'_>| {
         let _subscription = subscription;

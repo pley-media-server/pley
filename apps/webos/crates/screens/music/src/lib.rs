@@ -17,7 +17,7 @@ mod widgets;
 pub use album::AlbumScreen;
 pub use artist::ArtistScreen;
 pub use now_playing::NowPlayingScreen;
-pub use player::{Gathered, MusicPlayer, current_track, gather, gathered, music, play};
+pub use player::{Gathered, MusicPlayer, cast, current_track, gather, gathered, music, play};
 
 use pley_shell::{AppCx, Route, Screen};
 

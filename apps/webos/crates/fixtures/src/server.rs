@@ -143,6 +143,8 @@ pub(crate) struct State {
     pub subtitle_asks: HashMap<(i64, i64), u32>,
     /// Subtitles added to files, by file.
     pub added_subtitles: HashMap<i64, Vec<AddedSubtitle>>,
+    /// When casts went to each receiver in the last second, by profile and receiver.
+    pub casts_sent: HashMap<(i64, String), Vec<i64>>,
 }
 
 impl State {

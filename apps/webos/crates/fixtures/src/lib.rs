@@ -19,8 +19,9 @@
 //!   following, managers' decisions and the listing's filters;
 //! - Live TV with a guide, keyed live HLS, sessions, plans and a connection
 //!   limit that answers `409`;
-//! - server events (SSE) and pictures it draws itself (JPEG, PNG with
-//!   transparency for channel logos);
+//! - server events (SSE), the user's remote (commands, and casts to the
+//!   devices whose event streams name them) and pictures it draws itself
+//!   (JPEG, PNG with transparency for channel logos);
 //! - and, apart from the server, a pretend USB drive of videos that are heads
 //!   only, for the simulator's `--drive fixtures` ([`write_sample_drive`]).
 //!
@@ -32,6 +33,7 @@
 //! ```
 
 mod browse;
+mod cast;
 mod catalog;
 mod drive;
 mod events;
@@ -64,6 +66,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub use cast::CastBody;
 pub use drive::write_sample_drive;
 pub use events::ServerEvent;
 pub use requests::titles as request_titles;
@@ -283,6 +286,7 @@ impl FixtureServer {
             two_step_required: false,
             subtitle_asks: Default::default(),
             added_subtitles: Default::default(),
+            casts_sent: Default::default(),
         };
         let libraries: Vec<(i64, i64)> = catalog.libraries.iter().map(|l| (l.id, l.item_count)).collect();
         let shared = Arc::new(Shared {
@@ -467,6 +471,22 @@ impl FixtureServer {
     /// Event streams open now: tests wait for one before sending.
     pub fn event_listeners(&self) -> usize {
         self.shared.events.listeners()
+    }
+
+    /// `profile`'s devices that take casts, as `GET /api/remote/devices` lists them: their
+    /// `receiver_id` is where [`FixtureServer::cast`] sends.
+    pub fn receivers_of(&self, profile: i64) -> Vec<serde_json::Value> {
+        self.shared.events.receivers(profile).iter().map(|r| r.to_json()).collect()
+    }
+
+    /// What `profile`'s remote on the device of User-Agent `agent` casting `body` to `receiver`
+    /// does (`POST /api/remote/devices/{receiver}/cast`, docs/API.md "Casting"): its status, `202`
+    /// when the profile's streams were sent `cast`.
+    pub fn cast(&self, profile: i64, receiver: &str, body: &CastBody, agent: Option<&str>) -> u16 {
+        let mut state = lock(&self.shared.state);
+        match cast::send(&self.shared, &mut state, profile, receiver, &body.to_json(), agent) {
+            Ok(answer) | Err(answer) => answer.status,
+        }
     }
 
     /// Every write so far.

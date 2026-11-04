@@ -1,0 +1,310 @@
+//! Casts from the user's remotes on their other devices (docs/API.md, "Casting"): the TV plays
+//! what one sends it as its own Play on that page would, in place of what plays, and says where
+//! it came from over the player for 4 s.
+//!
+//! The event stream names the TV a receiver ([`crate::AppState::listen`]); a `cast` for it is
+//! taken while the app shows and is signed in, past the pages of getting in. What it names is
+//! found on the task pool ([`resolve`]): a title's kind, a show's next episode, the tracks of an
+//! album, an artist or a playlist. A newer cast replaces one still being found.
+
+use pley_core::model::{ItemKind, ItemSummary, PlaylistKind, ServerEvent};
+use pley_core::{Api, ApiError, Promise};
+
+use crate::cx::NavCommand;
+use crate::route::{PlayQueue, PlayRequest, Route};
+use crate::state::AppState;
+
+/// How long "Playing from …" shows, as long as a player's title banner.
+pub const CAST_NOTICE_SECONDS: f64 = 4.0;
+
+/// What the TV says of a cast that names nothing to play: a show without episodes, an empty album
+/// or playlist.
+pub const NOTHING_TO_PLAY: &str = "Nothing to play";
+
+/// What a remote cast to this TV.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Cast {
+    pub item_id: Option<i64>,
+    pub playlist_id: Option<i64>,
+    pub channel_id: Option<i64>,
+    /// Where a title starts, in ms.
+    pub start_ms: Option<i64>,
+    pub shuffle: bool,
+    /// The remote's device, as the server names it.
+    pub from: Option<String>,
+}
+
+impl Cast {
+    /// The cast `event` carries when it is for receiver `receiver` (this TV's id) and names
+    /// something to play: the user's streams all hear every cast, and one for another of their
+    /// devices is that device's.
+    pub fn for_receiver(event: &ServerEvent, receiver: &str) -> Option<Cast> {
+        match event {
+            ServerEvent::Cast { receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle, from }
+                if receiver_id == receiver && (item_id.is_some() || playlist_id.is_some() || channel_id.is_some()) =>
+            {
+                Some(Cast {
+                    item_id: *item_id,
+                    playlist_id: *playlist_id,
+                    channel_id: *channel_id,
+                    start_ms: *start_ms,
+                    shuffle: *shuffle,
+                    from: from.clone(),
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Tracks a remote cast, for the app's music player ([`crate::Registry::cast_music`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct CastTracks {
+    /// In their order.
+    pub tracks: Vec<ItemSummary>,
+    /// The track to start at; shuffled, it plays first and the rest in a random order.
+    pub at: usize,
+    pub shuffle: bool,
+    /// Where in that track, in ms.
+    pub start_ms: i64,
+}
+
+/// What a cast plays, once found.
+#[derive(Clone, Debug, PartialEq)]
+pub enum CastPlay {
+    /// A movie or an episode in the video player.
+    Video(PlayRequest),
+    /// Tracks in the music player.
+    Music(CastTracks),
+    /// A Live TV channel, live.
+    Channel(i64),
+    /// Nothing to play.
+    Nothing,
+}
+
+/// "Playing from {from}", or from another device when the server couldn't name it.
+pub fn notice(from: Option<&str>) -> String {
+    match from.map(str::trim).filter(|f| !f.is_empty()) {
+        Some(from) => format!("Playing from {from}"),
+        None => "Playing from another device".into(),
+    }
+}
+
+/// Finds what `cast` plays, as the app's own Play on that page does: a movie or an episode
+/// itself, from `start_ms` when given, else where Play resumes; a show or a season its next
+/// episode (On Deck) where Play resumes it; a track its album from that track; an album, an artist
+/// (album after album) or an audio playlist its tracks, shuffled from a random one with
+/// `shuffle`; a video playlist its first entry (a random one shuffled), the playlist going on as
+/// its queue; a channel live. `seed` picks the random start. Blocking: it runs on the task pool.
+pub fn resolve(api: &Api, cast: &Cast, seed: f64) -> Result<CastPlay, ApiError> {
+    let start_ms = cast.start_ms.map(|ms| ms.max(0));
+    if let Some(channel) = cast.channel_id {
+        return Ok(CastPlay::Channel(channel));
+    }
+    if let Some(id) = cast.playlist_id {
+        let playlist = api.playlist(id)?;
+        let entries: Vec<ItemSummary> = playlist.entries.into_iter().map(|e| e.item).collect();
+        if playlist.playlist.kind == PlaylistKind::Audio {
+            return Ok(queue(tracks_of(entries), cast.shuffle, seed));
+        }
+        if entries.is_empty() {
+            return Ok(CastPlay::Nothing);
+        }
+        let at = if cast.shuffle { random_index(seed, entries.len()) } else { 0 };
+        return Ok(CastPlay::Video(PlayRequest {
+            queue: Some(PlayQueue::Playlist(id)),
+            ..PlayRequest::item(entries[at].id)
+        }));
+    }
+    let Some(id) = cast.item_id else { return Ok(CastPlay::Nothing) };
+    let item = api.item(id)?;
+    Ok(match item.kind {
+        ItemKind::Movie | ItemKind::Episode | ItemKind::Extra => video(id, start_ms),
+        // A place named with a show isn't its next episode's: that starts where Play resumes it.
+        ItemKind::Show | ItemKind::Season => match api.on_deck(id)? {
+            Some(episode) => video(episode.id, None),
+            None => CastPlay::Nothing,
+        },
+        ItemKind::Track => {
+            // Its album from it, as the album's line plays it; a track without one alone.
+            let album = match item.parent_id {
+                Some(album) => tracks_of(api.children(album)?.items),
+                None => Vec::new(),
+            };
+            let (tracks, at) = match album.iter().position(|t| t.id == id) {
+                Some(at) => (album, at),
+                None => (vec![item.summary.clone()], 0),
+            };
+            CastPlay::Music(CastTracks { tracks, at, shuffle: false, start_ms: start_ms.unwrap_or(0) })
+        }
+        ItemKind::Album => queue(tracks_of(api.children(id)?.items), cast.shuffle, seed),
+        ItemKind::Artist => {
+            let albums = api.children(id)?.items;
+            let mut tracks = Vec::new();
+            for album in albums.iter().filter(|a| a.kind == ItemKind::Album) {
+                tracks.extend(tracks_of(api.children(album.id)?.items));
+            }
+            queue(tracks, cast.shuffle, seed)
+        }
+        ItemKind::Unknown => CastPlay::Nothing,
+    })
+}
+
+fn video(item_id: i64, start_ms: Option<i64>) -> CastPlay {
+    CastPlay::Video(PlayRequest { start_ms: start_ms.map(|ms| ms as u64), ..PlayRequest::item(item_id) })
+}
+
+/// The tracks among `items`.
+fn tracks_of(items: Vec<ItemSummary>) -> Vec<ItemSummary> {
+    items.into_iter().filter(|t| t.kind == ItemKind::Track).collect()
+}
+
+/// `tracks` from the first, or shuffled from a random one as an album's Shuffle does.
+fn queue(tracks: Vec<ItemSummary>, shuffle: bool, seed: f64) -> CastPlay {
+    if tracks.is_empty() {
+        return CastPlay::Nothing;
+    }
+    let at = if shuffle { random_index(seed, tracks.len()) } else { 0 };
+    CastPlay::Music(CastTracks { tracks, at, shuffle, start_ms: 0 })
+}
+
+/// A place below `len` from `seed` (the clock): nothing here needs more than a well-mixed number.
+fn random_index(seed: f64, len: usize) -> usize {
+    let mut x = (seed * 1_000_003.0) as u64 ^ 0x9e37_79b9_7f4a_7c15;
+    x ^= x >> 33;
+    x = x.wrapping_mul(0xff51_afd7_ed55_8ccd);
+    x ^= x >> 33;
+    (x % len.max(1) as u64) as usize
+}
+
+/// How the page of what a cast plays opens over `top`, the page on top: in place of a player,
+/// whose playback it replaces (a player kept under another would play on), else over the page;
+/// Now Playing already on top stays.
+pub fn opening(top: Option<&Route>, route: Route) -> Option<NavCommand> {
+    match top {
+        Some(Route::NowPlaying) if route == Route::NowPlaying => None,
+        Some(Route::Player(_) | Route::LivePlayer { .. }) => Some(NavCommand::Replace(route)),
+        _ => Some(NavCommand::Push(route)),
+    }
+}
+
+/// The cast whose play is being found: one at a time, a newer one replacing it.
+#[derive(Default)]
+pub struct Casts {
+    pending: Option<Pending>,
+}
+
+struct Pending {
+    /// The server, sign-in and profile it was heard under.
+    generation: u64,
+    from: Option<String>,
+    answer: Promise<Result<CastPlay, ApiError>>,
+}
+
+impl Casts {
+    /// Starts finding what `cast` plays, in place of a cast still being found (whose requests are
+    /// let go). A channel needs nothing found: its player tunes it.
+    pub fn start(&mut self, cast: Cast, state: &AppState, now: f64) {
+        let answer = match cast.channel_id {
+            Some(channel) => Promise::resolved(Ok(CastPlay::Channel(channel))),
+            None => {
+                let asked = cast.clone();
+                state.spawn(move |api| resolve(api, &asked, now))
+            }
+        };
+        self.pending = Some(Pending { generation: state.generation(), from: cast.from, answer });
+    }
+
+    /// Lets go of the cast being found: the app was hidden.
+    pub fn cancel(&mut self) {
+        self.pending = None;
+    }
+
+    /// Whether a cast is being found.
+    pub fn busy(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    /// What the cast being found came to, once it has: where it came from, and what to play or why
+    /// not. One heard under another server, sign-in or profile than `generation`'s is dropped.
+    pub fn take(&mut self, generation: u64) -> Option<(Option<String>, Result<CastPlay, ApiError>)> {
+        let p = self.pending.as_mut()?;
+        let answer = match p.answer.take() {
+            Some(answer) => answer,
+            None if p.answer.failed() => Err(ApiError::Unreadable("the request stopped".into())),
+            None => return None,
+        };
+        let p = self.pending.take()?;
+        (p.generation == generation).then_some((p.from, answer))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pley_core::model::LiveCategory;
+
+    use super::*;
+
+    fn cast_event(receiver: &str) -> ServerEvent {
+        ServerEvent::Cast {
+            receiver_id: receiver.into(),
+            item_id: Some(12),
+            playlist_id: None,
+            channel_id: None,
+            start_ms: Some(60_000),
+            shuffle: false,
+            from: Some("Chrome on Windows".into()),
+        }
+    }
+
+    #[test]
+    fn a_cast_is_this_tvs_only_when_it_names_its_receiver() {
+        let cast = Cast::for_receiver(&cast_event("webos-1"), "webos-1").expect("this TV's");
+        assert_eq!(
+            (cast.item_id, cast.start_ms, cast.from.as_deref()),
+            (Some(12), Some(60_000), Some("Chrome on Windows"))
+        );
+        assert_eq!(Cast::for_receiver(&cast_event("webos-2"), "webos-1"), None, "another device's");
+        assert_eq!(Cast::for_receiver(&ServerEvent::SessionsChanged, "webos-1"), None);
+        // One naming nothing, which the server never sends, has nothing to play.
+        let nothing = ServerEvent::Cast {
+            receiver_id: "webos-1".into(),
+            item_id: None,
+            playlist_id: None,
+            channel_id: None,
+            start_ms: None,
+            shuffle: true,
+            from: None,
+        };
+        assert_eq!(Cast::for_receiver(&nothing, "webos-1"), None);
+    }
+
+    #[test]
+    fn the_notice_says_where_the_cast_came_from() {
+        assert_eq!(notice(Some("Chrome on Windows")), "Playing from Chrome on Windows");
+        assert_eq!(notice(None), "Playing from another device");
+        assert_eq!(notice(Some("  ")), "Playing from another device");
+    }
+
+    #[test]
+    fn a_cast_replaces_a_player_on_top_and_opens_over_any_other_page() {
+        let film = Route::Player(PlayRequest::item(12));
+        let channel = Route::LivePlayer { channel_id: 4, category: LiveCategory::All, pressed_at: 0.0 };
+        assert_eq!(opening(Some(&Route::Home), film.clone()), Some(NavCommand::Push(film.clone())));
+        assert_eq!(opening(None, film.clone()), Some(NavCommand::Push(film.clone())));
+        assert_eq!(opening(Some(&channel), film.clone()), Some(NavCommand::Replace(film.clone())));
+        assert_eq!(opening(Some(&film), channel.clone()), Some(NavCommand::Replace(channel)));
+        assert_eq!(opening(Some(&film), Route::NowPlaying), Some(NavCommand::Replace(Route::NowPlaying)));
+        assert_eq!(opening(Some(&Route::Item { id: 3 }), Route::NowPlaying), Some(NavCommand::Push(Route::NowPlaying)));
+        assert_eq!(opening(Some(&Route::NowPlaying), Route::NowPlaying), None, "Now Playing shows already");
+    }
+
+    #[test]
+    fn a_random_start_stays_within_the_list() {
+        for seed in [0.0, 1.5, 1_730_000_000.123, 99.99] {
+            assert!(random_index(seed, 7) < 7);
+        }
+        assert_eq!(random_index(5.0, 1), 0);
+        assert_eq!(random_index(5.0, 0), 0);
+    }
+}

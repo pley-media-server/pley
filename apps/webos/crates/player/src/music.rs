@@ -245,6 +245,11 @@ impl MusicSession {
 
     /// Plays `tracks` from `at`; shuffled, `at` first and the rest in a random order.
     pub fn play(&mut self, tracks: Vec<ItemSummary>, at: usize, shuffle: bool) {
+        self.play_from(tracks, at, shuffle, 0);
+    }
+
+    /// [`MusicSession::play`], `from_ms` into the first track (a remote's cast says where).
+    pub fn play_from(&mut self, tracks: Vec<ItemSummary>, at: usize, shuffle: bool, from_ms: i64) {
         if tracks.is_empty() {
             return;
         }
@@ -257,7 +262,7 @@ impl MusicSession {
         if let Some(n) = &mut self.now_playing {
             n.shuffle = shuffle;
         }
-        self.start(0, None, shuffle);
+        self.start(from_ms.max(0), None, shuffle);
     }
 
     /// Play or pause; after the end, the last track again; after an error or a video, a new session where it was.

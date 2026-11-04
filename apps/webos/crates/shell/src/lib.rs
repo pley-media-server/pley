@@ -11,7 +11,10 @@
 //! answers, timers and events), then builds the [`pley_ui::Ui`] and calls [`Shell::frame`], and
 //! after [`pley_ui::Ui::finish`] calls [`Shell::finish`], which carries out the navigation the
 //! frame asked for.
+//!
+//! What the user's remotes cast to the TV the shell plays itself, whatever page shows ([`cast`]).
 
+pub mod cast;
 mod cx;
 mod load;
 mod notice;
@@ -24,6 +27,7 @@ mod screen;
 mod shell;
 mod state;
 
+pub use cast::{CAST_NOTICE_SECONDS, CastTracks};
 pub use cx::{AppCx, BackgroundSession, NavCommand, Requests, ToastRequest};
 pub use load::{Load, Resource};
 pub use notice::{CLOSE as NOTICE_CLOSE, NOTICE_IDLE, NOTICE_SHOWN, Notices, OPEN as NOTICE_OPEN};
@@ -34,7 +38,8 @@ pub use request_state::{
 };
 pub use route::{LibraryTab, PlayQueue, PlayRequest, Route, SettingsSection, SmartPlaylist};
 pub use screen::{
-    AppEvent, Chrome, Overlay, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory, TileActionsFactory,
+    AppEvent, CastMusic, Chrome, Overlay, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory,
+    TileActionsFactory,
 };
 pub use shell::{Entry, Shell};
 pub use state::{

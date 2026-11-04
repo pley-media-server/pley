@@ -171,11 +171,16 @@ pub struct Events {
 
 impl Events {
     pub fn open(api: &Api) -> Events {
+        Events::open_at(api, "/api/events")
+    }
+
+    /// The stream at `path`: `/api/events` with a query naming a receiver, say.
+    pub fn open_at(api: &Api, path: &str) -> Events {
         let address = api.base.strip_prefix("http://").unwrap();
         let mut stream = TcpStream::connect(address).unwrap();
         stream.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
         let head = format!(
-            "GET /api/events HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {}\r\nAccept: text/event-stream\r\n\r\n",
+            "GET {path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {}\r\nAccept: text/event-stream\r\n\r\n",
             api.token
         );
         stream.write_all(head.as_bytes()).unwrap();

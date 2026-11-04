@@ -67,6 +67,19 @@ pub enum ServerEvent {
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
     },
+    /// The user's remote, on another of their devices, sends the device of receiver
+    /// `receiver_id` something to play (docs/API.md, "Casting"): one of a title, a playlist or a
+    /// Live TV channel; `start_ms` where a title starts, `shuffle` a playlist, an album or an
+    /// artist shuffled. `from` names the remote's device, when the server could.
+    Cast {
+        receiver_id: String,
+        item_id: Option<i64>,
+        playlist_id: Option<i64>,
+        channel_id: Option<i64>,
+        start_ms: Option<i64>,
+        shuffle: bool,
+        from: Option<String>,
+    },
     /// Live TV's sources, channels or guide changed.
     LiveChannelsChanged,
     LiveTunersChanged,
@@ -156,8 +169,8 @@ struct Raw {
     message: Option<String>,
     #[serde(default, deserialize_with = "nd")]
     by_admin: bool,
-    #[serde(default, deserialize_with = "nd")]
-    channel_id: i64,
+    #[serde(default)]
+    channel_id: Option<i64>,
     #[serde(default, deserialize_with = "nd")]
     command: Control,
     #[serde(default)]
@@ -166,6 +179,16 @@ struct Raw {
     offset_ms: Option<i64>,
     #[serde(default)]
     stream_index: Option<i64>,
+    #[serde(default, deserialize_with = "nd")]
+    receiver_id: String,
+    #[serde(default)]
+    playlist_id: Option<i64>,
+    #[serde(default)]
+    start_ms: Option<i64>,
+    #[serde(default, deserialize_with = "nd")]
+    shuffle: bool,
+    #[serde(default)]
+    from: Option<String>,
     #[serde(default)]
     request_id: Option<i64>,
     #[serde(rename = "kind", default)]
@@ -222,11 +245,22 @@ impl<'de> Deserialize<'de> for ServerEvent {
                 offset_ms: r.offset_ms,
                 stream_index: r.stream_index,
             },
+            "cast" => ServerEvent::Cast {
+                receiver_id: r.receiver_id,
+                item_id: r.item_id,
+                playlist_id: r.playlist_id,
+                channel_id: r.channel_id,
+                start_ms: r.start_ms,
+                shuffle: r.shuffle,
+                from: r.from,
+            },
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,
             "live_tuners_changed" => ServerEvent::LiveTunersChanged,
-            "live_taken_over" => {
-                ServerEvent::LiveTakenOver { session_id: r.session_id, channel_id: r.channel_id, message: r.message }
-            }
+            "live_taken_over" => ServerEvent::LiveTakenOver {
+                session_id: r.session_id,
+                channel_id: r.channel_id.unwrap_or_default(),
+                message: r.message,
+            },
             "requests_changed" => {
                 ServerEvent::RequestsChanged { request_id: r.request_id, kind: r.title_kind, tmdb_id: r.tmdb_id }
             }
@@ -296,6 +330,7 @@ impl ServerEvent {
             ServerEvent::UserStateChanged { .. } => "user_state_changed",
             ServerEvent::SessionStopped { .. } => "session_stopped",
             ServerEvent::PlayerCommand { .. } => "player_command",
+            ServerEvent::Cast { .. } => "cast",
             ServerEvent::LiveChannelsChanged => "live_channels_changed",
             ServerEvent::LiveTunersChanged => "live_tuners_changed",
             ServerEvent::LiveTakenOver { .. } => "live_taken_over",

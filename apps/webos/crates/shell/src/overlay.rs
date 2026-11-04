@@ -59,7 +59,7 @@ impl Toasts {
     pub fn show(&mut self, req: ToastRequest, now: f64) {
         let fades_in = self.current.as_ref().is_none_or(|t| now >= t.until);
         self.next += 1;
-        let seconds = if req.error { ERROR_TOAST_SECONDS } else { TOAST_SECONDS };
+        let seconds = req.seconds.unwrap_or(if req.error { ERROR_TOAST_SECONDS } else { TOAST_SECONDS });
         self.current = Some(Toast { id: self.next, text: req.text, error: req.error, until: now + seconds, fades_in });
     }
 

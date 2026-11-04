@@ -6,17 +6,22 @@
 //! page opens the rail, else the app is left. Leaving follows LG's Back-button guide
 //! (<https://webostv.developer.lge.com/develop/guides/back-button>): from webOS 6 it asks "Exit
 //! Pley?" first, as the Samsung app does (`Kit/Shell.cs`); up to webOS 5 the TV's Home shows.
+//! What the user's remotes cast to the TV opens its player over whatever page shows ([`cast`]).
+//!
+//! [`cast`]: crate::cast
 
 use pley_base::{ImageRequest, Key};
-use pley_core::model::{Library, RequestSummary};
+use pley_core::ApiError;
+use pley_core::model::{Library, LiveCategory, RequestSummary, ServerEvent};
 use pley_kit::{Dialog, DialogButton};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
-use crate::cx::{AppCx, NavCommand, Requests};
+use crate::cast::{CAST_NOTICE_SECONDS, Cast, CastPlay, Casts, NOTHING_TO_PLAY, notice, opening};
+use crate::cx::{AppCx, NavCommand, Requests, ToastRequest};
 use crate::notice::Notices;
 use crate::overlay::{self, DIM_AFTER, TOAST_TOP, TOAST_TOP_PLAYER, Toasts};
 use crate::rail::{Rail, RailEntries, RailView, current_entry, rail_entries};
-use crate::route::Route;
+use crate::route::{PlayRequest, Route};
 use crate::screen::{AppEvent, Chrome, Overlay, Registry, Screen};
 use crate::state::AppState;
 
@@ -128,6 +133,8 @@ pub struct Shell {
     entries_from: Option<EntriesFrom>,
     /// The server was asked for who is watching, the libraries and Home, after the first frame.
     asked: bool,
+    /// What a remote cast, while what it plays is found.
+    casts: Casts,
 }
 
 impl Shell {
@@ -154,6 +161,7 @@ impl Shell {
             entries: rail_entries(&[], false, false, None, false),
             entries_from: None,
             asked: false,
+            casts: Casts::default(),
         }
     }
 
@@ -261,10 +269,13 @@ impl Shell {
     }
 
     /// Runs what isn't drawn: the state's answers and timers (telling the pages what they say),
-    /// the music, the dimmer.
+    /// a cast found, the music, the dimmer.
     pub fn update(&mut self, state: &mut AppState, ui: &mut UiState, now: f64) {
         for e in state.update(now) {
             self.deliver(e, state, ui, now);
+        }
+        if let Some((from, found)) = self.casts.take(state.generation()) {
+            self.play_cast(from.as_deref(), found, state, ui, now);
         }
         if let Some(mut music) = state.music.take() {
             self.music_due = music.tick(now);
@@ -282,19 +293,30 @@ impl Shell {
     }
 
     /// The app was shown (`true`) or hidden: the state follows, the page hears it, and coming back
-    /// never finds the screen dimmed.
+    /// never finds the screen dimmed. Hidden, a cast still being found plays nothing.
     pub fn visible(&mut self, visible: bool, state: &mut AppState, ui: &mut UiState, now: f64) {
         state.set_visible(visible);
         if visible {
             self.last_input = now;
             self.dimmed = false;
+        } else {
+            self.casts.cancel();
         }
         self.deliver(AppEvent::Visible(visible), state, ui, now);
     }
 
+    /// Whether a cast is being found (tests wait for it).
+    pub fn casting(&self) -> bool {
+        self.casts.busy()
+    }
+
     /// Tells the page on top `event` (the pages under it hear [`AppEvent::Changed`] when on top
-    /// again); a sign-in the server ended goes back to its code screen.
+    /// again); a sign-in the server ended goes back to its code screen; a cast for this TV starts
+    /// being found.
     pub fn deliver(&mut self, event: AppEvent, state: &mut AppState, ui: &mut UiState, now: f64) {
+        if let AppEvent::Server(e) = &event {
+            self.hear_cast(e, state, now);
+        }
         if event == AppEvent::Changed {
             let n = self.stack.len();
             for e in self.stack.iter_mut().take(n.saturating_sub(1)) {
@@ -502,6 +524,82 @@ impl Shell {
             self.exit_asked = false;
             self.requests.nav.push(NavCommand::Quit);
         }
+    }
+
+    /// Whether the TV plays what a remote casts now: while the app shows and is signed in, past
+    /// the pages of getting in (a server, a sign-in, "Who's watching?" and a PIN are never
+    /// skipped).
+    fn takes_casts(&self, state: &AppState) -> bool {
+        state.visible() && state.signed_in() && self.chrome() != Chrome::Bare
+    }
+
+    /// A cast for this TV starts being found, in place of one still being found, while the TV
+    /// takes casts. A cast for another of the user's devices is that device's.
+    fn hear_cast(&mut self, event: &ServerEvent, state: &AppState, now: f64) {
+        let Some(cast) = Cast::for_receiver(event, state.install_id()) else { return };
+        if !self.takes_casts(state) {
+            log::info!("a remote's cast came while the TV can't play it");
+            return;
+        }
+        log::info!("a remote cast to this TV");
+        self.casts.start(cast, state, now);
+    }
+
+    /// Plays what a cast found as the app's own Play would, in place of what plays: a video or a
+    /// channel in its player, over the page on top or in place of a player there; music in the
+    /// music player, with Now Playing. "Playing from …" shows over it for 4 s, and the dimmed
+    /// screen wakes, as for a key. A cast that found nothing, or that the server couldn't answer,
+    /// says so; one found once the TV went back to the pages of getting in plays nothing.
+    fn play_cast(
+        &mut self,
+        from: Option<&str>,
+        found: Result<CastPlay, ApiError>,
+        state: &mut AppState,
+        ui: &mut UiState,
+        now: f64,
+    ) {
+        if !self.takes_casts(state) {
+            log::info!("a remote's cast was found once the TV couldn't play it");
+            return;
+        }
+        let route = match found {
+            Ok(CastPlay::Video(request)) => Route::Player(PlayRequest { pressed_at: now, ..request }),
+            Ok(CastPlay::Channel(channel_id)) => {
+                Route::LivePlayer { channel_id, category: LiveCategory::All, pressed_at: now }
+            }
+            Ok(CastPlay::Music(tracks)) => {
+                let mut cx = AppCx::new(state, &mut self.requests, now);
+                if !self.registry.play_cast_music(&mut cx, tracks) {
+                    log::warn!("a remote cast music, which the app couldn't play");
+                    return;
+                }
+                Route::NowPlaying
+            }
+            Ok(CastPlay::Nothing) => {
+                self.requests.toasts.push(ToastRequest { text: NOTHING_TO_PLAY.into(), error: false, seconds: None });
+                self.carry_out(state, ui, now);
+                return;
+            }
+            Err(e) => {
+                log::info!("a remote's cast found nothing to play: {e}");
+                state.report_failure(&e);
+                self.requests.toasts.push(ToastRequest { text: e.problem(), error: true, seconds: None });
+                self.carry_out(state, ui, now);
+                return;
+            }
+        };
+        if let Some(open) = opening(self.top_route(), route) {
+            self.requests.nav.push(open);
+        }
+        // Played from elsewhere, the TV leaves what it was asking or had open, and wakes: the
+        // dimmer would otherwise stay over the picture until a key.
+        self.exit_asked = false;
+        self.rail.close();
+        self.last_input = now;
+        self.dimmed = false;
+        let text = notice(from);
+        self.requests.toasts.push(ToastRequest { text, error: false, seconds: Some(CAST_NOTICE_SECONDS) });
+        self.carry_out(state, ui, now);
     }
 
     /// Carries out a navigation from outside a frame (the simulator's `--route`).

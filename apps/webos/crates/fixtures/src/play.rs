@@ -1146,8 +1146,8 @@ fn webvtt(cues: &[(i64, i64, String)]) -> String {
     out
 }
 
-/// The device a User-Agent names, for watch history.
-fn device_name(agent: Option<&str>) -> Option<String> {
+/// The device a User-Agent names, for watch history, receivers and casts.
+pub(crate) fn device_name(agent: Option<&str>) -> Option<String> {
     let agent = agent?;
     Some(if agent.contains("pleyLG") || agent.contains("Web0S") || agent.contains("webOS") {
         "LG TV".to_string()

@@ -10,6 +10,10 @@
 //! (`invalid_token`) refreshes it once and reconnects; a `401` to the fresh
 //! token, any other `401` (a proxy's own login), a `403` or the end of the
 //! sign-in stops it, as the native Samsung app's `EventStream` does.
+//!
+//! A stream that names the TV a receiver ([`CastReceiver`]) makes it one of
+//! the devices the user's remotes cast to, for as long as it is open
+//! (docs/API.md, "Casting").
 
 use std::io::Read;
 use std::sync::mpsc::Sender;
@@ -19,8 +23,8 @@ use std::time::{Duration, Instant};
 use pley_base::Waker;
 
 use crate::api::Api;
-use crate::http::{ApiError, Request, invalid_token};
-use crate::model::ServerEvent;
+use crate::http::{ApiError, Request, encode_component, invalid_token};
+use crate::model::{DeviceKind, ServerEvent};
 use crate::task::Cancel;
 
 /// The first wait after a stream fails, doubled each time up to the last.
@@ -113,6 +117,26 @@ pub fn parse_event(data: &str) -> Option<ServerEvent> {
     serde_json::from_value(v).ok()
 }
 
+/// What the TV says of itself on its event stream to take casts from the user's remotes
+/// (docs/API.md, "Casting"): its own id for the device, that it is a TV, and what it plays when
+/// cast to. It sends no name: the server names the TV from its `User-Agent`, as it names its
+/// players, webOS giving the app no name of the set's own.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CastReceiver {
+    /// The TV's install id, which its plays send as `client_id`.
+    pub id: String,
+    /// Live TV channels too, besides titles and playlists: the profile has Live TV.
+    pub live: bool,
+}
+
+impl CastReceiver {
+    /// The stream's address as this receiver: `/api/events?receiver=…&device_kind=tv&casts=item,live`.
+    pub fn events_path(&self) -> String {
+        let casts = if self.live { "item,live" } else { "item" };
+        format!("/api/events?receiver={}&device_kind={}&casts={casts}", encode_component(&self.id), DeviceKind::Tv)
+    }
+}
+
 /// The event stream of one server and sign-in, read on its own thread while
 /// it lives. Dropping it stops the thread.
 pub struct EventStream {
@@ -123,14 +147,16 @@ pub struct EventStream {
 
 impl EventStream {
     /// Starts reading `api`'s events into `tx`, waking the main loop with
-    /// `waker` for every piece of news.
-    pub fn start(api: Api, tx: Sender<StreamNews>, waker: Waker) -> EventStream {
+    /// `waker` for every piece of news; as `receiver`, when given, the TV takes
+    /// casts while the stream is open.
+    pub fn start(api: Api, receiver: Option<CastReceiver>, tx: Sender<StreamNews>, waker: Waker) -> EventStream {
         let cancel = Cancel::new();
         let nudges = std::sync::Arc::new(std::sync::Mutex::new(Cancel::new()));
         let (c, n) = (cancel.clone(), nudges.clone());
+        let path = receiver.map_or_else(|| "/api/events".to_string(), |r| r.events_path());
         let thread = thread::Builder::new()
             .name("pley-events".into())
-            .spawn(move || run(&api, &tx, &waker, &c, &n))
+            .spawn(move || run(&api, &path, &tx, &waker, &c, &n))
             .expect("the event thread starts");
         EventStream { cancel, nudges, thread: Some(thread) }
     }
@@ -187,13 +213,20 @@ enum End {
     Stop,
 }
 
-fn run(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, nudges: &std::sync::Mutex<Cancel>) {
+fn run(
+    api: &Api,
+    path: &str,
+    tx: &Sender<StreamNews>,
+    waker: &Waker,
+    cancel: &Cancel,
+    nudges: &std::sync::Mutex<Cancel>,
+) {
     let mut failures = 0u32;
     let mut lost = false;
     // The token was refreshed for this connection: a 401 now is the answer.
     let mut refreshed = false;
     while !cancel.is_cancelled() {
-        let end = cancel.scope(|| connect(api, tx, waker, cancel, refreshed));
+        let end = cancel.scope(|| connect(api, path, tx, waker, cancel, refreshed));
         refreshed = matches!(end, End::Unauthorized { token_refreshed: true });
         if matches!(end, End::Closed { opened: Some(_) }) {
             lost = false;
@@ -253,13 +286,13 @@ pub fn retry_delay(failures: u32) -> Duration {
     wait.min(MAX_RETRY)
 }
 
-fn connect(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, refreshed: bool) -> End {
+fn connect(api: &Api, path: &str, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, refreshed: bool) -> End {
     let token = match api.tokens().access_token() {
         Ok(t) => t,
         Err(ApiError::SignedOut) => return End::SignedOut,
         Err(_) => return End::Failed,
     };
-    let req = Request::get(api.url("/api/events"))
+    let req = Request::get(api.url(path))
         .header("Accept", "text/event-stream")
         .header("Authorization", format!("Bearer {token}"))
         .streaming(READ_TIMEOUT);
@@ -507,7 +540,7 @@ mod tests {
         }));
         let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", Arc::new(Counting(AtomicUsize::new(0))));
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut stream = EventStream::start(api, tx, Waker::noop());
+        let mut stream = EventStream::start(api, None, tx, Waker::noop());
         let mut news = Vec::new();
         while let Ok(n) = rx.recv_timeout(Duration::from_secs(10)) {
             let done = n == StreamNews::Stopped;
@@ -553,7 +586,7 @@ mod tests {
         let tokens = Arc::new(Counting(AtomicUsize::new(0)));
         let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", tokens.clone());
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut stream = EventStream::start(api, tx, Waker::noop());
+        let mut stream = EventStream::start(api, None, tx, Waker::noop());
         let news = news_until_stopped(&rx);
         stream.stop();
         assert_eq!(news, [StreamNews::Stopped]);
@@ -572,11 +605,61 @@ mod tests {
         let tokens = Arc::new(Counting(AtomicUsize::new(0)));
         let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", tokens.clone());
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut stream = EventStream::start(api, tx, Waker::noop());
+        let mut stream = EventStream::start(api, None, tx, Waker::noop());
         let news = news_until_stopped(&rx);
         stream.stop();
         assert_eq!(news, [StreamNews::Stopped]);
         assert_eq!(tokens.refreshes(), 0);
         assert_eq!(fake.requests().len(), 1);
+    }
+
+    #[test]
+    fn a_tv_takes_casts_of_titles_and_of_live_tv_where_the_profile_has_it() {
+        let tv = |live| CastReceiver { id: "webos-0123456789abcdef".into(), live };
+        assert_eq!(
+            tv(true).events_path(),
+            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+        );
+        assert_eq!(tv(false).events_path(), "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item");
+        // The stream asks at that address, every time it connects.
+        let fake = Arc::new(FakeTransport::new(|_| Ok(Response::empty(403))));
+        let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", Arc::new(Counting(AtomicUsize::new(0))));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut stream = EventStream::start(api, Some(tv(true)), tx, Waker::noop());
+        assert_eq!(news_until_stopped(&rx), [StreamNews::Stopped]);
+        stream.stop();
+        assert_eq!(
+            fake.requests()[0].url,
+            "http://nas:7539/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+        );
+    }
+
+    #[test]
+    fn a_cast_names_its_receiver_what_to_play_and_where_it_came_from() {
+        let e = parse_event(
+            r#"{"type":"cast","receiver_id":"webos-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":60000,"shuffle":false,"from":"Firefox on Linux"}"#,
+        );
+        assert_eq!(
+            e,
+            Some(ServerEvent::Cast {
+                receiver_id: "webos-1".into(),
+                item_id: Some(12),
+                playlist_id: None,
+                channel_id: None,
+                start_ms: Some(60_000),
+                shuffle: false,
+                from: Some("Firefox on Linux".into()),
+            })
+        );
+        assert_eq!(e.map(|e| e.kind().to_string()), Some("cast".into()));
+        let shuffled = parse_event(
+            r#"{"type":"cast","receiver_id":"webos-1","item_id":null,"playlist_id":3,"channel_id":null,"start_ms":null,"shuffle":true,"from":null}"#,
+        );
+        assert!(matches!(
+            shuffled,
+            Some(ServerEvent::Cast { playlist_id: Some(3), shuffle: true, from: None, item_id: None, .. })
+        ));
+        let channel = parse_event(r#"{"type":"cast","receiver_id":"webos-1","channel_id":7}"#);
+        assert!(matches!(channel, Some(ServerEvent::Cast { channel_id: Some(7), shuffle: false, .. })));
     }
 }
