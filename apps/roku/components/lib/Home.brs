@@ -200,9 +200,9 @@ end function
 
 ' Home's menu, in the order of the other TVs' rail: Search, Home, Discover
 ' and the requests (requests: their entries, from the summary), Live TV
-' where the server has it, the libraries, Playlists, Collections where a
-' library of movies or shows has some to show, Now Playing while music
-' plays, and Settings last. [{ title, action, library, count, danger }].
+' where the server has it, the libraries, Playlists, Collections where
+' there is a library of movies or shows (the page says when none has any),
+' Now Playing while music plays, and Settings last. [{ title, action, library, count, danger }].
 function homeMenu(libraries as object, live as boolean, requests as object, music as boolean) as object
     entries = [{ title: "Search", action: "search" }, { title: "Home", action: "home" }]
     for each entry in requests

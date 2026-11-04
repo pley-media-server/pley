@@ -17,7 +17,8 @@ sub init()
     m.infoMeta = m.top.findNode("infoMeta")
     m.infoSummary = m.top.findNode("infoSummary")
     m.rest = m.top.findNode("rest")
-    m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
+    ' The backdrop has no agent of its own: the scene's, which a new token
+    ' replaces, carries it.
     m.started = false
     m.libraries = []
     ' GET /api/libraries' answer, for why Home is empty; invalid until it
@@ -45,6 +46,8 @@ sub init()
     m.restingOn = 0
     ' Loads so far: details asked for before the last one are asked again.
     m.loads = 0
+    ' Whether the message says why Home is empty.
+    m.emptyShown = false
     ' Playbacks at the last load (one more, and watch state moved on), and
     ' how long ago it was.
     m.playedSeen = 0
@@ -153,7 +156,7 @@ sub onLibraries(event as object)
     if not answer.ok then return
     m.librariesAnswer = answer.data
     ' Home empty meanwhile says why, now that it is known.
-    if m.rowKeys.Count() = 0 and m.messageText.text <> "Loading…" then showEmpty()
+    if m.emptyShown then showEmpty()
     libraries = contentLibraries(answer.data)
     shown = FormatJson(libraries)
     if shown = m.librariesShown then return
@@ -198,6 +201,7 @@ end sub
 sub showEmpty()
     empty = homeEmpty(m.librariesAnswer)
     showMessage(empty.title, empty.text)
+    m.emptyShown = true
 end sub
 
 ' The menu, in the other TVs' order (homeMenu); Discover and the requests
@@ -254,6 +258,7 @@ sub onRequestSummary()
 end sub
 
 sub showMessage(title as string, text as string)
+    m.emptyShown = false
     if m.rows.isInFocusChain() or m.heroButtons.isInFocusChain() then m.menu.setFocus(true)
     m.rows.visible = false
     m.hero.visible = false
@@ -467,12 +472,14 @@ sub onInfo(event as object)
     if not answer.ok or GetInterface(answer.data, "ifAssociativeArray") = invalid then return
     info = answer.data
     info.loads = event.getRoSGNode().spec.loads
+    ' What is kept stays small: the titles of a few rows.
+    if m.infos.Count() >= 100 then m.infos = {}
     m.infos[urlValue(info.itemId)] = info
     if m.heroInfo <> invalid and m.heroInfo.itemId = info.itemId
         m.heroInfo = info
         drawHero()
     end if
-    if m.infoShown = info.itemId then drawInfo(info)
+    if m.infoShown = info.itemId and m.restingOn = info.itemId then drawInfo(info)
 end sub
 
 ' Focus moved in the rows: once it rests 0.4 s on a title, the info block
