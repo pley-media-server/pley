@@ -17,8 +17,6 @@ describes how they are made.
 
 ### Changed
 
-- The banner on Android TV and Google TV's home screen shows Pley's mark
-  and name centred, larger, the name closer to the mark.
 - On Android TV and Fire TV, a key held through a library's grid or along
   Home's rows scrolls more smoothly: tiles cost far less to bring in and
   to draw, rows are made ahead of the screen, and a held step waits a
@@ -35,8 +33,6 @@ describes how they are made.
   little long (200 or 300 ms) moves focus once, not twice: a held key
   starts moving by itself after 400 ms, as the system's own repeats do,
   rather than 180.
-- Search no longer closes the app when a recent search is "discover" or
-  "header" on a phone, or "pley.clear" on a TV.
 - On Android TV and Fire TV, OK held on a tile opens its actions and leaves
   them open: the key, still held as they came, went on to choose the first
   of them (Resume or Play) as it came up.
@@ -46,6 +42,18 @@ describes how they are made.
   opens, rather than moving a moment later: the buttons along the bottom
   show once the server has answered, and the controls keep clear of the
   status and navigation bars whether they show or not.
+
+## [0.1.6] - 2026-11-04
+
+### Changed
+
+- The banner on Android TV and Google TV's home screen shows Pley's mark
+  and name centred, larger, the name closer to the mark.
+
+### Fixed
+
+- Search no longer closes the app when a recent search is "discover" or
+  "header" on a phone, or "pley.clear" on a TV.
 
 ## [0.1.5] - 2026-11-03
 
@@ -515,7 +523,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-03...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
