@@ -30,6 +30,8 @@ sealed class TizenMediaEngine : IVideoEngine
     EngineSource? source;
     /// <summary>The source playing: events of an earlier one are dropped.</summary>
     int generation;
+    /// <summary>The source whose failure was said (<see cref="generation"/>'s value then).</summary>
+    int failedAt = -1;
     EngineStatus status = EngineStatus.Idle;
     bool prepared, wanted, started, released, playingNow;
     bool? hasVideo;
@@ -740,6 +742,9 @@ sealed class TizenMediaEngine : IVideoEngine
 
     void Fail(EngineError error)
     {
+        // Once a source: the TV's player says a failure as its error and in the call it failed in.
+        if (failedAt == generation) return;
+        failedAt = generation;
         playingNow = false;
         Failed?.Invoke(error);
     }

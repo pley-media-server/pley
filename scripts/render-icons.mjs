@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// Renders the icons the web app, the desktop app, the server, the transcoder
-// and the TV apps (Samsung, LG, Kodi, Roku) ship from the logo
+// Renders the icons the web app, the desktop app, the server, the transcoder,
+// the Apple apps and the TV apps (Samsung, LG, Kodi, Roku) ship from the logo
 // (apps/web/public/favicon.svg, its mark the <g> on the tile), through a
 // headless Chrome or Edge:
 //
@@ -16,6 +16,16 @@
 //                                           for the window, the taskbar and Alt-Tab
 //   apps/desktop/src-tauri/icons/icon.icns  on Apple's grid (an 824 plate in 1024,
 //                                           a soft shadow), as macOS draws its apps
+//   apps/apple/Pley/Assets.xcassets/AppIcon.appiconset/
+//                                           iPhone's and iPad's 1024 px, full bleed and
+//                                           opaque (the system rounds it), and the Mac's
+//                                           sizes on Apple's grid, as icon.icns
+//   apps/apple/tvOS/Assets.xcassets/App Icon & Top Shelf Image.brandassets/
+//                                           Apple TV's icon in two layers, which part as
+//                                           it's focused (the tile behind, the mark in
+//                                           front), at 400×240 and the App Store's
+//                                           1280×768; and the Top Shelf's pictures, the
+//                                           banner, for when the app has no row to show
 //   apps/tizen/assets/icon.png              Samsung's, 512 square, full bleed, as a
 //                                           24-bit RGB PNG at 72 dpi (Samsung's spec),
 //                                           marked WEB in blue: the web app beside the native one
@@ -172,6 +182,24 @@ function fireTvBackground() {
   </radialGradient>
   <rect width="1920" height="1080" fill="${TILE}"/><rect width="1920" height="1080" fill="url(#corner)"/>
   <g transform="translate(${1480 - 32 * s} ${260 - 32 * s}) scale(${s})">${glyph}</g></svg>`;
+}
+
+/** Apple TV's icon's back layer, width × height: the banner's colours, without the mark. */
+function tvBack(width, height) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
+  <radialGradient id="corner" cx="${width}" cy="${height}" r="${width * 0.52}" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/></svg>`;
+}
+
+/**
+ * Apple TV's icon's front layer, width × height: the mark alone (33 of the logo's 64 high, about its
+ * centre) half the height, transparent around it, well inside what the focus effect crops.
+ */
+function tvFront(width, height) {
+  const s = (height * 0.5) / 33;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<g transform="translate(${width / 2 - 32 * s} ${height / 2 - 32 * s}) scale(${s})">${glyph}</g></svg>`;
 }
 
 /** The logo [inset] of a [size] square's side, in its middle, transparent around it. */
@@ -361,6 +389,31 @@ try {
     ]),
   );
 
+  // Apple's: iPhone and iPad round the full-bleed picture themselves, as the web app's apple-touch-icon;
+  // the Mac's are icon.icns's, one file for each size and scale the asset catalog names.
+  const apple = join(root, "apps/apple");
+  const appIcon = join(apple, "Pley/Assets.xcassets/AppIcon.appiconset");
+  writeFileSync(join(appIcon, "icon-1024.png"), rgb72(await r.png(maskable(1024, 1024 / 64), 1024)));
+  for (const size of [16, 32, 128, 256, 512]) {
+    writeFileSync(join(appIcon, `mac-${size}.png`), mac[size]);
+    writeFileSync(join(appIcon, `mac-${size}@2x.png`), mac[size * 2]);
+  }
+  // Apple TV's: the layers at each size the brand assets ask for, the back opaque; the Top Shelf's the banner.
+  const tv = join(apple, "tvOS/Assets.xcassets/App Icon & Top Shelf Image.brandassets");
+  for (const [stack, sizes] of [["App Icon", [[400, 240, ""], [800, 480, "@2x"]]], ["App Icon - App Store", [[1280, 768, ""]]]]) {
+    for (const [width, height, scale] of sizes) {
+      const layer = (name) => join(tv, `${stack}.imagestack`, `${name}.imagestacklayer`, "Content.imageset");
+      writeFileSync(join(layer("Back"), `back${scale}.png`), rgb72(await r.png(tvBack(width, height), width, height)));
+      writeFileSync(join(layer("Front"), `front${scale}.png`), await r.png(tvFront(width, height), width, height));
+    }
+  }
+  for (const [set, width] of [["Top Shelf Image", 1920], ["Top Shelf Image Wide", 2320]]) {
+    for (const scale of [1, 2]) {
+      const [w, h] = [width * scale, 720 * scale];
+      writeFileSync(join(tv, `${set}.imageset`, `top-shelf${scale === 2 ? "@2x" : ""}.png`), rgb72(await r.png(banner(w, h), w, h)));
+    }
+  }
+
   // Samsung's, square as the TV's apps bar draws its other apps. The native app's with the name, as
   // theirs have it; the web app's and a native profiling build's marked, as all three may be on one TV.
   const tizen = join(root, "apps/tizen/assets");
@@ -411,7 +464,7 @@ try {
   // WizardSmallImageFile): the logo flush in it would touch the window's edge, so it's inset.
   const setup = join(root, "deploy/windows");
   for (const size of [58, 77, 97, 116, 124, 143, 159]) writeFileSync(join(setup, `setup-small-${size}.png`), await r.png(inset(size, 0.7), size));
-  console.log("rendered the web's icons and PNG favicon, the desktop's PNGs, .ico and .icns, the server's and transcoder's .ico and the tray's, the Samsung and LG apps' icons and LG's splash, Kodi's icon and fanart, Roku's icons and splash screens, the Android TV banner, the stores' pictures, and the Windows installer's");
+  console.log("rendered the web's icons and PNG favicon, the desktop's PNGs, .ico and .icns, the server's and transcoder's .ico and the tray's, the Apple apps' icons and Top Shelf pictures, the Samsung and LG apps' icons and LG's splash, Kodi's icon and fanart, Roku's icons and splash screens, the Android TV banner, the stores' pictures, and the Windows installer's");
 } finally {
   r.close();
 }

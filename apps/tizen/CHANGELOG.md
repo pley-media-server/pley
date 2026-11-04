@@ -116,6 +116,9 @@ describes how they are made.
 
 ### Fixed
 
+- A film the TV can't play falls back one step at a time, to a conversion
+  of its audio before one of the whole film: the TV's player says a failure
+  twice, and the second skipped a step and started a second session.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both, and a picture the disc crops shows cropped.
 - Settings' Always start as no longer starts the TV as a profile with a

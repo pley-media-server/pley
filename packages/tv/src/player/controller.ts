@@ -306,6 +306,8 @@ export class PlaybackController {
   private guardMode: PlaybackMode | null = null;
 
   private info: PlaybackInfo | null = null;
+  /** The session whose failure is being dealt with: the TV's player can say one failure twice. */
+  private failed: PlaybackInfo | null = null;
   private sessionEnded = true;
   /** Bumped by every new start: what an older one finds when it resumes is no longer its own. */
   private generation = 0;
@@ -831,6 +833,10 @@ export class PlaybackController {
       this.stopByServer(error.message, true);
       return;
     }
+    // Once a session: AVPlay can say one failure twice (its onerror, and the call it failed in),
+    // and each would start a session, the second a step further down the ladder.
+    if (this.failed === info) return;
+    this.failed = info;
     // A native player can't say why a request failed: the session's own answer tells a stop from the rest.
     if (error.kind === "http" || error.kind === "network" || error.kind === "playlist") {
       if (this.outage) {

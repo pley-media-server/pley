@@ -19,7 +19,10 @@ It has no releases yet: it is built and installed by hand
   with a DEBUG icon on a yellow band, so it installs beside the app rather
   than in its place; the app's own icon is the plain logo. The metrics
   listener takes its screenshots and presses the remote's keys for it, so
-  the app can be driven from the computer.
+  the app can be driven from the computer. A command reaches the TV at
+  once, where the app asked for one every second. It records an animation
+  frame by frame, slowed down, for a pull request to show
+  (`scripts/mark-animation.mjs`).
 - A native app for Samsung TVs with Tizen 9, beside the web app: so far the
   Android TV app's "Choose your server" screen, with servers found on the
   network, an address typed on the TV's keyboard and forgetting a server; its
@@ -299,6 +302,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- A film the TV can't play falls back one step at a time, to a conversion
+  of its audio before one of the whole film: the TV's player says a failure
+  twice, and the second skipped a step and started a second session.
 - The rail's grey panel fades into the dark under its entries over the
   last of its slide closed, where it went at once at the end.
 - Blu-ray subtitles that show two pictures at once, the first one forced,

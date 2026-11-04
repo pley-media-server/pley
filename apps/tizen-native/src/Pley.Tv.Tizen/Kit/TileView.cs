@@ -303,6 +303,7 @@ sealed class TileView : View
         {
             if (!Disposed && !Focus.Focused) ring.Hide();
         };
+        Profile.Slowed(focusAnimation);
         focusAnimation.Play();
     }
 

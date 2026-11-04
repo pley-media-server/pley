@@ -108,6 +108,13 @@ untested-on-device lists, a particular person's devices, addresses or
 providers) never go in a tracked file, and neither do question numbers.
 They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
 
+**A screenshot or recording is shown to the user before it goes public.**
+A screenshot or an animation recorded from a device (`metrics.mjs record`,
+`record-android.mjs`) shows whatever was on its screen: profile names,
+titles, artwork, a server's address. Show the user the finished picture and
+wait for their yes before attaching it to a pull request, an issue or
+anywhere else people can see.
+
 ## Writing
 
 - **Code** reads like the code around it: its naming, structure, error

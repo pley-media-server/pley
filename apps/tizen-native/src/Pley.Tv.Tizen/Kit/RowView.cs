@@ -204,6 +204,7 @@ sealed class RowView : View
         scroll?.Stop();
         scroll = Scrolling.Glide(gate);
         scroll.AnimateTo(strip, "PositionX", x);
+        Profile.Slowed(scroll);
         scroll.Play();
     }
 
@@ -269,6 +270,7 @@ sealed class RowView : View
         scroll?.Stop();
         scroll = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         scroll.AnimateTo(strip, "PositionX", Ui.Dp(PleyTv.Gutter) + OffsetFor(target));
+        Profile.Slowed(scroll);
         scroll.Play();
     }
 
@@ -381,6 +383,7 @@ sealed class RowColumnView : View
         scroll?.Stop();
         scroll = Scrolling.Glide(gate);
         scroll.AnimateTo(content, "PositionY", target);
+        Profile.Slowed(scroll);
         scroll.Play();
         // Once the page has scrolled, nothing is drawn above the focused row's header (less a
         // little room): the rows above it go, leaving the page's header or backdrop clear.
@@ -417,6 +420,7 @@ sealed class RowColumnView : View
         scroll?.Stop();
         scroll = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         scroll.AnimateTo(content, "PositionY", Top);
+        Profile.Slowed(scroll);
         scroll.Play();
         foreach (var r in rows) r.Show();
     }

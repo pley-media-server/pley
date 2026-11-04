@@ -491,6 +491,22 @@ describe("a playback session", () => {
     expect(w.engine.prepared[1]).toMatchObject({ hls: true, url: "http://nas:7539/api/media/pley_mk_KEY2/master.m3u8" });
     c.close();
   });
+
+  it("starts one session when AVPlay says one failure twice", async () => {
+    const w = world(item(file()), (req) =>
+      info(req.mode === "auto" ? {} : { session_id: "s2", method: req.mode === "remux" ? "remux" : "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" }),
+    );
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    // Its onerror, and the call it failed in: the second a step further down the ladder, without the guard.
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests.map((r) => r.mode)).toEqual(["auto", "remux"]);
+    c.close();
+  });
+
 });
 
 describe("the server out of reach", () => {

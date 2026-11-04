@@ -400,6 +400,7 @@ sealed class HomeScreen : ShellPage
         reveal = new Animation(PleyMotion.RevealMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         reveal.AnimateTo(hero, "Opacity", on ? 0f : 1f);
         reveal.AnimateTo(infoBlock, "Opacity", on ? 1f : 0f);
+        Profile.Slowed(reveal);
         reveal.Play();
         scrim.Set(on ? ScrimView.Rows : ScrimView.Hero);
         FollowFocus();
@@ -606,6 +607,7 @@ sealed class BackdropView : View
             before.Unparent();
             before.Dispose();
         };
+        Profile.Slowed(fade);
         fade.PlayHeld();
     }
 }
@@ -678,6 +680,7 @@ sealed class ScrimView : View
         }
         move = new Animation(PleyMotion.RevealMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         move.AnimateTo(solid, "PositionY", Ui.Dp(where.To));
+        Profile.Slowed(move);
         move.Play();
     }
 }

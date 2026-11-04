@@ -59,7 +59,7 @@ pub struct Kept {
     pub last: Option<(i64, LiveCategory)>,
 }
 
-/// Reads what `profile` kept on `server` (on a task thread); the guide of every channel without them.
+/// Reads what `profile` kept on `server` (on the store's thread); the guide of every channel without them.
 pub fn read(store: &Store, server: Option<&str>, profile: Option<i64>) -> Kept {
     let (Some(server), Some(profile)) = (server, profile) else { return Kept::default() };
     let view = View::parse(store.get::<String>(&view_key(server, profile)).as_deref());
@@ -73,7 +73,7 @@ pub fn read(store: &Store, server: Option<&str>, profile: Option<i64>) -> Kept {
 }
 
 /// Writes `what` with `write` under the key `key_of` makes for the server and profile in use, off the
-/// main thread.
+/// main thread, on the store's thread, so the page's next [`read`] sees it.
 fn keep(
     cx: &AppCx,
     key_of: fn(&str, i64) -> String,
@@ -82,7 +82,7 @@ fn keep(
 ) {
     let (Some(server), Some(profile)) = (cx.state.server(), cx.state.profile()) else { return };
     let (store, key) = (cx.store().clone(), key_of(server, profile));
-    cx.tasks().detach(move || {
+    cx.tasks().detach_store(move || {
         if let Err(e) = write(&store, &key) {
             log::warn!("{what} not kept: {e}");
         }
