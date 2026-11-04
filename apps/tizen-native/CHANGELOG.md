@@ -303,6 +303,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- The rail's entries scroll between the profile and Settings, where those
+  past the ninth were drawn over Settings, and those scrolled past the top
+  over the profile.
 - A film the TV can't play falls back one step at a time, to a conversion
   of its audio before one of the whole film: the TV's player says a failure
   twice, and the second skipped a step and started a second session.
