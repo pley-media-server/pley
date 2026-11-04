@@ -88,6 +88,8 @@ describes how they are made.
 
 ### Fixed
 
+- Live TV's Up or Down, still finding the next channel when another is
+  picked from the list, no longer changes channel a moment later.
 - A video resumed past the end of what its file holds is converted or
   opened again, instead of being counted as watched.
 - The server hears of a seek at once, so the title resumes from there on
