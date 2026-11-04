@@ -162,7 +162,11 @@ fun TvTileFrame(
     look.reduced = reduced
     look.tier = tier
     val presses = remember(look) { TilePresses(look) }
-    Column(modifier.width(kind.tvWidth).focusedOnTop(look)) {
+    // The whole tile on a layer of its own: a row or grid scrolling moves its
+    // recorded drawing instead of drawing its caption and well again in every
+    // frame (on a Google TV Streamer, a held Down through a library re-drew
+    // some fifty tiles' text each frame, about 9 ms of it).
+    Column(modifier.width(kind.tvWidth).focusedOnTop(look).graphicsLayer()) {
         Box(
             focusModifier
                 .onFocusChanged { look.focus(it.isFocused) }
