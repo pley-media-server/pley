@@ -1,6 +1,7 @@
 """Audio and subtitles: the account's choice shown when a file starts in
-Kodi, a change made in Kodi's player saved for the show or the movie, and
-the account's defaults (docs/API.md, Your account).
+Kodi, a change made in Kodi's player saved for the show or the movie, the
+user's remote's picks (docs/API.md, Remote control) made as one in Kodi's
+player is, and the account's defaults (docs/API.md, Your account).
 
 pley names tracks by their stream index in the file (sidecar subtitle files
 from 1000); Kodi by their place in its lists. Kodi's audio streams are the
@@ -18,6 +19,8 @@ from __future__ import annotations
 import re
 import threading
 import time
+
+from . import remote
 
 # Kodi's video player, in JSON-RPC.
 VIDEO_PLAYER = 1
@@ -285,6 +288,12 @@ class Follower:
         # Off once Kodi lists a track the layout doesn't know (subtitles
         # added while it plays): its places no longer say pley's tracks.
         self.following = True
+        # What Kodi plays as the server's stream indexes (indexes()), as a
+        # turn last saw it or the remote last switched to: what progress
+        # reports say. A remote's pick stands until `told_until`: Kodi
+        # switches a moment after it is asked.
+        self.now = None
+        self.told_until = 0.0
 
     def turn(self) -> None:
         # Kodi's callback and the loop may both turn it: one at a time, the
@@ -312,6 +321,10 @@ class Follower:
             # A player between files, or stopping: nothing to go by.
             return
         self.had_audio = self.had_audio or state[0] is not None
+        if now >= max(self.told_until, self.quiet_until):
+            # Not while Kodi may still be switching to the account's choice or
+            # the remote's: until then the server has what the play asked.
+            self.now = self.indexes(state, props)
         if now < self.quiet_until or self.baseline is None:
             # Where it starts, the account's choice shown. Subtitles turned
             # on once Kodi took show()'s off are the person's pick.
@@ -419,6 +432,87 @@ class Follower:
                 audio = from_kodi(lay["audio"], audio_at, props.get("audiostreams") or [])
             body["audio_index"] = lay["audio_index"] if audio is None else audio
         return body
+
+    def indexes(self, state: tuple, props: dict) -> tuple:
+        """What Kodi plays (`state`, its places) as the server's stream
+        indexes: (audio, subtitles), -1 for no subtitles, None for one pley
+        doesn't know (captions Kodi found in the video, a file's audio
+        without its details)."""
+        lay = self.layout
+        audio_at, subtitle_at = state
+        if lay["audio"]:
+            audio = from_kodi(lay["audio"], audio_at, props.get("audiostreams") or [])
+        else:
+            # A converted stream carries only the audio the server put in.
+            audio = lay["audio_index"] if lay["hls"] else None
+        if subtitle_at is not None:
+            subtitle = from_kodi(lay["subtitles"], subtitle_at, props.get("subtitles") or [])
+        else:
+            # Kodi shows none: those drawn onto the video, else none at all.
+            subtitle = lay["burned"] if lay["burned"] is not None else -1
+        return audio, subtitle
+
+    def playing(self):
+        """What Kodi plays (indexes()), for progress reports: None before a
+        turn saw it, and once Kodi's places no longer say pley's tracks."""
+        return self.now if self.following else None
+
+    def obey(self, session_id: str, command: dict) -> dict:
+        """The remote's `audio` or `subtitles` for the session `session_id`
+        plays (remote.obey_track), from the event stream's thread: Kodi's
+        player switches to the track as a pick in its own menu does, by the
+        track's place there, and the pick is saved as that one is, once it
+        held (turn). Only what Kodi lists can be picked: a converted stream
+        carries only the audio the server put in, and subtitles drawn onto
+        the video stay. Nothing until the account's choice is shown, which
+        would undo it. {act, report}, as remote.obey_track's."""
+        if not self.lock.acquire(timeout=1):
+            return dict(remote.NONE)
+        try:
+            if not self.following or not self.shown:
+                return dict(remote.NONE)
+            props = self.rpc("Player.GetProperties", {"playerid": VIDEO_PLAYER, "properties": PROPERTIES})
+            if not isinstance(props, dict):
+                return dict(remote.NONE)
+            lay = self.layout
+            audios = props.get("audiostreams") or []
+            subtitles = props.get("subtitles") or []
+            playing = self.indexes(current(props), props)
+            if self.now is not None and self.clock() < self.told_until:
+                # The remote's last pick, which Kodi may not have switched to yet.
+                playing = self.now
+            if lay["audio"]:
+                audio = [e["index"] for e in lay["audio"] if to_kodi(lay["audio"], e["index"], audios) is not None]
+            else:
+                audio = [lay["audio_index"]] if lay["hls"] and lay["audio_index"] is not None else []
+            if lay["burned"] is not None:
+                offered = [lay["burned"]]
+            else:
+                offered = [e["index"] for e in lay["subtitles"] if to_kodi(lay["subtitles"], e["index"], subtitles) is not None]
+            player = {"session_id": session_id, "audio": audio, "subtitles": offered, "audio_index": playing[0], "subtitle_index": playing[1]}
+            action = remote.obey_track(player, command)
+            act, index = action["act"], action.get("stream_index")
+            if act == "subtitles" and lay["burned"] is not None:
+                # Drawn onto the video: Kodi can't take them off.
+                return dict(remote.NONE)
+            if act == "audio":
+                at = to_kodi(lay["audio"], index, audios) if lay["audio"] else None
+                if at is None:
+                    return dict(remote.NONE)
+                self.rpc("Player.SetAudioStream", {"playerid": VIDEO_PLAYER, "stream": at})
+                playing = (index, playing[1])
+            elif act == "subtitles" and index == -1:
+                self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": "off"})
+                playing = (playing[0], -1)
+            elif act == "subtitles":
+                self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": to_kodi(lay["subtitles"], index, subtitles), "enable": True})
+                playing = (playing[0], index)
+            if act != "none":
+                self.told_until = self.clock() + QUIET
+            self.now = playing
+            return action
+        finally:
+            self.lock.release()
 
 
 # ----------------------------------------------------------- the defaults

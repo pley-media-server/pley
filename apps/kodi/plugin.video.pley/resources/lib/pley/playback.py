@@ -84,7 +84,7 @@ def prepare(
         "max_bitrate": asked["max_bitrate"],
         "max_height": asked["max_height"],
         "mode": asked["mode"],
-        "controls": obeys(item_id, kind),
+        "controls": obeys(item_id, kind, tracks.file_of(detail)),
     }
     request.update(remote.device())
     # The account's subtitles, when they are pictures Kodi can't be given
@@ -151,15 +151,25 @@ def prepare(
     return li
 
 
-def obeys(item_id: int, kind=None) -> list:
+def obeys(item_id: int, kind=None, file=None) -> list:
     """What the user's remote may do with this playback (remote.controls):
     a track's, one in Kodi's music queue or known to be music; a video's
     otherwise, with next for an episode (the one after it, as Up Next
-    plays) or when Kodi's queue has something after it."""
+    plays) or when Kodi's queue has something after it, and audio and
+    subtitles when `file` (its details) has tracks of them. Without the
+    details, which come with the server's answer, both: most files have
+    them, and a remote offers only the tracks the session lists."""
     place = remote.queue_place(item_id)
     music = (place is not None and place[0] == "music") or kind in listing.MUSIC
+    if music:
+        return remote.controls("music")
     has_next = (place is not None and place[1] + 1 < place[2]) or kind == "episode"
-    return remote.controls("music" if music else "video", has_next=has_next)
+    audio = subtitles = 1
+    if file is not None:
+        streams = file.get("streams") or []
+        audio = sum(1 for s in streams if s.get("kind") == "audio")
+        subtitles = sum(1 for s in streams if s.get("kind") == "subtitle")
+    return remote.controls("video", has_next=has_next, audio=audio, subtitles=subtitles)
 
 
 def file_mime(detail, file_id):

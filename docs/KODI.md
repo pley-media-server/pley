@@ -212,10 +212,24 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   remotes list it with the TVs. Until it is given a name, Kodi calls itself
   "Kodi" with the computer's host name after it, which isn't sent: the
   server names it from the add-on instead.
-- **Movies and episodes:** play, pause, seek, skip, and next when Kodi's
-  queue has something after it. An episode always lists next: with nothing
-  queued after it, Next plays the episode after it, as Up Next does (and
-  does nothing on a show's last).
+- **Movies and episodes:** play, pause, seek, skip, audio and subtitles,
+  and next when Kodi's queue has something after it. An episode always
+  lists next: with nothing queued after it, Next plays the episode after
+  it, as Up Next does (and does nothing on a show's last).
+- **Audio and subtitles:** a video lists `audio` and `subtitles` when its
+  file has tracks of them, and both while its details are still loading
+  (they come with the server's answer). A pick switches Kodi's player to
+  that track, found by its place in Kodi's lists as a pick in Kodi's own
+  menu is (`tracks.py`), and is saved for the show or movie the same way
+  once it has held 2 seconds. Kodi switches only to what it lists: a
+  converted stream carries only the audio the server put in, subtitles
+  drawn onto the video stay, and picture subtitles Kodi wasn't given as a
+  file can't be picked. Such a pick does nothing.
+- **What plays:** every progress report of a video says the audio and
+  subtitles Kodi plays, by the server's stream indexes (`audio_index`,
+  `subtitle_index`, `-1` for none), so remotes tick them. A track the
+  server doesn't know (captions Kodi found in the video, subtitles added
+  from Kodi's dialog) is left out, and the server keeps the one it knew.
 - **Music:** play, pause, seek, skip, next and previous. Previous starts the
   track again past 3 seconds in, or on the first track, else plays the one
   before.
@@ -223,9 +237,10 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   channels, round its ends, when there is one; the stream can't pause or
   go back, so nothing else. Without a queue (a channel played again with
   Watch again), it obeys only Stop.
-- Play while playing or pause while paused changes nothing and reports
-  again, so a remote a little behind settles. A seek or skip is reported at
-  once; another title, track or channel reports with its own session.
+- Play while playing, pause while paused, or the audio or subtitles that
+  play already change nothing and report again, so a remote a little
+  behind settles. A seek, a skip or another track is reported at once;
+  another title or channel reports with its own session.
 - Kodi stopped or playing something else obeys nothing. A command it
   doesn't know, or a seek or skip without its place, does nothing.
 

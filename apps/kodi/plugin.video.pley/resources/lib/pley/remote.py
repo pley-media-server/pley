@@ -14,10 +14,13 @@ packages/tv/test/fixtures/remote.json, which every app shares, through it:
   else plays the one before;
 - a live channel's next and previous are channel up and down, in the
   order of Kodi's queue of channels, round its ends;
+- audio switches to one of the tracks the player can play, and subtitles
+  to one of its subtitles or to none (-1); the one playing already is said
+  again; a track it can't play, or a command without one, does nothing;
 - a command it doesn't know does nothing.
 
-What was played or sought is reported at once (`report`); another track
-or channel tells the server with its own session.
+What was played, sought or switched to is reported at once (`report`);
+another track or channel tells the server with its own session.
 """
 
 from __future__ import annotations
@@ -33,6 +36,8 @@ MUSIC = ["play", "pause", "seek", "skip", "next", "previous"]
 # Kodi reads a live channel as it comes, with nothing to go back in: only
 # channel up and down.
 LIVE = ["next", "previous"]
+# The remote's track commands, which name the server's stream index.
+TRACKS = ("audio", "subtitles")
 # "Previous" this far into a track starts it again.
 RESTART_AFTER_MS = 3000
 # What remotes call a device, at most (the server cuts it there too).
@@ -44,14 +49,21 @@ NONE = {"act": "none", "report": False}
 REPORT = {"act": "none", "report": True}
 
 
-def controls(kind: str, has_next: bool = False, has_order: bool = False) -> list:
+def controls(kind: str, has_next: bool = False, has_order: bool = False, audio: int = 0, subtitles: int = 0) -> list:
     """What a player obeys: a video next only when something comes after
-    it, a channel up and down only in a queue of channels."""
+    it, and audio and subtitles when its file has tracks of them (`audio`
+    and `subtitles` count them); a channel up and down only in a queue of
+    channels. Music and live channels change no track."""
     if kind == "music":
         return list(MUSIC)
     if kind == "live":
         return list(LIVE) if has_order else []
-    return VIDEO + ["next"] if has_next else list(VIDEO)
+    found = VIDEO + ["next"] if has_next else list(VIDEO)
+    if audio > 0:
+        found.append("audio")
+    if subtitles > 0:
+        found.append("subtitles")
+    return found
 
 
 def _ms(value):
@@ -111,6 +123,33 @@ def obey_live(player: dict, command: dict) -> dict:
     if to == at:
         return dict(NONE)
     return {"act": "channel", "channel": to, "report": False}
+
+
+def obey_track(player: dict, command: dict) -> dict:
+    """What a video's player does with the remote's `audio` or `subtitles`:
+    {act, report}, with `stream_index` (the server's, -1 for no subtitles)
+    for a track to switch to. `player`: its session_id, the server's indexes
+    of the audio tracks and the subtitles it can switch to, and of those it
+    plays (audio_index None when not known; subtitle_index -1 for none)."""
+    if not player.get("session_id") or command.get("session_id") != player["session_id"]:
+        return dict(NONE)
+    index = command.get("stream_index")
+    if not isinstance(index, int) or isinstance(index, bool):
+        return dict(NONE)
+    what = command.get("command")
+    if what == "audio":
+        if index not in (player.get("audio") or []):
+            return dict(NONE)
+        playing = player.get("audio_index")
+    elif what == "subtitles":
+        if index != -1 and index not in (player.get("subtitles") or []):
+            return dict(NONE)
+        playing = player.get("subtitle_index")
+    else:
+        return dict(NONE)
+    if index == playing:
+        return dict(REPORT)
+    return {"act": what, "stream_index": index, "report": True}
 
 
 def entry_params(playlist, at: int) -> dict:

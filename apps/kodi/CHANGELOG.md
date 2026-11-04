@@ -15,6 +15,9 @@ describes how they are made.
   episode, the next or previous track, and channel up and down on Live TV.
   Remotes list Kodi with your TVs, by the device name it was given in
   Kodi's settings. Needs a server from the same release.
+- Your phone, the web and your other devices change the audio and subtitles
+  of what Kodi plays, and see which ones play. A pick is saved for the show
+  or movie, as one made in Kodi's player is.
 - Live TV stopped from another device, or by the server's administrator,
   says so, with their message.
 - Stopping a Live TV channel, or Kodi, frees its connection at once, so

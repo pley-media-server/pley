@@ -47,7 +47,9 @@ FULLSCREEN = "Window.IsActive(fullscreenvideo) + !Window.IsVisible(videoosd) + !
 
 class Reports:
     """Progress reports for one playback, by the rules above. `send(path,
-    body)` and `end(path)` reach the server."""
+    body)` and `end(path)` reach the server. `tracks()` says the audio and
+    subtitles a video plays (tracks.Follower.playing), which each report
+    carries for the user's remotes."""
 
     def __init__(self, playing: dict, send, end, clock=time.monotonic):
         self.playing = playing
@@ -58,14 +60,23 @@ class Reports:
         self.last = None
         self.paused = False
         self.credits_from = None
+        self.tracks = None
 
     def body(self, state: str) -> dict:
-        return {
+        body = {
             "position_ms": int(self.position_ms),
             "duration_ms": int(self.playing.get("duration_ms") or 0),
             "state": state,
             "session_id": self.playing["session_id"],
         }
+        # The server's stream indexes, -1 for no subtitles. One not known
+        # yet is left out: the server keeps what the play asked for.
+        audio, subtitle = (self.tracks() if self.tracks is not None else None) or (None, None)
+        if audio is not None:
+            body["audio_index"] = audio
+        if subtitle is not None:
+            body["subtitle_index"] = subtitle
+        return body
 
     def report(self, state: str) -> None:
         self.last = self.clock()
@@ -451,7 +462,14 @@ class Player(xbmc.Player):
         }
         if (place is not None and place[0] == "music") or playing.get("kind") in listing.MUSIC:
             player["index"] = place[1] if place is not None else 0
-        action = remote.obey(player, command)
+        if command.get("command") in remote.TRACKS:
+            # Switched in Kodi's player (tracks.Follower.obey); music, and a
+            # title without tracks, have none to switch.
+            with self.lock:
+                follower = self.tracks if self.reports is reports else None
+            action = follower.obey(playing.get("session_id"), command) if follower is not None else dict(remote.NONE)
+        else:
+            action = remote.obey(player, command)
         act = action["act"]
         if act in ("play", "pause"):
             # Kodi's pause turns it either way; said by onPlayBackPaused or
@@ -545,6 +563,7 @@ class Player(xbmc.Player):
             follower = tracks.Follower(
                 playing["tracks"], kodi.rpc, lambda body: self.worker.put(lambda: self.save_tracks(playing, body))
             )
+            reports.tracks = follower.playing
         watch, notice = self.watching(playing)
         with self.lock:
             self.after_end = None

@@ -9,7 +9,7 @@ import test_tracks
 import xbmc
 import xbmcaddon
 import xbmcgui
-from pley import kodi, livetv, playback, remote
+from pley import api, kodi, livetv, playback, remote, tracks
 from pley.service import Player
 
 # The shared remote-control rule's cases, as every app runs them: each
@@ -68,6 +68,16 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(remote.obey(player, {"session_id": "s1", "command": "skip", "offset_ms": True}), none)
         self.assertEqual(remote.obey(dict(player, session_id=None), {"session_id": None, "command": "pause"}), none)
 
+    def test_a_video_offers_the_tracks_its_file_has(self):
+        video = ["play", "pause", "seek", "skip"]
+        self.assertEqual(remote.controls("video"), video)
+        self.assertEqual(remote.controls("video", audio=1), video + ["audio"])
+        self.assertEqual(remote.controls("video", subtitles=2), video + ["subtitles"])
+        self.assertEqual(remote.controls("video", has_next=True, audio=2, subtitles=3), video + ["next", "audio", "subtitles"])
+        # Music and live channels change no track.
+        self.assertEqual(remote.controls("music", audio=2, subtitles=2), ["play", "pause", "seek", "skip", "next", "previous"])
+        self.assertEqual(remote.controls("live", has_order=True, audio=1, subtitles=1), ["next", "previous"])
+
     def test_kodi_is_named_by_the_name_it_was_given(self):
         self.addCleanup(xbmc.setting_values.pop, "services.devicename", None)
         self.addCleanup(xbmc.info_labels.pop, "System.FriendlyName", None)
@@ -83,6 +93,43 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(remote.device(), {"device_kind": "tv"})
         del xbmc.setting_values["services.devicename"]
         self.assertEqual(remote.device(), {"device_kind": "tv"}, "no such setting")
+
+
+class TrackRuleTest(unittest.TestCase):
+    """The remote's audio and subtitles: a player that can play audio 1 and
+    2 and subtitles 3 and 4, playing audio 1 without subtitles."""
+
+    PLAYER = {"session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1}
+    NONE = {"act": "none", "report": False}
+    AGAIN = {"act": "none", "report": True}
+
+    def obey(self, what, index, session="s1", **player):
+        return remote.obey_track(dict(self.PLAYER, **player), {"session_id": session, "command": what, "stream_index": index})
+
+    def test_audio(self):
+        self.assertEqual(self.obey("audio", 2), {"act": "audio", "stream_index": 2, "report": True})
+        self.assertEqual(self.obey("audio", 1, audio_index=None), {"act": "audio", "stream_index": 1, "report": True})
+        self.assertEqual(self.obey("audio", 1), self.AGAIN, "what plays already: said again")
+        for index in (9, 3, -1, None, True, "2"):
+            with self.subTest(index=index):
+                self.assertEqual(self.obey("audio", index), self.NONE, "a track it can't play, or none")
+
+    def test_subtitles(self):
+        self.assertEqual(self.obey("subtitles", 3), {"act": "subtitles", "stream_index": 3, "report": True})
+        self.assertEqual(self.obey("subtitles", 3, subtitle_index=4), {"act": "subtitles", "stream_index": 3, "report": True})
+        self.assertEqual(self.obey("subtitles", -1, subtitle_index=4), {"act": "subtitles", "stream_index": -1, "report": True})
+        self.assertEqual(self.obey("subtitles", 4, subtitle_index=4), self.AGAIN)
+        self.assertEqual(self.obey("subtitles", -1), self.AGAIN)
+        self.assertEqual(self.obey("subtitles", -1, subtitles=[]), self.AGAIN, "none, without any to pick")
+        for index in (9, 2, -2, None):
+            with self.subTest(index=index):
+                self.assertEqual(self.obey("subtitles", index), self.NONE)
+
+    def test_another_sessions_or_another_command(self):
+        self.assertEqual(self.obey("audio", 2, session="s2"), self.NONE)
+        self.assertEqual(self.obey("subtitles", -1, session="s2"), self.NONE)
+        self.assertEqual(self.obey("audio", 2, session_id=None), self.NONE)
+        self.assertEqual(self.obey("pause", None), self.NONE)
 
 
 def queue(kind, ids, at):
@@ -267,8 +314,153 @@ class MusicTest(Wiring):
         self.assertEqual(xbmc.asked, [("seekTime", 0.0)])
 
 
+def track(what, index, session="s1"):
+    """The remote's audio or subtitles command."""
+    return dict(command(session, what), stream_index=index)
+
+
+class TracksTest(Wiring):
+    """The remote's audio and subtitles in Kodi's player: the film of
+    test_tracks, its audio 1 and 2 and its subtitles 1000 (the Spanish file
+    next to it, given to Kodi first), 3, 4 and 5, as Kodi lists them."""
+
+    def setUp(self):
+        super().setUp()
+        self.kodi = test_tracks.Kodi(subtitles=4)
+        self.real_rpc = xbmc.executeJSONRPC
+
+        def rpc(request):
+            asked = json.loads(request)
+            return json.dumps({"result": self.kodi.rpc(asked["method"], asked["params"])})
+
+        xbmc.executeJSONRPC = rpc
+        self.bodies = []
+        self.saved = []
+        self.player.send = lambda playing, path, body: self.bodies.append(body)
+        self.player.call = lambda method, path, body=None, **kw: self.saved.append((method, path, body)) or api.Response(204, {}, b"")
+
+    def tearDown(self):
+        xbmc.executeJSONRPC = self.real_rpc
+        super().tearDown()
+
+    def play(self, info=None, file=None):
+        """The film playing, past the seconds Kodi takes to switch to the
+        account's choice; the follower's clock."""
+        layout = tracks.layout(info or test_tracks.direct(), file or test_tracks.a_file())
+        playing = {"item_id": 7, "session_id": "s1", "duration_ms": 7_200_000, "path": "http://proxy/7", "kind": "movie", "tracks": layout}
+        kodi.set_property(kodi.PLAYING, json.dumps(playing))
+        self.player.file = playing["path"]
+        self.player.seconds = 600.0
+        self.player.onAVStarted()
+        clock = test_tracks.Clock()
+        self.player.tracks.clock = clock
+        self.player.tracks.quiet_until = 0
+        self.player.tick()
+        del self.kodi.calls[:]
+        del self.bodies[:]
+        return clock
+
+    def told(self):
+        """What each report said of the tracks."""
+        return [(b.get("audio_index"), b.get("subtitle_index")) for b in self.bodies]
+
+    def test_a_pick_switches_kodis_player_by_its_place_there(self):
+        clock = self.play()
+        self.player.heard(track("audio", 2))
+        self.player.heard(track("subtitles", 3))
+        # The file's English subtitles are Kodi's second: the Spanish file comes first.
+        self.assertEqual(self.kodi.calls, [
+            ("Player.SetAudioStream", {"stream": 1}),
+            ("Player.SetSubtitle", {"subtitle": 1, "enable": True}),
+        ])
+        self.assertEqual(self.told(), [(2, -1), (2, 3)], "reported at once, by the server's indexes")
+        self.assertEqual(self.bodies[0]["position_ms"], 600_000)
+        self.player.heard(track("subtitles", 1000))
+        self.player.heard(track("subtitles", -1))
+        self.assertEqual(self.kodi.calls[2:], [
+            ("Player.SetSubtitle", {"subtitle": 0, "enable": True}),
+            ("Player.SetSubtitle", {"subtitle": "off"}),
+        ])
+        self.assertEqual(self.told()[2:], [(2, 1000), (2, -1)])
+        # Saved as a pick in Kodi's own menu is, once it held.
+        clock.now += tracks.QUIET
+        self.player.tick()
+        clock.now += tracks.SETTLE
+        self.player.tick()
+        self.assertEqual(self.saved, [("PUT", "/api/items/7/streams", {"file_id": 7, "audio_index": 2, "subtitle_index": None})])
+
+    def test_what_plays_already_is_said_again(self):
+        self.play()
+        self.player.heard(track("audio", 1))
+        self.player.heard(track("subtitles", -1))
+        self.assertEqual(self.kodi.calls, [])
+        self.assertEqual(self.told(), [(1, -1), (1, -1)])
+
+    def test_a_track_kodi_cant_play_or_another_sessions_does_nothing(self):
+        self.play()
+        for asked in (track("audio", 9), track("subtitles", 1001), track("audio", 2, "s2"), track("subtitles", None)):
+            self.player.heard(asked)
+        self.assertEqual((self.kodi.calls, self.bodies), ([], []))
+
+    def test_nothing_until_the_accounts_choice_is_shown(self):
+        # Kodi hasn't listed the subtitles yet: showing the account's choice
+        # once it does would undo a pick.
+        self.kodi.subtitles = []
+        self.play()
+        self.player.heard(track("audio", 2))
+        self.assertEqual((self.kodi.calls, self.bodies), ([], []))
+
+    def test_every_report_says_what_kodi_plays(self):
+        clock = self.play()
+        xbmc.conditions.add("Player.Paused")
+        self.player.onPlayBackPaused()
+        # Changed in Kodi's player: the French audio, the file's French forced subtitles.
+        self.kodi.audio, self.kodi.subtitle, self.kodi.enabled = 1, 3, True
+        clock.now += 1
+        self.player.tick()
+        xbmc.conditions.discard("Player.Paused")
+        self.player.onPlayBackResumed()
+        self.assertEqual(self.told(), [(1, -1), (2, 5)])
+        # Captions Kodi found in the video aren't the server's: left out.
+        self.kodi.subtitles = test_tracks.kodi_lists(subtitles=4, captions=1)[1]
+        self.kodi.subtitle = 4
+        self.player.tick()
+        self.player.reports.report("playing")
+        self.assertEqual(self.told()[-1], (2, None))
+
+    def test_a_converted_stream(self):
+        # Its only audio is the server's French; the pictures are drawn on.
+        self.kodi = test_tracks.Kodi(audio=1, subtitles=3)
+        self.play(test_tracks.streamed(audio=2, burned=4), test_tracks.a_file(audio=2, subtitle=4))
+        self.player.reports.report("playing")
+        self.assertEqual(self.told(), [(2, 4)])
+        for asked in (track("audio", 1), track("subtitles", -1), track("subtitles", 3)):
+            self.player.heard(asked)
+        self.assertEqual((self.kodi.calls, len(self.bodies)), ([], 1), "Kodi can't switch them")
+        self.player.heard(track("audio", 2))
+        self.player.heard(track("subtitles", 4))
+        self.assertEqual(self.told()[1:], [(2, 4), (2, 4)])
+
+    def test_subtitles_added_in_kodi_end_the_remotes_picks(self):
+        self.play()
+        self.player.tracks.following = False
+        self.player.heard(track("audio", 2))
+        self.player.reports.report("playing")
+        self.assertEqual(self.kodi.calls, [])
+        self.assertEqual(self.told(), [(None, None)], "Kodi's places don't say the server's tracks any more")
+
+    def test_music_changes_no_track(self):
+        queue(xbmc.PLAYLIST_MUSIC, [7], 0)
+        self.start("track")
+        del self.bodies[:]
+        self.player.heard(track("audio", 1))
+        self.player.reports.report("playing")
+        self.assertEqual(self.kodi.calls, [])
+        self.assertEqual(self.told(), [(None, None)])
+
+
 BASE = "http://127.0.0.1:5000/s3cret"
-CHANNELS = [{"id": 3, "name": "Three"}, {"id": 5, "name": "Five"}, {"id": 8, "name": "Eight"}]
+CHANNELS =[{"id": 3, "name": "Three"}, {"id": 5, "name": "Five"}, {"id": 8, "name": "Eight"}]
 
 
 class LiveTest(Wiring):
@@ -341,20 +533,28 @@ class RequestsTest(unittest.TestCase):
         return server.posts[0]
 
     def test_a_title_says_what_it_obeys_and_where_it_plays(self):
+        # Its details load while the play request goes: audio and subtitles
+        # are offered without them.
         asked = self.play()
-        self.assertEqual(asked["controls"], ["play", "pause", "seek", "skip"])
+        self.assertEqual(asked["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"])
         self.assertEqual((asked["device_name"], asked["device_kind"]), ("Den", "tv"))
         queue(xbmc.PLAYLIST_VIDEO, [9, 10], 0)
-        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next"])
+        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
         queue(xbmc.PLAYLIST_VIDEO, [8, 9], 1)
-        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip"], "the last of the queue")
+        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"], "the last of the queue")
         queue(xbmc.PLAYLIST_MUSIC, [9], 0)
         self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next", "previous"])
 
     def test_a_kind_known_from_the_listing_says_what_it_obeys(self):
         # The details load while the play request goes: the listing's kind decides.
         self.assertEqual(self.play(kind="track")["controls"], ["play", "pause", "seek", "skip", "next", "previous"])
-        self.assertEqual(self.play(kind="episode")["controls"], ["play", "pause", "seek", "skip", "next"])
+        self.assertEqual(self.play(kind="episode")["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
+
+    def test_the_details_say_which_tracks_are_offered(self):
+        film = {"id": 9, "kind": "movie", "title": "Saltwind", "duration_ms": 1000, "files": [test_tracks.a_file()]}
+        self.assertEqual(self.play(film)["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"])
+        no_subtitles = dict(test_tracks.a_file(), streams=[s for s in test_tracks.STREAMS if s["kind"] != "subtitle"])
+        self.assertEqual(self.play(dict(film, files=[no_subtitles]))["controls"], ["play", "pause", "seek", "skip", "audio"])
 
     def test_a_channel_obeys_channel_up_and_down_in_a_queue(self):
         class Server:
