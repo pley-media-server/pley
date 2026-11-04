@@ -106,7 +106,9 @@ public interface IMusicControl
 /// - a sleep timer pauses after the minutes chosen, or at the end of the track (the next one
 ///   waits, paused);
 /// - a video takes the TV's one media pipeline: <see cref="YieldToVideo"/> pauses the music and
-///   ends its session; Play starts a new one where it was.
+///   ends its session; Play starts a new one where it was;
+/// - the remote, on another of the profile's devices, plays and pauses, seeks, skips, and goes to
+///   the next or previous track (<see cref="Obey"/>), behind every page too.
 ///
 /// It lives as long as the app, so it plays on with no screen open. UI thread only.
 /// </summary>
@@ -299,6 +301,42 @@ public sealed class MusicPlayer : IMusicControl
         playing = false;
         loading = false;
         Publish();
+    }
+
+    /// <summary>
+    /// A command of the profile's remote for the track playing, as Android's music obeys it
+    /// (<see cref="Remote.Action"/>): a seek stays within the track, a skip goes from where it is
+    /// now, next and previous as the buttons here. What changed is reported at once, so the
+    /// remote sees it: a pause reports by itself, and another track with its new session.
+    /// </summary>
+    public void Obey(ServerEvent command)
+    {
+        var s = session;
+        var o = output;
+        if (s == null || o == null || ended || error != null) return;
+        var duration = o.DurationMs > 0 ? o.DurationMs : s.Info.DurationMs > 0 ? s.Info.DurationMs : queue.Current?.DurationMs;
+        var player = new RemotePlayer(RemoteKind.Music, s.Id, wantPlay, LastPosition(), duration > 0 ? duration : null, queue.HasNext, queue.Index);
+        var action = Remote.Action(player, command);
+        switch (action.Act)
+        {
+            case RemoteAct.Play:
+                Play();
+                s.Progress(LastPosition(), true);
+                break;
+            case RemoteAct.Pause:
+                Pause();
+                break;
+            case RemoteAct.Seek:
+                o.SeekTo(action.PositionMs);
+                s.Progress(action.PositionMs, wantPlay);
+                break;
+            case RemoteAct.Next:
+                Next();
+                break;
+            case RemoteAct.Previous:
+                Previous();
+                break;
+        }
     }
 
     /// <summary>The server ended the track's session (an administrator, or the profile elsewhere): the music stops and says so. Play starts the track again.</summary>

@@ -15,6 +15,11 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- Your phone or browser controls what plays on the TV: a film or episode
+  plays, pauses, seeks and skips, and goes on to the next one; music does
+  the same, and goes back a track; Live TV changes channel. Live TV
+  stopped from another device, or by the server's administrator, stops
+  on the TV and says who, with their message.
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with a DEBUG icon on a yellow band, so it installs beside the app rather
   than in its place; the app's own icon is the plain logo. The metrics

@@ -21,8 +21,9 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 /// as the player opened); a channel number typed, found among every channel; the category's
 /// channels a page at a time for the channel list, which can show another category's (a channel
 /// tuned from there makes channel up and down go through that one); watched as it airs, without
-/// pausing or going back; a favourite. The channel is kept for the profile: the guide opens back
-/// at it. The playback ends with the model.
+/// pausing or going back; a favourite; the profile's remote changes channel as channel up and
+/// down do. The channel is kept for the profile: the guide opens back at it. The playback ends
+/// with the model.
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
@@ -70,6 +71,8 @@ public sealed class LivePlayerModel : IDisposable
         this.source = source;
         this.playback = playback;
         this.scheduler = scheduler;
+        // The remote's next and previous are channel up and down, as here.
+        playback.Zap = Step;
         if (seen != null) known[seen.Id] = seen;
         var category = LiveCategory.Parse(categoryKey);
         Category = new Signal<LiveCategory>(category);

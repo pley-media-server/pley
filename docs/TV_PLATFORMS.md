@@ -479,6 +479,17 @@ TV stopped" with the server's words, Watch again first and focused. The
 card stays when the app is hidden and shown again; nothing is tuned until
 Watch again.
 
+The remote on the profile's other devices is obeyed as by the web app
+([Remote control](#remote-control)) and Android TV's players: the player,
+the music behind the other pages and the live player say what they obey
+(`controls`) and that they play on a TV (`device_kind: "tv"`, on the
+`stream.ts` it reads too), act only on their own session, and report each
+change at once. The remote's next and previous on Live TV go through the
+channels as channel up and down do. Live TV stopped from another device or
+by an administrator (`session_stopped`) shows the same card, saying who
+stopped it and, on a line of its own, their message, as on Android TV. The
+rule is `Player/Remote.cs`, pinned by the same fixture as the web app's.
+
 | | |
 |---|---|
 | Folder | `apps/tizen-native` |

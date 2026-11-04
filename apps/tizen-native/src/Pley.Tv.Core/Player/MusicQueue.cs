@@ -110,7 +110,7 @@ public sealed class MusicQueue
     /// <summary>What Previous does (the web's rule): after 3 s of the track, or on the first track, it starts again; otherwise the track before plays.</summary>
     public PreviousMove Previous(long positionMs)
     {
-        if (positionMs > RestartAfterMs || Index == 0) return PreviousMove.Restart;
+        if (Remote.RestartsTrack(positionMs, Index)) return PreviousMove.Restart;
         Index--;
         return PreviousMove.Moved;
     }

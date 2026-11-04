@@ -18,7 +18,7 @@ namespace Pley.Tv.Core.Api;
 /// One of the server's events (docs/API.md, "Activity &amp; events"). Types: library_changed,
 /// libraries_changed, sessions_changed, watchlist_changed, user_state_changed, session_stopped,
 /// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed,
-/// live_taken_over.
+/// live_taken_over, player_command.
 /// </summary>
 public sealed record ServerEvent
 {
@@ -33,6 +33,15 @@ public sealed record ServerEvent
     public long? ChannelId { get; init; }
     public string? Message { get; init; }
     public bool? ByAdmin { get; init; }
+    /// <summary>
+    /// player_command: what the profile's remote, on another device, asks of the player of
+    /// <see cref="SessionId"/> ("play", "pause", "seek", "skip", "next", "previous"; a newer
+    /// server may send others), with <see cref="PositionMs"/> for a seek and
+    /// <see cref="OffsetMs"/> for a skip.
+    /// </summary>
+    public string? Command { get; init; }
+    public long? PositionMs { get; init; }
+    public long? OffsetMs { get; init; }
     /// <summary>scan_progress: "queued", "walking", "probing", "metadata" or "done".</summary>
     public string? Phase { get; init; }
     /// <summary>scan_progress: the files read so far, of <see cref="Total"/>.</summary>
@@ -98,7 +107,7 @@ public sealed class SseReader
     static bool Readable(ServerEvent e) => e.Type switch
     {
         "library_changed" or "scan_started" or "scan_progress" or "scan_finished" => e.LibraryId != null,
-        "session_stopped" => !string.IsNullOrEmpty(e.SessionId),
+        "session_stopped" or "player_command" => !string.IsNullOrEmpty(e.SessionId),
         "live_taken_over" => e.ChannelId != null,
         "libraries_changed" or "sessions_changed" or "watchlist_changed" or "user_state_changed" or "live_channels_changed" or "live_tuners_changed" => true,
         _ => false,

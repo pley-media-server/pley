@@ -39,8 +39,8 @@ public sealed class AppMusicServer : IMusicServer
 
     /// <summary>
     /// The app's music player: it plays behind every page, ends with the profile, the sign-in, the
-    /// server or the app (<see cref="AppState.OnLeave"/>), and stops when the server stops its
-    /// session (<c>session_stopped</c>).
+    /// server or the app (<see cref="AppState.OnLeave"/>), stops when the server stops its
+    /// session (<c>session_stopped</c>), and obeys the profile's remote (<c>player_command</c>).
     /// </summary>
     public static MusicPlayer Player(AppState app, Func<IMediaEngine> engines, Func<TizenFacts> facts, IScheduler scheduler)
     {
@@ -49,6 +49,7 @@ public sealed class AppMusicServer : IMusicServer
         app.OnEvent(e =>
         {
             if (e.Type == "session_stopped" && e.SessionId != null) player.StoppedByServer(e.SessionId);
+            else if (e.Type == "player_command") player.Obey(e);
         });
         return player;
     }
