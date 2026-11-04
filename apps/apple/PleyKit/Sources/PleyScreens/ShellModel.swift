@@ -69,6 +69,13 @@ public enum Screen: Hashable, Codable, Sendable {
     case downloads, downloadSettings
     /// Live TV, opened from Libraries on iPhone.
     case liveTv
+    /// Requests: Discover's page, TMDB's titles matching a search (See
+    /// all), a title's page (its season picker open with `pick`), and the
+    /// list of requests (everyone's, for managers).
+    case discover
+    case discoverResults(query: String)
+    case discoverTitle(TitleKind, tmdbId: Int, pick: Bool = false)
+    case requests
 
     /// The page `item` opens: music has its own pages; a track opens its
     /// album, an extra its movie's or show's page.
@@ -92,16 +99,42 @@ public enum Sheet: Hashable, Identifiable, Sendable {
     public var id: Self { self }
 }
 
+/// A toast's one button: Undo, Open, Sign in again.
+public struct ToastAction {
+    public let label: String
+    /// The button's accessibility identifier.
+    public let identifier: String
+    public let run: @MainActor () -> Void
+
+    public init(_ label: String, identifier: String = "toast.action", run: @escaping @MainActor () -> Void) {
+        self.label = label
+        self.identifier = identifier
+        self.run = run
+    }
+
+    public static func undo(_ run: @escaping @MainActor () -> Void) -> ToastAction {
+        ToastAction("Undo", identifier: "toast.undo", run: run)
+    }
+}
+
 /// A short message at the bottom of the screen (top trailing on Apple TV),
-/// with an Undo while it shows.
+/// with a button while it shows; `error` ones say something went wrong.
 public struct Toast: Identifiable, Equatable {
+    public enum Style: Sendable { case plain, error }
+
     public let id = UUID()
     public let text: String
-    public let undo: (@MainActor () -> Void)?
+    public let action: ToastAction?
+    public let style: Style
 
-    public init(_ text: String, undo: (@MainActor () -> Void)? = nil) {
+    public init(_ text: String, action: ToastAction? = nil, style: Style = .plain) {
         self.text = text
-        self.undo = undo
+        self.action = action
+        self.style = style
+    }
+
+    public init(_ text: String, undo: (@MainActor () -> Void)?) {
+        self.init(text, action: undo.map(ToastAction.undo))
     }
 
     public static func == (a: Toast, b: Toast) -> Bool { a.id == b.id }
@@ -130,6 +163,9 @@ public final class ShellModel: ObservableObject {
     /// Live TV on the open server for this profile (`GET /api/live`);
     /// `nil` while not known. It shows when it is `available`.
     @Published public private(set) var liveTv: LiveSummary?
+    /// The ways into requests (Discover, and Your requests or Requests with
+    /// its number), from the summary; `none` while not known.
+    @Published public private(set) var requestsEntry = RequestsEntry.none
     /// Music has a queue: Apple TV shows its Now Playing tab.
     @Published public private(set) var nowPlaying = false
     /// iPhone and iPad: Now Playing shows, in a sheet over the shell.
@@ -252,6 +288,12 @@ public final class ShellModel: ObservableObject {
         refreshSections()
     }
 
+    /// The ways into requests, as the summary last said.
+    public func setRequestsEntry(_ entry: RequestsEntry) {
+        guard entry != requestsEntry else { return }
+        requestsEntry = entry
+    }
+
     /// The libraries, as last read: the sections follow them. A library
     /// section that went away goes back to Home.
     public func setLibraries(_ libraries: [Library]) {
@@ -361,6 +403,7 @@ public final class ShellModel: ObservableObject {
         paths = [:]
         libraries = []
         liveTv = nil
+        requestsEntry = .none
         nowPlaying = false
         nowPlayingOpen = false
         sections = Self.sections(tv: tv, libraries: [])
@@ -436,7 +479,15 @@ public final class ShellModel: ObservableObject {
 
     /// Shows `text` for 5 seconds, with Undo when `undo` is given.
     public func show(_ text: String, undo: (@MainActor () -> Void)? = nil) {
-        let toast = Toast(text, undo: undo)
+        show(Toast(text, undo: undo))
+    }
+
+    /// Shows `text` for 5 seconds, with `action`'s button; `error` says something went wrong.
+    public func show(_ text: String, action: ToastAction?, error: Bool = false) {
+        show(Toast(text, action: action, style: error ? .error : .plain))
+    }
+
+    public func show(_ toast: Toast) {
         self.toast = toast
         toastTask?.cancel()
         toastTask = Task { [weak self] in
@@ -446,11 +497,11 @@ public final class ShellModel: ObservableObject {
         }
     }
 
-    /// The toast's Undo.
-    public func undoToast() {
-        let undo = toast?.undo
+    /// The toast's button: Undo, Open.
+    public func runToastAction() {
+        let action = toast?.action
         dismissToast()
-        undo?()
+        action?.run()
     }
 
     public func dismissToast() {

@@ -396,7 +396,7 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(recent, key = { it }, contentType = { "recent" }) { q ->
+                items(recent, key = { "recent:$it" }, contentType = { "recent" }) { q ->
                     TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp).keptWithin(motion))
                 }
                 item(key = "pley.clear", contentType = "clear") {

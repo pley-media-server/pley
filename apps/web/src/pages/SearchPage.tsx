@@ -294,10 +294,11 @@ export function SearchPage() {
       {GROUPS.map(({ kind, title }) => {
         const items = results.filter((r) => r.kind === kind);
         // Keyed by the query too: a new search starts with every group closed.
+        // Each group's key is its own: siblings sharing one leave an old group on the page.
         return items.length ? <ResultGroup key={`${q}:${kind}`} title={title} items={items} /> : null;
       })}
-      {channels.length ? <ChannelResults key={q} channels={channels} /> : null}
-      {people.length ? <PeopleResults key={q} people={people} /> : null}
+      {channels.length ? <ChannelResults key={`${q}:channels`} channels={channels} /> : null}
+      {people.length ? <PeopleResults key={`${q}:people`} people={people} /> : null}
       {tmdb()}
     </div>
   );

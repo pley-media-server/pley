@@ -2,8 +2,9 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// Me: the profile signed in and its server, Switch profile, the profile's
-/// audio and subtitle defaults, History, Settings (on the Mac, the
+/// Me: the profile signed in and its server, Switch profile, Discover and
+/// Your requests (Requests for managers, with its number) where requests
+/// are open, the profile's audio and subtitle defaults, History, Settings (on the Mac, the
 /// Settings window, ⌘,), Diagnostics and About, Servers and Sign out.
 struct MeView: View {
     @ObservedObject private var app: AppModel
@@ -41,6 +42,7 @@ struct MeView: View {
             } footer: {
                 Text(MeModel.webNote)
             }
+            MeRequestsSection(shell: app.shell)
             TrackDefaultsSection(model: model)
             if app.downloads.available {
                 Section {

@@ -45,9 +45,9 @@ actor FakeTokens: TokenProvider {
     /// What `refusedAfterRefresh` says for the token sent first.
     var refuseAtOnce = false
 
-    init(server: FixtureServer, transport: HTTPTransport) {
+    init(server: FixtureServer, transport: HTTPTransport, scope: String = FixtureServer.allScopes) {
         issuer = server.origin
-        let tokens = server.issueTokens()
+        let tokens = server.issueTokens(scope: scope)
         access = tokens.accessToken
         refreshToken = tokens.refreshToken
         endpoints = EndpointClient(transport: transport)

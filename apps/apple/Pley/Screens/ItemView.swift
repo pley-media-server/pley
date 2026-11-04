@@ -6,10 +6,11 @@ import SwiftUI
 
 /// A title's page (docs/APPLE.md, Item pages): the backdrop and poster,
 /// the title and where it sits (show, season), the line of facts, Play or
-/// Resume, From start, Watched, My List, the trailer and More; the
-/// profile's rating; the version, audio and subtitle pickers; the summary;
-/// a show's seasons and episodes; extras, cast, More Like This, crew and
-/// details, and Media info.
+/// Resume, From start, Watched, My List, the trailer and More; the stage
+/// of a request for it and Request more seasons; the profile's rating;
+/// the version, audio and subtitle pickers; the summary; a show's seasons
+/// and episodes; extras, cast, More Like This, crew and details, and
+/// Media info.
 ///
 /// One column on iPhone. On iPad and the Mac, from 700 points wide, the
 /// poster and the title's own parts sit in two columns above the rows;
@@ -48,6 +49,8 @@ struct ItemView: View {
             }
         }
         .task { await model.load() }
+        // A request's download is followed only while the page shows.
+        .task { await model.followRequest() }
         .reloads(app) { await model.load() }
         #if os(macOS)
         // ⌘↩ plays the page's title, as its Play does.
@@ -242,6 +245,9 @@ struct ItemView: View {
         VStack(alignment: .leading, spacing: 16) {
             primary(page)
             buttons(page)
+            if let block = model.requestBlock {
+                ItemRequestBlockView(app: app, block: block)
+            }
             if page.rateable {
                 StarRating(rating: page.userRating) { rating in Task { await model.rate(rating) } }
             }

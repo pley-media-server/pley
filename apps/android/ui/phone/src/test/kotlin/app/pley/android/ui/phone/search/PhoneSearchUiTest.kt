@@ -193,6 +193,14 @@ class PhoneSearchUiTest {
     }
 
     @Test
+    fun recentSearchesMayBeNamedAsThePagesOwnRows() {
+        show(SearchUiState("", listOf("discover", "header"), SearchResultsState.Idle), discover = true)
+        compose.onNodeWithText("discover").performClick()
+        compose.onNodeWithText("header").performClick()
+        assertEquals(listOf("discover", "header"), chosen)
+    }
+
+    @Test
     fun withoutRequestsThereIsNoWayToDiscover() {
         show(SearchUiState("", emptyList(), SearchResultsState.Idle))
         compose.onNodeWithTag(SEARCH_DISCOVER).assertDoesNotExist()

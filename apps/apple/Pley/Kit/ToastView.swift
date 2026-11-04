@@ -5,8 +5,9 @@ import SwiftUI
 import UIKit
 #endif
 
-/// The shell's toast, at the bottom of the window, with Undo when it has
-/// one; VoiceOver reads it out when it shows.
+/// The shell's toast, at the bottom of the window, with its button (Undo,
+/// Open, Sign in again) when it has one, and a red mark when it says
+/// something went wrong; VoiceOver reads it out when it shows.
 struct ToastView: View {
     @ObservedObject var shell: ShellModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -15,12 +16,17 @@ struct ToastView: View {
         ZStack {
             if let toast = shell.toast {
                 HStack(spacing: 16) {
+                    if toast.style == .error {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.red)
+                            .accessibilityHidden(true)
+                    }
                     Text(toast.text)
                         .font(.callout)
-                    if toast.undo != nil {
-                        Button("Undo") { shell.undoToast() }
+                    if let action = toast.action {
+                        Button(action.label) { shell.runToastAction() }
                             .font(.callout.bold())
-                            .accessibilityIdentifier("toast.undo")
+                            .accessibilityIdentifier(action.identifier)
                     }
                 }
                 .padding(.horizontal, 18)

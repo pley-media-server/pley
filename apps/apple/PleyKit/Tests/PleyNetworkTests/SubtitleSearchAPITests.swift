@@ -43,11 +43,11 @@ private func movie(_ server: FixtureServer) {
         movie(server)
         let api = api(server)
         server.setSubtitleSearch(unavailable: false)
-        await #expect(throws: PleyError.notAvailable(message: "Subtitle search isn't set up", setup: false)) {
+        await #expect(throws: PleyError.notAvailable(code: "unavailable", message: "Subtitle search isn't set up", setup: false)) {
             try await api.searchSubtitles(itemId: 51, fileId: 510)
         }
         server.setSubtitleSearch(unavailable: true)
-        await #expect(throws: PleyError.notAvailable(message: "OpenSubtitles refused the server's key", setup: true)) {
+        await #expect(throws: PleyError.notAvailable(code: "unavailable", message: "OpenSubtitles refused the server's key", setup: true)) {
             try await api.searchSubtitles(itemId: 51, fileId: 510)
         }
     }

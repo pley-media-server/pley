@@ -142,6 +142,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public let serverEvents = ServerEvents()
     /// Live TV on the open server, shared by its pages, Search and the live player.
     public let live: LiveTvRepository
+    /// Requests on the open server: the summary behind their ways in, and their news.
+    public let requests: RequestsRepository
     /// Music, for the app's whole life: it plays on with no screen open.
     public private(set) lazy var music: MusicPlayback = makeMusic()
     /// The system's Now Playing: music, video or Live TV, whichever played last.
@@ -181,8 +183,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
     /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
     private let tv: Bool
-    /// Whether the app is in the foreground: the event stream runs only then.
-    private var active = true
+    /// Whether the app is in the foreground: the event stream runs, and
+    /// screens poll what moves, only then.
+    public private(set) var active = true
     private var eventsRunning = false
 
     private var listener: Task<Void, Never>?
@@ -194,6 +197,16 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// What the video or the live player shows the system, as they change.
     private var playerWatch: AnyCancellable?
     private var liveWatch: AnyCancellable?
+    private var requestsWatch: AnyCancellable?
+    private var playersWatch: AnyCancellable?
+    /// Requests' news waiting for the player to close: never over a video.
+    private var heldNews: [RequestNews] = []
+    /// The most news kept while a player shows.
+    public static let heldNewsMax = 3
+    /// The time between held news, one toast's time; shorter in tests.
+    public var heldNewsGap: Double = ShellModel.toastSeconds
+    /// The held news being told, one after another.
+    private var heldNewsTask: Task<Void, Never>?
     /// What the system's Now Playing was told last of a video, to send only what changed.
     private var videoShown: (info: NowPlayingInfo, at: Int64)?
     /// The picture Now Playing shows for the music or video playing: its path and the image.
@@ -235,6 +248,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
             guard let api = await session.api else { throw PleyError.signedOut }
             return api
         }
+        requests = RequestsRepository(api: { [session] in
+            guard let api = await session.api else { throw PleyError.signedOut }
+            return api
+        }, settings: settings)
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -256,6 +273,23 @@ public final class AppModel: ObservableObject, SnapshotCache {
             Task { @MainActor in self?.settleShelfLink() }
         }
         live.cache = self
+        requests.cache = self
+        requests.onChange = { [weak self] change in self?.note(ServerChange(requests: change)) }
+        serverEvents.onRequestChange = { [weak self] change in self?.requests.heard(change) }
+        serverEvents.onRequestNews = { [weak self] news in self?.requests.heard(news) }
+        serverEvents.onRequestsSettings = { [weak self] in self?.requests.settingsChanged() }
+        serverEvents.onConnection = { [weak self] connected in self?.requests.setStreaming(connected) }
+        requestsWatch = requests.$summary.sink { [weak self] summary in
+            self?.shell.setRequestsEntry(.of(.of(summary)))
+        }
+        #if !os(tvOS)
+        // Apple TV has no requests' pages: no toast offers an Open that leads nowhere.
+        requests.onNews = { [weak self] news in self?.heard(news) }
+        playersWatch = $player.combineLatest($livePlayer).sink { [weak self] player, live in
+            guard player == nil, live == nil else { return }
+            Task { @MainActor in self?.showHeldNews() }
+        }
+        #endif
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
@@ -386,6 +420,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             if another {
                 music.stop()
                 stopEvents()
+                requests.reset()
                 shell.reset()
                 actions.reset()
             }
@@ -430,6 +465,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             signedInNow(user)
         }
         homeVersion += 1
+        heldNews = []
         shell.reset()
         actions.reset()
         profilesFromShell = false
@@ -451,6 +487,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         shelf?.clear()
         goOnline()
         user = nil
+        requests.reset()
+        heldNews = []
         shell.reset()
         actions.reset()
         root = .servers
@@ -468,7 +506,27 @@ public final class AppModel: ObservableObject, SnapshotCache {
             goOnline()
             server = nil
             user = nil
+            requests.reset()
         }
+    }
+
+    /// Signs in again on the open server, for the scopes this sign-in came
+    /// before (requests, approvals): its sign-in shows over the servers,
+    /// saying why. Signing in brings the app back with the new scopes.
+    public func signInAgain() {
+        guard let server else { return }
+        Task { await closePlayer() }
+        notice = RequestWords.signInNotice
+        root = .servers
+        signingIn = [server]
+    }
+
+    /// Signing in again was given up: the app as it was.
+    public func cancelSignInAgain() {
+        guard user != nil else { return }
+        notice = nil
+        signingIn = []
+        root = .signedIn
     }
 
     /// The servers, keeping the sign-in; with `adding`, the address
@@ -858,6 +916,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         guard active != self.active else { return }
         self.active = active
         livePlayer?.sceneActive(active)
+        requests.setForeground(active)
         if active {
             if offline { Task { await reconnect() } }
             // Conversions on the server are followed only while Pley is open.
@@ -893,6 +952,54 @@ public final class AppModel: ObservableObject, SnapshotCache {
         stopEvents()
         startEvents()
     }
+
+    /// Something to tell of the profile's requests: a toast with Open, held
+    /// while a video or a channel plays, and shown once it closes.
+    func heard(_ news: RequestNews) {
+        guard user != nil else { return }
+        if player != nil || livePlayer != nil {
+            heldNews.append(news)
+            if heldNews.count > Self.heldNewsMax { heldNews.removeFirst(heldNews.count - Self.heldNewsMax) }
+            return
+        }
+        tell(news)
+    }
+
+    private func tell(_ news: RequestNews) {
+        var error = false
+        var screen: Screen = .requests
+        switch news {
+        case .ready(_, _, _, let itemId?, _, _):
+            screen = .item(itemId)
+        case .failed:
+            error = true
+        default:
+            break
+        }
+        shell.show(RequestWords.notice(news), action: ToastAction("Open") { [weak self] in
+            self?.shell.open(screen)
+        }, error: error)
+    }
+
+    /// The news held while a player showed, one after another.
+    private func showHeldNews() {
+        // A chain from a player closed before stops: only one tells at a time.
+        heldNewsTask?.cancel()
+        heldNewsTask = nil
+        guard !heldNews.isEmpty, player == nil, livePlayer == nil, user != nil else { return }
+        let news = heldNews.removeFirst()
+        tell(news)
+        guard !heldNews.isEmpty else { return }
+        let gap = heldNewsGap
+        heldNewsTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(gap))
+            guard !Task.isCancelled else { return }
+            self?.showHeldNews()
+        }
+    }
+
+    /// The news waiting for the player to close.
+    public var newsHeld: [RequestNews] { heldNews }
 
     /// One of this profile's playbacks was stopped from elsewhere: the
     /// player showing it closes, and says why.
@@ -1175,6 +1282,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             }
         }
         Task { await scopeDownloads() }
+        if let origin = server?.origin { requests.start(origin: origin, profileId: user.id) }
         startEvents()
         loadLibraries()
         loadLiveTv()
@@ -1244,6 +1352,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         shelf?.clear()
         user = nil
         notice = message
+        requests.reset()
+        heldNews = []
         shell.reset()
         actions.reset()
         root = .servers

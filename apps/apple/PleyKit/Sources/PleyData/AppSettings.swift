@@ -157,11 +157,12 @@ public final class AppSettings: @unchecked Sendable {
 
     /// Puts `query` first among the profile's recent searches, once, keeping the last 10.
     public func rememberSearch(_ query: String, origin: String, profileId: Int) {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Kept as it is stored, so a long query searched again replaces itself.
+        let query = String(query.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
         guard !query.isEmpty else { return }
         var recent = recentSearches(origin: origin, profileId: profileId)
         recent.removeAll { $0.caseInsensitiveCompare(query) == .orderedSame }
-        recent.insert(String(query.prefix(200)), at: 0)
+        recent.insert(query, at: 0)
         setRecent(Array(recent.prefix(Self.recentSearches)), origin: origin, profileId: profileId)
     }
 
@@ -173,6 +174,24 @@ public final class AppSettings: @unchecked Sendable {
         var all = defaults.dictionary(forKey: Self.prefix + "recentSearches") as? [String: [String]] ?? [:]
         all[Self.viewKey(origin, profileId)] = recent.isEmpty ? nil : recent
         defaults.set(all, forKey: Self.prefix + "recentSearches")
+    }
+
+    // MARK: Requests
+
+    /// The newest `updated_at` of the profile's requests whose news was
+    /// told (by a notice or by catching up), so none is told twice, across
+    /// starts too.
+    public func requestNewsMark(origin: String, profileId: Int) -> Int {
+        let all = defaults.dictionary(forKey: Self.prefix + "requestNews") as? [String: Int]
+        return all?[Self.viewKey(origin, profileId)] ?? 0
+    }
+
+    /// Raises the mark to `mark`; it never goes down.
+    public func setRequestNewsMark(_ mark: Int, origin: String, profileId: Int) {
+        var all = defaults.dictionary(forKey: Self.prefix + "requestNews") as? [String: Int] ?? [:]
+        let key = Self.viewKey(origin, profileId)
+        all[key] = max(all[key] ?? 0, mark)
+        defaults.set(all, forKey: Self.prefix + "requestNews")
     }
 
     // MARK: Libraries

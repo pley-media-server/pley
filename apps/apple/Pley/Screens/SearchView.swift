@@ -6,13 +6,16 @@ import SwiftUI
 /// profile's recent searches while nothing is typed, and then the results
 /// in groups, each a row: People, Movies, Shows, Seasons, Episodes,
 /// Artists, Albums, Tracks, with their counts. The results shown stay
-/// while the next load.
+/// while the next load. Where requests are open, Discover heads the page
+/// before anything is typed, and TMDB's titles no library has follow the
+/// results, in the Discover row.
 struct SearchView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: SearchModel
     @ObservedObject private var shell: ShellModel
     /// The field has the keys: after ⌘F (the Mac's View menu, an iPad's keyboard).
     @FocusState private var fieldFocused: Bool
+    private let layout = WideLayout()
 
     init(app: AppModel) {
         self.app = app
@@ -55,45 +58,69 @@ struct SearchView: View {
                     }
                 }
         case .empty(let query):
-            StateView(kind: .empty(symbol: "magnifyingglass", text: SearchModel.noResults(query), action: nil))
-                .accessibilityIdentifier("search.empty")
+            if model.nothingInLibraries {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(RequestWords.nothingInLibraries)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Metrics.gutter(regular: layout.wide))
+                            .accessibilityIdentifier("search.empty")
+                        SearchDiscoverRow(app: app, model: model)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 16)
+                }
+                .scrollDismissesKeyboard(.immediately)
+            } else {
+                StateView(kind: .empty(symbol: "magnifyingglass", text: SearchModel.noResults(query), action: nil))
+                    .accessibilityIdentifier("search.empty")
+            }
         case .failed(_, let why):
             StateView(kind: .failed(title: "Search failed", why: why, retry: { model.retry() }))
         }
     }
 
-    /// The profile's recent searches, newest first, with Clear.
+    /// Before anything is typed: Discover where requests are open, then the
+    /// profile's recent searches, newest first, with Clear.
     @ViewBuilder private var recent: some View {
-        if model.recent.isEmpty {
+        if model.recent.isEmpty && !shell.requestsEntry.discover {
             StateView(kind: .empty(symbol: "magnifyingglass",
                                    text: "Search for movies, shows, people and music.", action: nil))
         } else {
             List {
-                Section {
-                    ForEach(Array(model.recent.enumerated()), id: \.element) { index, text in
-                        Button {
-                            model.searchAgain(text)
-                        } label: {
-                            Label(text, systemImage: "clock.arrow.circlepath")
-                                .foregroundStyle(.primary)
-                        }
-                        .accessibilityHint("Searches again")
-                        .accessibilityIdentifier("search.recent.\(index)")
-                    }
-                } header: {
-                    HStack {
-                        Text("Recent searches")
-                        Spacer()
-                        Button("Clear") { model.clearRecent() }
-                            .font(.footnote)
-                            .accessibilityLabel("Clear recent searches")
-                            .accessibilityIdentifier("search.recent.clear")
-                    }
+                if shell.requestsEntry.discover {
+                    Section { SearchDiscoverEntry() }
                 }
+                if !model.recent.isEmpty { recentSection }
             }
             #if os(macOS)
             .listStyle(.inset)
             #endif
+        }
+    }
+
+    /// The recent searches, newest first, with Clear.
+    private var recentSection: some View {
+        Section {
+            ForEach(Array(model.recent.enumerated()), id: \.element) { index, text in
+                Button {
+                    model.searchAgain(text)
+                } label: {
+                    Label(text, systemImage: "clock.arrow.circlepath")
+                        .foregroundStyle(.primary)
+                }
+                .accessibilityHint("Searches again")
+                .accessibilityIdentifier("search.recent.\(index)")
+            }
+        } header: {
+            HStack {
+                Text("Recent searches")
+                Spacer()
+                Button("Clear") { model.clearRecent() }
+                    .font(.footnote)
+                    .accessibilityLabel("Clear recent searches")
+                    .accessibilityIdentifier("search.recent.clear")
+            }
         }
     }
 
@@ -112,6 +139,7 @@ struct SearchView: View {
                         }
                     }
                 }
+                SearchDiscoverRow(app: app, model: model)
             }
             .padding(.vertical, 16)
         }

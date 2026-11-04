@@ -144,6 +144,15 @@ struct RootView: View {
                 ServersView(app: app)
                     .navigationDestination(for: ServerEntry.self) { entry in
                         SignInView(app: app, entry: entry)
+                            .toolbar {
+                                // Signing in again (for requests): Cancel goes back to the app as it was.
+                                if app.user != nil && app.server?.origin == entry.origin {
+                                    ToolbarItem(placement: .cancellationAction) {
+                                        Button("Cancel") { app.cancelSignInAgain() }
+                                            .accessibilityIdentifier("signIn.keep")
+                                    }
+                                }
+                            }
                     }
             }
         case .profiles:

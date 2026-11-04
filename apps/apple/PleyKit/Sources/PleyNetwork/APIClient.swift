@@ -42,6 +42,16 @@ public actor APIClient {
         return try decode(type, response)
     }
 
+    /// `send`, with the answer's status beside it: for a route whose `200`
+    /// and `201` mean different things (asking for a title).
+    public func sendWithStatus<B: Encodable & Sendable, T: Decodable & Sendable>(
+        _ method: String, _ path: String, body: B?, as type: T.Type) async throws -> (value: T, status: Int) {
+        let data = try body.map { try PleyJSON.encoder.encode($0) }
+        let response = try await request(method, path, query: [], body: data, maxBytes: BodyLimit.json,
+                                         accept: "application/json")
+        return (try decode(type, response), response.status)
+    }
+
     /// `get` with the tag of the answer shown (`If-None-Match`): `nil` when
     /// the server says it is unchanged (`304`), else the answer and its
     /// `ETag`.
@@ -352,7 +362,13 @@ public actor APIClient {
         if status == 409 && !body.connections.isEmpty {
             throw PleyError.busy(message: message, connections: body.connections)
         }
-        if status == 503, let setup = body.setup { throw PleyError.notAvailable(message: message, setup: setup) }
+        if status == 503, let setup = body.setup {
+            throw PleyError.notAvailable(code: body.code, message: message, setup: setup)
+        }
+        if body.refusal {
+            throw PleyError.refused(status: status, code: body.code, message: message, retryAt: body.retryAt,
+                                    request: body.request)
+        }
         throw PleyError.api(status: status, code: body.code, message: message)
     }
 

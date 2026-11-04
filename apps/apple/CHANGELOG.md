@@ -90,3 +90,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Pley's icon on iPhone, iPad, Mac and Apple TV. On Apple TV it moves in
   layers as it's focused, and the Top Shelf shows Pley's icon and name
   until there's something to continue.
+- Requests on iPhone, iPad and Mac: discover movies and shows in Discover
+  or from Search, ask for them (picking a show's seasons), follow your
+  requests, and hear when they're ready. Administrators approve and
+  decline under Me, with a count on Me's tab.

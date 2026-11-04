@@ -19,6 +19,11 @@ describes how they are made.
   rather than stall the picture. A show's page and the guide make their
   next rows ahead too.
 
+### Fixed
+
+- Search no longer closes the app when a recent search is "discover" or
+  "header" on a phone, or "pley.clear" on a TV.
+
 ## [0.1.5] - 2026-11-03
 
 ### Added

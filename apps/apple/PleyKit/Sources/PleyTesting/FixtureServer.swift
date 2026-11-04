@@ -125,7 +125,7 @@ public final class FixtureServer: Sendable {
         Profile(id: 5, username: "guest", name: "Guest", avatarColor: "#94a3b8", hasAvatar: false, pin: nil, needs: "locked"),
     ]
 
-    public static let allScopes = "library play playlists profiles"
+    public static let allScopes = "library play playlists profiles requests approvals"
 
     /// The client IDs of Pley's Apple apps, which the fixture knows as the server does.
     public static let appleClients = ["ios", "tvos", "macos"].map {
@@ -214,6 +214,7 @@ public final class FixtureServer: Sendable {
         var account = Account()
         var live = Live()
         var subtitleSearch = SubtitleSearch()
+        var requests = Requests()
         var conversions = Conversions()
         var proofs = Proofs()
     }
@@ -703,6 +704,7 @@ public final class FixtureServer: Sendable {
             }
         }
         if let answer = live(&s, request, parts) { return answer }
+        if let answer = requests(&s, request, parts) { return answer }
         if let answer = subtitles(&s, request, parts) { return answer }
         if let answer = downloads(&s, request, parts) { return answer }
         if let answer = browse(&s, request, parts) { return answer }
@@ -1196,7 +1198,7 @@ public final class FixtureServer: Sendable {
             "token_endpoint_auth_methods_supported": ["none"],
             "revocation_endpoint_auth_methods_supported": ["none"],
             "code_challenge_methods_supported": ["S256"],
-            "scopes_supported": ["library", "play", "playlists", "profiles"],
+            "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
             "authorization_response_iss_parameter_supported": true,
             "client_id_metadata_document_supported": false,
         ]

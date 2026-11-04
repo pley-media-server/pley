@@ -55,6 +55,9 @@ public final class ItemModel: ObservableObject {
     /// The page that shows this item instead: an artist's, an album's
     /// (a track's), or an extra's movie or show.
     @Published public private(set) var elsewhere: Screen?
+    /// What requests say of this movie or show: the stage of its newest
+    /// active request, and Request more seasons; `nil`: nothing to say.
+    @Published public private(set) var requestBlock: ItemRequestBlock?
 
     public let app: AppModel
     public let itemId: Int
@@ -73,6 +76,15 @@ public final class ItemModel: ObservableObject {
     private var writing = 0
     private var listeners: Set<AnyCancellable> = []
     private var seasonTask: Task<Void, Never>?
+    /// The server said the title isn't TMDB's (404): it isn't asked again.
+    private var noRequest = false
+    private var requestTask: Task<Void, Never>?
+    private var requestSoon: Task<Void, Never>?
+    /// How long a failed read of the request block waits, and how often it's tried again.
+    public var requestRetry: Double = 3
+    public static let requestRetries = 4
+    /// Seconds between reads of the request block while it moves (tests shorten it).
+    public var movingEvery = RequestTimings.movingSeconds
 
     public init(app: AppModel, itemId: Int) {
         self.app = app
@@ -89,9 +101,21 @@ public final class ItemModel: ObservableObject {
             Task { @MainActor in self?.objectWillChange.send() }
         }.store(in: &listeners)
         app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
-            guard let self, self.writing == 0, self.follows(change) else { return }
+            guard let self else { return }
+            if self.followsRequest(change.requests) { self.loadRequestSoon() }
+            guard self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
         }.store(in: &listeners)
+        #if !os(tvOS)
+        // The gate opening or closing (a summary read late, as on a cold start
+        // or a Top Shelf link, or signing in again) reads the block again.
+        app.requests.$summary.dropFirst().map { RequestsGate.of($0).kind }.removeDuplicates().sink { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.item != nil else { return }
+                self.loadRequest()
+            }
+        }.store(in: &listeners)
+        #endif
     }
 
     /// Reads the item and what the page shows beside it. What shows stays
@@ -159,6 +183,10 @@ public final class ItemModel: ObservableObject {
             }
             state = .loaded
             rebuild()
+            #if !os(tvOS)
+            // Apple TV doesn't show requests on a title's page: nothing is read for them.
+            if requestTask == nil { loadRequest() }
+            #endif
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.
@@ -442,6 +470,75 @@ public final class ItemModel: ObservableObject {
     public func prefetch() {
         guard page?.primary.kind != .unavailable else { return }
         app.actions.prefetch(itemId)
+    }
+
+    // MARK: Requests
+
+    /// Reads what requests say of this movie or show, once the page is
+    /// read, while asking works or the account has requests: tried again
+    /// every 3 s, 4 times at most, while it fails or the server doesn't
+    /// know yet what may be asked for; then read again as its requests
+    /// change (`followRequest` reads it while it moves).
+    public func loadRequest() {
+        requestTask?.cancel()
+        let wait = requestRetry
+        requestTask = Task { [weak self] in
+            // The page holds itself only while it reads: a page gone stops here.
+            var tries = 0
+            while !Task.isCancelled {
+                guard let settled = await self?.readRequest() else { return }
+                if settled || tries >= Self.requestRetries { break }
+                tries += 1
+                try? await Task.sleep(for: .seconds(wait))
+            }
+        }
+    }
+
+    /// Reads the request block again every 10 s while its download moves
+    /// and the app is in the foreground, until the view goes (its `.task`
+    /// is cancelled, as when another page covers it).
+    public func followRequest() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(movingEvery))
+            guard !Task.isCancelled else { return }
+            if app.active, requestBlock?.moving == true { _ = await readRequest() }
+        }
+    }
+
+    /// One read; whether it settled (no need to try again).
+    private func readRequest() async -> Bool {
+        guard !noRequest, let item, item.kind == .movie || item.kind == .show else { return true }
+        let gate = app.requests.gate
+        guard let summary = gate.summary, gate.mayAsk || (summary.own > 0 && summary.yourRequests) else {
+            requestBlock = nil
+            return true
+        }
+        do {
+            guard let answer = try await app.requestsAPI().itemRequest(itemId) else {
+                noRequest = true
+                requestBlock = nil
+                return true
+            }
+            let now = Int(Date().timeIntervalSince1970)
+            requestBlock = ItemRequestBlock.of(answer, mayAsk: gate.mayAsk, manage: summary.manage, now: now)
+            return answer.askable != nil
+        } catch {
+            return false
+        }
+    }
+
+    private func followsRequest(_ change: RequestChange) -> Bool {
+        guard !change.isEmpty, !noRequest, let block = requestBlock else { return false }
+        return change.about(block.kind, tmdbId: block.tmdbId) || block.requestId.map(change.ids.contains) == true
+    }
+
+    private func loadRequestSoon() {
+        requestSoon?.cancel()
+        requestSoon = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(RequestTimings.changeDebounce))
+            guard !Task.isCancelled else { return }
+            self?.loadRequest()
+        }
     }
 
     // MARK: Inside

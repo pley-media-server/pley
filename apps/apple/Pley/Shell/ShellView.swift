@@ -12,7 +12,8 @@ import SwiftUI
 /// the player is open VoiceOver reads only the player. While music has a
 /// queue, the mini player sits above the tab bar (in its bottom accessory
 /// from iOS 26.1) or at the foot of the sidebar layout's page, and Now
-/// Playing opens from it.
+/// Playing opens from it. Me's tab, and Me's row at the sidebar's foot,
+/// carry the number on the way into requests.
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
@@ -71,6 +72,10 @@ struct ShellView: View {
                         if !accessoryHoldsMiniPlayer { FootMiniPlayer(app: app) }
                     }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
+                    .badge(section == .me ? shell.requestsEntry.badgeText.map { Text($0) } : nil)
+                    #if os(iOS)
+                    .background { TabBadgeColour(alarm: shell.requestsEntry.alarm) }
+                    #endif
                     .tag(section)
             }
         }
@@ -135,6 +140,9 @@ struct ShellView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
+                if let badge = shell.requestsEntry.badgeText {
+                    CountBadge(text: badge, alarm: shell.requestsEntry.alarm)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -149,6 +157,7 @@ struct ShellView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         #endif
         .accessibilityLabel("Me, \(app.user.map { $0.displayName ?? $0.name } ?? "")")
+        .accessibilityValue(shell.requestsEntry.spoken ?? "")
         .accessibilityAddTraits(shell.section == .me ? .isSelected : [])
         .accessibilityIdentifier("shell.me")
     }
@@ -226,6 +235,47 @@ private struct KeyboardShortcuts: View {
         .opacity(0)
         .frame(width: 0, height: 0)
         .accessibilityHidden(true)
+    }
+}
+
+/// Colours the tab bar's badge as Android colours its tab's number: the
+/// accent colour, and red only while a request couldn't be sent, so the
+/// red keeps its meaning. SwiftUI has no say in a badge's colour, so the
+/// tab bar's own appearance is set, again whenever the alarm changes.
+private struct TabBadgeColour: UIViewControllerRepresentable {
+    let alarm: Bool
+
+    func makeUIViewController(context: Context) -> Painter { Painter() }
+
+    func updateUIViewController(_ painter: Painter, context: Context) {
+        painter.alarm = alarm
+        painter.paint()
+    }
+
+    final class Painter: UIViewController {
+        var alarm = false
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            paint()
+        }
+
+        func paint() {
+            guard let bar = tabBarController?.tabBar else { return }
+            let colour = alarm ? UIColor.systemRed : UIColor(Color.accentColor)
+            bar.standardAppearance = Self.painted(bar.standardAppearance, colour)
+            if let edge = bar.scrollEdgeAppearance { bar.scrollEdgeAppearance = Self.painted(edge, colour) }
+        }
+
+        private static func painted(_ appearance: UITabBarAppearance, _ colour: UIColor) -> UITabBarAppearance {
+            let painted = appearance.copy()
+            for item in [painted.stackedLayoutAppearance, painted.inlineLayoutAppearance,
+                         painted.compactInlineLayoutAppearance] {
+                item.normal.badgeBackgroundColor = colour
+                item.selected.badgeBackgroundColor = colour
+            }
+            return painted
+        }
     }
 }
 #endif
@@ -366,6 +416,14 @@ struct ScreenView: View {
             DownloadsView(app: app)
         case .downloadSettings:
             DownloadSettingsView(app: app)
+        case .discover:
+            DiscoverView(app: app)
+        case .discoverResults(let query):
+            DiscoverResultsView(app: app, query: query)
+        case .discoverTitle(let kind, let tmdbId, let pick):
+            DiscoverTitleView(app: app, kind: kind, tmdbId: tmdbId, pick: pick)
+        case .requests:
+            RequestsView(app: app)
         }
     }
 }

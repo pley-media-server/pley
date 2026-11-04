@@ -4,9 +4,11 @@ import PleyCommon
 import PleyModel
 
 /// What the event stream says: a connection made (the server replays
-/// nothing, so what was read before it may be stale), or an event.
+/// nothing, so what was read before it may be stale), one ended (events
+/// can't come until the next: what changes meanwhile is polled), or an event.
 public enum EventSignal: Hashable, Sendable {
     case connected
+    case disconnected
     case event(ServerEvent)
 }
 
@@ -80,7 +82,10 @@ public struct EventStream: Sendable {
                         if Task.isCancelled { break }
                         wait = 0
                     }
-                    if opened.withLock({ $0 }) { failures = 0 }
+                    if opened.withLock({ $0 }) {
+                        failures = 0
+                        continuation.yield(.disconnected)
+                    }
                     if wait == 0 {
                         wait = Self.backoff[min(failures, Self.backoff.count - 1)]
                         failures += 1

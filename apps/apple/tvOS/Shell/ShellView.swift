@@ -163,6 +163,9 @@ struct ScreenView: View {
         // Apple TV has no downloads: their screens are never opened here.
         case .settings, .trackDefaults, .downloads, .downloadSettings:
             SettingsView(app: app)
+        // Apple TV has no requests' pages: nothing opens them here.
+        case .discover, .discoverResults, .discoverTitle, .requests:
+            SettingsView(app: app)
         case .liveTv:
             LiveTvView(app: app)
         }

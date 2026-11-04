@@ -44,6 +44,12 @@ public enum AppClient: String, Sendable, CaseIterable {
     /// document allows.
     public static let scope = "library play playlists profiles"
 
+    /// Asked for besides, only where the server lists each in its
+    /// metadata: asking for movies and shows, and a manager's approving
+    /// and declining. A server from before requests doesn't know them and
+    /// would refuse the whole sign-in for one.
+    public static let listedScope = "requests approvals"
+
     /// RFC 8628's grant: a TV collects its tokens with its code.
     public static let deviceCodeGrant = "urn:ietf:params:oauth:grant-type:device_code"
 

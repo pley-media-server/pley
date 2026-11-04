@@ -14,7 +14,7 @@ import Testing
         let api = PleyAPI(client: APIClient(origin: server.origin, tokens: tokens, transport: http))
         let me = try await api.me()
         #expect(me.name == "Alex")
-        #expect(me.scopes == ["library", "play", "playlists", "profiles"])
+        #expect(me.scopes == ["library", "play", "playlists", "profiles", "requests", "approvals"])
         let asked = try #require(server.requests("/api/auth/me").first)
         #expect(asked.headers["user-agent"] == testAgent)
         #expect(asked.token != nil)

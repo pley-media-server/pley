@@ -152,6 +152,13 @@ class TvSearchTest {
         compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
     }
 
+    @Test
+    fun aRecentSearchMayBeNamedAsTheClearButtonsRow() {
+        show(SearchUiState("", listOf("pley.clear"), SearchResultsState.Idle))
+        compose.onNodeWithText("pley.clear").assertExists()
+        compose.onNodeWithText("Clear").assertExists()
+    }
+
     /** TMDB's trending titles, as its search finds them for [query]. */
     private fun tmdbFound(query: String) =
         TmdbSection.Ready(query, Fixtures.decode<DiscoverPage>("discover/trending.json").results, origin = "http://127.0.0.1:1")

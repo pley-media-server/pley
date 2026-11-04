@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PleyCommon
+import PleyModel
 import PleyNetwork
 
 /// The names answers are kept under, per server and profile (Android's
@@ -22,6 +23,11 @@ public enum SnapshotKeys {
     public static let live = "live"
     /// `GET /api/live/groups`.
     public static let liveGroups = "live:groups"
+    /// `GET /api/requests/summary`.
+    public static let requests = "requests:summary"
+
+    /// The first page of one of Discover's lists.
+    public static func discover(_ list: DiscoverList) -> String { "discover:\(list.rawValue)" }
 
     /// A page of a category's channels matching `query`.
     public static func livePage(_ category: String, _ query: String, _ page: Int) -> String {
