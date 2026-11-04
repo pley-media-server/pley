@@ -694,9 +694,6 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   to), and stays at the page's ends and below a hero. Compose's own
   focus search lays the focused row out again at every step, and the
   whole page at its ends, to look for more beyond them.
-- Pictures are hardware bitmaps from Android 10 on, software ones before:
-  Android 9 (Fire OS 7) makes each hardware bitmap on the RenderThread, 2
-  to 8 ms a poster, and a held key's landing brings a screenful at once.
 - A tile is drawn in its rounded shape, not clipped to it (a clip is a
   pass of its own for a TV's GPU, for each tile), on a layer of its own
   that scrolling moves rather than draws again, and its placeholder's

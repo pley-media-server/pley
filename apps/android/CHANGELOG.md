@@ -22,9 +22,6 @@ describes how they are made.
   less to bring in and to draw, rows are made ahead of the screen, and a
   held step waits a frame or two for its row rather than stall the
   picture. A show's page and the guide make their next rows ahead too.
-- On Fire TV and other devices on Android 9 or earlier, the screen no
-  longer stutters for half a second as a held key comes up and the
-  pictures where it stopped arrive.
 - On Android TV and Fire TV, the backdrop changes with less of a stutter
   as focus comes to rest.
 - On Android TV and Fire TV, a held direction key stops at the end of
