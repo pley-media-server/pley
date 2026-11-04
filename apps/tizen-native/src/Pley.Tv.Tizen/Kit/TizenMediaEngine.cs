@@ -27,6 +27,41 @@ sealed class TizenMediaEngine : IVideoEngine
     readonly bool video;
     readonly SynchronizationContext? ui = SynchronizationContext.Current;
     Media.Player? player;
+
+    /// <summary>
+    /// Whether a streamed film resumed part-way is given playlists that begin where it resumes
+    /// (<see cref="StartWindow"/>), so the TV's player prepares there rather than at the film's start
+    /// and then seeks. A profiling build's listener turns it off and on ("trim off"), for the next film.
+    /// </summary>
+    public static bool Trim = true;
+
+    /// <summary>From how far in a film's playlists are trimmed: before it, the seek costs little.</summary>
+    const long TrimFromMs = 10_000;
+
+    /// <summary>The trimmed playlists of the film playing, and where they begin on its timeline (-1: not trimmed).</summary>
+    StartWindow? window;
+    long windowStart = -1;
+
+    /// <summary>
+    /// How far the player's own timeline is behind the film's: the window's start when the TV's player
+    /// counts from its playlist's first segment, 0 when it keeps the film's timestamps. Learnt from its
+    /// first position (<see cref="Learn"/>).
+    /// </summary>
+    long shift;
+    bool shiftKnown;
+
+    long FromPlayer(long raw) => raw + shift;
+
+    long ToPlayer(long ms) => Math.Max(0, ms - shift);
+
+    /// <summary>The player's first position while it plays, in a trimmed playlist: near 0, it counts from the playlist; else from the film.</summary>
+    void Learn(long raw)
+    {
+        if (windowStart < 0 || shiftKnown) return;
+        shiftKnown = true;
+        shift = raw < windowStart / 2 ? windowStart : 0;
+        Profile.Mark($"engine: the player counts from {(shift > 0 ? "its playlist" : "the film")} (it says {raw} ms, the playlist begins at {windowStart} ms)");
+    }
     EngineSource? source;
     /// <summary>The source playing: events of an earlier one are dropped.</summary>
     int generation;
@@ -88,7 +123,8 @@ sealed class TizenMediaEngine : IVideoEngine
             var read = await OffUi("its position", () => p.State is Media.PlayerState.Playing or Media.PlayerState.Paused ? p.GetPlayPosition() : -1);
             if (read >= 0 && mine == generation && player == p && prepared && pendingSeek == null)
             {
-                lastPosition = read;
+                if (playingNow) Learn(read);
+                lastPosition = FromPlayer(read);
                 positionAt = Environment.TickCount64;
             }
         }
@@ -209,6 +245,9 @@ sealed class TizenMediaEngine : IVideoEngine
         durationMs = 0;
         pendingSeek = null;
         lastPosition = source.Live ? 0 : Math.Max(0, source.StartMs);
+        windowStart = -1;
+        shift = 0;
+        shiftKnown = false;
         Profile.Enter("player: made (the TV's object)");
         var p = new Media.Player();
         Profile.Leave();
@@ -269,7 +308,14 @@ sealed class TizenMediaEngine : IVideoEngine
                 stats = null;
                 Picture(e.Size.Width, e.Size.Height);
             });
-            p.SetSource(new Media.MediaUriSource(s.Url));
+            // A film resumed part-way: its playlists begin where it resumes, so the TV's player prepares there.
+            var url = s.Url;
+            if (Trim && s.Hls && !s.Live && s.StartMs >= TrimFromMs && url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                window = new StartWindow(new Uri(url), s.StartMs, mark: m => Profile.Mark("engine: " + m));
+                url = window.Url.ToString();
+            }
+            p.SetSource(new Media.MediaUriSource(url));
             Buffer(p, s);
 #if PROFILE
             // Off the player's thread, its first and last only: a callback of the TV's player returns at once.
@@ -309,7 +355,21 @@ sealed class TizenMediaEngine : IVideoEngine
             durationMs = facts.DurationMs;
             // A file's timeline is the file's: a conversion that starts there still seeks there. Live starts at its edge.
             var start = pendingSeek ?? (s.Live ? 0 : s.StartMs);
-            if (start >= 1000)
+            if (window?.OffsetMs is >= 0 and var begins)
+            {
+                // Trimmed: the player stands at the start of the segment the film resumes in, a second or
+                // two before it, with no seek. Taken to count from its playlist until it says otherwise.
+                windowStart = begins;
+                shift = begins;
+                lastPosition = begins;
+                positionAt = 0;
+                // The film's duration, as the item says it; else the player's, which counts from the playlist too.
+                durationMs = s.DurationHintMs is > 0 ? 0 : facts.DurationMs + begins;
+                Profile.Mark($"engine: prepared where it resumes, {begins / 1000.0:0.0} s, for {start / 1000.0:0.0} s");
+                if (start < begins) Reopen(start);
+                else if (start - begins >= 3000) await SeekPlayer(p, start, mine);
+            }
+            else if (start >= 1000)
             {
                 Profile.Mark($"engine: going to {start / 1000} s");
                 await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)start, false)).Unwrap();
@@ -318,6 +378,7 @@ sealed class TizenMediaEngine : IVideoEngine
                 lastPosition = start;
                 positionAt = 0;
             }
+            if (mine != generation) return;
             pendingSeek = null;
             SetStatus(mine, EngineStatus.Ready);
             if (wanted) StartPlayer(mine);
@@ -451,17 +512,46 @@ sealed class TizenMediaEngine : IVideoEngine
         var p = player;
         if (p == null) return;
         Profile.Mark($"engine: seek to {to} ms asked");
+        // Before the trimmed playlists begin: they don't have it.
+        if (windowStart >= 0 && to < windowStart)
+        {
+            Reopen(to);
+            return;
+        }
         pendingSeek = to;
         if (!prepared) return;
         var mine = generation;
         _ = Seek(p, to, mine);
     }
 
+    /// <summary>
+    /// A seek before the trimmed playlists begin (<see cref="StartWindow"/>): the film opened again
+    /// from there, with playlists that begin where it now goes, as a film starts.
+    /// </summary>
+    void Reopen(long ms)
+    {
+        var s = source;
+        if (s == null) return;
+        Profile.Mark($"engine: {ms / 1000} s is before the playlist begins: opened again from there");
+        Prepare(s with { StartMs = ms }, wanted);
+    }
+
+    /// <summary>The player sent to <paramref name="ms"/> on the film's timeline, then taken to be there.</summary>
+    async Task SeekPlayer(Media.Player p, long ms, int mine)
+    {
+        Profile.Mark($"engine: going to {ms / 1000} s");
+        await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ToPlayer(ms), false)).Unwrap();
+        Profile.Mark("engine: there");
+        if (mine != generation) return;
+        lastPosition = ms;
+        positionAt = 0;
+    }
+
     async Task Seek(Media.Player p, long ms, int mine)
     {
         try
         {
-            await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ms, false)).Unwrap();
+            await OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)ToPlayer(ms), false)).Unwrap();
         }
         catch (Exception)
         {
@@ -756,7 +846,8 @@ sealed class TizenMediaEngine : IVideoEngine
             playing = read >= 0;
             if (playing && pendingSeek == null)
             {
-                lastPosition = read;
+                Learn(read);
+                lastPosition = FromPlayer(read);
                 positionAt = Environment.TickCount64;
             }
             position = lastPosition;
@@ -935,6 +1026,8 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         var p = player;
         NetTrace.Stop();
+        window?.Dispose();
+        window = null;
         var prepare = preparing;
         watch?.Stop();
         player = null;

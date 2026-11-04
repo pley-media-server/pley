@@ -432,6 +432,21 @@ Android's, its music pauses while the app is hidden, since a hidden app
 gives up the TV's player, and plays on from there when the app is back.
 The other pages come next.
 
+Tizen's player prepares an HLS stream from its first segment and ignores
+`EXT-X-START`, so a film resumed part-way had it fetch the film's start,
+and the server make the stream there, before seeking to where it resumed.
+A film resumed 10 s or more in is given its playlists by the app instead,
+from the TV's loopback, its media playlist beginning at the segment the
+film resumes in and naming every segment by the server's own address: the
+player prepares there, a second or two before the resume point, with no
+seek, and the video still comes straight from the server. The player then
+counts from that segment, which the engine adds back to every position,
+seek and duration; a seek before it opens the stream again from there.
+The player's calls that hold their caller (its position, its prepare, a
+seek, its streams' details) are made off the UI thread, one at a time, so
+the screen keeps drawing while a film opens; those bound to the window
+(the picture's region, letting a player go) stay on it.
+
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
 from its last keyframe) is read while the server says what it makes of the
 channel, and plays when that is the channel as it is, or with sound every

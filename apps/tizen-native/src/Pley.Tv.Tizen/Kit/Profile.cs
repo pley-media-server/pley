@@ -242,6 +242,11 @@ static class Profile
                 else if (wanted.StartsWith("record ", StringComparison.Ordinal)) Record(window, dataDir, root, wanted.Substring(7).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (wanted == "speed") NetTrace.Speed();
                 else if (wanted == "wifi" || wanted == "wifi scan") NetTrace.WiFi(wanted == "wifi scan");
+                else if (wanted is "trim on" or "trim off")
+                {
+                    TizenMediaEngine.Trim = wanted == "trim on";
+                    Mark($"trim: {(TizenMediaEngine.Trim ? "on" : "off")} from the next film");
+                }
             }
             catch (Exception)
             {
