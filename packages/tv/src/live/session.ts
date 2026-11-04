@@ -1,13 +1,14 @@
 import { signal } from "@preact/signals";
 import { errorMessage, isApiError, SessionStoppedError, unreachable, unreachableReason } from "../api/client";
-import type { LiveBusyConnection, LiveChannel, LiveWatching, ServerEvent } from "../api/types";
+import type { Control, LiveBusyConnection, LiveChannel, LiveWatching, ServerEvent } from "../api/types";
 import { Cancel, NetworkError } from "../net/transport";
 import { HLS_MIME, type EngineStatus, type PlayerEngine } from "../player/engine";
 import type { EngineError } from "../player/recovery";
+import { liveControls, remoteAction, type PlayerCommand } from "../player/remote";
 
 /** What a live player needs of the server (the Api; tests give their own). */
 export interface LiveServer {
-  watchChannel(channelId: number, clientId: string, cancel?: Cancel, takeOver?: number): Promise<LiveWatching>;
+  watchChannel(channelId: number, clientId: string, cancel?: Cancel, takeOver?: number, controls?: Control[]): Promise<LiveWatching>;
   leaveChannel(session: string): Promise<unknown>;
   /** Why a session ended (its connection taken over, say), or null while it goes on. */
   whyLiveEnded(session: string, cancel?: Cancel): Promise<string | null>;
@@ -23,6 +24,12 @@ export interface LiveEnv {
   clientId: string;
   /** The server's events: a channel taken over (`live_taken_over`) is heard before its playlist goes. */
   events: (listener: (e: ServerEvent) => void) => () => void;
+  /**
+   * Channel up (1) or down (-1), in the order the player goes through
+   * them: the user's remote, on another device, does the same with its
+   * next and previous. Without it, the remote can only stop the channel.
+   */
+  step?: (by: 1 | -1) => void;
 }
 
 /**
@@ -59,6 +66,13 @@ export function holders(c: LiveBusyConnection): string {
  */
 export function stoppedTrouble(why: string | null | undefined): Trouble {
   return { kind: "stopped", title: "Live TV stopped", message: why?.trim() || "This channel isn't being watched any more.", canRetry: true };
+}
+
+/** The session stopped from elsewhere (`session_stopped`): who stopped it, and their message on a line of its own when given, as `stoppedText` and Android. */
+export function stoppedSentence(message: string | null, byAdmin: boolean): string {
+  const who = byAdmin ? "Live TV was stopped by the server's administrator." : "Live TV was stopped from another device.";
+  const words = message?.trim();
+  return words ? `${who}\n${words}` : who;
 }
 
 /** The server's answer as a trouble (the web's, with the TVs' words for a server out of reach). */
@@ -123,6 +137,8 @@ export class LiveController {
   private readonly env: LiveEnv;
   private engineRef: PlayerEngine | null = null;
   private session: string | null = null;
+  /** The session watched last, kept once it ends: the server's word of who stopped it may come after its `410`. */
+  private watched: string | null = null;
   private generation = 0;
   private cancel: Cancel | null = null;
   private retries = 0;
@@ -175,20 +191,43 @@ export class LiveController {
    * session (a stream's reader never learns its own), and the server ends
    * every viewer of it, each with an event of its own: the first says so,
    * the others change nothing, unless a `410` without words said so first.
+   * The session stopped from another device or by the server's
+   * administrator (`session_stopped`) stops the same way, saying who and
+   * why. The user's remote changes channel.
    */
   private onEvent(e: ServerEvent): void {
-    if (e.type !== "live_taken_over" || this.closed) return;
+    if (this.closed) return;
+    if (e.type === "player_command") {
+      this.obey(e);
+      return;
+    }
     const st = this.state.value;
-    if (e.channel_id !== st.channel.id) return;
-    const trouble = stoppedTrouble(e.message);
+    let trouble: Trouble;
+    if (e.type === "live_taken_over" && e.channel_id === st.channel.id) trouble = stoppedTrouble(e.message);
+    // Its own session: the one playing, or the one whose end the card already says.
+    else if (e.type === "session_stopped" && e.session_id === (st.phase === "error" ? this.watched : this.session)) trouble = stoppedTrouble(stoppedSentence(e.message, e.by_admin));
+    else return;
     if (st.phase === "error") {
       // Only a card without the server's words takes these: another stop's words stay.
-      if (st.trouble?.kind === "stopped" && e.message && st.trouble.message === stoppedTrouble(null).message) this.patch({ trouble });
+      const wordless = stoppedTrouble(null).message;
+      if (st.trouble?.kind === "stopped" && trouble.message !== wordless && st.trouble.message === wordless) this.patch({ trouble });
       return;
     }
     // Its session is gone on the server: nothing to leave.
     this.session = null;
     this.fail(trouble);
+  }
+
+  /**
+   * A command of the user's remote for the session watched: next and
+   * previous are channel up and down (remote.ts has the rule). The new
+   * channel's watch tells the server, and so the remote.
+   */
+  private obey(command: PlayerCommand): void {
+    const step = this.env.step;
+    if (this.state.value.phase === "error") return;
+    const action = remoteAction({ kind: "live", session: this.session, hasOrder: !!step }, command);
+    if (action.act === "channel") step?.(action.by);
   }
 
   /** The same channel again (Try again). */
@@ -215,7 +254,7 @@ export class LiveController {
     const server = this.env.server;
     let watching: LiveWatching;
     try {
-      watching = await server.watchChannel(channel.id, this.env.clientId, cancel, takeOver);
+      watching = await server.watchChannel(channel.id, this.env.clientId, cancel, takeOver, liveControls(!!this.env.step));
     } catch (e) {
       if (mine === this.generation && !isCancelled(e)) this.fail(troubleOf(e, channel.name));
       return;
@@ -224,7 +263,7 @@ export class LiveController {
       void server.leaveChannel(watching.session_id).catch(() => undefined);
       return;
     }
-    this.session = watching.session_id;
+    this.session = this.watched = watching.session_id;
     this.patch({ channel: { ...channel, ...watching.channel } });
     // An older server's address needs the token, which the TV's player can't send.
     if (!/\/api\/live\/media\//.test(watching.url)) {

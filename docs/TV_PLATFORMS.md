@@ -158,6 +158,33 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
   The card stays when the app is hidden and shown again; nothing is tuned
   until Watch again.
 
+### Remote control
+
+The TV obeys the remote on the profile's other devices (the web app, the
+Android phone app, the Apple apps; [API.md](API.md#remote-control)) and
+shows no remote of its own. Its players say what they obey when they
+start (`controls`) and that they play on a TV (`device_kind: "tv"`); the
+server names the TV from its web engine ("Samsung TV"). They obey:
+
+- **Movies and episodes:** play, pause, seek and skip, and next where
+  something can come next (an episode, a playlist or collection). Next at
+  the end does nothing, and says nothing on the TV; a video has no
+  previous.
+- **Music:** play, pause, seek, skip, next and previous, as the buttons:
+  previous more than 3 s into a track, or on the first, goes back to its
+  start. Music playing behind the other screens obeys too.
+- **Live TV:** next and previous, channel up and down in the order CH+
+  and CH− go through, round the ends. It has no pause or seek. Stopped
+  from another device or by an administrator (`session_stopped`), it
+  shows **Live TV stopped** and says who and why, with Watch again, as for
+  a connection taken over.
+
+Only the player of the session named acts on a command, a seek stays
+within the title, and a skip counts from where it is. Each change is
+reported at once, so the remote sees it; another title, track or channel
+tells the server with its own session. The rule is pinned for every TV
+app by `packages/tv/test/fixtures/remote.json`.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), the rail has
