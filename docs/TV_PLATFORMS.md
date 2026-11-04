@@ -616,9 +616,10 @@ buffering. `speed`, with the video paused, has the TV fetch the stream's
 next segments itself, one at a time as the player does, then the last one
 again (ready on the server, so the network alone), then four at once, and
 marks how long each took to start and how fast it came.
-`wifi` marks the access point the TV is joined to (its BSSID, which tells
-a mesh network's nodes apart) and those of the same network in the TV's
-last scan, with their signal, band and rate; `wifi scan` scans first (the
+`wifi` marks the access point the TV is joined to (by the end of its
+BSSID, which tells a mesh network's nodes apart; not the network's name)
+and those of the same network in the TV's last scan, with their signal,
+band and rate; `wifi scan` scans first (the
 profiling build alone has `network.set` for it), as Tizen lists a network
 once in an ordinary scan, however many access points it has.
 `trace on` keeps the trace going between videos, as a film opens and
