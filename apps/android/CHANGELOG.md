@@ -22,8 +22,6 @@ describes how they are made.
   less to bring in and to draw, rows are made ahead of the screen, and a
   held step waits a frame or two for its row rather than stall the
   picture. A show's page and the guide make their next rows ahead too.
-- On Android TV and Fire TV, the backdrop changes with less of a stutter
-  as focus comes to rest.
 - On Android TV and Fire TV, a held direction key stops at the end of
   the list it moves along, on every page: Up held through Home's rows
   stops on the first row rather than going on to the hero, Down held
