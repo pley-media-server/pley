@@ -54,6 +54,14 @@ pub enum ServerEvent {
         message: Option<String>,
         by_admin: bool,
     },
+    /// The user's remote, on another device, for the player of `session_id`: `position_ms` for a
+    /// seek, `offset_ms` for a skip.
+    PlayerCommand {
+        session_id: String,
+        command: String,
+        position_ms: Option<i64>,
+        offset_ms: Option<i64>,
+    },
     LiveChannelsChanged,
     LiveTunersChanged,
     /// To each viewer a take-over ended: the channel, and why.
@@ -88,6 +96,10 @@ impl ServerEvent {
             }
             ServerEvent::SessionStopped { session_id, message, by_admin } => json!({
                 "type": "session_stopped", "session_id": session_id, "message": message, "by_admin": by_admin,
+            }),
+            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms } => json!({
+                "type": "player_command", "session_id": session_id, "command": command,
+                "position_ms": position_ms, "offset_ms": offset_ms,
             }),
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),

@@ -3,7 +3,8 @@
 //! can't send a token), the sample clips with Range, the sample HLS stream,
 //! subtitles as WebVTT (one track partial the first time) and pictures as
 //! `.mks`, seek previews and chapter pictures, bitrate changes, sessions
-//! stopped from elsewhere (`session_stopped`, then `410`); progress, watched
+//! stopped from elsewhere (`session_stopped`, then `410`), the user's remote
+//! (`player_command`, to what a player said it obeys); progress, watched
 //! marks, ratings, track choices and track defaults, which change what the
 //! profile reads next.
 
@@ -57,6 +58,18 @@ pub(crate) struct PlaySession {
     /// What the stream may use at most, and uses now (kbps; transcodes).
     pub ceiling_kbps: i64,
     pub bitrate_kbps: i64,
+    /// The remote's commands its player obeys, and what it plays on (docs/API.md, "Remote control").
+    pub controls: Vec<String>,
+    pub device_kind: Option<String>,
+}
+
+/// The remote's commands a body's `controls` names; the ones the server doesn't know are left out.
+pub(crate) fn controls_of(controls: &Value) -> Vec<String> {
+    const KNOWN: [&str; 6] = ["play", "pause", "seek", "skip", "next", "previous"];
+    let named = controls.as_array().into_iter().flatten().filter_map(Value::as_str);
+    let mut list: Vec<String> = named.filter(|c| KNOWN.contains(c)).map(str::to_string).collect();
+    list.dedup();
+    list
 }
 
 /// A session the server stopped, and why.
@@ -187,19 +200,12 @@ pub(crate) fn routes() -> Vec<Route> {
         free("GET", "/api/playback/*/*", play, session_file),
         free("GET", "/api/media/*/*", Need::Public, keyed_file),
         locked("DELETE", "/api/sessions/*", play, stop_from_elsewhere),
+        locked("POST", "/api/sessions/*/command", play, command),
         // The fixture server's own (Pley lists sessions in /api/activity, for
-        // its web app): to find one to stop by hand.
+        // its web app): to find one to stop or command by hand.
         locked("GET", "/api/sessions", play, |cx, state| {
             let me = cx.caller().profile;
-            let admin = me == ids::ALEX;
-            let list: Vec<Value> = state
-                .playback
-                .sessions
-                .values()
-                .filter(|s| admin || s.profile == me)
-                .map(|s| json!({ "session_id": s.id, "profile_id": s.profile, "item_id": s.item, "method": s.method }))
-                .collect();
-            Ok(json(200, &json!({ "sessions": list })))
+            Ok(json(200, &json!({ "sessions": listed(state, me, me == ids::ALEX) })))
         }),
         free("GET", "/api/files/*/stream", play, |cx| {
             let (entry, _) = file_of(cx)?;
@@ -636,6 +642,8 @@ fn start(cx: &Cx<'_>, state: &mut State) -> Answer {
             key,
             ceiling_kbps: ceiling,
             bitrate_kbps: ceiling,
+            controls: controls_of(&body["controls"]),
+            device_kind: body["device_kind"].as_str().map(str::to_string),
         },
     );
     cx.shared.events.emit(&ServerEvent::SessionsChanged);
@@ -737,22 +745,34 @@ fn bitrate(cx: &Cx<'_>, state: &mut State) -> Answer {
 }
 
 /// DELETE /api/sessions/{id} with an optional `{ "message" }`: Alex (the
-/// administrator here) stops any session, others their own. The player
-/// hears `session_stopped`; the session answers `410` from then on.
+/// administrator here) stops any session, a live viewer's too, others their
+/// own. The player hears `session_stopped`; the session answers `410` from
+/// then on.
 fn stop_from_elsewhere(cx: &Cx<'_>, state: &mut State) -> Answer {
     let (id, me) = (cx.value(0).to_string(), cx.caller().profile);
     let admin = me == ids::ALEX;
+    let message =
+        cx.req.json().and_then(|b| b["message"].as_str().map(|m| m.trim().to_string())).filter(|m| !m.is_empty());
+    if message.as_ref().is_some_and(|m| m.chars().count() > 200) {
+        return Err(bad_request("the message is longer than 200 characters"));
+    }
+    if let Some((owner, _)) = state.live.viewer(&id) {
+        if owner != me && !admin {
+            return Err(forbidden("not your session"));
+        }
+        state.live.end(&id, message.clone());
+        cx.shared
+            .events
+            .emit_to(owner, &ServerEvent::SessionStopped { session_id: id, message, by_admin: owner != me });
+        cx.shared.events.emit(&ServerEvent::SessionsChanged);
+        return Ok(no_content());
+    }
     let Some(owner) = state.playback.sessions.get(&id).map(|s| s.profile) else {
         let stopped = state.playback.stopped.get(&id).ok_or_else(|| not_found("no such session"))?;
         return if stopped.profile == me || admin { Ok(no_content()) } else { Err(forbidden("not your session")) };
     };
     if owner != me && !admin {
         return Err(forbidden("not your session"));
-    }
-    let message =
-        cx.req.json().and_then(|b| b["message"].as_str().map(|m| m.trim().to_string())).filter(|m| !m.is_empty());
-    if message.as_ref().is_some_and(|m| m.chars().count() > 200) {
-        return Err(bad_request("the message is longer than 200 characters"));
     }
     // Its key keeps answering, with 410.
     if let Some(session) = state.playback.sessions.remove(&id)
@@ -764,6 +784,63 @@ fn stop_from_elsewhere(cx: &Cx<'_>, state: &mut State) -> Answer {
     cx.shared.events.emit_to(owner, &ServerEvent::SessionStopped { session_id: id, message, by_admin: owner != me });
     cx.shared.events.emit(&ServerEvent::SessionsChanged);
     Ok(no_content())
+}
+
+/// The sessions `me` sees in the fixture's own list: their own, or everyone's for an administrator;
+/// videos and music (`kind: "item"`) then live viewers.
+pub(crate) fn listed(state: &State, me: i64, admin: bool) -> Vec<Value> {
+    let mut list: Vec<&PlaySession> = state.playback.sessions.values().filter(|s| admin || s.profile == me).collect();
+    list.sort_by(|a, b| a.id.cmp(&b.id));
+    let mut list: Vec<Value> = list
+        .into_iter()
+        .map(|s| {
+            json!({
+                "session_id": s.id, "kind": "item", "profile_id": s.profile, "item_id": s.item,
+                "method": s.method, "controls": s.controls, "device_kind": s.device_kind,
+            })
+        })
+        .collect();
+    list.extend(state.live.listed(me, admin));
+    list
+}
+
+/// POST /api/sessions/{id}/command `{ command, position_ms?, offset_ms? }` (docs/API.md, "Remote
+/// control"): one of the caller's own players, a video's, the music's or a live viewer's, is sent
+/// `player_command`. Someone else's session is refused, an administrator's request too; a command
+/// its player didn't list answers `409`.
+fn command(cx: &Cx<'_>, state: &mut State) -> Answer {
+    let (id, me) = (cx.value(0).to_string(), cx.caller().profile);
+    let body = cx.req.json().unwrap_or(Value::Null);
+    let command = body["command"].as_str().unwrap_or_default().to_string();
+    if controls_of(&json!([command])).is_empty() {
+        return Err(bad_request("unknown command"));
+    }
+    let (position_ms, offset_ms) = (body["position_ms"].as_i64(), body["offset_ms"].as_i64());
+    match command.as_str() {
+        "seek" if position_ms.is_none_or(|p| p < 0) => return Err(bad_request("seek needs position_ms")),
+        "skip" if offset_ms.is_none_or(|o| o.abs() > 600_000) => return Err(bad_request("skip needs offset_ms")),
+        _ => {}
+    }
+    let (owner, controls) = match state.live.viewer(&id) {
+        Some(viewer) => viewer,
+        None => {
+            let s = state.playback.sessions.get(&id).ok_or_else(|| not_found("no such session"))?;
+            (s.profile, s.controls.clone())
+        }
+    };
+    if owner != me {
+        return Err(forbidden("not your session"));
+    }
+    if !controls.contains(&command) {
+        return Err(json(409, &json!({ "code": "not_controllable", "message": "That player doesn't do that." })));
+    }
+    let (position_ms, offset_ms) = match command.as_str() {
+        "seek" => (position_ms, None),
+        "skip" => (None, offset_ms),
+        _ => (None, None),
+    };
+    cx.shared.events.emit_to(owner, &ServerEvent::PlayerCommand { session_id: id, command, position_ms, offset_ms });
+    Ok(Response::new(202))
 }
 
 /// What a session's address may name: its playlists, segments or file.

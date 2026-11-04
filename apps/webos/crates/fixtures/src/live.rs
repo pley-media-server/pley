@@ -20,6 +20,7 @@ use crate::household::Profile;
 use crate::http::{Body, Response, lock};
 use crate::media::{HLS_SEGMENT_MS, HLS_SEGMENTS};
 use crate::pictures::{Shape, picture};
+use crate::play::controls_of;
 use crate::random::{hex_id, token};
 use crate::server::{
     Answer, Cx, LIBRARY, Need, PLAY, Route, State, bad_request, forbidden, free, json, locked, no_content, not_found,
@@ -136,6 +137,9 @@ struct Viewer {
     /// A stream.ts reader's: set when either end lets go (the reader, or the session ended
     /// here), which ends the other.
     stream: Option<Arc<AtomicBool>>,
+    /// The remote's commands its player obeys (none for a stream.ts reader), and what it plays on.
+    controls: Vec<String>,
+    device_kind: Option<String>,
 }
 
 /// The device a client id is: players read a channel's stream as `<client_id>-stream`, beside
@@ -206,6 +210,8 @@ impl Live {
                 key: None,
                 started_ms: now_ms,
                 stream: None,
+                controls: Vec::new(),
+                device_kind: None,
             },
         );
         live
@@ -276,7 +282,31 @@ impl Live {
         self.sessions.retain(|_, v| !v.stream.as_ref().is_some_and(|s| s.load(Ordering::SeqCst)));
     }
 
-    fn end(&mut self, id: &str, message: Option<String>) {
+    /// Who watches as session `id`, and what its player obeys.
+    pub(crate) fn viewer(&self, id: &str) -> Option<(i64, Vec<String>)> {
+        self.sessions
+            .get(id)
+            .filter(|v| !v.stream.as_ref().is_some_and(|s| s.load(Ordering::SeqCst)))
+            .map(|v| (v.profile, v.controls.clone()))
+    }
+
+    /// The viewers `me` sees in the fixture's own session list: their own, or everyone's for an
+    /// administrator.
+    pub(crate) fn listed(&self, me: i64, admin: bool) -> Vec<Value> {
+        let mut list: Vec<(&String, &Viewer)> =
+            self.sessions.iter().filter(|(_, v)| admin || v.profile == me).collect();
+        list.sort_by_key(|(id, v)| (v.started_ms, id.as_str()));
+        list.into_iter()
+            .map(|(id, v)| {
+                json!({
+                    "session_id": id, "kind": "live", "profile_id": v.profile, "channel_id": v.channel,
+                    "controls": v.controls, "device_kind": v.device_kind,
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn end(&mut self, id: &str, message: Option<String>) {
         if let Some(viewer) = self.sessions.remove(id) {
             if let Some(key) = viewer.key {
                 self.keys.insert(key, id.to_string());
@@ -595,12 +625,17 @@ fn favorite(cx: &Cx<'_>, state: &mut State, on: bool) -> Answer {
     Ok(no_content())
 }
 
-/// POST /api/live/channels/{id}/watch `{ client_id?, keyed_urls?, take_over? }`.
+/// POST /api/live/channels/{id}/watch `{ client_id?, keyed_urls?, take_over?, controls?, device_kind? }`.
 fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
     let body = cx.req.json().unwrap_or(Value::Null);
     let client = body["client_id"].as_str().filter(|c| (1..=128).contains(&c.len())).map(str::to_string);
     let keyed = body["keyed_urls"].as_bool().unwrap_or(false);
-    let (session, url, id) = start_watching(cx, state, client, keyed, body["take_over"].as_i64(), None)?;
+    let player = Player {
+        controls: controls_of(&body["controls"]),
+        device_kind: body["device_kind"].as_str().map(str::to_string),
+        stream: None,
+    };
+    let (session, url, id) = start_watching(cx, state, client, keyed, body["take_over"].as_i64(), player)?;
     let profile = state.profile(cx.caller().profile);
     let channel = state.live.channel(id).expect("checked");
     Ok(json(
@@ -609,7 +644,7 @@ fn watch(cx: &Cx<'_>, state: &mut State) -> Answer {
     ))
 }
 
-/// GET /api/live/channels/{id}/stream.ts `?client_id=&take_over=`: the channel's MPEG-TS for as
+/// GET /api/live/channels/{id}/stream.ts `?client_id=&take_over=&device_kind=`: the channel's MPEG-TS for as
 /// long as it is read, a session of its own (the server's `livetv::stream`): here the sample
 /// segments one after another, each when its time comes.
 fn stream(cx: &Cx<'_>) -> Answer {
@@ -622,7 +657,13 @@ fn stream(cx: &Cx<'_>) -> Answer {
     let gone = Arc::new(AtomicBool::new(false));
     {
         let mut state = lock(&cx.shared.state);
-        start_watching(cx, &mut state, client, false, take_over, Some(gone.clone()))?;
+        // A reader that watches by itself obeys no remote.
+        let player = Player {
+            controls: Vec::new(),
+            device_kind: cx.query("device_kind").map(str::to_string),
+            stream: Some(gone.clone()),
+        };
+        start_watching(cx, &mut state, client, false, take_over, player)?;
     }
     let end = StreamEnd(gone);
     let run = move |out: &mut crate::http::ChunkWriter<'_>| {
@@ -648,16 +689,25 @@ fn stream(cx: &Cx<'_>) -> Answer {
         .with_body(Body::Stream(Box::new(run))))
 }
 
+/// What a viewer's player said of itself.
+struct Player {
+    controls: Vec<String>,
+    device_kind: Option<String>,
+    /// A stream.ts reader's flag.
+    stream: Option<Arc<AtomicBool>>,
+}
+
 /// Starts the caller watching the channel of the path, as `watch` and `stream.ts` both do: the
-/// session, its playlist's address and the channel. `stream`: a stream.ts reader's flag.
+/// session, its playlist's address and the channel.
 fn start_watching(
     cx: &Cx<'_>,
     state: &mut State,
     client: Option<String>,
     keyed: bool,
     take_over: Option<i64>,
-    stream: Option<Arc<AtomicBool>>,
+    player: Player,
 ) -> Result<(String, String, i64), Response> {
+    let Player { controls, device_kind, stream } = player;
     open(cx, state)?;
     let id = channel(cx, state)?.id;
     let me = cx.caller().profile;
@@ -750,7 +800,16 @@ fn start_watching(
     }
     live.sessions.insert(
         session.clone(),
-        Viewer { profile: me, channel: id, client_id: client, key, started_ms: cx.now_ms(), stream },
+        Viewer {
+            profile: me,
+            channel: id,
+            client_id: client,
+            key,
+            started_ms: cx.now_ms(),
+            stream,
+            controls,
+            device_kind,
+        },
     );
     let profile = state.profile_mut(me);
     profile.live_recent.retain(|c| *c != id);

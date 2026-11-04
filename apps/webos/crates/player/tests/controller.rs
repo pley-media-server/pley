@@ -12,8 +12,8 @@ use std::sync::Arc;
 use common::*;
 use pley_core::media::MediaKind;
 use pley_core::model::{
-    AudioChoice, ClientCaps, DynamicRange, PlaybackMethod, PlaybackMode, PlaybackRequest, ServerEvent, SubtitleResult,
-    SubtitleTrack,
+    AudioChoice, ClientCaps, Control, DeviceKind, DynamicRange, ItemKind, ItemSummary, PlaybackMethod, PlaybackMode,
+    PlaybackRequest, ServerEvent, SubtitleResult, SubtitleTrack,
 };
 use pley_player::autoquality::Remembered;
 use pley_player::controller::{Phase, SubtitleSearch};
@@ -90,7 +90,7 @@ fn tracks_picked_say_whether_the_audio_is_a_pick() {
 }
 
 #[test]
-fn the_play_request_asks_for_keyed_addresses_and_sends_the_caps() {
+fn the_play_request_asks_for_keyed_addresses_says_it_plays_on_a_tv_and_sends_the_caps() {
     let req = playback_request(70, &choices(|_| ()), "webos-abc", Some(&lg()), true);
     let want = PlaybackRequest {
         item_id: 70,
@@ -100,6 +100,7 @@ fn the_play_request_asks_for_keyed_addresses_and_sends_the_caps() {
         client_id: Some("webos-abc".into()),
         caps: lg(),
         keyed_urls: true,
+        device_kind: Some(DeviceKind::Tv),
         ..PlaybackRequest::default()
     };
     assert_eq!(req, want);
@@ -285,6 +286,114 @@ fn stops_for_good_when_the_server_stops_the_session_keeping_the_resume_point() {
     assert!(message.contains("Bedtime"));
     assert!(w.c.state().stopped_by_server);
     assert!(w.fake.calls().iter().all(|c| !c.starts_with("delete")));
+}
+
+// ---- the user's remote, on another device
+
+fn command(session: &str, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
+    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms }
+}
+
+/// The progress reports said since the last look.
+fn reports_since(w: &World, from: usize) -> Vec<String> {
+    w.fake.calls().into_iter().filter(|c| c.starts_with("progress")).skip(from).collect()
+}
+
+fn reports_so_far(w: &World) -> usize {
+    reports_since(w, 0).len()
+}
+
+#[test]
+fn a_video_says_what_the_remote_may_do_and_obeys_it_on_its_own_session_reporting_at_once() {
+    let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
+    w.start();
+    w.open();
+    // A film alone has nothing next: no next for the remote.
+    let req = w.fake.requests()[0].clone();
+    assert_eq!(req.controls, [Control::Play, Control::Pause, Control::Seek, Control::Skip]);
+    assert_eq!(req.device_kind, Some(DeviceKind::Tv));
+
+    // Someone else's session: nothing.
+    let before = reports_so_far(&w);
+    w.c.server_event(&command("s2", Control::Pause, None, None));
+    w.settle();
+    assert_eq!(w.c.state().phase, Phase::Playing);
+    assert_eq!(reports_so_far(&w), before);
+
+    w.c.server_event(&command("s1", Control::Pause, None, None));
+    w.settle();
+    assert_eq!(w.c.state().phase, Phase::Paused);
+    assert_eq!(reports_since(&w, before), ["progress paused 600000"]);
+    // Paused already: said again at once, so a remote a little behind settles.
+    w.c.server_event(&command("s1", Control::Pause, None, None));
+    w.settle();
+    assert_eq!(reports_since(&w, before), ["progress paused 600000", "progress paused 600000"]);
+    w.c.server_event(&command("s1", Control::Play, None, None));
+    w.settle();
+    assert_eq!(w.c.state().phase, Phase::Playing);
+    assert_eq!(reports_since(&w, before + 2), ["progress playing 600000"]);
+
+    // A seek reports at once where it went, not a second later; past the end it stops short of it.
+    w.c.server_event(&command("s1", Control::Seek, Some(1_200_000), None));
+    w.settle();
+    assert_eq!(reports_since(&w, before + 3), ["progress playing 1200000"]);
+    assert_eq!(w.sim.position(), 1_200_000);
+    w.advance(1_500);
+    assert_eq!(reports_since(&w, before + 3).len(), 1, "the seek reported twice");
+    let at = w.sim.position() as i64;
+    w.c.server_event(&command("s1", Control::Skip, None, Some(-10_000)));
+    w.settle();
+    assert_eq!(w.sim.position() as i64, at - 10_000);
+    w.c.server_event(&command("s1", Control::Seek, Some(9_000_000), None));
+    w.settle();
+    assert_eq!(w.sim.position(), 7_200_000 - 250);
+
+    // Nothing next, and no previous on a video: nothing, and nothing said on the TV.
+    let before = reports_so_far(&w);
+    w.c.server_event(&command("s1", Control::Next, None, None));
+    w.c.server_event(&command("s1", Control::Previous, None, None));
+    w.settle();
+    assert_eq!(reports_so_far(&w), before);
+    assert!(w.fake.questions().iter().all(|q| q != "next"));
+    assert!(w.notices.is_empty(), "{:?}", w.notices);
+    assert_eq!(w.fake.requests().len(), 1);
+}
+
+#[test]
+fn an_episodes_next_from_the_remote_plays_the_next_and_its_last_says_nothing_on_the_tv() {
+    let mut detail = item(file());
+    detail.summary.kind = ItemKind::Episode;
+    let fake = Fake::new(detail, |req| info(|i| i.session_id = format!("s{}", req.item_id)));
+    let mut w = World::new(fake, |_| ());
+    w.start();
+    w.open();
+    assert_eq!(w.fake.requests()[0].controls.last(), Some(&Control::Next));
+    // The last episode: the remote's next finds nothing, and says nothing here.
+    w.c.server_event(&command("s70", Control::Next, None, None));
+    w.settle();
+    assert!(w.fake.questions().iter().any(|q| q == "next"));
+    assert!(w.notices.is_empty(), "{:?}", w.notices);
+    assert_eq!(w.fake.requests().len(), 1);
+    // With one after it, it plays that.
+    w.fake.set_next(Some(ItemSummary { id: 71, kind: ItemKind::Episode, ..ItemSummary::default() }));
+    w.c.server_event(&command("s70", Control::Next, None, None));
+    w.settle();
+    assert_eq!(w.fake.requests().last().map(|r| r.item_id), Some(71));
+}
+
+#[test]
+fn a_video_stopped_or_in_trouble_obeys_nothing() {
+    let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
+    w.start();
+    w.open();
+    w.c.server_event(&ServerEvent::SessionStopped { session_id: "s1".into(), message: None, by_admin: false });
+    w.settle();
+    let before = w.fake.calls().len();
+    w.c.server_event(&command("s1", Control::Play, None, None));
+    w.c.server_event(&command("s1", Control::Seek, Some(0), None));
+    w.settle();
+    assert_eq!(w.fake.calls().len(), before);
+    assert!(matches!(w.c.state().phase, Phase::Error { .. }));
 }
 
 #[test]

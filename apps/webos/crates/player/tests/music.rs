@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use common::*;
 use pley_base::Waker;
 use pley_core::CapsReport;
-use pley_core::model::{ItemKind, ItemSummary, PlaybackMethod, PlaybackMode, ServerEvent};
+use pley_core::model::{Control, DeviceKind, ItemKind, ItemSummary, PlaybackMethod, PlaybackMode, ServerEvent};
 use pley_core::task::Tasks;
 use pley_player::Reporter;
 use pley_player::env::PlayerEnv;
@@ -248,4 +248,109 @@ fn a_session_the_server_stops_stops_the_music() {
     assert_eq!(w.m.now_playing().and_then(|n| n.error), Some(MusicError::Stopped));
     w.m.stop();
     assert!(w.m.now_playing().is_none());
+}
+
+fn command(session: &str, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
+    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms }
+}
+
+#[test]
+fn music_says_it_obeys_the_whole_remote_and_does_as_its_buttons_reporting_at_once() {
+    let mut w = Music::new();
+    w.m.play(vec![track(1), track(2), track(3)], 1, false);
+    w.settle();
+    w.advance(SIM_LOAD_MS + 10_000);
+    let req = w.fake.requests()[0].clone();
+    assert_eq!(
+        req.controls,
+        [Control::Play, Control::Pause, Control::Seek, Control::Skip, Control::Next, Control::Previous]
+    );
+    assert_eq!(req.device_kind, Some(DeviceKind::Tv));
+    assert_eq!(w.m.session_id(), Some("m2"));
+    let progress = |w: &Music| w.calls().into_iter().filter(|c| c.starts_with("progress")).collect::<Vec<_>>();
+    let before = progress(&w).len();
+
+    // Someone else's session: nothing.
+    w.m.server_event(&command("m9", Control::Pause, None, None));
+    w.settle();
+    assert!(w.m.now_playing().unwrap().playing);
+    // A pause reports as any pause does, and a pause on a pause says so again.
+    w.m.server_event(&command("m2", Control::Pause, None, None));
+    w.settle();
+    assert!(!w.m.now_playing().unwrap().playing);
+    w.m.server_event(&command("m2", Control::Pause, None, None));
+    w.settle();
+    assert_eq!(progress(&w)[before..], ["progress paused 10000", "progress paused 10000"]);
+    w.m.server_event(&command("m2", Control::Play, None, None));
+    w.settle();
+    assert!(w.m.now_playing().unwrap().playing);
+    assert_eq!(progress(&w)[before + 2..], ["progress playing 10000"]);
+    // A seek in place reports where it went at once; a skip counts from where it is.
+    w.m.server_event(&command("m2", Control::Seek, Some(120_000), None));
+    w.settle();
+    assert_eq!(progress(&w)[before + 3..], ["progress playing 120000"]);
+    w.m.server_event(&command("m2", Control::Skip, None, Some(-30_000)));
+    w.settle();
+    assert_eq!(w.m.position_ms(), 90_000);
+    // Previous past 3 s starts the track again; within them, the one before.
+    w.m.server_event(&command("m2", Control::Previous, None, None));
+    w.settle();
+    assert_eq!((w.m.now_playing().unwrap().index, w.m.position_ms()), (1, 0));
+    w.m.server_event(&command("m2", Control::Previous, None, None));
+    w.settle();
+    assert_eq!(w.m.now_playing().unwrap().index, 0);
+    assert_eq!(w.fake.requests().last().map(|r| r.item_id), Some(1));
+    // Next plays the next, with a session of its own; the old one's commands do nothing.
+    w.m.server_event(&command("m1", Control::Next, None, None));
+    w.settle();
+    assert_eq!(w.m.now_playing().unwrap().index, 1);
+    w.m.server_event(&command("m1", Control::Next, None, None));
+    w.settle();
+    assert_eq!(w.m.now_playing().unwrap().index, 1);
+}
+
+/// A track opening counts as playing, as Android's `playWhenReady` does: the remote that sees its
+/// session at once can pause it before it plays.
+#[test]
+fn a_remote_pause_while_the_track_opens_opens_it_paused() {
+    let mut w = Music::new();
+    w.m.play(vec![track(1)], 0, false);
+    w.settle();
+    assert_eq!(w.m.session_id(), Some("m1"));
+    assert!(w.m.now_playing().is_some_and(|n| n.loading && !n.playing), "the track had already opened");
+    let progress = |w: &Music| w.calls().into_iter().filter(|c| c.starts_with("progress")).collect::<Vec<_>>();
+    // Play finds it playing, and says so again.
+    w.m.server_event(&command("m1", Control::Play, None, None));
+    w.settle();
+    assert_eq!(progress(&w), ["progress playing 0"]);
+    // Pause says so at once, and it opens paused.
+    w.m.server_event(&command("m1", Control::Pause, None, None));
+    w.settle();
+    assert_eq!(progress(&w)[1..], ["progress paused 0"]);
+    w.advance(SIM_LOAD_MS + 2_000);
+    let now = w.m.now_playing().unwrap();
+    assert_eq!((now.playing, now.loading), (false, false), "it played, or still says it loads");
+    assert!(w.m.position_ms() < 1_000);
+    // Play then plays it.
+    w.m.server_event(&command("m1", Control::Play, None, None));
+    w.settle();
+    assert!(w.m.now_playing().unwrap().playing);
+    assert_eq!(progress(&w).last().map(String::as_str), Some("progress playing 0"));
+}
+
+#[test]
+fn music_obeys_nothing_once_it_gave_way_or_was_stopped() {
+    let mut w = Music::new();
+    w.m.play(vec![track(1), track(2)], 0, false);
+    w.settle();
+    w.advance(SIM_LOAD_MS + 4_000);
+    w.m.yield_to_video();
+    w.settle();
+    assert_eq!(w.m.session_id(), None);
+    let before = w.calls().len();
+    w.m.server_event(&command("m1", Control::Play, None, None));
+    w.m.server_event(&command("m1", Control::Next, None, None));
+    w.settle();
+    assert_eq!(w.calls().len(), before);
+    assert_eq!(w.m.now_playing().map(|n| (n.index, n.playing)), Some((0, false)));
 }
