@@ -57,5 +57,7 @@
         <!-- Under what failed with nothing to show. -->
         <ButtonGroup id="retry" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1056, 640]" minWidth="320" visible="false" />
         <Label id="hint" translation="[576, 1036]" width="1280" horizAlign="right" color="0x8B95A5FF" font="font:TinySystemFont" />
+        <!-- What's on moves on. -->
+        <Timer id="clock" duration="15" repeat="true" />
     </children>
 </component>

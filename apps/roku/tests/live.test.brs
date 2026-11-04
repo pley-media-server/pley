@@ -170,6 +170,17 @@ sub test_live_now_and_next()
     tkEqual(liveTimeLeft({ start: 0, ends: 10 }, 0), "1 min left")
 end sub
 
+sub test_live_whats_on_moves_on()
+    channels = liveChannels(liveSample(), "")
+    tkFalse(liveNowEnded(channels, 0, 3, 1500), "on now still")
+    tkTrue(liveNowEnded(channels, 0, 3, 2000), "a programme listed as on now ended")
+    tkFalse(liveNowEnded(channels, 2, 3, 2500), "a channel without a guide has nothing to end")
+    tkTrue(liveNowEnded(channels, -5, 99, 2500), "from and upto kept within the channels")
+    tkTrue(liveMayRefresh(-1, 100))
+    tkFalse(liveMayRefresh(1000, 60000), "within a minute")
+    tkTrue(liveMayRefresh(1000, 61000))
+end sub
+
 sub test_live_clock_text()
     tkEqual(liveClockText(20, 5, true), "8:05 PM")
     tkEqual(liveClockText(0, 30, true), "12:30 AM")

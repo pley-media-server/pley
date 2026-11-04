@@ -323,6 +323,12 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   forward move two hours, Play goes back to now. OK on what's on watches
   the channel; on a later programme it shows its details.
 - **Channels:** the other tab, as cards with what's on and what's next.
+- **What's on moves on** each 15 s: the programme above the guide, the
+  cards in view and the player's banner and list show how far along it
+  is. Once a programme listed as on now has ended, the cards in view are
+  asked for again, and in the player the channel playing
+  (`GET /api/live/channels/{id}`), each at most once a minute. The guide's
+  programmes come six hours ahead, so the guide itself needs nothing new.
 - **Back** goes up a step at a time: the guide back to now (when another
   time shows, or a programme not on now has focus), a search back to the
   category before, the guide or the cards to the categories, then out of

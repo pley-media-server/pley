@@ -25,6 +25,7 @@ sub init()
     m.cards = m.top.findNode("cards")
     m.message = m.top.findNode("message")
     m.retry = m.top.findNode("retry")
+    m.clock = m.top.findNode("clock")
     m.hint = m.top.findNode("hint")
     m.started = false
     m.twelve = CreateObject("roDeviceInfo").GetClockFormat() <> "24h"
@@ -68,6 +69,8 @@ sub init()
     m.retryAround = 0
     m.failedAt = -1
     m.span = CreateObject("roTimespan")
+    ' When what's on in the cards was last asked for again (m.span's ms).
+    m.refreshedAt = -1
     m.retry.buttons = ["Try again"]
     m.retry.observeField("buttonSelected", "onRetry")
     m.tabs.chips = [{ label: "Guide", width: 208 }, { label: "Channels", width: 208 }]
@@ -80,10 +83,13 @@ sub init()
     m.guide.observeField("leftEdgeTargetTime", "onLeftEdge")
     m.cards.observeField("itemSelected", "onCardSelected")
     m.cards.observeField("itemFocused", "onCardFocused")
+    m.clock.observeField("fire", "onClock")
     m.top.observeField("active", "onActive")
 end sub
 
 sub onActive()
+    m.clock.control = "stop"
+    if m.top.active then m.clock.control = "start"
     if not m.top.active
         m.lastFocus = m.rail
         if m.tabs.isInFocusChain() then m.lastFocus = m.tabs
@@ -836,6 +842,59 @@ sub onCardFocused(event as object)
         if offset < 0 then offset = 0
         loadCards(offset, 0, true, false)
     end if
+end sub
+
+' The cards around the one in focus (those in view, and a few rows either
+' side): [from, upto) of m.cardChannels.
+function cardsInView() as object
+    from = m.cards.itemFocused - 24
+    if from < 0 then from = 0
+    upto = from + livePageSize()
+    if upto > m.cardChannels.Count() then upto = m.cardChannels.Count()
+    return { from: from, upto: upto }
+end function
+
+' Each 15 s, what's on moves on: above the guide, the programme in focus
+' (its time left); on the cards in view, how far along, and once a
+' programme listed as on now has ended, those cards asked for again (the
+' guide's programmes are fetched hours ahead).
+sub onClock()
+    if m.guide.visible then showProgram()
+    if not m.cards.visible or m.cards.content = invalid then return
+    now = nowSeconds()
+    shown = cardsInView()
+    for i = shown.from to shown.upto - 1
+        item = m.cards.content.getChild(i)
+        if item <> invalid
+            card = liveCard(m.cardChannels[i], now, m.twelve)
+            if item.line <> card.line then item.line = card.line
+            if item.nextLine <> card.nextLine then item.nextLine = card.nextLine
+            if Abs(item.progress - card.progress) > 0.001 then item.progress = card.progress
+        end if
+    end for
+    ms = m.span.TotalMilliseconds()
+    if not liveNowEnded(m.cardChannels, shown.from, shown.upto, now) or not liveMayRefresh(m.refreshedAt, ms) then return
+    m.refreshedAt = ms
+    uiRequest({ op: "livePage", kind: "cards", category: m.view.category, offset: m.cardsFrom + shown.from, limit: shown.upto - shown.from, around: 0, cardsFrom: m.cardsFrom }, "onCardsRefreshed")
+end sub
+
+' The cards asked for again: each, where it still is, with what's on now.
+sub onCardsRefreshed(event as object)
+    request = event.getRoSGNode()
+    spec = request.spec
+    answer = event.getData()
+    if not answer.ok or request.content = invalid or m.cards.content = invalid then return
+    if m.view.tab <> "channels" or spec.category <> m.view.category or spec.cardsFrom <> m.cardsFrom then return
+    data = answer.data
+    for i = 0 to data.channels.Count() - 1
+        at = data.offset - m.cardsFrom + i
+        if at >= 0 and at < m.cardChannels.Count() and m.cardChannels[at].id = data.channels[i].id
+            m.cardChannels[at] = data.channels[i]
+            fresh = request.content.getChild(i)
+            item = m.cards.content.getChild(at)
+            if fresh <> invalid and item <> invalid then item.setFields({ line: fresh.line, progress: fresh.progress, nextLine: fresh.nextLine, favorite: fresh.favorite })
+        end if
+    end for
 end sub
 
 sub onCardSelected(event as object)

@@ -416,6 +416,25 @@ function liveOnNow(channel as object, now as integer) as dynamic
     return invalid
 end function
 
+' Whether a programme listed as on now has ended on one of channels,
+' from index from to upto - 1 (those in view): what they show is then
+' asked for again, as on Android.
+function liveNowEnded(channels as object, from as integer, upto as integer, now as integer) as boolean
+    if from < 0 then from = 0
+    if upto > channels.Count() then upto = channels.Count()
+    for i = from to upto - 1
+        p = channels[i].now
+        if p <> invalid and p.ends <= now then return true
+    end for
+    return false
+end function
+
+' What's on is asked for again at most once a minute (askedAt and nowMs
+' in ms; askedAt -1 for never), the guide having nothing new at times.
+function liveMayRefresh(askedAt as integer, nowMs as integer) as boolean
+    return askedAt < 0 or nowMs - askedAt >= 60000
+end function
+
 ' What comes on next: the first of now and after that hasn't begun.
 function liveComingUp(channel as object, now as integer) as dynamic
     for each p in [channel.now, channel.after]

@@ -75,6 +75,8 @@ sub init()
     m.failedPage = invalid
     m.failedAt = -1
     m.span = CreateObject("roTimespan")
+    ' When the channel playing was last asked for again (m.span's ms).
+    m.refreshedAt = -1
     ' Which tuning the answers belong to, the watch asked for last (until
     ' it answers), the session and its playlist.
     m.attempt = 0
@@ -663,9 +665,48 @@ sub onBannerTimer()
     if m.zapTo = invalid then hideBanner()
 end sub
 
-' Each 15 s: what's on moves on.
+' Each 15 s: what's on moves on, on the banner and in the list; once the
+' programme listed as on now has ended, the channel playing is asked for
+' again (GET /api/live/channels/{id}), at most once a minute.
 sub onClock()
     if m.banner.visible then showBanner(false)
+    if m.list.visible then redrawList()
+    if m.channel = invalid or not liveNowEnded([m.channel], 0, 1, nowSeconds()) then return
+    ms = m.span.TotalMilliseconds()
+    if not liveMayRefresh(m.refreshedAt, ms) then return
+    m.refreshedAt = ms
+    uiRequest({ method: "GET", path: "/api/live/channels/" + urlValue(m.channel.id), channelId: m.channel.id }, "onChannelFresh")
+end sub
+
+sub onChannelFresh(event as object)
+    answer = event.getData()
+    if not answer.ok or m.channel = invalid then return
+    fresh = liveChannel(answer.data, m.global.session.server, liveLogoWidth(), m.category)
+    if fresh = invalid or fresh.id <> m.channel.id then return
+    m.channel = fresh
+    if m.page <> invalid
+        at = liveIndexOf(m.page.channels, fresh.id)
+        if at >= 0 then m.page.channels[at] = fresh
+    end if
+    if m.banner.visible then showBanner(false)
+    if m.list.visible then redrawList()
+    ' Radio shows what's on in its card.
+    if m.played and m.card.visible then showCard(m.channel, "radio")
+end sub
+
+' The list's channels, what's on each and how far along.
+sub redrawList()
+    content = m.channelList.content
+    if m.page = invalid or content = invalid then return
+    now = nowSeconds()
+    for i = 0 to m.page.channels.Count() - 1
+        item = content.getChild(i)
+        if item <> invalid
+            row = liveListItem(m.page.channels[i], now, m.twelve)
+            if item.line <> row.line then item.line = row.line
+            if Abs(item.progress - row.progress) > 0.001 then item.progress = row.progress
+        end if
+    end for
 end sub
 
 sub showToast(text as string)
