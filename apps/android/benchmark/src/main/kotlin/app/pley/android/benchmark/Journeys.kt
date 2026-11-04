@@ -321,11 +321,17 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
         if (!signedIn) signIn()
     }
 
-    /** The app started again, cold: the demo's household of three asks Who's watching? first. */
+    /**
+     * The app started again, cold: the demo's household of three asks Who's
+     * watching? first. Signed out, it signs in again: on older Android
+     * versions (Fire OS 7) Macrobenchmark reinstalls the app between tests
+     * to reset its compilation, and its data goes with it.
+     */
     fun restart() {
         scope.killProcess()
         scope.startActivityAndWait(tvIntent())
-        awaitAny("Who's watching? or Home at a cold start", START_MS, By.res(Tags.TV_PROFILES), By.res(Tags.HOME_ROWS))
+        awaitAny("Who's watching? or Home at a cold start", START_MS, By.res(Tags.TV_PROFILES), By.res(Tags.HOME_ROWS), By.res(Tags.TV_SERVERS))
+        if (device.hasObject(By.res(Tags.TV_SERVERS))) signIn()
     }
 
     /** On Who's watching?, [name] chosen with the D-pad, then Home; nothing to do where Home shows already. */
