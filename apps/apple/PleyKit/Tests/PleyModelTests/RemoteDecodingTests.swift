@@ -70,6 +70,33 @@ struct RemoteDecodingTests {
             == ["command": "seek", "position_ms": 5_000])
         #expect(try object(PlayerCommand.skip(byMs: -10_000)) as? [String: AnyHashable]
             == ["command": "skip", "offset_ms": -10_000])
+        #expect(try object(PlayerCommand.audio(2)) as? [String: AnyHashable]
+            == ["command": "audio", "stream_index": 2])
+        // No subtitles: -1.
+        #expect(try object(PlayerCommand.subtitles(nil)) as? [String: AnyHashable]
+            == ["command": "subtitles", "stream_index": -1])
+        #expect(try object(PlayerCommand.subtitles(1000)) as? [String: AnyHashable]
+            == ["command": "subtitles", "stream_index": 1000])
+    }
+
+    @Test func aTrackCommandAsAnEvent() {
+        func event(_ json: String) -> ServerEvent? { ServerEvent.parse(Data(json.utf8)) }
+        #expect(event(#"{"type":"player_command","session_id":"a1","command":"audio","position_ms":null,"offset_ms":null,"stream_index":2}"#)
+            == .playerCommand(sessionId: "a1", command: .audio(2)))
+        #expect(event(#"{"type":"player_command","session_id":"a1","command":"subtitles","position_ms":null,"offset_ms":null,"stream_index":-1}"#)
+            == .playerCommand(sessionId: "a1", command: .subtitles(nil)))
+        // An older server's event, without the field, reads as before.
+        #expect(event(#"{"type":"player_command","session_id":"a1","command":"pause","position_ms":null,"offset_ms":null}"#)
+            == .playerCommand(sessionId: "a1", command: .pause))
+    }
+
+    @Test func reportsSayTheTracksPlaying() throws {
+        let report = try object(ProgressReport(positionMs: 5_000, state: .playing, sessionId: "a1", audioIndex: 2,
+                                               subtitleIndex: SessionTracks.off))
+        #expect(report["audio_index"] as? Int == 2 && report["subtitle_index"] as? Int == -1)
+        // Left out where nothing is said (music, a download).
+        let music = try object(ProgressReport(positionMs: 5_000, sessionId: "a1"))
+        #expect(music["audio_index"] == nil && music["subtitle_index"] == nil)
     }
 
     @Test func playRequestsSayWhatThePlayerObeysAndWhereItIs() throws {

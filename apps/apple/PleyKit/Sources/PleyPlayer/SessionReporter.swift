@@ -74,6 +74,10 @@ public final class ServerPlaybackSession {
     public private(set) var ended = false
     /// Hears what a report's answer said about the session.
     public var onAnswer: (@MainActor (ReportAnswer) -> Void)?
+    /// The tracks its player plays now, by stream index (subtitles
+    /// `SessionTracks.off`: none), which each report carries for the
+    /// profile's remotes; `nil`: its reports say none (music).
+    public var tracks: (@MainActor () -> (audio: Int?, subtitle: Int?))?
 
     private let api: PleyAPI
     private let reporter: SessionReporter
@@ -156,8 +160,10 @@ public final class ServerPlaybackSession {
     }
 
     private func report(_ positionMs: Int, _ state: ProgressState) -> ProgressReport {
-        ProgressReport(positionMs: max(positionMs, 0), durationMs: info.durationMs > 0 ? info.durationMs : nil,
-                       state: state, sessionId: local ? nil : id)
+        let playing = tracks?()
+        return ProgressReport(positionMs: max(positionMs, 0), durationMs: info.durationMs > 0 ? info.durationMs : nil,
+                              state: state, sessionId: local ? nil : id, audioIndex: playing?.audio,
+                              subtitleIndex: playing?.subtitle)
     }
 
     /// Queues `report`. A `paused` or `stopped` one that can't reach the

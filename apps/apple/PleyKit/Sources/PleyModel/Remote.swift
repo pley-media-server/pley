@@ -17,20 +17,28 @@ public struct Control: WireValue {
     public static let next = Control(rawValue: "next")
     /// The track before; on Live TV, the channel before. Videos have none.
     public static let previous = Control(rawValue: "previous")
+    /// Another of the file's audio tracks (`stream_index`).
+    public static let audio = Control(rawValue: "audio")
+    /// Other subtitles of the file (`stream_index`), or none.
+    public static let subtitles = Control(rawValue: "subtitles")
 }
 
 /// One command: the body of `POST /api/sessions/{id}/command`, and what
 /// the player hears of it in `player_command`. `seek` carries
-/// `positionMs`, `skip` `offsetMs` (back when negative), the others neither.
+/// `positionMs`, `skip` `offsetMs` (back when negative), `audio` and
+/// `subtitles` `streamIndex` (`SessionTracks.off`: no subtitles), the
+/// others none.
 public struct PlayerCommand: Codable, Hashable, Sendable {
     public var command: Control
     public var positionMs: Int?
     public var offsetMs: Int?
+    public var streamIndex: Int?
 
-    public init(_ command: Control, positionMs: Int? = nil, offsetMs: Int? = nil) {
+    public init(_ command: Control, positionMs: Int? = nil, offsetMs: Int? = nil, streamIndex: Int? = nil) {
         self.command = command
         self.positionMs = positionMs
         self.offsetMs = offsetMs
+        self.streamIndex = streamIndex
     }
 
     public static let play = PlayerCommand(.play)
@@ -40,6 +48,12 @@ public struct PlayerCommand: Codable, Hashable, Sendable {
 
     public static func seek(toMs positionMs: Int) -> PlayerCommand { PlayerCommand(.seek, positionMs: positionMs) }
     public static func skip(byMs offsetMs: Int) -> PlayerCommand { PlayerCommand(.skip, offsetMs: offsetMs) }
+    /// The audio track of stream index `index`.
+    public static func audio(_ index: Int) -> PlayerCommand { PlayerCommand(.audio, streamIndex: index) }
+    /// The subtitles of stream index `index`; `nil`: none.
+    public static func subtitles(_ index: Int?) -> PlayerCommand {
+        PlayerCommand(.subtitles, streamIndex: index ?? SessionTracks.off)
+    }
 }
 
 /// What a session plays: a title of the library, or a Live TV channel.
@@ -88,6 +102,78 @@ public struct PlayingChannel: Codable, Hashable, Sendable {
     }
 }
 
+/// One of a title's tracks a remote picks from, as a session lists them.
+public struct TrackOption: Codable, Hashable, Sendable, Identifiable {
+    /// The stream index commands and reports name.
+    public var index: Int
+    /// "eng".
+    public var language: String?
+    public var title: String?
+    /// "eac3", "subrip".
+    public var codec: String?
+    /// Audio only.
+    public var channels: Int?
+    public var `default`: Bool
+    public var forced: Bool
+
+    public var id: Int { index }
+
+    public init(index: Int, language: String? = nil, title: String? = nil, codec: String? = nil,
+                channels: Int? = nil, default: Bool = false, forced: Bool = false) {
+        self.index = index
+        self.language = language
+        self.title = title
+        self.codec = codec
+        self.channels = channels
+        self.default = `default`
+        self.forced = forced
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        index = try c.decode(Int.self, forKey: .index)
+        language = try c.decodeIfPresent(String.self, forKey: .language)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        codec = try c.decodeIfPresent(String.self, forKey: .codec)
+        channels = try c.decodeIfPresent(Int.self, forKey: .channels)
+        `default` = try c.value(.default, or: false)
+        forced = try c.value(.forced, or: false)
+    }
+
+    /// The track as one of the file's streams of `kind`, so it is labelled
+    /// as the player's own menus label tracks (`Words.stream`). Subtitles
+    /// numbered from 1000 are files beside the video or added ones.
+    public func stream(_ kind: StreamKind) -> MediaStream {
+        var stream = MediaStream(index: index, kind: kind, codec: codec ?? "", language: language, default: `default`)
+        stream.title = title
+        stream.forced = forced
+        stream.channels = channels
+        stream.external = kind == .subtitle && index >= 1000
+        return stream
+    }
+}
+
+/// A title's tracks, as its session lists them: what `audio` and
+/// `subtitles` pick from. Live TV sessions have none.
+public struct SessionTracks: Codable, Hashable, Sendable {
+    /// The subtitle index that says none show.
+    public static let off = -1
+
+    public var audio: [TrackOption]
+    public var subtitles: [TrackOption]
+
+    public init(audio: [TrackOption] = [], subtitles: [TrackOption] = []) {
+        self.audio = audio
+        self.subtitles = subtitles
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        audio = try c.value(.audio, or: [])
+        subtitles = try c.value(.subtitles, or: [])
+    }
+}
+
 /// One of the profile's sessions whose player is there (`GET /api/sessions`):
 /// what plays where, and what its player obeys. A live one is always
 /// `playing`, at 0, with no length.
@@ -112,12 +198,19 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
     public var ageMs: Int
     /// What its player obeys; Stop always works.
     public var controls: [Control]
+    /// The audio track it plays, by stream index; `nil` when not known, and on Live TV.
+    public var audioIndex: Int?
+    /// The subtitles it shows (`SessionTracks.off`: none); `nil` when not known, and on Live TV.
+    public var subtitleIndex: Int?
+    /// Its file's tracks, which `audio` and `subtitles` pick from.
+    public var tracks: SessionTracks
 
     public var id: String { sessionId }
 
     public init(sessionId: String, kind: SessionKind = .item, device: String? = nil, item: ItemSummary? = nil,
                 channel: PlayingChannel? = nil, state: PlayingState = .playing, positionMs: Int = 0,
-                durationMs: Int? = nil, updatedAt: Int = 0, ageMs: Int = 0, controls: [Control] = []) {
+                durationMs: Int? = nil, updatedAt: Int = 0, ageMs: Int = 0, controls: [Control] = [],
+                audioIndex: Int? = nil, subtitleIndex: Int? = nil, tracks: SessionTracks = SessionTracks()) {
         self.sessionId = sessionId
         self.kind = kind
         self.device = device
@@ -129,6 +222,9 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         self.updatedAt = updatedAt
         self.ageMs = ageMs
         self.controls = controls
+        self.audioIndex = audioIndex
+        self.subtitleIndex = subtitleIndex
+        self.tracks = tracks
     }
 
     public init(from decoder: any Decoder) throws {
@@ -145,6 +241,10 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         updatedAt = try c.value(.updatedAt, or: 0)
         ageMs = try c.value(.ageMs, or: 0)
         controls = try c.value(.controls, or: [])
+        audioIndex = try c.decodeIfPresent(Int.self, forKey: .audioIndex)
+        subtitleIndex = try c.decodeIfPresent(Int.self, forKey: .subtitleIndex)
+        // Tracks that can't be read leave it listed, with nothing to pick.
+        tracks = (try? c.decodeIfPresent(SessionTracks.self, forKey: .tracks)) ?? SessionTracks()
     }
 
     /// Whether its player obeys `control`.

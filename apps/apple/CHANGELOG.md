@@ -104,3 +104,5 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   plays, pauses, seeks, skips, goes to the next or previous track (or
   channel) and stops it. Every Apple device, Apple TV included, obeys
   your remotes, the web's too, while Pley is open or music plays.
+- Your remotes can change the audio and subtitles of a movie or an episode
+  playing on an Apple device, and see which ones it plays.

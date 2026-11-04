@@ -70,6 +70,36 @@ import Testing
         }
     }
 
+    @Test func trackCommandsNameOneOfTheSessionsTracks() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        var movie = FixtureServer.Playable(itemId: 7, fileId: 70, durationMs: 600_000)
+        movie.audio = [MediaStream(index: 1, kind: .audio, codec: "aac", language: "eng", default: true),
+                       MediaStream(index: 2, kind: .audio, codec: "ac3", language: "fre")]
+        movie.subtitles = [MediaStream(index: 3, kind: .subtitle, codec: "subrip", language: "eng")]
+        server.addPlayable(movie)
+        let api = api(server)
+        let info = try await api.startPlayback(PlaybackRequest(itemId: 7, controls: [.play, .pause, .audio, .subtitles]))
+        let listed = try #require(try await api.playingSessions().first)
+        #expect(listed.tracks.audio.map(\.index) == [1, 2] && listed.tracks.subtitles.map(\.index) == [3])
+        // What the play request started with, until the player says otherwise.
+        #expect(listed.audioIndex == 1 && listed.subtitleIndex == SessionTracks.off)
+
+        try await api.send(.audio(2), to: info.sessionId)
+        try await api.send(.subtitles(nil), to: info.sessionId)
+        let bodies = server.sessionCommands.map { String(decoding: $0.body, as: UTF8.self) }
+        #expect(bodies == [#"{"command":"audio","stream_index":2}"#, #"{"command":"subtitles","stream_index":-1}"#])
+        await #expect(throws: PleyError.api(status: 400, code: "bad_request",
+                                            message: "stream_index isn't one of its tracks")) {
+            try await api.send(.audio(9), to: info.sessionId)
+        }
+        // The player's report says the tracks it plays: the session follows.
+        try await api.reportProgress(itemId: 7, ProgressReport(positionMs: 1_000, sessionId: info.sessionId,
+                                                               audioIndex: 2, subtitleIndex: 3))
+        let after = try #require(try await api.playingSessions().first)
+        #expect(after.audioIndex == 2 && after.subtitleIndex == 3)
+    }
+
     @Test func aSessionIsStoppedFromHereWithAMessage() async throws {
         let server = try await fixture()
         defer { server.stop() }

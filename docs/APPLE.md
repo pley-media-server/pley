@@ -1360,11 +1360,13 @@ Mac the computer's name from System Settings; on iPhone, iPad and Apple
 TV the name the system gives when it is one of the person's own, and
 none otherwise (the system says only "iPhone" without Apple's
 entitlement for it), so the server names the device from the app's
-User-Agent ("Pley for iPhone").
+User-Agent ("Pley for iPhone"). A video's every report says the tracks it
+plays (`audio_index`, `subtitle_index`, `-1` for none), so the remotes
+follow them.
 
 | What plays | Obeys | How |
 |---|---|---|
-| A movie or an episode | Play, Pause, Seek, Skip, and Next for an episode, or a title of a collection or playlist with one after it | A seek stops at the start and 250 ms before the end; a skip counts from where it is; Next plays what Up Next would |
+| A movie or an episode | Play, Pause, Seek, Skip; Next for an episode, or a title of a collection or playlist with one after it; Audio where the file has several audio tracks, and Subtitles where it has any | A seek stops at the start and 250 ms before the end; a skip counts from where it is; Next plays what Up Next would; Audio and Subtitles change as the player's own menus do, saved for the movie or show (a track AVPlayer can't switch, or picture subtitles to burn in, start a session beside the one playing), and the one playing already is said again |
 | Music | Play, Pause, Seek, Skip, Next, Previous | Previous does as Now Playing's: the track again after 3 seconds of it, the one before otherwise; Next at the end of the queue does nothing |
 | Live TV | Next, Previous | Channel up and down, through the category the player was opened in, round at its ends. No pause or seek: the live player can't go back in a channel |
 

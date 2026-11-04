@@ -99,6 +99,7 @@ public enum ServerEvent: Hashable, Sendable {
         var command: Control?
         var positionMs: Int?
         var offsetMs: Int?
+        var streamIndex: Int?
     }
 
     /// The event in `data` (one `data:` line's JSON); `nil` when it isn't
@@ -129,7 +130,8 @@ public enum ServerEvent: Hashable, Sendable {
         case "player_command":
             guard let id = wire.sessionId, let command = wire.command else { return .unknown(wire.type) }
             return .playerCommand(sessionId: id, command: PlayerCommand(command, positionMs: wire.positionMs,
-                                                                         offsetMs: wire.offsetMs))
+                                                                         offsetMs: wire.offsetMs,
+                                                                         streamIndex: wire.streamIndex))
         case "live_channels_changed": return .liveChannelsChanged
         case "live_tuners_changed": return .liveTunersChanged
         case "requests_changed":

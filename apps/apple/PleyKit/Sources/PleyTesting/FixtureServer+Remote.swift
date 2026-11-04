@@ -3,10 +3,11 @@ import PleyModel
 
 /// Remote control, as the server does it (docs/API.md, "Remote control"):
 /// the profile's sessions whose players are there (`GET /api/sessions`),
-/// commands to them, checked and passed on as `player_command` on the
-/// event streams, and a stop from another device
-/// (`DELETE /api/sessions/{id}`). Sessions starting and ending, and
-/// reports that pause, play or jump, send `sessions_changed`.
+/// each with its file's tracks; commands to them, checked and passed on
+/// as `player_command` on the event streams; and a stop from another
+/// device (`DELETE /api/sessions/{id}`). Sessions starting and ending,
+/// and reports that pause, play, jump or change track, send
+/// `sessions_changed`.
 extension FixtureServer {
     struct Remote {
         /// Sessions started, titles' and live ones', for their order.
@@ -40,11 +41,16 @@ extension FixtureServer {
         state.withLock { s in s.remote.refusal = status.map { ($0, code) } }
     }
 
-    /// A title's session `id` reports `state` at `positionMs`, as its player on another device would.
-    public func reportSession(_ id: String, state playing: String, positionMs: Int) {
-        let body = (try? JSONSerialization.data(withJSONObject: ["state": playing, "position_ms": positionMs])) ?? Data()
+    /// A title's session `id` reports `state` at `positionMs`, as its player
+    /// on another device would; with `audioIndex` and `subtitleIndex`, the
+    /// tracks it plays.
+    public func reportSession(_ id: String, state playing: String, positionMs: Int, audioIndex: Int? = nil,
+                              subtitleIndex: Int? = nil) {
         let events = state.withLock { s -> [String] in
-            Self.reported(&s, id, (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:])
+            var report: [String: Any] = ["state": playing, "position_ms": positionMs]
+            if let audioIndex { report["audio_index"] = audioIndex }
+            if let subtitleIndex { report["subtitle_index"] = subtitleIndex }
+            Self.reported(&s, id, report)
             defer { s.outbox = [] }
             return s.outbox
         }
@@ -67,7 +73,8 @@ extension FixtureServer {
         }
     }
 
-    /// A title's report: its place and state, and `sessions_changed` when it paused, played or jumped.
+    /// A title's report: its place, state and tracks, and `sessions_changed` when it paused, played, jumped
+    /// or changed track.
     static func reported(_ s: inout State, _ id: String, _ body: [String: Any]) {
         guard let session = s.sessions[id] else { return }
         let now = Date()
@@ -78,36 +85,63 @@ extension FixtureServer {
         let jumped = abs(position - expected) > 5_000 + elapsed
         s.remote.reportedAt[id] = now
         guard state != "stopped" else { return }
+        let audio = body["audio_index"] as? Int ?? session.audioIndex
+        let subtitles = body["subtitle_index"] as? Int ?? session.subtitleIndex
         s.sessions[id]?.positionMs = position
         s.sessions[id]?.state = state
-        if state != session.state || jumped { s.outbox.append(sessionsChanged) }
+        s.sessions[id]?.audioIndex = audio
+        s.sessions[id]?.subtitleIndex = subtitles
+        if state != session.state || jumped || audio != session.audioIndex || subtitles != session.subtitleIndex {
+            s.outbox.append(sessionsChanged)
+        }
     }
 
     private static func playing(_ s: State) -> [[String: Any]] {
         var out: [(order: Int, json: [String: Any])] = []
         for (id, session) in s.sessions where !session.deleted && !session.expired && session.stopped == nil {
             guard let playable = s.playables[session.itemId] else { continue }
-            out.append((session.order, [
+            var json: [String: Any] = [
                 "session_id": id, "kind": "item", "device": session.device ?? "Pley for Mac",
                 "item": summary(playable), "channel": NSNull(), "state": session.state,
                 "position_ms": session.positionMs,
                 "duration_ms": session.durationMs > 0 ? session.durationMs : NSNull(),
                 "updated_at": Int(Date().timeIntervalSince1970), "age_ms": 0, "controls": session.controls,
-            ]))
+            ]
+            json["audio_index"] = session.audioIndex.map { $0 as Any } ?? NSNull()
+            json["subtitle_index"] = session.subtitleIndex.map { $0 as Any } ?? NSNull()
+            let tracks: [String: Any] = ["audio": playable.audio.map(track),
+                                         "subtitles": playable.subtitles.map(track)]
+            json["tracks"] = tracks
+            out.append((session.order, json))
         }
         for (id, session) in s.live.sessions where !session.deleted && session.stopped == nil {
             guard let channel = s.live.channels.first(where: { $0.id == session.channelId }) else { continue }
             let full = channelJSON(s, channel)
             let now = (full["now"] as? [String: Any])?["title"] ?? NSNull()
-            out.append((session.order, [
+            var json: [String: Any] = [
                 "session_id": id, "kind": "live", "device": session.device ?? "Pley for Mac", "item": NSNull(),
                 "channel": ["id": channel.id, "name": channel.name, "number": channel.number ?? NSNull(),
                             "logo": full["logo"] ?? NSNull(), "now": now],
                 "state": "playing", "position_ms": 0, "duration_ms": NSNull(),
                 "updated_at": Int(Date().timeIntervalSince1970), "age_ms": 0, "controls": session.controls,
-            ]))
+            ]
+            json["audio_index"] = NSNull()
+            json["subtitle_index"] = NSNull()
+            let tracks: [String: Any] = ["audio": [Any](), "subtitles": [Any]()]
+            json["tracks"] = tracks
+            out.append((session.order, json))
         }
         return out.sorted { $0.order < $1.order }.map(\.json)
+    }
+
+    /// A stream of the file as a session lists it for the remotes.
+    private static func track(_ stream: MediaStream) -> [String: Any] {
+        var json: [String: Any] = ["index": stream.index, "codec": stream.codec, "default": stream.default,
+                                   "forced": stream.forced]
+        json["language"] = stream.language.map { $0 as Any } ?? NSNull()
+        json["title"] = stream.title.map { $0 as Any } ?? NSNull()
+        json["channels"] = stream.channels.map { $0 as Any } ?? NSNull()
+        return json
     }
 
     /// Checks a command as the server does and passes it on to the event streams.
@@ -119,20 +153,25 @@ extension FixtureServer {
         let asked = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
         let controls: [String]
         let durationMs: Int
+        // The title's tracks; none on Live TV.
+        let playable: Playable?
         if let session = s.sessions[id], !session.deleted, !session.expired, session.stopped == nil {
             controls = session.controls
             durationMs = session.durationMs
+            playable = s.playables[session.itemId]
         } else if let session = s.live.sessions[id], !session.deleted, session.stopped == nil {
             controls = session.controls
             durationMs = 0
+            playable = nil
         } else {
             return json(404, ["code": "not_found", "message": "no such session playing"])
         }
         guard let command = asked["command"] as? String,
-              ["play", "pause", "seek", "skip", "next", "previous"].contains(command)
+              ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles"].contains(command)
         else { return json(400, ["code": "bad_request", "message": "unknown command"]) }
         var position: Int?
         var offset: Int?
+        var stream: Int?
         if command == "seek" {
             guard let at = asked["position_ms"] as? Int, at >= 0,
                   at <= (durationMs > 0 ? durationMs : maxUnknownSeekMs)
@@ -145,11 +184,19 @@ extension FixtureServer {
             }
             offset = by
         }
+        if command == "audio" || command == "subtitles" {
+            let tracks = command == "audio" ? playable?.audio : playable?.subtitles
+            guard let tracks, let index = asked["stream_index"] as? Int,
+                  tracks.contains(where: { $0.index == index }) || (command == "subtitles" && index == -1)
+            else { return json(400, ["code": "bad_request", "message": "stream_index isn't one of its tracks"]) }
+            stream = index
+        }
         guard controls.contains(command) else {
             return json(409, ["code": "not_controllable", "message": "this player doesn't take \(command) from a remote"])
         }
         let event: [String: Any] = ["type": "player_command", "session_id": id, "command": command,
-                                    "position_ms": position ?? NSNull(), "offset_ms": offset ?? NSNull()]
+                                    "position_ms": position ?? NSNull(), "offset_ms": offset ?? NSNull(),
+                                    "stream_index": stream ?? NSNull()]
         if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
             s.outbox.append(String(decoding: data, as: UTF8.self))
         }
