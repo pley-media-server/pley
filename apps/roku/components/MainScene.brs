@@ -184,6 +184,8 @@ sub onProfile()
     m.newsEvents = 0
     m.badgeTitles = {}
     m.badgesAsked = {}
+    ' Live TV opens at the channel this profile watched last, not the last profile's.
+    m.top.liveChannel = 0
     ' The notices were the profile before's: one shown goes.
     m.notices = []
     if m.shownNotice <> invalid
@@ -254,11 +256,14 @@ sub onRequestPoll()
 end sub
 
 ' The stream is up (again): nothing it missed is told, so the summary is
-' asked again, an older server's too (it may have been updated).
+' asked again, an older server's too (it may have been updated). Up or
+' down, the page on top asks for its requests again: without the stream,
+' that answer starts it asking each 30 s.
 sub onStreamLive()
     m.top.eventsLive = m.events.live
     if m.events.live then askRequestSummary("live")
     pollRequests()
+    pokeRequests({ requestId: 0, kind: "", tmdbId: 0 })
 end sub
 
 ' A screen did something to a request: what the profile may do now (its
@@ -502,6 +507,8 @@ sub onNoticeEvent()
     end if
     noticeSeen()
     if what = "open"
+        ' The page under it keeps where its focus was, for Back.
+        giveFocusBack()
         if notice.itemId > 0
             show({ to: "details", params: { itemId: notice.itemId } })
         else
@@ -549,6 +556,7 @@ end sub
 ' first in line, to show again.
 sub coverNotice()
     if m.shownNotice = invalid then return
+    if m.noticeCard.isInFocusChain() then giveFocusBack()
     m.noticeCard.hide = true
     m.notices.Unshift(m.shownNotice)
     m.shownNotice = invalid
