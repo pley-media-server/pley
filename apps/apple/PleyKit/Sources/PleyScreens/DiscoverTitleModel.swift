@@ -126,6 +126,9 @@ public final class DiscoverTitleModel: ObservableObject {
     private var pickPending: Bool
     private var listeners: Set<AnyCancellable> = []
     private var soon: Task<Void, Never>?
+    /// Until when the change of the page's own action, which the app's
+    /// events gather a moment (`ServerEvents.window`), is read already.
+    private var ownChangeUntil: Date?
     private var reading: Task<Void, Never>?
     private var again = false
 
@@ -141,6 +144,10 @@ public final class DiscoverTitleModel: ObservableObject {
         }
         app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.follows(change.requests) || change.everything else { return }
+            if let until = self.ownChangeUntil {
+                self.ownChangeUntil = nil
+                if Date() < until { return }
+            }
             self.loadSoon()
         }.store(in: &listeners)
         // The gate opening (a summary read late, signing in again) reads the
@@ -240,6 +247,7 @@ public final class DiscoverTitleModel: ObservableObject {
     private func loadActed() async {
         soon?.cancel()
         soon = nil
+        ownChangeUntil = Date().addingTimeInterval(ServerEvents.window + 1)
         await load()
     }
 
