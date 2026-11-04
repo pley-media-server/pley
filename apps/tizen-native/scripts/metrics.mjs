@@ -68,17 +68,23 @@ function listen() {
   };
   /** Gives a TV its command: its asker hears once the TV takes it, or once what it asked for is in. */
   const hand = (entry, model, res) => {
+    const recording = entry.command.startsWith("record ");
+    // One recording a TV at a time: its frames and its end don't say which recording they're for,
+    // so a second would take the first's frames, and the first the second's refusal.
+    if (recording && recordings.some((e) => e.model === model)) {
+      res.end("");
+      return settle(waiting, entry, 409, `${model} is recording already`);
+    }
     res.end(entry.command);
     appendFileSync(log, `${stamp()} COMMAND ${entry.command} taken by ${model}\n`);
-    const recording = entry.command.startsWith("record ");
     if (entry.command !== "shot" && !recording) return settle(waiting, entry, 200, `${model} took it`);
     waiting.splice(waiting.indexOf(entry), 1);
     clearTimeout(entry.timer);
     entry.model = model;
     if (recording) {
-      // The frames come once they are all caught, which takes as long as they do.
+      // The frames come once they are all caught, which takes as long as they do. Their folder is
+      // made with the first: a recording the TV refuses leaves none.
       entry.dir = join(out, `rec-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}-${model}`);
-      mkdirSync(entry.dir, { recursive: true });
       entry.timer = setTimeout(() => settle(recordings, entry, 504, `${model} sent no frames`), 5 * 60_000);
       recordings.push(entry);
       return;
@@ -145,7 +151,10 @@ function listen() {
         const entry = recordings.find((e) => e.model === model);
         const n = String(Math.trunc(Number(url.searchParams.get("n")) || 0)).padStart(3, "0");
         const t = Math.round(Number(url.searchParams.get("t")) || 0);
-        if (entry && size <= mostShot) writeFileSync(join(entry.dir, `${n}-${t}.jpg`), body);
+        if (entry && size <= mostShot) {
+          mkdirSync(entry.dir, { recursive: true });
+          writeFileSync(join(entry.dir, `${n}-${t}.jpg`), body);
+        }
         return res.end("ok");
       }
       if (req.method === "POST" && url.pathname === "/recorded") {
@@ -154,7 +163,8 @@ function listen() {
         const refused = url.searchParams.get("refused")?.slice(0, most);
         appendFileSync(log, `${stamp()} RECORDED ${n} frames from ${model}${refused ? `, refused: ${refused}` : ""}\n`);
         const entry = recordings.find((e) => e.model === model);
-        if (entry) settle(recordings, entry, refused ? 400 : 200, refused ? `${model} refused it: ${refused}` : `${n} frames in ${entry.dir}`);
+        const said = refused ? `${model} refused it: ${refused}` : n > 0 ? `${n} frames in ${entry?.dir}` : `${model} caught no frames`;
+        if (entry) settle(recordings, entry, refused ? 400 : 200, said);
         return res.end("ok");
       }
       if (req.method === "POST") appendFileSync(log, `${stamp()} ${body.toString("utf8").slice(0, most)}\n`);
