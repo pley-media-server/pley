@@ -583,6 +583,7 @@ public sealed class PlayerModel : IDisposable
         e.PlayingChanged += OnPlaying;
         e.Failed += OnError;
         e.RestartAt += OnRestartAsked;
+        e.Opened += OnOpened;
     }
 
     void Detach(IVideoEngine e)
@@ -592,6 +593,15 @@ public sealed class PlayerModel : IDisposable
         e.PlayingChanged -= OnPlaying;
         e.Failed -= OnError;
         e.RestartAt -= OnRestartAsked;
+        e.Opened -= OnOpened;
+    }
+
+    /// <summary>Prepared: the audio chosen is switched to now, before it plays.</summary>
+    void OnOpened()
+    {
+        if (closed || engineReady) return;
+        engineReady = true;
+        ApplyAudio();
     }
 
     /// <summary>The engine can't go on from <paramref name="atMs"/> in the stream it has: a session there, as a seek after the end starts one.</summary>

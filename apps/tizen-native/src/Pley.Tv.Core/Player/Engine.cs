@@ -172,4 +172,10 @@ public interface IVideoEngine : IMediaEngine
     /// film's end. The player starts a session there, as for any new stream, with its cover and spinner.
     /// </summary>
     event Action<long>? RestartAt;
+
+    /// <summary>
+    /// The source is prepared: its tracks can be switched now, before it plays. It is ready (<see
+    /// cref="EngineStatus.Ready"/>) only once its picture moves, or at once when it is to stay paused.
+    /// </summary>
+    event Action? Opened;
 }

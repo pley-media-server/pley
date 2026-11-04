@@ -21,6 +21,11 @@ sealed class FakeVideoEngine : IVideoEngine
     /// <summary>The engine asks for a session at <paramref name="ms"/> (a trimmed stream sought before it begins).</summary>
     public void AskRestart(long ms) => RestartAt?.Invoke(ms);
 
+    public event Action? Opened;
+
+    /// <summary>The source is prepared, its picture not yet out.</summary>
+    public void Open() => Opened?.Invoke();
+
     public List<EngineSource> Prepared { get; } = new List<EngineSource>();
     public List<long> Seeks { get; } = new List<long>();
     public List<(int Ordinal, string? Language)> AudioSwitches { get; } = new List<(int, string?)>();

@@ -65,6 +65,23 @@ public class PlayerModelTests
         Assert.Equal(("playing", 2_700_000 - PlayerModel.SeekEndMarginMs), (h.Source.Reports.Single().State, h.Source.Reports.Single().Position));
     }
 
+    /// <summary>
+    /// The audio chosen is switched to once the engine is prepared, before its picture: a TV's
+    /// player that says it's ready only once its picture moves would play the file's first track
+    /// until then.
+    /// </summary>
+    [Fact]
+    public void The_audio_chosen_is_switched_to_once_prepared_before_the_picture()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true, AudioIndex: 2), show: false);
+        Assert.Empty(h.Engine.AudioSwitches);
+        h.Engine.Open();
+        Assert.Equal((1, "fre"), h.Engine.AudioSwitches.Single());
+        h.Engine.Show();
+        Assert.Single(h.Engine.AudioSwitches);
+    }
+
     [Fact]
     public void Direct_play_switches_audio_in_the_engine_and_remembers_the_choice()
     {

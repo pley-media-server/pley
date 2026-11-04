@@ -446,10 +446,19 @@ the first. The player then
 counts from that segment, which the engine adds back to every position,
 seek and duration; a seek before it starts a session there, as any new
 stream starts, under its black cover.
-The player's calls that hold their caller (its position, its prepare, a
-seek, its streams' details) are made off the UI thread, one at a time, so
-the screen keeps drawing while a film opens; those bound to the window
-(the picture's region, letting a player go) stay on it.
+The player's calls that hold their caller (making it and giving it its
+source, its position, its prepare, a seek, its streams' details) are made
+off the UI thread, one at a time, so the screen and its spinner keep
+moving while a film opens; those bound to the window (its display, the
+picture's region, starting it, letting it go) stay on it.
+Tizen's player says neither when its first picture is out nor when it
+waits for data, only where it is, so the engine reads its position again
+and again and `Player/PlaybackWatch.cs` decides: waiting from its prepare
+until the picture moves, after a seek until it moves on from where it
+landed (a little off where it was sent), and when it stands still 1.5 s
+while it should play; it puts the position on the film's timeline too.
+The engine says it is prepared apart (`Opened`), for the audio chosen to
+be switched to before it plays.
 
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
 from its last keyframe) is read while the server says what it makes of the
