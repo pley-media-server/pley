@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The channel's tile on the home screen shows Pley's mark above its name,
+  centred.
+
 ## [0.1.4] - 2026-11-03
 
 ### Added

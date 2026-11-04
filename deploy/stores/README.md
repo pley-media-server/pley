@@ -13,8 +13,7 @@ itself: pictures, screenshots and the listing's text.
 | `icon-512.png` | 512 × 512 | Google Play's app icon (Play rounds its corners), the Amazon Appstore's large icon |
 | `icon-114.png` | 114 × 114 | The Amazon Appstore's small icon |
 | `feature-graphic-1024x500.png` | 1024 × 500 | Google Play's feature graphic |
-| `tv-banner-1280x720.png` | 1280 × 720 | Google Play's Android TV banner |
-| `fire-tv-icon-1280x720.png` | 1280 × 720 | The Amazon Appstore's Fire TV icon, the app's tile on Fire TV: the mark and name centred, larger than the banner's |
+| `tv-banner-1280x720.png` | 1280 × 720 | Google Play's Android TV banner, the Amazon Appstore's Fire TV icon (the app's tile on Fire TV) |
 | `fire-tv-background-1920x1080.jpg` | 1920 × 1080 | The Amazon Appstore's Fire TV background (the mark top right, clear of the store's text) |
 
 ## Screenshots

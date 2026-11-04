@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The banner on Android TV and Google TV's home screen shows Pley's mark
+  and name centred, larger, the name closer to the mark.
+
 ## [0.1.5] - 2026-11-03
 
 ### Added

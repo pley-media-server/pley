@@ -155,7 +155,7 @@ heard it for that profile, the start asks "Who's watching?".
   Alexa's play and pause). Fire OS 16 asks for the nearby-devices
   permission before the app searches the network. An Appstore app's
   tile is the 16:9 icon in its listing
-  (`deploy/stores/fire-tv-icon-1280x720.png`, the mark and name); a
+  (`deploy/stores/tv-banner-1280x720.png`, the mark and name); a
   sideloaded app's is drawn from the app's icon, squeezed into a square in
   the middle of a grey tile, whatever its shape or banner.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows

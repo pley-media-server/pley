@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The add-on's fanart shows Pley's mark and name centred, the name closer
+  to the mark.
+
 ## [0.1.4] - 2026-11-03
 
 ### Added

@@ -47,7 +47,7 @@
 //                                           1920×1080, the TV banner's picture
 //   apps/roku/images/icon_focus_{fhd,hd}.png
 //                                           540×405 and 290×218, Roku's home screen
-//                                           tiles, as the Android TV app's banner
+//                                           tiles, the mark above the wordmark
 //   apps/roku/images/splash_{fhd,hd,sd}.png the logo on the Roku app's background
 //   apps/android/app/src/main/res/drawable-{xhdpi,xxhdpi,xxxhdpi}/tv_banner.png
 //                                           the Android TV app's banner, 320×180 dp,
@@ -112,60 +112,47 @@ function labelled(width, height, label, fill, ink) {
 }
 
 /**
- * A large TV tile's icon, a size × size square: the mark above the wordmark, on the banner's colours to the
- * edges, as the other apps' tiles in Samsung's apps bar show their names.
+ * A large TV tile that is square or nearly, a width × height picture: the mark above the wordmark, on the
+ * banner's colours to the edges, as the other apps' tiles there show their names (Samsung's apps bar,
+ * Roku's home screen). The stack is drawn in a square as tall as the picture, in its middle.
  */
-function named(size) {
-  const s = size / 512;
-  const g = 6; // the mark (40 × 33 of the logo's 64, from (12, 15.5)) 240 wide, from (136, 72)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${defs}
-  <radialGradient id="corner" cx="${size}" cy="${size}" r="${size * 0.9}" gradientUnits="userSpaceOnUse">
+function named(width, height = width) {
+  const s = height / 512;
+  const g = 6; // in the 512 square: the mark (40 × 33 of the logo's 64, from (12, 15.5)) 240 wide, from (136, 72)
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}
+  <radialGradient id="corner" cx="${width}" cy="${height}" r="${Math.max(width, height) * 0.9}" gradientUnits="userSpaceOnUse">
     <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
   </radialGradient>
-  <rect width="${size}" height="${size}" fill="${TILE}"/><rect width="${size}" height="${size}" fill="url(#corner)"/>
-  <g transform="scale(${s})">
+  <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/>
+  <g transform="translate(${(width - height) / 2} 0) scale(${s})">
     <g transform="translate(${136 - 12 * g} ${72 - 15.5 * g}) scale(${g})">${glyph}</g>
     <text x="256" y="410" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="128" font-weight="700" letter-spacing="-2" fill="#e9ebef">Pley</text>
   </g></svg>`;
 }
 
 /**
- * A TV home screen's tile, as the Android TV app's banner (320 × 180): the mark in its colours and the
- * wordmark on the tile's colour, the brand's deep blue glowing from the lower right corner. Other sizes
- * get the same picture scaled to fit, the colours out to the edges.
+ * A wide TV tile, as the Android TV app's banner (320 × 180) and the Amazon Appstore's Fire TV icon: the
+ * mark in its colours beside the wordmark, centred and about four fifths of the width, as the other apps'
+ * tiles fill theirs, on the tile's colour with the brand's deep blue glowing from the lower right corner.
+ * Other sizes get the same picture scaled to fit, the colours out to the edges.
  */
 function banner(width, height) {
   const s = Math.min(width / 320, height / 180);
   const g = 1.75; // the mark (40 × 33 of the logo's 64, from (12, 15.5)) 70 wide, from (70, 56)
+  // The lockup, the wordmark from 152: it spans 70 to about 274 across, centred at 172; down, the mark and
+  // the wordmark's capitals span 56 to 114, centred at 85 (the y's tail hangs below). Scaled [k] to 250 of
+  // the 320, its middle in the middle.
+  const k = 250 / 204;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}
   <radialGradient id="corner" cx="${width}" cy="${height}" r="${width * 0.52}" gradientUnits="userSpaceOnUse">
     <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
   </radialGradient>
   <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/>
   <g transform="translate(${(width - 320 * s) / 2} ${(height - 180 * s) / 2}) scale(${s})">
-    <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
-    <text x="160" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
-  </g></svg>`;
-}
-
-/**
- * The Amazon Appstore's Fire TV icon, 1280 × 720, which Fire TV shows as the app's tile: the banner's mark
- * and wordmark centred and about four fifths of the width, as the other apps' tiles fill theirs.
- */
-function fireTvIcon() {
-  // The banner's lockup with the wordmark closer to the mark, from 152 rather than 160: it spans about 70 to
-  // 274 across the banner's 320 × 180, centred at 172; down, the mark and the wordmark's capitals span 56 to
-  // 114, centred at 85 (the y's tail hangs below).
-  const s = 1000 / 204;
-  const g = 1.75;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">${defs}
-  <radialGradient id="corner" cx="1280" cy="720" r="666" gradientUnits="userSpaceOnUse">
-    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
-  </radialGradient>
-  <rect width="1280" height="720" fill="${TILE}"/><rect width="1280" height="720" fill="url(#corner)"/>
-  <g transform="translate(${640 - 172 * s} ${360 - 85 * s}) scale(${s})">
-    <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
-    <text x="152" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
+    <g transform="translate(${160 - 172 * k} ${90 - 85 * k}) scale(${k})">
+      <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
+      <text x="152" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
+    </g>
   </g></svg>`;
 }
 
@@ -439,8 +426,8 @@ try {
   // Roku's home screen tiles, and splash screens on the app's background (components/shared/Ui.brs),
   // as the manifest's splash_color.
   const roku = join(root, "apps/roku/images");
-  writeFileSync(join(roku, "icon_focus_fhd.png"), rgb72(await r.png(banner(540, 405), 540, 405)));
-  writeFileSync(join(roku, "icon_focus_hd.png"), rgb72(await r.png(banner(290, 218), 290, 218)));
+  writeFileSync(join(roku, "icon_focus_fhd.png"), rgb72(await r.png(named(540, 405), 540, 405)));
+  writeFileSync(join(roku, "icon_focus_hd.png"), rgb72(await r.png(named(290, 218), 290, 218)));
   for (const [name, width, height] of [["splash_fhd.png", 1920, 1080], ["splash_hd.png", 1280, 720], ["splash_sd.png", 720, 480]]) {
     writeFileSync(join(roku, name), rgb72(await r.png(splash(width, height, "#16191e"), width, height)));
   }
@@ -458,7 +445,6 @@ try {
   writeFileSync(join(stores, "icon-114.png"), rgb72(await r.png(maskable(114, (114 / 512) * 7.449), 114)));
   writeFileSync(join(stores, "feature-graphic-1024x500.png"), rgb72(await r.png(banner(1024, 500), 1024, 500)));
   writeFileSync(join(stores, "tv-banner-1280x720.png"), rgb72(await r.png(banner(1280, 720), 1280, 720)));
-  writeFileSync(join(stores, "fire-tv-icon-1280x720.png"), rgb72(await r.png(fireTvIcon(), 1280, 720)));
   writeFileSync(join(stores, "fire-tv-background-1920x1080.jpg"), await r.jpeg(fireTvBackground(), 1920, 1080, 90));
   // Inno Setup's square in the top right of the installer's pages, at 100 to 250 % (its help's
   // WizardSmallImageFile): the logo flush in it would touch the window's edge, so it's inset.
