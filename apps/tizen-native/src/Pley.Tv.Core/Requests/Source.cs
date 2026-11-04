@@ -31,7 +31,7 @@ public interface IRequestsSource
     /// <summary>The server's origin, which pictures are made whole against.</summary>
     string Origin { get; }
 
-    /// <summary>Starts following the server's request events, polling while they can't come, and catching up on news: once.</summary>
+    /// <summary>Starts following the server's request events, polling while they can't come, and catching up on news, once; started, reads the summary again.</summary>
     void Start();
 
     /// <summary>Reads the summary again now: a Retry, a sign-in done.</summary>
@@ -271,7 +271,13 @@ public sealed class AppRequests : IRequestsSource
 
     public void Start()
     {
-        if (started) return;
+        if (started)
+        {
+            // Home again, after a sign-in maybe: signing in again to the same server keeps its API and,
+            // its stream already open, nothing else says the summary (sign_in_again with it) is out of date.
+            Refresh();
+            return;
+        }
         started = true;
         app.Me.Watch(_ => Switched());
         app.Api.Changed += _ => Refresh();

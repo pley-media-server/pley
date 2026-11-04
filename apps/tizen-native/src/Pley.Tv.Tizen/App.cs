@@ -292,6 +292,7 @@ class App : NUIApplication
         tv.Restart(Home(tv));
         Profile.Took("Home shown", shown);
         // Requests are followed from just after the first frame: reading them starts their events, catching up and polling.
+        // Home again (a sign-in, a profile chosen), their summary is read again.
         requests.Start();
         _ = state.LoadAccount();
         var home = state.LoadHome();

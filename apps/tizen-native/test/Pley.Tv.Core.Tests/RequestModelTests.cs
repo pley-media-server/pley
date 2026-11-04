@@ -447,6 +447,23 @@ public class AppRequestsTests
     }
 
     [Fact]
+    public async Task Signing_in_again_to_the_same_server_reads_the_summary_again_on_Home()
+    {
+        server.On("GET", Home + "/api/requests/summary", 200, @"{""enabled"":true,""access"":""ask"",""sign_in_again"":""requests""}");
+        var (state, requests) = await Started();
+        Assert.IsType<RequestsState.SignInAgain>(requests.State.Value);
+        // The new sign-in's tokens replace the old ones; the server, its API and the profile stay the same.
+        server.On("GET", Home + "/api/requests/summary", 200, Summary());
+        state.Use(Home);
+        await state.TokenStore!.Install(new StoredTokens(Home, "pley_at_1", "pley_rt_1", scheduler.Now + 3_600_000, "library play requests", Home + "/t", Home + "/r"), "library play requests");
+        Assert.IsType<RequestsState.SignInAgain>(requests.State.Value);
+        // Home shows again after the sign-in.
+        requests.Start();
+        await Task.Yield();
+        Assert.True(requests.State.Value.MayAsk);
+    }
+
+    [Fact]
     public async Task An_older_server_is_taken_as_requests_being_off()
     {
         server.On("GET", Home + "/api/requests/summary", 404, @"{""code"":""not_found"",""message"":""no""}");
