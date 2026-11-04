@@ -470,8 +470,12 @@ server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
 address under a random path that lasts one channel (`Net/StreamRelay.cs`).
 Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
-Android; films the same from a server at home, and 1 s and 2 s from
-elsewhere. A film asks the server for its stream before its player
+Android; films start once 0.5 s is buffered from a server at home and 1 s
+from elsewhere, a film resumed part-way (its playlists trimmed) once 1.5 s
+is, as its 4K remux ran dry within a second on less. Tizen's player waits
+for its buffer after every seek too, not only after a stall, so films wait
+for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
+took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
 
 Someone taking over a channel's connection (the server's

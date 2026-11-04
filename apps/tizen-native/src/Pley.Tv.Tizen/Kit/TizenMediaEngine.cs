@@ -516,17 +516,35 @@ sealed class TizenMediaEngine : IVideoEngine
     }
 
     /// <summary>
-    /// What is buffered before playing, and before playing again after a stall, as the Android app's
-    /// BufferPlan has it: 0.5 s and 1.5 s from a server at home, 1 s and 2 s from elsewhere; a live
-    /// channel the first, wherever it comes from, as it airs.
+    /// What is buffered before playing, as the Android app's BufferPlan has it: 0.5 s from a server
+    /// at home, 1 s from elsewhere; a live channel 0.5 s, wherever it comes from, as it airs.
     /// </summary>
-    const int StartHomeMs = 500, RestartHomeMs = 1_500, StartRemoteMs = 1_000, RestartRemoteMs = 2_000;
+    const int StartHomeMs = 500, StartRemoteMs = 1_000;
 
     /// <summary>
-    /// The source's buffering as the Android app's. Left to the TV, a channel waited seconds after
-    /// each stall and stalled again soon after, and a film took 0.5 s more to show its first picture.
-    /// A film started from a trimmed playlist (<see cref="StartWindow"/>) waits for what a seek does
-    /// before it plays: started on the first, a 4K remux stuttered for a second or two.
+    /// A film started from a trimmed playlist (<see cref="StartWindow"/>) waits longer before it
+    /// plays: on 0.5 to 1 s, a 4K remux's buffer ran dry within a second of its picture and its
+    /// sound broke off, at 1.5 s it played on.
+    /// </summary>
+    const int TrimmedStartMs = 1_500;
+
+    /// <summary>
+    /// What is buffered before playing again: Tizen's player waits for it after a stall and after
+    /// every seek too (Android waits 1.5 s and 2 s after a stall only). At 2 s a seek took 2 s, at
+    /// 0.5 s under one. A live channel waits 1.5 s after a stall: on less, a weak one stalled again
+    /// and again.
+    /// </summary>
+    const int RestartMs = 500, RestartLiveMs = 1_500;
+
+#if PROFILE
+    /// <summary>A profiling build's trimmed start ("buffer 1000") and wait after a stall or a seek ("rebuffer 2000") instead; null as above.</summary>
+    public static int? TrimmedStartTry { get; set; }
+    public static int? RestartTry { get; set; }
+#endif
+
+    /// <summary>
+    /// The source's buffering. Left to the TV, a channel waited seconds after each stall and stalled
+    /// again soon after, and a film took 0.5 s more to show its first picture.
     /// </summary>
     static void Buffer(Media.Player p, EngineSource s, bool trimmed)
     {
@@ -535,11 +553,14 @@ sealed class TizenMediaEngine : IVideoEngine
         if (!s.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return;
         try
         {
-            var before = p.BufferingTime;
-            Profile.Mark($"engine: the TV's own buffering {before.PreBufferMillisecond} ms, {before.ReBufferMillisecond} ms after a stall");
-            var home = s.Live || Addresses.AtHome(s.Url);
-            var restart = home ? RestartHomeMs : RestartRemoteMs;
-            p.BufferingTime = new Media.PlayerBufferingTime(trimmed ? restart : home ? StartHomeMs : StartRemoteMs, restart);
+            var start = trimmed ? TrimmedStartMs : s.Live || Addresses.AtHome(s.Url) ? StartHomeMs : StartRemoteMs;
+            var restart = s.Live ? RestartLiveMs : RestartMs;
+#if PROFILE
+            if (trimmed) start = TrimmedStartTry ?? start;
+            restart = RestartTry ?? restart;
+#endif
+            p.BufferingTime = new Media.PlayerBufferingTime(start, restart);
+            Profile.Mark($"engine: buffering {start} ms before it plays, {restart} ms after a stall or a seek");
         }
         catch (Exception)
         {

@@ -12,6 +12,9 @@ It has no releases yet: it is built and installed by hand
 
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
+- A seek plays again in under a second, where it took about two; a film
+  resumed part-way buffers 1.5 s before it plays, so its sound doesn't
+  break off in its first second.
 - A film opening or seeking shows one spinner until its picture moves,
   where it went and came back over the black.
 - Holding Left or Right in the chapters glides through the cards.
