@@ -161,9 +161,10 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 ### Remote control
 
 The TV obeys the remote on the profile's other devices that have one
-([API.md](API.md#remote-control)) and shows no remote of its own. Its players say what they obey when they
-start (`controls`) and that they play on a TV (`device_kind: "tv"`); the
-server names the TV from its web engine ("Samsung TV"). They obey:
+([API.md](API.md#remote-control)) and shows no remote of its own. Its
+players say what they obey when they start (`controls`) and that they play
+on a TV (`device_kind: "tv"`); the server names the TV from its web engine
+("Samsung TV"). They obey:
 
 - **Movies and episodes:** play, pause, seek and skip, and next where
   something can come next (an episode, a playlist or collection). Next at
