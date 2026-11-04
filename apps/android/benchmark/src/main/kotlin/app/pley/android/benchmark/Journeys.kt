@@ -200,22 +200,21 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * window's own view says so too, and holds everything, so it never
      * counts: with only it, nothing in the page has focus.
      */
-    fun focused(): UiObject2? {
-        // An element can go between finding it and reading its bounds (the rail closing, a row
-        // sliding): it's looked for again, a few times.
-        repeat(STALE_TRIES - 1) {
-            try {
-                return focusedNow()
-            } catch (_: StaleObjectException) {
-                SystemClock.sleep(STEP_MS)
-            }
-        }
-        return focusedNow()
-    }
+    fun focused(): UiObject2? = device.findObjects(By.focused(true))
+        .mapNotNull { element -> element.boundsNow()?.let { element to it } }
+        .filter { (_, bounds) -> !bounds.fillsTheScreen() }
+        .minByOrNull { (_, bounds) -> bounds.area() }
+        ?.first
 
-    private fun focusedNow(): UiObject2? = device.findObjects(By.focused(true))
-        .filter { !it.fillsTheScreen() }
-        .minByOrNull { it.visibleBounds.area() }
+    /**
+     * Its bounds, or null when it went after it was found (the rail
+     * closing, a row sliding): what's gone has no focus to give.
+     */
+    private fun UiObject2.boundsNow(): Rect? = try {
+        visibleBounds
+    } catch (_: StaleObjectException) {
+        null
+    }
 
     /**
      * Moves focus with the D-pad until it is on or in what [target] finds:
@@ -245,13 +244,17 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         await(selector, what)
     }
 
-    private fun holdsFocus(goal: UiObject2, target: BySelector): Boolean =
+    /** Whether focus is on or in [goal]; not while it is going (looked for again at the next step). */
+    private fun holdsFocus(goal: UiObject2, target: BySelector): Boolean = try {
         goal.isFocused || goal.hasObject(By.focused(true)) || focused()?.hasObject(target) == true
+    } catch (_: StaleObjectException) {
+        false
+    }
 
     /** The way to [goal] from the focused element: up or down when they share columns, left or right when they share rows. */
     private fun directionTo(goal: UiObject2): Key? {
-        val from = focused()?.visibleBounds ?: return null
-        val to = goal.visibleBounds
+        val from = focused()?.boundsNow() ?: return null
+        val to = goal.boundsNow() ?: return null
         val columns = from.left < to.right && to.left < from.right
         val rows = from.top < to.bottom && to.top < from.bottom
         val dx = to.centerX() - from.centerX()
@@ -269,8 +272,8 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
 
     private fun Rect.area(): Int = width() * height()
 
-    private fun UiObject2.fillsTheScreen(): Boolean =
-        visibleBounds.width() >= device.displayWidth * 0.95 && visibleBounds.height() >= device.displayHeight * 0.95
+    private fun Rect.fillsTheScreen(): Boolean =
+        width() >= device.displayWidth * 0.95 && height() >= device.displayHeight * 0.95
 
     private fun UiObject2.describe(): String = resourceName ?: text ?: contentDescription ?: className
 
@@ -287,9 +290,6 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         const val PAGE_MS = 1_500L
 
         const val STEP_MS = 300L
-
-        /** How many times [focused] looks while what it finds goes before it reads it. */
-        const val STALE_TRIES = 3
 
         /** How long the screen takes to hear that accessibility went: Compose stops describing it. */
         const val UNOBSERVED_SETTLE_MS = 500L
