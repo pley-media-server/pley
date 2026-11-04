@@ -18,7 +18,7 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * D-pad rule 5 on a fake clock: a held key moves focus by itself from
- * 300 ms, every 45 ms on the gate's own clock whatever the frames do, the
+ * 400 ms, every 45 ms on the gate's own clock whatever the frames do, the
  * system's repeats are dropped, a hold ends with its key-up (or 500 ms
  * without a sign of the key), and focus rests 400 ms after the last move.
  */
@@ -67,9 +67,9 @@ class KeyRepeatGateTest {
     }
 
     @Test
-    fun aHeldKeyMovesBy300MsAsARepeatOfItself() {
+    fun aHeldKeyMovesBy400MsAsARepeatOfItself() {
         assertTrue(press())
-        now += 299
+        now += 399
         assertNull(gate.tick())
         assertFalse(gate.holding)
         now += 1

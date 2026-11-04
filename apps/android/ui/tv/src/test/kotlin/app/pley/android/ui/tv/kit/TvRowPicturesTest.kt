@@ -109,7 +109,7 @@ class TvRowPicturesTest {
         row()
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionRight) }
-        // The press moves a tile on, asking ahead as ever; the hold begins at 300 ms.
+        // The press moves a tile on, asking ahead as ever; the hold begins at 400 ms.
         compose.mainClock.advanceTimeBy(208)
         val before = fetched.toList()
         // A second and more: the slide passes some 30 tiles, far past what was asked for ahead.
