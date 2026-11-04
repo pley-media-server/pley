@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- The web app's search no longer keeps the Live TV channels of an earlier
+  query on the page, under results that don't match them.
+
 ## [0.1.5] - 2026-11-03
 
 ### Added
