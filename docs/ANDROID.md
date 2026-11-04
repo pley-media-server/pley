@@ -661,9 +661,11 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
 
 - Rows are made ahead of the screen between frames (each list's cache
   window). A held step that finds its row not made yet waits up to two
-  frames for it, under a glide long enough to carry the grid on, rather
-  than make it in the frame: once behind, steps that made their own rows
-  left the frames no time to get ahead again.
+  frames for it, the glide under way spread over the wait so the grid
+  goes on moving, rather than make it in the frame: once behind, steps
+  that made their own rows left the frames no time to get ahead again.
+  Each held glide stays a step and a quarter long, so focus never runs
+  further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
   drawing its two lines with the platform's paint, its picture draws in
   its own box, and its placeholder's title is laid out on a thread of its

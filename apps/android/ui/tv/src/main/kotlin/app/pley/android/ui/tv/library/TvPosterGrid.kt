@@ -186,7 +186,7 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
             ringY = at.y - by
             quieten()
         }
-        glide.move(by, held, reduced, HELD_GLIDE_MS)
+        glide.move(by, held, reduced)
     }
 
     /** Focuses the cell at [position] once it is laid out ([column]). */
@@ -204,13 +204,15 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
      *
      * A held step that comes while the last one's glide still runs waits a
      * frame or two for the row it brings onto the screen ([rowMade]), then
-     * goes all the same: the glide ([HELD_GLIDE_MS]) carries the grid on
-     * meanwhile. The first step of a hold, the grid at rest, goes at once.
+     * goes all the same: the glide is spread over the wait
+     * ([TvGlide.linger]), so the grid goes on gliding meanwhile. The first
+     * step of a hold, the grid at rest, goes at once.
      */
     fun column(from: Int, position: Int, focus: TvGridFocus): Boolean {
         if (bringing?.isActive == true) return true
         val down = position > from
         if (!gate.holding || !glide.moving || rowMade(down, focus)) return step(from, position, focus)
+        glide.linger(ROW_WAIT_FRAMES * FRAME_MS)
         bringing = scope.launch {
             var frames = 0
             while (frames < ROW_WAIT_FRAMES && !rowMade(down, focus)) {
@@ -342,12 +344,8 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         /** How many frames a held step waits for the row it brings onto the screen ([rowMade]). */
         const val ROW_WAIT_FRAMES = 2
 
-        /**
-         * A held step's glide: [KeyRepeatGate.GLIDE_MS] (a step and a quarter)
-         * reckoned from a step that may come [ROW_WAIT_FRAMES] late, so that the
-         * grid goes on gliding while one waits.
-         */
-        const val HELD_GLIDE_MS = ((KeyRepeatGate.MOVE_INTERVAL_MS + ROW_WAIT_FRAMES * 17) * 5 / 4).toInt()
+        /** A frame at 60 Hz, in milliseconds, rounded up. */
+        const val FRAME_MS = 17
     }
 }
 

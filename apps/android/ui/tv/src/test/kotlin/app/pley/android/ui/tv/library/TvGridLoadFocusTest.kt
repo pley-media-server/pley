@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
@@ -75,8 +76,18 @@ class TvGridLoadFocusTest {
     private lateinit var state: LazyGridState
     private lateinit var view: View
 
-    /** The grid, with something focusable above it when [above] (the library's chips). */
-    private fun grid(reduced: Boolean? = null, above: Boolean = false, hero: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
+    /**
+     * The grid of [total] cells, with something focusable above it when [above] (the library's chips),
+     * [top] down the screen.
+     */
+    private fun grid(
+        reduced: Boolean? = null,
+        above: Boolean = false,
+        hero: Boolean = false,
+        top: Dp = 0.dp,
+        total: Int = tiles.size,
+        tileAt: (Int) -> ArtworkTileModel? = { tiles[it] },
+    ) {
         // A TV composes the cache window's rows off the screen.
         prefetchAsOnATv()
         compose.setContent {
@@ -86,9 +97,10 @@ class TvGridLoadFocusTest {
                 view = LocalView.current
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
                     Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        if (top > 0.dp) Spacer(Modifier.height(top))
                         if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
                         TvPosterGrid(
-                            total = tiles.size,
+                            total = total,
                             tileAt = tileAt,
                             keyAt = { it },
                             kind = TileKind.LibraryGrid,
@@ -183,6 +195,33 @@ class TvGridLoadFocusTest {
         // The press and five held steps: six rows down, that row at the top.
         assertEquals(Columns * 6, focus.focused)
         assertEquals(6 * pitch, scrolled(), 1f)
+    }
+
+    /**
+     * A library's grid starts below its tabs and chips, with not two rows on
+     * the screen. Held on, the grid keeps up with focus: each step lands on a
+     * row laid out on the screen, and none has to be scrolled in at a jump.
+     */
+    @Test
+    fun aLongHeldDownThroughALibrarysGridNeverJumps() {
+        val many = List(600) { ArtworkTileModel(id = it + 1L, title = "Title ${it + 1}", subtitle = "2024") }
+        grid(top = GridTop - TileRoom, total = many.size, tileAt = { many[it] })
+        val pitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown) }
+        var last = scrolled()
+        // Three seconds, the rows ahead made between frames as on a TV.
+        for (frame in 1..180) {
+            frame()
+            val moved = scrolled() - last
+            last += moved
+            assertTrue("frame $frame moved $moved of $pitch", moved < pitch / 2)
+            assertTrue("frame $frame: ${focus.focused} laid out", focusLaidOut())
+        }
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionDown) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertTrue("${focus.focused / Columns} rows down", focus.focused / Columns > 50)
     }
 
     @Test
