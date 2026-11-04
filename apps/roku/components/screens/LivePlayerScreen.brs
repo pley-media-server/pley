@@ -69,6 +69,10 @@ sub init()
     ' lead to before it is tuned.
     m.channel = invalid
     m.zapTo = invalid
+    ' Channels tuned other than by up and down (the list, Watch again), so a
+    ' step waiting for a page can tell one was chosen meanwhile, the same
+    ' channel again too.
+    m.picks = 0
     ' The category up and down go through (the one the player was opened
     ' from, or the one a channel was last chosen in from the list), the
     ' page of it held ({ total, offset, channels }) and its rows, and the
@@ -199,7 +203,7 @@ sub askPage(category as string, offset as integer, around as integer, pick as st
     m.asks = m.asks + 1
     if category = m.category then m.pageAsked = m.asks
     if category = m.listCategory then m.listAsked = m.asks
-    uiRequest({ op: "livePage", kind: "list", category: category, offset: offset, limit: livePageSize(), around: around, asked: m.asks, pick: pick, from: from }, "onPage")
+    uiRequest({ op: "livePage", kind: "list", category: category, offset: offset, limit: livePageSize(), around: around, asked: m.asks, pick: pick, from: from, picks: m.picks }, "onPage")
 end sub
 
 sub onPage(event as object)
@@ -238,7 +242,7 @@ sub onPage(event as object)
         ' The step waited for this page: it goes on only from where it
         ' started, and while watching goes on, so it can't undo a channel
         ' chosen meanwhile.
-        if stepStillFrom(spec.from)
+        if stepStillFrom(spec.from, spec.picks)
             if spec.pick = "first" and page.channels.Count() > 0 then zapTo(page.channels[0])
             if spec.pick = "last" and page.channels.Count() > 0 then zapTo(page.channels[page.channels.Count() - 1])
         end if
@@ -309,10 +313,10 @@ sub closeList()
 end sub
 
 ' Whether channel up or down from the channel with id may still go on:
-' that channel is still the one shown (or led to), and watching hasn't
-' stopped.
-function stepStillFrom(id as dynamic) as boolean
-    if not m.top.active or m.trouble <> invalid then return false
+' that channel is still the one shown (or led to), none was chosen since
+' (picks), and watching hasn't stopped.
+function stepStillFrom(id as dynamic, picks as dynamic) as boolean
+    if not m.top.active or m.trouble <> invalid or picks <> m.picks then return false
     from = m.zapTo
     if from = invalid then from = m.channel
     return from <> invalid and from.id = id
@@ -602,14 +606,16 @@ sub onZapTimer()
         if m.played then m.card.visible = false
         return
     end if
-    tune(target)
+    tune(target, 0, false, true)
 end sub
 
 ' Watches channel: the session before it ends (the server ends it too,
 ' by the client_id), its logo shows while it starts. again: tuned again
-' after a failure, which counts against the retries.
-sub tune(channel as object, takeOver = 0 as integer, again = false as boolean)
+' after a failure, which counts against the retries. stepped: led to by up
+' and down, which a step still waiting goes on from.
+sub tune(channel as object, takeOver = 0 as integer, again = false as boolean, stepped = false as boolean)
     m.attempt = m.attempt + 1
+    if not stepped then m.picks = m.picks + 1
     abandonWatch()
     leave()
     if not again then m.retries = 0
