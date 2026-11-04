@@ -1,24 +1,28 @@
 import { describe, expect, it } from "vitest";
-import type { PlayingSession } from "@/api/types";
-import { makeItem } from "@/test/fixtures";
-import { commandAnswered, estimatedPosition, received, type RemoteSession, type SentCommand } from "./remote";
+import type { PlayingSession, TrackOption } from "@/api/types";
+import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
+import {
+  commandAnswered,
+  estimatedPosition,
+  newestOn,
+  otherDevices,
+  received,
+  trackLabel,
+  type RemoteSession,
+  type SentCommand,
+} from "./remote";
 
 // The server's clock, in seconds, and this browser's, in milliseconds: they needn't agree.
 const at = 1_700_000_000;
 const seen = 1_800_000_000_000;
-const report: PlayingSession = {
-  session_id: "s1",
-  kind: "item",
-  device: "Living room TV",
-  item: makeItem({ id: 7 }),
-  channel: null,
-  state: "playing",
+const report: PlayingSession = makeSession({
   position_ms: 60_000,
   duration_ms: 120_000,
   updated_at: at,
-  age_ms: 0,
-  controls: ["play", "pause", "seek", "skip", "next"],
-};
+  controls: ["play", "pause", "seek", "skip", "next", "audio", "subtitles"],
+  audio_index: 1,
+  subtitle_index: -1,
+});
 const tv: RemoteSession = { ...report, reported_at_ms: seen };
 
 /** The player's next report, `secs` after the last by both clocks. */
@@ -96,5 +100,93 @@ describe("commandAnswered", () => {
     const early = { ...tv, position_ms: 4_000 };
     expect(commandAnswered({ ...sent("previous", 0), before: early }, later(2, { position_ms: 0 }), by)).toBe(true);
     expect(commandAnswered(sent("previous", 0), tv, by)).toBe(false);
+  });
+
+  it("sees a track taken once the player says it plays the one picked, a pause meanwhile aside", () => {
+    const audio: SentCommand = { command: "audio", before: tv, sentAt, track: 2 };
+    expect(commandAnswered(audio, later(2), by)).toBe(false);
+    expect(commandAnswered(audio, later(2, { state: "paused" }), by)).toBe(false);
+    expect(commandAnswered(audio, later(2, { audio_index: 2 }), by)).toBe(true);
+    // Its own player took a new session for it: the device's newest says so.
+    expect(commandAnswered(audio, later(2, { session_id: "s2", audio_index: 2 }), by)).toBe(true);
+
+    const off: SentCommand = { command: "subtitles", before: { ...tv, subtitle_index: 3 }, sentAt, track: -1 };
+    expect(commandAnswered(off, later(2, { subtitle_index: 3 }), by)).toBe(false);
+    expect(commandAnswered(off, later(2, { subtitle_index: -1 }), by)).toBe(true);
+    // Something else plays by now: nothing more to wait for.
+    expect(commandAnswered(off, later(2, { item: makeItem({ id: 8 }) }), by)).toBe(true);
+  });
+});
+
+describe("otherDevices", () => {
+  const session = (id: string, device_id: string, device: string | null, more: Partial<PlayingSession> = {}): RemoteSession => ({
+    ...makeSession({ session_id: id, device_id, device, ...more }),
+    reported_at_ms: seen,
+  });
+
+  it("lists each device once, those that play first, then those ready to, each by name", () => {
+    const devices = otherDevices(
+      [
+        makeReceiver({ receiver_id: "den", device_id: "app-2", name: "Den TV" }),
+        makeReceiver({ receiver_id: "tv-1", device_id: "app-1", name: "Living room TV" }),
+        makeReceiver({ receiver_id: "pad", device_id: "app-3", name: "Attic tablet", kind: "tablet" }),
+      ],
+      // A Jellyfin app plays without taking casts.
+      [session("s1", "app-1", "Living room TV"), session("s2", "token-9", "Phone app", { device_kind: "other" })],
+    );
+    expect(devices.map((d) => [d.name, d.kind, d.receiver?.receiver_id ?? null, d.session?.session_id ?? null])).toEqual([
+      ["Living room TV", "tv", "tv-1", "s1"],
+      ["Phone app", "other", null, "s2"],
+      ["Attic tablet", "tablet", "pad", null],
+      ["Den TV", "tv", "den", null],
+    ]);
+  });
+
+  it("shows a device's newest session, and names it as its receiver does, else as its session does", () => {
+    const [device] = otherDevices(
+      [makeReceiver({ name: null })],
+      [session("old", "app-1", "Living room TV"), session("new", "app-1", "Living room TV")],
+    );
+    expect(device?.session?.session_id).toBe("new");
+    expect(device?.name).toBe("Living room TV");
+    expect(otherDevices([makeReceiver({ name: null })], []).map((d) => d.name)).toEqual(["Unknown device"]);
+  });
+
+  it("numbers devices of the same name", () => {
+    const devices = otherDevices(
+      [makeReceiver({ receiver_id: "tv-2", device_id: "app-2" })],
+      [session("s1", "app-1", "Living room TV"), session("s3", "app-3", null)],
+    );
+    expect(devices.map((d) => d.name)).toEqual(["Living room TV (1)", "Unknown device", "Living room TV (2)"]);
+  });
+});
+
+describe("newestOn", () => {
+  it("is the device's newest session but those playing here", () => {
+    const list = received([makeSession({ session_id: "a" }), makeSession({ session_id: "b" }), makeSession({ session_id: "c", device_id: "app-2" })], seen);
+    expect(newestOn(list, "app-1", () => false)?.session_id).toBe("b");
+    expect(newestOn(list, "app-1", (id) => id === "b")?.session_id).toBe("a");
+    expect(newestOn(list, "app-3", () => false)).toBeUndefined();
+  });
+});
+
+describe("trackLabel", () => {
+  const track = (overrides: Partial<TrackOption>): TrackOption => ({
+    index: 1,
+    language: "eng",
+    title: null,
+    codec: null,
+    channels: null,
+    default: false,
+    forced: false,
+    ...overrides,
+  });
+
+  it("names tracks as the player's own menu does", () => {
+    expect(trackLabel(track({ codec: "truehd", channels: 8 }), "audio")).toBe("English (TrueHD 7.1)");
+    expect(trackLabel(track({ title: "Commentary", codec: "ac3", channels: 2 }), "audio")).toBe("English – Commentary (AC3 Stereo)");
+    expect(trackLabel(track({ language: "fre", codec: "subrip", forced: true }), "subtitle")).toBe("French (SRT, Forced)");
+    expect(trackLabel(track({ title: "English SDH", codec: "subrip" }), "subtitle")).toBe("English – SDH (SRT)");
+    expect(trackLabel(track({ language: null }), "subtitle")).toBe("Unknown");
   });
 });

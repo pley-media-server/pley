@@ -162,6 +162,7 @@ export function useServerEvents(userId: Id | null) {
       void qc.invalidateQueries({ queryKey: keys.libraries });
       void qc.invalidateQueries({ queryKey: keys.activity });
       void qc.invalidateQueries({ queryKey: keys.sessions });
+      void qc.invalidateQueries({ queryKey: keys.remoteDevices });
       void qc.invalidateQueries({ queryKey: ["hubs"] });
       void qc.invalidateQueries({ queryKey: ["library"] });
       void qc.invalidateQueries({ queryKey: ["item"] });
@@ -321,9 +322,11 @@ export function useServerEvents(userId: Id | null) {
           void qc.invalidateQueries({ queryKey: keys.libraries });
           void qc.invalidateQueries({ queryKey: ["hubs"] });
           break;
+        // A device that takes casts coming or going says so too.
         case "sessions_changed":
           void qc.invalidateQueries({ queryKey: keys.activity });
           void qc.invalidateQueries({ queryKey: keys.sessions });
+          void qc.invalidateQueries({ queryKey: keys.remoteDevices });
           break;
         case "session_stopped":
           void qc.invalidateQueries({ queryKey: keys.sessions });

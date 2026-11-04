@@ -1,4 +1,5 @@
-import type { Control, PlayingSession } from "@/api/types";
+import type { Control, DeviceKind, PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
+import { streamLabel } from "./format";
 
 /** How long a remote waits for a player to show it acted on a command. */
 export const ANSWER_WAIT_MS = 5_000;
@@ -6,6 +7,9 @@ export const ANSWER_WAIT_MS = 5_000;
 /** How far the remote's skip buttons go, back and forward. */
 export const SKIP_BACK_MS = 10_000;
 export const SKIP_FORWARD_MS = 30_000;
+
+/** What a remote calls a device the server couldn't name. */
+export const UNNAMED_DEVICE = "Unknown device";
 
 /** A session as the remote keeps it: when its player last reported, by this browser's clock. */
 export interface RemoteSession extends PlayingSession {
@@ -28,6 +32,73 @@ export function estimatedPosition(session: RemoteSession, nowMs: number): number
   return session.duration_ms != null ? Math.min(at, session.duration_ms) : at;
 }
 
+/**
+ * One of the user's other devices, as the remote lists it: one that takes
+ * casts (a receiver), one that plays something, or both, by `device_id`.
+ */
+export interface OtherDevice {
+  /** Its `device_id`. */
+  id: string;
+  /** What the remote calls it: two of the same name are numbered ("Living room TV (2)"). */
+  name: string;
+  kind: DeviceKind;
+  /** Where casts go; null for a device that plays without taking them (a Jellyfin or Plex app). */
+  receiver: RemoteDevice | null;
+  /** What it plays: its newest session; null while it plays nothing. */
+  session: RemoteSession | null;
+}
+
+/**
+ * The devices of `receivers` and `sessions` (oldest first, as the server
+ * lists them), each once: those that play first, then the others, each by
+ * name. A device with several sessions shows its newest. Two of the same
+ * name are numbered, so every label and message says which one it means.
+ */
+export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[]): OtherDevice[] {
+  const byId = new Map<string, { receiver: RemoteDevice | null; session: RemoteSession | null }>();
+  for (const receiver of receivers) byId.set(receiver.device_id, { receiver, session: null });
+  for (const session of sessions) {
+    const known = byId.get(session.device_id);
+    if (known) known.session = session;
+    else byId.set(session.device_id, { receiver: null, session });
+  }
+  const devices = [...byId].map(([id, { receiver, session }]) => ({
+    id,
+    name: receiver?.name ?? session?.device ?? UNNAMED_DEVICE,
+    kind: receiver?.kind ?? session?.device_kind ?? "other",
+    receiver,
+    session,
+  }));
+  devices.sort((a, b) => Number(!a.session) - Number(!b.session) || a.name.localeCompare(b.name));
+  const total = new Map<string, number>();
+  for (const d of devices) total.set(d.name, (total.get(d.name) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return devices.map((d) => {
+    const n = (seen.get(d.name) ?? 0) + 1;
+    seen.set(d.name, n);
+    return (total.get(d.name) ?? 0) > 1 ? { ...d, name: `${d.name} (${n})` } : d;
+  });
+}
+
+/** `device`'s newest session in `sessions`, leaving out those `mine` says play here. */
+export function newestOn(sessions: RemoteSession[], device: string, mine: (sessionId: string) => boolean): RemoteSession | undefined {
+  return sessions.filter((s) => s.device_id === device && !mine(s.session_id)).at(-1);
+}
+
+/** A track as the players' own menus name it: "English – Commentary (AC3 Stereo)", "French (SRT, Forced)". */
+export function trackLabel(track: TrackOption, kind: "audio" | "subtitle"): string {
+  return streamLabel({
+    index: track.index,
+    kind,
+    codec: track.codec ?? "",
+    language: track.language,
+    title: track.title,
+    default: track.default,
+    forced: track.forced,
+    channels: track.channels ?? undefined,
+  });
+}
+
 /** A command sent, and what its session looked like then. */
 export interface SentCommand {
   command: Control;
@@ -36,6 +107,8 @@ export interface SentCommand {
   sentAt: number;
   /** `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted. */
   target?: number;
+  /** `audio` and `subtitles`: the track picked (subtitles -1: off). */
+  track?: number;
 }
 
 /** Farther than this from where it should be, a report has moved (the server's rule for a seek). */
@@ -44,8 +117,9 @@ const JUMP_MS = 5_000;
 /**
  * Whether the list shows the player acted on `sent`, by `nowMs`: it is gone
  * (next and previous end a session to start the next), plays something
- * else, changed state, or, for a seek, a skip or a previous on the same
- * title, has reported since from somewhere new or where it was sent to.
+ * else, plays the track picked, changed state, or, for a seek, a skip or a
+ * previous on the same title, has reported since from somewhere new or
+ * where it was sent to.
  *
  * Server times are only compared with server times, and this browser's with
  * its own (`reported_at_ms`): the two clocks can be seconds apart.
@@ -54,6 +128,9 @@ export function commandAnswered(sent: SentCommand, now: RemoteSession | undefine
   const { before } = sent;
   if (!now) return true;
   if (now.item?.id !== before.item?.id || now.channel?.id !== before.channel?.id) return true;
+  // A track is taken once its player says it plays that one: pausing meanwhile isn't an answer.
+  if (sent.command === "audio") return now.audio_index === sent.track;
+  if (sent.command === "subtitles") return now.subtitle_index === sent.track;
   if (now.state !== before.state) return true;
   if (sent.command !== "seek" && sent.command !== "skip" && sent.command !== "previous") return false;
   const reportedSince = now.updated_at > before.updated_at || now.position_ms !== before.position_ms;

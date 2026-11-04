@@ -43,11 +43,12 @@ What Pley does, in full. The [README](../README.md) has the short version.
   the 5.1 track for a player that passes it to a receiver).
 - Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
   comparing the audio of episodes), seek-bar previews and chapter pictures.
-- A remote for your other devices: from the web and desktop apps' header,
-  play, pause, seek, skip, go to the next or previous title (or channel, on
-  Live TV) and stop what plays on another of your devices. Each player
-  obeys the commands it can; any can be stopped
-  ([API.md](API.md#remote-control)).
+- A remote for your other devices: the web and desktop apps' header lists
+  those that are on, the ones playing first, then those ready to play. For
+  the one chosen it plays, pauses, seeks, skips, goes to the next or
+  previous title (or channel, on Live TV), changes the audio track and the
+  subtitles, and stops what plays there. Each player obeys the commands it
+  can; any can be stopped ([API.md](API.md#remote-control)).
 
 ## Live TV
 

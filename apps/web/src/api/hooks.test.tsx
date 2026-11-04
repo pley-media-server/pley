@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { RemoteSession } from "@/lib/remote";
-import { makeItem } from "@/test/fixtures";
+import { makeItem, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { FIRST_PAGE, keys, sessionCommandError, useLibraryItems, useSessionCommand } from "./hooks";
 import type { PlayingSession, SortOrder } from "./types";
@@ -92,19 +92,7 @@ describe("useLibraryItems", () => {
 });
 
 describe("useSessionCommand", () => {
-  const tv: PlayingSession = {
-    session_id: "s 1",
-    kind: "item",
-    device: "Living room TV",
-    item: makeItem({ id: 7 }),
-    channel: null,
-    state: "playing",
-    position_ms: 60_000,
-    duration_ms: 6_000_000,
-    updated_at: 1_700_000_000,
-    age_ms: 0,
-    controls: ["pause", "seek"],
-  };
+  const tv: PlayingSession = makeSession({ session_id: "s 1", position_ms: 60_000, controls: ["pause", "seek"] });
   // The same, as the sessions query keeps it.
   const kept: RemoteSession = { ...tv, reported_at_ms: 1_700_000_000_000 };
 
@@ -114,7 +102,12 @@ describe("useSessionCommand", () => {
 
     await act(() => result.current.mutateAsync({ sessionId: "s 1", command: "seek", positionMs: 90_000 }));
     await act(() => result.current.mutateAsync({ sessionId: "s 1", command: "pause" }));
-    expect(requests.map((r) => r.body)).toEqual([{ command: "seek", position_ms: 90_000 }, { command: "pause" }]);
+    await act(() => result.current.mutateAsync({ sessionId: "s 1", command: "subtitles", streamIndex: -1 }));
+    expect(requests.map((r) => r.body)).toEqual([
+      { command: "seek", position_ms: 90_000 },
+      { command: "pause" },
+      { command: "subtitles", stream_index: -1 },
+    ]);
   });
 
   it("drops a session whose player is gone, and asks again what one obeys when it no longer takes a command", async () => {

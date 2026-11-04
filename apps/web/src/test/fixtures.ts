@@ -1,4 +1,4 @@
-import type { Chapter, Credit, HistoryEntry, ItemSummary, Marker, MediaStream } from "@/api/types";
+import type { Chapter, Credit, HistoryEntry, ItemSummary, Marker, MediaStream, PlayingSession, RemoteDevice } from "@/api/types";
 
 let nextId = 1000;
 
@@ -28,6 +28,34 @@ export function makeStream(overrides: Partial<MediaStream> = {}): MediaStream {
     forced: false,
     ...overrides,
   };
+}
+
+/** One of the user's sessions as `GET /api/sessions` lists it: a movie playing on a TV unless `overrides` say otherwise. */
+export function makeSession(overrides: Partial<PlayingSession> = {}): PlayingSession {
+  return {
+    session_id: "s1",
+    kind: "item",
+    device: "Living room TV",
+    device_id: "app-1",
+    device_kind: "tv",
+    item: makeItem({ id: 7 }),
+    channel: null,
+    state: "playing",
+    position_ms: 0,
+    duration_ms: 6_000_000,
+    updated_at: 1_700_000_000,
+    age_ms: 0,
+    controls: [],
+    audio_index: null,
+    subtitle_index: null,
+    tracks: { audio: [], subtitles: [] },
+    ...overrides,
+  };
+}
+
+/** One of the user's devices that takes casts, as `GET /api/remote/devices` lists it: a TV that takes both kinds. */
+export function makeReceiver(overrides: Partial<RemoteDevice> = {}): RemoteDevice {
+  return { receiver_id: "tv-1", device_id: "app-1", name: "Living room TV", kind: "tv", casts: ["item", "live"], ...overrides };
 }
 
 export function makeChapter(startMs: number, title: string | null = null, thumbUrl?: string): Chapter {

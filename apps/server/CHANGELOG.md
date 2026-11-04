@@ -39,6 +39,9 @@ describes how they are made.
   another device: sessions list their file's tracks and which play, and
   players that say they take a change of track switch to the one picked.
   Jellyfin apps that take media control switch track too.
+- The web and desktop apps' remote lists your other devices that are on,
+  those playing first, then those ready to play, and changes the audio
+  track and the subtitles of what plays on one.
 
 ### Fixed
 

@@ -629,13 +629,32 @@ export interface SessionInfo {
 }
 
 /** A command a remote sends one of the user's players (`POST /api/sessions/{id}/command`). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
+
+/** What kind of device plays a session, or takes casts: remotes show each with its own icon. */
+export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
+
+/** One of a title's audio or subtitle tracks, which a remote picks from (`PlayingSession.tracks`). */
+export interface TrackOption {
+  /** The stream index commands and progress reports name. */
+  index: number;
+  language: string | null;
+  title: string | null;
+  codec: string | null;
+  /** Audio only. */
+  channels: number | null;
+  default: boolean;
+  forced: boolean;
+}
 
 /** One of the user's own sessions whose player is there (`GET /api/sessions`): what remotes control. */
 export interface PlayingSession {
   session_id: string;
   kind: "item" | "live";
   device: string | null;
+  /** Which device plays it: everything one sign-in plays has the same, which receivers have too. */
+  device_id: string;
+  device_kind: DeviceKind;
   /** What plays (kind "item"). */
   item: ItemSummary | null;
   /** The channel watched (kind "live"); `now`: the programme on. */
@@ -652,6 +671,26 @@ export interface PlayingSession {
   age_ms: number;
   /** What its player obeys; Stop always works. */
   controls: Control[];
+  /** The audio track it plays, by stream index; null when not known, and on live. */
+  audio_index: number | null;
+  /** The subtitles it shows, by stream index (-1: none); null when not known, and on live. */
+  subtitle_index: number | null;
+  /** Its file's tracks, which `audio` and `subtitles` pick from; empty on live. */
+  tracks: { audio: TrackOption[]; subtitles: TrackOption[] };
+}
+
+/** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */
+export type CastKind = "item" | "live";
+
+/** One of the user's devices that takes casts (`GET /api/remote/devices`). */
+export interface RemoteDevice {
+  /** The app's own id for the device: where casts go. */
+  receiver_id: string;
+  /** As its sessions say it: what it plays has the same. */
+  device_id: string;
+  name: string | null;
+  kind: DeviceKind;
+  casts: CastKind[];
 }
 
 export interface Activity {

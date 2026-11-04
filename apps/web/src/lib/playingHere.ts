@@ -24,7 +24,7 @@ export function playingHere(sessionId: string): () => void {
   };
 }
 
-/** Whether `sessionId` plays in this tab: how the players' tests see that a player said so. */
+/** Whether `sessionId` plays in this tab now: for a remote's timers, and the players' tests. */
 export function isPlayingHere(sessionId: string): boolean {
   return here.has(sessionId);
 }

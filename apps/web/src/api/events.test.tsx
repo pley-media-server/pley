@@ -211,13 +211,16 @@ describe("useServerEvents", () => {
     expect(FakeEventSource.all).toHaveLength(3);
   });
 
-  it("refreshes the user's own sessions, for the remote, as sessions change or stop", () => {
+  it("refreshes the user's own sessions and devices, for the remote, as sessions change or stop", () => {
     const { client, source } = setup();
     client.setQueryData(keys.sessions, []);
+    client.setQueryData(keys.remoteDevices, []);
     client.setQueryData(keys.activity, { scans: [], sessions: [] });
 
+    // A device that takes casts coming or going says so too.
     act(() => source().send({ type: "sessions_changed" }));
     expect(invalidated(client, keys.sessions)).toBe(true);
+    expect(invalidated(client, keys.remoteDevices)).toBe(true);
     expect(invalidated(client, keys.activity)).toBe(true);
 
     client.setQueryData(keys.sessions, []);
