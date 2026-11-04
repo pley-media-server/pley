@@ -682,15 +682,20 @@ and while its socket is open. Pley remembers what it said, in memory, until
 it says otherwise or the server restarts. The commands reach the socket as
 `Playstate`: pause as `Pause`, play as `Unpause`, a seek as `Seek` with
 `SeekPositionTicks`, a skip as a `Seek` from where the player is by then,
-next and previous as `NextTrack` and `PreviousTrack`. A device that never
-said so, or has no socket open, can only be stopped.
+next and previous as `NextTrack` and `PreviousTrack`. A change of track is
+a `GeneralCommand`: `SetAudioStreamIndex` or `SetSubtitleStreamIndex`,
+with the stream's `Index` (as the device's media streams number them;
+`-1` turns subtitles off) in `Arguments`. The `AudioStreamIndex` and
+`SubtitleStreamIndex` of the device's reports are what the remotes show it
+plays. A device that never said so, or has no socket open, can only be
+stopped.
 
 The socket (`/socket`) asks to be kept alive every 60 seconds, and tells of
 changes to the libraries the user may open (`LibraryChanged`), to the
 user's watch state (`UserDataChanged`), playback stopped from Pley and the
-commands of the user's remotes (`Playstate`). It checks the token again
-every 30 seconds, from where the socket was opened, and closes once it
-ends.
+commands of the user's remotes (`Playstate`, `GeneralCommand`). It checks
+the token again every 30 seconds, from where the socket was opened, and
+closes once it ends.
 
 ### Jellyfin's names for Pley's things
 

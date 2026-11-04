@@ -31,6 +31,14 @@ describes how they are made.
   tablet, a computer, a browser): what the player says, else what the
   server tells from the app. Remotes and dashboards can key players by
   it, and pick TVs out.
+- A user's remotes can cast to their other devices: an app that keeps its
+  event stream open as a receiver is listed, and plays the title,
+  playlist or Live TV channel sent to it, as its own Play would. Only the
+  user's own devices are listed and cast to, an administrator's too.
+- Remotes change the audio track and the subtitles of what plays on
+  another device: sessions list their file's tracks and which play, and
+  players that say they take a change of track switch to the one picked.
+  Jellyfin apps that take media control switch track too.
 
 ### Fixed
 

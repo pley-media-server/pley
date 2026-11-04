@@ -223,6 +223,12 @@ pub struct Progress {
     /// happened to the item since.
     #[serde(default)]
     age_ms: Option<i64>,
+    /// The audio track the player plays, and the subtitles it shows (`-1`:
+    /// none), by stream index: kept on the session for the user's remotes.
+    #[serde(default)]
+    audio_index: Option<i64>,
+    #[serde(default)]
+    subtitle_index: Option<i64>,
 }
 
 fn playing() -> String {
@@ -294,7 +300,8 @@ pub async fn progress(
     if let Some(session) = body.session_id.as_deref().and_then(|sid| state.sessions.get(sid))
         && session.user_id == user.id
     {
-        let changed = session.update(body.position_ms, &body.state);
+        let moved = session.update(body.position_ms, &body.state);
+        let switched = session.report_tracks(body.audio_index, body.subtitle_index);
         if session.should_touch_transcoder()
             && let Some(job) = session.job_id()
         {
@@ -303,7 +310,7 @@ pub async fn progress(
                 let _ = transcoder.touch_job(&job).await;
             });
         }
-        if changed {
+        if moved || switched {
             state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
         }
     }

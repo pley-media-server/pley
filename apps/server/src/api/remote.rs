@@ -1,26 +1,37 @@
 //! Remote control (docs/API.md, "Remote control"): a user's devices list what
 //! their other devices play (`GET /api/sessions`) and send those players
 //! commands (`POST /api/sessions/{id}/command`), which reach them on the
-//! user's event streams as `player_command`. Only the session's own user
-//! controls it: administrators stop other people's sessions
-//! (`DELETE /api/sessions/{id}`), nothing more. A session is a title's
-//! (`/api/playback`) or a Live TV viewer's (`/api/live/channels/{id}/watch`).
+//! user's event streams as `player_command`. They also list the devices that
+//! take casts, apps with an event stream open as a receiver
+//! (`GET /api/remote/devices`), and cast a title, a playlist or a channel to
+//! one (`POST /api/remote/devices/{id}/cast`, `cast` on the streams). Only
+//! the session's or the device's own user controls it: administrators stop
+//! other people's sessions (`DELETE /api/sessions/{id}`), nothing more. A
+//! session is a title's (`/api/playback`) or a Live TV viewer's
+//! (`/api/live/channels/{id}/watch`).
 
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
+use std::time::Instant;
 
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, header};
+use parking_lot::Mutex;
+use pley_transcoder_api::{MediaStream, StreamKind};
 use serde::{Deserialize, Serialize};
 
+use super::items::item_or_404;
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
-use crate::events::ServerEvent;
+use crate::events::{EventBus, ServerEvent};
 use crate::livetv::tuner::RemoteViewer;
 use crate::oauth::clients::{self, clean_name};
-use crate::playback::{COMMANDS_PER_SECOND, Control, Controls, DeviceKind, Session};
+use crate::playback::{
+    COMMANDS_PER_SECOND, CommandWindow, Control, Controls, DeviceKind, Session, TrackOptions, track_options,
+};
 use crate::state::AppState;
 use crate::util::{now, now_ms};
 
@@ -130,6 +141,14 @@ pub struct PlayingSession {
     /// where the player is.
     age_ms: i64,
     controls: Controls,
+    /// The audio track and the subtitles it plays, by stream index (`-1`:
+    /// no subtitles): what its player last said, else what its play
+    /// request picked; `None` when not known, and on Live TV.
+    audio_index: Option<i64>,
+    subtitle_index: Option<i64>,
+    /// Its file's tracks, which `audio` and `subtitles` pick from; none on
+    /// Live TV.
+    tracks: TrackOptions,
     /// For the order they are listed in.
     #[serde(skip)]
     started_at: i64,
@@ -183,6 +202,9 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             updated_at: viewer.seen_at_ms / 1000,
             age_ms: 0,
             controls: viewer.controls,
+            audio_index: None,
+            subtitle_index: None,
+            tracks: TrackOptions::default(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
         });
@@ -196,6 +218,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
     let mut out = Vec::new();
     for session in state.sessions.active().into_iter().filter(|s| s.user_id == user.id) {
         let Some(row) = catalog::item(&state.db, user.id, session.item_id).await? else { continue };
+        let tracks = track_options(&file_streams(state, session.file_id).await?);
         let play = session.play.lock().clone();
         let reported_at_ms = play.reported_at_ms.unwrap_or(play.updated_at.saturating_mul(1000));
         out.push(PlayingSession {
@@ -214,11 +237,20 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             updated_at: reported_at_ms / 1000,
             age_ms: 0,
             controls: controls_of(state, &session),
+            audio_index: play.audio_index,
+            subtitle_index: play.subtitle_index,
+            tracks,
             started_at: session.started_at,
             reported_at_ms,
         });
     }
     Ok(out)
+}
+
+/// The streams of a session's file (sidecar and added subtitles included);
+/// none once the file is gone.
+async fn file_streams(state: &AppState, file_id: i64) -> ApiResult<Vec<MediaStream>> {
+    Ok(catalog::file(&state.db, file_id).await?.map(|file| file.streams()).unwrap_or_default())
 }
 
 /// What the player of `session` obeys: what it said when it started, or,
@@ -237,6 +269,17 @@ pub struct Command {
     position_ms: Option<i64>,
     #[serde(default)]
     offset_ms: Option<i64>,
+    #[serde(default)]
+    stream_index: Option<i64>,
+}
+
+/// What a command carries to its player, each `None` for the commands that
+/// don't take it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Values {
+    position_ms: Option<i64>,
+    offset_ms: Option<i64>,
+    stream_index: Option<i64>,
 }
 
 /// The furthest one `skip` goes, either way.
@@ -257,7 +300,15 @@ pub async fn command(
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     let target = controlled(&state, &user, &id)?;
-    let (position_ms, offset_ms) = command_values(&body, target.duration_ms())?;
+    // A track is one of the session file's; Live TV has none to pick.
+    let streams = match &target {
+        Controlled::Item(session) if matches!(body.command, Control::Audio | Control::Subtitles) => {
+            Some(file_streams(&state, session.file_id).await?)
+        }
+        Controlled::Item(_) => Some(Vec::new()),
+        Controlled::Live(_) => None,
+    };
+    let values = command_values(&body, target.duration_ms(), streams.as_deref())?;
     if !target.controls(&state).contains(&body.command) {
         return Err(AppError::ConflictAs(
             "not_controllable",
@@ -283,8 +334,9 @@ pub async fn command(
         user_id: user.id,
         session_id: id,
         command: body.command,
-        position_ms,
-        offset_ms,
+        position_ms: values.position_ms,
+        offset_ms: values.offset_ms,
+        stream_index: values.stream_index,
     });
     Ok(StatusCode::ACCEPTED)
 }
@@ -331,11 +383,13 @@ fn controlled(state: &AppState, user: &AuthUser, id: &str) -> ApiResult<Controll
     Ok(target)
 }
 
-/// The command's place or offset, checked: `seek` goes somewhere in the
-/// title (of `duration_ms`, 0 when not known: then at most
-/// [`MAX_UNKNOWN_SEEK_MS`]), `skip` at most
-/// [`MAX_SKIP_MS`] either way. The others take none.
-fn command_values(body: &Command, duration_ms: i64) -> ApiResult<(Option<i64>, Option<i64>)> {
+/// The command's place, offset or track, checked: `seek` goes somewhere in
+/// the title (of `duration_ms`, 0 when not known: then at most
+/// [`MAX_UNKNOWN_SEEK_MS`]), `skip` at most [`MAX_SKIP_MS`] either way;
+/// `audio` to one of the file's audio `streams`, `subtitles` to one of its
+/// subtitle streams or `-1` for none (`streams` is `None` on Live TV, which
+/// takes neither). The others take nothing.
+fn command_values(body: &Command, duration_ms: i64, streams: Option<&[MediaStream]>) -> ApiResult<Values> {
     match body.command {
         Control::Seek => {
             let position = body.position_ms.ok_or_else(|| AppError::bad_request("seek needs position_ms"))?;
@@ -354,7 +408,7 @@ fn command_values(body: &Command, duration_ms: i64) -> ApiResult<(Option<i64>, O
                     "position_ms must be at most {MAX_UNKNOWN_SEEK_MS} when the length isn't known"
                 )));
             }
-            Ok((Some(position), None))
+            Ok(Values { position_ms: Some(position), ..Values::default() })
         }
         Control::Skip => {
             let offset = body.offset_ms.ok_or_else(|| AppError::bad_request("skip needs offset_ms"))?;
@@ -363,9 +417,26 @@ fn command_values(body: &Command, duration_ms: i64) -> ApiResult<(Option<i64>, O
                     "offset_ms must be between -{MAX_SKIP_MS} and {MAX_SKIP_MS}"
                 )));
             }
-            Ok((None, Some(offset)))
+            Ok(Values { offset_ms: Some(offset), ..Values::default() })
         }
-        Control::Play | Control::Pause | Control::Next | Control::Previous => Ok((None, None)),
+        Control::Audio | Control::Subtitles => {
+            let streams = streams.ok_or_else(|| AppError::bad_request("Live TV has no tracks to pick"))?;
+            let index = body
+                .stream_index
+                .ok_or_else(|| AppError::bad_request(format!("{} needs stream_index", words(body.command))))?;
+            let (kind, off) = match body.command {
+                Control::Audio => (StreamKind::Audio, false),
+                _ => (StreamKind::Subtitle, index == -1),
+            };
+            if !off && !streams.iter().any(|s| s.kind == kind && s.index == index) {
+                return Err(AppError::bad_request(match body.command {
+                    Control::Audio => "stream_index must be one of the file's audio tracks",
+                    _ => "stream_index must be one of the file's subtitle tracks, or -1 for none",
+                }));
+            }
+            Ok(Values { stream_index: Some(index), ..Values::default() })
+        }
+        Control::Play | Control::Pause | Control::Next | Control::Previous => Ok(Values::default()),
     }
 }
 
@@ -377,7 +448,293 @@ fn words(command: Control) -> &'static str {
         Control::Skip => "skip",
         Control::Next => "next",
         Control::Previous => "previous",
+        Control::Audio => "audio",
+        Control::Subtitles => "subtitles",
     }
+}
+
+// ------------------------------------------------------------------ casting
+
+/// The most receivers one user has at once: every device of a household,
+/// not a list without end. A stream past them still gets its events.
+const MAX_RECEIVERS_EACH: usize = 32;
+
+/// What a remote casts to a receiver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CastKind {
+    /// A title or a playlist of the library.
+    Item,
+    /// A Live TV channel.
+    Live,
+}
+
+impl CastKind {
+    fn from_name(name: &str) -> Option<CastKind> {
+        match name {
+            "item" => Some(CastKind::Item),
+            "live" => Some(CastKind::Live),
+            _ => None,
+        }
+    }
+}
+
+/// An event stream's `casts`: the kinds named, comma-separated, that this
+/// server knows, each once. Others (from a newer app) are left out.
+pub(crate) fn cast_kinds(text: &str) -> BTreeSet<CastKind> {
+    text.split(',').filter_map(|name| CastKind::from_name(name.trim())).collect()
+}
+
+/// An event stream's `receiver`, the app's own id for its device, when it
+/// is one: 1 to 128 letters, digits, `.`, `_`, `:` and `-`.
+pub(crate) fn receiver_id(text: &str) -> Option<&str> {
+    let valid = (1..=128).contains(&text.len())
+        && text.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'));
+    valid.then_some(text)
+}
+
+/// A device that takes casts, as its newest event stream says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Receiver {
+    /// Which device it is, as sessions say ([`device_id_of`]).
+    pub device_id: String,
+    pub name: Option<String>,
+    pub kind: DeviceKind,
+    pub casts: BTreeSet<CastKind>,
+}
+
+/// A receiver while one of its streams is open.
+struct Open {
+    receiver: Receiver,
+    /// When its newest stream connected: a device's newest receiver is the
+    /// one listed.
+    connected_at: Instant,
+    /// Its streams open: several with the same id count once.
+    streams: usize,
+    /// Casts sent to it lately, which [`Receivers::take_cast`] counts.
+    casts_sent: CommandWindow,
+}
+
+/// The devices the user's remotes cast to: apps with an event stream open
+/// as a receiver (`GET /api/events?receiver=`), by user and the app's own
+/// id for its device, for as long as one is.
+#[derive(Default)]
+pub struct Receivers {
+    by_user: Mutex<HashMap<i64, HashMap<String, Open>>>,
+}
+
+impl Receivers {
+    /// Counts one of `user_id`'s event streams as receiver `id` until the
+    /// guard is dropped: `None` when the user has [`MAX_RECEIVERS_EACH`]
+    /// others already. A receiver new, or described anew, sends
+    /// `sessions_changed`, for the user's remotes to list devices again.
+    pub(crate) fn open(
+        self: &Arc<Self>,
+        events: &EventBus,
+        user_id: i64,
+        id: &str,
+        receiver: Receiver,
+    ) -> Option<ReceiverSlot> {
+        let changed = {
+            let mut by_user = self.by_user.lock();
+            let theirs = by_user.entry(user_id).or_default();
+            let full = theirs.len() >= MAX_RECEIVERS_EACH;
+            match theirs.get_mut(id) {
+                Some(open) => {
+                    open.streams += 1;
+                    open.connected_at = Instant::now();
+                    let changed = open.receiver != receiver;
+                    open.receiver = receiver;
+                    changed
+                }
+                None if full => return None,
+                None => {
+                    let open = Open {
+                        receiver,
+                        connected_at: Instant::now(),
+                        streams: 1,
+                        casts_sent: CommandWindow::default(),
+                    };
+                    theirs.insert(id.to_owned(), open);
+                    true
+                }
+            }
+        };
+        if changed {
+            events.send(ServerEvent::SessionsChanged { user_id });
+        }
+        Some(ReceiverSlot { receivers: self.clone(), events: events.clone(), user_id, id: id.to_owned() })
+    }
+
+    /// `user_id`'s receivers, one per device (the one whose stream connected
+    /// last), by name.
+    fn listed(&self, user_id: i64) -> Vec<RemoteDevice> {
+        let by_user = self.by_user.lock();
+        let Some(theirs) = by_user.get(&user_id) else { return Vec::new() };
+        let mut newest: HashMap<&str, (&String, &Open)> = HashMap::new();
+        for (id, open) in theirs {
+            let kept = newest.entry(&open.receiver.device_id).or_insert((id, open));
+            if (open.connected_at, id) > (kept.1.connected_at, kept.0) {
+                *kept = (id, open);
+            }
+        }
+        let mut out: Vec<RemoteDevice> = newest
+            .into_values()
+            .map(|(id, open)| RemoteDevice {
+                receiver_id: id.clone(),
+                device_id: open.receiver.device_id.clone(),
+                name: open.receiver.name.clone(),
+                kind: open.receiver.kind,
+                casts: open.receiver.casts.clone(),
+            })
+            .collect();
+        out.sort_by_cached_key(|d| (d.name.is_none(), d.name.as_deref().map(str::to_lowercase), d.receiver_id.clone()));
+        out
+    }
+
+    /// What receiver `id` of `user_id` takes, while it is there.
+    fn casts(&self, user_id: i64, id: &str) -> Option<BTreeSet<CastKind>> {
+        self.by_user.lock().get(&user_id)?.get(id).map(|open| open.receiver.casts.clone())
+    }
+
+    /// Counts a cast to receiver `id` of `user_id`: whether it may go, at
+    /// most [`COMMANDS_PER_SECOND`] each second, or `None` when the receiver
+    /// has gone since.
+    fn take_cast(&self, user_id: i64, id: &str) -> Option<bool> {
+        self.by_user.lock().get_mut(&user_id)?.get_mut(id).map(|open| open.casts_sent.take())
+    }
+}
+
+/// One of a receiver's event streams, counted while it lasts.
+pub(crate) struct ReceiverSlot {
+    receivers: Arc<Receivers>,
+    events: EventBus,
+    user_id: i64,
+    id: String,
+}
+
+impl Drop for ReceiverSlot {
+    fn drop(&mut self) {
+        let mut by_user = self.receivers.by_user.lock();
+        let Some(theirs) = by_user.get_mut(&self.user_id) else { return };
+        let Some(open) = theirs.get_mut(&self.id) else { return };
+        open.streams = open.streams.saturating_sub(1);
+        if open.streams > 0 {
+            return;
+        }
+        theirs.remove(&self.id);
+        if theirs.is_empty() {
+            by_user.remove(&self.user_id);
+        }
+        drop(by_user);
+        self.events.send(ServerEvent::SessionsChanged { user_id: self.user_id });
+    }
+}
+
+/// One of the user's devices that takes casts, as their remotes list it.
+#[derive(Debug, Clone, Serialize)]
+pub struct RemoteDevice {
+    receiver_id: String,
+    /// Which device it is: remotes merge it with its sessions by this.
+    device_id: String,
+    name: Option<String>,
+    kind: DeviceKind,
+    casts: BTreeSet<CastKind>,
+}
+
+/// `GET /api/remote/devices`: the caller's own devices that take casts,
+/// one each. Administrators get only theirs too.
+pub async fn devices(State(state): State<AppState>, user: AuthUser) -> Json<Vec<RemoteDevice>> {
+    Json(state.receivers.listed(user.id))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Cast {
+    #[serde(default)]
+    item_id: Option<i64>,
+    #[serde(default)]
+    playlist_id: Option<i64>,
+    #[serde(default)]
+    channel_id: Option<i64>,
+    #[serde(default)]
+    start_ms: Option<i64>,
+    #[serde(default)]
+    shuffle: Option<bool>,
+}
+
+/// What may be cast from the library: what plays itself, a show or a season
+/// (its next episode), an album or an artist (its tracks).
+const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "album", "artist"];
+
+/// `POST /api/remote/devices/{id}/cast`: sends one of the caller's own
+/// receivers a title, a playlist or a Live TV channel to play, through
+/// their event streams. `202`: it is on its way; the device's sessions say
+/// what it did.
+pub async fn cast(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Json<Cast>, JsonRejection>,
+) -> ApiResult<StatusCode> {
+    let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    // Someone else's receiver is as unknown as one that isn't there.
+    let takes = state.receivers.casts(user.id, &id).ok_or_else(|| AppError::not_found("no such device"))?;
+    let kind = match (body.item_id, body.playlist_id, body.channel_id) {
+        (Some(item_id), None, None) => {
+            let row = item_or_404(&state, user.id, item_id).await?;
+            if !CASTABLE.contains(&row.kind.as_str()) {
+                return Err(AppError::bad_request(
+                    "only movies, episodes, shows, seasons, tracks, albums and artists can be cast",
+                ));
+            }
+            CastKind::Item
+        }
+        (None, Some(playlist_id), None) => {
+            if !crate::playlists::is_theirs(&state.db, &user, playlist_id).await? {
+                return Err(AppError::not_found(format!("playlist {playlist_id} not found")));
+            }
+            CastKind::Item
+        }
+        (None, None, Some(channel_id)) => {
+            state.live.check_access(&user).await?;
+            state.live.channel(&user, channel_id).await?;
+            CastKind::Live
+        }
+        _ => return Err(AppError::bad_request("name one of item_id, playlist_id and channel_id")),
+    };
+    if !takes.contains(&kind) {
+        return Err(AppError::ConflictAs(
+            "not_castable",
+            match kind {
+                CastKind::Item => "this device doesn't play titles from a remote".to_owned(),
+                CastKind::Live => "this device doesn't play Live TV from a remote".to_owned(),
+            },
+        ));
+    }
+    if body.start_ms.is_some_and(|start| !(0..=MAX_UNKNOWN_SEEK_MS).contains(&start)) {
+        return Err(AppError::bad_request(format!("start_ms must be between 0 and {MAX_UNKNOWN_SEEK_MS}")));
+    }
+    match state.receivers.take_cast(user.id, &id) {
+        None => return Err(AppError::not_found("no such device")),
+        Some(false) => {
+            return Err(AppError::TooManyRequests(format!(
+                "{COMMANDS_PER_SECOND} casts a second at most: wait a moment"
+            )));
+        }
+        Some(true) => {}
+    }
+    state.events.send(ServerEvent::Cast {
+        user_id: user.id,
+        receiver_id: id,
+        item_id: body.item_id,
+        playlist_id: body.playlist_id,
+        channel_id: body.channel_id,
+        start_ms: body.start_ms,
+        shuffle: body.shuffle.unwrap_or(false),
+        from: device_name(None, &headers),
+    });
+    Ok(StatusCode::ACCEPTED)
 }
 
 #[cfg(test)]
@@ -437,5 +794,100 @@ mod tests {
         let said = device_kind_of(Some(DeviceKind::Tv), &user(Some(clients::ANDROID_ID), false), None);
         assert_eq!(said, DeviceKind::Tv, "what the player says wins");
         assert_eq!(device_kind_of(Some(DeviceKind::Phone), &user(None, false), None), DeviceKind::Phone);
+    }
+
+    #[test]
+    fn a_receiver_id_is_short_and_plain() {
+        for id in ["tv-1", "den.TV_2", "app:4f2c", "0"] {
+            assert_eq!(receiver_id(id), Some(id));
+        }
+        assert_eq!(receiver_id(&"a".repeat(128)).map(str::len), Some(128));
+        for id in ["", &"a".repeat(129), "tv 1", "tv/1", "tv%201", "t\u{e9}l\u{e9}", "tv\n"] {
+            assert_eq!(receiver_id(id), None, "{id:?}");
+        }
+    }
+
+    #[test]
+    fn casts_are_the_kinds_this_server_knows_once() {
+        assert_eq!(cast_kinds("live,item,live"), BTreeSet::from([CastKind::Item, CastKind::Live]));
+        assert_eq!(cast_kinds(" item ,fax,,"), BTreeSet::from([CastKind::Item]));
+        assert!(cast_kinds("").is_empty() && cast_kinds("ITEM").is_empty());
+        assert_eq!(serde_json::to_string(&cast_kinds("live,item")).unwrap(), r#"["item","live"]"#);
+    }
+
+    /// A receiver of device `device_id`, named `name`, that takes `casts`.
+    fn receiver(device_id: &str, name: Option<&str>, casts: &str) -> Receiver {
+        Receiver {
+            device_id: device_id.into(),
+            name: name.map(str::to_owned),
+            kind: DeviceKind::Tv,
+            casts: cast_kinds(casts),
+        }
+    }
+
+    /// How many `sessions_changed` were sent since `events` subscribed.
+    fn changes(events: &mut tokio::sync::broadcast::Receiver<ServerEvent>) -> usize {
+        std::iter::from_fn(|| events.try_recv().ok())
+            .filter(|e| matches!(e, ServerEvent::SessionsChanged { user_id: 1 }))
+            .count()
+    }
+
+    #[test]
+    fn a_receivers_streams_count_once_and_it_goes_with_the_last() {
+        let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
+        let mut events = bus.subscribe();
+        let first = receivers.open(&bus, 1, "tv-1", receiver("app-7", Some("Den"), "item")).unwrap();
+        assert_eq!(changes(&mut events), 1, "a receiver appeared");
+        let second = receivers.open(&bus, 1, "tv-1", receiver("app-7", Some("Den"), "item")).unwrap();
+        assert_eq!(changes(&mut events), 0, "the same, described the same");
+        let third = receivers.open(&bus, 1, "tv-1", receiver("app-7", Some("Den"), "item,live")).unwrap();
+        assert_eq!(changes(&mut events), 1, "the same, described anew");
+        let listed = receivers.listed(1);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].casts, cast_kinds("item,live"), "as its newest stream says");
+        assert!(receivers.listed(2).is_empty(), "another user's");
+        assert_eq!(receivers.casts(2, "tv-1"), None);
+        drop((first, third));
+        assert_eq!((receivers.listed(1).len(), changes(&mut events)), (1, 0), "a stream is still open");
+        drop(second);
+        assert!(receivers.listed(1).is_empty());
+        assert_eq!(changes(&mut events), 1, "it went");
+        assert!(receivers.by_user.lock().is_empty(), "nothing is kept of it");
+    }
+
+    #[test]
+    fn a_device_is_listed_once_by_its_newest_receiver() {
+        let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
+        let _old = receivers.open(&bus, 1, "tab-1", receiver("web-1", Some("Laptop"), "item")).unwrap();
+        let new = receivers.open(&bus, 1, "tab-2", receiver("web-1", Some("Laptop"), "item")).unwrap();
+        let _tv = receivers.open(&bus, 1, "tv", receiver("app-7", Some("den TV"), "live")).unwrap();
+        let _unnamed = receivers.open(&bus, 1, "box", receiver("app-8", None, "item")).unwrap();
+        let ids = |listed: Vec<RemoteDevice>| listed.into_iter().map(|d| d.receiver_id).collect::<Vec<_>>();
+        assert_eq!(ids(receivers.listed(1)), ["tv", "tab-2", "box"], "by name, whatever its case, unnamed last");
+        drop(new);
+        assert_eq!(ids(receivers.listed(1)), ["tv", "tab-1", "box"], "the device's other receiver");
+    }
+
+    #[test]
+    fn a_user_has_a_bounded_number_of_receivers() {
+        let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
+        let open: Vec<ReceiverSlot> = (0..MAX_RECEIVERS_EACH)
+            .map(|n| receivers.open(&bus, 1, &format!("r{n}"), receiver(&format!("app-{n}"), None, "item")).unwrap())
+            .collect();
+        assert!(receivers.open(&bus, 1, "one-more", receiver("app-x", None, "item")).is_none());
+        assert!(receivers.open(&bus, 1, "r0", receiver("app-0", None, "item")).is_some(), "one already there");
+        assert!(receivers.open(&bus, 2, "one-more", receiver("app-x", None, "item")).is_some(), "another user's");
+        drop(open);
+        assert!(receivers.open(&bus, 1, "one-more", receiver("app-x", None, "item")).is_some());
+    }
+
+    #[test]
+    fn casts_to_a_receiver_are_limited_each_second() {
+        let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
+        assert_eq!(receivers.take_cast(1, "tv"), None);
+        let _tv = receivers.open(&bus, 1, "tv", receiver("app-7", None, "item")).unwrap();
+        assert!((0..COMMANDS_PER_SECOND).all(|_| receivers.take_cast(1, "tv") == Some(true)));
+        assert_eq!(receivers.take_cast(1, "tv"), Some(false));
+        assert_eq!(receivers.take_cast(2, "tv"), None, "another user's");
     }
 }

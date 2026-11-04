@@ -5,15 +5,17 @@ use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::rejection::QueryRejection;
+use axum::extract::{Query, State};
+use axum::http::HeaderMap;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::Stream;
 use pley_transcoder_api::JobStatus;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::BroadcastStream;
 
-use super::remote::SessionKind;
+use super::remote::{self, SessionKind};
 use crate::access;
 use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken};
@@ -21,7 +23,7 @@ use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::library::scanner::ScanStatus;
 use crate::markers::AnalysisStatus;
-use crate::playback::{Method, TranscodeInfo};
+use crate::playback::{DeviceKind, Method, TranscodeInfo};
 use crate::schedule::LibraryWorkStatus;
 use crate::state::AppState;
 
@@ -152,10 +154,24 @@ impl Drop for StreamSlot {
     }
 }
 
+/// What an event stream says of its device, to take casts from the user's
+/// remotes as a receiver ([`remote::Receivers`]).
+#[derive(Debug, Default, Deserialize)]
+pub struct EventsQuery {
+    /// The app's own id for the device ([`remote::receiver_id`]).
+    receiver: Option<String>,
+    device_name: Option<String>,
+    device_kind: Option<String>,
+    /// What it plays when cast to, comma-separated ([`remote::cast_kinds`]).
+    casts: Option<String>,
+}
+
 pub async fn events(
     State(state): State<AppState>,
     user: AuthUser,
     CurrentToken(token): CurrentToken,
+    headers: HeaderMap,
+    query: Result<Query<EventsQuery>, QueryRejection>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
     let slot = StreamSlot::take(token.as_deref())?;
     // Events about libraries the user can't open aren't theirs to see.
@@ -167,6 +183,20 @@ pub async fn events(
     // Everyone's sessions' changes go to administrators' streams, whose
     // dashboard lists them, while the session is one.
     let admin = Arc::new(AtomicBool::new(user.is_admin));
+    // A stream that names its device as a receiver makes it one the user's
+    // remotes cast to, until the stream ends. A query that doesn't parse
+    // costs the stream nothing: it just isn't a receiver.
+    let query = query.map(|Query(query)| query).unwrap_or_default();
+    let receiver = query.receiver.as_deref().and_then(remote::receiver_id).and_then(|id| {
+        let declared = query.device_kind.as_deref().and_then(DeviceKind::from_name);
+        let receiver = remote::Receiver {
+            device_id: remote::device_id_of(&user, token.as_deref()).unwrap_or_else(|| format!("receiver-{id}")),
+            name: remote::device_name(query.device_name.as_deref(), &headers),
+            kind: remote::device_kind_of(declared, &user, remote::user_agent(&headers)),
+            casts: query.casts.as_deref().map(remote::cast_kinds).unwrap_or_default(),
+        };
+        state.receivers.open(&state.events, user.id, id, receiver)
+    });
     // The session or app token is checked again every so often
     // (`Config::event_recheck`): the stream ends once it is signed out, it
     // expires or its user is disabled, and follows changes of access.
@@ -219,7 +249,7 @@ pub async fn events(
             _ => true,
         })
         .map(move |event| {
-            let _ = (&gone, &slot);
+            let _ = (&gone, &slot, &receiver);
             Ok(Event::default().json_data(event).unwrap_or_else(|_| Event::default().comment("encode error")))
         });
     // The stream never ends on its own and the web UI keeps one open while

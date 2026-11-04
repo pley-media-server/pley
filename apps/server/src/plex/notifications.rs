@@ -242,6 +242,7 @@ impl Listener {
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::PlayerCommand { .. }
+            | ServerEvent::Cast { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
             | ServerEvent::LiveTakenOver { .. }

@@ -152,6 +152,12 @@ async fn smart_entries(db: &Db, user: &AuthUser, row: &PlaylistRow) -> sqlx::Res
     Ok(leaves.into_iter().map(|item| (item.id, item)).collect())
 }
 
+/// Whether playlist `id` is the user's: playlists are private, so it is
+/// the only one who sees it.
+pub async fn is_theirs(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<bool> {
+    Ok(owned(db, user, id).await?.is_some())
+}
+
 /// Whether the user's playlist is a smart one (it holds no entries).
 pub async fn is_smart(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<bool> {
     Ok(owned(db, user, id).await?.is_some_and(|row| row.smart_filter.is_some()))

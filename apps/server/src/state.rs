@@ -49,6 +49,9 @@ pub struct Inner {
     pub(crate) plex_session_keys: crate::plex::SessionKeys,
     /// The Jellyfin clients the user's remotes reach, through their socket.
     pub(crate) jellyfin_remotes: Arc<crate::jellyfin::Remotes>,
+    /// The devices the user's remotes cast to, while their event streams
+    /// are open.
+    pub(crate) receivers: Arc<crate::api::remote::Receivers>,
     /// When library work runs (see [`crate::schedule`]).
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
@@ -196,6 +199,7 @@ impl AppState {
                 sessions,
                 plex_session_keys: Default::default(),
                 jellyfin_remotes: Default::default(),
+                receivers: Default::default(),
                 schedule,
                 markers,
                 trickplay,

@@ -758,9 +758,13 @@ async fn report(
     // A session stopped from elsewhere isn't started again by the reports
     // its player keeps sending until it hears of it.
     let stopped = existing.is_none() && state.sessions.was_stopped(user.id, device_id.as_deref(), row.id);
+    // The tracks it plays, for the user's remotes (`-1`: no subtitles).
+    let (audio, subtitles) = (body.number("AudioStreamIndex"), body.number("SubtitleStreamIndex"));
     match existing {
         Some(session) => {
-            if session.update(position_ms, play_state) {
+            let moved = session.update(position_ms, play_state);
+            let switched = session.report_tracks(audio, subtitles);
+            if moved || switched {
                 state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
             if play_state == "stopped" {
@@ -788,6 +792,7 @@ async fn report(
                 );
                 let session = state.sessions.insert(session);
                 session.update(position_ms, play_state);
+                session.report_tracks(audio, subtitles);
                 state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
             }
         }

@@ -275,6 +275,7 @@ async fn a_command_reaches_the_users_own_streams() {
     let heard = events_until(&w, &w.viewer, pause, "player_command", Duration::from_secs(10)).await;
     let expected = json!({
         "type": "player_command", "session_id": session, "command": "pause", "position_ms": null, "offset_ms": null,
+        "stream_index": null,
     });
     assert_eq!(events_of(&heard, "player_command"), vec![expected]);
 
@@ -495,12 +496,14 @@ async fn a_jellyfin_client_that_takes_media_control_obeys_through_its_socket() {
     let refused = command(&w, &w.viewer, &session, json!({"command": "pause"})).await;
     assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_controllable")));
 
-    // Said so, with its socket open: every command, as Playstate.
+    // Said so, with its socket open: every command, as Playstate, and a
+    // change of track as a GeneralCommand.
     let said = app.jf(Method::POST, "/Sessions/Capabilities?SupportsMediaControl=true", &w.viewer, None).await;
     assert_eq!(said.status, StatusCode::NO_CONTENT);
     assert_eq!(controls().await, json!([]), "not without its socket");
     let mut ws = jellyfin_socket(&w, &w.viewer).await;
-    assert_eq!(controls().await, json!(["play", "pause", "seek", "skip", "next", "previous"]));
+    let every = json!(["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles"]);
+    assert_eq!(controls().await, every);
     assert_eq!(command(&w, &w.viewer, &session, json!({"command": "pause"})).await.status, StatusCode::ACCEPTED);
     assert_eq!(next_message(&mut ws, "Playstate").await, json!({"Command": "Pause"}));
     let seek = json!({"command": "seek", "position_ms": 30_000});
@@ -509,6 +512,23 @@ async fn a_jellyfin_client_that_takes_media_control_obeys_through_its_socket() {
         next_message(&mut ws, "Playstate").await,
         json!({"Command": "Seek", "SeekPositionTicks": 300_000_000_i64})
     );
+    let off = json!({"command": "subtitles", "stream_index": -1});
+    assert_eq!(command(&w, &w.viewer, &session, off).await.status, StatusCode::ACCEPTED);
+    let general = next_message(&mut ws, "GeneralCommand").await;
+    assert_eq!(
+        (general["Name"].clone(), general["Arguments"].clone()),
+        (json!("SetSubtitleStreamIndex"), json!({"Index": "-1"}))
+    );
+    assert_eq!(general["ControllingUserId"], json!(app.jf_user(&w.viewer).await));
+    // Its reports say which tracks it plays.
+    let report =
+        json!({"ItemId": film, "PositionTicks": 300_000_000_i64, "AudioStreamIndex": 1, "SubtitleStreamIndex": -1});
+    assert_eq!(
+        app.jf(Method::POST, "/Sessions/Playing/Progress", &w.viewer, Some(report)).await.status,
+        StatusCode::NO_CONTENT
+    );
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    assert_eq!((listed[0]["audio_index"].clone(), listed[0]["subtitle_index"].clone()), (json!(1), json!(-1)));
 
     // Saying it no longer does, in the full capabilities' body.
     let body = json!({"PlayableMediaTypes": ["Video"], "SupportsMediaControl": false});
@@ -659,6 +679,7 @@ async fn a_command_reaches_a_live_player() {
     let heard = events_until(&w, &w.viewer, next, "player_command", Duration::from_secs(10)).await;
     let expected = json!({
         "type": "player_command", "session_id": session, "command": "next", "position_ms": null, "offset_ms": null,
+        "stream_index": null,
     });
     assert_eq!(events_of(&heard, "player_command"), vec![expected]);
 
@@ -667,6 +688,15 @@ async fn a_command_reaches_a_live_player() {
         let refused = command(&w, &w.viewer, &session, body.clone()).await;
         assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_controllable")));
     }
+    // A channel has no tracks to pick, whatever its player says.
+    let tracks = watch(&w, &w.viewer, one, "tablet", json!({"controls": ["audio", "subtitles"]})).await;
+    for body in [json!({"command": "audio", "stream_index": 1}), json!({"command": "subtitles", "stream_index": -1})] {
+        assert_eq!(command(&w, &w.viewer, &tracks, body.clone()).await.status, StatusCode::BAD_REQUEST, "{body}");
+    }
+    let sessions = w.app.get("/api/sessions", &w.viewer).await.body;
+    let live = sessions.as_array().unwrap().iter().find(|s| s["session_id"] == json!(tracks)).unwrap();
+    assert_eq!((live["audio_index"].clone(), live["subtitle_index"].clone()), (Value::Null, Value::Null));
+    assert_eq!(live["tracks"], json!({"audio": [], "subtitles": []}));
     let timeshifts = watch(&w, &w.viewer, one, "phone", json!({"controls": ["pause", "seek", "skip"]})).await;
     for body in [
         json!({"command": "pause"}),
@@ -741,4 +771,391 @@ async fn stopping_a_live_viewer_ends_it() {
     assert!(ended.is_ok(), "the stream goes on");
     let gone = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &w.viewer).await;
     assert_eq!(gone.status, StatusCode::GONE);
+}
+
+// ------------------------------------------------------------------ tracks
+
+/// Gives the film the streams a probe would find: H.264 video, English
+/// audio (the default) and French surround audio, forced English subtitles
+/// and French ones.
+async fn with_tracks(w: &World) {
+    use pley_transcoder_api::{MediaInfo, MediaStream, StreamKind};
+    let stream = |index, kind, codec: &str, language: Option<&str>| MediaStream {
+        index,
+        kind,
+        codec: codec.into(),
+        language: language.map(str::to_owned),
+        ..Default::default()
+    };
+    let mut video = stream(0, StreamKind::Video, "h264", None);
+    (video.width, video.height, video.pix_fmt) = (Some(1920), Some(1080), Some("yuv420p".into()));
+    let mut english = stream(1, StreamKind::Audio, "aac", Some("eng"));
+    (english.channels, english.default) = (Some(2), true);
+    let mut french = stream(2, StreamKind::Audio, "aac", Some("fre"));
+    (french.channels, french.title) = (Some(6), Some("Surround".into()));
+    let mut signs = stream(3, StreamKind::Subtitle, "subrip", Some("eng"));
+    (signs.forced, signs.title, signs.text_based) = (true, Some("Signs".into()), Some(true));
+    let mut subtitles = stream(4, StreamKind::Subtitle, "subrip", Some("fre"));
+    subtitles.text_based = Some(true);
+    let info = MediaInfo {
+        container: Some("mkv".into()),
+        duration_ms: Some(LENGTH_MS),
+        streams: vec![video, english, french, signs, subtitles],
+        ..Default::default()
+    };
+    sqlx::query("UPDATE media_files SET media_info = ?, video_codec = 'h264', audio_codec = 'aac' WHERE id = ?")
+        .bind(serde_json::to_string(&info).unwrap())
+        .bind(w.app.file_of(w.film).await)
+        .execute(&w.app.state.db.write)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_change_of_track_is_one_of_the_files() {
+    let w = world().await;
+    with_tracks(&w).await;
+    let session = play(&w, &w.viewer).await;
+    // The player said it changes neither.
+    for body in [json!({"command": "audio", "stream_index": 2}), json!({"command": "subtitles", "stream_index": 4})] {
+        let refused = command(&w, &w.viewer, &session, body.clone()).await;
+        assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_controllable")));
+    }
+    let controls = json!({"client_id": "tv", "controls": ["audio", "subtitles"]});
+    let session = play_with(&w, &w.viewer, controls, &[]).await;
+
+    let french = async {
+        let sent = command(&w, &w.viewer, &session, json!({"command": "audio", "stream_index": 2})).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(&w, &w.viewer, french, "player_command", Duration::from_secs(10)).await;
+    let expected = json!({
+        "type": "player_command", "session_id": session, "command": "audio", "position_ms": null, "offset_ms": null,
+        "stream_index": 2,
+    });
+    assert_eq!(events_of(&heard, "player_command"), vec![expected]);
+    let off = async {
+        let body = json!({"command": "subtitles", "stream_index": -1, "position_ms": 5});
+        assert_eq!(command(&w, &w.viewer, &session, body).await.status, StatusCode::ACCEPTED);
+    };
+    let heard = events_until(&w, &w.viewer, off, "player_command", Duration::from_secs(10)).await;
+    let event = &events_of(&heard, "player_command")[0];
+    assert_eq!((event["stream_index"].clone(), event["position_ms"].clone()), (json!(-1), Value::Null));
+
+    for body in [
+        json!({"command": "subtitles", "stream_index": 3}),
+        json!({"command": "subtitles", "stream_index": 4}),
+        json!({"command": "audio", "stream_index": 1}),
+    ] {
+        assert_eq!(command(&w, &w.viewer, &session, body.clone()).await.status, StatusCode::ACCEPTED, "{body}");
+    }
+    for body in [
+        json!({"command": "audio"}),
+        json!({"command": "audio", "stream_index": 0}),
+        json!({"command": "audio", "stream_index": 3}),
+        json!({"command": "audio", "stream_index": -1}),
+        json!({"command": "audio", "stream_index": 9}),
+        json!({"command": "subtitles"}),
+        json!({"command": "subtitles", "stream_index": 1}),
+        json!({"command": "subtitles", "stream_index": -2}),
+        json!({"command": "subtitles", "stream_index": "3"}),
+    ] {
+        let refused = command(&w, &w.viewer, &session, body.clone()).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{body}: {}", refused.text());
+    }
+}
+
+#[tokio::test]
+async fn sessions_say_which_tracks_play_and_which_there_are() {
+    let w = world().await;
+    let app = &w.app;
+    with_tracks(&w).await;
+    let session = play(&w, &w.viewer).await;
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    // What the play request picked: the default audio, and the forced
+    // subtitles in its language, as the user's choices have it.
+    assert_eq!((listed[0]["audio_index"].clone(), listed[0]["subtitle_index"].clone()), (json!(1), json!(3)));
+    let tracks = json!({
+        "audio": [
+            {"index": 1, "language": "eng", "title": null, "codec": "aac", "channels": 2, "default": true, "forced": false},
+            {"index": 2, "language": "fre", "title": "Surround", "codec": "aac", "channels": 6, "default": false,
+             "forced": false},
+        ],
+        "subtitles": [
+            {"index": 3, "language": "eng", "title": "Signs", "codec": "subrip", "channels": null, "default": false,
+             "forced": true},
+            {"index": 4, "language": "fre", "title": null, "codec": "subrip", "channels": null, "default": false,
+             "forced": false},
+        ],
+    });
+    assert_eq!(listed[0]["tracks"], tracks);
+
+    // The player says what it plays: remotes hear of a change at once.
+    let progress = format!("/api/items/{}/progress", w.film);
+    let report = |audio: Value, subtitles: Value| {
+        json!({"position_ms": 1_000, "state": "paused", "session_id": session, "audio_index": audio,
+               "subtitle_index": subtitles})
+    };
+    assert_eq!(app.post(&progress, &w.viewer, report(json!(1), json!(3))).await.status, StatusCode::NO_CONTENT);
+    let mut events = app.state.events.subscribe();
+    assert_eq!(app.post(&progress, &w.viewer, report(json!(1), json!(3))).await.status, StatusCode::NO_CONTENT);
+    assert!(!kinds(&mut events).contains(&"sessions_changed".to_owned()), "the same tracks");
+    assert_eq!(app.post(&progress, &w.viewer, report(json!(2), json!(-1))).await.status, StatusCode::NO_CONTENT);
+    assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()), "another track");
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    assert_eq!((listed[0]["audio_index"].clone(), listed[0]["subtitle_index"].clone()), (json!(2), json!(-1)));
+    // A report that doesn't say, or says nothing a file has, changes nothing.
+    assert_eq!(app.post(&progress, &w.viewer, report(Value::Null, json!(-7))).await.status, StatusCode::NO_CONTENT);
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    assert_eq!((listed[0]["audio_index"].clone(), listed[0]["subtitle_index"].clone()), (json!(2), json!(-1)));
+
+    // A file whose tracks aren't known says nothing of them.
+    sqlx::query("UPDATE media_files SET media_info = NULL").execute(&app.state.db.write).await.unwrap();
+    let other = play_with(&w, &w.other, json!({}), &[]).await;
+    let theirs = app.get("/api/sessions", &w.other).await.body;
+    assert_eq!(theirs[0]["session_id"], json!(other));
+    assert_eq!((theirs[0]["audio_index"].clone(), theirs[0]["subtitle_index"].clone()), (Value::Null, Value::Null));
+    assert_eq!(theirs[0]["tracks"], json!({"audio": [], "subtitles": []}));
+}
+
+// ------------------------------------------------------------------ casting
+
+type Body = axum::body::BodyDataStream;
+
+/// An events stream of `token`'s user, opened with `query` and held: the
+/// body it sends. A receiver it names lasts as long as it is held.
+async fn stream(w: &World, token: &str, query: &str) -> Body {
+    let request = axum::http::Request::builder()
+        .uri(format!("/api/events?{query}"))
+        .header("authorization", format!("Bearer {token}"))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let response = tower::ServiceExt::oneshot(w.app.api.clone(), request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.into_body().into_data_stream()
+}
+
+/// What `stream` sent until `until` showed up, or `wait` passed.
+async fn read_until(stream: &mut Body, until: &str, wait: Duration) -> String {
+    let mut received = String::new();
+    let read = async {
+        while let Some(chunk) = stream.next().await {
+            received.push_str(&String::from_utf8_lossy(&chunk.unwrap()));
+            if received.contains(until) {
+                return;
+            }
+        }
+    };
+    let _ = tokio::time::timeout(wait, read).await;
+    received
+}
+
+async fn devices(w: &World, token: &str) -> Value {
+    let listed = w.app.get("/api/remote/devices", token).await;
+    assert_eq!(listed.status, StatusCode::OK, "{}", listed.text());
+    listed.body
+}
+
+async fn cast(w: &World, token: &str, receiver: &str, body: Value) -> common::Reply {
+    w.app.post(&format!("/api/remote/devices/{receiver}/cast"), token, body).await
+}
+
+#[tokio::test]
+async fn a_receiver_is_listed_while_its_stream_is_open() {
+    let w = world().await;
+    let app = &w.app;
+    let mut events = app.state.events.subscribe();
+    let tv = stream(&w, &w.viewer, "receiver=tv-1&device_name=%20Den%20TV%20&device_kind=tv&casts=live,item,fax").await;
+    assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()), "a device appeared");
+    let listed = devices(&w, &w.viewer).await;
+    let device_id = listed[0]["device_id"].as_str().unwrap().to_owned();
+    assert!(device_id.starts_with("web-"), "{device_id}");
+    let expected = json!([{"receiver_id": "tv-1", "device_id": device_id, "name": "Den TV", "kind": "tv", "casts": ["item", "live"]}]);
+    assert_eq!(listed, expected);
+    // Remotes merge it with what it plays by its device.
+    play(&w, &w.viewer).await;
+    assert_eq!(app.get("/api/sessions", &w.viewer).await.body[0]["device_id"], json!(device_id));
+
+    // Nobody else's list has it, an administrator's neither.
+    for token in [&w.other, &w.admin] {
+        assert_eq!(devices(&w, token).await, json!([]));
+    }
+    // Streams that don't name a receiver, or name it wrong, are none.
+    let plain = stream(&w, &w.viewer, "").await;
+    let spaced = stream(&w, &w.viewer, "receiver=tv%202&casts=item").await;
+    let long = stream(&w, &w.viewer, &format!("receiver={}&casts=item", "a".repeat(129))).await;
+    let twice = stream(&w, &w.viewer, "receiver=tv-3&receiver=tv-4").await;
+    assert_eq!(devices(&w, &w.viewer).await, expected);
+
+    // Gone with its stream.
+    let _ = kinds(&mut events);
+    drop(tv);
+    assert_eq!(devices(&w, &w.viewer).await, json!([]));
+    assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()), "a device went");
+    drop((plain, spaced, long, twice));
+}
+
+#[tokio::test]
+async fn a_device_is_listed_once() {
+    let w = world().await;
+    let app = &w.app;
+    // Two tabs of one sign-in are one device: the one that connected last
+    // is listed. Two streams of one receiver count once.
+    let first = stream(&w, &w.viewer, "receiver=tab-1&device_name=Kitchen&casts=item").await;
+    let second = stream(&w, &w.viewer, "receiver=tab-2&device_name=Kitchen&casts=item").await;
+    let again = stream(&w, &w.viewer, "receiver=tab-2&device_name=Kitchen&casts=item").await;
+    // An app's sign-in is another device, whose kind it says.
+    let (android, _) = app.app_token(w.viewer_id, "library play").await;
+    let phone = stream(&w, &android, "receiver=phone-1&device_name=Bedroom&device_kind=phone&casts=item,live").await;
+
+    let listed = devices(&w, &w.viewer).await;
+    let ids = |listed: &Value| -> Vec<String> {
+        listed.as_array().unwrap().iter().map(|d| d["receiver_id"].as_str().unwrap().to_owned()).collect()
+    };
+    assert_eq!(ids(&listed), ["phone-1", "tab-2"], "by name: {listed}");
+    assert_eq!((listed[0]["name"].clone(), listed[1]["name"].clone()), (json!("Bedroom"), json!("Kitchen")));
+    assert!(listed[0]["device_id"].as_str().unwrap().starts_with("app-"), "{listed}");
+    assert_eq!((listed[0]["kind"].clone(), listed[1]["kind"].clone()), (json!("phone"), json!("browser")));
+    drop(second);
+    assert_eq!(ids(&devices(&w, &w.viewer).await), ["phone-1", "tab-2"], "its other stream is open");
+    drop(again);
+    assert_eq!(ids(&devices(&w, &w.viewer).await), ["phone-1", "tab-1"]);
+
+    // Apps list them with the play scope.
+    let (browse, _) = app.app_token(w.viewer_id, "library").await;
+    let refused = app.app_call(Method::GET, "/api/remote/devices", &browse, None).await;
+    assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::FORBIDDEN, json!("insufficient_scope")));
+    let listed = app.app_call(Method::GET, "/api/remote/devices", &android, None).await;
+    assert_eq!(ids(&listed.body), ["phone-1", "tab-1"]);
+    drop((first, phone));
+}
+
+#[tokio::test]
+async fn a_cast_reaches_the_users_own_streams() {
+    let w = world().await;
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let chrome =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
+    let send = async {
+        let body = json!({"item_id": w.film, "start_ms": 5_000});
+        let uri = "/api/remote/devices/tv-1/cast";
+        let sent = w.app.call(Method::POST, uri, Some(&w.viewer), Some(body), &[("user-agent", chrome)]).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let tokens = [w.viewer.as_str(), w.other.as_str(), w.admin.as_str()];
+    let heard = streams_until(&w, &tokens, send, r#""type":"cast""#, Duration::from_secs(1)).await;
+    let expected = json!({
+        "type": "cast", "receiver_id": "tv-1", "item_id": w.film, "playlist_id": null, "channel_id": null,
+        "start_ms": 5_000, "shuffle": false, "from": "Chrome on Windows",
+    });
+    assert_eq!(events_of(&heard[0], "cast"), vec![expected.clone()], "the user's other streams");
+    assert!(events_of(&heard[1], "cast").is_empty(), "nobody else's: {}", heard[1]);
+    assert!(events_of(&heard[2], "cast").is_empty(), "an administrator's neither: {}", heard[2]);
+    let received = read_until(&mut tv, r#""type":"cast""#, Duration::from_secs(10)).await;
+    assert_eq!(events_of(&received, "cast"), vec![expected], "the receiver's own");
+
+    // A playlist of the user's, shuffled.
+    let made = w.app.post("/api/playlists", &w.viewer, json!({"title": "Mine", "item_ids": [w.film]})).await;
+    assert_eq!(made.status, StatusCode::CREATED, "{}", made.text());
+    let playlist = made.body["id"].as_i64().unwrap();
+    let send = async {
+        let sent = cast(&w, &w.viewer, "tv-1", json!({"playlist_id": playlist, "shuffle": true})).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(&w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
+    let event = &events_of(&heard, "cast")[0];
+    assert_eq!((event["playlist_id"].clone(), event["item_id"].clone()), (json!(playlist), Value::Null));
+    assert_eq!((event["shuffle"].clone(), event["start_ms"].clone()), (json!(true), Value::Null));
+}
+
+#[tokio::test]
+async fn a_cast_is_checked() {
+    let w = world().await;
+    let app = &w.app;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let _radio = stream(&w, &w.viewer, "receiver=radio&casts=live").await;
+    let film = json!({"item_id": w.film});
+
+    // Someone else's receiver is as unknown as one that isn't there.
+    for (token, receiver) in [(&w.other, "tv-1"), (&w.admin, "tv-1"), (&w.viewer, "tv-2")] {
+        let refused = cast(&w, token, receiver, film.clone()).await;
+        assert_eq!(refused.status, StatusCode::NOT_FOUND, "{receiver}: {}", refused.text());
+    }
+    // One target, the user may see, that the receiver plays.
+    for body in [
+        json!({}),
+        json!({"item_id": w.film, "playlist_id": 1}),
+        json!({"item_id": w.film, "channel_id": 1}),
+        json!({"item_id": "film"}),
+        json!({"item_id": w.film, "start_ms": -1}),
+        json!({"item_id": w.film, "start_ms": 24 * 3_600_000 + 1}),
+    ] {
+        let refused = cast(&w, &w.viewer, "tv-1", body.clone()).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{body}: {}", refused.text());
+    }
+    assert_eq!(cast(&w, &w.viewer, "tv-1", json!({"item_id": 999_999})).await.status, StatusCode::NOT_FOUND);
+    let theirs = app.post("/api/playlists", &w.other, json!({"title": "Theirs", "item_ids": [w.film]})).await;
+    let theirs = json!({"playlist_id": theirs.body["id"]});
+    assert_eq!(cast(&w, &w.viewer, "tv-1", theirs).await.status, StatusCode::NOT_FOUND, "another user's playlist");
+    let refused = cast(&w, &w.viewer, "radio", film.clone()).await;
+    assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_castable")));
+    let day = json!({"item_id": w.film, "start_ms": 24 * 3_600_000});
+    assert_eq!(cast(&w, &w.viewer, "tv-1", day).await.status, StatusCode::ACCEPTED);
+
+    // A title in a library the user can't open is unknown to them.
+    let (kid, _) = app.user(&w.admin, "kid", json!({"all_libraries": false, "library_ids": []})).await;
+    let _kids_tv = stream(&w, &kid, "receiver=tv-1&casts=item").await;
+    let refused = cast(&w, &kid, "tv-1", film.clone()).await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND, "{}", refused.text());
+
+    // Apps cast with the play scope.
+    let (browse, _) = app.app_token(w.viewer_id, "library").await;
+    let refused = app.app_call(Method::POST, "/api/remote/devices/tv-1/cast", &browse, Some(film.clone())).await;
+    assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::FORBIDDEN, json!("insufficient_scope")));
+    let (phone, _) = app.app_token(w.viewer_id, "library play").await;
+    let sent = app.app_call(Method::POST, "/api/remote/devices/tv-1/cast", &phone, Some(film)).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+}
+
+#[tokio::test]
+async fn casts_are_limited_each_second() {
+    let w = world().await;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let _box = stream(&w, &w.viewer, "receiver=box&casts=item").await;
+    let mut answers = Vec::new();
+    for _ in 0..12 {
+        answers.push(cast(&w, &w.viewer, "tv-1", json!({"item_id": w.film})).await.status);
+    }
+    // All within a second, unless the machine is very slow: ten at most.
+    let sent = answers.iter().filter(|s| **s == StatusCode::ACCEPTED).count();
+    assert!(answers.contains(&StatusCode::TOO_MANY_REQUESTS), "{answers:?}");
+    assert!(sent >= 10, "{answers:?}");
+    // Another receiver has its own.
+    assert_eq!(cast(&w, &w.viewer, "box", json!({"item_id": w.film})).await.status, StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
+async fn a_channel_is_cast_with_live_tv_access() {
+    let (w, one, _) = live_world().await;
+    let app = &w.app;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,live").await;
+    let _films = stream(&w, &w.viewer, "receiver=films&casts=item").await;
+
+    let send = async {
+        let sent = cast(&w, &w.viewer, "tv-1", json!({"channel_id": one})).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(&w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
+    let event = &events_of(&heard, "cast")[0];
+    assert_eq!((event["channel_id"].clone(), event["item_id"].clone()), (json!(one), Value::Null));
+    let refused = cast(&w, &w.viewer, "films", json!({"channel_id": one})).await;
+    assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_castable")));
+    assert_eq!(cast(&w, &w.viewer, "tv-1", json!({"channel_id": 999_999})).await.status, StatusCode::NOT_FOUND);
+
+    // Live TV for administrators only: the user casts no channel.
+    let mut settings = app.get("/api/live/settings", &w.admin).await.body;
+    settings["access"] = json!("admins");
+    assert_eq!(app.put("/api/live/settings", &w.admin, settings).await.status, StatusCode::OK);
+    let refused = cast(&w, &w.viewer, "tv-1", json!({"channel_id": one})).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN, "{}", refused.text());
 }

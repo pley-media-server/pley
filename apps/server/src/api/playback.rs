@@ -97,6 +97,28 @@ async fn decide_picked(
     Ok(decision)
 }
 
+/// The subtitles a play starts with, as the user's remotes show them until
+/// its player says: those burned in, else those the user's choices pick
+/// (the item's `selected_subtitle`, which players start with), `-1` for
+/// none. `None` for a file without subtitles.
+async fn subtitles_shown(
+    state: &AppState,
+    user_id: i64,
+    row: &ItemRow,
+    streams: &[MediaStream],
+    decision: &Decision,
+) -> ApiResult<Option<i64>> {
+    if decision.burn_index.is_some() {
+        return Ok(decision.burn_index);
+    }
+    if !streams.iter().any(|s| s.kind == StreamKind::Subtitle) {
+        return Ok(None);
+    }
+    let pref = streams::load(&state.db, user_id, streams::scope(row)).await?;
+    let defaults = streams::defaults(&state.db, user_id).await?;
+    Ok(Some(streams::resolve(pref.as_ref(), &defaults, streams, None).subtitle.unwrap_or(-1)))
+}
+
 pub async fn start(
     State(state): State<AppState>,
     user: AuthUser,
@@ -163,6 +185,7 @@ pub async fn start(
     let device = super::remote::device_name(req.device_name.as_deref(), &headers);
     let device_id = super::remote::device_id_of(&user, token.as_deref());
     let device_kind = super::remote::device_kind_of(req.device_kind, &user, super::remote::user_agent(&headers));
+    let subtitles_at_start = subtitles_shown(&state, user.id, &row, &streams, &decision).await?;
 
     // A client plays one thing at a time: end what it played before (a
     // quality or audio switch, the next episode) so its transcode slot is
@@ -195,6 +218,7 @@ pub async fn start(
         session.controls = req.controls.clone();
         session.device = device;
         session.on_device(device_id, device_kind);
+        session.picked_tracks(decision.audio_index, subtitles_at_start);
         // The transcoder doesn't see direct plays: its background work waits
         // for the player's first reads too.
         if state.transcoder.is_available() {
@@ -300,6 +324,7 @@ pub async fn start(
     session.controls = req.controls.clone();
     session.device = device;
     session.on_device(device_id, device_kind);
+    session.picked_tracks(decision.audio_index, subtitles_at_start);
     let session = state.sessions.insert_transcode(session, slot);
     state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     // Players that read multivariant playlists learn the codecs (Dolby

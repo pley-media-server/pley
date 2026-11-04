@@ -127,7 +127,9 @@ pub enum ServerEvent {
     /// `session_id` a command it said it obeys: to that user's streams,
     /// whose player of that session acts on it and reports at once.
     /// `position_ms` is where `seek` goes, `offset_ms` how far `skip` goes
-    /// (back when negative); both are `null` for the other commands.
+    /// (back when negative), `stream_index` the track `audio` and
+    /// `subtitles` change to (`-1`: subtitles off); each is `null` for the
+    /// other commands.
     PlayerCommand {
         #[serde(skip)]
         user_id: i64,
@@ -135,6 +137,22 @@ pub enum ServerEvent {
         command: Control,
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
+        stream_index: Option<i64>,
+    },
+    /// The user's remote cast a title, a playlist or a Live TV channel to
+    /// one of their devices: to that user's streams, whose app holding
+    /// `receiver_id` plays it as its own Play would. One of `item_id`,
+    /// `playlist_id` and `channel_id` is set; `from` is the remote's device.
+    Cast {
+        #[serde(skip)]
+        user_id: i64,
+        receiver_id: String,
+        item_id: Option<i64>,
+        playlist_id: Option<i64>,
+        channel_id: Option<i64>,
+        start_ms: Option<i64>,
+        shuffle: bool,
+        from: Option<String>,
     },
     /// Live TV's sources, channels or guide changed: apps fetch the
     /// channels and the guide again.
@@ -245,6 +263,7 @@ impl ServerEvent {
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::PlayerCommand { .. }
+            | ServerEvent::Cast { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
             | ServerEvent::LiveTakenOver { .. }
@@ -267,6 +286,7 @@ impl ServerEvent {
             | ServerEvent::UserStateChanged { user_id, .. }
             | ServerEvent::SessionStopped { user_id, .. }
             | ServerEvent::PlayerCommand { user_id, .. }
+            | ServerEvent::Cast { user_id, .. }
             | ServerEvent::LiveTakenOver { user_id, .. } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
             _ => None,
@@ -380,11 +400,27 @@ mod tests {
             command: Control::Seek,
             position_ms: Some(90_000),
             offset_ms: None,
+            stream_index: None,
         };
         assert_eq!(event.user_id(), Some(4), "to the session's user only");
         assert_eq!(
             serde_json::to_string(&event).unwrap(),
-            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":90000,"offset_ms":null}"#
+            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":90000,"offset_ms":null,"stream_index":null}"#
+        );
+        let event = ServerEvent::Cast {
+            user_id: 4,
+            receiver_id: "tv-1".into(),
+            item_id: Some(12),
+            playlist_id: None,
+            channel_id: None,
+            start_ms: None,
+            shuffle: false,
+            from: Some("Chrome on Windows".into()),
+        };
+        assert_eq!((event.user_id(), event.to_administrators()), (Some(4), false), "to the caster's user only");
+        assert_eq!(
+            serde_json::to_string(&event).unwrap(),
+            r#"{"type":"cast","receiver_id":"tv-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"from":"Chrome on Windows"}"#
         );
         // Request events say whom they are for, and stay off the
         // per-user path.

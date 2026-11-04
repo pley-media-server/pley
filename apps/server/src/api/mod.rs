@@ -192,6 +192,8 @@ pub fn router(state: AppState) -> Router {
         .route("/sessions", get(remote::list))
         .route("/sessions/{id}", delete(playback::stop_session))
         .route("/sessions/{id}/command", post(remote::command))
+        .route("/remote/devices", get(remote::devices))
+        .route("/remote/devices/{id}/cast", post(remote::cast))
         .route("/activity", get(activity::activity))
         .route("/events", get(activity::events))
         .route("/users", get(accounts::list_users).post(accounts::create_user))

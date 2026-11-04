@@ -50,6 +50,7 @@ details.
 - [Watch history](#watch-history)
 - [Activity & events](#activity--events):
   [Stopping a stream](#stopping-a-stream),
+  [Remote control](#remote-control), [Casting](#casting),
   [Watch state on other devices](#watch-state-on-other-devices)
 - [Live TV](#live-tv)
 - [Users](#users-admin), [Invitations](#invitations),
@@ -1530,7 +1531,7 @@ user's watch state and their access are unchanged.
 | GET | `/api/items/{id}/related?limit=` | `library` | `{ items: ItemSummary[] }`: "More Like This" (default 20, max 60) |
 | GET | `/api/items/{id}/images/{poster\|backdrop\|thumb}` | `library` | `image/jpeg`; query `w=<px>` (optional resize, bucketed), `v=` (cache buster, ignored) |
 | POST | `/api/items/{id}/prefetch` | `play` | `202` at once: read ahead what *Play* reads first |
-| POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms? }` → `204` |
+| POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms?, audio_index?, subtitle_index? }` → `204` |
 | POST | `/api/items/{id}/watched` | `play` | `204`; containers: every leaf |
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
@@ -1574,6 +1575,11 @@ user's watch state and their access are unchanged.
   - `age_ms`: how long ago a late report was made (a download played while
     the server was out of reach, up to 90 days). It changes nothing when
     the item's state changed since (played elsewhere, marked watched).
+  - `audio_index` and `subtitle_index`: the audio track the player plays
+    and the subtitles it shows, by stream index (`-1`: none). With a
+    `session_id` they are kept on the session for the user's remotes
+    ([Remote control](#remote-control)), and a change sends
+    `sessions_changed`. One left out, or out of range, keeps what was known.
   - A report that changes what the user's devices show sends
     `user_state_changed` ([Watch state on other devices](#watch-state-on-other-devices)).
   - When to send it: see [Playback](#playback).
@@ -3321,8 +3327,10 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
-| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/events` | `library` | Server-Sent Events; each `data:` is a JSON `ServerEvent` |
+| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`) something to play ([Casting](#casting)) |
+| GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
 credits detection, `previews_pending` files waiting for seek previews
@@ -3339,7 +3347,9 @@ every 15 s. The token is checked again every 30 s: the stream ends once it
 is signed out, expired or its account disabled, and the client connects
 again with a valid token; one whose account became an administrator, or
 stopped being one, follows that. One token may keep 16 streams open;
-another answers `429`.
+another answers `429`. A stream that names its device as a `receiver`
+makes the device one the user's remotes cast to, while it is open
+([Casting](#casting)).
 
 ### Stopping a stream
 
@@ -3375,21 +3385,22 @@ don't restart the stopped session.
 ### Remote control
 
 A user's devices control what plays on their other devices: pause the TV
-from a phone, skip a track from the browser. Only the session's own user
-does; administrators stop other people's sessions (above) and nothing
-more.
+from a phone, skip a track from the browser, change the TV's subtitles,
+or start a film on it. Only the session's or the device's own user does;
+administrators stop other people's sessions (above) and nothing more.
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
-  `previous`. Without it, the player obeys none, and remotes show only
-  *Stop*, which every player obeys. Its `device_name` is what remotes call
-  it; without one the server names it from the User-Agent. A Plex app's
-  session is named by `X-Plex-Device-Name` (else `X-Plex-Product`) and a
-  Jellyfin app's by its `Device` (else its `Client`). Plex apps obey only
-  *Stop*. A Jellyfin app obeys every command while it has its socket open,
-  once it has said it takes media control (see
-  [COMPATIBILITY.md](COMPATIBILITY.md)); the server passes them on to it
-  as `Playstate`.
+  `previous`, `audio`, `subtitles`. Without it, the player obeys none, and
+  remotes show only *Stop*, which every player obeys. Its `device_name` is
+  what remotes call it; without one the server names it from the
+  User-Agent. A Plex app's session is named by `X-Plex-Device-Name` (else
+  `X-Plex-Product`) and a Jellyfin app's by its `Device` (else its
+  `Client`). Plex apps obey only *Stop*. A Jellyfin app obeys every
+  command while it has its socket open, once it has said it takes media
+  control (see [COMPATIBILITY.md](COMPATIBILITY.md)); the server passes
+  them on to it as `Playstate`, and a change of track as a
+  `GeneralCommand`.
 - **Which device.** Each session says which device plays it (`device_id`),
   the same for everything one sign-in plays, however many tabs, titles or
   channels: `app-<grant>` for one of the user's apps, `token-<id>` for a
@@ -3415,6 +3426,16 @@ more.
   plus the time since the answer came, by its own clock, so a device
   whose clock is off still shows the right place. `updated_at` is when
   that report was, in server time.
+- **Tracks.** A title's session lists its file's `tracks`, the audio and
+  the subtitles (sidecar and added ones included) a remote picks from, and
+  says which play: `audio_index` and `subtitle_index` (`-1`: none) are
+  what its player last reported (a progress report's `audio_index` and
+  `subtitle_index`, a Jellyfin app's `AudioStreamIndex` and
+  `SubtitleStreamIndex`), else what its play request started with: the
+  audio picked, and the subtitles burned in or those the user's choices
+  pick (the item's `selected_subtitle`). `null` when not known. A player
+  that reports another track sends `sessions_changed`. Live TV sessions
+  have no tracks: both lists are empty, both indexes `null`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
   `kind: "live"`, its `channel` and `item: null`, while its player is there
@@ -3427,12 +3448,15 @@ more.
   or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
-  position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
-  title's length (a day when it isn't known); `skip` needs `offset_ms`,
-  up to 10 minutes either way (back when negative). The other commands
-  take neither, and the event has them `null`. It answers:
-  - `400` for an unknown command, or a place or offset missing or out of
-    range;
+  position_ms, offset_ms, stream_index }`. `seek` needs `position_ms`,
+  from 0 to the title's length (a day when it isn't known); `skip` needs
+  `offset_ms`, up to 10 minutes either way (back when negative); `audio`
+  needs `stream_index`, the index of one of the session's audio `tracks`,
+  and `subtitles` one of its subtitle `tracks` or `-1` to turn them off.
+  Live TV sessions take neither `audio` nor `subtitles`. The other
+  commands take none of these, and the event has them `null`. It answers:
+  - `400` for an unknown command, or a place, offset or track missing or
+    out of range, or a track on Live TV;
   - `403` for someone else's session, an administrator's request too;
   - `404` for a session unknown, stopped, or whose player is gone;
   - `409` `{ code: "not_controllable", message }` for a command the
@@ -3440,12 +3464,66 @@ more.
   - `429` past 10 commands a second to one session.
 - **The player acts on it**, if `session_id` is the session it plays now:
   `seek` stops at the start and the end, `skip` counts from where it is,
-  and `next` with nothing next or `previous` on a video does nothing. Then
-  it reports at once. A report whose place is more than 5 seconds from
-  where the session could be by now, played at any speed from half to
-  twice since the last report (a seek, a skip), sends `sessions_changed`,
-  as a pause does, so remotes fetch the list again. The first report
-  isn't compared: until then the session is starting.
+  and `next` with nothing next or `previous` on a video does nothing;
+  `audio` and `subtitles` change track as the player's own menu would.
+  Then it reports at once, with the tracks it plays. A report whose place
+  is more than 5 seconds from where the session could be by now, played at
+  any speed from half to twice since the last report (a seek, a skip),
+  sends `sessions_changed`, as a pause does, so remotes fetch the list
+  again. The first report isn't compared: until then the session is
+  starting.
+
+### Casting
+
+A remote also starts something on another of the user's devices: a title,
+a playlist or a Live TV channel, played there as that device's own *Play*
+would.
+
+- **Receivers.** A player that plays what it is sent (an app, the web
+  app) opens its event stream as a receiver, with `receiver`,
+  `device_name`, `device_kind` and `casts` in the query
+  (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live`).
+  `receiver` is the app's own id for the device, 1 to 128 letters, digits,
+  `.`, `_`, `:` and `-` (anything else and the stream isn't a receiver).
+  `device_name` and `device_kind` are what a play request's are, and
+  without them the server names the device and tells its kind the same
+  way. `casts` says what it plays: `item` (titles and playlists), `live`
+  (channels), comma-separated; others are left out. The device takes casts
+  while the stream is open: several streams with the same `receiver` count
+  once, and it goes when the last one closes. A user has at most 32
+  receivers; a stream past them still gets its events, but isn't one. A
+  receiver appearing or going sends `sessions_changed`.
+- **`GET /api/remote/devices`** lists the caller's own receivers, an
+  administrator's too: one per device (`device_id`, as sessions say it),
+  the one that connected last, by name. Remotes show them with the
+  sessions of the same `device_id`; an app leaves out its own receiver.
+- **`POST /api/remote/devices/{id}/cast`**, `{id}` being a `receiver_id`,
+  names exactly one of `item_id`, `playlist_id` and `channel_id`;
+  `start_ms` (from 0 to a day) is where a title starts, and `shuffle`
+  plays a playlist, an album or an artist shuffled. It answers `202` and
+  sends the user's event streams `{ type: "cast", receiver_id, item_id,
+  playlist_id, channel_id, start_ms, shuffle, from }`, `from` being the
+  remote's device name (from its User-Agent) or `null`. It answers, in
+  this order:
+  - `404` for a receiver unknown, gone or someone else's (an
+    administrator's request too: it never says which);
+  - `400` for a body that doesn't name exactly one of the three;
+  - `404` for a title the user can't see, `400` for one that isn't a
+    movie, an episode, a show, a season, a track, an album or an artist;
+  - `404` for a playlist that isn't the user's;
+  - `403` for a channel without Live TV access, `404` for one the user
+    can't see;
+  - `409` `{ code: "not_castable", message }` for what the receiver's
+    `casts` doesn't name (`live` for a channel, `item` otherwise);
+  - `400` for a `start_ms` out of range;
+  - `429` past 10 casts a second to one receiver.
+- **The receiver plays it**, if `receiver_id` is its own, as its own
+  *Play* on that page would: a movie, an episode or a track where *Play*
+  starts it (at `start_ms` when given), a show or a season its next
+  episode (On Deck), an album, an artist or a playlist what it holds in
+  order (shuffled with `shuffle`), a channel live. Its player then starts
+  a session as any play does, which the remote sees in `GET /api/sessions`
+  with the receiver's `device_id`.
 
 ### Watch state on other devices
 
@@ -3552,7 +3630,7 @@ interface SessionInfo {
   transcode: null | TranscodeInfo;
 }
 
-type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous";
+type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
 type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 interface PlayingSession {      // GET /api/sessions
@@ -3570,6 +3648,28 @@ interface PlayingSession {      // GET /api/sessions
   updated_at: Timestamp;        // its player's last report (live: its last request for the channel)
   age_ms: number;               // how long before the answer that was, by the server's clock
   controls: Control[];          // what its player obeys; Stop always works
+  audio_index: number | null;   // the audio track it plays, by stream index; null when not known, and on live
+  subtitle_index: number | null; // the subtitles it shows; -1: none (Remote control, "Tracks")
+  tracks: { audio: TrackOption[]; subtitles: TrackOption[] }; // its file's, which `audio` and `subtitles`
+                                // pick from; empty on live
+}
+
+interface TrackOption {
+  index: number;                // the stream index commands and reports name
+  language: string | null;      // "eng"
+  title: string | null;
+  codec: string | null;         // "eac3", "subrip"
+  channels: number | null;      // audio only
+  default: boolean;
+  forced: boolean;
+}
+
+interface RemoteDevice {        // GET /api/remote/devices
+  receiver_id: string;          // the app's own id for the device: where casts go
+  device_id: string;            // as PlayingSession's: what it plays has the same
+  name: string | null;          // as PlayingSession's `device`
+  kind: DeviceKind;
+  casts: ("item" | "live")[];   // what it plays when cast to
 }
 
 interface TranscodeInfo {
@@ -3616,8 +3716,13 @@ type ServerEvent =
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only
   | { type: "player_command"; session_id: string; command: Control; position_ms: number | null;
-      offset_ms: number | null }                     // the user's remote sent this command to their player of
+      offset_ms: number | null; stream_index: number | null }
+                                                     // the user's remote sent this command to their player of
                                                      // session_id (theirs only): see Remote control
+  | { type: "cast"; receiver_id: string; item_id: Id | null; playlist_id: Id | null; channel_id: Id | null;
+      start_ms: number | null; shuffle: boolean; from: string | null }
+                                                     // the user's remote sent their device of receiver_id this to
+                                                     // play (theirs only): see Casting
   | { type: "live_channels_changed" }                // Live TV's sources, channels or guide changed: refetch
   | { type: "live_tuners_changed" }                  // a channel was tuned or let go, or its viewers changed
   | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string }

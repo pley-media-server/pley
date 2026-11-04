@@ -231,6 +231,10 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     // remote control of the profile's own players: never another's, an
     // administrator's profile included
     ("POST", "/api/sessions/{id}/command", Need::Scope(Play)),
+    // casting to the profile's own devices: never another's, an
+    // administrator's profile included
+    ("GET", "/api/remote/devices", Need::Scope(Play)),
+    ("POST", "/api/remote/devices/{id}/cast", Need::Scope(Play)),
     // the profile's track choices for every title (its name, picture and
     // sign-in stay in the web app)
     ("PUT", "/api/me/track-defaults", Need::Scope(Play)),
@@ -315,7 +319,7 @@ mod tests {
     fn every_app_route_is_on_a_real_path() {
         // Whether each names a route of api/mod.rs is checked by
         // tests/app_tokens.rs, which reads it.
-        assert_eq!(APP_ROUTES.len(), 101);
+        assert_eq!(APP_ROUTES.len(), 103);
         for (i, (method, path, _)) in APP_ROUTES.iter().enumerate() {
             assert!(["GET", "POST", "PUT", "PATCH", "DELETE"].contains(method), "{method} {path}");
             assert!(path.starts_with("/api/") && !path.ends_with('/'), "{path}");
@@ -335,6 +339,7 @@ mod tests {
         assert_eq!(required(&Method::DELETE, "/api/requests/{id}/watch"), Some(Need::Scope(Scope::Requests)));
         assert_eq!(required(&Method::GET, "/api/requests/options"), Some(Need::Scope(Scope::Approvals)));
         assert_eq!(required(&Method::PUT, "/api/me/track-defaults"), Some(Need::Scope(Scope::Play)));
+        assert_eq!(required(&Method::POST, "/api/remote/devices/{id}/cast"), Some(Need::Scope(Scope::Play)));
         assert_eq!(required(&Method::PATCH, "/api/me"), None, "name and picture stay in the web app");
         assert_eq!(required(&Method::POST, "/api/auth/switch"), None, "the web's switch makes sessions");
         assert_eq!(required(&Method::POST, "/api/libraries"), None, "creating libraries is administration");

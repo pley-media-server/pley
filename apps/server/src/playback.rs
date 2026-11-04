@@ -390,6 +390,10 @@ pub enum Control {
     Skip,
     Next,
     Previous,
+    /// Another of the file's audio tracks.
+    Audio,
+    /// Another of the file's subtitle tracks, or none.
+    Subtitles,
 }
 
 /// The commands a player obeys, each once, in a fixed order.
@@ -1657,6 +1661,43 @@ pub fn subtitle_tracks(file_id: i64, streams: &[MediaStream]) -> Vec<SubtitleTra
         .collect()
 }
 
+/// One of a file's audio or subtitle tracks, as remotes offer it
+/// (`PlayingSession.tracks`).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TrackOption {
+    pub index: i64,
+    pub language: Option<String>,
+    pub title: Option<String>,
+    pub codec: Option<String>,
+    /// An audio track's channels; `None` for subtitles.
+    pub channels: Option<i64>,
+    pub default: bool,
+    pub forced: bool,
+}
+
+/// The tracks a remote picks from for a session's file.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct TrackOptions {
+    pub audio: Vec<TrackOption>,
+    pub subtitles: Vec<TrackOption>,
+}
+
+/// The audio and subtitle tracks of a file's streams (sidecar and added
+/// subtitles included), in their order.
+pub fn track_options(streams: &[MediaStream]) -> TrackOptions {
+    let option = |s: &MediaStream| TrackOption {
+        index: s.index,
+        language: s.language.clone(),
+        title: s.title.clone(),
+        codec: Some(s.codec.clone()).filter(|c| !c.is_empty()),
+        channels: if s.kind == StreamKind::Audio { s.channels } else { None },
+        default: s.default,
+        forced: s.forced,
+    };
+    let of = |kind: StreamKind| streams.iter().filter(|s| s.kind == kind).map(option).collect();
+    TrackOptions { audio: of(StreamKind::Audio), subtitles: of(StreamKind::Subtitle) }
+}
+
 // ------------------------------------------------------------------ sessions
 
 #[derive(Debug, Clone, Serialize)]
@@ -1672,6 +1713,14 @@ pub struct PlayState {
     /// seconds would put them up to a second out.
     #[serde(skip)]
     pub reported_at_ms: Option<i64>,
+    /// The audio track it plays, a stream index of the session's file: what
+    /// its player last said, else what its play request picked; `None` when
+    /// not known.
+    #[serde(skip)]
+    pub audio_index: Option<i64>,
+    /// The subtitles it shows, the same way; `-1`: none.
+    #[serde(skip)]
+    pub subtitle_index: Option<i64>,
 }
 
 impl PlayState {
@@ -1780,6 +1829,8 @@ impl Session {
                 state: "playing".into(),
                 updated_at: now,
                 reported_at_ms: None,
+                audio_index: None,
+                subtitle_index: None,
             }),
             app_grant: None,
             compatibility_token: None,
@@ -1839,6 +1890,29 @@ impl Session {
         changed || jumped || woke
     }
 
+    /// The tracks its play request picked, which remotes show until its
+    /// player says which it plays.
+    pub fn picked_tracks(&mut self, audio_index: Option<i64>, subtitle_index: Option<i64>) {
+        let play = self.play.get_mut();
+        (play.audio_index, play.subtitle_index) = (audio_index, subtitle_index);
+    }
+
+    /// Records the tracks its player says it plays (a report's audio index,
+    /// and its subtitle index, `-1` for none); one it doesn't say, or one
+    /// out of range, leaves what was known. Whether either changed, which
+    /// the user's remotes hear about at once.
+    pub fn report_tracks(&self, audio_index: Option<i64>, subtitle_index: Option<i64>) -> bool {
+        let mut play = self.play.lock();
+        let before = (play.audio_index, play.subtitle_index);
+        if let Some(index) = audio_index.filter(|i| (0..=MAX_STREAM_INDEX).contains(i)) {
+            play.audio_index = Some(index);
+        }
+        if let Some(index) = subtitle_index.filter(|i| (-1..=MAX_STREAM_INDEX).contains(i)) {
+            play.subtitle_index = Some(index);
+        }
+        (play.audio_index, play.subtitle_index) != before
+    }
+
     /// Counts a command sent to it: whether it may go to its player, at
     /// most [`COMMANDS_PER_SECOND`] each second. A remote held down, or a
     /// script, mustn't flood the user's event streams.
@@ -1889,6 +1963,11 @@ fn jumped(play: &PlayState, reported_at_ms: i64, now_ms: i64, position_ms: i64) 
     };
     position_ms < low.saturating_sub(JUMP_MS) || position_ms > high.saturating_add(JUMP_MS)
 }
+
+/// The highest stream index a player's report may name: embedded streams
+/// are below 1000, subtitle files and added subtitles below 10000
+/// ([`crate::subtitles`]).
+const MAX_STREAM_INDEX: i64 = 9999;
 
 /// Commands a session takes each second at most ([`Session::take_command`]).
 pub const COMMANDS_PER_SECOND: u32 = 10;
@@ -3596,6 +3675,55 @@ mod tests {
         assert!(!s.take_command());
         s.commands.lock().started = Some(std::time::Instant::now() - Duration::from_secs(1));
         assert!(s.take_command(), "the next second");
+    }
+
+    #[test]
+    fn a_report_says_which_tracks_play() {
+        let mut s = session(1, None, false);
+        s.picked_tracks(Some(1), Some(-1));
+        let tracks = |s: &Session| {
+            let play = s.play.lock();
+            (play.audio_index, play.subtitle_index)
+        };
+        assert!(!s.report_tracks(None, None), "a report that doesn't say");
+        assert!(!s.report_tracks(Some(1), Some(-1)), "the same tracks");
+        assert!(s.report_tracks(Some(2), None));
+        assert_eq!(tracks(&s), (Some(2), Some(-1)), "the subtitles it didn't say stay");
+        assert!(s.report_tracks(None, Some(1003)));
+        assert!(!s.report_tracks(Some(-1), Some(-2)), "no audio is -1, and nothing is -2");
+        assert!(!s.report_tracks(Some(MAX_STREAM_INDEX + 1), Some(i64::MAX)));
+        assert_eq!(tracks(&s), (Some(2), Some(1003)));
+        assert!(s.report_tracks(None, Some(-1)), "subtitles off");
+    }
+
+    #[test]
+    fn track_options_are_the_files_audio_and_subtitles() {
+        let stream = |index, kind, codec: &str| MediaStream { index, kind, codec: codec.into(), ..Default::default() };
+        let mut audio = stream(1, StreamKind::Audio, "eac3");
+        (audio.language, audio.channels, audio.default) = (Some("eng".into()), Some(6), true);
+        let mut forced = stream(1000, StreamKind::Subtitle, "subrip");
+        (forced.title, forced.forced, forced.channels, forced.external) = (Some("Signs".into()), true, Some(2), true);
+        let streams = [stream(0, StreamKind::Video, "hevc"), audio, stream(2, StreamKind::Audio, ""), forced];
+        let options = track_options(&streams);
+        let indexes = |list: &[TrackOption]| list.iter().map(|t| t.index).collect::<Vec<_>>();
+        assert_eq!((indexes(&options.audio), indexes(&options.subtitles)), (vec![1, 2], vec![1000]));
+        let expected = TrackOption {
+            index: 1,
+            language: Some("eng".into()),
+            title: None,
+            codec: Some("eac3".into()),
+            channels: Some(6),
+            default: true,
+            forced: false,
+        };
+        assert_eq!(options.audio[0], expected);
+        assert_eq!(options.audio[1].codec, None, "a codec not known");
+        let signs = &options.subtitles[0];
+        assert_eq!((signs.title.as_deref(), signs.forced, signs.channels), (Some("Signs"), true, None));
+        assert_eq!(
+            serde_json::to_value(TrackOptions::default()).unwrap(),
+            serde_json::json!({"audio": [], "subtitles": []})
+        );
     }
 
     #[test]

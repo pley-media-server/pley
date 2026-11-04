@@ -3,7 +3,8 @@
 //! for the libraries the user may open (home rows and Jellyfin for Kodi's
 //! library refresh), `UserDataChanged` for their watch state, `Playstate`
 //! `Stop` when someone else stops their playback, and the commands of the
-//! user's remotes as `Playstate` for a device that takes them ([`Remotes`]).
+//! user's remotes as `Playstate`, or `GeneralCommand` for a change of
+//! track, for a device that takes them ([`Remotes`]).
 //! The token is checked again every 30 s, and the socket closes once it is
 //! revoked.
 
@@ -54,9 +55,18 @@ pub struct Remotes {
     sockets: Mutex<HashMap<(i64, String), usize>>,
 }
 
-/// What a Jellyfin client's `Playstate` messages do.
-const JELLYFIN_CONTROLS: [Control; 6] =
-    [Control::Play, Control::Pause, Control::Seek, Control::Skip, Control::Next, Control::Previous];
+/// What a Jellyfin client's `Playstate` messages do, and its
+/// `GeneralCommand`s that change track.
+const JELLYFIN_CONTROLS: [Control; 8] = [
+    Control::Play,
+    Control::Pause,
+    Control::Seek,
+    Control::Skip,
+    Control::Next,
+    Control::Previous,
+    Control::Audio,
+    Control::Subtitles,
+];
 
 impl Remotes {
     /// Records whether `device` of `user_id` takes media control.
@@ -248,26 +258,44 @@ async fn translate(
                 message("Playstate", json!({"Command": "Stop"}))
             })
         }
-        ServerEvent::PlayerCommand { user_id, session_id, command, position_ms, offset_ms } if *user_id == user.id => {
+        ServerEvent::PlayerCommand { user_id, session_id, command, position_ms, offset_ms, stream_index }
+            if *user_id == user.id =>
+        {
             // Only the device that plays it obeys, as for Stop.
             let session = state.sessions.get(session_id)?;
+            let values = Values { position_ms: *position_ms, offset_ms: *offset_ms, stream_index: *stream_index };
             (device.is_some() && session.client_id.as_deref() == device)
-                .then(|| playstate(&session, *command, *position_ms, *offset_ms))
+                .then(|| obey(&session, &jellyfin.ids.of(Kind::User, user.id), *command, values))
         }
         _ => None,
     }
 }
 
-/// A remote's command as the `Playstate` message Jellyfin clients obey.
-/// Jellyfin has no skip: it is a seek from where the player is by now.
-fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> Message {
+/// What a remote's command carries ([`ServerEvent::PlayerCommand`]).
+#[derive(Debug, Clone, Copy, Default)]
+struct Values {
+    position_ms: Option<i64>,
+    offset_ms: Option<i64>,
+    stream_index: Option<i64>,
+}
+
+/// A remote's command as the message Jellyfin clients obey: `Playstate`
+/// for the transport, a `GeneralCommand` from `user` (the user's Jellyfin
+/// id) to change track, whose index is Pley's, as the client's media
+/// streams name them; `-1` turns subtitles off. Jellyfin has no skip: it is
+/// a seek from where the player is by now.
+fn obey(session: &Session, user: &str, command: Control, values: Values) -> Message {
     let seek = |ms: i64| json!({"Command": "Seek", "SeekPositionTicks": ms.max(0).saturating_mul(TICKS_PER_MS)});
+    let track = |name: &str| {
+        let index = values.stream_index.unwrap_or(-1).to_string();
+        message("GeneralCommand", json!({"Name": name, "ControllingUserId": user, "Arguments": {"Index": index}}))
+    };
     let data = match command {
         Control::Play => json!({"Command": "Unpause"}),
         Control::Pause => json!({"Command": "Pause"}),
-        Control::Seek => seek(position_ms.unwrap_or(0)),
+        Control::Seek => seek(values.position_ms.unwrap_or(0)),
         Control::Skip => {
-            let mut to = position_now(session).saturating_add(offset_ms.unwrap_or(0));
+            let mut to = position_now(session).saturating_add(values.offset_ms.unwrap_or(0));
             if session.duration_ms > 0 {
                 to = to.min(session.duration_ms);
             }
@@ -275,6 +303,8 @@ fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offs
         }
         Control::Next => json!({"Command": "NextTrack"}),
         Control::Previous => json!({"Command": "PreviousTrack"}),
+        Control::Audio => return track("SetAudioStreamIndex"),
+        Control::Subtitles => return track("SetSubtitleStreamIndex"),
     };
     message("Playstate", data)
 }
@@ -295,6 +325,15 @@ mod tests {
         serde_json::from_str::<Value>(&text).unwrap()["Data"].clone()
     }
 
+    fn kind(message: &Message) -> Value {
+        let Message::Text(text) = message else { panic!("a text message") };
+        serde_json::from_str::<Value>(text).unwrap()["MessageType"].clone()
+    }
+
+    fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> Message {
+        obey(session, "u1", command, Values { position_ms, offset_ms, stream_index: None })
+    }
+
     #[test]
     fn a_skip_is_a_seek_from_where_the_player_is_by_now() {
         let session = Session::new(1, "u".into(), Some("d".into()), 1, 1, Method::Direct, 100_000, None, None, 0);
@@ -303,6 +342,8 @@ mod tests {
             state: "playing".into(),
             updated_at: now_ms() / 1000,
             reported_at_ms: Some(now_ms() - 10_000),
+            audio_index: None,
+            subtitle_index: None,
         };
         let skip = |offset| data(playstate(&session, Control::Skip, None, Some(offset)))["SeekPositionTicks"].clone();
         // Ten seconds on since its report, a second more should the clock tick.
@@ -314,5 +355,21 @@ mod tests {
         assert_eq!(skip(-20_000), json!(30_000 * TICKS_PER_MS), "paused, where it was");
         assert_eq!(data(playstate(&session, Control::Play, None, None)), json!({"Command": "Unpause"}));
         assert_eq!(data(playstate(&session, Control::Next, None, None)), json!({"Command": "NextTrack"}));
+    }
+
+    #[test]
+    fn a_track_is_a_general_command() {
+        let session = Session::new(1, "u".into(), Some("d".into()), 1, 1, Method::Direct, 100_000, None, None, 0);
+        let track = |command, index| obey(&session, "u1", command, Values { stream_index: index, ..Values::default() });
+        let audio = track(Control::Audio, Some(2));
+        assert_eq!(kind(&audio), json!("GeneralCommand"));
+        let expected = json!({"Name": "SetAudioStreamIndex", "ControllingUserId": "u1", "Arguments": {"Index": "2"}});
+        assert_eq!(data(audio), expected);
+        let off = data(track(Control::Subtitles, Some(-1)));
+        assert_eq!(
+            (off["Name"].clone(), off["Arguments"].clone()),
+            (json!("SetSubtitleStreamIndex"), json!({"Index": "-1"}))
+        );
+        assert_eq!(kind(&playstate(&session, Control::Pause, None, None)), json!("Playstate"));
     }
 }
