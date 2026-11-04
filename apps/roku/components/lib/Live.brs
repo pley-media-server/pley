@@ -634,6 +634,16 @@ function liveGuideMissing(start as integer, loadedTo as integer, leftEdge as int
     return { from: loadedTo, to: upto }
 end function
 
+' Whether the guide is away from now, so that Back brings it back first:
+' now isn't in the time shown (left, and shown seconds on), or the
+' programme in focus (from, upto; upto 0 for none) isn't on at now. Time
+' without a guide is a programme too (liveGuideRows), on now where it
+' spans now.
+function liveGuideAway(left as integer, shown as integer, from as integer, upto as integer, now as integer) as boolean
+    if now < left or now >= left + shown then return true
+    return upto > 0 and (from > now or upto <= now)
+end function
+
 ' "1,2,3": the ids of channels, for GET /api/live/guide?ids=.
 function liveIds(channels as object) as string
     ids = []

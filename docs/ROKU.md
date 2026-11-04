@@ -314,7 +314,10 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   restart.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details.
+  the channel; on a later programme it shows its details. Back goes up a
+  step at a time: the guide back to now (when another time shows, or a
+  programme not on now has focus), then to the categories, then out of
+  Live TV.
 - **Channels:** the other tab, as cards with what's on and what's next.
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down

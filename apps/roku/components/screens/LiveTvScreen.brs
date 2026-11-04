@@ -48,6 +48,8 @@ sub init()
     m.jumped = false
     m.asked = 0
     m.loading = false
+    ' Where the last Back brought the guide back to now (backToNow).
+    m.backedTo = ""
     ' The cards: the pages in the grid, from offset first, their channels,
     ' and the category's size.
     m.cardsFrom = 0
@@ -193,8 +195,7 @@ end sub
 sub pageGuide(key as string)
     if m.guide.content = invalid then return
     span = Int(m.guide.duration)
-    left = m.guide.leftEdgeTargetTime
-    if left <= 0 then left = m.guideStart
+    left = guideLeft()
     if key = "play"
         left = nowSeconds()
     else if key = "rewind"
@@ -207,6 +208,47 @@ sub pageGuide(key as string)
     if left < m.guideStart then left = m.guideStart
     m.guide.leftEdgeTargetTime = left
 end sub
+
+' The time at the guide's left edge.
+function guideLeft() as integer
+    left = m.guide.leftEdgeTargetTime
+    if left <= 0 then left = m.guideStart
+    return left
+end function
+
+' Back in the guide away from now (another time shown, or a programme not
+' on now in focus) brings it back to now, before it goes on to the
+' categories; not twice from where it stands, when the guide found nothing
+' nearer now.
+function backToNow() as boolean
+    focused = focusedGuide()
+    if focused = invalid then return false
+    from = 0
+    upto = 0
+    if focused.program <> invalid
+        p = programTimes(focused.program)
+        from = p.start
+        upto = p.ends
+    end if
+    if not liveGuideAway(guideLeft(), Int(m.guide.duration), from, upto, nowSeconds()) then return false
+    if guidePlace() = m.backedTo then return false
+    pageGuide("play")
+    m.backedTo = guidePlace()
+    return true
+end function
+
+' Where the guide stands: the row and programme in focus, and the time at
+' its left edge.
+function guidePlace() as string
+    details = m.guide.programFocusedDetails
+    row = 0
+    at = 0
+    if details <> invalid
+        row = Int(httpNumber(details.focusChannelIndex, 0))
+        at = Int(httpNumber(details.focusIndex, 0))
+    end if
+    return row.ToStr() + "|" + at.ToStr() + "|" + guideLeft().ToStr()
+end function
 
 ' A heading ("Regions", "More groups") is passed over, the way the focus
 ' was going.
@@ -424,6 +466,7 @@ sub onGuide(event as object)
         return
     end if
     m.page = data
+    m.backedTo = ""
     row = 0
     if spec.focus = "last" then row = data.channels.Count() - 1
     if spec.focus = "keep" and keepRow >= 0 and keepRow < data.channels.Count() then row = keepRow
@@ -765,11 +808,14 @@ sub onFavorite(event as object)
     end if
 end sub
 
-' Back and Left from the channels go to the categories, Right from them
-' to the channels; up from the rail's top, the tabs. The Options key on a
-' programme or a card: the channel's options. Back on the rail leaves.
+' Back goes up a step at a time: the guide back to now, then the channels
+' to the categories, and on the rail it leaves. Left from the channels
+' goes to the categories too, Right from them to the channels; up from the
+' rail's top, the tabs. The Options key on a programme or a card: the
+' channel's options.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if key = "back" and m.guide.isInFocusChain() and backToNow() then return true
     content = m.guide.isInFocusChain() or m.cards.isInFocusChain()
     if content and (key = "back" or key = "left")
         m.rail.setFocus(true)

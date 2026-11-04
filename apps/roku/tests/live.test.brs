@@ -256,6 +256,17 @@ sub test_live_guide_window()
     tkInvalid(liveGuideMissing(0, 172800, 170000, 7200), "the span fetched")
 end sub
 
+sub test_live_guide_back_to_now()
+    now = 10000
+    tkFalse(liveGuideAway(9000, 7200, 9000, 10800, now), "on what's on now")
+    tkTrue(liveGuideAway(9000, 7200, 10800, 12600, now), "on what comes after")
+    tkTrue(liveGuideAway(9000, 7200, 7200, 9000, now), "on what ended")
+    tkTrue(liveGuideAway(18000, 7200, 18000, 19800, now), "hours on")
+    tkTrue(liveGuideAway(1000, 7200, 9000, 10800, now), "now out of the time shown")
+    tkFalse(liveGuideAway(9000, 7200, 0, 0, now), "no programme: the time shown counts")
+    tkFalse(liveGuideAway(now, 7200, 0, 86400, now), "time without a guide, across now")
+end sub
+
 sub test_live_troubles()
     busy = liveTrouble({ status: 409, message: "The one connection of Test Provider is in use, watching Pley News HD (lab)." }, "Film Four")
     tkEqual(busy.kind, "busy")
