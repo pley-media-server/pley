@@ -15,6 +15,7 @@ use pley_core::model::{LiveChannel, LiveChannelPage};
 use pley_core::task::{Promise, Tasks};
 
 use crate::live::data::{CHANNEL_PAGE, Category};
+use crate::remote::channel_step;
 use crate::server::PlayerServer;
 
 /// A page asked for this long ago is asked for again as it shows: what's on moves on.
@@ -185,12 +186,11 @@ impl ChannelPages {
             }
         }
         let index = self.neighbor.as_ref().and_then(|n| n.index).flatten();
-        let Some(total) = self.total.filter(|t| *t > 0) else {
+        let Some(j) = self.total.and_then(|total| channel_step(index, by, total)) else {
             self.neighbor = None;
             self.found = Some(None);
             return;
         };
-        let j = index.map_or(0, |at| (at + by).rem_euclid(total));
         if let Some(c) = self.at(j) {
             self.found = Some(Some(c.clone()));
             self.neighbor = None;

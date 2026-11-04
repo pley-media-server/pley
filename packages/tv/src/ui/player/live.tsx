@@ -35,8 +35,9 @@ const MEDIA_KEYS: Key[] = ["playPause", "play", "pause", "stop", "fastForward", 
  * what's on, the channel list with the categories, and changing channels with CH+ and CH−, Up and Down within the category it
  * was opened from, or by a channel's number among every channel. Back
  * leaves, to the channel watched; the server is told at once. Watching
- * ended on the server (its connection taken over, say) stops the picture
- * for the server's words, with Watch again.
+ * ended on the server (its connection taken over, or stopped from another
+ * device, say) stops the picture for the server's words, with Watch again.
+ * The user's remote, on another device, changes channel as CH+ and CH− do.
  */
 export function LivePlayerScreen(p: { channelId: number; category: string; pressedAt: number }) {
   const app = useApp();
@@ -98,6 +99,8 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
   const app = useApp();
   const ui = useUi();
   const host = useRef<HTMLDivElement>(null);
+  /** The user's remote, on another device: channel up and down, as here. */
+  const remoteStep = useRef<(by: 1 | -1) => void>(() => undefined);
   const controller = useMemo(
     () =>
       new LiveController(p.first, {
@@ -105,6 +108,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
         engine: () => app.platform.createEngine(host.current!),
         clientId: app.installId(),
         events: (l) => app.onEvent(l),
+        step: (by) => remoteStep.current(by),
       }),
     [],
   );
@@ -221,21 +225,27 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     else setBanner(true);
   };
   // The channel before or after this one in the category, round its ends; one change at a time.
+  // The remote's, pressed elsewhere, says nothing here, and leaves a channel alone that has no other.
+  // Found late, after another channel was picked or the player stopped watching, it tunes nothing.
   const zapping = useRef(false);
-  const zap = (by: number) => {
+  const zap = (by: number, remote = false) => {
     if (zapping.current) return;
     zapping.current = true;
-    zapPages.neighbor(c.state.value.channel.id, by).then(
+    const from = c.state.value.channel.id;
+    const current = c.stepStarts(remote);
+    zapPages.neighbor(from, by).then(
       (next) => {
         zapping.current = false;
-        tune(next);
+        if (!current()) return;
+        if (!remote || (next && next.id !== from)) tune(next);
       },
       () => {
         zapping.current = false;
-        say("Couldn't find the next channel", true);
+        if (!remote) say("Couldn't find the next channel", true);
       },
     );
   };
+  remoteStep.current = (by) => zap(by, true);
   const toggleFavorite = () => {
     const on = !channel.favorite;
     ui.api.setLiveFavorite(channel.id, on).then(
@@ -430,7 +440,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
             <BusyConnections connections={busy} onTakeOver={(id) => c.takeOver(id)} />
           ) : (
             trouble.message && (
-              <div class="t-body c-muted lines-4" style="margin-top:12px;text-align:center">
+              <div class="t-body c-muted lines-4" style="margin-top:12px;text-align:center;white-space:pre-line">
                 {sentence(trouble.message)}
               </div>
             )

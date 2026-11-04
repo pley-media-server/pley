@@ -179,6 +179,38 @@ fn a_busy_connection_answers_409_until_taken_over() {
 }
 
 #[test]
+fn a_viewer_obeys_the_remote_it_said_and_is_stopped_from_elsewhere() {
+    let server =
+        FixtureServer::start_with(Options { keep_alive: Duration::from_millis(200), ..Options::default() }).unwrap();
+    let api = Api::alex(&server);
+    let mut events = Events::open(&api);
+    let body = json!({ "client_id": "tv", "keyed_urls": true, "controls": ["next", "previous"], "device_kind": "tv" });
+    let watching = watch(&api, 9, body).json();
+    let session = watching["session_id"].as_str().unwrap().to_string();
+    let url = watching["url"].as_str().unwrap().to_string();
+    let listed = api.get("/api/sessions").json();
+    let viewer = listed["sessions"].as_array().unwrap().iter().find(|s| s["session_id"] == session).unwrap().clone();
+    assert_eq!(
+        (&viewer["kind"], &viewer["channel_id"], &viewer["controls"], &viewer["device_kind"]),
+        (&json!("live"), &json!(9), &json!(["next", "previous"]), &json!("tv"))
+    );
+
+    let path = format!("/api/sessions/{session}/command");
+    assert_eq!(api.post(&path, &json!({ "command": "next" })).status, 202);
+    let heard = events.wait_for("player_command", Duration::from_secs(5)).expect("the viewer hears it");
+    assert_eq!((heard["session_id"].as_str(), heard["command"].as_str()), (Some(session.as_str()), Some("next")));
+    assert_eq!(api.post(&path, &json!({ "command": "pause" })).status, 409);
+
+    let stop = api.json("DELETE", &format!("/api/sessions/{session}"), &json!({ "message": "Time for bed" }));
+    assert_eq!(stop.status, 204);
+    let stopped = events.wait_for("session_stopped", Duration::from_secs(5)).expect("the viewer hears it");
+    assert_eq!((stopped["message"].as_str(), stopped["by_admin"].as_bool()), (Some("Time for bed"), Some(false)));
+    let gone = send(server.url(), "GET", &url, &[], b"");
+    assert_eq!((gone.status, gone.json()["message"].as_str()), (410, Some("Time for bed")));
+    assert_eq!(api.post(&path, &json!({ "command": "next" })).status, 404);
+}
+
+#[test]
 fn live_tv_isnt_open_to_sam() {
     let server = FixtureServer::start();
     let sam = Api::new(&server, ids::SAM);

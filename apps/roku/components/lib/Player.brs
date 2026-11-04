@@ -181,6 +181,16 @@ function playerSkipTarget(marker as object, durationMs as dynamic) as integer
     return target
 end function
 
+' Whether something may come after item: a playlist's or collection's
+' next entry (queue, the entries, playing the one at queueAt), else the
+' next episode, which only an episode may have. The user's remote is told
+' the video obeys next when it may (Remote.brs).
+function playerMayHaveNext(item as dynamic, queue as dynamic, queueAt as integer) as boolean
+    if GetInterface(queue, "ifArray") <> invalid then return queueAt + 1 < queue.Count()
+    data = httpObject(item)
+    return data <> invalid and httpString(data.kind) = "episode"
+end function
+
 ' Up Next counts down this many seconds before the next episode plays.
 function playerUpNextSeconds() as integer
     return 10

@@ -1,6 +1,9 @@
 package app.pley.android.fixtures
 
+import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlaybackMethod
+import app.pley.android.model.ProgressState
 import java.util.concurrent.ConcurrentHashMap
 import mockwebserver3.MockResponse
 
@@ -59,7 +62,10 @@ internal val LIBRARY = Need.Scope("library")
 internal val PLAY = Need.Scope("play")
 internal val PLAYLISTS = Need.Scope("playlists")
 
-/** A playback session: the file it plays and how. */
+/**
+ * A playback session: the file it plays and how, what its player obeys from
+ * the remote and calls its device, and where its last report had it.
+ */
 internal class PlaySession(
     val id: String,
     val profileId: Long,
@@ -67,6 +73,15 @@ internal class PlaySession(
     val fileId: Long,
     val method: PlaybackMethod,
     val clientId: String?,
+    val controls: List<Control> = emptyList(),
+    val device: String? = null,
+    /** Which device that is ("app-<grant>"), and what kind its player said, as the server keys them. */
+    val deviceId: String = "session-$id",
+    val deviceKind: DeviceKind = DeviceKind.Other,
+    @Volatile var positionMs: Long = 0,
+    @Volatile var state: ProgressState = ProgressState.Playing,
+    /** When it was last heard from, on the server's clock (ms). */
+    @Volatile var reportedAtMs: Long = 0,
 )
 
 /** A session the server stopped, and why. */

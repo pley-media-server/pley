@@ -55,6 +55,12 @@ for (const file of [...libs, ...tests]) {
   pathOf.set(`pkg:/${packaged}`, file);
 }
 files.set("source/run.brs", new Blob([main]));
+// The rules every TV app shares (packages/tv/test/fixtures), which the
+// tests read as pkg:/fixtures/<name>.json.
+const fixtures = join(root, "../../packages/tv/test/fixtures");
+for (const name of ["remote.json"]) {
+  files.set(`fixtures/${name}`, new Blob([readFileSync(join(fixtures, name))]));
+}
 files.set("manifest", new Blob([readFileSync(join(root, "manifest"))]));
 
 const lines = [];

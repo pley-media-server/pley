@@ -75,7 +75,8 @@ sub apiRun()
     end while
 end sub
 
-' The User-Agent, the player's id and what Settings shows of this Roku.
+' The User-Agent, the player's id, its name and what Settings shows of
+' this Roku.
 sub apiDeviceFacts()
     device = CreateObject("roDeviceInfo")
     version = CreateObject("roAppInfo").GetVersion()
@@ -90,6 +91,8 @@ sub apiDeviceFacts()
         section.Write("player", m.playerId)
         section.Flush()
     end if
+    ' What the user's remotes call this Roku: the name its owner gave it.
+    m.deviceName = remoteDeviceName(device.GetFriendlyName())
     m.session.userAgent = m.userAgent
     m.session.appVersion = version
     m.session.device = model + " · Roku OS " + httpOsVersion(os)
@@ -1300,7 +1303,8 @@ end sub
 ' "auto", or "transcode" for a quality (maxBitrate, maxHeight: the Quality
 ' setting's or Automatic's, AutoQuality.brs) or once the original didn't
 ' play here; subtitleIndex, picture subtitles for the server to draw;
-' picturesOff, once the server turned out not to make PGS's pictures.
+' picturesOff, once the server turned out not to make PGS's pictures;
+' controls, what the player obeys of the user's remote (Remote.brs).
 sub apiPlay(request as object, spec as object)
     mode = httpString(spec.mode)
     if mode = "" then mode = "auto"
@@ -1316,15 +1320,27 @@ sub apiPlay(request as object, spec as object)
     if httpNumber(spec.maxBitrate, 0) > 0 then body.max_bitrate = Int(spec.maxBitrate)
     if httpNumber(spec.maxHeight, 0) > 0 then body.max_height = Int(spec.maxHeight)
     if httpTrue(spec.keyed) then body.keyed_urls = true
+    apiRemote(body, spec)
     ' Starting a transcode takes the server a few seconds.
     apiCall(request, { method: "POST", path: "/api/playback", json: body, timeoutMs: 60000, play: true })
+end sub
+
+' What a play or watch request says for the user's remotes (docs/API.md,
+' "Remote control"): the commands its player obeys (spec.controls, none
+' from an https:// server, whose commands can't reach it), that it plays
+' on a TV, and this Roku's name.
+sub apiRemote(body as object, spec as object)
+    if GetInterface(spec.controls, "ifArray") <> invalid and remoteMayControl(m.server) then body.controls = spec.controls
+    body.device_kind = remoteDeviceKind()
+    if m.deviceName <> "" then body.device_name = m.deviceName
 end sub
 
 ' --- Live TV (Live.brs) ---
 
 ' POST /api/live/channels/{id}/watch with this Roku's client_id, which
-' ends what it watched before (zapping holds one connection). Tuning a
-' channel nobody watches takes the server a few seconds.
+' ends what it watched before (zapping holds one connection), and what the
+' player obeys of the user's remote. Tuning a channel nobody watches takes
+' the server a few seconds.
 sub apiLiveWatch(request as object, spec as object)
     if m.server = ""
         apiAnswer(request, apiFail("no_server", "Choose a server first."))
@@ -1340,6 +1356,7 @@ sub apiLiveWatch(request as object, spec as object)
     ' whose it may be).
     takeOver = Int(httpNumber(spec.takeOver, 0))
     if takeOver > 0 then body.take_over = takeOver
+    apiRemote(body, spec)
     job.body = FormatJson(body)
     job.contentType = "application/json"
     job.timeoutMs = 60000

@@ -21,8 +21,9 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 /// as the player opened); a channel number typed, found among every channel; the category's
 /// channels a page at a time for the channel list, which can show another category's (a channel
 /// tuned from there makes channel up and down go through that one); watched as it airs, without
-/// pausing or going back; a favourite. The channel is kept for the profile: the guide opens back
-/// at it. The playback ends with the model.
+/// pausing or going back; a favourite; the profile's remote changes channel as channel up and
+/// down do. The channel is kept for the profile: the guide opens back at it. The playback ends
+/// with the model.
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
@@ -70,6 +71,8 @@ public sealed class LivePlayerModel : IDisposable
         this.source = source;
         this.playback = playback;
         this.scheduler = scheduler;
+        // The remote's next and previous are channel up and down, as here.
+        playback.Zap = by => Step(by, remote: true);
         if (seen != null) known[seen.Id] = seen;
         var category = LiveCategory.Parse(categoryKey);
         Category = new Signal<LiveCategory>(category);
@@ -149,7 +152,15 @@ public sealed class LivePlayerModel : IDisposable
     }
 
     /// <summary>Channel up (<paramref name="by"/> 1, the next in the category) or down (-1), round its ends.</summary>
-    public async void Step(int by)
+    public void Step(int by) => Step(by, remote: false);
+
+    /// <summary>
+    /// A step, from the TV's keys or the remote. Its channel, found a moment later, is tuned only if
+    /// nothing was tuned meanwhile (another step, a channel from the list or by its number) and the
+    /// player still watches: not in the background, and for the remote not stopped on the server
+    /// either, as it obeys nothing then. A late step would undo what came since.
+    /// </summary>
+    async void Step(int by, bool remote)
     {
         var at = ++zaps;
         LiveChannel? next;
@@ -163,6 +174,8 @@ public sealed class LivePlayerModel : IDisposable
             return;
         }
         if (gone || at != zaps || next == null) return;
+        var phase = State.Value.Is;
+        if (phase is LivePhase.Idle || (remote && phase is LivePhase.Failed)) return;
         Tune(next.Id, next);
     }
 
@@ -266,6 +279,8 @@ public sealed class LivePlayerModel : IDisposable
 
     void TuneNow(long channelId)
     {
+        // A step still looking for its channel is late now.
+        zaps++;
         current = channelId;
         endedAsked = null;
         source.Keep(channel: channelId);

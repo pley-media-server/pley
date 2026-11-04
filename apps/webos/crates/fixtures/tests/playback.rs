@@ -200,6 +200,47 @@ fn sessions_stopped_from_elsewhere_answer_410() {
 }
 
 #[test]
+fn the_remote_sends_a_players_command_only_to_its_own_user_and_only_what_it_obeys() {
+    let server =
+        FixtureServer::start_with(Options { keep_alive: Duration::from_millis(200), ..Options::default() }).unwrap();
+    let api = Api::alex(&server);
+    let mut events = Events::open(&api);
+    let body = json!({
+        "item_id": ids::SAMPLE_HDR10, "keyed_urls": true, "caps": {},
+        "controls": ["play", "pause", "seek", "shuffle"], "device_kind": "tv",
+    });
+    let session = play(&api, body)["session_id"].as_str().unwrap().to_string();
+    let listed = api.get("/api/sessions").json();
+    let mine = listed["sessions"].as_array().unwrap().iter().find(|s| s["session_id"] == session).unwrap().clone();
+    // What the server doesn't know is left out.
+    assert_eq!(
+        (&mine["kind"], &mine["controls"], &mine["device_kind"]),
+        (&json!("item"), &json!(["play", "pause", "seek"]), &json!("tv"))
+    );
+
+    let path = format!("/api/sessions/{session}/command");
+    assert_eq!(api.post(&path, &json!({ "command": "seek", "position_ms": 60_000 })).status, 202);
+    let heard = events.wait_for("player_command", Duration::from_secs(5)).expect("the player hears it");
+    assert_eq!(
+        heard,
+        json!({
+            "type": "player_command", "session_id": session, "command": "seek",
+            "position_ms": 60_000, "offset_ms": null,
+        })
+    );
+    let refused = api.post(&path, &json!({ "command": "next" }));
+    assert_eq!((refused.status, refused.json()["code"].as_str()), (409, Some("not_controllable")));
+    assert_eq!(api.post(&path, &json!({ "command": "seek" })).status, 400);
+    assert_eq!(api.post(&path, &json!({ "command": "shuffle" })).status, 400);
+    assert_eq!(api.post("/api/sessions/nope/command", &json!({ "command": "pause" })).status, 404);
+    // Someone else's session isn't theirs to command.
+    let sam = Api::new(&server, ids::SAM);
+    let theirs = play(&sam, json!({ "item_id": ids::SAMPLE_1080P, "caps": {}, "controls": ["pause"] }));
+    let theirs = format!("/api/sessions/{}/command", theirs["session_id"].as_str().unwrap());
+    assert_eq!(api.post(&theirs, &json!({ "command": "pause" })).status, 403);
+}
+
+#[test]
 fn subtitles_as_webvtt_and_mks() {
     let server = FixtureServer::start();
     let api = Api::alex(&server);

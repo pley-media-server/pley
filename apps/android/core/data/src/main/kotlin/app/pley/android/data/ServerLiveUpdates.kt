@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -31,12 +32,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * The server's events, while the app is in the [foreground] and signed in:
+ * The server's events, while the app is in the [foreground] and signed in,
+ * or signed in while a player has a session ([playing]: a remote's
+ * commands reach it in the background too):
  *
  * - `library_changed`, held [DEBOUNCE_MS] per library (a scan sends many),
  *   asks again for what shows that library: its rows, listings and
@@ -57,11 +61,18 @@ import kotlinx.coroutines.launch
  *   waiting then is asked for in the same round (a play that ends sends
  *   both);
  * - a new connection (the server replays nothing) and every return to the
- *   foreground ask again for what is older than [STALE_MS];
+ *   foreground, the stream open or not, ask again for what is older than
+ *   [STALE_MS];
  * - scans fill [scans] (GET /api/activity refuses apps' tokens).
  *
+ * In the background (the stream open for a player), what the events touch
+ * is only marked to be asked for again when next shown: no screen shows it
+ * meanwhile, and a phone playing music on a weak connection would fetch it
+ * all again at each reconnection.
+ *
  * The stream ends for good when the server refuses the app (401, 403):
- * until the next return to the foreground or sign-in.
+ * until the next return to the foreground or sign-in, or, in the
+ * background, until the next playback.
  */
 internal class ServerLiveUpdates(
     private val session: SessionManager,
@@ -93,14 +104,36 @@ internal class ServerLiveUpdates(
 
     override val streaming: StateFlow<Boolean> get() = _streaming.asStateFlow()
 
+    /** The players with a session on the server now ([playing]). */
+    private val players = MutableStateFlow<Set<Any>>(emptySet())
+
     override fun start() {
         if (!started.compareAndSet(false, true)) return
         app.launch {
             val signedIn = session.state.map { (it as? SessionState.SignedIn)?.session?.issuer }.distinctUntilChanged()
-            combine(foreground.distinctUntilChanged(), signedIn) { inFront, issuer -> issuer.takeIf { inFront } }
+            val anyPlaying = players.map { it.isNotEmpty() }.distinctUntilChanged()
+            combine(foreground.distinctUntilChanged(), anyPlaying, signedIn) { inFront, playing, issuer ->
+                issuer.takeIf { inFront || playing }
+            }
                 .distinctUntilChanged()
-                .collectLatest { issuer -> if (issuer != null) follow(issuer) else _scans.value = emptyList() }
+                .collectLatest { issuer ->
+                    if (issuer == null) {
+                        _scans.value = emptyList()
+                        return@collectLatest
+                    }
+                    while (true) {
+                        follow(issuer)
+                        // Refused: tried again at the next return to the foreground, which a player
+                        // holding the stream open in the background hides from the combination above.
+                        foreground.first { !it }
+                        foreground.first { it }
+                    }
+                }
         }
+    }
+
+    override fun playing(player: Any, playing: Boolean) {
+        players.update { if (playing) it + player else it - player }
     }
 
     /** A fresh list of libraries: which are scanning now. */
@@ -112,22 +145,40 @@ internal class ServerLiveUpdates(
         }
     }
 
+    /**
+     * Follows [issuer]'s events until the server refuses them; returns
+     * then (the stream ends for good until the next return).
+     */
     private suspend fun follow(issuer: String) = coroutineScope {
-        // Back in the foreground (or just signed in): what is old is asked again.
-        cache.revalidate(STALE_MS) { _, _ -> true }
+        val inFront = AtomicBoolean(false)
+        // Back in the foreground (or just signed in), also while a player kept the stream open: what is old is asked again.
+        // Undispatched, so whether the app is in front is known before the first event.
+        val returns = launch(start = CoroutineStart.UNDISPATCHED) {
+            foreground.distinctUntilChanged().collect { front ->
+                inFront.set(front)
+                if (!front) return@collect
+                cache.revalidate(STALE_MS) { _, _ -> true }
+                // A stream kept open in the background connects no more: who the profile is is asked here instead.
+                if (_streaming.value && session.meState.value?.fresh != true) launch { session.refresh() }
+            }
+        }
         val pending = ConcurrentHashMap<Long, Job>()
         val watchState = AtomicReference<WatchStateHeard?>(null)
+        val refetch = Refetch(cache, inFront)
         try {
             eventsOf(issuer).events().collect { live ->
                 when (live) {
                     LiveEvent.Reconnected -> {
                         _streaming.value = true
                         connected.tryEmit(Unit)
-                        cache.revalidate(STALE_MS) { _, _ -> true }
-                        if (session.meState.value?.fresh != true) launch { session.refresh() }
+                        // In the background, the next return to the foreground asks for what is old.
+                        if (inFront.get()) {
+                            cache.revalidate(STALE_MS) { _, _ -> true }
+                            if (session.meState.value?.fresh != true) launch { session.refresh() }
+                        }
                     }
                     LiveEvent.Dropped -> _streaming.value = false
-                    is LiveEvent.Event -> handle(live.event, pending, watchState)
+                    is LiveEvent.Event -> handle(live.event, pending, watchState, refetch)
                 }
             }
         } catch (e: CancellationException) {
@@ -135,6 +186,7 @@ internal class ServerLiveUpdates(
         } catch (_: IOException) {
             // Refused (signed out, not allowed): stopped until the next start.
         } finally {
+            returns.cancel()
             _streaming.value = false
             // Changes heard but not yet acted on: asked again when next shown.
             for ((libraryId, job) in pending) {
@@ -150,6 +202,7 @@ internal class ServerLiveUpdates(
         event: ServerEvent,
         pending: ConcurrentHashMap<Long, Job>,
         watchState: AtomicReference<WatchStateHeard?>,
+        refetch: Refetch,
     ) {
         heard.tryEmit(event)
         when (event) {
@@ -163,15 +216,15 @@ internal class ServerLiveUpdates(
                 pending[libraryId] = launch {
                     delay(DEBOUNCE_MS)
                     pending.remove(libraryId)
-                    cache.revalidate { key, value -> affects(libraryId, key, value) }
+                    refetch { key, value -> affects(libraryId, key, value) }
                 }
             }
             ServerEvent.LibrariesChanged -> {
                 // Which titles this profile may see may have changed with it: whatever shows them.
-                cache.revalidate { _, _ -> true }
+                refetch { _, _ -> true }
                 launch { session.refresh() }
             }
-            ServerEvent.WatchlistChanged -> cache.revalidate { key, value ->
+            ServerEvent.WatchlistChanged -> refetch { key, value ->
                 key == SnapshotKeys.HOME || key == SnapshotKeys.WATCHLIST || (value is ItemDetail && value.kind.listable)
             }
             is ServerEvent.UserStateChanged -> {
@@ -180,16 +233,16 @@ internal class ServerLiveUpdates(
                 if (first) {
                     launch {
                         delay(STATE_MS)
-                        watchStateChanged(watchState.getAndSet(null) ?: return@launch, pending)
+                        watchStateChanged(watchState.getAndSet(null) ?: return@launch, pending, refetch)
                     }
                 }
             }
-            ServerEvent.LiveChannelsChanged -> cache.revalidate { key, _ -> SnapshotKeys.isLive(key) }
-            // Requests follow these themselves (RequestsRepository), from [events].
+            ServerEvent.LiveChannelsChanged -> refetch { key, _ -> SnapshotKeys.isLive(key) }
+            // Requests and the players follow these themselves (RequestsRepository, the players), from [events].
             is ServerEvent.RequestsChanged, is ServerEvent.RequestAvailable, is ServerEvent.RequestDecided,
             is ServerEvent.RequestCreated, is ServerEvent.RequestFailed, ServerEvent.RequestsSettingsChanged,
-            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, ServerEvent.LiveTunersChanged, is ServerEvent.LiveTakenOver,
-            is ServerEvent.Unknown -> Unit
+            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, is ServerEvent.PlayerCommand,
+            ServerEvent.LiveTunersChanged, is ServerEvent.LiveTakenOver, is ServerEvent.Unknown -> Unit
         }
     }
 
@@ -199,13 +252,20 @@ internal class ServerLiveUpdates(
      * already. Library changes waiting are asked for now with it, so a play
      * that ends (which sends both) costs one round of requests.
      */
-    private fun watchStateChanged(heard: WatchStateHeard, pending: ConcurrentHashMap<Long, Job>) {
+    private fun watchStateChanged(heard: WatchStateHeard, pending: ConcurrentHashMap<Long, Job>, refetch: Refetch) {
         for ((libraryId, job) in pending) {
             if (!pending.remove(libraryId, job)) continue
             job.cancel()
-            cache.revalidate { key, value -> affects(libraryId, key, value) }
+            refetch { key, value -> affects(libraryId, key, value) }
         }
-        cache.revalidate(olderThanMs = cache.clock() - heard.at) { key, value -> touches(heard.ids, heard.under, key, value) }
+        refetch(olderThanMs = cache.clock() - heard.at) { key, value -> touches(heard.ids, heard.under, key, value) }
+    }
+
+    /** What an event touches is asked for again: now in the foreground, when next shown in the background. */
+    private class Refetch(private val cache: ResourceCache, private val inFront: AtomicBoolean) {
+        operator fun invoke(olderThanMs: Long = 0, match: (key: String, value: Any?) -> Boolean) {
+            if (inFront.get()) cache.revalidate(olderThanMs, match) else cache.markStale(match)
+        }
     }
 
     private fun scan(libraryId: Long, progress: Float?) {

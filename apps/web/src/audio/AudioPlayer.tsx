@@ -552,11 +552,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
               () => reportNow(s, "playing"),
               () => undefined,
             );
+          } else {
+            // Playing already: said again, so a remote a little behind settles.
+            reportNow(s, "playing");
           }
           break;
         case "pause":
-          // Its pause event reports.
+          // Its pause event reports; paused already, it is said again.
           if (!audio.paused) audio.pause();
+          else reportNow(s, "paused");
           break;
         case "seek":
         case "skip": {

@@ -159,11 +159,23 @@ fn a_busy_source_and_an_ended_session_are_read_from_their_bodies() {
         })
     });
     let e = api
-        .watch_channel(2, &WatchRequest { client_id: Some("webos-1".into()), keyed_urls: true, take_over: None })
+        .watch_channel(
+            2,
+            &WatchRequest {
+                client_id: Some("webos-1".into()),
+                keyed_urls: true,
+                controls: vec![Control::Next, Control::Previous],
+                device_kind: Some(DeviceKind::Tv),
+                ..WatchRequest::default()
+            },
+        )
         .unwrap_err();
     assert!(e.busy().unwrap().connections[0].can_take_over);
     let sent: serde_json::Value = serde_json::from_slice(fake.requests()[0].body.as_ref().unwrap()).unwrap();
-    assert_eq!(sent, json!({"client_id": "webos-1", "keyed_urls": true}));
+    assert_eq!(
+        sent,
+        json!({"client_id": "webos-1", "keyed_urls": true, "controls": ["next", "previous"], "device_kind": "tv"})
+    );
     assert_eq!(api.why_live_ended("abc").unwrap().as_deref(), Some("Watching moved to BBC One on another device."));
 }
 
@@ -235,7 +247,7 @@ fn up_next_and_on_deck_may_be_none() {
 }
 
 #[test]
-fn a_channel_s_stream_ts_is_read_with_the_token_under_its_own_client_id() {
+fn a_channel_s_stream_ts_is_read_with_the_token_under_its_own_client_id_on_a_tv() {
     let (api, fake) = api(|r| {
         assert!(r.url.contains("/stream.ts"));
         Ok(Response { status: 200, headers: vec![("Content-Type".into(), "video/mp2t".into())], body: vec![0x47; 376] })
@@ -245,7 +257,10 @@ fn a_channel_s_stream_ts_is_read_with_the_token_under_its_own_client_id() {
     answer.body.read_to_end(&mut body).unwrap();
     assert_eq!(body.len(), 376);
     let req = &fake.requests()[0];
-    assert_eq!(req.url, "http://192.168.1.20:7539/api/live/channels/7/stream.ts?client_id=webos-1-stream");
+    assert_eq!(
+        req.url,
+        "http://192.168.1.20:7539/api/live/channels/7/stream.ts?client_id=webos-1-stream&device_kind=tv"
+    );
     assert_eq!(token(req), Some("Bearer pley_at_x"));
     assert_eq!(req.header_value("Accept-Encoding"), Some("identity"));
     // Read for as long as it runs: no limit on the whole, one on each wait.

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{is_false, nd};
+use super::{Control, DeviceKind, is_false, nd};
 
 /// `GET /api/live`: whether to show Live TV. `allowed`: it is open to this
 /// profile; `available`: and it has channels (the rail shows it then).
@@ -223,7 +223,7 @@ pub struct LiveGuide {
 /// The body of `POST /api/live/channels/{id}/watch`: `client_id` ends what
 /// this TV watched before; `keyed_urls` because the TV's player sends no
 /// headers; `take_over`, every connection being in use, is the channel whose
-/// connection to take.
+/// connection to take; `controls` and `device_kind` as a play request's.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct WatchRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -232,6 +232,10 @@ pub struct WatchRequest {
     pub keyed_urls: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub take_over: Option<i64>,
+    #[serde(default, deserialize_with = "nd", skip_serializing_if = "Vec::is_empty")]
+    pub controls: Vec<Control>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_kind: Option<DeviceKind>,
 }
 
 /// `POST /api/live/channels/{id}/watch`'s answer: the live playlist's

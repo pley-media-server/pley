@@ -609,13 +609,28 @@ public sealed class Api
     /// POST /api/live/channels/{id}/watch with keyed URLs (the TV's player can't send the
     /// Authorization header): <paramref name="clientId"/> ends what this TV watched before.
     /// <paramref name="takeOver"/>: every connection in use, the channel whose connection to take.
+    /// <paramref name="controls"/>: what the player obeys from the remote (docs/API.md, "Remote
+    /// control"); it plays on a TV, which remotes are told.
     /// </summary>
-    public async Task<LiveWatching> WatchChannel(long id, string clientId, long? takeOver = null, CancellationToken cancel = default)
+    public async Task<LiveWatching> WatchChannel(long id, string clientId, long? takeOver = null, IReadOnlyList<string>? controls = null, CancellationToken cancel = default)
     {
-        var body = new Dictionary<string, object?> { ["client_id"] = clientId, ["keyed_urls"] = true };
+        var body = new Dictionary<string, object?>
+        {
+            ["client_id"] = clientId,
+            ["keyed_urls"] = true,
+            ["controls"] = controls ?? Array.Empty<string>(),
+            ["device_kind"] = "tv",
+        };
         if (takeOver != null) body["take_over"] = takeOver;
         return Read<LiveWatching>(await Send($"/api/live/channels/{id}/watch", "POST", body, cancel: cancel, timeoutMs: WatchTimeoutMs).ConfigureAwait(false));
     }
+
+    /// <summary>
+    /// GET /api/live/channels/{id}/stream.ts's path: the channel's MPEG-TS as the provider sends
+    /// it, read under <paramref name="clientId"/>, saying it plays on a TV, as watching does.
+    /// </summary>
+    public static string LiveStreamPath(long id, string clientId) =>
+        $"/api/live/channels/{id.ToString(System.Globalization.CultureInfo.InvariantCulture)}/stream.ts?client_id={Uri.EscapeDataString(clientId)}&device_kind=tv";
 
     /// <summary>
     /// Why a watching session ended (someone took its connection over, say), or null while it goes

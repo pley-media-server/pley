@@ -15,6 +15,10 @@
         <!-- A session stopped from elsewhere, as the event stream tells
              ({ session_id, message, by_admin }). -->
         <field id="serverStopped" type="assocarray" alwaysNotify="true" />
+        <!-- A command of the user's remote, on another device, as the
+             event stream tells it ({ session_id, command, position_ms,
+             offset_ms }). -->
+        <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -24,6 +28,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSync.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Tracks.brs" />

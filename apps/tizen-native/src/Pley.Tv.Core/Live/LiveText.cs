@@ -117,6 +117,9 @@ public static class LiveText
     /// <summary>Watching ended on the server (its connection taken over, or stopped there): the server's words under it, else <see cref="StoppedBody"/>.</summary>
     public const string Stopped = "Live TV stopped";
     public const string StoppedBody = "This channel isn't being watched any more.";
+    /// <summary>Watching stopped from elsewhere (the server's <c>session_stopped</c>): who stopped it, as Android says it.</summary>
+    public const string StoppedByAdmin = "Live TV was stopped by the server's administrator.";
+    public const string StoppedElsewhere = "Live TV was stopped from another device.";
     /// <summary>Try again's place when watching ended on the server: it tunes the channel as any watch does.</summary>
     public const string WatchAgain = "Watch again";
     public const string Missing = "This channel isn't here any more";
@@ -164,6 +167,13 @@ public static class LiveText
         if (c.Watchers.Count > 0) return string.Join(", ", c.Watchers);
         var people = Math.Max(1, c.People);
         return people == 1 ? "Someone else" : $"{people} people";
+    }
+
+    /// <summary>Who stopped watching, then their message on its own line when they gave one (Android's session_stopped_message).</summary>
+    public static string StoppedBy(string? message, bool byAdmin)
+    {
+        var who = byAdmin ? StoppedByAdmin : StoppedElsewhere;
+        return string.IsNullOrWhiteSpace(message) ? who : who + "\n" + message!.Trim();
     }
 
     /// <summary>A trouble's title, as the player's card says it.</summary>

@@ -37,6 +37,34 @@ wire_enum! {
     }
 }
 
+wire_enum! {
+    /// A command of the user's remote, on another of their devices (docs/API.md, "Remote control").
+    pub enum Control or Unknown {
+        Play = "play",
+        Pause = "pause",
+        Seek = "seek",
+        Skip = "skip",
+        Next = "next",
+        Previous = "previous",
+        /// A command a newer server knows: nothing obeys it.
+        #[default]
+        Unknown = "unknown",
+    }
+}
+
+wire_enum! {
+    /// What kind of device a player plays on, as remotes show it (docs/API.md, "Remote control").
+    pub enum DeviceKind or Other {
+        Tv = "tv",
+        Phone = "phone",
+        Tablet = "tablet",
+        Computer = "computer",
+        Browser = "browser",
+        #[default]
+        Other = "other",
+    }
+}
+
 /// The body of `POST /api/playback` (apps/server/src/playback.rs,
 /// `PlaybackRequest`). What is left out the server picks: the item's first
 /// file, the audio this player plays best, nothing burned in, the original
@@ -72,6 +100,13 @@ pub struct PlaybackRequest {
     /// The TV's player sends no headers: addresses carry a key of their own.
     #[serde(default, deserialize_with = "nd", skip_serializing_if = "is_false")]
     pub keyed_urls: bool,
+    /// The remote's commands this player obeys; left out: none, only Stop.
+    #[serde(default, deserialize_with = "nd", skip_serializing_if = "Vec::is_empty")]
+    pub controls: Vec<Control>,
+    /// Always a TV from this app: remotes tell the TVs among the user's devices by it. The server
+    /// names the TV from the `User-Agent`, webOS giving the app no name of the set's own.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_kind: Option<DeviceKind>,
     #[serde(default, deserialize_with = "nd")]
     pub caps: ClientCaps,
 }

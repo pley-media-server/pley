@@ -407,6 +407,29 @@ mod tests {
     }
 
     #[test]
+    fn a_remotes_command_names_the_session_and_what_to_do() {
+        use crate::model::Control;
+        let e = parse_event(
+            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":1200000,"offset_ms":null}"#,
+        );
+        assert_eq!(
+            e,
+            Some(ServerEvent::PlayerCommand {
+                session_id: "s1".into(),
+                command: Control::Seek,
+                position_ms: Some(1_200_000),
+                offset_ms: None,
+            })
+        );
+        assert_eq!(e.map(|e| e.kind().to_string()), Some("player_command".into()));
+        let skip = parse_event(r#"{"type":"player_command","session_id":"s1","command":"skip","offset_ms":-10000}"#);
+        assert!(matches!(skip, Some(ServerEvent::PlayerCommand { offset_ms: Some(-10_000), position_ms: None, .. })));
+        // A command a newer server knows reads as one nothing obeys.
+        let newer = parse_event(r#"{"type":"player_command","session_id":"s1","command":"shuffle"}"#);
+        assert!(matches!(newer, Some(ServerEvent::PlayerCommand { command: Control::Unknown, .. })));
+    }
+
+    #[test]
     fn data_that_isnt_an_event_is_skipped() {
         assert_eq!(parse_event("not json"), None);
         assert_eq!(parse_event("[1,2]"), None);

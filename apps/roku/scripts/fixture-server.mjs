@@ -708,6 +708,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       const ask = JSON.parse(body);
       if (ask.caps?.caps_version !== 2) problems.push("a playback request without caps_version 2");
       if (!ask.caps?.hls?.master_playlist) problems.push("a playback request without hls.master_playlist");
+      // What the user's remotes see of the player (docs/API.md, "Remote control").
+      if (ask.device_kind !== "tv") problems.push("a playback request that doesn't say it plays on a TV");
+      if (!Array.isArray(ask.controls) || !ask.controls.includes("pause")) problems.push("a playback request without its controls");
       const item = items.get(ask.item_id);
       // A movie's Director's Cut is its second file.
       const files = item?.kind === "movie" ? [7000 + ask.item_id, 9000 + ask.item_id] : [7000 + ask.item_id];
@@ -838,6 +841,8 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       const ask = body ? JSON.parse(body) : {};
       fixture.liveWatches.push({ id, client_id: ask.client_id ?? null, take_over: ask.take_over ?? null });
       if (!ask.client_id) problems.push("a watch without a client_id");
+      if (ask.device_kind !== "tv") problems.push("a watch that doesn't say it plays on a TV");
+      if (JSON.stringify(ask.controls) !== JSON.stringify(["next", "previous"])) problems.push(`a watch obeying ${JSON.stringify(ask.controls)}`);
       const channel = liveChannels().find((c) => c.id === id);
       if (!channel) return json(404, { code: "not_found", message: "no such channel" });
       // Channel 3's source has one connection, Ben's other device on

@@ -52,6 +52,115 @@ class LiveUpdatesTest {
     }
 
     @Test
+    fun `while something plays the stream stays open in the background, and closes when it ends`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val live = data.graph.liveUpdates
+        live.start()
+        testScheduler.runCurrent()
+        val music = Any()
+        val video = Any()
+        live.playing(music, true)
+        live.playing(video, true)
+        data.foreground.value = false
+        testScheduler.runCurrent()
+        // Kept, not opened again: a remote's command can't fall in between.
+        assertEquals(1, data.events.connected.value)
+        assertEquals(1, data.events.connections)
+
+        live.playing(video, false)
+        testScheduler.runCurrent()
+        assertEquals(1, data.events.connected.value)
+        // Saying it twice changes nothing.
+        live.playing(music, true)
+        live.playing(music, false)
+        live.playing(music, false)
+        testScheduler.runCurrent()
+        assertEquals(0, data.events.connected.value)
+
+        // A playback that starts in the background opens it.
+        live.playing(music, true)
+        testScheduler.runCurrent()
+        assertEquals(1, data.events.connected.value)
+        assertEquals(2, data.events.connections)
+    }
+
+    @Test
+    fun `signing out closes the stream something playing kept open`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val live = data.graph.liveUpdates
+        live.start()
+        live.playing(this, true)
+        data.foreground.value = false
+        testScheduler.runCurrent()
+        assertEquals(1, data.events.connected.value)
+        data.graph.session.signOut()
+        testScheduler.runCurrent()
+        assertEquals(0, data.events.connected.value)
+        live.playing(this, false)
+    }
+
+    @Test
+    fun `coming back while something kept the stream open asks again for what is old`() = runTest {
+        val data = signedIn(folder.newFolder())
+        collect(data.graph.hubs.home())
+        val live = data.graph.liveUpdates
+        live.start()
+        live.playing(this, true)
+        testScheduler.runCurrent()
+        data.foreground.value = false
+        time(60_000)
+
+        data.foreground.value = true
+        testScheduler.runCurrent()
+        assertEquals(1, data.events.connections)
+        assertEquals(2, data.api.calls("homeHubs").size)
+        live.playing(this, false)
+    }
+
+    @Test
+    fun `in the background, events and reconnections only mark what they touch, asked for when next shown`() = runTest {
+        val data = signedIn(folder.newFolder())
+        collect(data.graph.hubs.home())
+        val live = data.graph.liveUpdates
+        live.start()
+        live.playing(this, true)
+        testScheduler.runCurrent()
+        data.foreground.value = false
+        time(60_000)
+
+        data.events.send(LiveEvent.Dropped)
+        data.events.send(LiveEvent.Reconnected)
+        data.events.send(LiveEvent.Event(ServerEvent.WatchlistChanged))
+        data.events.send(LiveEvent.Event(ServerEvent.LibraryChanged(1)))
+        time(2_000)
+        assertEquals(1, data.api.calls("homeHubs").size)
+
+        data.foreground.value = true
+        testScheduler.runCurrent()
+        assertEquals(2, data.api.calls("homeHubs").size)
+        live.playing(this, false)
+    }
+
+    @Test
+    fun `a stream refused while something plays opens again on coming back`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val live = data.graph.liveUpdates
+        live.start()
+        live.playing(this, true)
+        testScheduler.runCurrent()
+        data.foreground.value = false
+        testScheduler.runCurrent()
+        data.events.refuse(403)
+        time(120_000)
+        assertEquals(1, data.events.connections)
+
+        data.foreground.value = true
+        testScheduler.runCurrent()
+        assertEquals(2, data.events.connections)
+        live.playing(this, false)
+    }
+
+    @Test
     fun `reading the scans starts following the server, as the shells do`() = runTest {
         val data = signedIn(folder.newFolder())
         testScheduler.runCurrent()

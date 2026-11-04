@@ -27,7 +27,7 @@ const icons = [
   ["Info", "info"], ["X", "x"], ["Delete", "delete"], ["Trash2", "trash-2"], ["Pencil", "pencil"], ["Copy", "copy"],
   ["Save", "save"], ["Download", "download"], ["RefreshCw", "refresh-cw"], ["History", "history"], ["Lock", "lock"],
   ["LockOpen", "lock-open"], ["LogOut", "log-out"], ["Link2", "link-2"], ["Sparkles", "sparkles"],
-  ["GripVertical", "grip-vertical"], ["List", "list"], ["ListOrdered", "list-ordered"], ["Square", "square"],
+  ["GripVertical", "grip-vertical"], ["List", "list"], ["ListOrdered", "list-ordered"], ["Square", "square"], ["CircleStop", "circle-stop"],
   ["LoaderCircle", "loader-circle"], ["CircleAlert", "circle-alert"], ["TriangleAlert", "triangle-alert"],
   ["ShieldCheck", "shield-check"], ["TicketX", "ticket-x"], ["MailPlus", "mail-plus"], ["Activity", "activity"],
   // My List

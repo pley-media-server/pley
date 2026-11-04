@@ -63,6 +63,9 @@ interface DataGraph {
     /** How Live TV was left on this device (nothing kept unless the graph keeps it). */
     val liveTvViews: LiveTvViews get() = LiveTvViews.None
 
+    /** The remote of the profile's other devices (none unless the graph has it). */
+    val remote: RemoteRepository get() = RemoteRepository.None
+
     companion object {
         /**
          * The data side of the app over [network] and [auth]. Making it
@@ -192,6 +195,7 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     override val trackDefaults: TrackDefaultsRepository by lazy { SessionTrackDefaults(sessionImpl, env.trackDefaults, cache) }
     override val playItem: PlayItem by lazy { CachedPlayItem(cache, itemsImpl) }
     override val liveTv: LiveTvRepository by lazy { CachedLiveTv(cache) }
+    override val remote: RemoteRepository by lazy { ServerRemote(cache, live, env.scope, env.clock) }
     override val requests: RequestsRepository by lazy {
         ServerRequests(
             cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,

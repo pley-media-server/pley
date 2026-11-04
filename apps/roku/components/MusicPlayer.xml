@@ -31,6 +31,15 @@
         <field id="durationMs" type="integer" />
         <!-- What went wrong with the track before, or "". -->
         <field id="message" type="string" />
+        <!-- Its session stopped from another device or by the server's
+             administrator, as the event stream tells it ({ session_id,
+             message, by_admin }); and what the music then says of it
+             (Player.brs's playerStoppedMessage), "" until then. -->
+        <field id="serverStopped" type="assocarray" alwaysNotify="true" />
+        <field id="stoppedBy" type="string" />
+        <!-- A command of the user's remote, on another device ({
+             session_id, command, position_ms, offset_ms }). -->
+        <field id="playerCommand" type="assocarray" alwaysNotify="true" />
         <!-- The sleep timer: { button (what its button says), secondsLeft
              (its last 30 s counting down; -1 otherwise) }. -->
         <field id="sleep" type="assocarray" />
@@ -42,6 +51,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />

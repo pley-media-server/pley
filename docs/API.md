@@ -3441,7 +3441,8 @@ more.
 - **The player acts on it**, if `session_id` is the session it plays now:
   `seek` stops at the start and the end, `skip` counts from where it is,
   and `next` with nothing next or `previous` on a video does nothing. Then
-  it reports at once. A report whose place is more than 5 seconds from
+  it reports at once; a `play` or `pause` that changes nothing reports
+  too, so a remote that missed a change settles. A report whose place is more than 5 seconds from
   where the session could be by now, played at any speed from half to
   twice since the last report (a seek, a skip), sends `sessions_changed`,
   as a pause does, so remotes fetch the list again. The first report

@@ -8,6 +8,7 @@ import app.pley.android.auth.Vault
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.FormFactor
 import app.pley.android.common.Tier
+import app.pley.android.model.DeviceKind
 import java.io.File
 import javax.crypto.KeyGenerator
 import okhttp3.OkHttpClient
@@ -83,6 +84,8 @@ internal fun testGraph(
     profile: DeviceProfile = testProfile(),
     root: OkHttpClient = HttpRoot.create(TEST_AGENT),
     lans: LanNetworks = NoLans,
+    deviceName: () -> String? = { null },
+    deviceKind: () -> DeviceKind? = { null },
 ) = HttpNetworkGraph(
     root = root,
     tokens = tokens,
@@ -91,4 +94,6 @@ internal fun testGraph(
     lans = lans,
     route = null,
     localNetworkOf = { PermissionsLocalNetworkAccess(sdk = 37, fireTv = false, granted = { true }) },
+    deviceName = deviceName,
+    deviceKind = deviceKind,
 )

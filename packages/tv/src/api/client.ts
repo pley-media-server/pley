@@ -3,6 +3,7 @@ import { NOT_YOUR_SERVER, SignedOutError, type Tokens } from "../auth/tokens";
 import { Cancel, NetworkError, TIMED_OUT, withQuery, type HttpRequest, type HttpResponse, type Transport } from "../net/transport";
 import type {
   Collection,
+  Control,
   DiscoverDetail,
   DiscoverList,
   DiscoverPage,
@@ -459,8 +460,10 @@ export class Api {
 
   // ---- playback
 
+  /** Starts a playback session; everything played here plays on the TV, which remotes are told. */
   play(req: PlaybackRequest, cancel?: Cancel): Promise<PlaybackInfo> {
-    return this.send("/api/playback", { method: "POST", body: req, cancel, timeoutMs: 60_000 }).then((r) => r.body as PlaybackInfo);
+    const body: PlaybackRequest = { ...req, device_kind: "tv" };
+    return this.send("/api/playback", { method: "POST", body, cancel, timeoutMs: 60_000 }).then((r) => r.body as PlaybackInfo);
   }
 
   /**
@@ -591,10 +594,11 @@ export class Api {
    * the TV's player, which can't send the token. The server waits for
    * the provider when it tunes the channel. Every connection being in use
    * (`409`, with `connections`), `takeOver` is the channel whose
-   * connection to take, one the `409` said may be.
+   * connection to take, one the `409` said may be. `controls`: the
+   * remote's commands the player obeys (docs/API.md, "Remote control").
    */
-  watchChannel(channelId: Id, clientId: string, cancel?: Cancel, takeOver?: Id): Promise<LiveWatching> {
-    const body: Record<string, unknown> = { client_id: clientId, keyed_urls: true };
+  watchChannel(channelId: Id, clientId: string, cancel?: Cancel, takeOver?: Id, controls: Control[] = []): Promise<LiveWatching> {
+    const body: Record<string, unknown> = { client_id: clientId, keyed_urls: true, controls, device_kind: "tv" };
     if (takeOver !== undefined) body.take_over = takeOver;
     return this.send(`/api/live/channels/${channelId}/watch`, { method: "POST", body, cancel, timeoutMs: 45_000 }).then((r) => r.body as LiveWatching);
   }
