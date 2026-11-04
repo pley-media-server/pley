@@ -9,6 +9,7 @@ import app.pley.android.data.SessionState
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.model.Library
+import app.pley.android.player.CastFrom
 import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.requests.RequestsEntry
 import kotlinx.coroutines.CoroutineScope
@@ -86,6 +87,9 @@ interface TvShellSource {
 
     /** [notice] is on screen: off the queue, so newer news can't push it out. */
     fun dismiss(notice: RequestNotice) = Unit
+
+    /** Music a remote on another device cast here, as it starts, and where from: the shell opens Now Playing. */
+    val castMusic: Flow<CastFrom> get() = emptyFlow()
 
     companion object {
         /**
@@ -180,6 +184,8 @@ private class GraphShellSource(
     override suspend fun keepUpdated() {
         // A drive plugged in or pulled out while the app was away: some TV builds don't say.
         withContext(Dispatchers.Default) { graph.drives.refresh() }
+        // What the profile's remotes cast here plays from now on, also once the TV's player has the window.
+        withContext(Dispatchers.Default) { graph.casts }.start()
         // Server events flow while something listens to them (the data module's LiveUpdates).
         offMain { graph.data.liveUpdates.scans }.collect { }
     }
@@ -212,6 +218,8 @@ private class GraphShellSource(
 
     // Made by then: the notice was read from it.
     override fun dismiss(notice: RequestNotice) = graph.data.requests.dismiss(notice)
+
+    override val castMusic: Flow<CastFrom> = offMain { graph.casts.music }.map { it.from }
 
     private fun started(): RequestsRepository = graph.data.requests.also { it.start() }
 

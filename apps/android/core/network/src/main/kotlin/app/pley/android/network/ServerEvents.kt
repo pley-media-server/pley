@@ -1,5 +1,6 @@
 package app.pley.android.network
 
+import app.pley.android.model.CastKind
 import app.pley.android.model.ServerEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -22,6 +23,14 @@ sealed interface LiveEvent {
 }
 
 /**
+ * This device as the event stream names it for the profile's remotes to
+ * cast to (docs/API.md, "Casting"): its receiver [id], the app's install
+ * id, and what it plays when cast to. Its name and kind go with it, as
+ * play requests give them.
+ */
+data class EventReceiver(val id: String, val casts: List<CastKind>)
+
+/**
  * The server's events (GET /api/events, server-sent events): library
  * changes and scans, while collected. It reconnects by itself, waiting
  * longer after each failure (2 s doubling to 30 s), and with a fresh token
@@ -30,4 +39,7 @@ sealed interface LiveEvent {
  */
 fun interface ServerEvents {
     fun events(): Flow<LiveEvent>
+
+    /** [events] on a stream that names this device as [receiver], while it is open; `null` names none. */
+    fun events(receiver: EventReceiver?): Flow<LiveEvent> = events()
 }

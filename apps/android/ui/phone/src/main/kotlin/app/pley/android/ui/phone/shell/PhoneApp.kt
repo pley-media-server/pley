@@ -194,13 +194,15 @@ internal fun PhoneShell(
  * (signed out by the server) and the session (signed out before the shell
  * listened, as when this device can't read its tokens anymore), the
  * server in use, live updates while the app is started, the music
- * playing, what plays on the profile's other devices (the remote),
- * requests (and their news, told while the app shows), and the
- * capability probe. The graph's parts are made off the main thread.
+ * playing, what plays on the profile's other devices (the remote), what
+ * they cast here, requests (and their news, told while the app shows),
+ * and the capability probe. The graph's parts are made off the main
+ * thread.
  */
 @Composable
 private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val resources = LocalResources.current
     LaunchedEffect(shell) {
         withFrameNanos { }
         val g = withContext(Dispatchers.Default) { graph() }
@@ -233,6 +235,13 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 remote.devices.collect { shell.remoteDevices = it }
             }
+        }
+        launch {
+            // What the profile's remotes cast here plays from now on: music says where it came from here, the
+            // players say it themselves.
+            val casts = withContext(Dispatchers.Default) { g.casts }
+            casts.start()
+            casts.music.collect { shell.toasts.show(it.from.notice(resources)) }
         }
         launch {
             // The server's events connected again: it answers, and the offline banner goes.

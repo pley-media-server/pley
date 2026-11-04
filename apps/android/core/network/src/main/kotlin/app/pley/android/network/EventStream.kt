@@ -87,7 +87,8 @@ internal class OkHttpSseConnection(private val client: () -> OkHttpClient, priva
  *   or not allowed) and the sign-in module's errors: trying again can't
  *   help.
  *
- * [now] is a clock in ms (the coroutine's virtual time in tests).
+ * [now] is a clock in ms (the coroutine's virtual time in tests). A
+ * stream that names a receiver connects through [asReceiver]'s connection.
  */
 internal class EventStream(
     private val connection: SseConnection,
@@ -95,8 +96,12 @@ internal class EventStream(
     private val firstRetryMs: Long = FIRST_RETRY_MS,
     private val maxRetryMs: Long = MAX_RETRY_MS,
     private val stableMs: Long = STABLE_MS,
+    private val asReceiver: (EventReceiver) -> SseConnection = { connection },
 ) : ServerEvents {
-    override fun events(): Flow<LiveEvent> = flow {
+    override fun events(): Flow<LiveEvent> = events(null)
+
+    override fun events(receiver: EventReceiver?): Flow<LiveEvent> = flow {
+        val connection = receiver?.let(asReceiver) ?: connection
         var failures = 0
         while (true) {
             var openedAt = -1L

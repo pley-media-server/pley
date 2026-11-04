@@ -97,7 +97,7 @@ class SearchViewModelTest {
     private val launcher = object : PlayerLauncher {
         override fun play(request: PlayRequest) = Unit
 
-        override fun watchLive(channelId: Long, category: String) {
+        override fun watchLive(channelId: Long, category: String, castFrom: app.pley.android.player.CastFrom?) {
             watched += channelId to category
         }
     }

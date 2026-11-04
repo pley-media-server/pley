@@ -14,6 +14,7 @@ import app.pley.android.model.TrackDefaults
 import app.pley.android.network.ApiException
 import app.pley.android.network.LiveEvent
 import app.pley.android.network.PleyApi
+import app.pley.android.network.EventReceiver
 import app.pley.android.network.ServerEvents
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.auth.FakeAuthGraph
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -181,9 +183,17 @@ class MemoryLegacyPreferences(values: Map<Pair<String, String>, String> = emptyM
  * The server's event stream as a test drives it: [send] events to whoever
  * is connected, [refuse] ends the stream as the server would (401, 403).
  * [connections] counts the times the app connected; [connected] is how
- * many are now.
+ * many are now; [receivers] what each connection named this device as.
  */
 class FakeServerEvents : ServerEvents {
+    /** What each connection named this device as, in order; `null` for none. */
+    val receivers: MutableList<EventReceiver?> = java.util.Collections.synchronizedList(mutableListOf())
+
+    override fun events(receiver: EventReceiver?): Flow<LiveEvent> = flow {
+        receivers += receiver
+        emitAll(events())
+    }
+
     private sealed interface Signal {
         data class Send(val event: LiveEvent) : Signal
 

@@ -43,11 +43,11 @@ import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
+import app.pley.android.player.PlayerWindows
 import app.pley.android.player.engine.VideoMediaSession
 import app.pley.android.player.session.SavedPlaybackState
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.ui.phone.theme.PhoneTheme
-import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -104,10 +104,8 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // One player at a time, as one video plays at a time: an older one (in picture in picture) goes.
-        live.mapNotNull { it.get() }.filter { it !== this }.forEach { it.finish() }
-        live.removeAll { it.get() == null || it.get()?.isFinishing == true }
-        live += WeakReference(this)
+        // One player at a time, as one thing plays at a time: an older one (in picture in picture, or Live TV's) goes.
+        PlayerWindows.opened(this)
 
         immersive()
         if (resources.configuration.smallestScreenWidthDp < TABLET_DP) {
@@ -274,7 +272,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     }
 
     override fun onDestroy() {
-        live.removeAll { it.get() == null || it.get() === this }
+        PlayerWindows.closed(this)
         runCatching { unregisterReceiver(pipReceiver) }
         detachEngine()
         if (isFinishing) {
@@ -438,9 +436,6 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         private const val MIN_BRIGHTNESS = 0.01f
 
         internal const val ACTION_PLAY_PAUSE = "app.pley.android.player.PLAY_PAUSE"
-
-        /** The player screens alive, so a new one ends an older one. */
-        private val live = mutableListOf<WeakReference<PhonePlayerActivity>>()
 
         fun intent(context: Context, playback: String): Intent =
             Intent(context, PhonePlayerActivity::class.java).putExtra(EXTRA_PLAYBACK, playback)

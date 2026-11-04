@@ -175,6 +175,31 @@ sealed interface ServerEvent {
         }
     }
 
+    /**
+     * The profile's remote, on another device, sent its device of
+     * [receiverId] something to play (POST /api/remote/devices/{id}/cast):
+     * exactly one of [itemId], [playlistId] and [channelId]; [startMs]
+     * where a title starts, [shuffle] for a playlist, an album or an artist;
+     * [from] is the remote's device, `null` when the server can't name it.
+     * Only the device of that receiver plays it.
+     */
+    @Serializable
+    data class Cast(
+        val receiverId: String,
+        val itemId: Long? = null,
+        val playlistId: Long? = null,
+        val channelId: Long? = null,
+        val startMs: Long? = null,
+        val shuffle: Boolean = false,
+        val from: String? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "cast"
+        }
+    }
+
     /** Live TV's sources, channels or guide changed: the channels and the guide are asked for again. */
     data object LiveChannelsChanged : ServerEvent {
         const val TYPE = "live_channels_changed"
@@ -330,6 +355,7 @@ sealed interface ServerEvent {
                 SessionsChanged.TYPE -> SessionsChanged
                 SessionStopped.TYPE -> json.decodeFromJsonElement(SessionStopped.serializer(), fields)
                 PlayerCommand.TYPE -> json.decodeFromJsonElement(PlayerCommand.serializer(), fields)
+                Cast.TYPE -> json.decodeFromJsonElement(Cast.serializer(), fields)
                 WatchlistChanged.TYPE -> WatchlistChanged
                 UserStateChanged.TYPE -> json.decodeFromJsonElement(UserStateChanged.serializer(), fields)
                 LiveChannelsChanged.TYPE -> LiveChannelsChanged
@@ -355,6 +381,7 @@ sealed interface ServerEvent {
                 is LibraryChanged -> json.encodeToJsonElement(LibraryChanged.serializer(), value).jsonObject
                 is SessionStopped -> json.encodeToJsonElement(SessionStopped.serializer(), value).jsonObject
                 is PlayerCommand -> json.encodeToJsonElement(PlayerCommand.serializer(), value).jsonObject
+                is Cast -> json.encodeToJsonElement(Cast.serializer(), value).jsonObject
                 is LiveTakenOver -> json.encodeToJsonElement(LiveTakenOver.serializer(), value).jsonObject
                 is UserStateChanged -> json.encodeToJsonElement(UserStateChanged.serializer(), value).jsonObject
                 is RequestsChanged -> json.encodeToJsonElement(RequestsChanged.serializer(), value).jsonObject

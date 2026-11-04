@@ -10,17 +10,29 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
+import app.pley.android.player.PlayerWindows
 import app.pley.android.player.engine.VideoMediaSession
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveSessionPlayer
 import app.pley.android.screens.livetv.LivePlayerViewModel
+import app.pley.android.ui.phone.remote.CastNotice
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -31,7 +43,9 @@ import kotlinx.coroutines.launch
  * kept on while it plays. Live has no pause: the media session offers
  * none either ([LiveSessionPlayer]), and no picture in picture (the
  * web's). Leaving lets the channel's connection and the decoders go; back
- * to it, the channel is tuned again at the live edge.
+ * to it, the channel is tuned again at the live edge. One player at a time:
+ * opening closes another ([PlayerWindows]). A channel another device sent
+ * here says where from as it opens.
  */
 class LivePlayerActivity : ComponentActivity() {
     private val vm: LivePlayerViewModel by viewModels {
@@ -43,13 +57,19 @@ class LivePlayerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PlayerWindows.opened(this)
         immersive()
         if (resources.configuration.smallestScreenWidthDp < TABLET_DP) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
+        // Said once, as it opens: not again when the window is made anew.
+        val cast = castFrom(intent).takeIf { savedInstanceState == null }?.notice(resources)
         setContent {
             PhoneTheme {
-                LivePlayerScreen(vm = vm, onBack = ::finish)
+                Box(Modifier.fillMaxSize()) {
+                    LivePlayerScreen(vm = vm, onBack = ::finish)
+                    CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
+                }
             }
         }
         lifecycleScope.launch {
@@ -95,6 +115,7 @@ class LivePlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        PlayerWindows.closed(this)
         detach()
         super.onDestroy()
     }
@@ -153,9 +174,21 @@ class LivePlayerActivity : ComponentActivity() {
         /** The category it was chosen in (a LiveCategory's key): channel up and down stay in it. */
         const val EXTRA_CATEGORY = "category"
 
+        /** Sent here by a remote on another device ([CastFrom]): whether, and from which device. */
+        const val EXTRA_CAST = "cast"
+        const val EXTRA_CAST_FROM = "cast_from"
+
         private const val TABLET_DP = 600
 
-        fun intent(context: Context, channelId: Long, category: String): Intent =
-            Intent(context, LivePlayerActivity::class.java).putExtra(EXTRA_CHANNEL, channelId).putExtra(EXTRA_CATEGORY, category)
+        fun intent(context: Context, channelId: Long, category: String, castFrom: CastFrom? = null): Intent =
+            Intent(context, LivePlayerActivity::class.java)
+                .putExtra(EXTRA_CHANNEL, channelId)
+                .putExtra(EXTRA_CATEGORY, category)
+                .putExtra(EXTRA_CAST, castFrom != null)
+                .putExtra(EXTRA_CAST_FROM, castFrom?.device)
+
+        /** Where the channel [intent] opens was sent from; `null` when it wasn't. */
+        internal fun castFrom(intent: Intent): CastFrom? =
+            CastFrom(intent.getStringExtra(EXTRA_CAST_FROM)).takeIf { intent.getBooleanExtra(EXTRA_CAST, false) }
     }
 }

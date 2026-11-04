@@ -9,6 +9,10 @@
     <!-- Who stopped it, then their message on its own line. -->
     <string name="session_stopped_message">%1$s\n%2$s</string>
 
+    <!-- Something another of the profile's devices sent here (Play on…), said a few seconds as it starts: the device. -->
+    <string name="cast_playing_from">Playing from %1$s</string>
+    <string name="cast_playing_from_another">Playing from another device</string>
+
     <!-- The sleep timer's choices. -->
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_off">Off</string>

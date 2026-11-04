@@ -1,5 +1,6 @@
 package app.pley.android.screens
 
+import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayRequest
 
 /**
@@ -30,7 +31,8 @@ interface PlayerLauncher {
      * Opens the live player on [channelId] (Live TV), music paused; the
      * player tunes it as it opens, and changes channel within [category]
      * (a LiveCategory's key: "all", "favorites", "recent", "group:…").
-     * Launchers without Live TV (tests') do nothing.
+     * [castFrom]: a remote on another device sent it here, which the
+     * player says. Launchers without Live TV (tests') do nothing.
      */
-    fun watchLive(channelId: Long, category: String = "all") = Unit
+    fun watchLive(channelId: Long, category: String = "all", castFrom: CastFrom? = null) = Unit
 }

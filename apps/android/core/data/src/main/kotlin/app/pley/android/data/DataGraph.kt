@@ -175,7 +175,18 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     }
     override val session: SessionRepository get() = sessionImpl
 
-    private val live by lazy { ServerLiveUpdates(sessionImpl, env.foreground, env.events, cache, env.scope) }
+    private val live by lazy {
+        ServerLiveUpdates(sessionImpl, env.foreground, env.events, cache, env.scope, receiverId = serversImpl::clientId, liveTv = ::liveTvOpen)
+    }
+
+    /** Whether Live TV is open to the profile and has channels, as its summary says; `null` until it does. */
+    private fun liveTvOpen(): Flow<Boolean?> = liveTv.summary().map { load ->
+        when (load) {
+            Loadable.Loading -> null
+            is Loadable.Ready -> load.value.available
+            is Loadable.Failed -> load.stale?.available == true
+        }
+    }
     override val liveUpdates: LiveUpdates get() = live
 
     override val libraries: LibrariesRepository by lazy { CachedLibraries(cache) { live.heard(it) } }
@@ -195,7 +206,7 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     override val trackDefaults: TrackDefaultsRepository by lazy { SessionTrackDefaults(sessionImpl, env.trackDefaults, cache) }
     override val playItem: PlayItem by lazy { CachedPlayItem(cache, itemsImpl) }
     override val liveTv: LiveTvRepository by lazy { CachedLiveTv(cache) }
-    override val remote: RemoteRepository by lazy { ServerRemote(cache, live, env.scope, env.clock) }
+    override val remote: RemoteRepository by lazy { ServerRemote(cache, live, env.scope, env.clock, ownReceiver = serversImpl::clientId) }
     override val requests: RequestsRepository by lazy {
         ServerRequests(
             cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,

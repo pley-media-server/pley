@@ -1,6 +1,7 @@
 package app.pley.android.player.session
 
 import android.content.Context
+import app.pley.android.player.CastFrom
 import app.pley.android.common.asSentence
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
@@ -80,6 +81,9 @@ interface PlayerTexts {
 
     /** The server stopped the playback: who did, and their [message] when given. */
     fun stopped(message: String?, byAdmin: Boolean): String
+
+    /** A remote sent this here: "Playing from Living room TV". */
+    fun playingFrom(from: CastFrom): String = from.device?.let { "Playing from $it" } ?: "Playing from another device"
 
     /** The speed can't change: a download's sound goes to a receiver as it is, and nothing here decodes it. */
     val speedUndecodable: String get() = "Not for this download: its sound goes to your receiver as it is, and nothing here decodes it"
@@ -209,6 +213,8 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override val driveSpeedUndecodable: String get() = s(R.string.session_drive_speed_undecodable)
 
     override fun unreachable(reason: String): String = res.getString(R.string.session_error_unreachable, asSentence(reason))
+
+    override fun playingFrom(from: CastFrom): String = from.notice(res)
 
     override fun stopped(message: String?, byAdmin: Boolean): String {
         val who = s(if (byAdmin) R.string.session_stopped_by_admin else R.string.session_stopped_elsewhere)

@@ -330,6 +330,8 @@ class SessionPlaybackController(
 
     /** Starts preparing: called once, when someone presses play. */
     fun start() {
+        // Sent from another device: the screen says where from as it opens.
+        request.castFrom?.let { notice(texts.playingFrom(it)) }
         startJob = scope.launch { prepareFirst() }
         scope.launch { ticker() }
         scope.launch { progressReports() }

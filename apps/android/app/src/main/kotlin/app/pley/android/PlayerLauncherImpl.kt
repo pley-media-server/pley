@@ -3,6 +3,7 @@ package app.pley.android
 import android.content.Context
 import android.content.Intent
 import app.pley.android.common.DeviceProfile
+import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerGraph
 import app.pley.android.screens.PlayerLauncher
@@ -30,9 +31,13 @@ class PlayerLauncherImpl(
         context.startActivity(screen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    override fun watchLive(channelId: Long, category: String) {
+    override fun watchLive(channelId: Long, category: String, castFrom: CastFrom?) {
         player().music.pauseForVideo()
-        val screen = if (device.isTv) TvLivePlayerActivity.intent(context, channelId, category) else LivePlayerActivity.intent(context, channelId, category)
+        val screen = if (device.isTv) {
+            TvLivePlayerActivity.intent(context, channelId, category, castFrom)
+        } else {
+            LivePlayerActivity.intent(context, channelId, category, castFrom)
+        }
         context.startActivity(screen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

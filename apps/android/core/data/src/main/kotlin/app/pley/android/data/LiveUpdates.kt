@@ -65,6 +65,15 @@ interface LiveUpdates {
      * What can't wait for events polls while it is false.
      */
     val streaming: StateFlow<Boolean> get() = NotStreaming
+
+    /**
+     * This device's receiver id while the event stream is connected naming
+     * it as one, so the profile's remotes cast to it (docs/API.md,
+     * "Casting"): in the foreground and signed in. `null` otherwise: casts
+     * heard then aren't this device's to play.
+     */
+    val receiver: StateFlow<String?> get() = NoReceiver
 }
 
 private val NotStreaming: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+private val NoReceiver: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()

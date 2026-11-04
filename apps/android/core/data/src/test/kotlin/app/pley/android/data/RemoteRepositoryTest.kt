@@ -332,6 +332,16 @@ class RemoteRepositoryTest {
     }
 
     @Test
+    fun `this device's own receiver is left out`() = runTest {
+        // The install id the players send, which the event stream names this device by.
+        val data = signedIn(folder.newFolder()) { legacy.values["device" to "client_id"] = "web-tab-41c9" }
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        assertEquals(listOf("Kitchen phone", "Living room TV"), remote.devices.value.map { it.name })
+    }
+
+    @Test
     fun `a track is answered by the player saying it plays it, not by its state`() {
         val before = remote(session(state = ProgressState.Playing).copy(audioIndex = 1, subtitleIndex = -1), reportedAt = 0)
         val audio = SentCommand(Control.Audio, before, sentAt = 1_000, streamIndex = 2)

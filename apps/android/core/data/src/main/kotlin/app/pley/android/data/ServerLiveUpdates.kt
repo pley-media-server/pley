@@ -9,7 +9,9 @@ import app.pley.android.model.ItemList
 import app.pley.android.model.Library
 import app.pley.android.model.MaybeItem
 import app.pley.android.model.PlaylistDetail
+import app.pley.android.model.CastKind
 import app.pley.android.model.ServerEvent
+import app.pley.android.network.EventReceiver
 import app.pley.android.network.LiveEvent
 import app.pley.android.network.ServerEvents
 import java.io.IOException
@@ -21,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +32,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -73,6 +81,14 @@ import kotlinx.coroutines.launch
  * The stream ends for good when the server refuses the app (401, 403):
  * until the next return to the foreground or sign-in, or, in the
  * background, until the next playback.
+ *
+ * In the foreground the stream names this device as a receiver
+ * ([receiverId], the app's install id), so the profile's remotes cast to
+ * it: titles always, Live TV's channels while Live TV is open to the
+ * profile ([liveTv], `null` while not known yet: the stream waits for it
+ * [LIVE_WAIT_MS] at most, so it doesn't open twice). In the background,
+ * where nothing cast would play, it names none: going there and back
+ * opens it again.
  */
 internal class ServerLiveUpdates(
     private val session: SessionManager,
@@ -80,6 +96,8 @@ internal class ServerLiveUpdates(
     private val eventsOf: (issuer: String) -> ServerEvents,
     private val cache: ResourceCache,
     private val app: CoroutineScope,
+    private val receiverId: suspend () -> String? = { null },
+    private val liveTv: () -> Flow<Boolean?> = { flowOf(false) },
 ) : LiveUpdates {
     private val _scans = MutableStateFlow<List<ScanState>>(emptyList())
     private val readScans = _scans.asStateFlow()
@@ -104,27 +122,39 @@ internal class ServerLiveUpdates(
 
     override val streaming: StateFlow<Boolean> get() = _streaming.asStateFlow()
 
+    private val _receiver = MutableStateFlow<String?>(null)
+
+    override val receiver: StateFlow<String?> get() = _receiver.asStateFlow()
+
+    /** A stream to open: the server's, naming this device as [receiver] or as none. */
+    private data class Stream(val issuer: String, val receiver: EventReceiver?)
+
     /** The players with a session on the server now ([playing]). */
     private val players = MutableStateFlow<Set<Any>>(emptySet())
 
     override fun start() {
         if (!started.compareAndSet(false, true)) return
         app.launch {
+            val id = ownId()
             val signedIn = session.state.map { (it as? SessionState.SignedIn)?.session?.issuer }.distinctUntilChanged()
             val anyPlaying = players.map { it.isNotEmpty() }.distinctUntilChanged()
-            combine(foreground.distinctUntilChanged(), anyPlaying, signedIn) { inFront, playing, issuer ->
-                issuer.takeIf { inFront || playing }
+            combine(foreground.distinctUntilChanged(), anyPlaying, signedIn, liveTvOpen()) { inFront, playing, issuer, live ->
+                val casts = listOf(CastKind.Item) + if (live) listOf(CastKind.Live) else emptyList()
+                issuer?.takeIf { inFront || playing }?.let { Stream(it, id?.takeIf { inFront }?.let { r -> EventReceiver(r, casts) }) }
             }
                 .distinctUntilChanged()
-                .collectLatest { issuer ->
-                    if (issuer == null) {
+                .collectLatest { stream ->
+                    if (stream == null) {
                         _scans.value = emptyList()
                         return@collectLatest
                     }
                     while (true) {
-                        follow(issuer)
-                        // Refused: tried again at the next return to the foreground, which a player
-                        // holding the stream open in the background hides from the combination above.
+                        follow(stream.issuer, stream.receiver)
+                        // Refused: tried again at the next return to the foreground. A stream that names this
+                        // device in front changes with it, and the combination above opens it again; one that
+                        // names none either way (no id to name), held open in the background by a player,
+                        // doesn't.
+                        if (id != null) awaitCancellation()
                         foreground.first { !it }
                         foreground.first { it }
                     }
@@ -136,6 +166,28 @@ internal class ServerLiveUpdates(
         players.update { if (playing) it + player else it - player }
     }
 
+    /** This device's receiver id; `null` when it can't be read (then the stream names none). */
+    private suspend fun ownId(): String? = try {
+        receiverId()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * Whether Live TV is open to the profile, as its summary says: not
+     * known yet, it is waited for [LIVE_WAIT_MS] at most, and taken as no.
+     */
+    private fun liveTvOpen(): Flow<Boolean> = flow { emitAll(liveTv()) }
+        .catch { emit(false) }
+        .distinctUntilChanged()
+        .transformLatest { open ->
+            if (open == null) delay(LIVE_WAIT_MS)
+            emit(open == true)
+        }
+        .distinctUntilChanged()
+
     /** A fresh list of libraries: which are scanning now. */
     fun heard(libraries: List<Library>) {
         val scanning = libraries.filter { it.scanning }.mapTo(HashSet()) { it.id }
@@ -146,10 +198,11 @@ internal class ServerLiveUpdates(
     }
 
     /**
-     * Follows [issuer]'s events until the server refuses them; returns
-     * then (the stream ends for good until the next return).
+     * Follows [issuer]'s events, naming this device as [receiver] (or as
+     * none), until the server refuses them; returns then (the stream ends
+     * for good until the next return).
      */
-    private suspend fun follow(issuer: String) = coroutineScope {
+    private suspend fun follow(issuer: String, receiver: EventReceiver?) = coroutineScope {
         val inFront = AtomicBoolean(false)
         // Back in the foreground (or just signed in), also while a player kept the stream open: what is old is asked again.
         // Undispatched, so whether the app is in front is known before the first event.
@@ -166,10 +219,11 @@ internal class ServerLiveUpdates(
         val watchState = AtomicReference<WatchStateHeard?>(null)
         val refetch = Refetch(cache, inFront)
         try {
-            eventsOf(issuer).events().collect { live ->
+            eventsOf(issuer).events(receiver).collect { live ->
                 when (live) {
                     LiveEvent.Reconnected -> {
                         _streaming.value = true
+                        _receiver.value = receiver?.id
                         connected.tryEmit(Unit)
                         // In the background, the next return to the foreground asks for what is old.
                         if (inFront.get()) {
@@ -177,7 +231,10 @@ internal class ServerLiveUpdates(
                             if (session.meState.value?.fresh != true) launch { session.refresh() }
                         }
                     }
-                    LiveEvent.Dropped -> _streaming.value = false
+                    LiveEvent.Dropped -> {
+                        _streaming.value = false
+                        _receiver.value = null
+                    }
                     is LiveEvent.Event -> handle(live.event, pending, watchState, refetch)
                 }
             }
@@ -188,6 +245,7 @@ internal class ServerLiveUpdates(
         } finally {
             returns.cancel()
             _streaming.value = false
+            _receiver.value = null
             // Changes heard but not yet acted on: asked again when next shown.
             for ((libraryId, job) in pending) {
                 job.cancel()
@@ -238,10 +296,11 @@ internal class ServerLiveUpdates(
                 }
             }
             ServerEvent.LiveChannelsChanged -> refetch { key, _ -> SnapshotKeys.isLive(key) }
-            // Requests and the players follow these themselves (RequestsRepository, the players), from [events].
+            // Requests, the players and what plays casts follow these themselves (RequestsRepository, the players, the
+            // cast receiver), from [events].
             is ServerEvent.RequestsChanged, is ServerEvent.RequestAvailable, is ServerEvent.RequestDecided,
             is ServerEvent.RequestCreated, is ServerEvent.RequestFailed, ServerEvent.RequestsSettingsChanged,
-            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, is ServerEvent.PlayerCommand,
+            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, is ServerEvent.PlayerCommand, is ServerEvent.Cast,
             ServerEvent.LiveTunersChanged, is ServerEvent.LiveTakenOver, is ServerEvent.Unknown -> Unit
         }
     }
@@ -307,6 +366,9 @@ internal class ServerLiveUpdates(
 
         /** Events kept for slow listeners of [events]; more are dropped. */
         private const val HEARD_BUFFER = 16
+
+        /** How long a stream waits to know whether Live TV is open before it names what this device plays. */
+        const val LIVE_WAIT_MS = 2_000L
 
         /** Whether the answer under [key], holding [value], shows something of [libraryId]. */
         fun affects(libraryId: Long, key: String, value: Any?): Boolean {

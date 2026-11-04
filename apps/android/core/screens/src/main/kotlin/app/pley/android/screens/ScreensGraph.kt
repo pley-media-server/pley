@@ -10,6 +10,7 @@ import app.pley.android.data.Downloads
 import app.pley.android.data.drive.Drives
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.PlayerGraph
+import app.pley.android.screens.remote.CastReceiver
 
 /**
  * What a screen's ViewModel may use, handed over by the app. Each part is
@@ -31,6 +32,10 @@ interface ScreensGraph {
     /** Drives plugged into the device, whose videos play without a server: TVs; none on phones and in tests. */
     val drives: Drives
         get() = Drives.None
+
+    /** Plays what the profile's remotes on its other devices cast here; none in tests unless they make one. */
+    val casts: CastReceiver
+        get() = CastReceiver.None
 
     /**
      * Finding servers and checking addresses (discovery, the network

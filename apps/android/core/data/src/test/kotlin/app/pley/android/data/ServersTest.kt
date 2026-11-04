@@ -73,6 +73,16 @@ class ServersTest {
     }
 
     @Test
+    fun `the install id is the one the players keep in the device's preferences`() = runTest {
+        val legacy = MemoryLegacyPreferences()
+        val data = TestData(this, folder.newFolder(), legacy = legacy)
+        data.graph.servers.clientId()
+        // The players read and write it there: what they send is the app's, the event stream's receiver too.
+        legacy.values["device" to "client_id"] = "android-player"
+        assertEquals("android-player", data.graph.servers.clientId())
+    }
+
+    @Test
     fun `using a server makes it the active one, first in the list`() = runTest {
         val dir = folder.newFolder()
         val legacy = MemoryLegacyPreferences(webView)

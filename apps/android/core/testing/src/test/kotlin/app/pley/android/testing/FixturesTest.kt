@@ -163,6 +163,7 @@ class FixturesTest {
         "events/libraries_changed.json" to ServerEvent.Serializer,
         "events/sessions_changed.json" to ServerEvent.Serializer,
         "events/player_command.json" to ServerEvent.Serializer,
+        "events/cast.json" to ServerEvent.Serializer,
         "events/unknown_type.json" to ServerEvent.Serializer,
         "live/summary.json" to LiveSummary.serializer(),
         "live/channels.json" to ListSerializer(LiveChannel.serializer()),
@@ -208,7 +209,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(97, files.size)
+        assertEquals(98, files.size)
     }
 
     @Test

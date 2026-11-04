@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import okhttp3.Cache
 import okhttp3.Dispatcher
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 
@@ -174,8 +175,25 @@ internal class HttpNetworkGraph(
 
     override fun events(issuer: String): ServerEvents {
         val origin = originOf(issuer)
-        return EventStream(OkHttpSseConnection({ eventsClient(origin) }, "$origin/api/events"))
+        val url = "$origin/api/events"
+        return EventStream(
+            OkHttpSseConnection({ eventsClient(origin) }, url),
+            asReceiver = { receiver -> OkHttpSseConnection({ eventsClient(origin) }, receiverUrl(url, receiver)) },
+        )
     }
+
+    /**
+     * [url] naming this device as [receiver] (docs/API.md, "Casting"): its
+     * id, the name and kind its play requests give, and what it plays when
+     * cast to.
+     */
+    internal fun receiverUrl(url: String, receiver: EventReceiver): String = url.toHttpUrl().newBuilder()
+        .addQueryParameter("receiver", receiver.id)
+        .apply { device?.let { addQueryParameter("device_name", it) } }
+        .apply { deviceKind()?.let { addQueryParameter("device_kind", it.wire) } }
+        .addQueryParameter("casts", receiver.casts.joinToString(",") { it.wire })
+        .build()
+        .toString()
 
     private fun signedInClient(origin: String, readSeconds: Long): OkHttpClient = base.newBuilder()
         .readTimeout(readSeconds, TimeUnit.SECONDS)

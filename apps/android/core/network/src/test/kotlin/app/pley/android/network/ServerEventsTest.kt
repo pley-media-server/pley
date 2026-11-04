@@ -2,6 +2,8 @@ package app.pley.android.network
 
 import app.cash.turbine.test
 import app.pley.android.auth.SignedOutException
+import app.pley.android.model.CastKind
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.ServerEvent
 import app.pley.android.testing.Fixtures
@@ -78,6 +80,20 @@ class ServerEventsTest {
         assertEquals("text/event-stream", request.headers["Accept"])
         assertEquals("Bearer pley_at_one", request.headers["Authorization"])
         assertEquals(TEST_AGENT, request.headers["User-Agent"])
+    }
+
+    @Test
+    fun aStreamNamingThisDeviceAsAReceiverSaysItsIdNameKindAndWhatItPlays() = runBlocking {
+        val named = testGraph(folder.newFolder(), { testTokens(issuer) }, deviceName = { "Den TV" }, deviceKind = { DeviceKind.Tv })
+        server.enqueue(MockPley.events(event("library_changed")))
+        named.events(issuer).events(EventReceiver("android-1", listOf(CastKind.Item, CastKind.Live))).take(2).toList()
+        val request = server.takeRequest(1, TimeUnit.SECONDS)!!
+        assertEquals("GET /api/events?receiver=android-1&device_name=Den%20TV&device_kind=tv&casts=item%2Clive HTTP/1.1", request.requestLine)
+
+        // Named nothing, it asks for the events alone.
+        server.enqueue(MockPley.events(event("library_changed")))
+        named.events(issuer).events(null).take(2).toList()
+        assertEquals("GET /api/events HTTP/1.1", server.takeRequest(1, TimeUnit.SECONDS)!!.requestLine)
     }
 
     @Test

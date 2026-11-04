@@ -69,6 +69,22 @@ class ServerEventTest {
     }
 
     @Test
+    fun castsRead() {
+        assertEquals(
+            ServerEvent.Cast("tv-1", itemId = 204, startMs = 60_000, from = "Kitchen phone"),
+            ServerEvent.parse(
+                """{"type":"cast","receiver_id":"tv-1","item_id":204,"playlist_id":null,"channel_id":null,"start_ms":60000,"shuffle":false,"from":"Kitchen phone"}""",
+            ),
+        )
+        assertEquals(
+            ServerEvent.Cast("tv-1", playlistId = 9, shuffle = true),
+            ServerEvent.parse("""{"type":"cast","receiver_id":"tv-1","playlist_id":9,"shuffle":true,"from":null}"""),
+        )
+        val channel = ServerEvent.Cast("tv-1", channelId = 1)
+        assertEquals(channel, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), channel)))
+    }
+
+    @Test
     fun sessionsSayTheirTracks() {
         val session = PleyJson.decodeFromString(
             PlayingSession.serializer(),

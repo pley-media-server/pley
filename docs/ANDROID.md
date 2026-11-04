@@ -276,6 +276,35 @@ again: its engine is stopped, and a next episode would play with no
 screen. What the server's events change meanwhile is fetched again
 on coming back, not in the background.
 
+#### Taking casts
+
+Phones, tablets and TVs play what the profile's remotes send them
+([API.md](API.md#casting)). While the app is in front and signed in, its
+event stream names the device as a receiver: its install id (the
+`client_id` its players send), its name and kind as its play requests
+give them, and what it plays, titles always and Live TV's channels while
+Live TV is open to the profile (the stream waits up to 2 s for Live TV's
+summary as it opens, so it doesn't open twice). In the background, where
+a player keeps the stream open, it names none: going there and back opens
+the stream again, and nothing cast plays while the app is hidden.
+
+A `cast` for this device's receiver, heard while the stream names it,
+plays as the app's own Play on that page would: a movie or an episode in
+the player, from `start_ms` when given, else where Play resumes; a show
+or a season its next episode; a track, an album or an artist in the
+music player, shuffled with `shuffle`; a playlist from its first entry
+(a random one with `shuffle`), video as a queue in the player and music
+in the music player; a channel in the live player. What plays makes way,
+as for Play there: music pauses for a video or a channel, and a player
+window open closes for music; one player window shows at a time, video
+or Live TV. A cast for another device does nothing.
+
+As it starts, it says where it came from, **Playing from** the remote's
+device (**Playing from another device** when the server can't name it),
+for about 4 s: the video players in their toast, the live players at the
+top, the phone's shell in a toast while music plays, and a TV's shell at
+the top right as it opens Now Playing for music.
+
 ### Libraries
 
 A library's Library tab sorts and filters its grid as the web app does:

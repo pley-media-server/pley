@@ -210,6 +210,8 @@ internal class DataStoreServers(
     }
 
     override suspend fun clientId(): String {
+        // The players' own (the device's preferences, which they read and write): the one they send.
+        withContext(io) { legacy.get(LegacyPreferences.DEVICE_FILE, LegacyPreferences.CLIENT_ID_KEY) }?.takeIf { it.isNotBlank() }?.let { return it }
         prefs.filterNotNull().first()[ServerKeys.CLIENT_ID]?.let { return it }
         val made = "android-${UUID.randomUUID()}"
         val kept = store.edit { p -> if (p[ServerKeys.CLIENT_ID] == null) p[ServerKeys.CLIENT_ID] = made }[ServerKeys.CLIENT_ID] ?: made

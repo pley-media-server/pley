@@ -24,10 +24,14 @@ import app.pley.android.player.PlayerGraph
 import app.pley.android.player.session.Qualities
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.remote.CastReceiver
 import app.pley.android.watchnext.TvProviderRow
 import app.pley.android.watchnext.WatchNext
 import app.pley.android.watchnext.WatchNextImages
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttp
 import okhttp3.OkHttpClient
@@ -103,6 +107,11 @@ class AppGraph(private val app: Application) : ScreensGraph {
      */
     override val drives: Drives by lazy { if (device.isTv) StorageDrives(app, DriveResume.preferences(app)) else Drives.None }
     override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device) }
+
+    /** What the profile's remotes cast here, played on the main thread for the whole life of the app. */
+    override val casts: CastReceiver by lazy {
+        CastReceiver.of(data, playerLauncher, { player.music }, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
+    }
 
     /**
      * The home screen's Watch Next row: Android TV and Google TV only

@@ -31,6 +31,10 @@ describes how they are made.
   its kind. Choosing one shows its controls, now with Next for every
   episode, track and channel (dimmed where it can't go on), and Audio and
   Subtitles menus that change what it plays.
+- Phones, tablets and TVs play what your remotes send them while Pley is
+  open: a title, a show's next episode, music, a playlist or a Live TV
+  channel plays as Play would play it there, and says for a few seconds
+  which device it came from.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

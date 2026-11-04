@@ -23,8 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -32,6 +34,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -71,6 +74,7 @@ import app.pley.android.ui.tv.item.TvTileActionsPanel
 import app.pley.android.ui.tv.item.TvTileActionsState
 import app.pley.android.ui.tv.item.itemEntries
 import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.TvCastNotice
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvOverlays
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
@@ -201,6 +205,17 @@ private fun TvShell(
         source.signedOut.collect { issuer -> if (rail.shown) navigator.restart(PleyKey.Link(issuer)) }
     }
 
+    // Music a remote cast here: Now Playing, as the TV's own Play opens it, saying where it came from.
+    val resources = LocalResources.current
+    var cast by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    LaunchedEffect(source, navigator) {
+        var casts = 0
+        source.castMusic.collect { from ->
+            if (rail.shown && backStack.lastOrNull() != PleyKey.NowPlaying) navigator.open(PleyKey.NowPlaying)
+            cast = from.notice(resources) to ++casts
+        }
+    }
+
     // A Watch Next program: its page, and it plays, once past signing in and choosing a profile.
     LaunchedEffect(opened, navigator) {
         combine(opened, snapshotFlow { rail.shown }) { id, shown -> id.takeIf { shown } }.filterNotNull().collect { id ->
@@ -279,6 +294,7 @@ private fun TvShell(
         }
         // A tile's actions, over the page they were asked on.
         TvTileActionsPanel(tileActions, page = backStack.lastOrNull(), navigator = navigator)
+        TvCastNotice(cast?.first, key = cast?.second)
         if (rail.shown) {
             TvRail(
                 items = items,
