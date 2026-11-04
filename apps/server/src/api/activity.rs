@@ -31,8 +31,11 @@ pub struct SessionInfo {
     kind: SessionKind,
     user_id: i64,
     username: String,
-    /// The device it plays on (see [`crate::playback::Session::device`]).
+    /// The device it plays on (see [`crate::playback::Session::device`]),
+    /// which device that is and what kind.
     device: Option<String>,
+    device_id: String,
+    device_kind: crate::playback::DeviceKind,
     item: ItemSummary,
     method: Method,
     position_ms: i64,
@@ -80,6 +83,8 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
             user_id: session.user_id,
             username: session.username.clone(),
             device: session.device.clone(),
+            device_id: session.device_id.clone(),
+            device_kind: session.device_kind,
             item: row.to_summary(),
             method: session.method,
             position_ms: play.position_ms,

@@ -21,7 +21,7 @@ use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
 use super::items::item_or_404;
-use crate::auth::{AuthUser, SourceIp};
+use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::bandwidth::{self, Answer, Report, valid_kbps};
 use crate::catalog::{self, ItemRow};
 use crate::error::{ApiResult, AppError};
@@ -101,6 +101,7 @@ pub async fn start(
     State(state): State<AppState>,
     user: AuthUser,
     headers: HeaderMap,
+    CurrentToken(token): CurrentToken,
     Json(mut req): Json<PlaybackRequest>,
 ) -> ApiResult<Json<PlaybackInfo>> {
     let row = item_or_404(&state, user.id, req.item_id).await?;
@@ -160,6 +161,8 @@ pub async fn start(
     let start_ms = req.start_ms.unwrap_or(0).max(0);
     let client_id = req.client_id.clone().filter(|c| !c.is_empty() && c.len() <= 128);
     let device = super::remote::device_name(req.device_name.as_deref(), &headers);
+    let device_id = super::remote::device_id_of(&user, token.as_deref());
+    let device_kind = super::remote::device_kind_of(req.device_kind, &user, super::remote::user_agent(&headers));
 
     // A client plays one thing at a time: end what it played before (a
     // quality or audio switch, the next episode) so its transcode slot is
@@ -191,6 +194,7 @@ pub async fn start(
         session.media_key = req.keyed_urls.then(new_media_key);
         session.controls = req.controls.clone();
         session.device = device;
+        session.on_device(device_id, device_kind);
         // The transcoder doesn't see direct plays: its background work waits
         // for the player's first reads too.
         if state.transcoder.is_available() {
@@ -295,6 +299,7 @@ pub async fn start(
     session.media_key = req.keyed_urls.then(new_media_key);
     session.controls = req.controls.clone();
     session.device = device;
+    session.on_device(device_id, device_kind);
     let session = state.sessions.insert_transcode(session, slot);
     state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     // Players that read multivariant playlists learn the codecs (Dolby

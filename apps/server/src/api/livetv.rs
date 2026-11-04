@@ -12,14 +12,14 @@ use axum::response::{IntoResponse, Response};
 use pley_transcoder_api::LivePlan;
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AdminUser, AuthUser};
+use crate::auth::{AdminUser, AuthUser, CurrentToken};
 use crate::error::{ApiResult, AppError};
 use crate::livetv::tuner::{Tune, TunerStatus, ViewerKind, WatchAs, Watching};
 use crate::livetv::{
     AdminChannel, AdminGroup, AdminPage, Category, Channel, ChannelPage, ChannelPatch, Groups, Guide, LineupFilter,
     LiveSettings, Source, SourceInput, SourceTest,
 };
-use crate::playback::Controls;
+use crate::playback::{Controls, DeviceKind};
 use crate::state::AppState;
 use crate::util::now;
 
@@ -214,6 +214,9 @@ pub struct WatchRequest {
     /// What the player calls its device, as for a title's play request.
     #[serde(default)]
     device_name: Option<String>,
+    /// What kind of device it is, as for a title's play request.
+    #[serde(default, deserialize_with = "crate::playback::known_device_kind")]
+    device_kind: Option<DeviceKind>,
 }
 
 #[derive(Serialize)]
@@ -251,6 +254,7 @@ pub async fn watch(
     user: AuthUser,
     Path(id): Path<i64>,
     headers: HeaderMap,
+    CurrentToken(token): CurrentToken,
     body: Option<Json<WatchRequest>>,
 ) -> ApiResult<Json<WatchInfo>> {
     let body = body.map(|Json(b)| b).unwrap_or_default();
@@ -263,6 +267,8 @@ pub async fn watch(
         home: None,
         controls: body.controls,
         device: super::remote::device_name(body.device_name.as_deref(), &headers),
+        device_id: super::remote::device_id_of(&user, token.as_deref()),
+        device_kind: super::remote::device_kind_of(body.device_kind, &user, super::remote::user_agent(&headers)),
     };
     let (watching, channel) = start_watching(&state, &user, id, how).await?;
     Ok(Json(WatchInfo { watching, channel }))
@@ -275,16 +281,19 @@ pub async fn stream(
     user: AuthUser,
     Path(id): Path<i64>,
     Query(query): Query<HashMap<String, String>>,
+    CurrentToken(token): CurrentToken,
     parts: axum::http::request::Parts,
 ) -> ApiResult<Response> {
     let client_id = query.get("client_id").cloned();
+    let device_kind = query.get("device_kind").and_then(|kind| DeviceKind::from_name(kind));
     // Taking another channel's connection ends what others watch: not for a
     // GET the browser's cookie signs in, which over plain HTTP may be
     // another site's link or picture (pley's own page asks with POST …/watch).
     let take_over =
         query.get("take_over").and_then(|t| t.parse().ok()).filter(|_| !crate::auth::signed_in_by_cookie(&parts));
     // Players that read the stream themselves (VLC, Kodi) take no commands:
-    // their device is named from the User-Agent.
+    // their device is named from the User-Agent, and is the kind the query
+    // says or the app is.
     let how = WatchAs {
         client_id,
         kind: ViewerKind::Stream,
@@ -294,6 +303,8 @@ pub async fn stream(
         home: None,
         controls: Controls::new(),
         device: super::remote::device_name(None, &parts.headers),
+        device_id: super::remote::device_id_of(&user, token.as_deref()),
+        device_kind: super::remote::device_kind_of(device_kind, &user, super::remote::user_agent(&parts.headers)),
     };
     let (watching, _) = start_watching(&state, &user, id, how).await?;
     let body = state.live.tuners.stream(&watching.session_id, &user)?;

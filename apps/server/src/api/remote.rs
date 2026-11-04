@@ -19,8 +19,8 @@ use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::livetv::tuner::RemoteViewer;
-use crate::oauth::clients::clean_name;
-use crate::playback::{COMMANDS_PER_SECOND, Control, Controls, Session};
+use crate::oauth::clients::{self, clean_name};
+use crate::playback::{COMMANDS_PER_SECOND, Control, Controls, DeviceKind, Session};
 use crate::state::AppState;
 use crate::util::{now, now_ms};
 
@@ -28,10 +28,59 @@ use crate::util::{now, now_ms};
 /// for it (`device_name`), or one from its User-Agent ("Firefox on macOS"),
 /// which for other clients is the agent itself, cleaned the same way.
 pub(crate) fn device_name(named: Option<&str>, headers: &HeaderMap) -> Option<String> {
-    named.and_then(clean_name).or_else(|| {
-        let agent = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).filter(|a| !a.is_empty())?;
-        clean_name(&crate::accounts::device_name(Some(agent)))
-    })
+    named.and_then(clean_name).or_else(|| clean_name(&crate::accounts::device_name(user_agent(headers))))
+}
+
+/// The request's User-Agent, when it says one.
+pub(crate) fn user_agent(headers: &HeaderMap) -> Option<&str> {
+    headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).filter(|a| !a.is_empty())
+}
+
+/// Which device a session plays on, as remotes tell devices apart
+/// (`device_id`): the same for everything one sign-in plays, however many
+/// tabs, titles or channels. An app's grant (`app-`), a compatibility token
+/// (`token-`: a Jellyfin app's sign-in, or a token made in Account for a
+/// Plex app) or a browser's session token (`web-`), hashed under a prefix
+/// of its own so the hash the token is stored by never shows. `None` with
+/// none of these: the session stands for itself.
+pub(crate) fn device_id_of(user: &AuthUser, token: Option<&str>) -> Option<String> {
+    if let Some(app) = &user.app {
+        return Some(format!("app-{}", app.grant_id));
+    }
+    if let Some(token) = user.compatibility {
+        return Some(format!("token-{}", token.token_id));
+    }
+    let token = token.filter(|t| !t.is_empty())?;
+    Some(format!("web-{}", &crate::auth::hash_token(&format!("device:{token}"))[..16]))
+}
+
+/// What kind of device a session plays on (`device_kind`): what the player
+/// said, else what its app says. Pley's TV apps (Apple TV, Roku, Samsung,
+/// LG) and Kodi play on TVs; the iPhone and iPad app on one or the other,
+/// as its User-Agent's system says; the Mac and desktop apps on computers;
+/// pley's own sign-in is a browser. The Android app plays on TVs and
+/// phones alike and says which when it knows; until it does, and for apps
+/// by other publishers and Jellyfin and Plex apps, the kind isn't known.
+pub(crate) fn device_kind_of(declared: Option<DeviceKind>, user: &AuthUser, user_agent: Option<&str>) -> DeviceKind {
+    if let Some(kind) = declared {
+        return kind;
+    }
+    match &user.app {
+        Some(app) => match &*app.client_id {
+            clients::TVOS_ID | clients::ROKU_ID | clients::TIZEN_ID | clients::WEBOS_ID | clients::KODI_ID => {
+                DeviceKind::Tv
+            }
+            clients::IOS_ID => {
+                let system =
+                    user_agent.and_then(crate::accounts::bracketed).and_then(|inside| inside.split([';', ' ']).next());
+                if system == Some("iPadOS") { DeviceKind::Tablet } else { DeviceKind::Phone }
+            }
+            clients::MACOS_ID | clients::DESKTOP_ID => DeviceKind::Computer,
+            _ => DeviceKind::Other,
+        },
+        None if user.compatibility.is_some() => DeviceKind::Other,
+        None => DeviceKind::Browser,
+    }
 }
 
 /// What a session plays.
@@ -61,6 +110,10 @@ pub struct PlayingSession {
     session_id: String,
     kind: SessionKind,
     device: Option<String>,
+    /// Which device that is ([`device_id_of`]) and what kind
+    /// ([`device_kind_of`]).
+    device_id: String,
+    device_kind: DeviceKind,
     /// What it plays, for `item`.
     item: Option<ItemSummary>,
     /// What it watches, for `live`.
@@ -113,6 +166,8 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             session_id: viewer.session_id,
             kind: SessionKind::Live,
             device: viewer.device,
+            device_id: viewer.device_id,
+            device_kind: viewer.device_kind,
             item: None,
             channel: Some(PlayingChannel {
                 id: channel.id,
@@ -147,6 +202,8 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             session_id: session.id.clone(),
             kind: SessionKind::Item,
             device: session.device.clone(),
+            device_id: session.device_id.clone(),
+            device_kind: session.device_kind,
             item: Some(row.to_summary()),
             channel: None,
             state: play.state,
@@ -320,5 +377,65 @@ fn words(command: Control) -> &'static str {
         Control::Skip => "skip",
         Control::Next => "next",
         Control::Previous => "previous",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::auth::scopes::Scopes;
+    use crate::auth::{AppAccess, CompatibilityAccess, compatibility};
+
+    /// A request's user: pley's own sign-in, an app's (by client id), or a
+    /// compatibility token's.
+    fn user(app: Option<&str>, token: bool) -> AuthUser {
+        AuthUser {
+            id: 1,
+            username: "sam".into(),
+            is_admin: false,
+            account_admin: false,
+            all_libraries: true,
+            max_age: None,
+            app: app.map(|client_id| {
+                Arc::new(AppAccess { grant_id: 7, client_id: client_id.into(), scopes: Scopes::all(), approved_by: 1 })
+            }),
+            compatibility: token.then_some(CompatibilityAccess { token_id: 3, scopes: compatibility::Scopes::play() }),
+        }
+    }
+
+    #[test]
+    fn a_device_is_the_sign_in_whatever_it_plays() {
+        assert_eq!(device_id_of(&user(Some(clients::ANDROID_ID), false), Some("pley_at_x")), Some("app-7".into()));
+        assert_eq!(device_id_of(&user(None, true), None), Some("token-3".into()));
+        let web = device_id_of(&user(None, false), Some("s3ss10n")).unwrap();
+        assert_eq!(web.len(), "web-".len() + 16, "{web}");
+        assert!(web.strip_prefix("web-").unwrap().chars().all(|c| c.is_ascii_hexdigit()), "{web}");
+        assert_eq!(device_id_of(&user(None, false), Some("s3ss10n")).unwrap(), web, "the same sign-in");
+        assert_ne!(device_id_of(&user(None, false), Some("0ther")).unwrap(), web, "another sign-in");
+        assert!(!crate::auth::hash_token("s3ss10n").contains(&web["web-".len()..]), "never the stored hash");
+        assert_eq!(device_id_of(&user(None, false), Some("")), None);
+        assert_eq!(device_id_of(&user(None, false), None), None);
+    }
+
+    #[test]
+    fn a_device_kind_is_said_or_told_from_the_app() {
+        let kind = |client: &str, agent: Option<&str>| device_kind_of(None, &user(Some(client), false), agent);
+        for tv in [clients::TVOS_ID, clients::ROKU_ID, clients::TIZEN_ID, clients::WEBOS_ID, clients::KODI_ID] {
+            assert_eq!(kind(tv, None), DeviceKind::Tv, "{tv}");
+        }
+        assert_eq!(kind(clients::IOS_ID, Some("pleyApple/0.1.0 (iPadOS 16.7; iPad)")), DeviceKind::Tablet);
+        assert_eq!(kind(clients::IOS_ID, Some("pleyApple/0.1.0 (iOS 18.1; iPhone)")), DeviceKind::Phone);
+        assert_eq!(kind(clients::IOS_ID, None), DeviceKind::Phone);
+        assert_eq!(kind(clients::MACOS_ID, None), DeviceKind::Computer);
+        assert_eq!(kind(clients::DESKTOP_ID, None), DeviceKind::Computer);
+        assert_eq!(kind(clients::ANDROID_ID, Some("pleyAndroid/0.1.0 (Android 14; Den TV)")), DeviceKind::Other);
+        assert_eq!(kind("https://apps.example.com/client.json", None), DeviceKind::Other);
+        assert_eq!(device_kind_of(None, &user(None, true), Some("Findroid/1.2.0")), DeviceKind::Other);
+        assert_eq!(device_kind_of(None, &user(None, false), Some("Mozilla/5.0 Chrome/140.0")), DeviceKind::Browser);
+        let said = device_kind_of(Some(DeviceKind::Tv), &user(Some(clients::ANDROID_ID), false), None);
+        assert_eq!(said, DeviceKind::Tv, "what the player says wins");
+        assert_eq!(device_kind_of(Some(DeviceKind::Phone), &user(None, false), None), DeviceKind::Phone);
     }
 }

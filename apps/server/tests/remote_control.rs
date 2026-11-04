@@ -172,6 +172,83 @@ async fn a_users_players_are_listed_to_them_alone() {
     assert_eq!(app.get("/api/sessions", &w.viewer).await.body.as_array().unwrap().len(), 1);
 }
 
+/// Tokens of pley's Roku app acting as `user_id`.
+async fn roku_token(w: &World, user_id: i64) -> String {
+    let issued = w
+        .app
+        .state
+        .auth
+        .issue(pley::auth::grants::NewGrant {
+            user_id,
+            approved_by: user_id,
+            client_id: common::ROKU_APP.into(),
+            client_name: Some("pley".into()),
+            scopes: pley::auth::scopes::Scopes::parse("library play").unwrap(),
+            refresh: true,
+            first_party: true,
+            session_hash: None,
+            user_agent: Some("pleyRoku/0.1.0 (Roku OS 15.0; Roku Ultra)".into()),
+            ip: Some("10.0.0.9".into()),
+        })
+        .await
+        .unwrap();
+    issued.access_token
+}
+
+#[tokio::test]
+async fn sessions_say_which_device_plays_them_and_what_kind_it_is() {
+    let w = world().await;
+    let app = &w.app;
+    // Two plays by one browser sign-in: one device, a browser, whatever
+    // the player calls it; another sign-in is another device.
+    let tab = play_with(&w, &w.viewer, json!({"client_id": "tab-1", "device_name": "Den"}), &[]).await;
+    let again = play_with(&w, &w.viewer, json!({"client_id": "tab-2", "keep_previous": true}), &[]).await;
+    let other = play_with(&w, &w.other, json!({}), &[]).await;
+    // Pley's Android app, which doesn't say what it plays on, and once it
+    // does; a Roku, told from the app alone; a kind the server doesn't know.
+    let (android, _) = app.app_token(w.viewer_id, "library play").await;
+    let phone = play_with(&w, &android, json!({"client_id": "android"}), &[]).await;
+    let tv = json!({"client_id": "android", "device_kind": "tv", "keep_previous": true});
+    let tv = play_with(&w, &android, tv, &[]).await;
+    let roku = play_with(&w, &roku_token(&w, w.viewer_id).await, json!({}), &[]).await;
+    let fridge = play_with(&w, &w.viewer, json!({"client_id": "tab-3", "device_kind": "fridge"}), &[]).await;
+    // A Jellyfin app's reports: its sign-in's token is its device.
+    let report = json!({"ItemId": app.jf_item(w.film), "PositionTicks": 10_000_000_i64, "IsPaused": false});
+    assert_eq!(app.jf(Method::POST, "/Sessions/Playing", &w.viewer, Some(report)).await.status, StatusCode::NO_CONTENT);
+
+    let sessions = app.get("/api/activity", &w.admin).await.body["sessions"].clone();
+    let sessions = sessions.as_array().unwrap();
+    let of = |id: &str| sessions.iter().find(|s| s["session_id"] == json!(id)).unwrap();
+    let device = |id: &str| (of(id)["device_id"].as_str().unwrap().to_owned(), of(id)["device_kind"].clone());
+    let (web, kind) = device(&tab);
+    assert!(web.starts_with("web-") && web.len() == "web-".len() + 16, "{web}");
+    assert_eq!(kind, json!("browser"));
+    assert_eq!(device(&again), (web.clone(), json!("browser")), "the same sign-in, another tab");
+    assert_eq!(device(&fridge), (web.clone(), json!("browser")), "a kind the server doesn't know");
+    assert_eq!(of(&tab)["device"], json!("Den"), "what the player calls it is beside it");
+    let (theirs, kind) = device(&other);
+    assert!(theirs.starts_with("web-") && theirs != web, "{theirs}");
+    assert_eq!(kind, json!("browser"));
+    let (grant, kind) = device(&phone);
+    assert!(grant.starts_with("app-"), "{grant}");
+    assert_eq!(kind, json!("other"), "the Android app hasn't said");
+    assert_eq!(device(&tv), (grant, json!("tv")), "the same app's sign-in, once it says");
+    let (roku_device, kind) = device(&roku);
+    assert!(roku_device.starts_with("app-") && roku_device != device(&phone).0, "{roku_device}");
+    assert_eq!(kind, json!("tv"));
+    let jellyfin = sessions.iter().find(|s| s["device"] == json!("Bench")).expect("the Jellyfin app's session");
+    assert!(jellyfin["device_id"].as_str().unwrap().starts_with("token-"), "{jellyfin}");
+    assert_eq!(jellyfin["device_kind"], json!("other"));
+
+    // The user's own list says the same.
+    let mine = app.get("/api/sessions", &w.viewer).await.body;
+    for session in mine.as_array().unwrap() {
+        let id = session["session_id"].as_str().unwrap();
+        let listed = of(id);
+        assert_eq!((&session["device_id"], &session["device_kind"]), (&listed["device_id"], &listed["device_kind"]));
+    }
+}
+
 #[tokio::test]
 async fn sessions_changed_goes_to_the_user_and_administrators() {
     let w = world().await;
@@ -543,17 +620,24 @@ async fn live_viewers_are_listed_with_their_channel() {
     assert_eq!(live["controls"], json!(["next", "previous"]));
     let age = live["age_ms"].as_i64().unwrap();
     assert!((0..5_000).contains(&age), "since the player last asked for the channel: {age}");
+    // The channel and the film play on the same device: the sign-in's.
+    let film = sessions.iter().find(|s| s["kind"] == json!("item")).unwrap();
+    assert_eq!(live["device_id"], film["device_id"]);
+    assert!(live["device_id"].as_str().unwrap().starts_with("web-"), "{}", live["device_id"]);
+    assert_eq!((live["device_kind"].clone(), film["device_kind"].clone()), (json!("browser"), json!("browser")));
 
     // Changing channel on the device: the session it watched before is gone.
+    // This time the player says what it plays on.
     drop(reader);
     let _ = kinds(&mut events);
-    let changed = watch(&w, &w.viewer, two, "tv", json!({})).await;
+    let changed = watch(&w, &w.viewer, two, "tv", json!({"device_kind": "tv"})).await;
     assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()), "a change of channel");
     let sessions = app.get("/api/sessions", &w.viewer).await.body;
     let live: Vec<&Value> = sessions.as_array().unwrap().iter().filter(|s| s["kind"] == json!("live")).collect();
     assert_eq!(live.len(), 1, "{live:?}");
     assert_eq!((live[0]["session_id"].clone(), live[0]["channel"]["now"].clone()), (json!(changed), Value::Null));
     assert_eq!(live[0]["controls"], json!([]), "this time it obeys none");
+    assert_eq!(live[0]["device_kind"], json!("tv"));
 
     // Leaving: no longer listed, which remotes hear.
     let _ = kinds(&mut events);
