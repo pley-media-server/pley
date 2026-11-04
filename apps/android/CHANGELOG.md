@@ -33,6 +33,8 @@ describes how they are made.
 - On Android TV and Fire TV, OK held on a tile opens its actions and leaves
   them open: the key, still held as they came, went on to choose the first
   of them (Resume or Play) as it came up.
+- On Android TV and Fire TV, screen readers say each card on Playlists,
+  its title and what it holds; they said nothing.
 
 ## [0.1.5] - 2026-11-03
 
