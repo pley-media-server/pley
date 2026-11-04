@@ -337,6 +337,22 @@ class WindowTest(unittest.TestCase):
         win.play({"id": 52, "kind": "album"})
         self.assertEqual(win.toasts, [window.T("no_tracks")])
 
+    def test_casts_wait_while_whos_watching_is_asked_as_kodi_starts(self):
+        # The service plays no cast from the remote past its PINs.
+        self.addCleanup(window.kodi.clear_property, window.profiles.PICKING)
+        household = [{"id": 1, "name": "Anna", "current": True, "needs": "none"}, {"id": 2, "name": "Kid", "needs": "pin"}]
+        win = FakeWindow()
+        win.show(window.Profiles(win, household, gate=True))
+        self.assertEqual(window.kodi.get_property(window.profiles.PICKING), "1")
+        win.show(window.Notice(win, "Title", "Body"))
+        self.assertEqual(window.kodi.get_property(window.profiles.PICKING), "")
+        # Switch profile, from the profile's menu, isn't Kodi's start.
+        win.show(window.Profiles(win, household))
+        self.assertEqual(window.kodi.get_property(window.profiles.PICKING), "")
+        win.show(window.Profiles(win, household, gate=True))
+        win.close()
+        self.assertEqual(window.kodi.get_property(window.profiles.PICKING), "")
+
     def test_whos_watching(self):
         household = [
             {"id": 1, "name": "Anna", "current": True, "needs": "none"},

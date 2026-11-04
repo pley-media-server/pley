@@ -36,4 +36,5 @@ class Addon:
         return localized(id)
 
     def getAddonInfo(self, name):
-        return {"version": "0.1.0", "profile": settings.get("_profile", "."), "path": "."}[name]
+        # As Kodi's: the icon is its file's path, in the add-on's folder.
+        return {"version": "0.1.0", "profile": settings.get("_profile", "."), "path": ".", "icon": "./resources/icon.png"}[name]

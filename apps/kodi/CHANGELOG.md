@@ -18,6 +18,9 @@ describes how they are made.
 - Your phone, the web and your other devices change the audio and subtitles
   of what Kodi plays, and see which ones play. A pick is saved for the show
   or movie, as one made in Kodi's player is.
+- Your phone, the web and your other devices play things on Kodi: a film,
+  an episode, a show's next episode, music, a playlist or a Live TV
+  channel, in place of what plays. Kodi says which device sent it.
 - Live TV stopped from another device, or by the server's administrator,
   says so, with their message.
 - Stopping a Live TV channel, or Kodi, frees its connection at once, so

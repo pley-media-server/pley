@@ -1,6 +1,6 @@
 """The add-on against a real pley server: signing in with a code, browsing
 and playing through the proxy, progress reports and the events they send,
-a renewed token and signing out.
+a cast from the user's remote, a renewed token and signing out.
 
 Needs a built server and FFmpeg, so it runs only when asked:
 
@@ -21,7 +21,8 @@ import time
 import unittest
 
 import support  # noqa: F401
-from pley import api, auth, autoquality, caps, kodi, profiles, requests, service
+import xbmcaddon
+from pley import api, auth, autoquality, caps, casting, kodi, playback, profiles, requests, service
 from pley.api import path_in
 from pley.events import Events
 from pley.proxy import Proxy
@@ -54,6 +55,8 @@ class EndToEndTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dir = tempfile.mkdtemp(prefix="pley-kodi-e2e-")
+        # The add-on's data folder (its install id), the test's own.
+        xbmcaddon.settings["_profile"] = cls.dir
         movies = os.path.join(cls.dir, "media", "Movies", "Test Pattern (2020)")
         os.makedirs(movies)
         cls.movie = os.path.join(movies, "Test Pattern (2020).mkv")
@@ -110,6 +113,7 @@ class EndToEndTest(unittest.TestCase):
         else:
             cls.process.terminate()
         cls.process.wait(30)
+        xbmcaddon.settings.pop("_profile", None)
         shutil.rmtree(cls.dir, ignore_errors=True)
 
     def browser(self, method, path, body=None):
@@ -182,16 +186,31 @@ class EndToEndTest(unittest.TestCase):
         # what changed: the resume point the report started, then the
         # session stopped from elsewhere.
         heard = []
-        listening = Events(holder, AGENT, heard.append, retry=(0.2,))
+        listening = Events(holder, AGENT, heard.append, retry=(0.2,), query=service.receiver_query(AGENT))
         listening.start()
         try:
             wait_for(listening.open.is_set, 10, "the event stream")
             player = service.Player(holder, AGENT, service.Worker())
-            body = {"position_ms": 20_000, "duration_ms": info["duration_ms"], "state": "paused", "session_id": info["session_id"]}
+            # The report says the tracks it plays (the file's audio is stream
+            # 1), which the user's remotes see on the session.
+            body = {"position_ms": 20_000, "duration_ms": info["duration_ms"], "state": "paused", "session_id": info["session_id"],
+                    "audio_index": 1, "subtitle_index": -1}
             player.call("POST", "/api/items/%d/progress" % item, body)
             self.assertEqual(client.get("/api/items/%d" % item)["user_state"]["position_ms"], 20_000)
             changed = wait_for(lambda: [e for e in heard if e.get("type") == "user_state_changed"], 10, "user_state_changed")
             self.assertEqual(changed[0]["item_ids"][0], item)
+            playing = [s for s in client.get("/api/sessions") if s["session_id"] == info["session_id"]]
+            self.assertEqual((playing[0]["audio_index"], playing[0]["subtitle_index"]), (1, -1))
+            # The stream made this Kodi one the user's remotes cast to (a TV,
+            # titles only on a server without Live TV), and a cast to it
+            # comes as the service hears it.
+            mine = playback.install_id()
+            devices = client.get("/api/remote/devices")
+            self.assertEqual([(d["receiver_id"], d["kind"], d["casts"]) for d in devices], [(mine, "tv", ["item"])])
+            cast = client.request("POST", "/api/remote/devices/%s/cast" % mine, json_body={"item_id": item, "start_ms": 5000})
+            self.assertEqual(cast.status, 202)
+            sent = wait_for(lambda: [e for e in heard if e.get("type") == "cast"], 10, "the cast")
+            self.assertEqual(casting.action(mine, True, sent[0]), {"act": "item", "item_id": item, "start_ms": 5000, "shuffle": False})
             self.assertEqual(self.admin.request("DELETE", "/api/sessions/%s" % info["session_id"]).status, 204)
             stopped = wait_for(lambda: [e for e in heard if e.get("type") == "session_stopped"], 10, "session_stopped")
             self.assertEqual((stopped[0]["session_id"], stopped[0]["by_admin"]), (info["session_id"], False))

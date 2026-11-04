@@ -189,6 +189,21 @@ class EventsTest(unittest.TestCase):
         self.assertTrue(wait_for(lambda: len(opened) == 2), opened)
         self.assertEqual(opened, [0, 1], "each before its stream's events")
 
+    def test_the_stream_makes_this_kodi_a_receiver(self):
+        # Asked afresh each time it opens, with the token it opens with.
+        server = self.server([(200, [], False), (200, [], True)])
+        asked = []
+
+        def query(at, token):
+            asked.append((at, token))
+            return {"receiver": "kodi-1", "device_kind": "tv", "casts": "item,live"}
+
+        self.stream = Events(Tokens(server.url), "pleyKodi/test", self.heard.append, retry=(0.05,), query=query)
+        self.stream.start()
+        self.assertTrue(wait_for(lambda: len(server.requests) == 2), server.requests)
+        self.assertTrue(server.requests[0].startswith("GET /api/events?receiver=kodi-1&device_kind=tv&casts=item,live HTTP/1.1"))
+        self.assertEqual(asked, [(server.url, "at-1")] * 2)
+
     def test_another_server_chosen_is_listened_to_instead(self):
         first = self.server([(200, [], True)])
         second = self.server([(200, [{"type": "from_the_second"}], True)])

@@ -1,0 +1,313 @@
+import json
+import os
+import shutil
+import tempfile
+import unittest
+import urllib.parse
+
+import support
+import xbmc
+import xbmcaddon
+import xbmcgui
+from pley import api, casting, kodi, profiles
+from pley.service import Player, receiver_query
+
+BASE = "http://127.0.0.1:5000/s3cret"
+MINE = "kodi-1"
+
+
+def cast(receiver=MINE, item_id=None, playlist_id=None, channel_id=None, start_ms=None, shuffle=False, device="Living room phone"):
+    """A cast event, as the server sends it."""
+    return {
+        "type": "cast",
+        "receiver_id": receiver,
+        "item_id": item_id,
+        "playlist_id": playlist_id,
+        "channel_id": channel_id,
+        "start_ms": start_ms,
+        "shuffle": shuffle,
+        "from": device,
+    }
+
+
+def played():
+    """What Kodi's player was given: a plugin address, or a queue's kind,
+    its entries' addresses and where it starts."""
+    found = []
+    for item, _, start in xbmc.played:
+        if isinstance(item, xbmc.PlayList):
+            found.append((item.kind, [url for url, _ in xbmc.PlayList.entries.get(item.kind, [])], start))
+        else:
+            found.append(item)
+    return found
+
+
+def route(**params):
+    return "plugin://plugin.video.pley/?" + urllib.parse.urlencode(params)
+
+
+class Server:
+    """The server through the service's proxy: GETs answered by path, each noted."""
+
+    def __init__(self, answers):
+        self.answers, self.asked = answers, []
+
+    def get(self, path, **query):
+        self.asked.append(path)
+        if path not in self.answers:
+            raise api.ApiError(404, "not_found", "not found")
+        return self.answers[path]
+
+
+def track(n, album=40):
+    return {"id": n, "kind": "track", "title": "Song %d" % n, "parent_id": album}
+
+
+class Clean(unittest.TestCase):
+    def setUp(self):
+        xbmc.PlayList.entries.clear()
+        xbmc.PlayList.positions.clear()
+        xbmc.PlayList.shuffled.clear()
+        del xbmc.played[:]
+
+    def tearDown(self):
+        xbmc.PlayList.entries.clear()
+        xbmc.PlayList.positions.clear()
+        xbmc.PlayList.shuffled.clear()
+        del xbmc.played[:]
+
+
+class RuleTest(unittest.TestCase):
+    """Whose cast it is, what it names, and the words it shows."""
+
+    def test_its_own_casts_while_it_takes_them(self):
+        self.assertEqual(casting.action(MINE, True, cast(item_id=5, start_ms=60000)),
+                         {"act": "item", "item_id": 5, "start_ms": 60000, "shuffle": False})
+        self.assertEqual(casting.action(MINE, True, cast(item_id=5)), {"act": "item", "item_id": 5, "start_ms": None, "shuffle": False})
+        self.assertEqual(casting.action(MINE, True, cast(item_id=6, shuffle=True))["shuffle"], True)
+        self.assertEqual(casting.action(MINE, True, cast(playlist_id=3, shuffle=True)), {"act": "playlist", "playlist_id": 3, "shuffle": True})
+        self.assertEqual(casting.action(MINE, True, cast(channel_id=7)), {"act": "channel", "channel_id": 7})
+        self.assertEqual(casting.action(MINE, True, cast(item_id=5, start_ms=-20))["start_ms"], 0)
+
+    def test_anyone_elses_or_while_it_cant_take_them(self):
+        none = {"act": "none"}
+        self.assertEqual(casting.action(MINE, True, cast("kodi-2", item_id=5)), none, "another device's")
+        self.assertEqual(casting.action(MINE, True, cast("kodi-2", channel_id=7)), none)
+        self.assertEqual(casting.action(MINE, False, cast(item_id=5)), none, "signed out, or Who's watching? on screen")
+        self.assertEqual(casting.action(MINE, True, cast()), none, "nothing named")
+        self.assertEqual(casting.action(MINE, True, cast(item_id="5")), none)
+        self.assertEqual(casting.action(MINE, True, cast(item_id=True)), none)
+        self.assertEqual(casting.action("", True, cast("", item_id=5)), none)
+
+    def test_where_it_came_from(self):
+        self.assertEqual(casting.banner("Living room phone"), "Playing from Living room phone")
+        self.assertEqual(casting.banner("  Firefox \n on   Windows "), "Playing from Firefox on Windows")
+        self.assertEqual(casting.banner(None), "Playing from another device")
+        self.assertEqual(casting.banner("  "), "Playing from another device")
+        self.assertEqual(len(casting.banner("x" * 100)), len("Playing from ") + 64)
+
+    def test_what_a_title_plays_by_its_kind(self):
+        kinds = ("movie", "episode", "extra", "show", "season", "album", "artist", "track", "photo", None)
+        self.assertEqual([casting.plays(k) for k in kinds],
+                         ["video", "video", "video", "next_episode", "next_episode", "album", "artist", "track", "nothing", "nothing"])
+
+    def test_the_receiver_query(self):
+        self.addCleanup(xbmc.setting_values.pop, "services.devicename", None)
+        xbmc.setting_values["services.devicename"] = "Den"
+        self.assertEqual(casting.receiver_query(MINE, False), {"receiver": MINE, "device_kind": "tv", "device_name": "Den", "casts": "item"})
+        self.assertEqual(casting.receiver_query(MINE, True)["casts"], "item,live")
+        # Kodi's own name isn't sent: the server names it, as its plays.
+        xbmc.setting_values["services.devicename"] = "Kodi"
+        self.assertEqual(casting.receiver_query(MINE, True), {"receiver": MINE, "device_kind": "tv", "casts": "item,live"})
+
+
+class PlayTest(Clean):
+    """What a cast plays, as the add-on's own Play plays it."""
+
+    def play(self, answers, what, current=lambda: True):
+        self.server = Server(answers)
+        return casting.play(self.server, BASE, what, xbmc.Player(), current)
+
+    def item(self, item_id, start_ms=None, shuffle=False):
+        return {"act": "item", "item_id": item_id, "start_ms": start_ms, "shuffle": shuffle}
+
+    def test_a_movie_from_where_it_was_sent_or_where_play_starts_it(self):
+        film = {"id": 5, "kind": "movie", "duration_ms": 7_200_000, "user_state": {"position_ms": 1_200_000, "watched": False}}
+        answers = {"/api/items/5": film}
+        self.assertEqual(self.play(answers, self.item(5, start_ms=60000)), casting.PLAYED)
+        self.assertEqual(self.play(answers, self.item(5)), casting.PLAYED)
+        answers["/api/items/5"] = dict(film, user_state={"position_ms": 1_200_000, "watched": True})
+        self.play(answers, self.item(5))
+        self.assertEqual(played(), [
+            route(route="play", id=5, kind="movie", start=60000),
+            route(route="play", id=5, kind="movie", start=1_200_000),
+            route(route="play", id=5, kind="movie", start=0),
+        ])
+
+    def test_a_show_or_a_season_plays_its_next_episode(self):
+        episode = {"id": 8, "kind": "episode", "duration_ms": 2_400_000, "user_state": {"position_ms": 600_000}}
+        answers = {"/api/items/3": {"id": 3, "kind": "show"}, "/api/items/3/on-deck": {"item": episode}}
+        self.assertEqual(self.play(answers, self.item(3, start_ms=60000)), casting.PLAYED)
+        self.assertEqual(played(), [route(route="play", id=8, kind="episode", start=600_000)], "where its Play starts it")
+        answers["/api/items/3/on-deck"] = {"item": None}
+        self.assertEqual(self.play(answers, self.item(3)), casting.NOTHING)
+        self.assertEqual(len(xbmc.played), 1)
+
+    def test_an_album_or_an_artist_as_kodis_music_queue(self):
+        answers = {"/api/items/40": {"id": 40, "kind": "album"}, "/api/items/40/children": {"items": [track(41), track(42)]}}
+        self.play(answers, self.item(40))
+        songs = [route(route="play", id=41), route(route="play", id=42)]
+        self.assertEqual(played(), [(xbmc.PLAYLIST_MUSIC, songs, 0)])
+        self.assertFalse(xbmc.PlayList.shuffled[xbmc.PLAYLIST_MUSIC])
+        self.play(answers, self.item(40, shuffle=True))
+        self.assertTrue(xbmc.PlayList.shuffled[xbmc.PLAYLIST_MUSIC])
+        # An artist album by album, the newest first, as its page lists them.
+        answers.update({
+            "/api/items/30": {"id": 30, "kind": "artist"},
+            "/api/items/30/children": {"items": [{"id": 50, "kind": "album", "year": 2001}, {"id": 40, "kind": "album", "year": 2020}]},
+            "/api/items/50/children": {"items": [track(51, 50)]},
+        })
+        del xbmc.played[:]
+        self.play(answers, self.item(30))
+        self.assertEqual(played(), [(xbmc.PLAYLIST_MUSIC, songs + [route(route="play", id=51)], 0)])
+        answers["/api/items/40/children"] = {"items": []}
+        self.assertEqual(self.play(answers, self.item(40)), casting.NOTHING)
+
+    def test_a_track_plays_its_album_from_it(self):
+        answers = {"/api/items/42": track(42), "/api/items/40/children": {"items": [track(41), track(42), track(43)]}}
+        self.play(answers, self.item(42, start_ms=30000))
+        songs = [route(route="play", id=41), route(route="play", id=42, start=30000), route(route="play", id=43)]
+        self.assertEqual(played(), [(xbmc.PLAYLIST_MUSIC, songs, 1)])
+        # Without an album: on its own.
+        del xbmc.played[:]
+        self.play({"/api/items/42": dict(track(42), parent_id=None)}, self.item(42))
+        self.assertEqual(played(), [(xbmc.PLAYLIST_MUSIC, [route(route="play", id=42)], 0)])
+
+    def test_a_playlist_plays_what_it_holds(self):
+        songs = {"id": 3, "kind": "audio", "entries": [{"entry_id": 1, "item": track(41)}, {"entry_id": 2, "item": track(42)}]}
+        self.assertEqual(self.play({"/api/playlists/3": songs}, {"act": "playlist", "playlist_id": 3, "shuffle": True}), casting.PLAYED)
+        self.assertEqual(played(), [(xbmc.PLAYLIST_MUSIC, [route(route="play", id=41), route(route="play", id=42)], 0)])
+        self.assertTrue(xbmc.PlayList.shuffled[xbmc.PLAYLIST_MUSIC])
+        # Titles as Kodi's video queue, each asked of the plugin as Kodi comes to it.
+        films = {"id": 4, "kind": "video", "entries": [{"entry_id": 1, "item": {"id": 5, "kind": "movie", "title": "A film"}}, {"entry_id": 2, "item": {"id": 8, "kind": "episode", "title": "An episode"}}]}
+        del xbmc.played[:]
+        self.play({"/api/playlists/4": films}, {"act": "playlist", "playlist_id": 4, "shuffle": False})
+        self.assertEqual(played(), [(xbmc.PLAYLIST_VIDEO, [route(route="play", id=5), route(route="play", id=8)], 0)])
+        self.assertFalse(xbmc.PlayList.shuffled[xbmc.PLAYLIST_VIDEO])
+        empty = {"id": 6, "kind": "audio", "entries": []}
+        self.assertEqual(self.play({"/api/playlists/6": empty}, {"act": "playlist", "playlist_id": 6, "shuffle": False}), casting.NOTHING)
+
+    def test_a_channel_plays_in_kodis_queue_of_channels(self):
+        lineup = {"total": 3, "offset": 0, "channels": [{"id": 3, "name": "Three"}, {"id": 5, "name": "Five"}, {"id": 8, "name": "Eight"}]}
+        self.assertEqual(self.play({"/api/live/browse": lineup}, {"act": "channel", "channel_id": 5}), casting.PLAYED)
+        channels = [route(route="live_play", id=n) for n in (3, 5, 8)]
+        self.assertEqual(played(), [(xbmc.PLAYLIST_VIDEO, channels, 1)], "channel up and down go round the lineup")
+        # One the lineup doesn't list any more: on its own.
+        del xbmc.played[:]
+        self.play({"/api/live/browse": lineup, "/api/live/channels/9": {"id": 9, "name": "Nine"}}, {"act": "channel", "channel_id": 9})
+        self.assertEqual(played(), [(xbmc.PLAYLIST_VIDEO, [route(route="live_play", id=9)], 0)])
+
+    def test_a_later_cast_drops_this_one(self):
+        answers = {"/api/items/40": {"id": 40, "kind": "album"}, "/api/items/40/children": {"items": [track(41)]}}
+        self.assertEqual(self.play(answers, self.item(40), current=lambda: False), casting.DROPPED)
+        self.assertEqual((xbmc.played, self.server.asked), ([], ["/api/items/40"]))
+
+    def test_a_kind_it_doesnt_know_plays_nothing(self):
+        self.assertEqual(self.play({"/api/items/9": {"id": 9, "kind": "photo"}}, self.item(9)), casting.NOTHING)
+        self.assertEqual(xbmc.played, [])
+
+
+class Tokens:
+    def __init__(self):
+        self.signed_in = "http://pley.example:7539"
+
+    def server(self):
+        return self.signed_in
+
+
+class Now:
+    def put(self, job):
+        job()
+
+
+class ServiceTest(Clean):
+    """The service takes its own casts, through its proxy (a stand-in
+    server here)."""
+
+    def setUp(self):
+        super().setUp()
+        self.profile = tempfile.mkdtemp()
+        xbmcaddon.settings["_profile"] = self.profile
+        with open(os.path.join(self.profile, "install_id"), "w", encoding="utf-8") as f:
+            f.write(MINE)
+        self.answers = {
+            "/api/items/5": {"id": 5, "kind": "movie", "duration_ms": 7_200_000},
+        }
+        self.server = support.FakeServer(self.answer)
+        kodi.set_property(kodi.PROXY, self.server.url + "/s3cret")
+        kodi.clear_property(profiles.PICKING)
+        del xbmcgui.notices[:]
+        self.player = Player(Tokens(), "pleyKodi/test", Now())
+
+    def tearDown(self):
+        self.server.close()
+        kodi.clear_property(kodi.PROXY)
+        kodi.clear_property(profiles.PICKING)
+        xbmcaddon.settings.pop("_profile", None)
+        shutil.rmtree(self.profile, ignore_errors=True)
+        super().tearDown()
+
+    def answer(self, request):
+        path = urllib.parse.urlsplit(request.path).path[len("/s3cret"):]
+        if path == "/api/live":
+            return support.answer(200, self.live)
+        if path in self.answers:
+            return support.answer(200, self.answers[path])
+        return support.answer(404, {"code": "not_found", "message": "Not found"})
+
+    def test_its_own_cast_plays_and_says_where_it_came_from(self):
+        self.player.heard(cast(item_id=5, start_ms=60000))
+        self.assertEqual(played(), [route(route="play", id=5, kind="movie", start=60000)])
+        self.assertEqual(xbmcgui.notices, [("Pley", "Playing from Living room phone", "./resources/icon.png", 4000)])
+        self.player.heard(cast(item_id=5, device=None))
+        self.assertEqual(xbmcgui.notices[-1][1], "Playing from another device")
+
+    def test_another_devices_or_while_it_cant_take_them(self):
+        self.player.heard(cast("kodi-2", item_id=5))
+        # "Who's watching?" on screen as Kodi starts.
+        kodi.set_property(profiles.PICKING, "1")
+        self.player.heard(cast(item_id=5))
+        kodi.clear_property(profiles.PICKING)
+        self.player.tokens.signed_in = None
+        self.player.heard(cast(item_id=5))
+        self.assertEqual((xbmc.played, xbmcgui.notices, self.server.requests), ([], [], []))
+
+    def test_only_the_last_cast_heard_plays(self):
+        self.player.casts = 2
+        self.player.play_cast({"act": "item", "item_id": 5, "start_ms": None, "shuffle": False}, "Den", 1)
+        self.assertEqual((xbmc.played, xbmcgui.notices), ([], []))
+
+    def test_what_the_server_refuses_is_said(self):
+        self.player.heard(cast(item_id=6))
+        self.assertEqual(xbmc.played, [])
+        self.assertEqual(xbmcgui.notices, [("Pley", kodi.text("server_error") % "Not found", xbmcgui.NOTIFICATION_ERROR, 5000)])
+
+    def test_nothing_to_play_is_said(self):
+        self.answers["/api/items/3"] = {"id": 3, "kind": "season"}
+        self.answers["/api/items/3/on-deck"] = {"item": None}
+        self.player.heard(cast(item_id=3))
+        self.assertEqual(xbmcgui.notices, [("Pley", "Nothing to play", "./resources/icon.png", 4000)])
+
+    def test_the_event_stream_names_it_a_receiver(self):
+        query = receiver_query("pleyKodi/test")
+        server = self.server.url
+        self.live = {"available": True, "allowed": True, "channels": 12}
+        self.assertEqual(query(server + "/s3cret", "at-1"), {"receiver": MINE, "device_kind": "tv", "casts": "item,live"})
+        self.assertEqual(self.server.requests[-1].headers["authorization"], "Bearer at-1")
+        # Live TV not open to this account, or without channels: titles only.
+        self.live = {"available": False, "allowed": True, "channels": 0}
+        self.assertEqual(query(server + "/s3cret", "at-1")["casts"], "item")
+
+
+if __name__ == "__main__":
+    unittest.main()

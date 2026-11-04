@@ -1,7 +1,8 @@
-"""The service: it holds the sign-in, runs the proxy, and tells the server
+"""The service: it holds the sign-in, runs the proxy, tells the server
 where playback is (docs/API.md, Playback): every 10 seconds while playing,
 every 30 while paused (the server ends a session it hasn't heard of for 90
-seconds), and when it stops, after which the session ends."""
+seconds), and when it stops, after which the session ends; and it obeys the
+user's remote and plays what the remote casts here (remote.py, casting.py)."""
 
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ import urllib.parse
 
 import xbmc
 
-from . import api, auth, autoquality, kodi, listing, news, overlay, prompts, remote, requests, tracks
+from . import api, auth, autoquality, kodi, listing, news, overlay, profiles, prompts, remote, requests, tracks
 from .events import CHANGES, Events, Refresher
 from .proxy import Proxy, new_secret
 
@@ -186,6 +187,8 @@ class Player(xbmc.Player):
         self.clock = time.monotonic
         self.meter = autoquality.Meter()
         self.restarting = None
+        # Casts heard: only the last one heard plays (play_cast).
+        self.casts = 0
 
     # ------------------------------------------------------------ requests
 
@@ -353,6 +356,11 @@ class Player(xbmc.Player):
                 # raises then): out of here, it would drop the event stream,
                 # which misses what happens while it connects again.
                 kodi.log("the remote's %s failed: %r" % (event.get("command"), e), xbmc.LOGWARNING)
+        elif kind == "cast":
+            try:
+                self.cast(event)
+            except Exception as e:  # noqa: BLE001 - one cast never ends the stream
+                kodi.log("the remote's cast failed: %r" % e, xbmc.LOGWARNING)
 
     def live_session(self):
         """The live channel's watch session (kodi.LIVE): {session_id,
@@ -518,6 +526,53 @@ class Player(xbmc.Player):
             # player's playselected would first switch to the playlist it last
             # played itself (music, unless it played one).
             self.play(xbmc.PlayList(xbmc.PLAYLIST_VIDEO), startpos=channels.index(action["channel"]))
+
+    # --------------------------------------------------------------- casts
+
+    def taking(self) -> bool:
+        """Whether Kodi takes casts now: signed in, and "Who's watching?"
+        not on screen, whose PINs a cast mustn't play past."""
+        return bool(self.tokens.server()) and not kodi.get_property(profiles.PICKING)
+
+    def cast(self, event: dict) -> None:
+        """A cast of the user's remote (casting.py), from the event stream's
+        thread: one for this Kodi plays on the worker, which asks the
+        server what it needs first; of two close together, the later."""
+        from . import casting, playback
+
+        action = casting.action(playback.install_id(), self.taking(), event)
+        if action["act"] == "none":
+            return
+        with self.lock:
+            self.casts += 1
+            mine = self.casts
+        self.worker.put(lambda: self.play_cast(action, event.get("from"), mine))
+
+    def play_cast(self, action: dict, device, mine: int) -> None:
+        """Plays a cast as the add-on's own Play would, in place of what
+        plays, through the service's proxy; then says where it came from,
+        over what starts, as the add-on's other notices are said."""
+        from . import casting
+
+        base = kodi.get_property(kodi.PROXY)
+        if not base:
+            return
+
+        def current():
+            return self.casts == mine and self.taking()
+
+        client = api.Client(base, self.user_agent, local=True)
+        try:
+            outcome = casting.play(client, base, action, self, current) if current() else casting.DROPPED
+        except api.ApiError as e:
+            kodi.log("cast %r: %s %s" % (action, e.code, e.message), xbmc.LOGWARNING)
+            if current():
+                kodi.notify(kodi.text("server_error") % e.message, error=True)
+            return
+        if outcome == casting.PLAYED:
+            kodi.notify(casting.banner(device), icon=kodi.addon_icon(), ms=casting.BANNER_MS)
+        elif outcome == casting.NOTHING:
+            kodi.notify(kodi.text("nothing_to_play"), icon=kodi.addon_icon(), ms=casting.BANNER_MS)
 
     # ----------------------------------------------------- what is playing
 
@@ -1025,6 +1080,24 @@ def save_proxy_config(profile: str, config: dict) -> None:
     auth.write_private(os.path.join(profile, "proxy.json"), json.dumps(config))
 
 
+def receiver_query(user_agent: str):
+    """The event stream's query (events.Events' `query`) that makes this
+    Kodi a receiver of the user's casts (casting.receiver_query), asked as
+    the stream opens: channels too where the account has Live TV then."""
+
+    def query(server: str, token: str) -> dict:
+        from . import casting, livetv, playback
+
+        try:
+            live = livetv.available(livetv.summary(api.Client(server, user_agent, token, timeout=TIMEOUT)))
+        except (api.ApiError, ValueError):
+            # Out of reach: the stream won't open either, and asks again.
+            live = False
+        return casting.receiver_query(playback.install_id(), live)
+
+    return query
+
+
 class QualitySetting:
     """The quality setting as the service last read it (a choice made
     before Automatic carried over as it starts): Automatic chosen again,
@@ -1099,7 +1172,7 @@ def run() -> None:
         player.heard(event)
         told.heard(event)
 
-    events = Events(tokens, user_agent, heard, opened=told.opened)
+    events = Events(tokens, user_agent, heard, opened=told.opened, query=receiver_query(user_agent))
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
     worker.put(quality.read)

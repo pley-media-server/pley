@@ -244,6 +244,36 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
 - Kodi stopped or playing something else obeys nothing. A command it
   doesn't know, or a seek or skip without its place, does nothing.
 
+### Casting
+
+Your other devices play things on Kodi (their Play on…, see
+[API.md](API.md#casting)); Kodi itself casts to nothing. The service does
+it (`casting.py`):
+
+- **Taking casts:** its event stream makes Kodi a receiver, by the
+  `client_id` its plays are made with, as a TV named as its plays are
+  named. It takes titles and playlists always, and Live TV's channels
+  where the account has Live TV as the stream opens.
+- **What plays:** what is sent plays as the add-on's own Play plays it,
+  through the plugin's play routes, in place of what plays:
+  - a movie or an episode from where it was sent, else where Play starts
+    it (its resume point);
+  - a show or a season its next episode;
+  - an album or an artist as Kodi's music queue, shuffled when asked, and
+    a track its album from it;
+  - a playlist what it holds: music as Kodi's music queue, titles as
+    Kodi's video queue, played through;
+  - a channel in Kodi's queue of channels, the lineup's channels around
+    it, so channel up and down work as for a channel played from Live TV.
+- **Where it came from:** "Playing from {device}" ("Playing from another
+  device" when the remote's has no name) shows for 4 seconds as a Kodi
+  notification with the add-on's icon, and "Nothing to play" when a show
+  has no next episode or an album or a playlist is empty.
+- **Not taken:** a cast for another device, or one that comes while the
+  add-on is signed out or while Pley's window asks "Who's watching?" as
+  Kodi starts (a cast doesn't play past its PINs), does nothing. Of two
+  casts close together, the later plays.
+
 ### Requests
 
 Where the server takes requests (its summary, `GET /api/requests/summary`,
@@ -356,8 +386,9 @@ TMDB API but is not endorsed or certified by TMDB."
   5, which has none, is converted instead.
 - **Progress** goes to the server every 10 seconds while playing, every 30
   while paused, and on stop.
-- **Events:** the service keeps `GET /api/events` open and refreshes what
-  is on screen, never behind a playing video.
+- **Events:** the service keeps `GET /api/events` open, as a receiver of
+  casts ([Casting](#casting)), and refreshes what is on screen, never
+  behind a playing video.
 - **Requests** (`requests.py` holds the rules and words, `asking.py` the
   listings, `news.py` the service's part): the service reads the summary
   as Kodi starts, on another sign-in or profile, when the event stream
@@ -392,7 +423,8 @@ python -m unittest discover -s . -p "test_*.py"
 ```
 
 `test_e2e.py` runs the add-on against a real server: sign-in, browsing,
-direct play, a converted stream, progress, token renewal and sign-out. It
+direct play, a converted stream, progress, a cast, token renewal and
+sign-out. It
 needs the server and transcoder built
 (`cargo build -p pley-server -p pley-transcoder`) and FFmpeg:
 

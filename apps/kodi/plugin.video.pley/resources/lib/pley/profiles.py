@@ -15,6 +15,9 @@ PIN_MIN, PIN_MAX = 4, 8
 # was answered (a profile picked, a PIN checked, a sign-in approved), so a
 # start asks it again only after Kodi starts over.
 GATE = "pley.gate"
+# Set while that "Who's watching?" is on screen: the service plays no cast
+# from the user's remote past it and its PINs (casting.py).
+PICKING = "pley.picking"
 # What the plugin tells pley's window when it switched over it.
 SWITCHED = "pley.switched"
 

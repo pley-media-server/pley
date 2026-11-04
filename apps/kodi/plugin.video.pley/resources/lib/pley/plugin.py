@@ -415,7 +415,11 @@ class Plugin(asking.Asking):
         item_id = int(self.params["id"])
         listed = self.params.get("pos")
         detail = None
-        if self.resume and listed is None:
+        if (self.params.get("start") or "").isdigit():
+            # Where it was asked to start, whatever Kodi was told: a cast's
+            # place, or its resume point where the add-on's Play resumes.
+            start_ms = int(self.params["start"])
+        elif self.resume and listed is None:
             # Not from a listing: the resume point is in the details.
             detail = client.get("/api/items/%d" % item_id)
             start_ms = (detail.get("user_state") or {}).get("position_ms", 0)

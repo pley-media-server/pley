@@ -27,6 +27,7 @@ from . import api, kodi, livetv, playback, profiles, requests, tiles, tracks, wo
 from . import layout as L
 from .asking import AWAY, FOUND_SHOWN
 from .listing import image, list_item
+from .playback import music_tracks, newest_first
 
 T = kodi.text
 
@@ -378,6 +379,7 @@ class Window(xbmcgui.WindowXML):
             if timer is not None:
                 timer.cancel()
         kodi.clear_property(UI)
+        kodi.clear_property(profiles.PICKING)
         super().close()
 
     def changed(self) -> None:
@@ -429,6 +431,10 @@ class Window(xbmcgui.WindowXML):
         self.show(screen)
 
     def show(self, screen, back: bool = False) -> None:
+        if isinstance(screen, Profiles) and screen.gate:
+            kodi.set_property(profiles.PICKING, "1")
+        else:
+            kodi.clear_property(profiles.PICKING)
         for name, group in L.SCREENS.items():
             if name != screen.name:
                 self.visible(group, False)
@@ -894,15 +900,7 @@ class Window(xbmcgui.WindowXML):
             return self.toast(T("server_error") % e.message, 6)
         if not tracks:
             return self.toast(T("no_tracks"))
-        queue = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-        queue.clear()
-        for track in tracks:
-            queue.add(play_url(track["id"]), list_item(self.session.base, track))
-        if shuffle:
-            queue.shuffle()
-            at = 0
-        else:
-            queue.unshuffle()
+        queue, at = playback.queue(self.session.base, tracks, at, shuffle)
         xbmc.Player().play(queue, startpos=at)
 
     def set_watched(self, item: dict, watched: bool) -> None:
@@ -1014,12 +1012,6 @@ class Window(xbmcgui.WindowXML):
         self.open(Item(self, item["id"], item))
 
 
-def play_url(item_id: int) -> str:
-    """The plugin's play route for `item_id`, which Kodi asks as it comes
-    to it in a playlist."""
-    return plugin_url(route="play", id=item_id)
-
-
 def plugin_url(**params) -> str:
     """One of the plugin's routes: a listing, or an action."""
     return "plugin://%s/?%s" % (kodi.ADDON_ID, urlencode(params))
@@ -1029,21 +1021,6 @@ def run_plugin(**params) -> None:
     """One of the plugin's actions (asking.py's), its dialogs over the
     window; what it did shows once it is done (kodi.refresh_listing)."""
     xbmc.executebuiltin("RunPlugin(%s)" % plugin_url(**params))
-
-
-def newest_first(albums: list) -> list:
-    """An artist's albums as the web lists them: newest first, then by title."""
-    return sorted(albums, key=lambda a: (-(a.get("year") or 0), (a.get("sort_title") or a.get("title") or "").lower()))
-
-
-def music_tracks(session, item: dict) -> list:
-    """An album's tracks, or an artist's, album by album (newest first)."""
-    children = lambda id_: session.get("/api/items/%d/children" % id_).get("items", [])  # noqa: E731
-    if item.get("kind") == "album":
-        return children(item["id"])
-    albums = newest_first(children(item["id"]))
-    lists = api.together(*[lambda a=a: children(a["id"]) for a in albums]) if albums else []
-    return [track for found in lists for track in found or []]
 
 
 def rail_view(library: dict) -> tuple:
@@ -3821,6 +3798,7 @@ def run(plugin, base: str) -> None:
         after, listing = window.after, window.listing
         del window
         kodi.clear_property(UI)
+        kodi.clear_property(profiles.PICKING)
         if after == "choose_server":
             plugin.route_choose_server()
         elif after == "sign_in":

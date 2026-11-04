@@ -1,7 +1,8 @@
 """Asking the server to play something, for the plugin's play route (which
 hands Kodi the answer) and pley's window (which plays it itself): what this
 Kodi plays, the address to play, Kodi's item for it, and what the service
-needs to report progress and offer Skip and Up Next."""
+needs to report progress and offer Skip and Up Next; and Kodi's queues of
+pley's titles, which the window and a cast from the user's remote play."""
 
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ import json
 import os
 import threading
 import time
+from urllib.parse import urlencode
 
 import xbmc
 import xbmcgui
@@ -186,6 +188,50 @@ def load_details(client: api.Client, item_id: int, into: dict) -> None:
         into["item"] = client.get("/api/items/%d" % item_id)
     except api.ApiError as e:
         kodi.log("details of %d: %s" % (item_id, e.message), xbmc.LOGWARNING)
+
+
+# ------------------------------------------------------------ Kodi's queues
+
+
+def play_url(item_id: int, **more) -> str:
+    """The plugin's play route for `item_id`, which Kodi asks as it comes
+    to it; `more`: its kind, and `start`, where it starts whatever Kodi was
+    told (route_play)."""
+    return "plugin://%s/?%s" % (kodi.ADDON_ID, urlencode(dict(route="play", id=item_id, **more)))
+
+
+def queue(base: str, items: list, at: int = 0, shuffle: bool = False, music: bool = True, start_ms: int = 0) -> tuple:
+    """Kodi's music queue (its video queue, `music` false) holding `items`,
+    each through the plugin's play route, which Kodi asks as it comes to
+    it, so each is reported as it plays; and where to start in it: at
+    `at`, `start_ms` into it, or, shuffled, wherever the shuffle put first
+    (the web's audio queue)."""
+    playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC if music else xbmc.PLAYLIST_VIDEO)
+    playlist.clear()
+    for place, item in enumerate(items):
+        more = {"start": int(start_ms)} if place == at and start_ms > 0 and not shuffle else {}
+        playlist.add(play_url(item["id"], **more), listing.list_item(base, item))
+    if shuffle:
+        playlist.shuffle()
+        at = 0
+    else:
+        playlist.unshuffle()
+    return playlist, at
+
+
+def newest_first(albums: list) -> list:
+    """An artist's albums as the web lists them: newest first, then by title."""
+    return sorted(albums, key=lambda a: (-(a.get("year") or 0), (a.get("sort_title") or a.get("title") or "").lower()))
+
+
+def music_tracks(client, item: dict) -> list:
+    """An album's tracks, or an artist's, album by album (newest first)."""
+    children = lambda id_: client.get("/api/items/%d/children" % id_).get("items", [])  # noqa: E731
+    if item.get("kind") == "album":
+        return children(item["id"])
+    albums = newest_first(children(item["id"]))
+    lists = api.together(*[lambda a=a: children(a["id"]) for a in albums]) if albums else []
+    return [track for found in lists for track in found or []]
 
 
 def chosen_quality() -> str:

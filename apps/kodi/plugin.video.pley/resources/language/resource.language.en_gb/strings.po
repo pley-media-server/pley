@@ -1377,3 +1377,15 @@ msgstr ""
 msgctxt "#30562"
 msgid "Live TV was stopped by the server's administrator."
 msgstr ""
+
+msgctxt "#30563"
+msgid "Playing from %s"
+msgstr ""
+
+msgctxt "#30564"
+msgid "Playing from another device"
+msgstr ""
+
+msgctxt "#30565"
+msgid "Nothing to play"
+msgstr ""
