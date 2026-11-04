@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEvent
@@ -141,6 +142,7 @@ fun TvBackdrop(
                     slot,
                     Modifier
                         .fillMaxSize()
+                        .drawnOnceIn(slot)
                         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                         .backdropScrims(scrim),
                 )
@@ -152,6 +154,7 @@ fun TvBackdrop(
                     slot,
                     Modifier
                         .fillMaxSize()
+                        .drawnOnceIn(slot)
                         .graphicsLayer {
                             alpha = slots.upperAlpha.value
                             compositingStrategy = CompositingStrategy.Offscreen
@@ -168,9 +171,9 @@ private data class Backdrop(val image: ArtworkImage?, val title: String)
 
 /**
  * The backdrop's two slots. The next picture loads in the free one, out of
- * sight (under the upper one, or in it at alpha 0), and only then does the
- * upper one fade: in over the lower one, or out to show it. Pictures are
- * opaque, so either is the same crossfade.
+ * sight (under the upper one, or in it at alpha 0) and not drawn, and only
+ * then does that slot draw and the upper one fade: in over the lower one,
+ * or out to show it. Pictures are opaque, so either is the same crossfade.
  */
 @Stable
 private class BackdropSlots(first: Backdrop) {
@@ -191,6 +194,7 @@ private class BackdropSlots(first: Backdrop) {
         val incoming = BackdropSlot(next, swapped = true)
         if (upperShows) lower = incoming else upper = incoming
         incoming.awaitPicture()
+        incoming.drawn = true
         upperShows = !upperShows
         val target = if (upperShows) 1f else 0f
         if (instant) upperAlpha.snapTo(target) else upperAlpha.animateTo(target, tween(PleyMotion.BACKDROP_MS, easing = LinearEasing))
@@ -203,6 +207,9 @@ private class BackdropSlot(val backdrop: Backdrop, swapped: Boolean) {
     val image: ArtworkImage? = backdrop.image?.let { if (swapped) it.copy(fade = false) else it }
     val load = ArtworkLoad()
 
+    /** Whether the slot draws: swapped in, only once its picture is in (or will not come), when it fades. */
+    var drawn by mutableStateOf(!swapped)
+
     /** Until the picture is in, or none of its addresses loads, for at most [PictureWaitMs]. */
     suspend fun awaitPicture() {
         if (image == null || image.isEmpty) return
@@ -212,6 +219,15 @@ private class BackdropSlot(val backdrop: Backdrop, swapped: Boolean) {
 
 /** How long a backdrop waits for its picture before it swaps in anyway. */
 private const val PictureWaitMs = 1_000L
+
+/**
+ * Draws a swapped-in [slot], and so its kept layer, only once it is
+ * [drawn][BackdropSlot.drawn]: drawn while its picture loaded, out of sight,
+ * the layer was made twice, with the placeholder and then with the
+ * picture, each a full-screen pass (13 to 20 ms of the RenderThread on a
+ * Fire TV).
+ */
+private fun Modifier.drawnOnceIn(slot: BackdropSlot): Modifier = drawWithContent { if (slot.drawn) drawContent() }
 
 @Composable
 private fun BackdropPicture(slot: BackdropSlot, modifier: Modifier) {

@@ -25,6 +25,8 @@ describes how they are made.
 - On Fire TV and other devices on Android 9 or earlier, the screen no
   longer stutters for half a second as a held key comes up and the
   pictures where it stopped arrive.
+- On Android TV and Fire TV, the backdrop changes with less of a stutter
+  as focus comes to rest.
 - On Android TV and Fire TV, a held direction key stops at the end of
   the list it moves along, on every page: Up held through Home's rows
   stops on the first row rather than going on to the hero, Down held
