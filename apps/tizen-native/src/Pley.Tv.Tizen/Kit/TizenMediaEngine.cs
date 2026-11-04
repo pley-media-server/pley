@@ -33,7 +33,11 @@ sealed class TizenMediaEngine : IVideoEngine
     /// (<see cref="StartWindow"/>), so the TV's player prepares there rather than at the film's start
     /// and then seeks. A profiling build's listener turns it off and on ("trim off"), for the next film.
     /// </summary>
-    public static bool Trim = true;
+#if PROFILE
+    public static bool Trim { get; set; } = true;
+#else
+    const bool Trim = true;
+#endif
 
     /// <summary>From how far in a film's playlists are trimmed: before it, the seek costs little.</summary>
     const long TrimFromMs = 10_000;
@@ -123,10 +127,10 @@ sealed class TizenMediaEngine : IVideoEngine
 
     /// <summary>
     /// A call into the TV's player that holds its caller (its position, its streams' details, a
-    /// prepare, a seek: 30 to 500 ms each), made off the UI thread so the screen keeps drawing; one
-    /// after another, for every engine, so two never meet in the player. Not those bound to the window
-    /// (the picture's region, letting a player go): made from another thread, letting go held the UI
-    /// 8 s and the app died.
+    /// prepare, a seek: 30 to 500 ms each), made off the UI thread so the screen keeps drawing; the
+    /// calls queued here run one after another, for every engine, in the order they were asked. Not
+    /// those bound to the window (the picture's region, starting it, letting a player go): made from
+    /// another thread, letting go held the UI 8 s and the app died.
     /// </summary>
     static Task<T> OffUi<T>(string what, Func<T> call)
     {
@@ -243,10 +247,11 @@ sealed class TizenMediaEngine : IVideoEngine
         Profile.Mark($"engine: {(source.Hls ? "HLS" : source.Live ? "live stream" : "file")} given, preparing");
         if (source.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) NetTrace.Start();
         NetTrace.Playing(source.Url, () => w.PositionMs);
-        Profile.Enter("engine: told buffering (the screen's update)");
         Say(mine, w.Status);
         SayPlaying(mine, false);
-        Profile.Leave();
+        // A new film, not this one opened again where it can go on (Reopen): an end said too soon is its own.
+        if (!reopening) earlyEndAt = -1;
+        reopening = false;
         _ = Open(source, mine);
     }
 
@@ -310,6 +315,10 @@ sealed class TizenMediaEngine : IVideoEngine
         try
         {
             await Releasing;
+        }
+        catch (Exception)
+        {
+            // The player before failed to go: this one opens all the same.
         }
         finally
         {
@@ -408,7 +417,6 @@ sealed class TizenMediaEngine : IVideoEngine
             preparing = OffUi("prepare (the call)", () => p.PrepareAsync()).Unwrap();
             await preparing;
             if (mine != generation) return;
-            prepared = true;
             Profile.Mark("engine: prepared");
             if (video)
             {
@@ -435,16 +443,28 @@ sealed class TizenMediaEngine : IVideoEngine
                 // The film's duration, as the item says it; else the player's, which counts from the playlist too.
                 durationMs = s.DurationHintMs is > 0 ? 0 : facts.DurationMs + begins;
                 Profile.Mark($"engine: prepared where it resumes, {begins / 1000.0:0.0} s, for {start / 1000.0:0.0} s");
-                if (start < begins) Reopen(start);
-                else if (start - begins >= 3000) await SeekPlayer(p, start, mine);
+                if (start < begins)
+                {
+                    // This stream begins later: a session where the film is, this one no further.
+                    Reopen(start);
+                    return;
+                }
+                if (start - begins >= 3000) await SeekPlayer(p, start, mine);
             }
             else if (start >= 1000) await SeekPlayer(p, start, mine);
             if (mine != generation) return;
-            // Prepared: its tracks can be switched now, before it plays. To play, it waits for its
-            // first picture; said ready here, the screen's spinner went and came back.
+            // Prepared once its timeline is known: a seek before went out on the film's time where the
+            // trimmed player counts from its playlist. One asked meanwhile goes now.
+            prepared = true;
+            if (w.Pending is long meanwhile) _ = Seek(p, w, meanwhile, mine);
+            // Its tracks can be switched now, before it plays (the model's Opened first, then Start). To
+            // play, it waits for its first picture; said ready here, the screen's spinner went and came back.
             w.Opened();
             Post(mine, () => Opened?.Invoke());
-            if (wanted) StartPlayer(mine);
+            Post(mine, () =>
+            {
+                if (wanted) StartPlayer(mine);
+            });
         }
         catch (Exception e)
         {
@@ -631,15 +651,36 @@ sealed class TizenMediaEngine : IVideoEngine
         var s = source;
         if (s == null) return;
         Profile.Mark($"engine: can't go on from {ms / 1000} s in this stream: a new session there");
-        if (RestartAt != null) RestartAt(ms);
-        else Prepare(s with { StartMs = ms }, wanted);
+        reopening = true;
+        if (RestartAt == null)
+        {
+            Prepare(s with { StartMs = ms }, wanted);
+            return;
+        }
+        // Quiet until the session there opens, which takes the server's answer: it played on, with its sound.
+        try
+        {
+            if (player is { State: Media.PlayerState.Playing } p) p.Pause();
+        }
+        catch (Exception)
+        {
+            // Between states: the new session stops it.
+        }
+        // Said after the call that caused it (a seek), as every event: said inside it, the seek went on
+        // with a session already replaced.
+        Post(generation, () => RestartAt?.Invoke(ms));
     }
 
     /// <summary>
     /// The TV's player sent to <paramref name="ms"/> on the film's timeline, off the UI thread (it holds
     /// its caller 70 to 480 ms), after any read asked before it.
     /// </summary>
-    Task SeekCall(Media.Player p, PlaybackWatch w, long ms) => OffUi("seek (the call)", () => p.SetPlayPositionAsync((int)w.ToPlayer(ms), false)).Unwrap();
+    Task SeekCall(Media.Player p, PlaybackWatch w, long ms)
+    {
+        // The player's own time worked out here, on the UI thread: the watch is the UI thread's.
+        var to = (int)w.ToPlayer(ms);
+        return OffUi("seek (the call)", () => p.SetPlayPositionAsync(to, false)).Unwrap();
+    }
 
     /// <summary>The player sent to <paramref name="ms"/> on the film's timeline before it plays, then taken to be there.</summary>
     async Task SeekPlayer(Media.Player p, long ms, int mine)
@@ -1023,8 +1064,11 @@ sealed class TizenMediaEngine : IVideoEngine
 
     const long EarlyEndMs = 60_000;
 
-    /// <summary>Where an end said too soon was last opened again from.</summary>
+    /// <summary>Where an end said too soon was last opened again from, in the film playing.</summary>
     long earlyEndAt = -1;
+
+    /// <summary>The next source is this one opened again (<see cref="Reopen"/>), not another film.</summary>
+    bool reopening;
 
     void Fail(EngineError error)
     {
@@ -1085,7 +1129,6 @@ sealed class TizenMediaEngine : IVideoEngine
         }
     }
 
-    /// <summary>The player let go: stopped, unprepared and disposed.</summary>
     /// <summary>
     /// The players being let go, one after another: the next player claims the video plane only
     /// once they have. Shared by every engine, as the TV has one video plane.
@@ -1134,7 +1177,14 @@ sealed class TizenMediaEngine : IVideoEngine
     /// </summary>
     static async Task Release(Media.Player p, Task? prepare, Task before, bool cover)
     {
-        await before;
+        try
+        {
+            await before;
+        }
+        catch (Exception)
+        {
+            // The one before failed to go: this one goes all the same.
+        }
         // The window drawn without its alpha first (Close).
         if (cover) await Task.Delay(OpaqueMs);
         if (prepare != null)
