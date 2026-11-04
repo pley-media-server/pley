@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
+  while something moves, a small box at the top gives the frames
+  drawn a second, the longest frame and how many were late, and the same
+  goes to the device's log.
+
 ### Changed
 
 - The banner on Android TV and Google TV's home screen shows Pley's mark
@@ -62,10 +69,6 @@ describes how they are made.
   have more than one: chips beside Genre and Year on phones, rows of the
   Filter panel on TVs with a chip for the one chosen. Clear filters clears
   them, Save as… keeps them, and the library opens with them next time.
-- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
-  while something moves, a small box at the top gives the frames
-  drawn a second, the longest frame and how many were late, and the same
-  goes to the device's log.
 
 ### Changed
 
