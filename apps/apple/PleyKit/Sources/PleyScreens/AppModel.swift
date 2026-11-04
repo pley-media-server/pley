@@ -161,6 +161,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     #endif
     /// The item actions and the marks they made.
     public private(set) lazy var actions = ItemActionsModel(app: self)
+    /// The profile's other devices and what plays on them: the remote
+    /// (iPhone, iPad and Mac).
+    public private(set) lazy var remote = RemoteModel(app: self)
     /// The downloads (iPhone, iPad and Mac); none on Apple TV.
     public let downloads: any DownloadsService
     /// The screens as last read, per server and profile, for when the
@@ -989,6 +992,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
         eventsRunning = false
         serverEvents.stop()
     }
+
+    /// The id the profile's remotes cast to this device by: its client id.
+    public var receiverId: String { playerSetup.clientId }
 
     private func restartEvents() {
         stopEvents()

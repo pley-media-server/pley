@@ -6,8 +6,9 @@ private struct StopBody: Encodable, Sendable {
     var message: String?
 }
 
-/// Remote control (docs/API.md, "Remote control" and "Stopping a stream"):
-/// what the profile's other devices play, and commands to them.
+/// Remote control (docs/API.md, "Remote control", "Casting" and "Stopping a
+/// stream"): the profile's other devices, what they play, and commands to
+/// them.
 extension PleyAPI {
     /// `GET /api/sessions`: the profile's own sessions whose players are
     /// there, oldest first, an administrator's too.
@@ -32,6 +33,12 @@ extension PleyAPI {
         _ = try await client.send("DELETE", "/api/sessions/\(Self.segment(sessionId))",
                                   body: message.map { StopBody(message: $0.isEmpty ? nil : $0) },
                                   as: NoContent.self)
+    }
+
+    /// `GET /api/remote/devices`: the profile's own devices that take
+    /// casts, one each, by name, an administrator's too.
+    public func remoteDevices() async throws -> [RemoteDevice] {
+        try await client.get("/api/remote/devices", as: [RemoteDevice].self)
     }
 }
 

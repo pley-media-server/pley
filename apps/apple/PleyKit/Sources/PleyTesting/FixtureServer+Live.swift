@@ -30,6 +30,8 @@ extension FixtureServer {
         var deleted = false
         /// Why it was stopped (`410`); `nil` while it plays.
         var stopped: String?
+        /// Which device watches it, as the server says it (`app-<grant>`).
+        var deviceId = ""
     }
 
     struct Live {
@@ -139,7 +141,7 @@ extension FixtureServer {
             return Answer(status: 200, headers: ["Content-Type": "application/vnd.apple.mpegurl"],
                           body: Data(liveIndex.utf8))
         }
-        return withToken(&s, request, scope: method == "GET" ? "library" : "play") { s, _ in
+        return withToken(&s, request, scope: method == "GET" ? "library" : "play") { s, access in
             if parts.count == 2 && method == "GET" { return summary(s) }
             guard s.live.allowed else {
                 return json(403, ["code": "forbidden", "message": "Live TV isn't open to this account"])
@@ -171,7 +173,7 @@ extension FixtureServer {
                 return Answer(status: 204, headers: [:], body: Data())
             case ("POST", 5, "channels") where parts[4] == "watch":
                 guard let id = Int(parts[3]) else { return notFound(request.path) }
-                return watch(&s, id, request.body)
+                return watch(&s, id, request.body, deviceId: deviceId(access))
             case ("GET", 5, "sessions") where parts[4] == "plan":
                 guard let session = s.live.sessions[parts[3]], !session.deleted else { return notFound(request.path) }
                 if let message = session.stopped { return json(410, ["code": "session_stopped", "message": message]) }
@@ -292,7 +294,7 @@ extension FixtureServer {
         return json(200, ["from": from, "to": to, "programs": programs])
     }
 
-    private static func watch(_ s: inout State, _ channelId: Int, _ body: Data) -> Answer {
+    private static func watch(_ s: inout State, _ channelId: Int, _ body: Data, deviceId: String) -> Answer {
         s.live.watchBodies.append(body)
         guard let channel = s.live.channels.first(where: { $0.id == channelId }) else {
             return json(404, ["code": "not_found", "message": "channel \(channelId) not found"])
@@ -322,7 +324,8 @@ extension FixtureServer {
         s.remote.started += 1
         s.live.sessions[id] = LiveSession(channelId: channelId, key: key, clientId: client,
                                           controls: request["controls"] as? [String] ?? [],
-                                          device: request["device_name"] as? String, order: s.remote.started)
+                                          device: request["device_name"] as? String, order: s.remote.started,
+                                          deviceId: deviceId)
         s.outbox.append(sessionsChanged)
         s.live.recent.removeAll { $0 == channelId }
         s.live.recent.insert(channelId, at: 0)

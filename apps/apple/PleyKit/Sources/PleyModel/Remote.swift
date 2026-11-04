@@ -75,6 +75,21 @@ public struct PlayingState: WireValue {
     public static let buffering = PlayingState(rawValue: "buffering")
 }
 
+/// What kind of device plays a session, or takes casts: as its player said,
+/// else as the server tells from the app.
+public struct DeviceKind: WireValue {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+
+    public static let tv = DeviceKind(rawValue: "tv")
+    public static let phone = DeviceKind(rawValue: "phone")
+    public static let tablet = DeviceKind(rawValue: "tablet")
+    public static let computer = DeviceKind(rawValue: "computer")
+    public static let browser = DeviceKind(rawValue: "browser")
+    /// An app that doesn't say, and apps of other publishers.
+    public static let other = DeviceKind(rawValue: "other")
+}
+
 /// The channel a Live TV session watches; `now`: the programme on.
 public struct PlayingChannel: Codable, Hashable, Sendable {
     public var id: Int
@@ -182,6 +197,10 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
     public var kind: SessionKind
     /// What remotes call the device ("Living room TV", "Pley for iPhone").
     public var device: String?
+    /// Which device plays it ("app-12", "web-9f2c…"): the same for
+    /// everything one sign-in plays, and for the device's receiver.
+    public var deviceId: String
+    public var deviceKind: DeviceKind
     /// What it plays, for `item`.
     public var item: ItemSummary?
     /// What it watches, for `live`.
@@ -207,13 +226,16 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
 
     public var id: String { sessionId }
 
-    public init(sessionId: String, kind: SessionKind = .item, device: String? = nil, item: ItemSummary? = nil,
-                channel: PlayingChannel? = nil, state: PlayingState = .playing, positionMs: Int = 0,
-                durationMs: Int? = nil, updatedAt: Int = 0, ageMs: Int = 0, controls: [Control] = [],
-                audioIndex: Int? = nil, subtitleIndex: Int? = nil, tracks: SessionTracks = SessionTracks()) {
+    public init(sessionId: String, kind: SessionKind = .item, device: String? = nil, deviceId: String = "",
+                deviceKind: DeviceKind = .other, item: ItemSummary? = nil, channel: PlayingChannel? = nil,
+                state: PlayingState = .playing, positionMs: Int = 0, durationMs: Int? = nil, updatedAt: Int = 0,
+                ageMs: Int = 0, controls: [Control] = [], audioIndex: Int? = nil, subtitleIndex: Int? = nil,
+                tracks: SessionTracks = SessionTracks()) {
         self.sessionId = sessionId
         self.kind = kind
         self.device = device
+        self.deviceId = deviceId
+        self.deviceKind = deviceKind
         self.item = item
         self.channel = channel
         self.state = state
@@ -232,6 +254,8 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         sessionId = try c.decode(String.self, forKey: .sessionId)
         kind = try c.value(.kind, or: .item)
         device = try c.decodeIfPresent(String.self, forKey: .device)
+        deviceId = try c.value(.deviceId, or: "")
+        deviceKind = try c.value(.deviceKind, or: .other)
         // A title or channel that can't be read leaves the session listed all the same.
         item = try? c.decodeIfPresent(ItemSummary.self, forKey: .item)
         channel = try? c.decodeIfPresent(PlayingChannel.self, forKey: .channel)
@@ -249,4 +273,51 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
 
     /// Whether its player obeys `control`.
     public func obeys(_ control: Control) -> Bool { controls.contains(control) }
+}
+
+/// What a device plays when a remote casts to it: `item` for titles,
+/// music and playlists, `live` for Live TV's channels.
+public struct CastKind: WireValue {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+
+    public static let item = CastKind(rawValue: "item")
+    public static let live = CastKind(rawValue: "live")
+}
+
+/// One of the profile's devices that takes casts (`GET /api/remote/devices`):
+/// an app whose event stream names it as a receiver, while that is open.
+public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
+    /// The app's own id for the device: where casts go.
+    public var receiverId: String
+    /// As sessions say it: what the device plays has the same.
+    public var deviceId: String
+    /// What remotes call it, as a session's `device`; `nil` when the server can't say.
+    public var name: String?
+    public var kind: DeviceKind
+    /// What it plays when cast to.
+    public var casts: [CastKind]
+
+    public var id: String { receiverId }
+
+    public init(receiverId: String, deviceId: String = "", name: String? = nil, kind: DeviceKind = .other,
+                casts: [CastKind] = []) {
+        self.receiverId = receiverId
+        self.deviceId = deviceId
+        self.name = name
+        self.kind = kind
+        self.casts = casts
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        receiverId = try c.decode(String.self, forKey: .receiverId)
+        deviceId = try c.value(.deviceId, or: "")
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        kind = try c.value(.kind, or: .other)
+        casts = try c.value(.casts, or: [])
+    }
+
+    /// Whether it plays `kind` when cast to.
+    public func takes(_ kind: CastKind) -> Bool { casts.contains(kind) }
 }

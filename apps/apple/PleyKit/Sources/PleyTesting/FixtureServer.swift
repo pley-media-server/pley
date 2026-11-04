@@ -250,6 +250,9 @@ public final class FixtureServer: Sendable {
         let durationMs: Int
         /// The order sessions started in, for `GET /api/sessions`.
         var order = 0
+        /// Which device plays it, as the server says it: its sign-in's (`app-<grant>`), and what kind.
+        var deviceId = ""
+        var deviceKind = "other"
         /// The tracks it plays, as its play request started and its reports say (subtitles `-1`: none).
         var audioIndex: Int?
         var subtitleIndex: Int?
@@ -805,7 +808,9 @@ public final class FixtureServer: Sendable {
                 return image(width: 320, height: 180, type: "public.jpeg", contentType: "image/jpeg")
             }
         case ("POST", 2, "playback"):
-            return withToken(&s, request, scope: "play") { s, _ in startSession(&s, request.body) }
+            return withToken(&s, request, scope: "play") { s, access in
+                startSession(&s, request.body, deviceId: deviceId(access))
+            }
         case ("GET", 3, "playback") where parts[2] == "network":
             return withToken(&s, request, scope: "play") { s, _ in
                 guard s.network.routes else { return notFound(request.path) }
@@ -875,7 +880,7 @@ public final class FixtureServer: Sendable {
         }
     }
 
-    private static func startSession(_ s: inout State, _ body: Data) -> Answer {
+    private static func startSession(_ s: inout State, _ body: Data, deviceId: String) -> Answer {
         s.playbackBodies.append(body)
         if let status = s.playbackFails { return json(status, ["code": "unavailable", "message": "no transcode free"]) }
         let asked = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
@@ -905,7 +910,8 @@ public final class FixtureServer: Sendable {
                                      controls: asked["controls"] as? [String] ?? [],
                                      device: asked["device_name"] as? String,
                                      positionMs: asked["start_ms"] as? Int ?? 0, durationMs: playable.durationMs,
-                                     order: s.remote.started,
+                                     order: s.remote.started, deviceId: deviceId,
+                                     deviceKind: asked["device_kind"] as? String ?? "other",
                                      audioIndex: playable.audio.isEmpty ? nil : audioIndex,
                                      // As the server says until the player reports: burned in, else the profile's.
                                      subtitleIndex: burned ?? playable.selectedSubtitle ?? -1)

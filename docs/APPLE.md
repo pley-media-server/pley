@@ -58,7 +58,7 @@ in to another server starts every section again at Home.
   Libraries. While music has a queue, the mini player sits above the tab
   bar (on iOS 26.1 and later, in the tab bar's own accessory, whose words
   stop growing at the largest size below the accessibility sizes, as the
-  tab bar's own do). While another of the profile's devices plays, the
+  tab bar's own do). While another of the profile's devices is on, the
   remote's bar sits there too ([Remote control](#remote-control)).
 - **iPad** at regular width, and the **Mac**: a sidebar with Home, Live
   TV when it shows, Search and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
@@ -66,7 +66,7 @@ in to another server starts every section again at Home.
   picture, name and server, which opens Me. The Mac's window is at least
   800 by 560 points, and opens at 1100 by 720. While music has a queue,
   the mini player sits at the foot of the page beside the sidebar. While
-  another of the profile's devices plays, the remote's card sits above it
+  another of the profile's devices is on, the remote's card sits above it
   on iPad, and the Mac's toolbar has the remote's button
   ([Remote control](#remote-control)).
 - **Apple TV**: tabs across the top: Search (a magnifying glass alone,
@@ -1312,46 +1312,85 @@ address or a token.
 ### Remote control
 
 A profile's devices control what plays on its other devices
-([API.md](API.md#remote-control)): pause the TV from the phone, skip a
-track playing on the Mac. iPhone, iPad and Mac are remotes and players;
-Apple TV is only a player, as the other TV apps are.
+([API.md](API.md#remote-control), [Casting](API.md#casting)): pause the
+TV from the phone, change its subtitles, skip a track playing on the
+Mac. iPhone, iPad and Mac are remotes and players; Apple TV is only a
+player, as the other TV apps are.
 
-**The remote** lists the profile's sessions (`GET /api/sessions`) other
-than the ones this device plays, read again on `sessions_changed`, when
-the event stream connects again and when the app comes back to the
-front.
+**The remote** lists the profile's other devices that are on: those that
+take casts (`GET /api/remote/devices`), whose apps are open, and what
+plays on each (`GET /api/sessions`), the two merged by `device_id`. This
+device is left out: the sessions it plays, its own receiver, and any
+session of its `device_id` whose end the server hasn't heard yet. A
+device whose app takes no casts (a Jellyfin or Plex app) is listed while
+it plays. Both lists are read again on `sessions_changed` (a receiver
+appearing or going sends it too), when the event stream connects again
+and when the app comes back to the front.
 
 - **iPhone and iPad**: a bar above the tabs with the device and what
-  plays there, or how many devices and their names, and Play or Pause
-  when one device plays and its player obeys it: pausing the TV takes one
-  tap. From iOS 26.1 it is the tab bar's own accessory, where the mini
-  player sits too; the accessory holds one of them, so while music plays
-  here the mini player keeps it and has the remote's button at its end.
-  Before iOS 26.1, and at the foot of the page beside the iPad's sidebar,
-  it is a card above the mini player. Choosing it opens the remote as a
-  sheet, which closes by itself once nothing plays on another device.
+  plays there ("Ready to play" on one that plays nothing), or how many
+  devices and their names, and Play or Pause when one device plays and
+  its player obeys it: pausing the TV takes one tap. From iOS 26.1 it is
+  the tab bar's own accessory, where the mini player sits too; the
+  accessory holds one of them, so while music plays here the mini player
+  keeps it and has the remote's button at its end. Before iOS 26.1, and
+  at the foot of the page beside the iPad's sidebar, it is a card above
+  the mini player. Choosing it opens the remote as a sheet, which closes
+  by itself once no other device is on.
 - **Mac**: a remote button in the toolbar, as in the web app's header,
   opens the same remote as a popover.
 
-The remote has a row per device, one after another: the poster (a
-channel's logo on Live TV), the title (the channel and what's on), the
-device's name ("Living room TV", numbered when two have the same), and
-for a title how far it is, with a seek slider when its player seeks.
-Under them are the buttons the player listed: Previous (Previous channel
-on Live TV), Back 10 seconds, Play or Pause, Forward 30 seconds and Next
-(Next channel), and Stop, which every player obeys. The place moves on
-while it plays: the last report, plus how long ago the server says that
-was, plus the time since the answer came, by this device's clock. A
-command dims the buttons until the list shows the player acted on it (a
-new state, title or channel, or a report from the place sent to); after
-5 seconds without that the list is read once more, and the row says
+**Your devices**: a row per device, those playing first, then those
+ready to play, each by name. A row has the device's kind as a symbol (a
+TV, an iPhone, an iPad, a laptop, a globe for a browser, a question mark
+for the rest), its name ("Living room TV", numbered when two have the
+same, in the order of their ids so a number stays as they play and stop),
+and what it plays (the title, or the channel's number and name) with a
+thin line of how far, or "Ready to play". A device with several sessions
+shows its newest. Choosing a device shows its controls: on iPhone (and an
+iPad in a narrow window) on a page of their own, which Back leaves; on
+iPad and the Mac below the list, the row marked. One device alone shows
+its controls at once. The choice is kept while the remote is open.
+
+A playing device's controls, top to bottom:
+
+1. the poster (a channel's logo), the device, and what plays: an
+   episode's show, season and number ("Show · S1 · E2"), then its title;
+   a track's title, then its artist; a channel's number and name, then
+   what's on; anything else, its title;
+2. for a title, how far it is, with a seek slider when its player seeks;
+3. the buttons, centred: Previous (Previous channel) where the player
+   listed it, Back 10 seconds and Forward 30 seconds where it skips, Play
+   or Pause, and Next (Next channel), which shows for every episode, track
+   and channel, and for a title with one after it, dimmed when the player
+   doesn't take it;
+4. **Audio** and **Subtitles**, where the player listed them and the file
+   has tracks to pick (more than one audio track; any subtitles): each a
+   menu of the session's tracks (`tracks`), named as the player's own
+   menus name them ("French – Commentary (EAC3 5.1)", "English (SRT,
+   Forced)"), Subtitles with Off first, the one playing ticked
+   (`audio_index`, `subtitle_index`). Choosing one sends
+   `{ command: "audio" | "subtitles", stream_index }` (`-1` for Off);
+5. Stop, which every player obeys.
+
+A device ready to play shows its symbol and name, "Nothing playing" and
+"Find something to watch or listen to, then choose Play on… and this
+device."
+
+The place moves on while it plays: the last report, plus how long ago
+the server says that was, plus the time since the answer came, by this
+device's clock. A command dims the buttons until the list shows the
+player acted on it (a new state, title or channel, a report from the
+place sent to, or, for a track, the track it plays); after 5 seconds
+without that the list is read once more, and the device's controls say
 "Living room TV didn't answer." A Next or Previous with nothing there
-says nothing. A `404` means the device stopped meanwhile: its row goes.
-Other refusals say what happened: "… can't do that." (`409`, the list is
-read again), "Too many at once: try again in a moment." (`429`), and the
-server's own words otherwise. VoiceOver reads each button with its
-device ("Pause on Living room TV"), the slider's swipes go back 10 and
-forward 30 seconds, and a refusal is read out as it shows.
+says nothing. A `404` means the device stopped meanwhile: its session
+goes. Other refusals say what happened: "… can't do that." (`409`, the
+list is read again), "Too many at once: try again in a moment." (`429`),
+and the server's own words otherwise. VoiceOver reads each button with
+its device ("Pause on Living room TV", "Audio on Living room TV"), the
+slider's swipes go back 10 and forward 30 seconds, and a refusal is read
+out as it shows.
 
 **The players obey** `player_command` for the session they play now and
 ignore any other, then report at once. Each says what it obeys in its

@@ -84,6 +84,7 @@ import Testing
         #expect(listed.tracks.audio.map(\.index) == [1, 2] && listed.tracks.subtitles.map(\.index) == [3])
         // What the play request started with, until the player says otherwise.
         #expect(listed.audioIndex == 1 && listed.subtitleIndex == SessionTracks.off)
+        #expect(listed.deviceId.hasPrefix("app-") && listed.deviceKind == .other)
 
         try await api.send(.audio(2), to: info.sessionId)
         try await api.send(.subtitles(nil), to: info.sessionId)

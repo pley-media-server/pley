@@ -12,7 +12,7 @@ import SwiftUI
 /// the player is open VoiceOver reads only the player. While music has a
 /// queue, the mini player sits above the tab bar (in its bottom accessory
 /// from iOS 26.1) or at the foot of the sidebar layout's page, and Now
-/// Playing opens from it. While another of the profile's devices plays,
+/// Playing opens from it. While another of the profile's devices is on,
 /// the remote's bar opens the remote as a sheet on iPhone and iPad: in the
 /// tab bar's accessory from iOS 26.1, or, while music plays here, a button
 /// beside the mini player there; before, a card above the mini player. On
@@ -22,15 +22,14 @@ import SwiftUI
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
-    @StateObject private var remote: RemoteModel
-    @State private var remoteOpen = false
+    @ObservedObject private var remote: RemoteModel
     private let layout = WideLayout()
     @Environment(\.dynamicTypeSize) private var typeSize
 
     init(app: AppModel) {
         self.app = app
         _shell = ObservedObject(wrappedValue: app.shell)
-        _remote = StateObject(wrappedValue: RemoteModel(app: app))
+        _remote = ObservedObject(wrappedValue: app.remote)
     }
 
     var body: some View {
@@ -56,12 +55,13 @@ struct ShellView: View {
                 NowPlayingView(app: app) { shell.nowPlayingOpen = false }
             }
         }
-        // It closes by itself once nothing plays on another device, and opens closed when something plays again.
-        .sheet(isPresented: Binding(get: { remoteOpen && !remote.others.isEmpty }, set: { remoteOpen = $0 })) {
-            RemoteSheet(app: app, remote: remote) { remoteOpen = false }
+        // It closes by itself once no other device is on, and opens closed when one is again.
+        .sheet(isPresented: Binding(get: { remote.presented && !remote.devices.isEmpty },
+                                    set: { remote.presented = $0 })) {
+            RemoteSheet(app: app, remote: remote) { remote.presented = false }
         }
-        .onValueChange(of: remote.others.isEmpty) { empty in
-            if empty { remoteOpen = false }
+        .onValueChange(of: remote.devices.isEmpty) { empty in
+            if empty { remote.presented = false }
         }
         #endif
         // The profile's sessions are read again whenever they may have changed.
@@ -75,7 +75,7 @@ struct ShellView: View {
         if !inAccessory {
             VStack(spacing: 0) {
                 #if os(iOS)
-                RemoteBar(remote: remote) { remoteOpen = true }
+                RemoteBar(remote: remote) { remote.presented = true }
                 #endif
                 FootMiniPlayer(app: app)
             }
@@ -109,14 +109,14 @@ struct ShellView: View {
         }
         #if os(iOS)
         if #available(iOS 26.1, *) {
-            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying || !remote.others.isEmpty) {
+            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying || !remote.devices.isEmpty) {
                 if shell.nowPlaying {
                     HStack(spacing: 0) {
                         MiniPlayer(app: app, inAccessory: true)
-                        RemoteAccessoryButton(remote: remote) { remoteOpen = true }
+                        RemoteAccessoryButton(remote: remote) { remote.presented = true }
                     }
                 } else {
-                    RemoteBar(remote: remote, inAccessory: true) { remoteOpen = true }
+                    RemoteBar(remote: remote, inAccessory: true) { remote.presented = true }
                 }
             }
         } else {

@@ -90,6 +90,56 @@ struct RemoteDecodingTests {
             == .playerCommand(sessionId: "a1", command: .pause))
     }
 
+    @Test func aSessionSaysItsDeviceAndItsTracks() throws {
+        let session = try decode(PlayingSession.self, #"""
+        {"session_id":"a1","kind":"item","device":"Living room TV","device_id":"app-12","device_kind":"tv",
+         "item":{"id":101,"library_id":1,"kind":"movie","title":"Test Movie"},"state":"playing","position_ms":0,
+         "controls":["play","pause","audio","subtitles"],"audio_index":2,"subtitle_index":-1,
+         "tracks":{"audio":[{"index":1,"language":"eng","title":null,"codec":"aac","channels":2,"default":true,
+                             "forced":false},
+                            {"index":2,"language":"fre","title":"Commentary","codec":"eac3","channels":6,
+                             "default":false,"forced":false}],
+                   "subtitles":[{"index":3,"language":"eng","title":null,"codec":"subrip","channels":null,
+                                 "default":false,"forced":true},
+                                {"index":1000,"language":"fre","title":null,"codec":"subrip","channels":null,
+                                 "default":false,"forced":false}]}}
+        """#)
+        #expect(session.deviceId == "app-12" && session.deviceKind == .tv)
+        #expect(session.obeys(.audio) && session.obeys(.subtitles))
+        #expect(session.audioIndex == 2 && session.subtitleIndex == SessionTracks.off)
+        #expect(session.tracks.audio.map(\.index) == [1, 2])
+        #expect(session.tracks.audio[0].default && session.tracks.subtitles[0].forced)
+        // Labelled as the player's own menus label tracks; from 1000, beside the video.
+        #expect(session.tracks.audio.map { Words.stream($0.stream(.audio)) }
+            == ["English (AAC Stereo)", "French – Commentary (EAC3 5.1)"])
+        #expect(session.tracks.subtitles.map { Words.stream($0.stream(.subtitle)) }
+            == ["English (SRT, Forced)", "French (SRT, External)"])
+
+        // Live TV has neither tracks nor indexes; an older server says nothing of them.
+        let live = try decode(PlayingSession.self, #"""
+        {"session_id":"b2","kind":"live","device_id":"web-9f2c","device_kind":"browser",
+         "audio_index":null,"subtitle_index":null,"tracks":{"audio":[],"subtitles":[]}}
+        """#)
+        #expect(live.tracks == SessionTracks() && live.audioIndex == nil && live.subtitleIndex == nil)
+        #expect(live.deviceKind == .browser)
+        let older = try decode(PlayingSession.self, #"{"session_id":"c3","tracks":{"audio":7}}"#)
+        #expect(older.deviceId.isEmpty && older.deviceKind == .other && older.tracks == SessionTracks())
+    }
+
+    @Test func theDevicesThatTakeCasts() throws {
+        let devices = try decode([RemoteDevice].self, #"""
+        [{"receiver_id":"apple-1","device_id":"app-12","name":"Living room TV","kind":"tv","casts":["item","live"]},
+         {"receiver_id":"web.kitchen:1","device_id":"web-9f2c","name":null,"kind":"browser","casts":["item","radio"]}]
+        """#)
+        #expect(devices.map(\.id) == ["apple-1", "web.kitchen:1"])
+        #expect(devices[0].deviceId == "app-12" && devices[0].name == "Living room TV" && devices[0].kind == .tv)
+        #expect(devices[0].takes(.item) && devices[0].takes(.live))
+        // A kind this app doesn't know reads, and takes nothing it plays.
+        #expect(devices[1].name == nil && devices[1].takes(.item) && !devices[1].takes(.live))
+        #expect(devices[1].casts.last == CastKind(rawValue: "radio"))
+        #expect(try decode(RemoteDevice.self, #"{"receiver_id":"x"}"#) == RemoteDevice(receiverId: "x"))
+    }
+
     @Test func reportsSayTheTracksPlaying() throws {
         let report = try object(ProgressReport(positionMs: 5_000, state: .playing, sessionId: "a1", audioIndex: 2,
                                                subtitleIndex: SessionTracks.off))

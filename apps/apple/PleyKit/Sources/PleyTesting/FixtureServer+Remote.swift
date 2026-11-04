@@ -1,13 +1,18 @@
 import Foundation
 import PleyModel
 
-/// Remote control, as the server does it (docs/API.md, "Remote control"):
-/// the profile's sessions whose players are there (`GET /api/sessions`),
-/// each with its file's tracks; commands to them, checked and passed on
-/// as `player_command` on the event streams; and a stop from another
-/// device (`DELETE /api/sessions/{id}`). Sessions starting and ending,
-/// and reports that pause, play, jump or change track, send
+/// Remote control, as the server does it (docs/API.md, "Remote control"
+/// and "Casting"): the profile's sessions whose players are there
+/// (`GET /api/sessions`), each with its device and its file's tracks;
+/// commands to them, checked and passed on as `player_command` on the
+/// event streams; a stop from another device (`DELETE /api/sessions/{id}`);
+/// and the devices that take casts (`GET /api/remote/devices`), which a
+/// test adds. Sessions starting and ending, reports that pause, play, jump
+/// or change track, and receivers a test adds or takes away send
 /// `sessions_changed`.
+///
+/// A device is a sign-in, as on the server: what one token plays shares
+/// `app-<grant>`.
 extension FixtureServer {
     struct Remote {
         /// Sessions started, titles' and live ones', for their order.
@@ -17,6 +22,20 @@ extension FixtureServer {
         var refusal: (status: Int, code: String)?
         /// When each title's session last reported, for its jumps.
         var reportedAt: [String: Date] = [:]
+        /// The devices that take casts, by receiver id.
+        var receivers: [String: FixtureReceiver] = [:]
+        /// Receivers named so far, for their order: the newest of a device is its own.
+        var named = 0
+    }
+
+    /// A device that takes casts.
+    struct FixtureReceiver: Sendable {
+        var receiverId: String
+        var deviceId: String
+        var name: String?
+        var kind: String
+        var casts: [String]
+        var order: Int
     }
 
     /// A command as it came: the session and the JSON body.
@@ -57,10 +76,60 @@ extension FixtureServer {
         for event in events { pushEvent(event) }
     }
 
+    /// Another of the profile's devices takes casts: receiver `id` of the
+    /// device `deviceId`, named `name`, of `kind`, taking `casts`. The
+    /// remotes hear of it (`sessions_changed`).
+    public func addReceiver(_ id: String, deviceId: String, name: String?, kind: String = "tv",
+                            casts: [String] = ["item", "live"]) {
+        state.withLock { s in
+            s.remote.named += 1
+            s.remote.receivers[id] = FixtureReceiver(receiverId: id, deviceId: deviceId, name: name, kind: kind,
+                                                     casts: casts, order: s.remote.named)
+        }
+        pushEvent(Self.sessionsChanged)
+    }
+
+    /// Receiver `id` goes, as its app's stream closes.
+    public func removeReceiver(_ id: String) {
+        state.withLock { s in s.remote.receivers[id] = nil }
+        pushEvent(Self.sessionsChanged)
+    }
+
+    /// Item `itemId` plays on another of the profile's devices, `deviceId`,
+    /// whose player obeys `controls`: its session's id. It starts as the
+    /// server starts a session, with the title's tracks.
+    @discardableResult
+    public func playElsewhere(_ itemId: Int, deviceId: String, device: String?, kind: String = "tv",
+                              controls: [String] = ["play", "pause", "seek", "skip"], positionMs: Int = 0) -> String {
+        let id = Self.randomToken()
+        let events = state.withLock { s -> [String] in
+            guard let playable = s.playables[itemId] else { return [] }
+            s.remote.started += 1
+            s.sessions[id] = PlaySession(itemId: itemId, key: "pley_mk_" + Self.randomToken(), method: "direct",
+                                         controls: controls, device: device, positionMs: positionMs,
+                                         durationMs: playable.durationMs, order: s.remote.started,
+                                         deviceId: deviceId, deviceKind: kind,
+                                         audioIndex: playable.selectedAudio ?? playable.audio.first?.index,
+                                         subtitleIndex: playable.selectedSubtitle ?? -1)
+            return [Self.sessionsChanged]
+        }
+        for event in events { pushEvent(event) }
+        return id
+    }
+
     // MARK: Routes
 
     static func remote(_ s: inout State, _ request: Request, _ parts: [String]) -> Answer? {
-        guard parts.count >= 2, parts[0] == "api", parts[1] == "sessions" else { return nil }
+        guard parts.count >= 2, parts[0] == "api" else { return nil }
+        if parts.count >= 3, parts[1] == "remote", parts[2] == "devices" {
+            switch (request.method, parts.count) {
+            case ("GET", 3):
+                return withToken(&s, request, scope: "play") { s, _ in json(200, devices(s)) }
+            default:
+                return nil
+            }
+        }
+        guard parts[1] == "sessions" else { return nil }
         switch (request.method, parts.count) {
         case ("GET", 2):
             return withToken(&s, request, scope: "play") { s, _ in json(200, playing(s)) }
@@ -72,6 +141,9 @@ extension FixtureServer {
             return nil
         }
     }
+
+    /// The device a token's sign-in is, as the server names one of its apps.
+    static func deviceId(_ access: Access) -> String { "app-\(access.grant)" }
 
     /// A title's report: its place, state and tracks, and `sessions_changed` when it paused, played, jumped
     /// or changed track.
@@ -107,6 +179,8 @@ extension FixtureServer {
                 "duration_ms": session.durationMs > 0 ? session.durationMs : NSNull(),
                 "updated_at": Int(Date().timeIntervalSince1970), "age_ms": 0, "controls": session.controls,
             ]
+            json["device_id"] = session.deviceId
+            json["device_kind"] = session.deviceKind
             json["audio_index"] = session.audioIndex.map { $0 as Any } ?? NSNull()
             json["subtitle_index"] = session.subtitleIndex.map { $0 as Any } ?? NSNull()
             let tracks: [String: Any] = ["audio": playable.audio.map(track),
@@ -125,6 +199,8 @@ extension FixtureServer {
                 "state": "playing", "position_ms": 0, "duration_ms": NSNull(),
                 "updated_at": Int(Date().timeIntervalSince1970), "age_ms": 0, "controls": session.controls,
             ]
+            json["device_id"] = session.deviceId
+            json["device_kind"] = "other"
             json["audio_index"] = NSNull()
             json["subtitle_index"] = NSNull()
             let tracks: [String: Any] = ["audio": [Any](), "subtitles": [Any]()]
@@ -142,6 +218,21 @@ extension FixtureServer {
         json["title"] = stream.title.map { $0 as Any } ?? NSNull()
         json["channels"] = stream.channels.map { $0 as Any } ?? NSNull()
         return json
+    }
+
+    /// The devices that take casts: one per device, its newest receiver, by name.
+    private static func devices(_ s: State) -> [[String: Any]] {
+        var newest: [String: FixtureReceiver] = [:]
+        for receiver in s.remote.receivers.values where (newest[receiver.deviceId]?.order ?? 0) < receiver.order {
+            newest[receiver.deviceId] = receiver
+        }
+        let sorted = newest.values.sorted { ($0.name ?? "", $0.receiverId) < ($1.name ?? "", $1.receiverId) }
+        return sorted.map { receiver -> [String: Any] in
+            var json: [String: Any] = ["receiver_id": receiver.receiverId, "device_id": receiver.deviceId,
+                                       "kind": receiver.kind, "casts": receiver.casts]
+            json["name"] = receiver.name.map { $0 as Any } ?? NSNull()
+            return json
+        }
     }
 
     /// Checks a command as the server does and passes it on to the event streams.

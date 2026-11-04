@@ -106,3 +106,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   your remotes, the web's too, while Pley is open or music plays.
 - Your remotes can change the audio and subtitles of a movie or an episode
   playing on an Apple device, and see which ones it plays.
+- The remote lists all your other devices that are on, playing or ready
+  to play, each with its kind: choose one for its controls, with Audio and
+  Subtitles, and Next wherever there is one.

@@ -2,17 +2,38 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-// The remote (docs/APPLE.md, Remote control): what the profile plays on
-// its other devices, and the commands each player obeys. On iPhone and
-// iPad a bar above the tabs opens it as a sheet; on the Mac a toolbar
-// button opens it as a popover. Both show `RemotePanel`.
+// The remote (docs/APPLE.md, Remote control): the profile's other devices
+// that are on, what plays on each, and the commands each player obeys. On
+// iPhone and iPad a bar above the tabs opens it as a sheet; on the Mac a
+// toolbar button opens it as a popover. Its list of devices is
+// `RemoteDeviceList`, a device's controls `RemoteDeviceControls`.
+
+extension DeviceKind {
+    /// The symbol the remote shows for a device of this kind.
+    var symbol: String {
+        switch self {
+        case .tv: "tv"
+        case .phone: "iphone"
+        case .tablet: "ipad"
+        case .computer: "laptopcomputer"
+        case .browser: "globe"
+        default: "questionmark"
+        }
+    }
+}
+
+extension RemoteModel.Device {
+    /// What it plays, as its row says it; "Ready to play" while it plays nothing.
+    var line: String { entry.map { Words.remotePlaying($0.session) } ?? Words.readyToPlay }
+}
 
 #if os(iOS)
-/// What plays on the profile's other devices, above the tabs: the device
-/// and what plays there, and Play or Pause when there is one device whose
-/// player obeys it. A tap elsewhere opens the remote. From iOS 26.1 it is
-/// the tab bar's bottom accessory, which draws its own glass; before, and
-/// at the foot of the sidebar layout's page, a card of its own.
+/// The profile's other devices, above the tabs: the device and what plays
+/// there (or "Ready to play"), or how many devices and their names, and
+/// Play or Pause when there is one device whose player obeys it. A tap
+/// elsewhere opens the remote. From iOS 26.1 it is the tab bar's bottom
+/// accessory, which draws its own glass; before, and at the foot of the
+/// sidebar layout's page, a card of its own.
 struct RemoteBar: View {
     @ObservedObject var remote: RemoteModel
     /// In the tab bar's accessory, which draws its own background and has a height of its own.
@@ -21,12 +42,12 @@ struct RemoteBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let others = remote.others
-        if !others.isEmpty {
+        let devices = remote.devices
+        if !devices.isEmpty {
             let names = remote.names
-            let device = others.count == 1 ? names[others[0].id] ?? "" : Words.pluralize(others.count, "device")
-            let playing = others.count == 1 ? Words.remoteTitle(others[0].session)
-                : others.compactMap { names[$0.id] }.joined(separator: ", ")
+            let one = devices.count == 1 ? devices[0] : nil
+            let device = one.map { names[$0.id] ?? Words.unnamedDevice } ?? Words.pluralize(devices.count, "device")
+            let playing = one?.line ?? devices.compactMap { names[$0.id] }.joined(separator: ", ")
             let lines = typeSize.isAccessibilitySize && !inAccessory ? 3 : 1
             HStack(spacing: 4) {
                 Button(action: open) {
@@ -51,12 +72,12 @@ struct RemoteBar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(Words.remoteLabel(others.count)), \(device), \(playing)")
+                .accessibilityLabel("\(Words.remoteLabel(devices.count)), \(device), \(playing)")
                 .accessibilityHint("Opens the remote")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("remote.bar")
-                if others.count == 1 {
-                    toggle(others[0], device: device)
+                if let entry = one?.entry {
+                    toggle(entry, device: device)
                 }
             }
             .padding(.horizontal, 12)
@@ -102,14 +123,14 @@ struct RemoteBar: View {
 }
 
 /// The remote's button beside the mini player in the tab bar's accessory,
-/// while this device plays music and another device plays too: the
-/// accessory holds one of them, and the music playing here comes first.
+/// while this device plays music and another device is on: the accessory
+/// holds one of them, and the music playing here comes first.
 struct RemoteAccessoryButton: View {
     @ObservedObject var remote: RemoteModel
     let open: () -> Void
 
     var body: some View {
-        let count = remote.others.count
+        let count = remote.devices.count
         if count > 0 {
             Button(action: open) {
                 Image(systemName: "av.remote")
@@ -128,57 +149,105 @@ struct RemoteAccessoryButton: View {
 }
 
 /// The remote as a sheet over the app, closed with Done, or by itself once
-/// nothing plays on another device.
+/// no other device is on. On a phone the devices are a list, and choosing
+/// one opens its controls on a page of their own (Back returns to the
+/// list); one device alone shows its controls at once. On an iPad the
+/// controls of the device chosen show below the list.
 struct RemoteSheet: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
     let close: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: path) {
+            root
+                .navigationTitle(Words.remoteTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { done }
+                .navigationDestination(for: String.self) { id in
+                    page(id)
+                }
+        }
+        .presentationDetents([.medium, .large])
+        .accessibilityIdentifier("remote.sheet")
+    }
+
+    /// Whether a device's controls are a page of their own: on a phone, with several devices.
+    private var paged: Bool { sizeClass == .compact && remote.devices.count > 1 }
+
+    /// The page showing over the list: the device chosen, while it is on.
+    private var path: Binding<[String]> {
+        Binding(get: {
+            guard paged, let chosen = remote.chosen, remote.devices.contains(where: { $0.id == chosen }) else {
+                return []
+            }
+            return [chosen]
+        }, set: { remote.chosen = $0.last })
+    }
+
+    @ViewBuilder private var root: some View {
+        let devices = remote.devices
+        if sizeClass != .compact {
             ScrollView {
                 RemotePanel(app: app, remote: remote)
                     .frame(maxWidth: 640)
                     .frame(maxWidth: .infinity)
             }
-            .navigationTitle(Words.remoteTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", action: close).accessibilityIdentifier("remote.done")
-                }
+        } else if devices.count == 1 {
+            ScrollView {
+                RemoteDeviceControls(app: app, remote: remote, device: devices[0])
+            }
+        } else {
+            ScrollView {
+                RemoteDeviceList(remote: remote, selected: nil, chevrons: true)
             }
         }
-        .presentationDetents([.medium, .large])
-        .accessibilityIdentifier("remote.sheet")
+    }
+
+    @ViewBuilder private func page(_ id: String) -> some View {
+        if let device = remote.devices.first(where: { $0.id == id }) {
+            ScrollView {
+                RemoteDeviceControls(app: app, remote: remote, device: device)
+            }
+            .navigationTitle(remote.name(device))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { done }
+        }
+    }
+
+    private var done: some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Done", action: close).accessibilityIdentifier("remote.done")
+        }
     }
 }
 #endif
 
 #if os(macOS)
-/// The toolbar's remote button, while another of the profile's devices
-/// plays: it opens the remote as a popover, as the web's header does.
+/// The toolbar's remote button, while another of the profile's devices is
+/// on: it opens the remote as a popover, as the web's header does.
 struct RemoteToolbarButton: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
-    @State private var open = false
 
     var body: some View {
-        let count = remote.others.count
+        let count = remote.devices.count
         if count > 0 {
             Button {
-                open.toggle()
+                remote.presented.toggle()
             } label: {
                 Label(Words.remoteTitle, systemImage: "av.remote")
             }
             .help(Words.remoteLabel(count))
             .accessibilityLabel(Words.remoteLabel(count))
             .accessibilityIdentifier("remote.button")
-            // Gone once nothing plays elsewhere: it opens closed when something plays again.
-            .onDisappear { open = false }
-            .popover(isPresented: Binding(get: { open && count > 0 }, set: { open = $0 }), arrowEdge: .bottom) {
+            // Gone once no other device is on: it opens closed when one is again.
+            .onDisappear { remote.presented = false }
+            .popover(isPresented: Binding(get: { remote.presented && count > 0 }, set: { remote.presented = $0 }),
+                     arrowEdge: .bottom) {
                 ScrollView {
-                    RemotePanel(app: app, remote: remote)
+                    RemotePanel(app: app, remote: remote, heading: true)
                 }
                 .frame(width: 380)
                 .frame(maxHeight: 560)
@@ -190,28 +259,156 @@ struct RemoteToolbarButton: View {
 }
 #endif
 
-/// The profile's other devices, one after another: what plays on each,
-/// how far, and the controls its player listed (Stop always).
+/// The profile's other devices, and below them the controls of the one
+/// chosen (or of the only one): the Mac's popover, and the iPad's sheet.
 struct RemotePanel: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
+    /// "Your devices" above the list, where no navigation title says it.
+    var heading = false
 
     var body: some View {
-        let names = remote.names
-        VStack(spacing: 0) {
-            ForEach(Array(remote.others.enumerated()), id: \.element.id) { index, entry in
-                if index > 0 { Divider() }
-                RemoteRow(app: app, remote: remote, entry: entry,
-                          device: names[entry.id] ?? Words.unnamedDevice)
+        let selected = remote.selected
+        VStack(alignment: .leading, spacing: 0) {
+            if heading {
+                Text(Words.remoteTitle)
+                    .font(.headline)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            RemoteDeviceList(remote: remote, selected: selected?.id, chevrons: false)
+            if let selected {
+                Divider()
+                RemoteDeviceControls(app: app, remote: remote, device: selected)
             }
         }
     }
 }
 
-/// One device in the remote: the poster (or the channel's logo), the title
-/// (or the channel and what is on), the device's name, how far it is (a
-/// seek slider when its player seeks), and its controls.
-private struct RemoteRow: View {
+/// The devices, those playing first, then those ready to play, each by
+/// name: its kind's symbol, its name, what it plays with how far, or
+/// "Ready to play". Choosing one shows its controls.
+private struct RemoteDeviceList: View {
+    @ObservedObject var remote: RemoteModel
+    let selected: String?
+    /// Each row opens a page of its own (a phone's).
+    let chevrons: Bool
+
+    var body: some View {
+        let names = remote.names
+        VStack(spacing: 0) {
+            ForEach(Array(remote.devices.enumerated()), id: \.element.id) { index, device in
+                if index > 0 { Divider().padding(.leading, 60) }
+                RemoteDeviceRow(device: device, name: names[device.id] ?? Words.unnamedDevice,
+                                selected: device.id == selected, chevron: chevrons) {
+                    remote.chosen = device.id
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("remote.devices")
+    }
+}
+
+/// One device in the list.
+private struct RemoteDeviceRow: View {
+    let device: RemoteModel.Device
+    let name: String
+    let selected: Bool
+    let chevron: Bool
+    let choose: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Button(action: choose) {
+            HStack(spacing: 12) {
+                Image(systemName: device.kind.symbol)
+                    .font(.title3)
+                    .foregroundStyle(device.entry == nil ? Color.secondary : Color.accentColor)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    Text(device.line)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(typeSize.isAccessibilitySize ? 4 : 1)
+                    if let entry = device.entry, !entry.live, let duration = entry.session.durationMs, duration > 0 {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            ProgressView(value: Double(min(RemoteModel.position(entry, at: context.date), duration)),
+                                         total: Double(duration))
+                        }
+                        .accessibilityHidden(true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if chevron {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(selected ? Color.accentColor.opacity(0.12) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name), \(device.line)")
+        .accessibilityHint("Shows its controls")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("remote.device.\(device.id)")
+    }
+}
+
+/// A device's controls: what plays there and what its player obeys, or,
+/// on one ready to play, how to send it something.
+struct RemoteDeviceControls: View {
+    let app: AppModel
+    @ObservedObject var remote: RemoteModel
+    let device: RemoteModel.Device
+
+    var body: some View {
+        let name = remote.name(device)
+        if let entry = device.entry {
+            RemotePlayingControls(app: app, remote: remote, entry: entry, device: name)
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: device.kind.symbol)
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(name)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                Text(Words.nothingPlaying)
+                    .foregroundStyle(.secondary)
+                Text(Words.castHint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("remote.idle.\(device.id)")
+        }
+    }
+}
+
+/// A playing device's controls, top to bottom: the poster (or the
+/// channel's logo) with what plays; how far it is (a seek slider when its
+/// player seeks); Previous, Back 10 seconds, Play or Pause, Forward 30
+/// seconds and Next, each where its player obeys it (Next shows, dimmed,
+/// for whatever has one); Audio and Subtitles, where it has tracks to pick;
+/// and Stop, which every player obeys.
+private struct RemotePlayingControls: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
     let entry: RemoteModel.Entry
@@ -224,14 +421,15 @@ private struct RemoteRow: View {
     private var waiting: Bool { remote.waiting.contains(entry.id) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             heading
             if !entry.live, let duration = session.durationMs, duration > 0 {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     progress(RemoteModel.position(entry, at: context.date), duration)
                 }
             }
-            controls
+            transport
+            tracksAndStop
             if let error = remote.errors[entry.id] {
                 Text(error)
                     .font(.footnote)
@@ -254,18 +452,19 @@ private struct RemoteRow: View {
     // MARK: What plays
 
     private var heading: some View {
-        HStack(spacing: 12) {
+        let shown = Words.remoteHeading(session)
+        return HStack(spacing: 12) {
             art
             VStack(alignment: .leading, spacing: 2) {
                 Text(device)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
-                Text(Words.remoteTitle(session))
+                Text(shown.title)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
-                if entry.live, let now = session.channel?.now, !now.isEmpty {
-                    Text(now)
+                if let subtitle = shown.subtitle {
+                    Text(subtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
@@ -342,25 +541,14 @@ private struct RemoteRow: View {
 
     // MARK: Controls
 
-    @ViewBuilder private var controls: some View {
-        if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) {
-                buttons
-                stop
-            }
-        } else {
-            HStack(spacing: 4) {
-                buttons
-                Spacer(minLength: 8)
-                stop
-            }
-        }
-    }
-
-    private var buttons: some View {
+    private var transport: some View {
         let paused = session.state == .paused
         let toggle: Control? = paused ? (session.obeys(.play) ? .play : nil) : (session.obeys(.pause) ? .pause : nil)
+        // Whatever has a next shows Next: an episode, a track, Live TV, a title with one after it.
+        let kind = session.item?.kind
+        let next = session.obeys(.next) || entry.live || kind == .episode || kind == .track
         return HStack(spacing: 4) {
+            Spacer(minLength: 0)
             if session.obeys(.previous) {
                 icon("backward.end.fill", Words.remotePrevious(device, live: entry.live), "previous") {
                     send(.previous)
@@ -391,9 +579,12 @@ private struct RemoteRow: View {
                     send(.skip(byMs: Words.remoteSkipForwardMs))
                 }
             }
-            if session.obeys(.next) {
+            if next {
                 icon("forward.end.fill", Words.remoteNext(device, live: entry.live), "next") { send(.next) }
+                    .disabled(!session.obeys(.next))
+                    .opacity(session.obeys(.next) ? 1 : 0.35)
             }
+            Spacer(minLength: 0)
         }
         // Larger, five buttons spill out of an iPhone's width; VoiceOver and Large Content read their names.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -416,6 +607,75 @@ private struct RemoteRow: View {
             Label(label, systemImage: symbol)
         }
         .accessibilityIdentifier("remote.\(id).\(entry.id)")
+    }
+
+    /// Audio and Subtitles, where its player obeys them and it has tracks
+    /// to pick, then Stop at the end.
+    @ViewBuilder private var tracksAndStop: some View {
+        let audio = session.obeys(.audio) && session.tracks.audio.count > 1
+        let subtitles = session.obeys(.subtitles) && !session.tracks.subtitles.isEmpty
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                if audio { audioMenu }
+                if subtitles { subtitlesMenu }
+                stop
+            }
+        } else {
+            HStack(spacing: 10) {
+                if audio { audioMenu }
+                if subtitles { subtitlesMenu }
+                Spacer(minLength: 8)
+                stop
+            }
+        }
+    }
+
+    /// The audio tracks, labelled as the player's own menu labels them, the one playing ticked.
+    private var audioMenu: some View {
+        Menu {
+            Picker(Words.remoteAudioTitle, selection: Binding(get: { session.audioIndex ?? Int.min }, set: { index in
+                guard index != session.audioIndex else { return }
+                send(.audio(index))
+            })) {
+                ForEach(session.tracks.audio) { track in
+                    Text(Words.stream(track.stream(.audio))).tag(track.index)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label(Words.remoteAudioTitle, systemImage: "speaker.wave.2")
+                .font(.subheadline.weight(.medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .opacity(waiting ? 0.5 : 1)
+        .accessibilityLabel(Words.remoteAudio(device))
+        .accessibilityIdentifier("remote.audio.\(entry.id)")
+    }
+
+    /// Off, then the subtitle tracks, the ones showing ticked.
+    private var subtitlesMenu: some View {
+        Menu {
+            Picker(Words.remoteSubtitlesTitle, selection: Binding(get: { session.subtitleIndex ?? Int.min },
+                                                                  set: { index in
+                guard index != session.subtitleIndex else { return }
+                send(.subtitles(index == SessionTracks.off ? nil : index))
+            })) {
+                Text(Words.remoteSubtitlesOff).tag(SessionTracks.off)
+                ForEach(session.tracks.subtitles) { track in
+                    Text(Words.stream(track.stream(.subtitle))).tag(track.index)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label(Words.remoteSubtitlesTitle, systemImage: "captions.bubble")
+                .font(.subheadline.weight(.medium))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .opacity(waiting ? 0.5 : 1)
+        .accessibilityLabel(Words.remoteSubtitles(device))
+        .accessibilityIdentifier("remote.subtitles.\(entry.id)")
     }
 
     private var stop: some View {

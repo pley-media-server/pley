@@ -4,10 +4,13 @@ import PleyModel
 import PleyNetwork
 
 /// The remote on iPhone, iPad and Mac (docs/APPLE.md, Remote control):
-/// what the profile plays on its other devices (`GET /api/sessions`, read
-/// again whenever `AppModel.sessionsVersion` goes up), and the commands to
-/// them. The sessions this device plays itself are left out. Apple TV only
-/// obeys, so it has none.
+/// the profile's other devices that are on, the ones that take casts
+/// (`GET /api/remote/devices`) with what plays on each (`GET /api/sessions`),
+/// merged by `device_id` and read again whenever `AppModel.sessionsVersion`
+/// goes up; and the commands to their players.
+/// This device itself is left out: the sessions it plays, its own
+/// receiver, and whatever else has its `device_id`. Apple TV only obeys,
+/// so it has none.
 @MainActor
 public final class RemoteModel: ObservableObject {
     /// A session as the remote keeps it, with when its player last
@@ -26,6 +29,27 @@ public final class RemoteModel: ObservableObject {
         public var live: Bool { session.kind == .live }
     }
 
+    /// One of the profile's other devices: where casts go (its receiver;
+    /// `nil` for one that only plays, a Jellyfin or a Plex app), and what
+    /// it plays now (its newest session; `nil` while it is ready to play).
+    public struct Device: Identifiable, Hashable, Sendable {
+        /// Its `device_id`.
+        public let id: String
+        public let receiver: RemoteDevice?
+        public let entry: Entry?
+
+        public init(id: String, receiver: RemoteDevice?, entry: Entry?) {
+            self.id = id
+            self.receiver = receiver
+            self.entry = entry
+        }
+
+        /// What kind of device it is, as its receiver says, else its session.
+        public var kind: DeviceKind { receiver?.kind ?? entry?.session.deviceKind ?? .other }
+        /// Its name as the server gives it.
+        public var given: String? { receiver?.name ?? entry?.session.device }
+    }
+
     /// A command sent, and what its session looked like then.
     struct Sent {
         let command: Control
@@ -33,6 +57,8 @@ public final class RemoteModel: ObservableObject {
         let sentAt: Date
         /// `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted.
         let target: Int?
+        /// `audio` and `subtitles`: the track it should play once it acted.
+        var stream: Int?
         /// Which send this was: a check judges only its own command, never one sent after it.
         var token = 0
     }
@@ -44,6 +70,8 @@ public final class RemoteModel: ObservableObject {
 
     /// The profile's sessions, as last read, this device's included.
     @Published public private(set) var entries: [Entry] = []
+    /// The profile's devices that take casts, as last read, this one included.
+    @Published public private(set) var receivers: [RemoteDevice] = []
     /// The sessions this device plays now.
     @Published public private(set) var here: Set<String> = []
     /// The sessions with a command on its way, or waiting for its player to show it acted.
@@ -52,6 +80,14 @@ public final class RemoteModel: ObservableObject {
     @Published public private(set) var stopping: Set<String> = []
     /// What went wrong with each session's last command, as a sentence.
     @Published public private(set) var errors: [String: String] = [:]
+    /// The remote shows: the iPhone's and iPad's sheet, the Mac's popover.
+    /// Closed, the device chosen is forgotten.
+    @Published public var presented = false {
+        didSet { if !presented { chosen = nil } }
+    }
+    /// The device whose controls show, by id, while the remote shows: on a
+    /// phone its own page, elsewhere below the list.
+    @Published public var chosen: String?
 
     public let app: AppModel
     private let wait: Duration
@@ -90,10 +126,62 @@ public final class RemoteModel: ObservableObject {
     /// The sessions on the profile's other devices: what this remote controls.
     public var others: [Entry] { entries.filter { !here.contains($0.id) } }
 
-    /// What the remote calls each device, by session id.
-    public var names: [String: String] { Words.deviceNames(others.map(\.session)) }
+    /// The profile's other devices that are on: those playing first, then
+    /// those ready to play, each by name. A device's receiver and its
+    /// sessions share its `device_id`; one with several sessions shows its
+    /// newest, and one whose app takes no casts shows all the same.
+    public var devices: [Device] {
+        let own = app.receiverId
+        // This device's id, as its own receiver says it: a session of it that isn't playing here any more
+        // (its end not heard yet) is this device's all the same.
+        let ownDevice = receivers.first { $0.receiverId == own }.map { Self.deviceId($0) }
+        var receiverOf: [String: RemoteDevice] = [:]
+        var order: [String] = []
+        for receiver in receivers where receiver.receiverId != own {
+            let id = Self.deviceId(receiver)
+            guard id != ownDevice, receiverOf[id] == nil else { continue }
+            receiverOf[id] = receiver
+            order.append(id)
+        }
+        var newest: [String: Entry] = [:]
+        // Oldest first: a later session of the same device is newer.
+        for entry in others {
+            let id = Self.deviceId(entry.session)
+            guard id != ownDevice else { continue }
+            if newest[id] == nil && receiverOf[id] == nil { order.append(id) }
+            newest[id] = entry
+        }
+        let all = order.map { Device(id: $0, receiver: receiverOf[$0], entry: newest[$0]) }
+        let names = Self.names(all)
+        return all.sorted { a, b in
+            if (a.entry != nil) != (b.entry != nil) { return a.entry != nil }
+            let byName = (names[a.id] ?? "").localizedCaseInsensitiveCompare(names[b.id] ?? "")
+            return byName == .orderedSame ? a.id < b.id : byName == .orderedAscending
+        }
+    }
 
-    public func name(_ entry: Entry) -> String { names[entry.id] ?? entry.session.device ?? Words.unnamedDevice }
+    /// What the remote calls each device, by id.
+    public var names: [String: String] { Self.names(devices) }
+
+    public func name(_ device: Device) -> String { names[device.id] ?? device.given ?? Words.unnamedDevice }
+
+    /// The name of the device playing `entry`.
+    public func name(_ entry: Entry) -> String {
+        names[Self.deviceId(entry.session)] ?? entry.session.device ?? Words.unnamedDevice
+    }
+
+    /// The device whose controls show: the one chosen, else the only one.
+    public var selected: Device? {
+        let devices = devices
+        if devices.count == 1 { return devices[0] }
+        return chosen.flatMap { id in devices.first { $0.id == id } }
+    }
+
+    /// The remote, open on the device of `id`.
+    public func show(_ id: String) {
+        presented = true
+        chosen = id
+    }
 
     /// The pictures for what `session` plays, tried in turn: a track's own,
     /// else its album's; a title's poster, else its still (an episode's).
@@ -105,17 +193,23 @@ public final class RemoteModel: ObservableObject {
         return paths.compactMap { $0 }.filter { !$0.isEmpty }
     }
 
-    /// Reads the list again. Without an answer it stays as it was.
+    /// Reads the list again: the sessions and the devices that take casts.
+    /// Without an answer it stays as it was; a server without the devices'
+    /// route (an older one) has none, and its sessions show as before.
     @discardableResult
     public func reload() async -> Bool {
         guard app.user != nil, let api = await app.session.api else { return false }
         reading += 1
         let asked = reading
-        guard let list = try? await api.playingSessions() else { return false }
+        async let listed = try? await api.playingSessions()
+        async let castable = try? await api.remoteDevices()
+        guard let list = await listed else { return false }
+        let found = await castable
         guard asked > shown else { return true }
         shown = asked
         let now = Date()
         entries = list.map { Entry($0, received: now) }
+        if let found { receivers = found }
         followHere()
         // The list shows the change (the player's report brings `sessions_changed`): it answered.
         for (id, command) in sent where Self.answered(command, entries.first { $0.id == id }, at: now) {
@@ -156,7 +250,8 @@ public final class RemoteModel: ObservableObject {
             guard let api = await app.session.api else { throw PleyError.signedOut }
             try await api.send(command, to: id)
             guard latest[id] == token else { return }
-            sent[id] = Sent(command: command.command, before: entry, sentAt: sentAt, target: target, token: token)
+            sent[id] = Sent(command: command.command, before: entry, sentAt: sentAt, target: target,
+                            stream: command.streamIndex, token: token)
             checks[id]?.cancel()
             checks[id] = Task { [weak self, wait] in
                 try? await Task.sleep(for: wait)
@@ -188,15 +283,19 @@ public final class RemoteModel: ObservableObject {
 
     /// Whether the list shows the player acted on `sent`, by `now`: it is
     /// gone (next and previous end a session to start the next), plays
-    /// something else, changed state, or, for a seek, a skip or a previous
-    /// on the same title, has reported since from somewhere new or where it
-    /// was sent to. Server times are only compared with server times, and
-    /// this device's with its own.
+    /// something else, plays the track sent (audio, subtitles), changed
+    /// state, or, for a seek, a skip or a previous on the same title, has
+    /// reported since from somewhere new or where it was sent to. Server
+    /// times are only compared with server times, and this device's with
+    /// its own.
     static func answered(_ sent: Sent, _ now: Entry?, at time: Date) -> Bool {
         let before = sent.before.session
         guard let now else { return true }
         let session = now.session
         if session.item?.id != before.item?.id || session.channel?.id != before.channel?.id { return true }
+        // A track is answered by the track it plays, whatever else changed meanwhile.
+        if sent.command == .audio { return sent.stream != nil && session.audioIndex == sent.stream }
+        if sent.command == .subtitles { return sent.stream != nil && session.subtitleIndex == sent.stream }
         if session.state != before.state { return true }
         guard [.seek, .skip, .previous].contains(sent.command) else { return false }
         let reportedSince = session.updatedAt > before.updatedAt || session.positionMs != before.positionMs
@@ -209,6 +308,19 @@ public final class RemoteModel: ObservableObject {
     }
 
     // MARK: Private
+
+    /// A device's id: its `device_id`, else (a server that doesn't say) one of its own.
+    private static func deviceId(_ receiver: RemoteDevice) -> String {
+        receiver.deviceId.isEmpty ? "receiver:" + receiver.receiverId : receiver.deviceId
+    }
+
+    private static func deviceId(_ session: PlayingSession) -> String {
+        session.deviceId.isEmpty ? "session:" + session.sessionId : session.deviceId
+    }
+
+    private static func names(_ devices: [Device]) -> [String: String] {
+        Words.deviceNames(devices.map { (id: $0.id, name: $0.given) })
+    }
 
     /// Not answered yet after a while: the server is asked once more before the remote says so.
     private func check(_ id: String, token: Int, device: String) async {
@@ -265,8 +377,10 @@ public final class RemoteModel: ObservableObject {
         sent = [:]
         latest = [:]
         entries = []
+        receivers = []
         waiting = []
         stopping = []
         errors = [:]
+        presented = false
     }
 }
