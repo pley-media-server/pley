@@ -8,12 +8,14 @@ on:
     branches: [master]
     paths:
       - apps/roku/**
+      - packages/tv/test/fixtures/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"
   pull_request:
     paths:
       - apps/roku/**
+      - packages/tv/test/fixtures/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"

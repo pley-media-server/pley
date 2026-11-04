@@ -427,6 +427,53 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   while Up or Down changes channel, the change goes on, with no notice.
 - **Radio:** a channel with no picture keeps its card with what's on.
 
+### Remote control
+
+The Roku obeys the remote on the profile's other devices that have one
+([API.md](API.md#remote-control)) and shows no remote of its own. Its
+players say what they obey when they start (`controls`), that they play
+on a TV (`device_kind: "tv"`) and the name given to the Roku in its
+settings (`device_name`, "Living room Roku"; a Roku nobody named goes by
+its model, without the serial number Roku adds). Commands come on the
+event stream, so like the other live updates they need an `http://`
+server: from an `https://` one the players say they obey nothing, and
+remotes offer only Stop. They obey:
+
+- **Movies and episodes:** play, pause, seek and skip, and next where
+  something can come next (an episode, a playlist's or collection's next
+  entry). Next moves on without counting the title as watched; next with
+  nothing after it does nothing; a video has no previous.
+- **Music:** play, pause, seek, skip, next and previous, as Now Playing's
+  buttons and scrubber do, while other screens show too: previous more
+  than 3 s into a track, or on the first, goes back to its start. Music
+  stopped from another device or by an administrator stops, as a video
+  does, saying who stopped it over Now Playing, or over whichever screen
+  is on top.
+- **Live TV:** next and previous, channel up and down through the category
+  Up and Down go through, round its ends. It has no pause or seek. Stopped
+  from another device or by an administrator (`session_stopped`), it
+  shows "Live TV stopped", saying who stopped it and, on a line of its
+  own, their message, with Watch again, as for a connection taken over;
+  a channel change on its way ends too.
+
+Only the player of the session named acts on a command. A title or track
+acts only while it plays or is paused: not while it starts, after it
+stopped, or while it says what went wrong. Live TV changes channel while a
+channel is still tuning too, as Up and Down do, but not after it stopped
+or while it says what went wrong. A seek stays within the title and a
+skip counts from where it is. Each change is reported at once, so the
+remote sees it; another title, track or channel tells the server with its
+own session. A play on a player already playing, or a pause on one
+already paused, says so again at once, so a remote a little behind
+settles. A channel step that waits for the next page of the category goes
+on only if the channel is still the one it started from and none was
+picked meanwhile (from the list, or Watch again), the same channel again
+too; tuning a channel again after its stream broke off isn't a pick. A
+seek or skip while Up Next counts down puts Up Next away, as Rewind does.
+The rule is `components/lib/Remote.brs` (the step's,
+`components/lib/Live.brs`), pinned by
+`packages/tv/test/fixtures/remote.json`, which the tests read.
+
 ### Requests and Discover
 
 Where an administrator has turned requests on, people ask for movies and
@@ -677,7 +724,11 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 - No playback speed or audio delay: the Video node has neither.
 - Live updates need an `http://` server; with `https://`, Home and the
   requests' summary refresh once a minute, the requests, Discover's Your
-  requests and a title page with a request each 30 s.
+  requests and a title page with a request each 30 s. The remote on other
+  devices reaches the Roku only through them; with `https://`, the Roku
+  offers remotes only Stop, and a film or music stopped from another
+  device stops at its next report (within 10 s while playing, 30 s while
+  paused), a channel when its stream breaks off.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Not yet: an editable music queue.

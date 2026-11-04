@@ -547,6 +547,26 @@ function liveZap(page as object, id as dynamic, by as integer) as dynamic
     return { offset: ((pageNo + 1) mod pages) * size, last: false }
 end function
 
+' The count of channels picked, after a tuning: the list, Watch again or
+' the remote's pick counts, so a step waiting for a page can tell a
+' channel was chosen meanwhile, the same one again too. A tuning that up
+' and down led to (stepped), or one tuned again after a failure (again),
+' isn't a pick: a stream's hiccup doesn't drop a step on its way.
+function liveTunePicks(picks as integer, again as boolean, stepped as boolean) as integer
+    if stepped or again then return picks
+    return picks + 1
+end function
+
+' Whether channel up or down that waited for a page goes on: from the
+' channel with fromId, picks counted when it was asked. It does while that
+' channel is still the one shown or led to (shownId, invalid for none),
+' no channel was picked since, and watching goes on (active, without
+' trouble), so it can't undo a channel chosen meanwhile.
+function liveStepGoesOn(fromId as dynamic, stepPicks as dynamic, picks as integer, shownId as dynamic, troubled as boolean, active as boolean) as boolean
+    if not active or troubled or stepPicks <> picks then return false
+    return shownId <> invalid and shownId = fromId
+end function
+
 ' "Channels 51–100 of 2,345", or "" for a list on one page.
 function liveRange(offset as integer, shown as integer, total as integer) as string
     if total <= shown or shown = 0 then return ""
@@ -755,6 +775,22 @@ end function
 function liveStopped(message as dynamic) as object
     words = httpSentence(message)
     if words = "" then words = "This channel isn't being watched any more."
+    return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
+end function
+
+' Watching stopped from another device or by the server's administrator
+' (the server's session_stopped for the player's session): who stopped
+' it, and their message on a line of its own, as on Android. An event
+' that doesn't say who is taken for the administrator, as
+' playerStoppedMessage takes it.
+function liveStoppedBy(event as dynamic) as object
+    data = httpObject(event)
+    words = "Live TV was stopped by the server's administrator."
+    if data <> invalid
+        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then words = "Live TV was stopped from another device."
+        message = httpSentence(data.message)
+        if message <> "" then words = words + Chr(10) + message
+    end if
     return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
 end function
 
