@@ -288,6 +288,18 @@ sub test_live_troubles()
     tkEqual(liveTroubleButtons(busy), [{ label: "Try again", action: "retry", channelId: 0 }, { label: "Other channels", action: "list", channelId: 0 }, { label: "Back", action: "back", channelId: 0 }], "without what holds the connections")
 end sub
 
+sub test_live_retries()
+    tkTrue(liveRetried(liveTrouble({ status: 503, message: "the channel didn't start" }, "x")), "the provider sent nothing yet")
+    tkTrue(liveRetried(liveTrouble({ status: 500, message: "boom" }, "x")))
+    tkFalse(liveRetried(liveTrouble({ status: 409, message: "", data: { connections: [] } }, "x")), "every connection in use")
+    tkFalse(liveRetried(liveTrouble({ status: 410, message: "", data: invalid }, "x")), "stopped on the server")
+    tkFalse(liveRetried(liveTrouble({ status: 404, message: "" }, "x")), "gone")
+    tkFalse(liveRetried(liveTrouble({ status: 403, message: "" }, "x")), "not open to the account")
+    tkEqual(liveRetryDelay(0), 1000, "after a second")
+    tkEqual(liveRetryDelay(1), 3000, "then three")
+    tkEqual(liveRetryDelay(2), -1, "then the player says why")
+end sub
+
 sub test_live_stopped_on_the_server()
     ' Taken over, or stopped there: the server's words, with Watch again (as any watch, never taking a connection).
     taken = liveTrouble({ status: 410, message: "Gone.", data: { code: "session_stopped", message: "Alex is watching Two HD now, on the connection this channel used." } }, "One")

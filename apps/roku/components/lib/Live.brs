@@ -702,6 +702,24 @@ function liveStopped(message as dynamic) as object
     return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
 end function
 
+' Whether tuning the channel again may help after problem (liveTrouble's):
+' the server let it go, it wasn't ready, or its stream broke ("other",
+' "unavailable"); not after a refusal (every connection in use, stopped,
+' gone, not open to the account).
+function liveRetried(problem as object) as boolean
+    return problem.kind = "other" or problem.kind = "unavailable"
+end function
+
+' How long the player waits before tuning a channel again after a
+' failure, tried tries times since it was tuned or Try again was chosen:
+' 1 s, then 3 s, as on Android and Samsung; -1 after the second, when the
+' player says why.
+function liveRetryDelay(tries as integer) as integer
+    if tries = 0 then return 1000
+    if tries = 1 then return 3000
+    return -1
+end function
+
 ' The connections of a 409 ({ connections: [{ channel_id, channel_name,
 ' watchers, people, yours, can_take_over }] }): [{ channelId, channelName,
 ' holders, canTakeOver }].

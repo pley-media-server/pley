@@ -46,6 +46,7 @@ sub init()
     m.clock = m.top.findNode("clock")
     m.pictureTimer = m.top.findNode("pictureTimer")
     m.toastTimer = m.top.findNode("toastTimer")
+    m.retryTimer = m.top.findNode("retryTimer")
     m.stallTimer = m.top.findNode("stallTimer")
     m.stallTimer.observeField("fire", "onStall")
     ' Waiting for data since the timer started (the spinner shows after it).
@@ -75,9 +76,11 @@ sub init()
     m.sessionId = ""
     m.playlist = ""
     m.played = false
-    ' When the stream was tuned again after breaking (playerMayRestart).
-    m.restarts = []
-    m.span = CreateObject("roTimespan")
+    ' The times the channel was tuned again after failing, since it was
+    ' tuned or Try again was chosen (liveRetryDelay), and the tuning the
+    ' retry waiting belongs to.
+    m.retries = 0
+    m.retryAttempt = 0
     m.trouble = invalid
     m.video.notificationInterval = 1
     m.video.observeField("state", "onState")
@@ -88,6 +91,7 @@ sub init()
     m.clock.observeField("fire", "onClock")
     m.pictureTimer.observeField("fire", "onPictureTimer")
     m.toastTimer.observeField("fire", "onToastTimer")
+    m.retryTimer.observeField("fire", "onRetryTimer")
     m.cardLogo.observeField("loadStatus", "onLogos")
     m.bannerLogo.observeField("loadStatus", "onLogos")
     m.top.observeField("active", "onActive")
@@ -318,11 +322,14 @@ sub onZapTimer()
 end sub
 
 ' Watches channel: the session before it ends (the server ends it too,
-' by the client_id), its logo shows while it starts.
-sub tune(channel as object, takeOver = 0 as integer)
+' by the client_id), its logo shows while it starts. again: tuned again
+' after a failure, which counts against the retries.
+sub tune(channel as object, takeOver = 0 as integer, again = false as boolean)
     m.attempt = m.attempt + 1
     abandonWatch()
     leave()
+    if not again then m.retries = 0
+    m.retryTimer.control = "stop"
     m.zapTo = invalid
     m.zapTimer.control = "stop"
     m.channel = channel
@@ -396,8 +403,7 @@ sub onPlaylist(event as object)
             uiUnreachable({ to: "livePlayer", params: { channel: m.channel, category: m.category } })
             return
         end if
-        leave()
-        trouble(liveTrouble(answer, m.channel.name))
+        failed(liveTrouble(answer, m.channel.name))
         return
     end if
     play()
@@ -497,7 +503,7 @@ end sub
 
 ' The stream broke: what the server says of its playlist says what to do.
 ' Gone or refused, the player says so; otherwise the channel is tuned
-' again, a few times at most.
+' again (failed).
 sub broken()
     if m.sessionId = "" or m.trouble <> invalid then return
     m.video.control = "stop"
@@ -513,20 +519,39 @@ sub onChecked(event as object)
         uiUnreachable({ to: "livePlayer", params: { channel: m.channel, category: m.category } })
         return
     end if
-    if answer.status = 410 or answer.status = 403 or answer.status = 503
-        leave()
-        trouble(liveTrouble(answer, m.channel.name))
+    if not answer.ok
+        failed(liveTrouble(answer, m.channel.name))
         return
     end if
-    nowMs = m.span.TotalMilliseconds()
-    if not playerMayRestart(m.restarts, nowMs)
-        leave()
-        message = "It stopped and couldn't get going again."
-        trouble({ kind: "other", title: m.channel.name + " stopped", message: message, lines: message, retry: true, connections: [] })
+    ' Its playlist is there: the stream itself broke off.
+    message = "It stopped and couldn't get going again."
+    failed({ kind: "other", title: m.channel.name + " stopped", message: message, lines: message, retry: true, connections: [] })
+end sub
+
+' Watching failed: the channel is tuned again where that may help (the
+' server let it go, it wasn't ready, the stream broke), twice at most,
+' after 1 s and then 3 s; after that, or when the server refused it, the
+' player says why.
+sub failed(problem as object)
+    leave()
+    delayMs = -1
+    if liveRetried(problem) then delayMs = liveRetryDelay(m.retries)
+    if delayMs < 0
+        trouble(problem)
         return
     end if
-    m.restarts.Push(nowMs)
-    tune(m.channel)
+    m.retries = m.retries + 1
+    m.played = false
+    m.video.control = "stop"
+    showCard(m.channel, "")
+    m.retryAttempt = m.attempt
+    m.retryTimer.duration = delayMs / 1000
+    m.retryTimer.control = "start"
+end sub
+
+sub onRetryTimer()
+    if m.retryAttempt <> m.attempt or m.trouble <> invalid or m.channel = invalid then return
+    tune(m.channel, 0, true)
 end sub
 
 ' --- What shows ---
@@ -637,6 +662,7 @@ end sub
 ' and Back.
 sub trouble(problem as object)
     m.trouble = problem
+    m.retryTimer.control = "stop"
     m.video.control = "stop"
     m.card.visible = false
     m.tuning.control = "stop"
@@ -678,10 +704,8 @@ sub onNoticeButton(event as object)
     if m.noticeActions = invalid or at < 0 or at >= m.noticeActions.Count() then return
     button = m.noticeActions[at]
     if button.action = "takeOver"
-        m.restarts = []
         tune(m.channel, button.channelId)
     else if button.action = "retry"
-        m.restarts = []
         tune(m.channel)
     else if button.action = "list"
         openList()
@@ -697,7 +721,7 @@ sub finish()
     abandonWatch()
     leave()
     m.video.control = "stop"
-    for each timer in [m.bannerTimer, m.zapTimer, m.clock, m.pictureTimer, m.toastTimer, m.stallTimer]
+    for each timer in [m.bannerTimer, m.zapTimer, m.clock, m.pictureTimer, m.toastTimer, m.stallTimer, m.retryTimer]
         timer.control = "stop"
     end for
     if m.channel <> invalid then m.top.getScene().liveChannel = m.channel.id
