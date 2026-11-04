@@ -136,6 +136,27 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(await eventually { app.shell.toast?.text == "“Alien: Romulus” was declined: “We have enough aliens for now”." })
         #expect(app.newsHeld.count == AppModel.heldNewsMax - 1)
     }
+
+    @Test func heldNewsIsToldOneAtATimeWhenPlayersOpenAndClose() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await caughtUp(server)
+        app.heldNewsGap = 1
+        _ = try #require(await app.play(PlayRequest(itemId: 7)))
+        for _ in 0..<3 { server.pushFixtureEvent("events/request_decided.json") }
+        #expect(await eventually { app.newsHeld.count == 3 })
+        await app.closePlayer()
+        #expect(app.newsHeld.count == 2)
+        // Another video, closed half a gap later: the news goes on a gap
+        // after that, not when the first close's would have.
+        _ = try #require(await app.play(PlayRequest(itemId: 7)))
+        try await Task.sleep(for: .milliseconds(500))
+        await app.closePlayer()
+        #expect(app.newsHeld.count == 1)
+        try await Task.sleep(for: .milliseconds(750))
+        #expect(app.newsHeld.count == 1)
+        #expect(await eventually { app.newsHeld.isEmpty })
+    }
     #endif
 
     @Test func aChangeReachesTheScreens() async throws {
@@ -245,10 +266,15 @@ private func object(_ data: Data?) -> [String: Any]? {
         model.openPicker()
         #expect(model.picker?.picked == [3, 5])
         model.toggle(5)
+        model.debounce = 0.05
+        let reads = server.requests("/api/discover/show/1396").count
         model.askPicked()
         #expect(await eventually { model.picker == nil && !model.busy })
         #expect(object(server.askedBodies.last)?["seasons"] as? [Int] == [3])
         #expect(await eventually { app.shell.toast?.text == "Asked for “Breaking Bad”: an administrator decides." })
+        // Read again once: the change the ask sends, heard here too, doesn't read it twice.
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(server.requests("/api/discover/show/1396").count == reads + 1)
     }
 
     @Test func requestMoreSeasonsOpensThePicker() async throws {
@@ -291,10 +317,10 @@ private func object(_ data: Data?) -> [String: Any]? {
         let server = try await fixture()
         defer { server.stop() }
         let app = try await ready(server)
-        let model = DiscoverResultsModel(app: app, query: "dune")
+        let model = DiscoverResultsModel(app: app, query: "the")
         await model.load()
-        #expect(model.state == .ready && model.cards.count == 6)
-        #expect(model.heading.contains("dune"))
+        #expect(model.state == .ready && model.cards.map(\.title) == ["The Wild Robot", "The Substance"])
+        #expect(model.heading.contains("the"))
         #expect(await eventually { server.requests("/api/discover/search").count == 3 })
         let none = DiscoverResultsModel(app: app, query: "nothing at all")
         await none.load()
@@ -308,12 +334,12 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(app.shell.requestsEntry.discover)
         let model = SearchModel(app: app, debounce: .milliseconds(10))
         #expect(model.discoverEntry)
-        model.query = "dune"
+        model.query = "a"
         #expect(await eventually { if case .ready = model.discover { true } else { false } })
         guard case .ready(let query, let cards) = model.discover else { return }
         // Missing only: Arrival, in a library, is left out.
-        #expect(query == "dune" && cards.count == 5 && !cards.contains { $0.title == "Arrival" })
-        #expect(model.discoverAll == .discoverResults(query: "dune"))
+        #expect(query == "a" && cards.map(\.title) == ["Severance", "The Substance", "Breaking Bad", "Alien: Romulus"])
+        #expect(model.discoverAll == .discoverResults(query: "a"))
         #expect(server.requests("/api/discover/search").allSatisfy { $0.query["missing"] == "1" })
     }
 
@@ -335,14 +361,29 @@ private func object(_ data: Data?) -> [String: Any]? {
         defer { server.stop() }
         let app = try await ready(server)
         let model = SearchModel(app: app, debounce: .milliseconds(10))
-        model.query = "dune"
+        model.query = "the"
         #expect(await eventually { if case .ready = model.discover { true } else { false } })
         server.setRequestsOff(true)
         await app.requests.refreshNow()
         #expect(await eventually { model.discover == .hidden })
         server.setRequestsOff(false)
         await app.requests.refreshNow()
-        #expect(await eventually { if case .ready(let query, _) = model.discover { query == "dune" } else { false } })
+        #expect(await eventually { if case .ready(let query, _) = model.discover { query == "the" } else { false } })
+    }
+
+    @Test func aPageOpenedBeforeTheGateShowsTheBlockWhenItOpens() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setRequestsOff(true)
+        let app = try await signedIn(server)
+        #expect(await eventually { app.requests.summary != nil })
+        let model = ItemModel(app: app, itemId: 201)
+        await model.load()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(model.requestBlock == nil)
+        server.setRequestsOff(false)
+        await app.requests.refreshNow()
+        #expect(await eventually { model.requestBlock?.more == true })
     }
 
     @Test func aLibraryShowOffersMoreSeasons() async throws {
@@ -418,6 +459,26 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(model.cards.map(\.id) == [48, 47, 46, 44, 42])
     }
 
+    @Test func theBadgeStaysClearWhileTheServerHearsItWasSeen() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setRequestsUnseen(1)
+        let app = try await ready(server)
+        app.shell.dismissToast()
+        server.delay(path: "/api/requests/seen", ms: 1500, method: "POST")
+        let model = RequestsListModel(app: app)
+        await model.load()
+        #expect(app.requests.summary?.unseen == 0)
+        // A summary read before the server has heard still counts the news.
+        let reads = server.requests("/api/requests/summary").count
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(app.requests.summary?.unseen == 0)
+        #expect(server.requests("/api/requests/summary").count == reads)
+        #expect(await eventually { server.requestsSeenCalls == 1 })
+        #expect(await eventually { server.requests("/api/requests/summary").count == reads + 1 })
+        #expect(app.requests.summary?.unseen == 0)
+    }
+
     @Test func managersOpenOnWhatNeedsThem() async throws {
         let server = try await fixture()
         defer { server.stop() }
@@ -432,8 +493,12 @@ private func object(_ data: Data?) -> [String: Any]? {
         // Approved, it no longer needs anyone.
         let arcane = try #require(model.cards.first { $0.id == 49 })
         #expect(arcane.buttons == [.approve, .decline] && arcane.menu == [.approveWith, .handled, .delete])
+        #expect(model.views.map(\.title).contains("Pending · 2"))
         model.runner.tap(.approve, on: arcane)
         #expect(await eventually { model.cards.map(\.id) == [44, 50] })
+        // The chips follow: it left Pending for Approved.
+        #expect(model.views.map(\.title).contains("Pending · 1"))
+        #expect(model.views.map(\.title).contains("Approved · 5"))
         // Declined, with a reason.
         let failed = try #require(model.cards.first { $0.id == 50 })
         model.runner.tap(.decline, on: failed)

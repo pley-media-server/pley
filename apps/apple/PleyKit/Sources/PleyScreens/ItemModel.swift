@@ -106,6 +106,16 @@ public final class ItemModel: ObservableObject {
             guard self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
         }.store(in: &listeners)
+        #if !os(tvOS)
+        // The gate opening or closing (a summary read late, as on a cold start
+        // or a Top Shelf link, or signing in again) reads the block again.
+        app.requests.$summary.dropFirst().map { RequestsGate.of($0).kind }.removeDuplicates().sink { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.item != nil else { return }
+                self.loadRequest()
+            }
+        }.store(in: &listeners)
+        #endif
     }
 
     /// Reads the item and what the page shows beside it. What shows stays

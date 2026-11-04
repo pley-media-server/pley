@@ -105,8 +105,16 @@ public final class DiscoverModel: ObservableObject {
             Task { await self.patch(change.requests) }
             self.readYoursSoon()
         }.store(in: &listeners)
-        app.requests.$summary.dropFirst().map { RequestsGate.of($0) }.removeDuplicates().sink { [weak self] _ in
-            Task { @MainActor in await self?.gateChanged() }
+        // A count moving says the cards again; the gate opening or closing
+        // reads them (a change to the person's requests reads them itself).
+        var kind = app.requests.gate.kind
+        app.requests.$summary.dropFirst().map { RequestsGate.of($0) }.removeDuplicates().sink { [weak self] gate in
+            let same = gate.kind == kind
+            kind = gate.kind
+            Task { @MainActor in
+                guard let self else { return }
+                if same { self.rebuild() } else { await self.gateChanged() }
+            }
         }.store(in: &listeners)
     }
 

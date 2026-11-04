@@ -203,6 +203,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private var heldNews: [RequestNews] = []
     /// The most news kept while a player shows.
     public static let heldNewsMax = 3
+    /// The time between held news, one toast's time; shorter in tests.
+    public var heldNewsGap: Double = ShellModel.toastSeconds
+    /// The held news being told, one after another.
+    private var heldNewsTask: Task<Void, Never>?
     /// What the system's Now Playing was told last of a video, to send only what changed.
     private var videoShown: (info: NowPlayingInfo, at: Int64)?
     /// The picture Now Playing shows for the music or video playing: its path and the image.
@@ -979,12 +983,17 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// The news held while a player showed, one after another.
     private func showHeldNews() {
+        // A chain from a player closed before stops: only one tells at a time.
+        heldNewsTask?.cancel()
+        heldNewsTask = nil
         guard !heldNews.isEmpty, player == nil, livePlayer == nil, user != nil else { return }
         let news = heldNews.removeFirst()
         tell(news)
         guard !heldNews.isEmpty else { return }
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(ShellModel.toastSeconds))
+        let gap = heldNewsGap
+        heldNewsTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(gap))
+            guard !Task.isCancelled else { return }
             self?.showHeldNews()
         }
     }

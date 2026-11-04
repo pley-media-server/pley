@@ -137,15 +137,22 @@ public final class DiscoverTitleModel: ObservableObject {
         runner = RequestActionRunner(app: app)
         runner.onOutcome = { [weak self] _, _, outcome in
             guard let self else { return }
-            if case .failed(let problem) = outcome { self.failed(problem) } else { Task { await self.load() } }
+            if case .failed(let problem) = outcome { self.failed(problem) } else { Task { await self.loadActed() } }
         }
         app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.follows(change.requests) || change.everything else { return }
             self.loadSoon()
         }.store(in: &listeners)
-        // The gate opening (a summary read late, signing in again) reads the page.
-        app.requests.$summary.dropFirst().map { RequestsGate.of($0) }.removeDuplicates().sink { [weak self] _ in
-            Task { @MainActor in await self?.load() }
+        // The gate opening (a summary read late, signing in again) reads the
+        // page; a count moving (what's left to ask) only says it again.
+        var kind = app.requests.gate.kind
+        app.requests.$summary.dropFirst().map { RequestsGate.of($0) }.removeDuplicates().sink { [weak self] gate in
+            let same = gate.kind == kind
+            kind = gate.kind
+            Task { @MainActor in
+                guard let self else { return }
+                if same, let detail = self.detail { self.show(detail) } else { await self.load() }
+            }
         }.store(in: &listeners)
     }
 
@@ -227,6 +234,14 @@ public final class DiscoverTitleModel: ObservableObject {
     }
 
     public func signInAgain() { app.signInAgain() }
+
+    /// The page's own action: it reads now, and the change it sent, heard
+    /// here too, doesn't read it again.
+    private func loadActed() async {
+        soon?.cancel()
+        soon = nil
+        await load()
+    }
 
     private func loadSoon() {
         soon?.cancel()
@@ -386,7 +401,7 @@ public final class DiscoverTitleModel: ObservableObject {
                 if closesPicker { picker = nil }
                 app.requests.acted(asked.request)
                 app.shell.show(RequestWords.asked(asked, title: title))
-                await load()
+                await loadActed()
             } catch {
                 failed(RequestProblem.of(error))
             }

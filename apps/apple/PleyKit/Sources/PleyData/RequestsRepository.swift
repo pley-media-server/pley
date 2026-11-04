@@ -198,8 +198,11 @@ public final class RequestsRepository: ObservableObject {
         }
     }
 
-    /// The person looked at their requests: the badge clears at once, the server's summary follows.
-    public func zeroUnseen() {
+    /// The person looked at their requests: the badge clears at once, and
+    /// the server's summary is read once `mark` (telling the server so)
+    /// answers. Read before, the summary still counts the news and brings
+    /// the badge back.
+    public func zeroUnseen(marking mark: @escaping @MainActor () async throws -> Void = {}) {
         // A summary on its way was read before: it would bring the badge back.
         reads += 1
         if var summary, summary.unseen > 0 {
@@ -207,7 +210,10 @@ public final class RequestsRepository: ObservableObject {
             self.summary = summary
             if last != nil { last?.unseen = 0 }
         }
-        refreshSoon()
+        Task { [weak self] in
+            try? await mark()
+            await self?.refreshNow()
+        }
     }
 
     /// This app changed `request` (or the title `kind` `tmdbId`): the

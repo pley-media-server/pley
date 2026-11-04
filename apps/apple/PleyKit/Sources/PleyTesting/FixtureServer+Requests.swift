@@ -199,11 +199,15 @@ extension FixtureServer {
         if parts[2] == "search" {
             let q = request.query["q"] ?? ""
             if q.isEmpty { return json(400, ["code": "invalid", "message": "q is empty"]) }
-            if q.contains("nothing") { return json(200, ["page": 1, "total_pages": 1, "results": [Any]()]) }
-            if request.query["missing"] == "1" {
-                let results = trending["results"] as? [[String: Any]] ?? []
-                trending["results"] = results.filter { $0["status"] as? String != "library" }
+            // The titles whose name has `q` in it, as TMDB finds them.
+            var results = (trending["results"] as? [[String: Any]] ?? []).filter {
+                (($0["title"] ?? $0["name"]) as? String)?.localizedCaseInsensitiveContains(q) == true
             }
+            if request.query["missing"] == "1" {
+                results = results.filter { $0["status"] as? String != "library" }
+            }
+            if results.isEmpty { return json(200, ["page": 1, "total_pages": 1, "results": [Any]()]) }
+            trending["results"] = results
         } else if DiscoverList(rawValue: parts[2]) == nil {
             return notFound(request.path)
         }

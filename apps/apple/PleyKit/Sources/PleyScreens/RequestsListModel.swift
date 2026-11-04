@@ -268,8 +268,8 @@ public final class RequestsListModel: ObservableObject {
         guard !seen, state == .ready else { return }
         seen = true
         guard (summary?.unseen ?? 0) > 0 else { return }
-        app.requests.zeroUnseen()
-        Task { try? await app.requestsAPI().markRequestsSeen() }
+        let app = app
+        app.requests.zeroUnseen { try await app.requestsAPI().markRequestsSeen() }
     }
 
     /// Pull to refresh, ⌘R or Retry: the summary and the list read again
@@ -367,6 +367,8 @@ public final class RequestsListModel: ObservableObject {
     private func replace(_ id: Int, with request: MediaRequest?) {
         guard let filter else { return }
         let before = requests.count
+        // The chips' counts follow: a request approved here leaves Pending for Approved.
+        counts.move(from: requests.first { $0.id == id }?.status, to: request?.status)
         if let request, filter.matches(request) {
             requests = requests.map { $0.id == id ? request : $0 }
         } else {

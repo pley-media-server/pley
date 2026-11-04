@@ -789,14 +789,33 @@ public struct RequestCounts: Codable, Hashable, Sendable {
 
     /// How many have `status`; 0 for one this app doesn't know.
     public subscript(status: RequestStatus) -> Int {
-        switch status {
-        case .pending: pending
-        case .approved: approved
-        case .declined: declined
-        case .failed: failed
-        case .available: available
-        default: 0
+        get {
+            switch status {
+            case .pending: pending
+            case .approved: approved
+            case .declined: declined
+            case .failed: failed
+            case .available: available
+            default: 0
+            }
         }
+        set {
+            switch status {
+            case .pending: pending = newValue
+            case .approved: approved = newValue
+            case .declined: declined = newValue
+            case .failed: failed = newValue
+            case .available: available = newValue
+            default: break
+            }
+        }
+    }
+
+    /// One request moved from `old` to `new` (`nil`: it was or is gone).
+    public mutating func move(from old: RequestStatus?, to new: RequestStatus?) {
+        guard old != new else { return }
+        if let old { self[old] = max(0, self[old] - 1) }
+        if let new { self[new] += 1 }
     }
 }
 
@@ -1201,5 +1220,23 @@ public enum RequestsGate: Hashable, Sendable {
     public var mayAsk: Bool {
         if case .open(let summary) = self { return summary.mayAsk }
         return false
+    }
+
+    /// Which gate this is, without the summary's counts.
+    public enum Kind: Hashable, Sendable {
+        case unknown, hidden, noAccess, signInAgain
+        case open(mayAsk: Bool)
+    }
+
+    /// Which gate this is: pages read again when it changes (the gate
+    /// opens or closes, asking starts or stops), not each time a count moves.
+    public var kind: Kind {
+        switch self {
+        case .unknown: .unknown
+        case .hidden: .hidden
+        case .noAccess: .noAccess
+        case .signInAgain: .signInAgain
+        case .open(let summary): .open(mayAsk: summary.mayAsk)
+        }
     }
 }
