@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 
 use super::fuzzy::{self, Term, Words};
-use super::text::{closeness, fold, words};
+use super::text::{bounded, closeness, fold, words};
 use super::trigram::Trigrams;
 
 /// How alike a name must be to the search to be found when its words find
@@ -50,7 +50,7 @@ impl Names {
 
     /// The names `search` finds, by their place, with how.
     pub fn find(&self, search: &str) -> HashMap<usize, Found> {
-        let typed = words(search);
+        let typed = words(bounded(search));
         if typed.is_empty() {
             return HashMap::new();
         }

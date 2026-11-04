@@ -6,14 +6,32 @@ use unicode_normalization::UnicodeNormalization;
 /// Most words of a query that count; the rest are left out.
 pub const MAX_WORDS: usize = 8;
 
+/// Most characters of a search that count, and of a word: a search is
+/// typed, and the work done for a word grows with its length squared.
+pub const MAX_CHARS: usize = 200;
+pub const MAX_WORD_CHARS: usize = 40;
+
+/// The beginning of `input` search looks at (see [`MAX_CHARS`]).
+pub fn bounded(input: &str) -> &str {
+    input.char_indices().nth(MAX_CHARS).map_or(input, |(at, _)| &input[..at])
+}
+
+fn is_apostrophe(c: char) -> bool {
+    matches!(c, '\'' | '\u{2019}' | '`')
+}
+
 /// `s` as search compares it: lower case, without accents, apostrophes
 /// left out ("king's" is "kings"), other punctuation a space, compatibility
 /// forms plain ("ᴴᴰ" is "hd"), spaces single.
 pub fn fold(s: &str) -> String {
+    fold_with(s, true)
+}
+
+fn fold_with(s: &str, drop_apostrophes: bool) -> String {
     let mut out = String::with_capacity(s.len());
     let mut space = true;
     for c in s.nfkd() {
-        if unicode_normalization::char::is_combining_mark(c) || matches!(c, '\'' | '\u{2019}' | '`') {
+        if unicode_normalization::char::is_combining_mark(c) || (drop_apostrophes && is_apostrophe(c)) {
             continue;
         }
         if c.is_alphanumeric() {
@@ -32,31 +50,42 @@ pub fn fold(s: &str) -> String {
 
 /// The words of `s`, folded.
 pub fn words(s: &str) -> Vec<String> {
-    fold(s).split(' ').filter(|w| !w.is_empty()).map(str::to_owned).collect()
+    split(&fold(s))
+}
+
+fn split(folded: &str) -> Vec<String> {
+    folded.split(' ').filter(|w| !w.is_empty()).map(str::to_owned).collect()
 }
 
 /// A search as typed: its words, and a year it ends with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
+    /// As the full-text index has them: split at apostrophes too ("o'brien"
+    /// is "o" and "brien"), as its tokenizer splits names.
     pub words: Vec<String>,
     /// "alien 1979": the year narrows the titles found (a year either side
     /// too, as release dates differ), unless no title of those years has
     /// the other words, when it counts as a word.
     pub year: Option<i64>,
+    /// The search folded (see [`fold`]), without the year.
+    text: String,
 }
 
 impl Query {
     pub fn parse(input: &str) -> Self {
-        let mut words = words(input);
+        let input = bounded(input);
+        let mut words = split(&fold_with(input, false));
         words.truncate(MAX_WORDS);
-        let year = match words.as_slice() {
+        let year: Option<i64> = match words.as_slice() {
             [.., _, last] if is_year(last) => last.parse().ok(),
             _ => None,
         };
-        if year.is_some() {
+        let mut text = fold(input);
+        if let Some(year) = year {
             words.pop();
+            text = text.strip_suffix(&year.to_string()).unwrap_or(&text).trim_end().to_owned();
         }
-        Query { words, year }
+        Query { words, year, text }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -70,9 +99,17 @@ impl Query {
         words
     }
 
-    /// The query folded, as names are compared with it.
-    pub fn text(&self) -> String {
-        self.words.join(" ")
+    /// The search folded, as names are compared with it, without the year.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The search folded, a year too.
+    pub fn all_text(&self) -> String {
+        match self.year {
+            Some(year) => format!("{} {year}", self.text),
+            None => self.text.clone(),
+        }
     }
 }
 
@@ -89,18 +126,22 @@ pub struct Finder {
 
 impl Finder {
     pub fn new(search: &str) -> Self {
-        let folded = fold(search);
-        let words = folded.split(' ').filter(|w| !w.is_empty()).map(str::to_owned).collect();
+        let folded = fold(bounded(search));
+        let words = split(&folded);
         Finder { folded, words }
     }
 
     /// Whether `name` is found ("lakeside games" finds "Winter Games - Lakeside
     /// 2020"); nothing is found by an empty search.
     pub fn finds(&self, name: &str) -> bool {
+        self.finds_folded(&fold(name))
+    }
+
+    /// [`Finder::finds`] for a name folded already (see [`fold`]).
+    pub fn finds_folded(&self, name: &str) -> bool {
         if self.words.is_empty() {
             return false;
         }
-        let name = fold(name);
         name.contains(&self.folded) || self.words.iter().all(|w| name.split(' ').any(|n| n.starts_with(w.as_str())))
     }
 }
@@ -176,6 +217,22 @@ mod tests {
         assert_eq!(Query::parse("room 1408").year, None, "not a year");
         assert!(Query::parse(" - ").is_empty());
         assert_eq!(Query::parse("a b c d e f g h i j").words.len(), MAX_WORDS);
+        assert_eq!((q.text(), q.all_text().as_str()), ("alien", "alien 1979"));
+    }
+
+    #[test]
+    fn query_words_are_split_at_apostrophes_as_the_index_splits_them() {
+        let q = Query::parse("O'Brien");
+        assert_eq!((q.words.as_slice(), q.text()), (&["o".to_owned(), "brien".to_owned()][..], "obrien"));
+        assert_eq!(Query::parse("l’été").words, ["l", "ete"]);
+    }
+
+    #[test]
+    fn long_searches_are_cut() {
+        let long = "x".repeat(10_000);
+        assert_eq!(bounded(&long).len(), MAX_CHARS);
+        assert_eq!(bounded("é".repeat(300).as_str()).chars().count(), MAX_CHARS);
+        assert_eq!(Query::parse(&long).words[0].len(), MAX_CHARS);
     }
 
     #[test]

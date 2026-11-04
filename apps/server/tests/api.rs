@@ -322,9 +322,14 @@ async fn movies_are_scanned_listed_and_searchable() {
 async fn search_reads_slips_years_and_words_written_together() {
     let app = TestApp::new().await;
     let token = app.setup_admin().await;
-    for name in
-        ["The Matrix (1999)", "Night-Watch (2002)", "The Captain's Log (1993)", "Harbor (1984)", "Harbor (2021)"]
-    {
+    for name in [
+        "The Matrix (1999)",
+        "Night-Watch (2002)",
+        "The Captain's Log (1993)",
+        "D'Artagnan (2001)",
+        "Harbor (1984)",
+        "Harbor (2021)",
+    ] {
         app.media_file(&format!("movies/{name}/{name}.mkv"), 1024);
     }
     app.library(&token, "Movies", "movies", "movies").await;
@@ -343,6 +348,7 @@ async fn search_reads_slips_years_and_words_written_together() {
     assert_eq!(harbor["items"].as_array().unwrap().len(), 1, "that year's: {harbor}");
     assert_eq!(harbor["items"][0]["year"], json!(2021));
     assert_eq!(search("harbor").await.len(), 2);
+    assert_eq!(search("d'art").await, ["D'Artagnan"], "an apostrophe typed: words as the index has them");
     assert!(search("qzxv").await.is_empty());
 }
 

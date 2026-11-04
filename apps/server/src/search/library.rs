@@ -43,9 +43,10 @@ struct Holding {
     checked_at: Instant,
 }
 
+#[derive(Default)]
 struct Held {
     /// What the library was when read (see [`changes`]).
-    changes: (i64, i64, i64),
+    changes: Changes,
     titles: Words,
     names: Words,
     title_pieces: Trigrams,
@@ -59,16 +60,19 @@ impl std::fmt::Debug for Index {
 }
 
 impl Index {
-    async fn get(&self, db: &Db) -> sqlx::Result<Arc<Held>> {
+    /// What the index holds, read again when the library changed. When it
+    /// can't be read, search goes on with what it held (or nothing: words are
+    /// then found as typed only) and reads it again later.
+    async fn get(&self, db: &Db) -> Arc<Held> {
         let holding = self.held.lock().unwrap().clone();
         if let Some(h) = &holding
             && h.checked_at.elapsed() < CHECKED
         {
-            return Ok(h.held.clone());
+            return h.held.clone();
         }
         let _reading = match (self.reading.try_lock(), &holding) {
             (Ok(guard), _) => guard,
-            (Err(_), Some(h)) => return Ok(h.held.clone()),
+            (Err(_), Some(h)) => return h.held.clone(),
             (Err(_), None) => self.reading.lock().await,
         };
         // Checked by another search while this one waited.
@@ -76,36 +80,56 @@ impl Index {
         if let Some(h) = &holding
             && h.checked_at.elapsed() < CHECKED
         {
-            return Ok(h.held.clone());
+            return h.held.clone();
         }
-        let now = changes(db).await?;
-        let fresh = match holding {
-            Some(h) if h.held.changes == now || h.read_at.elapsed() < READ => {
-                Holding { checked_at: Instant::now(), ..h }
+        let checked = Instant::now();
+        let fresh = match (changes(db).await, holding) {
+            (Ok(now), Some(h)) if h.held.changes == now || h.read_at.elapsed() < READ => {
+                Holding { checked_at: checked, ..h }
             }
-            _ => {
-                let held = Arc::new(read(db, now).await?);
-                Holding { held, read_at: Instant::now(), checked_at: Instant::now() }
+            (Ok(now), holding) => match read(db, now).await {
+                Ok(held) => Holding { held: Arc::new(held), read_at: checked, checked_at: checked },
+                Err(e) => {
+                    tracing::warn!("search: the library's words weren't read: {e}");
+                    keep(holding, checked)
+                }
+            },
+            (Err(e), holding) => {
+                tracing::warn!("search: the library's changes weren't read: {e}");
+                keep(holding, checked)
             }
         };
         let held = fresh.held.clone();
         *self.held.lock().unwrap() = Some(fresh);
-        Ok(held)
+        held
     }
 }
 
+/// What was held, or nothing, until the next try.
+fn keep(holding: Option<Holding>, checked: Instant) -> Holding {
+    holding.map(|h| Holding { checked_at: checked, ..h }).unwrap_or_else(|| Holding {
+        held: Arc::default(),
+        read_at: checked,
+        checked_at: checked,
+    })
+}
+
 /// What changes with the titles and names: the libraries' listing versions
-/// (bumped by every change to an item) and the people.
-async fn changes(db: &Db) -> sqlx::Result<(i64, i64, i64)> {
+/// (bumped by every change to an item), the people (renamed ones by their
+/// `updated_at`) and their credits.
+type Changes = (i64, i64, i64, i64);
+
+async fn changes(db: &Db) -> sqlx::Result<Changes> {
     sqlx::query_as(
         "SELECT (SELECT COALESCE(SUM(version), 0) FROM listing_versions WHERE scope = 'library'),
-                (SELECT COUNT(*) FROM people), (SELECT COALESCE(MAX(id), 0) FROM people)",
+                (SELECT COUNT(*) FROM people), (SELECT COALESCE(MAX(updated_at), 0) FROM people),
+                (SELECT COUNT(*) FROM item_people)",
     )
     .fetch_one(&db.read)
     .await
 }
 
-async fn read(db: &Db, changes: (i64, i64, i64)) -> sqlx::Result<Held> {
+async fn read(db: &Db, changes: Changes) -> sqlx::Result<Held> {
     let mut conn = db.read.acquire().await?;
     // The indexes' words, through tables of the connection's own (temp)
     // schema: nothing is added to the database.
@@ -186,7 +210,7 @@ pub async fn items(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Resu
     if query.is_empty() {
         return Ok(Vec::new());
     }
-    let index = db.search.get(db).await?;
+    let index = db.search.get(db).await;
     let mut reading = fuzzy::read(&query.words, &index.titles);
     let mut ids = matching_items(db, user_id, &reading, query.year).await?;
     if ids.is_empty() && query.year.is_some() {
@@ -197,7 +221,7 @@ pub async fn items(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Resu
     let mut rows = catalog::items_by_ids(db, user_id, &ids).await?;
     let mut found_alike = false;
     if rows.is_empty() {
-        let near = alike(&index, |held| &held.title_pieces, query.all_words().join(" ")).await?;
+        let near = alike(&index, |held| &held.title_pieces, query.all_text()).await?;
         rows = catalog::items_by_ids(db, user_id, &near[..near.len().min(CANDIDATES as usize)]).await?;
         found_alike = true;
     }
@@ -251,9 +275,9 @@ fn rank_items(rows: &mut Vec<ItemRow>, query: &Query, near: bool, limit: usize) 
         _ => 2,
     };
     rows.sort_by_cached_key(|r| {
-        let rank = match_rank(&text, &r.title).min(match_rank(&text, &r.sort_title));
+        let rank = match_rank(text, &r.title).min(match_rank(text, &r.sort_title));
         let close = if near {
-            closeness(&super::text::fold(&r.title), &text).min(closeness(&super::text::fold(&r.sort_title), &text))
+            closeness(&super::text::fold(&r.title), text).min(closeness(&super::text::fold(&r.sort_title), text))
         } else {
             std::cmp::Reverse(0)
         };
@@ -272,7 +296,7 @@ pub async fn people(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Res
     if query.is_empty() {
         return Ok(Vec::new());
     }
-    let index = db.search.get(db).await?;
+    let index = db.search.get(db).await;
     // Names have no years: a year is a word.
     let reading = fuzzy::read(&query.all_words(), &index.names);
     let mut rows = match reading.fts() {
@@ -281,12 +305,12 @@ pub async fn people(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Res
     };
     let mut near = reading.corrected;
     if rows.is_empty() {
-        let found = alike(&index, |held| &held.name_pieces, query.all_words().join(" ")).await?;
+        let found = alike(&index, |held| &held.name_pieces, query.all_text()).await?;
         let found = serde_json::to_string(&found[..found.len().min(CANDIDATES as usize)]).unwrap_or_default();
         rows = credited(db, user_id, Candidates::Ids(&found), limit).await?;
         near = true;
     }
-    let text = query.all_words().join(" ");
+    let text = query.all_text();
     rows.sort_by_cached_key(|(_, name, _)| {
         let close = if near { closeness(&super::text::fold(name), &text) } else { std::cmp::Reverse(0) };
         (match_rank(&text, name), close)

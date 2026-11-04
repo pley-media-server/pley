@@ -477,6 +477,26 @@ pub struct LiveTv {
     generation: AtomicU64,
     /// Logo addresses fetched ahead (or that failed): not asked for again.
     logos_ahead: Mutex<HashSet<String>>,
+    /// What's on, as search finds it, read again a minute later or after a
+    /// change (see [`LiveTv::airing_titled`]).
+    airing: Mutex<Option<Arc<Airing>>>,
+}
+
+/// The programmes on (and starting within the minute) when read, their
+/// titles folded for search.
+struct Airing {
+    read_at: i64,
+    generation: u64,
+    programs: Vec<AiringProgram>,
+}
+
+struct AiringProgram {
+    source_id: i64,
+    guide_id: String,
+    start: i64,
+    stop: i64,
+    /// The title folded (see [`crate::search::text::fold`]).
+    title: Box<str>,
 }
 
 /// The channels of the enabled sources as they are now, hidden ones too.
@@ -651,6 +671,7 @@ impl LiveTv {
             reading_lineup: tokio::sync::Mutex::new(()),
             generation: AtomicU64::new(0),
             logos_ahead: Mutex::default(),
+            airing: Mutex::default(),
         });
         // Whether channels played, as the tuners find out (until Live TV goes).
         let weak = Arc::downgrade(&live);
@@ -1844,21 +1865,47 @@ impl LiveTv {
     /// The guide channels (by source) airing a programme whose title has `search` in it.
     /// Titles are compared as search compares names ([`crate::search::text::finds`]):
     /// "lakeside games" finds "Winter Games - Lakeside 2020".
+    /// The titles are read and folded once a minute at most, not with every
+    /// search: a guide has thousands of channels, and search asks as people type.
     async fn airing_titled(&self, search: &str) -> Result<HashSet<(i64, String)>, AppError> {
         let at = now();
-        let airing = sqlx::query_as::<_, (i64, String, String)>(
-            "SELECT source_id, guide_id, title FROM live_programs WHERE start <= ? AND stop > ?",
-        )
-        .bind(at)
-        .bind(at)
-        .fetch_all(&self.db.read)
-        .await
-        .map_err(|e| AppError::Internal(e.into()))?;
+        let generation = self.generation.load(Ordering::SeqCst);
+        let kept = self.airing.lock().clone().filter(|a| a.generation == generation && at - a.read_at < 60);
+        let airing = match kept {
+            Some(airing) => airing,
+            None => {
+                let rows = sqlx::query_as::<_, (i64, String, i64, i64, String)>(
+                    "SELECT source_id, guide_id, start, stop, title FROM live_programs WHERE start <= ? AND stop > ?",
+                )
+                .bind(at + 60)
+                .bind(at)
+                .fetch_all(&self.db.read)
+                .await
+                .map_err(|e| AppError::Internal(e.into()))?;
+                let programs = tokio::task::spawn_blocking(move || {
+                    rows.into_iter()
+                        .map(|(source_id, guide_id, start, stop, title)| AiringProgram {
+                            source_id,
+                            guide_id,
+                            start,
+                            stop,
+                            title: crate::search::text::fold(&title).into_boxed_str(),
+                        })
+                        .collect()
+                })
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("reading what's on: {e}")))?;
+                let airing = Arc::new(Airing { read_at: at, generation, programs });
+                *self.airing.lock() = Some(airing.clone());
+                airing
+            }
+        };
         let search = crate::search::text::Finder::new(search);
         Ok(airing
-            .into_iter()
-            .filter(|(_, _, title)| search.finds(title))
-            .map(|(source, guide, _)| (source, guide))
+            .programs
+            .iter()
+            .filter(|p| p.start <= at && p.stop > at && search.finds_folded(&p.title))
+            .map(|p| (p.source_id, p.guide_id.clone()))
             .collect())
     }
 

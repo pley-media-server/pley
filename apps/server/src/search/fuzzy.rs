@@ -227,7 +227,9 @@ pub fn read(words: &[String], known: &Words) -> Reading {
         {
             group.push(Term::Phrase(vec![stem.to_owned(), "s".to_owned()]));
         }
-        let plain = word.chars().all(char::is_numeric) || slips_allowed(word) == 0;
+        let plain = word.chars().all(char::is_numeric)
+            || slips_allowed(word) == 0
+            || word.chars().count() > super::text::MAX_WORD_CHARS;
         if !has && !plain {
             let near = known.near(word, last);
             if !near.is_empty() {

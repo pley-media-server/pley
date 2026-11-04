@@ -1717,8 +1717,10 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
   are (most of their letters in the same order: "sppjder man"). What these
   find comes after what `q` finds as typed, the closest first. Search keeps
   what it needs for this (the words of every title and name, and their
-  pieces) in memory, read again within half a minute of a change to the
-  library; nothing of it is written to the database or its backups.
+  pieces) in memory: it looks for changes to the library every few seconds
+  and reads them again at most every half minute, so a title added during
+  a scan may take up to about 35 seconds to be found by a slip. Nothing of
+  it is written to the database or its backups.
 
 ### Continue Watching
 
