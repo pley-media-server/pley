@@ -240,6 +240,7 @@ static class Profile
                 if (wanted == "shot") Shoot(window, dataDir, root);
                 else if (wanted.StartsWith("keys ", StringComparison.Ordinal)) Press(wanted.Substring(5).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (wanted.StartsWith("record ", StringComparison.Ordinal)) Record(window, dataDir, root, wanted.Substring(7).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                else if (wanted == "speed") NetTrace.Speed();
             }
             catch (Exception)
             {

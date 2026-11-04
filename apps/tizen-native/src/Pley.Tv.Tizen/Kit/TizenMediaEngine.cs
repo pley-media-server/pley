@@ -136,6 +136,8 @@ sealed class TizenMediaEngine : IVideoEngine
         var p = new Media.Player();
         player = p;
         Profile.Mark($"engine: {(source.Hls ? "HLS" : source.Live ? "live stream" : "file")} given, preparing");
+        if (source.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) NetTrace.Start();
+        NetTrace.Playing(source.Url, () => lastPosition);
         SetStatus(mine, EngineStatus.Buffering);
         _ = Open(p, source, mine);
     }
@@ -192,6 +194,7 @@ sealed class TizenMediaEngine : IVideoEngine
             p.BufferingProgressChanged += (_, e) =>
             {
                 var percent = e.Percent;
+                NetTrace.Buffered(percent);
                 if (percent is 0 or 100) Post(mine, () => Profile.Mark($"engine: buffered {percent} %"));
             };
 #endif
@@ -820,6 +823,7 @@ sealed class TizenMediaEngine : IVideoEngine
     void Close()
     {
         var p = player;
+        NetTrace.Stop();
         var prepare = preparing;
         watch?.Stop();
         player = null;

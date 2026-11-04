@@ -571,6 +571,20 @@ frame comes every 3 ms of it for half the screen, every 6 for all of it.
 node apps/tizen-native/scripts/metrics.mjs record 20 6000 0,0,960,1080 Right   # 20× slower, 6 s, the left half
 ```
 
+While a video streams, it marks the network once a second, off the UI
+thread: what each interface received, TCP's segments and retransmissions,
+the Wi-Fi driver's signal and discards, the access point's signal, link
+rate and band, the bytes waiting unread in the TV's sockets (many: the
+player reads slowly; none: the network brings slowly) and the player's
+buffering. `speed`, with the video paused, has the TV fetch the stream's
+next segments itself, one at a time as the player does, then the last one
+again (ready on the server, so the network alone), then four at once, and
+marks how long each took to start and how fast it came.
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs --tv S89C speed
+```
+
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
 `Kit/Profile.cs`, the code behind them (the listener, screenshots, keys,
 the watchdog and sampler) and Core's marks are left out when it is compiled.
