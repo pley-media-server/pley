@@ -31,6 +31,7 @@ describes how they are made.
 - An album's page has Go to artist, and Now playing while music plays;
   Now Playing's scrubber, Up from its buttons, moves 10 s with Left and
   Right.
+- A playlist entry's Options key goes to its title's page.
 
 ### Changed
 
