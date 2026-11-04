@@ -15,6 +15,10 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- Your phone or browser plays a film, an episode, a show, an album, an
+  artist, a track, a playlist or a Live TV channel on the TV ("Play on…"):
+  it starts as the TV's own Play would, in place of what plays, and the
+  TV says "Playing from" the device it came from.
 - Your phone or browser changes the audio and subtitles of a film or
   episode playing on the TV, as the player's own Audio and Subtitles do,
   and sees which play.

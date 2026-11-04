@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
 using Pley.Tv.Core.Net;
+using Pley.Tv.Core.Player;
 
 namespace Pley.Tv.Core;
 
@@ -906,7 +907,11 @@ public sealed class AppState
         public void Dispose() => undo();
     }
 
-    /// <summary>Follows the server's events while the app is shown and signed in; a stream the server refused starts again here.</summary>
+    /// <summary>
+    /// Follows the server's events while the app is shown and signed in; a stream the server refused
+    /// starts again here. The stream makes this TV a receiver of the profile's remotes' casts
+    /// (<see cref="Casts.ReceiverQuery"/>).
+    /// </summary>
     public void Listen(bool on)
     {
         var server = Server.Value;
@@ -917,8 +922,26 @@ public sealed class AppState
             Scans.Value = new ScanState[0];
             return;
         }
-        events ??= new EventStream(server, tokens, HandleEvent, Reconnected, connect, scheduler, platform.UserAgent);
+        events ??= new EventStream(server, tokens, HandleEvent, Reconnected, connect, scheduler, platform.UserAgent, () =>
+        {
+            receivesLive = liveTv;
+            return Casts.ReceiverQuery(InstallId(), receivesLive);
+        });
         events.Start();
+    }
+
+    /// <summary>Whether Live TV shows for the profile, and whether the stream last opened told the remotes this TV takes channels.</summary>
+    bool liveTv, receivesLive;
+
+    /// <summary>Live TV shows for the profile now, or no longer does: the stream opens again to tell the remotes.</summary>
+    public void TakesLive(bool live)
+    {
+        liveTv = live;
+        if (events?.Running == true && live != receivesLive)
+        {
+            events.Stop();
+            events.Start();
+        }
     }
 
     void Reconnected()

@@ -18,7 +18,7 @@ namespace Pley.Tv.Core.Api;
 /// One of the server's events (docs/API.md, "Activity &amp; events"). Types: library_changed,
 /// libraries_changed, sessions_changed, watchlist_changed, user_state_changed, session_stopped,
 /// scan_started, scan_progress, scan_finished, live_channels_changed, live_tuners_changed,
-/// live_taken_over, player_command.
+/// live_taken_over, player_command, cast.
 /// </summary>
 public sealed record ServerEvent
 {
@@ -29,8 +29,23 @@ public sealed record ServerEvent
     /// <summary>user_state_changed: everything under the first item changed too.</summary>
     public bool? Children { get; init; }
     public string? SessionId { get; init; }
-    /// <summary>live_taken_over: the channel whose connection someone took over, every viewer of it ended.</summary>
+    /// <summary>
+    /// live_taken_over: the channel whose connection someone took over, every viewer of it ended;
+    /// cast: the channel to tune.
+    /// </summary>
     public long? ChannelId { get; init; }
+    /// <summary>
+    /// cast: the profile's remote, on another device, sent the device of this receiver id something
+    /// to play (docs/API.md, "Casting"): one of <see cref="ItemId"/>, <see cref="PlaylistId"/> and
+    /// <see cref="ChannelId"/>, a title from <see cref="StartMs"/>, a playlist, album or artist
+    /// <see cref="Shuffle"/>d; <see cref="From"/> names the remote's device, when it has a name.
+    /// </summary>
+    public string? ReceiverId { get; init; }
+    public long? ItemId { get; init; }
+    public long? PlaylistId { get; init; }
+    public long? StartMs { get; init; }
+    public bool? Shuffle { get; init; }
+    public string? From { get; init; }
     public string? Message { get; init; }
     public bool? ByAdmin { get; init; }
     /// <summary>
@@ -111,6 +126,7 @@ public sealed class SseReader
         "library_changed" or "scan_started" or "scan_progress" or "scan_finished" => e.LibraryId != null,
         "session_stopped" or "player_command" => !string.IsNullOrEmpty(e.SessionId),
         "live_taken_over" => e.ChannelId != null,
+        "cast" => !string.IsNullOrEmpty(e.ReceiverId),
         "libraries_changed" or "sessions_changed" or "watchlist_changed" or "user_state_changed" or "live_channels_changed" or "live_tuners_changed" => true,
         _ => false,
     };
@@ -147,13 +163,17 @@ public sealed class EventStream
     readonly EventConnect connect;
     readonly IScheduler scheduler;
     readonly string? userAgent;
+    readonly Func<string>? query;
     CancellationTokenSource? running;
     IDisposable? timer;
     int failures;
     bool stopped = true;
+    /// <summary>Bumped by each stop: a connection still waiting for its token when one comes is no longer wanted.</summary>
+    int runs;
 
+    /// <param name="query">Asked at each connection: what the stream is for (this TV as a receiver of casts).</param>
     public EventStream(string server, Tokens tokens, Action<ServerEvent> onEvent, Action onReconnect, EventConnect connect, IScheduler scheduler,
-        string? userAgent = null)
+        string? userAgent = null, Func<string>? query = null)
     {
         this.server = server;
         this.tokens = tokens;
@@ -162,6 +182,7 @@ public sealed class EventStream
         this.connect = connect;
         this.scheduler = scheduler;
         this.userAgent = userAgent;
+        this.query = query;
     }
 
     /// <summary>Whether the stream is followed: started, and not stopped by the server's refusal since.</summary>
@@ -178,6 +199,7 @@ public sealed class EventStream
     public void Stop()
     {
         stopped = true;
+        runs++;
         timer?.Dispose();
         timer = null;
         running?.Cancel();
@@ -211,6 +233,7 @@ public sealed class EventStream
     async Task Connect(bool refreshed)
     {
         if (stopped) return;
+        var run = runs;
         string? token;
         try
         {
@@ -219,16 +242,17 @@ public sealed class EventStream
         catch (NetworkException)
         {
             // A refresh that couldn't reach the server: the server is away, not the sign-in.
-            if (!stopped) Failed();
+            if (!stopped && run == runs) Failed();
             return;
         }
         catch (Exception)
         {
             // Signed out, or the tokens can't be kept: nothing to follow until the next start.
-            Stop();
+            if (run == runs) Stop();
             return;
         }
-        if (stopped) return;
+        // Stopped, or started over (another profile, another receiver's query), while the token came.
+        if (stopped || run != runs) return;
         if (token == null)
         {
             Stop();
@@ -244,11 +268,12 @@ public sealed class EventStream
             ["Authorization"] = "Bearer " + token,
         };
         if (userAgent != null) headers["User-Agent"] = userAgent;
+        var q = query?.Invoke();
         EventEnd end;
         try
         {
             // The stream is read off the UI thread; what it says is told there, in order.
-            end = await connect($"{server}/api/events", headers, () => scheduler.Post(() =>
+            end = await connect(string.IsNullOrEmpty(q) ? $"{server}/api/events" : $"{server}/api/events?{q}", headers, () => scheduler.Post(() =>
             {
                 if (openedAt >= 0 || running != mine) return;
                 openedAt = scheduler.Elapsed;

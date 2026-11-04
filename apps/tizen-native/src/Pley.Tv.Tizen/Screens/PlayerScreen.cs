@@ -149,7 +149,9 @@ sealed class PlayerScreen : Sheet
     /// <param name="reporter">The app's reports queue: the last "stopped" goes out after the screen closed.</param>
     /// <param name="closed">The screen went (Home asks again for the resume points).</param>
     /// <param name="localFile">A video on a drive to play, as it is (<see cref="LocalPlayerSource"/>); null: the request's item, from the server.</param>
-    public PlayerScreen(Shell shell, AppState state, PlayRequest request, IReporter reporter, Images images, KeyRepeatGate gate, Action closed, string? localFile = null) : base("player")
+    /// <param name="playingFrom">"Playing from …", shown at the top right as it starts: where a cast came from.</param>
+    public PlayerScreen(Shell shell, AppState state, PlayRequest request, IReporter reporter, Images images, KeyRepeatGate gate, Action closed, string? localFile = null,
+        string? playingFrom = null) : base("player")
     {
         Covers = true;
         this.shell = shell;
@@ -362,7 +364,11 @@ sealed class PlayerScreen : Sheet
         watches.Add(model.Cues.Watch(subtitles.Show));
         watches.Add(model.Picture.Watch(pictures.Show));
         watches.Add(state.Settings.Watch(subtitles.Restyle));
+        if (playingFrom != null) Notice(playingFrom, Casts.BannerMs);
     }
+
+    /// <summary>A notice at the top right for <paramref name="ms"/>, as the playback's own.</summary>
+    public void Notice(string text, long ms) => ShowToast(new PlayerToast(text, ms));
 
     bool Disposed => gone;
 
@@ -1192,7 +1198,8 @@ sealed class PlayerScreen : Sheet
 
     // ---- leaving
 
-    void Close()
+    /// <summary>Leaves the player, its panel first (Back, Stop, a cast playing something else in its place).</summary>
+    public void Close()
     {
         if (gone) return;
         ClosePanel();

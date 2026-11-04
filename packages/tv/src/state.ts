@@ -6,6 +6,7 @@ import { origin } from "./auth/addresses";
 import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
 import { xhrTransport, type Transport } from "./net/transport";
 import type { Platform, Probe } from "./platform";
+import { receiverQuery } from "./player/cast";
 import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
@@ -582,6 +583,8 @@ export class AppState {
     this.live.value = summary;
     if (summary) this.store.set(LIVE_KEY, JSON.stringify(summary));
     else this.store.remove(LIVE_KEY);
+    // The remotes are told this TV takes channels now, or no longer does.
+    if (!!summary?.available !== this.receivesLive) this.events?.restart();
   }
 
   /** Live channels a page showed: the player starts with one of them at once. The 500 seen last are kept. */
@@ -809,10 +812,17 @@ export class AppState {
         (e) => this.handleEvent(e),
         () => this.reconnected(),
         () => this.eventsLost(),
+        () => {
+          this.receivesLive = !!this.live.value?.available;
+          return receiverQuery(this.installId(), this.receivesLive);
+        },
       );
     }
     this.events.start();
   }
+
+  /** Whether the stream last opened took Live TV's channels from remotes: it opens again when that changes. */
+  private receivesLive = false;
 
   private lastSync = 0;
 

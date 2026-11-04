@@ -1,13 +1,15 @@
 import { useSignal, useSignalEffect } from "@preact/signals";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { AppState } from "../../state";
+import { errorMessage } from "../../api/client";
 import { networkMayHaveChanged } from "../../auth/tokens";
+import { CAST_BANNER_MS, CastReceiver } from "../../player/cast";
 import { UiContext, type Ui } from "../context";
 import { FocusManager } from "../focus";
 import { ImageLoader } from "../images";
 import { Input } from "../input";
 import { initMusic } from "../../player/music";
-import { AppContext, Dialog } from "../screens/common";
+import { AppContext, Dialog, sentence } from "../screens/common";
 import { Screen } from "../screens/screens";
 import { Icon } from "../kit/icons";
 import { Toast } from "../kit/toast";
@@ -22,6 +24,11 @@ function railless(key: PageKey | undefined): boolean {
 
 function isPlayer(key: PageKey | undefined): boolean {
   return !!key && (key.name === "player" || key.name === "livePlayer");
+}
+
+/** Casts are taken on the profile's pages and players, not while signing in or asking who's watching. */
+function takesCasts(root: PageKey | undefined): boolean {
+  return !!root && root.name !== "servers" && root.name !== "link" && root.name !== "profiles";
 }
 
 export interface ShellProps {
@@ -44,7 +51,7 @@ export function App(p: ShellProps) {
   const music = useMemo(() => initMusic(state), []);
   const rail = useRef<RailApi | null>(null);
   const notice = useRef<NoticeApi | null>(null);
-  const toast = useSignal<{ text: string; error: boolean; id: number } | null>(null);
+  const toast = useSignal<{ text: string; error: boolean; id: number; ms?: number } | null>(null);
   const curtain = useSignal(0);
   const exiting = useSignal(false);
   const pageRoot = useRef<HTMLDivElement>(null);
@@ -232,9 +239,42 @@ export function App(p: ShellProps) {
 
   useEffect(() => {
     if (!toast.value) return;
-    const t = setTimeout(() => (toast.value = null), toast.value.error ? 6000 : 3500);
+    const t = setTimeout(() => (toast.value = null), toast.value.ms ?? (toast.value.error ? 6000 : 3500));
     return () => clearTimeout(t);
   }, [toast.value?.id]);
+
+  // Casts from the user's remote on another device: what it sends plays here as Play would, over the player
+  // or the page on top (cast.ts has the rules), and the toast says where it came from.
+  useEffect(() => {
+    // In place of the player on top; over the page on top, Now Playing only when it isn't that already.
+    const show = (key: PageKey) => {
+      exiting.value = false;
+      const top = nav.top?.key;
+      if (isPlayer(top)) nav.replace(key);
+      else if (!(key.name === "nowPlaying" && top?.name === "nowPlaying")) nav.open(key);
+    };
+    const pressed = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const receiver = new CastReceiver({
+      id: () => state.installId(),
+      shown: () => state.visible.value && state.signedIn && !state.signedOut.value && takesCasts(nav.root?.key),
+      server: () => {
+        const api = state.api.value;
+        if (!api) return null;
+        return { item: (id) => state.item(id), onDeck: (id) => api.onDeck(id), children: (id) => api.children(id), playlist: (id) => api.playlist(id) };
+      },
+      video: (request) => show({ name: "player", request, pressedAt: pressed() }),
+      music: (tracks, at, shuffle, fromMs) => {
+        music.play(tracks, at, shuffle, fromMs);
+        show({ name: "nowPlaying" });
+      },
+      channel: (id) => show({ name: "livePlayer", channelId: id, category: "all", pressedAt: Date.now() }),
+      say: (text) => (toast.value = { text, error: false, id: Date.now(), ms: CAST_BANNER_MS }),
+      failed: (e) => showToast(sentence(errorMessage(e)), true),
+    });
+    return state.onEvent((e) => {
+      if (e.type === "cast") receiver.take(e);
+    });
+  }, []);
 
   const showRail = !railless(stack[0]?.key) && !isPlayer(top?.key) && !!api;
   const libraries = state.libraries.value;

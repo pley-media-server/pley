@@ -195,6 +195,30 @@ the remote ticks them; music has none. The rule is pinned for both
 Samsung apps by `packages/tv/test/fixtures/remote.json`, and the tracks
 by `tracks.json` beside it.
 
+**Casts.** The TV is one of the devices the profile's remotes play things
+on ([API.md](API.md#casting)) while its event stream is open: the stream
+names it a receiver by its id (`pley.installId`), a TV taking titles and
+playlists (`casts=item`) and channels while the rail shows Live TV
+(`live`), and opens again when Live TV comes or goes; the server names
+it, as it does its players. What a remote sends plays as the TV's own
+Play would, in place of what plays:
+
+- a movie or an episode in the player, from the place sent, else where
+  Play resumes; a show or a season its next episode;
+- an album or an artist as the music's queue, in order or shuffled, with
+  Now Playing; a track its album from it, at the place sent;
+- a playlist as its page plays it: music as the queue, video in the
+  player through the playlist (shuffled: from a random entry);
+- a channel in the live player, channel up and down going through All
+  channels.
+
+"Playing from" and the remote's device ("another device" when it has no
+name) shows over what starts for 4 s, as the app's toasts do; a show,
+album or playlist with nothing to play says "Nothing to play". A cast for
+another device, or one that comes while the app is hidden, signing in or
+asking who's watching, does nothing, and of two sent close together the
+later plays. The rules are in `packages/tv/test/fixtures/tracks.json` too.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), the rail has
@@ -317,7 +341,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
-| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music |
+| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
 | `subs/` | Subtitles drawn by the app |
 | `caps/` | The server's direct-play rules, so Playback details can say why |
@@ -502,6 +526,13 @@ channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
 stopped it and, on a line of its own, their message, as on Android TV. The
 rule is `Player/Remote.cs`, pinned by the same fixtures as the web app's.
+Casts play as on the web app ([Remote control](#remote-control)), taken
+while the rail's pages or a player show: what a remote sends takes the
+place of the player showing once that one has let go of the TV's player,
+with "Playing from …" at the player's top right, or over Now Playing as
+the pages' toasts show, at their foot. A music playlist plays as the
+music's queue, where the playlist page's own Play opens its first entry's
+album, as Android TV's does. The rules are `Player/Cast.cs`.
 
 | | |
 |---|---|

@@ -198,8 +198,8 @@ sealed class TvShell : Sheet
     /// <summary>Focus to the rail's current entry, which opens the rail.</summary>
     public bool FocusRail() => Rail.FocusCurrent();
 
-    /// <summary>A short message at the foot of the page, gone after 3.5 s.</summary>
-    public void Toast(string text)
+    /// <summary>A short message at the foot of the page, gone after 3.5 s, or <paramref name="ms"/> (a cast's "Playing from …", 4 s).</summary>
+    public void Toast(string text, long ms = 3_500)
     {
         toastText.Text = text;
         var width = toastText.NaturalSize.Width;
@@ -207,6 +207,7 @@ sealed class TvShell : Sheet
         toast.Size = new Size(width + Ui.Dp(40), Ui.Dp(38));
         toast.Show();
         toastTimer.Stop();
+        toastTimer.Interval = (uint)ms;
         toastTimer.Start();
     }
 

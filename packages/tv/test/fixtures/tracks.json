@@ -106,5 +106,93 @@
       "in": { "player": { "session_id": "s1", "audio": [1, 2], "subtitles": [3, 4], "audio_index": 1, "subtitle_index": -1 }, "command": { "session_id": "s1", "command": "pause", "stream_index": null } },
       "out": { "act": "none", "report": false }
     }
+  ],
+  "casts": [
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": 60000, "shuffle": false, "from": "Living room phone" } },
+      "out": { "act": "item", "item_id": 5, "start_ms": 60000, "shuffle": false, "banner": "Playing from Living room phone" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Living room phone" } },
+      "out": { "act": "item", "item_id": 5, "start_ms": null, "shuffle": false, "banner": "Playing from Living room phone" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 6, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": true, "from": null } },
+      "out": { "act": "item", "item_id": 6, "start_ms": null, "shuffle": true, "banner": "Playing from another device" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": null, "playlist_id": 3, "channel_id": null, "start_ms": null, "shuffle": true, "from": "Firefox on Windows" } },
+      "out": { "act": "playlist", "playlist_id": 3, "shuffle": true, "banner": "Playing from Firefox on Windows" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": null, "playlist_id": 3, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Firefox on Windows" } },
+      "out": { "act": "playlist", "playlist_id": 3, "shuffle": false, "banner": "Playing from Firefox on Windows" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": null, "playlist_id": null, "channel_id": 7, "start_ms": null, "shuffle": false, "from": "  " } },
+      "out": { "act": "channel", "channel_id": 7, "banner": "Playing from another device" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-2", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Living room phone" } },
+      "out": { "act": "none" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-2", "item_id": null, "playlist_id": null, "channel_id": 7, "start_ms": null, "shuffle": false, "from": null } },
+      "out": { "act": "none" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": false, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Living room phone" } },
+      "out": { "act": "none" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": null, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Living room phone" } },
+      "out": { "act": "none" }
+    }
+  ],
+  "items": [
+    {
+      "in": { "kind": "movie", "start_ms": 60000, "shuffle": false },
+      "out": { "plays": "video", "start_ms": 60000 }
+    },
+    {
+      "in": { "kind": "movie", "start_ms": null, "shuffle": false },
+      "out": { "plays": "video", "start_ms": null }
+    },
+    {
+      "in": { "kind": "episode", "start_ms": 0, "shuffle": false },
+      "out": { "plays": "video", "start_ms": 0 }
+    },
+    {
+      "in": { "kind": "show", "start_ms": null, "shuffle": false },
+      "out": { "plays": "next_episode" }
+    },
+    {
+      "in": { "kind": "season", "start_ms": 60000, "shuffle": true },
+      "out": { "plays": "next_episode" }
+    },
+    {
+      "in": { "kind": "album", "start_ms": null, "shuffle": false },
+      "out": { "plays": "album", "shuffle": false }
+    },
+    {
+      "in": { "kind": "album", "start_ms": null, "shuffle": true },
+      "out": { "plays": "album", "shuffle": true }
+    },
+    {
+      "in": { "kind": "artist", "start_ms": null, "shuffle": true },
+      "out": { "plays": "artist", "shuffle": true }
+    },
+    {
+      "in": { "kind": "track", "start_ms": 30000, "shuffle": true },
+      "out": { "plays": "track", "start_ms": 30000 }
+    },
+    {
+      "in": { "kind": "track", "start_ms": null, "shuffle": false },
+      "out": { "plays": "track", "start_ms": null }
+    },
+    {
+      "in": { "kind": "photo", "start_ms": null, "shuffle": false },
+      "out": { "plays": "nothing" }
+    }
   ]
 }

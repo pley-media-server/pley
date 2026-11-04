@@ -155,4 +155,11 @@ describe("music and the user's remote, on another device", () => {
     await settle();
     expect([calls, requests.length]).toEqual([[], 1]);
   });
+
+  it("starts the track a cast sent where it says", async () => {
+    const { player, requests } = await world([1, 2, 3], 1);
+    player.play([track(4), track(5)], 0, false, 30_000);
+    await settle();
+    expect(requests.slice(1).map((r) => [r.item_id, r.start_ms])).toEqual([[4, 30_000]]);
+  });
 });

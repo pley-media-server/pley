@@ -445,6 +445,21 @@ export type ServerEvent =
    * `skip`, `stream_index` for `audio` and `subtitles` (`-1`: subtitles off), else null (left out by an older server).
    */
   | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null; stream_index?: number | null }
+  /**
+   * The user's remote sent their device of `receiver_id` something to play: one of `item_id`, `playlist_id` and
+   * `channel_id`, a title from `start_ms`, a playlist, album or artist shuffled; `from` names the remote's device
+   * (docs/API.md, "Casting").
+   */
+  | {
+      type: "cast";
+      receiver_id: string;
+      item_id: Id | null;
+      playlist_id: Id | null;
+      channel_id: Id | null;
+      start_ms: number | null;
+      shuffle: boolean;
+      from: string | null;
+    }
   | { type: "scan_started" | "scan_progress" | "scan_finished"; library_id: Id }
   /** Live TV's sources, channels or guide changed: ask again. */
   | { type: "live_channels_changed" }

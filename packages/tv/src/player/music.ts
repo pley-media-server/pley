@@ -88,14 +88,14 @@ export class MusicPlayer {
     app.onLeave(() => this.stop());
   }
 
-  /** Plays `tracks` from `at`; shuffled, `at` first and the rest in a random order. */
-  play(tracks: ItemSummary[], at: number, shuffle: boolean): void {
+  /** Plays `tracks` from `at`, `fromMs` into it (a cast's place); shuffled, `at` first and the rest in a random order. */
+  play(tracks: ItemSummary[], at: number, shuffle: boolean, fromMs = 0): void {
     if (!tracks.length) return;
     this.queue = tracks.slice();
     const start = Math.max(0, Math.min(at, tracks.length - 1));
     this.order = shuffle ? shuffled(this.queue, start) : this.queue.slice();
     this.index = shuffle ? 0 : start;
-    void this.start(0, null);
+    void this.start(Math.max(0, fromMs), null);
   }
 
   toggle(): void {

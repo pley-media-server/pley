@@ -51,18 +51,24 @@ sealed class LivePlayerScreen : Sheet
     readonly Dictionary<(long, float), ChannelLogoView> logos = new Dictionary<(long, float), ChannelLogoView>();
     readonly List<Animation> spins = new List<Animation>();
 
+    readonly ToastView toast;
+    /// <summary>When the notice at the top right goes (<see cref="Environment.TickCount64"/>); 0 while none shows.</summary>
+    long toastUntil;
     bool controlsShown;
     bool infoShown;
     long infoUntil;
     long hideAt;
     bool listOpen;
+    /// <summary>The channel list beside the picture, while it is open.</summary>
+    LiveChannelListSheet? list;
     string? stageShown;
     string? barShown;
     LiveTrouble? troubleShown;
     long? channelShown;
     bool gone;
 
-    public LivePlayerScreen(Shell shell, AppLiveSource source, LiveWatch watch, Images images, KeyRepeatGate gate, Action closed) : base("live-player")
+    /// <param name="playingFrom">"Playing from …", shown at the top right as the channel starts: where a cast came from.</param>
+    public LivePlayerScreen(Shell shell, AppLiveSource source, LiveWatch watch, Images images, KeyRepeatGate gate, Action closed, string? playingFrom = null) : base("live-player")
     {
         Covers = true;
         this.shell = shell;
@@ -86,6 +92,9 @@ sealed class LivePlayerScreen : Sheet
         digits.Add(digitsText);
         digits.Hide();
         View.Add(digits);
+        toast = new ToastView();
+        toast.Hide();
+        View.Add(toast);
         Root.Add(controls);
         Root.Add(trouble);
 
@@ -113,11 +122,31 @@ sealed class LivePlayerScreen : Sheet
             return !gone;
         };
         tick.Start();
+        if (playingFrom != null) Notice(playingFrom, Casts.BannerMs);
     }
 
     static Size Canvas() => new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.CanvasHeight));
 
     public void Show() => shell.Push(this);
+
+    /// <summary>Leaves the player, its channel list first: a cast plays something else in its place.</summary>
+    public void Close()
+    {
+        if (gone) return;
+        if (list != null) shell.Pop(list);
+        shell.Pop(this);
+    }
+
+    /// <summary>A notice at the top right for <paramref name="ms"/>, as the film player's toasts.</summary>
+    public void Notice(string text, long ms)
+    {
+        if (gone) return;
+        toast.Set(new PlayerToast(text, ms));
+        toast.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - PleyTv.SafeHorizontal - toast.WidthDp), Ui.Dp(PleyTv.SafeVertical));
+        toast.Show();
+        toast.RaiseToTop();
+        toastUntil = Environment.TickCount64 + ms;
+    }
 
     /// <summary>The TV's player for a channel: on the video plane, its picture's size telling where black bars go.</summary>
     IMediaEngine Engine()
@@ -251,6 +280,11 @@ sealed class LivePlayerScreen : Sheet
     {
         if (gone) return;
         var now = Environment.TickCount64;
+        if (toastUntil > 0 && now >= toastUntil)
+        {
+            toastUntil = 0;
+            toast.Hide();
+        }
         var playing = State.Playing;
         if (controlsShown && playing && hideAt > 0 && now >= hideAt) ShowControls(false);
         if (infoShown && playing)
@@ -270,13 +304,15 @@ sealed class LivePlayerScreen : Sheet
         listOpen = true;
         ShowControls(false);
         model.OpenList();
-        var list = new LiveChannelListSheet(shell, model, images, (channel, from) => model.Tune(channel.Id, channel, from));
-        list.Gone += () =>
+        var sheet = new LiveChannelListSheet(shell, model, images, (channel, from) => model.Tune(channel.Id, channel, from));
+        list = sheet;
+        sheet.Gone += () =>
         {
             listOpen = false;
+            if (list == sheet) list = null;
             if (!gone) Draw();
         };
-        list.Show();
+        sheet.Show();
         Draw();
     }
 

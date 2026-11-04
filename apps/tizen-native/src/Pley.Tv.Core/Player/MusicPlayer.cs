@@ -175,11 +175,14 @@ public sealed class MusicPlayer : IMusicControl
     }
 
     /// <summary>Plays <paramref name="tracks"/> from <paramref name="startIndex"/>; shuffled, in a random order that starts with that track.</summary>
-    public void Play(IReadOnlyList<ItemSummary> tracks, int startIndex = 0, bool shuffle = false)
+    public void Play(IReadOnlyList<ItemSummary> tracks, int startIndex = 0, bool shuffle = false) => Play(tracks, startIndex, shuffle, 0);
+
+    /// <summary>The same, the first track from <paramref name="fromMs"/> (a cast's place).</summary>
+    public void Play(IReadOnlyList<ItemSummary> tracks, int startIndex, bool shuffle, long fromMs)
     {
         if (tracks.Count == 0) return;
         queue.Start(tracks, startIndex, shuffle);
-        StartTrack(0);
+        StartTrack(Math.Max(0, fromMs));
     }
 
     /// <summary>Plays; after the queue's end, a failure or a video, starts the current track again.</summary>

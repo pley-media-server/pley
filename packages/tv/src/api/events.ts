@@ -13,25 +13,37 @@ export const STABLE_MS = 30_000;
  * an app's token. Reconnects as the Android app's EventStream does; tells
  * `onReconnect` on every connection, since nothing is replayed, and
  * `onDown` whenever it isn't connected (until it is again), so what
- * follows the events can ask instead meanwhile.
+ * follows the events can ask instead meanwhile. `query`, asked at each
+ * connection, says what the stream is for (this TV as a receiver of casts).
  */
 export class EventStream {
   private xhr: XMLHttpRequest | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private failures = 0;
   private stopped = true;
+  /** Bumped by each stop: a connection still waiting for its token when one comes is no longer wanted. */
+  private runs = 0;
   private readonly server: string;
   private readonly tokens: Tokens;
   private readonly onEvent: (e: ServerEvent) => void;
   private readonly onReconnect: () => void;
   private readonly onDown: () => void;
+  private readonly query: () => string;
 
-  constructor(server: string, tokens: Tokens, onEvent: (e: ServerEvent) => void, onReconnect: () => void, onDown: () => void = () => undefined) {
+  constructor(
+    server: string,
+    tokens: Tokens,
+    onEvent: (e: ServerEvent) => void,
+    onReconnect: () => void,
+    onDown: () => void = () => undefined,
+    query: () => string = () => "",
+  ) {
     this.server = server;
     this.tokens = tokens;
     this.onEvent = onEvent;
     this.onReconnect = onReconnect;
     this.onDown = onDown;
+    this.query = query;
   }
 
   start(): void {
@@ -42,6 +54,7 @@ export class EventStream {
 
   stop(): void {
     this.stopped = true;
+    this.runs++;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
     this.xhr?.abort();
@@ -82,12 +95,15 @@ export class EventStream {
 
   private async connect(): Promise<void> {
     if (this.stopped) return;
+    const run = this.runs;
     let token: string | null;
     try {
       token = await this.tokens.accessToken();
     } catch {
       token = null;
     }
+    // Stopped, or started over (another profile, another receiver's query), while the token came.
+    if (run !== this.runs) return;
     if (!token || this.stopped) {
       if (!this.stopped) this.onDown();
       this.failures++;
@@ -99,7 +115,8 @@ export class EventStream {
     let read = 0;
     let buffer = "";
     let openedAt = -1;
-    xhr.open("GET", `${this.server}/api/events`, true);
+    const query = this.query();
+    xhr.open("GET", `${this.server}/api/events${query ? `?${query}` : ""}`, true);
     xhr.setRequestHeader("Accept", "text/event-stream");
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.onreadystatechange = () => {

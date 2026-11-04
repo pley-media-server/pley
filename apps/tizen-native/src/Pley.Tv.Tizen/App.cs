@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Pley.Tv.Core;
 using Pley.Tv.Core.Local;
@@ -30,6 +31,14 @@ class App : NUIApplication
     Drives drives = null!;
     /// <summary>The music was playing as the app went to the background: it plays again when the app is back.</summary>
     bool musicWasPlaying;
+    /// <summary>The rail and the pages, while they show: the app takes casts only then, not while signing in or asking who's watching.</summary>
+    TvShell? pages;
+    /// <summary>The player showing, a film's or a channel's: a cast takes its place.</summary>
+    Sheet? player;
+    /// <summary>What a cast plays once the player it takes the place of has let go of the TV's player.</summary>
+    Action? afterPlayer;
+    /// <summary>Casts from the profile's remote, on another of its devices.</summary>
+    CastReceiver casts = null!;
 
     protected override void OnCreate()
     {
@@ -68,6 +77,12 @@ class App : NUIApplication
         // TV's media key service reaches every listener whatever is on top.
         musicKeys = new MediaKeys(shell.Input, () => music.Active && !shell.Covered, Media);
         shell.Shown += MusicShown;
+        // What the profile's remote on another device sends plays here, as Play would (Core's Player/Cast.cs).
+        casts = new CastReceiver(new AppCastServer(state), new Casting(this), new ContextScheduler());
+        state.OnEvent(e =>
+        {
+            if (e.Type == "cast") casts.Take(e);
+        });
         Profile.Took("app: Live TV, music and the media keys", services);
         // The server ended the sign-in (revoked, or the refresh token spent): sign in again.
         state.SignedOut.Changed += signedOut =>
@@ -90,6 +105,7 @@ class App : NUIApplication
     protected override void OnPause()
     {
         base.OnPause();
+        state.Visible.Value = false;
         shell.Visible(false);
         state.Listen(false);
     }
@@ -100,6 +116,7 @@ class App : NUIApplication
         base.OnResume();
         // Back from the TV's other apps or standby, maybe on another network.
         Core.Auth.ServerProofs.NetworkMayHaveChanged();
+        state.Visible.Value = true;
         shell.Visible(true);
         state.Listen(true);
     }
@@ -240,35 +257,32 @@ class App : NUIApplication
             ArtistPage artist => new ArtistScreen(tv, new ArtistModel(new AppItemSource(state), music, new ContextScheduler(), artist.ArtistId), images, gate, k => Go(tv, k)),
             AlbumPage album => new AlbumScreen(tv, new AlbumModel(new AppItemSource(state), music, new ContextScheduler(), album.AlbumId, album.TrackId), images, gate, k => Go(tv, k)),
             PageKey.NowPlaying => new NowPlayingScreen(tv, shell, new NowPlayingModel(music, state.Server.Value ?? ""), images, gate),
-            PageKey.Storage storage => new StorageScreen(tv, storage.Path, drives.Root, state.Storage, gate, k => Go(tv, k), (path, startMs) =>
-            {
-                music.YieldToVideo();
-                state.HoldRefresh(true);
-                new PlayerScreen(shell, state, new PlayRequest(LocalPlayerSource.ItemId, startMs, FromStart: false), reporter, images, gate, () => state.HoldRefresh(false), localFile: path).Show();
-            }),
+            PageKey.Storage storage => new StorageScreen(tv, storage.Path, drives.Root, state.Storage, gate, k => Go(tv, k),
+                (path, startMs) => PlayVideo(new PlayRequest(LocalPlayerSource.ItemId, startMs, FromStart: false), localFile: path)),
             _ => null,
         };
         // Live TV in the rail while this profile has channels: asked again for each sign-in and profile.
-        if (liveEntry == null) liveEntry = new LiveTvEntry(live, new ContextScheduler());
+        // The remotes are told this TV takes channels as long as it does.
+        if (liveEntry == null)
+        {
+            liveEntry = new LiveTvEntry(live, new ContextScheduler());
+            liveEntry.Channels.Watch(n => state.TakesLive(n > 0));
+        }
         else liveEntry.Refresh();
         tv.Follow(liveEntry);
         // Now Playing in the rail while music has a queue.
         tv.Follow(music.Now);
         // The USB drive in the rail while one is plugged in.
         tv.Follow(drives.Root);
-        // While the player is on top, Home and the pages wait; back from it, they ask again (its reports
-        // moved resume points and watched marks), and the item details kept go.
-        tv.Play = request =>
-        {
-            // A video takes the TV's one media pipeline: the music pauses and lets go of its session, keeping its place.
-            music.YieldToVideo();
-            var opened = Profile.Start();
-            state.HoldRefresh(true);
-            new PlayerScreen(shell, state, request, reporter, images, gate, () => state.HoldRefresh(false)).Show();
-            Profile.Took("player shown", opened);
-        };
+        tv.Play = request => PlayVideo(request);
         Profile.Took("app: the shell and its rail", made);
-        tv.Actions = (id, continueWatching) => TileActions.Open(shell, state, id, continueWatching, r => tv.Play?.Invoke(r), k => Go(tv, k), tv.Toast);
+        tv.Actions = (id, continueWatching) => TileActions.Open(shell, state, id, continueWatching, r => tv.Play?.Invoke(r), k => Go(tv, k), text => tv.Toast(text));
+        // The pages show: casts are taken until they go (another profile, signing out).
+        pages = tv;
+        tv.Gone += () =>
+        {
+            if (pages == tv) pages = null;
+        };
         shell.Show(tv);
         var shown = Profile.Start();
         tv.Restart(Home(tv));
@@ -280,12 +294,128 @@ class App : NUIApplication
         state.Listen(true);
     }
 
+    /// <summary>
+    /// A video in the player over everything, from a page, a drive (<paramref name="localFile"/>) or a
+    /// cast (<paramref name="playingFrom"/>, shown over it as it starts). While it is on top, Home and the
+    /// pages wait; back from it, they ask again (its reports moved resume points and watched marks), and
+    /// the item details kept go.
+    /// </summary>
+    void PlayVideo(PlayRequest request, string? localFile = null, string? playingFrom = null)
+    {
+        // A video takes the TV's one media pipeline: the music pauses and lets go of its session, keeping its place.
+        music.YieldToVideo();
+        var opened = Profile.Start();
+        state.HoldRefresh(true);
+        PlayerScreen? screen = null;
+        screen = new PlayerScreen(shell, state, request, reporter, images, gate, () =>
+        {
+            state.HoldRefresh(false);
+            PlayerGone(screen!);
+        }, localFile, playingFrom);
+        player = screen;
+        screen.Show();
+        Profile.Took("player shown", opened);
+    }
+
     /// <summary>The live player on <paramref name="watch"/>'s channel, from Live TV or search; <paramref name="back"/> runs as it closes.</summary>
-    void WatchLive(LiveWatch watch, Action back)
+    void WatchLive(LiveWatch watch, Action back) => Watch(watch, back, null);
+
+    /// <summary>The live player on <paramref name="watch"/>'s channel; <paramref name="playingFrom"/>, a cast's, shows over it as it starts.</summary>
+    void Watch(LiveWatch watch, Action back, string? playingFrom)
     {
         // A channel takes the TV's one media pipeline: the music lets go of it first.
         music.YieldToVideo();
-        new LivePlayerScreen(shell, live, watch, images, gate, back).Show();
+        LivePlayerScreen? screen = null;
+        screen = new LivePlayerScreen(shell, live, watch, images, gate, () =>
+        {
+            back();
+            PlayerGone(screen!);
+        }, playingFrom);
+        player = screen;
+        screen.Show();
+    }
+
+    /// <summary>A player went: a cast waiting for it to let go of the TV's player plays now.</summary>
+    void PlayerGone(Sheet sheet)
+    {
+        if (player != sheet) return;
+        player = null;
+        var then = afterPlayer;
+        afterPlayer = null;
+        then?.Invoke();
+    }
+
+    /// <summary>
+    /// What a cast sent plays in place of the player showing, once that one has let go of the TV's
+    /// one media pipeline; at once when none shows.
+    /// </summary>
+    void Replacing(Action start)
+    {
+        switch (player)
+        {
+            case PlayerScreen film:
+                afterPlayer = start;
+                film.Close();
+                break;
+            case LivePlayerScreen channel:
+                afterPlayer = start;
+                channel.Close();
+                break;
+            default:
+                start();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// What a cast does here (Core's <see cref="CastReceiver"/> decides what): it plays in place of
+    /// what plays, over the rail's pages, with "Playing from …" over it as it starts.
+    /// </summary>
+    sealed class Casting : ICastTarget
+    {
+        readonly App app;
+
+        public Casting(App app) => this.app = app;
+
+        public string ReceiverId => app.state.InstallId();
+
+        public bool Shown => app.state.Visible.Value && app.state.SignedIn && !app.state.SignedOut.Value && app.pages != null;
+
+        public void Video(PlayRequest request, string banner) => app.Replacing(() =>
+        {
+            if (Shown) app.PlayVideo(request, playingFrom: banner);
+        });
+
+        public void Music(IReadOnlyList<Core.Api.ItemSummary> tracks, int at, bool shuffle, long fromMs, string banner) => app.Replacing(() =>
+        {
+            if (!Shown || app.pages is not { } tv) return;
+            app.music.Play(tracks, at, shuffle, fromMs);
+            if (tv.Top?.Key is not PageKey.NowPlaying) tv.Open(new PageKey.NowPlaying());
+            tv.Toast(banner, Casts.BannerMs);
+        });
+
+        public void Channel(long channelId, string banner) => app.Replacing(() =>
+        {
+            if (Shown) app.Watch(new LiveWatch(channelId, new Core.Api.LiveCategory.All().Key), () => { }, banner);
+        });
+
+        public void Say(string text)
+        {
+            switch (app.player)
+            {
+                case PlayerScreen film:
+                    film.Notice(text, PlayerText.ToastMs);
+                    break;
+                case LivePlayerScreen channel:
+                    channel.Notice(text, PlayerText.ToastMs);
+                    break;
+                default:
+                    app.pages?.Toast(text);
+                    break;
+            }
+        }
+
+        public void Failed(Exception error) => Say(Core.Api.Errors.Message(error));
     }
 
     /// <summary>Home: a tile opens its item's page, an artist's or album's their music page, a track its album.</summary>
