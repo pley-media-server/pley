@@ -4,6 +4,8 @@
 ' its title where it shows (the scene's requestNote), never the lists.
 
 sub init()
+    ' Whether Your requests showed: a poll that fails then leaves them be.
+    m.requestsShown = false
     m.backdrop = m.top.findNode("backdrop")
     m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
@@ -201,6 +203,9 @@ sub onListRow(event as object)
         else
             setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
         end if
+        ' Without trending, the hero comes from the other lists: every one
+        ' at once, as when trending has nothing to ask for.
+        if list.key = "trending" and list.first = invalid then ensureRows(m.lists.Count() - 1)
         findHero()
         return
     end if
@@ -244,18 +249,30 @@ sub onRequestsRow(event as object)
     if not isCurrent(spec, "requests") then return
     m.lists[spec.row].state = "shown"
     if not answer.ok
-        if not uiFailed(answer) then setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+        if uiFailed(answer) then return
+        ' A poll that fails leaves the requests shown, and asks again in
+        ' its time; with none shown yet, the row says so.
+        if m.requestsShown
+            restartPoll(false)
+        else
+            setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+        end if
         return
     end if
+    m.requestsShown = true
     tiles = []
     if request.content <> invalid then tiles = request.content.getChildren(-1, 0)
     extra = reqMoreTile("See all", "requests", "")
     if tiles.Count() = 0 then extra = reqNoticeTile(reqEmptyText("all", true, false), "note")
     setRow(spec.row, tiles, extra)
-    ' Asked again in 10 s while one of them downloads, in 30 s while the
-    ' event stream is down (reqListPoll).
+    restartPoll(answer.data.busy)
+end sub
+
+' Your requests asked again in 10 s while one of them downloads, in 30 s
+' while the event stream is down (reqListPoll).
+sub restartPoll(busy as boolean)
     m.busy.control = "stop"
-    seconds = reqListPoll(answer.data.busy, m.top.getScene().eventsLive)
+    seconds = reqListPoll(busy, m.top.getScene().eventsLive)
     if seconds > 0 and m.top.active
         m.busy.duration = seconds
         m.busy.control = "start"
