@@ -19,6 +19,7 @@ import coil3.request.Options
 import coil3.request.SuccessResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -68,18 +69,25 @@ internal fun heldRequest(image: ArtworkImage, hold: ArtworkHold, context: Platfo
  * Streamer's main thread 0.6 ms a tile, a dozen tiles for each step of a
  * grid. Those pictures can come a frame later.
  *
- * A request sent to the pool stays there: those set aside go on as the key
- * comes up, and went on right there, on the main thread that ends the
- * hold, a screenful of tiles at once.
+ * A run of the request sent to the pool stays there: those set aside go on
+ * as the key comes up, and went on right there, on the main thread that
+ * ends the hold, a screenful of tiles at once. Its next run (the tile's
+ * picture asked for again) decides afresh, so that once nothing is held
+ * the picture shows in the frame its tile draws again.
  */
 private class HeldDispatch(private val hold: ArtworkHold) : CoroutineDispatcher() {
+    /** The run sent to the pool, by its job: the request's interceptors run in a coroutine of their own each time. */
     @Volatile
-    private var away = false
+    private var away: Job? = null
 
-    override fun isDispatchNeeded(context: CoroutineContext): Boolean = away || hold.holding
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean {
+        if (hold.holding) return true
+        val run = away ?: return false
+        return context[Job] === run
+    }
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
-        away = true
+        away = context[Job]
         Dispatchers.Default.dispatch(context, block)
     }
 }

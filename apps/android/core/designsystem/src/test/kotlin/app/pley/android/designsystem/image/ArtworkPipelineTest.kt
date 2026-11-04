@@ -298,6 +298,12 @@ class ArtworkPipelineTest {
         hold.hold()
         assertTrue(loader.execute(request) is SuccessResult)
         assertTrue("ran on ${threads.single()}", threads.single() != caller)
+
+        // The same request once nothing is held: on the caller's thread again.
+        threads.clear()
+        hold.release()
+        assertTrue(loader.execute(request) is SuccessResult)
+        assertEquals(listOf(caller), threads)
     }
 
     @Test
