@@ -14,6 +14,7 @@
 //! - [`LiveSession`]: a live channel; [`live`] has what the Live TV screens need beside it.
 //! - [`SimEngine`]: the engine of the simulator and the tests.
 //! - [`seeker::Seeker`]: the remote's seeking, for the player screen.
+//! - [`remote`]: what each player obeys of the user's remote on their other devices.
 
 pub mod autoquality;
 pub mod controller;
@@ -28,6 +29,7 @@ pub mod plan;
 pub mod prepare;
 pub mod quality;
 pub mod recovery;
+pub mod remote;
 pub mod reporter;
 pub mod seeker;
 pub mod server;

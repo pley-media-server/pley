@@ -7,8 +7,10 @@
 //! Live TV is watched as it airs: play, pause, rewind and fast forward, Left and Right do nothing. A
 //! channel that doesn't start says why, with Try again, Other channels and Back to the guide; every
 //! connection in use lists what holds each, with Watch here instead where it may be taken over.
-//! Someone taking this channel's connection over (the server's `live_taken_over`) stops it at once,
-//! with the server's words and Watch again.
+//! Someone taking this channel's connection over (the server's `live_taken_over`), or stopping it
+//! from another device or as the server's administrator (`session_stopped`), stops it at once, with
+//! the server's words and Watch again. The user's remote, on another device, changes channel as
+//! channel up and down do.
 
 use std::sync::Arc;
 
@@ -156,6 +158,14 @@ struct Marking {
     job: Promise<Result<(), ApiError>>,
 }
 
+/// Channel up or down, its channel still being found: the channel it started from, and whether the
+/// user's remote asked for it.
+#[derive(Clone, Copy, Debug)]
+struct Step {
+    from: i64,
+    remote: bool,
+}
+
 /// The live player.
 pub struct LivePlayerScreen {
     /// The channel asked for first, then the one tuned last.
@@ -172,6 +182,8 @@ pub struct LivePlayerScreen {
     device: Option<Arc<dyn Device>>,
     /// The category's channels, for channel up and down.
     zap: Option<ChannelPages>,
+    /// The channel up or down asked of `zap` last.
+    stepping: Option<Step>,
     digits: Digits,
     lookup: Option<Promise<Result<LiveChannelPage, ApiError>>>,
     overlay: Overlay,
@@ -219,6 +231,7 @@ impl LivePlayerScreen {
             session: None,
             device: None,
             zap: None,
+            stepping: None,
             digits: Digits::default(),
             lookup: None,
             overlay: Overlay::None,
@@ -316,6 +329,8 @@ impl LivePlayerScreen {
         // Recently watched goes in the order it had as the player opened: asked before the watch changes it.
         self.zap_pages(cx);
         let mut session = LiveSession::new(channel.clone(), &env, device.engine(), now_ms());
+        // The remote's next and previous go through the category as channel up and down do.
+        session.set_steps(self.zap.is_some());
         self.remember(cx, &channel);
         self.channel_id = channel.id;
         self.unknown = None;
@@ -376,12 +391,27 @@ impl LivePlayerScreen {
     }
 
     /// Channel up (`by` 1) or down (−1) in the category, round its ends; from the channel asked for
-    /// when it couldn't be had (the category's first then, when it isn't in it).
-    fn step(&mut self, cx: &AppCx, by: i64) {
+    /// when it couldn't be had (the category's first then, when it isn't in it). `remote`: the user's
+    /// remote on another device asked for it.
+    fn step(&mut self, cx: &AppCx, by: i64, remote: bool) {
+        // Hidden, nothing is watched: the channel it shows again with is the one it left.
+        if self.hidden {
+            return;
+        }
         let current = self.channel().map_or(self.channel_id, |c| c.id);
         if let Some(zap) = self.zap_pages(cx) {
             zap.neighbor(current, by, now_ms());
+            self.stepping = Some(Step { from: current, remote });
         }
+    }
+
+    /// Whether the channel `step` found may still be tuned. Its page may come a while after the step:
+    /// by then another channel may have been chosen (from the list, by its number, by a later step),
+    /// and it isn't tuned over; nor, for the remote's step, over Live TV stopped (from another
+    /// device, say) or a channel in trouble. A key pressed on the TV as it stops still changes channel.
+    fn step_holds(&self, step: Step) -> bool {
+        let current = self.channel().map_or(self.channel_id, |c| c.id);
+        current == step.from && !self.hidden && !(step.remote && self.phase() == Some(LivePhase::Error))
     }
 
     fn open_list(&mut self) {
@@ -410,12 +440,15 @@ impl LivePlayerScreen {
     /// Takes what came back: the channel up or down, a number looked up, favourites, what's on.
     fn collect(&mut self, cx: &mut AppCx, now: f64, seconds: i64) {
         let ms = now_ms();
-        let mut tune = None;
-        if let Some(zap) = self.zap.as_mut() {
+        let found = self.zap.as_mut().and_then(|zap| {
             zap.poll(ms);
-            if let Some(found) = zap.take_neighbor() {
-                tune = found;
-            }
+            zap.take_neighbor()
+        });
+        let mut tune = None;
+        if let Some(found) = found
+            && self.stepping.take().is_some_and(|step| self.step_holds(step))
+        {
+            tune = found;
         }
         if let Some(number) = self.digits.due(now) {
             let browse = Category::Search(number).browse(0, CHANNEL_PAGE, None);
@@ -511,8 +544,8 @@ impl LivePlayerScreen {
         }
         for k in keys {
             match k.key {
-                Key::ChannelUp | Key::Next if k.pressed && !k.repeat => self.step(cx, 1),
-                Key::ChannelDown | Key::Previous if k.pressed && !k.repeat => self.step(cx, -1),
+                Key::ChannelUp | Key::Next if k.pressed && !k.repeat => self.step(cx, 1, false),
+                Key::ChannelDown | Key::Previous if k.pressed && !k.repeat => self.step(cx, -1, false),
                 Key::Digit(d) if k.pressed && !k.repeat && !self.list.typing() => {
                     self.lookup = None;
                     self.digits.push(d, now);
@@ -639,8 +672,8 @@ impl Screen for LivePlayerScreen {
                 for k in ui.keys().to_vec() {
                     if k.pressed && !k.repeat {
                         match k.key {
-                            Key::Up => self.step(cx, 1),
-                            Key::Down => self.step(cx, -1),
+                            Key::Up => self.step(cx, 1, false),
+                            Key::Down => self.step(cx, -1, false),
                             _ => {}
                         }
                     }
@@ -784,7 +817,7 @@ impl Screen for LivePlayerScreen {
         }
     }
 
-    fn event(&mut self, event: &AppEvent, _cx: &mut AppCx) {
+    fn event(&mut self, event: &AppEvent, cx: &mut AppCx) {
         match event {
             // The TV hid the app: the connection and the decoders are let go, to tune again when it shows.
             AppEvent::Visible(false) => {
@@ -793,6 +826,8 @@ impl Screen for LivePlayerScreen {
                 }
                 self.aside = None;
                 self.hidden = true;
+                // A channel up or down still being found isn't tuned in the background.
+                self.stepping = None;
             }
             AppEvent::Visible(true) => {
                 if let Some(s) = self.session.as_mut() {
@@ -814,6 +849,13 @@ impl Screen for LivePlayerScreen {
             AppEvent::Server(ServerEvent::LiveTakenOver { channel_id, message, .. }) => {
                 if let Some(s) = self.session.as_mut() {
                     s.taken_over(*channel_id, message.as_deref());
+                }
+            }
+            // Stopped from elsewhere, or the remote's channel up or down: the step finds the
+            // channel as the keys' does, and a channel with no other in the category is left be.
+            AppEvent::Server(e) => {
+                if let Some(by) = self.session.as_mut().and_then(|s| s.server_event(e)) {
+                    self.step(cx, by, true);
                 }
             }
             _ => {}

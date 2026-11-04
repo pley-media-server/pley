@@ -15,9 +15,9 @@ use std::sync::{Arc, Weak};
 
 use pley_base::Key;
 use pley_core::http::sentence;
-use pley_core::model::{ItemKind, ItemList, ItemSummary, ServerEvent};
+use pley_core::model::{Control, ItemKind, ItemList, ItemSummary, ServerEvent};
 use pley_core::{Api, ApiError, PlayerEngine, Promise, Tasks};
-use pley_player::music::RESTART_MS;
+use pley_player::remote::{Command, RemoteAction, restarts_track};
 use pley_player::sleep::SleepState;
 use pley_player::{MusicSession, NowPlaying, PlayerEnv};
 use pley_shell::{AppCx, BackgroundSession};
@@ -280,7 +280,7 @@ impl MusicPlayer {
     pub fn previous(&mut self) {
         let Some(index) = self.session.now_playing().map(|n| n.index) else { return };
         if let Some(at) = self.held_at {
-            if at <= RESTART_MS && index > 0 {
+            if !restarts_track(at, index) {
                 self.forget_place();
                 self.session.jump_to(index - 1);
             } else {
@@ -501,8 +501,24 @@ impl BackgroundSession for MusicPlayer {
         self.session.stop();
     }
 
+    /// A stop, or the user's remote on another device. The remote acts only while a session
+    /// plays the track, never on a place held after the music gave way: a track or place it goes
+    /// to is the one shown. While the track starts, its Pause opens it paused, as the Pause here
+    /// does, and its Play wins over a Pause pressed here.
     fn server_event(&mut self, event: &ServerEvent) {
-        self.session.server_event(event);
+        let Some(command) = Command::of(event) else {
+            self.session.server_event(event);
+            return;
+        };
+        let starting = self.starting();
+        match self.session.obey(&command) {
+            RemoteAction::Seek(_) | RemoteAction::Next | RemoteAction::Previous => self.forget_place(),
+            RemoteAction::Play => self.hold = false,
+            // A start counts as playing: Play finds it so.
+            RemoteAction::Report if command.command == Control::Play => self.hold = false,
+            RemoteAction::Pause if starting => self.hold = true,
+            _ => {}
+        }
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

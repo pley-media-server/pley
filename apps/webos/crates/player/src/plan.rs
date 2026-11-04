@@ -8,8 +8,8 @@
 
 use pley_core::caps::{CapsDecision, best_file, range_of, video_of};
 use pley_core::model::{
-    ClientCaps, DynamicRange, ItemDetail, MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, PlaybackMode,
-    PlaybackRequest, StreamKind,
+    ClientCaps, DeviceKind, DynamicRange, ItemDetail, MediaFile, MediaStream, PlaybackInfo, PlaybackMethod,
+    PlaybackMode, PlaybackRequest, StreamKind,
 };
 
 use crate::quality::Quality;
@@ -209,6 +209,9 @@ pub fn playback_request(
         client_id: Some(client_id.to_string()),
         keep_previous: false,
         keyed_urls: keyed,
+        // What it obeys is the controller's to say; that it plays on a TV, always.
+        controls: Vec::new(),
+        device_kind: Some(DeviceKind::Tv),
         caps: caps.cloned().unwrap_or_else(ClientCaps::empty),
     }
 }

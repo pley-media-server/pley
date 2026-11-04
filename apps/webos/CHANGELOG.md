@@ -8,6 +8,20 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Your phone or browser controls what plays on the TV: a film or episode
+  plays, pauses, seeks and skips, and goes on to the next one; music does
+  the same, and goes back a track; Live TV changes channel. Live TV
+  stopped from another device, or by the server's administrator, stops
+  on the TV and says who, with their message.
+
+### Fixed
+
+- Live TV's channel up or down, still finding the next channel when
+  another is picked from the list, no longer changes channel a moment
+  later.
+
 ## [0.1.5] - 2026-11-04
 
 ### Fixed

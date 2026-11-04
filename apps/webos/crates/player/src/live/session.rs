@@ -2,7 +2,9 @@
 //! the Android app's `LivePlayback`, the Samsung app's `Live/LivePlayback.cs`):
 //! watching it on the server with this TV's id and a keyed playlist address,
 //! changing channels, and the server told at once when watching ends. Live is
-//! live: no pause, rewind or skip.
+//! live: no pause, rewind or skip. The user's remote, on another of their
+//! devices, changes channel through the owner's channel up and down
+//! ([`LiveSession::server_event`]), and stops it (`session_stopped`).
 //!
 //! - As the Samsung app's, the channel's `stream.ts` (MPEG-TS as the provider
 //!   sends it) is read at once, under an id of its own, while the server is
@@ -25,13 +27,14 @@ use pley_base::Rect;
 use pley_core::ApiError;
 use pley_core::http::{Method, sentence};
 use pley_core::media::{EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine};
-use pley_core::model::{BusyConnection, LiveChannel, LivePlan, WatchRequest};
+use pley_core::model::{BusyConnection, DeviceKind, LiveChannel, LivePlan, ServerEvent, WatchRequest};
 use pley_core::task::{Cancel, Promise, Tasks};
 
 use crate::controller::engine_error;
 use crate::env::PlayerEnv;
 use crate::live::relay::{Opener, StreamRelay};
 use crate::recovery::EngineError;
+use crate::remote::{Command, RemoteAction, RemotePlayer, live_controls, remote_action};
 use crate::reporter::Reporter;
 use crate::server::PlayerServer;
 
@@ -126,6 +129,20 @@ pub fn stopped_trouble(why: Option<&str>) -> Trouble {
     )
 }
 
+/// The session stopped from elsewhere (`session_stopped`): who stopped it, and their message on a
+/// line of its own when given, as a video's and Android's.
+pub fn stopped_sentence(message: Option<&str>, by_admin: bool) -> String {
+    let who = if by_admin {
+        "Live TV was stopped by the server's administrator."
+    } else {
+        "Live TV was stopped from another device."
+    };
+    match message.map(str::trim).filter(|m| !m.is_empty()) {
+        Some(m) => format!("{who}\n{m}"),
+        None => who.to_string(),
+    }
+}
+
 /// What a `410` says of why watching ended: the server's words, if it gave any.
 fn stopped_note(e: &ApiError) -> Option<String> {
     match e {
@@ -215,6 +232,12 @@ pub struct LiveSession {
     state: LiveState,
     version: u64,
     session: Option<String>,
+    /// The session watched last, kept once it ends: the server's word of who stopped it may come
+    /// after its `410`.
+    watched: Option<String>,
+    /// The owner goes through channels with channel up and down: the remote's next and previous
+    /// do the same.
+    steps: bool,
     generation: Arc<AtomicU64>,
     retries: u32,
     now: i64,
@@ -264,6 +287,8 @@ impl LiveSession {
             },
             version: 0,
             session: None,
+            watched: None,
+            steps: false,
             generation: Arc::new(AtomicU64::new(0)),
             retries: 0,
             now,
@@ -278,6 +303,13 @@ impl LiveSession {
             no_relay: false,
             direct: false,
         }
+    }
+
+    /// The owner goes through channels with channel up and down, which the remote's next and
+    /// previous ask of it ([`LiveSession::server_event`]); without, the remote can only stop it.
+    /// Said in each watch from then on.
+    pub fn set_steps(&mut self, steps: bool) {
+        self.steps = steps;
     }
 
     /// Whether what plays is the channel's stream.ts, handed on from the loopback address.
@@ -389,6 +421,52 @@ impl LiveSession {
         self.fail(trouble);
     }
 
+    /// What the server says happened elsewhere. The session stopped from another device or by the
+    /// server's administrator (`session_stopped`) stops as a connection taken over does, saying
+    /// who and why; the card of one whose `410` came first, without words, takes them. A command
+    /// of the user's remote for the session watched gives the channel step it asks for (1 up, -1
+    /// down), for the owner to take as channel up and down: the new channel's watch tells the
+    /// server, and so the remote.
+    pub fn server_event(&mut self, event: &ServerEvent) -> Option<i64> {
+        if self.closed {
+            return None;
+        }
+        if let Some(command) = Command::of(event) {
+            if self.state.phase == LivePhase::Error {
+                return None;
+            }
+            let player = RemotePlayer::live(self.session.as_deref(), self.steps);
+            return match remote_action(&player, &command) {
+                RemoteAction::Channel(by) => Some(by),
+                _ => None,
+            };
+        }
+        let ServerEvent::SessionStopped { session_id, message, by_admin } = event else { return None };
+        let error = self.state.phase == LivePhase::Error;
+        let own = if error { &self.watched } else { &self.session };
+        if own.as_deref() != Some(session_id.as_str()) {
+            return None;
+        }
+        // The message as the server gives it, as a video's and Android's: no full stop added.
+        let said = stopped_sentence(message.as_deref(), *by_admin);
+        let trouble = Trouble::new(TroubleKind::Stopped, "Live TV stopped", said, true);
+        if error {
+            // Only a card without the server's words takes these: another stop's words stay.
+            if let Some(shown) = self.state.trouble.as_mut()
+                && shown.kind == TroubleKind::Stopped
+                && shown.message == stopped_trouble(None).message
+            {
+                *shown = trouble;
+                self.changed();
+            }
+            return None;
+        }
+        // Its session is gone on the server: nothing to leave.
+        self.session = None;
+        self.fail(trouble);
+        None
+    }
+
     fn start(&mut self, channel: LiveChannel, take_over: Option<i64>) {
         self.start_with(channel, take_over, true);
     }
@@ -447,7 +525,13 @@ impl LiveSession {
         self.state.audio_only = false;
         self.changed();
         let (server, reporter, generation) = (self.server.clone(), self.reporter.clone(), self.generation.clone());
-        let req = WatchRequest { client_id: Some(self.client_id.clone()), keyed_urls: true, take_over };
+        let req = WatchRequest {
+            client_id: Some(self.client_id.clone()),
+            keyed_urls: true,
+            take_over,
+            controls: live_controls(self.steps),
+            device_kind: Some(DeviceKind::Tv),
+        };
         let job = self.tasks.spawn(move || {
             // The last session goes first: this TV holds one connection.
             reporter.flush(Duration::from_millis(LEAVE_WAIT_MS));
@@ -641,6 +725,9 @@ impl LiveSession {
                     return;
                 }
                 self.session = session;
+                if self.session.is_some() {
+                    self.watched = self.session.clone();
+                }
                 if let Some(c) = channel {
                     self.state.channel = *c;
                     self.changed();

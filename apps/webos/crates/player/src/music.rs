@@ -9,7 +9,8 @@
 //! once; a session gone (404) or a network error starts a new one where it
 //! was, up to 3 times; Previous restarts a track past 3 s. Kept from the TV
 //! app: a report every 30 s while paused, since LG's keyed addresses die with
-//! a session the server stops hearing from.
+//! a session the server stops hearing from. The user's remote, on another of
+//! their devices, does what the buttons do ([`MusicSession::obey`]).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,20 +19,19 @@ use std::time::Duration;
 use pley_core::ApiError;
 use pley_core::media::{EngineEvent, LoadRequest, MediaKind, PlayerEngine};
 use pley_core::model::{
-    ClientCaps, ItemSummary, PlaybackInfo, PlaybackMethod, PlaybackMode, PlaybackRequest, ProgressReport,
+    ClientCaps, DeviceKind, ItemSummary, PlaybackInfo, PlaybackMethod, PlaybackMode, PlaybackRequest, ProgressReport,
     ProgressState, ServerEvent,
 };
 use pley_core::task::{Cancel, Promise};
 
 use crate::env::PlayerEnv;
+use crate::remote::{Command, MUSIC_CONTROLS, RemoteAction, RemoteKind, RemotePlayer, remote_action, restarts_track};
 use crate::sleep::{SLEEP_CHOICES, SleepChoice, SleepItem, SleepState, SleepTimer};
 
 /// Progress reports while music plays.
 pub const REPORT_MS: i64 = 10_000;
 /// While paused: the server forgets players it hasn't heard from for 90 s, and their addresses with them.
 pub const PAUSED_REPORT_MS: i64 = 30_000;
-/// "Previous" past this restarts the track.
-pub const RESTART_MS: i64 = 3_000;
 /// New sessions for a track that keeps failing.
 pub const MAX_RETRIES: u32 = 3;
 /// A failing track is asked for again this long after.
@@ -136,6 +136,11 @@ pub struct MusicSession {
     yielded_at: Option<i64>,
     duration_ms: Option<u64>,
     buffered_end: Option<i64>,
+    /// The track opens to play: the engine hasn't played or paused it yet. The remote counts it
+    /// as playing, as Android's `playWhenReady` does.
+    opening: bool,
+    /// The remote paused the track while it opened: it opens paused.
+    opens_paused: bool,
     now: i64,
     version: u64,
     jobs: Vec<Promise<Done>>,
@@ -162,6 +167,8 @@ impl MusicSession {
             yielded_at: None,
             duration_ms: None,
             buffered_end: None,
+            opening: false,
+            opens_paused: false,
             now: 0,
             version: 0,
             jobs: Vec::new(),
@@ -292,6 +299,7 @@ impl MusicSession {
         self.retries = 0;
         self.retry_at = None;
         self.jobs.clear();
+        self.opening = false;
         self.now_playing = None;
         self.changed();
     }
@@ -310,7 +318,7 @@ impl MusicSession {
 
     /// The track before; this one from its start when past 3 s, or the first.
     pub fn previous(&mut self) {
-        if self.engine.position_ms() as i64 > RESTART_MS || self.index == 0 {
+        if restarts_track(self.engine.position_ms() as i64, self.index) {
             self.seek_to(0);
             return;
         }
@@ -333,15 +341,19 @@ impl MusicSession {
         self.start(0, None, shuffle);
     }
 
-    /// Seeks: in place in direct play, else a new session there.
-    pub fn seek_to(&mut self, ms: i64) {
+    /// Seeks: in place in direct play, else a new session there. Whether it moved within the
+    /// session playing.
+    pub fn seek_to(&mut self, ms: i64) -> bool {
         if self.session.as_ref().is_some_and(|s| s.method == PlaybackMethod::Direct || !s.hls) {
             self.engine.seek(ms.max(0) as u64);
-        } else if !self.order.is_empty() {
+            return true;
+        }
+        if !self.order.is_empty() {
             self.end_session();
             let shuffle = self.shuffle();
             self.start(ms.max(0), None, shuffle);
         }
+        false
     }
 
     fn shuffle(&self) -> bool {
@@ -394,11 +406,13 @@ impl MusicSession {
         let at = self.engine.position_ms();
         self.end_session();
         self.engine.unload();
+        self.opening = false;
         self.update(|n| n.playing = false);
         self.yielded_at = Some(at as i64);
     }
 
-    /// What the server says happened elsewhere: a stop of the music's session.
+    /// What the server says happened elsewhere: a stop of the music's session, or a command of
+    /// the user's remote on another device.
     pub fn server_event(&mut self, event: &ServerEvent) {
         if let ServerEvent::SessionStopped { session_id, .. } = event
             && self.session.as_ref().is_some_and(|s| s.session_id == *session_id)
@@ -410,7 +424,61 @@ impl MusicSession {
                 n.playing = false;
                 n.error = Some(MusicError::Stopped);
             });
+        } else if let Some(command) = Command::of(event) {
+            self.obey(&command);
         }
+    }
+
+    /// The session the track plays in; none between tracks, after an error or a video took over.
+    pub fn session_id(&self) -> Option<&str> {
+        self.session.as_ref().map(|s| s.session_id.as_str())
+    }
+
+    /// A command of the user's remote, on another device, for the track playing
+    /// ([`crate::remote`] has the rule), as the buttons here do it: what changed is reported at
+    /// once, so the remote sees it. A pause reports as any pause does, another track with its own
+    /// session; a play or pause that finds it so already says it again. What it did.
+    pub fn obey(&mut self, command: &Command) -> RemoteAction {
+        let Some(now) = self.now_playing.as_ref().filter(|n| n.error.is_none() && !n.ended) else {
+            return RemoteAction::None;
+        };
+        let Some(session) = self.session.as_ref() else { return RemoteAction::None };
+        let player = RemotePlayer {
+            kind: RemoteKind::Music { index: self.index },
+            session: Some(&session.session_id),
+            playing: now.playing || (self.opening && !self.opens_paused),
+            position_ms: self.engine.position_ms() as i64,
+            duration_ms: Some(self.duration_ms()).filter(|d| *d > 0),
+            has_next: self.index + 1 < self.order.len(),
+        };
+        let playing = player.playing;
+        let action = remote_action(&player, command);
+        let state = if playing { ProgressState::Playing } else { ProgressState::Paused };
+        match action {
+            RemoteAction::Play => {
+                self.opens_paused = false;
+                self.engine.play();
+                self.report(ProgressState::Playing);
+            }
+            RemoteAction::Pause if self.opening => {
+                // The engine opens it paused, and only then says so: the remote hears it now.
+                self.opens_paused = true;
+                self.engine.pause();
+                self.report(ProgressState::Paused);
+            }
+            RemoteAction::Pause => self.engine.pause(),
+            // Playing or paused already: said again, so a remote a little behind settles.
+            RemoteAction::Report => self.report(state),
+            RemoteAction::Seek(at) => {
+                if self.seek_to(at) {
+                    self.report_from(state, at);
+                }
+            }
+            RemoteAction::Next => self.next(),
+            RemoteAction::Previous => self.previous(),
+            RemoteAction::None | RemoteAction::Channel(_) => {}
+        }
+        action
     }
 
     fn sleep_item(&self) -> SleepItem {
@@ -425,6 +493,8 @@ impl MusicSession {
         self.yielded_at = None;
         self.duration_ms = None;
         self.buffered_end = None;
+        self.opening = true;
+        self.opens_paused = false;
         self.now_playing = Some(NowPlaying {
             track: track.clone(),
             index: self.index,
@@ -446,6 +516,8 @@ impl MusicSession {
             mode: mode.unwrap_or(PlaybackMode::Auto),
             client_id: None,
             keyed_urls: true,
+            controls: MUSIC_CONTROLS.to_vec(),
+            device_kind: Some(DeviceKind::Tv),
             caps: caps.unwrap_or_else(ClientCaps::empty),
             ..PlaybackRequest::default()
         };
@@ -577,6 +649,7 @@ impl MusicSession {
     fn on_engine(&mut self, event: EngineEvent) {
         match event {
             EngineEvent::Playing => {
+                self.opening = false;
                 self.sleep.resumed();
                 self.update(|n| {
                     n.playing = true;
@@ -584,7 +657,12 @@ impl MusicSession {
                 });
             }
             EngineEvent::Paused => {
-                self.update(|n| n.playing = false);
+                // A track that opens paused has loaded.
+                let opened = std::mem::take(&mut self.opening);
+                self.update(|n| {
+                    n.playing = false;
+                    n.loading &= !opened;
+                });
                 self.report(ProgressState::Paused);
             }
             EngineEvent::Waiting(waiting) => self.update(|n| n.loading = waiting),
@@ -671,9 +749,14 @@ impl MusicSession {
     }
 
     fn report(&mut self, state: ProgressState) {
+        self.report_from(state, self.engine.position_ms() as i64);
+    }
+
+    /// `position_ms`: where the track went, when the TV's player may not say so yet (just after a seek).
+    fn report_from(&mut self, state: ProgressState, position_ms: i64) {
         let (Some(s), Some(track)) = (self.session.as_ref(), self.order.get(self.index)) else { return };
         let report = ProgressReport {
-            position_ms: self.engine.position_ms() as i64,
+            position_ms,
             duration_ms: Some(self.duration_ms()).filter(|d| *d > 0),
             state,
             session_id: Some(s.session_id.clone()),

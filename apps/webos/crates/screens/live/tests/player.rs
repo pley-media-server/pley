@@ -7,7 +7,7 @@ mod common;
 use common::TestApp;
 use pley_base::{Cmd, Key, KeyEvent};
 use pley_core::model::LiveCategory;
-use pley_fixtures::ids;
+use pley_fixtures::{Mode, ServerEvent, ids};
 use pley_live::picture_aside;
 use pley_shell::Route;
 use pley_ui::InputEvent;
@@ -272,4 +272,131 @@ fn every_connection_in_use_offers_to_watch_here_instead() {
     };
     assert!(app.until(took), "no watch taking the connection over");
     assert!(app.until(|a| !a.shows("All connections are in use")), "the card stayed");
+}
+
+/// The live session the player watches as, once the server lists it with what its player obeys,
+/// and the event stream it hears the remote on is open.
+fn remote_session(app: &mut TestApp) -> String {
+    let mut found = None;
+    let heard = app.until(|a| {
+        found = a
+            .server
+            .sessions_of(ids::ALEX)
+            .into_iter()
+            .find(|s| s["kind"] == "live" && s["controls"][0] == "next" && s["controls"][1] == "previous");
+        found.is_some() && a.server.event_listeners() > 0
+    });
+    assert!(heard, "the player never said it obeys the remote, or the events never connected");
+    let session = found.unwrap();
+    assert_eq!(session["device_kind"], "tv");
+    session["session_id"].as_str().unwrap().to_string()
+}
+
+fn remote(session: &str, command: &str) -> ServerEvent {
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command: command.into(),
+        position_ms: None,
+        offset_ms: None,
+    }
+}
+
+#[test]
+fn the_remotes_next_and_previous_change_channel_as_channel_up_and_down_do() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let first = remote_session(&mut app);
+    // Another session's, or what live doesn't do: nothing.
+    app.server.emit(remote("someone-elses", "next"));
+    app.server.emit(remote(&first, "pause"));
+    app.advance(0.5);
+    assert_eq!(app.watches(2), 0);
+    app.server.emit(remote(&first, "next"));
+    assert!(tuned(&mut app, 2), "the remote's next isn't the next channel");
+    let second = remote_session(&mut app);
+    assert_ne!(first, second);
+    app.server.emit(remote(&second, "previous"));
+    assert!(app.until(|a| a.watches(ids::LIVE_CHANNEL) == 2), "the remote's previous isn't the one before");
+    // Down from the first goes round to the last, as the keys' does.
+    let third = remote_session(&mut app);
+    app.server.emit(remote(&third, "previous"));
+    assert!(tuned(&mut app, ids::LIVE_CHANNELS), "the remote's previous from the first didn't go round");
+}
+
+#[test]
+fn live_tv_stopped_from_another_device_says_so_with_the_message_on_its_own_line() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let session = remote_session(&mut app);
+    app.server.emit(ServerEvent::SessionStopped {
+        session_id: session.clone(),
+        message: Some("Time for bed".into()),
+        by_admin: false,
+    });
+    assert!(
+        app.until(|a| a.shows("Live TV stopped") && a.shows("Live TV was stopped from another device.\nTime for bed")),
+        "the card never said who stopped it"
+    );
+    assert!(app.shows("Watch again"));
+    // Nothing is watched again by itself, and the remote changes nothing now.
+    app.server.emit(remote(&session, "next"));
+    app.advance(1.0);
+    assert_eq!((app.watches(ids::LIVE_CHANNEL), app.watches(2)), (1, 0));
+}
+
+/// For a player watching channel 2 through Alex's favourites, which don't have it: the server made
+/// slow, so a step from 2, which asks the server where it is, finds its channel 1.5 s later. The live
+/// session the remote acts on.
+fn stepping_from_outside_the_favourites(app: &mut TestApp) -> String {
+    let session = remote_session(app);
+    app.server.set_mode(Mode::Slow).unwrap();
+    session
+}
+
+/// Lets `secs` pass on the real clock, drawing frames, so answers from other threads come.
+fn wait(app: &mut TestApp, secs: f64) {
+    let start = std::time::Instant::now();
+    app.until(|_| start.elapsed().as_secs_f64() > secs);
+}
+
+#[test]
+fn a_channel_picked_while_the_remotes_step_finds_its_channel_stays() {
+    let mut app = watching(2, LiveCategory::Favorites);
+    app.press(Key::Menu);
+    // Not a favourite: the list opens on the first, 1 (where the step goes); the next is 3.
+    let row = |a: &TestApp, i: u64| a.id(&["list", "rows"]).with(i);
+    assert!(app.until(|a| a.focused() == Some(row(a, 0))), "the list didn't open on the first favourite");
+    let session = stepping_from_outside_the_favourites(&mut app);
+    app.server.emit(remote(&session, "next"));
+    // The remote's next comes, and its step asks where channel 2 is.
+    wait(&mut app, 0.5);
+    app.press(Key::Down);
+    app.press(Key::Ok);
+    assert!(tuned(&mut app, 3), "the channel picked wasn't watched");
+    // The step's answer comes, and the channel picked plays on.
+    wait(&mut app, 2.5);
+    assert_eq!(app.watches(ids::LIVE_CHANNEL), 0, "the remote's step tuned over the channel picked");
+    assert_eq!(app.state.live_last_watched.as_ref().map(|l| l.0), Some(3));
+}
+
+#[test]
+fn a_remote_step_whose_channel_comes_after_a_stop_tunes_nothing() {
+    let mut app = watching(2, LiveCategory::Favorites);
+    let session = stepping_from_outside_the_favourites(&mut app);
+    app.server.emit(remote(&session, "next"));
+    wait(&mut app, 0.5);
+    app.server.emit(ServerEvent::SessionStopped { session_id: session, message: None, by_admin: false });
+    assert!(app.until(|a| a.shows("Live TV stopped")), "Live TV didn't stop");
+    wait(&mut app, 2.5);
+    assert_eq!(app.watches(ids::LIVE_CHANNEL), 0, "the remote's step tuned after Live TV stopped");
+    assert!(app.shows("Live TV stopped"), "the card went");
+}
+
+#[test]
+fn a_step_still_finding_its_channel_as_the_tv_hides_the_app_tunes_nothing() {
+    let mut app = watching(2, LiveCategory::Favorites);
+    stepping_from_outside_the_favourites(&mut app);
+    app.press(Key::ChannelUp);
+    let now = app.time;
+    app.shell.visible(false, &mut app.state, &mut app.ui, now);
+    wait(&mut app, 2.5);
+    assert_eq!(app.watches(ids::LIVE_CHANNEL), 0, "the step tuned while the app was hidden");
 }

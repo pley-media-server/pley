@@ -66,6 +66,7 @@ use crate::quality::{
     presets, qualities_for, stream_lines,
 };
 use crate::recovery::{EngineError, Failure, FallbackReason, Recovery, RecoveryAction, StruggleMeter, failure_text};
+use crate::remote::{Command, RemoteAction, RemoteKind, RemotePlayer, remote_action, video_controls};
 use crate::sleep::{SleepChoice, SleepItem, SleepState, SleepTimer};
 
 /// The clock of the controller's own checks.
@@ -439,8 +440,12 @@ enum Check {
 /// What a lookup of the next item is for.
 enum NextFor {
     Credits,
-    Ended { sleeping: bool },
+    Ended {
+        sleeping: bool,
+    },
     PlayNext,
+    /// The remote's next, pressed on another device: nothing next says nothing here.
+    Remote,
 }
 
 /// What a task hands back.
@@ -1182,6 +1187,7 @@ impl PlaybackController {
         let (client_id, keyed) = (self.env.client_id.clone(), self.env.keyed_urls);
         let caps = self.caps.clone();
         let local = self.local();
+        let controls = video_controls(self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue)));
         let mut asked = asked;
         self.spawn(move || {
             Cancel::new().scope(|| {
@@ -1191,6 +1197,7 @@ impl PlaybackController {
                 let ask = |c: &Choices| {
                     let mut req = playback_request(item_id, c, &client_id, caps.as_ref(), keyed);
                     req.keep_previous = asked.alongside;
+                    req.controls = controls.clone();
                     req
                 };
                 let stale = || generation.load(Ordering::SeqCst) != g;
@@ -1983,9 +1990,14 @@ impl PlaybackController {
     }
 
     fn report(&mut self, state: ProgressState) {
+        self.report_at(state, self.live_position());
+    }
+
+    /// `position`: where the player went, when the TV's player may not say so yet (just after a seek).
+    fn report_at(&mut self, state: ProgressState, position: i64) {
         let Some(info) = self.info.as_ref().filter(|_| !self.session_ended) else { return };
         let item_id = self.item.as_ref().map_or(self.current.item_id, |d| d.id);
-        let report = progress(self.live_position(), info, state);
+        let report = progress(position, info, state);
         let server = self.env.server.clone();
         self.env.reporter.send(move || {
             let _ = server.progress(item_id, &report);
@@ -2055,12 +2067,61 @@ impl PlaybackController {
 
     // ---------------------------------------------------------------- commands
 
-    /// What the server says happened elsewhere: a stop of this session.
+    /// What the server says happened elsewhere: a stop of this session, or a command of the
+    /// user's remote on another device.
     pub fn server_event(&mut self, event: &ServerEvent) {
         if let ServerEvent::SessionStopped { session_id, message, by_admin } = event
             && self.info.as_ref().is_some_and(|i| i.session_id == *session_id)
         {
             self.stop_by_server(message.as_deref(), *by_admin);
+        } else if let Some(command) = Command::of(event) {
+            self.obey(&command);
+        }
+    }
+
+    /// A command of the user's remote, on another device, for the session playing
+    /// ([`crate::remote`] has the rule): what changed is reported at once, so the remote sees it.
+    /// A pause reports as any pause does, the next item with its own session; a play or pause
+    /// that finds it so already says it again. A remote's next that finds nothing says nothing
+    /// here, whoever pressed it being elsewhere.
+    fn obey(&mut self, command: &Command) {
+        if self.closed || self.stopped || self.session_ended || self.in_error() {
+            return;
+        }
+        let Some(info) = self.info.as_ref() else { return };
+        let duration = self.clock.duration_ms;
+        let player = RemotePlayer {
+            kind: RemoteKind::Video,
+            session: Some(&info.session_id),
+            playing: self.want_play && !self.ended,
+            position_ms: self.live_position(),
+            duration_ms: (duration > 0).then_some(duration),
+            has_next: self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue)),
+        };
+        match remote_action(&player, command) {
+            RemoteAction::Play => {
+                self.play();
+                self.report(ProgressState::Playing);
+            }
+            RemoteAction::Pause => self.pause(),
+            // Playing or paused already: said again, so a remote a little behind settles.
+            RemoteAction::Report => {
+                self.report(if self.want_play { ProgressState::Playing } else { ProgressState::Paused })
+            }
+            RemoteAction::Seek(at) => {
+                self.seek_to(at);
+                // Not a second later, as after the screen's seeks; a seek that started a new
+                // session has that report itself.
+                if self.seek_report_at.take().is_some() {
+                    let state = if self.want_play { ProgressState::Playing } else { ProgressState::Paused };
+                    self.report_at(state, self.last_position_ms);
+                }
+            }
+            RemoteAction::Next => match self.next.clone() {
+                Some(known) => self.switch_to(known),
+                None => self.look_up_next(NextFor::Remote),
+            },
+            RemoteAction::None | RemoteAction::Previous | RemoteAction::Channel(_) => {}
         }
     }
 
@@ -2590,6 +2651,8 @@ impl PlaybackController {
                 let text = if self.current.queue.is_some() { details::LAST_IN_QUEUE } else { details::LAST_EPISODE };
                 self.notice(text);
             }
+            (NextFor::Remote, Some(f)) => self.switch_to(f),
+            (NextFor::Remote, None) => {}
         }
     }
 
