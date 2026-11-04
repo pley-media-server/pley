@@ -133,17 +133,22 @@ struct DiscoverTitleView: View {
             if let original = page.originalTitle {
                 Text(original).font(.subheadline).foregroundStyle(.secondary)
             }
+            // Each dot goes with the part after it, so a line never ends on one.
             FlowLayout(spacing: 8, lineSpacing: 4) {
                 ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
-                    if index > 0 { Text("·") }
-                    Text(part)
+                    HStack(spacing: 8) {
+                        if index > 0 { Text("·") }
+                        Text(part)
+                    }
                 }
                 if let certification = page.certification {
-                    Text("·")
-                    Text(certification)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 4)
-                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(.secondary))
+                    HStack(spacing: 8) {
+                        Text("·")
+                        Text(certification)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 4)
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(.secondary))
+                    }
                 }
             }
             .font(.subheadline)
@@ -393,12 +398,6 @@ private struct SeasonPickerSheet: View {
                             .accessibilityAddTraits(picked ? .isSelected : [])
                             .accessibilityIdentifier("picker.season.\(row.season.number)")
                         }
-                    } footer: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(model.pickerLines, id: \.self) { line in
-                                Text(line).foregroundStyle(picker.overLimit ? Color.red : Color.secondary)
-                            }
-                        }
                     }
                 }
                 .navigationTitle(RequestWords.pickerTitle)
@@ -411,16 +410,25 @@ private struct SeasonPickerSheet: View {
                             .accessibilityIdentifier("picker.cancel")
                     }
                 }
-                .safeAreaInset(edge: .bottom) {
-                    Button(action: model.askPicked) {
-                        Text(picker.button).frame(maxWidth: .infinity)
+                // The allowance sits over the button, where it shows however
+                // many seasons there are.
+                .footBar {
+                    VStack(spacing: 10) {
+                        ForEach(model.pickerLines, id: \.self) { line in
+                            Text(line)
+                                .font(.footnote)
+                                .foregroundStyle(picker.overLimit ? Color.red : Color.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Button(action: model.askPicked) {
+                            Text(picker.button).frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(!picker.ready || model.busy)
+                        .accessibilityIdentifier("picker.ask")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(!picker.ready || model.busy)
                     .padding()
-                    .background(.bar)
-                    .accessibilityIdentifier("picker.ask")
                 }
             }
         }
@@ -429,6 +437,19 @@ private struct SeasonPickerSheet: View {
         #else
         .frame(minWidth: 420, idealWidth: 460, minHeight: 420, idealHeight: 520)
         #endif
+    }
+}
+
+private extension View {
+    /// `content` at the foot, over what scrolls: on the system's glass
+    /// sheets the list fades out under it, with no band of its own, and
+    /// before them it sits on the bar's material.
+    @ViewBuilder func footBar(@ViewBuilder _ content: () -> some View) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            safeAreaBar(edge: .bottom, content: content)
+        } else {
+            safeAreaInset(edge: .bottom) { content().background(.bar) }
+        }
     }
 }
 

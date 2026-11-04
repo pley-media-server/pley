@@ -177,9 +177,10 @@ private struct DiscoverHeroView: View {
                 // dark page: in light mode the words are dark, and a backdrop
                 // left half showing under them hides the kind and year.
                 if !typeSize.isAccessibilitySize {
-                    LinearGradient(stops: [.init(color: .clear, location: 0.2),
-                                           .init(color: Color.pageBackground.opacity(0.85), location: 0.6),
-                                           .init(color: Color.pageBackground.opacity(0.95), location: 1)],
+                    // It ends in the page's own colour, so the card's foot has no edge.
+                    LinearGradient(stops: [.init(color: .clear, location: 0.3),
+                                           .init(color: Color.pageBackground.opacity(0.85), location: 0.65),
+                                           .init(color: Color.pageBackground, location: 1)],
                                    startPoint: .top, endPoint: .bottom)
                 }
             }
