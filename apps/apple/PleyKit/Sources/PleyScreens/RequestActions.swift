@@ -91,7 +91,7 @@ extension AppModel {
                 outcome = .changed(try await api.approveRequest(request.id))
             case .approveWith:
                 outcome = .changed(try await api.approveRequest(request.id, approval ?? Approval()))
-            case .decline:
+            case .decline, .declineWithReason:
                 outcome = .changed(try await api.declineRequest(request.id, reason: reason))
             case .handled:
                 outcome = .changed(try await api.markHandled(request.id))

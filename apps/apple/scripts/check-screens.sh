@@ -17,8 +17,11 @@
 # History, Settings, Diagnostics and About, on Apple TV Always start as
 # across a relaunch, and Sign out; and music, Live TV, the player's extras,
 # the remote (iPhone and iPad) and the largest text size, each a test of
-# its own. The servers and their folders are removed afterwards, whatever
-# happens. macOS only.
+# its own. Requests, whose titles come from TMDB, which the test servers
+# have no key for, are walked on Apple TV against the package's fixture
+# server (pley-apple-fixtures), started afresh for each run of the tests.
+# The servers and their folders are removed afterwards, whatever happens.
+# macOS only.
 #
 #   PLEY_IOS_SIMS      the iPhone and iPad simulators, separated by ";"
 #                      (default "iPhone 17;iPad (A16)")
@@ -162,6 +165,18 @@ build_tests() {
 if [[ -n "$ios_sims" ]]; then build_tests PleyUITests "iOS Simulator"; fi
 if [[ -n "$tv_sim" ]]; then build_tests PleyTVUITests "tvOS Simulator"; fi
 
+# The fixture server Apple TV's requests are walked against.
+fixtures_bin=""
+if [[ -n "$tv_sim" ]]; then
+  echo "check-screens: building pley-apple-fixtures"
+  if ! swift build --package-path apps/apple/PleyKit --product pley-apple-fixtures >"$temp/build-fixtures.log" 2>&1; then
+    echo "check-screens: pley-apple-fixtures didn't build:" >&2
+    grep -E "error:" "$temp/build-fixtures.log" | head -n 20 >&2 || tail -n 20 "$temp/build-fixtures.log" >&2
+    exit 1
+  fi
+  fixtures_bin="$(swift build --package-path apps/apple/PleyKit --show-bin-path)/pley-apple-fixtures"
+fi
+
 # The simulator's UDID by its name.
 udid() {
   xcrun simctl list devices available -j |
@@ -174,6 +189,7 @@ udid() {
 dir=""
 lock=""
 xcode=""
+fixtures=""
 origin=""
 token=""
 
@@ -204,6 +220,32 @@ start_live() {
     if grep -q ready "$dir/live.log" 2>/dev/null; then return 0; fi
     sleep 1
   done
+}
+
+# Starts the fixture server afresh, its log in the walk's folder, and
+# sets fixtures_origin to its origin, the log's first line.
+start_fixtures() {
+  stop_fixtures
+  : >"$dir/fixtures.log"
+  "$fixtures_bin" </dev/null >"$dir/fixtures.log" 2>&1 &
+  fixtures=$!
+  for _ in $(seq 1 50); do
+    if [[ -s "$dir/fixtures.log" ]]; then break; fi
+    sleep 0.2
+  done
+  fixtures_origin=$(head -n 1 "$dir/fixtures.log")
+  if [[ $fixtures_origin != http://127.0.0.1:* ]]; then
+    echo "check-screens: the fixture server didn't start" >&2
+    return 1
+  fi
+}
+
+stop_fixtures() {
+  if [[ -n "$fixtures" ]]; then
+    kill "$fixtures" 2>/dev/null || true
+    wait "$fixtures" 2>/dev/null || true
+    fixtures=""
+  fi
 }
 
 # The administrator's requests, as the web app sends them.
@@ -347,6 +389,7 @@ walk_cleanup() {
   # cleanup: the second mustn't end this one part way, leaving the server.
   trap '' TERM INT
   if [[ -n "$xcode" ]]; then kill "$xcode" 2>/dev/null || true; fi
+  stop_fixtures
   # A full run's server goes with it; the live source stops its FFmpegs
   # and its web server with it.
   if [[ -z "$quick" && -n "$dir" ]]; then stop_kept "$dir"; fi
@@ -390,16 +433,23 @@ for t in json.load(open(out + "/manifest.json")):
 # TEST_RUNNER_ variables to the tests, without the prefix. It runs in the
 # background, so a stop reaches the walk at once.
 run_tests() {
-  local out=$1 bundle=$2 result=0
+  local out=$1 bundle=$2 result=0 fixtures_origin="" fixtures_log=""
   shift 2
   rm -rf "$bundle"
+  # Apple TV's requests: a fixture server of their own, afresh each run.
+  if [[ $scheme == PleyTVUITests ]]; then
+    start_fixtures || return 1
+    fixtures_log="$dir/fixtures.log"
+  fi
   TEST_RUNNER_PLEY_ORIGIN="$origin" TEST_RUNNER_PLEY_SECRETS_FILE="$dir/secrets.json" \
     TEST_RUNNER_PLEY_ADMIN_NAME="Admin" TEST_RUNNER_PLEY_SHOTS="$shots" \
+    TEST_RUNNER_PLEY_FIXTURES_ORIGIN="$fixtures_origin" TEST_RUNNER_PLEY_FIXTURES_LOG="$fixtures_log" \
     xcodebuild test-without-building -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \
     "$@" -resultBundlePath "$bundle" </dev/null >"$out" 2>&1 &
   xcode=$!
   wait "$xcode" || result=$?
   xcode=""
+  stop_fixtures
   return "$result"
 }
 

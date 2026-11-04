@@ -207,6 +207,28 @@ final class ScreensTests: XCTestCase {
                           timeout: 10)
     }
 
+    /// Requests, against the fixture server, as its administrator Alex:
+    /// the news of a request ready, Discover's tab, its hero's Request, a
+    /// row's grid, a show's page and Which seasons?, the requests with
+    /// Approve and Decline with a reason in a request's panel, and Search's
+    /// Discover row. It signs out of the fixture server afterwards, so the
+    /// next test signs in to the test server again.
+    func testRequests() async throws {
+        try XCTSkipIf(FixtureHost.origin.isEmpty, "check-screens.sh starts the fixture server for requests.")
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.signInToFixtures()
+        walk.requestNews()
+        walk.openDiscover()
+        walk.discoverHeroAndGrid()
+        walk.discoverShowAndSeasons()
+        walk.requestsAndApproving()
+        walk.searchDiscover()
+        walk.openSettings()
+        walk.signOut()
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?

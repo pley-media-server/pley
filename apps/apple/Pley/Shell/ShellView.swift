@@ -227,6 +227,8 @@ struct ShellView: View {
         case .playlists: PlaylistsView(app: app)
         case .me, .settings, .nowPlaying: MeView(app: app)
         case .liveTv: LiveTvView(app: app)
+        // Apple TV's tab only: here requests are under Me.
+        case .requests: RequestsView(app: app)
         }
     }
 
@@ -240,6 +242,7 @@ struct ShellView: View {
         case .settings: "Settings"
         case .liveTv: "Live TV"
         case .nowPlaying: "Now Playing"
+        case .requests: "Requests"
         case .library: "Library"
         }
     }
@@ -253,6 +256,7 @@ struct ShellView: View {
         case .me: "person.crop.circle"
         case .settings: "gearshape"
         case .liveTv: "tv"
+        case .requests: "list.bullet.rectangle"
         case .nowPlaying: "music.note"
         case .library: "folder"
         }
@@ -460,6 +464,8 @@ struct ScreenView: View {
             DiscoverView(app: app)
         case .discoverResults(let query):
             DiscoverResultsView(app: app, query: query)
+        case .discoverList(let list):
+            DiscoverResultsView(app: app, source: .list(list))
         case .discoverTitle(let kind, let tmdbId, let pick):
             DiscoverTitleView(app: app, kind: kind, tmdbId: tmdbId, pick: pick)
         case .requests:

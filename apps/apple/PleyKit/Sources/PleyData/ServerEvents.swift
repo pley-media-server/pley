@@ -245,9 +245,9 @@ public final class ServerEvents {
             gather(ServerChange(live: true))
         case .requestsChanged(let id, let kind, let tmdbId):
             requests(RequestChange(id: id, kind: kind, tmdbId: tmdbId))
-        case .requestAvailable(let id, let title, let kind, let tmdbId, let itemId, _, let seasons, let complete):
+        case .requestAvailable(let id, let title, let kind, let tmdbId, let itemId, let poster, let seasons, let complete):
             onRequestNews(.ready(requestId: id, title: title, kind: kind, itemId: itemId, seasons: seasons,
-                                 complete: complete))
+                                 complete: complete, poster: poster))
             requests(RequestChange(id: id, kind: kind, tmdbId: tmdbId))
         case .requestDecided(let id, let title, let kind, let tmdbId, let status, let reason):
             if status == .declined {
