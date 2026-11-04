@@ -482,9 +482,11 @@ public struct SeasonPicker: Hashable, Sendable {
 /// What a request card offers: Watch once it's ready where the person can
 /// open it, then exactly the server's actions in its order, those this app
 /// doesn't know left out. Approve comes with Approve… (profile, folder and
-/// seasons), and Decline asks for an optional reason.
+/// seasons), and Decline asks for an optional reason. On Apple TV's panel
+/// (`panel`), Approve is plain and Decline comes with Decline with a reason….
 public enum CardAction: String, Hashable, Sendable, CaseIterable {
-    case watch, withdraw, remove, stopFollowing, approve, approveWith, tryAgain, decline, handled, delete, askAgain
+    case watch, withdraw, remove, stopFollowing, approve, approveWith, tryAgain, decline, declineWithReason, handled
+    case delete, askAgain
 
     public var title: String {
         switch self {
@@ -496,6 +498,7 @@ public enum CardAction: String, Hashable, Sendable, CaseIterable {
         case .approveWith: RequestWords.approveWith
         case .tryAgain: RequestWords.tryAgain
         case .decline: RequestWords.decline
+        case .declineWithReason: RequestWords.declineWithReason
         case .handled: RequestWords.handled
         case .delete: RequestWords.delete
         case .askAgain: RequestWords.askAgain
@@ -510,6 +513,7 @@ public enum CardAction: String, Hashable, Sendable, CaseIterable {
         case .approveWith: "slider.horizontal.3"
         case .tryAgain: "arrow.clockwise"
         case .decline, .withdraw: "xmark"
+        case .declineWithReason: "text.bubble"
         case .remove, .delete: "trash"
         case .stopFollowing: "bookmark.slash"
         case .handled: "checkmark.circle"
@@ -557,6 +561,29 @@ public enum CardAction: String, Hashable, Sendable, CaseIterable {
             }
         }
         return (all.filter { !menu.contains($0) }, all.filter { menu.contains($0) })
+    }
+
+    /// Apple TV's panel for `request` (Android TV's): exactly the server's
+    /// actions in its order. Approve is plain, the settings' choices
+    /// applying, and Decline comes with Decline with a reason…; Open and
+    /// Details are the panel's own.
+    public static func panel(_ request: MediaRequest) -> [CardAction] {
+        var all: [CardAction] = []
+        var seen: Set<RequestAction> = []
+        for action in request.actions where seen.insert(action).inserted {
+            switch action {
+            case .withdraw: all.append(request.status == .declined ? .remove : .withdraw)
+            case .unwatch: all.append(.stopFollowing)
+            case .approve: all.append(.approve)
+            case .retry: all.append(.tryAgain)
+            case .decline: all += [.decline, .declineWithReason]
+            case .handled: all.append(.handled)
+            case .delete: all.append(.delete)
+            case .askAgain: all.append(.askAgain)
+            default: break
+            }
+        }
+        return all
     }
 }
 

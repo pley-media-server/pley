@@ -207,6 +207,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public var heldNewsGap: Double = ShellModel.toastSeconds
     /// The held news being told, one after another.
     private var heldNewsTask: Task<Void, Never>?
+    /// Apple TV: requests' news waiting to pop up, oldest first. The shell
+    /// shows the first once nothing else needs the remote, and takes it off
+    /// (`noticeShown`).
+    @Published public private(set) var notices: [RequestNews] = []
     /// What the system's Now Playing was told last of a video, to send only what changed.
     private var videoShown: (info: NowPlayingInfo, at: Int64)?
     /// The picture Now Playing shows for the music or video playing: its path and the image.
@@ -251,7 +255,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         requests = RequestsRepository(api: { [session] in
             guard let api = await session.api else { throw PleyError.signedOut }
             return api
-        }, settings: settings)
+        }, settings: settings, tv: tv)
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -280,16 +284,13 @@ public final class AppModel: ObservableObject, SnapshotCache {
         serverEvents.onRequestsSettings = { [weak self] in self?.requests.settingsChanged() }
         serverEvents.onConnection = { [weak self] connected in self?.requests.setStreaming(connected) }
         requestsWatch = requests.$summary.sink { [weak self] summary in
-            self?.shell.setRequestsEntry(.of(.of(summary)))
+            self?.shell.setRequestsEntry(.of(.of(summary)), known: summary != nil)
         }
-        #if !os(tvOS)
-        // Apple TV has no requests' pages: no toast offers an Open that leads nowhere.
         requests.onNews = { [weak self] news in self?.heard(news) }
         playersWatch = $player.combineLatest($livePlayer).sink { [weak self] player, live in
             guard player == nil, live == nil else { return }
             Task { @MainActor in self?.showHeldNews() }
         }
-        #endif
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
@@ -466,6 +467,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
         homeVersion += 1
         heldNews = []
+        notices = []
         shell.reset()
         actions.reset()
         profilesFromShell = false
@@ -489,6 +491,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         user = nil
         requests.reset()
         heldNews = []
+        notices = []
         shell.reset()
         actions.reset()
         root = .servers
@@ -954,9 +957,15 @@ public final class AppModel: ObservableObject, SnapshotCache {
     }
 
     /// Something to tell of the profile's requests: a toast with Open, held
-    /// while a video or a channel plays, and shown once it closes.
+    /// while a video or a channel plays, and shown once it closes. On Apple
+    /// TV, a pop-up's, which waits for the remote itself (`notices`).
     func heard(_ news: RequestNews) {
         guard user != nil else { return }
+        if tv {
+            notices.append(news)
+            if notices.count > Self.heldNewsMax { notices.removeFirst(notices.count - Self.heldNewsMax) }
+            return
+        }
         if player != nil || livePlayer != nil {
             heldNews.append(news)
             if heldNews.count > Self.heldNewsMax { heldNews.removeFirst(heldNews.count - Self.heldNewsMax) }
@@ -967,15 +976,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     private func tell(_ news: RequestNews) {
         var error = false
-        var screen: Screen = .requests
-        switch news {
-        case .ready(_, _, _, let itemId?, _, _):
-            screen = .item(itemId)
-        case .failed:
-            error = true
-        default:
-            break
-        }
+        if case .failed = news { error = true }
+        let screen = Self.opens(news)
         shell.show(RequestWords.notice(news), action: ToastAction("Open") { [weak self] in
             self?.shell.open(screen)
         }, error: error)
@@ -1000,6 +1002,18 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// The news waiting for the player to close.
     public var newsHeld: [RequestNews] { heldNews }
+
+    /// Apple TV's pop-up shows `news`: it's off the queue, so newer news can't push it out.
+    public func noticeShown(_ news: RequestNews) {
+        guard let index = notices.firstIndex(of: news) else { return }
+        notices.remove(at: index)
+    }
+
+    /// Where a pop-up's Open goes: the title, once ready in a library; else the requests.
+    public nonisolated static func opens(_ news: RequestNews) -> Screen {
+        if case .ready(_, _, _, let itemId?, _, _, _) = news { return .item(itemId) }
+        return .requests
+    }
 
     /// One of this profile's playbacks was stopped from elsewhere: the
     /// player showing it closes, and says why.
@@ -1354,6 +1368,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         notice = message
         requests.reset()
         heldNews = []
+        notices = []
         shell.reset()
         actions.reset()
         root = .servers

@@ -10,6 +10,7 @@
 
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -23,6 +24,8 @@ static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 pub struct Db {
     pub read: SqlitePool,
     pub write: SqlitePool,
+    /// What search keeps in memory of the library (see [`crate::search`]).
+    pub search: Arc<crate::search::Index>,
 }
 
 impl Db {
@@ -53,7 +56,7 @@ impl Db {
             .acquire_timeout(Duration::from_secs(30))
             .connect_with(base.read_only(true))
             .await?;
-        Ok(Self { read, write })
+        Ok(Self { read, write, search: Arc::default() })
     }
 
     /// Refresh query planner statistics (cheap; run after large scans).

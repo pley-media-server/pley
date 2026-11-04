@@ -11,7 +11,7 @@ use super::wants_summaries;
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
-use crate::people::{self, PersonSummary};
+use crate::people::PersonSummary;
 use crate::state::AppState;
 
 pub async fn home(
@@ -94,8 +94,10 @@ pub async fn search(
     // Up to `limit` of each: titles, people and channels.
     let limit = query.get("limit").and_then(|l| l.parse::<i64>().ok()).unwrap_or(40).clamp(1, 200);
     // Titles and people at the same time.
-    let (rows, people) =
-        tokio::try_join!(catalog::search(&state.db, user.id, q, limit), people::search(&state.db, user.id, q, limit))?;
+    let (rows, people) = tokio::try_join!(
+        crate::search::items(&state.db, user.id, q, limit),
+        crate::search::people(&state.db, user.id, q, limit)
+    )?;
     let summaries = wants_summaries(&query);
     let channels = if !q.is_empty() && state.live.may_watch(&user).await {
         state.live.browse(&user, &crate::livetv::Category::All, q, 0, limit as usize, None).await?.channels

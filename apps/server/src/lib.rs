@@ -49,6 +49,7 @@ pub mod related;
 pub mod requests;
 pub mod resources;
 pub mod schedule;
+pub mod search;
 #[cfg(windows)]
 pub mod service;
 pub mod settings;

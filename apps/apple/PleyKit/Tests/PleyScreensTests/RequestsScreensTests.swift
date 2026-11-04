@@ -44,6 +44,24 @@ private func caughtUp(_ server: FixtureServer) async throws -> AppModel {
     return app
 }
 
+/// An Apple TV app signed in on `server`, with the requests' summary read.
+@MainActor
+private func tvReady(_ server: FixtureServer) async throws -> AppModel {
+    let store = MemoryTokenStore()
+    try await keepSignIn(server, in: store)
+    let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
+                  tv: true)
+    await app.start()
+    try #require(app.user != nil)
+    #expect(await eventually { app.requests.summary != nil })
+    return app
+}
+
+/// The pages of `path` read, in order.
+private func pagesRead(_ server: FixtureServer, _ path: String) -> [Int] {
+    server.requests(path).map { Int($0.query["page"] ?? "") ?? 1 }
+}
+
 private func object(_ data: Data?) -> [String: Any]? {
     data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
 }
@@ -539,5 +557,152 @@ private func object(_ data: Data?) -> [String: Any]? {
         await model.load()
         model.setQuery("zzz")
         #expect(await eventually { if case .empty(let words) = model.state { !words.discover } else { false } })
+    }
+}
+
+/// Apple TV's requests (Android TV's): news waiting for the pop-up, and
+/// the grids of TMDB's titles that stop short with Show more.
+@MainActor
+@Suite struct AppleTVRequestsTests {
+    @Test func newsWaitsForThePopUpAndOnlyWhatIsReadyIsTold() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        // Arrival became ready and Alien: Romulus was declined while the app was away.
+        server.setUnseenRequests([45, 46])
+        let app = try await tvReady(server)
+        #expect(await eventually { app.notices.count == 1 })
+        #expect(app.notices.map(RequestWords.notice) == ["“Arrival” is ready to watch."])
+        #expect(app.shell.toast == nil)
+        #expect(await eventually { server.openEventStreams == 1 })
+        // Declined isn't told; ready is, the newest three kept.
+        server.pushFixtureEvent("events/request_decided.json")
+        for _ in 0..<4 { server.pushFixtureEvent("events/request_available.json") }
+        #expect(await eventually { app.notices.count == AppModel.heldNewsMax && app.notices.first?.title == "Breaking Bad" })
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(app.notices.count == AppModel.heldNewsMax && app.notices.allSatisfy { $0.title == "Breaking Bad" })
+        #expect(app.shell.toast == nil && app.newsHeld.isEmpty)
+        // The pop-up shows the first: it's off the queue.
+        let shown = try #require(app.notices.first)
+        app.noticeShown(shown)
+        #expect(app.notices.count == AppModel.heldNewsMax - 1)
+        app.noticeShown(.news(count: 2))
+        #expect(app.notices.count == AppModel.heldNewsMax - 1)
+        // Open goes to the title where it's ready, else to the requests.
+        #expect(AppModel.opens(shown) == .item(230))
+        #expect(AppModel.opens(.ready(requestId: 45, title: "Arrival", kind: .movie, itemId: nil, seasons: nil,
+                                      complete: true)) == .requests)
+        #expect(AppModel.opens(.declined(requestId: 46, title: "Alien: Romulus", reason: nil)) == .requests)
+        #expect(AppModel.opens(.news(count: 2)) == .requests)
+        // Another profile or server doesn't get this one's news.
+        await app.signOut()
+        #expect(app.notices.isEmpty)
+    }
+
+    @Test func aDiscoverRowIsShownWholeFromItsList() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setDiscoverPages(30)
+        let app = try await ready(server)
+        let model = DiscoverResultsModel(app: app, source: .list(.movies), screenful: 12, tv: true)
+        await model.load()
+        #expect(pagesRead(server, "/api/discover/movies") == [1, 2])
+        #expect(model.list == .movies && model.query.isEmpty && model.heading == "Popular movies")
+        #expect(model.state == .ready && model.cards.count == 12 && !model.stopped)
+        #expect(server.requests("/api/discover/search").isEmpty)
+        // Focus near the grid's end wants three rows more: read until they're in.
+        model.want(24)
+        #expect(await eventually { model.cards.count == 24 })
+        #expect(pagesRead(server, "/api/discover/movies") == [1, 2, 3, 4])
+        // Wanting fewer than it has reads nothing.
+        model.want(20)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(pagesRead(server, "/api/discover/movies") == [1, 2, 3, 4])
+    }
+
+    @Test func aGridStopsShortAfterFivePagesAndShowMoreReadsFiveMore() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        // An age limit left nothing on the first seven pages.
+        server.setDiscoverPages(30, from: 8)
+        let app = try await ready(server)
+        let model = DiscoverResultsModel(app: app, source: .words("robot"), screenful: 28, tv: true)
+        await model.load()
+        #expect(pagesRead(server, "/api/discover/search") == Array(1...5))
+        // Not "nothing matches": Show more, beside what the pages so far had.
+        #expect(model.state == .ready && model.stopped && model.cards.isEmpty && !model.failedMore)
+        #expect(model.noneYet.title == RequestWords.searchNoneYet("robot"))
+
+        // While stopped, wanting more reads nothing.
+        model.want(40)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(pagesRead(server, "/api/discover/search") == Array(1...5))
+
+        model.showMore()
+        #expect(await eventually { pagesRead(server, "/api/discover/search") == Array(1...10) && !model.loadingMore })
+        #expect(await eventually { model.cards.count == 18 && model.stopped })
+
+        model.showMore()
+        // Up to the 40 wanted, then it waits for focus to come near the end again.
+        #expect(await eventually { model.cards.count == 42 })
+        #expect(await eventually { pagesRead(server, "/api/discover/search") == Array(1...14) && !model.stopped })
+        // A list says so in its own words.
+        let list = DiscoverResultsModel(app: app, source: .list(.anime), screenful: 28, tv: true)
+        await list.load()
+        #expect(list.stopped && list.noneYet.title == RequestWords.noneYet && list.emptyTitle == RequestWords.nothingHere)
+    }
+
+    @Test func aPageThatFailsAfterTheFirstKeepsTheTitlesAndShowMoreGoesOnFromIt() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setDiscoverPages(30)
+        let app = try await ready(server)
+        let model = DiscoverResultsModel(app: app, source: .words("robot"), screenful: 12, tv: true)
+        await model.load()
+        #expect(model.cards.count == 12)
+        server.failRequests(prefix: "/api/discover/search", status: 503)
+        model.want(24)
+        #expect(await eventually { model.failedMore })
+        #expect(model.state == .ready && model.stopped && model.cards.count == 12 && model.stale != nil)
+        // Wanting more waits for Retry.
+        model.want(30)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(pagesRead(server, "/api/discover/search") == [1, 2, 3])
+        server.failRequests(prefix: "/api/discover/search")
+        model.showMore()
+        #expect(await eventually { model.cards.count == 30 })
+        #expect(pagesRead(server, "/api/discover/search") == [1, 2, 3, 3, 4, 5])
+        #expect(!model.failedMore && !model.stopped && model.stale == nil)
+    }
+
+    @Test func aPageThatFailsBeforeAnyTitleKeepsShowMoresPlace() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setDiscoverPages(30, from: 8)
+        let app = try await ready(server)
+        let model = DiscoverResultsModel(app: app, source: .list(.trending), screenful: 28, tv: true)
+        await model.load()
+        #expect(model.stopped && model.cards.isEmpty)
+        server.failRequests(prefix: "/api/discover/trending", status: 503)
+        model.showMore()
+        #expect(await eventually { model.failedMore })
+        // Retry beside why, where Show more was.
+        #expect(model.state == .ready && model.stopped && model.noneYet.title != RequestWords.noneYet)
+        server.failRequests(prefix: "/api/discover/trending")
+        model.showMore()
+        #expect(await eventually { model.cards.count == 18 })
+        #expect(pagesRead(server, "/api/discover/trending") == Array(1...6) + Array(6...10))
+    }
+}
+
+private extension RequestNews {
+    /// The title it's about, where it has one.
+    var title: String? {
+        switch self {
+        case .ready(_, let title, _, _, _, _, _), .approved(_, let title), .declined(_, let title, _),
+             .asked(_, let title, _, _), .failed(_, let title, _, _):
+            title
+        case .news:
+            nil
+        }
     }
 }

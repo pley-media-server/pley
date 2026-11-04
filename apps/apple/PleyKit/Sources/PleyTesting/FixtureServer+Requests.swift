@@ -34,6 +34,11 @@ extension FixtureServer {
         var gone: Set<Int> = []
         /// The library items Discover sees, by id: their answer's fixture.
         var items: [Int: String] = [201: "requests/item_request.json"]
+        /// The requests the person hasn't been told of, by id; `nil`: the fixture's (Arrival).
+        var unseen: Set<Int>?
+        /// Discover's lists and search answer this many pages of titles
+        /// of their own, none before page `from`; `nil`: the fixture's three.
+        var pages: (total: Int, from: Int)?
     }
 
     // MARK: Knobs
@@ -53,6 +58,23 @@ extension FixtureServer {
         guard var object = dict(summary) else { return summary }
         object["unseen"] = count
         return (try? JSONSerialization.data(withJSONObject: object)) ?? summary
+    }
+
+    /// The requests listed as not told yet are those of `ids` (the
+    /// fixture's list has Arrival); the summary says how many.
+    public func setUnseenRequests(_ ids: Set<Int>) {
+        state.withLock {
+            $0.requests.unseen = ids
+            $0.requests.summary = Self.unseen(ids.count, in: $0.requests.summary)
+        }
+    }
+
+    /// Discover's lists and search answer `total` pages, each with the six
+    /// trending titles under TMDB ids of their own (`id * 100 + page`), and
+    /// pages before `from` with none (as for an account with an age limit).
+    /// Search's words don't narrow them.
+    public func setDiscoverPages(_ total: Int, from: Int = 1) {
+        state.withLock { $0.requests.pages = (total, from) }
     }
 
     /// The summary of an administrator, who approves and declines.
@@ -196,6 +218,15 @@ extension FixtureServer {
             return notFound(request.path)
         }
         let page = Int(request.query["page"] ?? "") ?? 1
+        if let pages = s.requests.pages {
+            guard parts[2] == "search" || DiscoverList(rawValue: parts[2]) != nil else { return notFound(request.path) }
+            let titles = page < pages.from ? [] : (trending["results"] as? [[String: Any]] ?? []).map {
+                var title = $0
+                title["tmdb_id"] = ($0["tmdb_id"] as? Int ?? 0) * 100 + page
+                return title
+            }
+            return json(200, ["page": page, "total_pages": pages.total, "results": titles])
+        }
         if parts[2] == "search" {
             let q = request.query["q"] ?? ""
             if q.isEmpty { return json(400, ["code": "invalid", "message": "q is empty"]) }
@@ -225,7 +256,12 @@ extension FixtureServer {
             let file = request.query["attention"] == "1" ? "requests/attention.json" : "requests/list.json"
             guard var list = dict(try? Fixtures.data(file)) else { return notFound(path) }
             var all = (list["requests"] as? [[String: Any]] ?? []).compactMap { current(s, $0) }
-            if request.query["unseen"] == "1" { all = all.filter { $0["unseen"] as? Bool == true } }
+            if request.query["unseen"] == "1" {
+                all = all.filter {
+                    if let unseen = s.requests.unseen, let id = $0["id"] as? Int { return unseen.contains(id) }
+                    return $0["unseen"] as? Bool == true
+                }
+            }
             if request.query["mine"] == "1" { all = all.filter { $0["mine"] as? Bool == true || $0["watching"] as? Bool == true } }
             if let kind = request.query["kind"] { all = all.filter { $0["kind"] as? String == kind } }
             if let status = request.query["status"] {
