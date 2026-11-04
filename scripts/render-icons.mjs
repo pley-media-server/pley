@@ -196,13 +196,13 @@ function tvFront(width, height) {
  * half the height, and the wordmark beside it, the two centred on the banner's colours.
  */
 function topShelf(width, height, icon) {
-  const side = height * 0.55;
+  const side = height * 0.64;
   const font = height * 0.31;
   // The icon's tile is the background's colour, so the mark (192 to 832 of the icon's 1024 across) is what
-  // shows: the mark and the wordmark (about 1.86 em wide in the system's bold sans), a fifth of the mark's
-  // height apart, are centred together, as on the banner.
+  // shows: the mark and the wordmark (about 1.86 em wide in the system's bold sans), close together, are
+  // centred together.
   const mark = side * 0.625;
-  const gap = side * 0.1;
+  const gap = side * 0.06;
   const left = (width - (mark + gap + font * 1.86)) / 2;
   const x = left - side * 0.1875;
   const y = (height - side) / 2;
