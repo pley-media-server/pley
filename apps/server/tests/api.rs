@@ -319,6 +319,34 @@ async fn movies_are_scanned_listed_and_searchable() {
 }
 
 #[tokio::test]
+async fn search_reads_slips_years_and_words_written_together() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    for name in
+        ["The Matrix (1999)", "Night-Watch (2002)", "The Captain's Log (1993)", "Harbor (1984)", "Harbor (2021)"]
+    {
+        app.media_file(&format!("movies/{name}/{name}.mkv"), 1024);
+    }
+    app.library(&token, "Movies", "movies", "movies").await;
+    let search = |q: &'static str| {
+        let app = &app;
+        let token = &token;
+        async move { titles(&app.get(&format!("/api/search?q={}", q.replace(' ', "%20")), token).await.body["items"]) }
+    };
+
+    assert_eq!(search("the matirx").await, ["The Matrix"], "a slip");
+    assert_eq!(search("nightwatch").await, ["Night-Watch"], "words written together");
+    assert_eq!(search("the captains log").await, ["The Captain's Log"], "an apostrophe left out");
+    assert_eq!(search("nighhtt watch").await, ["Night-Watch"], "too many slips for words: alike");
+    assert_eq!(search("matrix 1999").await, ["The Matrix"], "a year");
+    let harbor = app.get("/api/search?q=harbor%202021", &token).await.body;
+    assert_eq!(harbor["items"].as_array().unwrap().len(), 1, "that year's: {harbor}");
+    assert_eq!(harbor["items"][0]["year"], json!(2021));
+    assert_eq!(search("harbor").await.len(), 2);
+    assert!(search("qzxv").await.is_empty());
+}
+
+#[tokio::test]
 async fn shows_progress_and_hubs() {
     let app = TestApp::new().await;
     let token = app.setup_admin().await;

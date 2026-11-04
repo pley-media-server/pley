@@ -497,69 +497,6 @@ pub async fn person(db: &Db, user_id: i64, person_id: i64) -> sqlx::Result<Optio
     Ok(Some(PersonDetail { id: person_id, name, photo_url: photo_url(person_id, photo.as_deref()), credits }))
 }
 
-/// People whose name has words starting with each word of `input`, among
-/// those credited in items `user_id` may see: the closest names first (the
-/// whole name, then its beginning, …), the most credited first among them.
-pub async fn search(db: &Db, user_id: i64, input: &str, limit: i64) -> sqlx::Result<Vec<PersonSummary>> {
-    let Some(fts) = catalog::fts_query(input) else { return Ok(Vec::new()) };
-    // More than are shown, for a name typed in full whose person has few credits.
-    let candidates = limit.max(100);
-    let unrestricted: bool = sqlx::query_scalar(
-        "SELECT (is_admin OR all_libraries) AND (is_admin OR max_age IS NULL) FROM users WHERE id = ?",
-    )
-    .bind(user_id)
-    .fetch_optional(&db.read)
-    .await?
-    .unwrap_or(false);
-    // Name matches come from people_fts, ranked by their number of credits.
-    // Someone with access limits gets the 200 best ranked by the credits
-    // they can see (and only people with any).
-    let rows = if unrestricted {
-        sqlx::query_as::<_, (i64, String, Option<String>)>(
-            "SELECT pe.id, pe.name, pe.photo_url FROM people_fts f JOIN people pe ON pe.id = f.rowid
-             WHERE people_fts MATCH ? AND EXISTS (SELECT 1 FROM item_people c WHERE c.person_id = pe.id)
-             ORDER BY (SELECT COUNT(*) FROM item_people c WHERE c.person_id = pe.id) DESC, pe.name LIMIT ?",
-        )
-        .bind(&fts)
-        .bind(candidates)
-        .fetch_all(&db.read)
-        .await
-    } else {
-        sqlx::query_as::<_, (i64, String, Option<String>)>(sqlx::AssertSqlSafe(format!(
-            "{}, candidates AS (
-                 SELECT pe.id, pe.name, pe.photo_url FROM people_fts f JOIN people pe ON pe.id = f.rowid
-                 WHERE people_fts MATCH ?
-                 ORDER BY (SELECT COUNT(*) FROM item_people c WHERE c.person_id = pe.id) DESC, pe.name LIMIT 200),
-             counted AS (
-                 SELECT c.id, c.name, c.photo_url,
-                        (SELECT COUNT(*) FROM item_people ip JOIN items i ON i.id = ip.item_id
-                             LEFT JOIN items p ON p.id = i.parent_id LEFT JOIN items gp ON gp.id = i.grandparent_id
-                         WHERE ip.person_id = c.id AND {}) AS visible
-                 FROM candidates c)
-             SELECT id, name, photo_url FROM counted WHERE visible > 0 ORDER BY visible DESC, name LIMIT ?",
-            catalog::ME_CTE,
-            catalog::VISIBLE,
-        )))
-        .bind(user_id)
-        .bind(&fts)
-        .bind(candidates)
-        .fetch_all(&db.read)
-        .await
-    };
-    let mut rows = match rows {
-        Ok(rows) => rows,
-        // A query FTS can't parse finds nobody.
-        Err(sqlx::Error::Database(e)) if e.message().contains("fts5") => Vec::new(),
-        Err(e) => return Err(e),
-    };
-    rows.sort_by_cached_key(|(_, name, _)| catalog::match_rank(input, name));
-    rows.truncate(limit.max(0) as usize);
-    Ok(rows
-        .into_iter()
-        .map(|(id, name, photo)| PersonSummary { id, photo_url: photo_url(id, photo.as_deref()), name })
-        .collect())
-}
-
 /// Whether the person is credited in an item `user_id` may see.
 pub async fn is_visible(db: &Db, user_id: i64, person_id: i64) -> sqlx::Result<bool> {
     let sql = format!(

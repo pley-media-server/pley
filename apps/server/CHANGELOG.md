@@ -9,10 +9,23 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Search finds titles, people and Live TV channels typed with a slip ("the
+  matirx", "kaenu reeves"), with words run together or apart
+  ("spiderman"), or without an apostrophe ("the captains log"); when
+  nothing is found that way, titles and names alike enough to what was
+  typed are.
+- Live TV search finds a channel by the words of its name in any order
+  ("f1 sports"), and with a quality its name doesn't have ("news hd"), and
+  what's on by its title's words, punctuation and accents aside.
+
 ### Fixed
 
 - The web app's search no longer keeps the Live TV channels of an earlier
   query on the page, under results that don't match them.
+- A search for a title with its year ("alien 1979") finds that year's
+  title instead of nothing.
 
 ## [0.1.5] - 2026-11-03
 
