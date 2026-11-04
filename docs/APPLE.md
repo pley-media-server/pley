@@ -1519,9 +1519,8 @@ each target's `ASSETCATALOG_COMPILER_APPICON_NAME` names:
 - `tvOS/Assets.xcassets`, `App Icon & Top Shelf Image`: Apple TV's icon
   in two layers, the tile's colour behind and the mark in front, which
   part as it's focused, at 400×240 (800×480 at 2×) and the App Store's
-  1280×768; and the Top Shelf's own picture, the iPhone icon's made wide
-  (the mark alone, half the height, on the tile's colour) at 1920×720
-  and 2320×720, shown while the app has no row there
+  1280×768; and the Top Shelf's own picture, the iPhone icon beside
+  Pley's name at 1920×720 and 2320×720, shown while the app has no row there
   ([Top Shelf](#top-shelf)).
 
 ### UI tests

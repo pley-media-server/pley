@@ -11,7 +11,7 @@ It has no releases yet: it is built and installed by hand
 ### Changed
 
 - The icon shows Pley's name under the mark, as the other apps in the
-  TV's apps bar show theirs.
+  TV's apps bar show theirs, in the Android app's icon's colours.
 
 ### Added
 

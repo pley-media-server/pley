@@ -83,11 +83,15 @@ const defs = logo.match(/<defs>[\s\S]*<\/defs>/)[0];
 // pictures here place and scale them themselves.
 const glyph = `<g>${logo.match(/<g[^>]*>([\s\S]*?)<\/g>/)[1]}</g>`;
 const TILE = "#0a1622";
+// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' own: the back
+// poster darker than the favicon's, which a browser tab may show on white.
+const tvGlyph = glyph.replace('fill="#0369a1"', 'fill="#0c4a6e"');
+if (tvGlyph === glyph) throw new Error("the favicon's back poster isn't #0369a1 any more");
 
 /** The mark alone on the tile's colour to the edges, scaled [s] about the 64-unit logo's centre. */
-function maskable(size, s) {
+function maskable(size, s, mark = glyph) {
   const t = size / 2 - 32 * s;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${defs}<rect width="${size}" height="${size}" fill="${TILE}"/><g transform="translate(${t} ${t}) scale(${s})">${glyph}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${defs}<rect width="${size}" height="${size}" fill="${TILE}"/><g transform="translate(${t} ${t}) scale(${s})">${mark}</g></svg>`;
 }
 
 /** The mark on the tile's colour to the edges of a width × height picture, the 64-unit logo at [s] with its top left at (x, y). */
@@ -106,26 +110,24 @@ function labelled(width, height, label, fill, ink) {
   const x = width / 2 - 32 * s;
   const y = (height - band) / 2 - 32 * s;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<rect width="${width}" height="${height}" fill="${TILE}"/>
-  <g transform="translate(${x} ${y}) scale(${s})">${glyph}</g>
+  <g transform="translate(${x} ${y}) scale(${s})">${tvGlyph}</g>
   <rect y="${height - band}" width="${width}" height="${band}" fill="${fill}"/>
   <text x="${width / 2}" y="${height - band / 2}" dominant-baseline="central" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="${Math.round(band * 0.6)}" font-weight="700" letter-spacing="2" fill="${ink}">${label}</text></svg>`;
 }
 
 /**
- * A large TV tile that is square or nearly, a width × height picture: the mark above the wordmark, on the
- * banner's colours to the edges, as the other apps' tiles there show their names (Samsung's apps bar,
- * Roku's home screen). The stack is drawn in a square as tall as the picture, in its middle.
+ * A large TV tile that is square or nearly, a width × height picture: the mark above the wordmark, in the
+ * Android app's icon's colours, flat to the edges, as the other apps' tiles there show their names
+ * (Samsung's apps bar, Roku's home screen). The stack is drawn in a square as tall as the picture, in its
+ * middle.
  */
 function named(width, height = width) {
   const s = height / 512;
   const g = 6; // in the 512 square: the mark (40 × 33 of the logo's 64, from (12, 15.5)) 240 wide, from (136, 72)
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}
-  <radialGradient id="corner" cx="${width}" cy="${height}" r="${Math.max(width, height) * 0.9}" gradientUnits="userSpaceOnUse">
-    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
-  </radialGradient>
-  <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/>
+  <rect width="${width}" height="${height}" fill="${TILE}"/>
   <g transform="translate(${(width - height) / 2} 0) scale(${s})">
-    <g transform="translate(${136 - 12 * g} ${72 - 15.5 * g}) scale(${g})">${glyph}</g>
+    <g transform="translate(${136 - 12 * g} ${72 - 15.5 * g}) scale(${g})">${tvGlyph}</g>
     <text x="256" y="410" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="128" font-weight="700" letter-spacing="-2" fill="#e9ebef">Pley</text>
   </g></svg>`;
 }
@@ -150,7 +152,7 @@ function banner(width, height) {
   <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/>
   <g transform="translate(${(width - 320 * s) / 2} ${(height - 180 * s) / 2}) scale(${s})">
     <g transform="translate(${160 - 172 * k} ${90 - 85 * k}) scale(${k})">
-      <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${glyph}</g>
+      <g transform="translate(${70 - 12 * g} ${56 - 15.5 * g}) scale(${g})">${tvGlyph}</g>
       <text x="152" y="107" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="63" font-weight="700" letter-spacing="-1" fill="#e9ebef">Pley</text>
     </g>
   </g></svg>`;
@@ -190,12 +192,27 @@ function tvFront(width, height) {
 }
 
 /**
- * Apple TV's Top Shelf, width × height: the iPhone icon's picture made wide, the mark alone half the height
- * in the middle (33 of the logo's 64 high, about its centre), on the tile's colour to the edges.
+ * Apple TV's Top Shelf, width × height: the iPhone app's icon ([icon], its PNG) with the corners iOS gives it,
+ * half the height, and the wordmark beside it, the two centred on the banner's colours.
  */
-function topShelf(width, height) {
-  const s = (height * 0.5) / 33;
-  return onTile(width, height, s, width / 2 - 32 * s, height / 2 - 32 * s);
+function topShelf(width, height, icon) {
+  const side = height * 0.55;
+  const font = height * 0.31;
+  // The icon's tile is the background's colour, so the mark (192 to 832 of the icon's 1024 across) is what
+  // shows: the mark and the wordmark (about 1.86 em wide in the system's bold sans), a fifth of the mark's
+  // height apart, are centred together, as on the banner.
+  const mark = side * 0.625;
+  const gap = side * 0.1;
+  const left = (width - (mark + gap + font * 1.86)) / 2;
+  const x = left - side * 0.1875;
+  const y = (height - side) / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${width} ${height}">
+  <radialGradient id="corner" cx="${width}" cy="${height}" r="${width * 0.52}" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0369a1" stop-opacity="0.3"/><stop offset="1" stop-color="#0369a1" stop-opacity="0"/>
+  </radialGradient>
+  <clipPath id="ios"><rect x="${x}" y="${y}" width="${side}" height="${side}" rx="${side * 0.2237}"/></clipPath>
+  <rect width="${width}" height="${height}" fill="${TILE}"/><rect width="${width}" height="${height}" fill="url(#corner)"/>
+  <image x="${x}" y="${y}" width="${side}" height="${side}" clip-path="url(#ios)" href="data:image/png;base64,${icon.toString("base64")}"/>  <text x="${left + mark + gap}" y="${height / 2 + font * 0.35}" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="${font}" font-weight="700" letter-spacing="${-font / 63}" fill="#e9ebef">Pley</text></svg>`;
 }
 
 /** The logo [inset] of a [size] square's side, in its middle, transparent around it. */
@@ -394,7 +411,9 @@ try {
     writeFileSync(join(appIcon, `mac-${size}.png`), mac[size]);
     writeFileSync(join(appIcon, `mac-${size}@2x.png`), mac[size * 2]);
   }
-  // Apple TV's: the layers at each size the brand assets ask for, the back opaque; the Top Shelf's the iPhone icon's mark, made wide.
+  // Apple TV's: the layers at each size the brand assets ask for, the back opaque; the Top Shelf's the iPhone
+  // icon beside the wordmark.
+  const iphoneIcon = readFileSync(join(appIcon, "icon-1024.png"));
   const tv = join(apple, "tvOS/Assets.xcassets/App Icon & Top Shelf Image.brandassets");
   for (const [stack, sizes] of [["App Icon", [[400, 240, ""], [800, 480, "@2x"]]], ["App Icon - App Store", [[1280, 768, ""]]]]) {
     for (const [width, height, scale] of sizes) {
@@ -406,7 +425,7 @@ try {
   for (const [set, width] of [["Top Shelf Image", 1920], ["Top Shelf Image Wide", 2320]]) {
     for (const scale of [1, 2]) {
       const [w, h] = [width * scale, 720 * scale];
-      writeFileSync(join(tv, `${set}.imageset`, `top-shelf${scale === 2 ? "@2x" : ""}.png`), rgb72(await r.png(topShelf(w, h), w, h)));
+      writeFileSync(join(tv, `${set}.imageset`, `top-shelf${scale === 2 ? "@2x" : ""}.png`), rgb72(await r.png(topShelf(w, h, iphoneIcon), w, h)));
     }
   }
 
@@ -426,10 +445,10 @@ try {
   writeFileSync(join(webos, "largeIcon.png"), rgb72(await r.png(maskable(130, 130 / 64), 130)));
   writeFileSync(join(webos, "splash.png"), rgb72(await r.png(onTile(1920, 1080, 5, 960 - 32 * 5, 540 - 32 * 5), 1920, 1080)));
 
-  // Kodi's: the favicon's mark where it is, without the rounded corners; the fanart a JPEG (Kodi's
+  // Kodi's: the favicon's mark where it is, in the Android icon's colours, without the rounded corners; the fanart a JPEG (Kodi's
   // checker takes up to 1000 KB).
   const kodi = join(root, "apps/kodi/plugin.video.pley/resources");
-  writeFileSync(join(kodi, "icon.png"), rgb72(await r.png(maskable(512, 8), 512)));
+  writeFileSync(join(kodi, "icon.png"), rgb72(await r.png(maskable(512, 8, tvGlyph), 512)));
   writeFileSync(join(kodi, "fanart.jpg"), await r.jpeg(banner(1920, 1080), 1920, 1080, 90));
 
   // Roku's home screen tiles, and splash screens on the app's background (components/shared/Ui.brs),
