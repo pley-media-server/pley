@@ -628,7 +628,13 @@ as `com.formandelement.pley.bench`, and the benchmarks (which clear the
 app's data between runs) touch only that one. The benchmarks take the
 suffix too (`app.pley.android.benchmark.bench`, in the commands and the
 traces' folder above), so copies built with different suffixes, and with
-different keys, install side by side.
+different keys, install side by side. Each copy runs its own demo server
+on port 7740 when it can, and on any free port when another copy holds
+that one; signed in to such a port, a copy finds nothing there once it
+restarts and shows only what it had saved. Stop the other copies
+(`adb shell am force-stop <id>`) before signing one in or measuring it:
+one cached in the background keeps the port, and where Android freezes
+cached apps (Android 12 and later), answers nothing on it.
 
 Any build, release ones too, counts its frames while "Show frame rate" is
 on: Settings → Diagnostics on a TV, Diagnostics on a phone, kept on the
