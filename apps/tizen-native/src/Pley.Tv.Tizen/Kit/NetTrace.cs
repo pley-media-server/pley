@@ -138,6 +138,43 @@ static class NetTrace
         Profile.Mark($"speed: four at once {four.Sum(f => f.Bytes) * 8 / sw.Elapsed.TotalMilliseconds / 1000:0.0} Mbps together");
     }
 
+    /// <summary>
+    /// The listener's "wifi": the access point the TV is joined to (its BSSID: which mesh node), and
+    /// every access point of the same network in the TV's last scan, strongest first, with signal,
+    /// band and rate. Other networks are left out: they are the neighbours'.
+    /// </summary>
+    public static void WiFi()
+    {
+        _ = System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                using var ap = WiFiManager.GetConnectedAP();
+                if (ap == null)
+                {
+                    Profile.Mark("wifi: not joined to an access point");
+                    return;
+                }
+                ap.Refresh();
+                var me = ap.NetworkInformation;
+                Profile.Mark($"wifi: joined to {me.Bssid} rssi {me.Rssi} dBm ({me.RssiLevel}) {me.Frequency} MHz rate {me.MaxSpeed} Mbps, network \"{me.Essid}\"");
+                var found = WiFiManager.GetFoundAPs().ToList();
+                var ours = found.Where(f => f.NetworkInformation.Essid == me.Essid).OrderByDescending(f => f.NetworkInformation.Rssi).ToList();
+                Profile.Mark($"wifi: the last scan heard {found.Count} access points, {ours.Count} of this network");
+                foreach (var f in ours)
+                {
+                    var n = f.NetworkInformation;
+                    Profile.Mark($"wifi:   {n.Bssid} rssi {n.Rssi} dBm {n.Frequency} MHz rate {n.MaxSpeed} Mbps{(n.Bssid == me.Bssid ? "  <- joined" : "")}");
+                }
+                foreach (var f in found) f.Dispose();
+            }
+            catch (Exception e)
+            {
+                Profile.Mark($"wifi: {e.GetType().Name} {e.Message}");
+            }
+        });
+    }
+
     static IEnumerable<string> Lines(string text) => text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
 
     /// <summary>One request: how long until its first byte, how many came and how fast; a range when <paramref name="length"/> isn't 0.</summary>
@@ -318,6 +355,7 @@ static class NetTrace
 #else
     public static void Playing(string url, Func<long> at) { }
     public static void Speed() { }
+    public static void WiFi() { }
     public static void Buffered(int percent) { }
     public static void Start() { }
     public static void Stop() { }

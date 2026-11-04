@@ -580,9 +580,13 @@ buffering. `speed`, with the video paused, has the TV fetch the stream's
 next segments itself, one at a time as the player does, then the last one
 again (ready on the server, so the network alone), then four at once, and
 marks how long each took to start and how fast it came.
+`wifi` marks the access point the TV is joined to (its BSSID, which tells
+a mesh network's nodes apart) and those of the same network in the TV's
+last scan, with their signal, band and rate.
 
 ```sh
 node apps/tizen-native/scripts/metrics.mjs --tv S89C speed
+node apps/tizen-native/scripts/metrics.mjs --tv S89C wifi
 ```
 
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
