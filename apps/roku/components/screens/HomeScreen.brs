@@ -46,6 +46,8 @@ sub init()
     m.loads = 0
     ' Whether the message says why Home is empty.
     m.emptyShown = false
+    ' Whether the focus was put in the rows (the page laid out for them).
+    m.inRows = false
     ' Playbacks at the last load (one more, and watch state moved on), and
     ' how long ago it was.
     m.playedSeen = 0
@@ -88,6 +90,7 @@ sub onActive()
     if m.lastFocus.isSameNode(m.heroButtons) and not m.hero.visible then m.lastFocus = m.menu
     if m.rows.visible
         m.lastFocus.setFocus(true)
+        m.inRows = m.lastFocus.isSameNode(m.rows)
     else
         m.menu.setFocus(true)
     end if
@@ -257,6 +260,7 @@ end sub
 
 sub showMessage(title as string, text as string)
     m.emptyShown = false
+    m.inRows = false
     if m.rows.isInFocusChain() or m.heroButtons.isInFocusChain() then m.menu.setFocus(true)
     m.rows.visible = false
     m.hero.visible = false
@@ -380,7 +384,10 @@ end sub
 sub showHero(hero as dynamic)
     if hero = invalid
         m.heroInfo = invalid
-        if m.heroButtons.isInFocusChain() then m.rows.setFocus(true)
+        if m.heroButtons.isInFocusChain()
+            m.rows.setFocus(true)
+            m.inRows = true
+        end if
         placeRows()
         return
     end if
@@ -414,7 +421,7 @@ sub drawHero()
         m.heroButtons.chips = chips
     end if
     layOut(m.hero, [{ label: m.heroTitle, gap: 0 }, { label: m.heroContext, gap: 8 }, { label: m.heroMeta, gap: 12 }, { label: m.heroLeft, gap: 8 }, { label: m.heroSummary, gap: 16 }], m.heroButtons, 32)
-    if not m.rows.isInFocusChain() then setBackdrop(info.backdrop)
+    if not m.inRows then setBackdrop(info.backdrop)
 end sub
 
 ' Only the labels with text stay in a column, each after its gap; then
@@ -452,7 +459,9 @@ end sub
 ' At rest the hero shows, the rows under it; in the rows, the info block
 ' takes its place and the rows come up under it.
 sub placeRows()
-    inRows = m.rows.isInFocusChain() or m.heroInfo = invalid
+    ' Where the focus was put, not where it is: the ready-to-watch card may
+    ' hold it for a while, and gives it back.
+    inRows = m.inRows or m.heroInfo = invalid
     m.hero.visible = m.heroInfo <> invalid and not inRows
     if inRows
         m.rows.translation = [440, 330]
@@ -605,8 +614,10 @@ end sub
 sub focusPage()
     if m.hero.visible
         m.heroButtons.setFocus(true)
+        m.inRows = false
     else if m.rows.visible
         m.rows.setFocus(true)
+        m.inRows = true
     end if
 end sub
 
@@ -615,15 +626,29 @@ end sub
 ' goes to the menu, as on the other TVs.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    ' The focus given back to the screen itself (what had it went): the
+    ' page takes it again, as it was laid out.
+    if m.top.hasFocus()
+        if m.inRows and m.rows.visible
+            m.rows.setFocus(true)
+        else if m.hero.visible
+            m.heroButtons.setFocus(true)
+        else
+            m.menu.setFocus(true)
+        end if
+        return true
+    end if
     if m.rows.isInFocusChain()
         if key = "up" and m.heroInfo <> invalid
             m.heroButtons.setFocus(true)
+            m.inRows = false
             placeRows()
             return true
         end if
         if key = "left" or key = "back"
             m.rest.control = "stop"
             m.menu.setFocus(true)
+            m.inRows = false
             placeRows()
             return true
         end if
@@ -638,6 +663,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.heroButtons.isInFocusChain()
         if key = "down" and m.rows.visible
             m.rows.setFocus(true)
+            m.inRows = true
             placeRows()
             onTileFocused()
             return true

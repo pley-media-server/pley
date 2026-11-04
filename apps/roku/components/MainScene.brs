@@ -71,7 +71,10 @@ sub init()
     m.noticeWait = m.top.findNode("noticeWait")
     m.noticeWait.observeField("fire", "onNoticeWait")
     m.noticeWaiting = false
+    ' When the looks first found a second gone since the last key, and
+    ' whether they saw that key come.
     m.keyAt = invalid
+    m.keySeen = false
     m.pressAt = CreateObject("roTimespan")
     ' The dialog last closed (one may stay in the scene's field).
     m.closedDialog = invalid
@@ -418,6 +421,7 @@ sub showNotice()
     ' A key before the looks began says nothing of when it came.
     m.noticeWaiting = true
     m.keyAt = invalid
+    m.keySeen = false
     m.noticeWait.control = "start"
     onNoticeWait()
 end sub
@@ -427,13 +431,19 @@ sub onNoticeWait()
         showNotice()
         return
     end if
+    ' Roku says whole seconds since the last key: the look that first finds
+    ' one second gone comes a second after the key at the most, a quarter
+    ' of a second later than that at the least (the looks' pace), and how
+    ' long ago the key was is that second and the time since.
     seconds = m.device.TimeSinceLastKeypress()
     if seconds < 1
-        if m.keyAt = invalid then m.keyAt = CreateObject("roTimespan")
-        m.keyAt.Mark()
+        m.keyAt = invalid
+        m.keySeen = true
+    else if m.keyAt = invalid and m.keySeen
+        m.keyAt = CreateObject("roTimespan")
     end if
     keyMs = -1
-    if m.keyAt <> invalid then keyMs = m.keyAt.TotalMilliseconds()
+    if m.keyAt <> invalid then keyMs = 1000 + m.keyAt.TotalMilliseconds()
     if not reqRested(seconds, keyMs, m.pressAt.TotalMilliseconds()) or not noticeFree() then return
     m.noticeWaiting = false
     m.noticeWait.control = "stop"
@@ -511,9 +521,17 @@ sub giveFocusBack()
     if m.stack.Count() = 0 then return
     top = m.stack.Peek()
     node = m.noticeFocus
+    shown = true
     while node <> invalid
+        ' Hidden meanwhile (the rows gave way to a message), it can't
+        ' take the focus.
+        if node.hasField("visible") and not node.visible then shown = false
         if node.isSameNode(top)
-            m.noticeFocus.setFocus(true)
+            if shown
+                m.noticeFocus.setFocus(true)
+            else
+                top.setFocus(true)
+            end if
             return
         end if
         node = node.getParent()

@@ -1546,8 +1546,8 @@ end function
 ' Whether the remote has rested long enough for a notice to show (1.5 s),
 ' so it never takes a press meant for the page. seconds: Roku's whole
 ' seconds since the last key (TimeSinceLastKeypress); keyMs: how long ago
-' a look found a key within the second (the looks come four times a
-' second), -1 for none since they began; pressMs: how long ago the app
+' the key was, from the look that first found a second gone (a second, and
+' the time since), -1 when not known; pressMs: how long ago the app
 ' counted something as a press (a screen changing, a notice closing).
 function reqRested(seconds as integer, keyMs as integer, pressMs as integer) as boolean
     if pressMs >= 0 and pressMs < 1500 then return false
