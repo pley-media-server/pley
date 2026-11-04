@@ -543,7 +543,23 @@ function reqTitleNote(key as string, answer as object) as dynamic
     return { key: key, status: httpString(detail.status), libraryId: httpNumber(detail.item_id, 0) }
 end function
 
-' Discover's hero, the first trending title left: { title, line,
+' Which title Discover's hero is: the first of the first of TMDB's lists
+' with any (the lists leave out what the profile may not ask for), once
+' those before it came with none or failed. lists: Discover's rows ({ key,
+' state ("shown" once it came), first (its first title, or invalid) }),
+' Your requests left out. invalid while it waits for a list; {} when none
+' has a title.
+function reqHeroOf(lists as object) as dynamic
+    for each list in lists
+        if list.key <> "requests"
+            if list.first <> invalid then return list.first
+            if list.state <> "shown" then return invalid
+        end if
+    end for
+    return {}
+end function
+
+' Discover's hero (reqHeroOf's title): { title, line,
 ' overview, backdrop, buttons, actions, note, tmdbKind, tmdbId,
 ' libraryId }. Its main action, as far as a list's title tells it (its
 ' page has the rest): actions "open" (the library's title), "request"

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Discover: titles on TMDB to ask for. A hero of the first trending
-     title (its backdrop, what it is, a line of its overview, its main
+     title, or of the next list's while trending has none for the profile
+     (its backdrop, what it is, a line of its overview, its main
      action), then rows of posters with their badges (Trending this week,
      Popular movies, Popular shows, Coming to cinemas, Popular anime), each
      loaded as it comes into view and ending with See all, then Your

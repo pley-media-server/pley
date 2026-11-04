@@ -611,6 +611,26 @@ sub test_requests_hero()
     tkEqual(reqHero({ kind: "movie", tmdb_id: 27205, title: "Inception", status: "none" }, reqTestSummary({ access: "off" }), "", now).note, "", "nothing to say where Discover doesn't show")
 end sub
 
+' The hero is the first title of the first list with any: trending's,
+' else the next list's once trending came with none or failed.
+sub test_requests_hero_comes_from_the_first_list_with_a_title()
+    dune = { kind: "movie", tmdb_id: 438631, title: "Dune" }
+    arrival = { kind: "movie", tmdb_id: 329865, title: "Arrival" }
+    lists = [{ key: "trending", state: "asked", first: invalid }, { key: "movies", state: "shown", first: dune }]
+    tkInvalid(reqHeroOf(lists), "trending still comes")
+    lists[0].first = arrival
+    tkEqual(reqHeroOf(lists), arrival, "trending's first, its later pages still coming")
+    lists[0].first = invalid
+    lists[0].state = "shown"
+    tkEqual(reqHeroOf(lists), dune, "trending had none the profile may ask for")
+    lists = [{ key: "trending", state: "shown", first: invalid }, { key: "movies", state: "waiting", first: invalid }, { key: "shows", state: "shown", first: dune }]
+    tkInvalid(reqHeroOf(lists), "the lists before it come first")
+    lists[1].state = "shown"
+    tkEqual(reqHeroOf(lists), dune)
+    none = [{ key: "trending", state: "shown", first: invalid }, { key: "requests", state: "waiting", first: invalid }]
+    tkEqual(reqHeroOf(none), {}, "no title anywhere: no hero; Your requests aren't waited for")
+end sub
+
 sub test_requests_list_queries_and_empty_lists()
     tkEqual(reqListQuery("attention", "", 0, "", 0), { attention: 1, order: "oldest", offset: 0, limit: 50 })
     tkEqual(reqListQuery("mine", "show", 0, "", 50), { mine: 1, kind: "show", offset: 50, limit: 50 })

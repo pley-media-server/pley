@@ -339,7 +339,9 @@ its number counts what waits: a manager's pending and failed requests
 
 - **Discover**, for those who may ask: a hero for the first trending title
   (its main action and Details; once nothing of its kind is left to ask
-  for, the limit's line in place of Request), then rows of posters with
+  for, the limit's line in place of Request); when trending has nothing
+  the profile may ask for, every row loads at once and the hero is the
+  first title of the next one with any. Then rows of posters with
   their badges ("In library", "Partly in library", "Requested",
   "Declined"): Trending this week, Popular movies, Popular shows, Coming to
   cinemas, Popular anime, each loaded as it comes into view and ending with
