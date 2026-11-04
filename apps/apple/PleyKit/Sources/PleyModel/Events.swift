@@ -55,6 +55,9 @@ public enum ServerEvent: Hashable, Sendable {
     case playerCommand(sessionId: String, command: PlayerCommand)
     case liveChannelsChanged
     case liveTunersChanged
+    /// Someone took the connection the Live TV session `sessionId` used:
+    /// its player stops at once and says `message`.
+    case liveTakenOver(sessionId: String, message: String)
     /// A request changed (`requestId` with its title), or many did (all
     /// `nil`): what shows it is read again.
     case requestsChanged(requestId: Int?, kind: TitleKind?, tmdbId: Int?)
@@ -132,6 +135,8 @@ public enum ServerEvent: Hashable, Sendable {
                                                                          offsetMs: wire.offsetMs))
         case "live_channels_changed": return .liveChannelsChanged
         case "live_tuners_changed": return .liveTunersChanged
+        case "live_taken_over":
+            return wire.sessionId.map { .liveTakenOver(sessionId: $0, message: wire.message ?? "") }
         case "requests_changed":
             return .requestsChanged(requestId: wire.requestId, kind: wire.kind, tmdbId: wire.tmdbId)
         case "request_available":

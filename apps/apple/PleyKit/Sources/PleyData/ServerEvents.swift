@@ -130,6 +130,8 @@ public final class ServerEvents {
     public var onScans: ([Int: ScanStatus]) -> Void = { _ in }
     /// A playback of this profile's was stopped from elsewhere.
     public var onSessionStopped: (_ sessionId: String, _ message: String?, _ byAdmin: Bool) -> Void = { _, _, _ in }
+    /// Someone took the connection of this profile's Live TV session `sessionId`.
+    public var onLiveTakenOver: (_ sessionId: String, _ message: String) -> Void = { _, _ in }
     /// The profile's remote, on another device, sent a player a command:
     /// the player of `sessionId`, if it plays here, acts on it.
     public var onPlayerCommand: (_ sessionId: String, _ command: PlayerCommand) -> Void = { _, _ in }
@@ -237,6 +239,8 @@ public final class ServerEvents {
             gather(ServerChange(home: true, libraries: true, libraryIds: [id]))
         case .sessionStopped(let id, let message, let byAdmin):
             onSessionStopped(id, message, byAdmin)
+        case .liveTakenOver(let id, let message):
+            onLiveTakenOver(id, message)
         case .playerCommand(let id, let command):
             onPlayerCommand(id, command)
         case .sessionsChanged:

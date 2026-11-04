@@ -136,8 +136,13 @@ public struct LiveState: Equatable, Sendable {
 /// - When AVPlayer fails, the session's plan is asked once: a `410` there
 ///   is a stop, with the server's why; anything else tunes again, twice at
 ///   most before it says the channel didn't start.
+/// - The session stopped from elsewhere (the server's `session_stopped`:
+///   an administrator, or the profile on another device) or its
+///   connection taken over (`live_taken_over`) stops it at once and says
+///   why, without waiting for the stream to run out.
 /// - `stop` lets the session and the engine go (the app went to the
-///   background), `resume` tunes the channel again, `close` ends it all.
+///   background), `resume` tunes the channel again unless the server
+///   stopped it, `close` ends it all.
 @MainActor
 public final class LivePlayback: ObservableObject {
     /// A stall shows the spinner once it has lasted this long (the web's 0.7 s).
@@ -197,7 +202,22 @@ public final class LivePlayback: ObservableObject {
         tune(id, takeOver: takeOver)
     }
 
-    /// Back in front: the channel left in `stop` plays again, from the live edge.
+    /// The server stopped session `sessionId` (`session_stopped`): if it is
+    /// the one watching, it stops now and says who stopped it, as Android does.
+    public func stoppedElsewhere(_ sessionId: String, message: String?, byAdmin: Bool) {
+        let who = byAdmin ? "Live TV was stopped by the server's administrator." : "Live TV was stopped from another device."
+        let text = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        endedAtServer(sessionId, LiveTrouble(kind: .stopped, message: text.isEmpty ? who : "\(who)\n\(text)"))
+    }
+
+    /// Someone took session `sessionId`'s connection (`live_taken_over`):
+    /// if it is the one watching, it stops now and says `message`.
+    public func takenOver(_ sessionId: String, message: String) {
+        endedAtServer(sessionId, LiveTrouble.of(PleyError.sessionStopped(message: message)))
+    }
+
+    /// Back in front: the channel left in `stop` plays again, from the live
+    /// edge; one the server stopped stays stopped until Watch again.
     public func resume() {
         if state.phase == .idle { retry() }
     }
@@ -209,7 +229,11 @@ public final class LivePlayback: ObservableObject {
         cancelWork()
         letSessionGo()
         releaseEngine()
-        state = LiveState(channelId: state.channelId)
+        if case .failed(let trouble) = state.phase, trouble.kind == .stopped {
+            state.buffering = false
+        } else {
+            state = LiveState(channelId: state.channelId)
+        }
     }
 
     /// Ends watching for good.
@@ -333,6 +357,15 @@ public final class LivePlayback: ObservableObject {
                 self.fail(LiveTrouble(kind: .other, message: ""))
             }
         }
+    }
+
+    /// Watching `sessionId` ended at the server: nothing to let go, and the
+    /// stream's end that follows is no break to tune again after.
+    private func endedAtServer(_ sessionId: String, _ trouble: LiveTrouble) {
+        guard !closed, session == sessionId else { return }
+        cancelWork()
+        session = nil
+        fail(trouble)
     }
 
     private func fail(_ trouble: LiveTrouble) {

@@ -183,6 +183,51 @@ private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(engine.closed)
     }
 
+    @Test func stoppedFromElsewhereItStopsAtOnceAndStaysStopped() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let first = FakeLiveEngine()
+        let second = FakeLiveEngine()
+        let live = playback(server, engines: [first, second])
+        live.tune(1)
+        #expect(await eventually { first.loads.count == 1 })
+        first.send(.playing)
+        #expect(await eventually { live.state.phase == .playing })
+        // Another session's stop isn't this one's.
+        live.stoppedElsewhere("someone-else", message: nil, byAdmin: false)
+        #expect(live.state.phase == .playing)
+        let session = try #require(live.sessionId)
+        live.stoppedElsewhere(session, message: nil, byAdmin: false)
+        #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped, message: "Live TV was stopped from another device.")))
+        #expect(first.closed && live.sessionId == nil)
+        // Back from the background it stays stopped; Watch again tunes it.
+        live.stop()
+        live.resume()
+        if case .failed(let trouble) = live.state.phase { #expect(trouble.kind == .stopped) } else { Issue.record("not stopped") }
+        #expect(second.loads.isEmpty)
+        live.retry()
+        #expect(await eventually { second.loads.count == 1 })
+        live.close()
+    }
+
+    @Test func anAdministratorsStopOrATakenConnectionSaysWhy() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let first = FakeLiveEngine()
+        let second = FakeLiveEngine()
+        let live = playback(server, engines: [first, second])
+        live.tune(1)
+        #expect(await eventually { first.loads.count == 1 })
+        live.stoppedElsewhere(try #require(live.sessionId), message: " Bedtime ", byAdmin: true)
+        #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped,
+                                                        message: "Live TV was stopped by the server's administrator.\nBedtime")))
+        live.retry()
+        #expect(await eventually { second.loads.count == 1 })
+        live.takenOver(try #require(live.sessionId), message: "someone else needed the connection")
+        #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped, message: "Someone else needed the connection.")))
+        #expect(second.closed)
+    }
+
     @Test func goingToTheBackgroundLetsGoAndComingBackTunesAgain() async throws {
         let server = try await fixture()
         defer { server.stop() }
