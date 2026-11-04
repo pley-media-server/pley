@@ -207,10 +207,14 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * shell keeps the UiAutomation it began with, which [remote] let go, and
      * its next command (stopping the trace, killing the app for the next
      * run) failed, "Calling from not trusted UID" on Android 14 and without
-     * a word on Fire OS 7. The shell gets the one connected now.
+     * a word on Fire OS 7. The shell gets the one connected now. First the
+     * page settles unobserved (the landing, the pictures coming in): once
+     * accessibility connects, Compose describes the whole screen to it, a
+     * frame of its own a measure would count.
      */
     fun observed() {
         if (!remoteNow) return
+        SystemClock.sleep(UNOBSERVED_SETTLE_MS * 3)
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         val shells = Class.forName("androidx.benchmark.ShellImpl").getDeclaredField("uiAutomation")
         shells.isAccessible = true
