@@ -159,6 +159,9 @@ public struct MusicEnvironment {
 public final class MusicPlayback: ObservableObject {
     /// Progress reports while playing, as on the web.
     public static let progressEveryMs: Int64 = 10_000
+    /// How often a paused track says so: the server counts a player it
+    /// hasn't heard from in 90 s as gone, and remotes drop it.
+    public static let pausedEveryMs: Int64 = 30_000
     /// The remote's commands music obeys.
     public static let controls: [Control] = [.play, .pause, .seek, .skip, .next, .previous]
     /// New sessions asked in a row for one track before it counts as failed.
@@ -180,6 +183,8 @@ public final class MusicPlayback: ObservableObject {
     public private(set) var session: ServerPlaybackSession?
     private var loadTask: Task<Void, Never>?
     private var ticker: Task<Void, Never>?
+    /// When `paused` was last reported, for `pausedEveryMs`.
+    private var pausedReportAt: Int64 = 0
     /// Counts the tracks asked for, so only the latest one's answer loads.
     private var generation = 0
     /// The mode asked for after direct play failed to decode the track.
@@ -373,9 +378,21 @@ public final class MusicPlayback: ObservableObject {
         publish()
     }
 
-    /// Sends a progress report now, as the 10 s ticker does (the tests' ticker).
+    /// Sends what the 10 s ticker sends (the tests' ticker): `playing` while
+    /// the sound moves, and `paused` while paused once `pausedEveryMs` has
+    /// gone by since the last.
     func reportProgress() {
-        session?.progress(positionMs: lastPosition, state: .playing)
+        guard let session, !ended, error == nil else { return }
+        if moving {
+            session.progress(positionMs: lastPosition, state: .playing)
+        } else if out?.playWhenReady == false, env.clock.now() - pausedReportAt >= Self.pausedEveryMs {
+            reportPaused(session)
+        }
+    }
+
+    private func reportPaused(_ session: ServerPlaybackSession) {
+        pausedReportAt = env.clock.now()
+        session.progress(positionMs: lastPosition, state: .paused)
     }
 
     // MARK: Inside
@@ -533,9 +550,8 @@ public final class MusicPlayback: ObservableObject {
                 loading = false
                 recreates = 0
                 startTicker()
-            } else {
-                stopTicker()
             }
+            // Stopping, the ticker keeps going: paused, it says so every 30 s.
             publish()
         case .buffering(let buffering):
             guard loading != buffering, session != nil else { return }
@@ -543,7 +559,10 @@ public final class MusicPlayback: ObservableObject {
             publish()
         case .playWhenReady(let play):
             if play { timer.resumed() }
-            if !play, !ended { session?.progress(positionMs: lastPosition, state: .paused) }
+            if !play, !ended, let session {
+                reportPaused(session)
+                startTicker()
+            }
             publish()
         case .ended:
             trackEnded()
