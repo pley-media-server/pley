@@ -169,8 +169,16 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   deinterlaces it itself, surround reaches a receiver, the server converts
   nothing, and it starts at once.
 - **Tuning:** the add-on first asks `POST …/watch` with this Kodi's
-  `client_id`, then Kodi reads the stream under the same id, so changing
-  channel never holds two connections.
+  `client_id`, then Kodi reads the stream for that session as
+  `<client_id>-stream`, so changing channel never holds two connections,
+  and the watch session stays while Kodi reads it: it is the one your
+  other devices see and control ([Remote control](#remote-control)).
+- **Leaving:** when Kodi stops reading a channel (you stop it, another
+  channel or a title plays, Kodi exits), the service ends its session
+  with `DELETE /api/live/sessions/{session}` at once, rather than the
+  server waiting 45 s, so it doesn't hold a connection or stay on your
+  remotes. A session the server ended (taken over, stopped from
+  elsewhere) is left as it is.
 - **No pause or seeking:** the stream has no length and no
   `Accept-Ranges`, so Kodi's controls offer only Previous, Stop and Next.
 - **Channel up and down:** the channels around the one playing (100 each
@@ -184,6 +192,40 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   server's words with OK and Watch again, which plays the channel as any
   channel plays. A stream that ends without that event within a second
   says "The server stopped this stream."
+- **Stopped from another device** (`session_stopped` for the channel's
+  session): it stops as when taken over, and the dialog says "Live TV was
+  stopped from another device." or "Live TV was stopped by the server's
+  administrator.", with their words on the next line.
+
+### Remote control
+
+Your other devices control what Kodi plays (see
+[API.md](API.md#remote-control)); Kodi itself shows no remote. The
+service (`service.py`) acts on `player_command` for the session playing
+here, by the shared remote-control rule, written in `remote.py` and
+tested against every case of `packages/tv/test/fixtures/remote.json`:
+
+- **What it says:** each play request and Live TV watch lists what Kodi
+  obeys (`controls`), names it as Kodi names itself (`System.FriendlyName`,
+  set in Kodi's Settings, Services, General, Device name; at most 64
+  characters) and says it is a TV (`device_kind: tv`): Kodi is made for the
+  TV, on a computer too, so remotes list it with the TVs.
+- **Movies and episodes:** play, pause, seek, skip, and next when Kodi's
+  queue has something after it. An episode always lists next: with nothing
+  queued after it, Next plays the episode after it, as Up Next does (and
+  does nothing on a show's last).
+- **Music:** play, pause, seek, skip, next and previous. Previous starts the
+  track again past 3 seconds in, or on the first track, else plays the one
+  before.
+- **Live TV:** next and previous change channel within Kodi's queue of
+  channels, round its ends, when there is one; the stream can't pause or
+  go back, so nothing else. Without a queue (a channel played again with
+  Watch again), it obeys only Stop.
+- Play while playing or pause while paused changes nothing and reports
+  again, so a remote a little behind settles. A seek or skip is reported at
+  once; another title, track or channel reports with its own session.
+- Kodi stopped or playing something else obeys nothing. A command it
+  doesn't know, or a seek or skip without its place, does nothing.
 
 ### Requests
 

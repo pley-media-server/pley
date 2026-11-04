@@ -91,7 +91,8 @@ class Plugin(asking.Asking):
             if item["kind"] in listing.PLAYABLE:
                 # The resume point goes along, so playing needs no details first.
                 position = (item.get("user_state") or {}).get("position_ms") or 0
-                entries.append((self.url(route="play", id=item["id"], pos=position), li, False))
+                # So is its kind: what the user's remote may do (playback.obeys).
+                entries.append((self.url(route="play", id=item["id"], pos=position, kind=item["kind"]), li, False))
             else:
                 entries.append((self.url(route="item", id=item["id"]), li, True))
         xbmcplugin.addDirectoryItems(self.handle, entries, len(entries))
@@ -420,7 +421,7 @@ class Plugin(asking.Asking):
             start_ms = (detail.get("user_state") or {}).get("position_ms", 0)
         else:
             start_ms = int(listed or 0) if self.resume else 0
-        li = playback.prepare(client, self.proxy_base, item_id, start_ms, detail)
+        li = playback.prepare(client, self.proxy_base, item_id, start_ms, detail, kind=self.params.get("kind"))
         xbmcplugin.setResolvedUrl(self.handle, True, li)
 
     # --------------------------------------------------------------- Live TV

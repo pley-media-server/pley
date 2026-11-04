@@ -42,6 +42,9 @@ def executeJSONRPC(request):
 PLAYLIST_MUSIC, PLAYLIST_VIDEO = 0, 1
 # What Player.play was given: (item, listitem, startpos).
 played = []
+# What else the player was asked to do: ("pause",), ("seekTime", seconds),
+# ("playnext",), ("playprevious",), ("playselected", place).
+asked = []
 
 
 class Player:
@@ -51,6 +54,21 @@ class Player:
     def play(self, item=None, listitem=None, windowed=False, startpos=-1):
         played.append((item, listitem, startpos))
 
+    def pause(self):
+        asked.append(("pause",))
+
+    def seekTime(self, seconds):
+        asked.append(("seekTime", seconds))
+
+    def playnext(self):
+        asked.append(("playnext",))
+
+    def playprevious(self):
+        asked.append(("playprevious",))
+
+    def playselected(self, selected):
+        asked.append(("playselected", selected))
+
 
 class PlayList:
     """Kodi's playlists, one of each kind: what is in them, and whether
@@ -58,6 +76,8 @@ class PlayList:
 
     entries = {}
     shuffled = {}
+    # The place of the entry Kodi plays, of each kind (-1: none).
+    positions = {}
 
     def __init__(self, kind):
         self.kind = kind
@@ -73,6 +93,9 @@ class PlayList:
 
     def unshuffle(self):
         PlayList.shuffled[self.kind] = False
+
+    def getposition(self):
+        return PlayList.positions.get(self.kind, -1)
 
     def size(self):
         return len(PlayList.entries.get(self.kind, []))

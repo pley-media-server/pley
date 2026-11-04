@@ -211,7 +211,8 @@ class ItemsTest(unittest.TestCase):
 
     def test_a_channel_plays_as_the_provider_sends_it(self):
         li = livetv.play_item(BASE, NEWS, "kodi-1", NOW)
-        self.assertEqual(li.path, BASE + "/api/live/channels/1/stream.ts?client_id=kodi-1")
+        # Read for the device's watch session, which the remote reaches.
+        self.assertEqual(li.path, BASE + "/api/live/channels/1/stream.ts?client_id=kodi-1-stream&device_kind=tv")
         self.assertEqual((li.mime, li.lookup), ("video/mp2t", False))
 
     def test_the_queue_holds_the_channels_around_the_one_played(self):
@@ -370,6 +371,93 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(xbmc.PlayList(xbmc.PLAYLIST_VIDEO).size(), 0)
 
 
+class LeavingTest(unittest.TestCase):
+    """The service leaves the watch session of a channel Kodi stops reading,
+    rather than the server keeping it 45 s; not one the server ended."""
+
+    def setUp(self):
+        from pley import service
+
+        class Now:
+            def put(self, job):
+                job()
+
+        xbmc.PlayList.entries.clear()
+        del xbmcgui.questions[:]
+        self.player = service.Player(None, "pleyKodi/test", Now())
+        self.deleted = []
+        self.player.call = lambda method, path, body=None, timeout=0, fine=(): self.deleted.append((method, path, fine))
+        self.player.stop = lambda: None
+        self.playing = ""
+        self.player.playing_file = lambda: self.playing
+        self.addCleanup(kodi.clear_property, kodi.LIVE)
+        # The TAKEN_ONCE window would keep a take-over of one test from the next.
+        self.player.taken = (None, float("-inf"))
+
+    def plays(self, channel, session):
+        """The plugin watched `channel` (kodi.LIVE), then Kodi plays its stream."""
+        kodi.set_property(kodi.LIVE, json.dumps({"session_id": session, "channel_id": channel}))
+        self.playing = "http://127.0.0.1:5000/s3cret/api/live/channels/%d/stream.ts?client_id=kodi-1-stream" % channel
+        self.player.onAVStarted()
+
+    def test_stopping_leaves_the_session_at_once(self):
+        self.plays(1, "live-1")
+        self.assertEqual(self.deleted, [])
+        self.playing = ""
+        self.player.onPlayBackStopped()
+        self.player.onPlayBackStopped()
+        self.assertEqual(self.deleted, [("DELETE", "/api/live/sessions/live-1", (404, 410))])
+
+    def test_a_stop_told_late_leaves_nothing_still_playing(self):
+        self.plays(1, "live-1")
+        self.player.onPlayBackStopped()
+        self.assertEqual(self.deleted, [])
+
+    def test_another_channel_leaves_the_one_before(self):
+        self.plays(1, "live-1")
+        self.plays(2, "live-2")
+        self.assertEqual([d[1] for d in self.deleted], ["/api/live/sessions/live-1"])
+        self.playing = ""
+        self.player.onPlayBackEnded()
+        self.assertEqual([d[1] for d in self.deleted], ["/api/live/sessions/live-1", "/api/live/sessions/live-2"])
+
+    def test_a_title_after_a_channel_leaves_it(self):
+        self.plays(1, "live-1")
+        self.playing = "http://127.0.0.1:5000/s3cret/api/playback/s/index.m3u8"
+        self.player.onAVStarted()
+        self.assertEqual([d[1] for d in self.deleted], ["/api/live/sessions/live-1"])
+
+    def test_kodi_exiting_leaves_it(self):
+        self.plays(1, "live-1")
+        self.player.closing()
+        self.player.closing()
+        self.assertEqual([d[1] for d in self.deleted], ["/api/live/sessions/live-1"])
+
+    def test_a_session_the_server_ended_isnt_left(self):
+        self.plays(1, "live-1")
+        with mock.patch("threading.Thread"):
+            self.player.heard({"type": "live_taken_over", "session_id": "s9", "channel_id": 1, "message": None})
+        self.playing = ""
+        self.player.onPlayBackStopped()
+        self.plays(1, "live-2")
+        with mock.patch("threading.Thread"):
+            self.player.heard({"type": "session_stopped", "session_id": "live-2", "by_admin": True, "message": None})
+        self.playing = ""
+        self.player.onPlayBackStopped()
+        self.plays(1, "live-3")
+        with mock.patch("threading.Timer"):
+            self.player.live_ended("/api/live/channels/1/stream.ts?client_id=kodi-1-stream")
+        self.playing = ""
+        self.player.onPlayBackEnded()
+        self.assertEqual(self.deleted, [])
+
+    def test_a_channel_kodi_never_played_isnt_held(self):
+        kodi.set_property(kodi.LIVE, json.dumps({"session_id": "live-1", "channel_id": 1}))
+        self.player.onPlayBackError()
+        self.player.closing()
+        self.assertEqual(self.deleted, [])
+
+
 class RoutesTest(unittest.TestCase):
     """Live TV in Kodi's lists and the play route, against a stand-in server."""
 
@@ -476,7 +564,8 @@ class RoutesTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertTrue(li.path.startswith(self.server.url + "/s3cret/api/live/channels/1/stream.ts?client_id=kodi-"))
         watch = next(r for r in self.server.requests if r.path.endswith("/watch"))
-        self.assertEqual(watch.json()["client_id"], li.path.rsplit("=", 1)[1], "the same device for both")
+        reader = urllib.parse.parse_qs(urllib.parse.urlsplit(li.path).query)["client_id"][0]
+        self.assertEqual(reader, watch.json()["client_id"] + "-stream", "the stream is read for the device's session")
         self.assertNotIn(("end", False), xbmcplugin.calls, "nothing listed: Kodi plays")
 
     def test_every_connection_in_use_is_said_and_the_queue_let_go(self):

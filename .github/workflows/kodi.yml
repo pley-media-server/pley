@@ -9,6 +9,7 @@ on:
     branches: [master]
     paths:
       - apps/kodi/**
+      - packages/tv/test/fixtures/**
       - apps/server/**
       - apps/transcoder/**
       - packages/transcoder-api/**
@@ -19,6 +20,7 @@ on:
   pull_request:
     paths:
       - apps/kodi/**
+      - packages/tv/test/fixtures/**
       - apps/server/**
       - apps/transcoder/**
       - packages/transcoder-api/**
