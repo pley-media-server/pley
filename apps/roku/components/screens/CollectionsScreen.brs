@@ -43,10 +43,14 @@ end sub
 sub onCollections(event as object)
     request = event.getRoSGNode()
     answer = event.getData()
-    if not answer.ok and uiFailed(answer) then return
     m.waiting = m.waiting - 1
+    if not answer.ok
+        ' Handled (the page goes for Unreachable or sign-in) unless the page
+        ' was covered meanwhile: then it says why once every answer is in.
+        if uiFailed(answer) and m.top.active then return
+        if m.failed = invalid then m.failed = answer.message
+    end if
     if answer.ok and request.content <> invalid and request.content.getChildCount() > 0 then m.found[urlValue(request.spec.libraryId)] = request.content
-    if not answer.ok and m.failed = invalid then m.failed = answer.message
     if m.waiting > 0 then return
     content = CreateObject("roSGNode", "ContentNode")
     for each library in m.libraries
