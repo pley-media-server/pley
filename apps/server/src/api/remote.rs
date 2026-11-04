@@ -58,7 +58,7 @@ pub(crate) fn device_id_of(user: &AuthUser, token: Option<&str>) -> Option<Strin
 /// said, else what its app says. Pley's TV apps (Apple TV, Roku, Samsung,
 /// LG) and Kodi play on TVs; the iPhone and iPad app on one or the other,
 /// as its User-Agent's system says; the Mac and desktop apps on computers;
-/// pley's own sign-in is a browser. The Android app plays on TVs and
+/// Pley's own sign-in is a browser. The Android app plays on TVs and
 /// phones alike and says which when it knows; until it does, and for apps
 /// by other publishers and Jellyfin and Plex apps, the kind isn't known.
 pub(crate) fn device_kind_of(declared: Option<DeviceKind>, user: &AuthUser, user_agent: Option<&str>) -> DeviceKind {
@@ -388,7 +388,7 @@ mod tests {
     use crate::auth::scopes::Scopes;
     use crate::auth::{AppAccess, CompatibilityAccess, compatibility};
 
-    /// A request's user: pley's own sign-in, an app's (by client id), or a
+    /// A request's user: Pley's own sign-in, an app's (by client id), or a
     /// compatibility token's.
     fn user(app: Option<&str>, token: bool) -> AuthUser {
         AuthUser {

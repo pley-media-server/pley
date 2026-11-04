@@ -3390,23 +3390,23 @@ more.
   once it has said it takes media control (see
   [COMPATIBILITY.md](COMPATIBILITY.md)); the server passes them on to it
   as `Playstate`.
-- **Which device.** Each session says which device plays it
-  (`device_id`), the same for everything one sign-in plays, however many
-  tabs, titles or channels: `app-<grant>` for one of the user's apps,
-  `token-<token>` for a Jellyfin app's sign-in or a token made in Account
-  (a Plex app's), `web-<16 hex characters>` for a browser sign-in (derived
-  from its session token, never the token or its stored hash), and
-  `session-<id>` when none of these is known. Remotes and dashboards key
-  players by it, so a browser with three tabs is one device. Its
-  `device_kind` is what the player said in its play request (`tv`,
-  `phone`, `tablet`, `computer`, `browser`, `other`), else what the server
-  makes of the app: Pley's Apple TV, Roku, Samsung, LG and Kodi apps play
-  on TVs; its iPhone and iPad app on a phone or a tablet, by its
-  User-Agent; its Mac and desktop apps on computers; the web app is a
-  browser. The Android app plays on TVs and phones alike and says which
-  when it knows; until it does, and for apps by other publishers and
-  Jellyfin and Plex apps, the kind is `other`. A Live TV player that reads
-  `stream.ts` says its kind in the query (`device_kind=tv`).
+- **Which device.** Each session says which device plays it (`device_id`),
+  the same for everything one sign-in plays, however many tabs, titles or
+  channels: `app-<grant>` for one of the user's apps, `token-<id>` for a
+  Jellyfin app's sign-in or a token made in Account (a Plex app's), by the
+  token's id, `web-<16 hex characters>` for a browser sign-in (derived from
+  its session token, never the token or its stored hash), and `session-<id>`
+  when none of these is known. Remotes and dashboards key players by it, so
+  a browser with three tabs is one device. Its `device_kind` is what the
+  player said in its play request (`tv`, `phone`, `tablet`, `computer`,
+  `browser`, `other`), else what the server makes of the app: Pley's Apple
+  TV, Roku, Samsung, LG and Kodi apps play on TVs; its iPhone and iPad app
+  on a phone or a tablet, by its User-Agent; its Mac and desktop apps on
+  computers; the web app is a browser. The Android app plays on TVs and
+  phones alike and says which when it knows; until it does, and for apps by
+  other publishers and Jellyfin and Plex apps, the kind is `other`. A Live
+  TV player that reads `stream.ts` says its kind in the query
+  (`device_kind=tv`).
 - **`GET /api/sessions`** lists the caller's own sessions whose players
   have been heard from in the last 90 seconds, an administrator's too
   (everyone's are on `/api/activity`). `age_ms` is how long ago its
@@ -3417,14 +3417,14 @@ more.
   that report was, in server time.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
-  `kind: "live"`, its `channel` and `item: null`, while its player is
-  there (see Leaving, under [Live TV](#live-tv)); it is always `playing`,
-  at `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way. `next` and
-  `previous` change channel, in the order the player tunes them; the
-  server only passes them on. A live player lists `pause`, `seek` and
-  `skip` only when it can go back in the channel, and its `seek` goes up
-  to a day, as with a title whose length isn't known. A viewer starting,
-  ending or changing channel sends `sessions_changed`.
+  `kind: "live"`, its `channel` and `item: null`, while its player is there
+  (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
+  `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
+  `next` and `previous` change channel, in the order the player tunes them;
+  the server only passes them on. A live player lists `pause`, `seek` and
+  `skip` only when it can go back in the channel, and its `seek` goes up to
+  a day, as with a title whose length isn't known. A viewer starting, ending
+  or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
   position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
