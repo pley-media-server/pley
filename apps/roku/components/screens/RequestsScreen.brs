@@ -1,7 +1,8 @@
 ' The requests (GET /api/requests), 50 at a time, the next as the focus
-' nears the end: a tab for each status (lib/Requests.brs's reqTabs), a
-' manager's filters (movies or shows, who asked, words of the title), and
-' what can be done with each request (shared/RequestActions.brs). It asks
+' nears the end: a tab for each status with its number (lib/Requests.brs's
+' reqTabs, reqTabCount), a manager's filters (movies or shows, who asked,
+' words of the title), and what can be done with each request
+' (shared/RequestActions.brs). It asks
 ' again as it shows, as requests change (the scene's requestsChanged),
 ' each 10 s while one of them downloads, and after an action, the focus
 ' staying on the request it was on. Shown to the account, its news is
@@ -38,6 +39,10 @@ sub init()
     m.personName = ""
     m.words = ""
     m.people = []
+    ' Each status's count with the filters (GET /api/requests' counts),
+    ' invalid until known; the tabs' chips as last set (their JSON).
+    m.counts = invalid
+    m.tabChips = ""
     ' Listings (a tab and filters): answers to an earlier one are left out.
     ' Requests listed so far (the next page's offset) and in all; a page or
     ' a reload on its way, and a reload wanted meanwhile.
@@ -98,13 +103,12 @@ sub showPage(view as string)
     summary = reqSummaryOf(m.top.requestSummary)
     m.manage = summary.manage = true
     m.heading.text = reqPageName(summary)
-    chips = []
     m.tabKeys = []
     for each entry in reqTabs(m.manage)
-        chips.Push({ label: entry.label, width: 0 })
         m.tabKeys.Push(entry.key)
     end for
-    m.tabs.chips = chips
+    m.counts = invalid
+    m.total = -1
     m.view = reqListView(view, m.manage)
     for i = 0 to m.tabKeys.Count() - 1
         if m.tabKeys[i] = m.view
@@ -122,13 +126,33 @@ sub showPage(view as string)
     m.problemShown = invalid
     m.panel.visible = false
     m.tabs.visible = true
-    showSide(summary)
+    showTabs()
     startListing()
 end sub
 
 function hasFilters() as boolean
     return m.kind <> "" or m.person > 0 or m.words <> ""
 end function
+
+' The tabs, each with its number, closer together where the numbers would
+' leave the filters too little room; then the filters.
+sub showTabs()
+    summary = reqSummaryOf(m.top.requestSummary)
+    chips = reqTabChips(m.manage, summary, m.counts, hasFilters(), m.view, m.total)
+    json = FormatJson(chips)
+    if json <> m.tabChips
+        m.tabChips = json
+        ' The filters (or Sign in again) keep about 180 pixels.
+        room = 1728
+        if m.manage or summary.signInAgain = "approvals" then room = 1548
+        for each pad in [44, 32, 24, 16]
+            m.tabs.pad = pad
+            m.tabs.chips = chips
+            if m.tabs.rowWidth <= room then exit for
+        end for
+    end if
+    showSide(summary)
+end sub
 
 ' At the right of the tabs: a manager's filters, saying what they keep;
 ' for an administrator whose sign-in can't approve, Sign in again.
@@ -203,6 +227,7 @@ sub startListing()
     m.message.visible = true
     showCount()
     loadMore()
+    askCounts()
 end sub
 
 sub loadMore()
@@ -232,6 +257,7 @@ sub onPage(event as object)
     if data.listed = 0 then m.total = m.offset
     rows = request.content
     if rows <> invalid and rows.getChildCount() > 0 then content.appendChildren(rows.getChildren(-1, 0))
+    keepCounts(data.counts)
     showList()
     if data.busy then keepAsking()
     markSeen()
@@ -275,6 +301,7 @@ sub reload()
     if limit > 200 then limit = 200
     query.limit = limit
     uiRequest({ method: "GET", path: "/api/requests", query: query, build: "requestRows", manage: m.manage, listing: m.listing }, "onReloaded")
+    askCounts()
 end sub
 
 ' A reload that fails leaves the list as it was.
@@ -291,6 +318,7 @@ sub onReloaded(event as object)
         rows = request.content
         if rows = invalid then rows = CreateObject("roSGNode", "ContentNode")
         putRows(rows)
+        keepCounts(data.counts)
         showList()
         if data.busy then keepAsking()
         markSeen()
@@ -329,6 +357,30 @@ function sameRequests(content as object, rows as object) as boolean
     end for
     return true
 end function
+
+' The statuses' counts a list came with, where they are of the filters
+' alone; the tabs say them.
+sub keepCounts(counts as dynamic)
+    if reqCountsQuery(m.view, m.kind, m.person, m.words) = invalid then m.counts = counts
+    showTabs()
+end sub
+
+' Needs attention's and Yours' lists narrow the counts: those come on their
+' own.
+sub askCounts()
+    query = reqCountsQuery(m.view, m.kind, m.person, m.words)
+    if query <> invalid then uiRequest({ method: "GET", path: "/api/requests", query: query, listing: m.listing }, "onCounts")
+end sub
+
+sub onCounts(event as object)
+    if event.getRoSGNode().spec.listing <> m.listing then return
+    answer = event.getData()
+    data = invalid
+    if answer.ok then data = httpObject(answer.data)
+    if data = invalid or httpObject(data.counts) = invalid then return
+    m.counts = data.counts
+    showTabs()
+end sub
 
 function rowChanged(shown as object, fresh as object) as boolean
     for each name in ["title", "subtitle", "image", "stageText", "stageColor", "progress", "who", "line", "unseen", "status", "stage", "libraryId"]
@@ -517,8 +569,11 @@ sub onWords(event as object)
     openFilters()
 end sub
 
+' Other filters: the counts are known again with their list.
 sub applyFilters()
-    showSide(reqSummaryOf(m.top.requestSummary))
+    m.counts = invalid
+    m.total = -1
+    showTabs()
     startListing()
 end sub
 
@@ -529,7 +584,8 @@ sub closePanel()
 end sub
 
 ' The summary changed: a manager's page in place of Your requests, or
-' back; Sign in again where it would help.
+' back; Sign in again where it would help, and Needs attention's and
+' Yours' numbers.
 sub onSummary()
     if not m.started then return
     summary = reqSummaryOf(m.top.requestSummary)
@@ -539,7 +595,7 @@ sub onSummary()
     end if
     if m.problemShown <> invalid then return
     m.heading.text = reqPageName(summary)
-    showSide(summary)
+    showTabs()
     showCount()
 end sub
 

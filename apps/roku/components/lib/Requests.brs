@@ -1339,6 +1339,63 @@ function reqTabs(manage as boolean) as object
     return tabs
 end function
 
+' The number on a requests' tab, 0 for none: Needs attention's, what
+' waits for the managers (the summary's pending and failed; with filters,
+' those of counts); Yours', the account's own (the summary's; with
+' filters, what its list holds while it shows); All's, every status's; a
+' status's, its own. counts: each status's with the filters (GET
+' /api/requests' counts), invalid until known; view and total: the tab
+' shown and what its list holds.
+function reqTabCount(key as string, summary as object, counts as dynamic, filtered as boolean, view as string, total as integer) as integer
+    known = httpObject(counts)
+    if key = "attention"
+        if not filtered then return summary.pending + summary.failed
+        if known = invalid then return 0
+        return httpNumber(known.pending, 0) + httpNumber(known.failed, 0)
+    end if
+    if key = "mine"
+        if not filtered then return summary.own
+        if view = "mine" and total > 0 then return total
+        return 0
+    end if
+    if known = invalid then return 0
+    if key <> "all" then return httpNumber(known[key], 0)
+    n = 0
+    for each status in ["pending", "approved", "available", "declined", "failed"]
+        n = n + httpNumber(known[status], 0)
+    end for
+    return n
+end function
+
+' A number as a chip shows it: "" for none, "99+" past most (99, 999).
+function reqCountText(n as integer, most as integer) as string
+    if n <= 0 then return ""
+    if n > most then return urlValue(most) + "+"
+    return urlValue(n)
+end function
+
+' The requests' tabs as their chips show them: [{ label, width, count }],
+' count the tab's number (reqTabCount's) in words.
+function reqTabChips(manage as boolean, summary as object, counts as dynamic, filtered as boolean, view as string, total as integer) as object
+    chips = []
+    for each entry in reqTabs(manage)
+        n = reqTabCount(entry.key, summary, counts, filtered, view, total)
+        chips.Push({ label: entry.label, width: 0, count: reqCountText(n, 999) })
+    end for
+    return chips
+end function
+
+' The statuses' counts for the filters come with a tab's list, counted
+' with every filter but the status. Needs attention's and Yours' narrow
+' them further: with those, the counts are asked for on their own (the
+' query, listing one request); invalid where the list's serve.
+function reqCountsQuery(view as string, kind as string, userId as integer, q as string) as dynamic
+    if view <> "attention" and view <> "mine" then return invalid
+    query = reqListQuery("all", kind, userId, q, 0)
+    query.limit = 1
+    return query
+end function
+
 ' The query of a tab (view) and filters (GET /api/requests): kind "" for
 ' both, userId 0 for everyone, q "" for any title.
 function reqListQuery(view as string, kind as string, userId as integer, q as string, offset as integer) as object

@@ -355,11 +355,14 @@ its number counts what waits: a manager's pending and failed requests
   each saying how it stands, and the cast. A movie's Request asks first,
   saying what will happen; a show's opens **Which seasons?**, those left to
   ask for ticked, OK ticking or unticking one, then Request 3 seasons.
-- **Your requests** (a manager's **Requests**): tabs by status. A
-  manager's open on Needs attention (pending, and failed ones the server
-  won't retry, oldest first), Yours holds their own, and Filter keeps
-  movies or shows, one person, or titles with some words (the Roku's
-  keyboard). A card per request: poster, seasons, a stage pill (amber
+- **Your requests** (a manager's **Requests**): tabs by status, each
+  with how many it holds (the statuses' counts come with a tab's list,
+  and are asked for beside Needs attention's and Yours', which count
+  only what they hold). A manager's open on Needs attention (pending,
+  and failed ones the server won't retry, oldest first), Yours holds
+  their own, and Filter keeps movies or shows, one person, or titles with
+  some words (the Roku's keyboard). A card per request: poster, seasons,
+  a stage pill (amber
   waiting for approval; blue approved, searching, or downloading with a
   bar and the time left; green in library; red declined or failed; gray
   gone), who asked and when, the reason or note. OK opens the title; the

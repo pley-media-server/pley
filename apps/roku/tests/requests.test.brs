@@ -622,6 +622,39 @@ sub test_requests_list_queries_and_empty_lists()
     tkEqual(reqEmptyText("pending", false, true), "Nothing matches.")
 end sub
 
+sub test_requests_tabs_say_how_many_each_holds()
+    manager = reqTestSummary({ manage: true, access: "auto", pending: 2, failed: 1, own: 5 })
+    counts = { pending: 2, approved: 4, available: 30, declined: 0, failed: 1 }
+    tkEqual(reqTabCount("attention", manager, invalid, false, "attention", 3), 3, "what waits, before the counts come")
+    tkEqual(reqTabCount("all", manager, counts, false, "attention", 3), 37)
+    tkEqual(reqTabCount("approved", manager, counts, false, "attention", 3), 4)
+    tkEqual(reqTabCount("declined", manager, counts, false, "attention", 3), 0)
+    tkEqual(reqTabCount("all", manager, invalid, false, "all", -1), 0, "not known yet")
+    tkEqual(reqTabCount("mine", manager, counts, false, "all", 37), 5, "the account's own")
+    ' Filtered: the counts of what the filters keep.
+    narrow = { pending: 1, approved: 0, available: 2, declined: 0, failed: 0 }
+    tkEqual(reqTabCount("attention", manager, narrow, true, "all", 3), 1)
+    tkEqual(reqTabCount("mine", manager, narrow, true, "mine", 2), 2, "what Yours lists")
+    tkEqual(reqTabCount("mine", manager, narrow, true, "all", 3), 0, "not known while another tab shows")
+    tkEqual(reqTabCount("pending", reqTestSummary({}), { pending: 1 }, false, "all", 1), 1, "a status the answer lacks counts none")
+    chips = reqTabChips(true, manager, counts, false, "attention", 3)
+    tkEqual(chips[0], { label: "Needs attention", width: 0, count: "3" })
+    tkEqual(chips[5].count, "", "none: no number")
+    tkEqual(reqTabChips(false, reqTestSummary({}), invalid, false, "all", -1).Count(), 6)
+    tkEqual(reqCountText(1200, 999), "999+")
+    tkEqual(reqCountText(0, 99), "")
+    tkEqual(reqCountText(100, 99), "99+")
+end sub
+
+' Needs attention's and Yours' lists count only what they hold: the
+' statuses' counts are asked for beside them, with the same filters.
+sub test_requests_counts_are_asked_beside_narrow_tabs()
+    tkEqual(reqCountsQuery("attention", "movie", 3, "dune"), { kind: "movie", user_id: 3, q: "dune", offset: 0, limit: 1 })
+    tkEqual(reqCountsQuery("mine", "", 0, ""), { offset: 0, limit: 1 })
+    tkInvalid(reqCountsQuery("all", "", 0, ""), "All's list counts every status")
+    tkInvalid(reqCountsQuery("pending", "", 0, ""))
+end sub
+
 sub test_requests_open_on_a_tab_the_person_has()
     tkEqual(reqListView("mine", true), "mine")
     tkEqual(reqListView("mine", false), "all")
