@@ -2,10 +2,10 @@ package app.pley.android.designsystem.image
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import kotlin.math.abs
 import kotlin.math.cos
@@ -52,27 +52,36 @@ object Placeholder {
 
     /**
      * The gradient's shape, the same for every title ([GradientBitmaps.diagonalRamp]):
-     * [drawGradient] fills the box with its first colour and stretches this over it
-     * tinted with its second. A gradient shader over a tile or a backdrop
-     * costs far more on a TV's GPU, and a picture per title was a texture
-     * to make for each tile a held key brought in (on a Google TV Streamer,
-     * up to 10 ms of the frame each).
+     * [drawGradient] stretches it over the box, its black and white taken to
+     * the title's two colours: one draw, painting each pixel once. A
+     * gradient shader over a tile or a backdrop costs far more on a TV's
+     * GPU, and a picture per title was a texture to make for each tile a
+     * held key brought in (on a Google TV Streamer, up to 10 ms of the frame
+     * each).
      */
     private val ramp by lazy { GradientBitmaps.diagonalRamp() }
 
-    /** [seed]'s gradient over the box of [size], from its top left: its ends and the tint the ramp is drawn with. */
-    class Look internal constructor(val from: Color, val tint: ColorFilter)
+    /** [seed]'s gradient: the colour matrix the ramp is drawn through. */
+    class Look internal constructor(internal val filter: ColorFilter)
 
-    /** What [drawGradient] draws for [seed], to keep with the box. */
+    /**
+     * What [drawGradient] draws for [seed], to keep with the box: a matrix
+     * taking the ramp's grey g (0 to 255) to from + (to - from) × g / 255
+     * in each channel, the sRGB blend between the title's two colours.
+     */
     fun look(seed: String): Look {
         val (from, to) = colors(seed)
-        return Look(from, ColorFilter.tint(to, BlendMode.SrcIn))
+        fun row(channel: Int, a: Float, b: Float) = FloatArray(5).also {
+            it[channel] = b - a
+            it[4] = a * 255f
+        }
+        val matrix = row(0, from.red, to.red) + row(1, from.green, to.green) + row(2, from.blue, to.blue) + floatArrayOf(0f, 0f, 0f, 1f, 0f)
+        return Look(ColorFilter.colorMatrix(ColorMatrix(matrix)))
     }
 
     /** Draws [look]'s gradient over the box of [size]. */
     fun DrawScope.drawGradient(look: Look, size: Size) {
-        drawRect(look.from, size = size)
-        drawStretched(ramp, Offset.Zero, size, colorFilter = look.tint)
+        drawStretched(ramp, Offset.Zero, size, colorFilter = look.filter)
     }
 
     /** CSS's hsl(), hue in degrees, saturation and lightness 0 to 1. */

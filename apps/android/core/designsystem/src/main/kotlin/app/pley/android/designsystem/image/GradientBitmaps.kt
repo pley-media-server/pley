@@ -45,22 +45,23 @@ object GradientBitmaps {
     }
 
     /**
-     * A square of [side] white pixels, clear at the top left and opaque at
-     * the bottom right, along its diagonal: drawn tinted with a colour over
-     * another, it is the gradient between them (CSS's
+     * A square of [side] opaque grey pixels, black at the top left and white
+     * at the bottom right, along its diagonal: drawn through a colour matrix
+     * that takes black to one colour and white to another
+     * ([Placeholder.look]), it is the gradient between them (CSS's
      * `linear-gradient(135deg, …)` on a square, blended in sRGB as CSS
      * blends the web's `hsl()` colours), so one picture, one texture on the
-     * GPU, serves every gradient of that shape. A linear gradient stays one
-     * when stretched (the filter blends between pixels linearly), so a small
-     * square serves any box.
+     * GPU, serves every gradient of that shape, in one draw. A linear
+     * gradient stays one when stretched (the filter blends between pixels
+     * linearly), so a small square serves any box.
      */
     fun diagonalRamp(side: Int = 16): ImageBitmap {
         val last = (2 * (side - 1)).coerceAtLeast(1)
         val pixels = IntArray(side * side)
         for (y in 0 until side) {
             for (x in 0 until side) {
-                val alpha = ((x + y) * 255f / last).roundToInt()
-                pixels[y * side + x] = (alpha shl 24) or 0xFFFFFF
+                val grey = ((x + y) * 255f / last).roundToInt()
+                pixels[y * side + x] = (0xFF shl 24) or (grey shl 16) or (grey shl 8) or grey
             }
         }
         return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
