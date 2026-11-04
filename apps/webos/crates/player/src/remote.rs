@@ -140,9 +140,9 @@ pub fn remote_action(p: &RemotePlayer, c: &Command) -> RemoteAction {
         Control::Pause if p.playing => RemoteAction::Pause,
         Control::Pause => RemoteAction::Report,
         Control::Seek => c.position_ms.map_or(RemoteAction::None, |at| RemoteAction::Seek(within(at, p.duration_ms))),
-        Control::Skip => {
-            c.offset_ms.map_or(RemoteAction::None, |by| RemoteAction::Seek(within(p.position_ms + by, p.duration_ms)))
-        }
+        Control::Skip => c.offset_ms.map_or(RemoteAction::None, |by| {
+            RemoteAction::Seek(within(p.position_ms.saturating_add(by), p.duration_ms))
+        }),
         Control::Next if p.has_next => RemoteAction::Next,
         Control::Next => RemoteAction::None,
         Control::Previous => match index {
@@ -266,9 +266,9 @@ mod tests {
         }
     }
 
-    /// Through the step channel up and down take in the category's pages
-    /// ([`crate::live::ChannelPages`]); the player leaves alone a channel the step would tune
-    /// again (one with no other in its category).
+    /// Through [`channel_step`], which [`crate::live::ChannelPages`] steps by (its paging has
+    /// tests of its own, in tests/live.rs), over the case's channel order; the player leaves alone
+    /// a channel the step would tune again (one with no other in its category).
     #[test]
     fn a_live_channel_obeys_as_the_shared_fixture_says() {
         for case in fixture("live") {

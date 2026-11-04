@@ -391,6 +391,22 @@ fn a_remote_step_whose_channel_comes_after_a_stop_tunes_nothing() {
 }
 
 #[test]
+fn watch_again_while_the_remotes_step_finds_its_channel_stays() {
+    let mut app = watching(2, LiveCategory::Favorites);
+    let session = stepping_from_outside_the_favourites(&mut app);
+    app.server.emit(remote(&session, "next"));
+    wait(&mut app, 0.5);
+    app.server.emit(ServerEvent::SessionStopped { session_id: session, message: None, by_admin: false });
+    let again = app.id(&["trouble"]).with("retry");
+    assert!(app.until(|a| a.focused() == Some(again)), "Watch again hasn't focus");
+    // The same channel again, before the step's answer comes: the step doesn't tune over it.
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.watches(2) == 2), "Watch again didn't watch the channel again");
+    wait(&mut app, 2.5);
+    assert_eq!(app.watches(ids::LIVE_CHANNEL), 0, "the remote's step tuned over Watch again");
+}
+
+#[test]
 fn a_step_still_finding_its_channel_as_the_tv_hides_the_app_tunes_nothing() {
     let mut app = watching(2, LiveCategory::Favorites);
     stepping_from_outside_the_favourites(&mut app);

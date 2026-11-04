@@ -19,8 +19,8 @@ describes how they are made.
 ### Fixed
 
 - Live TV's channel up or down, still finding the next channel when
-  another is picked from the list, no longer changes channel a moment
-  later.
+  another is picked from the list, Watch again is pressed or the app is
+  hidden, no longer changes channel a moment later.
 
 ## [0.1.5] - 2026-11-04
 

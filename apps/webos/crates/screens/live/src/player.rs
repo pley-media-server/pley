@@ -158,11 +158,11 @@ struct Marking {
     job: Promise<Result<(), ApiError>>,
 }
 
-/// Channel up or down, its channel still being found: the channel it started from, and whether the
-/// user's remote asked for it.
+/// Channel up or down, its channel still being found: how many channels had been tuned as it
+/// started, and whether the user's remote asked for it.
 #[derive(Clone, Copy, Debug)]
 struct Step {
-    from: i64,
+    tunes: Option<u32>,
     remote: bool,
 }
 
@@ -401,17 +401,22 @@ impl LivePlayerScreen {
         let current = self.channel().map_or(self.channel_id, |c| c.id);
         if let Some(zap) = self.zap_pages(cx) {
             zap.neighbor(current, by, now_ms());
-            self.stepping = Some(Step { from: current, remote });
+            self.stepping = Some(Step { tunes: self.tunes(), remote });
         }
     }
 
     /// Whether the channel `step` found may still be tuned. Its page may come a while after the step:
-    /// by then another channel may have been chosen (from the list, by its number, by a later step),
-    /// and it isn't tuned over; nor, for the remote's step, over Live TV stopped (from another
-    /// device, say) or a channel in trouble. A key pressed on the TV as it stops still changes channel.
+    /// by then a channel may have been tuned (from the list, by its number, by a later step, or the
+    /// same one again with Watch again), and it isn't tuned over; nor, for the remote's step, over
+    /// Live TV stopped (from another device, say) or a channel in trouble. A key pressed on the TV
+    /// as it stops still changes channel.
     fn step_holds(&self, step: Step) -> bool {
-        let current = self.channel().map_or(self.channel_id, |c| c.id);
-        current == step.from && !self.hidden && !(step.remote && self.phase() == Some(LivePhase::Error))
+        self.tunes() == step.tunes && !self.hidden && !(step.remote && self.phase() == Some(LivePhase::Error))
+    }
+
+    /// The channels the session has tuned (`LiveState::tunes`); none before it starts.
+    fn tunes(&self) -> Option<u32> {
+        self.session.as_ref().map(|s| s.state().tunes)
     }
 
     fn open_list(&mut self) {
