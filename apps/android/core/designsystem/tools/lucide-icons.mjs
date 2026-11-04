@@ -39,6 +39,8 @@ const icons = [
   ["ChevronUp", "chevron-up"], ["ChevronsRight", "chevrons-right"],
   // Devices, servers, files
   ["Server", "server"], ["ServerOff", "server-off"], ["Smartphone", "smartphone"], ["Laptop", "laptop"], ["Monitor", "monitor"], ["Wifi", "wifi"],
+  // The remote: a device's kind, and casting to it
+  ["Tablet", "tablet"], ["Globe", "globe"], ["MonitorSmartphone", "monitor-smartphone"], ["Cast", "cast"],
   ["HardDrive", "hard-drive"], ["Cpu", "cpu"], ["AppWindow", "app-window"], ["LayoutDashboard", "layout-dashboard"],
   ["Folder", "folder"], ["FolderOpen", "folder-open"], ["FolderPlus", "folder-plus"], ["FolderSearch", "folder-search"],
   ["ImageUp", "image-up"], ["ScanSearch", "scan-search"], ["DatabaseBackup", "database-backup"],

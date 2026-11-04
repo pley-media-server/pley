@@ -67,6 +67,7 @@ import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerInfo
 import app.pley.android.model.SessionStatus
@@ -85,7 +86,7 @@ import kotlinx.coroutines.CompletableDeferred
  * [PleyApi] without a network, answering from the JSON fixtures (the
  * household of [Fixtures]: Arrival 101, Severance 201 with season 202 and
  * episodes 203 to 205, the track 303, collections 801 and 803, playlists
- * 901 and 902). Every call is recorded in [calls]; [answer] and [fail]
+ * 901 and 902, and the devices the remote lists). Every call is recorded in [calls]; [answer] and [fail]
  * change what a method gives, [hold] keeps calls waiting until released.
  * Addresses are built as [HttpPleyApi] builds them, on [issuer].
  */
@@ -291,6 +292,8 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun sendCommand(sessionId: String, command: PlayerCommandRequest) = respond("sendCommand", sessionId, command) { }
 
     override suspend fun stopSession(sessionId: String) = respond("stopSession", sessionId) { }
+
+    override suspend fun remoteDevices(): List<RemoteDevice> = respond("remoteDevices") { fixture("remote/devices.json") }
 
     /** The server's own network: nothing known, no speed test. */
     override suspend fun playbackNetwork(clientId: String): PlaybackNetwork = respond("playbackNetwork", clientId) { PlaybackNetwork(local = true) }

@@ -1,6 +1,9 @@
 package app.pley.android.fixtures
 
+import app.pley.android.model.CastKind
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PleyJson
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.ServerEvent
 import java.io.IOException
@@ -23,12 +26,27 @@ import okio.BufferedSink
  * scan_started, its progress, scan_finished and library_changed. Writes
  * add their own (library_changed, sessions_changed), and tests can send
  * any with [FixtureServer.emit].
+ *
+ * A stream that names its device (`receiver`, `device_name`,
+ * `device_kind`, `casts`) makes it a receiver the profile's remotes cast
+ * to while it is open, as the server's (docs/API.md, "Casting"): several
+ * streams with one id count once, it goes with the last, a profile has at
+ * most [MAX_RECEIVERS], and one appearing or going sends `sessions_changed`.
  */
 internal class EventHub(private val state: State) {
     private val streams = CopyOnWriteArraySet<LinkedBlockingQueue<String>>()
 
     /** The profile each stream is for. */
     private val owners = ConcurrentHashMap<LinkedBlockingQueue<String>, Long>()
+
+    /** A receiver while its streams are open: what its newest one says, and since when. */
+    private class Open(var device: RemoteDevice, var streams: Int, var connectedAt: Long)
+
+    /** The receivers open, by profile and receiver id. */
+    private val receivers = HashMap<Long, LinkedHashMap<String, Open>>()
+
+    /** How many streams have opened, which orders receivers that connect in the same millisecond. */
+    private var opened = 0L
     private var scheduler: ScheduledExecutorService? = null
     private var scans = 0
 
@@ -66,6 +84,75 @@ internal class EventHub(private val state: State) {
         streams.forEach { if (owners[it] == profileId) it.offer(text) }
     }
 
+    /**
+     * [profileId]'s receivers, one per device (the one that connected
+     * last), by name, those without one last: GET /api/remote/devices.
+     */
+    fun devices(profileId: Long): List<RemoteDevice> = synchronized(receivers) {
+        receivers[profileId].orEmpty().values
+            .groupBy { it.device.deviceId }
+            .values.map { open -> open.maxBy { it.connectedAt }.device }
+            .sortedWith(compareBy<RemoteDevice>({ it.name == null }, { it.name?.lowercase() }, { it.receiverId }))
+    }
+
+    /** What receiver [id] of [profileId] plays when cast to; `null` when it isn't open. */
+    fun casts(profileId: Long, id: String): List<CastKind>? = synchronized(receivers) { receivers[profileId]?.get(id)?.device?.casts }
+
+    /**
+     * The receiver [call]'s stream names, if it names a valid one: its id
+     * (1 to 128 letters, digits, `.`, `_`, `:` and `-`), its device as
+     * sessions key it, its name (else the User-Agent), its kind and what it
+     * casts, the kinds this server knows only.
+     */
+    private fun receiverOf(call: Call, caller: Caller): RemoteDevice? {
+        val id = call.query("receiver")?.takeIf { RECEIVER_ID.matches(it) } ?: return null
+        val name = (call.query("device_name") ?: call.header("User-Agent"))?.trim()?.take(DEVICE_NAME_MAX)?.ifEmpty { null }
+        val kind = call.query("device_kind")?.let { k -> DeviceKind.entries.firstOrNull { it.wire == k } }?.takeIf { it != DeviceKind.Unknown }
+        val casts = call.query("casts").orEmpty().split(',').mapNotNull { k -> CastKind.entries.firstOrNull { it.wire == k.trim() && it != CastKind.Unknown } }
+        return RemoteDevice(
+            receiverId = id,
+            deviceId = caller.grant?.let { "app-${it.id}" } ?: "receiver-$id",
+            name = name,
+            kind = kind ?: DeviceKind.Other,
+            casts = casts.distinct().sortedBy { it.ordinal },
+        )
+    }
+
+    /** Counts a stream of [profileId] as [device] until [close]d; `false` when the profile has too many receivers. */
+    private fun openReceiver(profileId: Long, device: RemoteDevice): Boolean {
+        val changed = synchronized(receivers) {
+            val theirs = receivers.getOrPut(profileId) { LinkedHashMap() }
+            val open = theirs[device.receiverId]
+            when {
+                open != null -> {
+                    open.streams++
+                    open.connectedAt = ++opened
+                    (open.device != device).also { open.device = device }
+                }
+                theirs.size >= MAX_RECEIVERS -> return false
+                else -> {
+                    theirs[device.receiverId] = Open(device, 1, ++opened)
+                    true
+                }
+            }
+        }
+        if (changed) emitTo(profileId, ServerEvent.SessionsChanged)
+        return true
+    }
+
+    private fun closeReceiver(profileId: Long, id: String) {
+        val gone = synchronized(receivers) {
+            val theirs = receivers[profileId] ?: return
+            val open = theirs[id] ?: return
+            open.streams--
+            if (open.streams > 0) return
+            theirs.remove(id)
+            if (theirs.isEmpty()) receivers.remove(profileId)
+            true
+        }
+        if (gone) emitTo(profileId, ServerEvent.SessionsChanged)
+    }
+
     private fun scan() {
         val library = state.catalog.libraries[scans++ % state.catalog.libraries.size]
         val total = library.itemCount.toLong()
@@ -77,15 +164,17 @@ internal class EventHub(private val state: State) {
         emit(ServerEvent.LibraryChanged(library.id))
     }
 
-    /** The stream for [caller], until its token ends, it goes away or the server stops. */
-    fun response(caller: Caller): MockResponse {
+    /** The stream for [caller], until its token ends, it goes away or the server stops; a receiver while it lasts when [call] names one. */
+    fun response(call: Call, caller: Caller): MockResponse {
         val queue = LinkedBlockingQueue<String>()
+        val receiver = receiverOf(call, caller)
         val body = object : MockResponseBody {
             override val contentLength: Long = -1L
 
             override fun writeTo(sink: BufferedSink) {
                 owners[queue] = caller.profile.id
                 streams += queue
+                val counted = receiver != null && openReceiver(caller.profile.id, receiver)
                 try {
                     // The headers go out with the first comment.
                     chunk(sink, ": connected\n\n")
@@ -108,6 +197,7 @@ internal class EventHub(private val state: State) {
                 } finally {
                     streams -= queue
                     owners -= queue
+                    if (counted) closeReceiver(caller.profile.id, receiver!!.receiverId)
                 }
             }
         }
@@ -131,5 +221,13 @@ internal class EventHub(private val state: State) {
     private companion object {
         /** Ends a stream. Compared by identity. */
         val END = String(charArrayOf('e', 'n', 'd'))
+
+        /** The most receivers a profile has at once, as on the server. */
+        const val MAX_RECEIVERS = 32
+
+        /** What the server keeps of a device's name. */
+        const val DEVICE_NAME_MAX = 64
+
+        val RECEIVER_ID = Regex("[A-Za-z0-9._:-]{1,128}")
     }
 }

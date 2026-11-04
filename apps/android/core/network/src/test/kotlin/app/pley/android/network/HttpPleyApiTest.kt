@@ -190,6 +190,13 @@ class HttpPleyApiTest {
                 body = """{"command":"pause"}""",
             ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Pause)) },
             Golden("stopSession", MockPley.noContent(), "DELETE /api/sessions/6f1c2a9e") { stopSession("6f1c2a9e") },
+            Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices") { remoteDevices() },
+            Golden(
+                "sendCommand (a track)",
+                MockPley.noContent(),
+                "POST /api/sessions/6f1c2a9e/command",
+                body = """{"command":"subtitles","stream_index":-1}""",
+            ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Subtitles, streamIndex = -1)) },
             Golden("stopPlayback", MockPley.noContent(), "DELETE /api/playback/6f1c2a9e") { stopPlayback("6f1c2a9e") },
             Golden("playbackNetwork", jsonAnswer(NETWORK), "GET /api/playback/network?client_id=android-1") { playbackNetwork("android-1") },
             Golden(

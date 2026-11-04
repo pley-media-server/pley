@@ -250,6 +250,38 @@ data class PlayerCommandRequest(
     val streamIndex: Int? = null,
 )
 
+/** What a device plays when a remote casts to it (docs/API.md, "Casting"). */
+@Serializable(with = CastKind.Serializer::class)
+enum class CastKind(override val wire: String) : WireEnum {
+    /** Titles, music and playlists. */
+    Item("item"),
+
+    /** Live TV channels. */
+    Live("live"),
+    Unknown("unknown"),
+    ;
+
+    object Serializer : LenientEnumSerializer<CastKind>("CastKind", CastKind.entries, CastKind.Unknown)
+}
+
+/**
+ * One of the profile's devices that takes casts (GET /api/remote/devices):
+ * one of its apps with the event stream open as a receiver, the one that
+ * connected last for its device.
+ */
+@Serializable
+data class RemoteDevice(
+    /** The app's own id for the device: where casts go. */
+    val receiverId: String,
+    /** As [PlayingSession.deviceId]: what it plays has the same. */
+    val deviceId: String = "",
+    /** As [PlayingSession.device]; `null` when the server can't tell. */
+    val name: String? = null,
+    val kind: DeviceKind = DeviceKind.Unknown,
+    /** What it plays when cast to. */
+    val casts: List<CastKind> = emptyList(),
+)
+
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */
 @Serializable(with = ConversionState.Serializer::class)
 enum class ConversionState(override val wire: String) : WireEnum {

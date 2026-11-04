@@ -66,6 +66,7 @@ import app.pley.android.model.ProfileNeeds
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.SearchResults
@@ -149,6 +150,7 @@ class FixturesTest {
         "playback/rating_request.json" to RatingRequest.serializer(),
         "sessions/list.json" to ListSerializer(PlayingSession.serializer()),
         "sessions/command_request.json" to PlayerCommandRequest.serializer(),
+        "remote/devices.json" to ListSerializer(RemoteDevice.serializer()),
         "conversions/direct.json" to ConversionInfo.serializer(),
         "conversions/running.json" to ConversionInfo.serializer(),
         "trickplay/info.json" to TrickplayInfo.serializer(),
@@ -206,7 +208,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(96, files.size)
+        assertEquals(97, files.size)
     }
 
     @Test

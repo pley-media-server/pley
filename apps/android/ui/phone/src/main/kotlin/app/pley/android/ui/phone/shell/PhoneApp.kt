@@ -231,7 +231,7 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             val remote = withContext(Dispatchers.Default) { g.data.remote }
             shell.remote = remote
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                remote.sessions.collect { shell.remoteSessions = it }
+                remote.devices.collect { shell.remoteDevices = it }
             }
         }
         launch {
@@ -368,7 +368,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
                 )
             }
-            RemoteSlot(shell.remoteSessions, shell.remote, shell.server)
+            RemoteSlot(shell.remoteDevices, shell.remote, shell.server)
             MiniPlayerSlot(shell.nowPlaying)
         }
     }

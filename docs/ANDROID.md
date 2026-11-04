@@ -182,33 +182,60 @@ heard it for that profile, the start asks "Who's watching?".
 The phone is a remote for the profile's other devices; a TV only obeys
 one and shows none.
 
-On the phone, while one of the profile's other devices plays something
-(`GET /api/sessions`, read again on `sessions_changed`,
-`session_stopped` and each time the event stream connects), a bar above
-the tabs, over the mini player when music plays here too, says
-**Playing on** the device and what plays there, or how many devices and
-their names. Tapping it opens the remote, a sheet with a card for each
-device:
+On the phone, while another of the profile's devices is on, playing or
+not, a bar above the tabs, over the mini player when music plays here
+too, says **Playing on** the device and what plays there, or how many
+devices play and their names, or, while none plays, **Your devices**.
+The devices are the receivers (`GET /api/remote/devices`, the apps that
+take casts) merged with the sessions (`GET /api/sessions`) by
+`device_id`, both read again on `sessions_changed`, `session_stopped`
+and each time the event stream connects; a session whose device takes no
+casts (a Jellyfin or Plex app) is listed too, and a device with several
+sessions shows its newest. The phone's own sessions are left out (its
+players say which they play), and so is its own receiver.
 
-- its name (**Unknown device** when the server can't name it; two of the
-  same name are numbered), the poster or the channel's logo, the title
-  (an episode as "Show — S1 · E2 — Title") or the channel and what's on;
+Tapping the bar opens the remote, a sheet of **Your devices**: a row for
+each, those that play first, then the others, each by name (**Unknown
+device** when the server can't name it; two of the same name are
+numbered), with an icon for its kind (TV, phone, tablet, computer,
+browser, other), and what it plays (an episode as "Show — S1 · E2 —
+Title", a channel as its number and name) with a thin bar of how far,
+or **Ready to play**. Choosing one shows its controls in the list's
+place; Back, or the arrow by its name, goes back to the list. With one
+device only, its controls show at once. The device chosen is kept while
+the sheet is open, so it shows what plays there once it starts.
+
+A device's controls, top to bottom:
+
+- the poster or the channel's logo, and what plays: an episode's show,
+  season and number over its title, a track over its artist, a channel's
+  number and name over what's on, a movie over its year;
 - how far it is, estimated each second while it plays from the last
-  report, its age and the time since, by the phone's clock;
-- only the controls its player declares: previous, back 10 s, play or
-  pause, forward 30 s, next (channel down and up on Live TV), a slider
-  when it seeks, and Stop always.
+  report, its age and the time since, by the phone's clock: a slider when
+  its player seeks, a bar otherwise, nothing on Live TV;
+- the transport, centred: previous, back 10 s, play or pause, forward
+  30 s where its player declares them, and next where its player declares
+  it or what plays has a next by nature (an episode, a track, a channel,
+  as next channel), dimmed when the player didn't declare it; a movie
+  whose player declares none has no next;
+- **Audio** and **Subtitles**, each where its player declares it and the
+  file has such tracks: a menu of the tracks, labelled as the phone's own
+  player labels them, the one playing ticked; Subtitles starts with
+  **Off**;
+- Stop.
+
+A device that plays nothing shows **Nothing playing**, and how to send it
+something (Play on…).
 
 A command waits up to 5 s for the list to show it acted (a new state, a
-new title, a report from where it was sent), and the card says it's
-waiting meanwhile; without one it says the device **didn't answer**,
-until the device reports again. A next or previous with nothing there
-changes nothing, and isn't a failure. While a command waits, the sheet
-stays open with nothing listed, as when a next ends one session before
-the next one's is listed. Refusals are said plainly: the
+new title, a report from where it was sent, the track picked), and the
+controls say it's waiting meanwhile; without one they say the device
+**didn't answer**, until the device reports again. A next or previous
+with nothing there changes nothing, and isn't a failure. While a command
+waits, the sheet stays open with nothing listed, as when a next ends one
+session before the next one's is listed. Refusals are said plainly: the
 device isn't playing any more, can't do that, or too many commands at
-once. The phone's own sessions are left out: its players say which they
-play.
+once.
 
 The players obey the remote on the profile's other devices
 ([API.md](API.md#remote-control)), on phones and TVs alike, and say what

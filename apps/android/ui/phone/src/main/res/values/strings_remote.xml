@@ -7,13 +7,21 @@
         <item quantity="other">Playing on %1$d devices</item>
     </plurals>
     <string name="remote_open">Open the remote</string>
-    <string name="remote_title">Playing on your devices</string>
+    <string name="remote_title">Your devices</string>
     <string name="remote_unknown_device">Unknown device</string>
     <!-- Two devices of the same name, told apart: "Living room TV (2)". -->
     <string name="remote_device_numbered">%1$s (%2$d)</string>
     <!-- Between the devices' names on the bar: "Living room TV, Pixel 8". -->
     <string name="remote_device_separator">", "</string>
     <string name="remote_live_tv">Live TV</string>
+
+    <!-- A device in the list that plays nothing, and its controls then. -->
+    <string name="remote_ready">Ready to play</string>
+    <string name="remote_nothing_playing">Nothing playing</string>
+    <string name="remote_idle_hint">Find something to watch or listen to, then choose Play on… and this device.</string>
+    <!-- What TalkBack says a device's row does, and the way back from its controls. -->
+    <string name="remote_open_device">Show its controls</string>
+    <string name="remote_back_to_devices">Back to your devices</string>
 
     <!-- What TalkBack says of each control: "Pause on Living room TV". -->
     <string name="remote_play">Play on %1$s</string>
@@ -30,6 +38,13 @@
     <string name="remote_stop_on">Stop on %1$s</string>
     <string name="remote_waiting">Waiting for %1$s</string>
     <string name="remote_position">%1$s of %2$s</string>
+
+    <!-- The tracks a device plays, picked from a menu. -->
+    <string name="remote_audio">Audio</string>
+    <string name="remote_subtitles">Subtitles</string>
+    <string name="remote_subtitles_off">Off</string>
+    <string name="remote_audio_on">Audio on %1$s</string>
+    <string name="remote_subtitles_on">Subtitles on %1$s</string>
 
     <!-- A command that didn't go through, said under the device's controls. -->
     <string name="remote_no_answer">%1$s didn\'t answer.</string>

@@ -1,0 +1,4 @@
+[
+  { "receiver_id": "android-2d7c5e1b-0a4f-4c1e-9b36-5f1a8e0c4d21", "device_id": "app-12", "name": "Living room TV", "kind": "tv", "casts": ["item", "live"] },
+  { "receiver_id": "web-tab-41c9", "device_id": "web-9f2c4b7a1e6d0385", "name": "Firefox on macOS", "kind": "browser", "casts": ["item"] }
+]

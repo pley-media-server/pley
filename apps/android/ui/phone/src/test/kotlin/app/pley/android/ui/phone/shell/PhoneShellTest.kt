@@ -14,11 +14,15 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.pley.android.auth.SignOutReason
 import app.pley.android.common.TestTags
+import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.data.SessionState
+import app.pley.android.model.CastKind
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
+import app.pley.android.model.RemoteDevice
 import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -249,18 +253,20 @@ class PhoneShellTest {
     }
 
     @Test
-    fun theRemotesBarShowsAboveTheTabsWhileAnotherDevicePlays() {
+    fun theRemotesBarShowsAboveTheTabsWhileAnotherDeviceIsOn() {
         val shell = show(PhoneStart(TestGraph.SERVER, signedIn = true))
         showsHome()
         compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
-        compose.runOnIdle {
-            shell.graph.remoteSessions.value = listOf(
-                RemoteSession(PlayingSession("s1", PlayingKind.Live, "Living room TV", channel = PlayingChannel(1, "Pley News HD")), 0),
-            )
-        }
+        val session = RemoteSession(PlayingSession("s1", PlayingKind.Live, "Living room TV", "app-12", channel = PlayingChannel(1, "Pley News HD")), 0)
+        compose.runOnIdle { shell.graph.remoteDevices.value = listOf(OtherDevice("app-12", session = session)) }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BAR).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        compose.runOnIdle { shell.graph.remoteSessions.value = emptyList() }
+        // On, playing nothing: still there.
+        compose.runOnIdle {
+            shell.graph.remoteDevices.value = listOf(OtherDevice("app-12", RemoteDevice("tv-1", "app-12", "Living room TV", DeviceKind.Tv, listOf(CastKind.Item))))
+        }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Your devices").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle { shell.graph.remoteDevices.value = emptyList() }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BAR).fetchSemanticsNodes().isEmpty() }
     }
 

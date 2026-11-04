@@ -7,6 +7,10 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,9 +19,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
 import app.pley.android.data.RemoteSession
+import app.pley.android.model.CastKind
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayerCommandRequest
@@ -25,6 +32,9 @@ import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
+import app.pley.android.model.RemoteDevice
+import app.pley.android.model.SessionTracks
+import app.pley.android.model.TrackOption
 import app.pley.android.network.ApiException
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,9 +46,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The phone's remote: the bar above the tabs while another device plays,
- * the sheet it opens, the controls each player declares, and what it says
- * when a player doesn't answer or the server refuses.
+ * The phone's remote: the bar above the tabs while another device is on,
+ * the sheet it opens with "Your devices", a device's controls (those its
+ * player declares, Next where what plays has one, its audio and subtitles), the idle view,
+ * and what it says when a player doesn't answer or the server refuses.
  */
 @RunWith(RobolectricTestRunner::class)
 class RemoteUiTest {
@@ -50,8 +61,8 @@ class RemoteUiTest {
     private fun show() {
         compose.setContent {
             PhoneTheme {
-                val sessions by remote.sessions.collectAsState()
-                RemoteSlot(sessions, remote, ORIGIN)
+                val devices by remote.devices.collectAsState()
+                RemoteSlot(devices, remote, ORIGIN)
             }
         }
         compose.waitForIdle()
@@ -62,68 +73,163 @@ class RemoteUiTest {
         compose.waitForIdle()
     }
 
+    /** Opens the sheet and the controls of [deviceId]. */
+    private fun control(deviceId: String) {
+        open()
+        compose.onNodeWithTag(REMOTE_DEVICE + deviceId).performClick()
+        compose.waitForIdle()
+    }
+
     @Test
-    fun nothingShowsWhileNoOtherDevicePlays() {
+    fun nothingShowsWhileNoOtherDeviceIsOn() {
         show()
         compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
     }
 
     @Test
     fun theBarSaysWhereAndWhatPlays() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode(), bedroom())
         show()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        compose.onNodeWithText("Severance — S1 · E2 — Half Loop").assertExists()
+        compose.onNodeWithText("A Show — S1 · E2 — The Second One").assertExists()
         compose.onNodeWithTag(REMOTE_BAR).assertHeightIsAtLeast(48.dp)
     }
 
     @Test
-    fun withSeveralDevicesItSaysHowManyAndTheSheetListsThemAll() {
-        remote.sessions.value = listOf(episode(), channel(), episode(id = "s3", device = null))
+    fun devicesOnButPlayingNothingShowTheBarAsYourDevices() {
+        remote.devices.value = listOf(bedroom())
+        show()
+        compose.onNodeWithText("Your devices").assertExists()
+        compose.onNodeWithText("Bedroom TV").assertExists()
+    }
+
+    @Test
+    fun theListHasARowForEachDeviceInTheOrderGivenWhatEachPlaysOrThatItIsReady() {
+        remote.devices.value = listOf(episode(), channel(), bedroom(), episode(id = "s3", deviceId = "token-4", device = null, receiver = false))
         show()
         compose.onNodeWithText("Playing on 3 devices").assertExists()
         compose.onNodeWithText("Living room TV, Kitchen phone, Unknown device").assertExists()
         open()
-        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
-        compose.onNodeWithTag(REMOTE_CARD + "s1").assertExists()
-        compose.onNodeWithTag(REMOTE_CARD + "s2").assertExists()
-        compose.onNodeWithTag(REMOTE_CARD + "s3").assertExists()
-        compose.onNodeWithText("Pley News HD").assertExists()
-        compose.onNodeWithText("The Evening News").assertExists()
+        compose.onNodeWithText("Your devices").assertExists()
+        val tops = listOf("app-12", "app-15", "app-20", "token-4").map { id ->
+            compose.onNodeWithTag(REMOTE_DEVICE + id).fetchSemanticsNode().positionInRoot.y
+        }
+        assertEquals(tops.sorted(), tops)
+        compose.onNodeWithText("101 Pley News HD").assertExists()
+        compose.onNodeWithText("Ready to play").assertExists()
+        assertEquals(2, compose.onAllNodesWithText("A Show — S1 · E2 — The Second One").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun withOneDeviceOnlyItsControlsShowAtOnce() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertExists()
+        compose.onNodeWithText("A Show · S1 · E2").assertExists()
+        compose.onNodeWithText("The Second One").assertExists()
+        // Nowhere to go back to.
+        compose.onNodeWithContentDescription("Back to your devices").assertDoesNotExist()
+    }
+
+    @Test
+    fun choosingADeviceShowsItsControlsInTheListsPlaceAndBackReturnsToIt() {
+        remote.devices.value = listOf(episode(), bedroom())
+        show()
+        control("app-20")
+        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        compose.onNodeWithText("Nothing playing").assertExists()
+        compose.onNodeWithText("Find something to watch or listen to, then choose Play on… and this device.").assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Back to your devices").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
+        compose.onNodeWithTag(REMOTE_IDLE).assertDoesNotExist()
+    }
+
+    @Test
+    fun theDeviceChosenIsKeptAsItStartsPlaying() {
+        remote.devices.value = listOf(episode(), bedroom())
+        show()
+        control("app-20")
+        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        val bedroom = episode(id = "s9", deviceId = "app-20", device = "Bedroom TV")
+        remote.devices.value = listOf(episode(), bedroom)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_CARD + "s9").assertExists()
+        compose.onNodeWithContentDescription("Pause on Bedroom TV").assertExists()
     }
 
     @Test
     fun devicesOfTheSameNameAreNumbered() {
-        remote.sessions.value = listOf(episode(), episode(id = "s3"))
+        remote.devices.value = listOf(episode(), episode(id = "s3", deviceId = "app-13"))
         show()
         open()
         compose.onNodeWithText("Living room TV (1)").assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-13").performClick()
+        compose.waitForIdle()
         compose.onNodeWithContentDescription("Pause on Living room TV (2)").assertExists()
     }
 
     @Test
-    fun onlyTheControlsThePlayerDeclaresShowStopAlways() {
-        remote.sessions.value = listOf(episode(), channel())
+    fun onlyTheControlsThePlayerDeclaresShowNextAndStopAlways() {
+        remote.devices.value = listOf(episode(), channel())
         show()
-        open()
+        control("app-12")
         listOf(
             "Back 10 seconds on Living room TV",
             "Pause on Living room TV",
             "Forward 30 seconds on Living room TV",
             "Next on Living room TV",
             "Seek on Living room TV",
+            "Audio on Living room TV",
+            "Subtitles on Living room TV",
             "Stop on Living room TV",
-            "Previous channel on Kitchen phone",
-            "Next channel on Kitchen phone",
-            "Stop on Kitchen phone",
         ).forEach { label ->
             compose.onNodeWithContentDescription(label).assertExists()
             assertTouchTarget(label)
         }
-        // The episode's player has no previous, the channel no pause and no position.
+        // The episode's player has no previous.
         compose.onNodeWithContentDescription("Previous on Living room TV").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Back to your devices").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-15").performClick()
+        compose.waitForIdle()
+        listOf("Previous channel on Kitchen phone", "Next channel on Kitchen phone", "Stop on Kitchen phone").forEach { label ->
+            compose.onNodeWithContentDescription(label).assertExists()
+            assertTouchTarget(label)
+        }
+        compose.onNodeWithContentDescription("Next channel on Kitchen phone").assertIsEnabled()
+        // A channel has no pause, no place and no tracks.
         compose.onAllNodesWithContentDescription("Pause on Kitchen phone").assertCountEquals(0)
         compose.onNodeWithContentDescription("Seek on Kitchen phone").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Audio on Kitchen phone").assertDoesNotExist()
+        compose.onNodeWithText("The Evening News").assertExists()
+    }
+
+    @Test
+    fun anEpisodesNextShowsDimmedWhenThePlayerDidNotDeclareIt() {
+        remote.devices.value = listOf(episode(controls = listOf(Control.Play, Control.Pause)))
+        show()
+        open()
+        compose.onNodeWithContentDescription("Next on Living room TV").assertExists().assertIsNotEnabled()
+        // Nor audio and subtitles: not declared, not offered, whatever the file has.
+        compose.onNodeWithTag(REMOTE_AUDIO).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_SUBTITLES).assertDoesNotExist()
+    }
+
+    @Test
+    fun aMovieWhosePlayerDeclaresNoNextHasNone() {
+        remote.devices.value = listOf(movie(controls = listOf(Control.Play, Control.Pause, Control.Seek)))
+        show()
+        open()
+        compose.onNodeWithContentDescription("Pause on Living room TV").assertExists()
+        compose.onNodeWithContentDescription("Next on Living room TV").assertDoesNotExist()
+        // Declared (a movie in a playlist goes on to the next entry), it shows.
+        remote.devices.value = listOf(movie(controls = listOf(Control.Play, Control.Pause, Control.Next)))
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Next on Living room TV").assertIsEnabled()
     }
 
     /** [label]'s control takes touches over 48 by 48 dp at least (the slider's track is drawn smaller). */
@@ -136,8 +242,60 @@ class RemoteUiTest {
     }
 
     @Test
+    fun theTrackMenusListTheTracksAsThePlayerLabelsThemTheOnePlayingTicked() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Audio on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("English (EAC3 5.1)").assertIsSelected()
+        compose.onNodeWithText("French (AAC Stereo)").assertIsNotSelected().performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Audio, streamIndex = 2), remote.commands.last())
+
+        compose.onNodeWithContentDescription("Subtitles on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Off").assertIsSelected()
+        compose.onNodeWithText("English (SRT)").assertExists()
+        compose.onNodeWithText("French (SRT, Forced)").performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Subtitles, streamIndex = 4), remote.commands.last())
+    }
+
+    @Test
+    fun aTrackPickIsAnsweredByThePlayerSayingItPlaysIt() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Audio on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("French (AAC Stereo)").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Waiting for Living room TV").assertExists()
+        remote.devices.value = listOf(episode(audioIndex = 2))
+        compose.waitForIdle()
+        compose.onNodeWithText("Waiting for Living room TV").assertDoesNotExist()
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
+    }
+
+    @Test
+    fun aTrackPickThePlayerDoesNotTakeUpDidNotAnswer() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Subtitles on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("English (SRT)").performClick()
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithText("Living room TV didn't answer.").assertExists()
+    }
+
+    @Test
     fun aPausedPlayerOffersPlayAndAPlayerWithoutSeekShowsItsProgress() {
-        remote.sessions.value = listOf(episode(state = ProgressState.Paused, controls = listOf(Control.Play, Control.Pause)))
+        remote.devices.value = listOf(episode(state = ProgressState.Paused, controls = listOf(Control.Play, Control.Pause)))
         show()
         open()
         compose.onNodeWithContentDescription("Play on Living room TV").assertExists()
@@ -148,7 +306,7 @@ class RemoteUiTest {
 
     @Test
     fun whilePlayingThePositionIsEstimatedEachSecond() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode())
         show()
         open()
         // Reported at 19:45, 4.2 s before the answer.
@@ -163,7 +321,7 @@ class RemoteUiTest {
 
     @Test
     fun aCommandGoesToItsSessionAndTheListShowingTheChangeAnswersIt() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode())
         show()
         open()
         compose.onNodeWithContentDescription("Pause on Living room TV").performClick()
@@ -174,7 +332,7 @@ class RemoteUiTest {
         assertEquals("s1" to PlayerCommandRequest(Control.Skip, offsetMs = 30_000), remote.commands.last())
 
         // The player paused and reported.
-        remote.sessions.value = listOf(episode(state = ProgressState.Paused))
+        remote.devices.value = listOf(episode(state = ProgressState.Paused))
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Play on Living room TV").assertExists()
@@ -183,7 +341,7 @@ class RemoteUiTest {
 
     @Test
     fun aPlayerThatShowsNoChangeWithinFiveSecondsDidNotAnswer() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode())
         show()
         open()
         compose.onNodeWithContentDescription("Pause on Living room TV").performClick()
@@ -201,14 +359,14 @@ class RemoteUiTest {
 
         // It acted late after all: its next report takes the message away.
         val late = episode(state = ProgressState.Paused)
-        remote.sessions.value = listOf(late.copy(session = late.session.copy(updatedAt = late.session.updatedAt + 8)))
+        remote.devices.value = listOf(late.copy(session = late.session!!.copy(session = late.session!!.session.copy(updatedAt = UPDATED_AT + 8))))
         compose.waitForIdle()
         compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
     }
 
     @Test
     fun aNextThatChangesNothingIsNoFailure() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode())
         show()
         open()
         compose.onNodeWithContentDescription("Next on Living room TV").performClick()
@@ -219,29 +377,29 @@ class RemoteUiTest {
 
     @Test
     fun aCommandWaitingForItsAnswerKeepsTheSheetWhileTheSessionChangesOver() {
-        remote.sessions.value = listOf(episode())
+        // A player that takes no casts goes from the list between its sessions.
+        remote.devices.value = listOf(episode(receiver = false))
         show()
         open()
         compose.onNodeWithContentDescription("Next on Living room TV").performClick()
         compose.waitForIdle()
-        // The episode's session ends before the next one's is listed.
-        remote.sessions.value = emptyList()
+        remote.devices.value = emptyList()
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS - 1_000)
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_SHEET).assertExists()
-        remote.sessions.value = listOf(episode(id = "s4"))
+        remote.devices.value = listOf(episode(id = "s4", receiver = false))
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_CARD + "s4").assertExists()
     }
 
     @Test
     fun nothingListedOnceTheAnswerWaitIsOverClosesTheSheet() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode(receiver = false))
         show()
         open()
         compose.onNodeWithContentDescription("Next on Living room TV").performClick()
         compose.waitForIdle()
-        remote.sessions.value = emptyList()
+        remote.devices.value = emptyList()
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_SHEET).assertExists()
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
@@ -252,7 +410,7 @@ class RemoteUiTest {
 
     @Test
     fun refusalsAreSaidPlainly() {
-        remote.sessions.value = listOf(episode())
+        remote.devices.value = listOf(episode())
         show()
         open()
         remote.failure = ApiException(409, "not_controllable", "The player doesn't do that")
@@ -273,21 +431,25 @@ class RemoteUiTest {
     }
 
     @Test
-    fun stopStopsTheSessionAndTheSheetClosesWithNothingLeft() {
-        remote.sessions.value = listOf(episode())
+    fun stopStopsTheSessionAndTheDeviceIsReadyAgain() {
+        remote.devices.value = listOf(episode())
         show()
         open()
         compose.onNodeWithContentDescription("Stop on Living room TV").performClick()
         compose.waitForIdle()
         assertEquals(listOf("s1"), remote.stopped)
-        remote.sessions.value = emptyList()
+        remote.devices.value = listOf(episode().copy(session = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        remote.devices.value = emptyList()
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()
         compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
     }
 
-    /** The remote as the test drives it: its sessions, its clock, and what it was asked. */
+    /** The remote as the test drives it: its devices, its clock, and what it was asked. */
     private class FakeRemote : RemoteRepository {
+        override val devices = MutableStateFlow<List<OtherDevice>>(emptyList())
         override val sessions = MutableStateFlow<List<RemoteSession>>(emptyList())
         var now = 10_000L
         override val clock: () -> Long = { now }
@@ -298,7 +460,7 @@ class RemoteUiTest {
 
         override suspend fun refresh(): List<RemoteSession> {
             refreshes++
-            return sessions.value
+            return devices.value.mapNotNull { it.session }
         }
 
         override suspend fun command(sessionId: String, command: PlayerCommandRequest) {
@@ -315,43 +477,83 @@ class RemoteUiTest {
 
     private companion object {
         const val ORIGIN = "http://127.0.0.1:9"
+        const val UPDATED_AT = 1_761_390_000L
 
-        /** Severance S1 · E2 on the Living room TV, at 19:45 of 53:29, reported 4.2 s before the answer at 10 s. */
+        /**
+         * An episode on the Living room TV (a receiver unless [receiver] is
+         * false), at 19:45 of 53:29, reported 4.2 s before the answer at
+         * 10 s, with two audio tracks (the first playing) and two
+         * subtitles (none showing).
+         */
         fun episode(
             id: String = "s1",
+            deviceId: String = "app-12",
             device: String? = "Living room TV",
             state: ProgressState = ProgressState.Playing,
-            controls: List<Control> = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next),
-        ) = RemoteSession(
-            PlayingSession(
-                sessionId = id,
-                kind = PlayingKind.Item,
-                device = device,
-                item = ItemSummary(
-                    204, 2, ItemKind.Episode, "Half Loop", index = 2, parentIndex = 1, parentId = 202, grandparentId = 201,
-                    grandparentTitle = "Severance",
+            controls: List<Control> = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Audio, Control.Subtitles),
+            audioIndex: Int = 1,
+            receiver: Boolean = true,
+        ) = OtherDevice(
+            deviceId,
+            receiver = RemoteDevice("tv-$deviceId", deviceId, device, DeviceKind.Tv, listOf(CastKind.Item, CastKind.Live)).takeIf { receiver },
+            session = RemoteSession(
+                PlayingSession(
+                    sessionId = id,
+                    kind = PlayingKind.Item,
+                    device = device,
+                    deviceId = deviceId,
+                    deviceKind = DeviceKind.Tv,
+                    item = ItemSummary(
+                        204, 2, ItemKind.Episode, "The Second One", index = 2, parentIndex = 1, parentId = 202, grandparentId = 201,
+                        grandparentTitle = "A Show",
+                    ),
+                    state = state,
+                    positionMs = 1_185_000,
+                    durationMs = 3_209_000,
+                    updatedAt = UPDATED_AT,
+                    ageMs = 4_200,
+                    controls = controls,
+                    audioIndex = audioIndex,
+                    subtitleIndex = PlayingSession.SUBTITLES_OFF,
+                    tracks = SessionTracks(
+                        audio = listOf(
+                            TrackOption(1, "eng", codec = "eac3", channels = 6, default = true),
+                            TrackOption(2, "fre", codec = "aac", channels = 2),
+                        ),
+                        subtitles = listOf(TrackOption(3, "eng", codec = "subrip"), TrackOption(4, "fre", codec = "subrip", forced = true)),
+                    ),
                 ),
-                state = state,
-                positionMs = 1_185_000,
-                durationMs = 3_209_000,
-                updatedAt = 1_761_390_000,
-                ageMs = 4_200,
-                controls = controls,
+                reportedAt = 5_800,
             ),
-            reportedAt = 5_800,
         )
 
-        /** A channel on the Kitchen phone, which goes up and down. */
-        fun channel() = RemoteSession(
-            PlayingSession(
-                sessionId = "s2",
-                kind = PlayingKind.Live,
-                device = "Kitchen phone",
-                channel = PlayingChannel(1, "Pley News HD", number = "101", now = "The Evening News"),
-                state = ProgressState.Playing,
-                controls = listOf(Control.Next, Control.Previous),
+        /** A movie on the Living room TV, its player obeying [controls]. */
+        fun movie(controls: List<Control>): OtherDevice {
+            val playing = episode(controls = controls)
+            val session = playing.session!!
+            val film = ItemSummary(101, 1, ItemKind.Movie, "A Film", year = 2021)
+            return playing.copy(session = session.copy(session = session.session.copy(item = film, tracks = SessionTracks())))
+        }
+
+        /** A channel on the Kitchen phone, which goes up and down, and takes no casts. */
+        fun channel() = OtherDevice(
+            "app-15",
+            session = RemoteSession(
+                PlayingSession(
+                    sessionId = "s2",
+                    kind = PlayingKind.Live,
+                    device = "Kitchen phone",
+                    deviceId = "app-15",
+                    deviceKind = DeviceKind.Phone,
+                    channel = PlayingChannel(1, "Pley News HD", number = "101", now = "The Evening News"),
+                    state = ProgressState.Playing,
+                    controls = listOf(Control.Next, Control.Previous),
+                ),
+                reportedAt = 9_100,
             ),
-            reportedAt = 9_100,
         )
+
+        /** The Bedroom TV, on and playing nothing. */
+        fun bedroom() = OtherDevice("app-20", receiver = RemoteDevice("tv-2", "app-20", "Bedroom TV", DeviceKind.Tv, listOf(CastKind.Item)))
     }
 }

@@ -12,8 +12,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import app.pley.android.auth.AuthEvent
 import app.pley.android.common.describe
 import app.pley.android.data.Loadable
+import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
-import app.pley.android.data.RemoteSession
 import app.pley.android.data.RequestNotice
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
@@ -64,8 +64,8 @@ class PhoneShellState internal constructor(
     var nowPlaying: NowPlaying? by mutableStateOf(null)
         internal set
 
-    /** The profile's sessions on its other devices, for the remote's bar; followed while the app shows. */
-    var remoteSessions: List<RemoteSession> by mutableStateOf(emptyList())
+    /** The profile's other devices that are on, for the remote's bar; followed while the app shows. */
+    var remoteDevices: List<OtherDevice> by mutableStateOf(emptyList())
         internal set
 
     /** What the remote sends its commands through; `null` until after the first frame. */

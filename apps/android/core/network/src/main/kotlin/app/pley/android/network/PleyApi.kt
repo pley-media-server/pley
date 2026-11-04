@@ -61,6 +61,7 @@ import app.pley.android.model.PlaylistList
 import app.pley.android.model.PlaylistPatch
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerInfo
 import app.pley.android.model.SessionStatus
@@ -346,6 +347,12 @@ interface PleyApi {
      * stopped already is fine.
      */
     suspend fun stopSession(sessionId: String)
+
+    /**
+     * GET /api/remote/devices (scope play): the profile's devices that take
+     * casts (docs/API.md, "Casting"), this one too, one each, by name.
+     */
+    suspend fun remoteDevices(): List<RemoteDevice>
 
     /** POST /api/items/{id}/progress: where the player is, every ~10 s, on pause and on closing. */
     suspend fun reportProgress(itemId: Long, report: ProgressReport)

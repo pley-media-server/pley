@@ -19,6 +19,7 @@ import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.SessionStatus
 import app.pley.android.model.SessionTracks
@@ -46,10 +47,10 @@ import mockwebserver3.MockResponse
  * subtitles as WebVTT (one track partial the first time) and pictures as
  * .mks, seek previews and chapter pictures; sessions stopped from elsewhere
  * (`session_stopped`, then 410), listed for the remote with their
- * tracks and sent its commands (`player_command`); progress, watched
- * marks, ratings, track choices and track defaults, which change what the
- * profile reads next (watch state changes tell its streams:
- * `user_state_changed`).
+ * tracks and sent its commands (`player_command`), the devices it casts
+ * to (the event streams' receivers); progress, watched marks, ratings,
+ * track choices and track defaults, which change what the profile reads
+ * next (watch state changes tell its streams: `user_state_changed`).
  */
 internal class PlayRoutes(private val s: State) {
     private val catalog get() = s.catalog
@@ -71,6 +72,7 @@ internal class PlayRoutes(private val s: State) {
         route("DELETE", "/api/sessions/*", PLAY) { call, c, v -> stopSession(call, c, v[0]) },
         route("GET", "/api/sessions", PLAY) { _, c, _ -> Reply.json(ListSerializer(PlayingSession.serializer()), playing(c)) },
         route("POST", "/api/sessions/*/command", PLAY) { call, c, v -> command(call, c, v[0]) },
+        route("GET", "/api/remote/devices", PLAY) { _, c, _ -> Reply.json(ListSerializer(RemoteDevice.serializer()), s.events.devices(c.profile.id)) },
         route("GET", "/api/files/*/stream", PLAY, free = true) { call, _, v -> stream(call, v[0]) },
         route("GET", "/api/files/*/subtitles/*", PLAY) { _, _, v -> subtitles(v[0], v[1]) },
         route("GET", "/api/files/*/trickplay", PLAY, free = true) { _, _, v ->

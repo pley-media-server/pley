@@ -26,6 +26,11 @@ describes how they are made.
 - The video players change their audio and subtitles when your remote on
   another device asks, as their own track menus do, and tell your remotes
   which tracks they play.
+- The phone's remote lists your devices: every other device that is on,
+  playing or ready to play, those that play first, each with an icon for
+  its kind. Choosing one shows its controls, now with Next for every
+  episode, track and channel (dimmed where it can't go on), and Audio and
+  Subtitles menus that change what it plays.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

@@ -65,6 +65,7 @@ import app.pley.android.model.PlaylistPatch
 import app.pley.android.model.PleyJson
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerInfo
 import app.pley.android.model.SessionStatus
@@ -359,6 +360,8 @@ class HttpPleyApi(
         call("POST", json(PlayerCommandRequest.serializer(), command), "api", "sessions", sessionId, "command")
 
     override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
+
+    override suspend fun remoteDevices(): List<RemoteDevice> = get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices")
 
     override suspend fun reportProgress(itemId: Long, report: ProgressReport) =
         call("POST", json(ProgressReport.serializer(), report), "api", "items", itemId, "progress")

@@ -2,7 +2,9 @@
 
 package app.pley.android.data
 
+import app.pley.android.model.CastKind
 import app.pley.android.model.Control
+import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Me
@@ -11,6 +13,7 @@ import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
+import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ServerEvent
 import app.pley.android.network.ApiException
 import app.pley.android.network.LiveEvent
@@ -31,9 +34,11 @@ import org.junit.rules.TemporaryFolder
 /**
  * The remote's repository over the real data side: the profile's
  * sessions (sessions/list.json: an episode on the Living room TV, a
- * channel on the Kitchen phone) read when followed and again at each event
- * that may change them, without this device's own; and the web's rules
- * for estimating a position and telling that a player answered.
+ * channel on the Kitchen phone) and devices (remote/devices.json: the
+ * Living room TV and a browser) read when followed and again at each
+ * event that may change them, without this device's own; and the web's
+ * rules for listing devices, estimating a position and telling that a
+ * player answered.
  */
 class RemoteRepositoryTest {
     @get:Rule
@@ -266,19 +271,84 @@ class RemoteRepositoryTest {
 
     @Test
     fun `devices of the same name are numbered, devices without one called as given`() {
-        val sessions = listOf(
-            remote(session(id = "a", device = "Living room TV"), 0),
-            remote(session(id = "b", device = null), 0),
-            remote(session(id = "c", device = "Living room TV"), 0),
-            remote(session(id = "d", device = "Kitchen phone"), 0),
+        val devices = listOf(
+            OtherDevice("a", session = remote(session(id = "s1", device = "Living room TV"), 0)),
+            OtherDevice("b", session = remote(session(id = "s2", device = null), 0)),
+            OtherDevice("c", receiver = receiver("tv-2", "c", "Living room TV")),
+            OtherDevice("d", session = remote(session(id = "s4", device = "Kitchen phone"), 0)),
         )
         assertEquals(
             mapOf("a" to "Living room TV (1)", "b" to "Unknown device", "c" to "Living room TV (2)", "d" to "Kitchen phone"),
-            RemoteRepository.deviceNames(sessions, "Unknown device") { name, n -> "$name ($n)" },
+            RemoteRepository.deviceNames(devices, "Unknown device") { name, n -> "$name ($n)" },
         )
     }
 
+    @Test
+    fun `the devices are each receiver with what its device plays, and each other player, playing first, then by name`() {
+        val older = remote(session(id = "s1", device = "Living room TV", deviceId = "app-12", itemId = 203), 0)
+        val newer = remote(session(id = "s2", device = "Living room TV", deviceId = "app-12", itemId = 204), 0)
+        val jellyfin = remote(session(id = "s3", device = "Bedroom box", deviceId = "token-4"), 0)
+        val devices = RemoteRepository.devicesOf(
+            sessions = listOf(older, jellyfin, newer),
+            receivers = listOf(
+                receiver("web-1", "web-9f2c", "firefox on macOS", DeviceKind.Browser),
+                receiver("tv-1", "app-12", "Living room TV", DeviceKind.Tv),
+                receiver("box", "app-20", null),
+                receiver("tv-2", "app-14", "Den TV", DeviceKind.Tv),
+            ),
+        )
+        assertEquals(listOf("token-4", "app-12", "app-14", "web-9f2c", "app-20"), devices.map { it.deviceId })
+        // A device with several sessions shows its newest.
+        assertEquals("s2", devices[1].session?.sessionId)
+        assertEquals(DeviceKind.Tv, devices[1].kind)
+        assertTrue(devices[1].takes(CastKind.Item))
+        // A Jellyfin app's: no receiver, nothing to cast to.
+        assertEquals(null, devices[0].receiver)
+        assertFalse(devices[0].takes(CastKind.Item))
+        assertEquals(listOf(true, true, false, false, false), devices.map { it.playing })
+    }
+
+    @Test
+    fun `followed, it reads the devices with the sessions, and a failed read keeps them`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        // The Living room TV plays and takes casts, the Kitchen phone plays and takes none, the browser plays nothing.
+        assertEquals(listOf("Kitchen phone", "Living room TV", "Firefox on macOS"), remote.devices.value.map { it.name })
+        assertEquals(listOf(true, true, false), remote.devices.value.map { it.playing })
+        assertEquals(listOf(false, true, true), remote.devices.value.map { it.takes(CastKind.Item) })
+
+        data.api.fail("remoteDevices", ApiException(500, "internal", "broken"))
+        data.events.send(LiveEvent.Event(ServerEvent.SessionsChanged))
+        testScheduler.runCurrent()
+        assertEquals(3, remote.devices.value.size)
+        // An older server has none.
+        data.api.reset()
+        data.api.fail("remoteDevices", ApiException(404, "not_found", "no route"))
+        data.events.send(LiveEvent.Event(ServerEvent.SessionsChanged))
+        testScheduler.runCurrent()
+        assertEquals(listOf("Kitchen phone", "Living room TV"), remote.devices.value.map { it.name })
+    }
+
+    @Test
+    fun `a track is answered by the player saying it plays it, not by its state`() {
+        val before = remote(session(state = ProgressState.Playing).copy(audioIndex = 1, subtitleIndex = -1), reportedAt = 0)
+        val audio = SentCommand(Control.Audio, before, sentAt = 1_000, streamIndex = 2)
+        assertFalse(RemoteRepository.answered(audio, before, 2_000))
+        // Buffering while it switches is no answer yet.
+        assertFalse(RemoteRepository.answered(audio, remote(before.session.copy(state = ProgressState.Buffering), 2_000), 2_000))
+        assertTrue(RemoteRepository.answered(audio, remote(before.session.copy(audioIndex = 2), 2_000), 2_000))
+        val off = SentCommand(Control.Subtitles, remote(before.session.copy(subtitleIndex = 3), 0), sentAt = 1_000, streamIndex = -1)
+        assertTrue(RemoteRepository.answered(off, before, 2_000))
+        // A new session for it, of the same title, says it as it starts.
+        assertTrue(RemoteRepository.answered(audio, remote(before.session.copy(sessionId = "s9", audioIndex = 2), 2_000), 2_000))
+    }
+
     private fun remote(session: PlayingSession, reportedAt: Long) = RemoteSession(session, reportedAt)
+
+    private fun receiver(id: String, deviceId: String, name: String?, kind: DeviceKind = DeviceKind.Tv) =
+        RemoteDevice(id, deviceId, name, kind, listOf(CastKind.Item))
 
     private fun session(
         id: String = "s1",
@@ -289,11 +359,13 @@ class RemoteRepositoryTest {
         positionMs: Long = 60_000,
         durationMs: Long? = 3_209_000,
         updatedAt: Long = 100,
+        deviceId: String = "",
     ) = PlayingSession(
         sessionId = id,
         kind = kind,
         device = device,
-        item = ItemSummary(itemId, 2, ItemKind.Episode, "Half Loop").takeIf { kind == PlayingKind.Item },
+        deviceId = deviceId,
+        item = ItemSummary(itemId, 2, ItemKind.Episode, "Episode Two").takeIf { kind == PlayingKind.Item },
         channel = PlayingChannel(1, "Pley News HD").takeIf { kind == PlayingKind.Live },
         state = state,
         positionMs = positionMs,
