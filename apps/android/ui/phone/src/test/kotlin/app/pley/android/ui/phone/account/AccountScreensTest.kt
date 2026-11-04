@@ -5,22 +5,29 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasScrollAction
+import androidx.test.core.app.ApplicationProvider
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.data.TrackDefaultsUnsupported
 import app.pley.android.model.SubtitleMode
 import app.pley.android.network.ApiException
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
+import app.pley.android.ui.phone.diagnostics.DIAGNOSTICS_FRAME_RATE
+import app.pley.android.ui.phone.diagnostics.DiagnosticsScreen
 import app.pley.android.ui.phone.kit.LocalOffline
 import app.pley.android.ui.phone.music.AlbumScreen
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -30,6 +37,7 @@ import app.pley.android.ui.phone.shell.PhoneShellState
 import app.pley.android.ui.phone.shell.rememberPhoneNavigation
 import app.pley.android.ui.phone.theme.PhoneTheme
 import org.junit.Assert.assertEquals
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -42,7 +50,7 @@ import org.robolectric.annotation.Config
  * The phone's Me, history, album page and mini player over a graph of
  * fakes: track defaults saved and shown read-only when the server refuses,
  * history paging and removal, playing an album from a row, the mini
- * player's controls.
+ * player's controls, Diagnostics' frame-rate switch.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi", application = AccountTestApplication::class)
@@ -67,6 +75,11 @@ class AccountScreensTest {
     @Before
     fun graph() {
         AccountTestApplication.graph = graph
+    }
+
+    @After
+    fun frameRateOff() {
+        FrameRate.show(ApplicationProvider.getApplicationContext(), false)
     }
 
     private fun show(content: @Composable () -> Unit) {
@@ -149,6 +162,19 @@ class AccountScreensTest {
         compose.onNodeWithText("Diagnostics").performClick()
         compose.onNodeWithText("Settings").performClick()
         assertEquals(listOf(PleyKey.History, PleyKey.Diagnostics, PleyKey.Settings), opened)
+    }
+
+    @Test
+    fun diagnosticsSwitchesTheFrameRateOnAndOff() {
+        show { DiagnosticsScreen() }
+        compose.onNodeWithTag(DIAGNOSTICS_FRAME_RATE).assertIsOff()
+        compose.onNodeWithText("Show frame rate").assertExists()
+        compose.onNodeWithTag(DIAGNOSTICS_FRAME_RATE).performClick()
+        compose.waitUntil(5_000) { FrameRate.on.value }
+        compose.onNodeWithTag(DIAGNOSTICS_FRAME_RATE).assertIsOn()
+        compose.onNodeWithTag(DIAGNOSTICS_FRAME_RATE).performClick()
+        compose.waitUntil(5_000) { !FrameRate.on.value }
+        compose.onNodeWithTag(DIAGNOSTICS_FRAME_RATE).assertIsOff()
     }
 
     @Test

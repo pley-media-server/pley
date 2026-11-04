@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
@@ -121,7 +120,7 @@ internal fun BoxScope.SleepNotice(secondsLeft: Int?, music: Boolean, onKeep: () 
         visible = secondsLeft != null,
         modifier = modifier
             .align(Alignment.TopCenter)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.player)
             .padding(top = 12.dp),
         enter = fadeIn(PleyMotion.overlay(reduced)),
         exit = fadeOut(PleyMotion.overlay(reduced)),

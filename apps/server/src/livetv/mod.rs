@@ -477,6 +477,26 @@ pub struct LiveTv {
     generation: AtomicU64,
     /// Logo addresses fetched ahead (or that failed): not asked for again.
     logos_ahead: Mutex<HashSet<String>>,
+    /// What's on, as search finds it, read again a minute later or after a
+    /// change (see [`LiveTv::airing_titled`]).
+    airing: Mutex<Option<Arc<Airing>>>,
+}
+
+/// The programmes on (and starting within the minute) when read, their
+/// titles folded for search.
+struct Airing {
+    read_at: i64,
+    generation: u64,
+    programs: Vec<AiringProgram>,
+}
+
+struct AiringProgram {
+    source_id: i64,
+    guide_id: String,
+    start: i64,
+    stop: i64,
+    /// The title folded (see [`crate::search::text::fold`]).
+    title: Box<str>,
 }
 
 /// The channels of the enabled sources as they are now, hidden ones too.
@@ -494,11 +514,19 @@ pub(crate) struct Lineup {
     guided: HashSet<(i64, String)>,
     /// Each source's short id, by source.
     source_uids: HashMap<i64, String>,
+    /// The names as search finds them, made when first searched.
+    search: std::sync::OnceLock<crate::search::Names>,
 }
 
 impl Lineup {
     fn has_guide(&self, c: &ChannelRow) -> bool {
         c.guide_key().is_some_and(|k| self.guided.contains(&(c.source_id, k.to_owned())))
+    }
+
+    /// The channels `search` finds by name (see [`crate::search::Names`]), by id.
+    fn find(&self, search: &str) -> HashMap<i64, crate::search::Found> {
+        let names = self.search.get_or_init(|| crate::search::Names::new(self.rows.iter().map(|c| c.display_name())));
+        names.find(search).into_iter().map(|(i, how)| (self.rows[i].id, how)).collect()
     }
 }
 
@@ -643,6 +671,7 @@ impl LiveTv {
             reading_lineup: tokio::sync::Mutex::new(()),
             generation: AtomicU64::new(0),
             logos_ahead: Mutex::default(),
+            airing: Mutex::default(),
         });
         // Whether channels played, as the tuners find out (until Live TV goes).
         let weak = Arc::downgrade(&live);
@@ -1588,7 +1617,7 @@ impl LiveTv {
             .into_iter()
             .map(|s| (s.id, s.uid))
             .collect();
-        let lineup = Arc::new(Lineup { rows, shown, names, groups, guided, source_uids });
+        let lineup = Arc::new(Lineup { rows, shown, names, groups, guided, source_uids, search: Default::default() });
         let mut kept = self.lineup.lock();
         // A change while it was read: this one is already out of date.
         if self.generation.load(Ordering::SeqCst) == generation {
@@ -1752,11 +1781,28 @@ impl LiveTv {
         let lineup = self.lineup().await?;
         let search = search.trim().to_lowercase();
         let airing = if search.is_empty() { HashSet::new() } else { self.airing_titled(&search).await? };
+        // By name: as typed, its words in any order, words read as others.
+        // On a thread of its own: the first search of a lineup reads its names.
+        let found = if search.is_empty() {
+            HashMap::new()
+        } else {
+            let (lineup, search) = (lineup.clone(), search.clone());
+            tokio::task::spawn_blocking(move || lineup.find(&search))
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("searching the lineup: {e}")))?
+        };
+        let by_number_or_airing = |c: &ChannelRow| {
+            c.display_number().is_some_and(|n| n.starts_with(&search))
+                || c.guide_key().is_some_and(|k| airing.contains(&(c.source_id, k.to_owned())))
+        };
+        let only_alike = |c: &ChannelRow| {
+            matches!(found.get(&c.id), Some(crate::search::Found::Alike(_))) && !by_number_or_airing(c)
+        };
         let matches = |i: usize, c: &ChannelRow| {
             search.is_empty()
                 || lineup.names[i].contains(&search)
-                || c.display_number().is_some_and(|n| n.starts_with(&search))
-                || c.guide_key().is_some_and(|k| airing.contains(&(c.source_id, k.to_owned())))
+                || found.contains_key(&c.id)
+                || by_number_or_airing(c)
         };
         let mut listed: Vec<&ChannelRow> = match category {
             Category::Recent => {
@@ -1787,10 +1833,25 @@ impl LiveTv {
                     .collect()
             }
         };
-        // Found ones come closest first, the lineup's order among equals;
-        // recent ones stay in the order they were watched.
+        // Names only alike to the search (nothing was found by its words)
+        // give way to channels found by number or by what's on.
+        if listed.iter().any(|c| !only_alike(c)) {
+            listed.retain(|c| !only_alike(c));
+        }
+        // Found ones come closest first, the lineup's order among equals:
+        // by name as typed, then by number or what's on, then by words read
+        // as others, then alike; recent ones stay in the order they were watched.
         if !search.is_empty() && *category != Category::Recent {
-            listed.sort_by_cached_key(|c| channel_rank(&search, c.display_name(), c.display_number().as_deref()));
+            use crate::search::Found;
+            listed.sort_by_cached_key(|c| {
+                let how = match found.get(&c.id) {
+                    Some(Found::AsTyped) => (0, std::cmp::Reverse(0)),
+                    None => (1, std::cmp::Reverse(0)),
+                    Some(Found::Corrected(close)) => (2, *close),
+                    Some(Found::Alike(close)) => (3, *close),
+                };
+                (channel_rank(&search, c.display_name(), c.display_number().as_deref()), how)
+            });
         }
         let limit = limit.clamp(1, MAX_PAGE);
         let offset = match around.and_then(|id| listed.iter().position(|c| c.id == id)) {
@@ -1802,21 +1863,50 @@ impl LiveTv {
     }
 
     /// The guide channels (by source) airing a programme whose title has `search` in it.
+    /// Titles are compared as search compares names ([`crate::search::text::finds`]):
+    /// "lakeside games" finds "Winter Games - Lakeside 2020".
+    /// The titles are read and folded once a minute at most, not with every
+    /// search: a guide has thousands of channels, and search asks as people type.
     async fn airing_titled(&self, search: &str) -> Result<HashSet<(i64, String)>, AppError> {
-        let pattern = format!("%{}%", search.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
         let at = now();
-        Ok(sqlx::query_as::<_, (i64, String)>(
-            "SELECT DISTINCT source_id, guide_id FROM live_programs WHERE start <= ? AND stop > ? \
-             AND title LIKE ? ESCAPE '\\'",
-        )
-        .bind(at)
-        .bind(at)
-        .bind(pattern)
-        .fetch_all(&self.db.read)
-        .await
-        .map_err(|e| AppError::Internal(e.into()))?
-        .into_iter()
-        .collect())
+        let generation = self.generation.load(Ordering::SeqCst);
+        let kept = self.airing.lock().clone().filter(|a| a.generation == generation && at - a.read_at < 60);
+        let airing = match kept {
+            Some(airing) => airing,
+            None => {
+                let rows = sqlx::query_as::<_, (i64, String, i64, i64, String)>(
+                    "SELECT source_id, guide_id, start, stop, title FROM live_programs WHERE start <= ? AND stop > ?",
+                )
+                .bind(at + 60)
+                .bind(at)
+                .fetch_all(&self.db.read)
+                .await
+                .map_err(|e| AppError::Internal(e.into()))?;
+                let programs = tokio::task::spawn_blocking(move || {
+                    rows.into_iter()
+                        .map(|(source_id, guide_id, start, stop, title)| AiringProgram {
+                            source_id,
+                            guide_id,
+                            start,
+                            stop,
+                            title: crate::search::text::fold(&title).into_boxed_str(),
+                        })
+                        .collect()
+                })
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("reading what's on: {e}")))?;
+                let airing = Arc::new(Airing { read_at: at, generation, programs });
+                *self.airing.lock() = Some(airing.clone());
+                airing
+            }
+        };
+        let search = crate::search::text::Finder::new(search);
+        Ok(airing
+            .programs
+            .iter()
+            .filter(|p| p.start <= at && p.stop > at && search.finds_folded(&p.title))
+            .map(|p| (p.source_id, p.guide_id.clone()))
+            .collect())
     }
 
     /// The channels `user` watched last, newest first.
@@ -2209,7 +2299,7 @@ fn sort_channels(rows: &mut [ChannelRow]) {
 
 /// How closely a channel named `name` answers a search for `search`, best
 /// first: its number in full, then by name as titles are
-/// ([`crate::catalog::match_rank`], a region before the name not counting),
+/// ([`crate::search::match_rank`], a region before the name not counting),
 /// then those found by their number's beginning or by what's on.
 fn channel_rank(search: &str, name: &str, number: Option<&str>) -> u8 {
     if number.is_some_and(|n| n.trim().eq_ignore_ascii_case(search)) {
@@ -2218,8 +2308,8 @@ fn channel_rank(search: &str, name: &str, number: Option<&str>) -> u8 {
     if !name.to_lowercase().contains(search) {
         return 4;
     }
-    let rank = crate::catalog::match_rank(search, name);
-    split_region(name).map_or(rank, |(_, rest)| rank.min(crate::catalog::match_rank(search, rest)))
+    let rank = crate::search::match_rank(search, name);
+    split_region(name).map_or(rank, |(_, rest)| rank.min(crate::search::match_rank(search, rest)))
 }
 
 /// A group name's region and the rest, when it begins with one the way

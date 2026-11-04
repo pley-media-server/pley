@@ -17,7 +17,7 @@ import PleyNetwork
 /// While asking for movies and shows works, TMDB is searched beside the
 /// libraries (never holding them up) for titles the libraries don't have:
 /// the Discover row after the results, with See all. It comes and goes as
-/// asking starts or stops working, and Apple TV, without Discover, has none.
+/// asking starts or stops working.
 @MainActor
 public final class SearchModel: ObservableObject {
     /// The groups results come in, in the order they show.
@@ -100,8 +100,13 @@ public final class SearchModel: ObservableObject {
     public static let limit = 40
     /// How many channels show.
     public nonisolated static let channels = 12
-    /// Titles the Discover row reads, at most, and the pages it reads for them.
+    /// Titles the Discover row reads, at most (a TV's row is longer, as
+    /// on Android TV), and the pages it reads for them.
+    #if os(tvOS)
+    public nonisolated static let discoverTitles = 20
+    #else
     public nonisolated static let discoverTitles = 12
+    #endif
     public nonisolated static let discoverPages = 3
 
     /// Search's Discover row.
@@ -152,14 +157,8 @@ public final class SearchModel: ObservableObject {
         }.store(in: &listeners)
     }
 
-    /// TMDB is searched for the Discover row: asking works, and the app has Discover.
-    private var discovers: Bool {
-        #if os(tvOS)
-        false
-        #else
-        app.requests.gate.mayAsk
-        #endif
-    }
+    /// TMDB is searched for the Discover row: asking works.
+    private var discovers: Bool { app.requests.gate.mayAsk }
 
     /// Discover's card above the recent searches: requests are open to this account.
     public var discoverEntry: Bool { app.shell.requestsEntry.discover }

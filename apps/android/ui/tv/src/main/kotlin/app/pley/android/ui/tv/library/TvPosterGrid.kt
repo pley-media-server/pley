@@ -86,6 +86,8 @@ import app.pley.android.ui.tv.kit.TvTileFrame
 import app.pley.android.ui.tv.kit.drawStillRing
 import app.pley.android.ui.tv.kit.focusSlot
 import app.pley.android.ui.tv.kit.TvGlide
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.CoroutineScope
@@ -192,6 +194,10 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     /** Focuses the cell at [position] once it is laid out ([column]). */
     private var bringing: Job? = null
 
+    /** A held step waiting for its row ([column]). */
+    private var waiting: Job? = null
+    private val stopWaiting: () -> Unit = { waiting?.cancel() }
+
     /**
      * Up or Down from the focused cell, [from], to [position] in its
      * column, as the Samsung app's grid moves; whether the key is used.
@@ -201,9 +207,62 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
      * next step left Compose's own search to drift to another column or
      * lose focus. A cell not laid out (a held key outrunning the rows on
      * the screen) is scrolled just into the grid and focused once it is.
+     *
+     * A held step that comes while the last one's glide still runs waits a
+     * frame or two for the row it brings onto the screen ([rowMade]), then
+     * goes all the same: the glide is spread over the wait
+     * ([TvGlide.linger]), so the grid goes on gliding meanwhile. The first
+     * step of a hold, the grid at rest, goes at once. The key coming up
+     * ends the wait without the step: focus stays where the hold left it.
+     *
+     * Held steps wait for a step under way; a key [pressed] doesn't: it
+     * ends whatever a step left waiting or bringing in, and goes from the
+     * focused cell.
      */
-    fun column(from: Int, position: Int, focus: TvGridFocus): Boolean {
-        if (bringing?.isActive == true) return true
+    fun column(from: Int, position: Int, focus: TvGridFocus, pressed: Boolean): Boolean {
+        if (pressed) {
+            waiting?.cancel()
+            bringing?.cancel()
+        } else if (waiting?.isActive == true || bringing?.isActive == true) {
+            return true
+        }
+        val down = position > from
+        if (!gate.holding || !glide.moving || rowMade(down, focus)) return step(from, position, focus)
+        glide.linger(ROW_WAIT_FRAMES * FRAME_MS)
+        waiting = scope.launch {
+            var frames = 0
+            while (frames < ROW_WAIT_FRAMES && !rowMade(down, focus)) {
+                withFrameNanos { }
+                frames++
+            }
+            if (inCell == from) step(from, position, focus)
+        }
+        gate.onRelease(stopWaiting)
+        return true
+    }
+
+    /**
+     * Whether the row a held step brings onto the screen (the next past the
+     * bottom going down, past the top going up) is made. The grid makes
+     * rows ahead of the screen between frames; a held key's step, every
+     * 45 ms, made the next one itself, in the frame, when they fell behind:
+     * on a Google TV Streamer a row took 18 ms, and the steps never left the
+     * frames the time to get ahead again. A step waiting a frame or two for
+     * its row gives them that time, and the steps after it find theirs made.
+     */
+    private fun rowMade(down: Boolean, focus: TvGridFocus): Boolean {
+        val visible = state.layoutInfo.visibleItemsInfo
+        if (visible.isEmpty()) return true
+        val edge = (if (down) visible.last().index else visible.first().index) - leadNow()
+        if (edge < 0) return true
+        val row = edge / columns + if (down) 1 else -1
+        if (row < 0 || row * columns >= total) return true
+        val first = row * columns
+        return focus.slots.has(first) && focus.slots.has(minOf(first + columns, total) - 1)
+    }
+
+    /** [column]'s step: to [position], laid out or brought in. */
+    private fun step(from: Int, position: Int, focus: TvGridFocus): Boolean {
         val target = keyAt(position)
         if (laidOut(target) && focus.focus(position)) return true
         val info = state.layoutInfo
@@ -298,6 +357,12 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
     private companion object {
         /** How many frames a cell scrolled into the grid has to be laid out in and take focus. */
         const val BRING_FRAMES = 3
+
+        /** How many frames a held step waits for the row it brings onto the screen ([rowMade]). */
+        const val ROW_WAIT_FRAMES = 2
+
+        /** A frame at 60 Hz, in milliseconds, rounded up. */
+        const val FRAME_MS = 17
     }
 }
 
@@ -414,17 +479,21 @@ internal fun TvPosterGrid(
             modifier = modifier
                 .testTag(TestTags.LIBRARY_GRID)
                 .comeBackTo(focus)
+                .heldKeyStaysIn(HeldEnds.All)
                 .focusGroup()
                 .onPlaced { motion.coordinates = it }
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     val from = motion.inCell
                     if (from < 0) return@onPreviewKeyEvent false
+                    // The gate's held moves are repeats; a press is the key's first down.
+                    val pressed = event.nativeKeyEvent.repeatCount == 0
                     when (event.key) {
                         // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
                         Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
-                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus)
-                        Key.DirectionDown -> from + columns < total && motion.column(from, from + columns, focus)
+                        Key.DirectionUp -> if (from < columns) gate.holding else motion.column(from, from - columns, focus, pressed)
+                        // Held, no cell below in the column (the last row, or a short one below): it stays.
+                        Key.DirectionDown -> if (from + columns >= total) gate.holding else motion.column(from, from + columns, focus, pressed)
                         else -> false
                     }
                 }
@@ -527,17 +596,18 @@ private fun GridCell(
     ) {
         if (tile == null) {
             Box(Modifier.tvTileSize(kind).skeleton(skeleton, TileStyle.Tv.shape(kind)))
+        } else if (badge == null) {
+            // No box around the tile without a count: one node less in each cell a held key brings in.
+            ArtworkTile(tile, kind, TileStyle.Tv, Modifier.tvTileSize(kind))
         } else {
             Box(Modifier.tvTileSize(kind)) {
                 ArtworkTile(tile, kind, TileStyle.Tv, Modifier.tvTileSize(kind))
-                if (badge != null) {
-                    QualityBadge(
-                        badge,
-                        TileStyle.Tv,
-                        onArt = true,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(TileStyle.Tv.inset).clearAndSetSemantics { },
-                    )
-                }
+                QualityBadge(
+                    badge,
+                    TileStyle.Tv,
+                    onArt = true,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(TileStyle.Tv.inset).clearAndSetSemantics { },
+                )
             }
         }
     }

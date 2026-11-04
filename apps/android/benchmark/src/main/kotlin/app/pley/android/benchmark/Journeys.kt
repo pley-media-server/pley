@@ -1,5 +1,6 @@
 package app.pley.android.benchmark
 
+import android.app.UiAutomation
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
@@ -13,6 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -41,6 +43,7 @@ internal object Tags {
     const val TV_EPISODES = TV_ROW + "episode"
     const val TV_ITEM_PANEL = "pley.tv.item.panel"
     const val TV_ITEM_ACTIONS = "pley.tv.item.actions"
+    const val TV_TILE_ACTIONS = "pley.tv.tile.actions"
     const val TV_PERSON = "pley.tv.person"
     const val TV_SEARCH_FIELD = "pley.tv.search.field"
     const val TV_SEARCH_RESULTS = "pley.tv.search.results"
@@ -136,11 +139,12 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * [key] held for [holdMs], as a remote's is: the press, the repeats
      * Android makes of a held key (the first, a long press, after the
      * long-press time, then one every 50 ms), and the release. Injected
-     * rather than `input keyevent --duration`, which only API 33 and later
-     * have: Fire OS 7 is API 28.
+     * rather than `input keyevent --duration`, which sends no repeats and
+     * which many TVs' `input` doesn't have. [unobserved]: without accessibility
+     * ([remote]), as a remote's keys come, for a measure.
      */
-    fun hold(key: Key, holdMs: Long) {
-        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+    fun hold(key: Key, holdMs: Long, unobserved: Boolean = false) {
+        val automation = automation(unobserved)
         val down = SystemClock.uptimeMillis()
         fun send(action: Int, repeat: Int, flags: Int = 0) {
             val event = KeyEvent(down, SystemClock.uptimeMillis(), action, key.code, repeat, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, flags, InputDevice.SOURCE_DPAD)
@@ -160,14 +164,84 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         SystemClock.sleep(STEP_MS)
     }
 
+    /** One press of [key] as [hold] sends it, [unobserved] or not, then [restMs]. */
+    fun tap(key: Key, restMs: Long = STEP_MS, unobserved: Boolean = false) {
+        val automation = automation(unobserved)
+        val down = SystemClock.uptimeMillis()
+        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+            val event = KeyEvent(down, SystemClock.uptimeMillis(), action, key.code, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_DPAD)
+            automation.injectInputEvent(event, false)
+        }
+        SystemClock.sleep(restMs)
+    }
+
+    /** Where keys are injected from: [remote] for a measure ([unobserved]), else UiAutomator's own connection. */
+    private fun automation(unobserved: Boolean): UiAutomation =
+        if (unobserved) remote() else InstrumentationRegistry.getInstrumentation().uiAutomation
+
+    /**
+     * Keys injected as a remote's come: with UiAutomator's accessibility
+     * connection let go. While it's connected, Compose describes every
+     * change of the screen to it (in a held scroll on a Google TV Streamer,
+     * a fifth of the main thread), which nobody without an accessibility
+     * service pays. The next step that looks for something on the screen
+     * connects it again, and Compose describes the screen anew, which a
+     * walk that looks for focus straight after can't wait for: only
+     * measures, which look at nothing, use it. The first call of a journey
+     * lets the screen settle without it.
+     */
+    private fun remote(): UiAutomation {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val first = !remoteNow
+        remoteNow = true
+        return instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_USE_ACCESSIBILITY).also {
+            if (first) SystemClock.sleep(UNOBSERVED_SETTLE_MS)
+        }
+    }
+
+    /** Whether this journey has sent keys without accessibility yet. */
+    private var remoteNow = false
+
+    /**
+     * After keys sent [unobserved], at the end of a measure: Macrobenchmark's
+     * shell keeps the UiAutomation it began with, which [remote] let go, and
+     * its next command (stopping the trace, killing the app for the next
+     * run) failed, "Calling from not trusted UID" on Android 14 and without
+     * a word on Fire OS 7. The shell gets the one connected now. First the
+     * page settles unobserved (the landing, the pictures coming in): once
+     * accessibility connects, Compose describes the whole screen to it, a
+     * frame of its own a measure would count.
+     */
+    fun observed() {
+        if (!remoteNow) return
+        SystemClock.sleep(UNOBSERVED_SETTLE_MS * 3)
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val shells = Class.forName("androidx.benchmark.ShellImpl").getDeclaredField("uiAutomation")
+        shells.isAccessible = true
+        shells.set(null, automation)
+        remoteNow = false
+    }
+
     /**
      * The element focus is on: the smallest of those that say so. The
      * window's own view says so too, and holds everything, so it never
      * counts: with only it, nothing in the page has focus.
      */
     fun focused(): UiObject2? = device.findObjects(By.focused(true))
-        .filter { !it.fillsTheScreen() }
-        .minByOrNull { it.visibleBounds.area() }
+        .mapNotNull { element -> element.boundsNow()?.let { element to it } }
+        .filter { (_, bounds) -> !bounds.fillsTheScreen() }
+        .minByOrNull { (_, bounds) -> bounds.area() }
+        ?.first
+
+    /**
+     * Its bounds, or null when it went after it was found (the rail
+     * closing, a row sliding): what's gone has no focus to give.
+     */
+    private fun UiObject2.boundsNow(): Rect? = try {
+        visibleBounds
+    } catch (_: StaleObjectException) {
+        null
+    }
 
     /**
      * Moves focus with the D-pad until it is on or in what [target] finds:
@@ -175,10 +249,21 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
      * that way). False after [max] steps.
      */
     fun focusOn(target: BySelector, toward: Key, max: Int = FOCUS_STEPS): Boolean {
+        var unseen = 0
         repeat(max) {
             val goal = device.findObject(target)
             if (goal != null && holdsFocus(goal, target)) return true
-            press(goal?.let(::directionTo) ?: toward)
+            val way = goal?.let(::directionTo)
+            if (goal != null && way == null && unseen < UNSEEN_LOOKS) {
+                // The goal shows but focus doesn't yet (the page still gliding to it): look again
+                // rather than press on blind, which went past the goal. Some screens never show
+                // where focus is (the rail as it opens): after a look or two, on as before.
+                unseen++
+                SystemClock.sleep(STEP_MS)
+                return@repeat
+            }
+            unseen = 0
+            press(way ?: toward)
         }
         return device.findObject(target)?.let { holdsFocus(it, target) } == true
     }
@@ -197,13 +282,27 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         await(selector, what)
     }
 
-    private fun holdsFocus(goal: UiObject2, target: BySelector): Boolean =
-        goal.isFocused || goal.hasObject(By.focused(true)) || focused()?.hasObject(target) == true
+    /**
+     * Whether focus is on or in [goal], or on what holds it: a setting's
+     * title is a node of its own beside its focused row, inside the row's
+     * box. Not while it is going (looked for again at the next step).
+     */
+    private fun holdsFocus(goal: UiObject2, target: BySelector): Boolean = try {
+        if (goal.isFocused || goal.hasObject(By.focused(true))) {
+            true
+        } else {
+            val focus = focused()
+            val box = goal.boundsNow()
+            focus?.hasObject(target) == true || (box != null && focus?.boundsNow()?.contains(box) == true)
+        }
+    } catch (_: StaleObjectException) {
+        false
+    }
 
     /** The way to [goal] from the focused element: up or down when they share columns, left or right when they share rows. */
     private fun directionTo(goal: UiObject2): Key? {
-        val from = focused()?.visibleBounds ?: return null
-        val to = goal.visibleBounds
+        val from = focused()?.boundsNow() ?: return null
+        val to = goal.boundsNow() ?: return null
         val columns = from.left < to.right && to.left < from.right
         val rows = from.top < to.bottom && to.top < from.bottom
         val dx = to.centerX() - from.centerX()
@@ -221,8 +320,8 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
 
     private fun Rect.area(): Int = width() * height()
 
-    private fun UiObject2.fillsTheScreen(): Boolean =
-        visibleBounds.width() >= device.displayWidth * 0.95 && visibleBounds.height() >= device.displayHeight * 0.95
+    private fun Rect.fillsTheScreen(): Boolean =
+        width() >= device.displayWidth * 0.95 && height() >= device.displayHeight * 0.95
 
     private fun UiObject2.describe(): String = resourceName ?: text ?: contentDescription ?: className
 
@@ -239,6 +338,12 @@ internal open class Steps(protected val scope: MacrobenchmarkScope) {
         const val PAGE_MS = 1_500L
 
         const val STEP_MS = 300L
+
+        /** How many times in a row [focusOn] looks again for focus it can't see before it presses on. */
+        const val UNSEEN_LOOKS = 2
+
+        /** How long the screen takes to hear that accessibility went: Compose stops describing it. */
+        const val UNOBSERVED_SETTLE_MS = 500L
         const val POLL_MS = 100L
         const val FOCUS_STEPS = 24
     }
@@ -267,11 +372,17 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
         if (!signedIn) signIn()
     }
 
-    /** The app started again, cold: the demo's household of three asks Who's watching? first. */
+    /**
+     * The app started again, cold: the demo's household of three asks Who's
+     * watching? first. Signed out, it signs in again: on older Android
+     * versions (Fire OS 7) Macrobenchmark reinstalls the app between tests
+     * to reset its compilation, and its data goes with it.
+     */
     fun restart() {
         scope.killProcess()
         scope.startActivityAndWait(tvIntent())
-        awaitAny("Who's watching? or Home at a cold start", START_MS, By.res(Tags.TV_PROFILES), By.res(Tags.HOME_ROWS))
+        awaitAny("Who's watching? or Home at a cold start", START_MS, By.res(Tags.TV_PROFILES), By.res(Tags.HOME_ROWS), By.res(Tags.TV_SERVERS))
+        if (device.hasObject(By.res(Tags.TV_SERVERS))) signIn()
     }
 
     /** On Who's watching?, [name] chosen with the D-pad, then Home; nothing to do where Home shows already. */
@@ -308,8 +419,8 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     fun walkHome(rows: Int = 4, tiles: Int = 6) {
         intoRows()
         hold(Key.CENTER, LONG_PRESS_MS)
-        // A page of actions, or a panel over Home.
-        val actions = By.res(Pattern.compile(Pattern.quote(Tags.TV_ITEM_ACTIONS) + "|" + Pattern.quote(Tags.TV_ITEM_PANEL)))
+        // A page of actions, or a panel over Home: the tile's actions, which every page shares, or an item page's.
+        val actions = By.res(Pattern.compile(listOf(Tags.TV_ITEM_ACTIONS, Tags.TV_TILE_ACTIONS, Tags.TV_ITEM_PANEL).joinToString("|") { Pattern.quote(it) }))
         await(actions, "a tile's actions after OK held", START_MS)
         press(Key.BACK, restMs = PAGE_MS)
         check(device.wait(Until.gone(actions), AWAIT_MS)) { "Journey: Back didn't close a tile's actions" }
@@ -391,7 +502,7 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     fun walkPlaylists() {
         railTo("playlists")
         await(By.res(Tags.TV_PLAYLISTS_GRID), "the Playlists page", START_MS)
-        moveTo(By.textContains(Demo.PLAYLIST), Key.DOWN, "the playlist ${Demo.PLAYLIST}")
+        moveTo(By.descStartsWith(Demo.PLAYLIST), Key.DOWN, "the playlist ${Demo.PLAYLIST}")
         press(Key.CENTER, restMs = PAGE_MS)
         await(By.res(Tags.TV_PLAYLIST), "a playlist's page", START_MS)
         repeat(3) { press(Key.DOWN, restMs = TILE_MS) }

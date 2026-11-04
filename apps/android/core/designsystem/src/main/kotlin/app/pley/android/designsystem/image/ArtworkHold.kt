@@ -17,15 +17,20 @@ import coil3.request.ImageRequest
 import coil3.request.ImageResult
 import coil3.request.Options
 import coil3.request.SuccessResult
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Pictures held back while a TV's direction key is held (D-pad rule 5),
  * as the native Samsung app holds them: the tiles a row slides past or a
  * page glides past ask for nothing, and those still there when the key
- * comes up load then. A picture the memory cache has shows at once all
- * the same: it costs no download and no decode. The TV's shell provides
- * the window's ([LocalArtworkHold]); without one, pictures never wait.
+ * comes up load then. A picture the memory cache has shows all the same
+ * (a frame later: [HeldDispatch]), as it costs no download and no
+ * decode. The TV's shell provides the window's ([LocalArtworkHold]);
+ * without one, pictures never wait.
  */
 interface ArtworkHold {
     /** Whether pictures wait now. Snapshot state: read it in effects and loaders, never in composition. */
@@ -50,9 +55,42 @@ internal fun rememberArtworkModel(image: ArtworkImage): Any {
     return remember(image, hold, context) { heldRequest(image, hold, context) }
 }
 
-/** A request for [image] that waits while [hold] holds. */
+/** A request for [image] that waits while [hold] holds, its loader's work off the main thread meanwhile ([HeldDispatch]). */
 internal fun heldRequest(image: ArtworkImage, hold: ArtworkHold, context: PlatformContext): ImageRequest =
-    ImageRequest.Builder(context).data(image).apply { extras[HoldKey] = hold }.build()
+    ImageRequest.Builder(context).data(image).apply { extras[HoldKey] = hold }.interceptorCoroutineContext(HeldDispatch(hold)).build()
+
+/**
+ * Where a held request's interceptors run: right there, on the main thread,
+ * as the loader's own do, so that a picture in the memory cache shows in
+ * the frame its tile first draws; but while [hold] holds, on a thread of
+ * the pool. A tile a held key brings in starts its request as it's first
+ * measured, in the frame that shows it, and looking it up in the memory
+ * cache and setting it aside ([HoldInterceptor]) took a Google TV
+ * Streamer's main thread 0.6 ms a tile, a dozen tiles for each step of a
+ * grid. Those pictures can come a frame later.
+ *
+ * A run of the request sent to the pool stays there: those set aside go on
+ * as the key comes up, and went on right there, on the main thread that
+ * ends the hold, a screenful of tiles at once. Its next run (the tile's
+ * picture asked for again) decides afresh, so that once nothing is held
+ * the picture shows in the frame its tile draws again.
+ */
+private class HeldDispatch(private val hold: ArtworkHold) : CoroutineDispatcher() {
+    /** The run sent to the pool, by its job: the request's interceptors run in a coroutine of their own each time. */
+    @Volatile
+    private var away: Job? = null
+
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean {
+        if (hold.holding) return true
+        val run = away ?: return false
+        return context[Job] === run
+    }
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        away = context[Job]
+        Dispatchers.Default.dispatch(context, block)
+    }
+}
 
 /**
  * Lets the loader hold pictures back ([ArtworkHold]): before

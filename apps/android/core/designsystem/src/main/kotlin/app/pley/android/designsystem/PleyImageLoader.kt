@@ -64,6 +64,8 @@ object PleyImageLoader {
                     .maxSizeBytes(diskCacheBytes(profile))
                     .build()
             }
+            // Android 9 makes each hardware bitmap on the RenderThread (2 ms a poster on a
+            // Fire TV), but software ones there made the frames as a held key lands longer still.
             .allowHardware(true)
             .memoryCacheMaxSizePercentWhileInBackground(if (profile.tier == Tier.T0) 0.0 else 0.1)
             .apply { if (profile.tier == Tier.T0) bitmapFactoryMaxParallelism(2) }

@@ -380,6 +380,9 @@ async fn channels_by_group_a_page_at_a_time() {
     assert_eq!(names(&app.get("/api/live/browse?q=foot", &bob).await.body), ["Two HD"]);
     assert_eq!(names(&app.get("/api/live/browse?q=1", &bob).await.body), ["One", "Ten"]);
     assert_eq!(names(&app.get("/api/live/browse?q=ten", &bob).await.body), ["Ten"]);
+    // A name's words in any order, and with a slip.
+    assert_eq!(names(&app.get("/api/live/browse?q=hd%20two", &bob).await.body), ["Two HD"]);
+    assert_eq!(names(&app.get("/api/live/browse?q=twoo", &bob).await.body), ["Two HD"]);
     assert_eq!(app.get("/api/live/browse?category=nope", &bob).await.status, StatusCode::BAD_REQUEST);
     // The app's search finds channels too.
     let found = app.get("/api/search?q=foot", &bob).await.body;

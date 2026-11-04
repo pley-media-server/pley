@@ -6,7 +6,7 @@ plugins {
 
 // The app's version, its own (scripts/version.mjs sets it; docs/RELEASING.md),
 // and the commit the build is made from: PLEY_COMMIT, else git's, else "unknown".
-val appVersion = "0.1.5"
+val appVersion = "0.1.6"
 val pleyCommit: String = providers.environmentVariable("PLEY_COMMIT").orNull?.trim()?.take(9)?.ifEmpty { null }
     ?: providers.exec {
         commandLine("git", "rev-parse", "--short=9", "HEAD")
@@ -31,6 +31,9 @@ android {
         // The id Google Play and the Amazon Appstore know the app by. The code
         // keeps its namespace, and sign-in its app.pley.android: scheme.
         applicationId = "com.formandelement.pley"
+        // -Ppley.applicationIdSuffix=.bench: a build that installs beside the
+        // app already on a device (another key's), for benchmarks and profiles.
+        providers.gradleProperty("pley.applicationIdSuffix").orNull?.let { applicationIdSuffix = it }
         // A rebuild of the same version for the stores, which take each code
         // once: PLEY_BUILD, 1 to 99, on top of the version's.
         versionCode = versionCodeOf(appVersion) +

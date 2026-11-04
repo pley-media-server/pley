@@ -88,6 +88,8 @@ import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextField
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -463,6 +465,7 @@ private fun CardList(
             .testTag(TV_REQUESTS_LIST)
             .onFocusChanged { cards.hasFocus = it.hasFocus }
             .railOnLeftStopOnRight(rail)
+            .heldKeyStaysIn(HeldEnds.UpDown)
             .focusGroup(),
         contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal + 16.dp, top = 8.dp, bottom = TvSafeArea.Vertical + CardPitch),
         verticalArrangement = Arrangement.spacedBy(CardGap),

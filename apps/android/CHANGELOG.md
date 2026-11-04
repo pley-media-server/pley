@@ -8,6 +8,43 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
+  while something moves, a small box at the top gives the frames
+  drawn a second, the longest frame and how many were late, and the same
+  goes to the device's log.
+
+### Changed
+
+- On Android TV and Fire TV, a key held through a library's grid, along
+  Home's rows or down through them scrolls more smoothly: tiles cost far
+  less to bring in and to draw, rows are made ahead of the screen, and a
+  held step waits a frame or two for its row rather than stall the
+  picture. A show's page and the guide make their next rows ahead too.
+- On Android TV and Fire TV, a held direction key stops at the end of
+  the list it moves along, on every page: Up held through Home's rows
+  stops on the first row rather than going on to the hero, Down held
+  through a library stops on its last row. A press of its own goes on.
+
+### Fixed
+
+- On Android TV and Fire TV, a press of a direction key that lasts a
+  little long (200 or 300 ms) moves focus once, not twice: a held key
+  starts moving by itself after 400 ms, as the system's own repeats do,
+  rather than 180.
+- On Android TV and Fire TV, OK held on a tile opens its actions and leaves
+  them open: the key, still held as they came, went on to choose the first
+  of them (Resume or Play) as it came up.
+- On Android TV and Fire TV, screen readers say each card on Playlists,
+  its title and what it holds; they said nothing.
+- On phones and tablets, the player's controls are in their place as it
+  opens, rather than moving a moment later: the buttons along the bottom
+  show once the server has answered, and the controls keep clear of the
+  status and navigation bars whether they show or not.
+
+## [0.1.6] - 2026-11-04
+
 ### Changed
 
 - The banner on Android TV and Google TV's home screen shows Pley's mark
@@ -486,7 +523,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-03...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02

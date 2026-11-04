@@ -1689,19 +1689,38 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
   next up), then `my_list` ("My List", its 20 newest), then
   `recently_added:<library_id>` per library in the libraries' order.
 - **Search**: the closest matches first in each of `items`, `people` and
-  `channels`: a name that is the whole of `q` (case and punctuation aside;
-  a title's sort title counts, so "office" is the whole of "The Office"),
-  then names that begin with it, then a word of the name onwards, then the
-  rest. Items have words in their title or original title starting with
-  each word of `q`; when more match than `limit`, the closest are kept,
-  movies, shows and artists before their seasons, episodes, albums and
-  tracks among equals, and they come by kind: movies, shows, seasons,
-  episodes, artists, albums, tracks. People have words starting with each
-  word of `q`, the most credited first among equals. Channels match by
-  name, the beginning of their number or the title of what's on; a number
-  typed in full counts as the whole name, a region before the name ("UK|
-  News") doesn't count, and those found only by their number or what's on
-  come last. Apps show the titles first, then Live TV, then people.
+  `channels`: a name that is the whole of `q` (case, accents, apostrophes
+  and punctuation aside; a title's sort title counts, so "office" is the
+  whole of "The Office"), then names that begin with it, then a word of the
+  name onwards, then the rest. Items have words in their title or original
+  title starting with each word of `q`; a year ending `q` ("alien 1979")
+  keeps the titles of that year (or one either side), unless none has the
+  other words, when it is a word of the title ("blade runner 2049"). When
+  more match than `limit`, the closest are kept, movies, shows and artists
+  before their seasons, episodes, albums and tracks among equals, and they
+  come by kind: movies, shows, seasons, episodes, artists, albums, tracks.
+  People have words starting with each word of `q`, the most credited
+  first among equals. Channels match by name (its words in any order: "f1
+  sports" finds "UK| SPORTS F1"; a quality such as "hd" that no channel
+  has with the other words is left out), the beginning of their number or
+  the title of what's on; a number typed in full counts as the whole name,
+  a region before the name ("UK| News") doesn't count, and those found
+  only by their number or what's on come after those found by name as
+  typed. Apps show the titles first, then Live TV, then people.
+- **Slips**: a word of `q` that no title, name or channel has stands for
+  the closest words they have, the other words choosing between them:
+  one letter added, dropped, changed or two swapped from 4 letters, two
+  from 8, never the first letter ("matirx", "kaenu"); words written
+  together or apart ("spiderman", "rentaboat"); an apostrophe left out
+  ("captains log"). Numbers and words under 4 letters are only read as
+  typed. When nothing is found that way either, names alike enough to `q`
+  are (most of their letters in the same order: "sppjder man"). What these
+  find comes after what `q` finds as typed, the closest first. Search keeps
+  what it needs for this (the words of every title and name, and their
+  pieces) in memory: it looks for changes to the library every few seconds
+  and reads them again at most every half minute, so a title added during
+  a scan may take up to about 35 seconds to be found by a slip. Nothing of
+  it is written to the database or its backups.
 
 ### Continue Watching
 
@@ -3317,7 +3336,8 @@ open, and the user's own events; an administrator's gets everyone's
 every 15 s. The token is checked again every 30 s: the stream ends once it
 is signed out, expired or its account disabled, and the client connects
 again with a valid token; one whose account became an administrator, or
-stopped being one, follows that. One token may keep 16 streams open; another answers `429`.
+stopped being one, follows that. One token may keep 16 streams open;
+another answers `429`.
 
 ### Stopping a stream
 
@@ -3384,8 +3404,8 @@ more.
   `previous` change channel, in the order the player tunes them; the
   server only passes them on. A live player lists `pause`, `seek` and
   `skip` only when it can go back in the channel, and its `seek` goes up
-  to a day, as with a title whose length isn't known. A viewer starting, ending or changing channel
-  sends `sessions_changed`.
+  to a day, as with a title whose length isn't known. A viewer starting,
+  ending or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
   position_ms, offset_ms }`. `seek` needs `position_ms`, from 0 to the
@@ -3617,7 +3637,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live` | `library` | `{ available, allowed, channels, sources, recent: Id[] }`: whether to show Live TV (`allowed`: open to this account; `available`: and it has channels), the channel count, the sources set up (administrators; else 0) and the 12 channels watched last, newest first |
 | GET | `/api/live/channels` | `library` | `LiveChannel[]`, the shown channels by number, each with what's on now and next |
 | GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the lineup's order, and how many channels in all, marked and watched lately |
-| GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` (a name, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
+| GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
 | GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a programme's picture; `?w=` resizes it |
@@ -3744,8 +3764,9 @@ interface LiveTuner {                  // a connection in use
   streams at once, and its session answers `410` with the same `message`
   after it, at its keyed address too (the server remembers up to 500
   sessions ended so or [stopped](#stopping-a-stream), until it
-  restarts). Every player of that channel on the account stops (a player reading `stream.ts` knows no session, so players
-  go by `channel_id`; one viewer's HLS and stream sessions each send one)
+  restarts). Every player of that channel on the account stops (a player
+  reading `stream.ts` knows no session, so players go by `channel_id`;
+  one viewer's HLS and stream sessions each send one)
   and shows the message until it is dismissed, even after the app goes
   to the background and back; it doesn't tune again by itself. The message
   says who took the connection and for which channel only to the taker's

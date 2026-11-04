@@ -326,7 +326,7 @@ async fn list(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) -> 
         return Ok(paged(visible(catalog::items_by_ids(&state.db, user.id, &ids).await?)));
     }
     if let Some(term) = q.get("searchTerm") {
-        let rows = visible(catalog::search(&state.db, user.id, term, 200).await?);
+        let rows = visible(crate::search::items(&state.db, user.id, term, 200).await?);
         return Ok(paged(rows));
     }
 
@@ -1121,7 +1121,7 @@ async fn persons(
 ) -> JfResult<Response> {
     let Some(term) = q.get("searchTerm") else { return Ok(answer(Vec::new(), 0, 0)) };
     let limit = q.number("limit").unwrap_or(20).clamp(1, 100);
-    let found = crate::people::search(&state.db, user.id, term, limit).await?;
+    let found = crate::search::people(&state.db, user.id, term, limit).await?;
     let items: Vec<Item> = found
         .into_iter()
         .map(|p| {
@@ -1187,7 +1187,7 @@ async fn search_hints(
     let limit = q.number("limit").unwrap_or(20).clamp(1, 100) as usize;
     let wanted: Vec<&'static str> = q.list("includeItemTypes").iter().filter_map(|t| dto::kind_of_type(t)).collect();
     let libs = libraries(&state, &user).await?;
-    let rows: Vec<ItemRow> = catalog::search(&state.db, user.id, term, 200)
+    let rows: Vec<ItemRow> = crate::search::items(&state.db, user.id, term, 200)
         .await?
         .into_iter()
         .filter(|r| {

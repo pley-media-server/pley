@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.kit
 
 import android.view.View
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import org.junit.Assert.assertEquals
@@ -111,7 +113,7 @@ class TvRowFocusTest {
                         ) {
                             if (withHero) {
                                 item("hero") {
-                                    Column(Modifier.height(400.dp).tvRowColumnHero()) {
+                                    Column(Modifier.height(400.dp).tvRowColumnHero().focusGroup()) {
                                         Spacer(Modifier.height(341.dp))
                                         Box(
                                             Modifier
@@ -181,6 +183,9 @@ class TvRowFocusTest {
     /** The focused tile's top, in dp from the screen's. */
     private fun focusedTop(): Float = compose.focused().getBoundsInRoot().top.value
 
+    /** The focused tile's left, in dp from the screen's. */
+    private fun focusedLeft(): Float = compose.focused().getBoundsInRoot().left.value
+
     /**
      * [ms] of frames, a multiple of a frame's 16, each with the main looper's
      * work after it: the lazy lists' prefetching, composing their cache
@@ -244,6 +249,41 @@ class TvRowFocusTest {
         compose.focused().assertContentDescriptionEquals("A 20")
     }
 
+    /**
+     * The focused tile keeps its place while the row moves under it, a
+     * press at a time, until the row's end, where there is nothing more to
+     * bring in and focus steps across the last tiles.
+     */
+    @Test
+    fun eachPressKeepsTheFocusedTileInPlaceUntilTheRowsEnd() {
+        page()
+        val home = focusedLeft()
+        val lefts = (2..20).map { n ->
+            compose.press(Key.DirectionRight)
+            advance(2_000)
+            compose.waitForIdle()
+            compose.focused().assertContentDescriptionEquals("A $n")
+            focusedLeft()
+        }
+        // Until the last tiles fit on the screen: in place, to the pixel.
+        val held = lefts.takeWhile { abs(it - home) < 1f }
+        assertTrue("in place for ${held.size} of ${lefts.size}: $lefts", held.size >= 14)
+        // Then across them, only ever onward.
+        val after = lefts.drop(held.size)
+        assertTrue("$after", after.zipWithNext().all { (a, b) -> b > a })
+    }
+
+    @Test
+    fun eachPressDownKeepsTheFocusedRowAtTheLine() {
+        rows()
+        repeat(8) {
+            compose.press(Key.DirectionDown)
+            advance(2_000)
+            compose.waitForIdle()
+            assertEquals("row ${it + 1}", 210f, focusedTop(), 1f)
+        }
+    }
+
     @Test
     fun leftFromTheFirstTileEntersTheRail() {
         page()
@@ -261,7 +301,7 @@ class TvRowFocusTest {
         compose.press(Key.DirectionRight)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionLeft)
-        // The press moves back to A 1; held from 180 ms, Left goes no further, however long.
+        // The press moves back to A 1; held from 400 ms, Left goes no further, however long.
         advance(600)
         keyUp(Key.DirectionLeft)
         compose.mainClock.autoAdvance = true
@@ -271,6 +311,56 @@ class TvRowFocusTest {
         compose.press(Key.DirectionLeft)
         assertEquals(1, rail.asked)
         compose.onNodeWithTag("rail").assertIsFocused()
+    }
+
+    @Test
+    fun aHeldUpStopsAtTheFirstRowAndOnlyAPressEntersTheHero() {
+        page(withHero = true)
+        compose.press(Key.DirectionDown, times = 2)
+        compose.focused().assertContentDescriptionEquals("B 100")
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionUp)
+        // The press moves up to row A; held from 400 ms, Up goes no further, however long.
+        advance(600)
+        keyUp(Key.DirectionUp)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 1")
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag("resume").assertIsFocused()
+    }
+
+    @Test
+    fun aHeldDownStopsAtTheLastRowAndOnlyAPressGoesOnBelow() {
+        prefetchAsOnATv()
+        compose.setContent {
+            view = LocalView.current
+            list = rememberTvRowColumnState()
+            TvTheme {
+                CompositionLocalProvider(LocalTvRailFocus provides rail, LocalKeyRepeatGate provides gate) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        TvRowColumn(state = list, contentPadding = PaddingValues(top = 172.dp), modifier = Modifier.weight(1f)) {
+                            repeat(3) { r ->
+                                item("r$r") { TvRow("r$r", "Row $r", tiles("R$r", 4, from = r * 100L + 1), TileKind.Poster, onOpen = {}, initialFocus = r == 0) }
+                            }
+                        }
+                        Box(Modifier.size(40.dp).testTag("below").focusable())
+                    }
+                }
+            }
+        }
+        showWindow(view)
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionDown)
+        // The press and the held steps to the last row, and no further, however long.
+        advance(1_000)
+        keyUp(Key.DirectionDown)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("R2 201")
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag("below").assertIsFocused()
     }
 
     @Test
@@ -319,8 +409,8 @@ class TvRowFocusTest {
         page()
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        // The press moves to A 2; from 180 ms the row slides on by itself, a tile every 45 ms.
-        advance(304)
+        // The press moves to A 2; from 400 ms the row slides on by itself, a tile every 45 ms.
+        advance(512)
         compose.focused().assertContentDescriptionEquals("A 2")
         val early = scrolledA()
         assertTrue("$early", early > 2 * pitch)
@@ -358,8 +448,8 @@ class TvRowFocusTest {
         compose.focused().assertContentDescriptionEquals("A 13")
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionLeft)
-        // The press moves back to A 12; from 180 ms the row slides back by itself, a tile every 45 ms.
-        advance(400)
+        // The press moves back to A 12; from 400 ms the row slides back by itself, a tile every 45 ms.
+        advance(608)
         compose.focused().assertContentDescriptionEquals("A 12")
         val under = scrolledA() / pitch
         assertTrue("$under", under > 1f && under < 10f)
@@ -378,7 +468,7 @@ class TvRowFocusTest {
         page()
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        advance(304)
+        advance(512)
         // Focus waits on A 2, slid off the screen: Select doesn't open it.
         compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
         advance(48)
@@ -396,7 +486,7 @@ class TvRowFocusTest {
         page()
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        advance(304)
+        advance(512)
         keyDown(Key.Menu)
         advance(48)
         keyUp(Key.DirectionRight)
@@ -417,7 +507,7 @@ class TvRowFocusTest {
         page()
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        advance(304)
+        advance(512)
         keyDown(Key.Menu)
         advance(48)
         keyUp(Key.DirectionRight)
@@ -455,8 +545,8 @@ class TvRowFocusTest {
         page(reduced = true)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionRight)
-        // The press, then a move every 45 ms from 180 ms: five more by 400 ms, each in place.
-        advance(400)
+        // The press, then a move every 45 ms from 400 ms: five more by 608 ms, each in place.
+        advance(608)
         keyUp(Key.DirectionRight)
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
@@ -499,14 +589,14 @@ class TvRowFocusTest {
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionDown)
         var last = scrolledPage()
-        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
-        for (frame in 1..25) {
+        // 38 frames, 608 ms: the press, then a step every 45 ms from 400 ms, each glide running into the next.
+        for (frame in 1..38) {
             compose.frameAndPrefetch()
             val moved = scrolledPage() - last
             last += moved
             assertTrue("frame $frame moved $moved of $rowPitch", moved < rowPitch / 2)
-            // Once the held steps have begun (192 ms, gliding from the frame after), every frame moves on.
-            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+            // Once the held steps have begun (400 ms, gliding from the frame after), every frame moves on.
+            if (frame > 26) assertTrue("frame $frame stood still", moved > 0f)
         }
         keyUp(Key.DirectionDown)
         compose.mainClock.autoAdvance = true
@@ -516,12 +606,41 @@ class TvRowFocusTest {
         assertEquals(210f, focusedTop(), 1f)
     }
 
+    /**
+     * A held Up or Down goes from row to row as a press does, each row
+     * coming back to its tile: the column moves focus itself under a held
+     * key rather than search for the next row's tile.
+     */
+    @Test
+    fun aHeldUpGoesRowByRowEachToItsTile() {
+        rows()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 3)
+        compose.focused().assertContentDescriptionEquals("R1 104")
+        compose.press(Key.DirectionDown, times = 2)
+        compose.focused().assertContentDescriptionEquals("R3 301")
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionUp)
+        // 32 frames, 512 ms: the press, then a step every 45 ms from 400 ms, to the first row and no further.
+        val passed = mutableListOf<String>()
+        repeat(32) {
+            compose.frameAndPrefetch()
+            val now = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].joinToString()
+            if (passed.lastOrNull() != now) passed += now
+        }
+        keyUp(Key.DirectionUp)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(listOf("R2 202", "R1 104", "R0 1"), passed)
+        assertEquals(210f, focusedTop(), 1f)
+    }
+
     @Test
     fun withReducedMotionAHeldDownStepsThePageARowAtATime() {
         rows(reduced = true)
         compose.mainClock.autoAdvance = false
         keyDown(Key.DirectionDown)
-        advance(400)
+        advance(608)
         // Each step's row is at the line by the next frame: nothing glides.
         compose.focused().assertContentDescriptionEquals("R6 601")
         assertEquals(210f, focusedTop(), 1f)

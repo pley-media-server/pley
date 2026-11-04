@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.UnstableApi
 import app.pley.android.auth.Needs
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.sentenceOf
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Passthrough
@@ -73,6 +74,8 @@ import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.onboarding.ProfileAvatar
@@ -193,6 +196,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                                 false
                             }
                         }
+                        .heldKeyStaysIn(HeldEnds.UpDown)
                         .focusRestorer()
                         .focusGroup(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -224,6 +228,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                     Modifier
                         .padding(start = PANE_START - PleyTv.Gutter - CATEGORIES_WIDTH, end = TvSafeArea.Horizontal)
                         .fillMaxSize()
+                        .heldKeyStaysIn(HeldEnds.UpDown)
                         .focusGroup()
                         .testTag(TV_SETTINGS_PANE),
                     contentPadding = PaddingValues(bottom = TvSafeArea.Vertical),
@@ -545,6 +550,18 @@ private fun LazyListScope.pane(
                     chevron = true,
                     onClick = { onOpen(PleyKey.Diagnostics) },
                     modifier = keyed("row-diagnostics"),
+                )
+            }
+            item(key = "row-frame-counter", contentType = SETTING_ROW) {
+                val context = LocalContext.current
+                val shown by FrameRate.on.collectAsStateWithLifecycle()
+                TvSettingRow(
+                    stringResource(R.string.tv_settings_show_frame_rate),
+                    value = stringResource(R.string.tv_settings_show_frame_rate_hint),
+                    checked = shown,
+                    icon = PleyIcons.Gauge,
+                    onClick = { FrameRate.show(context, !shown) },
+                    modifier = keyed("row-frame-counter"),
                 )
             }
             item(key = "facts") { DeviceFacts() }
