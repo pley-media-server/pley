@@ -34,6 +34,7 @@ import coil3.memory.MemoryCache
 import coil3.request.Options
 import coil3.size.pxOrElse
 import kotlinx.coroutines.Dispatchers
+import java.util.Collections
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -60,8 +61,11 @@ class TvRowPicturesTest {
     /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
     private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
 
-    /** The addresses fetched, without their widths. */
-    private val fetched = mutableListOf<String>()
+    /** The addresses fetched, without their widths: on the main thread, or a pool's once a hold ends. */
+    private val fetched: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    /** [fetched] as it is now. */
+    private fun fetchedNow(): List<String> = synchronized(fetched) { fetched.toList() }
 
     private val loader: ImageLoader by lazy {
         ImageLoader.Builder(context)
@@ -111,16 +115,17 @@ class TvRowPicturesTest {
         compose.onRoot().performKeyInput { keyDown(Key.DirectionRight) }
         // The press moves a tile on, asking ahead as ever; the hold begins at 400 ms.
         compose.mainClock.advanceTimeBy(208)
-        val before = fetched.toList()
+        val before = fetchedNow()
         // A second and more: the slide passes some 30 tiles, far past what was asked for ahead.
         compose.mainClock.advanceTimeBy(1_300)
-        assertEquals(before, fetched)
+        assertEquals(before, fetchedNow())
         compose.onRoot().performKeyInput { keyUp(Key.DirectionRight) }
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
         val landed = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single().removePrefix("P ")
-        val asked = fetched.drop(before.size)
-        assertTrue("$asked", "$ORIGIN/$landed" in asked)
+        // The requests held back go on on a pool thread as the key comes up: their fetches come a moment later.
+        compose.waitUntil(timeoutMillis = 5_000) { "$ORIGIN/$landed" in fetchedNow().drop(before.size) }
+        val asked = fetchedNow().drop(before.size)
         // Only around where it landed: the screen, and what is ahead of it.
         assertTrue("$asked", asked.size <= 16 && asked.none { it.removePrefix("$ORIGIN/").toInt() < landed.toInt() - 2 })
     }
