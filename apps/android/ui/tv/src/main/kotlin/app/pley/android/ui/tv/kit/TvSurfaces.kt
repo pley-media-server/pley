@@ -102,8 +102,8 @@ data class BackdropScrim(val from: Dp, val to: Dp) {
  *
  * It follows [image] only once focus has rested ([rememberRested]) and
  * the new picture has loaded (or failed, or taken over a second): a
- * 300 ms crossfade on T1 and T2, on the upper picture's layer alone
- * (ModulateAlpha, no offscreen buffer); an instant swap on T0 and with
+ * 300 ms crossfade on T1 and T2, the upper picture's kept layer drawn at
+ * its alpha over the lower's; an instant swap on T0 and with
  * reduced motion. Each picture keeps its slot while it shows, so the one
  * going is never loaded again. Pictures are asked for at most 1280 wide,
  * 960 on T0; [rememberBackdropPrefetcher] loads the next ones ahead.
@@ -123,18 +123,25 @@ fun TvBackdrop(
     val instant = tier == Tier.T0 || reducedMotion()
     val slots = remember { BackdropSlots(shown) }
     LaunchedEffect(shown) { slots.show(shown, instant) }
-    Box(
-        modifier
-            .fillMaxSize()
-            // The whole stack (picture, placeholder, scrims) is drawn once into a
-            // layer that is kept: while focus moves over the rows nothing in it
-            // changes, so each frame costs one copy of it instead of four or five
-            // full-screen passes (43 ms of GPU a frame down to 13 on a Google TV
-            // Streamer). It is drawn again only while the backdrop changes.
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .backdropScrims(scrim),
-    ) {
-        slots.lower?.let { slot -> key(slot) { BackdropPicture(slot, Modifier.fillMaxSize()) } }
+    // Each picture, its placeholder and the scrims over it are drawn once into a
+    // layer of their own that is kept: while focus moves over the rows nothing
+    // in it changes, so each frame costs one copy of it instead of four or five
+    // full-screen passes (43 ms of GPU a frame down to 13 on a Google TV
+    // Streamer). A crossfade costs a copy of each, the upper at its alpha,
+    // rather than drawing both pictures and the scrims again in every frame of
+    // it; the scrims being the same over both, the blend is the same.
+    Box(modifier.fillMaxSize()) {
+        slots.lower?.let { slot ->
+            key(slot) {
+                BackdropPicture(
+                    slot,
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .backdropScrims(scrim),
+                )
+            }
+        }
         slots.upper?.let { slot ->
             key(slot) {
                 BackdropPicture(
@@ -143,8 +150,9 @@ fun TvBackdrop(
                         .fillMaxSize()
                         .graphicsLayer {
                             alpha = slots.upperAlpha.value
-                            compositingStrategy = CompositingStrategy.ModulateAlpha
-                        },
+                            compositingStrategy = CompositingStrategy.Offscreen
+                        }
+                        .backdropScrims(scrim),
                 )
             }
         }
