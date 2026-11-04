@@ -195,7 +195,13 @@ impl Listener {
 
     async fn on_event(&mut self, event: ServerEvent) -> Vec<Value> {
         let result = match event {
-            ServerEvent::SessionsChanged => Ok(self.sessions_changed()),
+            // Someone else's sessions are looked at only by a client that
+            // sees everyone's (as on Pley's own streams): nothing changed
+            // that the others list.
+            ServerEvent::SessionsChanged { user_id } if user_id == self.user.id || super::sees_everyone(&self.user) => {
+                Ok(self.sessions_changed())
+            }
+            ServerEvent::SessionsChanged { .. } => Ok(Vec::new()),
             ServerEvent::LibrariesChanged => self.load_libraries().await.map(|()| Vec::new()),
             // The libraries the account may open changed: it is read again.
             ServerEvent::OwnLibrariesChanged { user_id } if user_id == self.user.id => {
@@ -235,6 +241,7 @@ impl Listener {
             | ServerEvent::OwnLibrariesChanged { .. }
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
+            | ServerEvent::PlayerCommand { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
             | ServerEvent::LiveTakenOver { .. }

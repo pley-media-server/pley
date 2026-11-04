@@ -9,6 +9,25 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The server lets a user's devices control what plays on their other
+  devices: it lists the user's own sessions with the device each plays
+  on, Live TV channels included, and passes play, pause, seek, skip, next
+  and previous to players that say they obey them (on Live TV, next and
+  previous change channel). Only the session's own user controls it;
+  administrators can still only stop other people's, a Live TV channel
+  now too. `/api/activity`'s sessions say which device they play on.
+- Jellyfin apps that say they take media control obey a user's remotes
+  through their socket: pause, play, seek, skip, next and previous. Plex
+  apps can still only be stopped.
+
+### Fixed
+
+- Someone who isn't an administrator no longer hears when other people's
+  playback starts or stops: the event for it goes only to that person's
+  own devices and to administrators.
+
 ## [0.1.6] - 2026-11-04
 
 ### Added

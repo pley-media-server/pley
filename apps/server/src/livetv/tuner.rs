@@ -34,8 +34,9 @@ use super::{ChannelRow, LiveSettings};
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::events::{EventBus, ServerEvent};
+use crate::playback::{CommandWindow, Controls};
 use crate::transcoder::Transcoder;
-use crate::util::now;
+use crate::util::{now, now_ms};
 
 /// A channel nobody watches is let go this long after the last viewer left
 /// (unless its connection is wanted sooner): coming back to it is instant.
@@ -97,6 +98,80 @@ struct Viewer {
     /// The account is an administrator's (whatever signed it in): whose
     /// connections it may take over.
     admin: bool,
+    /// The commands its player obeys from a remote ([`WatchAs::controls`]).
+    controls: Controls,
+    /// The device it plays on, as the user's remotes show it.
+    device: Option<String>,
+    /// Commands sent to it lately (remote control).
+    commands: CommandWindow,
+    /// Cancelled when it is stopped from elsewhere: a stream reader's
+    /// response ends, though others still watch the channel.
+    stopped: CancellationToken,
+}
+
+impl Viewer {
+    /// Its player is still there: a stream reader while its response is
+    /// read, an HLS player while it asks for the playlist.
+    fn is_there(&self) -> bool {
+        self.kind == ViewerKind::Stream || self.last_seen.elapsed() < VIEWER_GONE
+    }
+
+    /// It reads the stream of `session`, an app's watch session: apps ask
+    /// to watch as their device and read `stream.ts` as `<device>-stream`.
+    fn reads_for(&self, session: &Viewer) -> bool {
+        let (Some(reader), Some(device)) = (self.client_id.as_deref(), session.client_id.as_deref()) else {
+            return false;
+        };
+        self.kind == ViewerKind::Stream
+            && session.kind == ViewerKind::Hls
+            && self.user_id == session.user_id
+            && self.channel_id == session.channel_id
+            && reader != device
+            && device_of(reader) == device
+    }
+}
+
+/// Whether viewer `v`'s player is there ([`Viewer::is_there`]): an app's
+/// watch session whose stream it reads instead is, while that is read. Its
+/// session is the one the player knows, so it stays: remotes list and
+/// command it, and a stop reaches the player.
+fn is_there(viewers: &HashMap<String, Viewer>, v: &Viewer) -> bool {
+    v.is_there() || viewers.values().any(|reader| reader.reads_for(v))
+}
+
+/// One of a user's viewers, as their remotes see it (`GET /api/sessions`).
+#[derive(Debug, Clone)]
+pub struct RemoteViewer {
+    pub session_id: String,
+    pub user_id: i64,
+    pub channel_id: i64,
+    pub device: Option<String>,
+    pub controls: Controls,
+    pub started_at: i64,
+    /// When its player last asked for the channel (unix ms).
+    pub seen_at_ms: i64,
+}
+
+impl From<&Viewer> for RemoteViewer {
+    fn from(v: &Viewer) -> Self {
+        Self {
+            session_id: v.id.clone(),
+            user_id: v.user_id,
+            channel_id: v.channel_id,
+            device: v.device.clone(),
+            controls: v.controls.clone(),
+            started_at: v.started_at,
+            seen_at_ms: now_ms() - v.last_seen.elapsed().as_millis() as i64,
+        }
+    }
+}
+
+/// A watching session ended from elsewhere (taken over, or stopped): whose
+/// it was, and what its player is told.
+#[derive(Debug, Clone)]
+struct Ended {
+    user_id: i64,
+    why: Option<String>,
 }
 
 /// The home a take-over happens in, as it is then: the taker's name, and
@@ -123,6 +198,10 @@ pub struct WatchAs {
     /// it (`None` when it isn't, or nothing is taken over): the viewers it
     /// takes a connection from who are in the home too are told who did.
     pub home: Option<InHome>,
+    /// The commands its player obeys from a remote (`player_command`).
+    pub controls: Controls,
+    /// The device, as the user's remotes show it.
+    pub device: Option<String>,
 }
 
 /// A connection of a source whose connections are all in use, as someone
@@ -142,7 +221,8 @@ pub struct BusyConnection {
     pub can_take_over: bool,
 }
 
-/// What a watching session ended by someone taking its connection over says.
+/// How many sessions ended from elsewhere are remembered, for their players
+/// to be told why (all are forgotten past it).
 const ENDED_KEPT: usize = 500;
 
 /// Someone watching, as administrators see it.
@@ -481,11 +561,12 @@ pub struct Tuners {
     viewers: Mutex<HashMap<String, Viewer>>,
     /// Decisions to start a tuner, one at a time (they count connections).
     starting: tokio::sync::Mutex<()>,
-    /// Why sessions ended that were taken over: their players are told.
-    ended: Mutex<HashMap<String, String>>,
-    /// The same, by the keyed address's key of those that had one (a TV's
-    /// own player asks by the key alone).
-    ended_keys: Mutex<Vec<(String, String)>>,
+    /// Sessions ended from elsewhere (taken over, or stopped): their
+    /// players are told why.
+    ended: Mutex<HashMap<String, Ended>>,
+    /// Why, by the keyed address's key of those that had one (a TV's own
+    /// player asks by the key alone).
+    ended_keys: Mutex<Vec<(String, Option<String>)>>,
     played: mpsc::UnboundedSender<Played>,
 }
 
@@ -545,9 +626,12 @@ impl Tuners {
         let mut changed = false;
         {
             let mut viewers = self.viewers.lock();
-            let before = viewers.len();
-            viewers.retain(|_, v| v.kind == ViewerKind::Stream || v.last_seen.elapsed() < VIEWER_GONE);
-            changed |= viewers.len() != before;
+            let gone: Vec<String> = viewers.values().filter(|v| !is_there(&viewers, v)).map(|v| v.id.clone()).collect();
+            if !gone.is_empty() {
+                let users: Vec<i64> = gone.iter().filter_map(|id| viewers.remove(id)).map(|v| v.user_id).collect();
+                changed = true;
+                self.events.sessions_changed(users);
+            }
         }
         let watched: HashMap<i64, usize> = self.viewers.lock().values().fold(HashMap::new(), |mut m, v| {
             *m.entry(v.channel_id).or_insert(0) += 1;
@@ -630,7 +714,16 @@ impl Tuners {
     }
 
     fn end_viewers_of(&self, channel_id: i64) {
-        self.viewers.lock().retain(|_, v| v.channel_id != channel_id);
+        let mut viewers = self.viewers.lock();
+        let mut users = Vec::new();
+        viewers.retain(|_, v| {
+            let watches = v.channel_id == channel_id;
+            if watches {
+                users.push(v.user_id);
+            }
+            !watches
+        });
+        self.events.sessions_changed(users);
     }
 
     /// Starts `user` watching `tune.channel`: through the tuner already
@@ -638,7 +731,7 @@ impl Tuners {
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
     pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
-        let WatchAs { client_id, kind, keyed, admin, take_over, home } = how;
+        let WatchAs { client_id, kind, keyed, admin, take_over, home, controls, device } = how;
         let channel_id = tune.channel.id;
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
@@ -681,18 +774,25 @@ impl Tuners {
                     media_key,
                     app_grant: user.app.as_ref().map(|app| app.grant_id),
                     admin,
+                    controls,
+                    device,
+                    commands: CommandWindow::default(),
+                    stopped: CancellationToken::new(),
                 },
             );
             tuner
         };
         tuner.state.lock().idle_since = None;
         self.events.send(ServerEvent::LiveTunersChanged);
+        // A new session for the user's remotes, and the one this device
+        // watched before gone from them: a change of channel.
+        self.events.send(ServerEvent::SessionsChanged { user_id: user.id });
         Ok(Watching { url, session_id, kind })
     }
 
     /// Why the session a keyed address's `key` opened ended, when it was
-    /// taken over.
-    pub fn ended_by_key(&self, key: &str) -> Option<String> {
+    /// taken over or stopped (`Some(None)`: stopped without a word).
+    pub fn ended_by_key(&self, key: &str) -> Option<Option<String>> {
         self.ended_keys.lock().iter().find(|(k, _)| crate::playback::same_key(k, key)).map(|(_, why)| why.clone())
     }
 
@@ -781,29 +881,19 @@ impl Tuners {
     fn take_over(&self, user: &AuthUser, home: Option<&InHome>, held: &Arc<Tuner>, channel_name: &str) {
         let told: Vec<(Viewer, String)> = {
             let mut viewers = self.viewers.lock();
-            let mut ended = self.ended.lock();
-            if ended.len() > ENDED_KEPT {
-                ended.clear();
-            }
             let told: Vec<(Viewer, String)> = viewers
                 .values()
                 .filter(|v| v.channel_id == held.channel_id)
                 .map(|v| (v.clone(), taken_over_why(v, user.id, home, channel_name)))
                 .collect();
-            let mut ended_keys = self.ended_keys.lock();
-            if ended_keys.len() > ENDED_KEPT {
-                ended_keys.clear();
-            }
             for (v, why) in &told {
-                ended.insert(v.id.clone(), why.clone());
-                if let Some(key) = &v.media_key {
-                    ended_keys.push((key.clone(), why.clone()));
-                }
+                self.remember_ended(v, Some(why.clone()));
             }
             viewers.retain(|_, v| v.channel_id != held.channel_id);
             told
         };
         tracing::info!(channel = held.channel_id, by = %user.username, "live channel's connection taken over");
+        let users: Vec<i64> = told.iter().map(|(v, _)| v.user_id).collect();
         // Told before the stream stops: a player whose stream breaks off
         // knows why instead of tuning again.
         for (v, message) in told {
@@ -816,6 +906,24 @@ impl Tuners {
         }
         self.remove_tuner(held);
         self.events.send(ServerEvent::LiveTunersChanged);
+        self.events.sessions_changed(users);
+    }
+
+    /// Remembers that `viewer` was ended from elsewhere, and `why`: its
+    /// player's next request is told (`410`), by its session or its key.
+    fn remember_ended(&self, viewer: &Viewer, why: Option<String>) {
+        let mut ended = self.ended.lock();
+        if ended.len() > ENDED_KEPT {
+            ended.clear();
+        }
+        ended.insert(viewer.id.clone(), Ended { user_id: viewer.user_id, why: why.clone() });
+        if let Some(key) = &viewer.media_key {
+            let mut ended_keys = self.ended_keys.lock();
+            if ended_keys.len() > ENDED_KEPT {
+                ended_keys.clear();
+            }
+            ended_keys.push((key.clone(), why));
+        }
     }
 
     fn all_in_use(&self, user: &AuthUser, admin: bool, tune: &Tune<'_>, on_source: &[Arc<Tuner>]) -> AppError {
@@ -854,10 +962,10 @@ impl Tuners {
     fn viewer(&self, session_id: &str, user: &AuthUser) -> Result<Viewer, AppError> {
         let mut viewers = self.viewers.lock();
         let Some(v) = viewers.get_mut(session_id).filter(|v| v.user_id == user.id) else {
-            let why = self.ended.lock().get(session_id).cloned();
-            return Err(AppError::SessionStopped(Some(
-                why.unwrap_or_else(|| "this channel isn't being watched any more".into()),
-            )));
+            return Err(match self.ended.lock().get(session_id) {
+                Some(ended) => AppError::SessionStopped(ended.why.clone()),
+                None => AppError::SessionStopped(Some("this channel isn't being watched any more".into())),
+            });
         };
         v.last_seen = Instant::now();
         Ok(v.clone())
@@ -875,14 +983,90 @@ impl Tuners {
         let removed = {
             let mut viewers = self.viewers.lock();
             match viewers.get(session_id) {
-                Some(v) if v.user_id == user.id || user.is_admin => viewers.remove(session_id).is_some(),
-                _ => false,
+                Some(v) if v.user_id == user.id || user.is_admin => viewers.remove(session_id),
+                _ => None,
             }
         };
-        if removed {
+        if let Some(viewer) = &removed {
             self.events.send(ServerEvent::LiveTunersChanged);
+            self.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
         }
-        removed
+        removed.is_some()
+    }
+
+    /// The viewers of `user_id` whose players are still there, for their
+    /// remotes: an app's stream reader is its watch session.
+    pub fn playing(&self, user_id: i64) -> Vec<RemoteViewer> {
+        let viewers = self.viewers.lock();
+        let theirs: Vec<&Viewer> = viewers.values().filter(|v| v.user_id == user_id).collect();
+        theirs
+            .iter()
+            .filter(|v| is_there(&viewers, v) && !theirs.iter().any(|session| v.reads_for(session)))
+            .map(|v| RemoteViewer::from(*v))
+            .collect()
+    }
+
+    /// Viewer `session_id`, whoever's it is, while its player is there.
+    pub fn present(&self, session_id: &str) -> Option<RemoteViewer> {
+        let viewers = self.viewers.lock();
+        viewers.get(session_id).filter(|v| is_there(&viewers, v)).map(RemoteViewer::from)
+    }
+
+    /// Counts a remote's command to viewer `session_id`: whether it may go
+    /// ([`CommandWindow::take`]), or `None` when the viewer is no longer
+    /// there (stopped, taken over or swept since the remote looked it up).
+    pub fn take_command(&self, session_id: &str) -> Option<bool> {
+        let mut viewers = self.viewers.lock();
+        if !viewers.get(session_id).is_some_and(|v| is_there(&viewers, v)) {
+            return None;
+        }
+        viewers.get_mut(session_id).map(|v| v.commands.take())
+    }
+
+    /// Ends viewer `session_id` from elsewhere (`DELETE /api/sessions/{id}`):
+    /// `user`'s own, or anyone's for an administrator. Its player hears
+    /// `session_stopped` and its next requests answer `410` with `message`.
+    /// `None` when no viewer of that id is known; one ended already is fine.
+    /// The stream an app reads for it ends with it.
+    pub fn stop(&self, session_id: &str, user: &AuthUser, message: Option<String>) -> Option<Result<(), AppError>> {
+        let viewer = {
+            let mut viewers = self.viewers.lock();
+            match viewers.get(session_id) {
+                Some(v) if v.user_id == user.id || user.is_admin => {
+                    let viewer = viewers.remove(session_id)?;
+                    let readers: Vec<String> =
+                        viewers.values().filter(|r| r.reads_for(&viewer)).map(|r| r.id.clone()).collect();
+                    for reader in readers.iter().filter_map(|id| viewers.remove(id)) {
+                        reader.stopped.cancel();
+                        self.remember_ended(&reader, message.clone());
+                    }
+                    Some(viewer)
+                }
+                Some(_) => return Some(Err(AppError::forbidden("not your session"))),
+                None => None,
+            }
+        };
+        let Some(viewer) = viewer else {
+            return self.ended.lock().get(session_id).map(|ended| {
+                if ended.user_id == user.id || user.is_admin {
+                    Ok(())
+                } else {
+                    Err(AppError::forbidden("not your session"))
+                }
+            });
+        };
+        viewer.stopped.cancel();
+        self.remember_ended(&viewer, message.clone());
+        tracing::info!(channel = viewer.channel_id, by = %user.username, "live session stopped");
+        self.events.send(ServerEvent::SessionStopped {
+            user_id: viewer.user_id,
+            session_id: viewer.id.clone(),
+            message,
+            by_admin: viewer.user_id != user.id,
+        });
+        self.events.send(ServerEvent::LiveTunersChanged);
+        self.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
+        Some(Ok(()))
     }
 
     /// The live playlist of an HLS viewer's channel, the transcoder's job
@@ -1053,10 +1237,12 @@ impl Tuners {
         let tuner = self.tuner_of(&viewer)?;
         let stream = tuner.subscribe().ok_or_else(|| AppError::Unavailable("the channel stopped".into()))?;
         let guard = Leaves { tuners: self.clone(), session_id: session_id.to_owned() };
-        Ok(stream.map(move |chunk| {
-            let _watching = &guard;
-            chunk
-        }))
+        Ok(stream
+            .map(move |chunk| {
+                let _watching = &guard;
+                chunk
+            })
+            .take_until(viewer.stopped.cancelled_owned()))
     }
 
     /// The connections in use, for administrators.
@@ -1108,8 +1294,10 @@ struct Leaves {
 
 impl Drop for Leaves {
     fn drop(&mut self) {
-        if self.tuners.viewers.lock().remove(&self.session_id).is_some() {
+        let gone = self.tuners.viewers.lock().remove(&self.session_id);
+        if let Some(viewer) = gone {
             self.tuners.events.send(ServerEvent::LiveTunersChanged);
+            self.tuners.events.send(ServerEvent::SessionsChanged { user_id: viewer.user_id });
         }
     }
 }
@@ -1444,6 +1632,10 @@ mod tests {
             media_key: None,
             app_grant: None,
             admin: false,
+            controls: Controls::new(),
+            device: None,
+            commands: CommandWindow::default(),
+            stopped: CancellationToken::new(),
         }
     }
 

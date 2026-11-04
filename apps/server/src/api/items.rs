@@ -304,7 +304,7 @@ pub async fn progress(
             });
         }
         if changed {
-            state.events.send(ServerEvent::SessionsChanged);
+            state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
         }
     }
     Ok(StatusCode::NO_CONTENT)

@@ -13,7 +13,7 @@ use axum::{Extension, Json, Router};
 use serde::Serialize;
 
 use super::ids::Kind;
-use super::{Body, Client, ClientOf, Jellyfin, JfError, JfResult, JfUser};
+use super::{Body, Client, ClientOf, Jellyfin, JfError, JfResult, JfUser, Q};
 use crate::auth::{AuthUser, ClientIp, SourceIp, UsedFrom, compatibility};
 use crate::state::AppState;
 
@@ -27,8 +27,8 @@ pub fn routes() -> Router<AppState> {
         .route("/users/{id}/images/primary", get(avatar).head(avatar))
         .route("/userimage", get(user_image).head(user_image))
         .route("/sessions/logout", post(logout))
-        .route("/sessions/capabilities", post(accepted))
-        .route("/sessions/capabilities/full", post(accepted))
+        .route("/sessions/capabilities", post(capabilities))
+        .route("/sessions/capabilities/full", post(capabilities))
         .route("/displaypreferences/{id}", get(display_preferences).post(accepted))
 }
 
@@ -403,6 +403,19 @@ async fn logout(State(state): State<AppState>, JfUser { user, .. }: JfUser) -> J
         state.auth.end_compatibility_token(user.id, token.token_id).await?;
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// `POST /Sessions/Capabilities` (its query) and `/Sessions/Capabilities/Full`
+/// (a JSON body): what the client does. Only `SupportsMediaControl` is
+/// kept, by user and device: the user's remotes then send that device
+/// commands through its socket ([`super::Remotes`]).
+async fn capabilities(State(state): State<AppState>, JfUser { user, client }: JfUser, q: Q, body: Body) -> StatusCode {
+    let supports = q.flag("SupportsMediaControl").or(body.flag("SupportsMediaControl")).unwrap_or(false);
+    // A device id is at most what a session's client id may be.
+    if let Some(device) = client.device_id.as_deref().filter(|d| !d.is_empty() && d.len() <= 128) {
+        state.jellyfin_remotes.declare(user.id, device, supports);
+    }
+    StatusCode::NO_CONTENT
 }
 
 /// What clients tell the server of themselves and their layouts, which

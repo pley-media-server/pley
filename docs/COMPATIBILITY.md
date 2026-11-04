@@ -324,7 +324,8 @@ them.
 - **Sessions.** A client that reports `/:/timeline` while playing becomes a
   Pley playback session. It is listed in `/status/sessions` (with `User`,
   `Player` and `Session`, plus `TranscodeSession` for HLS) and in Pley's
-  dashboard.
+  dashboard. The user's Pley apps list it among their sessions, and can
+  only stop it: Plex clients get no other remote commands from Pley.
 - **Notifications.** `/:/websockets/notifications` (token as `X-Plex-Token`
   query parameter or header) streams JSON `NotificationContainer`s:
   - `playing`: a session starts, pauses, resumes or stops, and every 10 s
@@ -673,11 +674,23 @@ tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.
 
+The user's Pley apps list a Jellyfin app's playback among their sessions,
+and control it as their own ([API.md](API.md#remote-control)) once the device
+has said it takes media control (`SupportsMediaControl` in the query of
+`POST /Sessions/Capabilities` or the body of `/Sessions/Capabilities/Full`)
+and while its socket is open. Pley remembers what it said, in memory, until
+it says otherwise or the server restarts. The commands reach the socket as
+`Playstate`: pause as `Pause`, play as `Unpause`, a seek as `Seek` with
+`SeekPositionTicks`, a skip as a `Seek` from where the player is by then,
+next and previous as `NextTrack` and `PreviousTrack`. A device that never
+said so, or has no socket open, can only be stopped.
+
 The socket (`/socket`) asks to be kept alive every 60 seconds, and tells of
 changes to the libraries the user may open (`LibraryChanged`), to the
-user's watch state (`UserDataChanged`), and playback stopped from Pley. It
-checks the token again every 30 seconds, from where the socket was opened,
-and closes once it ends.
+user's watch state (`UserDataChanged`), playback stopped from Pley and the
+commands of the user's remotes (`Playstate`). It checks the token again
+every 30 seconds, from where the socket was opened, and closes once it
+ends.
 
 ### Jellyfin's names for Pley's things
 

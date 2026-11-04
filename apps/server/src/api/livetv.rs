@@ -19,6 +19,7 @@ use crate::livetv::{
     AdminChannel, AdminGroup, AdminPage, Category, Channel, ChannelPage, ChannelPatch, Groups, Guide, LineupFilter,
     LiveSettings, Source, SourceInput, SourceTest,
 };
+use crate::playback::Controls;
 use crate::state::AppState;
 use crate::util::now;
 
@@ -206,6 +207,13 @@ pub struct WatchRequest {
     /// (one the `409` said may be).
     #[serde(default)]
     take_over: Option<i64>,
+    /// The commands this player obeys from a remote, as for a title's play
+    /// request ([`crate::playback::PlaybackRequest::controls`]).
+    #[serde(default, deserialize_with = "crate::playback::known_controls")]
+    controls: Controls,
+    /// What the player calls its device, as for a title's play request.
+    #[serde(default)]
+    device_name: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -215,32 +223,24 @@ pub struct WatchInfo {
     channel: Channel,
 }
 
+/// Starts `user` watching channel `id` as `how` asks; whether the account
+/// is an administrator's and who is in the home are read here.
 async fn start_watching(
     state: &AppState,
     user: &AuthUser,
     id: i64,
-    client_id: Option<String>,
-    kind: ViewerKind,
-    keyed: bool,
-    take_over: Option<i64>,
+    mut how: WatchAs,
 ) -> ApiResult<(Watching, Channel)> {
     state.live.check_access(user).await?;
     // An app acts as a viewer, but whose connections it may take over goes by the account.
-    let admin = user.is_admin || state.live.account_is_admin(user.id).await;
+    how.admin = user.is_admin || state.live.account_is_admin(user.id).await;
     // Read as the take-over is asked for: who is in the home then is told who took their connection.
-    let home = if take_over.is_some() { state.live.home_now(user.id).await } else { None };
+    how.home = if how.take_over.is_some() { state.live.home_now(user.id).await } else { None };
     let channel = state.live.channel(user, id).await?;
     let row = state.live.channel_row(id).await?;
     let (source_name, max_connections, user_agent) = state.live.source_of(&row).await?;
-    let watching = state
-        .live
-        .tuners
-        .watch(
-            user,
-            Tune { channel: &row, source_name, max_connections, user_agent },
-            WatchAs { client_id, kind, keyed, admin, take_over, home },
-        )
-        .await?;
+    let watching =
+        state.live.tuners.watch(user, Tune { channel: &row, source_name, max_connections, user_agent }, how).await?;
     state.live.watched(user.id, id).await;
     Ok((watching, channel))
 }
@@ -250,11 +250,21 @@ pub async fn watch(
     State(state): State<AppState>,
     user: AuthUser,
     Path(id): Path<i64>,
+    headers: HeaderMap,
     body: Option<Json<WatchRequest>>,
 ) -> ApiResult<Json<WatchInfo>> {
     let body = body.map(|Json(b)| b).unwrap_or_default();
-    let (watching, channel) =
-        start_watching(&state, &user, id, body.client_id, ViewerKind::Hls, body.keyed_urls, body.take_over).await?;
+    let how = WatchAs {
+        client_id: body.client_id,
+        kind: ViewerKind::Hls,
+        keyed: body.keyed_urls,
+        admin: false,
+        take_over: body.take_over,
+        home: None,
+        controls: body.controls,
+        device: super::remote::device_name(body.device_name.as_deref(), &headers),
+    };
+    let (watching, channel) = start_watching(&state, &user, id, how).await?;
     Ok(Json(WatchInfo { watching, channel }))
 }
 
@@ -273,7 +283,19 @@ pub async fn stream(
     // another site's link or picture (pley's own page asks with POST …/watch).
     let take_over =
         query.get("take_over").and_then(|t| t.parse().ok()).filter(|_| !crate::auth::signed_in_by_cookie(&parts));
-    let (watching, _) = start_watching(&state, &user, id, client_id, ViewerKind::Stream, false, take_over).await?;
+    // Players that read the stream themselves (VLC, Kodi) take no commands:
+    // their device is named from the User-Agent.
+    let how = WatchAs {
+        client_id,
+        kind: ViewerKind::Stream,
+        keyed: false,
+        admin: false,
+        take_over,
+        home: None,
+        controls: Controls::new(),
+        device: super::remote::device_name(None, &parts.headers),
+    };
+    let (watching, _) = start_watching(&state, &user, id, how).await?;
     let body = state.live.tuners.stream(&watching.session_id, &user)?;
     Response::builder()
         .header(header::CONTENT_TYPE, "video/mp2t")
@@ -302,8 +324,8 @@ pub async fn keyed_file(
 ) -> ApiResult<Response> {
     let gone = || AppError::SessionStopped(Some("this channel isn't being watched any more".into()));
     let Some((session, user_id, grant)) = state.live.tuners.by_media_key(&key) else {
-        // Taken over: why, as the session's own address says.
-        return Err(state.live.tuners.ended_by_key(&key).map_or_else(gone, |why| AppError::SessionStopped(Some(why))));
+        // Taken over or stopped: why, as the session's own address says.
+        return Err(state.live.tuners.ended_by_key(&key).map_or_else(gone, AppError::SessionStopped));
     };
     let mut user = AuthUser::load(&state.db, user_id).await?.ok_or_else(gone)?;
     if let Some(grant) = grant {
