@@ -63,13 +63,15 @@ export function stopSession(sessionId: string, keepalive = false): Promise<void>
 
 /**
  * Report the final position of a session and release it (its transcode slot)
- * in parallel. Resolves once both requests are done; never rejects.
+ * in parallel. Resolves once both requests are done; never rejects. `tracks`:
+ * what a video played, which its reports say.
  */
 export function endSession(
   itemId: Id,
   session: { session_id: string; duration_ms: number },
   positionMs: number,
   keepalive = false,
+  tracks: Pick<ProgressRequest, "audio_index" | "subtitle_index"> = {},
 ): Promise<void> {
   return Promise.all([
     reportProgress(
@@ -79,6 +81,7 @@ export function endSession(
         duration_ms: session.duration_ms || undefined,
         state: "stopped",
         session_id: session.session_id,
+        ...tracks,
       },
       keepalive,
     ),

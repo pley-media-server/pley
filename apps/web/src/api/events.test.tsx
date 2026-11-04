@@ -230,7 +230,7 @@ describe("useServerEvents", () => {
     // A command is for the player: nothing to fetch.
     client.setQueryData(keys.sessions, []);
     act(() =>
-      source().send({ type: "player_command", session_id: "s1", command: "pause", position_ms: null, offset_ms: null }),
+      source().send({ type: "player_command", session_id: "s1", command: "pause", position_ms: null, offset_ms: null, stream_index: null }),
     );
     expect(invalidated(client, keys.sessions)).toBe(false);
   });

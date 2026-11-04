@@ -564,6 +564,10 @@ export interface ProgressRequest {
   duration_ms?: number;
   state: PlaybackState;
   session_id?: string;
+  /** The audio track it plays, by stream index, for the user's remotes; left out: as known before. */
+  audio_index?: number;
+  /** The subtitles it shows, by stream index (-1: none). */
+  subtitle_index?: number;
 }
 
 export type ScanPhase = "queued" | "walking" | "probing" | "metadata" | "done";
@@ -776,9 +780,17 @@ export type ServerEvent =
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
   /**
    * The user's remote sent their player of `session_id` a command: `seek`
-   * has `position_ms`, `skip` has `offset_ms` (back when negative).
+   * has `position_ms`, `skip` has `offset_ms` (back when negative), `audio`
+   * and `subtitles` the track's `stream_index` (subtitles -1: off).
    */
-  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null }
+  | {
+      type: "player_command";
+      session_id: string;
+      command: Control;
+      position_ms: number | null;
+      offset_ms: number | null;
+      stream_index: number | null;
+    }
   /**
    * The user's remote sent their device of `receiver_id` something to play
    * (`from`: the remote's device name). For apps that take casts: the web

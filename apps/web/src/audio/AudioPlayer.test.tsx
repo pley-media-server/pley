@@ -83,6 +83,7 @@ const command = (
   command,
   position_ms: more.position_ms ?? null,
   offset_ms: more.offset_ms ?? null,
+  stream_index: null,
 });
 const send = (ev: ServerEvent) => act(() => FakeEventSource.last?.send(ev));
 const starts = (requests: FakeRequest[]) => requests.filter((r) => r.method === "POST" && r.path === "/api/playback");
@@ -127,6 +128,7 @@ describe("AudioPlayer obeying the remote", () => {
 
   it("says what it obeys as a track starts, and plays it in this tab", async () => {
     const { requests } = await playing();
+    // Neither audio nor subtitles: music has no tracks to pick.
     expect(starts(requests)[0]?.body).toMatchObject({
       item_id: 21,
       controls: ["play", "pause", "seek", "skip", "next", "previous"],

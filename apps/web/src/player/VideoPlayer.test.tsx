@@ -923,21 +923,23 @@ describe("VideoPlayer obeying the remote", () => {
 
   const command = (
     command: Extract<ServerEvent, { type: "player_command" }>["command"],
-    more: { session_id?: string; position_ms?: number; offset_ms?: number } = {},
+    more: { session_id?: string; position_ms?: number; offset_ms?: number; stream_index?: number } = {},
   ): ServerEvent => ({
     type: "player_command",
     session_id: more.session_id ?? "s1",
     command,
     position_ms: more.position_ms ?? null,
     offset_ms: more.offset_ms ?? null,
+    stream_index: more.stream_index ?? null,
   });
   const reports = (requests: FakeRequest[]) =>
     requests.filter((r) => r.method === "POST" && r.path === "/api/items/7/progress").map((r) => r.body);
 
-  /** The player, started at `startMs`, playing (as far as it can tell). */
-  async function playing(startMs = 0, item = detail()) {
-    const requests = serve([session("s1")], {
+  /** The player, started at `startMs`, playing (as far as it can tell) its first session, `s1`. */
+  async function playing(startMs = 0, item = detail(), first: Partial<PlaybackInfo> = {}) {
+    const requests = serve([session("s1", first), session("s2")], {
       [`POST /api/items/${item.id}/progress`]: () => undefined,
+      [`PUT /api/items/${item.id}/streams`]: () => undefined,
       "DELETE /api/playback/s1": () => undefined,
     });
     function Player() {
@@ -949,19 +951,43 @@ describe("VideoPlayer obeying the remote", () => {
         </>
       );
     }
-    const { container } = renderWithProviders(<Player />);
+    const { container, unmount } = renderWithProviders(<Player />);
     await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
     const video = container.querySelector("video")!;
     let paused = false;
     Object.defineProperty(video, "paused", { configurable: true, get: () => paused });
     // Starting pauses the element too.
     media.pause.mockClear();
-    return { requests, video, setPaused: (p: boolean) => (paused = p) };
+    return { requests, video, unmount, setPaused: (p: boolean) => (paused = p) };
   }
 
-  it("says what it obeys as it starts: Next only where something comes next", async () => {
+  /** A film with two audio tracks, the first its default, and a text subtitle track. */
+  function tracked(): ItemDetail {
+    const item = detail();
+    item.files[0]!.streams = [
+      makeStream({ index: 0, kind: "video" }),
+      makeStream({ index: 1, kind: "audio", codec: "eac3", language: "eng", default: true }),
+      makeStream({ index: 2, kind: "audio", codec: "aac", language: "fre", default: false }),
+      makeStream({ index: 3, kind: "subtitle", codec: "subrip", language: "eng", default: false, text_based: true }),
+    ];
+    return item;
+  }
+  const starts = (requests: FakeRequest[]) => requests.filter((r) => r.method === "POST" && r.path === "/api/playback");
+  const remembered = (requests: FakeRequest[]) =>
+    requests.filter((r) => r.method === "PUT" && r.path === "/api/items/7/streams").map((r) => r.body);
+
+  it("says what it obeys as it starts: Next only where something comes next, Audio where there is a choice", async () => {
     const { requests } = await playing();
-    expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({ controls: ["play", "pause", "seek", "skip"] });
+    expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
+      controls: ["play", "pause", "seek", "skip", "subtitles"],
+    });
+  });
+
+  it("takes a change of audio where the file has a choice of tracks", async () => {
+    const { requests } = await playing(0, tracked());
+    expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
+      controls: ["play", "pause", "seek", "skip", "audio", "subtitles"],
+    });
   });
 
   it("plays its session in this tab until it is stopped, so the remote leaves it out", async () => {
@@ -1033,7 +1059,7 @@ describe("VideoPlayer obeying the remote", () => {
     const next = makeItem({ id: 9, kind: "episode", title: "Second" });
     const { requests } = await playing(0, episode);
     expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
-      controls: ["play", "pause", "seek", "skip", "next"],
+      controls: ["play", "pause", "seek", "skip", "next", "subtitles"],
     });
     mockApi({
       "GET /api/items/8/next": () => ({ item: next }),
@@ -1052,5 +1078,48 @@ describe("VideoPlayer obeying the remote", () => {
     await waitFor(() => expect(requests.some((r) => r.path === "/api/items/8/next")).toBe(true));
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
     expect(screen.queryByText("This is the last episode")).not.toBeInTheDocument();
+  });
+
+  it("changes audio as its own menu does: a new session with the track picked, which it remembers", async () => {
+    const { requests } = await playing(0, tracked(), { audio_index: 1 });
+    act(() => FakeEventSource.last?.send(command("audio", { stream_index: 2 })));
+    await waitFor(() => expect(starts(requests)).toHaveLength(2));
+    expect(starts(requests)[1]?.body).toMatchObject({ audio_index: 2 });
+    await waitFor(() => expect(remembered(requests)).toEqual([{ file_id: 3, audio_index: 2, subtitle_index: null }]));
+  });
+
+  it("says at once that it plays the audio picked, where it does already", async () => {
+    const { requests } = await playing(0, tracked(), { audio_index: 1 });
+    const before = reports(requests).length;
+    act(() => FakeEventSource.last?.send(command("audio", { stream_index: 1 })));
+    await waitFor(() => expect(reports(requests)).toHaveLength(before + 1));
+    expect(reports(requests).at(-1)).toMatchObject({ state: "playing", session_id: "s1", audio_index: 1, subtitle_index: -1 });
+    expect(starts(requests)).toHaveLength(1);
+  });
+
+  it("turns subtitles on and off as its own menu does, and says so at once", async () => {
+    const { requests, setPaused } = await playing(0, tracked(), { audio_index: 1 });
+    setPaused(true);
+    act(() => FakeEventSource.last?.send(command("subtitles", { stream_index: 3 })));
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "paused", audio_index: 1, subtitle_index: 3 }));
+    await waitFor(() => expect(remembered(requests)).toEqual([{ file_id: 3, subtitle_index: 3 }]));
+
+    act(() => FakeEventSource.last?.send(command("subtitles", { stream_index: -1 })));
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ subtitle_index: -1 }));
+    // Off already: said again at once, so a remote a little behind settles.
+    const before = reports(requests).length;
+    act(() => FakeEventSource.last?.send(command("subtitles", { stream_index: -1 })));
+    await waitFor(() => expect(reports(requests)).toHaveLength(before + 1));
+    expect(reports(requests).at(-1)).toMatchObject({ subtitle_index: -1 });
+    // Text subtitles need no new session.
+    expect(starts(requests)).toHaveLength(1);
+  });
+
+  it("says in every report the audio and the subtitles it plays, its last one too", async () => {
+    const { requests, video, unmount } = await playing(0, tracked(), { audio_index: 2 });
+    fireEvent.pause(video);
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "paused", audio_index: 2, subtitle_index: -1 }));
+    unmount();
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "stopped", audio_index: 2, subtitle_index: -1 }));
   });
 });

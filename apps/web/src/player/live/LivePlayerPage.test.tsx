@@ -255,6 +255,7 @@ describe("LivePlayerPage and the remote", () => {
     command,
     position_ms: null,
     offset_ms: null,
+    stream_index: null,
   });
   const watched = (requests: FakeRequest[]) =>
     requests.filter((r) => r.method === "POST" && r.path.endsWith("/watch")).map((r) => r.path);

@@ -44,7 +44,8 @@ describes how they are made.
   track and the subtitles of what plays on one. Play on… beside Play
   (Shuffle on… beside Shuffle, Watch on… for a Live TV channel) plays a
   title, music, a playlist or a channel on one of them, and opens the
-  remote on it.
+  remote on it. Their video player takes a remote's change of audio and
+  subtitles as its own menu does, and tells remotes which it plays.
 
 ### Fixed
 
