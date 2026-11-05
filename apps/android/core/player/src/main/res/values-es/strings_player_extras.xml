@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_stopped_by_admin">El administrador del servidor detuvo la reproducción.</string>
+    <string name="session_stopped_elsewhere">La reproducción se detuvo desde otro dispositivo.</string>
+    <string name="live_stopped_by_admin">El administrador del servidor detuvo la TV en vivo.</string>
+    <string name="live_stopped_elsewhere">La TV en vivo se detuvo desde otro dispositivo.</string>
+    <string name="live_server_answered">El servidor respondió con el código %1$d.</string>
+
+    <string name="cast_playing_from">Reproduciendo desde %1$s</string>
+    <string name="cast_playing_from_another">Reproduciendo desde otro dispositivo</string>
+
+    <string name="sleep_timer">Temporizador de suspensión</string>
+    <string name="sleep_off">Desactivado</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_end_of_episode">Final de este episodio</string>
+    <string name="sleep_end_of_track">Final de esta pista</string>
+    <plurals name="sleep_minutes_left">
+        <item quantity="one">Queda %1$d min</item>
+        <item quantity="many">Quedan %1$d min</item>
+        <item quantity="other">Quedan %1$d min</item>
+    </plurals>
+    <string name="sleep_notice">Se pausará en %1$d s</string>
+    <string name="sleep_keep_watching">Seguir viendo</string>
+    <string name="sleep_keep_listening">Seguir escuchando</string>
+</resources>

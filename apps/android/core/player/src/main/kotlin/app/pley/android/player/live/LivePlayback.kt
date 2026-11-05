@@ -10,9 +10,10 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import app.pley.android.caps.CapsSnapshot
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.DeviceProfile
-import app.pley.android.common.asSentence
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
@@ -46,9 +47,13 @@ import kotlinx.coroutines.launch
  * watches each, and which may be taken over). A connection taken over
  * from this device is told by the server's `live_taken_over` event, and
  * by a `410` after it, saying why (who took it, for what, only within the
- * home).
+ * home). [text] is that sentence: the server's as it wrote it, or the
+ * app's own, put into words where it shows.
  */
-data class LiveTrouble(val kind: Kind, val message: String, val connections: List<BusyConnection> = emptyList()) {
+data class LiveTrouble(val kind: Kind, val text: UiText, val connections: List<BusyConnection> = emptyList()) {
+    /** [text] in the language shown, for a screen that doesn't put it into words itself. */
+    val message: String get() = AppLanguage.wordsOf(text)
+
     enum class Kind {
         /** `409`: every connection of the channel's source is in use. */
         Busy,
@@ -79,9 +84,9 @@ data class LiveTrouble(val kind: Kind, val message: String, val connections: Lis
     companion object {
         /** The trouble [error] is: a refusal of the server's, a network failure, or else. */
         fun of(error: Throwable): LiveTrouble = when (error) {
-            is ApiException -> LiveTrouble(kindOf(error.status), sentenceOf(error), error.connections)
-            is OfflineException -> LiveTrouble(Kind.Offline, sentenceOf(error))
-            else -> LiveTrouble(Kind.Other, sentenceOf(error))
+            is ApiException -> LiveTrouble(kindOf(error.status), errorSentence(error), error.connections)
+            is OfflineException -> LiveTrouble(Kind.Offline, errorSentence(error))
+            else -> LiveTrouble(Kind.Other, errorSentence(error))
         }
 
         /** The trouble of a stream that stopped: the server's answer to a playlist or segment, when it gave one. */
@@ -94,11 +99,11 @@ data class LiveTrouble(val kind: Kind, val message: String, val connections: Lis
                     val said = body?.message?.takeIf { it.isNotBlank() }
                     return LiveTrouble(
                         kindOf(cause.responseCode),
-                        said?.let(::sentence) ?: "The server answered ${cause.responseCode}.",
+                        said?.let(::sentence) ?: UiText.res(R.string.live_server_answered, cause.responseCode),
                         body?.connections.orEmpty(),
                     )
                 }
-                if (cause is HttpDataSource.HttpDataSourceException) return LiveTrouble(Kind.Offline, sentenceOf(OfflineException(cause)))
+                if (cause is HttpDataSource.HttpDataSourceException) return LiveTrouble(Kind.Offline, errorSentence(OfflineException(cause)))
                 cause = cause.cause
             }
             return LiveTrouble(Kind.Other, sentence(error.errorCodeName))
@@ -113,7 +118,8 @@ data class LiveTrouble(val kind: Kind, val message: String, val connections: Lis
             else -> Kind.Other
         }
 
-        private fun sentence(text: String): String = asSentence(text)
+        /** Words that aren't the app's (the server's, a code's name), as a sentence. */
+        private fun sentence(text: String): UiText = UiText.Sentence(UiText.raw(text))
     }
 }
 
@@ -191,8 +197,6 @@ class LivePlayback(
     private val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
     /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
     private val caps: () -> CapsSnapshot? = { null },
-    /** Who stopped watching, and their message, in the app's words ([stoppedText]); without them, the message alone. */
-    private val stoppedText: (message: String?, byAdmin: Boolean) -> String = { message, _ -> message?.trim().orEmpty() },
 ) {
     private val mutableState = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
@@ -288,7 +292,7 @@ class LivePlayback(
         session = null
         direct = false
         holding = false
-        fail(LiveTrouble(LiveTrouble.Kind.Stopped, asSentence(message)))
+        fail(LiveTrouble(LiveTrouble.Kind.Stopped, UiText.Sentence(UiText.raw(message))))
     }
 
     /** Starts watching [channelId] in place of what played. */
@@ -556,10 +560,10 @@ class LivePlayback(
         /** The remote's commands a player that goes through channels obeys. */
         private val ZAP_CONTROLS = listOf(Control.Next, Control.Previous)
 
-        /** Who stopped a session, in the app's strings, and their message when given. */
-        fun stoppedText(context: Context): (message: String?, byAdmin: Boolean) -> String = { message, byAdmin ->
-            val who = context.getString(if (byAdmin) R.string.live_stopped_by_admin else R.string.live_stopped_elsewhere)
-            if (message.isNullOrBlank()) who else context.getString(R.string.session_stopped_message, who, message.trim())
+        /** Who stopped a session, in the app's words, and their [message] (as they wrote it) when given. */
+        fun stoppedText(message: String?, byAdmin: Boolean): UiText {
+            val who = UiText.res(if (byAdmin) R.string.live_stopped_by_admin else R.string.live_stopped_elsewhere)
+            return if (message.isNullOrBlank()) who else UiText.res(R.string.session_stopped_message, who, message.trim())
         }
 
         /** A stall shows the spinner once it has lasted this long (the web's 0.7 s). */
@@ -623,7 +627,7 @@ class LivePlayback(
             caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps, stoppedText(app))
+            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps)
         }
     }
 }

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Diagnostics' lines about what the device plays (CapsDescription). -->
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <string name="caps_device">Device: %1$s by %2$s, Android API %3$d, %4$s, tier %5$s</string>
     <string name="caps_form_phone">phone</string>
     <string name="caps_form_tablet">tablet</string>
     <string name="caps_form_tv">TV</string>
-    <string name="caps_form_fire_tv">Fire TV</string>
+    <string name="caps_form_fire_tv" translatable="false">Fire TV</string>
     <string name="caps_policy_tv">Video decoders: hardware only</string>
     <string name="caps_policy_phone">Video decoders: hardware, or software up to 1080p at 30 fps, 8-bit SDR</string>
     <string name="caps_policy_any">Video decoders: hardware and software at any size (debug setting)</string>

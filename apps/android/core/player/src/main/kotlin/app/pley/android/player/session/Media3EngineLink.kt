@@ -21,15 +21,14 @@ import app.pley.android.model.DynamicRange
 import app.pley.android.model.PleyJson
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
-import java.util.Locale
 
 /**
  * [EngineLink] over a [PlayerEngine]: Media3's player events sorted for the
  * session, tracks chosen by their order in the file, and the frame counts
- * and decoders of an ExoPlayer for the details.
+ * and decoders of an ExoPlayer for the details, in the words of [texts].
  */
 @OptIn(UnstableApi::class)
-class Media3EngineLink(override val engine: PlayerEngine) : EngineLink {
+class Media3EngineLink(override val engine: PlayerEngine, private val texts: PlayerTexts) : EngineLink {
     private val player: Player get() = engine.player
     private var listener: EngineLink.Listener? = null
 
@@ -176,13 +175,12 @@ class Media3EngineLink(override val engine: PlayerEngine) : EngineLink {
         val exo = player as? ExoPlayer ?: return emptyList()
         val lines = mutableListOf<String>()
         exo.videoFormat?.let { f ->
-            val rate = if (f.frameRate > 0) String.format(Locale.ROOT, " %.3f fps", f.frameRate) else ""
-            lines += "Video: ${f.sampleMimeType ?: f.codecs ?: "?"} ${f.width}×${f.height}$rate"
+            lines += texts.engineVideo(f.sampleMimeType ?: f.codecs ?: "?", f.width, f.height, f.frameRate.takeIf { it > 0 })
         }
-        videoDecoder?.let { lines += "Video decoder: $it" }
-        exo.audioFormat?.let { f -> lines += "Audio: ${f.sampleMimeType ?: f.codecs ?: "?"} ${f.channelCount} ch" }
-        audioDecoder?.let { lines += "Audio decoder: $it" }
-        frameCounts()?.let { lines += "Dropped frames: ${it.dropped} of ${it.rendered + it.dropped}" }
+        videoDecoder?.let { lines += texts.engineVideoDecoder(it) }
+        exo.audioFormat?.let { f -> lines += texts.engineAudio(f.sampleMimeType ?: f.codecs ?: "?", f.channelCount) }
+        audioDecoder?.let { lines += texts.engineAudioDecoder(it) }
+        frameCounts()?.let { lines += texts.engineDroppedFrames(it.dropped, it.rendered + it.dropped) }
         return lines
     }
 

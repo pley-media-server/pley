@@ -3,7 +3,7 @@ package app.pley.android.player.session
 import android.graphics.Bitmap
 import androidx.media3.common.text.Cue
 import app.pley.android.caps.CapsSnapshot
-import app.pley.android.common.describe
+import app.pley.android.common.errorText
 import app.pley.android.data.LocalFile
 import app.pley.android.model.AddSubtitle
 import app.pley.android.model.Control
@@ -1772,7 +1772,7 @@ class SessionPlaybackController(
     private fun searchFailure(e: Exception): String = when {
         e is ApiException && (e.status == 404 || e.status == 405) -> texts.searchUnsupported
         e is ApiException && e.status == 503 -> texts.searchNotSetUp
-        else -> texts.searchFailed(describe(e))
+        else -> texts.searchFailed(errorText(e))
     }
 
     override fun setSleep(choice: SleepChoice) {
@@ -2194,9 +2194,9 @@ class SessionPlaybackController(
         // A download that didn't play here as it is went to the server, which is out of reach.
         val leftDownload = recovery.fallbackMode != null && downloaded
         if (error is OfflineException && !leftDownload) {
-            return fail(if (error.blocked) describe(error) else texts.unreachable(describe(error)), canRetry = true, offline = true)
+            return fail(if (error.blocked) texts.words(errorText(error)) else texts.unreachable(errorText(error)), canRetry = true, offline = true)
         }
-        val message = if (leftDownload && error is OfflineException) texts.downloadNeedsServer else describe(error)
+        val message = if (leftDownload && error is OfflineException) texts.downloadNeedsServer else texts.words(errorText(error))
         val canRetry = !(error is ApiException && (error.status == 403 || error.status == 404 || error.signedOut))
         fail(message, canRetry)
     }

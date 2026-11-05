@@ -4,8 +4,11 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.media3.common.text.Cue
 import app.pley.android.caps.CapsGraph
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.Tier
+import app.pley.android.common.UiText
+import app.pley.android.common.UserFacing
 import app.pley.android.data.DataGraph
 import app.pley.android.data.LocalMedia
 import app.pley.android.data.drive.Drives
@@ -18,6 +21,7 @@ import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
+import app.pley.android.player.R
 import app.pley.android.player.engine.PlayTrace
 import app.pley.android.player.subtitles.OkHttpPictureSource
 import app.pley.android.player.subtitles.OkHttpSubtitleFetcher
@@ -108,7 +112,7 @@ class SessionPlaybackServices(
                     capabilities = caps.capabilities,
                     policy = caps.policy,
                     details = ItemDetails { video.detail(it) },
-                    engines = { Media3EngineLink(engines.create(app, profile, music = false)) },
+                    engines = { Media3EngineLink(engines.create(app, profile, music = false), texts) },
                     texts = texts,
                     clientId = clientId,
                     reporter = reporter,
@@ -120,14 +124,14 @@ class SessionPlaybackServices(
                 )
             }
             return SessionPlaybackServices(environment = {
-                val session = data.session.session.value ?: error("Sign in to play")
+                val session = data.session.session.value ?: throw NotSignedIn()
                 val api = network.api(session.issuer, session.me?.id)
                 PlaybackEnvironment(
                     api = api,
                     capabilities = caps.capabilities,
                     policy = caps.policy,
                     details = ItemDetails.snapshotFirst(data.items, api),
-                    engines = { Media3EngineLink(engines.create(app, profile, music = false)) },
+                    engines = { Media3EngineLink(engines.create(app, profile, music = false), texts) },
                     texts = texts,
                     clientId = clientId,
                     reporter = reporter,
@@ -164,6 +168,12 @@ class SessionPlaybackServices(
         /** The address a video on a drive's API answers for: none it reaches. */
         private const val NO_SERVER = "http://localhost"
     }
+}
+
+/** Play was pressed with no server signed in to. Its message is the words of [text] in the language shown. */
+private class NotSignedIn : IllegalStateException(), UserFacing {
+    override val text: UiText = UiText.res(R.string.session_sign_in_to_play)
+    override val message: String get() = AppLanguage.wordsOf(text)
 }
 
 /** A playback that couldn't start at all (nobody signed in): it says why, and nothing else. */

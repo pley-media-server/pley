@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_stopped_by_admin">La lecture a été arrêtée par l’administrateur du serveur.</string>
+    <string name="session_stopped_elsewhere">La lecture a été arrêtée depuis un autre appareil.</string>
+    <string name="live_stopped_by_admin">La TV en direct a été arrêtée par l’administrateur du serveur.</string>
+    <string name="live_stopped_elsewhere">La TV en direct a été arrêtée depuis un autre appareil.</string>
+    <string name="live_server_answered">Le serveur a répondu avec le code %1$d.</string>
+
+    <string name="cast_playing_from">Lecture depuis %1$s</string>
+    <string name="cast_playing_from_another">Lecture depuis un autre appareil</string>
+
+    <string name="sleep_timer">Minuteur de veille</string>
+    <string name="sleep_off">Désactivé</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_end_of_episode">Fin de cet épisode</string>
+    <string name="sleep_end_of_track">Fin de ce titre</string>
+    <plurals name="sleep_minutes_left">
+        <item quantity="one">%1$d min restante</item>
+        <item quantity="many">%1$d min restantes</item>
+        <item quantity="other">%1$d min restantes</item>
+    </plurals>
+    <string name="sleep_notice">Mise en pause dans %1$d s</string>
+    <string name="sleep_keep_watching">Continuer à regarder</string>
+    <string name="sleep_keep_listening">Continuer à écouter</string>
+</resources>

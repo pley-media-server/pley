@@ -1,17 +1,20 @@
 package app.pley.android.caps
 
 import android.content.Context
+import android.content.res.Configuration
+import android.os.LocaleList
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.testing.caps.TestDevices
 import app.pley.android.testing.caps.TestQuirks
 import app.pley.android.testing.caps.capsOf
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** What needs the app's resources: Diagnostics' lines and the shipped quirk table. */
+/** What needs the app's resources: Diagnostics' lines, in English as they always were and in French and Spanish, and the shipped quirk table. */
 @RunWith(RobolectricTestRunner::class)
 class CapsDescriptionTest {
     private val res = ApplicationProvider.getApplicationContext<Context>().resources
@@ -70,4 +73,23 @@ class CapsDescriptionTest {
         assertTrue(lite.joinToString("\n"), "Player: async queueing on, tunneling off, Dolby Vision+HDR10+ as they are" in lite)
         assertTrue("Match content frame rate: not said (Android 11 or older)" in lite)
     }
+
+    @Test
+    fun diagnosticsInFrenchAndSpanish() {
+        val french = CapsDescription.lines(capsOf(RealDevices.googleTvStreamer), inLanguage("fr").resources)
+        listOf(
+            "Appareil : Google TV Streamer de Google, API Android 34, TV, niveau T2",
+            "Décodeurs vidéo : matériels uniquement",
+            "hevc : matériel, Main, Main 10, Main Still Picture, jusqu’à 3840×2160 à 60 i/s, 10 bits, niveau 153",
+            "Décodeur c2.android.av1.decoder pour av1 (logiciel)",
+            "Passthrough : aucun ; canaux : 2 ; périphérique de sortie : hdmi",
+            "Lecteur : mode asynchrone désactivé, tunneling désactivé, Dolby Vision+HDR10+ sans leur HDR10+",
+        ).forEach { assertTrue("missing: $it\n${french.joinToString("\n")}", it in french) }
+        val spanish = CapsDescription.lines(capsOf(TestDevices.fireTvStickLite), inLanguage("es-MX").resources)
+        assertEquals("Dispositivo: AFTSS de Amazon, API de Android 28, Fire TV, nivel T0", spanish.first())
+        assertTrue(spanish.joinToString("\n"), "Ajustar la frecuencia de fotogramas al contenido: no indicado (Android 11 o anterior)" in spanish)
+    }
+
+    private fun inLanguage(tag: String): Context = ApplicationProvider.getApplicationContext<Context>()
+        .createConfigurationContext(Configuration().apply { setLocales(LocaleList(Locale.forLanguageTag(tag))) })
 }
