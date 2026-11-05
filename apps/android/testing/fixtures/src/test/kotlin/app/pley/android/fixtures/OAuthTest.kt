@@ -258,7 +258,7 @@ class OAuthTest {
             "ticket" to ticket,
         )
         val sam = Client(server, server.accessToken(FixtureIds.SAM))
-        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item"
+        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item,switch"
         tv.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${tv.token}").build()).execute().use { response ->
             val source = response.body.source()
             assertEquals(": connected", source.readUtf8Line())
@@ -296,7 +296,7 @@ class OAuthTest {
     private fun waitForDevice(client: Client): RemoteDevice {
         val deadline = System.currentTimeMillis() + 5_000
         while (true) {
-            client.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).singleOrNull()?.let { return it }
+            client.read("/api/remote/devices?household=1", ListSerializer(RemoteDevice.serializer())).singleOrNull()?.let { return it }
             if (System.currentTimeMillis() > deadline) throw AssertionError("not by 5 s")
             Thread.sleep(20)
         }

@@ -284,6 +284,14 @@ enum class CastKind(override val wire: String) : WireEnum {
 
     /** Live TV channels. */
     Live("live"),
+
+    /**
+     * Not a kind of thing to play: the device switches to the profile of a
+     * remote on another profile of the household, with the cast's ticket,
+     * then plays what it sent. Only such devices of other profiles are
+     * listed to a remote, or cast to.
+     */
+    Switch("switch"),
     Unknown("unknown"),
     ;
 

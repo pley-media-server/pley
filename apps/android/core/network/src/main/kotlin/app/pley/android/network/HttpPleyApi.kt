@@ -362,7 +362,8 @@ class HttpPleyApi(
 
     override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
 
-    override suspend fun remoteDevices(): List<RemoteDevice> = get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices")
+    override suspend fun remoteDevices(): List<RemoteDevice> =
+        get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices", query = listOf("household" to "1"))
 
     override suspend fun cast(receiverId: String, request: CastRequest) =
         call("POST", json(CastRequest.serializer(), request), "api", "remote", "devices", receiverId, "cast")

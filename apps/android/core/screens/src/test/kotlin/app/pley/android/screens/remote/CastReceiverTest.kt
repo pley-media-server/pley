@@ -15,11 +15,11 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
-import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.auth.FakeAuthGraph
 import app.pley.android.testing.data.TestData
 import kotlin.random.Random
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -56,10 +56,12 @@ class CastReceiverTest {
     /**
      * Signed in, in front, the stream connected naming this device: the
      * receiver listening, and this device's id. The token endpoint answers
-     * through [auth].
+     * through [auth]; what plays ends through [endPlaying].
      */
     private suspend fun TestScope.receiving(
         auth: FakeAuthGraph = FakeAuthGraph(TestData.offlineHttp()),
+        endPlaying: suspend () -> Unit = {},
+        asking: () -> Boolean = { false },
         prepare: TestData.() -> Unit = {},
     ): Pair<TestData, String> {
         val data = TestData(this, folder.newFolder(), auth = auth)
@@ -68,7 +70,17 @@ class CastReceiverTest {
         data.useServer()
         data.graph.session
         testScheduler.runCurrent()
-        ServerCastReceiver(data.graph, launcher, { music }, backgroundScope, Random(7), closePlayers = { closed++ }, io = data.dispatcher)
+        ServerCastReceiver(
+            data.graph,
+            launcher,
+            { music },
+            backgroundScope,
+            Random(7),
+            closePlayers = { closed++ },
+            io = data.dispatcher,
+            endPlaying = endPlaying,
+            asking = asking,
+        )
             .also { receiver = it }
             .start()
         testScheduler.runCurrent()
@@ -194,10 +206,10 @@ class CastReceiverTest {
 
     /**
      * The token endpoint of a server whose switch tickets are [good]: the
-     * forms it was sent, a new pair for a good ticket, `ticket_spent` for
-     * any other.
+     * forms it was sent (also told to [heard]), a new pair for a good
+     * ticket, `ticket_spent` for any other.
      */
-    private class TicketServer(private val good: Set<String>) {
+    private class TicketServer(private val good: Set<String>, private val heard: (Map<String, String>) -> Unit = {}) {
         val forms: MutableList<Map<String, String>> = java.util.Collections.synchronizedList(mutableListOf())
 
         val http: OkHttpClient = OkHttpClient.Builder().addInterceptor { chain ->
@@ -207,6 +219,7 @@ class CastReceiverTest {
                 java.net.URLDecoder.decode(it.substringBefore('='), "UTF-8") to java.net.URLDecoder.decode(it.substringAfter('='), "UTF-8")
             }
             forms += form
+            heard(form)
             val (code, body) = if (form["ticket"] in good) {
                 200 to """{"access_token":"access-2","token_type":"Bearer","expires_in":3600,"refresh_token":"refresh-2","scope":"library play playlists profiles"}"""
             } else {
@@ -236,11 +249,7 @@ class CastReceiverTest {
     @Test
     fun `a cast from another profile switches to it with its ticket, then plays once as it`() = runTest {
         val tickets = TicketServer(good = setOf("t1"))
-        ProfileGate.passed = false
-        val switched = mutableListOf<Unit>()
         val (data, id) = receiving(FakeAuthGraph(tickets.http))
-        backgroundScope.launch { receiver.switched.collect { switched += it } }
-        testScheduler.runCurrent()
         assertEquals(2L, data.graph.session.session.value?.me?.id)
         // Who the app is once switched, as the server says.
         data.api.answer("me", sam)
@@ -252,9 +261,6 @@ class CastReceiverTest {
         assertEquals("t1" to null, form["ticket"] to form["pin"])
         assertEquals(3L, data.graph.session.session.value?.me?.id)
         assertEquals(listOf(PlayRequest(itemId = 101, startMs = 5_000, castFrom = CastFrom("Kitchen phone"))), launcher.played)
-        assertEquals(1, switched.size)
-        // A TV at "Who's watching?" has its answer.
-        assertTrue(ProfileGate.passed)
 
         // Another from Sam's remote, now the profile in use, once the stream is back as Sam's: no switch.
         data.events.send(LiveEvent.Reconnected)
@@ -265,15 +271,62 @@ class CastReceiverTest {
     }
 
     @Test
+    fun `no cast plays while Who's watching shows, nor switches the profile there`() = runTest {
+        var asking = true
+        val tickets = TicketServer(good = setOf("t1"))
+        val (data, id) = receiving(FakeAuthGraph(tickets.http), asking = { asking })
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone"))
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "t1"))
+        assertTrue(launcher.played.isEmpty())
+        assertTrue(tickets.forms.isEmpty())
+        assertEquals(2L, data.graph.session.session.value?.me?.id)
+
+        // A profile chosen, casts play again.
+        asking = false
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone"))
+        assertEquals(listOf(CastFrom("Kitchen phone")), launcher.played.map { it.castFrom })
+    }
+
+    @Test
+    fun `what plays ends, its stop report sent, before the switch to the caster's profile`() = runTest {
+        val order = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val tickets = TicketServer(good = setOf("t1")) { order += "switch to ${it["profile"]}" }
+        // The player's last report takes a moment to go out.
+        val sent = CompletableDeferred<Unit>()
+        val (data, id) = receiving(
+            FakeAuthGraph(tickets.http),
+            endPlaying = {
+                order += "stopping"
+                sent.await()
+                order += "stopped"
+            },
+        )
+        data.api.answer("me", sam)
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "t1"))
+        // The switch waits for it, as the profile it played for.
+        assertEquals(listOf("stopping"), order.toList())
+        assertTrue(tickets.forms.isEmpty())
+        assertEquals(2L, data.graph.session.session.value?.me?.id)
+
+        // One for the profile it leaves, heard meanwhile, is dropped: the first plays, as Sam.
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Hall phone"))
+        sent.complete(Unit)
+        settle { launcher.played.isNotEmpty() }
+        assertEquals(listOf("stopping", "stopped", "switch to 3"), order.toList())
+        assertEquals(3L, data.graph.session.session.value?.me?.id)
+        assertEquals(listOf(CastFrom("Kitchen phone")), launcher.played.map { it.castFrom })
+    }
+
+    @Test
     fun `a ticket refused plays nothing and says so, and a cast from another profile without one is ignored`() = runTest {
         val tickets = TicketServer(good = emptySet())
-        val refused = mutableListOf<CastRefused>()
+        val refused = mutableListOf<Unit>()
         val (data, id) = receiving(FakeAuthGraph(tickets.http))
         backgroundScope.launch { receiver.refused.collect { refused += it } }
         testScheduler.runCurrent()
         cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "spent"))
         settle { refused.isNotEmpty() }
-        assertEquals(listOf(CastRefused(CastFrom("Kitchen phone"))), refused)
+        assertEquals(1, refused.size)
         assertTrue(launcher.played.isEmpty())
         // Still the profile it was on, signed in as before.
         assertEquals(2L, data.graph.session.session.value?.me?.id)

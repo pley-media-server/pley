@@ -86,7 +86,9 @@ import kotlinx.coroutines.launch
  * ([receiverId], the app's install id), so the profile's remotes cast to
  * it: titles always, Live TV's channels while Live TV is open to the
  * profile ([liveTv], `null` while not known yet: the stream waits for it
- * [LIVE_WAIT_MS] at most, so it doesn't open twice). In the background,
+ * [LIVE_WAIT_MS] at most, so it doesn't open twice); and it says it
+ * switches to the profile of a remote on another profile of the household
+ * that casts to it (`switch`). In the background,
  * where nothing cast would play, it names none: going there and back
  * opens it again.
  */
@@ -139,7 +141,7 @@ internal class ServerLiveUpdates(
             val signedIn = session.state.map { (it as? SessionState.SignedIn)?.session?.issuer }.distinctUntilChanged()
             val anyPlaying = players.map { it.isNotEmpty() }.distinctUntilChanged()
             combine(foreground.distinctUntilChanged(), anyPlaying, signedIn, liveTvOpen()) { inFront, playing, issuer, live ->
-                val casts = listOf(CastKind.Item) + if (live) listOf(CastKind.Live) else emptyList()
+                val casts = listOf(CastKind.Item) + (if (live) listOf(CastKind.Live) else emptyList()) + CastKind.Switch
                 issuer?.takeIf { inFront || playing }?.let { Stream(it, id?.takeIf { inFront }?.let { r -> EventReceiver(r, casts) }) }
             }
                 .distinctUntilChanged()

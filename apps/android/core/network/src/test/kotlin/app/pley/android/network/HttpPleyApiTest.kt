@@ -191,7 +191,7 @@ class HttpPleyApiTest {
                 body = """{"command":"pause"}""",
             ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Pause)) },
             Golden("stopSession", MockPley.noContent(), "DELETE /api/sessions/6f1c2a9e") { stopSession("6f1c2a9e") },
-            Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices") { remoteDevices() },
+            Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices?household=1") { remoteDevices() },
             Golden(
                 "cast",
                 MockPley.noContent(),

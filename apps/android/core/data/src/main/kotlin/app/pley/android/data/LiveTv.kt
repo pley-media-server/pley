@@ -11,9 +11,13 @@ import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveSummary
 import app.pley.android.model.LiveWatching
 import app.pley.android.model.WatchRequest
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 /**
@@ -74,6 +78,9 @@ interface LiveTvRepository {
 
     /** Stops watching [sessionId], in the background: it outlives the screen that asks. */
     fun leave(sessionId: String)
+
+    /** Waits until the leaves asked for so far went out (or failed). */
+    suspend fun left() {}
 
     companion object {
         /** Channels asked for at once, as the web asks. */
@@ -200,8 +207,11 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
     override suspend fun streamUrl(channelId: Long, clientId: String): String =
         cache.api(cache.profile()).liveStreamUrl(channelId, clientId)
 
+    /** The leaves on their way. */
+    private val leaving: MutableSet<Job> = ConcurrentHashMap.newKeySet()
+
     override fun leave(sessionId: String) {
-        cache.app.launch {
+        val job = cache.app.launch(start = CoroutineStart.LAZY) {
             try {
                 cache.api(cache.profile()).leaveChannel(sessionId)
             } catch (e: CancellationException) {
@@ -210,5 +220,10 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
                 // Out of reach: the server lets the session go by itself after 45 s.
             }
         }
+        leaving += job
+        job.invokeOnCompletion { leaving -= job }
+        job.start()
     }
+
+    override suspend fun left() = leaving.toList().joinAll()
 }

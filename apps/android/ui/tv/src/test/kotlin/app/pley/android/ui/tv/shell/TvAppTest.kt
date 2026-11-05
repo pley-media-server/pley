@@ -27,7 +27,6 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
 import app.pley.android.model.TitleKind
-import app.pley.android.player.CastFrom
 import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -81,9 +80,7 @@ class TvAppTest {
 
         override fun dismiss(notice: RequestNotice) = queue.update { it.filterNot { n -> n.notice.key == notice.key } }
 
-        override val castSwitched = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
-
-        override val castRefused = MutableSharedFlow<CastFrom>(extraBufferCapacity = 4)
+        override val castRefused = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     }
 
     private lateinit var source: FakeSource
@@ -170,24 +167,18 @@ class TvAppTest {
         onboarding.signIn("http://s", Me(1, "anna", "Anna", hasPin = true))
         app(StartFacts("http://s", true, profiles = 2, alwaysStartAs = 1, hasPin = true))
         waitFor("Enter Anna's PIN")
+        // No cast plays over the pad, nor over the profiles.
+        assertTrue(ProfileGate.showing)
         back()
         compose.onNodeWithText("Who's watching?").assertExists()
-    }
-
-    @Test
-    fun aCastThatSwitchedTheProfileLeavesWhoIsWatchingForHome() {
-        app(StartFacts("http://s", true, profiles = 2))
-        compose.onNodeWithText("Who's watching?").assertExists()
-        source.castSwitched.tryEmit(Unit)
-        waitFor("Resume")
-        compose.onNodeWithText("Who's watching?").assertDoesNotExist()
+        assertTrue(ProfileGate.showing)
     }
 
     @Test
     fun aCastThatCouldNotSwitchTheProfileSaysSo() {
         app()
-        source.castRefused.tryEmit(CastFrom("Kitchen phone"))
-        waitFor("Couldn't switch profiles to play from Kitchen phone")
+        source.castRefused.tryEmit(Unit)
+        waitFor("Couldn't switch to the remote's profile")
     }
 
     @Test

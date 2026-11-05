@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -52,6 +53,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.screens.onboarding.ProfileTile
 import app.pley.android.screens.onboarding.ProfilesStep
 import app.pley.android.screens.onboarding.ProfilesUiState
@@ -85,6 +87,11 @@ internal fun PhoneProfilesScreen() {
     val signIn = viewModel(key = "profiles-sign-in") { SignInViewModel(given ?: onboardingSource(), createSavedStateHandle()) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     LaunchedEffect(signIn) { signIn.navigation.collect { navigator.go(it) } }
+    // No cast plays over it: whoever holds the phone is choosing.
+    DisposableEffect(Unit) {
+        ProfileGate.shows()
+        onDispose { ProfileGate.hidden() }
+    }
     val state by vm.state.collectAsStateWithLifecycle()
     PhoneProfilesContent(
         state = state,

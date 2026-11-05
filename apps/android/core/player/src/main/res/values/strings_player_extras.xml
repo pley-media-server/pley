@@ -13,8 +13,7 @@
     <string name="cast_playing_from">Playing from %1$s</string>
     <string name="cast_playing_from_another">Playing from another device</string>
     <!-- Sent from a remote on another profile of the household, which this device couldn't switch to: nothing plays. -->
-    <string name="cast_switch_failed">Couldn\'t switch profiles to play from %1$s</string>
-    <string name="cast_switch_failed_another">Couldn\'t switch profiles to play from another device</string>
+    <string name="cast_switch_failed">Couldn\'t switch to the remote\'s profile</string>
 
     <!-- What the profile's remote, on another device, just did here, said for a moment in place of the controls. -->
     <string name="remote_paused">Paused</string>

@@ -237,7 +237,7 @@ class RemoteUiTest {
         // Ready to play, with the profile: the button counts it with the others.
         compose.onNodeWithContentDescription("Remote, 1 device playing").assertExists()
         open()
-        compose.onNodeWithText("Ready to play · on Sam's profile").assertExists()
+        compose.onNodeWithText("On Sam's profile").assertExists()
         compose.onNodeWithTag(REMOTE_DEVICE + "app-31").assertHasNoClickAction()
         compose.onNodeWithText("Ready to play").assertExists()
     }

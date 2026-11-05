@@ -36,9 +36,10 @@ import okio.BufferedSink
  * to while it is open, as the server's (docs/API.md, "Casting"): several
  * streams with one id count once, it goes with the last, a profile has at
  * most [MAX_RECEIVERS], and one appearing or going sends `sessions_changed`.
- * A home member's remotes list the household's other profiles' receivers
- * too, and a cast to one carries a switch ticket ([issueTicket]) the device
- * switches to the caster's profile with ([redeem]).
+ * A home member's remotes that ask (`household=1`) list the household's
+ * other profiles' receivers that switch profile (`switch`) too, and a cast
+ * to one carries a switch ticket ([issueTicket]) the device switches to the
+ * caster's profile with ([redeem]).
  */
 internal class EventHub(private val state: State) {
     private val streams = CopyOnWriteArraySet<LinkedBlockingQueue<String>>()
@@ -103,16 +104,17 @@ internal class EventHub(private val state: State) {
     }
 
     /**
-     * GET /api/remote/devices for [profileId]: its own receivers, then the
-     * household's other profiles', each with the profile it is on (its name
-     * as "Who's watching?" says it). A device on two profiles at once (while
-     * it switches) is listed once, as the caller's own; by name, those
-     * without one last, as the server sorts them.
+     * GET /api/remote/devices?household=1 for [profileId]: its own
+     * receivers, then the household's other profiles' that switch to the
+     * caster's profile (`switch` in their `casts`), each with the profile it
+     * is on (its name as "Who's watching?" says it). A device on two
+     * profiles at once (while it switches) is listed once, as the caller's
+     * own; by name, those without one last, as the server sorts them.
      */
     fun householdDevices(profileId: Long): List<RemoteDevice> {
         val others = state.household.profiles.values.filter { it.id != profileId }
         val all = devices(profileId) + others.flatMap { other ->
-            devices(other.id).map { it.copy(profile = DeviceProfileName(other.id, other.name)) }
+            devices(other.id).filter { CastKind.Switch in it.casts }.map { it.copy(profile = DeviceProfileName(other.id, other.name)) }
         }
         val seen = HashSet<String>()
         return all.filter { seen.add(it.deviceId) }
