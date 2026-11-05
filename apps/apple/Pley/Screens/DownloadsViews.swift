@@ -276,8 +276,7 @@ struct DownloadButton: View {
     }
 }
 
-/// "Pley is offline" (and "Another device answers at its address." when
-/// that is why), above the signed-in app while the server can't be
+/// "Pley is offline", above the signed-in app while the server can't be
 /// reached, with the way to the downloads unless they are showing. The app
 /// tries the server again by itself, and the banner goes when it answers.
 struct OfflineBanner: View {
@@ -293,7 +292,7 @@ struct OfflineBanner: View {
         if app.offline {
             HStack(spacing: 10) {
                 Image(systemName: "wifi.slash").accessibilityHidden(true)
-                Text(app.offlineMessage)
+                Text(DownloadWords.offline)
                     .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -309,7 +308,7 @@ struct OfflineBanner: View {
             .background(.regularMaterial)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("offline.banner")
-            .task(id: app.offlineMessage) { announce(app.offlineMessage) }
+            .task { announce(DownloadWords.offline) }
         }
     }
 }

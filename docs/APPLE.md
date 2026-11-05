@@ -732,9 +732,9 @@ constant time. The proof covers the address the app asked at.
   fetches its pictures with the token, after a proof.
 
 A wrong `id` or `proof`, a redirect, a `403` or any other answer means
-another device answers there: no token goes, the app shows what it saved
-and the banner says "Pley is offline. Another device answers at its
-address.", and tries again as it does for a server out of reach. A `5xx` is the server, or a proxy before it, out of reach for now.
+another device answers there: no token goes, and the app shows what it
+saved under "Pley is offline" and tries again, as it does for a server out
+of reach. A `5xx` is the server, or a proxy before it, out of reach for now.
 
 A sign-in kept before servers gave keys has nothing to check: its tokens
 go as before, as on Android, until a refresh brings the sign-in's key,

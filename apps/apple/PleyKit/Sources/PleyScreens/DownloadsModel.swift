@@ -67,9 +67,6 @@ public enum DownloadWords {
     public static let keep = "Keep them"
     /// The offline banner.
     public static let offline = "Pley is offline"
-    /// The offline banner when what answers at the server's address can't
-    /// prove it is the server (docs/API.md, "Telling servers apart").
-    public static let anotherDevice = offline + ". Another device answers at its address."
     /// The offline banner's way to the downloads, which play without the server.
     public static let offlineAction = "Downloads"
 
