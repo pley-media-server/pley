@@ -463,7 +463,8 @@ behind it.
   (`live_taken_over`), it stops as the event comes and says who or why,
   with Watch again. Leaving ends the session at the server at once. In the
   background the channel and its connection are let go, and back in front
-  it tunes again from the live edge, unless the server stopped it. One
+  it tunes again from the live edge, unless it had failed (the server
+  stopped it, every connection in use): that stays, with Watch again. One
   playback at a time: a video closes the live player, and Live TV closes
   a video.
 - **The mini player and Now Playing** (while music has a queue): the mini

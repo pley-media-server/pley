@@ -408,11 +408,12 @@ private func waitFor(_ condition: () async -> Bool) async -> Bool {
         var stopped: [String] = []
         var changes: [ServerChange] = []
         events.onSessionStopped = { id, _, _ in stopped.append(id) }
-        events.onLiveTakenOver = { id, _ in stopped.append(id) }
+        var takenOver: [String] = []
+        events.onLiveTakenOver = { id, _ in takenOver.append(id) }
         events.onChange = { changes.append($0) }
         events.heard(.event(.sessionStopped(sessionId: "s1", message: "bedtime", byAdmin: true)))
         events.heard(.event(.liveTakenOver(sessionId: "s2", message: "Someone else needed the connection.")))
-        #expect(stopped == ["s1", "s2"])
+        #expect(stopped == ["s1"] && takenOver == ["s2"])
         events.heard(.connected)
         try await Task.sleep(for: .milliseconds(80))
         #expect(changes.isEmpty)

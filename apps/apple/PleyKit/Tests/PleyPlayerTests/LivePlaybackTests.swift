@@ -220,12 +220,56 @@ private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(await eventually { first.loads.count == 1 })
         live.stoppedElsewhere(try #require(live.sessionId), message: " Bedtime ", byAdmin: true)
         #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped,
-                                                        message: "Live TV was stopped by the server's administrator.\nBedtime")))
+                                                        message: "Live TV was stopped by the server's administrator.\nBedtime.")))
         live.retry()
         #expect(await eventually { second.loads.count == 1 })
         live.takenOver(try #require(live.sessionId), message: "someone else needed the connection")
         #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped, message: "Someone else needed the connection.")))
         #expect(second.closed)
+        live.close()
+    }
+
+    @Test func aStopHeardWhileTuningEndsItWhenTheAnswerComes() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let first = FakeLiveEngine()
+        let second = FakeLiveEngine()
+        let live = playback(server, engines: [first, second])
+        // The fixture numbers its sessions: the first is 1.
+        live.tune(1)
+        live.takenOver(String(format: "%032x", 1), message: "")
+        #expect(await eventually {
+            if case .failed = live.state.phase { return true }
+            return false
+        })
+        #expect(live.state.phase == .failed(LiveTrouble(kind: .stopped, message: "Watching was stopped.")))
+        #expect(first.loads.isEmpty && live.sessionId == nil)
+        // Another session's stop heard while tuning doesn't touch this one.
+        live.retry()
+        live.stoppedElsewhere("someone-else", message: nil, byAdmin: false)
+        #expect(await eventually { first.loads.count == 1 })
+        #expect(live.sessionId == String(format: "%032x", 2))
+        live.close()
+    }
+
+    @Test func anyFailureStaysAfterTheBackground() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.refuseLiveWatch(status: 404)
+        let live = playback(server, engines: [])
+        live.tune(1)
+        #expect(await eventually {
+            if case .failed = live.state.phase { return true }
+            return false
+        })
+        live.stop()
+        live.resume()
+        guard case .failed(let trouble) = live.state.phase else {
+            Issue.record("tuned again")
+            return
+        }
+        #expect(trouble.kind == .missing)
+        live.close()
     }
 
     @Test func goingToTheBackgroundLetsGoAndComingBackTunesAgain() async throws {
