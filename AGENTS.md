@@ -43,6 +43,21 @@ too, each app's workflow when that app changes.
 | Apple app (`apps/apple`) | `swift test --package-path apps/apple/PleyKit`, and the `xcodebuild` builds in [docs/APPLE.md](docs/APPLE.md#building-and-testing) |
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
+**Languages.** The server, the web app and the desktop app are in
+English, French and Spanish. As the last step of a change, put every word
+people read in each language: no text written into the code. The web and
+desktop apps' words are in
+`apps/web/src/i18n/locales/<language>/<namespace>.json` and
+`apps/desktop/src/locales/<language>.json` (i18next: `t("key")`,
+`{{name}}` for values, `_one`/`_other` for counts, plus `_many` in French
+and Spanish; in `<Trans>`, tags named for what they mark, such as
+`<settings>`, since HTML's `<link>` reads as empty), the server's in
+`apps/server/locales/<language>.json`. Write English first, then French
+and Spanish as a native speaker would put them, in Pley's tone. Dates and
+numbers go through `Intl` with `currentLocale()` (`@/i18n`), never the
+browser's default. The checks above test that every language has every
+key, with the same values in it.
+
 Fix what fails, including tests a change breaks elsewhere. Don't weaken or
 skip a test to make it pass; if a test is wrong, say why in the commit.
 Something you can't run (no device, no Docker) is said plainly, not
