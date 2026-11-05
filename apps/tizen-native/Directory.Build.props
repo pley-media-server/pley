@@ -3,7 +3,7 @@
   <!-- Settings every project of the native Samsung app shares. -->
   <PropertyGroup>
     <!-- The app's version; tizen-manifest.xml carries the same. -->
-    <Version>0.0.1</Version>
+    <Version>0.1.6</Version>
     <!-- The .NET 8 SDK's C#, whichever SDK builds it: C# 14 reads some calls differently
          (an array's Reverse() is the span's, in place). -->
     <LangVersion>12</LangVersion>
