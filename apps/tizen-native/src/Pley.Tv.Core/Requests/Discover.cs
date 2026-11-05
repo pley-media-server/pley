@@ -307,6 +307,7 @@ public sealed class DiscoverModel : IDisposable
 
     async Task ReadYours()
     {
+        var read = true;
         try
         {
             var list = await source.List(new RequestQuery { Mine = true, Limit = YoursCount });
@@ -315,9 +316,10 @@ public sealed class DiscoverModel : IDisposable
         }
         catch (Exception)
         {
-            // A shortcut: it stays as it was.
-            return;
+            // A shortcut: it stays as it was, and a download in it is read again as before.
+            read = false;
         }
+        if (gone || !hasYours) return;
         // While one of them downloads, they're read again every 10 s: download progress sends no events.
         moving?.Dispose();
         moving = yours.Any(r => r.Moving) ? scheduler.After(MovingMs, () =>
@@ -325,7 +327,7 @@ public sealed class DiscoverModel : IDisposable
             moving = null;
             _ = ReadYours();
         }) : null;
-        Update();
+        if (read) Update();
     }
 
     async Task ReadHero((string Kind, long TmdbId) key)

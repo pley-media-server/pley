@@ -197,6 +197,30 @@ public class RequestModelTests
     }
 
     [Fact]
+    public void Your_requests_are_read_again_every_10_s_while_one_downloads_even_after_a_read_failed()
+    {
+        source.Pages[(DiscoverList.Trending, 1)] = () => PageOf(1, 1, Title(1));
+        var mine = new MediaRequest { Id = 44, Kind = TitleKind.Movie, TmdbId = 2, Title = "T2", Status = RequestStatus.Approved, Stage = RequestStage.Downloading, Mine = true };
+        var fails = false;
+        source.Listed = q =>
+        {
+            if (fails && q.Mine) throw new Pley.Tv.Core.Net.NetworkException(Pley.Tv.Core.Net.NetworkFailure.NothingAnswers);
+            return q.Mine ? new RequestList { Total = 1, Requests = new[] { mine } } : new RequestList();
+        };
+        using var model = new DiscoverModel(source, scheduler);
+        Assert.Single(model.State.Value.Yours);
+        var reads = source.Queries.Count;
+        fails = true;
+        scheduler.Advance(DiscoverModel.MovingMs);
+        Assert.Equal(reads + 1, source.Queries.Count);
+        // The read that failed keeps what showed, and the next comes 10 s on.
+        fails = false;
+        scheduler.Advance(DiscoverModel.MovingMs);
+        Assert.Equal(reads + 2, source.Queries.Count);
+        Assert.Single(model.State.Value.Yours);
+    }
+
+    [Fact]
     public void Without_access_discover_says_why_and_reads_nothing()
     {
         source.State.Value = new RequestsState.Open(RequestFixtures.Summary with { Access = RequestAccess.Off, Own = 2 });
