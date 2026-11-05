@@ -56,14 +56,14 @@ data class CastFrom(val device: String?) {
         device?.trim()?.takeIf { it.isNotEmpty() }?.let { resources.getString(R.string.cast_playing_from, it) }
             ?: resources.getString(R.string.cast_playing_from_another)
 
-    /**
-     * What the shells say when it couldn't switch this device to the
-     * remote's profile, so nothing plays: "Couldn't switch profiles to play
-     * from Kitchen phone", or from another device.
-     */
-    fun refusal(resources: Resources): String =
-        device?.trim()?.takeIf { it.isNotEmpty() }?.let { resources.getString(R.string.cast_switch_failed, it) }
-            ?: resources.getString(R.string.cast_switch_failed_another)
+    companion object {
+        /**
+         * What the shells say when a cast from another profile's remote
+         * couldn't switch this device to that profile, so nothing plays, in
+         * every app's words.
+         */
+        fun switchFailed(resources: Resources): String = resources.getString(R.string.cast_switch_failed)
+    }
 }
 
 /** Where the next item comes from when this one ends. */

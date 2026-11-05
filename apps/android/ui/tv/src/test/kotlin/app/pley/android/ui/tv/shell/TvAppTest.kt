@@ -27,7 +27,6 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
 import app.pley.android.model.TitleKind
-import app.pley.android.player.CastFrom
 import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -81,7 +80,7 @@ class TvAppTest {
 
         override fun dismiss(notice: RequestNotice) = queue.update { it.filterNot { n -> n.notice.key == notice.key } }
 
-        override val castRefused = MutableSharedFlow<CastFrom>(extraBufferCapacity = 4)
+        override val castRefused = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     }
 
     private lateinit var source: FakeSource
@@ -178,8 +177,8 @@ class TvAppTest {
     @Test
     fun aCastThatCouldNotSwitchTheProfileSaysSo() {
         app()
-        source.castRefused.tryEmit(CastFrom("Kitchen phone"))
-        waitFor("Couldn't switch profiles to play from Kitchen phone")
+        source.castRefused.tryEmit(Unit)
+        waitFor("Couldn't switch to the remote's profile")
     }
 
     @Test

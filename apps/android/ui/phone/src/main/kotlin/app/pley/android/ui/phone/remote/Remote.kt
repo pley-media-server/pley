@@ -393,13 +393,13 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
 }
 
 /**
- * What a device that plays nothing here says: "Ready to play", and on a
- * device of another of the household's profiles, whose: "Ready to play · on
- * Sam's profile", never what it plays.
+ * What a device that plays nothing here says: "Ready to play", and a
+ * device of another of the household's profiles whose it is: "On Sam's
+ * profile", never what it plays.
  */
 @Composable
 internal fun readyLine(device: OtherDevice): String =
-    device.profile?.let { stringResource(R.string.remote_ready_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
+    device.profile?.let { stringResource(R.string.remote_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
 
 /** A device's kind as an icon in a 40 dp circle: in the accent while it plays. */
 @Composable

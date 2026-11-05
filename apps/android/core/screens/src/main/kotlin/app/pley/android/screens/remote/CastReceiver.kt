@@ -37,9 +37,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 /** Music a remote cast here started: where it came from. */
 data class CastMusic(val from: CastFrom)
 
-/** A cast from another profile's remote that couldn't switch this device to that profile: where it came from. */
-data class CastRefused(val from: CastFrom)
-
 /**
  * What the profile's remotes cast to this device (docs/API.md, "Casting").
  * The shells start it after their first frame; what plays says where it
@@ -56,7 +53,7 @@ interface CastReceiver {
     val music: Flow<CastMusic> get() = emptyFlow()
 
     /** Each time a cast couldn't switch this device to the remote's profile: nothing plays, and the shells say so. */
-    val refused: Flow<CastRefused> get() = emptyFlow()
+    val refused: Flow<Unit> get() = emptyFlow()
 
     companion object {
         /** Takes nothing: graphs made without one (tests of other screens). */
@@ -121,11 +118,11 @@ internal class ServerCastReceiver(
 ) : CastReceiver {
     private val started = AtomicBoolean(false)
     private val heard = MutableSharedFlow<CastMusic>(extraBufferCapacity = 4)
-    private val refusals = MutableSharedFlow<CastRefused>(extraBufferCapacity = 4)
+    private val refusals = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
 
     override val music: Flow<CastMusic> = heard.asSharedFlow()
 
-    override val refused: Flow<CastRefused> = refusals.asSharedFlow()
+    override val refused: Flow<Unit> = refusals.asSharedFlow()
 
     /** A cast's switch is under way: what plays is ending, or the tokens are changing. */
     @Volatile
@@ -183,7 +180,7 @@ internal class ServerCastReceiver(
             throw e
         } catch (_: Exception) {
             // Spent, expired, refused or out of reach: still the profile it was on.
-            refusals.tryEmit(CastRefused(CastFrom(cast.from)))
+            refusals.tryEmit(Unit)
             return false
         }
         return true

@@ -206,7 +206,7 @@ class PlayOnUiTest {
         shell(livingRoom(), samsTv())
         choose(CastTarget(itemId = 101))
         // After the profile's own, with the profile it is on, never what it plays.
-        compose.onNodeWithText("Ready to play · on Sam's profile").assertExists()
+        compose.onNodeWithText("On Sam's profile").assertExists()
         compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").performClick()
         compose.waitForIdle()
         // This profile has no PIN: no pad, straight there.

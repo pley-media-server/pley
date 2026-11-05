@@ -21,7 +21,7 @@
     <!-- A device in the list that plays nothing: only listed, it has no controls. -->
     <string name="remote_ready">Ready to play</string>
     <!-- A device on another profile of the household, by that profile's name; what it plays stays theirs. -->
-    <string name="remote_ready_on_profile">Ready to play · on %1$s\'s profile</string>
+    <string name="remote_on_profile">On %1$s\'s profile</string>
     <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
     <string name="remote_open_device">Show its controls</string>
     <string name="remote_back_to_devices">Back to your devices</string>
