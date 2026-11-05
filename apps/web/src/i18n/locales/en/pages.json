@@ -268,11 +268,17 @@
       "playlists": "Make, change and delete {{profile}}'s playlists.",
       "profiles": "Switch to the household's other profiles. Profiles with a PIN still ask for it.",
       "requests": "Ask for movies and shows the libraries don't have, and follow {{profile}}'s requests.",
-      "approvals": "Approve and decline what people ask for, where the account is an administrator."
+      "approvals": "Approve and decline what people ask for, where the account is an administrator.",
+      "activity": "See what's playing and stop it: {{profile}}'s streams.",
+      "activityEveryone": "See what's playing and stop it: {{profile}}'s streams, and everyone's where the account is an administrator."
     },
     "cantChange": "It can't change your password, sign-in settings or devices.",
     "cantChangeNoAdmin": "It can't change your password, sign-in settings or devices, and it never gets administrator rights.",
-    "approvesOnly": "Of your administrator rights it gets only approving and declining requests: the others stay in Pley's web app.",
+    "rightsOnly": "Of your administrator rights it gets only {{rights}}: the others stay in Pley's web app.",
+    "rights": {
+      "approvals": "approving and declining requests",
+      "activity": "seeing and stopping everyone's streams"
+    },
     "adminStays": "Your administrator rights stay in Pley's web app.",
     "overTv": "This request is over: start again on your TV",
     "overApp": "This request is over: start again from the app",

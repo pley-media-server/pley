@@ -270,11 +270,17 @@
       "playlists": "Créer, modifier et supprimer les playlists de {{profile}}.",
       "profiles": "Passer aux autres profils du foyer. Les profils protégés par un code PIN le demandent toujours.",
       "requests": "Demander des films et des séries absents des bibliothèques, et suivre les demandes de {{profile}}.",
-      "approvals": "Approuver et refuser les demandes des autres, là où le compte est administrateur."
+      "approvals": "Approuver et refuser les demandes des autres, là où le compte est administrateur.",
+      "activity": "Voir ce qui est en cours de lecture et l’arrêter : les lectures de {{profile}}.",
+      "activityEveryone": "Voir ce qui est en cours de lecture et l’arrêter : les lectures de {{profile}}, et celles de tout le monde là où le compte est administrateur."
     },
     "cantChange": "Elle ne peut pas changer votre mot de passe, vos paramètres de connexion ni vos appareils.",
     "cantChangeNoAdmin": "Elle ne peut pas changer votre mot de passe, vos paramètres de connexion ni vos appareils, et n’obtient jamais de droits d’administrateur.",
-    "approvesOnly": "De vos droits d’administrateur, elle n’obtient que l’approbation et le refus des demandes : les autres restent dans l’application web de Pley.",
+    "rightsOnly": "De vos droits d’administrateur, elle n’obtient que {{rights}} : les autres restent dans l’application web de Pley.",
+    "rights": {
+      "approvals": "l’approbation et le refus des demandes",
+      "activity": "la vue et l’arrêt des lectures de tout le monde"
+    },
     "adminStays": "Vos droits d’administrateur restent dans l’application web de Pley.",
     "overTv": "Cette demande est terminée : recommencez sur votre TV",
     "overApp": "Cette demande est terminée : recommencez depuis l’application",

@@ -15,7 +15,8 @@ use axum::http::{Method, StatusCode, header};
 use serde_json::json;
 
 use common::{
-    ANDROID_APP, DESKTOP_APP, HOST, IOS_APP, ISSUER, KODI_APP, MACOS_APP, ROKU_APP, Reply, TVOS_APP, TestApp, WEBOS_APP,
+    ANDROID_APP, DESKTOP_APP, HOMEASSISTANT_APP, HOST, IOS_APP, ISSUER, KODI_APP, MACOS_APP, ROKU_APP, Reply, TVOS_APP,
+    TestApp, WEBOS_APP,
 };
 use pley::oauth::fetch::Source;
 
@@ -876,13 +877,19 @@ async fn device_grants_act_like_other_app_grants() {
 }
 
 #[tokio::test]
-async fn kodi_roku_lg_and_apple_tv_sign_in_only_with_a_code() {
+async fn kodi_roku_lg_apple_tv_and_home_assistant_sign_in_only_with_a_code() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     for (client_id, name, agent, platform) in [
         (KODI_APP, "Pley for Kodi", "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "Kodi 21.2; Windows"),
         (ROKU_APP, "Pley for Roku", "pleyRoku/0.1.0 (Roku OS 14.5; Roku Ultra)", "Roku OS 14.5; Roku Ultra"),
         (WEBOS_APP, "Pley for LG TV", "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)", "webOS 23; OLED65C3PUA"),
+        (
+            HOMEASSISTANT_APP,
+            "Pley for Home Assistant",
+            "pleyHomeAssistant/0.1.0 (Home Assistant 2026.11.0)",
+            "Home Assistant 2026.11.0",
+        ),
         // An agent pley doesn't know is named as the sign-ins list names it.
         (TVOS_APP, "Pley for Apple TV", "pley-tv/1.0", "pley-tv/1.0"),
     ] {
@@ -932,6 +939,11 @@ async fn kodi_roku_lg_and_apple_tv_sign_in_only_with_a_code() {
                 app.browser_call(Method::POST, "/api/oauth/requests", &admin, Some(json!({"query": query})), &[]).await;
             assert_eq!(page.status, StatusCode::BAD_REQUEST, "{redirect_uri}: {}", page.text());
         }
+    }
+    // Home Assistant may ask for no more than its description allows.
+    for scope in ["profiles", "library playlists", "requests"] {
+        let refused = ask(&app, HOMEASSISTANT_APP, Some(scope), &[]).await;
+        assert_eq!(oauth_error(&refused), (StatusCode::BAD_REQUEST, "invalid_scope"), "{scope}");
     }
 }
 

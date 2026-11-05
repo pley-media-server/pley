@@ -409,6 +409,12 @@ pub fn device_name(user_agent: Option<&str>) -> String {
     if ua.contains("pleyLG/") {
         return "Pley for LG TV".into();
     }
+    // Pley for Home Assistant says "pleyHomeAssistant/0.1.0 (Home Assistant
+    // 2026.11.0)". It is named as people know it, so a TV it plays something
+    // on says "Playing from Home Assistant".
+    if ua.contains("pleyHomeAssistant/") {
+        return "Home Assistant".into();
+    }
     // Samsung's TV app, and LG's before it was a native app, are web apps,
     // which can't set their own agent: the TV's web engine names the TV.
     if ua.contains("Tizen") && ua.contains("TV") {
@@ -526,6 +532,8 @@ mod tests {
         let core_media = "AppleCoreMedia/1.0.0.22A (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)";
         assert_eq!(device_name(Some(core_media)), "AppleCoreMedia/1.0.0.22A");
         assert_eq!(device_name(Some("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)")), "Pley for LG TV");
+        let home_assistant = "pleyHomeAssistant/0.1.0 (Home Assistant 2026.11.0)";
+        assert_eq!(device_name(Some(home_assistant)), "Home Assistant");
         let tizen = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36";
         assert_eq!(device_name(Some(tizen)), "Samsung TV");
         let webos = "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.128 Safari/537.36 WebAppManager";

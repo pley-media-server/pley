@@ -118,6 +118,19 @@ impl AuthUser {
         }
     }
 
+    /// Whether this request sees and stops everyone's playback, as the
+    /// dashboard does: an administrator's own sign-in (and a compatibility
+    /// token that sees everyone's, by its own rules), or one of pley's own
+    /// apps on an administrator's account allowed `activity` (no other app
+    /// can be: it sees and stops only its profile's own). Remote control and
+    /// casting stay the user's own whatever this says.
+    pub fn oversees_playback(&self) -> bool {
+        match &self.app {
+            None => self.is_admin,
+            Some(app) => self.account_admin && app.scopes.contains(Scope::Activity) && self.first_party(),
+        }
+    }
+
     /// Whether this request may use what `scope` allows: pley's own sign-in
     /// always, an app when its token has it.
     pub fn allowed(&self, scope: Scope) -> bool {
@@ -1431,6 +1444,8 @@ fn app_may_use(parts: &Parts, app: &AppAccess) -> Result<(), AppError> {
         Some(Need::AnyApp) => Ok(()),
         Some(Need::Scope(scope)) if app.scopes.contains(scope) => Ok(()),
         Some(Need::Scope(scope)) => Err(AppError::InsufficientScope(Some(scope.name()))),
+        Some(Need::Either(one, other)) if app.scopes.contains(one) || app.scopes.contains(other) => Ok(()),
+        Some(Need::Either(one, _)) => Err(AppError::InsufficientScope(Some(one.name()))),
     }
 }
 
@@ -1680,6 +1695,7 @@ mod tests {
         let admin = auth.validate(&admin).await.unwrap();
         assert_eq!(admin.max_age, None, "administrators have no age limit");
         assert!(admin.is_admin && admin.account_admin && admin.manages_requests() && admin.first_party());
+        assert!(admin.oversees_playback() && !user.oversees_playback());
         assert!(auth.validate("not-a-token").await.is_none());
     }
 
@@ -1765,6 +1781,7 @@ mod tests {
         let admin = app_of(&auth, 2, 2).await;
         let user = auth.validate_app(&admin.access_token).await.unwrap();
         assert!(!user.is_admin, "never an administrator through an app");
+        assert!(!user.oversees_playback(), "nor sees everyone's playback without activity");
         assert!(user.all_libraries, "an administrator's role sees every library");
         assert_eq!(user.max_age, None, "and has no age limit");
         let app = user.app.as_deref().unwrap();

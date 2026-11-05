@@ -127,6 +127,7 @@ describe("versions", () => {
     expect(limitProblem("android", "0.100.0")).toMatch(/below 100/);
     expect(limitProblem("android", "0.99.99")).toBeNull();
     expect(limitProblem("samsung", "256.0.0")).toMatch(/Tizen/);
+    expect(limitProblem("samsung-native", "0.256.0")).toMatch(/Tizen/);
     expect(limitProblem("kodi", "300.0.0")).toBeNull();
   });
 
@@ -147,6 +148,18 @@ describe("versions", () => {
     for (const u of UNIT_NAMES.filter((x) => x !== "samsung")) expect(versionOf(u, dir)).toBe(before[u]);
     // Its changelog has no 0.3.0 section yet.
     expect(problems("samsung", dir)).toEqual([`${UNITS.samsung.changelog} has no section for 0.3.0`]);
+  });
+
+  test("the native Samsung app's version is its build's and its manifest's, not Tizen's api-version", () => {
+    const { dir } = fixture();
+    const manifest = "apps/tizen-native/src/Pley.Tv.Tizen/tizen-manifest.xml";
+    const changes = planSet("samsung-native", "0.2.0", dir);
+    expect(changes.map((c) => c.path).sort()).toEqual(["apps/tizen-native/Directory.Build.props", manifest]);
+    write(changes, dir);
+    expect(readFileSync(join(dir, "apps/tizen-native/Directory.Build.props"), "utf8")).toContain("<Version>0.2.0</Version>");
+    const text = readFileSync(join(dir, manifest), "utf8");
+    expect(text).toContain('version="0.2.0" api-version="9.0"');
+    expect(text).toContain('<?xml version="1.0"');
   });
 
   test("the server's version reaches the transcoder, its API crate and the web app", () => {

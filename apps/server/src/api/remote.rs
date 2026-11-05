@@ -71,8 +71,9 @@ pub(crate) fn device_id_of(user: &AuthUser, token: Option<&str>) -> Option<Strin
 /// LG) and Kodi play on TVs; the iPhone and iPad app on one or the other,
 /// as its User-Agent's system says; the Mac and desktop apps on computers;
 /// Pley's own sign-in is a browser. The Android app plays on TVs and
-/// phones alike and says which when it knows; until it does, and for apps
-/// by other publishers and Jellyfin and Plex apps, the kind isn't known.
+/// phones alike and says which when it knows; until it does, and for Pley
+/// for Home Assistant (which never plays), apps by other publishers and
+/// Jellyfin and Plex apps, the kind isn't known.
 pub(crate) fn device_kind_of(declared: Option<DeviceKind>, user: &AuthUser, user_agent: Option<&str>) -> DeviceKind {
     if let Some(kind) = declared {
         return kind;

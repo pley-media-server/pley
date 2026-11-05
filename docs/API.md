@@ -1,10 +1,11 @@
 # Pley HTTP API (v1)
 
 The API the web app and Pley's own apps (Android, Apple, desktop, Kodi,
-Roku, Samsung and LG) use, for anyone writing a client or a script. Tools built
-on Plex's API (Kometa, Tautulli, `python-plexapi`) and Jellyfin's apps go
-through the Plex- and Jellyfin-compatible APIs instead, with tokens of their
-own that this API refuses: [COMPATIBILITY.md](COMPATIBILITY.md).
+Roku, Samsung, LG and Home Assistant) use, for anyone writing a client or a
+script. Tools built on Plex's API (Kometa, Tautulli, `python-plexapi`) and
+Jellyfin's apps go through the Plex- and Jellyfin-compatible APIs instead,
+with tokens of their own that this API refuses:
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 The base URL is the server's address with `/api`:
 `http://pley.local:7539/api`, or `https://media.example.com/api` behind a
@@ -124,7 +125,7 @@ Each endpoint table has a **Who** column:
 | `public` | anyone, without a token |
 | `user` | any signed-in user; an app's token is refused (`403 insufficient_scope`) |
 | `any app` | any signed-in user, and every app's token |
-| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`) |
+| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals`, `activity` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`); with `play` or `activity`, a token with either |
 | `admin` | administrators only (`403` for others), never an app's token |
 | `page` | Pley's consent page only ([its endpoints](#the-consent-pages-endpoints)) |
 
@@ -854,7 +855,7 @@ Every other `/.well-known/` path answers `404`.
   "token_endpoint_auth_methods_supported": ["none"],
   "revocation_endpoint_auth_methods_supported": ["none"],
   "code_challenge_methods_supported": ["S256"],
-  "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
+  "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"],
   "authorization_response_iss_parameter_supported": true,
   "client_id_metadata_document_supported": false,
   "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md"
@@ -1145,8 +1146,9 @@ apps allowed `profiles` move to another profile of the household. Send
 TVs and other devices without a usable browser sign in with a code they
 show (OAuth 2.0 Device Authorization Grant, RFC 8628). Only Pley's own apps
 may: the Android app (also on Android TV and Fire TV), Pley for Kodi, Pley
-for Roku, the Samsung and LG apps, Pley for Apple TV, and Pley for iPhone
-and iPad (an iPad on a stand, an iPhone shared by the household).
+for Roku, the Samsung and LG apps, Pley for Apple TV, Pley for Home
+Assistant, and Pley for iPhone and iPad (an iPad on a stand, an iPhone
+shared by the household).
 
 1. The TV calls **`POST /api/oauth/device`** with `client_id` and an
    optional `scope` (as at `/oauth/authorize`: none means `library`):
@@ -1243,23 +1245,33 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `profiles` | switch to the household's other profiles. Pley's own apps only, since a profile's PIN is typed into the app |
 | `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
 | `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; it does nothing on other accounts |
+| `activity` | see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator. Any app may be allowed it, but only Pley's own see and stop everyone's, and of those only Pley for Home Assistant asks for it |
 
 An app's token opens only the routes whose **Who** is `any app` or one of
 its scopes (`HEAD` as `GET`). Every other route answers
 `403 insufficient_scope`: administration and sign-in settings among them.
 Name, picture (`PATCH /api/me`), password, PIN, two-step sign-in, devices,
-apps, activity, switching by `/api/auth/switch` and all administration stay
-in the web app.
+apps, switching by `/api/auth/switch` and all administration stay in the
+web app.
 
 What apps see:
 
 - An app's token never has administrator rights. On an administrator's
   account it sees every library without an age limit, as the account does,
   and administers nothing: history, sessions and collections answer it as
-  they would anyone else. The one exception: on an administrator's account,
-  one of Pley's own apps allowed `approvals` manages requests (approves and
-  declines them, marks them as added by hand, sees and deletes everyone's,
-  and hears the managers' request events; see [Requests](#requests)).
+  they would anyone else. Two exceptions, on an administrator's account and
+  for Pley's own apps alone: one allowed `approvals` manages requests
+  (approves and declines them, marks them as added by hand, sees and
+  deletes everyone's, and hears the managers' request events; see
+  [Requests](#requests)), and one allowed `activity` (Pley for Home
+  Assistant, the only one that asks for it) sees and stops what everyone
+  plays, as the dashboard does: `/api/activity` lists everyone's sessions,
+  its event stream hears everyone's `sessions_changed`, and
+  `DELETE /api/sessions/{id}` stops anyone's
+  ([Stopping a stream](#stopping-a-stream)). It still controls and casts to
+  only its own profile's players, and gets none of the dashboard's library
+  work. Any other app allowed `activity` sees and stops its profile's own
+  sessions alone.
 - Libraries' `paths` are empty, and files' `path` is the file name only.
 - `/api/users/{id}/avatar` shows only the app's own profile, its
   household, and, to an app allowed `requests` while requests are on, the
@@ -1335,16 +1347,19 @@ profiles when the app's profile is in the household, else nothing:
 | Pley for Roku | `https://pley-media-server.github.io/pley/oauth/roku.json` | none: a code only |
 | Pley for Samsung TV | `https://pley-media-server.github.io/pley/oauth/tizen.json` | none: a code only |
 | Pley for LG TV | `https://pley-media-server.github.io/pley/oauth/webos.json` | none: a code only |
+| Pley for Home Assistant | `https://pley-media-server.github.io/pley/oauth/homeassistant.json` | none: a code only |
 
 - Their descriptions are built into the server and never fetched, so they
   sign in to servers without internet access.
-- All get refresh tokens and may ask for every scope, but the desktop app
-  for `requests` and `approvals`: its window shows the server's own pages,
-  signed in as the web app is.
+- All get refresh tokens. Pley for Home Assistant asks for `library`,
+  `play` and `activity` alone: it shows and controls what plays, and plays
+  nothing itself. The others may ask for every scope but `activity`, and
+  the desktop app not for `requests` and `approvals` either: its window
+  shows the server's own pages, signed in as the web app is.
 - The Android app and Pley for iPhone and iPad may also sign in with a
   code, on a TV or a shared screen ([TVs](#tvs)). The Kodi, Roku, Samsung,
-  LG and Apple TV apps sign in only that way: with no return address,
-  `/oauth/authorize` never sends them a code.
+  LG and Apple TV apps and Pley for Home Assistant sign in only that way:
+  with no return address, `/oauth/authorize` never sends them a code.
 - The Apple app has its own client ID on each kind of device, so someone
   with Pley for Mac and Pley for desktop on one Mac sees two sign-ins they
   can tell apart. Its User-Agent, `pleyApple/0.1.0 (iPadOS 16.7; iPad)`,
@@ -1354,6 +1369,9 @@ profiles when the app's profile is in the household, else nothing:
   the TV ("Samsung TV"; for an app's grant its system, "Tizen 7.0"). The LG
   app says `pleyLG/<version> (webOS <n>; <model>)`; a TV still on the
   earlier LG web app is named by its web engine ("LG TV", "webOS 23").
+- Pley for Home Assistant says `pleyHomeAssistant/<version> (Home Assistant
+  <version>)` and is named "Home Assistant", as people know it: a TV it
+  sends something to says it plays from Home Assistant.
 - The consent page marks them "Pley's own app". No other app may use a
   client ID on their host.
 
@@ -3349,9 +3367,9 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
+| GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
-| DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
+| DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`) something to play ([Casting](#casting)) |
@@ -3363,34 +3381,43 @@ credits detection, `previews_pending` files waiting for seek previews
 `library_work` says why they wait while some do ([Library work](#library-work)).
 Non-administrators see only their own sessions and the scans of libraries
 they may open, with no `analysis` or `library_work`, and the counts 0; a
-session's `transcode.last_error` is "the conversion failed" for them.
+session's `transcode.last_error` is "the conversion failed" for them. An
+app allowed `activity` gets the same, but that one of Pley's own on an
+administrator's account sees everyone's sessions
+([What apps see](#scopes)).
 
 `/api/events`: each stream gets the events of the libraries its user may
 open, and the user's own events; an administrator's gets everyone's
-`sessions_changed` too, for the dashboard. A comment line keeps it alive
-every 15 s. The token is checked again every 30 s: the stream ends once it
-is signed out, expired or its account disabled, and the client connects
-again with a valid token; one whose account became an administrator, or
-stopped being one, follows that. One token may keep 16 streams open;
-another answers `429`. A stream that names its device as a `receiver`
-makes the device one the user's remotes cast to, while it is open
-([Casting](#casting)).
+`sessions_changed` too, for the dashboard, as does that of one of Pley's
+own apps allowed `activity` on an administrator's account. A comment line
+keeps it alive every 15 s. The token is checked again every 30 s: the
+stream ends once it is signed out, expired or its account disabled, and
+the client connects again with a valid token; one whose account became an
+administrator, or stopped being one, follows that, an app's too. One token
+may keep 16 streams open; another answers `429`. A stream that names its
+device as a `receiver` makes the device one the user's remotes cast to,
+while it is open ([Casting](#casting)).
 
 ### Stopping a stream
 
 `DELETE /api/sessions/{id}` ends a playback session from somewhere other
 than its player, or a Live TV viewer's session
 ([Remote control](#remote-control)). Administrators stop any session (the
-dashboard's *Stop*); anyone else, their own (on another of their
-devices). Someone else's answers `403`, an unknown one `404`, one stopped
-already `204`. Its transcode and HLS end at once, and so does the
-`stream.ts` an app reads for a live session. Then:
+dashboard's *Stop*), and so does one of Pley's own apps allowed `activity`
+on an administrator's account; anyone else, their own (on another of their
+devices), apps by other publishers allowed `activity` included. An app
+needs `play` or `activity` for it. Someone else's answers `403`, an unknown
+one `404`, one stopped already `204`. Its transcode and HLS end at once,
+and so does the `stream.ts` an app reads for a live session. Then:
 
 - the user's event streams get `{ type: "session_stopped", session_id,
   message, by_admin }`. `message` is the one given (trimmed) or `null`;
-  `by_admin` is true when an administrator stopped another user's session.
-  Only that user's streams get it; `sessions_changed` goes to that user's
-  and administrators' streams, as when any session ends;
+  `by_admin` is true when an administrator, or one of Pley's own apps
+  allowed `activity` on an administrator's account, stopped another user's
+  session. Only that user's streams get it; `sessions_changed` goes to
+  that user's and administrators' streams, and those of Pley's own apps
+  allowed `activity` on administrators' accounts, as when any session
+  ends;
 - for 30 minutes, the session's next requests answer `410`
   `{ code: "session_stopped", error: "session_stopped", message }`: its
   status, playlists and segments, and progress reports naming it (which
@@ -3412,7 +3439,8 @@ don't restart the stopped session.
 A user's devices control what plays on their other devices: pause the TV
 from a phone, skip a track from the browser, change the TV's subtitles,
 or start a film on it. Only the session's or the device's own user does;
-administrators stop other people's sessions (above) and nothing more.
+administrators, and Pley's own apps allowed `activity` on their accounts,
+stop other people's sessions (above) and nothing more.
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
@@ -3439,10 +3467,10 @@ administrators stop other people's sessions (above) and nothing more.
   TV, Roku, Samsung, LG and Kodi apps play on TVs; its iPhone and iPad app
   on a phone or a tablet, by its User-Agent; its Mac and desktop apps on
   computers; the web app is a browser. The Android app plays on TVs and
-  phones alike and says which when it knows; until it does, and for apps by
-  other publishers and Jellyfin and Plex apps, the kind is `other`. A Live
-  TV player that reads `stream.ts` says its kind in the query
-  (`device_kind=tv`).
+  phones alike and says which when it knows; until it does, and for Pley for
+  Home Assistant (which never plays), apps by other publishers and Jellyfin
+  and Plex apps, the kind is `other`. A Live TV player that reads
+  `stream.ts` says its kind in the query (`device_kind=tv`).
 - **`GET /api/sessions`** lists the caller's own sessions whose players
   have been heard from in the last 90 seconds, an administrator's too
   (everyone's are on `/api/activity`). `age_ms` is how long ago its
@@ -3763,7 +3791,8 @@ type ServerEvent =
                                                      // or what they may see (is_admin, all_libraries,
                                                      // library_ids, max_age changed)
   | { type: "sessions_changed" }                     // a session of the user's started, ended or changed (their
-                                                     // streams, and administrators', whose dashboard lists all)
+                                                     // streams, and administrators', whose dashboard lists all,
+                                                     // and administrators' Pley apps allowed activity)
   | { type: "watchlist_changed" }                    // the user's My List changed (their streams only)
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only

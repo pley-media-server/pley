@@ -129,7 +129,8 @@ can't be combined with the AGPL at all.
   package the app ships with, transitive ones included, and fails on one
   that isn't MIT, Apache-2.0, BSD, ISC or Zlib, or whose licence it can't
   tell; a package that puts nothing into the app is named there with why.
-  CI runs it.
+  It also fails when the app's `NOTICES.txt` doesn't hold the full licence
+  of every package the .tpk carries (`--write` writes it again). CI runs it.
 - **Rules to keep:**
   - Never link FFmpeg's libraries into the transcoder, or any GPL library
     into the server, the transcoder or an app; Pley runs FFmpeg as a program.
@@ -173,6 +174,10 @@ What each build contains of others' work, and where its notices are:
 - The native Samsung app draws its sign-in QR code with
   `Net.Codecrete.QrCodeGenerator` (MIT), Nayuki's generator, as the Android
   app has it.
+- The native Samsung app's .tpk carries, in `shared/res`, `NOTICES.txt`
+  with the full licences of the NuGet packages in it (written by
+  `scripts/check-nuget-licenses.mjs --write` from the build's packages),
+  `LICENSE.txt` and this file.
 - The native Samsung app draws its text in Roboto (OFL-1.1): the files the
   web TV app ships from `@fontsource/roboto`, unpacked to TrueType by
   `apps/tizen-native/scripts/fonts.mjs`, with their licence beside them

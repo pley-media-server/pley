@@ -167,7 +167,8 @@
       "playlists": "Playlists",
       "profiles": "Profils",
       "requests": "Demander des films et des séries",
-      "approvals": "Approuver les demandes"
+      "approvals": "Approuver les demandes",
+      "activity": "Lectures en cours"
     }
   },
   "tokens": {

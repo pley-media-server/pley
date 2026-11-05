@@ -167,7 +167,8 @@
       "playlists": "Listas de reproducción",
       "profiles": "Perfiles",
       "requests": "Solicitar películas y series",
-      "approvals": "Aprobar solicitudes"
+      "approvals": "Aprobar solicitudes",
+      "activity": "Lo que se reproduce"
     }
   },
   "tokens": {

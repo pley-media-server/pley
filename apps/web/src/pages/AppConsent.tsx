@@ -9,11 +9,11 @@ import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { Avatar } from "@/components/Avatar";
 import { Badge, Button } from "@/components/ui";
-import { t as translate } from "@/i18n";
+import { currentLocale, t as translate } from "@/i18n";
 import { AuthLayout } from "./AuthLayout";
 
 /** The scopes Pley has words for (`consent.scopes`): what each lets an app do, for the profile it acts as. */
-const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals"] as const;
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"] as const;
 
 function knownScope(scope: string): scope is (typeof SCOPES)[number] {
   return (SCOPES as readonly string[]).includes(scope);
@@ -170,8 +170,13 @@ export function AppConsent({
 
   const over = isApiError(error, 404);
   const canSwitch = (profiles.data?.length ?? 0) > 1;
-  // The one administrator right an app can get: managing requests.
+  // The administrator rights an app can get: managing requests, and for one
+  // of Pley's own seeing and stopping everyone's streams.
   const approves = user.is_admin && request.scopes.includes("approvals");
+  const oversees = user.is_admin && client.first_party && request.scopes.includes("activity");
+  const rights = new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(
+    [approves ? t("consent.rights.approvals") : null, oversees ? t("consent.rights.activity") : null].filter((right) => right !== null),
+  );
 
   return (
     <AuthLayout title={t("consent.title", { app })} subtitle={server.data ? t("consent.onServer", { server: server.data.name }) : undefined}>
@@ -227,13 +232,20 @@ export function AppConsent({
             {request.scopes.map((scope) => (
               <li key={scope} className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                <span>{knownScope(scope) ? t(`consent.scopes.${scope}`, { profile: user.name }) : scope}</span>
+                <span>
+                  {scope === "activity"
+                    ? // Everyone's streams only ever go to Pley's own apps: another's sees and stops the profile's own.
+                      t(client.first_party ? "consent.scopes.activityEveryone" : "consent.scopes.activity", { profile: user.name })
+                    : knownScope(scope)
+                      ? t(`consent.scopes.${scope}`, { profile: user.name })
+                      : scope}
+                </span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-muted">{approves ? t("consent.cantChange") : t("consent.cantChangeNoAdmin")}</p>
+          <p className="mt-3 text-muted">{rights ? t("consent.cantChange") : t("consent.cantChangeNoAdmin")}</p>
           {user.is_admin ? (
-            <p className="mt-1 text-muted">{approves ? t("consent.approvesOnly") : t("consent.adminStays")}</p>
+            <p className="mt-1 text-muted">{rights ? t("consent.rightsOnly", { rights }) : t("consent.adminStays")}</p>
           ) : null}
         </div>
 
