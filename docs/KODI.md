@@ -307,8 +307,12 @@ it (`casting.py`):
   casts with its profile and a ticket, and Kodi switches to that profile
   first, with the switch-profile grant and the ticket in place of a PIN
   (the remote gave its own). What played ends as the profile it played
-  as, its last report and its live channel's session sent before the
-  switch. The add-on then acts as the remote's profile:
+  as: the switch waits up to 5 seconds for its last report, its
+  session's end and its live channel's to go, and what hasn't gone by
+  then is dropped rather than sent as the new profile. Until the switch
+  is done, any other cast heard is dropped, whichever profile it names;
+  once switched, casts play as usual. The add-on then acts as the
+  remote's profile:
   Pley's window goes to its Home, a listing of the add-on on screen shows
   again, and "Who's watching?" counts as answered until Kodi starts over.
   A switch that fails (the ticket spent or out of time, the server out of
