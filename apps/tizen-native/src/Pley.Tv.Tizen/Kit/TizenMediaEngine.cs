@@ -396,7 +396,7 @@ sealed class TizenMediaEngine : IVideoEngine
             p.PlaybackInterrupted += (_, e) => Post(mine, () =>
             {
                 Profile.Mark($"engine: the TV took its player: {e.Reason}");
-                Fail(new EngineError.Other("the TV took its player for something else"));
+                Fail(new EngineError.Other(Strings.T("player.engine.interrupted")));
             });
             p.VideoStreamChanged += (_, e) => Post(mine, () =>
             {
@@ -1255,16 +1255,19 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>Players waiting for the ones before to be let go.</summary>
     static int opening;
 
-    /// <summary>What the TV's player said, in Core's terms.</summary>
+    /// <summary>
+    /// What the TV's player said, in Core's terms, in the language shown (Live TV shows it); an
+    /// error it has no words for by its name.
+    /// </summary>
     static EngineError ErrorOf(Media.PlayerError error) => error switch
     {
-        Media.PlayerError.AudioCodecNotSupported => new EngineError.Unsupported("the TV can't decode its sound", Audio: true),
-        Media.PlayerError.VideoCodecNotSupported => new EngineError.Unsupported("the TV can't decode its picture"),
-        Media.PlayerError.NotSupportedFile => new EngineError.Unsupported("the TV can't open this file", Container: true),
-        Media.PlayerError.DrmNotPermitted => new EngineError.Unsupported("it is protected"),
-        Media.PlayerError.ConnectionFailed => new EngineError.Network("the connection failed"),
+        Media.PlayerError.AudioCodecNotSupported => new EngineError.Unsupported(Strings.T("player.engine.cantDecodeSound"), Audio: true),
+        Media.PlayerError.VideoCodecNotSupported => new EngineError.Unsupported(Strings.T("player.engine.cantDecodePicture")),
+        Media.PlayerError.NotSupportedFile => new EngineError.Unsupported(Strings.T("player.engine.cantOpenFile"), Container: true),
+        Media.PlayerError.DrmNotPermitted => new EngineError.Unsupported(Strings.T("player.engine.protected")),
+        Media.PlayerError.ConnectionFailed => new EngineError.Network(Strings.T("player.engine.connectionFailed")),
         // Tizen's player gives no status: a missing file is the nearest it says to one.
-        Media.PlayerError.NoSuchFile => new EngineError.Http(404, "the server has nothing at its address"),
+        Media.PlayerError.NoSuchFile => new EngineError.Http(404, Strings.T("player.engine.nothingAtAddress")),
         _ => new EngineError.Other(error.ToString()),
     };
 

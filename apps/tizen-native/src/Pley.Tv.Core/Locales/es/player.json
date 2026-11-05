@@ -1,0 +1,227 @@
+{
+  "controls": {
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "subtitles": "Subtítulos",
+    "audio": "Audio",
+    "quality": "Calidad",
+    "chapters": "Capítulos",
+    "info": "Info",
+    "sleep": "Temporizador de suspensión",
+    "speed": "Velocidad"
+  },
+  "status": {
+    "loading": "Cargando",
+    "reconnecting": "Reconectando…",
+    "endsAt": "Termina a las {{time}}"
+  },
+  "markers": {
+    "intro": "Intro",
+    "credits": "Créditos",
+    "skipIntro": "Saltar intro",
+    "skipCredits": "Saltar créditos"
+  },
+  "upNext": {
+    "title": "A continuación",
+    "episode": "A continuación · {{episode}}",
+    "playNow": "Reproducir ahora",
+    "cancel": "Cancelar",
+    "nextIn": "Siguiente en {{seconds}}",
+    "lastEpisode": "Es el último episodio",
+    "lastInQueue": "Es el último de la lista"
+  },
+  "subtitles": {
+    "off": "Desactivados",
+    "offToast": "Subtítulos desactivados",
+    "shown": "Subtítulos: {{track}}",
+    "failed": "No se pudieron cargar estos subtítulos.",
+    "sync": "Sincronización",
+    "syncHint": "OK para restablecer"
+  },
+  "look": {
+    "size": "Tamaño de los subtítulos",
+    "background": "Fondo de los subtítulos",
+    "font": "Fuente de los subtítulos",
+    "position": "Posición de los subtítulos",
+    "sizes": {
+      "small": "Pequeño",
+      "normal": "Normal",
+      "large": "Grande",
+      "huge": "Muy grande"
+    },
+    "positions": {
+      "bottom": "Abajo",
+      "raised": "Un poco más arriba",
+      "higher": "Más arriba",
+      "highest": "Aún más arriba"
+    },
+    "backgrounds": {
+      "none": "Ninguno",
+      "darkBox": "Recuadro oscuro"
+    },
+    "fonts": {
+      "sansSerif": "Sans serif",
+      "serif": "Serif",
+      "monospace": "Monoespaciada",
+      "casual": "Informal"
+    }
+  },
+  "audio": {
+    "delay": "Retraso de audio",
+    "notOffered": "El reproductor de esta TV no ofrece {{chosen}}: se reproduce {{playing}}"
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automática",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "automaticHint": "Se adapta a las condiciones",
+    "automaticPlaying": "Automática · {{quality}}",
+    "automaticNow": "Ahora {{quality}}",
+    "lowered": "Calidad reducida a {{quality}}",
+    "loweredNetwork": "Reducida para tu conexión",
+    "loweredDevice": "Reducida para este dispositivo",
+    "playOriginal": "Reproducir el original",
+    "playOriginalHint": "Volver a probar el original",
+    "transcodeToast": "{{note}} Para volver al original, abre Calidad.",
+    "slowServer": "El servidor no puede seguir el ritmo de este video. Prueba una calidad más baja.",
+    "slowServerToast": "{{note}} Elige una en Calidad."
+  },
+  "fallback": {
+    "unplayable": "Este dispositivo no pudo reproducir el archivo original.",
+    "notSmooth": "El original no se reproducía con fluidez en este dispositivo."
+  },
+  "speed": {
+    "passthrough": "No mientras el sonido vaya tal cual a tu receptor: se reproduce a su propia velocidad"
+  },
+  "method": {
+    "direct": "Reproducción directa",
+    "remux": "Transmisión directa",
+    "transcode": "Transcodificación",
+    "remuxAudio": "Transmisión directa · Audio transcodificado"
+  },
+  "details": {
+    "title": "Detalles de reproducción",
+    "waiting": "Consultando al servidor…",
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Tasa de bits",
+    "encoder": "Codificador",
+    "shownAs": "Se muestra en",
+    "subtitles": "Subtítulos",
+    "speed": "Velocidad",
+    "network": "Velocidad de red de la TV",
+    "burnedIn": "Incrustados",
+    "toneMapped": "SDR (mapeo de tonos con {{method}})",
+    "realTime": "{{speed}}× tiempo real",
+    "realTimeReady": "{{speed}}× tiempo real · {{seconds}} s de adelanto",
+    "channels": "{{n}} canales",
+    "pipeline": {
+      "hybrid": "GPU y CPU",
+      "copy": "copia"
+    }
+  },
+  "readout": {
+    "howItPlays": "Cómo se reproduce",
+    "thisTv": "Esta TV",
+    "file": "Archivo",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtítulos",
+    "playback": "Reproducción",
+    "why": "Motivo",
+    "quality": "Calidad",
+    "currentBitrate": "Tasa de bits actual",
+    "asInFile": "Como en el archivo",
+    "output": "Salida",
+    "track": "Pista",
+    "off": "Desactivados",
+    "shown": "Visualización",
+    "fromServerText": "Texto del servidor",
+    "fromServerPictures": "Imágenes del servidor",
+    "burnedInByServer": "Incrustados por el servidor",
+    "convertsTo": "Se convierte a",
+    "bitrate": "Tasa de bits",
+    "decoder": "Decodificador",
+    "videoDecoder": "Decodificador de video",
+    "hardware": "{{decoder}} (hardware)",
+    "software": "{{decoder}} (software)",
+    "decoded": "Decodificado",
+    "bitDepth": "{{n}} bits",
+    "codecString": "Cadena de códec",
+    "dropped": "Fotogramas perdidos",
+    "droppedFrames": "Fotogramas perdidos",
+    "droppedOf": "{{dropped}} de {{frames}}",
+    "buffer": "Búfer",
+    "ahead": "{{seconds}} s de adelanto",
+    "bufferedAhead": "Precargado",
+    "stalls": "Interrupciones",
+    "firstFrame": "Primer fotograma"
+  },
+  "chapters": {
+    "word": "Capítulo",
+    "numbered": "Capítulo {{number}}",
+    "named": "Capítulo {{number}} · {{name}}"
+  },
+  "sleep": {
+    "off": "Desactivado",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "Queda {{count}} min",
+    "minutesLeft_many": "Quedan {{count}} min",
+    "minutesLeft_other": "Quedan {{count}} min",
+    "endOfEpisode": "Final de este episodio",
+    "endOfTrack": "Final de esta pista",
+    "pausingIn": "Se pausará en {{seconds}} s",
+    "keepWatching": "Seguir viendo",
+    "keepListening": "Seguir escuchando"
+  },
+  "spoken": {
+    "position": "{{elapsed}} de {{duration}}",
+    "hours_one": "{{count}} hora",
+    "hours_many": "{{count}} horas",
+    "hours_other": "{{count}} horas",
+    "minutes_one": "{{count}} minuto",
+    "minutes_many": "{{count}} minutos",
+    "minutes_other": "{{count}} minutos",
+    "seconds_one": "{{count}} segundo",
+    "seconds_many": "{{count}} segundos",
+    "seconds_other": "{{count}} segundos"
+  },
+  "units": {
+    "seconds": "{{value}} s",
+    "milliseconds": "{{value}} ms"
+  },
+  "cast": {
+    "nothingToPlay": "Nada que reproducir",
+    "playingFrom": "Reproduciendo desde {{device}}",
+    "anotherDevice": "otro dispositivo"
+  },
+  "errors": {
+    "title": "No se puede reproducir este elemento",
+    "stoppedTitle": "Reproducción detenida",
+    "tryAgain": "Volver a intentar",
+    "back": "Volver",
+    "unplayable": "Este video no se puede reproducir en este dispositivo.",
+    "stuck": "Este video no se reproduce en este dispositivo: se detiene en el mismo punto cada vez.",
+    "short": "Este video termina antes del punto desde el que debía reproducirse.",
+    "stopped": "La reproducción se detuvo y no pudo continuar.",
+    "network": "Comprueba que el servidor esté encendido y que este dispositivo esté en su red.",
+    "failed": "La reproducción falló ({{details}}).",
+    "noFile": "Este elemento no tiene ningún archivo para reproducir.",
+    "serverTooOld": "Este servidor es demasiado antiguo para reproducir en esta TV: actualízalo."
+  },
+  "stopped": {
+    "byAdmin": "El administrador del servidor detuvo la reproducción.",
+    "elsewhere": "La reproducción se detuvo desde otro dispositivo."
+  },
+  "engine": {
+    "cantDecodeSound": "la TV no puede decodificar el sonido",
+    "cantDecodePicture": "la TV no puede decodificar la imagen",
+    "cantOpenFile": "la TV no puede abrir este archivo",
+    "protected": "el contenido está protegido",
+    "connectionFailed": "falló la conexión",
+    "nothingAtAddress": "el servidor no tiene nada en esa dirección",
+    "interrupted": "la TV usó su reproductor para otra cosa"
+  }
+}

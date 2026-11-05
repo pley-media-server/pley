@@ -286,7 +286,7 @@ public static class SubtitleSync
     public static string Label(long offsetMs)
     {
         var sign = offsetMs > 0 ? "+" : offsetMs < 0 ? "−" : "";
-        return sign + (Math.Abs(offsetMs) / 1000.0).ToString("F1", CultureInfo.InvariantCulture) + " s";
+        return Strings.T("player.units.seconds", ("value", sign + (Math.Abs(offsetMs) / 1000.0).ToString("F1", PlayerText.Numbers)));
     }
 }
 

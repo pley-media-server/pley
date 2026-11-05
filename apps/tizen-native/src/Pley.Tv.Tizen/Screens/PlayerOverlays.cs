@@ -269,7 +269,7 @@ sealed class UpNextView : View
 
         public PlayNowButton(Action onPlay)
         {
-            Item = new FocusItem(PlayerText.PlayNow) { Selected = onPlay };
+            Item = new FocusItem("play-now") { Selected = onPlay };
             CornerRadius = Ui.Dp(PleyShape.ControlRadius);
             BorderlineOffset = -1;
             PivotPoint = global::Tizen.NUI.PivotPoint.Center;

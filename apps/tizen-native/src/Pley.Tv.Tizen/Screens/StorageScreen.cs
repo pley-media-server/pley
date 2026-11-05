@@ -109,7 +109,7 @@ sealed class StorageScreen : ShellPage
         if (dir == null || root == null || !dir.StartsWith(root, StringComparison.Ordinal))
         {
             Text.Show(title, Pley.Tv.Core.Ui.Rail.StorageItem.Label);
-            Show(Array.Empty<LocalEntry>(), "No USB drive", "Plug a USB drive into the TV to play its videos here.", "usb");
+            Show(Array.Empty<LocalEntry>(), Strings.T("storage.noDrive.title"), Strings.T("storage.noDrive.body"), "usb");
             return;
         }
         // Where it is on the drive, as a path: "/Films/2019"; at its top, "/" and how full it is.
@@ -129,13 +129,13 @@ sealed class StorageScreen : ShellPage
         }
         catch (Exception)
         {
-            if (at == asked && !gone) Show(Array.Empty<LocalEntry>(), "This folder can't be read", "The drive may have been pulled out.", "circle-alert");
+            if (at == asked && !gone) Show(Array.Empty<LocalEntry>(), Strings.T("storage.unreadable.title"), Strings.T("storage.unreadable.body"), "circle-alert");
             return;
         }
         if (at != asked || gone) return;
         // The title is the drive's make and model when it says them ("Kingston DataTraveler 3.0").
         Text.Show(title, name ?? Pley.Tv.Core.Ui.Rail.StorageItem.Label);
-        if (found.Count == 0) Show(found, "Nothing to play here", "This folder has no videos or folders in it.");
+        if (found.Count == 0) Show(found, Strings.T("storage.empty.title"), Strings.T("storage.empty.body"));
         else Show(found, null, null);
     }
 
@@ -145,7 +145,7 @@ sealed class StorageScreen : ShellPage
         try
         {
             var d = new DriveInfo(root);
-            return $"{ItemFormat.Bytes(d.AvailableFreeSpace)} free of {ItemFormat.Bytes(d.TotalSize)}";
+            return Strings.T("storage.space", ("free", ItemFormat.Bytes(d.AvailableFreeSpace)), ("total", ItemFormat.Bytes(d.TotalSize)));
         }
         catch (Exception)
         {
@@ -207,14 +207,14 @@ sealed class StorageScreen : ShellPage
     {
         var lines = new List<TrackLine>();
         if (HasUp)
-            lines.Add(new TrackLine(Up, Up, Subtitle: "Up a folder", Icon: "corner-left-up"));
+            lines.Add(new TrackLine(Up, Up, Subtitle: Strings.T("storage.up"), Icon: "corner-left-up"));
         lines.AddRange(entries.Select(e =>
         {
             if (e.Folder) return new TrackLine(e.Path, e.Name, Icon: "folder");
             var (resume, length) = LocalPlayerSource.Kept(storage, e.Path);
             var kind = System.IO.Path.GetExtension(e.Name).TrimStart('.').ToUpperInvariant();
             return new TrackLine(e.Path, LocalFolder.Title(e.Path),
-                Subtitle: resume > 0 ? $"{kind} · Resumes at {PlayerText.Time(resume)}" : kind,
+                Subtitle: resume > 0 ? Strings.T("storage.resumesAt", ("kind", kind), ("time", PlayerText.Time(resume))) : kind,
                 Duration: ItemFormat.Bytes(e.Size),
                 Icon: "file-video",
                 Progress: resume > 0 && length > 0 ? Math.Max(0.02f, (float)resume / length) : 0);

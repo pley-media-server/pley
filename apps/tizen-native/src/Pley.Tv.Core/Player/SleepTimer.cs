@@ -29,27 +29,27 @@ public sealed record SleepState(SleepChoice? Choice = null, int? SecondsLeft = n
     public SleepChoice Set => Choice ?? new SleepChoice.Off();
 }
 
-/// <summary>How the sleep timer's menus say things, for music and video alike (the Android app's SleepTexts).</summary>
+/// <summary>How the sleep timer's menus say things, for music and video alike (the Android app's SleepTexts), in the language shown.</summary>
 public static class SleepText
 {
-    public const string Title = "Sleep timer";
+    public static string Title => Strings.T("player.controls.sleep");
 
     /// <summary>A choice: "Off", "30 min", "End of this episode" (music: "End of this track").</summary>
     public static string Choice(SleepChoice choice, bool music = false) => choice switch
     {
-        SleepChoice.Minutes m => $"{m.Count} min",
-        SleepChoice.EndOfItem => music ? "End of this track" : "End of this episode",
-        _ => "Off",
+        SleepChoice.Minutes m => Strings.T("player.sleep.minutes", ("minutes", m.Count)),
+        SleepChoice.EndOfItem => music ? Strings.T("player.sleep.endOfTrack") : Strings.T("player.sleep.endOfEpisode"),
+        _ => Strings.T("player.sleep.off"),
     };
 
     /// <summary>What the menu row says now: "Off", "42 min left", "End of this episode".</summary>
     public static string Summary(SleepState state, bool music = false) =>
-        state.Set is SleepChoice.Minutes && state.MinutesLeft is { } minutes ? $"{minutes} min left" : Choice(state.Set, music);
+        state.Set is SleepChoice.Minutes && state.MinutesLeft is { } minutes ? Strings.Count("player.sleep.minutesLeft", minutes) : Choice(state.Set, music);
 
     /// <summary>"Pausing in 30 s".</summary>
-    public static string Notice(int secondsLeft) => $"Pausing in {secondsLeft} s";
+    public static string Notice(int secondsLeft) => Strings.T("player.sleep.pausingIn", ("seconds", secondsLeft));
 
-    public static string Keep(bool music = false) => music ? "Keep listening" : "Keep watching";
+    public static string Keep(bool music = false) => music ? Strings.T("player.sleep.keepListening") : Strings.T("player.sleep.keepWatching");
 }
 
 /// <summary>

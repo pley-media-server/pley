@@ -38,7 +38,7 @@ public class ApiException : Exception
 public class SessionStoppedException : ApiException
 {
     /// <summary>What the player says, the Android app's words: who stopped it, then their note on a line of its own.</summary>
-    public const string ByAdmin = "Playback was stopped by the server's administrator.";
+    public static string ByAdmin => Strings.T("player.stopped.byAdmin");
 
     public SessionStoppedException(string? note)
         : base(410, "session_stopped", string.IsNullOrWhiteSpace(note) ? ByAdmin : ByAdmin + "\n" + note!.Trim()) => Note = note;

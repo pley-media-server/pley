@@ -1,0 +1,21 @@
+{
+  "noDrive": {
+    "title": "No hay ningún dispositivo USB",
+    "body": "Conecta un dispositivo USB a la TV para reproducir aquí sus videos."
+  },
+  "unreadable": {
+    "title": "No se puede leer esta carpeta",
+    "body": "Puede que se haya desconectado el dispositivo."
+  },
+  "empty": {
+    "title": "Nada que reproducir aquí",
+    "body": "Esta carpeta no contiene videos ni carpetas."
+  },
+  "space": "{{free}} libres de {{total}}",
+  "up": "Carpeta superior",
+  "resumesAt": "{{kind}} · Se reanuda en {{time}}",
+  "playback": {
+    "stuck": "Esta TV no reproduce este archivo: su imagen nunca empezó. Sin un servidor que lo convierta, prueba con otra copia.",
+    "cantConvert": "Esta TV no puede reproducir este archivo tal cual, y un archivo en un dispositivo USB no tiene un servidor que lo convierta"
+  }
+}

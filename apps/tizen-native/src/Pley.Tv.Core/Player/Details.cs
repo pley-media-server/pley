@@ -60,7 +60,16 @@ public static class Details
         ["h264_v4l2m2m"] = "V4L2",
     };
 
-    static readonly Dictionary<string, string> Pipelines = new Dictionary<string, string> { ["gpu"] = "GPU", ["hybrid"] = "GPU and CPU", ["cpu"] = "CPU", ["copy"] = "copy" };
+    /// <summary>Where a transcode runs, by the transcoder's name for it ("hybrid": "GPU and CPU"); one not known as it is.</summary>
+    static string Pipeline(string pipeline) => pipeline switch
+    {
+        "gpu" => "GPU",
+        "hybrid" => Strings.T("player.details.pipeline.hybrid"),
+        "cpu" => "CPU",
+        "copy" => Strings.T("player.details.pipeline.copy"),
+        _ => pipeline,
+    };
+
     static readonly Dictionary<int, string> Channels = new Dictionary<int, string> { [1] = "1.0", [2] = "2.0", [3] = "2.1", [6] = "5.1", [7] = "6.1", [8] = "7.1" };
     static readonly Regex Size = new Regex(@"(\d+)×(\d+)", RegexOptions.CultureInvariant);
 
@@ -72,7 +81,7 @@ public static class Details
     public static string AudioLabel(MediaStream? a)
     {
         if (a == null) return "";
-        string? channels = a.Channels is int c ? Channels.TryGetValue(c, out var name) ? name : $"{c}ch" : null;
+        string? channels = a.Channels is int c ? Channels.TryGetValue(c, out var name) ? name : Strings.T("player.details.channels", ("n", c)) : null;
         return ItemFormat.Join(" ", ItemFormat.CodecLabel(a.Codec), channels);
     }
 
@@ -84,7 +93,7 @@ public static class Details
     public static string EncoderLabel(TranscodeInfo t)
     {
         var name = t.Encoder != null ? Encoders.TryGetValue(t.Encoder, out var known) ? known : t.Encoder : null;
-        var where = t.Pipeline != null && t.Pipeline != "copy" ? $"({(Pipelines.TryGetValue(t.Pipeline, out var p) ? p : t.Pipeline)})" : null;
+        var where = t.Pipeline != null && t.Pipeline != "copy" ? $"({Pipeline(t.Pipeline)})" : null;
         return ItemFormat.Join(" ", name, t.Preset, where);
     }
 
@@ -142,8 +151,8 @@ public static class Details
         if (transcode?.Video == "transcode" && transcode.Encoder != null) rows.Add(new DetailRow(SessionText.RowEncoder, EncoderLabel(transcode)));
         if (video != null && ShownAs(info, transcode) is { } shown) rows.Add(new DetailRow(SessionText.RowHdr, shown));
         if (transcode?.SubtitleBurn == true) rows.Add(new DetailRow(SessionText.RowSubtitles, SessionText.BurnedIn));
-        if (transcode?.Speed is double speed && speed > 0) rows.Add(new DetailRow(SessionText.RowSpeed, SessionText.Speed(speed.ToString("F1", CultureInfo.InvariantCulture), ahead)));
-        string? pipeline = transcode?.Pipeline != null && transcode.Video == "transcode" ? Pipelines.TryGetValue(transcode.Pipeline, out var p) ? p : transcode.Pipeline : null;
+        if (transcode?.Speed is double speed && speed > 0) rows.Add(new DetailRow(SessionText.RowSpeed, SessionText.Speed(speed.ToString("F1", PlayerText.Numbers), ahead)));
+        string? pipeline = transcode?.Pipeline != null && transcode.Video == "transcode" ? Pipeline(transcode.Pipeline) : null;
         return new PlaybackDetails(
             SessionText.Method(info), why, pipeline, rows, info.Method, file, video, audio, subtitle,
             subtitle != null ? DeliveryOf(info, subtitle, sideload) : null, transcode);
@@ -165,8 +174,8 @@ public sealed record ReadoutInput(PlaybackDetails? Details = null, EngineStats? 
 /// </summary>
 public static class Readout
 {
-    public const string HowItPlays = "How it plays";
-    public const string ThisTv = "This TV";
+    public static string HowItPlays => Strings.T("player.readout.howItPlays");
+    public static string ThisTv => Strings.T("player.readout.thisTv");
     /// <summary>The Info panel reads its numbers this often.</summary>
     public const long ReadMs = 1_000;
 
@@ -179,20 +188,20 @@ public static class Readout
         if (d != null)
         {
             sections.Add(new MediaFactBlock(HowItPlays, Playback(d, input.Quality, stats)));
-            if (d.File != null) sections.Add(new MediaFactBlock("File", MediaFacts.File(d.File)));
+            if (d.File != null) sections.Add(new MediaFactBlock(Strings.T("player.readout.file"), MediaFacts.File(d.File)));
             if (d.Video != null)
             {
                 var facts = MediaFacts.Video(d.Video).ToList();
-                if (CurrentBitrate(d, stats) is { } now) facts.Add(new MediaFact("Current bitrate", now));
-                sections.Add(new MediaFactBlock("Video", facts));
+                if (CurrentBitrate(d, stats) is { } now) facts.Add(new MediaFact(Strings.T("player.readout.currentBitrate"), now));
+                sections.Add(new MediaFactBlock(Strings.T("player.readout.video"), facts));
             }
             if (d.Audio != null)
             {
                 var facts = MediaFacts.Audio(d.Audio).ToList();
-                if (stats?.AudioOutput is { } output) facts.Add(new MediaFact("Output", output));
-                sections.Add(new MediaFactBlock("Audio", facts));
+                if (stats?.AudioOutput is { } output) facts.Add(new MediaFact(Strings.T("player.readout.output"), output));
+                sections.Add(new MediaFactBlock(Strings.T("player.readout.audio"), facts));
             }
-            sections.Add(new MediaFactBlock("Subtitles", Subtitles(d)));
+            sections.Add(new MediaFactBlock(Strings.T("player.readout.subtitles"), Subtitles(d)));
         }
         var device = Device(stats, input);
         if (device.Count > 0) sections.Add(new MediaFactBlock(ThisTv, device));
@@ -207,29 +216,29 @@ public static class Readout
         var stats = input.Stats;
         if (d != null)
         {
-            lines.Add(new MediaFact("Playback", d.Method + (d.Pipeline != null ? " · " + d.Pipeline : "")));
+            lines.Add(new MediaFact(Strings.T("player.readout.playback"), d.Method + (d.Pipeline != null ? " · " + d.Pipeline : "")));
             if (d.Video is { } v)
             {
                 var codec = ItemFormat.CodecLabel(v.Codec) + (v.Profile != null ? " " + v.Profile : "") + (ItemFormat.LevelLabel(v.Codec, v.Level) is { } level ? " L" + level : "");
-                lines.Add(new MediaFact("Video", ItemFormat.Join(" · ",
+                lines.Add(new MediaFact(Strings.T("player.readout.video"), ItemFormat.Join(" · ",
                     codec,
                     v.Width > 0 && v.Height > 0 ? $"{v.Width}×{v.Height}" : null,
                     ItemFormat.FrameRateLabel(v.FrameRate),
                     ItemFormat.BitDepthLabel(v),
                     ItemFormat.HdrFormatLabel(v))));
             }
-            if (TranscodeTarget(d) is { } target) lines.Add(new MediaFact("Converts to", target));
-            if (d.Audio is { } a) lines.Add(new MediaFact("Audio", ItemFormat.Join(" · ", ItemFormat.AudioFormatLabel(a), ItemFormat.SampleRateLabel(a.SampleRate), MediaFacts.Language(a), stats?.AudioOutput)));
-            lines.Add(new MediaFact("Subtitles", d.Subtitle is { } s ? ItemFormat.Join(" · ", MediaFacts.Language(s), MediaFacts.SubtitleFormat(s)) : "Off"));
+            if (TranscodeTarget(d) is { } target) lines.Add(new MediaFact(Strings.T("player.readout.convertsTo"), target));
+            if (d.Audio is { } a) lines.Add(new MediaFact(Strings.T("player.readout.audio"), ItemFormat.Join(" · ", ItemFormat.AudioFormatLabel(a), ItemFormat.SampleRateLabel(a.SampleRate), MediaFacts.Language(a), stats?.AudioOutput)));
+            lines.Add(new MediaFact(Strings.T("player.readout.subtitles"), d.Subtitle is { } s ? ItemFormat.Join(" · ", MediaFacts.Language(s), MediaFacts.SubtitleFormat(s)) : Strings.T("player.readout.off")));
             var bitrates = new[] { ItemFormat.Bitrate(d.File?.Bitrate), CurrentBitrate(d, stats) ?? "" }.Where(b => b.Length > 0).Distinct().ToList();
-            if (bitrates.Count > 0) lines.Add(new MediaFact("Bitrate", string.Join(" → ", bitrates)));
+            if (bitrates.Count > 0) lines.Add(new MediaFact(Strings.T("player.readout.bitrate"), string.Join(" → ", bitrates)));
         }
         if (stats != null)
         {
-            if (stats.Decoder != null) lines.Add(new MediaFact("Decoder", stats.Decoder + Hardware(stats.Hardware)));
-            if (stats.Dropped is long dropped && stats.Frames is long frames) lines.Add(new MediaFact("Dropped", DroppedOf(dropped, frames)));
-            var buffer = $"{input.BufferedAheadMs / 1000} s ahead";
-            lines.Add(new MediaFact("Buffer", buffer + (stats.Bandwidth is long bw ? " · " + ItemFormat.Bitrate(bw) : "")));
+            if (stats.Decoder != null) lines.Add(new MediaFact(Strings.T("player.readout.decoder"), Decoder(stats.Decoder, stats.Hardware)));
+            if (stats.Dropped is long dropped && stats.Frames is long frames) lines.Add(new MediaFact(Strings.T("player.readout.dropped"), DroppedOf(dropped, frames)));
+            var buffer = Strings.T("player.readout.ahead", ("seconds", input.BufferedAheadMs / 1000));
+            lines.Add(new MediaFact(Strings.T("player.readout.buffer"), buffer + (stats.Bandwidth is long bw ? " · " + ItemFormat.Bitrate(bw) : "")));
         }
         return lines;
     }
@@ -267,28 +276,28 @@ public static class Readout
 
     static List<MediaFact> Playback(PlaybackDetails d, string quality, EngineStats? stats)
     {
-        var facts = new List<MediaFact> { new MediaFact("Playback", d.Method + (d.Pipeline != null ? " · " + d.Pipeline : "")) };
-        if (!string.IsNullOrWhiteSpace(d.Why)) facts.Add(new MediaFact("Why", d.Why!));
+        var facts = new List<MediaFact> { new MediaFact(Strings.T("player.readout.playback"), d.Method + (d.Pipeline != null ? " · " + d.Pipeline : "")) };
+        if (!string.IsNullOrWhiteSpace(d.Why)) facts.Add(new MediaFact(Strings.T("player.readout.why"), d.Why!));
         facts.AddRange(d.Rows.Select(r => new MediaFact(r.Label, r.Value)));
         // Beside the server's speed and the bitrate: a server keeping up whose video stalls is a
         // network that can't carry it.
         if (stats?.Bandwidth is long bandwidth) facts.Add(new MediaFact(SessionText.RowNetwork, ItemFormat.Bitrate(bandwidth)));
-        if (!string.IsNullOrWhiteSpace(quality)) facts.Add(new MediaFact("Quality", quality));
+        if (!string.IsNullOrWhiteSpace(quality)) facts.Add(new MediaFact(Strings.T("player.readout.quality"), quality));
         return facts;
     }
 
     static IReadOnlyList<MediaFact> Subtitles(PlaybackDetails d)
     {
-        if (d.Subtitle == null) return new[] { new MediaFact("Track", "Off") };
+        if (d.Subtitle == null) return new[] { new MediaFact(Strings.T("player.readout.track"), Strings.T("player.readout.off")) };
         var shown = d.SubtitleDelivery switch
         {
-            SubtitleDelivery.Server => "Text from the server",
-            SubtitleDelivery.ServerPictures => "Pictures from the server",
-            SubtitleDelivery.BurnedIn => "Burned in by the server",
+            SubtitleDelivery.Server => Strings.T("player.readout.fromServerText"),
+            SubtitleDelivery.ServerPictures => Strings.T("player.readout.fromServerPictures"),
+            SubtitleDelivery.BurnedIn => Strings.T("player.readout.burnedInByServer"),
             _ => null,
         };
         var facts = MediaFacts.Subtitle(d.Subtitle).ToList();
-        if (shown != null) facts.Add(new MediaFact("Shown", shown));
+        if (shown != null) facts.Add(new MediaFact(Strings.T("player.readout.shown"), shown));
         return facts;
     }
 
@@ -296,21 +305,21 @@ public static class Readout
     {
         var facts = new List<MediaFact>();
         if (stats == null) return facts;
-        if (stats.Decoder != null) facts.Add(new MediaFact("Video decoder", stats.Decoder + Hardware(stats.Hardware)));
+        if (stats.Decoder != null) facts.Add(new MediaFact(Strings.T("player.readout.videoDecoder"), Decoder(stats.Decoder, stats.Hardware)));
         var codec = stats.Codec;
         var picture = ItemFormat.Join(" · ",
             stats.Width != null && stats.Height != null ? $"{stats.Width}×{stats.Height}" : null,
             ItemFormat.FrameRateLabel(stats.FrameRate),
-            stats.BitDepth is int depth ? $"{depth}-bit" : null,
+            stats.BitDepth is int depth ? Strings.T("player.readout.bitDepth", ("n", depth)) : null,
             stats.Hdr,
             codec != null ? CodecName(codec.Split(' ')[0]) : null);
-        if (picture.Length > 0) facts.Add(new MediaFact("Decoded", picture));
+        if (picture.Length > 0) facts.Add(new MediaFact(Strings.T("player.readout.decoded"), picture));
         // What arrives: "hvc1.2.4.L153.B0", "dvhe.08.06", after the MIME type.
-        if (codec != null && codec.IndexOf(' ') is var space && space > 0 && codec.Substring(space + 1).Trim() is { Length: > 0 } codecString) facts.Add(new MediaFact("Codec string", codecString));
-        if (stats.Dropped is long dropped && stats.Frames is long frames) facts.Add(new MediaFact("Dropped frames", DroppedOf(dropped, frames)));
-        facts.Add(new MediaFact("Buffered ahead", $"{input.BufferedAheadMs / 1000} s"));
-        facts.Add(new MediaFact("Stalls", input.Stalls.ToString(CultureInfo.InvariantCulture)));
-        if (input.FirstFrameMs is long first) facts.Add(new MediaFact("First frame", $"{first} ms"));
+        if (codec != null && codec.IndexOf(' ') is var space && space > 0 && codec.Substring(space + 1).Trim() is { Length: > 0 } codecString) facts.Add(new MediaFact(Strings.T("player.readout.codecString"), codecString));
+        if (stats.Dropped is long dropped && stats.Frames is long frames) facts.Add(new MediaFact(Strings.T("player.readout.droppedFrames"), DroppedOf(dropped, frames)));
+        facts.Add(new MediaFact(Strings.T("player.readout.bufferedAhead"), Strings.T("player.units.seconds", ("value", input.BufferedAheadMs / 1000))));
+        facts.Add(new MediaFact(Strings.T("player.readout.stalls"), input.Stalls.ToString(CultureInfo.InvariantCulture)));
+        if (input.FirstFrameMs is long first) facts.Add(new MediaFact(Strings.T("player.readout.firstFrame"), Strings.T("player.units.milliseconds", ("value", first))));
         // The engine's own lines, "Label: value".
         foreach (var line in stats.Extra)
         {
@@ -321,20 +330,21 @@ public static class Readout
     }
 
     /// <summary>"10 of 1000": dropped of every frame the decoder had.</summary>
-    static string DroppedOf(long dropped, long frames) => $"{dropped} of {frames}";
+    static string DroppedOf(long dropped, long frames) => Strings.T("player.readout.droppedOf", ("dropped", dropped), ("frames", frames));
 
     /// <summary>The bitrate arriving now: the stream's as the engine measures it, or the transcode's aim; in direct play the file's own.</summary>
     static string? CurrentBitrate(PlaybackDetails d, EngineStats? stats)
     {
         if (stats?.Bitrate is long bitrate) return ItemFormat.Bitrate(bitrate);
         if (d.Transcode?.BitrateOut is long aim) return ItemFormat.Bitrate(aim);
-        return d.PlaybackMethod == "direct" ? "As in the file" : null;
+        return d.PlaybackMethod == "direct" ? Strings.T("player.readout.asInFile") : null;
     }
 
-    static string Hardware(bool? hardware) => hardware switch
+    /// <summary>The decoder, and whether it is the hardware's: "c2.hevc (hardware)"; as it is when that isn't known.</summary>
+    static string Decoder(string decoder, bool? hardware) => hardware switch
     {
-        true => " (hardware)",
-        false => " (software)",
-        null => "",
+        true => Strings.T("player.readout.hardware", ("decoder", decoder)),
+        false => Strings.T("player.readout.software", ("decoder", decoder)),
+        null => decoder,
     };
 }

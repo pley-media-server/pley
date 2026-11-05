@@ -6,65 +6,65 @@ namespace Pley.Tv.Core.Player;
 
 /// <summary>
 /// What the playback says to people: the Android app's PlayerTexts, from strings_session.xml and
-/// strings_player_extras.xml, word for word.
+/// strings_player_extras.xml, in the language shown (<c>player.json</c>; English word for word).
 /// </summary>
 public static class SessionText
 {
-    public const string QualityOriginal = "Original";
+    public static string QualityOriginal => Strings.T("player.quality.original");
 
     /// <summary>The audio chosen isn't a track the TV's player offers (TrueHD): what plays instead.</summary>
-    public static string AudioNotOffered(string chosen, string playing) => $"This TV's player doesn't offer {chosen}: {playing} plays";
-    public const string QualityAutomatic = "Automatic";
-    public const string AutomaticHint = "Dynamically adjust to conditions";
-    public const string LoweredNetwork = "Lowered for your connection";
-    public const string LoweredDevice = "Lowered for this device";
-    public const string SkipIntro = "Skip Intro";
-    public const string SkipCredits = "Skip Credits";
-    public const string LastEpisode = "This is the last episode";
+    public static string AudioNotOffered(string chosen, string playing) => Strings.T("player.audio.notOffered", ("chosen", chosen), ("playing", playing));
+    public static string QualityAutomatic => Strings.T("player.quality.automatic");
+    public static string AutomaticHint => Strings.T("player.quality.automaticHint");
+    public static string LoweredNetwork => Strings.T("player.quality.loweredNetwork");
+    public static string LoweredDevice => Strings.T("player.quality.loweredDevice");
+    public static string SkipIntro => Strings.T("player.markers.skipIntro");
+    public static string SkipCredits => Strings.T("player.markers.skipCredits");
+    public static string LastEpisode => Strings.T("player.upNext.lastEpisode");
     /// <summary>A file on a drive whose picture never moved: nothing converts it, as a server would.</summary>
-    public const string LocalStuck = "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.";
-    public const string LastInQueue = "This is the last one";
-    public const string SubtitlesOff = "Off";
-    public const string SubtitlesFailed = "These subtitles couldn't be loaded.";
-    public const string MethodDirect = "Direct play";
-    public const string MethodRemux = "Direct stream";
-    public const string MethodTranscode = "Transcoding";
-    public const string MethodRemuxAudio = "Direct stream · Audio transcoding";
-    public const string FallbackUnplayable = "This device couldn't play the original file.";
-    public const string FallbackNotSmooth = "The original didn't play smoothly on this device.";
-    public const string SlowServer = "The server can't keep up with this video. Try a lower quality.";
-    public const string RowVideo = "Video";
-    public const string RowAudio = "Audio";
-    public const string RowBitrate = "Bitrate";
-    public const string RowEncoder = "Encoder";
-    public const string RowHdr = "Shown as";
-    public const string RowSubtitles = "Subtitles";
+    public static string LocalStuck => Strings.T("storage.playback.stuck");
+    public static string LastInQueue => Strings.T("player.upNext.lastInQueue");
+    public static string SubtitlesOff => Strings.T("player.subtitles.off");
+    public static string SubtitlesFailed => Strings.T("player.subtitles.failed");
+    public static string MethodDirect => Strings.T("player.method.direct");
+    public static string MethodRemux => Strings.T("player.method.remux");
+    public static string MethodTranscode => Strings.T("player.method.transcode");
+    public static string MethodRemuxAudio => Strings.T("player.method.remuxAudio");
+    public static string FallbackUnplayable => Strings.T("player.fallback.unplayable");
+    public static string FallbackNotSmooth => Strings.T("player.fallback.notSmooth");
+    public static string SlowServer => Strings.T("player.quality.slowServer");
+    public static string RowVideo => Strings.T("player.details.video");
+    public static string RowAudio => Strings.T("player.details.audio");
+    public static string RowBitrate => Strings.T("player.details.bitrate");
+    public static string RowEncoder => Strings.T("player.details.encoder");
+    public static string RowHdr => Strings.T("player.details.shownAs");
+    public static string RowSubtitles => Strings.T("player.details.subtitles");
     /// <summary>How fast the server makes the stream, as every app calls it.</summary>
-    public const string RowSpeed = "Speed";
+    public static string RowSpeed => Strings.T("player.details.speed");
     /// <summary>How fast the TV's whole network receives, which Tizen's player doesn't say of its own downloads.</summary>
-    public const string RowNetwork = "TV network speed";
-    public const string BurnedIn = "Burned in";
-    public const string SpeedPassthrough = "Not while the sound goes to your receiver as it is: it plays at its own speed";
-    public const string ErrorUnplayable = "This video can't be played on this device.";
-    public const string ErrorStuck = "This video doesn't play on this device: it stops at the same spot each time.";
-    public const string ErrorShort = "This video ends before the point it was to play from.";
-    public const string ErrorStopped = "Playback stopped and couldn't get going again.";
-    public const string ErrorNetwork = "Check that the server is on and that this device is on its network.";
-    public const string NoFile = "This item has no file to play.";
-    public const string StoppedByAdmin = "Playback was stopped by the server's administrator.";
-    public const string StoppedElsewhere = "Playback was stopped from another device.";
+    public static string RowNetwork => Strings.T("player.details.network");
+    public static string BurnedIn => Strings.T("player.details.burnedIn");
+    public static string SpeedPassthrough => Strings.T("player.speed.passthrough");
+    public static string ErrorUnplayable => Strings.T("player.errors.unplayable");
+    public static string ErrorStuck => Strings.T("player.errors.stuck");
+    public static string ErrorShort => Strings.T("player.errors.short");
+    public static string ErrorStopped => Strings.T("player.errors.stopped");
+    public static string ErrorNetwork => Strings.T("player.errors.network");
+    public static string NoFile => Strings.T("player.errors.noFile");
+    public static string StoppedByAdmin => Strings.T("player.stopped.byAdmin");
+    public static string StoppedElsewhere => Strings.T("player.stopped.elsewhere");
 
-    /// <summary>A quality by the menu's name: "Original", "Automatic", "8 Mbps 1080p".</summary>
+    /// <summary>A quality by the menu's name: "Original", "Automatic", "8 Mbps 1080p" (in French "8 Mbit/s 1080p", as Settings and the web write it).</summary>
     public static string Quality(QualityPreset preset) => preset.Id switch
     {
         QualityPreset.AutomaticId => QualityAutomatic,
-        "30m" => "30 Mbps 4K",
-        "15m" => "15 Mbps 4K",
-        "20m" => "20 Mbps 1080p",
-        "12m" => "12 Mbps 1080p",
-        "8m" => "8 Mbps 1080p",
-        "4m" => "4 Mbps 720p",
-        "2m" => "2 Mbps 480p",
+        "30m" => Preset(30, "4K"),
+        "15m" => Preset(15, "4K"),
+        "20m" => Preset(20, "1080p"),
+        "12m" => Preset(12, "1080p"),
+        "8m" => Preset(8, "1080p"),
+        "4m" => Preset(4, "720p"),
+        "2m" => Preset(2, "480p"),
         _ => QualityOriginal,
     };
 
@@ -72,23 +72,27 @@ public static class SessionText
     public static string Quality(QualityPreset preset, int? fileLines)
     {
         if (preset.MaxHeight is not int most || preset.MaxBitrateKbps is not int kbps || fileLines is not int lines || lines >= most) return Quality(preset);
-        return $"{(kbps / 1000).ToString(CultureInfo.InvariantCulture)} Mbps {LinesLabel(lines)}";
+        return Preset(kbps / 1000, LinesLabel(lines));
     }
+
+    /// <summary>A converted quality's name: its megabits a second and its lines, "8 Mbps 1080p".</summary>
+    static string Preset(int mbps, string lines) => Strings.T("player.quality.preset", ("mbps", mbps), ("lines", lines));
 
     /// <summary>Lines as qualities name them: "4K", "1080p", "720p".</summary>
     public static string LinesLabel(int lines) => lines >= 2160 ? "4K" : lines.ToString(CultureInfo.InvariantCulture) + "p";
 
     /// <summary>The menu's row while Automatic plays <paramref name="playing"/>: "Automatic · Original".</summary>
-    public static string Automatic(string playing) => $"Automatic · {playing}";
+    public static string Automatic(string playing) => Strings.T("player.quality.automaticPlaying", ("quality", playing));
 
     /// <summary>Automatic's hint while it plays <paramref name="playing"/>, below the original: "Now 8 Mbps 1080p".</summary>
-    public static string AutomaticNow(string playing) => $"Now {playing}";
+    public static string AutomaticNow(string playing) => Strings.T("player.quality.automaticNow", ("quality", playing));
 
     /// <summary>Said once when Automatic goes down to the quality named <paramref name="label"/>.</summary>
-    public static string LoweredNotice(string label) => $"Quality lowered to {label}";
+    public static string LoweredNotice(string label) => Strings.T("player.quality.lowered", ("quality", label));
 
     /// <summary>"Up next · S1 E2", or "Up next".</summary>
-    public static string UpNext(string? label) => string.IsNullOrEmpty(label) ? "Up next" : $"Up next · {label}";
+    public static string UpNext(string? label) =>
+        string.IsNullOrEmpty(label) ? Strings.T("player.upNext.title") : Strings.T("player.upNext.episode", ("episode", label));
 
     /// <summary>"Direct play", "Direct stream", "Transcoding", "Direct stream · Audio transcoding".</summary>
     public static string Method(PlaybackInfo info) => info.Method switch
@@ -108,7 +112,7 @@ public static class SessionText
         Player.Failure.Short => ErrorShort,
         Player.Failure.Stopped => ErrorStopped,
         Player.Failure.Network => ErrorNetwork,
-        _ => $"Playback failed ({EngineCode(detail)}).",
+        _ => Strings.T("player.errors.failed", ("details", EngineCode(detail))),
     };
 
     static string EngineCode(string? detail)
@@ -118,7 +122,7 @@ public static class SessionText
     }
 
     /// <summary>The server out of reach, for <paramref name="reason"/> ("no answer in time"): what to check.</summary>
-    public static string Unreachable(string reason) => $"{Errors.AsSentence(reason)} Check that the server is on and that this device is on its network.";
+    public static string Unreachable(string reason) => Strings.T("common.errors.offlineBody", ("reason", Errors.AsSentence(reason)));
 
     /// <summary>The server stopped the playback: who did, then their message on a line of its own.</summary>
     public static string Stopped(string? message, bool byAdmin)
@@ -128,9 +132,9 @@ public static class SessionText
     }
 
     /// <summary>"SDR (tone-mapped with libplacebo)".</summary>
-    public static string ToneMapped(string tonemap) => $"SDR (tone-mapped with {tonemap})";
+    public static string ToneMapped(string tonemap) => Strings.T("player.details.toneMapped", ("method", tonemap));
 
     /// <summary>"2.5× real time", "2.5× real time · 40 s ready".</summary>
     public static string Speed(string speed, int readySeconds) =>
-        readySeconds > 0 ? $"{speed}× real time · {readySeconds.ToString(CultureInfo.InvariantCulture)} s ready" : $"{speed}× real time";
+        readySeconds > 0 ? Strings.T("player.details.realTimeReady", ("speed", speed), ("seconds", readySeconds)) : Strings.T("player.details.realTime", ("speed", speed));
 }

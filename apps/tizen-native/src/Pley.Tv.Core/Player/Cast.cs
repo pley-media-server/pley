@@ -64,7 +64,7 @@ public static class Casts
     public const long BannerMs = 4_000;
 
     /// <summary>Said when a show, an album or a playlist has nothing to play.</summary>
-    public const string NothingToPlay = "Nothing to play";
+    public static string NothingToPlay => Strings.T("player.cast.nothingToPlay");
 
     /// <summary>
     /// The event stream's query that makes this TV a receiver: its install id, a TV, taking titles
@@ -92,7 +92,7 @@ public static class Casts
     public static string Banner(string? from)
     {
         var name = (from ?? "").Trim();
-        return $"Playing from {(name.Length > 0 ? name : "another device")}";
+        return Strings.T("player.cast.playingFrom", ("device", name.Length > 0 ? name : Strings.T("player.cast.anotherDevice")));
     }
 
     /// <summary>

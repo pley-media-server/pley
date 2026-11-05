@@ -6,47 +6,48 @@ namespace Pley.Tv.Core.Player;
 
 /// <summary>
 /// How the player writes times and titles (the Android app's TvPlayerText), and the TV player's
-/// words (strings_tv_player.xml, strings_tv_player_extras.xml), word for word.
+/// words (strings_tv_player.xml, strings_tv_player_extras.xml), in the language shown
+/// (<c>player.json</c>; English word for word).
 /// </summary>
 public static class PlayerText
 {
     // The control row.
-    public const string Play = "Play";
-    public const string Pause = "Pause";
-    public const string Previous = "Previous";
-    public const string Next = "Next";
-    public const string Subtitles = "Subtitles";
-    public const string Audio = "Audio";
-    public const string Quality = "Quality";
-    public const string Chapters = "Chapters";
-    public const string Info = "Info";
-    public const string Sleep = "Sleep timer";
-    public const string Speed = "Speed";
+    public static string Play => Strings.T("player.controls.play");
+    public static string Pause => Strings.T("player.controls.pause");
+    public static string Previous => Strings.T("player.controls.previous");
+    public static string Next => Strings.T("player.controls.next");
+    public static string Subtitles => Strings.T("player.controls.subtitles");
+    public static string Audio => Strings.T("player.controls.audio");
+    public static string Quality => Strings.T("player.controls.quality");
+    public static string Chapters => Strings.T("player.controls.chapters");
+    public static string Info => Strings.T("player.controls.info");
+    public static string Sleep => Strings.T("player.controls.sleep");
+    public static string Speed => Strings.T("player.controls.speed");
 
     // The scrubber and Up Next.
-    public const string Intro = "Intro";
-    public const string Credits = "Credits";
-    public const string PlayNow = "Play now";
-    public const string Cancel = "Cancel";
+    public static string Intro => Strings.T("player.markers.intro");
+    public static string Credits => Strings.T("player.markers.credits");
+    public static string PlayNow => Strings.T("player.upNext.playNow");
+    public static string Cancel => Strings.T("player.upNext.cancel");
 
     // Panels.
-    public const string SubtitlesOffToast = "Subtitles off";
-    public const string PlayOriginal = "Play original";
-    public const string PlayOriginalHint = "Try the original again";
-    public const string InfoTitle = "Playback details";
-    public const string InfoWaiting = "Asking the server…";
-    public const string Sync = "Sync";
-    public const string SyncHint = "OK resets";
-    public const string AudioDelay = "Audio delay";
+    public static string SubtitlesOffToast => Strings.T("player.subtitles.offToast");
+    public static string PlayOriginal => Strings.T("player.quality.playOriginal");
+    public static string PlayOriginalHint => Strings.T("player.quality.playOriginalHint");
+    public static string InfoTitle => Strings.T("player.details.title");
+    public static string InfoWaiting => Strings.T("player.details.waiting");
+    public static string Sync => Strings.T("player.subtitles.sync");
+    public static string SyncHint => Strings.T("player.subtitles.syncHint");
+    public static string AudioDelay => Strings.T("player.audio.delay");
 
     // Buffering and errors.
-    public const string Buffering = "Loading";
-    public const string Reconnecting = "Reconnecting…";
-    public const string ErrorTitle = "Can't play this item";
-    public const string OfflineTitle = "Can't reach your server";
-    public const string StoppedTitle = "Playback stopped";
-    public const string TryAgain = "Try again";
-    public const string BackLabel = "Back";
+    public static string Buffering => Strings.T("player.status.loading");
+    public static string Reconnecting => Strings.T("player.status.reconnecting");
+    public static string ErrorTitle => Strings.T("player.errors.title");
+    public static string OfflineTitle => Strings.T("common.errors.offlineTitle");
+    public static string StoppedTitle => Strings.T("player.errors.stoppedTitle");
+    public static string TryAgain => Strings.T("player.errors.tryAgain");
+    public static string BackLabel => Strings.T("player.errors.back");
 
     /// <summary>Toasts show this long (design spec §2.10); errors longer; the CAPTIONS key's shorter.</summary>
     public const long ToastMs = 3_500, ErrorToastMs = 6_000, CaptionsToastMs = 2_000;
@@ -64,22 +65,23 @@ public static class PlayerText
     public const long RestartChapterMs = 3_000;
 
     /// <summary>"Ends at 10:42 PM": the time is the screen's to write, as the TV writes times.</summary>
-    public static string EndsAt(string time) => $"Ends at {time}";
+    public static string EndsAt(string time) => Strings.T("player.status.endsAt", ("time", time));
 
     /// <summary>"Next in 7", under Play now while Up Next counts down.</summary>
-    public static string NextIn(int seconds) => $"Next in {seconds.ToString(CultureInfo.InvariantCulture)}";
+    public static string NextIn(int seconds) => Strings.T("player.upNext.nextIn", ("seconds", seconds));
 
     /// <summary>"Subtitles: English (SRT)", when the CAPTIONS key turns them on.</summary>
-    public static string SubtitlesToast(string label) => $"Subtitles: {label}";
+    public static string SubtitlesToast(string label) => Strings.T("player.subtitles.shown", ("track", label));
 
     /// <summary>A transcode the player chose, toasted: the session's note, then where the way back is.</summary>
-    public static string TranscodeToast(string note) => $"{note} Play original is in Quality.";
+    public static string TranscodeToast(string note) => Strings.T("player.quality.transcodeToast", ("note", note));
 
     /// <summary>A server that can't convert fast enough, toasted (as an error).</summary>
-    public static string SlowServerToast(string note) => $"{note} Choose one in Quality.";
+    public static string SlowServerToast(string note) => Strings.T("player.quality.slowServerToast", ("note", note));
 
     /// <summary>"32 minutes 40 seconds of 1 hour 2 minutes": the scrubber, as a screen reader says it.</summary>
-    public static string Position(long elapsedMs, long durationMs) => $"{Spoken(elapsedMs)} of {Spoken(durationMs)}";
+    public static string Position(long elapsedMs, long durationMs) =>
+        Strings.T("player.spoken.position", ("elapsed", Spoken(elapsedMs)), ("duration", Spoken(durationMs)));
 
     /// <summary>How screen readers say a time: "32 minutes 40 seconds", "1 hour 2 minutes".</summary>
     public static string Spoken(long ms)
@@ -89,9 +91,9 @@ public static class PlayerText
         var m = total % 3600 / 60;
         var s = total % 60;
         var parts = new System.Collections.Generic.List<string>();
-        if (h > 0) parts.Add(h == 1 ? "1 hour" : $"{h} hours");
-        if (m > 0) parts.Add(m == 1 ? "1 minute" : $"{m} minutes");
-        if (s > 0 || parts.Count == 0) parts.Add(s == 1 ? "1 second" : $"{s} seconds");
+        if (h > 0) parts.Add(Strings.Count("player.spoken.hours", h));
+        if (m > 0) parts.Add(Strings.Count("player.spoken.minutes", m));
+        if (s > 0 || parts.Count == 0) parts.Add(Strings.Count("player.spoken.seconds", s));
         return string.Join(" ", parts);
     }
 
@@ -108,15 +110,20 @@ public static class PlayerText
 
     /// <summary>A chapter's name in the Chapters panel: its title, else "Chapter 3".</summary>
     public static string ChapterTitle(ChapterMark chapter, int index) =>
-        NameOf(chapter) ?? $"Chapter {(index + 1).ToString(CultureInfo.InvariantCulture)}";
+        NameOf(chapter) ?? Strings.T("player.chapters.numbered", ("number", index + 1));
 
-    /// <summary>The seek preview's chapter line: "Chapter 3", a title that names itself so, or "Chapter 3 · The Heist".</summary>
+    /// <summary>
+    /// The seek preview's chapter line: "Chapter 3", a title that names itself so (in English, as
+    /// tools name chapters, or in the language shown), or "Chapter 3 · The Heist".
+    /// </summary>
     public static string ChapterLine(ChapterMark chapter, int index)
     {
-        var number = (index + 1).ToString(CultureInfo.InvariantCulture);
+        var number = index + 1;
         var name = NameOf(chapter);
-        if (name == null) return $"Chapter {number}";
-        return name.StartsWith("Chapter", StringComparison.OrdinalIgnoreCase) ? name : $"Chapter {number} · {name}";
+        if (name == null) return Strings.T("player.chapters.numbered", ("number", number));
+        var namesItself = name.StartsWith("Chapter", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith(Strings.T("player.chapters.word"), StringComparison.OrdinalIgnoreCase);
+        return namesItself ? name : Strings.T("player.chapters.named", ("number", number), ("name", name));
     }
 
     /// <summary>
@@ -180,13 +187,12 @@ public static class PlayerText
         : item.Year != null ? $"{item.Title} ({item.Year.Value.ToString(CultureInfo.InvariantCulture)})"
         : item.Title;
 
-    /// <summary>The line under an episode's title: "S2 · E5 · The Long Night"; null for anything else.</summary>
+    /// <summary>The line under an episode's title: "S2 · E5 · The Long Night", its numbers as cards write them; null for anything else.</summary>
     public static string? Line(Api.ItemSummary item)
     {
         if (item.Kind != "episode") return null;
         var parts = new System.Collections.Generic.List<string>();
-        if (item.ParentIndex != null) parts.Add("S" + item.ParentIndex.Value.ToString(CultureInfo.InvariantCulture));
-        if (item.Index != null) parts.Add("E" + item.Index.Value.ToString(CultureInfo.InvariantCulture));
+        if (Format.EpisodeLabel(item) is { Length: > 0 } numbers) parts.Add(numbers);
         if (item.Title.Length > 0) parts.Add(item.Title);
         return string.Join(" · ", parts);
     }
@@ -195,5 +201,12 @@ public static class PlayerText
     public static int Seconds(long ms) => (int)((Math.Abs(ms) + 500) / 1000);
 
     /// <summary>The seek badge: "+30 s", "−10 s".</summary>
-    public static string Badge(long ms) => (ms < 0 ? "−" : "+") + Seconds(ms).ToString(CultureInfo.InvariantCulture) + " s";
+    public static string Badge(long ms) =>
+        Strings.T("player.units.seconds", ("value", (ms < 0 ? "−" : "+") + Seconds(ms).ToString(CultureInfo.InvariantCulture)));
+
+    /// <summary>
+    /// What the player writes a number with a fraction in ("0.5 s", "1.25×"): as it always has in
+    /// English, and in the language's culture in the others ("0,5 s").
+    /// </summary>
+    public static CultureInfo Numbers => Strings.Language == Languages.English ? CultureInfo.InvariantCulture : Strings.Culture;
 }
