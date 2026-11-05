@@ -20,7 +20,7 @@ import {
   takesCasts,
   type Cast,
 } from "@/lib/castReceiver";
-import { sessionsEnded } from "@/lib/progress";
+import { holdReports, sessionsEnded } from "@/lib/progress";
 import { playUrl, usePlayItem } from "@/lib/usePlayItem";
 import { itemUrl, playlistUrl } from "@/lib/urls";
 import { useVideoQueue } from "@/lib/videoQueue";
@@ -37,7 +37,8 @@ import { useToast } from "./Toast";
  * A cast from another profile of the household switches this device to
  * that profile first, with the cast's ticket. The switch starts the app
  * over as that profile, this receiver too (it is the profile's own): the
- * cast is handed over to the new one, which plays it once.
+ * cast is handed over to the new one, which plays it once. Other casts
+ * heard until the switch is done are dropped.
  */
 export function CastReceiver() {
   const desktop = takesCasts();
@@ -55,6 +56,8 @@ export function CastReceiver() {
   const location = useLocation();
   const onCast = useEffectEvent((ev: ServerEvent) => {
     if (ev.type !== "cast" || !desktop || ev.receiver_id !== receiverId()) return;
+    // While a switch is under way, what plays is the cast it switches for, once it is done: others are dropped.
+    if (switching) return;
     // Choosing a profile (behind its PIN, maybe) comes first: a cast doesn't get past it.
     if (location.pathname.startsWith("/profiles")) return;
     if (switchesProfile(ev, me.id)) {
@@ -78,26 +81,43 @@ export function CastReceiver() {
 }
 
 /**
+ * Whether a cast's switch to another profile is under way, from its start
+ * until the switch is done: casts heard meanwhile are dropped (`onCast`).
+ * Module-wide, as the switch outlives the receiver that started it.
+ */
+let switching = false;
+
+/** How long a switch waits for what played here to have ended, as the profile that played. */
+const ENDED_WITHIN_MS = 5_000;
+
+/**
  * Switches this device to the profile `cast` came from, with its ticket,
  * having handed the cast over to that profile's receiver. What plays here
- * is closed first, and the switch waits for its last report to be
- * answered: sent after the switch, with the new profile's session, it would
- * count for that profile. A switch that doesn't go through says so, and
- * nothing plays.
+ * is closed first, and the switch waits up to 5 seconds for its last
+ * reports to be answered, sent with the profile that played; what hasn't
+ * gone by then is dropped (`holdReports`): sent with the new profile's
+ * session, it would count for that profile. A switch that doesn't go
+ * through says so, and nothing plays.
  */
 function useCastSwitch() {
   const switchProfile = useSwitchProfile();
   const closePlayers = useClosePlayers();
   const toast = useToast();
   return async (cast: Cast) => {
-    if (cast.profile_id == null || !cast.switch_ticket) return;
+    if (cast.profile_id == null || !cast.switch_ticket || switching) return;
+    switching = true;
     handOver(cast);
+    let release: () => void = () => undefined;
     try {
-      await closePlayers();
+      await closePlayers(ENDED_WITHIN_MS);
+      release = holdReports();
       await switchProfile.mutateAsync({ user_id: cast.profile_id, ticket: cast.switch_ticket });
     } catch {
       dropHandedOver(cast);
       toast.error("Couldn't switch to the remote's profile");
+    } finally {
+      release();
+      switching = false;
     }
   };
 }
@@ -105,7 +125,7 @@ function useCastSwitch() {
 /**
  * Closes what plays here: a player's page, for the home page, and music.
  * Resolves once their last reports ("stopped", and the session's release)
- * are answered (`sessionsEnded`).
+ * are answered (`sessionsEnded`), or `withinMs` from now at most.
  */
 function useClosePlayers() {
   const navigate = useNavigate();
@@ -119,7 +139,8 @@ function useClosePlayers() {
     left.current?.();
     left.current = null;
   }, [onPlayer]);
-  return async () => {
+  return async (withinMs: number) => {
+    const until = Date.now() + withinMs;
     audio?.close();
     if (onPlayer) {
       await new Promise<void>((resolve) => {
@@ -131,7 +152,7 @@ function useClosePlayers() {
         void navigate("/", { replace: true });
       });
     }
-    await sessionsEnded();
+    await sessionsEnded(Math.max(0, until - Date.now()));
   };
 }
 

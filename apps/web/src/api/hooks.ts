@@ -1022,10 +1022,13 @@ export function sessionCommandError(err: unknown, device: string | null): string
  * `receiver_id`). It plays it as its own Play would, and its session shows
  * in the list as it starts. One on another profile switches to the user's
  * first: the cast names that profile, and the user's PIN when they have one.
+ * A cast isn't kept once it is done with (`gcTime: 0`, and the caller's
+ * `reset`): the PIN would stay in the mutation cache with it.
  */
 export function useCast() {
   const qc = useQueryClient();
   return useMutation({
+    gcTime: 0,
     mutationFn: ({ receiverId, cast }: { receiverId: string; cast: CastRequest }) =>
       api.post<void>(`/api/remote/devices/${encodeURIComponent(receiverId)}/cast`, cast),
     onError: (err) => {

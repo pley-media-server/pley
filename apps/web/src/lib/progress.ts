@@ -4,7 +4,8 @@ import type { Id, PlaybackInfo, PlaybackRequest, ProgressRequest } from "@/api/t
 /**
  * Fire-and-forget progress report. `keepalive` lets it survive page unloads.
  * `onStopped` hears a 410: the session was stopped on the server (for a
- * direct play, the only request that can tell).
+ * direct play, the only request that can tell). Dropped while a profile
+ * switch holds reports (`holdReports`).
  */
 export function reportProgress(
   itemId: Id,
@@ -12,6 +13,7 @@ export function reportProgress(
   keepalive = false,
   onStopped?: () => void,
 ): Promise<void> {
+  if (held) return Promise.resolve();
   return api
     .post<void>(`/api/items/${itemId}/progress`, body, { keepalive, noAuthRedirect: keepalive })
     .catch((err: unknown) => {
@@ -55,7 +57,9 @@ export function saveStreamChoice(
   return api.put<void>(`/api/items/${itemId}/streams`, body).catch(() => undefined);
 }
 
+/** Releases a session (its transcode slot); dropped while a profile switch holds reports (`holdReports`). */
 export function stopSession(sessionId: string, keepalive = false): Promise<void> {
+  if (held) return Promise.resolve();
   return ending(
     api.del<void>(`/api/playback/${encodeURIComponent(sessionId)}`, { keepalive, noAuthRedirect: keepalive }).catch(() => undefined),
   );
@@ -75,12 +79,44 @@ export function ending(done: Promise<void>): Promise<void> {
 }
 
 /**
- * Resolves once the sessions players ended have said so: their last
- * reports and releases are answered. A profile switch waits for it, so
- * they reach the server as the profile that played, not the next one.
+ * Resolves once the sessions players ended have said so, their last
+ * reports and releases answered, or after `withinMs` at most. A profile
+ * switch waits for it, so they reach the server as the profile that
+ * played, not the next one.
  */
-export async function sessionsEnded(): Promise<void> {
-  while (endings.size) await Promise.all([...endings]);
+export async function sessionsEnded(withinMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<void>((resolve) => (timer = setTimeout(resolve, withinMs)));
+  const drained = (async () => {
+    while (endings.size) await Promise.all([...endings]);
+  })();
+  try {
+    await Promise.race([drained, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Whether playback's reports are dropped (`holdReports`). */
+let held = false;
+
+/**
+ * Drops every playback report and release made from now until the function
+ * returned is called: none is sent, and the caller is answered at once. A
+ * profile switch holds them while the session changes hands: one that
+ * didn't go out before would otherwise go with the next profile's session,
+ * and count for that profile.
+ */
+export function holdReports(): () => void {
+  held = true;
+  return () => {
+    held = false;
+  };
+}
+
+/** Whether a report or release is to be dropped now (`holdReports`). */
+export function reportsHeld(): boolean {
+  return held;
 }
 
 /**
