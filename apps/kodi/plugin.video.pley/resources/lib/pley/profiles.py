@@ -47,6 +47,16 @@ def switch(client: api.Client, profile_id: int, pin=None) -> None:
     client.json("POST", "/switch-profile", json_body={"profile": profile_id, "pin": pin})
 
 
+def asks_at_start(household, me: dict, answered: bool) -> bool:
+    """Whether Kodi's start asks "Who's watching?": in a household of more
+    than one profile, when the profile in use has a PIN (GET /api/auth/me's
+    has_pin), or the server didn't say, until it is answered once Kodi
+    started. Without a PIN it goes straight in, as the TV apps do."""
+    if answered or not household or len(household) < 2:
+        return False
+    return me.get("has_pin") is not False
+
+
 def needs_pin(profile: dict, me: dict) -> bool:
     """Whether `profile` has a PIN to ask, which its lock shows: another one
     whose switch takes it, or the one in use when it has one (GET

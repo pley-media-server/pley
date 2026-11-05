@@ -33,6 +33,10 @@ describes how they are made.
 
 ### Changed
 
+- Pley's window opens straight on Home as the profile Kodi was left on
+  when it has no PIN, where a household of several profiles was asked
+  "Who's watching?" each time Kodi started. A profile with a PIN still
+  asks first, and Switch profile still shows every profile.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 

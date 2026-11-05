@@ -352,9 +352,10 @@ class Window(xbmcgui.WindowXML):
         except api.ApiError as e:
             return self.failed(e, Home(self))
         self.setup_rail()
-        if self.household and len(self.household) > 1 and not kodi.get_property(profiles.GATE):
-            # A household's Kodi asks who is watching as it starts, as the
-            # TV apps do: once each time Kodi starts.
+        if profiles.asks_at_start(self.household, self.me, bool(kodi.get_property(profiles.GATE))):
+            # A household's Kodi asks who is watching as it starts when the
+            # profile in use has a PIN, as the TV apps do: once each time
+            # Kodi starts.
             return self.go(Profiles(self, self.household, gate=True))
         self.go(Home(self))
 

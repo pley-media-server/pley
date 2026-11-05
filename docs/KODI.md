@@ -47,9 +47,11 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
 - When the server requires two-step sign-in, the screen with the code says
   so under its notes. Someone who doesn't use it yet sets it up on the
   phone or computer where they approve the code.
-- In a household of more than one profile, Kodi asks "Who's watching?" each
-  time it starts, and the PIN of the profile it was left on when that
-  profile has one, as the other TVs do; a profile with a PIN shows a lock.
+- Kodi starts as the profile it was left on, straight into Home, when that
+  profile has no PIN. In a household of more than one profile it asks
+  "Who's watching?" each time it starts when that profile has one, and
+  going on as it asks the PIN, as the other TVs do; a profile with a PIN
+  shows a lock.
   A PIN is typed in Kodi's number dialog and never kept. A wrong one, or
   too many, asks again with the reason in the dialog's heading, the only
   line the dialog has; a PIN locked after too many wrong tries is said on
