@@ -8,10 +8,13 @@ import app.pley.android.network.PleyApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -23,17 +26,37 @@ import kotlinx.coroutines.withContext
  * as on the web (apps/web/src/lib/progress.ts).
  */
 class SessionReporter(scope: CoroutineScope) {
-    private val queue = Channel<suspend () -> Unit>(Channel.UNLIMITED)
+    /** A report and its place in the queue; a flush's mark has none, and is never dropped. */
+    private class Queued(val number: Long?, val run: suspend () -> Unit)
+
+    private val queue = Channel<Queued>(Channel.UNLIMITED)
+    private val lock = Any()
+
+    /** Reports queued so far, and those of them [drop] dropped (the first [dropped]). */
+    private var queued = 0L
+    private var dropped = 0L
+
+    /** The report going out now. */
+    private var sending: Job? = null
 
     init {
         scope.launch {
             for (report in queue) {
+                // Run in the loop itself, a job of its own to cancel it by: no extra dispatch, so a report goes
+                // out as soon as it would have without one.
+                val turn = synchronized(lock) {
+                    if (report.number != null && report.number <= dropped) return@synchronized null
+                    SupervisorJob(coroutineContext.job).also { sending = it }
+                } ?: continue
                 try {
-                    report()
+                    withContext(turn) { report.run() }
                 } catch (e: CancellationException) {
-                    throw e
+                    // Dropped, unless the reporter's own scope ended.
+                    ensureActive()
                 } catch (_: Exception) {
                     // Best effort: the next report says where the player is anyway.
+                } finally {
+                    turn.complete()
                 }
             }
         }
@@ -41,14 +64,27 @@ class SessionReporter(scope: CoroutineScope) {
 
     /** Queues [report]. */
     fun send(report: suspend () -> Unit) {
-        queue.trySend(report)
+        synchronized(lock) { queue.trySend(Queued(++queued, report)) }
     }
 
-    /** Waits until everything queued so far went out. */
+    /** Waits until everything queued so far went out (or was dropped). */
     suspend fun flush() {
         val done = CompletableDeferred<Unit>()
-        queue.send { done.complete(Unit) }
+        queue.send(Queued(null) { done.complete(Unit) })
         done.await()
+    }
+
+    /**
+     * Drops what was queued so far and hasn't gone out, the report going
+     * out now too: a request picks the tokens in use as it goes, so after a
+     * switch of profile it would go as the next profile. Reports queued
+     * after this go out as usual.
+     */
+    fun drop() {
+        synchronized(lock) {
+            dropped = queued
+            sending?.cancel()
+        }
     }
 }
 

@@ -65,7 +65,7 @@ class ServicesTest {
     @Test
     fun `closing every playback ends its session, and the flush returns once its last reports went out`() {
         val dispatcher = StandardTestDispatcher(h.scheduler)
-        val services = SessionPlaybackServices({ h.environment() }, dispatcher, reports = h.reporter::flush)
+        val services = SessionPlaybackServices({ h.environment() }, dispatcher, reporter = h.reporter)
         val key = services.prepare(PlayRequest(FixtureIds.SAMPLE_1080P))
         h.settle()
         h.engine.ready()

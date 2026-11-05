@@ -318,6 +318,31 @@ class CastReceiverTest {
     }
 
     @Test
+    fun `every other cast heard while a cast switches the profile is dropped, then casts play as usual`() = runTest {
+        val tickets = TicketServer(good = setOf("t1", "t2", "t3"))
+        val ending = CompletableDeferred<Unit>()
+        val (data, id) = receiving(FakeAuthGraph(tickets.http), endPlaying = { ending.await() })
+        data.api.answer("me", sam)
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "t1"))
+
+        // Meanwhile: another profile's, which would switch again, and the caster's own, which would replace it.
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Hall phone", profileId = 4, switchTicket = "t2"))
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "t3"))
+        ending.complete(Unit)
+        settle { launcher.played.isNotEmpty() }
+        assertEquals(listOf("t1"), tickets.forms.map { it["ticket"] })
+        assertEquals(3L, data.graph.session.session.value?.me?.id)
+        assertEquals(listOf(101L to CastFrom("Kitchen phone")), launcher.played.map { it.itemId to it.castFrom })
+
+        // Switched: the caster's profile's own play, as any cast of the profile in use does.
+        data.events.send(LiveEvent.Reconnected)
+        testScheduler.runCurrent()
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3))
+        assertEquals(2, launcher.played.size)
+        assertEquals(1, tickets.forms.size)
+    }
+
+    @Test
     fun `a ticket refused plays nothing and says so, and a cast from another profile without one is ignored`() = runTest {
         val tickets = TicketServer(good = emptySet())
         val refused = mutableListOf<Unit>()

@@ -93,4 +93,7 @@ interface PlaybackServices {
 
     /** Waits until the reports made so far went out, the ends of those [closeAll] closed too. */
     suspend fun flush() {}
+
+    /** Drops the reports that haven't gone out yet: a switch of profile would send them as the next profile. */
+    fun drop() {}
 }
