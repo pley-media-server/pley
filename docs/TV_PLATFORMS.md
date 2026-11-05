@@ -684,9 +684,7 @@ Pley, so the web app's words carry over as they are, plurals by CLDR's
 rules, which resx has no form for, and no satellite assemblies to package.
 A word a language lacks shows in English. The Core's tests hold every
 language to English's keys, its own plural forms and the same values, and
-French and Spanish to their punctuation. Choosing a server, signing in and
-the Language row are in French and Spanish so far; the other pages show
-English until their words are in the catalogs.
+French and Spanish to their punctuation.
 
 ### How it is built
 

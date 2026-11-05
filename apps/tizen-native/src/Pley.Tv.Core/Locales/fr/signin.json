@@ -54,7 +54,7 @@
     "anyIntro": "Approuvez ce code sur un téléphone connecté à Pley, et choisissez-y le profil.",
     "otherProfile": "Utiliser un autre profil",
     "title": "Approuvez sur votre téléphone",
-    "intro": "Le profil de {{name}} demande son mot de passe : approuvez ce code sur un téléphone connecté à Pley, et choisissez-y {{name}}."
+    "intro": "Le profil {{name}} demande son mot de passe : approuvez ce code sur un téléphone connecté à Pley, et choisissez-y {{name}}."
   },
   "errors": {
     "notAddress": "ce n’est pas une adresse de serveur",
