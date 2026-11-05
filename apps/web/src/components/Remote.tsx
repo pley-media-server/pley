@@ -399,7 +399,10 @@ function PlayingControls({
         ? Math.max(0, Math.min(at + extra.offsetMs, duration ?? Number.MAX_SAFE_INTEGER))
         : c === "previous" && session.kind !== "live"
           ? 0
-          : undefined);
+          : // A play or pause stays where the bar shows.
+            c === "play" || c === "pause"
+            ? at
+            : undefined);
     // Shown at once, and waited for from now: the player's report confirms it.
     const entry: SentCommand = { command: c, before: session, sentAt, target, track: extra.streamIndex, quality: extra.quality };
     setSent(entry);

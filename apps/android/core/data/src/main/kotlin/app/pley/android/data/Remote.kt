@@ -220,8 +220,9 @@ interface RemoteRepository {
             // A place given at the moment the command went, moving on from there while it plays.
             fun at(positionMs: Long, state: ProgressState = playing.state) = RemoteSession(playing.copy(state = state, positionMs = positionMs), sent.sentAt)
             return when (sent.command) {
-                Control.Play -> at(session.positionAt(sent.sentAt), ProgressState.Playing)
-                Control.Pause -> at(session.positionAt(sent.sentAt), ProgressState.Paused)
+                // Where the bar showed it as it went: a skip just before it still counts.
+                Control.Play -> at(sent.target ?: session.positionAt(sent.sentAt), ProgressState.Playing)
+                Control.Pause -> at(sent.target ?: session.positionAt(sent.sentAt), ProgressState.Paused)
                 Control.Audio -> session.copy(session = playing.copy(audioIndex = sent.streamIndex ?: playing.audioIndex))
                 Control.Subtitles -> session.copy(session = playing.copy(subtitleIndex = sent.streamIndex ?: playing.subtitleIndex))
                 Control.Quality -> session.copy(session = playing.copy(quality = sent.quality ?: playing.quality))

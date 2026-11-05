@@ -285,6 +285,9 @@ class RemoteRepositoryTest {
         val paused = RemoteRepository.asSent(playing, SentCommand(Control.Pause, playing, sentAt = 2_000))
         assertEquals(ProgressState.Paused, paused.session.state)
         assertEquals(62_000L, paused.positionAt(20_000))
+        // Where the controls showed it as the pause went: a skip just before it still on its way.
+        val pausedAfterSkip = RemoteRepository.asSent(playing, SentCommand(Control.Pause, playing, sentAt = 2_000, target = 92_000))
+        assertEquals(92_000L, pausedAfterSkip.positionAt(20_000))
         val stopped = remote(session(state = ProgressState.Paused, positionMs = 60_000), reportedAt = 0)
         val played = RemoteRepository.asSent(stopped, SentCommand(Control.Play, stopped, sentAt = 2_000))
         assertEquals(ProgressState.Playing, played.session.state)

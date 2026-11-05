@@ -86,6 +86,12 @@ describe("asSent", () => {
     expect(estimatedPosition(played, sentAt + 3_000)).toBe(63_000);
   });
 
+  it("pauses where the controls showed it, a skip just before still on its way", () => {
+    const paused = asSent(tv, sent("pause", { target: 92_000 }));
+    expect(paused.state).toBe("paused");
+    expect(estimatedPosition(paused, sentAt + 10_000)).toBe(92_000);
+  });
+
   it("has the track or the quality picked", () => {
     expect(asSent(tv, sent("audio", { track: 2 })).audio_index).toBe(2);
     expect(asSent(tv, sent("subtitles", { track: 3 })).subtitle_index).toBe(3);

@@ -171,7 +171,10 @@ export interface SentCommand {
   before: RemoteSession;
   /** This browser's clock, as `nowMs` given to `commandAnswered` is. */
   sentAt: number;
-  /** `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted. */
+  /**
+   * `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted;
+   * `play` and `pause`: where the controls showed it as it went.
+   */
   target?: number;
   /** `audio` and `subtitles`: the track picked (subtitles -1: off). */
   track?: number;
@@ -191,10 +194,11 @@ export function asSent(session: RemoteSession, sent: SentCommand | null): Remote
   // A place given at the moment the command went, moving on from there while it plays.
   const at = (position: number) => ({ position_ms: position, reported_at_ms: sent.sentAt });
   switch (sent.command) {
+    // Where the controls showed it as it went: a skip just before it still counts.
     case "play":
-      return { ...session, state: "playing", ...at(estimatedPosition(session, sent.sentAt)) };
+      return { ...session, state: "playing", ...at(sent.target ?? estimatedPosition(session, sent.sentAt)) };
     case "pause":
-      return { ...session, state: "paused", ...at(estimatedPosition(session, sent.sentAt)) };
+      return { ...session, state: "paused", ...at(sent.target ?? estimatedPosition(session, sent.sentAt)) };
     case "audio":
       return { ...session, audio_index: sent.track ?? session.audio_index };
     case "subtitles":
