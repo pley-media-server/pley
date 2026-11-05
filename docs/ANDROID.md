@@ -82,6 +82,11 @@ heard it for that profile, the start asks "Who's watching?".
 - Select opens, holding Select or Menu (☰) opens a title's actions in a
   panel over the page, which stays as it was, and Back goes back: to the
   page the rail opened as it was left, focus included.
+- **Typing** (Search, a playlist's name, a request, a server's address):
+  Select on a field opens the TV's keyboard, Gboard or Amazon's, whose
+  Done or Search acts on the words; Back closes it, keeping them, with
+  focus on the field. Amazon's keyboard shows the words in a box of its
+  own, which follows each key.
 - **The rail** lists, between the profile's avatar and Settings, Search,
   Home, Discover (or the requests), Live TV, the first six libraries in
   the server's order, **Libraries** when there are more (it lists them

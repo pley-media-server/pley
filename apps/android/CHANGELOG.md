@@ -76,6 +76,11 @@ describes how they are made.
 
 ### Fixed
 
+- On Fire TV, Amazon's keyboard shows what you type: its box kept the
+  words it opened with (nothing for a new playlist, the old name for a
+  rename) while each key reached the field. Its Back closes it and keeps
+  the words, as Gboard's does, where it acted as Done: it saved the
+  name, made the playlist or ran the search.
 - On Android TV and Fire TV, a press of a direction key that lasts a
   little long (200 or 300 ms) moves focus once, not twice: a held key
   starts moving by itself after 400 ms, as the system's own repeats do,

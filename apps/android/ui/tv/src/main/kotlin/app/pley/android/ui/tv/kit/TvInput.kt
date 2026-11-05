@@ -131,29 +131,31 @@ fun TvTextField(
         if (state.text.isEmpty()) {
             BasicText(placeholder, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1)
         }
-        BasicTextField(
-            state = state,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(field)
-                .focusProperties { canFocus = editing }
-                .onFocusChanged {
-                    // Not when it is first laid out, unfocused: typeNow is about to focus it.
-                    val lost = innerFocused && !it.isFocused
-                    innerFocused = it.isFocused
-                    // The keyboard closed (Back, or its own close key): back to the field.
-                    if (lost && editing) editing = false
+        KeyboardBridge(state, onPrevious = { stop() }) {
+            BasicTextField(
+                state = state,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(field)
+                    .focusProperties { canFocus = editing }
+                    .onFocusChanged {
+                        // Not when it is first laid out, unfocused: typeNow is about to focus it.
+                        val lost = innerFocused && !it.isFocused
+                        innerFocused = it.isFocused
+                        // The keyboard closed (Back, or its own close key): back to the field.
+                        if (lost && editing) editing = false
+                    },
+                textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
+                cursorBrush = SolidColor(PleyColors.AccentBright),
+                inputTransformation = inputTransformation,
+                lineLimits = TextFieldLineLimits.SingleLine,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+                onKeyboardAction = {
+                    onAction()
+                    stop()
                 },
-            textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
-            cursorBrush = SolidColor(PleyColors.AccentBright),
-            inputTransformation = inputTransformation,
-            lineLimits = TextFieldLineLimits.SingleLine,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
-            onKeyboardAction = {
-                onAction()
-                stop()
-            },
-        )
+            )
+        }
     }
 }
 

@@ -55,6 +55,7 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.ui.tv.kit.FieldHeight
+import app.pley.android.ui.tv.kit.KeyboardBridge
 import app.pley.android.ui.tv.kit.OverlayShowing
 
 /**
@@ -143,39 +144,41 @@ internal fun TvSearchField(
             if (state.text.isEmpty()) {
                 BasicText(placeholder, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1)
             }
-            BasicTextField(
-                state = state,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(field)
-                    .focusProperties { canFocus = editing }
-                    // Up or Down while typing (a remote, the keyboard closed) leaves the field that way.
-                    .onPreviewKeyEvent { event ->
-                        val direction = when (event.key) {
-                            Key.DirectionDown -> FocusDirection.Down
-                            Key.DirectionUp -> FocusDirection.Up
-                            else -> return@onPreviewKeyEvent false
+            KeyboardBridge(state, onPrevious = { stop() }) {
+                BasicTextField(
+                    state = state,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(field)
+                        .focusProperties { canFocus = editing }
+                        // Up or Down while typing (a remote, the keyboard closed) leaves the field that way.
+                        .onPreviewKeyEvent { event ->
+                            val direction = when (event.key) {
+                                Key.DirectionDown -> FocusDirection.Down
+                                Key.DirectionUp -> FocusDirection.Up
+                                else -> return@onPreviewKeyEvent false
+                            }
+                            if (event.type == KeyEventType.KeyDown && editing) {
+                                stop()
+                                focusManager.moveFocus(direction)
+                            }
+                            true
                         }
-                        if (event.type == KeyEventType.KeyDown && editing) {
-                            stop()
-                            focusManager.moveFocus(direction)
-                        }
-                        true
-                    }
-                    .onFocusChanged {
-                        innerFocused = it.isFocused
-                        // The keyboard closed (Back, or its own close key): back to the field.
-                        if (!it.isFocused && editing) editing = false
+                        .onFocusChanged {
+                            innerFocused = it.isFocused
+                            // The keyboard closed (Back, or its own close key): back to the field.
+                            if (!it.isFocused && editing) editing = false
+                        },
+                    textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
+                    cursorBrush = SolidColor(PleyColors.AccentBright),
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    onKeyboardAction = {
+                        onSearch()
+                        stop()
                     },
-                textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
-                cursorBrush = SolidColor(PleyColors.AccentBright),
-                lineLimits = TextFieldLineLimits.SingleLine,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                onKeyboardAction = {
-                    onSearch()
-                    stop()
-                },
-            )
+                )
+            }
         }
     }
 }
