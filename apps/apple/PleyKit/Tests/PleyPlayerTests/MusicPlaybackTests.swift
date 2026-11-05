@@ -213,6 +213,23 @@ struct MusicPlaybackTests {
         #expect(rig.output.calls.suffix(1) == ["play"])
     }
 
+    @Test func pausedItKeepsSayingSoForTheRemotes() async throws {
+        let rig = try await MusicRig()
+        defer { rig.server.stop() }
+        rig.music.play(tracks: rig.tracks)
+        try await rig.playing(loads: 1)
+        rig.output.positionMs = 12_000
+        rig.music.toggle()
+        rig.output.emit(.playing(false))
+        try await until("the pause") { await rig.reports().filter { $0.state == .paused }.count == 1 }
+        rig.clock.advance(ms: 10_000)
+        rig.music.reportProgress()
+        rig.clock.advance(ms: 20_000)
+        rig.music.reportProgress()
+        try await until("30 s later") { await rig.reports().filter { $0.state == .paused }.count == 2 }
+        #expect(await rig.reports().filter { $0.state == .paused }.allSatisfy { $0.positionMs == 12_000 })
+    }
+
     @Test func previousRestartsOrGoesBack() async throws {
         let rig = try await MusicRig()
         defer { rig.server.stop() }
