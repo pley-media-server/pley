@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -276,7 +278,8 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.remote_open_device), onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            // In line with the sheet's title, as Play on…'s devices are.
+            .padding(horizontal = 24.dp, vertical = 10.dp)
             .testTag(REMOTE_DEVICE + device.deviceId),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -500,13 +503,15 @@ private fun Playing(
         }
         Transport(session, device, live, ::send)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Choices(session, device, ::send, Modifier.weight(1f))
+            // The icons' glyphs, and Stop's, line up with the artwork and the times above:
+            // their touch targets reach past the edges instead.
+            Choices(session, device, ::send, Modifier.weight(1f).offset(x = (-12).dp))
             val stopLabel = stringResource(R.string.remote_stop_on, device)
             TextButton(
                 onClick = { confirmStop = true },
                 enabled = !stopping,
-                modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = stopLabel },
-                colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.Muted, disabledContentColor = PleyColors.Disabled),
+                modifier = Modifier.offset(x = 12.dp).heightIn(min = 48.dp).semantics { contentDescription = stopLabel },
+                colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.Fg, disabledContentColor = PleyColors.Disabled),
             ) {
                 Icon(PleyIcons.CircleStop, contentDescription = null, size = 16.dp, tint = LocalContentColor.current)
                 Spacer(Modifier.width(6.dp))
@@ -900,7 +905,9 @@ private fun <T> ChoiceMenu(
             choices.forEach { (key, text) ->
                 val ticked = key == current
                 DropdownMenuItem(
-                    text = { Text(text, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg) },
+                    // A long track name takes two lines, with room above and below as a one-line row has.
+                    text = { Text(text, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     onClick = {
                         open = false
                         onPick(key)
