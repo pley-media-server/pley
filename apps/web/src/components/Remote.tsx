@@ -208,7 +208,9 @@ export function RemoteButton() {
             <h2 id={headingId} className="px-2 pb-1 pt-1 text-xs font-medium text-subtle">
               Your devices
             </h2>
-            <ul>
+            {/* With a device's controls below, a long list scrolls on its own, about four and a half
+                rows tall, so the controls stay in view; alone, it takes the panel. */}
+            <ul className={cn(current && "max-h-[17rem] overflow-y-auto overscroll-contain")}>
               {devices.map((d) => (
                 <li key={d.id}>
                   <DeviceRow device={d} chosen={d === current} onChoose={() => setChosen(d.id)} />
@@ -234,8 +236,14 @@ export function RemoteButton() {
 /** One device in the list: choosing it shows its controls below. */
 function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: boolean; onChoose: () => void }) {
   const lineId = useId();
+  const ref = useRef<HTMLButtonElement>(null);
+  // Chosen from elsewhere (Play on… opening the remote on it), it shows in a list scrolled away from it.
+  useEffect(() => {
+    if (chosen) ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [chosen]);
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={device.name}
       aria-describedby={lineId}

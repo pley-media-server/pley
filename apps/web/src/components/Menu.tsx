@@ -88,7 +88,8 @@ export function Menu({
           aria-label={label}
           onKeyDown={onKeyDown}
           className={cn(
-            "absolute z-40 min-w-48 animate-pop-in overflow-hidden rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50",
+            // A long menu (Play on… with many devices) scrolls within the window rather than past its edge.
+            "absolute z-40 max-h-[min(28rem,calc(100dvh-6rem))] min-w-48 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50",
             placement === "below" ? "top-full mt-2" : "bottom-full mb-2",
             align === "right" ? "right-0" : "left-0",
             className,
