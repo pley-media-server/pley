@@ -475,11 +475,37 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
         </div>
       ) : null}
 
-      {can("previous") || skips || toggle || nextShown ? (
+      {live ? (
+        // A TV remote's channel rocker: down and up, with pause beside it where the player can.
+        <div className={cn("flex items-center justify-center gap-3 transition-opacity", waiting && "opacity-50")}>
+          {toggle ? (
+            <button
+              type="button"
+              aria-label={`${toggle === "play" ? "Play" : "Pause"} on ${name}`}
+              title={toggle === "play" ? "Play" : "Pause"}
+              onClick={() => send(toggle)}
+              className="flex size-10 items-center justify-center rounded-full bg-fg text-bg transition hover:scale-105"
+            >
+              {toggle === "play" ? <Play className="ml-0.5 size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
+            </button>
+          ) : null}
+          <div className="flex items-center gap-0.5 rounded-full bg-white/5 p-1 ring-1 ring-inset ring-border">
+            <IconButton label={`Previous channel on ${name}`} size="sm" disabled={!can("previous")} onClick={() => send("previous")}>
+              <ChevronDown className="size-5" />
+            </IconButton>
+            <span aria-hidden className="px-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+              Channel
+            </span>
+            <IconButton label={`Next channel on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
+              <ChevronUp className="size-5" />
+            </IconButton>
+          </div>
+        </div>
+      ) : can("previous") || skips || toggle || nextShown ? (
         <div className={cn("flex items-center justify-center gap-2 transition-opacity", waiting && "opacity-50")}>
           {can("previous") ? (
-            <IconButton label={live ? `Previous channel on ${name}` : `Previous on ${name}`} size="sm" onClick={() => send("previous")}>
-              {live ? <ChevronDown className="size-5" /> : <SkipBack className="size-4 fill-current" />}
+            <IconButton label={`Previous on ${name}`} size="sm" onClick={() => send("previous")}>
+              <SkipBack className="size-4 fill-current" />
             </IconButton>
           ) : null}
           {skips ? (
@@ -504,13 +530,8 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
             </IconButton>
           ) : null}
           {nextShown ? (
-            <IconButton
-              label={live ? `Next channel on ${name}` : `Next on ${name}`}
-              size="sm"
-              disabled={!can("next")}
-              onClick={() => send("next")}
-            >
-              {live ? <ChevronUp className="size-5" /> : <SkipForward className="size-4 fill-current" />}
+            <IconButton label={`Next on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
+              <SkipForward className="size-4 fill-current" />
             </IconButton>
           ) : null}
         </div>
