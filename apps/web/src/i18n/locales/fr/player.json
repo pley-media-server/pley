@@ -173,7 +173,7 @@
     "fileLanguage": "Langue des sous-titres",
     "searching": "Recherche…",
     "searchFailed": "Impossible de rechercher des sous-titres. {{error}}",
-    "noResults": "Aucun sous-titre en {{language}} trouvé pour cette vidéo.",
+    "noResults": "Aucun sous-titre trouvé pour cette vidéo ({{language}}).",
     "sdh": "SME",
     "forced": "Forcés",
     "downloads_one": "{{count, number}} téléchargement",

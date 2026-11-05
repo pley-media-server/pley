@@ -66,7 +66,7 @@
     "hours": "{{n}} h",
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "daysHours": "{{days}} j {{hours}} h",
-    "left": "{{time}} restantes",
+    "left": "Il reste {{time}}",
     "bitrateUnknown": "Débit inconnu",
     "specials": "Épisodes spéciaux",
     "season": "Saison",

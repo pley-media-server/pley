@@ -173,7 +173,7 @@
     "fileLanguage": "Idioma de los subtítulos",
     "searching": "Buscando…",
     "searchFailed": "No se pudieron buscar subtítulos. {{error}}",
-    "noResults": "No se encontraron subtítulos en {{language}} para este video.",
+    "noResults": "No se encontraron subtítulos para este video ({{language}}).",
     "sdh": "SDH",
     "forced": "Forzados",
     "downloads_one": "{{count, number}} descarga",
