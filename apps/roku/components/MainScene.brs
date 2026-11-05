@@ -39,9 +39,13 @@ sub init()
 
     ' Casts from the user's remotes (Cast.brs): which cast plays (an
     ' answer for an earlier one is left), an artist's albums gathered for
-    ' it, and the notice saying where it came from.
+    ' it, and the notice saying where it came from. A cast from another
+    ' profile of the household waits for the switch to it (castSwitched),
+    ' counted so that an answer for an earlier one is left too.
     m.castAsk = 0
     m.castGather = invalid
+    m.castSwitch = invalid
+    m.castSwitches = 0
     m.castToast = m.top.findNode("castToast")
     m.castToastText = m.top.findNode("castToastText")
     m.castToastTimer = m.top.findNode("castToastTimer")
@@ -231,6 +235,11 @@ sub onProfile()
         askRequestSummary("start")
     end if
     pollRequests()
+    ' A cast that switched to this profile plays now; one that switched to
+    ' another is left.
+    pending = m.castSwitch
+    if pending <> invalid and pending.switched and session.profileId > 0 and session.profileId <> pending.profileId then m.castSwitch = invalid
+    castSwitched()
 end sub
 
 function requestsSection() as object
@@ -598,15 +607,39 @@ end sub
 ' A cast from the user's remote, on another device (Cast.brs has the
 ' rules): for this Roku, while it takes casts, what it names plays as the
 ' Roku's own Play would, in place of what plays, once what it needs has
-' come, and "Playing from …" says where it came from. Of two casts close
-' together the later plays; an answer that comes once casts aren't taken
-' (signed out, "Who's watching?") is left.
+' come, and "Playing from …" says where it came from. One from another
+' profile of the household switches to it first (castSwitchTo). Of two
+' casts close together the later plays; an answer that comes once casts
+' aren't taken (signed out, "Who's watching?") is left.
 sub onCast(data as object)
-    action = castAction(m.global.session.playerId, castTaken(), data)
+    session = m.global.session
+    action = castAction(session.playerId, castTaken(), data)
     if action.act = "none" then return
+    need = castSwitch(session.profileId, data)
+    if need.needs = "ignore" then return
+    banner = castBanner(data.from)
+    pending = m.castSwitch
+    if pending <> invalid and not pending.switched
+        ' While the Roku changes profiles, only a cast for the one it goes
+        ' to plays, after the switch: the later of them.
+        if need.needs = "switch" and need.profileId = pending.profileId
+            pending.action = action
+            pending.banner = banner
+        end if
+        return
+    end if
+    m.castSwitch = invalid
     m.castAsk = m.castAsk + 1
     m.castGather = invalid
-    banner = castBanner(data.from)
+    if need.needs = "switch"
+        castSwitchTo(need, action, banner)
+    else
+        castPlay(action, banner)
+    end if
+end sub
+
+' What a cast names (castAction's) is fetched, then plays.
+sub castPlay(action as object, banner as string)
     if action.act = "channel"
         castRequest("/api/live/channels/" + urlValue(action.channelId), "onCastChannel", { banner: banner })
     else if action.act = "playlist"
@@ -614,6 +647,53 @@ sub onCast(data as object)
     else
         castRequest("/api/items/" + urlValue(action.itemId), "onCastItem", { banner: banner, startMs: action.startMs, shuffle: action.shuffle, audioIndex: action.audioIndex, subtitleIndex: action.subtitleIndex })
     end if
+end sub
+
+' A cast from another profile of the household (castSwitch's need): the
+' Roku switches to the remote's profile with the cast's ticket, then it
+' plays. What plays stops first, so that what it last tells the server is
+' the profile's that watched it, not the remote's.
+sub castSwitchTo(need as object, action as object, banner as string)
+    m.castSwitches = m.castSwitches + 1
+    m.castSwitch = { seq: m.castSwitches, profileId: need.profileId, action: action, banner: banner, switched: false }
+    m.music.control = "stop"
+    if m.stack.Count() > 1
+        top = m.stack.Peek().subtype()
+        if top = "PlayerScreen" or top = "LivePlayerScreen" then pop()
+    end if
+    uiRequest({ op: "switchProfile", profile: need.profileId, ticket: need.ticket, castSwitch: m.castSwitches }, "onCastSwitched")
+end sub
+
+' The switch's answer: switched, the cast plays once the Roku knows it is
+' on that profile (castSwitched); refused or failed, a notice says why and
+' nothing plays.
+sub onCastSwitched(event as object)
+    pending = m.castSwitch
+    if pending = invalid or event.getRoSGNode().spec.castSwitch <> pending.seq then return
+    answer = event.getData()
+    if answer.ok and not httpTrue(answer.data.through)
+        pending.switched = true
+        castSwitched()
+        return
+    end if
+    m.castSwitch = invalid
+    notice = castSwitchNotice(answer)
+    if notice <> "" and castTaken() then castSay(notice)
+end sub
+
+' Switched for a cast, and the profile known (GET /api/auth/me) as the
+' remote's: everything shows as that profile sees it, from Home, as after
+' "Who's watching?", and the cast plays over it, once. Casts no longer
+' taken meanwhile (signed out, "Who's watching?") leave it.
+sub castSwitched()
+    pending = m.castSwitch
+    if pending = invalid or not pending.switched or m.global.session.profileId <> pending.profileId then return
+    m.castSwitch = invalid
+    if not castTaken() then return
+    show({ to: "home", reset: true })
+    m.castAsk = m.castAsk + 1
+    m.castGather = invalid
+    castPlay(pending.action, pending.banner)
 end sub
 
 ' Whether casts are taken now: signed in, past the sign-in and "Who's

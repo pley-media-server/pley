@@ -540,6 +540,21 @@ two sent close together the later plays. The rules are
 `components/lib/Cast.brs`; the scene (`components/MainScene.brs`)
 fetches what a cast needs and plays it.
 
+A remote on another profile of the household casts here too
+([API.md](API.md#casting)): its cast names that profile (`profile_id`)
+and carries a ticket (`switch_ticket`), and the Roku switches to the
+remote's profile before it plays, with the switch-profile grant and the
+ticket in place of a PIN (the remote gave its PIN, if it has one). What
+plays stops first, so its last progress goes as the profile that watched
+it; once switched, the Roku keeps the new sign-in as a switch from
+"Who's watching?" does, starts again from Home as that profile, and the
+cast plays over it, once. A switch the server refuses (the ticket
+expired or was used: `ticket_spent`) or that fails says why for 4 s, and
+nothing plays. A cast naming another profile without a ticket does
+nothing, and while the Roku switches, only casts for the profile it goes
+to count (the later plays). "Who's watching?" still takes no casts: the
+person at the TV is choosing who watches.
+
 ### Requests and Discover
 
 Where an administrator has turned requests on, people ask for movies and

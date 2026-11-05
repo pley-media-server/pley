@@ -64,6 +64,34 @@ function castAction(receiver as string, takes as boolean, cast as dynamic) as ob
     return none
 end function
 
+' What a cast asks of the profile this Roku is on (profileId; 0 while it
+' isn't known), as { needs } (docs/API.md, "Switching to the remote's
+' profile"): "nothing" (it names no profile, or this one); "switch" to the
+' remote's (profileId), with the ticket the switch-profile grant takes in
+' place of a PIN (ticket); "ignore" (another profile's without a ticket,
+' or one that isn't a ticket's shape), as the other TVs do.
+function castSwitch(profileId as integer, cast as dynamic) as object
+    data = httpObject(cast)
+    if data = invalid then return { needs: "ignore" }
+    target = Int(httpNumber(data.profile_id, 0))
+    if target <= 0 or target = profileId then return { needs: "nothing" }
+    ticket = httpString(data.switch_ticket)
+    if not CreateObject("roRegex", "^[A-Za-z0-9_-]{1,128}$", "").IsMatch(ticket) then return { needs: "ignore" }
+    return { needs: "switch", profileId: target, ticket: ticket }
+end function
+
+' What a cast's switch that failed says, in place of playing (answer: the
+' API task's to the switch, { ok, error, message }): why, briefly; "" when
+' the scene says it otherwise (signed out) or the sign-in changed
+' meanwhile.
+function castSwitchNotice(answer as object) as string
+    error = httpString(answer.error)
+    if error = "signed_out" or error = "switch_replaced" or error = "server_changed" then return ""
+    message = httpSentence(answer.message)
+    if httpTrue(answer.ok) or message = "" then message = "The server couldn't switch to the remote's profile."
+    return message
+end function
+
 ' What says where a cast came from as it starts: "Playing from" and the
 ' remote's device, "another device" when it has no name.
 function castBanner(from as dynamic) as string

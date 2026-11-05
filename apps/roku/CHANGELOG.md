@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- "Play on…" from someone else's profile in your household plays on the
+  Roku as their profile: the Roku switches to it first, without asking
+  its PIN (the phone or browser did). When the switch can't be made, the
+  Roku says why and plays nothing.
 - Your phone or browser changes the quality of a film or episode playing
   on the Roku, as the player's Quality menu does (the pick is kept as the
   Roku's), and sees which is picked. A film or episode sent with "Play
