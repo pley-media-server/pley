@@ -421,8 +421,8 @@ public class ReceiverStreamTests
     [Fact]
     public void Names_itself_by_its_install_id_a_TV_taking_titles_and_channels_where_Live_TV_shows()
     {
-        Assert.Equal("receiver=tizen-0a1b&device_kind=tv&casts=item", Casts.ReceiverQuery("tizen-0a1b", false));
-        Assert.Equal("receiver=tizen-0a1b&device_kind=tv&casts=item,live", Casts.ReceiverQuery("tizen-0a1b", true));
+        Assert.Equal("receiver=tizen-0a1b&device_kind=tv&casts=item,switch", Casts.ReceiverQuery("tizen-0a1b", false));
+        Assert.Equal("receiver=tizen-0a1b&device_kind=tv&casts=item,live,switch", Casts.ReceiverQuery("tizen-0a1b", true));
     }
 
     [Fact]
@@ -451,8 +451,8 @@ public class ReceiverStreamTests
         await Task.Delay(50);
         Assert.Equal(new[]
         {
-            Home + "/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item",
-            Home + "/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,live",
+            Home + "/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,switch",
+            Home + "/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,live,switch",
         }, urls);
         state.Listen(false);
     }

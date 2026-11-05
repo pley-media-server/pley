@@ -513,7 +513,8 @@ the commands), the Roku is one of the devices the profile's remotes play
 things on ([API.md](API.md#casting)): the stream names it a receiver by
 the `client_id` its players send, a TV with the name its players give,
 taking titles and playlists (`casts=item`) and channels while Home's menu
-has Live TV (`live`), and opens again when Live TV comes or goes. What a
+has Live TV (`live`), and switching to the profile of a remote of another
+profile that casts to it (`switch`), and opens again when Live TV comes or goes. What a
 remote sends plays as the Roku's own Play would, in place of what plays:
 
 - a movie or an episode in the player, from the place sent, else where

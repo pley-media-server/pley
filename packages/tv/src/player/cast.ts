@@ -27,7 +27,8 @@ export const SWITCH_FAILED = "Couldn't switch to the remote's profile";
  * shows. The server names the TV, as it does its players.
  */
 export function receiverQuery(id: string, live: boolean): string {
-  return `receiver=${encodeURIComponent(id)}&device_kind=tv&casts=${live ? "item,live" : "item"}`;
+  // switch: it switches to the profile of a remote of another profile that casts to it.
+  return `receiver=${encodeURIComponent(id)}&device_kind=tv&casts=${live ? "item,live,switch" : "item,switch"}`;
 }
 
 /** The remote's profile, another of the household's, that this TV switches to before it plays a cast, with the cast's ticket. */

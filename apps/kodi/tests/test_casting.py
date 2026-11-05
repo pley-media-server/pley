@@ -135,11 +135,11 @@ class RuleTest(unittest.TestCase):
     def test_the_receiver_query(self):
         self.addCleanup(xbmc.setting_values.pop, "services.devicename", None)
         xbmc.setting_values["services.devicename"] = "Den"
-        self.assertEqual(casting.receiver_query(MINE, False), {"receiver": MINE, "device_kind": "tv", "device_name": "Den", "casts": "item"})
-        self.assertEqual(casting.receiver_query(MINE, True)["casts"], "item,live")
+        self.assertEqual(casting.receiver_query(MINE, False), {"receiver": MINE, "device_kind": "tv", "device_name": "Den", "casts": "item,switch"})
+        self.assertEqual(casting.receiver_query(MINE, True)["casts"], "item,live,switch")
         # Kodi's own name isn't sent: the server names it, as its plays.
         xbmc.setting_values["services.devicename"] = "Kodi"
-        self.assertEqual(casting.receiver_query(MINE, True), {"receiver": MINE, "device_kind": "tv", "casts": "item,live"})
+        self.assertEqual(casting.receiver_query(MINE, True), {"receiver": MINE, "device_kind": "tv", "casts": "item,live,switch"})
 
 
 class PlayTest(Clean):
@@ -472,11 +472,11 @@ class ServiceTest(Clean):
         query = receiver_query("pleyKodi/test")
         server = self.server.url
         self.live = {"available": True, "allowed": True, "channels": 12}
-        self.assertEqual(query(server + "/s3cret", "at-1"), {"receiver": MINE, "device_kind": "tv", "casts": "item,live"})
+        self.assertEqual(query(server + "/s3cret", "at-1"), {"receiver": MINE, "device_kind": "tv", "casts": "item,live,switch"})
         self.assertEqual(self.server.requests[-1].headers["authorization"], "Bearer at-1")
         # Live TV not open to this account, or without channels: titles only.
         self.live = {"available": False, "allowed": True, "channels": 0}
-        self.assertEqual(query(server + "/s3cret", "at-1")["casts"], "item")
+        self.assertEqual(query(server + "/s3cret", "at-1")["casts"], "item,switch")
 
 
 if __name__ == "__main__":

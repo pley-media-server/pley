@@ -83,7 +83,8 @@ public static class Casts
     /// and playlists always and channels where Live TV shows. The server names the TV, as it does
     /// its players.
     /// </summary>
-    public static string ReceiverQuery(string id, bool live) => $"receiver={Uri.EscapeDataString(id)}&device_kind=tv&casts={(live ? "item,live" : "item")}";
+    // switch: it switches to the profile of a remote of another profile that casts to it.
+    public static string ReceiverQuery(string id, bool live) => $"receiver={Uri.EscapeDataString(id)}&device_kind=tv&casts={(live ? "item,live,switch" : "item,switch")}";
 
     /// <summary>
     /// The casts' rule: one for another receiver is another device's, and one that comes while the

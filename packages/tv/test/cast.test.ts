@@ -305,8 +305,8 @@ describe("this TV as a receiver", () => {
   });
 
   it("names itself by its install id, a TV taking titles, and channels where Live TV shows; the server names it", () => {
-    expect(receiverQuery("tizen-0a1b", false)).toBe("receiver=tizen-0a1b&device_kind=tv&casts=item");
-    expect(receiverQuery("tizen-0a1b", true)).toBe("receiver=tizen-0a1b&device_kind=tv&casts=item,live");
+    expect(receiverQuery("tizen-0a1b", false)).toBe("receiver=tizen-0a1b&device_kind=tv&casts=item,switch");
+    expect(receiverQuery("tizen-0a1b", true)).toBe("receiver=tizen-0a1b&device_kind=tv&casts=item,live,switch");
   });
 
   it("opens the event stream as one, and opens it again when Live TV comes or goes", async () => {
@@ -348,8 +348,8 @@ describe("this TV as a receiver", () => {
     await app.loadLive();
     await vi.advanceTimersByTimeAsync(0);
     expect(opened).toEqual([
-      "https://pley.example.com/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item",
-      "https://pley.example.com/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,live",
+      "https://pley.example.com/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,switch",
+      "https://pley.example.com/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,live,switch",
     ]);
     app.listen(false);
   });

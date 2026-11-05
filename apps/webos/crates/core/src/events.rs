@@ -130,9 +130,10 @@ pub struct CastReceiver {
 }
 
 impl CastReceiver {
-    /// The stream's address as this receiver: `/api/events?receiver=…&device_kind=tv&casts=item,live`.
+    /// The stream's address as this receiver: `/api/events?receiver=…&device_kind=tv&casts=item,live,switch`.
     pub fn events_path(&self) -> String {
-        let casts = if self.live { "item,live" } else { "item" };
+        // switch: it switches to the profile of a remote of another profile that casts to it.
+        let casts = if self.live { "item,live,switch" } else { "item,switch" };
         format!("/api/events?receiver={}&device_kind={}&casts={casts}", encode_component(&self.id), DeviceKind::Tv)
     }
 }
@@ -632,9 +633,12 @@ mod tests {
         let tv = |live| CastReceiver { id: "webos-0123456789abcdef".into(), live };
         assert_eq!(
             tv(true).events_path(),
-            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live,switch"
         );
-        assert_eq!(tv(false).events_path(), "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item");
+        assert_eq!(
+            tv(false).events_path(),
+            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,switch"
+        );
         // The stream asks at that address, every time it connects.
         let fake = Arc::new(FakeTransport::new(|_| Ok(Response::empty(403))));
         let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", Arc::new(Counting(AtomicUsize::new(0))));
@@ -644,7 +648,7 @@ mod tests {
         stream.stop();
         assert_eq!(
             fake.requests()[0].url,
-            "http://nas:7539/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+            "http://nas:7539/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live,switch"
         );
     }
 

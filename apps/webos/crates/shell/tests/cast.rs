@@ -355,7 +355,7 @@ fn a_cast_from_another_profile_without_a_ticket_or_with_a_spent_one_plays_nothin
 
     // A ticket the server doesn't know: the switch is refused, the TV says so and stays Robin's.
     server.emit(from_alex(Some("spent")));
-    let said = "This cast can't switch profiles any more: cast it again.";
+    let said = "Couldn't switch to the remote's profile";
     assert!(app.until(|a| a.shell.toast() == Some(said)), "{:?}", app.shell.toast());
     assert!(!app.shell.casting());
     assert_eq!(app.shell.top_route(), Some(&Route::Home));

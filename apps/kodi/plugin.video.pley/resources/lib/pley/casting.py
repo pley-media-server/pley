@@ -51,7 +51,9 @@ def receiver_query(receiver: str, live: bool) -> dict:
     has Live TV."""
     found = {"receiver": receiver}
     found.update(remote.device())
-    found["casts"] = "item,live" if live else "item"
+    # switch: it switches to the profile of a remote of another profile
+    # that casts to it (docs/API.md, "Casting").
+    found["casts"] = "item,live,switch" if live else "item,switch"
     return found
 
 

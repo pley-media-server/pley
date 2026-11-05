@@ -14,8 +14,10 @@ function castReceiverQuery(id as string, name as string, live as boolean) as str
     if id = "" then return ""
     query = "receiver=" + urlEncode(id)
     if name <> "" then query = query + "&device_name=" + urlEncode(name)
-    casts = "item"
-    if live then casts = "item,live"
+    ' switch: it switches to the profile of a remote of another profile
+    ' that casts to it (docs/API.md, "Casting").
+    casts = "item,switch"
+    if live then casts = "item,live,switch"
     return query + "&device_kind=" + remoteDeviceKind() + "&casts=" + casts
 end function
 
@@ -81,15 +83,13 @@ function castSwitch(profileId as integer, cast as dynamic) as object
 end function
 
 ' What a cast's switch that failed says, in place of playing (answer: the
-' API task's to the switch, { ok, error, message }): why, briefly; "" when
-' the scene says it otherwise (signed out) or the sign-in changed
+' API task's to the switch, { ok, error, message }), as every app says it;
+' "" when the scene says it otherwise (signed out) or the sign-in changed
 ' meanwhile.
 function castSwitchNotice(answer as object) as string
     error = httpString(answer.error)
     if error = "signed_out" or error = "switch_replaced" or error = "server_changed" then return ""
-    message = httpSentence(answer.message)
-    if httpTrue(answer.ok) or message = "" then message = "The server couldn't switch to the remote's profile."
-    return message
+    return "Couldn't switch to the remote's profile"
 end function
 
 ' What says where a cast came from as it starts: "Playing from" and the

@@ -19,7 +19,7 @@ sub test_events_request_only_for_http()
     tkInvalid(evRequest("http://nas:7539", "", "ua"), "signed out")
     ' As a receiver of casts (Cast.brs).
     receiver = evRequest("http://nas:7539", "t", "ua", castReceiverQuery("8f2c-41", "Den", true))
-    tkEqual(receiver.text.Split(crlf)[0], "GET /api/events?receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live HTTP/1.1")
+    tkEqual(receiver.text.Split(crlf)[0], "GET /api/events?receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live,switch HTTP/1.1")
 end sub
 
 sub test_events_from_a_chunked_answer_in_pieces()

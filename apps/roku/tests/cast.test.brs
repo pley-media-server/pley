@@ -11,9 +11,9 @@ function castTestEvent(fields as object) as object
 end function
 
 sub test_cast_receiver_query()
-    tkEqual(castReceiverQuery("8f2c-41", "Living room Roku", false), "receiver=8f2c-41&device_name=Living%20room%20Roku&device_kind=tv&casts=item")
-    tkEqual(castReceiverQuery("8f2c-41", "Den", true), "receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live", "channels where the profile has Live TV")
-    tkEqual(castReceiverQuery("8f2c-41", "", false), "receiver=8f2c-41&device_kind=tv&casts=item", "no name: the server names it")
+    tkEqual(castReceiverQuery("8f2c-41", "Living room Roku", false), "receiver=8f2c-41&device_name=Living%20room%20Roku&device_kind=tv&casts=item,switch")
+    tkEqual(castReceiverQuery("8f2c-41", "Den", true), "receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live,switch", "channels where the profile has Live TV")
+    tkEqual(castReceiverQuery("8f2c-41", "", false), "receiver=8f2c-41&device_kind=tv&casts=item,switch", "no name: the server names it")
     tkEqual(castReceiverQuery("", "Den", true), "", "no id yet")
 end sub
 
@@ -108,11 +108,11 @@ end sub
 sub test_cast_switch_failed_says_why()
     spent = authSwitchOutcome(400, "{""error"":""invalid_grant"",""reason"":""ticket_spent"",""error_description"":""this cast's switch has expired or was used: cast again""}")
     tkEqual(spent, { kind: "refused", reason: "ticket_spent", message: "This cast's switch expired: cast again." })
-    tkEqual(castSwitchNotice({ ok: false, error: spent.reason, message: spent.message }), "This cast's switch expired: cast again.")
-    tkEqual(castSwitchNotice({ ok: false, error: "not_allowed", message: "You can't switch to this profile." }), "You can't switch to this profile.")
-    tkEqual(castSwitchNotice({ ok: false, error: "network", message: "The server can't be reached." }), "The server can't be reached.")
-    tkEqual(castSwitchNotice({ ok: false, error: "x", message: "" }), "The server couldn't switch to the remote's profile.")
-    tkEqual(castSwitchNotice({ ok: true, data: { through: true } }), "The server couldn't switch to the remote's profile.", "nothing switched")
+    tkEqual(castSwitchNotice({ ok: false, error: spent.reason, message: spent.message }), "Couldn't switch to the remote's profile", "as every app says it")
+    tkEqual(castSwitchNotice({ ok: false, error: "not_allowed", message: "You can't switch to this profile." }), "Couldn't switch to the remote's profile", "whatever the reason")
+    tkEqual(castSwitchNotice({ ok: false, error: "network", message: "The server can't be reached." }), "Couldn't switch to the remote's profile", "out of reach too")
+    tkEqual(castSwitchNotice({ ok: false, error: "x", message: "" }), "Couldn't switch to the remote's profile")
+    tkEqual(castSwitchNotice({ ok: true, data: { through: true } }), "Couldn't switch to the remote's profile", "nothing switched")
     tkEqual(castSwitchNotice({ ok: false, error: "signed_out", message: "" }), "")
     tkEqual(castSwitchNotice({ ok: false, error: "server_changed", message: "The sign-in changed." }), "")
     tkEqual(castSwitchNotice({ ok: false, error: "switch_replaced", message: "Another profile was chosen." }), "")

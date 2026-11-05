@@ -196,12 +196,12 @@ class EventsTest(unittest.TestCase):
 
         def query(at, token):
             asked.append((at, token))
-            return {"receiver": "kodi-1", "device_kind": "tv", "casts": "item,live"}
+            return {"receiver": "kodi-1", "device_kind": "tv", "casts": "item,live,switch"}
 
         self.stream = Events(Tokens(server.url), "pleyKodi/test", self.heard.append, retry=(0.05,), query=query)
         self.stream.start()
         self.assertTrue(wait_for(lambda: len(server.requests) == 2), server.requests)
-        self.assertTrue(server.requests[0].startswith("GET /api/events?receiver=kodi-1&device_kind=tv&casts=item,live HTTP/1.1"))
+        self.assertTrue(server.requests[0].startswith("GET /api/events?receiver=kodi-1&device_kind=tv&casts=item,live,switch HTTP/1.1"))
         self.assertEqual(asked, [(server.url, "at-1")] * 2)
 
     def test_another_server_chosen_is_listened_to_instead(self):

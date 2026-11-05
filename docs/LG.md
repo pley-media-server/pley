@@ -355,7 +355,8 @@ on ([API.md](API.md#casting)) while its event stream is open, so while
 the app shows and is signed in. The stream names it a receiver by its
 install id (the `client_id` its plays send), a TV (`device_kind=tv`)
 taking titles and playlists (`casts=item`) and, where the profile has Live
-TV, channels (`live`). Until the server first says whether it has, the TV
+TV, channels (`live`), and switching to the profile of a remote of another
+profile that casts to it (`switch`). Until the server first says whether it has, the TV
 takes channels too, and the stream opens again when Live TV comes or goes.
 It sends no name, so the server names it from its `User-Agent`, as it
 does its players. What a remote sends plays as the TV's own Play would,

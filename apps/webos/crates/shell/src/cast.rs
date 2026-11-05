@@ -28,9 +28,9 @@ pub const CAST_NOTICE_SECONDS: f64 = 4.0;
 /// or playlist.
 pub const NOTHING_TO_PLAY: &str = "Nothing to play";
 
-/// What the TV says when the server refused to switch it to the profile of the remote that cast,
-/// for a reason other than the ticket or the network.
-pub const CANT_SWITCH: &str = "The server couldn't switch to the remote's profile.";
+/// What the TV says when it couldn't switch to the profile of the remote that cast, as every app
+/// says it.
+pub const CANT_SWITCH: &str = "Couldn't switch to the remote's profile";
 
 /// What a remote cast to this TV.
 #[derive(Clone, Debug, PartialEq)]
@@ -111,7 +111,6 @@ impl Cast {
 pub fn switch_refused(e: &AuthError) -> Option<String> {
     match SwitchRefusal::of(e) {
         SwitchRefusal::SignedOut => None,
-        r @ (SwitchRefusal::TicketSpent | SwitchRefusal::Unreachable(_)) => Some(r.message()),
         _ => Some(CANT_SWITCH.into()),
     }
 }
@@ -446,10 +445,7 @@ mod tests {
                 reason: Some(reason.into()),
             }),
         };
-        assert_eq!(
-            switch_refused(&refused("ticket_spent")).as_deref(),
-            Some("This cast can't switch profiles any more: cast it again.")
-        );
+        assert_eq!(switch_refused(&refused("ticket_spent")).as_deref(), Some(CANT_SWITCH));
         assert_eq!(switch_refused(&refused("not_allowed")).as_deref(), Some(CANT_SWITCH));
         assert_eq!(switch_refused(&AuthError::SignedOut(SignOutReason::Ended)), None);
     }

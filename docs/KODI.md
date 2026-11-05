@@ -279,7 +279,9 @@ it (`casting.py`):
 - **Taking casts:** its event stream makes Kodi a receiver, by the
   `client_id` its plays are made with, as a TV named as its plays are
   named. It takes titles and playlists always, and Live TV's channels
-  where the account has Live TV as the stream opens.
+  where the account has Live TV as the stream opens, and says it switches
+  to the profile of a remote of another profile that casts to it
+  (`casts=…,switch`).
 - **What plays:** what is sent plays as the add-on's own Play plays it,
   through the plugin's play routes, in place of what plays:
   - a movie or an episode from where it was sent, else where Play starts

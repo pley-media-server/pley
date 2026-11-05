@@ -215,7 +215,8 @@ the pause the person's own; then they stay, as for any pause.
 on ([API.md](API.md#casting)) while its event stream is open: the stream
 names it a receiver by its id (`pley.installId`), a TV taking titles and
 playlists (`casts=item`) and channels while the rail shows Live TV
-(`live`), and opens again when Live TV comes or goes; the server names
+(`live`), and switching to the profile of a remote of another profile
+that casts to it (`switch`), and opens again when Live TV comes or goes; the server names
 it, as it does its players. What a remote sends plays as the TV's own
 Play would, in place of what plays:
 

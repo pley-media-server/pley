@@ -3541,7 +3541,7 @@ would.
 - **Receivers.** A player that plays what it is sent (one of Pley's
   apps) opens its event stream as a receiver, with `receiver`,
   `device_name`, `device_kind` and `casts` in the query
-  (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live`).
+  (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live,switch`).
   `receiver` is the app's own id for the device, 1 to 128 letters, digits,
   `.`, `_`, `:` and `-` (anything else and the stream isn't a receiver).
   `device_name` and `device_kind` are what a play request's are, and
