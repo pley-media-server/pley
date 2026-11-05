@@ -8,11 +8,12 @@
  * the namespaces wanted so far at once. English is also the fallback for a
  * word missing elsewhere.
  *
- * The language shown is the account's own choice, else the server's
- * (Settings → General), else the first of the browser's languages that Pley
- * has, else English ({@link pickLanguage}). The last one shown is
- * remembered on the device, so the next visit starts in it before the
- * server has answered.
+ * The language shown is the account's own choice, else this device's (one
+ * picked with the globe before signing in, else the first of the browser's
+ * languages that Pley has), else the server language (Settings → General),
+ * else English ({@link pickLanguage}). The last one shown is remembered on
+ * the device, so the next visit starts in it before the server has
+ * answered.
  */
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
@@ -22,6 +23,8 @@ export const LANGUAGES = ["en", "fr", "es"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 const STORAGE_KEY = "pley.language";
+/** A language picked on this device (the globe of the pages before signing in). */
+const DEVICE_KEY = "pley.deviceLanguage";
 
 /** Every catalog the main bundle doesn't carry, to load when wanted. */
 const catalogs = import.meta.glob<{ default: Record<string, unknown> }>([
@@ -55,9 +58,51 @@ export function deviceLanguage(): Language | undefined {
   return undefined;
 }
 
-/** The language to show: the account's, else the server's, else the device's, else English. */
+let deviceChoice: Language | undefined = (() => {
+  try {
+    return supportedLanguage(localStorage.getItem(DEVICE_KEY));
+  } catch {
+    return undefined;
+  }
+})();
+const deviceChoiceListeners = new Set<() => void>();
+
+/** The language picked on this device, if one was. */
+export function deviceChoiceLanguage(): Language | undefined {
+  return deviceChoice;
+}
+
+/** Picks this device's language (`null`: the browser's again), remembered on the device. */
+export function setDeviceLanguage(language: Language | null): void {
+  deviceChoice = language ?? undefined;
+  try {
+    if (language) localStorage.setItem(DEVICE_KEY, language);
+    else localStorage.removeItem(DEVICE_KEY);
+  } catch {
+    // Private windows may refuse: the choice lasts until the page closes.
+  }
+  deviceChoiceListeners.forEach((listener) => listener());
+}
+
+/** Hears the device's choice change (for `useSyncExternalStore`). */
+export function onDeviceLanguage(listener: () => void): () => void {
+  deviceChoiceListeners.add(listener);
+  return () => void deviceChoiceListeners.delete(listener);
+}
+
+/** What "Automatic" stands for here: this device's choice, else {@link browserLanguage}. */
+export function automaticLanguage(server: string | null | undefined): Language {
+  return deviceChoice ?? browserLanguage(server);
+}
+
+/** The browser's language where Pley has it, else the server language, else English. */
+export function browserLanguage(server: string | null | undefined): Language {
+  return deviceLanguage() ?? supportedLanguage(server) ?? "en";
+}
+
+/** The language to show: the account's, else {@link automaticLanguage}. */
 export function pickLanguage(account: string | null | undefined, server: string | null | undefined): Language {
-  return supportedLanguage(account) ?? supportedLanguage(server) ?? deviceLanguage() ?? "en";
+  return supportedLanguage(account) ?? automaticLanguage(server);
 }
 
 function remembered(): Language | undefined {
@@ -123,7 +168,7 @@ export async function setLanguage(language: Language): Promise<void> {
 
 /** Before the first page: the language of the last visit, else the browser's. */
 export function startLanguage(): Promise<void> {
-  return setLanguage(remembered() ?? deviceLanguage() ?? "en").catch(() => setLanguage("en"));
+  return setLanguage(remembered() ?? deviceChoice ?? deviceLanguage() ?? "en").catch(() => setLanguage("en"));
 }
 
 /** The language shown. */

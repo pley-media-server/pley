@@ -1,4 +1,4 @@
-import { t } from "@/i18n";
+import { currentLanguage, t } from "@/i18n";
 
 export type ApiErrorCode =
   | "bad_request"
@@ -72,7 +72,8 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 /** As {@link request}, with the answer's status, where 200 and 201 say different things. */
 export async function requestWithStatus<T>(path: string, opts: RequestOptions = {}): Promise<{ status: number; data: T }> {
   const { method = "GET", body, rawBody, form, signal, keepalive, noAuthRedirect } = opts;
-  const headers: Record<string, string> = { Accept: "application/json" };
+  // The server words some answers itself (Home's rows) in the language asked for.
+  const headers: Record<string, string> = { Accept: "application/json", "Accept-Language": currentLanguage() };
   if (rawBody) headers["Content-Type"] = rawBody.type || "application/octet-stream";
   else if (body !== undefined && !form) headers["Content-Type"] = "application/json";
   let res: Response;

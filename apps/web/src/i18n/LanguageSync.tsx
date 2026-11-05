@@ -1,21 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMe, useServer } from "@/api/hooks";
-import { currentLanguage, pickLanguage, setLanguage } from ".";
+import { currentLanguage, deviceChoiceLanguage, deviceLanguage, onDeviceLanguage, pickLanguage, setLanguage } from ".";
 
 /**
  * Keeps the app in the language it should be in: the signed-in account's,
- * else the server's, else the browser's. Reads the account from the cache
- * without asking for it (pages that need it do).
+ * else this device's, else the server language. Reads the account from the
+ * cache without asking for it (pages that need it do).
  */
 export function LanguageSync() {
   const server = useServer();
   const me = useMe(false);
   const qc = useQueryClient();
-  // Until the server (and an account being asked for) has answered, the
-  // language of the last visit stays: going by the browser's meanwhile
-  // would flash it.
-  const waiting = server.isPending || (me.isPending && me.fetchStatus === "fetching");
+  const deviceChoice = useSyncExternalStore(onDeviceLanguage, deviceChoiceLanguage);
+  // Until an account being asked for has answered (and the server, where
+  // this device has no language Pley has), the language of the last visit
+  // stays: going by another meanwhile would flash it.
+  const deviceSays = deviceChoice ?? deviceLanguage();
+  const waiting = (me.isPending && me.fetchStatus === "fetching") || (!deviceSays && server.isPending);
   const wanted = waiting ? null : pickLanguage(me.data?.language, server.data?.language);
 
   useEffect(() => {

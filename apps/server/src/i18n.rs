@@ -7,8 +7,9 @@
 //! into the binary. A word missing from one falls back to English.
 //!
 //! The language a request is answered in is the account's own choice, else
-//! the server's (Settings → General), else the first one the device asks
-//! for (`Accept-Language`) that Pley has, else English.
+//! the first one the device asks for (`Accept-Language`) that Pley has,
+//! else the server language (Settings → General), which is English until an
+//! administrator picks another.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -81,15 +82,19 @@ pub fn from_accept_language(value: &str) -> Option<&'static str> {
     asked.into_iter().find_map(|(_, _, tag)| supported(tag))
 }
 
-/// The server's language with nothing else to go by: its own setting, else
-/// the device's `Accept-Language`, else English.
+/// The server language: the administrator's choice, English until there
+/// is one.
+pub fn server_language(setting: &str) -> &'static str {
+    supported(setting).unwrap_or("en")
+}
+
+/// The language for a request whose account hasn't chosen one: the
+/// device's (`Accept-Language`) where Pley has it, else the server language.
 pub fn fallback(server: &str, headers: Option<&HeaderMap>) -> &'static str {
-    supported(server)
-        .or_else(|| {
-            let header = headers?.get(header::ACCEPT_LANGUAGE)?.to_str().ok()?;
-            from_accept_language(header)
-        })
-        .unwrap_or("en")
+    headers
+        .and_then(|headers| headers.get(header::ACCEPT_LANGUAGE)?.to_str().ok())
+        .and_then(from_accept_language)
+        .unwrap_or_else(|| server_language(server))
 }
 
 /// The language to answer `user_id`'s request in (see the module's doc).
@@ -187,11 +192,14 @@ mod tests {
     }
 
     #[test]
-    fn the_server_setting_comes_before_the_device() {
+    fn the_device_comes_before_the_server_language() {
         let mut headers = HeaderMap::new();
         headers.insert(header::ACCEPT_LANGUAGE, "es-ES,es;q=0.9".parse().unwrap());
-        assert_eq!(fallback("fr", Some(&headers)), "fr");
-        assert_eq!(fallback("", Some(&headers)), "es");
+        assert_eq!(fallback("fr", Some(&headers)), "es");
+        let mut german = HeaderMap::new();
+        german.insert(header::ACCEPT_LANGUAGE, "de-DE".parse().unwrap());
+        assert_eq!(fallback("fr", Some(&german)), "fr");
+        assert_eq!(fallback("fr", None), "fr");
         assert_eq!(fallback("", None), "en");
     }
 

@@ -123,9 +123,9 @@ export function ServerSettings() {
               <Row label={t("server.serverName")} hint={t("server.serverNameHint")} htmlFor="server-name">
                 <TextInput id="server-name" value={form.server_name} onChange={(e) => set("server_name", e.target.value)} />
               </Row>
-              <Row label={t("common:language.label")} hint={t("common:language.serverHint")} htmlFor="server-language">
-                <Select id="server-language" value={form.language} onChange={(e) => set("language", e.target.value)}>
-                  <option value="">{t("common:language.eachDevice")}</option>
+              <Row label={t("common:language.serverLabel")} hint={t("common:language.serverHint")} htmlFor="server-language">
+                {/* English until an administrator picks another (an empty setting). */}
+                <Select id="server-language" value={form.language || "en"} onChange={(e) => set("language", e.target.value)}>
                   <LanguageOptions />
                 </Select>
               </Row>
