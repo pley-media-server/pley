@@ -1,12 +1,13 @@
-import { useLocation } from "react-router";
+import { Route, Routes, useLocation } from "react-router";
 import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ServerEvent } from "@/api/types";
+import { RequireAuth, useAuth } from "@/auth";
 import { castOf, receiverId, receiverQuery } from "@/lib/castReceiver";
 import { playUrl } from "@/lib/usePlayItem";
 import { itemUrl } from "@/lib/urls";
 import { makeItem } from "@/test/fixtures";
-import { LocationDisplay, mockApi, renderWithProviders } from "@/test/render";
+import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { CastReceiver } from "./CastReceiver";
 
 // The stream's events, sent by the tests; what the receiver asks of it, recorded.
@@ -43,8 +44,12 @@ function cast(overrides: Partial<Extract<ServerEvent, { type: "cast" }>>): Serve
 
 /** A film the user is a minute and a half into, a channel, an album with a track, and a show with nothing next. */
 function serve(live = false) {
+  return mockApi(handlers(live));
+}
+
+function handlers(live = false): Parameters<typeof mockApi>[0] {
   const film = { ...makeItem({ id: 5, kind: "movie", title: "Test Film" }), files: [], user_state: { position_ms: 90_000, watched: false, play_count: 0 } };
-  return mockApi({
+  return {
     "GET /api/live": () => ({ available: live, allowed: live, channels: live ? 1 : 0, sources: 0, recent: [] }),
     "GET /api/items/5": () => film,
     "GET /api/items/7": () => ({ ...makeItem({ id: 7, kind: "album", title: "Test Album" }), files: [] }),
@@ -52,7 +57,7 @@ function serve(live = false) {
     "GET /api/items/9": () => ({ ...makeItem({ id: 9, kind: "show", title: "Test Show" }), files: [] }),
     "GET /api/items/9/on-deck": () => ({ item: null }),
     "GET /api/live/channels/3": () => ({ id: 3, source_id: 1, source_uid: "abc", name: "One", number: "1", group: "", logo: null, favorite: false, has_guide: false, now: null, next: null }),
-  });
+  };
 }
 
 /** Whether the page was opened by a cast (`castState`). */
@@ -163,7 +168,93 @@ describe("CastReceiver", () => {
     show("/profiles");
     send(cast({ item_id: 5 }));
     send(cast({ item_id: 5, receiver_id: "tv-1" }));
+    send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
     await settle();
     expect(screen.getByTestId("location")).toHaveTextContent("/profiles");
+  });
+
+  describe("from another profile of the household", () => {
+    const server = { name: "pley", version: "1.0.0", setup_required: false };
+    const sam = { ...testUser, id: 2, name: "Sam" };
+
+    /** The app as it runs: signed in as `testUser`, the profile switching to Sam's with a ticket `switchAnswer` takes. */
+    function app(switchAnswer: (req: FakeRequest) => unknown = () => ({ user: sam })) {
+      let me = testUser;
+      const requests = mockApi({
+        ...handlers(),
+        "GET /api/server": () => server,
+        "GET /api/auth/me": () => me,
+        "POST /api/auth/switch": (req) => {
+          const answer = switchAnswer(req);
+          if (!(answer instanceof Response)) me = sam;
+          return answer;
+        },
+      });
+      renderWithProviders(
+        <>
+          <Routes>
+            <Route element={<RequireAuth />}>
+              <Route path="*" element={<Signed />} />
+            </Route>
+          </Routes>
+          <LocationDisplay />
+        </>,
+      );
+      return requests;
+    }
+
+    /** Who the app is signed in as. */
+    function Signed() {
+      return <p>Signed in as {useAuth().name}</p>;
+    }
+
+    beforeEach(() => {
+      // No event stream: the tests send the events.
+      vi.stubGlobal("EventSource", undefined);
+      desktop(true);
+    });
+
+    it("switches to the caster's profile with the cast's ticket, then plays it, once", async () => {
+      const requests = app();
+      await screen.findByText("Signed in as Admin");
+      send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+
+      expect(await screen.findByText("Signed in as Sam")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(playUrl(5, { startMs: 90_000 })));
+      expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
+      await settle();
+      expect(requests.filter((r) => r.path === "/api/auth/switch").map((r) => r.body)).toEqual([{ user_id: 2, ticket: "t1" }]);
+      // Fetched as Sam, after the switch, and played the once.
+      const switched = requests.findIndex((r) => r.path === "/api/auth/switch");
+      expect(requests.map((r, i) => [r.path, i > switched])).toContainEqual(["/api/items/5", true]);
+      expect(requests.filter((r) => r.path === "/api/items/5")).toHaveLength(1);
+      expect(screen.getAllByText("Playing from Phone")).toHaveLength(1);
+    });
+
+    it("says so when the switch didn't go through, and plays nothing", async () => {
+      const requests = app(() => apiError(403, "ticket_spent", "this cast's switch has expired or was used: cast again"));
+      await screen.findByText("Signed in as Admin");
+      send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+
+      expect(
+        await screen.findByText("Couldn't switch profiles to play what Phone sent. This cast's switch has expired or was used: cast again"),
+      ).toBeInTheDocument();
+      await settle();
+      expect(screen.getByText("Signed in as Admin")).toBeInTheDocument();
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
+      expect(requests.filter((r) => r.path === "/api/items/5")).toHaveLength(0);
+    });
+
+    it("leaves one it has no ticket for, and plays one from the profile it is on without switching", async () => {
+      const requests = app();
+      await screen.findByText("Signed in as Admin");
+      send(cast({ item_id: 5, profile_id: 2 }));
+      await settle();
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
+
+      send(cast({ item_id: 5, profile_id: testUser.id, switch_ticket: "t1" }));
+      await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(playUrl(5, { startMs: 90_000 })));
+      expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(0);
+    });
   });
 });

@@ -63,8 +63,8 @@ What Pley does, in full. The [README](../README.md) has the short version.
   household switches to yours first, so it plays as you; when your
   profile has a PIN, Play on… asks for it in its menu's place. The
   desktop app takes casts too, as "Pley for Windows", "Pley for Mac" or
-  "Pley for Linux"; a browser tab doesn't, as a browser won't start sound
-  in a tab in the background.
+  "Pley for Linux", switching to the profile that sent one; a browser tab
+  doesn't, as a browser won't start sound in a tab in the background.
 
 ## Live TV
 

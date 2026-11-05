@@ -832,7 +832,10 @@ export type ServerEvent =
   /**
    * The user's remote sent their device of `receiver_id` something to play
    * (`from`: the remote's device name). The desktop app takes casts
-   * (components/CastReceiver.tsx); a browser tab is a remote only.
+   * (components/CastReceiver.tsx); a browser tab is a remote only. Sent
+   * from another profile of the household, it names that profile
+   * (`profile_id`) and the ticket this device switches to it with first
+   * (`switch_ticket`).
    */
   | {
       type: "cast";
@@ -845,6 +848,8 @@ export type ServerEvent =
       audio_index?: number | null;
       subtitle_index?: number | null;
       from: string | null;
+      profile_id?: Id;
+      switch_ticket?: string;
     }
   /** Live TV's sources, channels or guide changed. */
   | { type: "live_channels_changed" }
