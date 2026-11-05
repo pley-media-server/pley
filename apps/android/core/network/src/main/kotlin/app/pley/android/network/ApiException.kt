@@ -5,7 +5,6 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.LocalNetwork
 import app.pley.android.common.UiText
 import app.pley.android.common.UserFacing
-import app.pley.android.common.describe
 import app.pley.android.common.errorText
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
@@ -144,9 +143,7 @@ class OfflineException(cause: IOException) : IOException(cause), UserFacing {
     /** Why, in a few words: allowing the home network, or what [errorText] says of [cause]. */
     override val text: UiText = if (blocked) UiText.res(R.string.network_not_allowed) else errorText(cause)
 
-    // The cause's words as describe gives them, in English, while code that words errors with describe remains:
-    // they go with it, and the message is then the text's, as the other errors' are.
-    override val message: String = if (blocked) AppLanguage.wordsOf(text) else describe(cause)
+    override val message: String get() = AppLanguage.wordsOf(text)
 }
 
 /** The server answered with something that isn't what pley answers: another program, or a much older pley. */

@@ -1,5 +1,6 @@
 package app.pley.android.data
 
+import app.pley.android.common.UiText
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -94,8 +95,8 @@ data class DownloadEntry(
     /** Where it was left last, played here: for Resume. */
     val positionMs: Long = 0,
     val watched: Boolean = false,
-    /** Why it failed, one short sentence. */
-    val error: String? = null,
+    /** Why it failed, one short sentence, put into words where it shows. */
+    val error: UiText? = null,
     /** While the server makes this device's file: how far it has come, 0 to 1. */
     val converting: Float? = null,
     /** Waiting because the server didn't answer (away from home, or its transcoder down), not for Wi-Fi. */

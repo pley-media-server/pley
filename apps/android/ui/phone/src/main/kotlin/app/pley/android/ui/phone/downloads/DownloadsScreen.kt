@@ -48,6 +48,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.ItemKind
 import app.pley.android.model.format.episodeLabel
@@ -191,7 +192,7 @@ private fun DownloadRow(
         DownloadState.Queued -> entry.converting?.let { stringResource(R.string.downloads_preparing, (it * 100).toInt()) }
             ?: stringResource(R.string.downloads_queued)
         DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
-        DownloadState.Failed -> stringResource(R.string.downloads_failed, entry.error.orEmpty())
+        DownloadState.Failed -> stringResource(R.string.downloads_failed, entry.error?.asString().orEmpty())
     }
     Row(
         Modifier

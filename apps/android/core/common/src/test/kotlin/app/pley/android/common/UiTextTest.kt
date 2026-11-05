@@ -5,8 +5,6 @@ import android.content.res.Configuration
 import android.os.LocaleList
 import androidx.test.core.app.ApplicationProvider
 import java.io.IOException
-import java.net.ConnectException
-import java.net.SocketTimeoutException
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -38,11 +36,7 @@ class UiTextTest {
     }
 
     @Test
-    fun errorsAreWordedAsDescribeWordsThemInEnglish() {
-        for (error in listOf(ConnectException("refused"), SocketTimeoutException("timeout"), IOException("Canceled"))) {
-            assertEquals(describe(error), errorText(error).resolve(english))
-            assertEquals(sentenceOf(error), errorSentence(error).resolve(english))
-        }
+    fun anErrorSaysTheAppsWordsOrTheServersAsTheyAre() {
         val written = object : IOException("you were signed out: sign in again"), UserFacing {}
         assertEquals(UiText.raw("you were signed out: sign in again"), errorText(written))
         val own = object : IOException(), UserFacing {
