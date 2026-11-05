@@ -33,10 +33,11 @@ end function
 ' What a cast asks of this Roku, as { act }: "none" (one for another
 ' device, one without anything to play, or one that comes while casts
 ' aren't taken: takes false); "item" with itemId, startMs (-1: where Play
-' starts) and shuffle; "playlist" with playlistId and shuffle; or
-' "channel" with channelId. receiver: this Roku's id; cast: the event's
-' fields (receiver_id, item_id, playlist_id, channel_id, start_ms,
-' shuffle).
+' starts), shuffle, and the tracks the remote picked, audioIndex and
+' subtitleIndex (-1: subtitles off; -2: not named); "playlist" with
+' playlistId and shuffle; or "channel" with channelId. receiver: this
+' Roku's id; cast: the event's fields (receiver_id, item_id, playlist_id,
+' channel_id, start_ms, shuffle, audio_index, subtitle_index).
 function castAction(receiver as string, takes as boolean, cast as dynamic) as object
     none = { act: "none" }
     data = httpObject(cast)
@@ -50,7 +51,11 @@ function castAction(receiver as string, takes as boolean, cast as dynamic) as ob
             startMs = Int(given)
             if startMs < 0 then startMs = 0
         end if
-        return { act: "item", itemId: itemId, startMs: startMs, shuffle: shuffle }
+        audio = Int(httpNumber(data.audio_index, -2))
+        if audio < 0 then audio = -2
+        subtitle = Int(httpNumber(data.subtitle_index, -2))
+        if subtitle < -1 then subtitle = -2
+        return { act: "item", itemId: itemId, startMs: startMs, shuffle: shuffle, audioIndex: audio, subtitleIndex: subtitle }
     end if
     playlistId = httpNumber(data.playlist_id, 0)
     if playlistId > 0 then return { act: "playlist", playlistId: playlistId, shuffle: shuffle }
@@ -98,6 +103,40 @@ function castVideoStartMs(startMs as integer, item as dynamic) as integer
     position = 0
     if state <> invalid then position = httpNumber(state.position_ms, 0)
     return playerStartOf(position, data.duration_ms)
+end function
+
+' The tracks a cast named for a movie or an episode (audioIndex,
+' subtitleIndex: stream indexes, -1 for subtitles off, -2 not named), as
+' the player plays them for this play, in place of the user's choices:
+' where the file it plays (the item's first, as for any cast) has them; a
+' track it doesn't have (one of another version) leaves the choice to
+' them. They go in that file's choice (selected_subtitle, selected_audio)
+' of item, the details the player is given, which it shows and ticks them
+' from; nothing is saved. The audio to ask the server for (the play
+' request's audio_index), -1 to leave it to the server.
+function castGivenTracks(item as dynamic, audioIndex as integer, subtitleIndex as integer) as integer
+    data = httpObject(item)
+    if data = invalid then return -1
+    file = contentFile(data, invalid)
+    if file = invalid then return -1
+    if subtitleIndex = -1
+        file.selected_subtitle = invalid
+    else if subtitleIndex >= 0 and castFileHas(file, "subtitle", subtitleIndex)
+        file.selected_subtitle = subtitleIndex
+    end if
+    if audioIndex < 0 or not castFileHas(file, "audio", audioIndex) then return -1
+    file.selected_audio = audioIndex
+    file.audio_picked = true
+    return audioIndex
+end function
+
+' Whether a file's streams have one of kind ("audio", "subtitle") at index.
+function castFileHas(file as object, kind as string, index as integer) as boolean
+    for each stream in httpArray(file.streams)
+        s = httpObject(stream)
+        if s <> invalid and httpString(s.kind) = kind and httpNumber(s.index, -9) = index then return true
+    end for
+    return false
 end function
 
 ' Where the track trackId is among its album's tracks (Music.brs's

@@ -194,8 +194,12 @@ sub test_remote_video_declares_the_tracks_its_file_has()
     tkEqual(remoteVideoControls(false, 1, 0), ["play", "pause", "seek", "skip", "audio"])
     tkEqual(remoteVideoControls(false, 0, 2), ["play", "pause", "seek", "skip", "subtitles"])
     tkEqual(remoteVideoControls(true, 2, 3), ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
+    tkEqual(remoteVideoControls(false, 1, 0, true), ["play", "pause", "seek", "skip", "audio", "quality"], "the player's Quality menu")
     for each control in remoteMusicControls()
-        tkTrue(control <> "audio" and control <> "subtitles", control)
+        tkTrue(control <> "audio" and control <> "subtitles" and control <> "quality", control)
+    end for
+    for each control in remoteLiveControls(true)
+        tkTrue(control <> "quality", "live: " + control)
     end for
     file = { streams: [{ kind: "video", index: 0 }, { kind: "audio", index: 1 }, { kind: "audio", index: 2 }, { kind: "subtitle", index: 3 }, { kind: "subtitle", index: 10001, external: true }, { kind: "attachment", index: 5 }] }
     tkEqual(tracksIndexes(file), { audio: [1, 2], subtitles: [3, 10001] }, "sidecar and added subtitles too")
@@ -241,6 +245,32 @@ sub test_remote_audio_and_subtitles()
     starting = { session: "", audio: [1, 2], subtitles: [3, 4], audioIndex: 1, subtitleIndex: -1 }
     tkEqual(remoteTrackAction(starting, { session_id: "", command: "audio", stream_index: 2 }), none, "no session yet")
     tkEqual(remoteTrackAction(player, invalid), none)
+end sub
+
+' The remote's quality (remoteQualityAction), for a film whose menu offers
+' Original, Automatic and 8 Mbps 1080p, at Automatic: another of the
+' menu's is picked and reported, the one picked is said again, and one the
+' menu doesn't offer does nothing.
+sub test_remote_quality()
+    player = { session: "s1", qualities: ["original", "auto", "8m"], quality: "auto" }
+    none = { act: "none", quality: "", report: false }
+    same = { act: "none", quality: "", report: true }
+    cases = [
+        { command: { session_id: "s2", command: "quality", quality: "8m" }, out: none },
+        { command: { session_id: "s1", command: "quality", quality: "8m" }, out: { act: "quality", quality: "8m", report: true } },
+        { command: { session_id: "s1", command: "quality", quality: "original" }, out: { act: "quality", quality: "original", report: true } },
+        { command: { session_id: "s1", command: "quality", quality: "auto" }, out: same },
+        { command: { session_id: "s1", command: "quality", quality: "30m" }, out: none },
+        { command: { session_id: "s1", command: "quality", quality: "best" }, out: none },
+        { command: { session_id: "s1", command: "quality", quality: invalid }, out: none },
+        { command: { session_id: "s1", command: "audio", quality: "8m" }, out: none }
+    ]
+    for each c in cases
+        tkEqual(remoteQualityAction(player, c.command), c.out, FormatJson(c.command))
+    end for
+    starting = { session: "", qualities: ["original", "auto"], quality: "auto" }
+    tkEqual(remoteQualityAction(starting, { session_id: "", command: "quality", quality: "original" }), none, "no session yet")
+    tkEqual(remoteQualityAction(player, invalid), none)
 end sub
 
 ' What the reports say shows: subtitles burned in while no others show,

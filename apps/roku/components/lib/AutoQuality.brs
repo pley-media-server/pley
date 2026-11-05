@@ -131,6 +131,24 @@ function aqMenuFor(file as dynamic) as object
     return menu
 end function
 
+' The ids of the player's Quality menu for a file (aqMenuFor), in its order.
+function aqMenuIds(file as dynamic) as object
+    ids = []
+    for each quality in aqMenuFor(file)
+        ids.Push(quality.id)
+    end for
+    return ids
+end function
+
+' What the player's Quality menu has picked for a file, as it ticks it and
+' as progress reports and the user's remotes say it: the choice (Settings'
+' or the menu's), else Original, which a file that doesn't offer the
+' choice plays.
+function aqPicked(choice as string, file as dynamic) as string
+    if aqHas(aqMenuIds(file), choice) then return choice
+    return "original"
+end function
+
 ' The qualities Automatic steps through below the original, highest
 ' first: those offered for the file, no higher than the server's own
 ' quality for it (auto_quality, "" for none) in bitrate and lines, each

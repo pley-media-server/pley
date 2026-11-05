@@ -1305,6 +1305,7 @@ end sub
 ' "auto", or "transcode" for a quality (maxBitrate, maxHeight: the Quality
 ' setting's or Automatic's, AutoQuality.brs) or once the original didn't
 ' play here; subtitleIndex, picture subtitles for the server to draw;
+' audioIndex, the audio a cast named (Cast.brs's castGivenTracks);
 ' picturesOff, once the server turned out not to make PGS's pictures;
 ' controls, what the player obeys of the user's remote (Remote.brs).
 sub apiPlay(request as object, spec as object)
@@ -1319,6 +1320,7 @@ sub apiPlay(request as object, spec as object)
     }
     if httpNumber(spec.fileId, 0) > 0 then body.file_id = spec.fileId
     if httpNumber(spec.subtitleIndex, -1) >= 0 then body.subtitle_index = Int(spec.subtitleIndex)
+    if httpNumber(spec.audioIndex, -1) >= 0 then body.audio_index = Int(spec.audioIndex)
     if httpNumber(spec.maxBitrate, 0) > 0 then body.max_bitrate = Int(spec.maxBitrate)
     if httpNumber(spec.maxHeight, 0) > 0 then body.max_height = Int(spec.maxHeight)
     if httpTrue(spec.keyed) then body.keyed_urls = true

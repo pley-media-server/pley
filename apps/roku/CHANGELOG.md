@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser changes the quality of a film or episode playing
+  on the Roku, as the player's Quality menu does (the pick is kept as the
+  Roku's), and sees which is picked. A film or episode sent with "Play
+  on…" plays with the audio and subtitles picked on its page.
 - Your phone or browser plays a film, an episode, a show, an album, an
   artist, a track, a playlist or a Live TV channel on the Roku ("Play
   on…"): it starts as the Roku's own Play would, in place of what plays,

@@ -27,6 +27,9 @@ sub test_player_progress_bodies()
     tkEqual(playerProgress(1000, 6960000, "paused", "s1", { audio: 2, subtitle: -1 }), { position_ms: 1000, state: "paused", duration_ms: 6960000, session_id: "s1", audio_index: 2, subtitle_index: -1 })
     tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: -1, subtitle: 3 }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: -1, subtitle_index: 3 }, "a file without audio")
     tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: 1, subtitle: -2 }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: 1 }, "subtitles not known")
+    ' And the Quality menu's pick.
+    tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: 1, subtitle: -1, quality: "8m" }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: 1, subtitle_index: -1, quality: "8m" })
+    tkEqual(playerProgress(1000, 0, "playing", "s1", { audio: 1, subtitle: -1, quality: "" }), { position_ms: 1000, state: "playing", session_id: "s1", audio_index: 1, subtitle_index: -1 }, "not known")
 end sub
 
 sub test_player_tells_media_errors_from_stream_errors()

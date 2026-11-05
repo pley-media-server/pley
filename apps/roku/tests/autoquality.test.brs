@@ -49,6 +49,19 @@ sub test_aq_the_players_menu_names_qualities_by_the_files_lines()
     tkEqual(aqLadder(40000, 2160, "15m"), ["15m", "12m", "8m", "4m", "2m"], "never above the server's quality")
 end sub
 
+' What the menu has picked for a file, as the reports and the user's
+' remotes say it: the choice where the file offers it, else Original,
+' which it plays.
+sub test_aq_the_menus_pick_for_a_file()
+    hd = { bitrate: 12000000, width: 1280, height: 720 }
+    tkEqual(aqMenuIds(hd), ["original", "auto", "8m", "4m", "2m"])
+    tkEqual(aqPicked("auto", hd), "auto")
+    tkEqual(aqPicked("original", hd), "original")
+    tkEqual(aqPicked("4m", hd), "4m")
+    tkEqual(aqPicked("30m", hd), "original", "a quality the file doesn't offer plays the original")
+    tkEqual(aqPicked("30m", invalid), "30m", "an unknown file: the whole menu")
+end sub
+
 sub test_aq_how_each_choice_is_asked_for()
     big = { bitrate: 24000000, height: 2160 }
     small = { bitrate: 6000000, streams: [{ kind: "video", height: 1080 }] }

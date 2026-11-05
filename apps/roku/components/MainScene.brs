@@ -612,7 +612,7 @@ sub onCast(data as object)
     else if action.act = "playlist"
         castRequest("/api/playlists/" + urlValue(action.playlistId), "onCastPlaylist", { build: "playlist", banner: banner, shuffle: action.shuffle })
     else
-        castRequest("/api/items/" + urlValue(action.itemId), "onCastItem", { banner: banner, startMs: action.startMs, shuffle: action.shuffle })
+        castRequest("/api/items/" + urlValue(action.itemId), "onCastItem", { banner: banner, startMs: action.startMs, shuffle: action.shuffle, audioIndex: action.audioIndex, subtitleIndex: action.subtitleIndex })
     end if
 end sub
 
@@ -646,8 +646,9 @@ function castAnswer(event as object) as dynamic
     return invalid
 end function
 
-' A title: a movie or an episode plays, a show or a season its next
-' episode, an album or an artist its tracks, a track its album from it.
+' A title: a movie or an episode plays (with the tracks the remote
+' picked), a show or a season its next episode, an album or an artist its
+' tracks, a track its album from it.
 sub onCastItem(event as object)
     item = castAnswer(event)
     if item = invalid then return
@@ -656,7 +657,14 @@ sub onCastItem(event as object)
     plan = castItemPlay(httpString(item.kind), spec.startMs, spec.shuffle)
     if plan.plays = "video"
         ' The player has the item already: one request less before it plays.
-        castShow({ to: "player", params: { itemId: item.id, startMs: castVideoStartMs(plan.startMs, item), item: item } }, spec.banner)
+        params = { itemId: item.id, startMs: castVideoStartMs(plan.startMs, item), item: item }
+        audio = Int(httpNumber(spec.audioIndex, -2))
+        subtitle = Int(httpNumber(spec.subtitleIndex, -2))
+        if audio <> -2 or subtitle <> -2
+            params.audioIndex = castGivenTracks(item, audio, subtitle)
+            params.tracksGiven = true
+        end if
+        castShow({ to: "player", params: params }, spec.banner)
     else if plan.plays = "nextEpisode"
         castRequest("/api/items/" + id + "/on-deck", "onCastOnDeck", { banner: spec.banner })
     else if plan.plays = "album"

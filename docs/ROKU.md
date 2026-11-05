@@ -350,7 +350,8 @@ The menu, Original and Automatic follow [QUALITY.md](QUALITY.md#the-menu);
 the code is `components/lib/AutoQuality.brs`. On Roku:
 
 - **Settings → Quality** is kept on the Roku. One chosen in the player's
-  menu becomes the setting, and the title reopens at it.
+  menu, or by the remote on another device, becomes the setting, and the
+  title reopens at it.
 - **Several sizes:** in an adaptive session the Video node moves between
   sizes itself. Other streams come in one size, so the app steps down.
 - **Signals:** a wait is the Video node's `buffering` after at least 2 s of
@@ -447,7 +448,10 @@ remotes offer only Stop. They obey:
   nothing after it does nothing; a video has no previous. The audio and
   subtitles, where the file has them (`audio`, `subtitles`), change as a
   pick in Pley's menu changes them: saved for the show or movie, and the
-  stream opened again where it was with them.
+  stream opened again where it was with them. The quality (`quality`), one
+  of those the player's Quality menu offers for the file, changes as a
+  pick there does: kept as the Roku's, and the title opened again where it
+  was at it.
 - **Music:** play, pause, seek, skip, next and previous, as Now Playing's
   buttons and scrubber do, while other screens show too: previous more
   than 3 s into a track, or on the first, goes back to its start. Music
@@ -468,13 +472,16 @@ channel is still tuning too, as Up and Down do, but not after it stopped
 or while it says what went wrong. A seek stays within the title and a
 skip counts from where it is. Each change is reported at once, so the
 remote sees it; another title, track or channel tells the server with its
-own session, and the stream opened again for an audio or subtitle track
-tells it as it plays. A play on a player already playing, a pause on one
-already paused, or the audio or subtitles playing picked again, says so
-again at once, so a remote a little behind settles; a track the file
-doesn't have does nothing. Every report of a video says which audio and
-subtitles play (`audio_index`, `subtitle_index`, `-1` for none), so the
-remote ticks them; music's say neither. A channel step that waits for the
+own session, and the stream opened again for an audio or subtitle track,
+or a quality, tells it as it plays. A play on a player already playing, a
+pause on one already paused, or the audio, subtitles or quality playing
+picked again, says so again at once, so a remote a little behind settles;
+a track the file doesn't have, or a quality its menu doesn't offer, does
+nothing. Every report of a video says which audio and subtitles play
+(`audio_index`, `subtitle_index`, `-1` for none) and the Quality menu's
+pick (`quality`: the setting, or Original for a file that doesn't offer
+it, which then plays as it is), so the remote ticks them; music's say
+none of these. A channel step that waits for the
 next page of the category goes on only if the channel is still the one it
 started from and none was picked meanwhile (from the list, or Watch
 again), the same channel again too; tuning a channel again after its
@@ -482,7 +489,7 @@ stream broke off isn't a pick. A seek or skip while Up Next counts down
 puts Up Next away, as Rewind does. The rule is
 `components/lib/Remote.brs` (the step's, `components/lib/Live.brs`),
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
-(the tracks by cases of their own).
+(the tracks and the quality by cases of their own).
 
 **Casts.** While its event stream is open (an `http://` server, as for
 the commands), the Roku is one of the devices the profile's remotes play
@@ -493,7 +500,11 @@ has Live TV (`live`), and opens again when Live TV comes or goes. What a
 remote sends plays as the Roku's own Play would, in place of what plays:
 
 - a movie or an episode in the player, from the place sent, else where
-  its page's Play starts it; a show or a season its next episode;
+  its page's Play starts it, with the audio and subtitles picked on the
+  remote's page in place of the profile's choices for that play (asked
+  for with the play request's `audio_index`, shown as the menu's pick, and
+  not saved), where its first file has them; a show or a season its next
+  episode;
 - an album or an artist as the music's queue, in order or shuffled, with
   Now Playing; a track its album from it, from the place sent;
 - a playlist as its page plays it: music as the queue, videos in the

@@ -18,9 +18,10 @@ function playerShouldReport(state as string, sinceLastMs as integer) as boolean
 end function
 
 ' The body of POST /api/items/{id}/progress. A video's tracks ({ audio,
-' subtitle }: the stream indexes it plays, -1 for none) go with it, for
-' the user's remotes to tick; one not known (-2) is left out, which keeps
-' what the server knew. Music has none.
+' subtitle, quality }: the stream indexes it plays, -1 for none, and the
+' id of its Quality menu's pick) go with it, for the user's remotes to
+' tick; one not known (-2, or "") is left out, which keeps what the server
+' knew. Music has none.
 function playerProgress(positionMs as dynamic, durationMs as dynamic, state as string, sessionId as string, tracks = invalid as dynamic) as object
     position = Int(httpNumber(positionMs, 0))
     if position < 0 then position = 0
@@ -33,6 +34,8 @@ function playerProgress(positionMs as dynamic, durationMs as dynamic, state as s
         subtitle = Int(httpNumber(tracks.subtitle, -2))
         if audio >= -1 then body.audio_index = audio
         if subtitle >= -1 then body.subtitle_index = subtitle
+        quality = httpString(tracks.quality)
+        if quality <> "" then body.quality = quality
     end if
     return body
 end function

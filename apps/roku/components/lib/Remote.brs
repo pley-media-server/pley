@@ -7,12 +7,13 @@
 ' What a film or episode obeys: next only where something may come after
 ' it (an episode, a playlist's next entry); audio and subtitles where its
 ' file has tracks of them (audio and subtitles count them), which the
-' remote picks from.
-function remoteVideoControls(hasNext as boolean, audio = 0 as integer, subtitles = 0 as integer) as object
+' remote picks from; the quality where the player has its Quality menu.
+function remoteVideoControls(hasNext as boolean, audio = 0 as integer, subtitles = 0 as integer, quality = false as boolean) as object
     controls = ["play", "pause", "seek", "skip"]
     if hasNext then controls.Push("next")
     if audio > 0 then controls.Push("audio")
     if subtitles > 0 then controls.Push("subtitles")
+    if quality then controls.Push("quality")
     return controls
 end function
 
@@ -146,6 +147,32 @@ function remoteTrackAction(player as object, command as dynamic) as object
         return none
     end if
     return { act: what, index: index, report: true }
+end function
+
+' What a video does with the remote's quality, as { act, quality, report }:
+' - act "quality": that quality (one of the menu's ids), picked as Pley's
+'   Quality menu picks it, then reported;
+' - act "none" with report true: the quality picked is the one it has,
+'   said again at once, so a remote a little behind settles;
+' - act "none" with report false: nothing (another session's command, or
+'   a quality its menu doesn't offer for the file).
+' player: { session (its session id, "" while it has none), qualities (the
+' ids its menu offers for the file), quality (the one its menu has
+' picked) }. command: the event's fields (session_id, command, quality).
+function remoteQualityAction(player as object, command as dynamic) as object
+    none = { act: "none", quality: "", report: false }
+    data = httpObject(command)
+    if data = invalid then return none
+    session = httpString(player.session)
+    if session = "" or httpString(data.session_id) <> session or httpString(data.command) <> "quality" then return none
+    wanted = httpString(data.quality)
+    offered = false
+    for each id in httpArray(player.qualities)
+        if httpString(id) = wanted then offered = true
+    end for
+    if wanted = "" or not offered then return none
+    if wanted = httpString(player.quality) then return { act: "none", quality: "", report: true }
+    return { act: "quality", quality: wanted, report: true }
 end function
 
 ' Whether indexes (an array of stream indexes) has index.

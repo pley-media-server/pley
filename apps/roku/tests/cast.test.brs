@@ -32,14 +32,45 @@ sub test_cast_taken_only_past_the_sign_in_and_the_profiles()
 end sub
 
 sub test_cast_for_this_roku()
-    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: 60000 })), { act: "item", itemId: 5, startMs: 60000, shuffle: false })
-    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5 })), { act: "item", itemId: 5, startMs: -1, shuffle: false }, "where Play starts")
-    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 6, shuffle: true })), { act: "item", itemId: 6, startMs: -1, shuffle: true }, "an album shuffled")
-    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: 0 })), { act: "item", itemId: 5, startMs: 0, shuffle: false }, "from the start")
-    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: -40 })), { act: "item", itemId: 5, startMs: 0, shuffle: false })
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: 60000 })), { act: "item", itemId: 5, startMs: 60000, shuffle: false, audioIndex: -2, subtitleIndex: -2 })
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5 })), { act: "item", itemId: 5, startMs: -1, shuffle: false, audioIndex: -2, subtitleIndex: -2 }, "where Play starts")
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 6, shuffle: true })), { act: "item", itemId: 6, startMs: -1, shuffle: true, audioIndex: -2, subtitleIndex: -2 }, "an album shuffled")
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: 0 })), { act: "item", itemId: 5, startMs: 0, shuffle: false, audioIndex: -2, subtitleIndex: -2 }, "from the start")
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, start_ms: -40 })), { act: "item", itemId: 5, startMs: 0, shuffle: false, audioIndex: -2, subtitleIndex: -2 })
     tkEqual(castAction("r-1", true, castTestEvent({ playlist_id: 3, shuffle: true })), { act: "playlist", playlistId: 3, shuffle: true })
     tkEqual(castAction("r-1", true, castTestEvent({ playlist_id: 3 })), { act: "playlist", playlistId: 3, shuffle: false })
     tkEqual(castAction("r-1", true, castTestEvent({ channel_id: 7 })), { act: "channel", channelId: 7 })
+end sub
+
+' The tracks the remote picked on its page, with a movie or an episode.
+sub test_cast_names_the_tracks_picked()
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, audio_index: 2, subtitle_index: 4 })), { act: "item", itemId: 5, startMs: -1, shuffle: false, audioIndex: 2, subtitleIndex: 4 })
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, audio_index: 1, subtitle_index: -1 })), { act: "item", itemId: 5, startMs: -1, shuffle: false, audioIndex: 1, subtitleIndex: -1 }, "subtitles off")
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, audio_index: invalid, subtitle_index: 3 })), { act: "item", itemId: 5, startMs: -1, shuffle: false, audioIndex: -2, subtitleIndex: 3 }, "the audio not named")
+    tkEqual(castAction("r-1", true, castTestEvent({ item_id: 5, audio_index: -1, subtitle_index: -7 })), { act: "item", itemId: 5, startMs: -1, shuffle: false, audioIndex: -2, subtitleIndex: -2 }, "out of range: not named")
+end sub
+
+' A cast's tracks play in place of the user's choices where the file the
+' cast plays (its first) has them, in the details the player is given;
+' one of another version's leaves the choice as it was.
+sub test_cast_tracks_go_in_the_files_choice()
+    castTestItem = function() as object
+        return { id: 5, kind: "movie", files: [
+            { id: 50, selected_audio: 1, audio_picked: false, selected_subtitle: 3, streams: [{ kind: "video", index: 0 }, { kind: "audio", index: 1 }, { kind: "audio", index: 2 }, { kind: "subtitle", index: 3 }, { kind: "subtitle", index: 4 }] },
+            { id: 51, streams: [{ kind: "video", index: 0 }, { kind: "audio", index: 1 }, { kind: "audio", index: 7 }, { kind: "subtitle", index: 8 }] }
+        ] }
+    end function
+    item = castTestItem()
+    tkEqual(castGivenTracks(item, 2, 4), 2)
+    tkEqual([item.files[0].selected_audio, item.files[0].audio_picked, item.files[0].selected_subtitle], [2, true, 4])
+    item = castTestItem()
+    tkEqual(castGivenTracks(item, -2, -1), -1, "the audio not named: the server's pick")
+    tkEqual([item.files[0].selected_audio, item.files[0].audio_picked, item.files[0].selected_subtitle], [1, false, invalid], "subtitles off")
+    item = castTestItem()
+    tkEqual(castGivenTracks(item, 7, 8), -1, "another version's tracks")
+    tkEqual([item.files[0].selected_audio, item.files[0].selected_subtitle], [1, 3], "the user's choices stay")
+    tkEqual(castGivenTracks({ id: 6, kind: "movie", files: [] }, 1, 3), -1, "no file")
+    tkEqual(castGivenTracks(invalid, 1, 3), -1)
 end sub
 
 sub test_cast_for_another_device_or_while_not_taken_does_nothing()
