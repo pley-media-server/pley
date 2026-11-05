@@ -96,7 +96,7 @@ describe("PlayOn", () => {
       act(() => screen.getByRole("button", { name: "Dismiss" }).click());
     };
     await said("Phone", "Phone isn't on any more");
-    await waitFor(() => expect(requests.filter((r) => r.path === "/api/remote/devices")).toHaveLength(2));
+    await waitFor(() => expect(requests.filter((r) => r.path === "/api/remote/devices?household=1")).toHaveLength(2));
     answer = apiError(409, "not_castable", "this device doesn't play that");
     await said("Living room TV", "Living room TV can't play that");
     answer = apiError(429, "too_many_requests", "slow down");

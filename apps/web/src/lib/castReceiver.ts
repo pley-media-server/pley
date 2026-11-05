@@ -111,14 +111,16 @@ export function takeHandedOver(profileId: Id): Cast | null {
 /**
  * The event stream's query for this device as a receiver (docs/API.md,
  * "Casting"): a computer, by its name, that plays titles, music and
- * playlists, and Live TV's channels when the user has them (`live`).
+ * playlists, and Live TV's channels when the user has them (`live`). It
+ * switches to the profile of a remote that casts from another (`switch`):
+ * without it, the household's other profiles wouldn't see it.
  */
 export function receiverQuery(live: boolean): string {
   const p = new URLSearchParams({
     receiver: receiverId(),
     device_name: receiverName(),
     device_kind: "computer",
-    casts: live ? "item,live" : "item",
+    casts: live ? "item,live,switch" : "item,switch",
   });
   return p.toString();
 }

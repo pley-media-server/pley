@@ -45,8 +45,8 @@ What Pley does, in full. The [README](../README.md) has the short version.
   comparing the audio of episodes), seek-bar previews and chapter pictures.
 - A remote for your other devices: the web and desktop apps' header lists
   those that are on, the ones playing first, then those ready to play,
-  then the devices of your household's other profiles, each with the
-  profile it is on and never what it plays. For
+  then the devices of your household's other profiles whose app can switch
+  to yours, each with the profile it is on and never what it plays. For
   the one chosen it plays, pauses, seeks, skips, goes to the next or
   previous title (or channel, on Live TV), changes the audio track, the
   subtitles and the quality, and stops what plays there, once asked to.

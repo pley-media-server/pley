@@ -55,10 +55,10 @@ describe("the desktop app as a receiver of casts", () => {
     expect(castOf({ sleep: 30 })).toBeNull();
   });
 
-  it("asks for channels only while the user has Live TV", () => {
+  it("asks for channels only while the user has Live TV, and says it switches profile for a cast", () => {
     const query = (live: boolean) => Object.fromEntries(new URLSearchParams(receiverQuery(live)));
-    expect(query(false)).toEqual({ receiver: receiverId(), device_name: receiverName(), device_kind: "computer", casts: "item" });
-    expect(query(true).casts).toBe("item,live");
+    expect(query(false)).toEqual({ receiver: receiverId(), device_name: receiverName(), device_kind: "computer", casts: "item,switch" });
+    expect(query(true).casts).toBe("item,live,switch");
   });
 });
 

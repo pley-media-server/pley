@@ -56,9 +56,31 @@ export function saveStreamChoice(
 }
 
 export function stopSession(sessionId: string, keepalive = false): Promise<void> {
-  return api
-    .del<void>(`/api/playback/${encodeURIComponent(sessionId)}`, { keepalive, noAuthRedirect: keepalive })
-    .catch(() => undefined);
+  return ending(
+    api.del<void>(`/api/playback/${encodeURIComponent(sessionId)}`, { keepalive, noAuthRedirect: keepalive }).catch(() => undefined),
+  );
+}
+
+/** Sessions' last reports and releases still on their way (`ending`). */
+const endings = new Set<Promise<void>>();
+
+/**
+ * Keeps `done`, a session's last report or its release (which never
+ * rejects), for {@link sessionsEnded} until it is answered.
+ */
+export function ending(done: Promise<void>): Promise<void> {
+  endings.add(done);
+  void done.then(() => endings.delete(done));
+  return done;
+}
+
+/**
+ * Resolves once the sessions players ended have said so: their last
+ * reports and releases are answered. A profile switch waits for it, so
+ * they reach the server as the profile that played, not the next one.
+ */
+export async function sessionsEnded(): Promise<void> {
+  while (endings.size) await Promise.all([...endings]);
 }
 
 /**
@@ -73,7 +95,7 @@ export function endSession(
   keepalive = false,
   tracks: Pick<ProgressRequest, "audio_index" | "subtitle_index"> = {},
 ): Promise<void> {
-  return Promise.all([
+  const done = Promise.all([
     reportProgress(
       itemId,
       {
@@ -87,6 +109,7 @@ export function endSession(
     ),
     stopSession(session.session_id, keepalive),
   ]).then(() => undefined);
+  return ending(done);
 }
 
 /**
