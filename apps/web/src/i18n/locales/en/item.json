@@ -113,9 +113,11 @@
     "details": {
       "title": "Edit details",
       "hint": "Edited fields are locked <lock/> so metadata refreshes keep them. Unlock a field to let the next refresh fill it again.",
+      "nfoHint": "Fields from the NFO file next to it win over the metadata source; an edit here wins over them.",
       "genresPlaceholder": "Drama, Thriller",
       "locked": "Locked: click to unlock",
       "willUnlock": "Will be unlocked",
+      "fromNfo": "From the NFO file",
       "fields": {
         "title": "Title",
         "sort_title": "Sort title",
@@ -131,6 +133,9 @@
     },
     "match": {
       "title": "Fix match",
+      "byHand": "Matched here by hand. An NFO file next to it doesn't change this match until you undo it.",
+      "undo": "Undo Fix Match",
+      "undone": "Fix Match undone",
       "matched": "Matched to “{{title}}”",
       "noMatches": "No matches. Try another title or no year.",
       "current": "Current"

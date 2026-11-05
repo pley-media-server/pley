@@ -91,6 +91,9 @@ interface TvShellSource {
     /** Music a remote on another device cast here, as it starts, and where from: the shell opens Now Playing. */
     val castMusic: Flow<CastFrom> get() = emptyFlow()
 
+    /** A cast from another profile's remote couldn't switch the TV to it: nothing plays, the shell says so. */
+    val castRefused: Flow<Unit> get() = emptyFlow()
+
     companion object {
         /**
          * The app's: the startup read's server and tokens ([startup]),
@@ -98,9 +101,9 @@ interface TvShellSource {
          * the data module last saw it ([householdSize]; 1 until it says).
          * The three are read at once, in the background, as soon as it is
          * made: made before the activity's first frame, it usually knows
-         * them by then. With "Always start as" in a household of several,
-         * the session's saved profile says whether it has a PIN too (from
-         * the disk). Making it touches nothing else.
+         * them by then. In a household of several, the session's saved
+         * profile says whether it has a PIN too (from the disk). Making it
+         * touches nothing else.
          */
         fun of(
             graph: ScreensGraph,
@@ -151,7 +154,7 @@ private class GraphShellSource(
             val (server, signedIn) = start.await()
             val size = profiles.await()
             val always = settings.await().alwaysStartAs
-            val hasPin = if (signedIn && size > 1 && always != null) leftOnPin() else null
+            val hasPin = if (signedIn && size > 1) leftOnPin() else null
             StartFacts(server, signedIn, profiles = size, alwaysStartAs = always, hasPin = hasPin)
         }.also { known = it }
     }
@@ -220,6 +223,8 @@ private class GraphShellSource(
     override fun dismiss(notice: RequestNotice) = graph.data.requests.dismiss(notice)
 
     override val castMusic: Flow<CastFrom> = offMain { graph.casts.music }.map { it.from }
+
+    override val castRefused: Flow<Unit> = offMain { graph.casts.refused }
 
     private fun started(): RequestsRepository = graph.data.requests.also { it.start() }
 

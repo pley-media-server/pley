@@ -353,6 +353,20 @@ class WindowTest(unittest.TestCase):
         win.close()
         self.assertEqual(window.kodi.get_property(window.profiles.PICKING), "")
 
+    def test_kodi_starts_as_the_profile_in_use_unless_it_has_a_pin(self):
+        household = [{"id": 1, "name": "Anna", "current": True, "needs": "none"}, {"id": 2, "name": "Kid", "needs": "pin"}]
+        asks = window.profiles.asks_at_start
+        # No PIN: straight in.
+        self.assertFalse(asks(household, {"id": 1, "has_pin": False}, False))
+        # A PIN, or a server that doesn't say: "Who's watching?", until it is answered.
+        self.assertTrue(asks(household, {"id": 1, "has_pin": True}, False))
+        self.assertTrue(asks(household, {"id": 1}, False))
+        self.assertFalse(asks(household, {"id": 1, "has_pin": True}, True))
+        # A household of one, or none: nothing to ask.
+        self.assertFalse(asks(household[:1], {"id": 1, "has_pin": True}, False))
+        self.assertFalse(asks([], {"id": 1, "has_pin": True}, False))
+        self.assertFalse(asks(None, {"id": 1, "has_pin": True}, False))
+
     def test_whos_watching(self):
         household = [
             {"id": 1, "name": "Anna", "current": True, "needs": "none"},

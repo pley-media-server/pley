@@ -310,6 +310,24 @@ public class SignInTests
     }
 
     [Fact]
+    public async Task A_casts_ticket_switches_in_place_of_a_PIN_and_a_spent_one_changes_nothing()
+    {
+        var (tokens, server, _, _, signedOut) = Kept();
+        server.On("POST", Token, 200, Tokens("pley_at_1", "pley_rt_1", "library play"));
+        await tokens.SwitchProfile(4, null, "t1");
+        var sent = server.Requests.Last(r => r.Url == Token).Body!;
+        Assert.Contains("profile=4", sent);
+        Assert.Contains("ticket=t1", sent);
+        Assert.DoesNotContain("pin=", sent);
+        Assert.Equal("pley_at_1", tokens.Load()!.AccessToken);
+        server.On("POST", Token, 400, @"{""error"":""invalid_grant"",""error_description"":""this cast's switch has expired or was used: cast again"",""reason"":""ticket_spent""}");
+        var e = await Assert.ThrowsAsync<TokenException>(() => tokens.SwitchProfile(4, null, "t1"));
+        Assert.Equal("ticket_spent", e.OAuth?.Reason);
+        Assert.Empty(signedOut);
+        Assert.Equal("pley_at_1", tokens.Load()!.AccessToken);
+    }
+
+    [Fact]
     public async Task Every_token_request_refuses_plain_http_beyond_the_home_network()
     {
         // Tokens kept for a server whose endpoints have moved off the home network since.

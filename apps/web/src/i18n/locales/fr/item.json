@@ -125,9 +125,11 @@
     "details": {
       "title": "Modifier les détails",
       "hint": "Les champs modifiés sont verrouillés <lock/> pour que les actualisations des métadonnées les conservent. Déverrouillez un champ pour que la prochaine actualisation le remplisse à nouveau.",
+      "nfoHint": "Les champs venus du fichier NFO placé à côté l’emportent sur la source de métadonnées ; une modification ici l’emporte sur eux.",
       "genresPlaceholder": "Drame, Thriller",
       "locked": "Verrouillé : cliquez pour déverrouiller",
       "willUnlock": "Sera déverrouillé",
+      "fromNfo": "Du fichier NFO",
       "fields": {
         "title": "Titre",
         "sort_title": "Titre de tri",
@@ -143,6 +145,9 @@
     },
     "match": {
       "title": "Corriger la correspondance",
+      "byHand": "Associé ici à la main. Un fichier NFO placé à côté ne change pas cette correspondance tant que vous ne l’annulez pas.",
+      "undo": "Annuler la correction",
+      "undone": "Correction de la correspondance annulée",
       "matched": "Associé à « {{title}} »",
       "noMatches": "Aucune correspondance. Essayez un autre titre, ou sans année.",
       "current": "Actuel"

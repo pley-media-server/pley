@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -106,6 +107,11 @@ internal fun TvProfilesScreen(pin: Boolean = false) {
     val given = LocalOnboardingSource.current
     val vm = viewModel { ProfilesViewModel(given ?: onboardingSource(), tv = true, gate = !ProfileGate.passed, pin = pin) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
+    // No cast plays over it: whoever is at the TV is choosing.
+    DisposableEffect(Unit) {
+        ProfileGate.shows()
+        onDispose { ProfileGate.hidden() }
+    }
     val state by vm.state.collectAsStateWithLifecycle()
     TvProfilesContent(
         state = state,

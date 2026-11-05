@@ -1035,4 +1035,39 @@ class TvPlayerScreenTest {
         compose.waitForIdle()
         compose.onNodeWithTag(TAG_TOAST).assertDoesNotExist()
     }
+
+    @Test
+    fun `the remote's pause shows a short toast, never the controls`() {
+        val controller = playing()
+        show(controller)
+        controller.update { it.copy(phase = PlayerPhase.Paused, pausedByRemote = true, remoteNotice = "Paused") }
+        compose.waitForIdle()
+        compose.onNodeWithText("Paused").assertExists()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+        assertTrue(controller.calls("dismissRemoteNotice").isNotEmpty())
+        compose.mainClock.advanceTimeBy(TvPlayerUi.CAPTIONS_TOAST_MS + 100)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TOAST).assertDoesNotExist()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the remote's pause keeps no controls that show, until a key here makes the pause the person's`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionUp)
+        focusedOn(TAG_SCRUBBER)
+        controller.update { it.copy(phase = PlayerPhase.Paused, pausedByRemote = true) }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(TvPlayerUi.HIDE_AFTER_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+
+        // A key brings them back, and paused, they stay, as for a pause of the person's own.
+        press(Key.DirectionUp)
+        focusedOn(TAG_SCRUBBER)
+        compose.mainClock.advanceTimeBy(TvPlayerUi.HIDE_AFTER_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
+    }
 }

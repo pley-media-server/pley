@@ -79,6 +79,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.requests.RequestsEntry
@@ -255,6 +256,8 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             // players say it themselves.
             val casts = withContext(Dispatchers.Default) { g.casts }
             casts.start()
+            // One from another profile that couldn't switch this phone to it plays nothing: said here too.
+            launch { casts.refused.collect { shell.toasts.show(CastFrom.switchFailed(resources)) } }
             casts.music.collect { shell.toasts.show(it.from.notice(resources)) }
         }
         launch {

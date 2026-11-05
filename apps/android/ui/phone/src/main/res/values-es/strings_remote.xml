@@ -1,19 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="remote_playing_on">Reproduciendo en %1$s</string>
-    <plurals name="remote_playing_on_devices">
-        <item quantity="one">Reproduciendo en %1$d dispositivo</item>
-        <item quantity="many">Reproduciendo en %1$d de dispositivos</item>
-        <item quantity="other">Reproduciendo en %1$d dispositivos</item>
-    </plurals>
-    <string name="remote_open">Abrir el control remoto</string>
     <string name="remote_title">Tus dispositivos</string>
     <string name="remote_unknown_device">Dispositivo desconocido</string>
     <string name="remote_live_tv">TV en vivo</string>
 
     <string name="remote_ready">Listo para reproducir</string>
-    <string name="remote_nothing_playing">No se está reproduciendo nada</string>
-    <string name="remote_idle_hint">Envía algo aquí con Reproducir en…</string>
     <string name="remote_open_device">Mostrar sus controles</string>
     <string name="remote_back_to_devices">Volver a tus dispositivos</string>
 
@@ -31,7 +23,6 @@
     <string name="remote_stop">Detener</string>
     <string name="remote_stop_on">Detener en %1$s</string>
     <string name="remote_stop_confirm">¿Detener la reproducción en %1$s?</string>
-    <string name="remote_waiting">Esperando a %1$s</string>
     <string name="remote_position">%1$s de %2$s</string>
 
     <string name="remote_audio">Audio</string>
@@ -56,4 +47,21 @@
     <string name="play_on_sent">Reproduciendo en %1$s</string>
     <string name="play_on_gone">%1$s ya no está conectado.</string>
     <string name="play_on_cant">%1$s no puede reproducir eso.</string>
+    <string name="remote_paused_on">En pausa en %1$s</string>
+    <plurals name="remote_button_playing">
+        <item quantity="one">Control remoto, %1$d dispositivo reproduciendo</item>
+        <item quantity="many">Control remoto, %1$d de dispositivos reproduciendo</item>
+        <item quantity="other">Control remoto, %1$d dispositivos reproduciendo</item>
+    </plurals>
+    <plurals name="remote_button_ready">
+        <item quantity="one">Control remoto, %1$d dispositivo listo para reproducir</item>
+        <item quantity="many">Control remoto, %1$d de dispositivos listos para reproducir</item>
+        <item quantity="other">Control remoto, %1$d dispositivos listos para reproducir</item>
+    </plurals>
+    <string name="remote_on_profile">En el perfil de %1$s</string>
+    <string name="play_on_pin_title">Introduce tu PIN</string>
+    <string name="play_on_pin_body">%1$s pasa del perfil de %2$s al tuyo.</string>
+    <string name="play_on_back">Volver a los dispositivos</string>
+    <string name="play_on_wrong_pin">PIN incorrecto. Inténtalo de nuevo.</string>
+    <string name="play_on_pin_locked">Tu PIN está bloqueado tras demasiados intentos incorrectos. Tú o un administrador pueden restablecerlo.</string>
 </resources>

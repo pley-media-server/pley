@@ -67,12 +67,13 @@ with Dev Manager.
 Sign-in, server discovery (a broadcast, then a sweep of the TV's subnet),
 the screens, the player's keys and panels, music and offline behaviour
 follow the Android TV app. The TV shows a code to type on the server's
-`/link` page (or a QR code to it), and asks "Who's watching?" at start
-when the household has more than one profile. With Always start as, a
-start never goes on as a profile with a PIN without it: the TV keeps the
-profile it was left on (`GET /api/auth/me`, with `has_pin`), opens on its
-PIN pad when it has one, and until it knows, asks "Who's watching?". What
-differs on LG:
+`/link` page (or a QR code to it), and starts straight into Home as the
+profile it was left on when that profile has no PIN (`GET /api/auth/me`,
+with `has_pin`, kept from the last launch). In a household of more than
+one profile, a start never goes on as a profile with a PIN without it: it
+asks "Who's watching?", or opens on that profile's PIN pad with Always
+start as, and asks "Who's watching?" too until the TV knows. What differs
+on LG:
 
 ### Remote and Magic Remote
 
@@ -319,10 +320,11 @@ so the server names the TV from its `User-Agent`. They obey:
   again.
 - **Live TV:** next and previous, channel up and down through the
   category the player was opened from, round its ends, as CH+ and CH− go.
-  It has no pause or seek. Stopped from another device or by an
-  administrator (`session_stopped`), it shows **Live TV stopped** with
-  who stopped it and, on a line of its own, their message, with Watch
-  again, as for a connection taken over.
+  A channel obeys from the moment the server answers its watch, as on
+  Android, not only once it plays. It has no pause or seek. Stopped from
+  another device or by an administrator (`session_stopped`), it shows
+  **Live TV stopped** with who stopped it and, on a line of its own,
+  their message, with Watch again, as for a connection taken over.
 
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is
@@ -334,12 +336,28 @@ pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`
 (and a video's tracks and quality, which the fixture doesn't have, by its
 own tests).
 
+A command never brings up the video player's controls, as on Android TV:
+the person watching didn't press anything. What it changed shows for 2 s
+as the player's toast at the top right: "Paused", "Playing", "+30 s" or
+"−10 s" for a skip (the seconds asked for), "Jumped to 12:34" for a seek,
+"Audio: …", "Subtitles: …" or "Subtitles off", and "Quality: …", each
+named as the player's menu names it. The next title shows its banner as
+it begins, as it does by itself, and a command that changes nothing says
+nothing. Controls the person brought up stay as they were, hiding 5 s
+after their last key even when the remote pauses; a key on the TV after
+the remote's pause shows them as it does, and from then on the pause
+keeps them, as any pause does, until something plays it again. Music and
+Live TV show nothing new for a command: Now Playing is the music's
+controls already, and Live TV's channel up and down show the channel
+tuning, as the keys do, never its controls or what's on.
+
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open, so while
 the app shows and is signed in. The stream names it a receiver by its
 install id (the `client_id` its plays send), a TV (`device_kind=tv`)
 taking titles and playlists (`casts=item`) and, where the profile has Live
-TV, channels (`live`). Until the server first says whether it has, the TV
+TV, channels (`live`), and switching to the profile of a remote of another
+profile that casts to it (`switch`). Until the server first says whether it has, the TV
 takes channels too, and the stream opens again when Live TV comes or goes.
 It sends no name, so the server names it from its `User-Agent`, as it
 does its players. What a remote sends plays as the TV's own Play would,
@@ -370,6 +388,25 @@ one that comes while the app is hidden, signing in or asking who's
 watching, does nothing, so a remote never gets past a profile's PIN; of
 two sent close together, the later plays. The rules are
 `crates/shell/src/cast.rs`.
+
+A remote on another profile of the household casts to the TV too (the
+server lists it to the household's remotes with the profile it is on).
+Its cast carries the remote's profile (`profile_id`) and a ticket
+(`switch_ticket`): the TV switches to that profile first. What plays ends,
+and its last reports (where it stopped, and the end of its session) go out
+as the profile it played as, within 5 s: what hasn't gone out by then is
+dropped, never sent as the new profile. Then the TV switches, with the
+switch-profile grant and the ticket in place of a PIN, as a switch on
+"Who's watching?" does: Home shows as the new profile and the event stream
+opens again as its. Then the cast plays as above, once: it waits in the
+app, not on the stream. Any other cast heard until the switch is done is
+dropped; after it, casts play as above, the new profile's own too. A
+switch the server refuses (the ticket expired, was spent or isn't this
+TV's) says so and plays nothing; a cast from another
+profile without a ticket is ignored. Hidden as the switch ends, the TV
+switches all the same, as the server has, but plays nothing. "Who's
+watching?" still ignores casts, as in the other TV apps: there the person
+at the TV picks.
 
 ### Requests
 
@@ -717,7 +754,8 @@ The fake server listens on 127.0.0.1: a demo household with profiles
 draws itself, Live TV with a guide, the code sign-in approved at once
 (and the proofs that tell the server apart, keyed the same on every run),
 playback of the Android app's test media, subtitles, seek previews and
-the event stream, with the remote's commands and its casts to the TV.
+the event stream, with the remote's commands and its casts to the TV,
+from another profile with the ticket its switch-profile grant takes.
 
 ### The TV build
 

@@ -23,7 +23,8 @@ packages/tv/test/fixtures/remote.json, which every app shares, through it:
 - a command it doesn't know does nothing.
 
 What was played, sought or switched to is reported at once (`report`);
-another track or channel tells the server with its own session.
+another track or channel tells the server with its own session. What a
+video did shows for a moment as a notification (`notice`).
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ import urllib.parse
 
 import xbmc
 
-from . import kodi
+from . import autoquality, kodi, words
 
 VIDEO = ["play", "pause", "seek", "skip"]
 MUSIC = ["play", "pause", "seek", "skip", "next", "previous"]
@@ -47,6 +48,10 @@ RESTART_AFTER_MS = 3000
 NAME_LENGTH = 64
 # Kodi's own device name, until it is given one.
 DEFAULT_NAME = "Kodi"
+# How long the notification of what the remote did shows, in ms.
+NOTICE_MS = 2000
+# Kodi's word for a track of no language it knows, as its menus say it.
+UNKNOWN = 13205
 
 NONE = {"act": "none", "report": False}
 REPORT = {"act": "none", "report": True}
@@ -173,6 +178,52 @@ def obey_quality(player: dict, command: dict) -> dict:
     if wanted == player.get("quality"):
         return dict(REPORT)
     return {"act": "quality", "quality": wanted, "report": True}
+
+
+def notice(command: dict, action: dict, text) -> str:
+    """What Kodi says for a moment of a command it obeyed on a video
+    (`action`, as obey, obey_track or obey_quality gives it for `command`):
+    "Paused", "Playing", the skip asked for in whole seconds ("+30 s",
+    "−10 s"), where a seek went ("Jumped to 12:34"), the audio or subtitles
+    switched to, named by Kodi's own menus' words (`track`, Kodi's entry
+    for it, which tracks.Follower.obey adds), "Subtitles off", or the
+    quality picked as the Quality setting names it. "" for a command that
+    changes nothing, and for next, whose title Kodi shows as it plays.
+    `text(name)`: the add-on's words."""
+    act = action.get("act")
+    if act in ("pause", "play"):
+        return text("remote_paused" if act == "pause" else "remote_playing")
+    if act == "seek" and command.get("command") == "seek":
+        return text("remote_jumped") % (words.clock(action["position_ms"]) or "0:00")
+    if act == "seek" and command.get("command") == "skip":
+        offset = _ms(command.get("offset_ms")) or 0
+        if not offset:
+            return ""
+        # Rounded, and never 0 for a step there is, as Android TV's seek badge.
+        seconds = max(1, int((abs(offset) + 500) // 1000))
+        return text("remote_back" if offset < 0 else "remote_ahead") % seconds
+    if act == "subtitles" and action.get("stream_index") == -1:
+        return text("remote_subtitles_off")
+    if act in TRACKS and action.get("track") is not None:
+        return text("remote_" + act) % track_name(action["track"])
+    if act == "quality":
+        return text("remote_quality") % autoquality.label(action["quality"])
+    return ""
+
+
+def track_name(entry: dict) -> str:
+    """A track of Kodi's player by the language and title Kodi's own Audio
+    and Subtitles menus name it by (`entry`, as Player.GetProperties lists
+    it): "French - Commentary", "French" without a title, Kodi's "Unknown"
+    for a language it doesn't know."""
+    code = (entry.get("language") or "").strip()
+    convert = getattr(xbmc, "convertLanguage", None)
+    language = (convert(code, getattr(xbmc, "ENGLISH_NAME", None)) if convert and code else "") or code
+    if not language:
+        found = getattr(xbmc, "getLocalizedString", None)
+        language = (found(UNKNOWN) if found else "") or "Unknown"
+    name = (entry.get("name") or "").strip()
+    return "%s - %s" % (language, name) if name else language
 
 
 def entry_params(playlist, at: int) -> dict:

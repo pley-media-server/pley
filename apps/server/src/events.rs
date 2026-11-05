@@ -148,7 +148,10 @@ pub enum ServerEvent {
     /// `playlist_id` and `channel_id` is set; `audio_index` and
     /// `subtitle_index` (`-1`: none), when set, are the tracks the remote
     /// had picked for the title, which it plays with; `from` is the
-    /// remote's device.
+    /// remote's device. Cast from another profile of the household, it goes
+    /// to the streams of the profile the receiver is on, with the remote's
+    /// profile (`profile_id`) and a ticket (`switch_ticket`) the receiver
+    /// switches to it with first; both are left out otherwise.
     Cast {
         #[serde(skip)]
         user_id: i64,
@@ -161,6 +164,10 @@ pub enum ServerEvent {
         audio_index: Option<i64>,
         subtitle_index: Option<i64>,
         from: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        profile_id: Option<i64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        switch_ticket: Option<SwitchTicket>,
     },
     /// Live TV's sources, channels or guide changed: apps fetch the
     /// channels and the guide again.
@@ -256,6 +263,18 @@ pub enum ServerEvent {
     },
 }
 
+/// A cast's switch ticket (see `ServerEvent::Cast`): sent as it is, never
+/// shown in Debug output, which logs may carry.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct SwitchTicket(pub String);
+
+impl std::fmt::Debug for SwitchTicket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SwitchTicket(..)")
+    }
+}
+
 impl ServerEvent {
     /// The library the event is about, if it is about one.
     pub fn library_id(&self) -> Option<i64> {
@@ -297,6 +316,16 @@ impl ServerEvent {
             | ServerEvent::Cast { user_id, .. }
             | ServerEvent::LiveTakenOver { user_id, .. } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
+            _ => None,
+        }
+    }
+
+    /// The one receiver whose streams alone get the event: a cast from
+    /// another profile of the household, whose title and switch ticket are
+    /// the receiver's to see, not every device of the profile it is on.
+    pub fn receiver_only(&self) -> Option<&str> {
+        match self {
+            ServerEvent::Cast { receiver_id, switch_ticket: Some(_), .. } => Some(receiver_id),
             _ => None,
         }
     }
@@ -427,11 +456,33 @@ mod tests {
             audio_index: Some(2),
             subtitle_index: Some(-1),
             from: Some("Chrome on Windows".into()),
+            profile_id: None,
+            switch_ticket: None,
         };
-        assert_eq!((event.user_id(), event.to_administrators()), (Some(4), false), "to the caster's user only");
+        assert_eq!((event.user_id(), event.to_administrators()), (Some(4), false), "to the receiver's user only");
         assert_eq!(
             serde_json::to_string(&event).unwrap(),
             r#"{"type":"cast","receiver_id":"tv-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":"Chrome on Windows"}"#
+        );
+        let event = ServerEvent::Cast {
+            user_id: 5,
+            receiver_id: "tv-1".into(),
+            item_id: Some(12),
+            playlist_id: None,
+            channel_id: None,
+            start_ms: None,
+            shuffle: false,
+            audio_index: None,
+            subtitle_index: None,
+            from: None,
+            profile_id: Some(4),
+            switch_ticket: Some(SwitchTicket("t1".into())),
+        };
+        assert_eq!(event.user_id(), Some(5), "to the profile the receiver is on");
+        assert_eq!(event.receiver_only(), Some("tv-1"), "and only to that receiver's streams");
+        assert!(!format!("{event:?}").contains("t1"), "a ticket is never in Debug output");
+        assert!(
+            serde_json::to_string(&event).unwrap().ends_with(r#""from":null,"profile_id":4,"switch_ticket":"t1"}"#)
         );
         // Request events say whom they are for, and stay off the
         // per-user path.

@@ -14,8 +14,10 @@ function castReceiverQuery(id as string, name as string, live as boolean) as str
     if id = "" then return ""
     query = "receiver=" + urlEncode(id)
     if name <> "" then query = query + "&device_name=" + urlEncode(name)
-    casts = "item"
-    if live then casts = "item,live"
+    ' switch: it switches to the profile of a remote of another profile
+    ' that casts to it (docs/API.md, "Casting").
+    casts = "item,switch"
+    if live then casts = "item,live,switch"
     return query + "&device_kind=" + remoteDeviceKind() + "&casts=" + casts
 end function
 
@@ -62,6 +64,32 @@ function castAction(receiver as string, takes as boolean, cast as dynamic) as ob
     channelId = httpNumber(data.channel_id, 0)
     if channelId > 0 then return { act: "channel", channelId: channelId }
     return none
+end function
+
+' What a cast asks of the profile this Roku is on (profileId; 0 while it
+' isn't known), as { needs } (docs/API.md, "Switching to the remote's
+' profile"): "nothing" (it names no profile, or this one); "switch" to the
+' remote's (profileId), with the ticket the switch-profile grant takes in
+' place of a PIN (ticket); "ignore" (another profile's without a ticket,
+' or one that isn't a ticket's shape), as the other TVs do.
+function castSwitch(profileId as integer, cast as dynamic) as object
+    data = httpObject(cast)
+    if data = invalid then return { needs: "ignore" }
+    target = Int(httpNumber(data.profile_id, 0))
+    if target <= 0 or target = profileId then return { needs: "nothing" }
+    ticket = httpString(data.switch_ticket)
+    if not CreateObject("roRegex", "^[A-Za-z0-9_-]{1,128}$", "").IsMatch(ticket) then return { needs: "ignore" }
+    return { needs: "switch", profileId: target, ticket: ticket }
+end function
+
+' What a cast's switch that failed says, in place of playing (answer: the
+' API task's to the switch, { ok, error, message }), as every app says it;
+' "" when the scene says it otherwise (signed out) or the sign-in changed
+' meanwhile.
+function castSwitchNotice(answer as object) as string
+    error = httpString(answer.error)
+    if error = "signed_out" or error = "switch_replaced" or error = "server_changed" then return ""
+    return "Couldn't switch to the remote's profile"
 end function
 
 ' What says where a cast came from as it starts: "Playing from" and the

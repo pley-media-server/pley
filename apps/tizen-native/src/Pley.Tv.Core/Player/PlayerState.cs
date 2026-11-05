@@ -62,6 +62,11 @@ public sealed record TrickplaySet(long FileId, TrickplayInfo Info);
 public sealed record PlayerState
 {
     public PlayerPhase Phase { get; init; } = PlayerPhase.Preparing;
+    /// <summary>
+    /// The remote paused it, and nothing has played it since: a pause the person here didn't make,
+    /// which keeps no controls on screen until they press a key.
+    /// </summary>
+    public bool PausedByRemote { get; init; }
     /// <summary>The item playing; 0 until known.</summary>
     public long ItemId { get; init; }
     /// <summary>"movie", "episode", "extra"; null until its details come.</summary>

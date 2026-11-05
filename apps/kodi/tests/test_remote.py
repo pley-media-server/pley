@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import support
 import test_tracks
@@ -84,6 +85,63 @@ class RuleTest(unittest.TestCase):
         # Music and live channels have no quality.
         self.assertEqual(remote.controls("music", quality=True), ["play", "pause", "seek", "skip", "next", "previous"])
         self.assertEqual(remote.controls("live", has_order=True, quality=True), ["next", "previous"])
+
+
+class NoticeRuleTest(unittest.TestCase):
+    """What Kodi says for a moment of a command it obeyed on a video."""
+
+    PLAYING = {"session_id": "s1", "state": "playing", "position_ms": 600_000, "duration_ms": 7_200_000, "has_next": False}
+
+    def say(self, asked, state="playing"):
+        return remote.notice(asked, remote.obey(dict(self.PLAYING, state=state), asked), kodi.text)
+
+    def test_a_pause_a_play_a_skip_or_a_seek(self):
+        self.assertEqual(self.say(command("s1", "pause")), "Paused")
+        self.assertEqual(self.say(command("s1", "play"), "paused"), "Playing")
+        self.assertEqual(self.say(command("s1", "play")), "", "playing already")
+        self.assertEqual(self.say(command("s1", "pause"), "paused"), "", "paused already")
+        self.assertEqual(self.say(command("s1", "skip", 30_000)), "+30 s")
+        self.assertEqual(self.say(command("s1", "skip", -10_000)), "−10 s", "a real minus")
+        self.assertEqual(self.say(command("s1", "skip", 1_500)), "+2 s", "whole seconds")
+        self.assertEqual(self.say(command("s1", "skip", -200)), "−1 s", "never 0 for a step there is")
+        self.assertEqual(self.say(command("s1", "skip", 0)), "", "no step")
+        self.assertEqual(self.say(command("s1", "seek", 754_000)), "Jumped to 12:34")
+        self.assertEqual(self.say(command("s1", "seek", 3_723_000)), "Jumped to 1:02:03", "from an hour")
+        self.assertEqual(self.say(command("s1", "seek", 0)), "Jumped to 0:00")
+        self.assertEqual(self.say(command("s1", "seek", 9_000_000)), "Jumped to 2:00:00", "no further than the end")
+        self.assertEqual(self.say(command("s1", "seek")), "", "no place")
+        self.assertEqual(self.say(command("s2", "pause")), "", "another session's")
+        self.assertEqual(self.say(command("s1", "next")), "", "the next title shows as Kodi plays it")
+
+    def test_the_track_or_quality_picked(self):
+        def notice(act, index=None, track=None, quality=None):
+            action = {"act": act, "report": True}
+            if index is not None:
+                action["stream_index"] = index
+            if track is not None:
+                action["track"] = track
+            if quality is not None:
+                action["quality"] = quality
+            return remote.notice(command("s1", act), action, kodi.text)
+
+        french = {"index": 1, "language": "fre", "name": "Commentary"}
+        with mock.patch.object(xbmc, "convertLanguage", lambda code, form: {"fre": "French"}.get(code, ""), create=True):
+            self.assertEqual(notice("audio", 2, french), "Audio: French - Commentary")
+            self.assertEqual(notice("subtitles", 3, {"index": 1, "language": "fre"}), "Subtitles: French")
+        self.assertEqual(notice("subtitles", -1), "Subtitles off")
+        self.assertEqual(notice("audio", 2), "", "a track Kodi doesn't list")
+        self.assertEqual(notice("none"), "", "the one playing already")
+        self.assertEqual(notice("quality", quality="8m"), "Quality: 8 Mbps 1080p")
+        self.assertEqual(notice("quality", quality="auto"), "Quality: Automatic")
+
+    def test_a_track_as_kodis_menus_name_it(self):
+        with mock.patch.object(xbmc, "convertLanguage", lambda code, form: {"fre": "French"}.get(code, ""), create=True):
+            self.assertEqual(remote.track_name({"language": "fre", "name": " Commentary "}), "French - Commentary")
+            self.assertEqual(remote.track_name({"language": "fre", "name": ""}), "French")
+            self.assertEqual(remote.track_name({"language": "qaa"}), "qaa", "a code Kodi has no name for")
+            self.assertEqual(remote.track_name({"language": "", "name": "Signs"}), "Unknown - Signs")
+            self.assertEqual(remote.track_name({}), "Unknown")
+        self.assertEqual(remote.track_name({"language": "fre"}), "fre", "a Kodi that can't name languages")
 
 
 class QualityRuleTest(unittest.TestCase):
@@ -214,7 +272,13 @@ class Wiring(unittest.TestCase):
         xbmc.PlayList.positions.clear()
         del xbmc.asked[:]
         del xbmc.played[:]
+        for shown in (xbmcgui.notified, xbmcgui.notices, xbmcgui.silent):
+            del shown[:]
         self.player = KodiPlayer()
+
+    def said(self):
+        """The notifications shown, by their message."""
+        return [message for _, message in xbmcgui.notified]
 
     def tearDown(self):
         xbmc.conditions.discard("Player.Paused")
@@ -251,6 +315,25 @@ class VideoTest(Wiring):
         self.player.heard(command("s1", "play"))
         self.assertEqual(len(xbmc.asked), 2)
         self.assertEqual(self.player.sent, [("playing", 600_000)])
+
+    def test_what_a_command_did_shows_for_a_moment(self):
+        self.start()
+        self.player.heard(command("s1", "pause"))
+        xbmc.conditions.add("Player.Paused")
+        self.player.onPlayBackPaused()
+        self.player.heard(command("s1", "pause"))
+        self.player.heard(command("s1", "play"))
+        xbmc.conditions.discard("Player.Paused")
+        self.player.onPlayBackResumed()
+        self.player.heard(command("s1", "play"))
+        self.player.heard(command("s1", "skip", 30_000))
+        self.player.heard(command("s1", "skip", -10_000))
+        self.player.heard(command("s1", "seek", 754_000))
+        self.player.heard(command("s1", "next"))
+        self.player.heard(command("other", "pause"))
+        self.assertEqual(self.said(), ["Paused", "Playing", "+30 s", "−10 s", "Jumped to 12:34"], "nothing of what changes nothing")
+        self.assertEqual({(h, i, t) for h, _, i, t in xbmcgui.notices}, {("Pley", kodi.addon_icon(), remote.NOTICE_MS)})
+        self.assertEqual(xbmcgui.silent, self.said(), "without Kodi's sound")
 
     def test_a_seek_or_skip_is_reported_at_once(self):
         self.start()
@@ -368,9 +451,15 @@ class QualityTest(Wiring):
         # Played again, it gets a watch of its own (Automatic picked again).
         self.assertEqual(self.player.watching({"item_id": 7, "auto": None}), (None, None))
 
+    def test_the_quality_picked_shows_as_the_setting_names_it(self):
+        self.play()
+        self.player.heard(self.quality("8m"))
+        self.assertEqual(self.said(), ["Quality: 8 Mbps 1080p"])
+
     def test_the_quality_picked_already_is_said_again(self):
         self.play()
         self.player.heard(self.quality("auto"))
+        self.assertEqual(self.said(), [], "nothing changes")
         self.assertEqual((self.restarted, xbmcaddon.settings[playback.QUALITY]), ([], "auto"))
         self.assertEqual([(b["state"], b["position_ms"], b["quality"]) for b in self.bodies], [("playing", 600_000, "auto")])
 
@@ -410,6 +499,14 @@ class MusicTest(Wiring):
         self.player.heard(command("s1", "previous"))
         self.player.heard(command("s1", "next"))
         self.assertEqual(xbmc.asked, [("seekTime", 0.0)])
+
+    def test_music_says_nothing_of_a_command(self):
+        queue(xbmc.PLAYLIST_MUSIC, [5, 7, 9], 1)
+        self.start("track", seconds=10.0)
+        for asked in (command("s1", "pause"), command("s1", "skip", 30_000), command("s1", "seek", 0), command("s1", "next")):
+            self.player.heard(asked)
+        self.assertEqual(len(xbmc.asked), 4)
+        self.assertEqual(self.said(), [], "the music is left as it was")
 
 
 def track(what, index, session="s1"):
@@ -487,12 +584,24 @@ class TracksTest(Wiring):
         self.player.tick()
         self.assertEqual(self.saved, [("PUT", "/api/items/7/streams", {"file_id": 7, "audio_index": 2, "subtitle_index": None})])
 
+    def test_a_pick_shows_the_track_as_kodis_menu_names_it(self):
+        self.play()
+        self.kodi.audios[1].update(language="fre", name="Commentary")
+        self.kodi.subtitles[1].update(language="eng", name="SDH")
+        with mock.patch.object(xbmc, "convertLanguage", lambda code, form: {"fre": "French", "eng": "English"}.get(code, ""), create=True):
+            self.player.heard(track("audio", 2))
+            self.player.heard(track("subtitles", 3))
+            self.player.heard(track("subtitles", -1))
+            self.player.heard(track("subtitles", 9))
+        self.assertEqual(self.said(), ["Audio: French - Commentary", "Subtitles: English - SDH", "Subtitles off"])
+
     def test_what_plays_already_is_said_again(self):
         self.play()
         self.player.heard(track("audio", 1))
         self.player.heard(track("subtitles", -1))
         self.assertEqual(self.kodi.calls, [])
         self.assertEqual(self.told(), [(1, -1), (1, -1)])
+        self.assertEqual(self.said(), [], "nothing changes")
 
     def test_a_track_kodi_cant_play_or_another_sessions_does_nothing(self):
         self.play()
@@ -576,6 +685,7 @@ class LiveTest(Wiring):
         played = [(item.kind, start) for item, _, start in xbmc.played]
         self.assertEqual(played, [(xbmc.PLAYLIST_VIDEO, 2), (xbmc.PLAYLIST_VIDEO, 0)])
         self.assertEqual(xbmc.asked, [])
+        self.assertEqual(self.said(), [], "the channel shows as Kodi plays it")
 
     def test_only_the_channel_playing_obeys(self):
         self.player.heard(command("w0", "next"))

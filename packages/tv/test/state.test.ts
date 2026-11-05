@@ -167,7 +167,7 @@ describe("who is watching and the libraries", () => {
     expect(app.libraries.value).toEqual(libraries);
   });
 
-  it("start as the profile the TV was left on with Always start as, its PIN first when it has one", () => {
+  it("start as the profile the TV was left on, never past its PIN", () => {
     const store = memoryStore();
     const server = "http://a.local:7539";
     store.set("pley.server", server);
@@ -181,7 +181,12 @@ describe("who is watching and the libraries", () => {
     expect(start()).toEqual({ page: "pin" });
     store.set("pley.me", JSON.stringify({ ...me, has_pin: false }));
     expect(start()).toEqual({ page: "home" });
+    // Without Always start as: straight in without a PIN, "Who's watching?" with one or while not known.
     store.remove(`pley.alwaysStartAs.${server}`);
+    expect(start()).toEqual({ page: "home" });
+    store.set("pley.me", JSON.stringify({ ...me, has_pin: true }));
+    expect(start()).toEqual({ page: "profiles" });
+    store.remove("pley.me");
     expect(start()).toEqual({ page: "profiles" });
   });
 

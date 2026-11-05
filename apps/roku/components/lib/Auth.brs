@@ -320,8 +320,8 @@ end function
 ' checked for the profile signed in) means (docs/API.md, the switch-profile
 ' grant): { kind, reason, message }. kind: "tokens"; "through" (no PIN to
 ' check: the profile has none, or the server can't); "refused" (reason:
-' wrong_pin, throttled, pin_locked, browser, not_allowed,
-' unauthorized_client; nothing spent); "ended" (the refresh token doesn't
+' wrong_pin, throttled, pin_locked, browser, not_allowed, ticket_spent
+' (a cast's ticket), unauthorized_client; nothing spent); "ended" (the refresh token doesn't
 ' work: the sign-in is over); "failed" (the network or the server).
 function authSwitchOutcome(status as integer, text as dynamic) as object
     if status >= 200 and status < 300 then return { kind: "tokens", reason: "", message: "" }
@@ -345,7 +345,8 @@ function authSwitchOutcome(status as integer, text as dynamic) as object
             throttled: "Too many wrong PINs: try again in a few minutes.",
             pin_locked: "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
             browser: "This profile needs its password: sign in to it with a code, choosing it in the browser.",
-            not_allowed: "You can't switch to this profile."
+            not_allowed: "You can't switch to this profile.",
+            ticket_spent: "This cast's switch expired: cast again."
         }
         message = messages[reason]
         if reason = "throttled" and description <> "" then message = description
@@ -354,6 +355,40 @@ function authSwitchOutcome(status as integer, text as dynamic) as object
     end if
     if description = "" then description = "The server refused: try again."
     return { kind: "failed", reason: error, message: description }
+end function
+
+' How long a cast's switch waits for what the profile before it sent (the
+' playback it ended: its last progress, its stopped report and its
+' session's end) to go out with that profile's tokens.
+function authSwitchHoldMs() as integer
+    return 5000
+end function
+
+' What a switch held for the profile's requests does now (jobs: the API
+' task's in flight, waiting for a refresh or a proof, or to go again
+' later; switches: the profile switches made so far; heldAt and now in
+' ms): "wait" while a request with the token, made for the profile signed
+' in, hasn't been answered; "go" once none is left; "drop" once
+' authSwitchHoldMs has passed with some left, which are dropped before
+' the switch goes.
+function authSwitchHeld(jobs as object, switches as integer, heldAt as integer, now as integer) as string
+    remaining = 0
+    for each job in jobs
+        if httpTrue(job.auth) and httpNumber(job.gen, -1) = switches then remaining = remaining + 1
+    end for
+    if remaining = 0 then return "go"
+    if now - heldAt >= authSwitchHoldMs() then return "drop"
+    return "wait"
+end function
+
+' Whether a request may go with the tokens in use (switches: the profile
+' switches made so far). One with the token made for the profile before a
+' switch (gen: the switches made when it was asked), waiting for a refresh
+' or a proof, or refused while the switch was under way, never goes with
+' the new profile's tokens: it is dropped.
+function authJobGoes(job as object, switches as integer) as boolean
+    if not httpTrue(job.auth) then return true
+    return httpNumber(job.gen, -1) = switches
 end function
 
 ' Whether the tokens a refresh of old gave are kept: only while the

@@ -194,8 +194,16 @@
   },
   "cast": {
     "nothingToPlay": "Nada que reproducir",
+    "switchFailed": "No se pudo cambiar al perfil del control remoto",
     "playingFrom": "Reproduciendo desde {{device}}",
     "anotherDevice": "otro dispositivo"
+  },
+  "remote": {
+    "paused": "En pausa",
+    "playing": "Reproduciendo",
+    "jumpedTo": "Posición: {{time}}",
+    "audio": "Audio: {{track}}",
+    "quality": "Calidad: {{quality}}"
   },
   "errors": {
     "title": "No se puede reproducir este elemento",

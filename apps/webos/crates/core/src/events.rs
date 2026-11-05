@@ -130,9 +130,10 @@ pub struct CastReceiver {
 }
 
 impl CastReceiver {
-    /// The stream's address as this receiver: `/api/events?receiver=…&device_kind=tv&casts=item,live`.
+    /// The stream's address as this receiver: `/api/events?receiver=…&device_kind=tv&casts=item,live,switch`.
     pub fn events_path(&self) -> String {
-        let casts = if self.live { "item,live" } else { "item" };
+        // switch: it switches to the profile of a remote of another profile that casts to it.
+        let casts = if self.live { "item,live,switch" } else { "item,switch" };
         format!("/api/events?receiver={}&device_kind={}&casts={casts}", encode_component(&self.id), DeviceKind::Tv)
     }
 }
@@ -358,6 +359,7 @@ mod tests {
 
     use super::*;
     use crate::http::{FakeTransport, Http, Response, TokenSource};
+    use crate::model::SwitchTicket;
 
     #[test]
     fn events_are_split_on_blank_lines_whatever_the_chunks() {
@@ -631,9 +633,12 @@ mod tests {
         let tv = |live| CastReceiver { id: "webos-0123456789abcdef".into(), live };
         assert_eq!(
             tv(true).events_path(),
-            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live,switch"
         );
-        assert_eq!(tv(false).events_path(), "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item");
+        assert_eq!(
+            tv(false).events_path(),
+            "/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,switch"
+        );
         // The stream asks at that address, every time it connects.
         let fake = Arc::new(FakeTransport::new(|_| Ok(Response::empty(403))));
         let api = Api::new(Http::new(fake.clone(), "ua"), "http://nas:7539", Arc::new(Counting(AtomicUsize::new(0))));
@@ -643,7 +648,7 @@ mod tests {
         stream.stop();
         assert_eq!(
             fake.requests()[0].url,
-            "http://nas:7539/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live"
+            "http://nas:7539/api/events?receiver=webos-0123456789abcdef&device_kind=tv&casts=item,live,switch"
         );
     }
 
@@ -664,6 +669,8 @@ mod tests {
                 audio_index: Some(2),
                 subtitle_index: Some(-1),
                 from: Some("Firefox on Linux".into()),
+                profile_id: None,
+                switch_ticket: None,
             })
         );
         assert_eq!(e.map(|e| e.kind().to_string()), Some("cast".into()));
@@ -685,5 +692,13 @@ mod tests {
                 ..
             })
         ));
+        // From another profile's remote: its profile, and the ticket to switch to it with, which
+        // never shows in logs.
+        let switch = parse_event(
+            r#"{"type":"cast","receiver_id":"webos-1","item_id":12,"from":null,"profile_id":4,"switch_ticket":"t1"}"#,
+        );
+        let Some(ServerEvent::Cast { profile_id, switch_ticket, .. }) = &switch else { panic!("{switch:?}") };
+        assert_eq!((*profile_id, switch_ticket.as_ref().map(SwitchTicket::as_str)), (Some(4), Some("t1")));
+        assert!(!format!("{switch:?}").contains("t1"));
     }
 }

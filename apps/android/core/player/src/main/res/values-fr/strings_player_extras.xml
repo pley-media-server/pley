@@ -22,4 +22,14 @@
     <string name="sleep_notice">Mise en pause dans %1$d s</string>
     <string name="sleep_keep_watching">Continuer à regarder</string>
     <string name="sleep_keep_listening">Continuer à écouter</string>
+    <string name="cast_switch_failed">Impossible de passer au profil de la télécommande</string>
+    <string name="remote_paused">En pause</string>
+    <string name="remote_playing">Lecture</string>
+    <string name="remote_skipped_forward">+%1$d s</string>
+    <string name="remote_skipped_back">−%1$d s</string>
+    <string name="remote_jumped">Position : %1$s</string>
+    <string name="remote_audio">Audio : %1$s</string>
+    <string name="remote_subtitles">Sous-titres : %1$s</string>
+    <string name="remote_subtitles_off">Sous-titres désactivés</string>
+    <string name="remote_quality">Qualité : %1$s</string>
 </resources>

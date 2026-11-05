@@ -1,6 +1,7 @@
 ' Casts from the user's remote, on another device (Cast.brs): the event
 ' stream's query that makes the Roku a receiver, whose cast it is and what
-' it names, where it came from, and what a title of each kind plays.
+' it names, where it came from, whether it switches to the remote's
+' profile first, and what a title of each kind plays.
 
 ' A cast as the event stream brings it, for receiver r-1 unless changed.
 function castTestEvent(fields as object) as object
@@ -10,9 +11,9 @@ function castTestEvent(fields as object) as object
 end function
 
 sub test_cast_receiver_query()
-    tkEqual(castReceiverQuery("8f2c-41", "Living room Roku", false), "receiver=8f2c-41&device_name=Living%20room%20Roku&device_kind=tv&casts=item")
-    tkEqual(castReceiverQuery("8f2c-41", "Den", true), "receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live", "channels where the profile has Live TV")
-    tkEqual(castReceiverQuery("8f2c-41", "", false), "receiver=8f2c-41&device_kind=tv&casts=item", "no name: the server names it")
+    tkEqual(castReceiverQuery("8f2c-41", "Living room Roku", false), "receiver=8f2c-41&device_name=Living%20room%20Roku&device_kind=tv&casts=item,switch")
+    tkEqual(castReceiverQuery("8f2c-41", "Den", true), "receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live,switch", "channels where the profile has Live TV")
+    tkEqual(castReceiverQuery("8f2c-41", "", false), "receiver=8f2c-41&device_kind=tv&casts=item,switch", "no name: the server names it")
     tkEqual(castReceiverQuery("", "Den", true), "", "no id yet")
 end sub
 
@@ -81,6 +82,90 @@ sub test_cast_for_another_device_or_while_not_taken_does_nothing()
     tkEqual(castAction("r-1", true, castTestEvent({})), none, "nothing named")
     tkEqual(castAction("", true, castTestEvent({ receiver_id: "", item_id: 5 })), none, "no id of its own")
     tkEqual(castAction("r-1", true, invalid), none)
+end sub
+
+' A cast from another profile of the household names it and a ticket: the
+' Roku switches to it first. One for the profile it is on plays as it is;
+' another profile's without a ticket does nothing, as on the other TVs.
+sub test_cast_from_another_profile_switches_first()
+    nothing = { needs: "nothing" }
+    ignore = { needs: "ignore" }
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5 })), nothing, "the remote's profile is this one")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 4 })), nothing, "named, and this one")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "Zm9vYmFy_-12" })), { needs: "switch", profileId: 7, ticket: "Zm9vYmFy_-12" })
+    tkEqual(castSwitch(0, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "t1" })), { needs: "switch", profileId: 7, ticket: "t1" }, "the profile not known yet")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7 })), ignore, "no ticket")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "" })), ignore)
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: 12 })), ignore, "not a string")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "a b&profile=1" })), ignore, "not a ticket's shape")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: String(129, "a") })), ignore, "too long")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: "7", switch_ticket: "t1" })), nothing, "a profile that isn't a number names none")
+    tkEqual(castSwitch(4, invalid), ignore)
+end sub
+
+' A switch that failed says why in place of playing, unless the sign-in
+' ended (the scene shows sign-in) or changed meanwhile.
+sub test_cast_switch_failed_says_why()
+    spent = authSwitchOutcome(400, "{""error"":""invalid_grant"",""reason"":""ticket_spent"",""error_description"":""this cast's switch has expired or was used: cast again""}")
+    tkEqual(spent, { kind: "refused", reason: "ticket_spent", message: "This cast's switch expired: cast again." })
+    tkEqual(castSwitchNotice({ ok: false, error: spent.reason, message: spent.message }), "Couldn't switch to the remote's profile", "as every app says it")
+    tkEqual(castSwitchNotice({ ok: false, error: "not_allowed", message: "You can't switch to this profile." }), "Couldn't switch to the remote's profile", "whatever the reason")
+    tkEqual(castSwitchNotice({ ok: false, error: "network", message: "The server can't be reached." }), "Couldn't switch to the remote's profile", "out of reach too")
+    tkEqual(castSwitchNotice({ ok: false, error: "x", message: "" }), "Couldn't switch to the remote's profile")
+    tkEqual(castSwitchNotice({ ok: true, data: { through: true } }), "Couldn't switch to the remote's profile", "nothing switched")
+    tkEqual(castSwitchNotice({ ok: false, error: "signed_out", message: "" }), "")
+    tkEqual(castSwitchNotice({ ok: false, error: "server_changed", message: "The sign-in changed." }), "")
+    tkEqual(castSwitchNotice({ ok: false, error: "switch_replaced", message: "Another profile was chosen." }), "")
+end sub
+
+' The API task's requests for a cast's switch, as it holds them: each
+' with the token or not (auth) and the profile switches made when it was
+' asked (gen).
+function castTestJob(name as string, auth as boolean, gen as integer) as object
+    return { name: name, auth: auth, gen: gen }
+end function
+
+' A cast from another profile: what played ends first, and the switch
+' waits for its last progress, its stopped report and its session end to
+' be answered, sent with the tokens of the profile that watched it; then
+' the switch goes, and the cast plays as the new profile.
+sub test_cast_switch_waits_for_the_playback_it_ended()
+    progress = castTestJob("POST /api/items/5/progress (stopped)", true, 0)
+    closed = castTestJob("DELETE /api/playback/s1", true, 0)
+    proof = castTestJob("GET /api/server?challenge=", false, 0)
+    tkEqual(authSwitchHeld([progress, closed, proof], 0, 1000, 1000), "wait", "asked as the player closed")
+    tkEqual(authSwitchHeld([closed, proof], 0, 1000, 1300), "wait", "the stopped report answered")
+    tkEqual(authSwitchHeld([proof], 0, 1000, 1500), "go", "the session ended: the switch goes, a proof carries no token")
+    tkEqual(authSwitchHeld([], 0, 1000, 1000), "go", "nothing played: at once")
+    tkTrue(authJobGoes(progress, 0), "the reports go as the profile that watched")
+    ' Switched: what the cast plays is asked as the remote's profile.
+    tkTrue(authJobGoes(castTestJob("POST /api/playback", true, 1), 1))
+end sub
+
+' What hasn't been answered 5 s after the switch was asked is dropped,
+' and the switch goes.
+sub test_cast_switch_waits_5_s_at_most()
+    tkEqual(authSwitchHoldMs(), 5000)
+    stuck = [castTestJob("DELETE /api/playback/s1", true, 0)]
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 5999), "wait")
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 6000), "drop", "5 s on: dropped, then the switch")
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 60000), "drop")
+    tkEqual(authSwitchHeld([castTestJob("DELETE /api/playback/s1", true, 1)], 0, 1000, 1000), "go", "another profile's request isn't waited for")
+end sub
+
+' A request asked for the profile before a switch (refused while the switch
+' was under way and sent again, or waiting for a refresh or a proof) never
+' goes with the new profile's pair: it goes with its own profile's tokens,
+' or not at all. One that needs no token goes as it is.
+sub test_cast_switch_never_sends_the_profiles_requests_as_another()
+    refused = castTestJob("POST /api/items/5/progress (401, sent again)", true, 0)
+    waiting = castTestJob("DELETE /api/playback/s1 (waiting for a proof)", true, 0)
+    tkTrue(authJobGoes(refused, 0), "the switch refused: the profile stayed, it goes again")
+    tkFalse(authJobGoes(refused, 1), "switched: dropped")
+    tkFalse(authJobGoes(waiting, 1), "switched: dropped")
+    tkFalse(authJobGoes(waiting, 2))
+    tkTrue(authJobGoes(castTestJob("POST /oauth/token (revoke)", false, 0), 1), "no token")
+    tkTrue(authJobGoes(castTestJob("GET /api/auth/me", true, 1), 1), "asked as the new profile")
 end sub
 
 sub test_cast_says_where_it_came_from()

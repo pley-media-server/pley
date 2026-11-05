@@ -16,7 +16,7 @@ use pley_core::model::{
     PlaybackRequest, ServerEvent, SubtitleResult, SubtitleTrack,
 };
 use pley_player::autoquality::Remembered;
-use pley_player::controller::{Phase, SubtitleSearch};
+use pley_player::controller::{Phase, SubtitleSearch, TrackChoice};
 use pley_player::plan::{
     dv_container_mode, dv_retry_mode, initial_audio, initial_subtitle, playback_request, playing_audio, with_tracks,
 };
@@ -556,6 +556,61 @@ fn an_audio_track_the_tv_cant_switch_to_in_place_plays_in_a_new_session_that_say
     w.settle();
     assert_eq!(tracks_reported(&w, from + 2), [("paused".to_string(), Some(2), Some(-1))]);
     assert_eq!(w.c.session().map(|s| s.session_id.as_str()), Some("s2"));
+}
+
+/// What the screen is told the remote did with `event`, if anything.
+fn said(w: &mut World, event: ServerEvent) -> Option<String> {
+    let before = w.c.state().remote_notice_id;
+    w.c.server_event(&event);
+    w.settle();
+    let s = w.c.state();
+    (s.remote_notice_id != before).then(|| s.remote_notice.clone().unwrap_or_default())
+}
+
+#[test]
+fn a_video_says_what_the_remote_changed_for_the_screen_to_show_and_nothing_for_the_rest() {
+    let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
+    w.start();
+    w.open();
+    let said_as = |w: &mut World, event| said(w, event).unwrap_or_else(|| panic!("nothing was said"));
+    // Another session's, a play while playing, and nothing next: nothing to say.
+    assert_eq!(said(&mut w, command("s2", Control::Pause, None, None)), None);
+    assert_eq!(said(&mut w, command("s1", Control::Play, None, None)), None);
+    assert_eq!(said(&mut w, command("s1", Control::Next, None, None)), None);
+
+    // A pause, the remote's until it plays again; a pause while paused says nothing.
+    assert_eq!(said_as(&mut w, command("s1", Control::Pause, None, None)), "Paused");
+    assert!(w.c.state().paused_by_remote);
+    assert_eq!(said(&mut w, command("s1", Control::Pause, None, None)), None);
+    // A skip says how far it was asked to go, a seek where to, in the player's times.
+    assert_eq!(said_as(&mut w, command("s1", Control::Skip, None, Some(30_000))), "+30 s");
+    assert_eq!(said_as(&mut w, command("s1", Control::Skip, None, Some(-10_000))), "−10 s");
+    assert_eq!(said_as(&mut w, command("s1", Control::Seek, Some(754_000), None)), "Jumped to 12:34");
+    assert_eq!(said_as(&mut w, command("s1", Control::Seek, Some(3_723_000), None)), "Jumped to 1:02:03");
+    assert!(w.c.state().paused_by_remote, "a seek ended the remote's pause");
+    assert_eq!(said_as(&mut w, command("s1", Control::Play, None, None)), "Playing");
+    assert!(!w.c.state().paused_by_remote);
+    // Played here, a pause of the remote's is over too.
+    said_as(&mut w, command("s1", Control::Pause, None, None));
+    w.c.play();
+    w.settle();
+    assert!(!w.c.state().paused_by_remote);
+
+    // Tracks and qualities named as their menus name them; what is picked already says nothing.
+    let label = |tracks: &[TrackChoice], i: i64| tracks.iter().find(|t| t.index == Some(i)).unwrap().label.clone();
+    let english = label(&w.c.state().subtitles, 4);
+    assert_eq!(said_as(&mut w, pick("s1", Control::Subtitles, 4)), format!("Subtitles: {english}"));
+    assert_eq!(said(&mut w, pick("s1", Control::Subtitles, 4)), None);
+    assert_eq!(said_as(&mut w, pick("s1", Control::Subtitles, -1)), "Subtitles off");
+    assert_eq!(said(&mut w, pick("s1", Control::Subtitles, -1)), None);
+    let truehd = label(&w.c.state().audio, 2);
+    assert_eq!(said(&mut w, pick("s1", Control::Audio, 1)), None);
+    assert_eq!(said_as(&mut w, pick("s1", Control::Audio, 2)), format!("Audio: {truehd}"));
+    assert_eq!(said(&mut w, quality("s1", "original")), None);
+    assert_eq!(said(&mut w, quality("s1", "best")), None);
+    let menu = w.c.state().qualities.iter().find(|q| q.id == "4m").map(|q| q.label.clone()).unwrap();
+    assert_eq!(said_as(&mut w, quality("s1", "4m")), format!("Quality: {menu}"));
+    assert_eq!(said(&mut w, quality("s1", "4m")), None);
 }
 
 #[test]

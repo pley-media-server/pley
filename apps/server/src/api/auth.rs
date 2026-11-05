@@ -4,6 +4,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
+use super::remote;
 use crate::accounts::{self, UserDto};
 use crate::auth::grants::APP_TOKEN_PREFIX;
 use crate::auth::{
@@ -467,6 +468,10 @@ pub struct Switch {
     /// sign-in (see [`second_step`]).
     #[serde(default)]
     setup_id: Option<String>,
+    /// A cast's switch ticket (`switch_ticket`), in place of the rest: the
+    /// desktop app, as a receiver, switches to the remote's profile.
+    #[serde(default)]
+    ticket: Option<String>,
 }
 
 /// What switching to a profile takes, from the profile one is on (see
@@ -604,6 +609,9 @@ pub(crate) enum SwitchError {
     WrongPassword,
     /// Its second step (two-step sign-in) failed, or is being set up.
     TwoStep(AppError),
+    /// A cast's switch ticket that has expired, was spent, or isn't this
+    /// device's for this switch.
+    TicketSpent,
     Internal(AppError),
 }
 
@@ -636,6 +644,7 @@ impl From<SwitchError> for AppError {
             }
             SwitchError::SetUpFirst => AppError::forbidden(SET_UP_FIRST),
             SwitchError::WrongPassword => AppError::forbidden("wrong password"),
+            SwitchError::TicketSpent => AppError::ForbiddenAs("ticket_spent", TICKET_SPENT.to_owned()),
             SwitchError::Throttled(err) | SwitchError::TwoStep(err) | SwitchError::Internal(err) => err,
         }
     }
@@ -647,6 +656,11 @@ pub(crate) const PIN_LOCKED: &str =
     "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it";
 pub(crate) const NO_WAY_IN: &str =
     "this profile can see more than yours: an administrator can give it a PIN to switch to it";
+pub(crate) const TICKET_SPENT: &str = "this cast's switch has expired or was used: cast again";
+pub(crate) const CAST_NEEDS_PIN: &str =
+    "this device's profile can see less than yours: give your profile a PIN to cast to it";
+pub(crate) const CAST_ADMIN_TO_BROWSER: &str = "an administrator's profile isn't cast to a browser or the desktop app, \
+    which would stay signed in with its administrator rights: switch to it there";
 pub(crate) const SET_UP_FIRST: &str =
     "this profile has to set up two-step sign-in, which this server requires: switching to it takes its password";
 
@@ -717,6 +731,39 @@ pub(crate) async fn check_switch(
     Ok(None)
 }
 
+/// Checks a switch a cast asked for ([`crate::api::remote::cast`]):
+/// `ticket`, issued for device `device_id` on `from`'s profile to switch to
+/// `target`, is spent here; both are still home members, and the target
+/// is enabled. By [`switch_needs`] from `from`'s own rights, the target may
+/// take nothing more than the PIN the caster gave as the ticket was issued:
+/// never a password, and not a locked PIN. Only an app (`app`), whose tokens
+/// never have administrator rights, switches to an administrator's profile
+/// so: a browser's or the desktop app's sign-in would keep them (casts
+/// there aren't sent; this holds whatever a ticket says).
+pub(crate) async fn check_ticket_switch(
+    state: &AppState,
+    from: &AuthUser,
+    device_id: Option<&str>,
+    target: i64,
+    ticket: &str,
+    app: bool,
+) -> Result<(), SwitchError> {
+    if !device_id.is_some_and(|device| state.receivers.redeem(ticket, device, from.id, target)) {
+        return Err(SwitchError::TicketSpent);
+    }
+    let Some(profile) = switch_target(state, from.id, target).await? else {
+        return Err(SwitchError::NotFound);
+    };
+    if !profile.both_home || profile.disabled || (profile.is_admin && !app) {
+        return Err(SwitchError::NotAllowed);
+    }
+    match switch_needs(from, &profile, state.auth.two_step_required()) {
+        Needs::None | Needs::Pin => Ok(()),
+        Needs::Locked if profile.pin_hash.is_some() => Err(SwitchError::PinLocked),
+        Needs::Password | Needs::Locked => Err(SwitchError::NoWayIn),
+    }
+}
+
 /// Whether `pin` is `profile`'s PIN (`pin_hash`), counting it in a row
 /// (`users.pin_failures`): throttled per profile by the caller, and capped
 /// in a row, so guessing a 4-digit PIN over weeks doesn't get through
@@ -758,7 +805,8 @@ pub(crate) async fn check_own_pin(state: &AppState, user: &AuthUser, pin: &str) 
 }
 
 /// Switch this device to another home profile, by the rules of
-/// [`check_switch`]: the session it came from ends, and a new one starts.
+/// [`check_switch`], or with a cast's ticket ([`check_ticket_switch`]): the
+/// session it came from ends, and a new one starts.
 pub async fn switch(
     State(state): State<AppState>,
     user: AuthUser,
@@ -767,16 +815,25 @@ pub async fn switch(
     CurrentToken(token): CurrentToken,
     Json(body): Json<Switch>,
 ) -> ApiResult<Response> {
-    let recovery_codes = check_switch(
-        &state,
-        &user,
-        body.user_id,
-        body.pin.as_deref(),
-        body.password.as_deref(),
-        body.code.as_deref(),
-        body.setup_id.as_deref(),
-    )
-    .await?;
+    let recovery_codes = match body.ticket.as_deref() {
+        Some(ticket) => {
+            let device = remote::device_id_of(&user, token.as_deref());
+            check_ticket_switch(&state, &user, device.as_deref(), body.user_id, ticket, false).await?;
+            None
+        }
+        None => {
+            check_switch(
+                &state,
+                &user,
+                body.user_id,
+                body.pin.as_deref(),
+                body.password.as_deref(),
+                body.code.as_deref(),
+                body.setup_id.as_deref(),
+            )
+            .await?
+        }
+    };
     if let Some(token) = token {
         state.auth.revoke(&token).await;
     }

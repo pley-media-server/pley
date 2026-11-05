@@ -17,11 +17,38 @@ describes how they are made.
   counts, the names of audio and subtitle languages and connection errors
   follow it, and a download that failed says why in it. On Android 13 and
   later the system's settings list Pley's languages.
+- The phone's remote and Play on… list the devices of everyone in your
+  household too, each saying whose profile it is on ("On Sam's
+  profile"), never what it plays. Sending something there ends what
+  plays on that phone or TV, its place kept for its own profile, and
+  switches it to your profile before it plays, after your PIN when your
+  profile has one; one that can't says "Couldn't switch to the remote's
+  profile" and plays nothing. A phone or TV showing "Who's watching?"
+  ignores what is sent to it meanwhile: whoever is there is choosing.
 
 ### Changed
 
 - On phones the player's Downloaded badge is green, as on TVs: the file
   plays as it is.
+- The phone's remote opens from a button in Home's top bar, beside your
+  picture, while another of your devices is on. The bar above the tabs
+  shows only while the phone controls what one plays (it sent it a
+  command, or something with Play on…), says where and what, Playing or
+  Paused, and opens its controls. A command shows at once what it asks
+  (the place a seek goes, playing or paused, the track picked), and what
+  plays stays while a next starts the one after. A device ready to play is
+  only listed, without controls to open.
+- A command from your remote doesn't bring up the video player's controls
+  on the device it plays on: a toast says for a moment what it did
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", "Audio: …",
+  "Subtitles off", "Quality: …"). Controls already up as the remote pauses
+  hide as they do while it plays, until you press a key or touch the
+  screen there.
+- Android TV and Fire TV start straight into Home as the profile they were
+  left on when it has no PIN, where a household of several profiles was
+  asked "Who's watching?" each time. A profile with a PIN still asks
+  first, and Switch profile still shows every profile. Settings' Always
+  start as calls this Profile used last, where it said Ask who's watching.
 
 ## [0.1.7] - 2026-11-05
 
@@ -117,6 +144,11 @@ describes how they are made.
   opens, rather than moving a moment later: the buttons along the bottom
   show once the server has answered, and the controls keep clear of the
   status and navigation bars whether they show or not.
+- On Android TV and Fire TV, a programme's details in Live TV have Watch
+  and the favourite side by side, the favourite a star as in the live
+  player, where Remove from favourites was a wide button under Watch. In
+  the live player, the star no longer shows its words under it, which ran
+  under Channels.
 
 ## [0.1.6] - 2026-11-04
 

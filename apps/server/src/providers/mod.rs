@@ -106,6 +106,8 @@ pub fn tv_source(settings: &Settings) -> Option<TvSource> {
 
 /// After a settings change: shows are fetched again from a new TV source.
 /// Returns whether libraries should be scanned to fetch what is missing.
+/// NFO files turned on or off scan every library too: the scan reads them,
+/// or drops what they set and has those items fetched again.
 pub async fn settings_changed(db: &Db, before: &Settings, after: &Settings) -> sqlx::Result<bool> {
     let tv = tv_source(after);
     let tv_changed = tv_source(before) != tv;
@@ -118,7 +120,8 @@ pub async fn settings_changed(db: &Db, before: &Settings, after: &Settings) -> s
     let tvdb_key =
         (before.tvdb_api_key != after.tvdb_api_key || before.tvdb_pin != after.tvdb_pin) && tv == Some(TvSource::Tvdb);
     let music = after.music_metadata && !before.music_metadata;
-    Ok(tmdb_key || tvdb_key || music || (tv_changed && tv.is_some()))
+    let nfo = before.read_nfo != after.read_nfo;
+    Ok(tmdb_key || tvdb_key || music || nfo || (tv_changed && tv.is_some()))
 }
 
 #[derive(Debug, thiserror::Error)]

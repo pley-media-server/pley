@@ -22,6 +22,13 @@
     "lastInQueue": "C’est le dernier de la liste",
     "lastEpisode": "C’est le dernier épisode",
     "qualityLowered": "Qualité réduite à {{quality}}",
+    "remotePlaying": "Lecture",
+    "remotePaused": "En pause",
+    "jumpedTo": "Position : {{time}}",
+    "skippedAhead": "+{{seconds}} s",
+    "skippedBack": "−{{seconds}} s",
+    "audioShown": "Audio : {{track}}",
+    "qualityShown": "Qualité : {{quality}}",
     "lowered": {
       "network": "Réduite pour votre connexion",
       "device": "Réduite pour cet appareil"

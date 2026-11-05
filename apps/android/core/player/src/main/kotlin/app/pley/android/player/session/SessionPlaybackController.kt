@@ -978,14 +978,18 @@ class SessionPlaybackController(
         val was = wantPlay.value
         wantPlay.value = playWhenReady
         if (playWhenReady) sleep.resumed()
-        if (session == null) return
-        if (!playWhenReady) {
-            struggle.reset()
-            if (was && !ended) report(ProgressState.Paused)
-            if (link?.status == EngineStatus.Ready) phase(PlayerPhase.Paused)
-        } else if (link?.status == EngineStatus.Ready) {
-            phase(PlayerPhase.Playing)
+        if (session != null) {
+            if (!playWhenReady) {
+                struggle.reset()
+                if (was && !ended) report(ProgressState.Paused)
+                if (link?.status == EngineStatus.Ready) phase(PlayerPhase.Paused)
+            } else if (link?.status == EngineStatus.Ready) {
+                phase(PlayerPhase.Playing)
+            }
         }
+        // Played again, by anyone: the remote's pause is over. After the phase, so no screen sees it paused
+        // and no longer the remote's for a moment, and brings up its controls.
+        if (playWhenReady && ui.value.pausedByRemote) ui.update { it.copy(pausedByRemote = false) }
     }
 
     override fun onPlaying(playing: Boolean) {
@@ -1367,33 +1371,60 @@ class SessionPlaybackController(
      * subtitles and the quality change as the player's own menus change
      * them. What changed is reported at once, so the remote sees it (a
      * pause reports by itself, and a new item with its new session).
+     *
+     * The screen says what changed for a moment ([PlayerUiState.remoteNotice]),
+     * never by its controls: whoever watches here learns why it paused or
+     * jumped, and the picture stays clear. A command that changes nothing
+     * says nothing; the next item shows its title as it begins.
      */
     private fun obey(command: ServerEvent.PlayerCommand) {
         if (closed || stopped || away || ui.value.phase is PlayerPhase.Error) return
         when (command.command) {
             Control.Play -> {
                 // Playing already: said again, so a remote a little behind settles.
-                if (!wantPlay.value || ended) play()
+                if (!wantPlay.value || ended) {
+                    play()
+                    remoteNotice(texts.remotePlaying)
+                }
                 if (!ended) report(ProgressState.Playing)
             }
             // A pause reports by itself; paused already, it is said again.
-            Control.Pause -> if (wantPlay.value) pause() else report(ProgressState.Paused)
-            Control.Seek -> command.positionMs?.let { seekNow(it) }
-            Control.Skip -> command.offsetMs?.let { seekNow(livePosition() + it) }
+            Control.Pause -> if (wantPlay.value) {
+                // Before the engine pauses: the screens see the pause as the remote's from its first moment.
+                // Only with an engine to pause: a pause that never came would make the next one the remote's.
+                if (link != null) ui.update { it.copy(pausedByRemote = true) }
+                pause()
+                remoteNotice(texts.remotePaused)
+            } else {
+                report(ProgressState.Paused)
+            }
+            Control.Seek -> command.positionMs?.let { seekNow(it)?.let { at -> remoteNotice(texts.remoteJumped(at)) } }
+            // As far as it asked, as the TV's seek badge says it, even where the start or the end cut it short.
+            Control.Skip -> command.offsetMs?.let { by -> seekNow(livePosition() + by)?.let { remoteNotice(texts.remoteSkipped(by)) } }
             Control.Next -> if (item?.let { nextUp.hasNext(it.kind, current.queue) } == true) advance(fromRemote = true)
-            Control.Audio -> command.streamIndex?.let { reportPicked(changeAudio(it.toLong())) }
+            Control.Audio -> command.streamIndex?.let {
+                val change = changeAudio(it.toLong())
+                if (change != TrackChange.Unchanged) audio?.let { a -> remoteNotice(texts.remoteAudio(streamLabel(a))) }
+                reportPicked(change)
+            }
             Control.Subtitles -> command.streamIndex?.let { index ->
-                reportPicked(changeSubtitle(index.takeIf { it != PlayingSession.SUBTITLES_OFF }?.toLong()))
+                val change = changeSubtitle(index.takeIf { it != PlayingSession.SUBTITLES_OFF }?.toLong())
+                if (change != TrackChange.Unchanged) remoteNotice(texts.remoteSubtitles(subtitle?.let(::streamLabel)))
+                reportPicked(change)
             }
             Control.Quality -> command.quality?.let { id ->
+                val change = changeQuality(id)
+                if (change != TrackChange.Unchanged) remoteNotice(texts.remoteQuality(label(picked)))
                 // The pick is said at once, by the session playing; one that needs a new session says it again as
                 // that one starts.
-                if (changeQuality(id) == TrackChange.NewSession) reportOnLoad = true
+                if (change == TrackChange.NewSession) reportOnLoad = true
                 if (!ended) report(if (wantPlay.value) ProgressState.Playing else ProgressState.Paused)
             }
             Control.Previous, Control.Unknown -> Unit
         }
     }
+
+    private fun remoteNotice(text: String) = ui.update { it.copy(remoteNotice = text, remoteNoticeId = it.remoteNoticeId + 1) }
 
     /**
      * After a track the remote picked: what plays is said at once, the pick
@@ -1412,13 +1443,21 @@ class SessionPlaybackController(
     /** The tracks playing now, as reports say them. */
     private fun tracksNow(): PlayedTracks = PlayedTracks(audio?.index, subtitle?.index ?: PlayingSession.SUBTITLES_OFF)
 
-    /** Seeks to [positionMs] and reports where it went straight away, not a second later as after the screen's seeks. */
-    private fun seekNow(positionMs: Long) {
+    /**
+     * Seeks to [positionMs] and reports where it went straight away, not a
+     * second later as after the screen's seeks. Where it went, within the
+     * title; `null` when nothing plays to seek in.
+     */
+    private fun seekNow(positionMs: Long): Long? {
+        if (closed || stopped) return null
         seekTo(positionMs)
+        // Nothing to say without an engine to seek, but the report still goes.
+        val at = ui.value.positionMs.takeIf { link != null }
         // Seeking past the end starts a new session, which reports itself.
-        if (ended || session == null) return
+        if (ended || session == null) return at
         seekReport?.cancel()
         report(if (wantPlay.value) ProgressState.Playing else ProgressState.Paused)
+        return at
     }
 
     /**
@@ -1912,6 +1951,8 @@ class SessionPlaybackController(
 
     override fun dismissNotice() = ui.update { it.copy(notice = null) }
 
+    override fun dismissRemoteNotice() = ui.update { it.copy(remoteNotice = null) }
+
     override suspend fun thumbnail(positionMs: Long): Bitmap? = trickplay?.thumbnail(positionMs)
 
     override fun saveState(): SavedPlaybackState = SavedPlaybackState(
@@ -2072,6 +2113,9 @@ class SessionPlaybackController(
                 title = it.title,
                 positionMs = req.startMs ?: 0,
                 sleep = it.sleep,
+                // The next title starts paused when this one is: the remote's pause stays the remote's.
+                pausedByRemote = it.pausedByRemote,
+                remoteNoticeId = it.remoteNoticeId,
             )
         }
         sessionJob?.cancel()

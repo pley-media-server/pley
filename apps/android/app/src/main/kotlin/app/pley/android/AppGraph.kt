@@ -110,9 +110,14 @@ class AppGraph(private val app: Application) : ScreensGraph {
     override val drives: Drives by lazy { if (device.isTv) StorageDrives(app, DriveResume.preferences(app)) else Drives.None }
     override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device) }
 
-    /** What the profile's remotes cast here, played on the main thread for the whole life of the app. */
+    /**
+     * What the profile's remotes cast here, played on the main thread for the whole life of the app; what plays
+     * ends before one switches profiles.
+     */
     override val casts: CastReceiver by lazy {
-        CastReceiver.of(data, playerLauncher, { player.music }, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
+        CastReceiver.of(data, playerLauncher, { player.music }, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)) {
+            player.endAll()
+        }
     }
 
     /**

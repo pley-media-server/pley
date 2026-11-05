@@ -1,9 +1,10 @@
 //! Directory walking: finds media files plus the sidecar files (artwork,
-//! subtitles) next to them, skipping system folders and samples. Bonus
-//! material (trailers, featurettes, …) is found with Plex's conventions:
-//! folders such as `Trailers` or `Behind The Scenes` next to the movie or in
-//! the show folder, or a suffix such as `Movie (2020)-trailer.mkv`. Names
-//! that are not valid UTF-8 are left out: paths are kept as text.
+//! subtitles, NFO files) next to them, skipping system folders and samples.
+//! Bonus material (trailers, featurettes, …) is found with Plex's
+//! conventions: folders such as `Trailers` or `Behind The Scenes` next to the
+//! movie or in the show folder, or a suffix such as
+//! `Movie (2020)-trailer.mkv`. Names that are not valid UTF-8 are left out:
+//! paths are kept as text.
 //!
 //! Several folders are listed at once ([`WALK_THREADS`]): on a network share
 //! each listing waits for the server, which answers many at a time. What is
@@ -28,6 +29,9 @@ const AUDIO_EXTENSIONS: &[&str] =
     &["mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav", "wma", "aiff", "aif", "ape", "wv", "mka", "m4b", "dsf"];
 pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "tbn"];
 pub const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "ass", "ssa", "vtt", "sub", "sup", "smi"];
+/// Metadata files that Kodi, Jellyfin, Radarr, Sonarr and others write next
+/// to a title.
+pub const NFO_EXTENSIONS: &[&str] = &["nfo"];
 
 const SKIP_DIRS: &[&str] = &[
     "@eadir",
@@ -165,8 +169,11 @@ pub fn extra_of(path: &Path, root: &Path) -> Option<Extra> {
 pub struct Walked {
     /// Media files by library folder (in the order given), then by path.
     pub media: Vec<FoundFile>,
-    /// Sidecar file names (images, subtitles) per directory, sorted.
+    /// Sidecar file names (images, subtitles, NFO files) per directory, sorted.
     pub sidecars: HashMap<PathBuf, Vec<String>>,
+    /// The size and modification time of NFO files, by path: a scan reads
+    /// one again when they change, without asking the drive once more.
+    pub nfo_files: HashMap<PathBuf, (i64, i64)>,
     /// Library roots that could not be read (unmounted drive?): files below
     /// them must not be treated as deleted.
     pub offline_roots: Vec<PathBuf>,
@@ -198,10 +205,16 @@ pub fn is_media_file(path: &Path, kind: LibraryKind) -> bool {
     }
 }
 
-/// What kind of file an extension names: video, audio, picture or
-/// subtitles (`None`: something else).
+/// Whether a file with this extension is a sidecar file: a picture,
+/// subtitles or an NFO file, kept by name rather than as media.
+fn is_sidecar(ext: &str) -> bool {
+    IMAGE_EXTENSIONS.contains(&ext) || SUBTITLE_EXTENSIONS.contains(&ext) || NFO_EXTENSIONS.contains(&ext)
+}
+
+/// What kind of file an extension names: video, audio, picture, subtitles
+/// or NFO file (`None`: something else).
 fn file_kind(ext: &str) -> Option<u8> {
-    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS]
+    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS, NFO_EXTENSIONS]
         .iter()
         .position(|list| list.contains(&ext))
         .map(|kind| kind as u8)
@@ -426,6 +439,8 @@ struct Found {
     /// Media files, with the position of their library folder.
     media: Vec<(usize, FoundFile)>,
     sidecars: Vec<(PathBuf, Vec<String>)>,
+    /// NFO files, with their size and modification time.
+    nfo_files: Vec<(PathBuf, i64, i64)>,
     offline: Vec<usize>,
     unreadable: Vec<PathBuf>,
     not_utf8_folders: Vec<PathBuf>,
@@ -578,7 +593,7 @@ impl<'a> Walker<'a> {
             return;
         }
         let ext = extension(&path);
-        let sidecar = IMAGE_EXTENSIONS.contains(&ext.as_str()) || SUBTITLE_EXTENSIONS.contains(&ext.as_str());
+        let sidecar = is_sidecar(&ext);
         if !sidecar && !is_media_file(&path, self.kind) {
             return;
         }
@@ -591,6 +606,15 @@ impl<'a> Walker<'a> {
             return;
         };
         if sidecar {
+            // An NFO file's size and time, which say whether it changed, come
+            // with the listing on Windows; a link's are those of what it
+            // leads to. Without them it is looked at again when read.
+            if NFO_EXTENSIONS.contains(&ext.as_str())
+                && let Ok(meta) = target.map_or_else(|| entry.metadata(), Ok)
+            {
+                let mtime = meta.modified().map(system_time_secs).unwrap_or(0);
+                found.nfo_files.push((path, meta.len() as i64, mtime));
+            }
             sidecars.push(name.to_owned());
             return;
         }
@@ -625,6 +649,7 @@ impl<'a> Walker<'a> {
             for (dir, names) in part.sidecars {
                 out.sidecars.entry(dir).or_default().extend(names);
             }
+            out.nfo_files.extend(part.nfo_files.into_iter().map(|(path, size, mtime)| (path, (size, mtime))));
             offline.extend(part.offline);
             out.unreadable.extend(part.unreadable);
             not_utf8_folders.extend(part.not_utf8_folders);
@@ -739,7 +764,7 @@ mod tests {
                 }
                 let path = entry.path();
                 let ext = extension(path);
-                let sidecar = IMAGE_EXTENSIONS.contains(&ext.as_str()) || SUBTITLE_EXTENSIONS.contains(&ext.as_str());
+                let sidecar = is_sidecar(&ext);
                 if !sidecar && !is_media_file(path, kind) {
                     continue;
                 }
@@ -818,6 +843,10 @@ mod tests {
             if n % 2 == 0 {
                 file(root, &format!("{movie}/{movie}.en.srt"), 1);
                 file(root, &format!("{movie}/poster.jpg"), 1);
+                file(root, &format!("{movie}/{movie}.nfo"), 1);
+            }
+            if n % 3 == 1 {
+                file(root, &format!("{movie}/movie.NFO"), 1);
             }
             if n % 3 == 0 {
                 file(root, &format!("{movie}/Featurettes/Making of {n}.mp4"), 2);
@@ -844,11 +873,16 @@ mod tests {
         file(root, "Show (2010)/Season 01/Subs/Show - S01E01/3_French.srt", 1);
         file(root, "Show (2010)/Season 01/Show - S01E02.forced.ass", 1);
         file(root, "Show (2010)/season01-poster.jpg", 1);
+        file(root, "Show (2010)/tvshow.nfo", 1);
+        file(root, "Show (2010)/Season 01/season.nfo", 1);
+        file(root, "Show (2010)/Season 01/Show - S01E01.nfo", 1);
         file(root, "Show (2010)/fanart.PNG", 1);
         file(root, "Show (2010)/Featurettes/Cast.mkv", 1);
         file(root, "Band/Record (2001)/01 - Song.flac", 5);
         file(root, "Band/Record (2001)/02 - Other Song.MP3", 5);
         file(root, "Band/Record (2001)/cover.jpg", 1);
+        file(root, "Band/Record (2001)/album.nfo", 1);
+        file(root, "Band/artist.nfo", 1);
         file(root, "Band/Record (2001)/Samples/03 - Loop.mp3", 5);
         file(root, ".hidden/Secret (2001).mkv", 1);
         file(root, "#recycle/Old (1999).mkv", 1);
@@ -858,7 +892,10 @@ mod tests {
         file(root, "Ünïcode Fïlm (2003)/Ünïcode Fïlm (2003).mkv", 1);
         file(root, "Ünïcode Fïlm (2003)/Ünïcode Fïlm (2003).ja.srt", 1);
         file(root, "Loose (2004).MKV", 1);
+        // An NFO file next to a video in the library folder itself: a
+        // sidecar of that folder, like the picture next to it.
         file(root, "Loose (2004).nfo", 1);
+        file(root, "#recycle/Old (1999).nfo", 1);
         file(root, "Cover.JPG", 1);
         file(root, "notes.txt", 1);
         std::fs::create_dir_all(root.join("Empty (2005)")).unwrap();
@@ -890,6 +927,22 @@ mod tests {
             !names.iter().any(|n| n.starts_with(".hidden") || n.starts_with("#recycle") || n.ends_with("sample.mkv"))
         );
         assert_eq!(movies.offline_roots, [dir.path().join("missing")]);
+        // NFO files are sidecars in every kind of library, never media, and
+        // none is found in a skipped folder.
+        for kind in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music] {
+            let walked = walk(&roots, kind);
+            assert_eq!(walked.sidecars[&a], ["Cover.JPG", "Loose (2004).nfo"], "{kind:?}");
+            assert_eq!(walked.sidecars[&a.join("Film 01 (1981)")], ["movie.NFO"], "{kind:?}");
+            assert!(walked.sidecars[&a.join("Film 02 (1982)")].contains(&"Film 02 (1982).nfo".to_owned()));
+            assert_eq!(
+                walked.sidecars[&a.join("Show (2010)/Season 01")],
+                ["Show - S01E01.nfo", "Show - S01E02.forced.ass", "season.nfo"],
+                "{kind:?}"
+            );
+            assert_eq!(walked.sidecars[&a.join("Band")], ["artist.nfo"], "{kind:?}");
+            assert!(!walked.sidecars.contains_key(&a.join("#recycle")));
+            assert!(!walked.media.iter().any(|f| f.path.extension().is_some_and(|e| e.eq_ignore_ascii_case("nfo"))));
+        }
     }
 
     #[test]
@@ -931,6 +984,38 @@ mod tests {
         assert_eq!(walked.sidecars[&first.join("a")], ["Poster.png", "a.srt", "fanart.jpg"]);
         for threads in [1, 3, 16, 64] {
             assert_eq!(names(&walk_with(&roots, LibraryKind::Movies, threads)), expected, "{threads} threads");
+        }
+    }
+
+    #[test]
+    fn nfo_files_change_no_media_or_folder_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        file(root, "Film (2001)/Film (2001).mkv", 1);
+        file(root, "Show (2010)/Season 01/Show - S01E01.mkv", 1);
+        file(root, "Band/Record (2001)/01 - Song.flac", 1);
+        let roots = [root.to_path_buf()];
+        let before: Vec<_> = [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music]
+            .into_iter()
+            .map(|kind| {
+                let walked = walk(&roots, kind);
+                (walked.media.len(), walked.folders)
+            })
+            .collect();
+        file(root, "Film (2001)/Film (2001).nfo", 1);
+        file(root, "Film (2001)/movie.nfo", 1);
+        file(root, "Show (2010)/tvshow.nfo", 1);
+        file(root, "Show (2010)/Season 01/Show - S01E01.NFO", 1);
+        file(root, "Band/Record (2001)/album.nfo", 1);
+        for (kind, before) in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music].into_iter().zip(before) {
+            let walked = walk(&roots, kind);
+            assert_eq!((walked.media.len(), walked.folders), before, "{kind:?}");
+            assert_eq!(walked.sidecars[&root.join("Film (2001)")], ["Film (2001).nfo", "movie.nfo"], "{kind:?}");
+            assert_eq!(walked.sidecars[&root.join("Show (2010)/Season 01")], ["Show - S01E01.NFO"], "{kind:?}");
+            assert_eq!(walked.sidecars.len(), 4, "{kind:?}");
+            // Their size and time come with the listing.
+            assert_eq!(walked.nfo_files.len(), 5, "{kind:?}");
+            assert_eq!(walked.nfo_files[&root.join("Show (2010)/tvshow.nfo")].0, 1, "{kind:?}");
         }
     }
 
@@ -1198,6 +1283,7 @@ mod tests {
         link("secrets.db", "Alien (1979).mkv");
         link("elsewhere.mkv", "Alien (1979) - Extended.mkv");
         link("passwd", "Alien (1979).en.srt");
+        link("passwd", "Alien (1979).nfo");
         let walked = walk(std::slice::from_ref(&library), LibraryKind::Movies);
         let names: Vec<_> = walked.media.iter().map(|f| f.path.file_name().unwrap().to_owned()).collect();
         assert_eq!(names, ["Alien (1979) - Extended.mkv"]);
@@ -1237,6 +1323,37 @@ mod tests {
         let opened = std::fs::File::open(&poster).unwrap();
         swap("secrets.db");
         assert!(checked(opened, &poster).is_none());
+    }
+
+    /// An NFO file may be a link only to another NFO file: a link named
+    /// `movie.nfo` that leads to a picture, subtitles or anything else is left
+    /// out, and no picture's name leads to an NFO file either.
+    #[cfg(unix)]
+    #[test]
+    fn links_to_nfo_files_lead_only_to_nfo_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let movie = dir.path().join("Movies").join("Alien (1979)");
+        std::fs::create_dir_all(&movie).unwrap();
+        std::fs::write(movie.join("Alien (1979).mkv"), b"x").unwrap();
+        for (name, body) in [("kept.nfo", "<movie/>"), ("secrets.db", "secret"), ("real.jpg", "jpeg"), ("x.srt", "1")] {
+            std::fs::write(dir.path().join(name), body).unwrap();
+        }
+        let link =
+            |target: &str, name: &str| std::os::unix::fs::symlink(dir.path().join(target), movie.join(name)).unwrap();
+        link("kept.nfo", "Alien (1979).nfo");
+        link("secrets.db", "movie.nfo");
+        link("real.jpg", "tvshow.nfo");
+        link("x.srt", "season.nfo");
+        link("kept.nfo", "poster.jpg");
+        for kind in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music] {
+            let walked = walk(&[dir.path().join("Movies")], kind);
+            assert_eq!(walked.sidecars[&movie], ["Alien (1979).nfo"], "{kind:?}");
+        }
+        assert!(open_of_its_kind(&movie.join("Alien (1979).nfo")).is_some());
+        for refused in ["movie.nfo", "tvshow.nfo", "season.nfo", "poster.jpg"] {
+            assert!(!leads_to_its_kind(&movie.join(refused)), "{refused}");
+            assert!(open_of_its_kind(&movie.join(refused)).is_none(), "{refused}");
+        }
     }
 
     /// A library's folder may be a junction (no privilege makes one): what

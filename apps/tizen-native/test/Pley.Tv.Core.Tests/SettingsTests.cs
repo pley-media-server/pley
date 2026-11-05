@@ -194,7 +194,7 @@ public class SettingsModelTests
         Assert.Equal(new[] { "profile-header", "row-switch", "row-audio", "row-subtitles", "row-subtitle-language", "row-language", "row-history", "row-sort-libraries", "row-start-as", "row-web" },
             Keys(m.Items(SettingsCategory.Profile)));
         Assert.Equal("Same as the audio language", Row(m, SettingsCategory.Profile, "row-subtitle-language").Value);
-        Assert.Equal("Ask who's watching", Row(m, SettingsCategory.Profile, "row-start-as").Value);
+        Assert.Equal("Profile used last", Row(m, SettingsCategory.Profile, "row-start-as").Value);
 
         // Without the play scope the defaults say so and open the web.
         m = Model(scope: "library");
@@ -333,7 +333,7 @@ public class SettingsModelTests
         account.Profiles.AddRange(new[] { new HouseholdProfile { Id = 7, Name = "Ann" }, new HouseholdProfile { Id = 8, Name = "Bo" } });
         var m = Model();
         var panel = m.Panel(new SettingPick.AlwaysStartAs());
-        Assert.Equal(new[] { "Ask who's watching", "Ann", "Bo" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Profile used last", "Ann", "Bo" }, panel.Choices.Select(c => c.Label));
         m.Choose(new SettingPick.AlwaysStartAs(), 2);
         Assert.Equal(8L, account.StartAs);
         Assert.Equal("Bo", Row(m, SettingsCategory.Profile, "row-start-as").Value);

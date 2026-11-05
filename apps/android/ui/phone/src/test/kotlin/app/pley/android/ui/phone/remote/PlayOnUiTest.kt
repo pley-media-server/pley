@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -12,12 +13,14 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayingChannel
@@ -29,6 +32,7 @@ import app.pley.android.network.ApiException
 import app.pley.android.screens.item.TrackChoice
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
+import app.pley.android.ui.phone.kit.PIN_ERROR_TAG
 import app.pley.android.ui.phone.onboarding.LocalOnboardingSource
 import app.pley.android.ui.phone.shell.PhoneNavigation
 import app.pley.android.ui.phone.shell.PhoneShell
@@ -73,7 +77,7 @@ class PlayOnUiTest {
             }
         }
         // The remote comes after the first frame, off the main thread.
-        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BAR).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BUTTON).fetchSemanticsNodes().isNotEmpty() }
     }
 
     /** Play on… asked for [target], as a page's button asks. */
@@ -138,9 +142,9 @@ class PlayOnUiTest {
         assertEquals(listOf("tv-1" to CastRequest(itemId = 101, startMs = 60_000)), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        // The remote opens on the device, ready for what it was sent.
-        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertExists()
-        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        // The remote opens on the list, the device's controls to show once it plays what it was sent.
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertDoesNotExist()
     }
 
     @Test
@@ -198,12 +202,91 @@ class PlayOnUiTest {
     }
 
     @Test
+    fun anotherProfilesDeviceShowsWhoseItIsAndACastThereNamesThatProfile() {
+        shell(livingRoom(), samsTv())
+        choose(CastTarget(itemId = 101))
+        // After the profile's own, with the profile it is on, never what it plays.
+        compose.onNodeWithText("On Sam's profile").assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").performClick()
+        compose.waitForIdle()
+        // This profile has no PIN: no pad, straight there.
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31")), graph.castsSent.toList())
+        compose.onNodeWithText("Playing on Den TV").assertExists()
+    }
+
+    @Test
+    fun withAPinTheCastAsksForItFirstAndSendsIt() {
+        shell(samsTv())
+        graph.castNeedsPin = true
+        choose(CastTarget(itemId = 101))
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertExists()
+        compose.onNodeWithText("Enter your PIN").assertExists()
+        compose.onNodeWithText("Den TV switches from Sam's profile to yours.").assertExists()
+        assertTrue(graph.castsSent.isEmpty())
+        type("1234")
+        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31", pin = "1234")), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+        compose.onNodeWithText("Playing on Den TV").assertExists()
+    }
+
+    @Test
+    fun aPinTheServerAsksForIsAskedForAndWrongOrLockedOnesAreSaid() {
+        shell(samsTv())
+        choose(CastTarget(itemId = 101))
+        // A PIN set since the profile was read: the server asks, and the pad opens.
+        graph.castRefusals += ApiException(403, "pin_needed", "this profile is protected by a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertExists()
+        compose.onNodeWithTag(PIN_ERROR_TAG).assertDoesNotExist()
+
+        graph.castRefusals += ApiException(403, "wrong_pin", "wrong PIN")
+        type("0000")
+        compose.onNodeWithText("Wrong PIN. Try again.").assertExists()
+        // Too many: the server says how long to wait.
+        graph.castRefusals += ApiException(429, "too_many_requests", "too many attempts, try again in 14 min")
+        type("0000")
+        compose.onNodeWithText("Too many attempts, try again in 14 min.").assertExists()
+        // Locked: the pad stops, and leads back to the devices.
+        graph.castRefusals += ApiException(403, "pin_locked", "this profile's PIN is locked")
+        type("0000")
+        compose.onNodeWithText("Your PIN is locked after too many wrong tries. You or an administrator can reset it.").assertExists()
+        compose.onNodeWithTag("pley.pad.1").assertIsNotEnabled()
+        assertTrue(graph.castsSent.isEmpty())
+        compose.onNodeWithText("Back to the devices").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").assertExists()
+
+        // A refusal that isn't the PIN's goes back to the list, and says so there.
+        graph.castRefusals += ApiException(403, "pin_needed", "this profile is protected by a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-31").performClick()
+        compose.waitForIdle()
+        graph.castRefusals += ApiException(404, "not_found", "no such device")
+        type("1234")
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den TV isn't on any more.").assertExists()
+    }
+
+    /** Types [digits] on the PIN pad, then OK. */
+    private fun type(digits: String) {
+        digits.forEach { compose.onNodeWithTag("pley.pad.$it").performScrollTo().performClick() }
+        compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
+        compose.waitForIdle()
+    }
+
+    @Test
     fun aCastFromTheLivePlayerIsSaidByTheShellWhichOpensTheRemoteOnTheDevice() {
         shell(livingRoom())
         CastsSent.tell("app-12", "Living room TV")
         compose.waitForIdle()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertExists()
+        // Open on the list until the device plays it.
+        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
         assertNull(CastsSent.pending.value)
     }
 
@@ -272,6 +355,12 @@ class PlayOnUiTest {
         /** The Living room TV, on and playing nothing, taking [casts]. */
         fun livingRoom(casts: List<CastKind> = listOf(CastKind.Item, CastKind.Live)) =
             OtherDevice("app-12", receiver = RemoteDevice("tv-1", "app-12", "Living room TV", DeviceKind.Tv, casts))
+
+        /** The Den TV, on Sam's profile, taking titles and channels. */
+        fun samsTv() = OtherDevice(
+            "app-31",
+            receiver = RemoteDevice("tv-3", "app-31", "Den TV", DeviceKind.Tv, listOf(CastKind.Item, CastKind.Live), profile = DeviceProfileName(3, "Sam")),
+        )
 
         /** The Bedroom TV, on and playing nothing, taking [casts]. */
         fun bedroom(casts: List<CastKind>) = OtherDevice("app-20", receiver = RemoteDevice("tv-2", "app-20", "Bedroom TV", DeviceKind.Tv, casts))

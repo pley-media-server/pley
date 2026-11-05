@@ -23,6 +23,7 @@ const KEYS = [
   "tvdb_api_key",
   "tvdb_pin",
   "music_metadata",
+  "read_nfo",
   "scan_interval_minutes",
   "watch_libraries",
   "detect_markers",
@@ -180,6 +181,11 @@ ${form.tvdb_pin}`}
                 <Toggle checked={form.music_metadata} onChange={(v) => set("music_metadata", v)} label={t("server.metadata.musicToggle")} />
                 <TestButton label={t("server.metadata.testMusicBrainz")} test={{ service: "musicbrainz" }} />
               </Row>
+              {form.read_nfo !== undefined ? (
+                <Row label={t("server.metadata.nfo")} hint={t("server.metadata.nfoHint")}>
+                  <Toggle checked={form.read_nfo} onChange={(v) => set("read_nfo", v)} label={t("server.metadata.nfoToggle")} />
+                </Row>
+              ) : null}
               <Row label={t("server.metadata.language")} htmlFor="meta-lang" hint={t("server.metadata.languageHint")}>
                 <Select id="meta-lang" value={form.metadata_language} onChange={(e) => set("metadata_language", e.target.value)} className="w-full">
                   {(LANGUAGES.includes(form.metadata_language) ? LANGUAGES : [form.metadata_language, ...LANGUAGES]).map((l) => (

@@ -399,10 +399,12 @@ private fun InfoBar(
                     onClick = onChannels,
                     modifier = Modifier.initialFocus().testTag(TV_LIVE_PLAYER_CHANNEL_LIST),
                 )
+                // The star alone, as in Live TV's details: its label, wider than both buttons, ran under Channels.
                 TvRoundButton(
                     stringResource(if (channel.favorite) R.string.tv_livetv_favorite_remove else R.string.tv_livetv_favorite_add),
                     if (channel.favorite) PleyIcons.Star else PleyIcons.StarOutline,
                     onClick = vm::toggleFavorite,
+                    showLabel = false,
                 )
             }
         } else {

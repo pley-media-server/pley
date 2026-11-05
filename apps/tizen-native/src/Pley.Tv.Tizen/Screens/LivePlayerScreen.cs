@@ -623,11 +623,12 @@ sealed class LivePlayerScreen : Sheet
         list.Position = new Position(Ui.Dp(left), Ui.Dp(under + 16));
         infoBar.Add(list);
         controls.Add(list.Item);
-        var favorite = new RoundButton(channel.Favorite ? LiveText.FavoriteRemove : LiveText.FavoriteAdd, "star", () =>
+        // The star alone, as in Live TV's details: its label, wider than both buttons, ran under Channels.
+        var favorite = new RoundButton(channel.Favorite ? LiveText.FavoriteRemove : LiveText.FavoriteAdd, channel.Favorite ? "star-filled" : "star", () =>
         {
             Poke();
             model.ToggleFavorite();
-        });
+        }, showLabel: false);
         favorite.Position = new Position(Ui.Dp(left + PleyTv.ButtonHeight + PleyTv.ButtonGap), Ui.Dp(under + 16));
         infoBar.Add(favorite);
         controls.Add(favorite.Item);

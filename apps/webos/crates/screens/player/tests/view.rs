@@ -11,7 +11,7 @@ use pley_core::store::SubtitleSize;
 use pley_player::Phase;
 use pley_player::controller::SubtitleSearch;
 use pley_player::details::{DetailRow, PlaybackDetails, RECONNECTING, SubtitleDelivery};
-use pley_player_ui::{Btn, Out, Panel, PlayerView, Style, Target, keeps_awake};
+use pley_player_ui::{Btn, Out, Panel, Playback, PlayerView, Style, Target, keeps_awake};
 use pley_ui::testing::{Frame, Harness, Step};
 
 /// The view, the stand-in and the harness that runs their frames.
@@ -149,6 +149,70 @@ fn the_controls_hide_five_seconds_after_the_last_key_unless_paused() {
     assert!(pl.view.controls());
     pl.wait(8.0);
     assert!(pl.view.controls(), "paused, the controls stay");
+}
+
+#[test]
+fn ok_after_a_while_untouched_shows_the_controls_for_5_s() {
+    let mut pl = Player::new(Fake::movie());
+    pl.wait(10.0);
+    pl.press(Key::Ok);
+    assert!(pl.view.controls(), "the controls OK showed hid at once");
+    pl.wait(4.9);
+    assert!(pl.view.controls());
+    pl.wait(0.2);
+    assert!(!pl.view.controls());
+}
+
+#[test]
+fn what_the_remote_does_shows_for_2_s_at_the_top_right_and_never_the_controls() {
+    let mut pl = Player::new(Fake::movie());
+    pl.p.remote("Paused");
+    pl.idle();
+    assert!(!pl.view.controls(), "the remote's pause showed the controls");
+    assert_eq!(pl.view.toast_text(), Some("Paused"));
+    assert_eq!(pl.focus(), Some(Target::Video));
+    pl.wait(1.9);
+    assert_eq!(pl.view.toast_text(), Some("Paused"));
+    pl.wait(0.2);
+    pl.idle();
+    assert_eq!(pl.view.toast_text(), None);
+    pl.p.remote("Jumped to 12:34");
+    pl.wait(5.0);
+    assert!(!pl.view.controls(), "the remote's seek showed the controls");
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
+    // A key here shows them as it does, and from then on the pause keeps them.
+    pl.press(Key::Ok);
+    assert!(pl.view.controls());
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    pl.wait(8.0);
+    assert!(pl.view.controls(), "paused, the controls stay once a key showed them");
+}
+
+#[test]
+fn controls_up_as_the_remote_pauses_hide_as_they_would_while_it_plays() {
+    let mut pl = Player::new(Fake::movie());
+    pl.press(Key::Up);
+    pl.wait(1.0);
+    pl.p.remote("Paused");
+    pl.idle();
+    assert!(pl.view.controls(), "the remote's pause hid the controls");
+    assert_eq!(pl.view.toast_text(), Some("Paused"));
+    // 5 s after the last key, as while it plays.
+    pl.wait(3.8);
+    assert!(pl.view.controls());
+    pl.wait(0.3);
+    assert!(!pl.view.controls(), "the remote's pause kept the controls");
+    assert_eq!(pl.focus(), Some(Target::Video));
+
+    // Playing again, by the remote, the remote's pause is over: a pause here keeps them again.
+    pl.p.play();
+    pl.p.remote("Playing");
+    pl.idle();
+    assert_eq!(pl.view.toast_text(), Some("Playing"));
+    pl.press(Key::PlayPause);
+    assert!(pl.view.controls());
+    pl.wait(8.0);
+    assert!(pl.view.controls(), "the pause here didn't keep the controls");
 }
 
 #[test]

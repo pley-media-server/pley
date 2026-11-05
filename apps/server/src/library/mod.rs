@@ -1,5 +1,6 @@
 //! Libraries: folders of movies, shows or music that are scanned into items.
 
+pub mod nfo;
 pub mod parse;
 pub mod scanner;
 pub mod sidecar;

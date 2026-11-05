@@ -479,9 +479,11 @@ export class Tokens {
   /**
    * Moves the sign-in to another profile of the household (the
    * switch-profile grant of pley's own apps), or checks the PIN of the one
-   * it acts as. A wrong PIN changes nothing.
+   * it acts as. A wrong PIN changes nothing. `ticket`, in place of a PIN:
+   * a cast's from another profile's remote (docs/API.md, "Casting"); a spent
+   * one is `invalid_grant` with reason `ticket_spent`, and changes nothing.
    */
-  switchProfile(profile: number, pin: string | null): Promise<void> {
+  switchProfile(profile: number, pin: string | null, ticket: string | null = null): Promise<void> {
     return this.serial(async () => {
       const tokens = this.load();
       if (!tokens) throw new SignedOutError();
@@ -493,6 +495,7 @@ export class Tokens {
         ["profile", String(profile)],
       ];
       if (pin !== null) fields.push(["pin", pin]);
+      if (ticket !== null) fields.push(["ticket", ticket]);
       await this.proved(tokens, true);
       let answer: unknown;
       try {

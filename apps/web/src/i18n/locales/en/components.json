@@ -73,7 +73,8 @@
   },
   "castReceiver": {
     "playingFrom": "Playing from {{device}}",
-    "anotherDevice": "another device"
+    "anotherDevice": "another device",
+    "switchFailed": "Couldn't switch to the remote's profile"
   },
   "collectionCard": {
     "collections": "Collections",
@@ -132,10 +133,13 @@
   },
   "playOn": {
     "label": "Play on…",
-    "playingOn": "Playing on {{device}}"
+    "playingOn": "Playing on {{device}}",
+    "otherProfile": "{{device}} is on {{profile}}'s profile: it switches to yours first.",
+    "enterPin": "Enter your PIN"
   },
   "remote": {
     "readyToPlay": "Ready to play",
+    "onProfile": "On {{name}}'s profile",
     "liveTv": "Live TV",
     "buttonPlaying_one": "Remote, {{count, number}} device playing",
     "buttonPlaying_other": "Remote, {{count, number}} devices playing",

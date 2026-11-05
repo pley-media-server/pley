@@ -1,0 +1,61 @@
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+import type { ItemDetail } from "@/api/types";
+import { makeItem } from "@/test/fixtures";
+import { mockApi, renderWithProviders } from "@/test/render";
+import { EditDialogs } from "./EditMenu";
+
+function movie(overrides: Partial<ItemDetail> = {}): ItemDetail {
+  return {
+    ...makeItem({ id: 5, kind: "movie", title: "Alien: Director's Cut", year: 1979 }),
+    original_title: null,
+    tagline: null,
+    genres: [],
+    studio: null,
+    content_rating: null,
+    tmdb_id: 348,
+    imdb_id: null,
+    files: [],
+    in_watchlist: false,
+    ...overrides,
+  };
+}
+
+describe("EditDialogs", () => {
+  it("says which fields come from the NFO file, and an edit's lock wins", () => {
+    renderWithProviders(
+      <EditDialogs item={movie({ nfo_fields: ["summary", "title"], locked_fields: ["title"] })} dialog="details" onClose={() => {}} />,
+    );
+    expect(screen.getByText(/Fields from the NFO file next to it win over the metadata source/)).toBeInTheDocument();
+    // The title is edited: its lock shows; the summary is the NFO file's.
+    expect(screen.getAllByText("From the NFO file")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Locked: click to unlock" })).toBeInTheDocument();
+  });
+
+  it("says nothing of NFO files for an item without one", () => {
+    renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
+    expect(screen.queryByText("From the NFO file")).not.toBeInTheDocument();
+    expect(screen.queryByText(/NFO file/)).not.toBeInTheDocument();
+  });
+
+  it("undoes Fix Match, for the NFO file to decide the match again", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/items/5/matches": () => [],
+      "PATCH /api/items/5": () => movie({ locked_fields: [], tmdb_id: 8077, title: "Alien³" }),
+    });
+    renderWithProviders(<EditDialogs item={movie({ locked_fields: ["match"] })} dialog="match" onClose={() => {}} />);
+    expect(screen.getByText(/Matched here by hand/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Undo Fix Match" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ match: null }));
+    expect(await screen.findByText("Fix Match undone")).toBeInTheDocument();
+  });
+
+  it("offers no undo for a match nobody fixed", () => {
+    mockApi({ "GET /api/items/5/matches": () => [] });
+    renderWithProviders(<EditDialogs item={movie()} dialog="match" onClose={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Undo Fix Match" })).not.toBeInTheDocument();
+  });
+});

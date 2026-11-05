@@ -27,6 +27,10 @@ PAUSED_EVERY = 30
 # that takes over 5 seconds to stop).
 TIMEOUT = 5
 LAST_TIMEOUT = 2
+# A cast's switch to its remote's profile waits this long for what played to
+# end as the profile it played as (its last report, its session's end): what
+# hasn't gone by then is dropped, never sent as the profile switched to.
+LEAVE_WAIT = 5
 # Ended this close to the end (or in the credits), a title was watched to
 # its end; ended earlier (a stream that broke off), it was not.
 ENDED_FROM = 0.9
@@ -192,10 +196,34 @@ class Player(xbmc.Player):
         self.restarting = None
         # Casts heard: only the last one heard plays (play_cast).
         self.casts = 0
+        # A cast's switch to its remote's profile is under way: casts heard
+        # meanwhile are dropped (cast). Until when what the profile being
+        # left still sends may go (leave_playing).
+        self.switching = False
+        self.leaving_until = None
 
     # ------------------------------------------------------------ requests
 
     def call(self, method: str, path: str, body=None, timeout: float = TIMEOUT, fine=(410,)):
+        """One request to the server (request): its answer, or None when
+        signed out or out of reach. While a cast's switch waits for the
+        profile being left, it goes within that wait or not at all."""
+        timeout = self.in_time(timeout)
+        if timeout is None:
+            kodi.log("%s %s dropped: the cast's switch waits no longer" % (method, path), xbmc.LOGWARNING)
+            return None
+        return self.request(method, path, body, timeout, fine)
+
+    def in_time(self, timeout: float):
+        """`timeout`, cut to what is left of a cast's switch's wait; None
+        once that wait is over."""
+        until = self.leaving_until
+        if until is None:
+            return timeout
+        left = until - self.clock()
+        return min(timeout, left) if left > 0 else None
+
+    def request(self, method: str, path: str, body, timeout: float, fine):
         """One request to the server, the token renewed once if refused: its
         answer, or None when signed out or out of reach. Refusals but `fine`
         ones are logged."""
@@ -210,6 +238,9 @@ class Player(xbmc.Player):
                         kodi.log("%s %s: %d" % (method, path, response.status), xbmc.LOGWARNING)
                     return response
                 token = self.tokens.refreshed(token, server)
+                timeout = self.in_time(timeout)
+                if timeout is None:
+                    return None
         except (api.ApiError, auth.SignedOut) as e:
             if isinstance(e, api.ApiError) and e.status == 0:
                 # Nothing answered: the server proves itself again before the next token.
@@ -473,7 +504,8 @@ class Player(xbmc.Player):
             "duration_ms": playing.get("duration_ms") or None,
             "has_next": queued or following is not None,
         }
-        if (place is not None and place[0] == "music") or playing.get("kind") in listing.MUSIC:
+        music = (place is not None and place[0] == "music") or playing.get("kind") in listing.MUSIC
+        if music:
             player["index"] = place[1] if place is not None else 0
         if command.get("command") in remote.TRACKS:
             # Switched in Kodi's player (tracks.Follower.obey); music, and a
@@ -504,6 +536,9 @@ class Player(xbmc.Player):
                 self.play_next(following)
         elif act == "previous":
             self.playprevious()
+        # Music shows what plays where it plays, and is left as it was.
+        if not music:
+            self.remote_notice(remote.notice(command, action, kodi.text))
         if action["report"] and act not in ("play", "pause"):
             with self.lock:
                 if self.reports is not reports:
@@ -514,6 +549,15 @@ class Player(xbmc.Player):
                     (reports.pause if paused else reports.resume)()
                 else:
                     reports.report("paused" if paused else "playing")
+
+    def remote_notice(self, words: str) -> None:
+        """What the user's remote did to a video, for a moment as Kodi's
+        notification, without its sound. The add-on brings up nothing of
+        Kodi's player for a command; what Kodi shows itself for a pause or
+        a seek (the skin's seek bar, as for its own keys) is the skin's, and
+        stays."""
+        if words:
+            kodi.notify(words, icon=kodi.addon_icon(), ms=remote.NOTICE_MS, sound=False)
 
     def obey_quality(self, reports: Reports, command: dict) -> None:
         """The remote's quality (remote.obey_quality), as picking it in
@@ -538,6 +582,7 @@ class Player(xbmc.Player):
             return
         kodi.set_setting(playback.QUALITY, action["quality"])
         kodi.log("the remote picked the quality %s" % action["quality"])
+        self.remote_notice(remote.notice(command, action, kodi.text))
         item_id, position = playing["item_id"], self.position()
         with self.lock:
             # Not Automatic's restart: the title gets a watch of its own.
@@ -577,15 +622,121 @@ class Player(xbmc.Player):
         action = casting.action(playback.install_id(), self.taking(), event)
         if action["act"] == "none":
             return
+        switch = casting.switch_to(event, self.profile_now())
+        if switch == casting.IGNORED:
+            return
         with self.lock:
+            if self.switching:
+                # Another cast switches profile: this one would play as
+                # whichever profile it caught, so none plays it.
+                return
             self.casts += 1
             mine = self.casts
-        self.worker.put(lambda: self.play_cast(action, event.get("from"), mine))
+        self.worker.put(lambda: self.play_cast(action, event.get("from"), mine, switch))
 
-    def play_cast(self, action: dict, device, mine: int) -> None:
+    def profile_now(self):
+        """The profile the add-on acts as: its id, or None for the one
+        picked as it signed in."""
+        identity = self.tokens.identity()
+        return identity[1] if identity else None
+
+    def current_cast(self, mine: int) -> bool:
+        """Whether cast `mine` may still play: no other came since, and Kodi
+        takes casts."""
+        return self.casts == mine and self.taking()
+
+    def play_cast(self, action: dict, device, mine: int, switch=None) -> None:
         """Plays a cast as the add-on's own Play would, in place of what
         plays, through the service's proxy; then says where it came from,
-        over what starts, as the add-on's other notices are said."""
+        over what starts, as the add-on's other notices are said. `switch`
+        (casting.switch_to): the remote's profile to switch to first."""
+        if switch is not None and self.profile_now() != switch["profile_id"]:
+            with self.lock:
+                if not self.current_cast(mine):
+                    return
+                self.switching = True
+                self.leaving_until = self.clock() + LEAVE_WAIT
+            # What plays is the profile's being left: its last report, and
+            # its live channel's end, go as that profile, on the worker
+            # before the switch, within LEAVE_WAIT.
+            try:
+                left = self.leave_playing()
+                self.worker.put(lambda: self.switch_for_cast(action, device, mine, switch, left))
+            except BaseException:
+                self.switch_done()
+                raise
+            return
+        self.play_now(action, device, mine)
+
+    def leave_playing(self) -> str:
+        """Ends the playback reported, and the live channel's session held,
+        as a switch to another profile nears: the file Kodi plays, which it
+        goes on playing until the cast takes its place; "" for none."""
+        with self.lock:
+            left = self.reports.playing["path"] if self.reports is not None else ""
+            if self.reports is not None:
+                self._finish_locked(ended=False)
+            live, self.live = self.live, None
+        if live is not None:
+            self.leave_live(live)
+            left = left or self.playing_file()
+        return left
+
+    def switch_for_cast(self, action: dict, device, mine: int, switch: dict, left: str) -> None:
+        """Switches to the remote's profile with the cast's ticket, then
+        plays the cast; a switch that fails says so, plays nothing, and
+        stops what played, which was left for the cast. Casts heard from
+        then on play by the usual rules, as the profile switched to."""
+        # What the profile left hasn't sent by now goes no more.
+        self.leaving_until = None
+        try:
+            switched = self.current_cast(mine) and self.switch_profile_for_cast(switch, left)
+        finally:
+            self.switch_done()
+        if switched:
+            self.play_now(action, device, mine)
+
+    def switch_profile_for_cast(self, switch: dict, left: str) -> bool:
+        """The switch itself: whether the add-on acts as the remote's
+        profile now."""
+        from . import casting
+
+        if self.profile_now() == switch["profile_id"]:
+            return True
+        try:
+            self.tokens.switch_profile(switch["profile_id"], ticket=switch["ticket"])
+        except auth.SignedOut:
+            return False
+        except api.ApiError as e:
+            kodi.log("cast's switch to profile %d: %s %s" % (switch["profile_id"], e.code, e.message), xbmc.LOGWARNING)
+            if e.status == 0:
+                # Nothing answered: the server proves itself again before the next token.
+                self.tokens.doubt()
+            if left and self.playing_file() == left:
+                self.stop()
+            kodi.notify(kodi.text("cast_switch_failed"), error=True, ms=casting.BANNER_MS)
+            return False
+        self.switched_for_cast()
+        return True
+
+    def switch_done(self) -> None:
+        """The cast's switch is over, done or not: casts play again."""
+        with self.lock:
+            self.switching = False
+            self.leaving_until = None
+
+    def switched_for_cast(self) -> None:
+        """The add-on acts as the remote's profile now: the window, the
+        listing on screen and requests' summary are that profile's, as after
+        the plugin's switch."""
+        profiles.tell_switched()
+        # Requests' summary was the profile's before (news.py reads the new one).
+        kodi.clear_property(requests.SUMMARY)
+        if xbmc.getInfoLabel("Container.FolderPath").startswith("plugin://%s/" % kodi.ADDON_ID):
+            xbmc.executebuiltin("Container.Refresh")
+
+    def play_now(self, action: dict, device, mine: int) -> None:
+        """Plays the cast as the profile the add-on acts as now."""
         from . import casting
 
         base = kodi.get_property(kodi.PROXY)
@@ -593,7 +744,7 @@ class Player(xbmc.Player):
             return
 
         def current():
-            return self.casts == mine and self.taking()
+            return self.current_cast(mine)
 
         client = api.Client(base, self.user_agent, local=True)
         try:

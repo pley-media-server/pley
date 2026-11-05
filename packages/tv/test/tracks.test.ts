@@ -20,17 +20,17 @@ function writtenQuality(a: QualityAction): Record<string, unknown> {
   return a.act === "none" ? { act: "none", report: a.report } : { act: a.act, quality: a.id, report: a.report };
 }
 
-/** A cast's answer as the fixture writes it, with the banner it shows as it starts. */
+/** A cast's answer as the fixture writes it, with the banner it shows as it starts, and the switch first when it makes one. */
 function writtenCast(a: CastAction, from: string | null): Record<string, unknown> {
+  if (a.act === "none") return { act: "none" };
+  const switched = a.switchTo ? { switch: { profile: a.switchTo.profile, ticket: a.switchTo.ticket } } : {};
   switch (a.act) {
-    case "none":
-      return { act: "none" };
     case "item":
-      return { act: "item", item_id: a.itemId, start_ms: a.startMs, shuffle: a.shuffle, audio_index: a.audioIndex, subtitle_index: a.subtitleIndex, banner: castBanner(from) };
+      return { act: "item", item_id: a.itemId, start_ms: a.startMs, shuffle: a.shuffle, audio_index: a.audioIndex, subtitle_index: a.subtitleIndex, banner: castBanner(from), ...switched };
     case "playlist":
-      return { act: "playlist", playlist_id: a.playlistId, shuffle: a.shuffle, banner: castBanner(from) };
+      return { act: "playlist", playlist_id: a.playlistId, shuffle: a.shuffle, banner: castBanner(from), ...switched };
     case "channel":
-      return { act: "channel", channel_id: a.channelId, banner: castBanner(from) };
+      return { act: "channel", channel_id: a.channelId, banner: castBanner(from), ...switched };
   }
 }
 
@@ -66,10 +66,13 @@ describe("tracks and casts, as the shared fixture has them", () => {
     }
   });
 
-  it("casts: this TV's own, while it shows", () => {
+  it("casts: this TV's own, while it shows, as the remote's profile, none while a cast's switch is made", () => {
     for (const c of fixture.casts) {
       const e = { type: "cast", ...c.in.cast } as CastEvent;
-      sameFields(c.in, writtenCast(castAction(c.in.receiver_id, c.in.shown, e), e.from), c.out);
+      // The profile the TV acts as: none known when the case leaves it out. No switch under way unless it says so.
+      const profile = "profile" in c.in && typeof c.in.profile === "number" ? c.in.profile : null;
+      const switching = "switching" in c.in && c.in.switching === true;
+      sameFields(c.in, writtenCast(castAction(c.in.receiver_id, profile, c.in.shown, e, switching), e.from), c.out);
     }
   });
 

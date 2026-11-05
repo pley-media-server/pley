@@ -38,8 +38,8 @@ use serde_json::{Value, json};
 use url::Url;
 
 use super::auth::{
-    NO_WAY_IN, NOT_ALLOWED, PIN_LOCKED, PIN_NEEDED, SwitchError, SwitchTarget, check_own_pin, check_switch,
-    switch_needs, switch_targets,
+    NO_WAY_IN, NOT_ALLOWED, PIN_LOCKED, PIN_NEEDED, SwitchError, SwitchTarget, TICKET_SPENT, check_own_pin,
+    check_switch, check_ticket_switch, switch_needs, switch_targets,
 };
 use crate::auth::grants::{self, GrantRow, IssueError, Issued, NewGrant, RefreshError, RefreshInput, SwitchInput};
 use crate::auth::scopes::{Scope, Scopes};
@@ -1173,7 +1173,11 @@ async fn switch_profile(
             format!("this app wasn't allowed to {}: sign in to it again to allow it", Scope::Profiles.words()),
         ));
     }
-    if profile == holder.user.id {
+    if let Some(ticket) = form.get("ticket") {
+        // A cast from another profile's remote: this device switches to it.
+        let device = format!("app-{}", holder.grant_id);
+        check_ticket_switch(state, &holder.user, Some(&device), profile, ticket, true).await.map_err(refused_switch)?;
+    } else if profile == holder.user.id {
         // "Who's watching?" as a TV starts: the profile's own PIN, checked
         // and answered as a switch to it would be. Without a PIN to check,
         // the app has nothing to ask (older servers answered this to every
@@ -1247,6 +1251,7 @@ fn refused_switch(err: SwitchError) -> OAuthError {
         SwitchError::PinLocked => ("pin_locked", PIN_LOCKED.to_owned()),
         SwitchError::PinNeeded => ("wrong_pin", PIN_NEEDED.to_owned()),
         SwitchError::WrongPin => ("wrong_pin", "wrong PIN".to_owned()),
+        SwitchError::TicketSpent => ("ticket_spent", TICKET_SPENT.to_owned()),
         SwitchError::PasswordNeeded | SwitchError::WrongPassword | SwitchError::TwoStep(_) => (
             "browser",
             "this profile can see more than yours: sign in to the app again, and pick the profile in the browser"

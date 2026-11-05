@@ -194,8 +194,16 @@
   },
   "cast": {
     "nothingToPlay": "Rien à lire",
+    "switchFailed": "Impossible de passer au profil de la télécommande",
     "playingFrom": "Lecture depuis {{device}}",
     "anotherDevice": "un autre appareil"
+  },
+  "remote": {
+    "paused": "En pause",
+    "playing": "Lecture",
+    "jumpedTo": "Position : {{time}}",
+    "audio": "Audio : {{track}}",
+    "quality": "Qualité : {{quality}}"
   },
   "errors": {
     "title": "Impossible de lire cet élément",

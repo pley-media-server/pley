@@ -349,7 +349,7 @@ public sealed class SettingsModel : IDisposable
                 if (state.Profiles.Count > 1)
                 {
                     var chosen = state.Profiles.FirstOrDefault(p => p.Id == state.AlwaysStartAs)?.Name;
-                    items.Add(new SettingsItem.Row("row-start-as", SettingsText.AlwaysStartAs, new SettingAction.Pick(new SettingPick.AlwaysStartAs()), chosen ?? SettingsText.AskWho, "user-round"));
+                    items.Add(new SettingsItem.Row("row-start-as", SettingsText.AlwaysStartAs, new SettingAction.Pick(new SettingPick.AlwaysStartAs()), chosen ?? SettingsText.UsedLast, "user-round"));
                 }
                 items.Add(new SettingsItem.Row("row-web", SettingsText.ManageWeb, new SettingAction.Web("/account"), SettingsText.ManageWebValue, "app-window"));
                 break;
@@ -423,7 +423,7 @@ public sealed class SettingsModel : IDisposable
             SettingPick.Language => (SettingsText.Language, new[] { LanguageLabel(null) }.Concat(Languages.All.Select(Languages.NameOf)).Select(l => (l, (string?)null)).ToList(),
                 state.Me.Language?.Code is { } code ? Index(Languages.All, code) + 1 : 0),
             SettingPick.AlwaysStartAs => (SettingsText.AlwaysStartAs,
-                new[] { (SettingsText.AskWho, (string?)null) }.Concat(state.Profiles.Select(x => (x.Name, (string?)null))).ToList(),
+                new[] { (SettingsText.UsedLast, (string?)null) }.Concat(state.Profiles.Select(x => (x.Name, (string?)null))).ToList(),
                 state.AlwaysStartAs is { } id ? state.Profiles.Select((x, n) => (x, n)).Where(x => x.x.Id == id).Select(x => x.n + 1).FirstOrDefault() : 0),
             SettingPick.Quality => (SettingsText.Quality, Qualities.All.Select(q => (SettingsText.QualityLabel(q.Id), SettingsText.QualityHint(q.Id))).ToList(),
                 Math.Max(0, Index(Qualities.All, Qualities.ByIdOrLabel(s.Quality)))),

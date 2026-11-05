@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Delete, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { useProfiles, useServer, useSwitchProfile } from "@/api/hooks";
 import type { ServerStatus, TwoStepSetup, User } from "@/api/types";
@@ -9,6 +9,7 @@ import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { Avatar } from "@/components/Avatar";
 import { Logo } from "@/components/Logo";
+import { PinPad } from "@/components/PinPad";
 import { Button, Spinner, TextInput } from "@/components/ui";
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -62,102 +63,6 @@ export function challenge(target: User, me: User, server?: ServerStatus): "none"
 /** The server explains 403 (wrong PIN or password) and 429 (too many tries). */
 function switchError(err: unknown): string {
   return isApiError(err, 0) ? translate("profiles.cantReach", { ns: "pages" }) : errorMessage(err);
-}
-
-const PAD = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "back", "0", "ok"] as const;
-
-function PinPad({
-  target,
-  busy,
-  locked,
-  error,
-  onSubmit,
-  onCancel,
-}: {
-  target: User;
-  busy: boolean;
-  /** The PIN is locked after too many wrong ones: the keys stop. */
-  locked: boolean;
-  error: string | null;
-  /** Called with the PIN once it has at least 4 digits. */
-  onSubmit: (pin: string) => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation("pages");
-  const [pin, setPinState] = useState("");
-  // Keys can arrive faster than renders (quick typing, password managers):
-  // the ref always holds what was typed so far.
-  const pinRef = useRef("");
-  const setPin = useCallback((next: string) => {
-    pinRef.current = next;
-    setPinState(next);
-  }, []);
-
-  const press = useCallback(
-    (key: (typeof PAD)[number]) => {
-      if (busy || locked) return;
-      const current = pinRef.current;
-      if (key === "back") setPin(current.slice(0, -1));
-      else if (key === "ok") {
-        if (current.length >= 4) onSubmit(current);
-      } else if (current.length < 8) setPin(current + key);
-    },
-    [busy, locked, onSubmit, setPin],
-  );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (/^\d$/.test(e.key)) press(e.key as (typeof PAD)[number]);
-      else if (e.key === "Backspace") press("back");
-      else if (e.key === "Enter") press("ok");
-      else if (e.key === "Escape") onCancel();
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [press, onCancel]);
-
-  return (
-    <div className="flex flex-col items-center">
-      <Avatar user={target} size="lg" />
-      <div className="mt-3 text-lg font-semibold">{target.name}</div>
-      <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-        <Lock className="size-3.5" /> {t("profiles.enterPin")}
-      </div>
-      <div className="mt-5 flex h-4 items-center gap-3" aria-label={t("profiles.digitsEntered", { count: pin.length })}>
-        {Array.from({ length: Math.max(4, pin.length) }, (_, i) => (
-          <span
-            key={i}
-            className={cn("size-3 rounded-full border transition-colors", i < pin.length ? "border-accent bg-accent" : "border-border-strong")}
-          />
-        ))}
-      </div>
-      <p role="alert" className="mt-3 min-h-5 text-sm text-danger">
-        {error}
-      </p>
-      <div className="mt-2 grid grid-cols-3 gap-3">
-        {PAD.map((key) => (
-          <button
-            key={key}
-            type="button"
-            disabled={busy || locked || (key === "ok" && pin.length < 4)}
-            onClick={() => press(key)}
-            aria-label={key === "back" ? t("profiles.deleteDigit") : key === "ok" ? t("profiles.switch") : key}
-            className={cn(
-              "flex size-16 items-center justify-center rounded-full text-xl font-semibold transition-colors disabled:opacity-40",
-              key === "ok" ? "bg-accent text-accent-fg hover:bg-accent-hover" : "bg-surface-2 text-fg hover:bg-surface-3",
-            )}
-          >
-            {key === "back" ? <Delete className="size-5" /> : key === "ok" ? busy ? <Spinner className="size-5 text-accent-fg" /> : t("profiles.ok") : key}
-          </button>
-        ))}
-      </div>
-      <Button variant="ghost" className="mt-6" icon={<ArrowLeft className="size-4" />} onClick={onCancel}>
-        {t("profiles.backToProfiles")}
-      </Button>
-    </div>
-  );
 }
 
 function PasswordPrompt({

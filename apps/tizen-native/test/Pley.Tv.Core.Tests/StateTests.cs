@@ -58,6 +58,9 @@ public class StateTests
         // "Always start as" is the TV's, whichever server it uses.
         Assert.Equal(2, State(store, new FakeServer(), scheduler).AlwaysStartAs());
         Assert.Equal("2", store.Get("pley.alwaysStartAs"));
+        // Without it, a profile without a PIN goes straight in too.
+        state.SetAlwaysStartAs(null);
+        Assert.Equal(StartPage.Home, State(store, new FakeServer(), scheduler).Start());
     }
 
     [Fact]
@@ -78,6 +81,9 @@ public class StateTests
         Assert.Equal(StartPage.Profiles, state.Start());
         await state.Switched(2);
         Assert.Equal(StartPage.Pin, State(store, new FakeServer(), scheduler).Start());
+        // Without it, "Who's watching?" first: the profile has a PIN.
+        state.SetAlwaysStartAs(null);
+        Assert.Equal(StartPage.Profiles, State(store, new FakeServer(), scheduler).Start());
     }
 
     [Fact]

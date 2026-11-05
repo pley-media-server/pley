@@ -2,6 +2,8 @@ package app.pley.android.player
 
 import android.app.Activity
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 
 /**
  * The player windows open in this process, video and Live TV, the phone's
@@ -12,8 +14,12 @@ import java.lang.ref.WeakReference
 object PlayerWindows {
     private val open = mutableListOf<WeakReference<Activity>>()
 
+    /** The windows opened that haven't gone yet, those closing too: [gone] waits for none. */
+    private val alive = MutableStateFlow(0)
+
     /** [window] opened: the others close. */
     fun opened(window: Activity) {
+        alive.value++
         open.mapNotNull { it.get() }.filter { it !== window && !it.isFinishing }.forEach { it.finish() }
         open.clear()
         open += WeakReference(window)
@@ -22,11 +28,20 @@ object PlayerWindows {
     /** [window] went. */
     fun closed(window: Activity) {
         open.removeAll { it.get() == null || it.get() === window }
+        alive.value = (alive.value - 1).coerceAtLeast(0)
     }
 
     /** Every player window closes: something else plays now. */
     fun closeAll() {
         open.mapNotNull { it.get() }.filter { !it.isFinishing }.forEach { it.finish() }
         open.clear()
+    }
+
+    /**
+     * Waits until every player window has gone: what each played has
+     * stopped by then, as the windows stop it as they leave the screen.
+     */
+    suspend fun gone() {
+        alive.first { it == 0 }
     }
 }

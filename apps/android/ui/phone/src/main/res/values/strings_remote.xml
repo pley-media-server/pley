@@ -1,25 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The remote of the profile's other devices: the bar above the tabs and its sheet (apps/web/src/components/Remote.tsx). -->
+    <!-- The remote of the profile's other devices: Home's button, its sheet, and the bar above the tabs while this phone controls one (apps/web/src/components/Remote.tsx). -->
     <string name="remote_playing_on">Playing on %1$s</string>
-    <plurals name="remote_playing_on_devices">
-        <item quantity="one">Playing on %1$d device</item>
-        <item quantity="other">Playing on %1$d devices</item>
+    <string name="remote_paused_on">Paused on %1$s</string>
+    <!-- What TalkBack says of Home's button. -->
+    <plurals name="remote_button_playing">
+        <item quantity="one">Remote, %1$d device playing</item>
+        <item quantity="other">Remote, %1$d devices playing</item>
     </plurals>
-    <string name="remote_open">Open the remote</string>
+    <plurals name="remote_button_ready">
+        <item quantity="one">Remote, %1$d device ready to play</item>
+        <item quantity="other">Remote, %1$d devices ready to play</item>
+    </plurals>
     <string name="remote_title">Your devices</string>
     <string name="remote_unknown_device">Unknown device</string>
     <!-- Two devices of the same name, told apart: "Living room TV (2)". -->
     <string name="remote_device_numbered" translatable="false">%1$s (%2$d)</string>
-    <!-- Between the devices' names on the bar: "Living room TV, Pixel 8". -->
-    <string name="remote_device_separator" translatable="false">", "</string>
     <string name="remote_live_tv">Live TV</string>
 
-    <!-- A device in the list that plays nothing, and its controls then. -->
+    <!-- A device in the list that plays nothing: only listed, it has no controls. -->
     <string name="remote_ready">Ready to play</string>
-    <string name="remote_nothing_playing">Nothing playing</string>
-    <string name="remote_idle_hint">Send something here with Play on…</string>
-    <!-- What TalkBack says a device's row does, and the way back from its controls. -->
+    <!-- A device on another profile of the household, by that profile's name; what it plays stays theirs. -->
+    <string name="remote_on_profile">On %1$s\'s profile</string>
+    <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
     <string name="remote_open_device">Show its controls</string>
     <string name="remote_back_to_devices">Back to your devices</string>
 
@@ -40,7 +43,6 @@
     <string name="remote_stop_on">Stop on %1$s</string>
     <!-- Stop asks first. -->
     <string name="remote_stop_confirm">Stop playing on %1$s?</string>
-    <string name="remote_waiting">Waiting for %1$s</string>
     <string name="remote_position">%1$s of %2$s</string>
 
     <!-- The tracks and the quality a device plays, each an icon that opens a menu: its hint on a long press, and what TalkBack says. -->
@@ -73,4 +75,10 @@
     <!-- Refused, said under the chooser's devices. -->
     <string name="play_on_gone">%1$s isn\'t on any more.</string>
     <string name="play_on_cant">%1$s can\'t play that.</string>
+    <!-- To a device on another profile, when this one has a PIN: the PIN pad, what it is for, and its way back. -->
+    <string name="play_on_pin_title">Enter your PIN</string>
+    <string name="play_on_pin_body">%1$s switches from %2$s\'s profile to yours.</string>
+    <string name="play_on_back">Back to the devices</string>
+    <string name="play_on_wrong_pin">Wrong PIN. Try again.</string>
+    <string name="play_on_pin_locked">Your PIN is locked after too many wrong tries. You or an administrator can reset it.</string>
 </resources>

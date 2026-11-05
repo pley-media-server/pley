@@ -9,6 +9,7 @@ import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.StreamKind
+import app.pley.android.model.format.formatClock
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerPhase
 import app.pley.android.testing.caps.TestDevices
@@ -145,6 +146,7 @@ class RemoteTest {
         assertTrue(h.engine.seeks.isEmpty())
         assertEquals(PlayerPhase.Playing, c.state.value.phase)
         assertEquals(reports, h.progress(SessionHarness.S1E1).size)
+        assertNull(c.state.value.remoteNotice)
     }
 
     @Test
@@ -202,6 +204,99 @@ class RemoteTest {
         assertEquals(9_000L, h.progress(SessionHarness.S1E1).last().second.positionMs)
         command(Control.Skip, offsetMs = -30_000)
         assertEquals(0L, h.engine.seeks.last())
+    }
+
+    @Test
+    fun `the remote's pause and play say so for a moment, and its pause is the remote's until it plays`() {
+        val c = playing()
+        command(Control.Pause)
+        assertEquals(PlayerPhase.Paused, c.state.value.phase)
+        assertTrue(c.state.value.pausedByRemote)
+        assertEquals("Paused", c.state.value.remoteNotice)
+        c.dismissRemoteNotice()
+        assertNull(c.state.value.remoteNotice)
+
+        // Paused already: nothing changed, nothing said.
+        command(Control.Pause)
+        assertNull(c.state.value.remoteNotice)
+
+        command(Control.Play)
+        assertEquals("Playing", c.state.value.remoteNotice)
+        assertFalse(c.state.value.pausedByRemote)
+        c.dismissRemoteNotice()
+        command(Control.Play)
+        assertNull(c.state.value.remoteNotice)
+
+        // The screen's own pause is the person's.
+        c.pause()
+        h.settle()
+        assertEquals(PlayerPhase.Paused, c.state.value.phase)
+        assertFalse(c.state.value.pausedByRemote)
+        assertNull(c.state.value.remoteNotice)
+    }
+
+    @Test
+    fun `the remote's pause stays the remote's through its next, and the same words twice are said twice`() {
+        val c = playing()
+        val first = c.state.value.remoteNoticeId
+        command(Control.Skip, offsetMs = 3_000)
+        command(Control.Skip, offsetMs = 3_000)
+        assertEquals("+3 s", c.state.value.remoteNotice)
+        assertEquals(first + 2, c.state.value.remoteNoticeId)
+
+        command(Control.Pause)
+        command(Control.Next)
+        assertEquals(FixtureIds.SHOW_S1E2, c.state.value.itemId)
+        // The next episode starts paused, and its pause is still the remote's: the screens bring up nothing for it.
+        assertTrue(c.state.value.pausedByRemote)
+        c.close()
+    }
+
+    @Test
+    fun `the remote's seek says where it went, and its skip how far it asked`() {
+        val c = playing()
+        command(Control.Seek, positionMs = 4_000)
+        assertEquals("Jumped to 0:04", c.state.value.remoteNotice)
+        command(Control.Seek, positionMs = 10 * 60 * 60_000L)
+        val end = c.state.value.durationMs - SessionPlaybackController.SEEK_END_MARGIN_MS
+        assertEquals("Jumped to ${formatClock(end / 1000.0)}", c.state.value.remoteNotice)
+
+        command(Control.Seek, positionMs = 6_000)
+        command(Control.Skip, offsetMs = 30_000)
+        assertEquals("+30 s", c.state.value.remoteNotice)
+        // Stopped at the start, it still says what was asked for, as the TV's seek badge does.
+        command(Control.Skip, offsetMs = -60_000)
+        assertEquals(0L, h.engine.seeks.last())
+        assertEquals("−60 s", c.state.value.remoteNotice)
+        assertFalse(c.state.value.pausedByRemote)
+    }
+
+    @Test
+    fun `the remote's tracks and quality are said by the menus' names, and a pick of what plays says nothing`() {
+        h.close()
+        h = harness(TestCaps.hdrTv())
+        val movie = Catalogue.movieWithTracks(h.api)
+        val streams = movie.files.first().streams
+        val audio = streams.filter { it.kind == StreamKind.Audio }
+        val text = streams.first { it.kind == StreamKind.Subtitle && it.textBased == true }
+        val c = playing(movie.id)
+        command(Control.Audio, streamIndex = audio[1].index, session = sessionId(movie.id))
+        assertEquals("Audio: ${c.state.value.audio.first { it.selected }.label}", c.state.value.remoteNotice)
+        c.dismissRemoteNotice()
+        command(Control.Audio, streamIndex = audio[1].index, session = sessionId(movie.id))
+        assertNull(c.state.value.remoteNotice)
+
+        command(Control.Subtitles, streamIndex = text.index, session = sessionId(movie.id))
+        assertEquals("Subtitles: ${c.state.value.subtitles.first { it.selected }.label}", c.state.value.remoteNotice)
+        command(Control.Subtitles, streamIndex = PlayingSession.SUBTITLES_OFF, session = sessionId(movie.id))
+        assertEquals("Subtitles off", c.state.value.remoteNotice)
+
+        command(Control.Quality, quality = "4m", session = sessionId(movie.id))
+        assertEquals("Quality: ${c.state.value.qualities.first { it.selected }.label}", c.state.value.remoteNotice)
+        c.dismissRemoteNotice()
+        command(Control.Quality, quality = "4m", session = sessionId(movie.id))
+        assertNull(c.state.value.remoteNotice)
+        c.close()
     }
 
     @Test

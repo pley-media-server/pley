@@ -25,6 +25,10 @@
     "subtitlesOff": "Sous-titres désactivés",
     "subtitles": "Sous-titres : {{track}}",
     "audio": "Audio : {{track}}",
+    "playing": "Lecture",
+    "paused": "En pause",
+    "jumpedTo": "Position : {{time}}",
+    "quality": "Qualité : {{quality}}",
     "playOriginalInQuality": "{{note}} « Lire l’original » se trouve dans Qualité.",
     "chooseInQuality": "{{note}} Choisissez-en une dans Qualité.",
     "subtitlesAdded": "Sous-titres ajoutés : {{track}}",
@@ -199,6 +203,7 @@
   "cast": {
     "playingFrom": "Lecture depuis {{device}}",
     "playingFromAnother": "Lecture depuis un autre appareil",
-    "nothingToPlay": "Rien à lire"
+    "nothingToPlay": "Rien à lire",
+    "switchFailed": "Impossible de passer au profil de la télécommande"
   }
 }

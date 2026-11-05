@@ -245,7 +245,8 @@ export function App(p: ShellProps) {
   }, [toast.value?.id]);
 
   // Casts from the user's remote on another device: what it sends plays here as Play would, over the player
-  // or the page on top (cast.ts has the rules), and the toast says where it came from.
+  // or the page on top (cast.ts has the rules), and the toast says where it came from. A remote on another profile
+  // switches the TV to its profile first, which starts on its Home.
   useEffect(() => {
     // In place of the player on top; over the page on top, Now Playing only when it isn't that already.
     const show = (key: PageKey) => {
@@ -258,6 +259,15 @@ export function App(p: ShellProps) {
     const receiver = new CastReceiver({
       id: () => state.installId(),
       shown: () => state.visible.value && state.signedIn && !state.signedOut.value && takesCasts(nav.root?.key),
+      profile: () => state.me.value?.id ?? null,
+      switchTo: async (profile, ticket, switched) => {
+        // What plays as the profile before ends while its sign-in still works, as signing out has it.
+        if (isPlayer(nav.top?.key)) nav.pop();
+        await state.switchForCast(profile, ticket);
+        // As a switch on "Who's watching?": the profile's Home, under what the cast plays.
+        nav.restart({ name: "home" });
+        switched();
+      },
       server: () => {
         const api = state.api.value;
         if (!api) return null;

@@ -275,8 +275,11 @@ fn every_connection_in_use_offers_to_watch_here_instead() {
 }
 
 /// The live session the player watches as, once the server lists it with what its player obeys,
-/// and the event stream it hears the remote on is open.
+/// the event stream it hears the remote on is open, and the player has the watch's answer: the
+/// server lists the session before the answer reaches the TV, and a command sent in between is
+/// for a session the player doesn't know yet. Its channel playing says it has it.
 fn remote_session(app: &mut TestApp) -> String {
+    let engine = app.engine().unwrap();
     let mut found = None;
     let heard = app.until(|a| {
         found = a
@@ -284,9 +287,12 @@ fn remote_session(app: &mut TestApp) -> String {
             .sessions_of(ids::ALEX)
             .into_iter()
             .find(|s| s["kind"] == "live" && s["controls"][0] == "next" && s["controls"][1] == "previous");
-        found.is_some() && a.server.event_listeners() > 0
+        found.is_some() && a.server.event_listeners() > 0 && engine.playing()
     });
-    assert!(heard, "the player never said it obeys the remote, or the events never connected");
+    assert!(
+        heard,
+        "the player never said it obeys the remote, its channel never played, or the events never connected"
+    );
     let session = found.unwrap();
     assert_eq!(session["device_kind"], "tv");
     session["session_id"].as_str().unwrap().to_string()

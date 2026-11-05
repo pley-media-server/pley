@@ -200,7 +200,8 @@ class Monitor(xbmc.Monitor):
         if method.endswith(POSTED):
             self.window.run_posted()
         elif method.endswith(SWITCHED):
-            # Switched from the add-on's settings, over the window.
+            # Switched from the add-on's settings, over the window, or by
+            # the service for a cast from another profile's remote.
             with self.window.lock:
                 if not self.window.closing:
                     self.window.switched()
@@ -352,9 +353,10 @@ class Window(xbmcgui.WindowXML):
         except api.ApiError as e:
             return self.failed(e, Home(self))
         self.setup_rail()
-        if self.household and len(self.household) > 1 and not kodi.get_property(profiles.GATE):
-            # A household's Kodi asks who is watching as it starts, as the
-            # TV apps do: once each time Kodi starts.
+        if profiles.asks_at_start(self.household, self.me, bool(kodi.get_property(profiles.GATE))):
+            # A household's Kodi asks who is watching as it starts when the
+            # profile in use has a PIN, as the TV apps do: once each time
+            # Kodi starts.
             return self.go(Profiles(self, self.household, gate=True))
         self.go(Home(self))
 

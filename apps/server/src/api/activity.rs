@@ -21,6 +21,7 @@ use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
+use crate::events::ServerEvent;
 use crate::library::scanner::ScanStatus;
 use crate::markers::AnalysisStatus;
 use crate::playback::{DeviceKind, Method, TranscodeInfo};
@@ -192,7 +193,7 @@ pub async fn events(
     // remotes cast to, until the stream ends. A query that doesn't parse
     // costs the stream nothing: it just isn't a receiver.
     let query = query.map(|Query(query)| query).unwrap_or_default();
-    let receiver = query.receiver.as_deref().and_then(remote::receiver_id).and_then(|id| {
+    let wanted = query.receiver.as_deref().and_then(remote::receiver_id).map(|id| {
         let declared = query.device_kind.as_deref().and_then(DeviceKind::from_name);
         let receiver = remote::Receiver {
             device_id: remote::device_id_of(&user, token.as_deref()).unwrap_or_else(|| format!("receiver-{id}")),
@@ -200,16 +201,42 @@ pub async fn events(
             given_name: query.device_name.as_deref().and_then(crate::oauth::clients::clean_name),
             kind: remote::device_kind_of(declared, &user, remote::user_agent(&headers)),
             casts: query.casts.as_deref().map(remote::cast_kinds).unwrap_or_default(),
+            // Only a stream that may switch profiles offers to: another
+            // app's would take the household's casts, and their PINs, for
+            // nothing.
+            switches: query.casts.as_deref().is_some_and(remote::casts_switch) && remote::reaches_household(&user),
         };
-        state.receivers.open(&state.events, user.id, id, receiver)
+        (id.to_owned(), receiver)
     });
+    // An id another device's stream holds stays that device's while it is
+    // open (`Receivers::open`), and is asked for again here as the user's
+    // receivers change (that stream ending among them) and at every
+    // recheck: a device back with a new token (signed in again, or switched
+    // back to the profile) takes its id once its old stream has gone.
+    let receiver = Arc::new(parking_lot::Mutex::new(None::<remote::ReceiverSlot>));
+    let claim = {
+        let (state, receiver, me) = (state.clone(), receiver.clone(), user.id);
+        Arc::new(move || {
+            let Some((id, wanted)) = &wanted else { return };
+            let mut slot = receiver.lock();
+            if slot.is_none() {
+                *slot = state.receivers.open(&state.events, me, id, wanted.clone());
+            }
+        })
+    };
+    claim();
+    // The receiver this stream asks to be, for the casts only it gets while
+    // it is.
+    let receiver_id = query.receiver.as_deref().and_then(remote::receiver_id).map(str::to_owned);
     // The session or app token is checked again every so often
     // (`Config::event_recheck`): the stream ends once it is signed out, it
     // expires or its user is disabled, and follows changes of access.
     let ended = tokio_util::sync::CancellationToken::new();
     {
-        let (state, libraries, manager, admin, ended) =
-            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone());
+        // Weak: the stream holds what it is a receiver by, and lets it go
+        // the moment it ends.
+        let (state, libraries, manager, admin, ended, claim) =
+            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone(), Arc::downgrade(&claim));
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(state.config.event_recheck);
             tick.tick().await;
@@ -231,6 +258,9 @@ pub async fn events(
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
                 admin.store(user.oversees_playback(), Ordering::Relaxed);
+                if let Some(claim) = claim.upgrade() {
+                    claim();
+                }
             }
         });
     }
@@ -248,6 +278,22 @@ pub async fn events(
             None => {
                 event.user_id().is_none_or(|id| id == me)
                     || (event.to_administrators() && admin.load(Ordering::Relaxed))
+            }
+        })
+        // The user's receivers changed: one this stream was refused may be
+        // free now.
+        .map(move |event| {
+            if matches!(&event, ServerEvent::SessionsChanged { user_id } if *user_id == me) {
+                claim();
+            }
+            event
+        })
+        // A cast from another profile goes to the receiver it names alone,
+        // the stream that holds it.
+        .filter({
+            let receiver = receiver.clone();
+            move |event| {
+                event.receiver_only().is_none_or(|id| receiver_id.as_deref() == Some(id) && receiver.lock().is_some())
             }
         })
         .filter(move |event| match (event.library_id(), &*libraries.read()) {

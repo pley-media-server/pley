@@ -75,7 +75,8 @@
   },
   "castReceiver": {
     "playingFrom": "Lecture depuis {{device}}",
-    "anotherDevice": "un autre appareil"
+    "anotherDevice": "un autre appareil",
+    "switchFailed": "Impossible de passer au profil de la télécommande"
   },
   "collectionCard": {
     "collections": "Collections",
@@ -137,10 +138,13 @@
   },
   "playOn": {
     "label": "Lire sur…",
-    "playingOn": "Lecture sur {{device}}"
+    "playingOn": "Lecture sur {{device}}",
+    "otherProfile": "{{device}} est sur le profil de {{profile}} : il passe d’abord au vôtre.",
+    "enterPin": "Saisissez votre code PIN"
   },
   "remote": {
     "readyToPlay": "Prêt pour la lecture",
+    "onProfile": "Sur le profil de {{name}}",
     "liveTv": "TV en direct",
     "buttonPlaying_one": "Télécommande, {{count, number}} appareil en lecture",
     "buttonPlaying_many": "Télécommande, {{count, number}} d’appareils en lecture",

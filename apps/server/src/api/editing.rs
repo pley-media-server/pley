@@ -25,12 +25,14 @@ async fn detail(state: &AppState, user_id: i64, id: i64) -> ApiResult<ItemDetail
     let row = item_or_404(state, user_id, id).await?;
     let mut detail = catalog::item_detail(&state.db, row).await?;
     detail.locked_fields = overrides::locked_fields(&state.db, id).await?;
+    detail.nfo_fields = overrides::nfo_fields(&state.db, id).await?;
     detail.in_watchlist = catalog::in_watchlist(&state.db, user_id, id).await?;
     Ok(detail)
 }
 
 /// `{ "title": "Alien", "year": 1979, "summary": null, … }`: a value sets and
 /// locks the field, `null` unlocks it (the next refresh fills it again).
+/// `"match": null` undoes Fix Match, for the item's NFO file to decide it.
 pub async fn edit(
     State(state): State<AppState>,
     AdminUser(user): AdminUser,
@@ -62,6 +64,10 @@ pub async fn edit(
         changes.push((field, value));
     }
     overrides::set(&state.db, id, &changes).await?;
+    // Fix Match undone: the item's NFO file decides its match again.
+    if changes.iter().any(|(field, value)| field == overrides::MATCH && value.is_none()) {
+        crate::library::scanner::nfo_match_dropped(&state.db, id).await?;
+    }
     if changes.iter().any(|(_, v)| v.is_none()) && state.metadata.can_refresh(&row.kind) {
         refresh_later(&state, id, row.library_id);
     }

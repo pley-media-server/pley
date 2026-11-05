@@ -1,19 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="remote_playing_on">Lecture sur %1$s</string>
-    <plurals name="remote_playing_on_devices">
-        <item quantity="one">Lecture sur %1$d appareil</item>
-        <item quantity="many">Lecture sur %1$d d’appareils</item>
-        <item quantity="other">Lecture sur %1$d appareils</item>
-    </plurals>
-    <string name="remote_open">Ouvrir la télécommande</string>
     <string name="remote_title">Vos appareils</string>
     <string name="remote_unknown_device">Appareil inconnu</string>
     <string name="remote_live_tv">TV en direct</string>
 
     <string name="remote_ready">Prêt pour la lecture</string>
-    <string name="remote_nothing_playing">Aucune lecture en cours</string>
-    <string name="remote_idle_hint">Envoyez-y quelque chose avec Lire sur…</string>
     <string name="remote_open_device">Afficher ses commandes</string>
     <string name="remote_back_to_devices">Retour à vos appareils</string>
 
@@ -31,7 +23,6 @@
     <string name="remote_stop">Arrêter</string>
     <string name="remote_stop_on">Arrêter sur %1$s</string>
     <string name="remote_stop_confirm">Arrêter la lecture sur %1$s ?</string>
-    <string name="remote_waiting">En attente de %1$s</string>
     <string name="remote_position">%1$s sur %2$s</string>
 
     <string name="remote_audio">Audio</string>
@@ -56,4 +47,21 @@
     <string name="play_on_sent">Lecture sur %1$s</string>
     <string name="play_on_gone">%1$s n’est plus connecté.</string>
     <string name="play_on_cant">%1$s ne peut pas lire ça.</string>
+    <string name="remote_paused_on">En pause sur %1$s</string>
+    <plurals name="remote_button_playing">
+        <item quantity="one">Télécommande, %1$d appareil en lecture</item>
+        <item quantity="many">Télécommande, %1$d d’appareils en lecture</item>
+        <item quantity="other">Télécommande, %1$d appareils en lecture</item>
+    </plurals>
+    <plurals name="remote_button_ready">
+        <item quantity="one">Télécommande, %1$d appareil prêt pour la lecture</item>
+        <item quantity="many">Télécommande, %1$d d’appareils prêts pour la lecture</item>
+        <item quantity="other">Télécommande, %1$d appareils prêts pour la lecture</item>
+    </plurals>
+    <string name="remote_on_profile">Sur le profil de %1$s</string>
+    <string name="play_on_pin_title">Saisissez votre code PIN</string>
+    <string name="play_on_pin_body">%1$s passe du profil de %2$s au vôtre.</string>
+    <string name="play_on_back">Retour aux appareils</string>
+    <string name="play_on_wrong_pin">Code PIN incorrect. Réessayez.</string>
+    <string name="play_on_pin_locked">Votre code PIN est bloqué après trop d’essais incorrects. Vous ou un administrateur pouvez le réinitialiser.</string>
 </resources>

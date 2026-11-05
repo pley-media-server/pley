@@ -25,13 +25,20 @@ public sealed class SessionReporter : IReporter
 {
     readonly object gate = new object();
     Task tail = Task.CompletedTask;
+    /// <summary>Counts <see cref="Drop"/>s: a report queued before the last one doesn't go out.</summary>
+    int generation;
 
     public void Send(Func<Task> report)
     {
         lock (gate)
         {
+            var queued = generation;
             tail = tail.ContinueWith(async _ =>
             {
+                lock (gate)
+                {
+                    if (queued != generation) return;
+                }
                 try
                 {
                     await report().ConfigureAwait(false);
@@ -48,6 +55,16 @@ public sealed class SessionReporter : IReporter
     public Task Flush()
     {
         lock (gate) return tail;
+    }
+
+    /// <summary>
+    /// What is queued and hasn't gone out yet never does: the sign-in it was made with is about to
+    /// change (a cast's profile switch), and it would go out with the new one. One on its way
+    /// already ends as it may.
+    /// </summary>
+    public void Drop()
+    {
+        lock (gate) generation++;
     }
 }
 

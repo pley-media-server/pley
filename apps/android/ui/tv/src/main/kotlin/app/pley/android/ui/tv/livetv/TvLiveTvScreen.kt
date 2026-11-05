@@ -68,7 +68,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -76,7 +75,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -121,6 +119,7 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
+import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.TvTileFrame
 import app.pley.android.ui.tv.kit.initialFocus
@@ -719,7 +718,10 @@ internal fun ChannelTileCard(
  *
  * As Samsung's panel, the buttons keep their room at the foot and the
  * text takes what is left above them: the title two lines at most, what
- * the guide says the lines that fit, one to six ([PanelButtons]).
+ * the guide says the lines that fit, one to six. Watch is a pill and the
+ * favourite a star beside it, filled for a favourite, as in the live
+ * player; its words are only heard. As a pill, Remove from favourites
+ * didn't fit beside Watch and went under it.
  */
 @Composable
 private fun ProgramPanel(
@@ -745,17 +747,19 @@ private fun ProgramPanel(
             if (program != null) ProgramText(program, origin, now, clock)
         }
         Spacer(Modifier.height(12.dp))
-        PanelButtons {
+        Row(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap)) {
             TvPillButton(
                 stringResource(if (airing) R.string.tv_livetv_watch_now else R.string.tv_livetv_watch_channel),
                 onClick = onWatch,
                 icon = PleyIcons.Play,
                 modifier = Modifier.initialFocus(),
             )
-            TvPillButton(
+            TvRoundButton(
                 stringResource(if (channel.favorite) R.string.tv_livetv_favorite_remove else R.string.tv_livetv_favorite_add),
+                if (channel.favorite) PleyIcons.Star else PleyIcons.StarOutline,
                 onClick = onFavorite,
-                icon = if (channel.favorite) PleyIcons.Star else PleyIcons.StarOutline,
+                onArt = false,
+                showLabel = false,
             )
         }
     }
@@ -812,28 +816,6 @@ private fun ColumnScope.ProgramText(program: LiveProgram, origin: String, now: L
     }
 }
 
-/**
- * Watch and the favourite at the panel's foot (Samsung's): side by side
- * where both fit with room for the favourite's longer label, which changes
- * as it is pressed ([FAVORITE_ROOM]); one under the other otherwise, as in
- * the 360 dp panel they mostly are. In a row, the second pill was squeezed
- * and its label wrapped.
- */
-@Composable
-private fun PanelButtons(content: @Composable () -> Unit) {
-    Layout(content, Modifier.fillMaxWidth().focusGroup()) { measurables, constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val (watch, favorite) = measurables.map { it.measure(loose) }
-        val gap = PleyTv.ButtonGap.roundToPx()
-        val side = watch.width + gap + maxOf(favorite.width, FAVORITE_ROOM.roundToPx()) <= constraints.maxWidth
-        val height = if (side) maxOf(watch.height, favorite.height) else watch.height + gap + favorite.height
-        layout(constraints.maxWidth, constraints.constrainHeight(height)) {
-            watch.place(0, 0)
-            if (side) favorite.place(watch.width + gap, 0) else favorite.place(0, watch.height + gap)
-        }
-    }
-}
-
 /** Three 184 dp tiles, 18 apart, beside the categories. */
 private const val COLUMNS = 3
 
@@ -843,9 +825,6 @@ private val CATEGORY_INSET = 12.dp
 
 /** A group's name starts where the categories' names do, after their icons. */
 private val GROUP_INSET = CATEGORY_INSET + 26.dp
-
-/** The room kept beside Watch for the favourite, whichever its label (Samsung's 210). */
-private val FAVORITE_ROOM = 210.dp
 
 private const val NOTICE_MS = 4_000L
 

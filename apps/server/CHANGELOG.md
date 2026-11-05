@@ -17,6 +17,49 @@ describes how they are made.
   server language, in Settings → General, is for the server's own words
   (Home's rows, the tray's menu) and for devices in a language Pley
   doesn't have.
+- Your remote lists the TVs and other devices of everyone in your
+  household, not only those on your profile, each with the profile it is
+  on. Sending one something switches it to your profile first, so it plays
+  as you, after your PIN when your profile has one.
+- The web app's Play on… lists your household's devices too, and asks for
+  your PIN in its menu's place when your profile has one. The desktop app
+  switches to the profile of the remote that sends it something, as a TV
+  does, and says so when it can't. An administrator's remote sends only to
+  Pley's apps, never to a browser or the desktop app, which would stay
+  signed in with the administrator's rights.
+- Pley reads the NFO files Kodi, Jellyfin, Emby, Radarr, Sonarr,
+  tinyMediaManager and MediaElch keep next to movies, shows, seasons and
+  episodes. Their ids decide what a title is matched to, and their titles,
+  summaries, dates, genres, content ratings and other fields win over
+  TMDB's, TheTVDB's and TVmaze's; your own edits still win over them, and
+  Fix Match to another title sets them aside. Without a TMDB key, movies
+  with NFO files get their metadata from them. Jellyfin's lockdata keeps an
+  item from being fetched online. Settings → Server has a switch for it, on
+  by default.
+- In the web and desktop apps, an item's Edit details says which fields
+  come from its NFO file, and Fix match says when a title was matched by
+  hand, with Undo Fix Match to let its NFO file decide again.
+
+### Changed
+
+- The web and desktop apps' remote shows a command at once (the place a
+  seek goes, playing or paused), and keeps what plays while a next starts
+  the one after. Previous and Next sit at its edges, with the skips and
+  Play or Pause centred between them. A device that plays is chosen for
+  its controls, whose bar is the only one shown; one ready to play is only
+  listed.
+- Signing in on the web and in the desktop app goes straight in as the
+  profile the browser was last used as, when it has no PIN, where a
+  household of several profiles was asked "Who's watching?" each time. A
+  profile with a PIN, or another person signing in, still picks first.
+- The web and desktop apps' video player no longer brings up its controls
+  when a remote pauses it, seeks or changes its audio, subtitles or
+  quality: a brief notice says what changed ("Paused", "+30 s", "Jumped
+  to 12:34", "Subtitles off"), and the controls show as before once you
+  move the mouse, tap or press a key. On Live TV a remote's change of
+  channel shows only the channel's tuning screen.
+- With TMDB as the TV source, a show with an IMDb or TheTVDB id but no
+  TMDB id is found by that id before it is searched for by name.
 
 ## [0.1.7] - 2026-11-05
 

@@ -35,15 +35,15 @@ The app finds Pley servers on the local network (or takes an address) and
 signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
-hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile, unless Settings' Always start as names one. Going on
-there as the profile it was left on asks that profile's PIN when it has
-one, as on the other TVs, and so does Always start as: the start opens on
-that profile's PIN pad, and Cancel shows the other profiles. A PIN is
-typed on Roku's own PIN pad: a wrong one, or too many, asks again saying
-why; a PIN locked after too many wrong tries is said on the screen, since
-Roku's pad can't be dimmed. A profile that needs its password is signed
-in to with a code, choosing it in the browser.
+hasn't yet. It starts straight into Home as the profile it was left on
+when that profile has no PIN. In a household of more than one profile, it
+asks "Who's watching?" at start when that profile has a PIN, where going
+on as it asks the PIN, as on the other TVs; with Always start as, the
+start opens on that profile's PIN pad, and Cancel shows the other
+profiles. A PIN is typed on Roku's own PIN pad: a wrong one, or too many,
+asks again saying why; a PIN locked after too many wrong tries is said on
+the screen, since Roku's pad can't be dimmed. A profile that needs its
+password is signed in to with a code, choosing it in the browser.
 
 ### Home
 
@@ -491,12 +491,30 @@ puts Up Next away, as Rewind does. The rule is
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
 (the tracks and the quality by cases of their own).
 
+A command never brings up the player's controls. Paused, the Video node
+shows its title, clock and bar whoever paused it, so for the remote's
+pause the player turns them off (`enableUI`) until the video plays again,
+from either side, or the person presses a key: Play plays on, and the
+Video node's other keys are its own again from the next press. That
+first OK, left, right or skip only brings its controls back, where the
+other TVs act on it at once: the Video node hasn't had its controls to
+take it. What the
+remote did shows instead for 2 s in the player's notice at the top:
+"Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
+went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
+quality picked, named as the player's menus name them
+(`remoteNotice` and its neighbours in `components/lib/Remote.brs`). A
+command that changes nothing shows nothing; next shows the title as it
+begins, and Live TV's channel up and down the channel's card, as Up and
+Down do. Music shows nothing of a command: Now Playing is its controls.
+
 **Casts.** While its event stream is open (an `http://` server, as for
 the commands), the Roku is one of the devices the profile's remotes play
 things on ([API.md](API.md#casting)): the stream names it a receiver by
 the `client_id` its players send, a TV with the name its players give,
 taking titles and playlists (`casts=item`) and channels while Home's menu
-has Live TV (`live`), and opens again when Live TV comes or goes. What a
+has Live TV (`live`), and switching to the profile of a remote of another
+profile that casts to it (`switch`), and opens again when Live TV comes or goes. What a
 remote sends plays as the Roku's own Play would, in place of what plays:
 
 - a movie or an episode in the player, from the place sent, else where
@@ -522,6 +540,25 @@ watching, does nothing (a cast never gets past a profile's PIN), and of
 two sent close together the later plays. The rules are
 `components/lib/Cast.brs`; the scene (`components/MainScene.brs`)
 fetches what a cast needs and plays it.
+
+A remote on another profile of the household casts here too
+([API.md](API.md#casting)): its cast names that profile (`profile_id`)
+and carries a ticket (`switch_ticket`), and the Roku switches to the
+remote's profile before it plays, with the switch-profile grant and the
+ticket in place of a PIN (the remote gave its PIN, if it has one). What
+plays stops first, and the switch waits for its last progress, its
+stopped report and its session's end to reach the server as the profile
+that watched it, within 5 s: what hasn't gone by then is dropped, never
+sent as the remote's profile. Once switched, the Roku keeps the new
+sign-in as a switch from "Who's watching?" does, starts again from Home
+as that profile, and the cast plays over it, once. A switch the server
+refuses (the ticket expired or was used: `ticket_spent`) or that fails
+says "Couldn't switch to the remote's profile" for 4 s, and nothing
+plays. A cast naming another profile without a ticket does nothing, and
+any other cast that comes while the Roku switches is dropped; once
+switched, casts play as ever, the new profile's own too. "Who's
+watching?" still takes no casts: the person at the TV is choosing who
+watches.
 
 ### Requests and Discover
 
@@ -614,15 +651,16 @@ plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
 shows Pley's licence and the notices of what the package bundles.
 
 Always start as, for a household of several profiles, names the profile
-the app starts as, or Ask who's watching. As on the other TVs it only
-skips "Who's watching?" at a start: the app starts as the profile it was
-left on, but never past its PIN, which it asks first when that profile has
-one. Whether it has one is kept in the registry section `household` each
-time `GET /api/auth/me` answers, and forgotten when a sign-in or a switch
-changes the profile; until the Roku knows, the start asks "Who's
-watching?". A profile since gone from the household (deleted, or another
-account's, signed in since) counts as Ask who's watching, as Settings
-then shows it. It is kept on the Roku for each server.
+the app starts as, or Profile used last. As on the other TVs, the app
+starts as the profile it was left on, but never past its PIN: without a
+PIN it goes straight in either way, and with one Always start as opens
+its PIN pad first, where Profile used last shows the profiles. Whether it
+has one is kept in the registry section `household` each time `GET
+/api/auth/me` answers, and forgotten when a sign-in or a switch changes
+the profile; until the Roku knows, the start asks "Who's watching?". A
+profile since gone from the household (deleted, or another account's,
+signed in since) counts as Profile used last, as Settings then shows it.
+It is kept on the Roku for each server.
 
 ## Building and testing
 
@@ -670,6 +708,10 @@ Rules the code keeps:
   pictures of PGS subtitles and their list, fetched without the token.
 - Refreshes run one at a time per server, and the new token pair is saved
   before use (a refresh token works once).
+- A request goes with the tokens of the profile it was made for, or not
+  at all: one waiting for a refresh or a proof, or refused while a profile
+  switch was under way, is dropped once the switch has changed the
+  profile, never sent with the new profile's pair.
 - The User-Agent is `pleyRoku/<version> (Roku OS <version>; <model>)`; the
   server's `/link` page shows it.
 - The event stream (`GET /api/events`) works with `http://` servers only:

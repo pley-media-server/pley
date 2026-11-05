@@ -320,6 +320,12 @@ class MusicPlayback(
         onStopped?.invoke()
     }
 
+    /** Waits until the reports made so far went out: the end of the session [stop] ended, say. */
+    suspend fun flush() = env.reporter.flush()
+
+    /** Drops the reports that haven't gone out yet ([SessionReporter.drop]). */
+    fun drop() = env.reporter.drop()
+
     /**
      * Plays the current track from [atMs] with a new session, ending the one
      * before. [sameTrack] keeps the transcode fallback and the count of

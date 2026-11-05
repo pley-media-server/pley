@@ -54,6 +54,12 @@ public sealed record ServerEvent
     /// <summary>cast: the subtitles to show, by stream index, -1 none; null leaves them to the profile's choices.</summary>
     public int? SubtitleIndex { get; init; }
     public string? From { get; init; }
+    /// <summary>
+    /// cast, from a remote on another profile of the household: that profile, which this TV
+    /// switches to with <see cref="SwitchTicket"/> before it plays.
+    /// </summary>
+    public long? ProfileId { get; init; }
+    public string? SwitchTicket { get; init; }
     public string? Message { get; init; }
     public bool? ByAdmin { get; init; }
     /// <summary>

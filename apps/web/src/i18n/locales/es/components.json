@@ -75,7 +75,8 @@
   },
   "castReceiver": {
     "playingFrom": "Reproduciendo desde {{device}}",
-    "anotherDevice": "otro dispositivo"
+    "anotherDevice": "otro dispositivo",
+    "switchFailed": "No se pudo cambiar al perfil del control remoto"
   },
   "collectionCard": {
     "collections": "Colecciones",
@@ -137,10 +138,13 @@
   },
   "playOn": {
     "label": "Reproducir en…",
-    "playingOn": "Reproduciendo en {{device}}"
+    "playingOn": "Reproduciendo en {{device}}",
+    "otherProfile": "{{device}} está en el perfil de {{profile}}: primero cambia al tuyo.",
+    "enterPin": "Introduce tu PIN"
   },
   "remote": {
     "readyToPlay": "Listo para reproducir",
+    "onProfile": "En el perfil de {{name}}",
     "liveTv": "TV en vivo",
     "buttonPlaying_one": "Control remoto, {{count, number}} dispositivo reproduciendo",
     "buttonPlaying_many": "Control remoto, {{count, number}} dispositivos reproduciendo",

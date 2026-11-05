@@ -76,7 +76,11 @@ internal class PlayRoutes(private val s: State) {
         route("DELETE", "/api/sessions/*", PLAY) { call, c, v -> stopSession(call, c, v[0]) },
         route("GET", "/api/sessions", PLAY) { _, c, _ -> Reply.json(ListSerializer(PlayingSession.serializer()), playing(c)) },
         route("POST", "/api/sessions/*/command", PLAY) { call, c, v -> command(call, c, v[0]) },
-        route("GET", "/api/remote/devices", PLAY) { _, c, _ -> Reply.json(ListSerializer(RemoteDevice.serializer()), s.events.devices(c.profile.id)) },
+        route("GET", "/api/remote/devices", PLAY) { call, c, _ ->
+            // The household's other profiles' devices only to a remote that asks for them.
+            val devices = if (call.query("household") == "1") s.events.householdDevices(c.profile.id) else s.events.devices(c.profile.id)
+            Reply.json(ListSerializer(RemoteDevice.serializer()), devices)
+        },
         route("POST", "/api/remote/devices/*/cast", PLAY) { call, c, v -> cast(call, c, v[0]) },
         route("GET", "/api/files/*/stream", PLAY, free = true) { call, _, v -> stream(call, v[0]) },
         route("GET", "/api/files/*/subtitles/*", PLAY) { _, _, v -> subtitles(v[0], v[1]) },
@@ -432,18 +436,29 @@ internal class PlayRoutes(private val s: State) {
 
     /**
      * POST /api/remote/devices/{id}/cast, refused in the server's order:
-     * a receiver that isn't the caller's own open one (404), not exactly one
+     * a receiver that isn't an open one of the caller's or, with
+     * `profile_id`, of that profile of the household that switches profile
+     * (`switch` in its `casts`) (404), not exactly one
      * of a title, a playlist and a channel (400), a title there isn't (404)
      * or of a kind that isn't cast (400), a playlist not the caller's (404),
      * a channel (404: there is no Live TV here), what the receiver doesn't
      * play (409 `not_castable`), a `start_ms` past a day or tracks that
-     * aren't one of a movie's or an episode's files' (400), and more than 10
-     * casts a second (429). The caller's streams hear `cast`, from the
-     * caller's User-Agent.
+     * aren't one of a movie's or an episode's files' (400), to another
+     * profile's receiver the caller's PIN when their profile has one (403
+     * `pin_needed`, `wrong_pin`; 429 after 5 wrong ones in 15 minutes,
+     * counted with the switches to it), and more than 10 casts a second
+     * (429). The streams of the profile the receiver is on hear `cast`, from
+     * the caller's User-Agent; to another profile's, with the caller's
+     * `profile_id` and a `switch_ticket`.
      */
     private fun cast(call: Call, caller: Caller, receiverId: String): MockResponse {
         val body = call.body(CastRequest.serializer()) ?: return Reply.badRequest("the body isn't a cast")
-        val takes = s.events.casts(caller.profile.id, receiverId) ?: return Reply.notFound("no such device")
+        // Every profile here is a home member of the one household.
+        val owner = body.profileId ?: caller.profile.id
+        if (s.profile(owner) == null) return Reply.notFound("no such device")
+        val takes = s.events.casts(owner, receiverId) ?: return Reply.notFound("no such device")
+        // An app that can't switch to the caster's profile isn't another profile's device to them.
+        if (owner != caller.profile.id && CastKind.Switch !in takes) return Reply.notFound("no such device")
         val itemId = body.itemId
         val playlistId = body.playlistId
         val picked = body.audioIndex != null || body.subtitleIndex != null
@@ -474,10 +489,18 @@ internal class PlayRoutes(private val s: State) {
         if (subtitle != null && subtitle != PlayingSession.SUBTITLES_OFF && tracks.none { it.kind == StreamKind.Subtitle && it.index == subtitle }) {
             return Reply.badRequest("subtitle_index must be one of the file's subtitle tracks, or -1 for none")
         }
-        if (!s.events.takeCast(caller.profile.id, receiverId, s.nowMs())) return Reply.error(429, "too_many_requests", "10 casts a second at most: wait a moment")
+        // The receiver will act as the caller's profile: their PIN, when it has one, as a switch to it would take.
+        if (owner != caller.profile.id) checkOwnPin(caller.profile, body.pin)?.let { return it }
+        if (!s.events.takeCast(owner, receiverId, s.nowMs())) return Reply.error(429, "too_many_requests", "10 casts a second at most: wait a moment")
         val from = call.header("User-Agent")?.trim()?.take(DEVICE_NAME_MAX)?.ifEmpty { null }
+        val ticket = if (owner == caller.profile.id) {
+            null
+        } else {
+            val device = s.events.deviceOf(owner, receiverId) ?: return Reply.notFound("no such device")
+            s.events.issueTicket(device, owner, caller.profile.id, s.nowMs())
+        }
         s.events.emitTo(
-            caller.profile.id,
+            owner,
             ServerEvent.Cast(
                 receiverId,
                 itemId,
@@ -488,9 +511,32 @@ internal class PlayRoutes(private val s: State) {
                 audioIndex = body.audioIndex,
                 subtitleIndex = body.subtitleIndex,
                 from = from,
+                profileId = caller.profile.id.takeIf { ticket != null },
+                switchTicket = ticket,
             ),
         )
         return MockResponse.Builder().code(202).build()
+    }
+
+    /**
+     * [profile]'s own [pin], given to cast to another profile's device: the
+     * refusal, or `null` when it is right or the profile has none. Wrong ones
+     * count with the switches to it: 5 in 15 minutes, and it is throttled.
+     */
+    private fun checkOwnPin(profile: Profile, pin: String?): MockResponse? {
+        val own = profile.pin ?: return null
+        if (pin == null) return Reply.error(403, "pin_needed", "this profile is protected by a PIN")
+        val now = s.now()
+        profile.wrongPins.removeAll { it < now - PIN_WINDOW_S }
+        if (profile.wrongPins.size >= PIN_TRIES) {
+            val minutes = ((profile.wrongPins.min() + PIN_WINDOW_S - now + 59) / 60).coerceAtLeast(1)
+            return Reply.error(429, "too_many_requests", "too many attempts, try again in $minutes min")
+        }
+        if (pin != own) {
+            profile.wrongPins += now
+            return Reply.error(403, "wrong_pin", "wrong PIN")
+        }
+        return null
     }
 
     /** GET /api/playback/{session}/{file}: the committed HLS stream of the 1080p clip, whatever the item. */
@@ -759,6 +805,10 @@ internal class PlayRoutes(private val s: State) {
             MenuEntry("4m", "4 Mbps 720p", 4_000, 720),
             MenuEntry("2m", "2 Mbps 480p", 2_000, 480),
         )
+
+        /** Wrong PINs a profile takes in [PIN_WINDOW_S] before it is throttled, as its switches. */
+        const val PIN_TRIES = 5
+        const val PIN_WINDOW_S = 15 * 60L
 
         /** What a remote casts with tracks: a title of one file's worth. */
         private val WITH_TRACKS = setOf(ItemKind.Movie, ItemKind.Episode)

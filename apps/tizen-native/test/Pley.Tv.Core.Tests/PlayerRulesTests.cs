@@ -322,6 +322,10 @@ public class PlayerScreenRulesTests
         Assert.Equal("Ends at 22:41", PlayerText.EndsAt("22:41"));
         Assert.Equal("Next in 7", PlayerText.NextIn(7));
         Assert.Equal("Subtitles: English (SRT)", PlayerText.SubtitlesToast("English (SRT)"));
+        Assert.Equal("Audio: French (AC3 5.1)", PlayerText.AudioToast("French (AC3 5.1)"));
+        Assert.Equal("Quality: 8 Mbps 1080p", PlayerText.QualityToast("8 Mbps 1080p"));
+        Assert.Equal("Jumped to 12:34", PlayerText.JumpedToast(754_000));
+        Assert.Equal("Jumped to 1:02:03", PlayerText.JumpedToast(3_723_000));
         Assert.Equal("The original didn't play smoothly on this device. Play original is in Quality.", PlayerText.TranscodeToast(SessionText.FallbackNotSmooth));
         Assert.Equal("The server can't keep up with this video. Try a lower quality. Choose one in Quality.", PlayerText.SlowServerToast(SessionText.SlowServer));
         Assert.Equal("32 minutes 40 seconds of 1 hour 2 minutes", PlayerText.Position(1_960_000, 3_720_000));

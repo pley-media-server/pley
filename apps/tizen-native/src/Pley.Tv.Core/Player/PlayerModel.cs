@@ -30,8 +30,8 @@ namespace Pley.Tv.Core.Player;
 /// so and plays no more.</item>
 /// <item><b>The remote</b>, on another of the profile's devices (docs/API.md, "Remote control"):
 /// play, pause, seek and skip, next when something can come next, as Android's, and the audio,
-/// subtitles and quality through the panels' own path; each reported at once (<see cref="Obey"/>),
-/// every report saying which tracks play and which quality is picked.</item>
+/// subtitles and quality through the panels' own path; each reported at once and toasted, without
+/// the controls (<see cref="Obey"/>), every report saying which tracks play and which quality is picked.</item>
 /// </list>
 /// Automatic plays the original: the steps down and up of the Android app's AutoQuality aren't
 /// ported, and a slow server is offered a lower quality instead. The UI thread only; the engine's
@@ -184,7 +184,7 @@ public sealed class PlayerModel : IDisposable
     /// <summary>The picture subtitles showing now (PGS, VobSub, DVB), at the playhead moved by the offset; null when none. The screen draws them.</summary>
     public Signal<PictureFrame?> Picture => presenter.Picture;
 
-    /// <summary>A message for the top right: the playback's notices, a transcode it chose, a slow server, the CAPTIONS key.</summary>
+    /// <summary>A message for the top right: the playback's notices, a transcode it chose, a slow server, the CAPTIONS key, the remote.</summary>
     public event Action<PlayerToast>? Toast;
 
     /// <summary>The engine, once the item's details came.</summary>
@@ -1030,7 +1030,10 @@ public sealed class PlayerModel : IDisposable
     /// now, next plays what comes next (nothing at the end, and nothing said here), and a video
     /// has no previous. What changed is reported at once, so the remote sees it: a pause reports
     /// by itself, and a new item with its new session; a play or pause that finds it so already
-    /// says it again.
+    /// says it again. A change is toasted for 2 s, as the CAPTIONS key's is ("Paused", "+30 s",
+    /// "Jumped to 12:34"), so those watching see what happened, and shows none of the controls,
+    /// which are for keys pressed here (Android TV's player); next toasts nothing, as the screen's
+    /// banner shows the next title as it begins.
     /// </summary>
     void Obey(ServerEvent command)
     {
@@ -1055,9 +1058,13 @@ public sealed class PlayerModel : IDisposable
             case RemoteAct.Play:
                 Play();
                 Report("playing");
+                Remark(PlayerText.PlayingToast);
                 break;
             case RemoteAct.Pause:
                 Pause();
+                // Not the person's pause: the screen keeps no controls for it.
+                Update(s => s with { PausedByRemote = true });
+                Remark(PlayerText.PausedToast);
                 break;
             case RemoteAct.None:
                 // Playing or paused already: said again, so a remote a little behind settles.
@@ -1065,6 +1072,8 @@ public sealed class PlayerModel : IDisposable
                 break;
             case RemoteAct.Seek:
                 SeekTo(action.PositionMs);
+                // A skip by the offset asked for, as the seek badge says it; a seek where it went.
+                Remark(command.Command == "skip" ? PlayerText.Badge(command.OffsetMs ?? 0) : PlayerText.JumpedToast(lastPositionMs));
                 // Seeking past the end starts a new session, which reports itself.
                 if (ended || info == null || sessionEnded) return;
                 seekReportTimer?.Dispose();
@@ -1080,7 +1089,8 @@ public sealed class PlayerModel : IDisposable
     /// <summary>
     /// The remote's audio or subtitles (<see cref="Remote.Track"/>), through the panels' own path,
     /// picks saved as theirs are. Switched in place, it reports at once; a new session (a stream's
-    /// audio, pictures to burn in) reports as it begins. A pick of what is chosen already says so again.
+    /// audio, pictures to burn in) reports as it begins. A pick of what is chosen already says so
+    /// again. The track is toasted by the name its panel gives it.
     /// </summary>
     void ObeyTrack(PlaybackInfo s, ServerEvent command)
     {
@@ -1092,11 +1102,15 @@ public sealed class PlayerModel : IDisposable
             if (action.Report) Report(wantPlay ? "playing" : "paused");
             return;
         }
+        var choices = action.Act == TrackAct.Audio ? State.Value.Audio : State.Value.Subtitles;
+        var label = choices.FirstOrDefault(t => t.Index == action.Index)?.Label;
         // Set first: the new session may begin before the switch returns.
         reportBegun = true;
         var at = generation;
         if (action.Act == TrackAct.Audio) SelectAudio(action.Index);
         else SelectSubtitle(action.Index < 0 ? null : action.Index);
+        if (action.Index < 0) Remark(PlayerText.SubtitlesOffToast);
+        else if (label != null) Remark(action.Act == TrackAct.Audio ? PlayerText.AudioToast(label) : PlayerText.SubtitlesToast(label));
         if (generation != at) return;
         // Switched in place: no new session to say so.
         reportBegun = false;
@@ -1107,6 +1121,7 @@ public sealed class PlayerModel : IDisposable
     /// The remote's quality (<see cref="Remote.Quality"/>), as picking it in the Quality panel does,
     /// the pick kept for the next titles as the panel's is. A new session reports as it begins; a
     /// pick that plays the same (Original and Automatic) reports at once, as does one picked already.
+    /// The pick is toasted by the name the panel gives it.
     /// </summary>
     void ObeyQuality(PlaybackInfo s, ServerEvent command)
     {
@@ -1117,10 +1132,12 @@ public sealed class PlayerModel : IDisposable
             if (action.Report) Report(wantPlay ? "playing" : "paused");
             return;
         }
+        var label = State.Value.Qualities.FirstOrDefault(q => q.Id == action.Id)?.Label;
         // Set first: the new session may begin before the switch returns.
         reportBegun = true;
         var at = generation;
         SelectQuality(action.Id);
+        if (label != null) Remark(PlayerText.QualityToast(label));
         if (generation != at) return;
         reportBegun = false;
         Report(wantPlay ? "playing" : "paused");
@@ -1152,6 +1169,8 @@ public sealed class PlayerModel : IDisposable
         var was = wantPlay;
         wantPlay = play;
         if (play) sleep.Resumed();
+        // Playing again, whoever asked, ends the remote's pause.
+        if (play && State.Value.PausedByRemote) Update(s => s with { PausedByRemote = false });
         if (info == null || was == play) return;
         if (!play)
         {
@@ -1660,7 +1679,8 @@ public sealed class PlayerModel : IDisposable
         // The speed is this title's: the next one plays at normal speed.
         if (State.Value.Speed != 1) engine?.SetSpeed(1);
         var was = State.Value;
-        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Sleep = was.Sleep, Speeds = was.Speeds };
+        // The next title starts paused when this one is: the remote's pause stays the remote's.
+        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Sleep = was.Sleep, Speeds = was.Speeds, PausedByRemote = was.PausedByRemote };
         SetClock(positionMs: request.StartMs, bufferedMs: 0);
         var at = NextGeneration();
         var prefetched = nextDetail?.Id == target.Id ? nextDetail : null;
@@ -1803,6 +1823,9 @@ public sealed class PlayerModel : IDisposable
     }
 
     void Notice(string text) => Say(new PlayerToast(text, PlayerText.ToastMs));
+
+    /// <summary>What the remote did, for as long as the CAPTIONS key's toast.</summary>
+    void Remark(string text) => Say(new PlayerToast(text, PlayerText.CaptionsToastMs));
 
     void Say(PlayerToast toast) => Toast?.Invoke(toast);
 

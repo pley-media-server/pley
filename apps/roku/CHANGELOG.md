@@ -8,6 +8,26 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- "Play on…" from someone else's profile in your household plays on the
+  Roku as their profile: the Roku switches to it first, without asking
+  its PIN (the phone or browser did). What was playing stops first, and
+  where it got to is saved for the profile that was watching. When the
+  switch can't be made, the Roku says so and plays nothing.
+
+### Changed
+
+- The Roku starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+- A pause from your phone or browser no longer brings up Roku's controls
+  on the TV: the player says what the remote did for a moment at the top
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", the audio, subtitles
+  or quality picked). Your own key brings the controls back.
+
 ## [0.1.6] - 2026-11-05
 
 ### Added

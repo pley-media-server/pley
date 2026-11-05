@@ -27,11 +27,17 @@ class ShellRulesTest {
     }
 
     @Test
-    fun startAsksWhoIsWatchingInAHouseholdWithoutAlwaysStartAs() {
-        assertEquals(PleyKey.Profiles(), startKey(StartFacts("http://s", signedIn = true, profiles = 3)))
-        assertEquals(PleyKey.Profiles(), startKey(StartFacts("http://s", signedIn = true, profiles = 3, hasPin = true)))
+    fun startGoesStraightInAsTheProfileLeftOnWithoutAPin() {
+        assertEquals(PleyKey.Home, startKey(StartFacts("http://s", signedIn = true, profiles = 3, hasPin = false)))
         assertEquals(PleyKey.Home, startKey(StartFacts("http://s", signedIn = true, profiles = 1)))
         assertEquals(PleyKey.Home, startKey(StartFacts("http://s", signedIn = true, profiles = 1, alwaysStartAs = 1, hasPin = true)))
+    }
+
+    @Test
+    fun startAsksWhoIsWatchingInAHouseholdForAPinOrWhenItDoesNotKnow() {
+        assertEquals(PleyKey.Profiles(), startKey(StartFacts("http://s", signedIn = true, profiles = 3, hasPin = true)))
+        // Who the app was left on was never heard: whether it has a PIN isn't known.
+        assertEquals(PleyKey.Profiles(), startKey(StartFacts("http://s", signedIn = true, profiles = 3)))
     }
 
     @Test

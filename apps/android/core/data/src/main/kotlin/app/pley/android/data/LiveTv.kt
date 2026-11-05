@@ -11,9 +11,13 @@ import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveSummary
 import app.pley.android.model.LiveWatching
 import app.pley.android.model.WatchRequest
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 /**
@@ -74,6 +78,17 @@ interface LiveTvRepository {
 
     /** Stops watching [sessionId], in the background: it outlives the screen that asks. */
     fun leave(sessionId: String)
+
+    /** Waits until the leaves asked for so far went out (or failed). */
+    suspend fun left() {}
+
+    /**
+     * Drops the leaves that haven't gone out yet, and those of the sessions
+     * watched so far, should a window ask later: a switch of profile would
+     * send them as the next profile. The server ends those sessions by
+     * itself.
+     */
+    fun drop() {}
 
     companion object {
         /** Channels asked for at once, as the web asks. */
@@ -187,7 +202,12 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
 
     override suspend fun watch(channelId: Long, clientId: String, takeOver: Long?, controls: List<Control>): LiveWatching {
         val api = cache.api(cache.profile())
+        val since = synchronized(sessions) { drops }
         val watching = api.watchChannel(channelId, WatchRequest(clientId, takeOver, controls.takeIf { it.isNotEmpty() }))
+        synchronized(sessions) {
+            // Asked for before a drop, it is the profile's that was left: its leave goes nowhere either.
+            if (since == drops) watched += watching.sessionId else dropped += watching.sessionId
+        }
         // Recently watched has it first now: asked again when next shown.
         cache.markStale { key, _ ->
             key == SnapshotKeys.LIVE || key == SnapshotKeys.LIVE_GROUPS || key.startsWith("live:page:recent:") || key.startsWith("live:around:recent:")
@@ -200,8 +220,26 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
     override suspend fun streamUrl(channelId: Long, clientId: String): String =
         cache.api(cache.profile()).liveStreamUrl(channelId, clientId)
 
+    /** The leaves on their way. */
+    private val leaving: MutableSet<Job> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * The sessions watched since the last [drop], and those watched before
+     * one, whose leave would go with the next profile's tokens: the lock of
+     * both, and of [drops], the count of drops.
+     */
+    private val sessions = Any()
+    private val watched = mutableSetOf<String>()
+    private val dropped = mutableSetOf<String>()
+    private var drops = 0
+
     override fun leave(sessionId: String) {
-        cache.app.launch {
+        synchronized(sessions) {
+            // The server lets it go by itself after 45 s.
+            if (dropped.remove(sessionId)) return
+            watched -= sessionId
+        }
+        val job = cache.app.launch(start = CoroutineStart.LAZY) {
             try {
                 cache.api(cache.profile()).leaveChannel(sessionId)
             } catch (e: CancellationException) {
@@ -210,5 +248,19 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
                 // Out of reach: the server lets the session go by itself after 45 s.
             }
         }
+        leaving += job
+        job.invokeOnCompletion { leaving -= job }
+        job.start()
+    }
+
+    override suspend fun left() = leaving.toList().joinAll()
+
+    override fun drop() {
+        synchronized(sessions) {
+            dropped += watched
+            watched.clear()
+            drops++
+        }
+        leaving.toList().forEach { it.cancel() }
     }
 }

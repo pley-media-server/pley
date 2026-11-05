@@ -1,11 +1,13 @@
 //! Sidecar files next to videos: local artwork (`poster.jpg`,
-//! `Movie (2020)-fanart.jpg`, `season01-poster.jpg`, …) and external subtitles
+//! `Movie (2020)-fanart.jpg`, `season01-poster.jpg`, …), external subtitles
 //! (`Movie.srt`, `Movie.en.srt`, `Movie.eng.forced.srt`,
-//! `Movie.English.sdh.srt`, `Subs/2_English.srt`, `Subs/<video>/3_French.srt`).
+//! `Movie.English.sdh.srt`, `Subs/2_English.srt`, `Subs/<video>/3_French.srt`)
+//! and NFO files (`Movie (2020).nfo`, `movie.nfo`, `tvshow.nfo`,
+//! `season.nfo`).
 //!
 //! A scan collects the sidecar files of the whole library and indexes them
-//! once ([`Sidecars`]): finding the artwork or the subtitles of a video then
-//! takes a few look-ups, however large the library.
+//! once ([`Sidecars`]): finding the artwork, the subtitles or the NFO file of
+//! a video then takes a few look-ups, however large the library.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,7 +15,7 @@ use std::path::{Path, PathBuf};
 use pley_transcoder_api::{MediaStream, StreamKind, is_text_subtitle_codec};
 use serde::{Deserialize, Serialize};
 
-use super::walk::{IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS};
+use super::walk::{IMAGE_EXTENSIONS, NFO_EXTENSIONS, SUBTITLE_EXTENSIONS};
 
 /// External subtitle streams get indexes from this value up, below
 /// [`crate::subtitles::ADDED_INDEX_BASE`].
@@ -75,6 +77,9 @@ pub struct Sidecars {
     /// Pictures by folder: lowercase name without extension → file name
     /// (the first one found when pictures differ only by extension).
     images: HashMap<PathBuf, HashMap<String, String>>,
+    /// NFO files by folder: lowercase name without extension → file name
+    /// (the first one found when names differ only by case).
+    nfos: HashMap<PathBuf, HashMap<String, String>>,
     /// Subtitle files by folder, sorted by lowercase name without extension,
     /// so that the ones named after a video (`<stem>.srt`,
     /// `<stem>.<tags>.srt`) are next to each other.
@@ -116,6 +121,11 @@ impl Sidecars {
                 }
                 let lower = name.to_lowercase();
                 let Some((base, ext)) = lower.rsplit_once('.') else { continue };
+                if NFO_EXTENSIONS.contains(&ext) {
+                    let nfos = index.nfos.entry(dir.clone()).or_default();
+                    nfos.entry(base.to_owned()).or_insert_with(|| name.clone());
+                    continue;
+                }
                 if !SUBTITLE_EXTENSIONS.contains(&ext) {
                     continue;
                 }
@@ -147,6 +157,21 @@ impl Sidecars {
     pub fn image(&self, dir: &Path, bases: &[String]) -> Option<PathBuf> {
         let images = self.images.get(dir)?;
         bases.iter().find_map(|base| images.get(&base.to_ascii_lowercase())).map(|name| dir.join(name))
+    }
+
+    /// The NFO file named after `video`, next to it (`Movie (2020).mkv` finds
+    /// `Movie (2020).NFO`).
+    pub fn nfo(&self, video: &Path) -> Option<PathBuf> {
+        let dir = video.parent()?;
+        let stem = video.file_stem()?.to_string_lossy().to_lowercase();
+        self.nfos.get(dir)?.get(&stem).map(|name| dir.join(name))
+    }
+
+    /// The NFO file in `dir` named after the first of `names` that has one
+    /// (`tvshow` finds `TVShow.nfo`).
+    pub fn folder_nfo(&self, dir: &Path, names: &[&str]) -> Option<PathBuf> {
+        let nfos = self.nfos.get(dir)?;
+        names.iter().find_map(|name| nfos.get(&name.to_lowercase())).map(|file| dir.join(file))
     }
 
     /// Subtitle files belonging to `video`.
@@ -354,6 +379,46 @@ mod tests {
         assert_eq!(index.image(Path::new("/m/other"), &bases(&["poster"])), None);
     }
 
+    #[test]
+    fn finds_nfo_files_case_insensitively() {
+        let movie = Path::new("/m/Movie (2020)");
+        let season = Path::new("/tv/Show/Season 01");
+        let show = Path::new("/tv/Show");
+        let index = sidecars(&[
+            (movie, &["Movie (2020).NFO", "movie.nfo", "Movie (2020).srt", "poster.jpg", "notes.txt"]),
+            (show, &["TVShow.nfo", "Show.nfo"]),
+            (season, &["Season.NFO", "Show - S01E01.nfo", "show - s01e02.Nfo", "Show - S01E03.en.nfo"]),
+            (Path::new("/m/Ünïcode (2003)"), &["ÜNÏCODE (2003).nfo"]),
+        ]);
+        assert_eq!(index.nfo(&movie.join("Movie (2020).mkv")), Some(movie.join("Movie (2020).NFO")));
+        assert_eq!(index.nfo(&movie.join("movie.mkv")), Some(movie.join("movie.nfo")));
+        assert_eq!(index.nfo(&movie.join("Movie (2020) - Extended.mkv")), None, "named after another video");
+        assert_eq!(index.nfo(Path::new("/elsewhere/Movie (2020).mkv")), None);
+        assert_eq!(index.nfo(&season.join("Show - S01E02.mkv")), Some(season.join("show - s01e02.Nfo")));
+        assert_eq!(index.nfo(&season.join("Show - S01E03.mkv")), None, "only `<stem>.nfo`, no tags");
+        assert_eq!(
+            index.nfo(Path::new("/m/Ünïcode (2003)/Ünïcode (2003).mkv")),
+            Some(PathBuf::from("/m/Ünïcode (2003)/ÜNÏCODE (2003).nfo"))
+        );
+        assert_eq!(index.folder_nfo(movie, &["movie"]), Some(movie.join("movie.nfo")));
+        assert_eq!(index.folder_nfo(show, &["tvshow"]), Some(show.join("TVShow.nfo")));
+        assert_eq!(index.folder_nfo(season, &["SEASON"]), Some(season.join("Season.NFO")));
+        assert_eq!(index.folder_nfo(movie, &["tvshow", "movie"]), Some(movie.join("movie.nfo")), "the first found");
+        assert_eq!(index.folder_nfo(show, &["movie", "season"]), None);
+        assert_eq!(index.folder_nfo(movie, &["poster", "notes"]), None, "a picture or a note is no NFO file");
+        assert_eq!(index.folder_nfo(Path::new("/m/other"), &["movie"]), None);
+        assert_eq!(index.image(movie, &["movie".to_owned()]), None, "NFO files are not pictures");
+        assert_eq!(index.subtitles(&movie.join("Movie (2020).mkv")).len(), 1, "nor subtitles");
+    }
+
+    #[test]
+    fn the_first_of_nfo_files_differing_by_case_is_kept() {
+        let dir = Path::new("/m/Movie (2020)");
+        let index = sidecars(&[(dir, &["Movie.NFO", "movie.nfo"])]);
+        assert_eq!(index.folder_nfo(dir, &["movie"]), Some(dir.join("Movie.NFO")));
+        assert_eq!(index.nfo(&dir.join("MOVIE.mkv")), Some(dir.join("Movie.NFO")));
+    }
+
     /// What the scanner did before the index: every folder of the library
     /// looked at for every video.
     fn reference(video: &Path, sidecars: &HashMap<PathBuf, Vec<String>>) -> Vec<ExternalSub> {
@@ -414,7 +479,8 @@ mod tests {
             }
         }
         files.entry(flat.clone()).or_default().extend(["poster.jpg".to_owned(), "notes.txt".to_owned()]);
-        // Subs folders of several shapes and cases.
+        // Subs folders of several shapes and cases, with an NFO file in one:
+        // indexed as an NFO file, never taken for subtitles.
         files.insert(flat.join("Subs"), vec!["2_English.srt".into(), "3_French.SDH.ass".into(), "x.nfo".into()]);
         files.insert(flat.join("subtitles").join("movie.2019"), vec!["English.srt".into()]);
         files.insert(flat.join("Subs").join("Movie"), vec!["1_Dutch.srt".into()]);
@@ -426,6 +492,7 @@ mod tests {
         for video in &videos {
             assert_eq!(index.subtitles(video), reference(video, &files), "{}", video.display());
         }
+        assert_eq!(index.nfo(&flat.join("Subs").join("x.mkv")), Some(flat.join("Subs").join("x.nfo")));
         assert!(videos.iter().map(|v| index.subtitles(v).len()).sum::<usize>() > 40);
     }
 

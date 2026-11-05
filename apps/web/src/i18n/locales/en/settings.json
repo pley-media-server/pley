@@ -37,7 +37,7 @@
       "title": "Metadata",
       "description": "Posters, summaries, ratings, cast and episode titles.",
       "tmdbKey": "TMDB API key",
-      "tmdbKeyHint": "Movies, collections and Fix Match use TMDB. Free key from <a>themoviedb.org/settings/api</a>. Without one, movies keep their file names and local artwork.",
+      "tmdbKeyHint": "Movies, collections and Fix Match use TMDB. Free key from <a>themoviedb.org/settings/api</a>. Without one, movies keep their file names and local artwork, or what their NFO files say.",
       "testTmdb": "Test the TMDB key",
       "tvShows": "TV shows",
       "tvShowsHint": "Automatic uses TMDB when it has a key, then TheTVDB when it has one, else <a>TVmaze</a>, which needs none. Changing the source fetches every show again.",
@@ -54,6 +54,9 @@
       "musicHint": "Genres and release dates from <a>MusicBrainz</a>, and covers from the Cover Art Archive for albums that have none. Tags in the files win. No key needed; the first look-up takes about a second per album.",
       "musicToggle": "Music metadata from MusicBrainz",
       "testMusicBrainz": "Test MusicBrainz",
+      "nfo": "NFO files",
+      "nfoHint": "The NFO files Kodi, Jellyfin, Radarr and Sonarr keep next to movies and shows: their ids decide the match, and their details win over the metadata source's. Your edits win over them. Pley never changes them.",
+      "nfoToggle": "Read NFO files",
       "language": "Metadata language",
       "languageHint": "For TMDB and TheTVDB. TVmaze is in English.",
       "attribution": "This product uses the TMDB API but is not endorsed or certified by TMDB. TV metadata from <tvdb>TheTVDB</tvdb>. TV data from TVmaze is licensed <license>CC BY-SA</license>; music data from MusicBrainz is public domain."

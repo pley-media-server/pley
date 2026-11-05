@@ -8,6 +8,7 @@ import app.pley.android.common.resolve
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.format.FormatWords
+import app.pley.android.model.format.formatClock
 import app.pley.android.player.CastFrom
 import app.pley.android.player.R
 import java.util.Locale
@@ -81,6 +82,21 @@ interface PlayerTexts {
 
     /** A remote sent this here: "Playing from Living room TV". */
     fun playingFrom(from: CastFrom): String
+
+    // What the profile's remote, on another device, just did here, said for a moment in place of the controls.
+    val remotePaused: String
+    val remotePlaying: String
+
+    /** A skip of [offsetMs], as far as it asked: "+30 s", "−10 s". */
+    fun remoteSkipped(offsetMs: Long): String
+
+    /** A seek: where it went, "Jumped to 12:34". */
+    fun remoteJumped(positionMs: Long): String
+
+    /** A track or quality picked, by its menu's name: "Audio: English", "Subtitles off", "Quality: 8 Mbps 1080p". */
+    fun remoteAudio(label: String): String
+    fun remoteSubtitles(label: String?): String
+    fun remoteQuality(label: String): String
 
     /** The speed can't change: a download's sound goes to a receiver as it is, and nothing here decodes it. */
     val speedUndecodable: String
@@ -229,6 +245,20 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
 
     override fun playingFrom(from: CastFrom): String = from.notice(res)
 
+    override val remotePaused: String get() = s(R.string.remote_paused)
+    override val remotePlaying: String get() = s(R.string.remote_playing)
+
+    override fun remoteSkipped(offsetMs: Long): String =
+        res.getString(if (offsetMs < 0) R.string.remote_skipped_back else R.string.remote_skipped_forward, skipSeconds(offsetMs))
+
+    override fun remoteJumped(positionMs: Long): String = res.getString(R.string.remote_jumped, formatClock(positionMs / 1000.0))
+    override fun remoteAudio(label: String): String = res.getString(R.string.remote_audio, label)
+
+    override fun remoteSubtitles(label: String?): String =
+        label?.let { res.getString(R.string.remote_subtitles, it) } ?: s(R.string.remote_subtitles_off)
+
+    override fun remoteQuality(label: String): String = res.getString(R.string.remote_quality, label)
+
     override fun stopped(message: String?, byAdmin: Boolean): String {
         val who = s(if (byAdmin) R.string.session_stopped_by_admin else R.string.session_stopped_elsewhere)
         return if (message.isNullOrBlank()) who else res.getString(R.string.session_stopped_message, who, message.trim())
@@ -305,3 +335,6 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
 
 /** Lines as qualities name them: "4K", "1080p", "720p". */
 internal fun linesLabel(lines: Int): String = if (lines >= 2160) "4K" else "${lines}p"
+
+/** A skip's whole seconds, as the TV's seek badge counts them: 10 for "−10 s". */
+internal fun skipSeconds(offsetMs: Long): Int = ((kotlin.math.abs(offsetMs) + 500) / 1000).toInt()

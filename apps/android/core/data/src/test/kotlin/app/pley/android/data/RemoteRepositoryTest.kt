@@ -6,6 +6,7 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Me
@@ -273,6 +274,54 @@ class RemoteRepositoryTest {
     }
 
     @Test
+    fun `a command shows what it asks at once, until it is answered or the wait is over`() {
+        // At 60 s, playing, reported at 0; the commands go at 2 s.
+        val playing = remote(session(state = ProgressState.Playing, positionMs = 60_000), reportedAt = 0)
+        assertEquals(playing, RemoteRepository.asSent(playing, null))
+
+        val seek = RemoteRepository.asSent(playing, SentCommand(Control.Seek, playing, sentAt = 2_000, target = 10_000))
+        assertEquals(10_000L, seek.positionAt(2_000))
+        assertEquals(13_000L, seek.positionAt(5_000))
+
+        val paused = RemoteRepository.asSent(playing, SentCommand(Control.Pause, playing, sentAt = 2_000))
+        assertEquals(ProgressState.Paused, paused.session.state)
+        assertEquals(62_000L, paused.positionAt(20_000))
+        // Where the controls showed it as the pause went: a skip just before it still on its way.
+        val pausedAfterSkip = RemoteRepository.asSent(playing, SentCommand(Control.Pause, playing, sentAt = 2_000, target = 92_000))
+        assertEquals(92_000L, pausedAfterSkip.positionAt(20_000))
+        val stopped = remote(session(state = ProgressState.Paused, positionMs = 60_000), reportedAt = 0)
+        val played = RemoteRepository.asSent(stopped, SentCommand(Control.Play, stopped, sentAt = 2_000))
+        assertEquals(ProgressState.Playing, played.session.state)
+        assertEquals(63_000L, played.positionAt(5_000))
+
+        assertEquals(2, RemoteRepository.asSent(playing, SentCommand(Control.Audio, playing, 2_000, streamIndex = 2)).session.audioIndex)
+        assertEquals(3, RemoteRepository.asSent(playing, SentCommand(Control.Subtitles, playing, 2_000, streamIndex = 3)).session.subtitleIndex)
+        assertEquals("4m", RemoteRepository.asSent(playing, SentCommand(Control.Quality, playing, 2_000, quality = "4m")).session.quality)
+        // What a next plays isn't known.
+        assertEquals(playing, RemoteRepository.asSent(playing, SentCommand(Control.Next, playing, sentAt = 2_000)))
+    }
+
+    @Test
+    fun `a session a command ended stays listed until its device plays again`() {
+        val ended = remote(session(id = "s1", deviceId = "app-12"), reportedAt = 0)
+        val kitchen = remote(session(id = "s2", device = "Kitchen phone", deviceId = "app-15"), reportedAt = 0)
+        val tv = receiver("tv-1", "app-12", "Living room TV")
+        val listed = listOf(OtherDevice("app-15", session = kitchen))
+
+        // A device that only played comes back; one that takes casts plays it again.
+        assertEquals(RemoteRepository.devicesOf(listOf(kitchen, ended), emptyList()), RemoteRepository.withEnded(listed, ended))
+        val ready = RemoteRepository.devicesOf(listOf(kitchen), listOf(tv))
+        assertEquals(OtherDevice("app-12", tv, ended), RemoteRepository.withEnded(ready, ended).first { it.deviceId == "app-12" })
+        // Playing again, or still playing it: as listed.
+        val again = RemoteRepository.devicesOf(listOf(kitchen, remote(session(id = "s3", deviceId = "app-12"), 0)), listOf(tv))
+        assertEquals(again, RemoteRepository.withEnded(again, ended))
+        assertEquals(listed, RemoteRepository.withEnded(listed, null))
+
+        assertTrue(listOf(Control.Next, Control.Previous, Control.Audio, Control.Subtitles, Control.Quality).all(RemoteRepository::mayEndSession))
+        assertFalse(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip).any(RemoteRepository::mayEndSession))
+    }
+
+    @Test
     fun `a seek or a skip is answered by a report from somewhere new, or from where it was sent to`() {
         // At 60 s, playing, reported at 0.
         val before = remote(session(state = ProgressState.Playing, positionMs = 60_000, updatedAt = 100), reportedAt = 0)
@@ -362,6 +411,46 @@ class RemoteRepositoryTest {
         data.events.send(LiveEvent.Event(ServerEvent.SessionsChanged))
         testScheduler.runCurrent()
         assertEquals(listOf("Kitchen phone", "Living room TV"), remote.devices.value.map { it.name })
+    }
+
+    @Test
+    fun `the household's other profiles' devices are listed with their profile, after the profile's own`() = runTest {
+        val data = signedIn(folder.newFolder()) {
+            api.answer("playingSessions", emptyList<PlayingSession>())
+            api.answer("remoteDevices", Fixtures.decode<List<RemoteDevice>>("remote/devices_household.json"))
+        }
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        // The Bedroom TV comes before the Living room TV by name, but it is on Sam's profile.
+        assertEquals(listOf("Living room TV", "Bedroom TV"), remote.devices.value.map { it.name })
+        assertEquals(listOf(null, DeviceProfileName(3, "Sam")), remote.devices.value.map { it.profile })
+        assertTrue(remote.devices.value.all { it.takes(CastKind.Item) && !it.playing })
+    }
+
+    @Test
+    fun `a cast to another profile's device names it, with the PIN when this profile has one`() = runTest {
+        val me: Me = Fixtures.decode("me/app_token.json")
+        val data = signedIn(folder.newFolder()) { api.answer("me", me.copy(hasPin = false)) }
+        val remote = data.graph.remote
+        assertFalse(remote.castNeedsPin)
+        remote.cast("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "1234"))
+        assertEquals(listOf("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "1234")), data.api.calls("cast").single().args)
+
+        // A PIN set elsewhere: GET /api/auth/me says so.
+        data.api.answer("me", me.copy(hasPin = true))
+        data.graph.session.refresh()
+        testScheduler.runCurrent()
+        assertTrue(remote.castNeedsPin)
+
+        // A refused PIN changes nothing listed.
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        val reads = data.api.calls("remoteDevices").size
+        data.api.fail("cast", ApiException(403, "wrong_pin", "wrong PIN"))
+        runCatching { remote.cast("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "0000")) }
+        testScheduler.runCurrent()
+        assertEquals(reads, data.api.calls("remoteDevices").size)
     }
 
     @Test

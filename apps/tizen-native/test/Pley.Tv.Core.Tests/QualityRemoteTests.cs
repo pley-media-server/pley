@@ -126,6 +126,25 @@ public class VideoQualityTests
     }
 
     [Fact]
+    public void A_quality_the_remote_picks_is_toasted_by_its_panels_name_and_the_one_picked_says_nothing()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        h.Play(4_000);
+        h.Source.Emit(Command("auto"));
+        h.Source.Emit(Command("8m", session: "s2"));
+        h.Source.Emit(Command("30m"));
+        Assert.Empty(h.Toasts);
+        var eight = h.State.Qualities.Single(q => q.Id == "8m").Label;
+        h.Source.Emit(Command("8m"));
+        // The new session plays it.
+        h.Source.Emit(Command("original", session: "s2"));
+        Assert.Equal(new[] { "Quality: 8 Mbps 1080p", "Quality: Original" }, h.Toasts.Select(t => t.Text));
+        Assert.Equal($"Quality: {eight}", h.Toasts[0].Text);
+        Assert.All(h.Toasts, t => Assert.Equal(PlayerText.CaptionsToastMs, t.Ms));
+    }
+
+    [Fact]
     public void A_session_the_server_stopped_changes_no_quality()
     {
         h.Add(PlayerHarness.Movie());

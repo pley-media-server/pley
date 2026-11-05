@@ -21,7 +21,7 @@ import {
 import { ChannelPages } from "../../live/pages";
 import { t } from "../../i18n";
 import { useUi } from "../context";
-import { Chip, PanelRow, Tab } from "../kit/buttons";
+import { Chip, Pill, Round, Tab } from "../kit/buttons";
 import { F, G } from "../kit/focusable";
 import { Icon } from "../kit/icons";
 import { SidePanel } from "../kit/panel";
@@ -349,8 +349,13 @@ function EmptyCategory(p: { shown: LiveCategory; onSearch: () => void; onAll: ()
 
 // ---- a programme's details
 
-/** A programme (or a channel without one) in a side panel: what the guide says of it, Watch, and the channel's favourite. */
-function ProgramPanel(p: {
+/**
+ * A programme (or a channel without one) in a side panel: what the guide
+ * says of it, then Watch and, beside it, the channel's favourite as a star
+ * alone, filled for a favourite, as in the live player (Android TV's
+ * ProgramPanel). Its words are only heard.
+ */
+export function ProgramPanel(p: {
   channel: LiveChannel;
   category: LiveCategory;
   program: LiveProgram | null;
@@ -410,8 +415,16 @@ function ProgramPanel(p: {
           </div>
         </div>
       )}
-      <PanelRow icon="play" label={on ? t("livetv.program.watchNow") : t("livetv.program.watchChannel")} initial onSelect={p.onWatch} />
-      <PanelRow icon={c.favorite ? "star" : "star-outline"} label={c.favorite ? t("livetv.favourites.remove") : t("livetv.favourites.add")} onSelect={p.onFavorite} />
+      <G kind="row" class="buttons live-panel-buttons">
+        <Pill icon="play" label={on ? t("livetv.program.watchNow") : t("livetv.program.watchChannel")} initial onSelect={p.onWatch} />
+        <Round
+          icon={c.favorite ? "star" : "star-outline"}
+          label={c.favorite ? t("livetv.favourites.remove") : t("livetv.favourites.add")}
+          offArt
+          bare
+          onSelect={p.onFavorite}
+        />
+      </G>
     </SidePanel>
   );
 }

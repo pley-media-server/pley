@@ -150,6 +150,31 @@ class ProfilesTest {
     }
 
     @Test
+    fun aCastsTicketSwitchesInPlaceOfAPinAndASpentOneChangesNothing() = runBlocking {
+        store.save(savedTokens(issuer))
+        val (_, tokens) = profiles()
+        tokens.switchProfile(2, pin = null, ticket = "pley_st_one")
+        assertEquals(
+            mapOf(
+                "grant_type" to "urn:pley:params:oauth:grant-type:switch-profile",
+                "client_id" to CLIENT_ID,
+                "refresh_token" to "pley_rt_one",
+                "profile" to "2",
+                "ticket" to "pley_st_one",
+            ),
+            switches.single(),
+        )
+        assertEquals("pley_rt_kid", store.load(issuer)!!.refreshToken)
+
+        // Spent or expired: refused with its reason, and the sign-in stays as it was.
+        switchAnswer = refusal("ticket_spent")
+        val refused = assertThrows(TokenException::class.java) { runBlocking { tokens.switchProfile(2, pin = null, ticket = "pley_st_one") } }
+        assertEquals("ticket_spent", refused.oauth?.reason)
+        assertTrue(tokens.signedIn.value)
+        assertEquals("pley_rt_kid", store.load(issuer)!!.refreshToken)
+    }
+
+    @Test
     fun otherRefusalsAreExplained() = runBlocking {
         store.save(savedTokens(issuer))
         val (profiles, tokens) = profiles()

@@ -25,6 +25,10 @@
     "subtitlesOff": "Subtítulos desactivados",
     "subtitles": "Subtítulos: {{track}}",
     "audio": "Audio: {{track}}",
+    "playing": "Reproduciendo",
+    "paused": "En pausa",
+    "jumpedTo": "Posición: {{time}}",
+    "quality": "Calidad: {{quality}}",
     "playOriginalInQuality": "{{note}} “Reproducir original” está en Calidad.",
     "chooseInQuality": "{{note}} Elige una en Calidad.",
     "subtitlesAdded": "Subtítulos añadidos: {{track}}",
@@ -199,6 +203,7 @@
   "cast": {
     "playingFrom": "Reproduciendo desde {{device}}",
     "playingFromAnother": "Reproduciendo desde otro dispositivo",
-    "nothingToPlay": "Nada que reproducir"
+    "nothingToPlay": "Nada que reproducir",
+    "switchFailed": "No se pudo cambiar al perfil del control remoto"
   }
 }

@@ -27,8 +27,6 @@ class App : NUIApplication
     /// <summary>Requests and Discover for the profile in use: the rail's way in, its number, and the news that pops up.</summary>
     AppRequests requests = null!;
     LiveTvEntry? liveEntry;
-    /// <summary>The players' reports to the server, in order: one for the app, so a player's last report goes out after it closed.</summary>
-    readonly SessionReporter reporter = new SessionReporter();
     /// <summary>The app's one music player: it plays on behind every page, and ends with the profile, the sign-in or the server.</summary>
     MusicPlayer music = null!;
     MediaKeys? musicKeys;
@@ -435,7 +433,7 @@ class App : NUIApplication
         var opened = Profile.Start();
         state.HoldRefresh(true);
         PlayerScreen? screen = null;
-        screen = new PlayerScreen(shell, state, request, reporter, images, gate, () =>
+        screen = new PlayerScreen(shell, state, request, state.Reporter, images, gate, () =>
         {
             state.HoldRefresh(false);
             PlayerGone(screen!);
@@ -497,9 +495,18 @@ class App : NUIApplication
         }
     }
 
+    /// <summary>The player showing closes: done once it has let go of the TV's player, at once when none shows.</summary>
+    Task ClosePlayer()
+    {
+        var gone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Replacing(() => gone.TrySetResult(true));
+        return gone.Task;
+    }
+
     /// <summary>
     /// What a cast does here (Core's <see cref="CastReceiver"/> decides what): it plays in place of
-    /// what plays, over the rail's pages, with "Playing from …" over it as it starts.
+    /// what plays, over the rail's pages, with "Playing from …" over it as it starts. A cast from
+    /// another profile's remote switches to that profile first, which starts on its Home.
     /// </summary>
     sealed class Casting : ICastTarget
     {
@@ -510,6 +517,18 @@ class App : NUIApplication
         public string ReceiverId => app.state.InstallId();
 
         public bool Shown => app.state.Visible.Value && app.state.SignedIn && !app.state.SignedOut.Value && app.pages != null;
+
+        public long? Profile => app.state.Profile;
+
+        public async Task SwitchTo(long profile, string ticket, Action switched)
+        {
+            // What plays as the profile before ends while its sign-in still works, as signing out has it.
+            await app.ClosePlayer();
+            await app.state.SwitchForCast(profile, ticket);
+            // As a switch on "Who's watching?": the profile's Home, under what the cast plays.
+            app.Go(new PageKey.Home());
+            switched();
+        }
 
         public void Video(PlayRequest request, string banner) => app.Replacing(() =>
         {

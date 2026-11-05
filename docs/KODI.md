@@ -47,9 +47,11 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
 - When the server requires two-step sign-in, the screen with the code says
   so under its notes. Someone who doesn't use it yet sets it up on the
   phone or computer where they approve the code.
-- In a household of more than one profile, Kodi asks "Who's watching?" each
-  time it starts, and the PIN of the profile it was left on when that
-  profile has one, as the other TVs do; a profile with a PIN shows a lock.
+- Kodi starts as the profile it was left on, straight into Home, when that
+  profile has no PIN. In a household of more than one profile it asks
+  "Who's watching?" each time it starts when that profile has one, and
+  going on as it asks the PIN, as the other TVs do; a profile with a PIN
+  shows a lock.
   A PIN is typed in Kodi's number dialog and never kept. A wrong one, or
   too many, asks again with the reason in the dialog's heading, the only
   line the dialog has; a PIN locked after too many wrong tries is said on
@@ -254,6 +256,19 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   once; another title, channel or quality reports with its own session.
 - Kodi stopped or playing something else obeys nothing. A command it
   doesn't know, or a seek or skip without its place, does nothing.
+- **What shows:** the add-on brings up nothing of Kodi's player for a
+  command. What the remote did to a video shows for 2 seconds as a Kodi
+  notification with the add-on's icon, without its sound: "Paused",
+  "Playing", the skip asked for ("+30 s", "−10 s"), where a seek went
+  ("Jumped to 12:34"), the audio or subtitles switched to, by the
+  language and title Kodi's own Audio and Subtitles menus name them by
+  ("Audio: French - Commentary", "Subtitles off"), and the quality picked
+  as the Quality setting names it. A command that changes nothing shows nothing; next
+  and channel up and down show what Kodi shows as it plays the title or
+  channel, and music shows nothing. Kodi's own pause and seek bar are its
+  skin's: most skins show the seek bar while paused and for a moment
+  after a seek, whoever made it, and the add-on can't keep it away (a
+  skin opens it again while its condition holds).
 
 ### Casting
 
@@ -264,7 +279,9 @@ it (`casting.py`):
 - **Taking casts:** its event stream makes Kodi a receiver, by the
   `client_id` its plays are made with, as a TV named as its plays are
   named. It takes titles and playlists always, and Live TV's channels
-  where the account has Live TV as the stream opens.
+  where the account has Live TV as the stream opens, and says it switches
+  to the profile of a remote of another profile that casts to it
+  (`casts=…,switch`).
 - **What plays:** what is sent plays as the add-on's own Play plays it,
   through the plugin's play routes, in place of what plays:
   - a movie or an episode from where it was sent, else where Play starts
@@ -286,10 +303,26 @@ it (`casting.py`):
   device" when the remote's has no name) shows for 4 seconds as a Kodi
   notification with the add-on's icon, and "Nothing to play" when a show
   has no next episode or an album or a playlist is empty.
-- **Not taken:** a cast for another device, or one that comes while the
-  add-on is signed out or while Pley's window asks "Who's watching?" as
-  Kodi starts (a cast doesn't play past its PINs), does nothing. Of two
-  casts close together, the later plays.
+- **From another profile:** a remote on another profile of the household
+  casts with its profile and a ticket, and Kodi switches to that profile
+  first, with the switch-profile grant and the ticket in place of a PIN
+  (the remote gave its own). What played ends as the profile it played
+  as: the switch waits up to 5 seconds for its last report, its
+  session's end and its live channel's to go, and what hasn't gone by
+  then is dropped rather than sent as the new profile. Until the switch
+  is done, any other cast heard is dropped, whichever profile it names;
+  once switched, casts play as usual. The add-on then acts as the
+  remote's profile:
+  Pley's window goes to its Home, a listing of the add-on on screen shows
+  again, and "Who's watching?" counts as answered until Kodi starts over.
+  A switch that fails (the ticket spent or out of time, the server out of
+  reach) says "Couldn't switch to the remote's profile" for 4 seconds,
+  plays nothing and stops what played, which was ended for the cast.
+- **Not taken:** a cast for another device, one naming another profile
+  without a ticket, or one that comes while the add-on is signed out or
+  while Pley's window asks "Who's watching?" as Kodi starts (a cast
+  neither plays past its PINs nor switches profile while one is picked),
+  does nothing. Of two casts close together, the later plays.
 
 ### Requests
 

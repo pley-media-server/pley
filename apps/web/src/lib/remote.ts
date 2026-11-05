@@ -11,6 +11,9 @@ export const SKIP_BACK_MS = 10_000;
 export const SKIP_FORWARD_MS = 30_000;
 
 
+/** This browser's clock, in milliseconds: the one `reported_at_ms` and a command's `sentAt` are on. */
+export const remoteClock = (): number => Date.now();
+
 /** A session as the remote keeps it: when its player last reported, by this browser's clock. */
 export interface RemoteSession extends PlayingSession {
   reported_at_ms: number;
@@ -35,6 +38,8 @@ export function estimatedPosition(session: RemoteSession, nowMs: number): number
 /**
  * One of the user's other devices, as the remote lists it: one that takes
  * casts (a receiver), one that plays something, or both, by `device_id`.
+ * A receiver another profile of the household is on is listed too, by its
+ * profile (`profile`), without what it plays.
  */
 export interface OtherDevice {
   /** Its `device_id`. */
@@ -46,13 +51,16 @@ export interface OtherDevice {
   receiver: RemoteDevice | null;
   /** What it plays: its newest session; null while it plays nothing. */
   session: RemoteSession | null;
+  /** The household profile it is on, when it isn't the user's: a cast switches it to theirs. */
+  profile: NonNullable<RemoteDevice["profile"]> | null;
 }
 
 /**
  * The devices of `receivers` and `sessions` (oldest first, as the server
- * lists them), each once: those that play first, then the others, each by
- * name. A device with several sessions shows its newest. Two of the same
- * name are numbered, so every label and message says which one it means.
+ * lists them), each once: those that play first, then the user's own, then
+ * those on another profile, each by name. A device with several sessions
+ * shows its newest. Two of the same name are numbered, so every label and
+ * message says which one it means.
  */
 export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[]): OtherDevice[] {
   const byId = new Map<string, { receiver: RemoteDevice | null; session: RemoteSession | null }>();
@@ -69,8 +77,12 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
     kind: receiver?.kind ?? session?.device_kind ?? "other",
     receiver,
     session,
+    profile: receiver?.profile ?? null,
   }));
-  devices.sort((a, b) => Number(!a.session) - Number(!b.session) || a.name.localeCompare(b.name));
+  devices.sort(
+    (a, b) =>
+      Number(!a.session) - Number(!b.session) || Number(!!a.profile) - Number(!!b.profile) || a.name.localeCompare(b.name),
+  );
   const total = new Map<string, number>();
   for (const d of devices) total.set(d.name, (total.get(d.name) ?? 0) + 1);
   const seen = new Map<string, number>();
@@ -124,6 +136,25 @@ export function useRemoteAsk(): RemoteAsk | null {
   return useSyncExternalStore(subscribeAsk, () => ask);
 }
 
+/**
+ * Whether a player may end its session for `command`, to start another:
+ * the next or previous title, or a track or a quality it plays anew.
+ */
+export function mayEndSession(command: Control): boolean {
+  return command === "next" || command === "previous" || command === "audio" || command === "subtitles" || command === "quality";
+}
+
+/**
+ * `sessions` with `ended` still in while its device plays nothing else.
+ * A command may end a session to start another (`mayEndSession`): between
+ * the two, the device would look as if it played nothing, or leave the
+ * list if it takes no casts.
+ */
+export function withEnded(sessions: RemoteSession[], ended: RemoteSession | null): RemoteSession[] {
+  if (!ended || sessions.some((s) => s.device_id === ended.device_id)) return sessions;
+  return [...sessions, ended];
+}
+
 /** `device`'s newest session in `sessions`, leaving out those `mine` says play here. */
 export function newestOn(sessions: RemoteSession[], device: string, mine: (sessionId: string) => boolean): RemoteSession | undefined {
   return sessions.filter((s) => s.device_id === device && !mine(s.session_id)).at(-1);
@@ -149,12 +180,43 @@ export interface SentCommand {
   before: RemoteSession;
   /** This browser's clock, as `nowMs` given to `commandAnswered` is. */
   sentAt: number;
-  /** `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted. */
+  /**
+   * `seek`, `skip` and a `previous` that starts the title over: where it should be once the player acted;
+   * `play` and `pause`: where the controls showed it as it went.
+   */
   target?: number;
   /** `audio` and `subtitles`: the track picked (subtitles -1: off). */
   track?: number;
   /** `quality`: the quality picked, by id. */
   quality?: string;
+}
+
+/**
+ * `session` as a remote shows it while `sent` is out: as the command asks
+ * (played or paused, at the place a seek or a skip goes, with the track or
+ * quality picked), so the controls don't wait on the player's report to
+ * move. Once the wait is over without an answer, the session as it is shows
+ * again.
+ */
+export function asSent(session: RemoteSession, sent: SentCommand | null): RemoteSession {
+  if (!sent) return session;
+  // A place given at the moment the command went, moving on from there while it plays.
+  const at = (position: number) => ({ position_ms: position, reported_at_ms: sent.sentAt });
+  switch (sent.command) {
+    // Where the controls showed it as it went: a skip just before it still counts.
+    case "play":
+      return { ...session, state: "playing", ...at(sent.target ?? estimatedPosition(session, sent.sentAt)) };
+    case "pause":
+      return { ...session, state: "paused", ...at(sent.target ?? estimatedPosition(session, sent.sentAt)) };
+    case "audio":
+      return { ...session, audio_index: sent.track ?? session.audio_index };
+    case "subtitles":
+      return { ...session, subtitle_index: sent.track ?? session.subtitle_index };
+    case "quality":
+      return { ...session, quality: sent.quality ?? session.quality };
+    default:
+      return sent.target != null ? { ...session, ...at(sent.target) } : session;
+  }
 }
 
 /** Farther than this from where it should be, a report has moved (the server's rule for a seek). */

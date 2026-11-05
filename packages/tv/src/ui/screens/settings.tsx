@@ -280,19 +280,19 @@ export function SettingsScreen(p: { entry: Entry }) {
       }
       if (household.length > 1) {
         const always = app.alwaysStartAs();
-        const askWho = t("settings.profile.askWho");
+        const usedLast = t("settings.profile.usedLast");
         rows.push(
           <SettingRow
             key="always"
             fid="row-always"
             icon="user-round"
             label={t("settings.profile.alwaysStartAs")}
-            value={always === null ? askWho : (household.filter((h) => h.id === always)[0]?.name ?? askWho)}
+            value={always === null ? usedLast : (household.filter((h) => h.id === always)[0]?.name ?? usedLast)}
             onSelect={() =>
               choose<number | null>(
                 "row-always",
                 t("settings.profile.alwaysStartAs"),
-                [{ value: null, label: askWho }, ...household.map((h) => ({ value: h.id, label: h.name }))],
+                [{ value: null, label: usedLast }, ...household.map((h) => ({ value: h.id, label: h.name }))],
                 always,
                 (v) => app.setAlwaysStartAs(v),
               )

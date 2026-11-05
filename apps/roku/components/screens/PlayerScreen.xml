@@ -4,7 +4,8 @@
      Skip Credits, Up Next before the end of an episode (and at its end),
      Pley's menu (Down: Subtitles, Audio, Quality, Subtitle sync,
      Chapters, Sleep timer, Find subtitles…, Playback details), the sleep
-     timer's notice, Automatic's notice of a lower quality, "Reconnecting…"
+     timer's notice, Automatic's notice of a lower quality and the user's
+     remote's of what it did, "Reconnecting…"
      while the server is out of reach, and what went wrong when it did. -->
 <component name="PlayerScreen" extends="Group">
     <interface>
@@ -98,7 +99,8 @@
             <Label id="sleepText" translation="[40, 0]" width="420" height="112" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
             <ButtonGroup id="sleepButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[480, 20]" minWidth="320" />
         </Group>
-        <!-- Automatic saying it went down, briefly, at the top. -->
+        <!-- Brief notices at the top: Automatic saying it went down, and
+             what the user's remote did ("Paused", "+30 s"). -->
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
             <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />

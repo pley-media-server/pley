@@ -53,22 +53,25 @@ what it saved and says "Another device answers there."
 
 ### Profiles
 
-A TV asks "Who's watching?" as it starts when the household has more than
-one profile, unless Settings' Always start as names one; Switch profile
-opens it at any time, on phones too. A profile with a PIN shows a lock and
-asks it on a number pad: a wrong one clears the dots, too many say how
-long to wait, and a PIN locked after 100 wrong ones in a row stops the
-pad. Going on as the profile a TV was left on asks its PIN at a start. A
+A TV starts as the profile it was left on, straight into Home, when that
+profile has no PIN. In a household of more than one profile it asks "Who's
+watching?" as it starts when that profile has a PIN, or while the TV
+doesn't know whether it has one. Phones open on the profile used last, and
+a sign-in on the profile picked while approving it. Switch profile opens
+"Who's watching?" at any time. A profile with a PIN shows a lock and asks
+it on a number pad: a wrong one clears the dots, too many say how long to
+wait, and a PIN locked after 100 wrong ones in a row stops the pad. Going
+on as the profile a TV was left on asks its PIN at a start. A
 profile that can see more and has no PIN takes its password: a phone signs
 in again in the browser, and a TV shows a code to approve on a phone,
 where its owner picks it.
 
-Always start as only skips the question: the TV starts as the profile it
-was left on, but never past its PIN. When that profile has one, the start
-opens "Who's watching?" on its PIN pad, and Back shows the other profiles.
-Whether it has one is the profile's `has_pin` from `GET /api/auth/me`, saved
-with the session, so the start reads it from the device; until the TV has
-heard it for that profile, the start asks "Who's watching?".
+A start never goes past a PIN: with Always start as, it opens "Who's
+watching?" on the PIN pad of the profile the TV was left on, and Back
+shows the other profiles. Whether that profile has a PIN is its `has_pin`
+from `GET /api/auth/me`, saved with the session, so the start reads it from
+the device; until the TV has heard it for that profile, the start asks
+"Who's watching?".
 
 ### Language
 
@@ -229,31 +232,52 @@ rates as the decoder gives them, the same in every language.
 ### Remote control
 
 The phone is a remote for the profile's other devices, and sends them
-what to play (Play on…); phones and TVs alike obey a remote and play
-what one sends them. A TV shows no remote and has no Play on….
+what to play (Play on…), the household's other profiles' devices too,
+which switch to the phone's profile first; phones and TVs alike obey a
+remote and play what one sends them. A TV shows no remote and has no
+Play on….
 
 On the phone, while another of the profile's devices is on, playing or
-not, a bar above the tabs, over the mini player when music plays here
-too, says **Playing on** the device and what plays there, or how many
-devices play and their names, or, while none plays, **Your devices**.
-The devices are the receivers (`GET /api/remote/devices`, the apps that
-take casts) merged with the sessions (`GET /api/sessions`) by
+not, Home's top bar has the remote's button, beside the profile's
+avatar, in the accent while one of them plays (TalkBack says "Remote, 2
+devices playing" or "Remote, 1 device ready to play"); the other tabs
+reach the remote through the bar below while the phone controls a
+device. The devices are the receivers (`GET /api/remote/devices`, the
+apps that take casts) merged with the sessions (`GET /api/sessions`) by
 `device_id`, both read again on `sessions_changed`, `session_stopped`
 and each time the event stream connects; a session whose device takes no
 casts (a Jellyfin or Plex app) is listed too, and a device with several
 sessions shows its newest. The phone's own sessions are left out (its
-players say which they play), and so is its own receiver.
+players say which they play), and so is its own receiver. The phone asks
+for the household's too (`?household=1`): for a home member, the
+receivers include the other profiles' devices that switch to the
+caster's profile, each with the profile it is on (`profile`); what those
+play stays their profile's, so they are listed as on it, not playing.
 
-Tapping the bar opens the remote, a sheet of **Your devices**: a row for
-each, those that play first, then the others, each by name (**Unknown
-device** when the server can't name it; two of the same name are
-numbered), with an icon for its kind (TV, phone, tablet, computer,
-browser, other), and what it plays (an episode as "Show — S1 · E2 —
-Title", a channel as its number and name) with a thin bar of how far,
-or **Ready to play**. Choosing one shows its controls in the list's
-place; Back, or the arrow by its name, goes back to the list. With one
-device only, its controls show at once. The device chosen is kept while
-the sheet is open, so it shows what plays there once it starts.
+The button opens the remote, a sheet of **Your devices**: a row for
+each, those that play first, then the profile's own, then the other
+profiles', each by name (**Unknown device** when the server can't name
+it; two of the same name are numbered), with an icon for its kind (TV,
+phone, tablet, computer, browser, other), and what it plays (an episode
+as "Show — S1 · E2 — Title", a channel as its number and name) with a
+thin bar of how far, or **Ready to play**; another profile's device says
+whose it is, **On Sam's profile**. Choosing one that
+plays shows its controls in the list's place; Back, or the arrow by its
+name, goes back to the list. A device ready to play is only listed: it
+has nothing to control. With one device only, playing, its controls show
+at once. The device Play on… sent something to is kept while the sheet
+is open, so its controls show once it plays.
+
+While the phone controls what a device plays, a bar above the tabs, over
+the mini player when music plays here too, says **Playing on** the device
+(**Paused on** while it is paused) and what plays there, and opens that device's controls. The phone
+controls it once it sends it a command from the remote, or once what it
+sent with Play on… plays there (not what played there before); what
+others play on their own shows no bar. The bar keeps to that device
+through a title ending into the next one, and lets go once the device
+has played nothing for 5 s (stopped, or at the end). A cast that hasn't
+started playing within 30 s isn't waited for, so what plays there later
+isn't taken for the phone's.
 
 A device's controls, top to bottom:
 
@@ -267,11 +291,13 @@ A device's controls, top to bottom:
   it ends (the channel's `now_start` and `now_stop`), its times as the
   phone writes them ("20:00 – 21:00"), and **Next:** the programme after
   it; no seek bar;
-- the transport, centred: previous, back 10 s, play or pause, forward
-  30 s where its player declares them, and next where its player declares
-  it or what plays has a next by nature (an episode, a track), dimmed when
-  the player didn't declare it; a movie whose player declares none has no
-  next. On Live TV, play or pause only where its player declares pause,
+- the transport, one centred row: previous, back 10 s, play or pause,
+  forward 30 s and next, each where its player declares it. Next shows
+  where its player declares it or what plays has a next by nature (an
+  episode, a track), dimmed when the player didn't declare it; a movie
+  whose player declares none has no next. Where only one of previous and
+  next shows, the other's place is kept, so play stays in the middle. On
+  Live TV, play or pause only where its player declares pause,
   then a channel rocker: one rounded pill holding channel down, the word
   **CHANNEL** and channel up, each dimmed when the player can't change
   channel that way;
@@ -285,18 +311,20 @@ A device's controls, top to bottom:
   Subtitles starts with **Off**. On the right, **Stop**, which asks first
   (**Stop playing on** the device?, Stop or Cancel).
 
-A device that plays nothing shows **Nothing playing**, and under it
-**Send something here with Play on…**.
-
-A command waits up to 5 s for the list to show it acted (a new state, a
-new title, a report from where it was sent, the track or quality
-picked), and the controls say it's waiting meanwhile; without one they say the device
-**didn't answer**, until the device reports again. A next or previous
-with nothing there changes nothing, and isn't a failure. While a command
-waits, the sheet stays open with nothing listed, as when a next ends one
-session before the next one's is listed. Refusals are said plainly: the
-device isn't playing any more, can't do that, or too many commands at
-once.
+What a command asks shows at once, with nothing said while it waits:
+the place a seek or a skip goes (a skip goes from there), playing or
+paused, the track or quality picked. A next or previous dims the title
+and the transport until what comes next shows. A command waits up to 5 s
+for the list to show it acted (a new state, a new title, a report from
+where it was sent, the track or quality picked); without one the
+controls say the device **didn't answer**, until the device reports
+again, and show what it plays. A next or previous with nothing there
+changes nothing, and isn't a failure. A next, or a track or quality its
+player plays as a new session, ends one session before the next one's
+is listed: until then, for up to those 5 s, what played stays on the bar
+and in the sheet, and the device stays listed even if it takes no casts.
+Refusals are said plainly: the device isn't playing any more, can't do
+that, or too many commands at once.
 
 The players obey the remote on the profile's other devices
 ([API.md](API.md#remote-control)), on phones and TVs alike, and say what
@@ -341,6 +369,18 @@ again: its engine is stopped, and a next episode would play with no
 screen. What the server's events change meanwhile is fetched again
 on coming back, not in the background.
 
+A command never brings up a video player's controls: whoever sent it is
+on another device. What it changed shows as the player's toast instead,
+for 2 s on a TV, top right, and as long as the phone's toasts: "Paused",
+"Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+where a seek went, and "Audio: …", "Subtitles: …", "Subtitles off" or
+"Quality: …" as the menus name them. A command that changes nothing says
+nothing, and the next episode shows its title as it begins. The remote's
+pause is the remote's until anyone plays again: it doesn't bring up the
+controls as another pause does on the phone, and controls already up
+hide as they do while it plays. A key or a touch on the device makes the
+pause the person's own, and the controls then stay.
+
 #### Play on…
 
 On the phone, what a page plays goes to another of the profile's devices
@@ -363,16 +403,31 @@ on…** shows only while one does:
   after the ways to play it here.
 
 It opens a chooser of those devices as the remote lists them: an icon for
-the kind, the name, and what each plays now or **Ready to play**. An
-album, an artist or a playlist has a Shuffle switch, which makes it
-**Shuffle on…** and sends `shuffle`. Picking a device sends
-`POST /api/remote/devices/{id}/cast`; once it is on its way the chooser
-closes, **Playing on** the device shows in a toast, and the remote opens
-on that device, its controls showing once what it was sent plays. The
-live player closes as its channel goes to the device, and the shell says
-so. A refusal is said under the devices, and another can be picked: the
-device **isn't on any more** (`404`), **can't play that** (`409`), **Too
-many at once** (`429`), else the server's own words.
+the kind, the name, and what each plays now or **Ready to play** (**On
+Sam's profile** for another profile's). An album, an artist or a
+playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
+`shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
+once it is on its way the chooser closes, **Playing on** the device shows
+in a toast, and the remote opens on that device, its controls showing
+once what it was sent plays. The live player closes as its channel goes
+to the device, and the shell says so. A refusal is said under the
+devices, and another can be picked: the device **isn't on any more**
+(`404`), **can't play that** (`409`), **Too many at once** (`429`), else
+the server's own words.
+
+A device of another profile of the household plays as the phone's
+profile: the cast names that device's profile (`profile_id`), and the
+device switches to the phone's before it plays. When the phone's profile
+has a PIN (`has_pin` of `GET /api/auth/me`, or the server answering
+`403 pin_needed`, for a PIN set since), the chooser shows **Enter your
+PIN** in the list's place, the PIN pad of "Who's watching?" with the
+device's icon and what it is for ("Den TV switches from Sam's profile to
+yours"), and sends the cast again with `pin`. A wrong PIN shakes the dots
+and says **Wrong PIN. Try again.**; after too many, the server's words
+say how long to wait (`429`); a locked PIN stops the pad, and **Back to
+the devices** leads back to the list, as Back and the arrow by the
+device's name do. Any other refusal goes back to the list and is said
+there.
 
 #### Taking casts
 
@@ -382,7 +437,9 @@ event stream names the device as a receiver: its install id (the
 `client_id` its players send), its name and kind as its play requests
 give them, and what it plays, titles always and Live TV's channels while
 Live TV is open to the profile (the stream waits up to 2 s for Live TV's
-summary as it opens, so it doesn't open twice). In the background, where
+summary as it opens, so it doesn't open twice), and that it switches to
+the profile of a remote on another profile of the household (`switch`,
+as in `casts=item,live,switch`). In the background, where
 a player keeps the stream open, it names none: going there and back opens
 the stream again, and nothing cast plays while the app is hidden.
 
@@ -399,7 +456,30 @@ in the music player; a channel in the live player, tuned as Watch on that
 channel would, on a phone or a TV, Fire TV included. What plays makes way,
 as for Play there: music pauses for a video or a channel, and a player
 window open closes for music; one player window shows at a time, video
-or Live TV. A cast for another device does nothing.
+or Live TV. A cast for another device does nothing, and so does one that
+comes while "Who's watching?" shows, its PIN pad too, on a phone or a
+TV: whoever is at the device is choosing, and a cast would choose for
+them.
+
+A cast from a remote on another profile of the household names that
+profile (`profile_id`) and carries a `switch_ticket`. The device first
+ends what plays, video, music or Live TV, and waits up to 5 s for its
+last reports (`stopped` where it was, the session's end) and Live TV's
+leave to go out: they carry the sign-in's tokens as they are sent, so
+after the switch they would land on the caster's profile. What hasn't
+gone out by then is dropped, never sent as the caster's profile, a
+channel's leave from a window that closes later too. Then it
+switches to that profile, as "Who's watching?" switches (the
+switch-profile grant with `ticket` in place of a PIN): what shows, its
+caches and the event stream follow the new profile, and then it plays
+the cast once. Every other cast heard from the start of the switch until
+it is done is dropped, whichever profile it is from; once switched,
+casts play as usual, those of the profile switched to included. A switch
+that fails (the ticket spent or expired, the server out of reach) plays
+nothing, and says **Couldn't switch to the remote's profile** where
+**Playing from** would show on the shell: a toast on a phone, the top
+right on a TV. A cast that names another profile without a ticket is
+ignored.
 
 As it starts, it says where it came from, **Playing from** the remote's
 device (**Playing from another device** when the server can't name it),
@@ -542,15 +622,17 @@ says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
-holding OK shows the controls (the channel list and the favourite) over
+holding OK shows the controls (the channel list and the favourite's star) over
 what's on. Up and Down, Channel up and down, and Previous and Next change
 channel. In the guide, Left and Right go programme by programme, back
 through a programme that began before the guide a screen at a time, and a
 half hour at a time on a channel without a guide; rewind and fast forward
 (or Previous and Next) move it two hours, and the time now shows in a pill
 over the now line. Holding OK, Menu or Info on a programme or a channel's
-tile opens its details. Back goes up a step at a time: the guide back to now,
-a search back to the category before, the guide or the tiles to the
+tile opens its details, with Watch and, beside it, the favourite as a star
+alone, filled for a favourite, as in the player's controls (screen readers
+say Add to or Remove from favourites). Back goes up a step at a time: the
+guide back to now, a search back to the category before, the guide or the tiles to the
 categories, then the rail. A held Left stops at the start of the guide or of the
 tiles, and a held Up at the top: a press of its own goes on to the
 categories or the tabs, in the guide not within 0.5 s of Left moving.

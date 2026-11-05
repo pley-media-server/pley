@@ -316,6 +316,14 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const say = (text: string) => setQualityNotice((old) => ({ text, n: (old?.n ?? 0) + 1 }));
   /** "Quality lowered to 8 Mbps 1080p". */
   const smootherText = (label: string) => t("video.qualityLowered", { quality: label });
+  /** A remote's skip, by the offset it asked for: "+30 s", "−10 s". */
+  const skipText = (offsetMs: number) => {
+    const seconds = Math.round(Math.abs(offsetMs) / 1000);
+    return offsetMs < 0 ? t("video.skippedBack", { seconds }) : t("video.skippedAhead", { seconds });
+  };
+  /** Other subtitles, as C and the remote say them: "Subtitles: English (SRT)", "Subtitles off". */
+  const subtitlesText = (track: MediaStream | null) =>
+    track ? t("video.subtitlesShown", { track: streamLabel(track) }) : t("video.subtitlesOff");
   /** Automatic's original fell back to a conversion: the next session says at what. */
   const announceFallback = useRef(false);
   /** The lines of the size a stream in several sizes plays at now (hls.js picks it). */
@@ -471,6 +479,13 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const [chaptersOpen, setChaptersOpen] = useState(false);
   const [active, setActive] = useState(true);
   const [hoveringControls, setHoveringControls] = useState(false);
+  /**
+   * Paused from the user's remote, on another device: the controls don't
+   * come up for it as they do for a pause here, since nobody here asked
+   * for them. Over once it plays again, or someone here moves the mouse,
+   * taps or presses a key.
+   */
+  const [remotePaused, setRemotePaused] = useState(false);
   const [ended, setEnded] = useState(false);
   const [upNext, setUpNext] = useState<ItemSummary | null>(null);
   /** Ended on the server: nothing plays any more, and it says why. */
@@ -1250,6 +1265,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     if (!v) return;
     const onPlay = () => {
       setPlaying(true);
+      setRemotePaused(false);
       setNeedsGesture(false);
       setEnded(false);
     };
@@ -1539,6 +1555,8 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const hideTimer = useRef<number | undefined>(undefined);
   const poke = useCallback(() => {
     setActive(true);
+    // From here a remote's pause is a pause like any other: the controls stay.
+    setRemotePaused(false);
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setActive(false), HIDE_CONTROLS_AFTER);
   }, []);
@@ -1551,7 +1569,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const showControls =
     active ||
     hoveringControls ||
-    !playing ||
+    (!playing && !remotePaused) ||
     settingsOpen ||
     chaptersOpen ||
     loading ||
@@ -1568,9 +1586,10 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     else v.pause();
   };
 
-  const seekTo = (seconds: number) => {
+  /** Where it seeks to (s), no further than the end; null without a video. */
+  const seekTo = (seconds: number): number | null => {
     const v = videoRef.current;
-    if (!v) return;
+    if (!v) return null;
     const max = duration > 0 ? Math.max(0, duration - 0.25) : Number.POSITIVE_INFINITY;
     const t = Math.max(0, Math.min(seconds, max));
     v.currentTime = t;
@@ -1578,6 +1597,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     setCurrent(t);
     if (ended) setEnded(false);
     if (upNext) setUpNext(null);
+    return t;
   };
   const seekBy = (delta: number) => seekTo((videoRef.current?.currentTime ?? current) + delta);
 
@@ -1695,7 +1715,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     const pos = texts.findIndex((s) => s.index === shownTextIndex);
     const next = pos + 1 < texts.length ? texts[pos + 1] : null;
     changeSubtitle(next ? next.index : null);
-    toast.info(next ? t("video.subtitlesShown", { track: streamLabel(next) }) : t("video.subtitlesOff"));
+    toast.info(subtitlesText(next ?? null));
   };
 
   /** `remote`: asked for from another device, which is told nothing here when nothing comes next. */
@@ -1716,6 +1736,8 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
 
   // The user's remote, on another device: this player acts on commands for
   // the session it plays now, and reports at once, so the remote sees it.
+  // What a command changes is said in a brief notice; the controls stay as
+  // they are, for whoever watches here didn't ask for them.
   const onCommand = useEffectEvent((ev: ServerEvent) => {
     if (ev.type !== "player_command") return;
     const v = videoRef.current;
@@ -1725,7 +1747,11 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
       case "play":
         if (v.paused || v.ended) {
           void v.play().then(
-            () => report("playing"),
+            () => {
+              report("playing");
+              toast.info(t("video.remotePlaying"));
+            },
+            // A browser that wants a click first: its Play shows, as it must.
             () => setNeedsGesture(true),
           );
         } else {
@@ -1735,16 +1761,23 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         break;
       case "pause":
         // Its pause event reports; paused already, it is said again.
-        if (!v.paused) v.pause();
-        else report("paused");
+        if (!v.paused) {
+          setRemotePaused(true);
+          v.pause();
+          toast.info(t("video.remotePaused"));
+        } else {
+          report("paused");
+        }
         break;
       case "seek":
       case "skip": {
         const ms = ev.command === "seek" ? ev.position_ms : ev.offset_ms;
         if (ms === null) break;
-        seekTo(ev.command === "seek" ? ms / 1000 : livePosition() + ms / 1000);
+        const at = seekTo(ev.command === "seek" ? ms / 1000 : livePosition() + ms / 1000);
         // Not when the seek lands, which a conversion starting there can take a while to.
         report(v.paused ? "paused" : "playing");
+        if (ev.command === "seek") toast.info(t("video.jumpedTo", { time: formatClock(at) }));
+        else if (ms !== 0) toast.info(skipText(ms));
         break;
       }
       case "next":
@@ -1756,24 +1789,43 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
       // As its own menu picks them; what plays already is said again at once.
       // A new audio track's session says it as it starts, and other
       // subtitles are said as they show (below).
-      case "audio":
+      case "audio": {
         if (ev.stream_index === null) break;
-        if (!changeAudio(ev.stream_index)) report(v.paused ? "paused" : "playing");
+        const index = ev.stream_index;
+        if (!changeAudio(index)) {
+          report(v.paused ? "paused" : "playing");
+          break;
+        }
+        const track = audioStreams.find((x) => x.index === index);
+        if (track) toast.info(t("video.audioShown", { track: streamLabel(track) }));
         break;
+      }
       case "subtitles": {
         if (ev.stream_index === null) break;
         const index = ev.stream_index < 0 ? null : ev.stream_index;
-        if (index === (selectedSub?.index ?? null)) report(v.paused ? "paused" : "playing");
-        else changeSubtitle(index);
+        if (index === (selectedSub?.index ?? null)) {
+          report(v.paused ? "paused" : "playing");
+          break;
+        }
+        changeSubtitle(index);
+        // A track it doesn't list shows none: "Subtitles off", where some showed.
+        const track = subStreams.find((x) => x.index === index) ?? null;
+        if (track || selectedSub) toast.info(subtitlesText(track));
         break;
       }
       // As its Quality menu picks it: the stream starts again at that
       // quality, whose session says it as it starts.
-      case "quality":
-        if (!ev.quality || !qualities.some((q) => q.id === ev.quality)) break;
-        if (ev.quality === selectedQuality.id) report(v.paused ? "paused" : "playing");
-        else changeQuality(ev.quality);
+      case "quality": {
+        const picked = qualities.find((q) => q.id === ev.quality);
+        if (!picked) break;
+        if (picked.id === selectedQuality.id) {
+          report(v.paused ? "paused" : "playing");
+          break;
+        }
+        changeQuality(picked.id);
+        toast.info(t("video.qualityShown", { quality: picked.label }));
         break;
+      }
     }
   });
   useEffect(() => onServerEvent(onCommand), []);

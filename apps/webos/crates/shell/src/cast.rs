@@ -6,8 +6,19 @@
 //! taken while the app shows and is signed in, past the pages of getting in. What it names is
 //! found on the task pool ([`resolve`]): a title's kind, a show's next episode, the tracks of an
 //! album, an artist or a playlist. A newer cast replaces one still being found.
+//!
+//! A remote on another profile of the household casts with its profile and a ticket: the TV ends
+//! what plays, lets its last reports go out as the profile it played as (5 s at most), switches
+//! to the remote's profile with the ticket ([`AppState::switch_for_cast`]), then finds and plays
+//! the cast as the new profile. The switch restarts the event stream, so the cast waits here, not
+//! on the stream, and plays once; any other cast heard until the switch is done is dropped. A
+//! switch the server refused plays nothing and says so; a cast from another profile without a
+//! ticket is ignored.
 
-use pley_core::model::{ItemKind, ItemSummary, PlaylistKind, ServerEvent};
+use std::time::Duration;
+
+use pley_core::auth::{AuthError, SwitchRefusal};
+use pley_core::model::{ItemKind, ItemSummary, PlaylistKind, ServerEvent, SwitchTicket};
 use pley_core::{Api, ApiError, Promise};
 
 use crate::cx::NavCommand;
@@ -17,9 +28,17 @@ use crate::state::AppState;
 /// How long "Playing from …" shows, as long as a player's title banner.
 pub const CAST_NOTICE_SECONDS: f64 = 4.0;
 
+/// How long a switch for a cast waits for the last reports of what played to go out as the
+/// profile it played as; what hasn't gone out by then is dropped.
+pub const LAST_REPORTS_WAIT: Duration = Duration::from_secs(5);
+
 /// What the TV says of a cast that names nothing to play: a show without episodes, an empty album
 /// or playlist.
 pub const NOTHING_TO_PLAY: &str = "Nothing to play";
+
+/// What the TV says when it couldn't switch to the profile of the remote that cast, as every app
+/// says it.
+pub const CANT_SWITCH: &str = "Couldn't switch to the remote's profile";
 
 /// What a remote cast to this TV.
 #[derive(Clone, Debug, PartialEq)]
@@ -36,13 +55,25 @@ pub struct Cast {
     pub subtitle_index: Option<i64>,
     /// The remote's device, as the server names it.
     pub from: Option<String>,
+    /// From another profile's remote: the switch to its profile that comes first.
+    pub switch: Option<CastSwitch>,
+}
+
+/// The profile of the remote that cast, which the TV switches to before it plays, and the cast's
+/// ticket for it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CastSwitch {
+    pub profile: i64,
+    pub ticket: SwitchTicket,
 }
 
 impl Cast {
-    /// The cast `event` carries when it is for receiver `receiver` (this TV's id) and names
-    /// something to play: the user's streams all hear every cast, and one for another of their
-    /// devices is that device's.
-    pub fn for_receiver(event: &ServerEvent, receiver: &str) -> Option<Cast> {
+    /// The cast `event` carries when it is for receiver `receiver` (this TV's id), acting as
+    /// profile `on`, and names something to play: the profile's streams all hear every cast, and
+    /// one for another of its devices is that device's. One from another profile's remote
+    /// (`profile_id` other than `on`) switches to it first with its ticket; without one it is
+    /// ignored, as the TV never plays as a profile it isn't on.
+    pub fn for_receiver(event: &ServerEvent, receiver: &str, on: Option<i64>) -> Option<Cast> {
         match event {
             ServerEvent::Cast {
                 receiver_id,
@@ -54,7 +85,18 @@ impl Cast {
                 audio_index,
                 subtitle_index,
                 from,
+                profile_id,
+                switch_ticket,
             } if receiver_id == receiver && (item_id.is_some() || playlist_id.is_some() || channel_id.is_some()) => {
+                let switch = match (profile_id, switch_ticket) {
+                    (Some(profile), _) if Some(*profile) == on => None,
+                    (Some(profile), Some(ticket)) => Some(CastSwitch { profile: *profile, ticket: ticket.clone() }),
+                    (Some(_), None) => {
+                        log::info!("a cast from another profile came without a ticket to switch to it");
+                        return None;
+                    }
+                    (None, _) => None,
+                };
                 Some(Cast {
                     item_id: *item_id,
                     playlist_id: *playlist_id,
@@ -64,10 +106,20 @@ impl Cast {
                     audio_index: *audio_index,
                     subtitle_index: *subtitle_index,
                     from: from.clone(),
+                    switch,
                 })
             }
             _ => None,
         }
+    }
+}
+
+/// What the TV says of a switch for a cast the server refused, if anything: signed out, the
+/// shell shows signing in again.
+pub fn switch_refused(e: &AuthError) -> Option<String> {
+    match SwitchRefusal::of(e) {
+        SwitchRefusal::SignedOut => None,
+        _ => Some(CANT_SWITCH.into()),
     }
 }
 
@@ -207,7 +259,7 @@ pub fn opening(top: Option<&Route>, route: Route) -> Option<NavCommand> {
     }
 }
 
-/// The cast whose play is being found: one at a time, a newer one replacing it.
+/// The cast being switched for or found: one at a time, a newer one replacing it.
 #[derive(Default)]
 pub struct Casts {
     pending: Option<Pending>,
@@ -216,14 +268,48 @@ pub struct Casts {
 struct Pending {
     /// The server, sign-in and profile it was heard under.
     generation: u64,
-    from: Option<String>,
-    answer: Promise<Result<CastPlay, ApiError>>,
+    stage: Stage,
+}
+
+enum Stage {
+    /// The TV switches to the profile of the remote that cast (its last reports out first); `cast`
+    /// is found once it has, unless it was let go (`play` false).
+    Switching { profile: i64, cast: Cast, play: bool, answer: Promise<Result<(), AuthError>> },
+    /// What the cast plays is being found.
+    Finding { from: Option<String>, answer: Promise<Result<CastPlay, ApiError>> },
+}
+
+/// What a cast being switched for or found came to.
+#[derive(Debug)]
+pub enum CastNews {
+    /// The TV acts as `profile` on the server now, for a cast: the app follows, and then finds
+    /// `cast`, unless it was let go.
+    Switched { profile: i64, cast: Option<Cast> },
+    /// The server didn't switch the TV: the cast plays nothing.
+    Refused(AuthError),
+    /// Where the cast came from, and what to play or why not.
+    Found { from: Option<String>, found: Result<CastPlay, ApiError> },
 }
 
 impl Casts {
-    /// Starts finding what `cast` plays, in place of a cast still being found (whose requests are
-    /// let go). A channel needs nothing found: its player tunes it.
-    pub fn start(&mut self, cast: Cast, state: &AppState, now: f64) {
+    /// Starts on `cast`: a switch to its remote's profile first, when it comes from another (the
+    /// shell has ended what played), else finding what it plays, in place of a cast still being
+    /// found (whose requests are let go). A channel needs nothing found: its player tunes it.
+    ///
+    /// A switch under way goes on whatever comes next, as the server may have made it already, and
+    /// any cast heard until it is done is dropped, the new profile's own included.
+    pub fn start(&mut self, mut cast: Cast, state: &AppState, now: f64) {
+        if self.switching() {
+            log::info!("a remote cast to this TV as it switched profiles for another cast: dropped");
+            return;
+        }
+        let generation = state.generation();
+        if let Some(switch) = cast.switch.take() {
+            let answer = state.switch_for_cast(switch.profile, switch.ticket);
+            let stage = Stage::Switching { profile: switch.profile, cast, play: true, answer };
+            self.pending = Some(Pending { generation, stage });
+            return;
+        }
         let answer = match cast.channel_id {
             Some(channel) => Promise::resolved(Ok(CastPlay::Channel(channel))),
             None => {
@@ -231,30 +317,55 @@ impl Casts {
                 state.spawn(move |api| resolve(api, &asked, now))
             }
         };
-        self.pending = Some(Pending { generation: state.generation(), from: cast.from, answer });
+        self.pending = Some(Pending { generation, stage: Stage::Finding { from: cast.from, answer } });
     }
 
-    /// Lets go of the cast being found: the app was hidden.
+    /// Lets go of the cast being found: the app was hidden. A switch under way still ends in
+    /// [`CastNews::Switched`], without the cast.
     pub fn cancel(&mut self) {
-        self.pending = None;
+        match &mut self.pending {
+            Some(Pending { stage: Stage::Switching { play, .. }, .. }) => *play = false,
+            _ => self.pending = None,
+        }
     }
 
-    /// Whether a cast is being found.
+    /// Whether a cast is being switched for or found.
     pub fn busy(&self) -> bool {
         self.pending.is_some()
     }
 
-    /// What the cast being found came to, once it has: where it came from, and what to play or why
-    /// not. One heard under another server, sign-in or profile than `generation`'s is dropped.
-    pub fn take(&mut self, generation: u64) -> Option<(Option<String>, Result<CastPlay, ApiError>)> {
-        let p = self.pending.as_mut()?;
-        let answer = match p.answer.take() {
-            Some(answer) => answer,
-            None if p.answer.failed() => Err(ApiError::Unreadable("the request stopped".into())),
-            None => return None,
+    /// Whether the TV is switching profiles for a cast.
+    pub fn switching(&self) -> bool {
+        matches!(self.pending, Some(Pending { stage: Stage::Switching { .. }, .. }))
+    }
+
+    /// What the cast being switched for or found came to, once it has. One heard under another
+    /// server, sign-in or profile than `generation`'s is dropped.
+    pub fn take(&mut self, generation: u64) -> Option<CastNews> {
+        let Pending { generation: heard, stage } = self.pending.take()?;
+        let news = match stage {
+            Stage::Switching { profile, cast, play, mut answer } => match answer.take() {
+                Some(Ok(())) => CastNews::Switched { profile, cast: play.then_some(cast) },
+                Some(Err(e)) => CastNews::Refused(e),
+                None if answer.failed() => CastNews::Refused(AuthError::Failed("the request stopped".into())),
+                None => {
+                    let stage = Stage::Switching { profile, cast, play, answer };
+                    self.pending = Some(Pending { generation: heard, stage });
+                    return None;
+                }
+            },
+            Stage::Finding { from, mut answer } => match answer.take() {
+                Some(found) => CastNews::Found { from, found },
+                None if answer.failed() => {
+                    CastNews::Found { from, found: Err(ApiError::Unreadable("the request stopped".into())) }
+                }
+                None => {
+                    self.pending = Some(Pending { generation: heard, stage: Stage::Finding { from, answer } });
+                    return None;
+                }
+            },
         };
-        let p = self.pending.take()?;
-        (p.generation == generation).then_some((p.from, answer))
+        (heard == generation).then_some(news)
     }
 }
 
@@ -265,6 +376,12 @@ mod tests {
     use super::*;
 
     fn cast_event(receiver: &str) -> ServerEvent {
+        cast_from(receiver, None, None)
+    }
+
+    /// A cast to `receiver` from the remote of `profile` (none: the server's before profiles),
+    /// with `ticket`.
+    fn cast_from(receiver: &str, profile: Option<i64>, ticket: Option<&str>) -> ServerEvent {
         ServerEvent::Cast {
             receiver_id: receiver.into(),
             item_id: Some(12),
@@ -275,18 +392,21 @@ mod tests {
             audio_index: Some(2),
             subtitle_index: Some(-1),
             from: Some("Chrome on Windows".into()),
+            profile_id: profile,
+            switch_ticket: ticket.map(|t| SwitchTicket(t.into())),
         }
     }
 
     #[test]
     fn a_cast_is_this_tvs_only_when_it_names_its_receiver() {
-        let cast = Cast::for_receiver(&cast_event("webos-1"), "webos-1").expect("this TV's");
+        let cast = Cast::for_receiver(&cast_event("webos-1"), "webos-1", Some(1)).expect("this TV's");
         assert_eq!(
             (cast.item_id, cast.start_ms, cast.audio_index, cast.subtitle_index, cast.from.as_deref()),
             (Some(12), Some(60_000), Some(2), Some(-1), Some("Chrome on Windows"))
         );
-        assert_eq!(Cast::for_receiver(&cast_event("webos-2"), "webos-1"), None, "another device's");
-        assert_eq!(Cast::for_receiver(&ServerEvent::SessionsChanged, "webos-1"), None);
+        assert_eq!(cast.switch, None, "the profile's own remote");
+        assert_eq!(Cast::for_receiver(&cast_event("webos-2"), "webos-1", Some(1)), None, "another device's");
+        assert_eq!(Cast::for_receiver(&ServerEvent::SessionsChanged, "webos-1", Some(1)), None);
         // One naming nothing, which the server never sends, has nothing to play.
         let nothing = ServerEvent::Cast {
             receiver_id: "webos-1".into(),
@@ -298,8 +418,44 @@ mod tests {
             audio_index: None,
             subtitle_index: None,
             from: None,
+            profile_id: None,
+            switch_ticket: None,
         };
-        assert_eq!(Cast::for_receiver(&nothing, "webos-1"), None);
+        assert_eq!(Cast::for_receiver(&nothing, "webos-1", Some(1)), None);
+    }
+
+    #[test]
+    fn a_cast_from_another_profile_switches_to_it_with_its_ticket_or_is_ignored() {
+        let cast = Cast::for_receiver(&cast_from("webos-1", Some(4), Some("t1")), "webos-1", Some(1)).unwrap();
+        assert_eq!(cast.switch, Some(CastSwitch { profile: 4, ticket: SwitchTicket("t1".into()) }));
+        assert_eq!(cast.item_id, Some(12));
+        // Without a ticket the TV can't switch, and never plays as a profile it isn't on.
+        assert_eq!(Cast::for_receiver(&cast_from("webos-1", Some(4), None), "webos-1", Some(1)), None);
+        // On the remote's profile already, it plays as it is; while the TV doesn't know who it
+        // is, the ticket says.
+        let same = Cast::for_receiver(&cast_from("webos-1", Some(4), Some("t1")), "webos-1", Some(4)).unwrap();
+        assert_eq!(same.switch, None);
+        let unknown = Cast::for_receiver(&cast_from("webos-1", Some(4), Some("t1")), "webos-1", None).unwrap();
+        assert_eq!(unknown.switch.map(|s| s.profile), Some(4));
+        assert_eq!(Cast::for_receiver(&cast_from("webos-2", Some(4), Some("t1")), "webos-1", Some(1)), None);
+    }
+
+    #[test]
+    fn a_refused_switch_says_why_unless_the_sign_in_ended() {
+        use pley_core::auth::SignOutReason;
+        use pley_core::model::OAuthError;
+
+        let refused = |reason: &str| AuthError::Refused {
+            status: 400,
+            oauth: Some(OAuthError {
+                error: "invalid_grant".into(),
+                error_description: None,
+                reason: Some(reason.into()),
+            }),
+        };
+        assert_eq!(switch_refused(&refused("ticket_spent")).as_deref(), Some(CANT_SWITCH));
+        assert_eq!(switch_refused(&refused("not_allowed")).as_deref(), Some(CANT_SWITCH));
+        assert_eq!(switch_refused(&AuthError::SignedOut(SignOutReason::Ended)), None);
     }
 
     #[test]

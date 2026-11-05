@@ -1,18 +1,27 @@
 //! Casts from the user's remotes, against the fake server: the TV is a receiver while its event
 //! stream is open, and what is cast to it opens as its own Play would, whatever page shows, with
 //! "Playing from …" over it, the dimmed screen waking. A cast for another device, or one that
-//! comes while the app is hidden or asks who's watching, plays nothing.
+//! comes while the app is hidden or asks who's watching, plays nothing. One from another profile's
+//! remote ends what plays, lets its last reports go out as the profile it played as, then
+//! switches.
 
 mod common;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::Duration;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
-use common::{Heard, TestApp, device, http, registry, sign_in, store};
-use pley_core::model::LiveCategory;
+use common::{Heard, Page, TestApp, device, http, registry, sign_in, store};
+use pley_core::model::{LiveCategory, ProgressReport, ProgressState};
 use pley_fixtures::{CastBody, FixtureServer, Mode, Options, ServerEvent, ids};
-use pley_shell::{AppEvent, CAST_NOTICE_SECONDS, CastTracks, DIM_AFTER, NavCommand, PlayQueue, Registry, Route};
+use pley_player::PlayerEnv;
+use pley_shell::cast::LAST_REPORTS_WAIT;
+use pley_shell::{
+    AppCx, AppEvent, CAST_NOTICE_SECONDS, CastTracks, Chrome, DIM_AFTER, NavCommand, PlayQueue, PlayRequest, Registry,
+    Route, Screen,
+};
+use pley_ui::Ui;
 use serde_json::json;
 
 const PHONE: &str = "pleyAndroid/0.1.5 (Android 14; phone)";
@@ -205,6 +214,8 @@ fn a_cast_for_another_device_plays_nothing_and_what_cant_be_found_says_why() {
         audio_index: None,
         subtitle_index: None,
         from: Some("Pley for Android".into()),
+        profile_id: None,
+        switch_ticket: None,
     };
     // The profile's streams hear every cast: one for another device is that device's.
     server.emit(cast_to("webos-another", ids::SAMPLE_1080P));
@@ -227,6 +238,8 @@ fn a_cast_for_another_device_plays_nothing_and_what_cant_be_found_says_why() {
         audio_index: None,
         subtitle_index: None,
         from: None,
+        profile_id: None,
+        switch_ticket: None,
     };
     app.shell.deliver(AppEvent::Server(heard), &mut app.state, &mut app.ui, now);
     assert!(!app.shell.casting());
@@ -262,6 +275,231 @@ fn a_cast_still_being_found_as_whos_watching_opens_never_gets_past_it() {
     assert!(app.until(|a| !a.shell.casting()), "the film was never found");
     app.advance(0.3);
     assert_eq!((app.shell.routes(), app.shell.toast()), (vec![&Route::Profiles], None));
+}
+
+/// The app as Robin, once the server lists the TV as a receiver of Robin's.
+fn robins_tv(server: &FixtureServer) -> (TestApp, String) {
+    let (mut app, _) = app_as(server, ids::ROBIN);
+    let id = app.state.install_id().to_string();
+    let listed = |s: &FixtureServer| s.receivers_of(ids::ROBIN).iter().any(|r| r["receiver_id"] == *id);
+    assert!(app.until(|a| listed(server) && a.state.profile() == Some(ids::ROBIN)), "the TV never took casts");
+    (app, id)
+}
+
+#[test]
+fn a_cast_from_another_profiles_remote_switches_the_tv_to_it_then_plays_once() {
+    let server = fixtures();
+    let (mut app, id) = robins_tv(&server);
+    app.navigate(NavCommand::Push(Route::Item { id: ids::SAMPLE_HDR10 }));
+
+    // Alex's remote casts to Robin's TV: the TV becomes Alex's, then plays the film over Home.
+    let film = CastBody { start_ms: Some(5_000), profile_id: Some(ids::ROBIN), ..CastBody::item(ids::SAMPLE_1080P) };
+    assert_eq!(server.cast(ids::ALEX, &id, &film, Some(PHONE)), 202);
+    assert!(app.until(|a| player(a).is_some()), "the film never played: {:?}", app.shell.top_route());
+    assert_eq!(app.state.profile(), Some(ids::ALEX));
+    assert_eq!(app.state.api().unwrap().me().unwrap().id, ids::ALEX, "the TV's sign-in acts as Alex");
+    assert_eq!(app.shell.routes()[0], &Route::Home, "Robin's pages went");
+    assert_eq!(app.shell.depth(), 2);
+    let r = player(&app).unwrap();
+    assert_eq!((r.item_id, r.start_ms), (ids::SAMPLE_1080P, Some(5_000)));
+    assert_eq!(app.shell.toast(), Some("Playing from Pley for Android"));
+
+    // The event stream opened again as Alex's: the TV is Alex's receiver now, and the cast, which
+    // came before it, played once.
+    let alexs = |s: &FixtureServer| s.receivers_of(ids::ALEX).iter().any(|r| r["receiver_id"] == *id);
+    assert!(app.until(|_| alexs(&server) && server.receivers_of(ids::ROBIN).is_empty()), "still Robin's receiver");
+    let page = app.shell.top().unwrap().id();
+    app.advance(1.0);
+    assert!(!app.shell.casting());
+    assert_eq!(app.shell.top().map(|e| e.id()), Some(page), "the cast played again");
+
+    // Alex's next cast is to Alex's own TV: it plays as it is.
+    assert_eq!(server.cast(ids::ALEX, &id, &CastBody::item(ids::PGS_MOVIE), Some(PHONE)), 202);
+    assert!(app.until(|a| player(a).is_some_and(|r| r.item_id == ids::PGS_MOVIE)), "the second film never played");
+    assert_eq!(app.state.profile(), Some(ids::ALEX));
+}
+
+#[test]
+fn a_cast_heard_as_the_tv_switches_for_another_is_dropped() {
+    let server = fixtures();
+    let (mut app, id) = robins_tv(&server);
+    // The server slow, the switch is still under way when Alex casts again.
+    server.set_mode(Mode::Slow).unwrap();
+    let to_robins = |item: i64| CastBody { profile_id: Some(ids::ROBIN), ..CastBody::item(item) };
+    assert_eq!(server.cast(ids::ALEX, &id, &to_robins(ids::SAMPLE_1080P), Some(PHONE)), 202);
+    assert!(app.until(|a| a.shell.casting()), "the cast was never heard");
+    assert_eq!(server.cast(ids::ALEX, &id, &to_robins(ids::PGS_MOVIE), Some(PHONE)), 202);
+    let sent = Instant::now();
+    assert!(app.until(|_| sent.elapsed() > Duration::from_millis(300)));
+    assert!(app.shell.casting() && app.state.profile() == Some(ids::ROBIN), "the switch ended too soon");
+    server.set_mode(Mode::Normal).unwrap();
+    assert!(app.until(|a| player(a).is_some()), "nothing played: {:?}", app.shell.top_route());
+    assert_eq!(player(&app).unwrap().item_id, ids::SAMPLE_1080P, "the cast heard during the switch played");
+    assert_eq!(app.state.profile(), Some(ids::ALEX));
+    let page = app.shell.top().unwrap().id();
+    app.advance(1.0);
+    assert_eq!(app.shell.top().map(|e| e.id()), Some(page), "a cast played twice");
+}
+
+/// The session of the film Robin's TV plays in the tests of what ends before a switch.
+const ROBINS_SESSION: &str = "robins-session";
+
+/// A video player as the app's: when it closes, its last progress report and then its session's
+/// end go out on the app's report queue, with the sign-in its environment holds. `held` keeps
+/// them from going out until the test lets them.
+struct ReportingPlayer {
+    env: PlayerEnv,
+    item: i64,
+    held: Option<mpsc::Receiver<()>>,
+}
+
+impl Screen for ReportingPlayer {
+    fn ui(&mut self, _ui: &mut Ui, _cx: &mut AppCx) {}
+
+    fn chrome(&self) -> Chrome {
+        Chrome::Video
+    }
+}
+
+impl Drop for ReportingPlayer {
+    fn drop(&mut self) {
+        let (server, item, held) = (self.env.server.clone(), self.item, self.held.take());
+        self.env.reporter.send(move || {
+            if let Some(held) = held {
+                let _ = held.recv_timeout(Duration::from_secs(30));
+            }
+            let report = ProgressReport {
+                position_ms: 61_000,
+                state: ProgressState::Stopped,
+                session_id: Some(ROBINS_SESSION.into()),
+                ..ProgressReport::default()
+            };
+            let _ = server.progress(item, &report);
+            let _ = server.stop_session(ROBINS_SESSION);
+        });
+    }
+}
+
+/// Robin's TV playing a film whose last reports wait for `held`, once the server lists the TV as
+/// a receiver of Robin's; the server's journal starts then.
+fn robins_tv_playing(server: &FixtureServer, held: mpsc::Receiver<()>) -> (TestApp, String) {
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(server, ids::ROBIN, &store, &http);
+    let heard: Heard = Rc::default();
+    let held = RefCell::new(Some(held));
+    let mut screens = Registry::new();
+    screens.add(move |route, cx| match route {
+        Route::Player(r) if r.item_id == ids::SAMPLE_HDR10 => {
+            let env = cx.player_env()?;
+            Some(Box::new(ReportingPlayer { env, item: r.item_id, held: held.borrow_mut().take() }) as Box<dyn Screen>)
+        }
+        _ => Some(Box::new(Page { route: route.clone(), panel: false, heard: heard.clone(), ready: true })),
+    });
+    let mut app = TestApp::new(device, store, http, screens);
+    let id = app.state.install_id().to_string();
+    let listed = |s: &FixtureServer| s.receivers_of(ids::ROBIN).iter().any(|r| r["receiver_id"] == *id);
+    assert!(app.until(|a| listed(server) && a.state.profile() == Some(ids::ROBIN)), "the TV never took casts");
+    app.navigate(NavCommand::Push(Route::Player(PlayRequest::item(ids::SAMPLE_HDR10))));
+    assert_eq!(player(&app).map(|r| r.item_id), Some(ids::SAMPLE_HDR10));
+    server.clear_journal();
+    (app, id)
+}
+
+/// What the server heard of the end of Robin's film: each write's method and the profile its
+/// token acted as, in order.
+fn robins_film_ended(server: &FixtureServer) -> Vec<(String, Option<i64>)> {
+    let progress = format!("/api/items/{}/progress", ids::SAMPLE_HDR10);
+    let session = format!("/api/playback/{ROBINS_SESSION}");
+    let ends = server.journal().into_iter().filter(|e| e.path == progress || e.path == session);
+    ends.map(|e| (e.method, e.profile_id)).collect()
+}
+
+#[test]
+fn a_cast_from_another_profile_ends_what_plays_and_its_last_reports_go_as_the_old_profile_first() {
+    let server = fixtures();
+    let (release, held) = mpsc::channel();
+    let (mut app, id) = robins_tv_playing(&server, held);
+
+    let film = CastBody { profile_id: Some(ids::ROBIN), ..CastBody::item(ids::SAMPLE_1080P) };
+    assert_eq!(server.cast(ids::ALEX, &id, &film, Some(PHONE)), 202);
+    // Robin's film ends first, and the switch waits for its last reports.
+    assert!(app.until(|a| a.shell.casting() && player(a).is_none()), "the film played on: {:?}", app.shell.top_route());
+    let ended = Instant::now();
+    assert!(app.until(|_| ended.elapsed() > Duration::from_millis(500)));
+    assert!(app.shell.casting());
+    assert_eq!(app.state.profile(), Some(ids::ROBIN));
+    assert_eq!(app.state.api().unwrap().me().unwrap().id, ids::ROBIN, "the sign-in switched before the reports went");
+    assert_eq!(robins_film_ended(&server), [], "the reports went before they were let go");
+
+    // They go, as Robin's: the last report, then the session's end. Only then does the TV switch
+    // and play the cast as Alex.
+    release.send(()).unwrap();
+    assert!(app.until(|a| player(a).is_some()), "the cast never played: {:?}", app.shell.top_route());
+    assert_eq!(player(&app).unwrap().item_id, ids::SAMPLE_1080P);
+    assert_eq!(app.state.profile(), Some(ids::ALEX));
+    assert_eq!(app.state.api().unwrap().me().unwrap().id, ids::ALEX);
+    let robins = Some(ids::ROBIN);
+    assert_eq!(robins_film_ended(&server), [("POST".to_string(), robins), ("DELETE".to_string(), robins)]);
+}
+
+#[test]
+fn last_reports_not_out_in_5_s_are_dropped_rather_than_sent_as_the_new_profile() {
+    let server = fixtures();
+    let (release, held) = mpsc::channel();
+    let (mut app, id) = robins_tv_playing(&server, held);
+
+    // Robin's film's last reports don't go out: the TV switches after 5 s all the same, and plays
+    // the cast as Alex.
+    let cast_at = Instant::now();
+    let film = CastBody { profile_id: Some(ids::ROBIN), ..CastBody::item(ids::SAMPLE_1080P) };
+    assert_eq!(server.cast(ids::ALEX, &id, &film, Some(PHONE)), 202);
+    let cast_plays = |a: &mut TestApp| player(a).is_some_and(|r| r.item_id == ids::SAMPLE_1080P);
+    assert!(app.until(cast_plays), "the cast never played: {:?}", app.shell.top_route());
+    assert!(cast_at.elapsed() >= LAST_REPORTS_WAIT, "the TV switched before 5 s: {:?}", cast_at.elapsed());
+    assert_eq!(app.state.profile(), Some(ids::ALEX));
+
+    // Let go once the TV is Alex's, they are dropped: nothing reaches the server, as Alex's least
+    // of all, and the sign-in carries on.
+    release.send(()).unwrap();
+    assert!(app.state.flush_reports(Duration::from_secs(5)), "the reports never finished");
+    assert_eq!(robins_film_ended(&server), []);
+    assert!(app.state.signed_in());
+    assert_eq!(app.state.api().unwrap().me().unwrap().id, ids::ALEX);
+}
+
+#[test]
+fn a_cast_from_another_profile_without_a_ticket_or_with_a_spent_one_plays_nothing() {
+    let server = fixtures();
+    let (mut app, id) = robins_tv(&server);
+    let from_alex = |ticket: Option<&str>| ServerEvent::Cast {
+        receiver_id: id.clone(),
+        item_id: Some(ids::SAMPLE_1080P),
+        playlist_id: None,
+        channel_id: None,
+        start_ms: None,
+        shuffle: false,
+        audio_index: None,
+        subtitle_index: None,
+        from: Some("Pley for Android".into()),
+        profile_id: Some(ids::ALEX),
+        switch_ticket: ticket.map(str::to_string),
+    };
+    // Without a ticket the TV can't switch: it ignores the cast.
+    server.emit(from_alex(None));
+    app.advance(0.5);
+    assert!(!app.shell.casting());
+    assert_eq!((app.shell.top_route(), app.shell.toast()), (Some(&Route::Home), None));
+
+    // A ticket the server doesn't know: the switch is refused, the TV says so and stays Robin's.
+    server.emit(from_alex(Some("spent")));
+    let said = "Couldn't switch to the remote's profile";
+    assert!(app.until(|a| a.shell.toast() == Some(said)), "{:?}", app.shell.toast());
+    assert!(!app.shell.casting());
+    assert_eq!(app.shell.top_route(), Some(&Route::Home));
+    assert_eq!(app.state.profile(), Some(ids::ROBIN));
+    assert!(app.state.signed_in());
+    assert_eq!(app.state.api().unwrap().me().unwrap().id, ids::ROBIN);
 }
 
 #[test]

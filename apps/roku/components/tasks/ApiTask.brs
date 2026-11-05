@@ -51,6 +51,13 @@ sub apiRun()
     ' { request, spec }; and whether one is under way.
     m.switchWaiting = invalid
     m.switching = false
+    ' A cast's switch held until the profile before it has been heard:
+    ' { request, spec, at } (apiSwitchAsked).
+    m.switchHeld = invalid
+    ' Profile switches made so far: each request is asked for the profile
+    ' signed in then (its gen), and goes with that profile's tokens or not
+    ' at all (authJobGoes).
+    m.switches = 0
     m.profileAsked = 0
     ' What the server said of this Roku's network, for each server
     ' (aqNetworkKept): forgotten with each sign-in and profile.
@@ -107,7 +114,7 @@ end function
 ' Timers need a tick while transfers, a sign-in or a later transfer are
 ' under way.
 function apiWaitMs() as integer
-    if m.transfers.Count() > 0 or m.signIn <> invalid or m.later.Count() > 0 then return 250
+    if m.transfers.Count() > 0 or m.signIn <> invalid or m.later.Count() > 0 or m.switchHeld <> invalid then return 250
     if m.tokens <> invalid and m.tokens.proof <> invalid then return 30000
     return 0
 end function
@@ -159,7 +166,7 @@ sub apiAccept(request as dynamic)
     else if op = "speedTest"
         apiSpeedTest(request, spec)
     else if op = "switchProfile"
-        apiSwitchProfile(request, spec)
+        apiSwitchAsked(request, spec)
     else if op = "liveWatch"
         apiLiveWatch(request, spec)
     else if op = "livePage"
@@ -173,9 +180,10 @@ end sub
 
 ' --- Transfers ---
 
-' A transfer to send; purpose says what its answer is for.
+' A transfer to send; purpose says what its answer is for, gen the
+' profile it is asked for.
 function apiJob(purpose as string, method as string, url as string) as object
-    return { purpose: purpose, method: method, url: url, body: "", contentType: "", auth: false, sent: "", retried: false, request: invalid, server: m.server, timeoutMs: 30000, play: false, network: "", toFile: "" }
+    return { purpose: purpose, method: method, url: url, body: "", contentType: "", auth: false, sent: "", retried: false, request: invalid, server: m.server, timeoutMs: 30000, play: false, network: "", toFile: "", gen: m.switches }
 end function
 
 function apiForm(job as object, params as object) as object
@@ -228,6 +236,11 @@ sub apiCall(request as object, spec as object)
 end sub
 
 sub apiSend(job as object)
+    if not authJobGoes(job, m.switches)
+        ' Asked for the profile before a switch: never sent as the new one.
+        apiAnswer(job.request, apiProfileChanged())
+        return
+    end if
     if job.auth
         decision = authBeforeRequest(m.tokens, apiNow(), m.refreshing.DoesExist(m.server))
         if decision = "signed_out"
@@ -343,6 +356,7 @@ sub apiTick()
     end if
     apiPollWhenDue(now)
     apiRenewProof(now)
+    apiSwitchWhenHeard(now)
 end sub
 
 sub apiCallAnswered(job as object, status as integer, body as string, headers as dynamic)
@@ -353,7 +367,9 @@ sub apiCallAnswered(job as object, status as integer, body as string, headers as
         apiProve(m.tokens)
     end if
     ' A switch stops the tokens it replaces at once: what they were sent
-    ' with goes again with the new pair, not taken for the sign-in's end.
+    ' with isn't taken for the sign-in's end. It waits for the switch to
+    ' end, and goes again only if the profile stayed (apiSend drops it
+    ' otherwise): a request asked for one profile never goes as another.
     if status = 401 and job.auth and job.server = m.server and m.switching and not job.retried
         job.retried = true
         m.waiting.Push(job)
@@ -389,12 +405,12 @@ sub apiCallAnswered(job as object, status as integer, body as string, headers as
     if answer.ok and job.play and apiAbandoned(job.request)
         ' The player left before its session came: the server would go on
         ' preparing it.
-        apiCloseSession(answer.data)
+        apiCloseSession(answer.data, job.gen)
         return
     end if
     if answer.ok and httpTrue(job.liveWatch) and apiAbandoned(job.request)
         ' Zapped on or left before the channel came: its connection goes.
-        apiLeaveChannel(answer.data)
+        apiLeaveChannel(answer.data, job.gen)
         return
     end if
     if job.build = "livePage" or job.build = "liveGuide"
@@ -411,13 +427,15 @@ function apiAbandoned(request as dynamic) as boolean
 end function
 
 ' DELETE /api/playback/{session} of a PlaybackInfo; nothing waits for it.
-sub apiCloseSession(info as dynamic)
+' gen: the profile the session was asked for, whose tokens end it.
+sub apiCloseSession(info as dynamic, gen as integer)
     data = httpObject(info)
     if data = invalid then return
     sessionId = httpString(data.session_id)
     if sessionId = "" then return
     job = apiJob("close", "DELETE", m.server + "/api/playback/" + urlEncode(sessionId))
     job.auth = true
+    job.gen = gen
     apiSend(job)
 end sub
 
@@ -718,7 +736,16 @@ sub apiFailWaiting(answer as object)
         apiAnswer(m.switchWaiting.request, answer)
         m.switchWaiting = invalid
     end if
+    if m.switchHeld <> invalid
+        apiAnswer(m.switchHeld.request, answer)
+        m.switchHeld = invalid
+    end if
 end sub
+
+' The answer to a request asked for the profile before a switch, dropped.
+function apiProfileChanged() as object
+    return apiFail("profile_changed", "Another profile is signed in now.")
+end function
 
 ' Ends the grant of tokens on its server (RFC 7009); nothing waits for it.
 ' A server that can't prove it holds their key gets nothing: the person can
@@ -763,10 +790,10 @@ sub apiBoot(request as object)
         end for
         apiSelect(current, name)
     end if
-    ' "Who's watching?" first when the household had more than one profile,
-    ' unless Settings' "Always start as" names one of them, which still
-    ' opens it on the PIN pad of the profile signed in when that one has a
-    ' PIN (pin).
+    ' Straight in as the profile signed in when it has no PIN; else "Who's
+    ' watching?" first when the household had more than one profile, on
+    ' that profile's PIN pad (pin) when Settings' "Always start as" names
+    ' one of them.
     atStart = ""
     if m.tokens <> invalid
         household = profKeptHousehold(CreateObject("roRegistrySection", "household"), m.server)
@@ -1095,12 +1122,69 @@ end sub
 
 ' --- Switching profiles ---
 
+' A switch asked for. A cast's (spec.drain) is held until the profile
+' before it has been heard: the scene ended what played as the switch was
+' asked, and its last progress, stopped report and session end go first,
+' with that profile's tokens (docs/ROKU.md, "Casts"). What hasn't gone in
+' authSwitchHoldMs is dropped. One held gives way to a switch asked
+' meanwhile.
+sub apiSwitchAsked(request as object, spec as object)
+    if m.switchHeld <> invalid
+        apiAnswer(m.switchHeld.request, apiFail("switch_replaced", "Another profile was chosen."))
+        m.switchHeld = invalid
+    end if
+    if not httpTrue(spec.drain)
+        apiSwitchProfile(request, spec)
+        return
+    end if
+    m.switchHeld = { request: request, spec: spec, at: m.clock.TotalMilliseconds() }
+    apiSwitchWhenHeard(m.switchHeld.at)
+end sub
+
+' The switch held goes once the profile's requests are answered, or at
+' the hold's end, those left dropped (authSwitchHeld).
+sub apiSwitchWhenHeard(now as integer)
+    held = m.switchHeld
+    if held = invalid then return
+    jobs = []
+    for each key in m.transfers
+        jobs.Push(m.transfers[key])
+    end for
+    jobs.Append(m.waiting)
+    for each entry in m.later
+        jobs.Push(entry.job)
+    end for
+    verdict = authSwitchHeld(jobs, m.switches, held.at, now)
+    if verdict = "wait" then return
+    m.switchHeld = invalid
+    if verdict = "drop"
+        ' Those in flight went with the profile's tokens; those not sent
+        ' yet go no further.
+        dropped = m.waiting
+        m.waiting = []
+        later = []
+        for each entry in m.later
+            if entry.job.auth
+                dropped.Push(entry.job)
+            else
+                later.Push(entry)
+            end if
+        end for
+        m.later = later
+        for each job in dropped
+            apiAnswer(job.request, apiProfileChanged())
+        end for
+    end if
+    apiSwitchProfile(held.request, held.spec)
+end sub
+
 ' Moves the sign-in to another profile of the household, or checks the PIN
 ' of the one it acts as (docs/API.md, the switch-profile grant): with the
 ' refresh token, which a switch spends as a refresh does, so never beside
-' one. spec: { profile, pin ("" for none) }. The answer: ok ({ through:
-' true } when there was no PIN to check), or the refusal (authSwitchOutcome)
-' with its reason as the error.
+' one. spec: { profile, pin ("" for none), ticket (a cast's switch_ticket,
+' in place of the PIN, as the receiver of another profile's remote) }. The
+' answer: ok ({ through: true } when there was no PIN to check), or the
+' refusal (authSwitchOutcome) with its reason as the error.
 sub apiSwitchProfile(request as object, spec as object)
     tokens = m.tokens
     if tokens = invalid
@@ -1118,12 +1202,16 @@ sub apiSwitchProfile(request as object, spec as object)
     params = { grant_type: authSwitchGrant(), client_id: httpClientId(), refresh_token: tokens.refresh, profile: urlValue(spec.profile) }
     pin = httpString(spec.pin)
     if pin <> "" then params.pin = pin
+    ticket = httpString(spec.ticket)
+    if ticket <> "" then params.ticket = ticket
     job = apiForm(apiJob("switch", "POST", tokens.tokenEndpoint), params)
     job.tokens = tokens
     job.request = request
+    job.profile = spec.profile
     ' As a refresh: an answer given up on can be a spent refresh token.
     job.timeoutMs = 120000
-    ' The refresh token and the PIN go only to a server that proves itself now.
+    ' The refresh token, the PIN and the ticket go only to a server that
+    ' proves itself now.
     apiSendProved(tokens, job)
 end sub
 
@@ -1155,6 +1243,9 @@ sub apiSwitchAnswered(job as object, status as integer, body as string)
             ' Another profile, maybe: whether it has a PIN isn't known until it says.
             profKeepPin(CreateObject("roRegistrySection", "household"), old.issuer, invalid)
             m.tokens = fresh
+            ' Another profile (not a PIN checked for this one): what was
+            ' asked for the one before goes no further.
+            if httpNumber(job.profile, 0) <> m.session.profileId then m.switches = m.switches + 1
             m.lastIssued = { token: fresh.access, at: apiNow() }
             m.session.scope = fresh.scope
             apiPublish()
@@ -1368,13 +1459,15 @@ sub apiLiveWatch(request as object, spec as object)
 end sub
 
 ' DELETE /api/live/sessions/{session} of a watch's answer; nothing waits.
-sub apiLeaveChannel(watching as dynamic)
+' gen: the profile the channel was watched as, whose tokens end it.
+sub apiLeaveChannel(watching as dynamic, gen as integer)
     data = httpObject(watching)
     if data = invalid then return
     sessionId = httpString(data.session_id)
     if sessionId = "" then return
     job = apiJob("leave", "DELETE", m.server + "/api/live/sessions/" + urlEncode(sessionId))
     job.auth = true
+    job.gen = gen
     apiSend(job)
 end sub
 

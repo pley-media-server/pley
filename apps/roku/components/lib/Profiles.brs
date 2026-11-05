@@ -94,25 +94,25 @@ function profColor(hex as dynamic) as string
     return "0x" + UCase(Mid(text, 2)) + "FF"
 end function
 
-' What "Who's watching?" the app shows as it starts: "ask" (the profiles)
-' for a sign-in allowed to switch profiles, on a server whose household had
-' more than one when last asked (household, profKeptHousehold's), unless
-' Settings' "Always start as" names one of them (startAs, its id; 0 for
-' none). As on the other TVs, that only skips the question: the app goes on
-' as the profile it was left on ("", Home), but never past its PIN: its pad
-' comes first ("pin") when it has one (household.pin 1), and the profiles
-' when the Roku doesn't know whether it has one (-1). A setting naming a
-' profile gone from the household (deleted, or another account's, signed
-' in since) asks again, as Settings then says.
+' What "Who's watching?" the app shows as it starts, as on the other TVs:
+' nothing ("", Home) as the profile it was left on when that one has no PIN
+' (household.pin 0, profKeptHousehold's), but never past a PIN. For a
+' sign-in allowed to switch profiles, on a server whose household had more
+' than one when last asked, a profile with a PIN (1) shows the profiles
+' ("ask"), or its pad first ("pin") when Settings' "Always start as" names
+' one of them (startAs, its id; 0 for none); and the profiles show while
+' the Roku doesn't know whether it has one (-1). A setting naming a profile
+' gone from the household (deleted, or another account's, signed in since)
+' counts as none, as Settings then says.
 function profAtStart(scope as string, household as object, startAs as integer) as string
     if not authAllows(scope, "profiles") or household.count < 2 then return ""
+    if household.pin = 0 then return ""
     named = false
     for each id in household.ids
         if id = startAs then named = true
     end for
     if not named or household.pin < 0 then return "ask"
-    if household.pin = 1 then return "pin"
-    return ""
+    return "pin"
 end function
 
 ' The household as last asked for on server, kept on this Roku (registry
@@ -175,10 +175,10 @@ sub profSetStartAs(section as object, server as string, id as integer)
     section.Flush()
 end sub
 
-' Settings' choices of "Always start as": Ask who's watching, then the
+' Settings' choices of "Always start as": Profile used last, then the
 ' household's profiles ([{ id, name }]); the one kept checked.
 function profStartAsChoices(profiles as object, startAs as integer) as object
-    choice = { title: "Always start as", labels: ["Ask who's watching"], values: [0], hints: [], current: 0 }
+    choice = { title: "Always start as", labels: ["Profile used last"], values: [0], hints: [], current: 0 }
     for each profile in profiles
         if profile.id = startAs then choice.current = choice.values.Count()
         choice.labels.Push(profile.name)
@@ -187,13 +187,13 @@ function profStartAsChoices(profiles as object, startAs as integer) as object
     return choice
 end function
 
-' What the row says: the profile kept, or Ask who's watching (also for one
+' What the row says: the profile kept, or Profile used last (also for one
 ' gone from the household).
 function profStartAsLabel(profiles as object, startAs as integer) as string
     for each profile in profiles
         if profile.id = startAs then return profile.name
     end for
-    return "Ask who's watching"
+    return "Profile used last"
 end function
 
 ' The household's profiles as Settings lists them: [{ id, name }].

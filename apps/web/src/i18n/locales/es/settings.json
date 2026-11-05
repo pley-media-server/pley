@@ -37,7 +37,7 @@
       "title": "Metadatos",
       "description": "Pósteres, sinopsis, valoraciones, reparto y títulos de episodios.",
       "tmdbKey": "Clave de API de TMDB",
-      "tmdbKeyHint": "Las películas, las colecciones y “Corregir coincidencia” usan TMDB. Clave gratuita en <a>themoviedb.org/settings/api</a>. Sin ella, las películas conservan el nombre de su archivo y sus ilustraciones locales.",
+      "tmdbKeyHint": "Las películas, las colecciones y «Corregir coincidencia» usan TMDB. Clave gratuita en <a>themoviedb.org/settings/api</a>. Sin ella, las películas conservan el nombre de su archivo y sus ilustraciones locales, o lo que dicen sus archivos NFO.",
       "testTmdb": "Probar la clave de TMDB",
       "tvShows": "Series",
       "tvShowsHint": "Automático usa TMDB si tiene clave, luego TheTVDB si tiene una y, si no, <a>TVmaze</a>, que no necesita ninguna. Cambiar la fuente vuelve a obtener todas las series.",
@@ -54,6 +54,9 @@
       "musicHint": "Géneros y fechas de lanzamiento de <a>MusicBrainz</a>, y portadas del Cover Art Archive para los álbumes que no tienen. Las etiquetas de los archivos tienen prioridad. No hace falta clave; la primera búsqueda tarda alrededor de un segundo por álbum.",
       "musicToggle": "Metadatos de música de MusicBrainz",
       "testMusicBrainz": "Probar MusicBrainz",
+      "nfo": "Archivos NFO",
+      "nfoHint": "Los archivos NFO que Kodi, Jellyfin, Radarr y Sonarr guardan junto a las películas y series: sus identificadores deciden la coincidencia y sus datos prevalecen sobre los de la fuente de metadatos. Tus cambios prevalecen sobre ellos. Pley nunca los modifica.",
+      "nfoToggle": "Leer los archivos NFO",
       "language": "Idioma de los metadatos",
       "languageHint": "Para TMDB y TheTVDB. TVmaze está en inglés.",
       "attribution": "Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica. Metadatos de TV de <tvdb>TheTVDB</tvdb>. Los datos de TV de TVmaze tienen licencia <license>CC BY-SA</license>; los datos de música de MusicBrainz son de dominio público."

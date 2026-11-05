@@ -1,12 +1,19 @@
 package app.pley.android.ui.phone.remote
 
 import android.text.format.DateFormat
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -21,6 +28,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
@@ -29,6 +37,7 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayerCommandRequest
@@ -53,11 +62,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 /**
- * The phone's remote: the bar above the tabs while another device is on,
- * the sheet it opens with "Your devices", a device's controls (those its
+ * The phone's remote: Home's button while another device is on, the sheet
+ * it opens with "Your devices", the bar above the tabs only while this
+ * phone controls what a device plays, a device's controls (those its
  * player declares, Next where what plays has one, its audio, subtitles and
- * quality, a channel's programme), Stop that asks first, the idle view,
- * and what it says when a player doesn't answer or the server refuses.
+ * quality, a channel's programme), Stop that asks first, devices ready to
+ * play that are only listed, commands that show at once, and what it says
+ * when a player doesn't answer or the server refuses.
  */
 @RunWith(RobolectricTestRunner::class)
 class RemoteUiTest {
@@ -66,18 +77,23 @@ class RemoteUiTest {
 
     private val remote = FakeRemote()
 
-    private fun show() {
+    /** The remote as the shell has it: Home's button, which asks for the sheet, and the slot above the tabs. */
+    private fun show(asked: RemoteAsk? = null) {
         compose.setContent {
             PhoneTheme {
                 val devices by remote.devices.collectAsState()
-                RemoteSlot(devices, remote, ORIGIN)
+                var ask by remember { mutableStateOf(asked) }
+                Column {
+                    RemoteButton(devices, onOpen = { ask = RemoteAsk() })
+                    RemoteSlot(devices, remote, ORIGIN, ask)
+                }
             }
         }
         compose.waitForIdle()
     }
 
     private fun open() {
-        compose.onNodeWithTag(REMOTE_BAR).performClick()
+        compose.onNodeWithTag(REMOTE_BUTTON).performClick()
         compose.waitForIdle()
     }
 
@@ -91,22 +107,64 @@ class RemoteUiTest {
     @Test
     fun nothingShowsWhileNoOtherDeviceIsOn() {
         show()
+        compose.onNodeWithTag(REMOTE_BUTTON).assertDoesNotExist()
         compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
     }
 
     @Test
-    fun theBarSaysWhereAndWhatPlays() {
+    fun theButtonSaysHowManyPlayAndTheBarWaitsForACommandFromHere() {
         remote.devices.value = listOf(episode(), bedroom())
         show()
+        compose.onNodeWithContentDescription("Remote, 1 device playing").assertExists()
+        // Playing elsewhere, not controlled from here: no bar.
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+        control("app-12")
+        compose.onNodeWithContentDescription("Pause on Living room TV").performClick()
+        compose.waitForIdle()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
         compose.onNodeWithText("A Show — S1 · E2 — The Second One").assertExists()
         compose.onNodeWithTag(REMOTE_BAR).assertHeightIsAtLeast(48.dp)
+        // The player paused and reported.
+        remote.devices.value = listOf(episode(state = ProgressState.Paused), bedroom())
+        compose.waitForIdle()
+        compose.onNodeWithText("Paused on Living room TV").assertExists()
     }
 
     @Test
-    fun devicesOnButPlayingNothingShowTheBarAsYourDevices() {
+    fun theBarOpensTheControlsOfTheDeviceItControlsAndGoesWhenItPlaysNothing() {
+        remote.devices.value = listOf(episode(), channel())
+        show()
+        control("app-15")
+        compose.onNodeWithContentDescription("Next channel on Kitchen phone").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Playing on Kitchen phone").assertExists()
+        // Back at the list, the bar's action opens the device's controls again. (A person closes the sheet first:
+        // its scrim covers the bar. The test calls the bar's action, which a tap or TalkBack runs.)
+        compose.onNodeWithContentDescription("Back to your devices").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-15").assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_BAR).performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-15").assertExists()
+
+        // Stopped there, or ended: the bar goes after a moment, and a later title there isn't this phone's.
+        // (A next keeps the session it ended while a command's answer is waited for; the phone lets go as long after.)
+        remote.devices.value = listOf(episode())
+        compose.mainClock.advanceTimeBy(2 * RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+        remote.devices.value = listOf(episode(), channel())
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+    }
+
+    @Test
+    fun devicesOnButPlayingNothingShowOnlyTheButton() {
         remote.devices.value = listOf(bedroom())
         show()
+        compose.onNodeWithContentDescription("Remote, 1 device ready to play").assertExists()
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+        open()
         compose.onNodeWithText("Your devices").assertExists()
         compose.onNodeWithText("Bedroom TV").assertExists()
     }
@@ -115,8 +173,7 @@ class RemoteUiTest {
     fun theListHasARowForEachDeviceInTheOrderGivenWhatEachPlaysOrThatItIsReady() {
         remote.devices.value = listOf(episode(), channel(), bedroom(), episode(id = "s3", deviceId = "token-4", device = null, receiver = false))
         show()
-        compose.onNodeWithText("Playing on 3 devices").assertExists()
-        compose.onNodeWithText("Living room TV, Kitchen phone, Unknown device").assertExists()
+        compose.onNodeWithContentDescription("Remote, 3 devices playing").assertExists()
         open()
         compose.onNodeWithText("Your devices").assertExists()
         val tops = listOf("app-12", "app-15", "app-20", "token-4").map { id ->
@@ -142,30 +199,108 @@ class RemoteUiTest {
 
     @Test
     fun choosingADeviceShowsItsControlsInTheListsPlaceAndBackReturnsToIt() {
-        remote.devices.value = listOf(episode(), bedroom())
+        remote.devices.value = listOf(episode(), channel())
         show()
-        control("app-20")
-        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
-        compose.onNodeWithText("Nothing playing").assertExists()
-        compose.onNodeWithText("Send something here with Play on…").assertExists()
+        control("app-15")
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-15").assertExists()
         compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertDoesNotExist()
         compose.onNodeWithContentDescription("Back to your devices").performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
-        compose.onNodeWithTag(REMOTE_IDLE).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-15").assertDoesNotExist()
     }
 
     @Test
-    fun theDeviceChosenIsKeptAsItStartsPlaying() {
+    fun aDeviceReadyToPlayIsListedWithNothingToChoose() {
         remote.devices.value = listOf(episode(), bedroom())
         show()
-        control("app-20")
-        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        open()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-20").assertHasNoClickAction()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertHasClickAction()
+        compose.onNodeWithText("Ready to play").assertExists()
+
+        // Alone, it is listed too, with no controls.
+        remote.devices.value = listOf(bedroom())
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-20").assertHasNoClickAction()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-20").assertDoesNotExist()
+    }
+
+    @Test
+    fun anotherProfilesDeviceSaysWhoseItIsAndNothingOfWhatItPlays() {
+        val sams = OtherDevice(
+            "app-31",
+            receiver = RemoteDevice("tv-3", "app-31", "Den TV", DeviceKind.Tv, listOf(CastKind.Item), profile = DeviceProfileName(3, "Sam")),
+        )
+        remote.devices.value = listOf(episode(), bedroom(), sams)
+        show()
+        // Ready to play, with the profile: the button counts it with the others.
+        compose.onNodeWithContentDescription("Remote, 1 device playing").assertExists()
+        open()
+        compose.onNodeWithText("On Sam's profile").assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-31").assertHasNoClickAction()
+        compose.onNodeWithText("Ready to play").assertExists()
+    }
+
+    @Test
+    fun theDeviceAskedForShowsItsControlsOnceItPlays() {
+        remote.devices.value = listOf(episode(), bedroom())
+        // Play on… sent it something.
+        show(asked = RemoteAsk("app-20"))
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-20").assertExists()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-20").assertDoesNotExist()
         val bedroom = episode(id = "s9", deviceId = "app-20", device = "Bedroom TV")
         remote.devices.value = listOf(episode(), bedroom)
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_CARD + "s9").assertExists()
         compose.onNodeWithContentDescription("Pause on Bedroom TV").assertExists()
+        // Sent from here: the bar follows it.
+        compose.onNodeWithText("Playing on Bedroom TV").assertExists()
+    }
+
+    @Test
+    fun aCastToADevicePlayingSomethingElseShowsTheBarOnceWhatWasSentPlays() {
+        remote.devices.value = listOf(episode())
+        show(asked = RemoteAsk("app-12"))
+        // What played there before isn't this phone's.
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+        // The old title stops before the new one is listed.
+        remote.devices.value = listOf(episode().copy(session = null))
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        remote.devices.value = listOf(episode(id = "s9"))
+        compose.waitForIdle()
+        compose.onNodeWithText("Playing on Living room TV").assertExists()
+    }
+
+    @Test
+    fun aTitleEndingIntoTheNextKeepsTheBar() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Pause on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_BAR).assertExists()
+        // The device's own Up Next: a moment playing nothing, then the next episode.
+        remote.devices.value = listOf(episode().copy(session = null))
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        remote.devices.value = listOf(episode(id = "s5"))
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS)
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_BAR).assertExists()
+    }
+
+    @Test
+    fun aCastThatNeverStartedIsNotWaitedForForever() {
+        remote.devices.value = listOf(episode(), bedroom())
+        show(asked = RemoteAsk("app-20"))
+        compose.mainClock.advanceTimeBy(CAST_START_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        // Played later, by someone else: not this phone's.
+        remote.devices.value = listOf(episode(), episode(id = "s9", deviceId = "app-20", device = "Bedroom TV"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
     }
 
     @Test
@@ -221,6 +356,31 @@ class RemoteUiTest {
         compose.onNodeWithContentDescription("Audio on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Quality on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithText("The Evening News").assertExists()
+    }
+
+    @Test
+    fun previousAndNextSitBesideTheSkipsAndPlayInOneCentredRow() {
+        remote.devices.value = listOf(episode(controls = listOf(Control.Previous, Control.Next, Control.Play, Control.Pause, Control.Skip)))
+        show()
+        open()
+        val card = compose.onNodeWithTag(REMOTE_CARD + "s1").fetchSemanticsNode()
+        val density = card.layoutInfo.density.density
+        fun bounds(label: String) = compose.onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+        val previous = bounds("Previous on Living room TV")
+        val back = bounds("Back 10 seconds on Living room TV")
+        val pause = bounds("Pause on Living room TV")
+        val forward = bounds("Forward 30 seconds on Living room TV")
+        val next = bounds("Next on Living room TV")
+        assertTrue(previous.right <= back.left && back.right <= pause.left && pause.right <= forward.left && forward.right <= next.left)
+        assertEquals(card.boundsInRoot.center.x, pause.center.x, density)
+        // Side by side, not spread to the card's edges.
+        assertEquals(back.left, previous.right, density)
+        assertEquals(next.left, forward.right, density)
+
+        // Without a Previous, its place is kept: play stays in the middle.
+        remote.devices.value = listOf(episode())
+        compose.waitForIdle()
+        assertEquals(card.boundsInRoot.center.x, bounds("Pause on Living room TV").center.x, density)
     }
 
     @Test
@@ -326,11 +486,15 @@ class RemoteUiTest {
         compose.waitForIdle()
         assertEquals("s1" to PlayerCommandRequest(Control.Quality, quality = "4m"), remote.commands.last())
         compose.onNodeWithTag(REMOTE_QUALITY).assertIsNotSelected()
-        compose.onNodeWithText("Waiting for Living room TV").assertExists()
+        // Ticked at once.
+        compose.onNodeWithTag(REMOTE_QUALITY).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("4 Mbps 720p").assertIsSelected()
         // Answered by the player saying it picked it.
         remote.devices.value = listOf(episode(quality = "4m"))
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
         compose.waitForIdle()
-        compose.onNodeWithText("Waiting for Living room TV").assertDoesNotExist()
+        compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
     }
 
     @Test
@@ -367,10 +531,13 @@ class RemoteUiTest {
         compose.waitForIdle()
         compose.onNodeWithText("French (AAC Stereo)").performClick()
         compose.waitForIdle()
-        compose.onNodeWithText("Waiting for Living room TV").assertExists()
+        // Ticked at once.
+        compose.onNodeWithContentDescription("Audio on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("French (AAC Stereo)").assertIsSelected()
         remote.devices.value = listOf(episode(audioIndex = 2))
         compose.waitForIdle()
-        compose.onNodeWithText("Waiting for Living room TV").assertDoesNotExist()
+        compose.onNodeWithText("French (AAC Stereo)").assertIsSelected()
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
         compose.waitForIdle()
         compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
@@ -442,16 +609,18 @@ class RemoteUiTest {
         open()
         compose.onNodeWithContentDescription("Pause on Living room TV").performClick()
         compose.waitForIdle()
+        // Paused at once, and nothing said while it waits.
+        compose.onNodeWithContentDescription("Play on Living room TV").assertExists()
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS - 1_000)
         compose.waitForIdle()
-        compose.onNodeWithText("Waiting for Living room TV").assertExists()
+        compose.onNodeWithContentDescription("Play on Living room TV").assertExists()
         compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        // Asked once more before saying so.
+        // Asked once more before saying so, and playing again as the player says.
         assertEquals(1, remote.refreshes)
         compose.onNodeWithText("Living room TV didn't answer.").assertExists()
-        compose.onNodeWithText("Waiting for Living room TV").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Pause on Living room TV").assertExists()
 
         // It acted late after all: its next report takes the message away.
         val late = episode(state = ProgressState.Paused)
@@ -472,7 +641,7 @@ class RemoteUiTest {
     }
 
     @Test
-    fun aCommandWaitingForItsAnswerKeepsTheSheetWhileTheSessionChangesOver() {
+    fun aNextKeepsWhatPlayedUntilTheNextOnePlays() {
         // A player that takes no casts goes from the list between its sessions.
         remote.devices.value = listOf(episode(receiver = false))
         show()
@@ -482,10 +651,42 @@ class RemoteUiTest {
         remote.devices.value = emptyList()
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS - 1_000)
         compose.waitForIdle()
-        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
+        compose.onNodeWithTag(REMOTE_CARD + "s1").assertExists()
+        compose.onNodeWithText("Playing on Living room TV").assertExists()
         remote.devices.value = listOf(episode(id = "s4", receiver = false))
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_CARD + "s4").assertExists()
+
+        // A device that takes casts doesn't show as ready to play between them either.
+        remote.devices.value = listOf(episode(id = "s4"))
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Next on Living room TV").performClick()
+        compose.waitForIdle()
+        remote.devices.value = listOf(episode().copy(session = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_CARD + "s4").assertExists()
+        compose.onNodeWithText("Ready to play").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSeekOrASkipShowsWhereItGoesAtOnce() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        val seek = compose.onNodeWithContentDescription("Seek on Living room TV")
+        seek.performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Seek, positionMs = 1_604_500), remote.commands.last())
+        seek.assert(saying("26:44 of 53:29"))
+        // A skip goes from there, not from where the player last said it was.
+        compose.onNodeWithContentDescription("Forward 30 seconds on Living room TV").performClick()
+        compose.waitForIdle()
+        seek.assert(saying("27:14 of 53:29"))
+        // The player never went: once the wait is over it says so, and where it is shows again.
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithText("Living room TV didn't answer.").assertExists()
+        seek.assert(saying("19:49 of 53:29"))
     }
 
     @Test
@@ -555,7 +756,9 @@ class RemoteUiTest {
         assertEquals(listOf("s1"), remote.stopped)
         remote.devices.value = listOf(episode().copy(session = null))
         compose.waitForIdle()
-        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        // Listed, ready to play.
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertDoesNotExist()
+        compose.onNodeWithText("Ready to play").assertExists()
         remote.devices.value = emptyList()
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()

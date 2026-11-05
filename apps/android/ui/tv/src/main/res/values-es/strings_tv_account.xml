@@ -33,7 +33,7 @@
     <string name="tv_account_sort_libraries">Ordenar bibliotecas</string>
     <string name="tv_account_sort_libraries_value">Tu orden, en todos tus dispositivos</string>
     <string name="tv_account_always_start_as">Iniciar siempre como</string>
-    <string name="tv_account_ask_who">Preguntar quién está viendo</string>
+    <string name="tv_account_ask_who">Último perfil usado</string>
     <string name="tv_account_manage_web">Gestionar tu cuenta en la web</string>
     <string name="tv_account_manage_web_value">Nombre, foto, contraseña, PIN, inicio de sesión en dos pasos, dispositivos y aplicaciones</string>
     <string name="tv_account_web_title">Gestionar tu cuenta en la web</string>

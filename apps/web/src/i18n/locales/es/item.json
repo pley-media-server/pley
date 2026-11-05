@@ -125,9 +125,11 @@
     "details": {
       "title": "Editar detalles",
       "hint": "Los campos editados se bloquean <lock/> para que las actualizaciones de metadatos los conserven. Desbloquea un campo para que la próxima actualización vuelva a rellenarlo.",
+      "nfoHint": "Los campos del archivo NFO que está a su lado prevalecen sobre la fuente de metadatos; una edición aquí prevalece sobre ellos.",
       "genresPlaceholder": "Drama, Suspense",
       "locked": "Bloqueado: haz clic para desbloquear",
       "willUnlock": "Se desbloqueará",
+      "fromNfo": "Del archivo NFO",
       "fields": {
         "title": "Título",
         "sort_title": "Título para ordenar",
@@ -143,6 +145,9 @@
     },
     "match": {
       "title": "Corregir coincidencia",
+      "byHand": "Asociado aquí a mano. Un archivo NFO a su lado no cambia esta coincidencia hasta que la deshagas.",
+      "undo": "Deshacer la corrección",
+      "undone": "Corrección de la coincidencia deshecha",
       "matched": "Asociado a “{{title}}”",
       "noMatches": "No hay coincidencias. Prueba con otro título o sin año.",
       "current": "Actual"

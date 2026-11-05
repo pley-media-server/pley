@@ -9,6 +9,7 @@ import app.pley.android.caps.PassthroughFormat
 import app.pley.android.common.DeviceProfile
 import app.pley.android.data.DataGraph
 import app.pley.android.data.FrameRateMatching
+import app.pley.android.data.LiveTvRepository
 import app.pley.android.data.LocalMedia
 import app.pley.android.data.Passthrough
 import app.pley.android.data.Settings
@@ -23,7 +24,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Playback for the rest of the app: engines, sessions and music. */
 interface PlayerGraph {
@@ -31,7 +34,20 @@ interface PlayerGraph {
     val services: PlaybackServices
     val music: MusicControl
 
+    /**
+     * Ends what plays here, video, music and Live TV, and waits (up to
+     * [END_WAIT_MS]) until each one's last reports went out: `stopped` where
+     * it was, and its session's end. Their requests carry the tokens in use
+     * as they go, so what hasn't gone out by then is dropped: a profile
+     * switch made after this sends nothing of theirs as the next profile.
+     * Main thread.
+     */
+    suspend fun endAll() {}
+
     companion object {
+        /** How long [endAll] waits for what played to say it ended. */
+        const val END_WAIT_MS = 5_000L
+
         /**
          * Media3 engines by device, following the app's settings (refresh
          * rate, tunneling, passthrough), server sessions over them for the
@@ -50,17 +66,49 @@ interface PlayerGraph {
             val settings = FollowedSettings(data, caps, profile)
             val engines = Media3EngineFactory.of(caps, network) { settings.engine }
             val services = SessionPlaybackServices.create(context, data, network, caps, profile, engines, local, drives)
-            return AppPlayer(engines, services) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
+            return AppPlayer(engines, services, { data.liveTv }) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
         }
     }
 }
 
-private class AppPlayer(
+internal class AppPlayer(
     override val engines: PlayerEngine.Factory,
     override val services: PlaybackServices,
+    private val liveTv: () -> LiveTvRepository,
+    /** Closes the player windows open ([PlayerWindows.closeAll]). */
+    private val closeWindows: () -> Unit = PlayerWindows::closeAll,
+    /** Waits until they have gone ([PlayerWindows.gone]). */
+    private val windowsGone: suspend () -> Unit = PlayerWindows::gone,
     music: () -> MusicControl,
 ) : PlayerGraph {
-    override val music: MusicControl by lazy(music)
+    private val musicMade = lazy(music)
+
+    override val music: MusicControl by musicMade
+
+    override suspend fun endAll() {
+        // Each ends at once, its last reports queued while the tokens are still its profile's; music only if it
+        // was ever made.
+        services.closeAll()
+        val made = if (musicMade.isInitialized()) music else null
+        made?.stop()
+        // Live TV's window leaves its channel as it stops.
+        closeWindows()
+        // All waited for at once: one slow to go out doesn't keep the others from being waited for.
+        withTimeoutOrNull(PlayerGraph.END_WAIT_MS) {
+            coroutineScope {
+                launch { services.flush() }
+                launch { made?.flush() }
+                launch {
+                    windowsGone()
+                    liveTv().left()
+                }
+            }
+        }
+        // What hasn't gone out by now would go with the next profile's tokens.
+        services.drop()
+        made?.drop()
+        liveTv().drop()
+    }
 }
 
 /**

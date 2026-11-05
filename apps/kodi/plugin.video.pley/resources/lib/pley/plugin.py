@@ -766,10 +766,8 @@ class Plugin(asking.Asking):
                     needs, problem = "pin", profiles.refusal(e, kodi.text, self.server_name())
                     continue
                 return kodi.notify(profiles.refusal(e, kodi.text, self.server_name()), error=True)
-        kodi.set_property(profiles.GATE, "1")
         kodi.notify(kodi.text("watching_as") % name)
-        if kodi.get_property(kodi.WINDOW_OPEN):
-            xbmc.executebuiltin("NotifyAll(%s,%s)" % (kodi.ADDON_ID, profiles.SWITCHED))
+        profiles.tell_switched()
         # Requests are the profile's own.
         self.notify_service(forget=True)
         xbmc.executebuiltin("Container.Refresh")

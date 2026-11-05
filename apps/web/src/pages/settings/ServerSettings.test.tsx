@@ -60,6 +60,30 @@ describe("ServerSettings", () => {
     expect(screen.getByRole("switch", { name: "Apps by other publishers" })).toBeChecked();
   });
 
+  it("turns reading NFO files off", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, read_nfo: true }),
+      "GET /api/system": () => ({}),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, read_nfo: true, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<ServerSettings />);
+    const toggle = await screen.findByRole("switch", { name: "Read NFO files" });
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ read_nfo: false }));
+    expect(screen.getByRole("switch", { name: "Read NFO files" })).not.toBeChecked();
+  });
+
+  it("has no NFO switch for a server that doesn't read NFO files", async () => {
+    mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => ({}) });
+    renderWithProviders(<ServerSettings />);
+    expect(await screen.findByLabelText("Server name")).toHaveValue("Den");
+    expect(screen.queryByRole("switch", { name: "Read NFO files" })).not.toBeInTheDocument();
+  });
+
   it("requires two-step sign-in only from an administrator who uses it", async () => {
     mockApi({ "GET /api/settings": () => ({ ...SETTINGS, require_two_step: false }), "GET /api/system": () => ({}), "GET /api/users": () => [] });
     renderWithProviders(<ServerSettings />, { user: { ...testUser, two_step: false } });

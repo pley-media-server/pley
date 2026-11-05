@@ -303,7 +303,9 @@ interface ItemDetail extends ItemSummary {
   content_rating: string | null;    // "PG-13"
   tmdb_id: number | null;
   imdb_id: string | null;
-  locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id})
+  locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id}), and "match"
+                                    // after Fix Match
+  nfo_fields: string[];             // fields the item's NFO file sets, named as locked_fields are, and "rating"
   files: MediaFile[];               // empty for containers (show, season, artist, album)
   markers: Marker[];                // intro and credits (Skip Intro, Skip Credits)
   extras: ItemSummary[];            // movies and shows: trailers first, then other bonus material (kind "extra")
@@ -1120,6 +1122,10 @@ apps allowed `profiles` move to another profile of the household. Send
   a right PIN answers as a switch does. Without a `pin`, or for a profile
   without one, it is `invalid_request` with no `reason`, which apps read as
   "this server can't check PINs".
+- A cast from another profile's remote carries a `switch_ticket`
+  ([Casting](#casting)): sent as `ticket`, with `profile` the cast's
+  `profile_id`, it stands for the PIN and the rest of the rules. It is good
+  once, for this app on the profile it acts as now.
 
 | Answer | When |
 |---|---|
@@ -1130,6 +1136,7 @@ apps allowed `profiles` move to another profile of the household. Send
 | `invalid_grant`, `"reason": "throttled"` | too many wrong PINs for it lately (5 in 15 minutes) |
 | `invalid_grant`, `"reason": "browser"` | it can see more than the app's profile and has no PIN: sign in to the app again and pick it in the browser (apps never see passwords) |
 | `invalid_grant`, `"reason": "not_allowed"` | not a household profile, disabled, or can see more with neither PIN nor password |
+| `invalid_grant`, `"reason": "ticket_spent"` | a cast's `ticket` that expired, was spent, or isn't this app's for this switch |
 | `invalid_grant` | the refresh token doesn't work, as for a refresh (a spent one ends the grant) |
 | `503 temporarily_unavailable` | Pley is too busy to check the PIN now: nothing is counted, try again |
 
@@ -1582,7 +1589,7 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
-| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres? }` → `ItemDetail` |
+| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
 | POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
@@ -1643,11 +1650,22 @@ user's watch state and their access are unchanged.
     audio track.
 - **`PATCH`**: a value edits and locks the field (refreshes and scans keep
   it); `null` unlocks it. `ItemDetail.locked_fields` lists locked fields.
+  An edit wins over the item's NFO file
+  ([CONFIGURATION.md](CONFIGURATION.md#nfo-files)), whose fields
+  `ItemDetail.nfo_fields` lists. `match` takes only `null`, which undoes
+  Fix Match: the NFO file's ids decide the match again (any other value:
+  `400`).
 - **`match`**: a show whose TV source is TVmaze or TheTVDB is found there by
-  the chosen entry's IMDb and TheTVDB ids.
+  the chosen entry's IMDb and TheTVDB ids. The choice wins over the NFO
+  file's ids, and `locked_fields` then lists `"match"`. When none of the
+  NFO file's ids is the chosen entry's, its fields and lockdata stop
+  applying and `nfo_fields` is empty, until Fix Match is undone or the
+  file names that entry.
 - **`refresh`** sources: movies, TMDB; shows, seasons and episodes, the TV
   source; artists, albums and tracks, MusicBrainz. `400` when that source
-  is off or lacks its key.
+  is off or lacks its key. An item its NFO file locks (`<lockdata>`) is
+  never fetched, by `refresh` (still `202`) or by `match` to the title the
+  file names.
 - **`analyze`**: a movie's chapters, or every episode of the season of an
   episode, a season or a show. `400` for other kinds.
 
@@ -3374,8 +3392,8 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`) something to play ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
@@ -3441,9 +3459,12 @@ don't restart the stopped session.
 
 A user's devices control what plays on their other devices: pause the TV
 from a phone, skip a track from the browser, change the TV's subtitles,
-or start a film on it. Only the session's or the device's own user does;
+or start a film on it. Only the session's own user controls it;
 administrators, and Pley's own apps allowed `activity` on their accounts,
-stop other people's sessions (above) and nothing more.
+stop other people's sessions (above) and nothing more. A home member also
+casts to the household's other profiles' devices, which switch to the
+caster's profile first ([Casting](#casting)): a device plays as the
+profile of the remote that sent it something.
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
@@ -3541,6 +3562,16 @@ stop other people's sessions (above) and nothing more.
   the last report (a seek, a skip), sends `sessions_changed`, as a pause
   does, so remotes fetch the list again. The first report isn't compared:
   until then the session is starting.
+- **Without its controls.** Whoever sent a command is on another device,
+  so Pley's players don't bring up their controls for it: what it changed
+  shows for a moment where the player puts its brief notices ("Paused",
+  "Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+  where a seek went, "Audio: …", "Subtitles: …" or "Subtitles off" and
+  "Quality: …" as the menus name them), and a command that changes
+  nothing shows nothing. The remote's pause doesn't keep the controls up
+  as a pause there does, until someone there touches a key, the mouse or
+  the screen. Kodi's skin still shows its own controls as for any pause
+  ([KODI.md](KODI.md)); the Apple apps' players show no notice.
 
 ### Casting
 
@@ -3551,21 +3582,41 @@ would.
 - **Receivers.** A player that plays what it is sent (one of Pley's
   apps) opens its event stream as a receiver, with `receiver`,
   `device_name`, `device_kind` and `casts` in the query
-  (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live`).
+  (`/api/events?receiver=den-tv&device_kind=tv&casts=item,live,switch`).
   `receiver` is the app's own id for the device, 1 to 128 letters, digits,
   `.`, `_`, `:` and `-` (anything else and the stream isn't a receiver).
   `device_name` and `device_kind` are what a play request's are, and
   without them the server names the device and tells its kind the same
   way. `casts` says what it plays: `item` (titles and playlists), `live`
-  (channels), comma-separated; others are left out. The device takes casts
+  (channels), comma-separated; others are left out. With `switch` too, the
+  app switches to the profile of a remote of another profile that casts to
+  it ([below](#casting)); only such receivers are offered across profiles,
+  since an app that doesn't would play the cast as the profile it is on.
+  The device takes casts
   while the stream is open: several streams with the same `receiver` count
-  once, and it goes when the last one closes. A user has at most 32
-  receivers; a stream past them still gets its events, but isn't one. A
-  receiver appearing or going sends `sessions_changed`.
-- **`GET /api/remote/devices`** lists the caller's own receivers, an
-  administrator's too: one per device (`device_id`, as sessions say it),
-  the one that connected last, by name. Remotes show them with the
-  sessions of the same `device_id`; an app leaves out its own receiver.
+  once, and it goes when the last one closes. They are the same device's
+  (`device_id`, as sessions say it): while one device holds a `receiver`,
+  another's stream with it still gets its events, but isn't one, so a
+  sign-in that copies a TV's id from the list never gets what is cast to
+  the TV. Such a stream asks again as the user's receivers change and at
+  each recheck of its token, so a device back with a new token (signed in
+  again, or switched back to the profile) takes its id once its old
+  stream has gone. A user has at most 32 receivers; a stream past them still gets
+  its events, but isn't one. A receiver appearing or going sends
+  `sessions_changed`.
+- **`GET /api/remote/devices`** lists the caller's receivers, an
+  administrator's too. With `?household=1`, for a home member, it adds
+  those of the household's other profiles (home members, not disabled)
+  whose stream named `switch`, each with the `profile` it is on, `{ id,
+  name }`, its name as "Who's watching?" says it; the caller's own have no
+  `profile`. A remote that doesn't ask (an older app) gets its own alone,
+  and so does an app other than Pley's own, or one not allowed `profiles`:
+  a cast there switches someone's device to the caller's profile, which
+  only a switch's own apps may do. One per device
+  (`device_id`, as sessions say it), the one that connected last, by name.
+  Remotes show them with the sessions of the same `device_id`; another
+  profile's sessions stay theirs, so its devices show as on that profile,
+  without what they play. An app leaves out its own receiver.
 - **`POST /api/remote/devices/{id}/cast`**, `{id}` being a `receiver_id`,
   names exactly one of `item_id`, `playlist_id` and `channel_id`;
   `start_ms` (from 0 to a day) is where a title starts, and `shuffle`
@@ -3573,14 +3624,25 @@ would.
   episode, `audio_index` and `subtitle_index` (`-1`: none) are the tracks
   the remote had picked on its page, by stream index of one of its files.
   The quality stays the receiver's own: what suits a phone's network
-  doesn't suit a TV's. It answers `202` and sends the user's event
-  streams `{ type: "cast", receiver_id, item_id, playlist_id, channel_id,
-  start_ms, shuffle, audio_index, subtitle_index, from }`, `from` being the
-  remote's device name or `null`: the `device_name` its device gave as a
-  receiver, where it is one, else one from its User-Agent. It answers, in
-  this order:
-  - `404` for a receiver unknown, gone or someone else's (an
-    administrator's request too: it never says which);
+  doesn't suit a TV's. A receiver of another of the household's profiles
+  takes that profile's id, `profile_id` (its `profile.id` in the list), the
+  `device_id` the list shows for it, and the caller's `pin` when their
+  profile has one: the cast goes to that device or to none, so a receiver
+  id another device holds since never gets it. It answers `202` and sends
+  the event streams of the profile the receiver is on `{ type: "cast",
+  receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle,
+  audio_index, subtitle_index, from }`, `from` being the remote's device
+  name or `null`: the `device_name` its device gave as a receiver, where it
+  is one, else one from its User-Agent. To another profile's receiver it
+  adds the caller's `profile_id` and a `switch_ticket` (below), and goes to
+  that receiver's streams alone: the profile's other devices don't hear
+  what someone else cast, nor the ticket. It answers, in this order:
+  - `403` `{ code: "not_allowed" }` for `profile_id` from an app other
+    than Pley's own, or one not allowed `profiles`;
+  - `404` for a receiver unknown, gone, or of a profile outside the
+    caller's household or without `profile_id` (an administrator's request
+    too: it never says which), or another device than its `device_id`
+    now; `400` for `profile_id` without `device_id`;
   - `400` for a body that doesn't name exactly one of the three;
   - `404` for a title the user can't see, `400` for one that isn't a
     movie, an episode, a show, a season, a track, an album or an artist;
@@ -3591,6 +3653,18 @@ would.
     `casts` doesn't name (`live` for a channel, `item` otherwise);
   - `400` for a `start_ms` out of range, or a track that isn't one of the
     title's (or with something other than a movie or an episode);
+  - for another profile's receiver, by a switch's rules from the profile
+    it is on (without an administrator's exemption: the receiver may be an
+    app): `403` `{ code: "not_allowed" }` when the caller's profile is
+    freer (an administrator, a higher age limit, other libraries) and has
+    no PIN, as there is no password on a TV, or has to set up two-step
+    sign-in, which the server requires, or is an administrator's and the
+    receiver isn't an app (`device_id` `app-…`): a browser's or the desktop
+    app's sign-in would stay one with administrator rights, where an app's
+    tokens never have them; then, when the caller's profile has
+    a PIN, `403` `{ code: "pin_needed" }` without `pin`, `wrong_pin` for a
+    wrong one, `pin_locked` once it is locked, `429` after too many wrong
+    ones, counted and throttled with the switches to the caller's profile;
   - `429` past 10 casts a second to one receiver.
 - **The receiver plays it**, if `receiver_id` is its own, as its own
   *Play* on that page would: a movie, an episode or a track where *Play*
@@ -3602,6 +3676,27 @@ would.
   them). Its player then starts
   a session as any play does, which the remote sees in `GET /api/sessions`
   with the receiver's `device_id`.
+- **Switching to the remote's profile.** A cast with `profile_id` comes
+  from another profile of the household: the receiver switches to it before
+  it plays, with `switch_ticket`, in place of a PIN or password. An app
+  sends it as `ticket` to its switch-profile grant ([Apps (OAuth
+  2.1)](#apps-oauth-21), `profile` being the cast's `profile_id`); the
+  desktop app's window to `POST /api/auth/switch` (`{ user_id, ticket }`).
+  A ticket is good once, for 60 seconds, for that device switching from
+  the profile it is on to the caster's: shown for anything else it is
+  spent, `invalid_grant` with reason `ticket_spent` from the grant and
+  `403` `{ code: "ticket_spent" }` from the switch. Both profiles must
+  still be home members, and the caster's enabled. The ticket stands for
+  the PIN the caster gave; the rest of a switch's rules are checked again
+  as it is spent, from the rights the device has: a caster's profile that
+  would now take its password (its PIN removed meanwhile) or whose PIN is
+  locked isn't switched to, and `POST /api/auth/switch` never switches to
+  an administrator's profile with a ticket. A device keeps its 4 newest
+  tickets. A receiver that doesn't name `switch`, or whose stream comes
+  from an app other than Pley's own or one not allowed `profiles`, gets no
+  such cast: it isn't offered across profiles. A progress report naming
+  another profile's session (one that left with this profile's token as
+  its device switched) is answered `204` and kept for neither.
 
 ### Watch state on other devices
 
@@ -4186,6 +4281,8 @@ interface Settings {
   tvdb_api_key: string;             // TheTVDB v4 key; "" = not set
   tvdb_pin: string;                 // TheTVDB subscriber PIN, for user-supported keys
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
+  read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
+                                    // true; see CONFIGURATION.md). A change scans every library
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR

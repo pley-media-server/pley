@@ -55,6 +55,15 @@ data class CastFrom(val device: String?) {
     fun notice(resources: Resources): String =
         device?.trim()?.takeIf { it.isNotEmpty() }?.let { resources.getString(R.string.cast_playing_from, it) }
             ?: resources.getString(R.string.cast_playing_from_another)
+
+    companion object {
+        /**
+         * What the shells say when a cast from another profile's remote
+         * couldn't switch this device to that profile, so nothing plays, in
+         * every app's words.
+         */
+        fun switchFailed(resources: Resources): String = resources.getString(R.string.cast_switch_failed)
+    }
 }
 
 /** Where the next item comes from when this one ends. */
@@ -78,4 +87,13 @@ interface PlaybackServices {
 
     /** Starts again what [saved] describes, after process death: a new key. */
     fun restore(saved: SavedPlaybackState): String = prepare(saved.toPlayRequest())
+
+    /** Ends every playback now: each one's session ends, its last reports on their way ([flush]). */
+    fun closeAll() {}
+
+    /** Waits until the reports made so far went out, the ends of those [closeAll] closed too. */
+    suspend fun flush() {}
+
+    /** Drops the reports that haven't gone out yet: a switch of profile would send them as the next profile. */
+    fun drop() {}
 }

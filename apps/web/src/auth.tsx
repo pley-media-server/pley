@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { errorMessage, isApiError } from "@/api/client";
@@ -10,6 +10,7 @@ import { CastReceiver } from "@/components/CastReceiver";
 import { Logo } from "@/components/Logo";
 import { RequestNotices } from "@/components/RequestNotices";
 import { Button, EmptyState, Spinner } from "@/components/ui";
+import { rememberProfile } from "@/lib/lastProfile";
 import { TriangleAlert } from "lucide-react";
 
 const AuthContext = createContext<User | null>(null);
@@ -68,7 +69,12 @@ export function RequireAuth() {
   // Asked for together with the server status (not after it): one round trip
   // less before the first page. Its answer is only used once setup is done.
   const me = useMe(!setupRequired);
-  useServerEvents(me.data?.id ?? null);
+  const profileId = me.data?.id ?? null;
+  useServerEvents(profileId);
+  // Signing in here again goes straight in as it (LoginPage).
+  useEffect(() => {
+    if (profileId !== null) rememberProfile(profileId);
+  }, [profileId]);
 
   if (server.isPending) return <Splash />;
   if (server.isError) {

@@ -32,6 +32,8 @@ namespace Pley.Tv.Tizen.Screens;
 /// scrubbing or in a panel.</item>
 /// <item><b>Back</b> walks out: a panel, then Up Next, then the chapters, then the controls, then the player.</item>
 /// <item><b>Media keys</b> work whatever shows; CAPTIONS turns the subtitles off and on.</item>
+/// <item><b>The remote</b> on another device shows no controls: what it did is toasted at the top
+/// right. Its pause keeps none showing either, until a key here makes the pause the person's.</item>
 /// </list>
 /// The model reports to the server through the app's reporter, so the last report goes out after
 /// the screen closed. A playback the server stopped says why and leaves after 20 s; paused by the
@@ -145,6 +147,13 @@ sealed class PlayerScreen : Sheet
     Animation? scrimFade;
     Animation? coverFade;
     long hideAt;
+    /// <summary>The remote's pause, as the state last said it (<see cref="PlayerState.PausedByRemote"/>).</summary>
+    bool pausedByRemote;
+    /// <summary>
+    /// Paused by the remote and no key pressed here since: the controls showing go on time, as while
+    /// it plays. A key makes the pause the person's, which keeps them.
+    /// </summary>
+    bool remotePause;
 
     /// <param name="reporter">The app's reports queue: the last "stopped" goes out after the screen closed.</param>
     /// <param name="closed">The screen went (Home asks again for the resume points).</param>
@@ -433,6 +442,11 @@ sealed class PlayerScreen : Sheet
         if (s.Method != null) method.Set(s.Method);
         method.SetVisible(s.Method != null);
         PlaceMethod();
+        if (s.PausedByRemote != pausedByRemote)
+        {
+            pausedByRemote = s.PausedByRemote;
+            remotePause = s.PausedByRemote;
+        }
         var wantsToPlay = s.Phase.WantsToPlay;
         if (wants != wantsToPlay)
         {
@@ -728,8 +742,9 @@ sealed class PlayerScreen : Sheet
     {
         if (gone) return;
         var now = Environment.TickCount64;
-        // The controls go 5 s after the last key, unless paused, scrubbing or in a panel.
-        if (shown && panel == null && model.State.Value.Phase.WantsToPlay && hideAt > 0 && now >= hideAt && seeker.Target == null && !chapterStrip.Open) ShowControls(false);
+        // The controls go 5 s after the last key, unless paused (here, not by the remote), scrubbing or in a panel.
+        var paused = !model.State.Value.Phase.WantsToPlay && !remotePause;
+        if (shown && panel == null && !paused && hideAt > 0 && now >= hideAt && seeker.Target == null && !chapterStrip.Open) ShowControls(false);
         Waiting();
         if (shown) Layout();
     }
@@ -1107,8 +1122,12 @@ sealed class PlayerScreen : Sheet
         if (!on) Refocus();
     }
 
-    /// <summary>A key came: the controls stay a while longer.</summary>
-    void Poke() => hideAt = Environment.TickCount64 + PlayerText.HideAfterMs;
+    /// <summary>A key came: the controls stay a while longer, and a pause the remote made is the person's from now on.</summary>
+    void Poke()
+    {
+        hideAt = Environment.TickCount64 + PlayerText.HideAfterMs;
+        remotePause = false;
+    }
 
     bool OnBack()
     {

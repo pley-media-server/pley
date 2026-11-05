@@ -52,6 +52,18 @@ enum class CastRefusal {
     /** `429`: more than 10 casts a second to one device. */
     TooMany,
 
+    /** `403` `pin_needed`: to another profile's device, the caller's profile gives its PIN first. */
+    PinNeeded,
+
+    /** `403` `wrong_pin`: the PIN sent isn't the caller's profile's. */
+    WrongPin,
+
+    /** `403` `pin_locked`: the caller's profile's PIN is locked after too many wrong ones. */
+    PinLocked,
+
+    /** `429` to a cast with a PIN: too many wrong PINs lately; the error's sentence says how long to wait. */
+    Throttled,
+
     /** The server can't be reached. */
     Offline,
 
@@ -60,11 +72,19 @@ enum class CastRefusal {
     ;
 
     companion object {
-        fun of(error: Throwable): CastRefusal = when {
+        /**
+         * Why [error] refused a cast; [pinSent]: the cast carried a PIN, whose
+         * check comes before the casts are counted, so a `429` is the PIN's.
+         */
+        fun of(error: Throwable, pinSent: Boolean = false): CastRefusal = when {
             error is OfflineException -> Offline
             error !is ApiException -> Other
             error.status == 404 -> Gone
             error.status == 409 && error.code == "not_castable" -> NotCastable
+            error.status == 403 && error.code == "pin_needed" -> PinNeeded
+            error.status == 403 && error.code == "wrong_pin" -> WrongPin
+            error.status == 403 && error.code == "pin_locked" -> PinLocked
+            error.status == 429 && pinSent -> Throttled
             error.status == 429 -> TooMany
             else -> Other
         }

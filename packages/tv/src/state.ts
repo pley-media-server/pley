@@ -8,7 +8,7 @@ import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
 import { deviceLanguage, language, navigatorLanguages, pickLanguage, setDeviceLanguages, setLanguage, supportedLanguage, type Language } from "./i18n";
 import { xhrTransport, type Transport } from "./net/transport";
 import type { Platform, Probe } from "./platform";
-import { receiverQuery } from "./player/cast";
+import { CAST_SWITCH_WAIT_MS, receiverQuery } from "./player/cast";
 import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
@@ -144,17 +144,18 @@ export interface StartFacts {
 
 /**
  * The first screen (the Android app's startKey): no server, Servers; no
- * sign-in, Link; a household of several profiles, "Who's watching?".
- * "Always start as" skips that question and goes on as the profile the TV
- * was left on, but never past its PIN: its pad comes first when it has one,
- * and "Who's watching?" when the TV doesn't know whether it has one.
+ * sign-in, Link; otherwise Home as the profile the TV was left on, but never
+ * past its PIN. In a household of several profiles, one with a PIN asks
+ * first: "Who's watching?", or its pad with "Always start as"; and so does
+ * one the TV doesn't know has none.
  */
 export function startPage(f: StartFacts): Start["page"] {
   if (!f.server) return "servers";
   if (!f.signedIn) return "link";
   if (f.household <= 1) return "home";
+  if (f.me && !f.me.has_pin) return "home";
   if (f.alwaysStartAs === null || !f.me) return "profiles";
-  return f.me.has_pin ? "pin" : "home";
+  return "pin";
 }
 
 /**
@@ -454,6 +455,28 @@ export class AppState {
     void this.loadRequests(true);
     await this.loadAccount();
     void this.loadHome();
+  }
+
+  /**
+   * Moves the app to `profile` for a cast from that profile's remote, with
+   * its `ticket` (docs/API.md, "Casting"). What plays ends first, and its
+   * last reports go out with this profile's sign-in, for up to
+   * CAST_SWITCH_WAIT_MS: what hasn't gone by then is dropped, never sent as
+   * the new profile, whose watch history it isn't. Then the ticket is
+   * redeemed and the app acts as the new profile (`switched`). A refused
+   * ticket rejects, and the app stays as it is, what played ended.
+   */
+  async switchForCast(profile: number, ticket: string): Promise<void> {
+    const tokens = this.tokens;
+    if (!tokens) throw new SignedOutError();
+    this.endPlayback();
+    // The player's last reports are made as its page goes, once drawn.
+    await new Promise((r) => setTimeout(r, 0));
+    await this.reporter.flush(CAST_SWITCH_WAIT_MS);
+    this.reporter.drop();
+    await tokens.switchProfile(profile, null, ticket);
+    // As a switch on "Who's watching?": who is watching failing to load is the pages' Retry's.
+    await this.switched().catch(() => undefined);
   }
 
   /** Forgets a server of the list: its sign-in ends, and what was saved from it goes. */

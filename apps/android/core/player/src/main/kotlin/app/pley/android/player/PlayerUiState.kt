@@ -236,6 +236,21 @@ data class PlayerUiState(
     val details: PlaybackDetailsUi? = null,
     /** A short message for a toast, until [PlaybackController.dismissNotice]: "This is the last episode". */
     val notice: String? = null,
+    /**
+     * What the profile's remote, on another device, just did here ("Paused",
+     * "+30 s", "Audio: English"), for a toast of a moment, until
+     * [PlaybackController.dismissRemoteNotice]. The screens say it instead
+     * of bringing up their controls: whoever watches sees why it paused or
+     * jumped, without the controls over the picture.
+     */
+    val remoteNotice: String? = null,
+    /** Counts [remoteNotice]s, so the same words twice ("+30 s", "+30 s") are said twice. */
+    val remoteNoticeId: Int = 0,
+    /**
+     * Paused by the remote, and not played since: the screens don't bring up
+     * their controls for this pause, nor keep them for it.
+     */
+    val pausedByRemote: Boolean = false,
     /** How far the subtitles are moved: positive shows them later ([PlaybackController.setSubtitleOffset]). */
     val subtitleOffsetMs: Long = 0,
     /** The subtitles chosen can be moved: text, or pictures drawn by the player from the server's .mks. */

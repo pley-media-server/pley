@@ -190,8 +190,16 @@
   },
   "cast": {
     "nothingToPlay": "Nothing to play",
+    "switchFailed": "Couldn't switch to the remote's profile",
     "playingFrom": "Playing from {{device}}",
     "anotherDevice": "another device"
+  },
+  "remote": {
+    "paused": "Paused",
+    "playing": "Playing",
+    "jumpedTo": "Jumped to {{time}}",
+    "audio": "Audio: {{track}}",
+    "quality": "Quality: {{quality}}"
   },
   "errors": {
     "title": "Can't play this item",

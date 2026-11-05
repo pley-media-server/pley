@@ -154,6 +154,33 @@ protect your server.
 - Switching from a restricted profile to one that can see more (an
   administrator, a higher age limit, other libraries) takes that profile's
   PIN, or its password (and code).
+- A remote casting to a device of another of the household's profiles
+  switches that device to its own profile, signed in as it already, by a
+  switch's rules from the device's profile: a freer profile (an
+  administrator, a higher age limit, other libraries) takes its PIN and,
+  without one, can't cast there, so a child's device never becomes an
+  administrator's without that PIN. An administrator's profile is cast
+  only to Pley's apps, whose tokens never carry administrator rights,
+  never to a browser's or the desktop app's sign-in, which would stay one
+  with those rights, and such a sign-in never switches to an
+  administrator with a ticket. When the profile has a PIN, the remote
+  gives it first, checked and throttled as a switch's, and the rules are
+  checked again as the device switches. Only devices whose app switches
+  (Pley's own, allowed to switch profiles) are offered across profiles,
+  so an older app never plays someone else's cast as its own profile. The
+  device switches with a ticket the cast carries: random, stored hashed,
+  good once for 60 seconds for that device, from the profile it is on to
+  the caster's. A copy shown by anything else spends it. Such a cast goes
+  to the device the remote listed or to none, reaches that device's
+  stream alone, not the profile's other devices, and a receiver's id stays
+  its device's while it is open: another sign-in of the profile that names
+  it isn't that receiver. A progress report of another profile's session
+  is kept for neither profile. Another
+  profile's devices are listed by name and profile, never with what they
+  play, and only to home members of the same household, from a person's
+  own sign-in or Pley's own apps allowed to switch profiles (another app
+  could take a TV over as its profile), nor are anyone's devices outside
+  it, or a disabled profile's, listed or cast to from it.
 
 ### Apps signing in
 
@@ -338,7 +365,8 @@ other apps (`pley_ct_…`), never with a session's
 ### Files
 
 - A symbolic link in a library is followed only to a file of the same kind
-  (a video to a video, a picture to a picture). This is checked when the
+  (a video to a video, a picture to a picture, an NFO file to an NFO
+  file). This is checked when the
   library is scanned and again whenever the file is used: played,
   transcoded, downloaded, or its pictures or subtitles served. A symbolic
   link named like a film can't hand out other files.
@@ -381,6 +409,11 @@ other apps (`pley_ct_…`), never with a session's
   streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
   only when they are JPEG, PNG, WebP or GIF.
 - A profile picture is decoded only up to 4096 pixels.
+- NFO files are read up to 1 MiB, as XML with no DTD and none but XML's
+  own entities. What they say is bounded (500 characters for a title,
+  20,000 for a summary, 50 genres, 100 entries a file) and ids are checked
+  for their shape. Addresses in them, pictures' included, are never
+  fetched.
 - Subtitles from OpenSubtitles come over HTTPS only, never redirected to
   plain HTTP.
 - A file's attached fonts (for burned-in ASS subtitles) are taken up to

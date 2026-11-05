@@ -46,7 +46,7 @@ public static class SettingsText
     public static string SortLibraries => Strings.T("settings.profile.sortLibraries");
     public static string SortLibrariesValue => Strings.T("settings.profile.sortLibrariesValue");
     public static string AlwaysStartAs => Strings.T("settings.profile.alwaysStartAs");
-    public static string AskWho => Strings.T("settings.profile.askWho");
+    public static string UsedLast => Strings.T("settings.profile.usedLast");
     public static string ManageWeb => Strings.T("settings.profile.manageWeb");
     public static string ManageWebValue => Strings.T("settings.profile.manageWebValue");
     public static string WebTitle => Strings.T("settings.web.title");

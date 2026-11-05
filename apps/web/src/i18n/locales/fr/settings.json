@@ -37,7 +37,7 @@
       "title": "Métadonnées",
       "description": "Affiches, résumés, notes, distribution et titres des épisodes.",
       "tmdbKey": "Clé d’API TMDB",
-      "tmdbKeyHint": "Les films, les collections et « Corriger la correspondance » utilisent TMDB. Clé gratuite sur <a>themoviedb.org/settings/api</a>. Sans clé, les films gardent le nom de leur fichier et leurs illustrations locales.",
+      "tmdbKeyHint": "Les films, les collections et « Corriger la correspondance » utilisent TMDB. Clé gratuite sur <a>themoviedb.org/settings/api</a>. Sans clé, les films gardent le nom de leur fichier et leurs illustrations locales, ou ce que disent leurs fichiers NFO.",
       "testTmdb": "Tester la clé TMDB",
       "tvShows": "Séries",
       "tvShowsHint": "Automatique utilise TMDB s’il a une clé, sinon TheTVDB s’il en a une, sinon <a>TVmaze</a>, qui n’en demande pas. Changer de source récupère à nouveau toutes les séries.",
@@ -54,6 +54,9 @@
       "musicHint": "Genres et dates de sortie depuis <a>MusicBrainz</a>, et pochettes depuis le Cover Art Archive pour les albums qui n’en ont pas. Les tags des fichiers priment. Aucune clé requise ; la première recherche prend environ une seconde par album.",
       "musicToggle": "Métadonnées musicales depuis MusicBrainz",
       "testMusicBrainz": "Tester MusicBrainz",
+      "nfo": "Fichiers NFO",
+      "nfoHint": "Les fichiers NFO que Kodi, Jellyfin, Radarr et Sonarr gardent à côté des films et des séries : leurs identifiants décident de la correspondance, et leurs informations l’emportent sur celles de la source de métadonnées. Vos modifications l’emportent sur elles. Pley ne les modifie jamais.",
+      "nfoToggle": "Lire les fichiers NFO",
       "language": "Langue des métadonnées",
       "languageHint": "Pour TMDB et TheTVDB. TVmaze est en anglais.",
       "attribution": "Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Métadonnées TV de <tvdb>TheTVDB</tvdb>. Les données TV de TVmaze sont sous licence <license>CC BY-SA</license> ; les données musicales de MusicBrainz sont dans le domaine public."

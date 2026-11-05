@@ -7,6 +7,10 @@ saying where it came from. The rule is the one every app follows:
 - a cast for another receiver is another device's, and one that comes
   while Kodi can't take it (signed out, or "Who's watching?" on screen,
   whose PINs a remote mustn't play past) does nothing;
+- a cast from a remote on another profile of the household names that
+  profile (`profile_id`) and a ticket (`switch_ticket`): Kodi switches to
+  it with the ticket first, and plays nothing when the switch fails; one
+  naming another profile without a ticket does nothing;
 - a movie or an episode plays from `start_ms`, else where Play starts it
   (its resume point), with the audio and subtitles the remote picked on
   its page in place of the account's choice for that play, where the file
@@ -23,6 +27,7 @@ saying where it came from. The rule is the one every app follows:
 
 from __future__ import annotations
 
+import re
 import time
 
 from . import kodi, listing, livetv, playback, remote, tracks, words
@@ -30,6 +35,11 @@ from . import kodi, listing, livetv, playback, remote, tracks, words
 # How long "Playing from …" shows.
 BANNER_MS = 4000
 NONE = {"act": "none"}
+# A cast from another profile Kodi can't switch to (switch_to()).
+IGNORED = "ignored"
+# A switch ticket as the server makes one, with room to spare: it goes back
+# to the server only, in a form's field.
+TICKET = re.compile(r"[A-Za-z0-9_.~+/=-]{1,256}")
 # What playing a cast came to (play()).
 PLAYED, NOTHING, DROPPED = "played", "nothing", "dropped"
 
@@ -41,7 +51,9 @@ def receiver_query(receiver: str, live: bool) -> dict:
     has Live TV."""
     found = {"receiver": receiver}
     found.update(remote.device())
-    found["casts"] = "item,live" if live else "item"
+    # switch: it switches to the profile of a remote of another profile
+    # that casts to it (docs/API.md, "Casting").
+    found["casts"] = "item,live,switch" if live else "item,switch"
     return found
 
 
@@ -78,6 +90,25 @@ def action(receiver: str, taking: bool, cast: dict) -> dict:
     if _id(cast.get("channel_id")) is not None:
         return {"act": "channel", "channel_id": cast["channel_id"]}
     return dict(NONE)
+
+
+def switch_to(cast: dict, on):
+    """What a cast asks of the profile Kodi acts as (`on`: its id, None for
+    the one picked as it signed in, which the add-on doesn't know): None to
+    play as it is; {profile_id, ticket} to switch to the remote's profile
+    first; IGNORED for another profile's cast without a ticket it can
+    switch with, or a profile that isn't an id."""
+    if "profile_id" not in cast or cast.get("profile_id") is None:
+        return None
+    profile = _id(cast.get("profile_id"))
+    if profile is None or profile < 1:
+        return IGNORED
+    if profile == on:
+        return None
+    ticket = cast.get("switch_ticket")
+    if not isinstance(ticket, str) or not TICKET.fullmatch(ticket):
+        return IGNORED
+    return {"profile_id": profile, "ticket": ticket}
 
 
 def banner(device) -> str:

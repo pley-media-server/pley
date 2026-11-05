@@ -67,8 +67,9 @@ its console window, or signing out.
 
 - *Automatic* uses TMDB for TV when it has a key, then TheTVDB, else TVmaze.
   Changing the source fetches every show again.
-- Without a TMDB key, movies keep their file names and local artwork: no
-  keyless source has movie artwork.
+- Without a TMDB key, movies keep their file names and local artwork, or
+  what their [NFO files](#nfo-files) say: no keyless source has movie
+  artwork.
 - TVmaze is in English and has no content ratings. Its specials are season 0,
   in air date order.
 - MusicBrainz only fills in what the tags lack and allows one request a
@@ -80,3 +81,64 @@ data from TVmaze is licensed
 from TheTVDB; please consider adding missing information or subscribing.
 Music data from MusicBrainz is public domain (CC0); covers from the Cover Art
 Archive belong to their owners.
+
+## NFO files
+
+Kodi, Jellyfin, Emby, Radarr, Sonarr, tinyMediaManager and MediaElch keep a
+title's metadata in an `.nfo` file next to it. Pley reads them in movie and
+TV libraries, at each scan:
+
+| Item | File |
+|---|---|
+| Movie | `<video name>.nfo`, else `movie.nfo` in a folder that holds no other movie |
+| Show | `tvshow.nfo` in the show's folder |
+| Season | `season.nfo` in the season's folder: its title and summary only |
+| Episode | `<video name>.nfo`; a file of several episodes holds one `<episodedetails>` each |
+
+- **Ids**: TMDB, IMDb, TheTVDB and TVmaze (`<uniqueid>`, or the older
+  `<tmdbid>`, `<imdbid>`, `<tvdbid>`, `<id>`), or a link to the title's page
+  on one of those sites, as in Kodi's NFO files that hold only a link. A
+  movie or show with ids is looked up by them instead of searched for by
+  name: they win over a match found by name, or an id in the names
+  (`{tmdb-603}`), unless that match has one of them.
+- **Fields**: title, original title, sort title, year, release date
+  (`premiered`, `releasedate` or `aired`), summary (`plot`, else
+  `outline`), tagline, content rating (`mpaa` or `certification`), genres,
+  studio and rating.
+- **Lock**: Jellyfin's `<lockdata>true</lockdata>` keeps the item from being
+  fetched online at all, Refresh included.
+- Cast, collections (`<set>`), tags and watch state aren't read. Picture
+  addresses (`<thumb>`, `<fanart>`) are never fetched: Pley takes the
+  `poster.jpg`, `fanart.jpg` and other pictures next to the title, which
+  the same tools save.
+
+What wins, field by field, highest first:
+
+1. An edit made in Pley, and for the match, Fix Match.
+2. The NFO file.
+3. The metadata source (TMDB, TheTVDB or TVmaze).
+4. The file and folder names.
+
+An NFO file's fields describe the title its ids name. When Fix Match
+chooses another, the file's fields and lockdata stop applying and the
+chosen title's metadata shows, until Fix Match is undone or the file is
+corrected to name that title. An NFO file without ids always applies.
+
+An NFO file edited since the last scan is read again, even when its video
+didn't change. When one is removed, or stops setting a field, the field
+goes back to the metadata source's value at the next refresh, or to the
+names'. When it is removed or stops giving ids, the movie or show is
+matched by its names again. Whatever an NFO file changes, the item stays
+the same item, with its watch state and its place in My List.
+
+Pley never writes NFO files. A file bigger than 1 MiB, or a link to
+anything but an NFO file, is skipped.
+
+Reading NFO files is on by default; Settings → Server's NFO files switch
+(the `read_nfo` setting, [API.md](API.md#system-admin)) turns it off.
+Turning it on or off scans every library; turned off, what NFO files set
+goes back as when they are removed.
+
+In an item's Edit details, fields the NFO file sets say so. Fix match says
+when a title was matched by hand, and Undo Fix Match lets its NFO file
+decide the match again.

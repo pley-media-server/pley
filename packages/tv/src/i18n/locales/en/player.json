@@ -25,6 +25,10 @@
     "subtitlesOff": "Subtitles off",
     "subtitles": "Subtitles: {{track}}",
     "audio": "Audio: {{track}}",
+    "playing": "Playing",
+    "paused": "Paused",
+    "jumpedTo": "Jumped to {{time}}",
+    "quality": "Quality: {{quality}}",
     "playOriginalInQuality": "{{note}} Play original is in Quality.",
     "chooseInQuality": "{{note}} Choose one in Quality.",
     "subtitlesAdded": "Subtitles added: {{track}}",
@@ -197,6 +201,7 @@
   "cast": {
     "playingFrom": "Playing from {{device}}",
     "playingFromAnother": "Playing from another device",
-    "nothingToPlay": "Nothing to play"
+    "nothingToPlay": "Nothing to play",
+    "switchFailed": "Couldn't switch to the remote's profile"
   }
 }
