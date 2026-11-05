@@ -48,7 +48,7 @@ import app.pley.android.ui.tv.item.MediaFacts
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.Locale
+import java.text.DecimalFormatSymbols
 
 /** The display's mode now, and the HDR types it takes in it (Display.HdrCapabilities.HDR_TYPE_*). */
 @Immutable
@@ -217,7 +217,7 @@ internal object TvReadout {
         val picture = listOfNotNull(
             if (stats.width != null && stats.height != null) "${stats.width}×${stats.height}" else null,
             stats.frameRate?.let { frameRateLabel(it.toDouble()) },
-            stats.bitDepth?.let { "$it-bit" },
+            stats.bitDepth?.let { r.getString(R.string.tv_player_info_bit_depth, it) },
             stats.dynamicRange,
             // The decoder's codec: HEVC for Dolby Vision played as its base layer.
             (stats.videoDecoderMime ?: stats.videoCodec?.substringBefore(' '))?.let(::codecName),
@@ -266,9 +266,13 @@ internal object TvReadout {
         }
     }
 
-    /** "3840×2160 at 23.976 Hz". */
-    private fun displayMode(r: Resources, d: DisplayNow): String =
-        r.getString(R.string.tv_readout_display_mode, d.width, d.height, String.format(Locale.ROOT, "%.3f", d.refreshRate).trimEnd('0').trimEnd('.'))
+    /** "3840×2160 at 23.976 Hz", the rate in the digits of the language shown ("23,976" in French). */
+    private fun displayMode(r: Resources, d: DisplayNow): String {
+        val locale = r.configuration.locales[0]
+        val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+        val rate = String.format(locale, "%.3f", d.refreshRate).trimEnd('0').trimEnd(separator)
+        return r.getString(R.string.tv_readout_display_mode, d.width, d.height, rate)
+    }
 
     /**
      * Whether the display takes the video's HDR in its mode: "On (HDR10)",

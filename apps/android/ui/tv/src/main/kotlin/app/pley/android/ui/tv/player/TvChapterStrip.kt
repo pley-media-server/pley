@@ -131,7 +131,7 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
             val i = ui.chapter ?: return@derivedStateOf ""
             val chapter = state.value.chapters.getOrNull(i) ?: return@derivedStateOf ""
             val name = chapter.name ?: resources.getString(R.string.tv_player_chapter, i + 1)
-            resources.getString(R.string.tv_player_chapter_card, name, TvPlayerText.spoken(chapter.startMs))
+            resources.getString(R.string.tv_player_chapter_card, name, TvPlayerText.spoken(resources, chapter.startMs))
         }
     }
     Box(

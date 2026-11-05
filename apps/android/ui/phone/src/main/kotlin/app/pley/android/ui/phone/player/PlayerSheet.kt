@@ -52,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -69,6 +70,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.data.SubtitleFont
 import app.pley.android.player.AudioDelays
 import app.pley.android.player.PlaybackDetailsUi
@@ -86,6 +88,8 @@ import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.settings.fontLabel
 import app.pley.android.ui.phone.settings.raiseLabel
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 
 /** The subtitle style chosen on this device: one of the four sizes, the dark box, the font and how far up. */
 data class SubtitleChoice(
@@ -390,7 +394,7 @@ private fun DetailsPage(state: PlayerScreenState) {
     }
     Column(Modifier.padding(horizontal = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(details.method, style = MaterialTheme.typography.titleSmall, color = PlayerLook.badgeColors(details.method).text)
+            Text(details.method, style = MaterialTheme.typography.titleSmall, color = methodColors(details.method, details.playbackMethod).text)
             details.pipeline?.let {
                 Text(
                     it,
@@ -432,28 +436,36 @@ private fun deviceLines(engine: EngineState?): List<Pair<String, String>> {
         }
         lines += stringResource(R.string.player_details_decoder) to value
     }
+    val locale = shownLocale()
     if (stats.width != null && stats.height != null) {
-        val rate = stats.frameRate?.takeIf { it > 0 }?.let { " · %.3f fps".format(it).replace(".000", "") }.orEmpty()
+        val rate = stats.frameRate?.takeIf { it > 0 }?.let { " · " + stringResource(R.string.player_details_frame_rate, frameRate(it, locale)) }.orEmpty()
         val range = stats.dynamicRange?.let { " · $it" }.orEmpty()
         lines += stringResource(R.string.player_details_picture) to "${stats.width} × ${stats.height}$rate$range"
     }
     val frames = stats.renderedFrames + stats.droppedFrames
     if (frames > 0) lines += stringResource(R.string.player_details_dropped) to stringResource(R.string.player_details_dropped_of, stats.droppedFrames, frames)
     stats.audioCodec?.let { codec ->
-        val channels = stats.audioChannels?.let { " $it ch" }.orEmpty()
+        val channels = stats.audioChannels?.let { " " + pluralStringResource(R.plurals.player_details_channels, it, it) }.orEmpty()
         lines += stringResource(R.string.player_details_audio_out) to stringResource(
             if (stats.passthrough) R.string.player_details_passthrough else R.string.player_details_decoded,
             "$codec$channels",
         )
     }
     stats.firstFrameMs?.let { lines += stringResource(R.string.player_details_first_frame) to stringResource(R.string.player_details_ms, it.toInt()) }
-    displayLine(LocalView.current.display)?.let { lines += stringResource(R.string.player_details_display) to it }
+    displayLine(LocalView.current.display, locale)?.let { lines += stringResource(R.string.player_details_display) to it }
     return lines
+}
+
+/** "23.976", or "24" for a whole number of frames a second, in [locale]'s digits. */
+internal fun frameRate(fps: Float, locale: Locale): String {
+    val text = String.format(locale, "%.3f", fps)
+    val whole = DecimalFormatSymbols.getInstance(locale).decimalSeparator + "000"
+    return text.removeSuffix(whole)
 }
 
 /** "2400 × 1080 · 120 Hz · HDR10, HLG": the display's mode now and the HDR it shows. */
 @Suppress("DEPRECATION")
-private fun displayLine(display: Display?): String? {
+private fun displayLine(display: Display?, locale: Locale): String? {
     val mode = display?.mode ?: return null
     val hdr = if (Build.VERSION.SDK_INT >= 34) mode.supportedHdrTypes else display.hdrCapabilities?.supportedHdrTypes ?: IntArray(0)
     val names = hdr.toList().mapNotNull {
@@ -465,7 +477,7 @@ private fun displayLine(display: Display?): String? {
             else -> null
         }
     }.distinct()
-    val rate = "%.0f Hz".format(mode.refreshRate)
+    val rate = String.format(locale, "%.0f Hz", mode.refreshRate)
     return listOfNotNull("${mode.physicalWidth} × ${mode.physicalHeight}", rate, names.joinToString(", ").ifEmpty { null }).joinToString(" · ")
 }
 

@@ -1,13 +1,17 @@
 package app.pley.android.ui.phone.player
 
+import android.content.res.Resources
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.ChapterMark
 import app.pley.android.player.subtitles.CaptionLook
+import java.util.Locale
 import kotlin.math.abs
+import app.pley.android.player.R as PlayerR
 
 /** The method badge's colours: its text and its fill (the text at 20 %), as on the web. */
 @Immutable
@@ -20,17 +24,26 @@ object PlayerLook {
      * [PleyColors.Success], a direct stream in [PleyColors.Info], a
      * transcode in [PleyColors.Accent].
      */
-    fun badgeColors(method: String): BadgeColors {
-        val text = when {
-            method.startsWith(DIRECT_PLAY) -> PleyColors.Success
-            method.startsWith(DIRECT_STREAM) -> PleyColors.Info
+    fun badgeColors(method: PlaybackMethod): BadgeColors {
+        val text = when (method) {
+            PlaybackMethod.Direct -> PleyColors.Success
+            PlaybackMethod.Remux -> PleyColors.Info
             else -> PleyColors.Accent
         }
         return BadgeColors(text, text.copy(alpha = 0.2f))
     }
 
-    private const val DIRECT_PLAY = "Direct play"
-    private const val DIRECT_STREAM = "Direct stream"
+    /**
+     * How the playback the session calls [method] goes. The state names the
+     * way only in words ("Direct play", "Downloaded"), from the player's
+     * resources in the language shown, which [resources] are in too. A
+     * download plays the file as it is; a name it doesn't know is a transcode.
+     */
+    fun methodOf(resources: Resources, method: String): PlaybackMethod = when (method) {
+        resources.getString(PlayerR.string.session_method_direct), resources.getString(PlayerR.string.session_method_downloaded) -> PlaybackMethod.Direct
+        resources.getString(PlayerR.string.session_method_remux), resources.getString(PlayerR.string.session_method_remux_audio) -> PlaybackMethod.Remux
+        else -> PlaybackMethod.Transcode
+    }
 
     /** The subtitle sizes offered, as the web names them, with their share of the height. */
     val subtitleSizes: List<Float> get() = Settings.SUBTITLE_SIZES
@@ -56,13 +69,13 @@ object PlayerLook {
         raiseIndex = raiseIndex(settings.subtitleRaise),
     )
 
-    /** "1:02:03" or "4:05". */
+    /** "1:02:03" or "4:05", in every language. */
     fun clock(ms: Long): String {
         val total = (ms.coerceAtLeast(0) / 1000)
         val h = total / 3600
         val m = (total % 3600) / 60
         val s = total % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+        return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s) else String.format(Locale.ROOT, "%d:%02d", m, s)
     }
 
     /** "−25:20": what is left, with a true minus sign. */

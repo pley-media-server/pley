@@ -64,7 +64,7 @@ private fun Readout(details: PlaybackDetailsUi) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(details.method, style = MaterialTheme.typography.labelMedium, color = PlayerLook.badgeColors(details.method).text)
+        Text(details.method, style = MaterialTheme.typography.labelMedium, color = methodColors(details.method, details.playbackMethod).text)
         details.rows.take(READOUT_ROWS).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(row.label, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, modifier = Modifier.width(LABEL_WIDTH))

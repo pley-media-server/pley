@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -225,7 +226,8 @@ internal fun BoxScope.TvScrubber(
     ) {
         BasicText(TvPlayerText.time(elapsed * 1000), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), modifier = Modifier.align(Alignment.TopStart))
         BasicText(TvPlayerText.remaining(0, remaining * 1000), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), modifier = Modifier.align(Alignment.TopEnd))
-        val spoken = stringResource(R.string.tv_player_position, TvPlayerText.spoken(elapsed * 1000), TvPlayerText.spoken(duration))
+        val resources = LocalResources.current
+        val spoken = stringResource(R.string.tv_player_position, TvPlayerText.spoken(resources, elapsed * 1000), TvPlayerText.spoken(resources, duration))
         Box(
             Modifier
                 .padding(top = TRACK_CENTRE - TIMES_TOP - SCRUB_HEIGHT / 2)

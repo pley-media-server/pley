@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -54,6 +56,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
 
@@ -307,10 +310,16 @@ internal fun BarItem(icon: PleyIcon, label: String, description: String? = null,
 /** The bottom row's buttons' height, and the row's. */
 private val BarItemHeight = 48.dp
 
+/** The badge's colours for [method], the session's name for how it plays, or for [type] where the details know it. */
+@Composable
+@ReadOnlyComposable
+internal fun methodColors(method: String, type: PlaybackMethod? = null): BadgeColors =
+    PlayerLook.badgeColors(type ?: PlayerLook.methodOf(LocalResources.current, method))
+
 /** "Direct play", "Direct stream" or "Transcoding" in its colour; it opens Playback details. */
 @Composable
 internal fun MethodBadge(method: String, onClick: () -> Unit) {
-    val colors = PlayerLook.badgeColors(method)
+    val colors = methodColors(method)
     val description = stringResource(R.string.player_method_hint, method)
     Box(
         Modifier

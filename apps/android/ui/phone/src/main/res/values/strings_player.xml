@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- The top bar. -->
     <string name="player_back">Back</string>
     <string name="player_pip">Picture in picture</string>
@@ -79,12 +79,19 @@
     <string name="player_details_hardware">%1$s (hardware)</string>
     <string name="player_details_software">%1$s (software)</string>
     <string name="player_details_picture">Picture</string>
+    <!-- The picture's frame rate: "23.976 fps". -->
+    <string name="player_details_frame_rate">%1$s fps</string>
     <string name="player_details_display">Display</string>
     <!-- "1080 × 2400 · 120 Hz · HDR10, HLG". -->
     <string name="player_details_dropped">Dropped frames</string>
     <!-- "3 of 4,512". -->
     <string name="player_details_dropped_of">%1$d of %2$d</string>
     <string name="player_details_audio_out">Audio output</string>
+    <!-- The sound's channels after its codec: "AAC 6 ch". -->
+    <plurals name="player_details_channels">
+        <item quantity="one">%1$d ch</item>
+        <item quantity="other">%1$d ch</item>
+    </plurals>
     <string name="player_details_passthrough">%1$s, passed through to the receiver</string>
     <string name="player_details_decoded">%1$s, decoded here</string>
     <string name="player_details_first_frame">First frame</string>

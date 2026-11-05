@@ -24,6 +24,17 @@ class TvPlayerTextTest {
     }
 
     @Test
+    fun `an episode's line spaces its season and episode, as each language shortens them`() {
+        assertEquals("S1 · E2 · Pilot", TvPlayerText.episodeLine("S1 E2 — Pilot"))
+        assertEquals("S1 · É2 · Pilote", TvPlayerText.episodeLine("S1 É2 — Pilote"))
+        assertEquals("T1 · E2 · Piloto", TvPlayerText.episodeLine("T1 E2 — Piloto"))
+        assertEquals("Up next · S1 · E2", TvPlayerText.episodeLine("Up next · S1 E2"))
+        // Inside a word, it's the title's.
+        assertEquals("GTS1 E2", TvPlayerText.episodeLine("GTS1 E2"))
+        assertNull(TvPlayerText.episodeLine(" "))
+    }
+
+    @Test
     fun `the cards open on the chapter holding the time, else the last before it, else the first`() {
         assertEquals(1, TvPlayerText.chapterNear(chapters, 610_000))
         assertEquals("in the gap: the chapter before", 0, TvPlayerText.chapterNear(chapters, 310_000))
