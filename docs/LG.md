@@ -392,14 +392,17 @@ two sent close together, the later plays. The rules are
 A remote on another profile of the household casts to the TV too (the
 server lists it to the household's remotes with the profile it is on).
 Its cast carries the remote's profile (`profile_id`) and a ticket
-(`switch_ticket`): the TV switches to that profile first, with the
+(`switch_ticket`): the TV switches to that profile first. What plays ends,
+and its last reports (where it stopped, and the end of its session) go out
+as the profile it played as, within 5 s: what hasn't gone out by then is
+dropped, never sent as the new profile. Then the TV switches, with the
 switch-profile grant and the ticket in place of a PIN, as a switch on
-"Who's watching?" does: what plays ends, Home shows as the new profile and
-the event stream opens again as its. Then the cast plays as above, once:
-it waits in the app, not on the stream. A cast heard while the TV switches
-plays after it in place of the first when it is from the same profile, and
-is let go otherwise. A switch the server refuses (the ticket expired, was
-spent or isn't this TV's) says so and plays nothing; a cast from another
+"Who's watching?" does: Home shows as the new profile and the event stream
+opens again as its. Then the cast plays as above, once: it waits in the
+app, not on the stream. Any other cast heard until the switch is done is
+dropped; after it, casts play as above, the new profile's own too. A
+switch the server refuses (the ticket expired, was spent or isn't this
+TV's) says so and plays nothing; a cast from another
 profile without a ticket is ignored. Hidden as the switch ends, the TV
 switches all the same, as the server has, but plays nothing. "Who's
 watching?" still ignores casts, as in the other TV apps: there the person

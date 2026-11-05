@@ -326,7 +326,7 @@ impl Shell {
     /// being found.
     pub fn deliver(&mut self, event: AppEvent, state: &mut AppState, ui: &mut UiState, now: f64) {
         if let AppEvent::Server(e) = &event {
-            self.hear_cast(e, state, now);
+            self.hear_cast(e, state, ui, now);
         }
         if event == AppEvent::Changed {
             let n = self.stack.len();
@@ -545,24 +545,47 @@ impl Shell {
     }
 
     /// A cast for this TV starts being found, in place of one still being found, while the TV
-    /// takes casts; one from another profile's remote switches to that profile first. A cast for
-    /// another of the profile's devices is that device's.
-    fn hear_cast(&mut self, event: &ServerEvent, state: &AppState, now: f64) {
+    /// takes casts; one from another profile's remote ends what plays and then switches to that
+    /// profile ([`Casts::start`]). A cast for another of the profile's devices is that device's.
+    fn hear_cast(&mut self, event: &ServerEvent, state: &mut AppState, ui: &mut UiState, now: f64) {
         let Some(cast) = Cast::for_receiver(event, state.install_id(), state.profile()) else { return };
         if !self.takes_casts(state) {
             log::info!("a remote's cast came while the TV can't play it");
             return;
         }
         log::info!("a remote cast to this TV");
+        if cast.switch.is_some() && !self.casts.switching() {
+            // Ended before the switch starts, so its last reports are queued for it to wait on.
+            self.end_what_plays(state, ui, now);
+        }
         self.casts.start(cast, state, now);
     }
 
+    /// Ends what plays, before a switch for a cast: the music, and a player on the stack with the
+    /// pages over it (Home in its place when it is the first page). Their last reports go out
+    /// before the switch, as the profile they played as.
+    fn end_what_plays(&mut self, state: &mut AppState, ui: &mut UiState, now: f64) {
+        state.end_playback();
+        match self.stack.iter().position(|e| e.holds) {
+            Some(0) => self.apply(NavCommand::Reset(Route::Home), state, ui, now),
+            Some(player) => {
+                for old in self.stack.split_off(player + 1) {
+                    self.drop_entry(old, state);
+                }
+                self.apply(NavCommand::Pop, state, ui, now);
+            }
+            None => return,
+        }
+        log::info!("what played ended for a remote's cast from another profile");
+        self.carry_out(state, ui, now);
+    }
+
     /// The server switched the TV to the profile of a remote that cast to it: the app acts as that
-    /// profile, as a switch on "Who's watching?" does (what plays ends, the event stream opens
-    /// again as that profile's), Home shows under what the cast plays, and the cast is found. The
-    /// cast waits here, not on the stream, so the new stream neither loses it nor plays it again.
-    /// Hidden, or back on the pages of getting in, the TV switches all the same, as the server
-    /// has, but plays nothing.
+    /// profile, as a switch on "Who's watching?" does (the event stream opens again as that
+    /// profile's), Home shows, made again as the new profile's, under what the cast plays, and the
+    /// cast is found. The cast waits here, not on the stream, so the new stream neither loses it
+    /// nor plays it again. Hidden, or back on the pages of getting in, the TV switches all the
+    /// same, as the server has, but plays nothing.
     fn switched_for_cast(
         &mut self,
         profile: i64,
@@ -574,6 +597,9 @@ impl Shell {
         log::info!("switched profiles for a remote's cast");
         state.switched(profile);
         if self.chrome() != Chrome::Bare {
+            for old in std::mem::take(&mut self.stack) {
+                self.drop_entry(old, state);
+            }
             self.requests.nav.push(NavCommand::Reset(Route::Home));
             self.carry_out(state, ui, now);
         }
