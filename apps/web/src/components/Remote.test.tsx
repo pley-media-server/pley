@@ -194,6 +194,26 @@ describe("RemoteButton", () => {
     expect(within(panel).queryByRole("group")).toBeNull();
   });
 
+  it("lists the household's devices on another profile after the user's own, by that profile, never what they play", async () => {
+    serve(
+      () => [episode()],
+      () => [
+        makeReceiver({ receiver_id: "attic", device_id: "app-6", name: "Attic TV", profile: { id: 2, name: "Sam" } }),
+        phone,
+        makeReceiver({ receiver_id: "tv-1", device_id: "app-1" }),
+      ],
+    );
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    expect(within(within(panel).getByRole("list")).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
+      "Living room TVTest Show — S1 · E1 — Pilot",
+      "PhoneReady to play",
+      "Attic TVOn Sam's profile",
+    ]);
+    // Nothing to control there: only the TV playing is offered.
+    expect(within(within(panel).getByRole("list")).getAllByRole("button").map((r) => r.getAttribute("aria-label"))).toEqual(["Living room TV"]);
+  });
+
   it("shows how far in the chosen device's controls, its row leaving it out", async () => {
     serve(() => [episode(), episode({ session_id: "tv2", device: "Den TV", device_id: "app-5" })]);
     renderWithProviders(<RemoteButton />);

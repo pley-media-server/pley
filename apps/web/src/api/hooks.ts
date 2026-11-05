@@ -958,9 +958,10 @@ export function usePlayingSessions() {
 }
 
 /**
- * The user's own devices that take casts (their apps with the event stream
- * open as a receiver). Fetched again as they come and go, which the event
- * stream says with `sessions_changed`.
+ * The devices that take casts (apps with the event stream open as a
+ * receiver): the user's own, and those their household's other profiles are
+ * on. Fetched again as they come and go, which the event stream says with
+ * `sessions_changed`.
  */
 export function useRemoteDevices() {
   return useQuery(queries.remoteDevices());
@@ -1009,9 +1010,10 @@ export function sessionCommandError(err: unknown, device: string | null): string
 }
 
 /**
- * Sends one of the user's own devices that take casts something to play
- * (`receiverId`: its `receiver_id`). It plays it as its own Play would, and
- * its session shows in the list as it starts.
+ * Sends a device that takes casts something to play (`receiverId`: its
+ * `receiver_id`). It plays it as its own Play would, and its session shows
+ * in the list as it starts. One on another profile switches to the user's
+ * first: the cast names that profile, and the user's PIN when they have one.
  */
 export function useCast() {
   const qc = useQueryClient();

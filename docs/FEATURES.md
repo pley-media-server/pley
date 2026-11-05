@@ -44,7 +44,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
   comparing the audio of episodes), seek-bar previews and chapter pictures.
 - A remote for your other devices: the web and desktop apps' header lists
-  those that are on, the ones playing first, then those ready to play. For
+  those that are on, the ones playing first, then those ready to play,
+  then the devices of your household's other profiles, each with the
+  profile it is on and never what it plays. For
   the one chosen it plays, pauses, seeks, skips, goes to the next or
   previous title (or channel, on Live TV), changes the audio track, the
   subtitles and the quality, and stops what plays there, once asked to.
@@ -57,9 +59,12 @@ What Pley does, in full. The [README](../README.md) has the short version.
   on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
   on another of your devices that takes casts, as that device's own Play
   would, with the audio and subtitles picked on the page, and the remote
-  opens on it ([API.md](API.md#casting)). The desktop app takes casts too,
-  as "Pley for Windows", "Pley for Mac" or "Pley for Linux"; a browser
-  tab doesn't, as a browser won't start sound in a tab in the background.
+  opens on it ([API.md](API.md#casting)). One on another profile of your
+  household switches to yours first, so it plays as you; when your
+  profile has a PIN, Play on… asks for it in its menu's place. The
+  desktop app takes casts too, as "Pley for Windows", "Pley for Mac" or
+  "Pley for Linux"; a browser tab doesn't, as a browser won't start sound
+  in a tab in the background.
 
 ## Live TV
 

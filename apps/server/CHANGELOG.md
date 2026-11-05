@@ -15,6 +15,8 @@ describes how they are made.
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
   as you, after your PIN when your profile has one.
+- The web app's Play on… lists your household's devices too, and asks for
+  your PIN in its menu's place when your profile has one.
 - Pley for Home Assistant can sign in with a code, as Pley's TV apps do.
   It shows as Home Assistant in your signed-in apps and on a TV it plays
   something on.

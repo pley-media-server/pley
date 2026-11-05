@@ -39,6 +39,8 @@ export function estimatedPosition(session: RemoteSession, nowMs: number): number
 /**
  * One of the user's other devices, as the remote lists it: one that takes
  * casts (a receiver), one that plays something, or both, by `device_id`.
+ * A receiver another profile of the household is on is listed too, by its
+ * profile (`profile`), without what it plays.
  */
 export interface OtherDevice {
   /** Its `device_id`. */
@@ -50,13 +52,16 @@ export interface OtherDevice {
   receiver: RemoteDevice | null;
   /** What it plays: its newest session; null while it plays nothing. */
   session: RemoteSession | null;
+  /** The household profile it is on, when it isn't the user's: a cast switches it to theirs. */
+  profile: NonNullable<RemoteDevice["profile"]> | null;
 }
 
 /**
  * The devices of `receivers` and `sessions` (oldest first, as the server
- * lists them), each once: those that play first, then the others, each by
- * name. A device with several sessions shows its newest. Two of the same
- * name are numbered, so every label and message says which one it means.
+ * lists them), each once: those that play first, then the user's own, then
+ * those on another profile, each by name. A device with several sessions
+ * shows its newest. Two of the same name are numbered, so every label and
+ * message says which one it means.
  */
 export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[]): OtherDevice[] {
   const byId = new Map<string, { receiver: RemoteDevice | null; session: RemoteSession | null }>();
@@ -72,8 +77,12 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
     kind: receiver?.kind ?? session?.device_kind ?? "other",
     receiver,
     session,
+    profile: receiver?.profile ?? null,
   }));
-  devices.sort((a, b) => Number(!a.session) - Number(!b.session) || a.name.localeCompare(b.name));
+  devices.sort(
+    (a, b) =>
+      Number(!a.session) - Number(!b.session) || Number(!!a.profile) - Number(!!b.profile) || a.name.localeCompare(b.name),
+  );
   const total = new Map<string, number>();
   for (const d of devices) total.set(d.name, (total.get(d.name) ?? 0) + 1);
   const seen = new Map<string, number>();

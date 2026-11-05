@@ -707,7 +707,10 @@ export interface PlayingSession {
 /** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */
 export type CastKind = "item" | "live";
 
-/** One of the user's devices that takes casts (`GET /api/remote/devices`). */
+/**
+ * A device that takes casts (`GET /api/remote/devices`): one of the user's,
+ * or one of their household's other profiles is on.
+ */
 export interface RemoteDevice {
   /** The app's own id for the device: where casts go. */
   receiver_id: string;
@@ -716,6 +719,11 @@ export interface RemoteDevice {
   name: string | null;
   kind: DeviceKind;
   casts: CastKind[];
+  /**
+   * The household profile it is on, when it isn't the user's own: a cast
+   * switches it to the user's first. What it plays isn't listed.
+   */
+  profile?: { id: Id; name: string };
 }
 
 /**
@@ -733,6 +741,10 @@ export interface CastRequest {
   /** A movie or an episode: the audio track and subtitles (-1: off) picked on the page, by stream index. */
   audio_index?: number;
   subtitle_index?: number;
+  /** A device on another profile: that profile (its `profile.id`), which the device switches from. */
+  profile_id?: Id;
+  /** The user's PIN, when their profile has one and the device is on another profile. */
+  pin?: string;
 }
 
 export interface Activity {
