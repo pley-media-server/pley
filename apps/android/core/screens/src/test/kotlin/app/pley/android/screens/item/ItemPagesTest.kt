@@ -8,6 +8,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
 import app.pley.android.model.UserState
+import app.pley.android.model.format.FormatWords
 import app.pley.android.screens.inEnglish
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -203,7 +204,7 @@ class ItemPagesTest {
     @Test
     fun `extras say what they are and how long`() {
         val trailer = summary(5, ItemKind.Extra, durationMs = 120_000).copy(extraType = app.pley.android.model.ExtraType.Trailer)
-        assertEquals("Trailer · 2m", extraSubtitle(trailer).inEnglish())
-        assertEquals("Extra", extraSubtitle(summary(6, ItemKind.Extra, durationMs = null)).inEnglish())
+        assertEquals("Trailer · 2m", extraSubtitle(trailer, FormatWords.English).inEnglish())
+        assertEquals("Extra", extraSubtitle(summary(6, ItemKind.Extra, durationMs = null), FormatWords.English).inEnglish())
     }
 }

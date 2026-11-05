@@ -3,6 +3,7 @@ package app.pley.android.screens.requests
 import android.content.res.Resources
 import android.text.format.DateFormat
 import app.pley.android.common.errorSentence
+import app.pley.android.common.formatWords
 import app.pley.android.common.resolve
 import app.pley.android.data.RequestNotice
 import app.pley.android.model.Asked
@@ -15,6 +16,7 @@ import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatDate
 import app.pley.android.model.format.formatRelative
 import app.pley.android.screens.R
@@ -40,6 +42,9 @@ class RequestTexts(
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
     private val shown: Locale get() = locale ?: res.configuration.locales[0]
+
+    /** The format functions' words in the same language: a runtime, a folder's free space. */
+    val words: FormatWords get() = formatWords(res)
 
     // ---------------------------------------------------------------- titles
 
@@ -360,7 +365,7 @@ class RequestTexts(
     }
 
     /** How long ago [ts] was: "3 days ago", "yesterday". */
-    fun ago(ts: Long): String = formatRelative(ts, now())
+    fun ago(ts: Long): String = formatRelative(ts, now(), words)
 
     /**
      * A day, "Nov 4" ("Nov 4, 2027" in another year; "4 nov." in French),

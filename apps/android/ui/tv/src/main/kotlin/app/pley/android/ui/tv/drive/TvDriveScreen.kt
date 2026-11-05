@@ -61,6 +61,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.format.formatBytes
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.screens.PleyKey
@@ -69,9 +70,9 @@ import app.pley.android.screens.drive.DrivePage
 import app.pley.android.screens.drive.DrivePlace
 import app.pley.android.screens.drive.DriveViewModel
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
-import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
@@ -187,7 +188,10 @@ internal fun TvDriveContent(page: DrivePage, onLine: (DriveLine) -> Unit, onUp: 
 /** Where the page is on the drive, as a path: "/Films/2019"; at its top, "/" and how full it is ("/ · 437 GB free of 1.0 TB"). */
 @Composable
 private fun placeLabel(place: DrivePlace): String = when (place) {
-    is DrivePlace.Top -> place.space?.let { "/ · " + stringResource(R.string.tv_drive_space, formatBytes(it.freeBytes), formatBytes(it.totalBytes)) } ?: "/"
+    is DrivePlace.Top -> place.space?.let {
+        val words = formatWords()
+        "/ · " + stringResource(R.string.tv_drive_space, formatBytes(it.freeBytes, words), formatBytes(it.totalBytes, words))
+    } ?: "/"
     is DrivePlace.Under -> place.folders.joinToString("/", prefix = "/")
 }
 
@@ -237,7 +241,7 @@ private fun DriveLines(up: Boolean, lines: List<DriveLine>, onLine: (DriveLine) 
                     line.resumeMs > 0 -> stringResource(R.string.tv_drive_resumes, line.kind, formatClockMs(line.resumeMs))
                     else -> line.kind
                 },
-                fileSize = if (line.folder || line.sizeBytes <= 0) "" else formatBytes(line.sizeBytes),
+                fileSize = if (line.folder || line.sizeBytes <= 0) "" else formatBytes(line.sizeBytes, formatWords()),
                 progress = line.progress,
                 onClick = { onLine(line) },
                 modifier = Modifier.rememberedFocus(memory, line.path, initial = line.path == first),

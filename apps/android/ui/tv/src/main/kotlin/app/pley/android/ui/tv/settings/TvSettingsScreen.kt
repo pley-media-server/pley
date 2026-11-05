@@ -52,8 +52,6 @@ import app.pley.android.common.perf.FrameRate
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Passthrough
 import app.pley.android.data.Settings
-import app.pley.android.designsystem.text.asString
-import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.data.SubtitleFont
 import app.pley.android.designsystem.PleyColors
@@ -62,9 +60,13 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.SubtitleMode
+import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.account.MeEvent
 import app.pley.android.screens.account.MeUiState
 import app.pley.android.screens.account.MeViewModel
@@ -76,15 +78,14 @@ import app.pley.android.screens.settings.LanguageUiState
 import app.pley.android.screens.settings.LanguageViewModel
 import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
-import app.pley.android.screens.R as ScreensR
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.onboarding.ProfileAvatar
 import app.pley.android.ui.tv.onboarding.TvDialog
-import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 
 /** The TV settings' categories, top to bottom (design spec §4.8). */
@@ -356,7 +357,7 @@ private fun LazyListScope.pane(
                 val webOnly = stringResource(R.string.tv_account_change_on_web)
                 TvSettingRow(
                     stringResource(R.string.tv_account_audio_language),
-                    value = if (defaults == null) null else (TrackLanguages.nameOf(defaults.defaults.audioLanguage) ?: stringResource(R.string.tv_account_file_default)) + if (editable) "" else " · $webOnly",
+                    value = if (defaults == null) null else (TrackLanguages.nameOf(defaults.defaults.audioLanguage, formatWords()) ?: stringResource(R.string.tv_account_file_default)) + if (editable) "" else " · $webOnly",
                     icon = PleyIcons.AudioLines,
                     onClick = { if (editable) pick(Picking.AudioLanguage) else onWeb("/account") },
                     modifier = keyed("row-audio"),
@@ -377,7 +378,7 @@ private fun LazyListScope.pane(
                     val webOnly = stringResource(R.string.tv_account_change_on_web)
                     TvSettingRow(
                         stringResource(R.string.tv_account_subtitle_language),
-                        value = (TrackLanguages.nameOf(defaults.defaults.subtitleLanguage) ?: stringResource(R.string.tv_account_same_as_audio)) + if (editable) "" else " · $webOnly",
+                        value = (TrackLanguages.nameOf(defaults.defaults.subtitleLanguage, formatWords()) ?: stringResource(R.string.tv_account_same_as_audio)) + if (editable) "" else " · $webOnly",
                         icon = PleyIcons.Captions,
                         onClick = { if (editable) pick(Picking.SubtitleLanguage) else onWeb("/account") },
                         modifier = keyed("row-subtitle-language"),
@@ -678,6 +679,8 @@ private fun Panels(
     val s = ui.settings
     val defaults = me.trackDefaults?.defaults
     val visible = open != null
+    val words = formatWords()
+    val languages = remember(words) { TrackLanguages.all(words) }
     when (shown) {
         Picking.Language -> TvChoicePanel(
             visible,
@@ -691,7 +694,7 @@ private fun Panels(
         Picking.AudioLanguage -> TvChoicePanel(
             visible,
             stringResource(R.string.tv_account_audio_language),
-            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_file_default))) + TrackLanguages.ALL.map { TvChoice<String?>(it.first, it.second) },
+            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_file_default))) + languages.map { TvChoice<String?>(it.first, it.second) },
             defaults?.audioLanguage,
             model::setAudioLanguage,
             onClose,
@@ -709,7 +712,7 @@ private fun Panels(
         Picking.SubtitleLanguage -> TvChoicePanel(
             visible,
             stringResource(R.string.tv_account_subtitle_language),
-            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_same_as_audio))) + TrackLanguages.ALL.map { TvChoice<String?>(it.first, it.second) },
+            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_same_as_audio))) + languages.map { TvChoice<String?>(it.first, it.second) },
             defaults?.subtitleLanguage,
             model::setSubtitleLanguage,
             onClose,

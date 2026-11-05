@@ -38,6 +38,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.rememberSkeleton
@@ -46,6 +47,7 @@ import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.HubKeys
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
+import app.pley.android.model.format.dynamicRangeFilterLabel
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
@@ -229,8 +231,7 @@ private fun SkeletonRows() {
 
 /** A dynamic range's name: "Any HDR" in the language shown, the others the formats' own names. */
 @Composable
-internal fun tvRangeLabel(range: DynamicRangeFilter): String =
-    if (range == DynamicRangeFilter.Hdr) stringResource(R.string.tv_library_any_hdr) else range.label
+internal fun tvRangeLabel(range: DynamicRangeFilter): String = dynamicRangeFilterLabel(range, formatWords())
 
 /** The side panels the chips open. */
 internal enum class TvPanel { Sort, Filter, Genre, Year, Resolution, DynamicRange }

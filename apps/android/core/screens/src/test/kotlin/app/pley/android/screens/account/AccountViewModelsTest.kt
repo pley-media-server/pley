@@ -19,6 +19,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.Me
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.TrackDefaults
+import app.pley.android.model.format.FormatWords
 import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.music.FakeMusic
@@ -187,11 +188,12 @@ class AccountViewModelsTest {
 
     @Test
     fun theLanguagesAreTheWebs34ByName() {
-        assertEquals(34, TrackLanguages.ALL.size)
-        assertEquals("Arabic", TrackLanguages.ALL.first().second)
-        assertEquals(TrackLanguages.ALL.map { it.second }.sorted(), TrackLanguages.ALL.map { it.second })
-        assertEquals("French", TrackLanguages.nameOf("fre"))
-        assertNull(TrackLanguages.nameOf(null))
+        val all = TrackLanguages.all(FormatWords.English)
+        assertEquals(34, all.size)
+        assertEquals("Arabic", all.first().second)
+        assertEquals(all.map { it.second }.sorted(), all.map { it.second })
+        assertEquals("French", TrackLanguages.nameOf("fre", FormatWords.English))
+        assertNull(TrackLanguages.nameOf(null, FormatWords.English))
     }
 
     // ---------------------------------------------------------------- History

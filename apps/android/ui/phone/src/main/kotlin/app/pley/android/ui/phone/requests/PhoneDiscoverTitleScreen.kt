@@ -307,7 +307,7 @@ private fun TitleLines(detail: DiscoverDetail, texts: RequestTexts, large: Boole
 private fun metaOf(detail: DiscoverDetail, seasons: String?, texts: RequestTexts): List<MetaPart> = buildList {
     add(MetaPart.Text(detail.year?.toString() ?: texts.kind(detail.kind)))
     detail.certification?.takeIf { it.isNotBlank() }?.let { add(MetaPart.ContentRating(it)) }
-    val length = if (detail.kind == TitleKind.Show) seasons else detail.runtimeMinutes?.takeIf { it > 0 }?.let { formatRuntime(it * 60_000L) }
+    val length = if (detail.kind == TitleKind.Show) seasons else detail.runtimeMinutes?.takeIf { it > 0 }?.let { formatRuntime(it * 60_000L, texts.words) }
     length?.takeIf { it.isNotEmpty() }?.let { add(MetaPart.Text(it)) }
     detail.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(texts.rating(it))) }
 }

@@ -190,8 +190,9 @@ class AlbumViewModel(
 
     private val page: Flow<MusicPageState<AlbumPage>> = retries
         .flatMapLatest {
-            combine(items.detail(albumId), items.children(albumId), origin) { detail, tracks, server ->
-                pageState(detail) { albumPage(it, tracks.valueOrNull, server, locale) }
+            // Made again when the language shown changes: the album's length is written in it.
+            combine(items.detail(albumId), items.children(albumId), origin, AppLanguage.shown) { detail, tracks, server, _ ->
+                pageState(detail) { albumPage(it, tracks.valueOrNull, server, locale, AppLanguage.formatWords()) }
             }
         }
         .flowOn(compute)

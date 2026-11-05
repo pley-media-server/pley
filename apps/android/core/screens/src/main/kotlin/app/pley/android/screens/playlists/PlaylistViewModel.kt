@@ -4,6 +4,7 @@ package app.pley.android.screens.playlists
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.map
@@ -11,6 +12,7 @@ import app.pley.android.data.valueOrNull
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatDuration
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
@@ -21,6 +23,7 @@ import app.pley.android.screens.library.TileFactory
 import app.pley.android.screens.library.TileLook
 import app.pley.android.screens.search.SearchViewModel
 import java.util.IdentityHashMap
+import java.util.Locale
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -157,7 +160,9 @@ class PlaylistViewModel<T : Any>(
                 deps.origin.map { it.orEmpty() }.distinctUntilChanged(),
                 order,
                 hidden,
-            ) { load, origin, order, hidden -> load.map { page(it, origin, order, hidden) } }
+                // Made again when the language shown changes: the rows' lengths and episode numbers are written in it.
+                AppLanguage.shown,
+            ) { load, origin, order, hidden, _ -> load.map { page(it, origin, order, hidden, AppLanguage.formatWords()) } }
         }
         .flowOn(deps.compute)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(PlaylistsViewModel.STOP_AFTER_MS), Loadable.Loading)
@@ -305,14 +310,14 @@ class PlaylistViewModel<T : Any>(
         false
     }
 
-    /** Thumbnails made, by the item they show, so a new answer only makes what is new. */
+    /** Thumbnails made, by the item they show, so a new answer only makes what is new; made again for another server or language. */
     private var made = IdentityHashMap<ItemSummary, T>()
-    private var madeFor = ""
+    private var madeFor: Pair<String, Locale>? = null
 
-    private fun page(detail: PlaylistDetail, origin: String, order: List<Long>?, hidden: Set<Long>): PlaylistPage<T> {
-        if (madeFor != origin) {
+    private fun page(detail: PlaylistDetail, origin: String, order: List<Long>?, hidden: Set<Long>, words: FormatWords): PlaylistPage<T> {
+        if (madeFor != origin to words.locale) {
             made = IdentityHashMap()
-            madeFor = origin
+            madeFor = origin to words.locale
         }
         val video = detail.kind != PlaylistKind.Audio
         val look = if (video) TileLook.Landscape else TileLook.Square
@@ -327,8 +332,8 @@ class PlaylistViewModel<T : Any>(
             val item = entry.item
             val tile = made[item] ?: tiles.item(item, look, origin)
             next[item] = tile
-            val (title, subtitle) = Playlists.rowTitles(item)
-            PlaylistRow(entry.entryId, item, i + 1, title, subtitle, formatDuration(item.durationMs), tile)
+            val (title, subtitle) = Playlists.rowTitles(item, words)
+            PlaylistRow(entry.entryId, item, i + 1, title, subtitle, formatDuration(item.durationMs, words), tile)
         }
         made = next
         val smart = !detail.smartFilter.isNullOrEmpty()
@@ -345,7 +350,7 @@ class PlaylistViewModel<T : Any>(
             origin = origin,
             lead = entries.firstOrNull()?.item ?: detail.entries.firstOrNull()?.item,
             rows = rows,
-            metaTexts = Playlists.metaTexts(count, duration),
+            metaTexts = Playlists.metaTexts(count, duration, words),
             noteTexts = if (smart) SmartFilter.words(detail.smartFilter.orEmpty()) else emptyList(),
         )
     }

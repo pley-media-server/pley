@@ -6,6 +6,7 @@ import androidx.annotation.PluralsRes
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.AppLanguage
+import app.pley.android.common.formatWords
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.image.ArtworkImage
@@ -35,18 +36,21 @@ import kotlin.math.max
 internal class TvTiles(context: Context) : TileFactory<ArtworkTileModel> {
     private val app = context.applicationContext
 
-    override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
-        TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
-        TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
-        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin)
-        TileLook.Badged -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin).copy(badges = mediaBadges(item.media))
-        TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin).let { model ->
-            val line = mediaLine(item.media)
-            model.copy(
-                subtitle = line.ifEmpty { model.subtitle },
-                badges = mediaBadges(item.media),
-                description = listOf(model.description, line).filter { it.isNotEmpty() }.joinToString(", "),
-            )
+    override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel {
+        val words = formatWords(AppLanguage.resources(app))
+        return when (look) {
+            TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin, words)
+            TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin, words)
+            TileLook.Poster -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin, words)
+            TileLook.Badged -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin, words).copy(badges = mediaBadges(item.media))
+            TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin, words).let { model ->
+                val line = mediaLine(item.media, words)
+                model.copy(
+                    subtitle = line.ifEmpty { model.subtitle },
+                    badges = mediaBadges(item.media),
+                    description = listOf(model.description, line).filter { it.isNotEmpty() }.joinToString(", "),
+                )
+            }
         }
     }
 

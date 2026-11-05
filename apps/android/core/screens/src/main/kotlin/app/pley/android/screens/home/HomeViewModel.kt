@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.HubsRepository
 import app.pley.android.data.ItemRepository
 import app.pley.android.data.LibrariesRepository
@@ -143,7 +144,9 @@ class HomeViewModel(
         flow { emitAll(sources.libraries.libraries()) },
         flow { emitAll(sources.scans) }.map { it.isNotEmpty() }.distinctUntilChanged().onEach(::scanning),
         flow { emitAll(sources.session) }.map { it?.issuer.orEmpty() }.distinctUntilChanged(),
-    ) { hubs, libraries, scanning, origin ->
+        // Made again when the language shown changes: the hero's runtime and episode numbers are written in it.
+        AppLanguage.shown,
+    ) { hubs, libraries, scanning, origin, _ ->
         val state = homeState(hubs, libraries, scanning, origin)
         HomeLoad(state, homeStatus(hubs, state))
     }
@@ -170,7 +173,7 @@ class HomeViewModel(
     val refreshing: StateFlow<Boolean> = pulled.asStateFlow()
 
     /** What the TV's info block shows: the item focus rests on, with its details once they are in. */
-    val info: StateFlow<HomeInfo?> = focused
+    val info: StateFlow<HomeInfo?> = combine(focused, AppLanguage.shown) { item, _ -> item }
         .flatMapLatest { item ->
             if (item == null) {
                 flowOf(null)

@@ -43,6 +43,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
@@ -139,8 +140,9 @@ private fun ArtistContent(
 ) {
     val metrics = LocalPhoneMetrics.current
     val gap = PleyPhone.TileGap
-    val albums = remember(page) {
-        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin).copy(subtitle = it.year?.toString().orEmpty()) }
+    val words = formatWords()
+    val albums = remember(page, words) {
+        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin, words).copy(subtitle = it.year?.toString().orEmpty()) }
     }
     LazyVerticalGrid(
         columns = remember(gap) { FittedCells(TileKind.Square, gap) },

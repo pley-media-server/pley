@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
+import app.pley.android.common.formatWords
 import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyPhone
@@ -37,18 +38,21 @@ import kotlin.math.max
  * (the ViewModels outlive a change of language).
  */
 internal class PhoneTiles(private val resources: () -> Resources) : TileFactory<ArtworkTileModel> {
-    override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
-        TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
-        TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
-        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin)
-        TileLook.Badged -> ArtworkTileModel.of(item, TileKind.Poster, origin).copy(badges = mediaBadges(item.media))
-        TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.Poster, origin).let { model ->
-            val line = mediaLine(item.media)
-            model.copy(
-                subtitle = line.ifEmpty { model.subtitle },
-                badges = mediaBadges(item.media),
-                description = listOf(model.description, line).filter { it.isNotEmpty() }.joinToString(", "),
-            )
+    override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel {
+        val words = formatWords(resources())
+        return when (look) {
+            TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin, words)
+            TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin, words)
+            TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin, words)
+            TileLook.Badged -> ArtworkTileModel.of(item, TileKind.Poster, origin, words).copy(badges = mediaBadges(item.media))
+            TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.Poster, origin, words).let { model ->
+                val line = mediaLine(item.media, words)
+                model.copy(
+                    subtitle = line.ifEmpty { model.subtitle },
+                    badges = mediaBadges(item.media),
+                    description = listOf(model.description, line).filter { it.isNotEmpty() }.joinToString(", "),
+                )
+            }
         }
     }
 

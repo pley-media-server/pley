@@ -47,6 +47,7 @@ import app.pley.android.designsystem.image.shownArtwork
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
+import app.pley.android.model.format.FormatWords
 import coil3.ImageLoader
 import coil3.asImage
 import coil3.compose.AsyncImagePainter
@@ -62,6 +63,7 @@ import coil3.request.transitionFactory
 import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import coil3.transition.CrossfadeTransition
+import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -77,7 +79,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import kotlin.math.abs
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -481,16 +482,16 @@ class ArtworkTileTest {
             grandparentTitle = "Driftline", grandparentId = 10, durationMs = 3_480_000,
             userState = UserState(positionMs = 1_920_000), thumbUrl = "/api/items/30/images/thumb?v=1",
         )
-        val wide = ArtworkTileModel.of(episode, TileKind.Landscape, origin, locale = java.util.Locale.US)
+        val wide = ArtworkTileModel.of(episode, TileKind.Landscape, origin, FormatWords.English, locale = java.util.Locale.US)
         assertEquals("Driftline", wide.title)
         assertEquals("S2 · E5 · 26 min left", wide.subtitle)
         assertEquals(1_920_000f / 3_480_000f, wide.progress, 0.0001f)
         assertEquals("Glasshouse, Driftline, Season 2 Episode 5, 26 minutes left", wide.description)
-        val row = ArtworkTileModel.of(episode, TileKind.Episode, origin, locale = java.util.Locale.US)
+        val row = ArtworkTileModel.of(episode, TileKind.Episode, origin, FormatWords.English, locale = java.util.Locale.US)
         assertEquals("5. Glasshouse", row.title)
         assertEquals("26 min left", row.subtitle)
         val show = ItemSummary(id = 2, libraryId = 1, kind = ItemKind.Show, title = "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13)
-        val poster = ArtworkTileModel.of(show, TileKind.Poster, origin, locale = java.util.Locale.US)
+        val poster = ArtworkTileModel.of(show, TileKind.Poster, origin, FormatWords.English, locale = java.util.Locale.US)
         assertEquals(6, poster.unwatched)
         assertEquals("2 seasons", poster.subtitle)
     }
@@ -513,8 +514,11 @@ class ArtworkTileTest {
         val spanish = ArtworkTileModel.of(show, TileKind.Poster, origin, wordsIn("es"))
         assertEquals("2 temporadas", spanish.subtitle)
         assertEquals("Severance, 2 temporadas, 6 sin ver", spanish.description)
-        // In English, as without words.
-        assertEquals(ArtworkTileModel.of(episode, TileKind.Landscape, origin), ArtworkTileModel.of(episode, TileKind.Landscape, origin, wordsIn("en-US")))
+        // In English, the words the format functions write without any.
+        assertEquals(
+            ArtworkTileModel.of(episode, TileKind.Landscape, origin, FormatWords.English),
+            ArtworkTileModel.of(episode, TileKind.Landscape, origin, wordsIn("en-US")),
+        )
     }
 
     private companion object {

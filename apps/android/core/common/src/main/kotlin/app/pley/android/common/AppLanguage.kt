@@ -9,6 +9,7 @@ import android.os.LocaleList
 import android.os.StrictMode
 import androidx.annotation.RequiresApi
 import androidx.core.content.edit
+import app.pley.android.model.format.FormatWords
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,10 @@ object AppLanguage {
     /** Below Android 13: the application's resources in the language shown, and that language's locale. */
     @Volatile
     private var words: Pair<Locale, Resources>? = null
+
+    /** The format functions' words in the locale shown, and that locale. */
+    @Volatile
+    private var format: Pair<Locale, FormatWords>? = null
 
     /**
      * As the app starts, before anything is drawn (the application's
@@ -113,6 +118,21 @@ object AppLanguage {
         val locale = locale
         words?.let { (at, resources) -> if (at == locale) return resources }
         return app.createConfigurationContext(only(locale)).resources.also { words = locale to it }
+    }
+
+    /**
+     * The format functions' words ("26 min left", "3 hours ago", a track's
+     * language) in the locale shown, for a state made where nothing is
+     * drawn that is made again as [shown] changes: a ViewModel's that
+     * combines it. Made for [locale] itself, so they are in the new
+     * language as soon as [shown] says it, before the system has applied
+     * it. Before the app is made (unit tests), English.
+     */
+    fun formatWords(): FormatWords {
+        val app = app ?: return FormatWords.English
+        val locale = locale
+        format?.let { (at, words) -> if (at == locale) return words }
+        return formatWords(app.createConfigurationContext(only(locale)).resources).also { format = locale to it }
     }
 
     /**

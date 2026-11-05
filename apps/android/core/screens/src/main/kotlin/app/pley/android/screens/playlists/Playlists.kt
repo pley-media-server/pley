@@ -6,6 +6,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.PlaylistSummary
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.cardSubtitle
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatDuration
@@ -27,11 +28,13 @@ object Playlists {
 
     /** "12 items · 3h 12m", "1 item", in English: [metaTexts], joined. */
     fun meta(itemCount: Int, durationMs: Long, locale: Locale = AppLanguage.locale): String =
-        listOf(pluralize(itemCount, "item", locale = locale), formatDuration(durationMs)).filter { it.isNotEmpty() }.joinToString(" · ")
+        listOf(pluralize(itemCount, "item", locale = locale), formatDuration(durationMs, FormatWords.English)).filter { it.isNotEmpty() }.joinToString(" · ")
 
-    /** "12 items", "3h 12m"; just the count for a playlist without a duration. */
-    fun metaTexts(itemCount: Int, durationMs: Long): List<UiText> =
-        listOfNotNull(UiText.plural(R.plurals.playlists_count_items, itemCount), formatDuration(durationMs).takeIf { it.isNotEmpty() }?.let(UiText::raw))
+    /** "12 items", "3h 12m" (its duration in [words]); just the count for a playlist without a duration. */
+    fun metaTexts(itemCount: Int, durationMs: Long, words: FormatWords): List<UiText> = listOfNotNull(
+        UiText.plural(R.plurals.playlists_count_items, itemCount),
+        formatDuration(durationMs, words).takeIf { it.isNotEmpty() }?.let(UiText::raw),
+    )
 
     /** What a playlist of [kind]'s items plays: music for artists, albums and tracks, else video. */
     fun kindOf(kind: ItemKind): PlaylistKind = when (kind) {
@@ -78,20 +81,20 @@ object Playlists {
     /**
      * A row's two lines, as the web's playlist page writes them: an
      * episode's title over its show and number, a season's name over its
-     * show, else the title over the year (or what a card says).
+     * show, else the title over the year (or what a card says), in [words].
      */
-    fun rowTitles(item: ItemSummary, locale: Locale = AppLanguage.locale): Pair<String, String> = when (item.kind) {
-        ItemKind.Episode -> item.title to listOf(item.grandparentTitle.orEmpty(), episodeLabel(item)).filter { it.isNotEmpty() }.joinToString(" · ")
-        ItemKind.Season -> seasonTitle(item.title, item.index) to cardSubtitle(item, locale)
-        else -> item.title to cardSubtitle(item, locale)
+    fun rowTitles(item: ItemSummary, words: FormatWords): Pair<String, String> = when (item.kind) {
+        ItemKind.Episode -> item.title to listOf(item.grandparentTitle.orEmpty(), episodeLabel(item, words)).filter { it.isNotEmpty() }.joinToString(" · ")
+        ItemKind.Season -> seasonTitle(item.title, item.index, words) to cardSubtitle(item, words)
+        else -> item.title to cardSubtitle(item, words)
     }
 
-    /** A playlist as its card and the sheets list it. */
-    fun card(summary: PlaylistSummary, origin: String, locale: Locale = AppLanguage.locale): PlaylistCard = PlaylistCard(
+    /** A playlist as its card and the sheets list it, its duration in [words]. */
+    fun card(summary: PlaylistSummary, origin: String, words: FormatWords, locale: Locale = AppLanguage.locale): PlaylistCard = PlaylistCard(
         id = summary.id,
         title = summary.title,
         meta = meta(summary.itemCount, summary.durationMs, locale),
-        metaTexts = metaTexts(summary.itemCount, summary.durationMs),
+        metaTexts = metaTexts(summary.itemCount, summary.durationMs, words),
         video = summary.kind != PlaylistKind.Audio,
         smart = !summary.smartFilter.isNullOrEmpty(),
         artwork = summary.artwork,

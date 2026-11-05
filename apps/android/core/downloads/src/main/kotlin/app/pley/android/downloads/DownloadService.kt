@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.Language
+import app.pley.android.common.formatWords
 import app.pley.android.data.DownloadState
 import app.pley.android.model.format.formatBytes
 import kotlinx.coroutines.CoroutineScope
@@ -170,8 +171,9 @@ class DownloadService : Service() {
             .setContentIntent(open)
         when {
             shown.title != null -> {
-                val size = formatBytes(shown.sizeBytes)
-                val done = formatBytes(shown.doneBytes)
+                val sizes = formatWords(words)
+                val size = formatBytes(shown.sizeBytes, sizes)
+                val done = formatBytes(shown.doneBytes, sizes)
                 builder.setContentTitle(words.getString(R.string.downloads_notification_downloading, shown.title))
                     .setContentText(
                         if (shown.more > 0) words.getString(R.string.downloads_notification_progress_more, done, size, shown.more)

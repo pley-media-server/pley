@@ -14,6 +14,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.channelsLabel
 import app.pley.android.model.format.codecLabel
 import app.pley.android.model.format.dynamicRangeLabel
@@ -73,6 +74,8 @@ data class PageInput(
     val partOf: List<CollectionSummary> = emptyList(),
     /** The locale the page's dates and numbers are written in: the language shown's. */
     val locale: Locale = AppLanguage.locale,
+    /** The words of its runtimes, episode numbers and tracks: the language shown's. */
+    val words: FormatWords = AppLanguage.formatWords(),
 )
 
 /**
@@ -109,6 +112,7 @@ internal fun playing(detail: ItemDetail, pick: StreamPick): Playing {
 fun itemPage(input: PageInput): ItemPage {
     val d = input.detail
     val locale = input.locale
+    val words = input.words
     val playing = playing(d, input.pick)
     val onDeck = input.onDeck?.valueOrNull
     val kind = d.kind
@@ -120,10 +124,10 @@ fun itemPage(input: PageInput): ItemPage {
         video && resumable -> PrimaryAction(
             PrimaryAction.Kind.Resume,
             progress = progressFraction(d.userState.positionMs, d.durationMs),
-            timeLeft = formatTimeLeft(d.userState.positionMs, d.durationMs),
+            timeLeft = formatTimeLeft(d.userState.positionMs, d.durationMs, words),
         )
         video -> PrimaryAction(PrimaryAction.Kind.Play)
-        else -> containerPrimary(d, onDeck, input.episodes.takeIf { kind == ItemKind.Season && input.selectedSeason == d.id })
+        else -> containerPrimary(d, onDeck, input.episodes.takeIf { kind == ItemKind.Season && input.selectedSeason == d.id }, words)
     }
     val watched = if (container) {
         val leaves = d.leafCount ?: 0
@@ -136,9 +140,9 @@ fun itemPage(input: PageInput): ItemPage {
         kind = kind,
         origin = input.origin,
         item = d.toSummary(),
-        title = if (kind == ItemKind.Season) seasonTitle(d.title, d.index) else d.title,
-        context = context(d),
-        meta = meta(d, playing.file, input.seasons, locale),
+        title = if (kind == ItemKind.Season) seasonTitle(d.title, d.index, words) else d.title,
+        context = context(d, words),
+        meta = meta(d, playing.file, input.seasons, locale, words),
         genres = d.genres,
         partOf = input.partOf.map { CollectionRef(it.id, it.title) },
         primary = primary,
@@ -149,20 +153,20 @@ fun itemPage(input: PageInput): ItemPage {
         rateable = kind == ItemKind.Movie || kind == ItemKind.Show || kind == ItemKind.Episode,
         tagline = d.tagline?.takeIf { it.isNotBlank() },
         summary = d.summary?.takeIf { it.isNotBlank() },
-        tracks = trackChoices(d, playing),
+        tracks = trackChoices(d, playing, words),
         trailer = d.extras.firstOrNull { it.extraType == ExtraType.Trailer },
-        details = details(d, playing.file, locale),
-        mediaInfo = mediaInfo(d.files, locale),
+        details = details(d, playing.file, locale, words),
+        mediaInfo = mediaInfo(d.files, locale, words),
         extras = d.extras.distinctBy { it.id },
         castTitle = if (kind == ItemKind.Episode) CastTitle.GuestStars else CastTitle.Cast,
         cast = d.cast.distinctBy { it.id },
         related = if (kind == ItemKind.Movie || kind == ItemKind.Show) input.related.distinctBy { it.id }.filter { it.id != d.id } else emptyList(),
-        seasons = seasons(input, onDeck, locale),
+        seasons = seasons(input, onDeck, locale, words),
     )
 }
 
 /** A show's or season's button: its next episode, "Resume S2 · E5" or "Play S1 · E1". */
-private fun containerPrimary(d: ItemDetail, onDeck: ItemSummary?, ownEpisodes: List<ItemSummary>?): PrimaryAction {
+private fun containerPrimary(d: ItemDetail, onDeck: ItemSummary?, ownEpisodes: List<ItemSummary>?, words: FormatWords): PrimaryAction {
     if (onDeck == null) {
         val nothing = when (d.kind) {
             ItemKind.Season -> ownEpisodes?.isEmpty() == true || d.leafCount == 0
@@ -173,20 +177,20 @@ private fun containerPrimary(d: ItemDetail, onDeck: ItemSummary?, ownEpisodes: L
     val resuming = onDeck.userState.positionMs > 0 && !onDeck.userState.watched
     return PrimaryAction(
         kind = if (resuming) PrimaryAction.Kind.Resume else PrimaryAction.Kind.Play,
-        episode = episodeLabel(onDeck).ifEmpty { null },
+        episode = episodeLabel(onDeck, words).ifEmpty { null },
         progress = if (resuming) progressFraction(onDeck) else 0f,
-        timeLeft = if (resuming) formatTimeLeft(onDeck.userState.positionMs, onDeck.durationMs) else "",
+        timeLeft = if (resuming) formatTimeLeft(onDeck.userState.positionMs, onDeck.durationMs, words) else "",
     )
 }
 
-private fun context(d: ItemDetail): ItemContext? = when (d.kind) {
+private fun context(d: ItemDetail, words: FormatWords): ItemContext? = when (d.kind) {
     ItemKind.Episode -> ItemContext(
         showId = d.grandparentId,
         showTitle = d.grandparentTitle?.takeIf { it.isNotEmpty() },
         seasonId = d.parentId,
-        seasonTitle = d.parentIndex?.let { seasonTitle(null, it) } ?: d.parentTitle?.takeIf { it.isNotEmpty() },
-        episodeLabel = episodeLabel(d.parentIndex, d.index).ifEmpty { null },
-        episodeLongLabel = episodeLongLabel(d.parentIndex, d.index).ifEmpty { null },
+        seasonTitle = d.parentIndex?.let { seasonTitle(null, it, words) } ?: d.parentTitle?.takeIf { it.isNotEmpty() },
+        episodeLabel = episodeLabel(d.parentIndex, d.index, words).ifEmpty { null },
+        episodeLongLabel = episodeLongLabel(d.parentIndex, d.index, words).ifEmpty { null },
     )
     ItemKind.Season -> ItemContext(
         showId = d.parentId,
@@ -200,7 +204,7 @@ private fun context(d: ItemDetail): ItemContext? = when (d.kind) {
 }
 
 /** The metadata line (design spec §2.2, §4.3, §4.4). */
-private fun meta(d: ItemDetail, file: MediaFile?, seasons: List<ItemSummary>?, locale: Locale): List<MetaPart> = buildList {
+private fun meta(d: ItemDetail, file: MediaFile?, seasons: List<ItemSummary>?, locale: Locale, words: FormatWords): List<MetaPart> = buildList {
     fun text(value: String?) {
         if (!value.isNullOrBlank()) add(MetaPart.Text(value))
     }
@@ -217,12 +221,12 @@ private fun meta(d: ItemDetail, file: MediaFile?, seasons: List<ItemSummary>?, l
         ItemKind.Episode -> {
             text(formatDate(d.releaseDate, locale))
             text(file?.edition)
-            text(formatRuntime(d.durationMs))
+            text(formatRuntime(d.durationMs, words))
         }
         else -> {
             text(d.year?.toString())
             text(file?.edition)
-            text(formatRuntime(d.durationMs))
+            text(formatRuntime(d.durationMs, words))
         }
     }
     d.contentRating?.takeIf { it.isNotBlank() }?.let { add(MetaPart.ContentRating(it)) }
@@ -240,7 +244,7 @@ private fun yearRange(year: Int?, seasons: List<ItemSummary>?): String? {
 }
 
 /** The selects (VideoItemView.tsx): versions when there are several, audio when two or more, subtitles when any. */
-private fun trackChoices(d: ItemDetail, playing: Playing): TrackChoices? {
+private fun trackChoices(d: ItemDetail, playing: Playing, words: FormatWords): TrackChoices? {
     val file = playing.file ?: return null
     val audio = file.streams.filter { it.kind == StreamKind.Audio }
     val subtitles = file.streams.filter { it.kind == StreamKind.Subtitle }
@@ -250,15 +254,15 @@ private fun trackChoices(d: ItemDetail, playing: Playing): TrackChoices? {
     val audioShown = audioStart.takeUnless { playing.automaticAudio }
     return TrackChoices(
         versions = if (d.files.size > 1) {
-            d.files.mapIndexed { i, f -> TrackChoice(f.id, versionLabel(f, i), f.id == file.id) }
+            d.files.mapIndexed { i, f -> TrackChoice(f.id, versionLabel(f, i, words), f.id == file.id) }
         } else {
             emptyList()
         },
-        audio = if (audio.size > 1) audio.map { TrackChoice(it.index.toLong(), streamLabel(it), it.index == audioShown) } else emptyList(),
-        subtitles = subtitles.map { TrackChoice(it.index.toLong(), streamLabel(it), it.index == playing.subtitleIndex) },
+        audio = if (audio.size > 1) audio.map { TrackChoice(it.index.toLong(), streamLabel(it, words), it.index == audioShown) } else emptyList(),
+        subtitles = subtitles.map { TrackChoice(it.index.toLong(), streamLabel(it, words), it.index == playing.subtitleIndex) },
         versionId = file.id,
         automaticAudio = playing.automaticAudio,
-        automaticLanguage = languageName(audio.firstOrNull { it.index == audioStart }?.language),
+        automaticLanguage = languageName(audio.firstOrNull { it.index == audioStart }?.language, words),
         audioIndex = audioShown,
         subtitleIndex = playing.subtitleIndex?.takeIf { index -> subtitles.any { it.index == index } },
     )
@@ -269,7 +273,7 @@ private val CREW_ROLES = listOf(CreditRole.Creator, CreditRole.Director, CreditR
 /** At most this many names per crew line, then "and N more" (Credits.tsx). */
 const val CREW_NAMES = 4
 
-private fun details(d: ItemDetail, file: MediaFile?, locale: Locale): ItemDetails = ItemDetails(
+private fun details(d: ItemDetail, file: MediaFile?, locale: Locale, words: FormatWords): ItemDetails = ItemDetails(
     crew = CREW_ROLES.mapNotNull { role ->
         val people = d.crew.filter { it.role == role }.distinctBy { it.id }
         if (people.isEmpty()) null else CrewLine(role, people.take(CREW_NAMES), (people.size - CREW_NAMES).coerceAtLeast(0))
@@ -279,11 +283,11 @@ private fun details(d: ItemDetail, file: MediaFile?, locale: Locale): ItemDetail
     studio = d.studio?.takeIf { it.isNotBlank() },
     network = d.kind == ItemKind.Episode || d.kind == ItemKind.Show,
     plays = d.userState.playCount.takeIf { it > 0 },
-    versions = d.files.map { TrackChoice(it.id, versionDescription(it), it.id == file?.id) },
+    versions = d.files.map { TrackChoice(it.id, versionDescription(it, words), it.id == file?.id) },
 )
 
 /** Media info (MediaInfo.tsx). An app's token gets file names only; whatever comes, only the name shows. */
-private fun mediaInfo(files: List<MediaFile>, locale: Locale): List<FileInfo> = files.mapIndexed { i, f ->
+private fun mediaInfo(files: List<MediaFile>, locale: Locale, words: FormatWords): List<FileInfo> = files.mapIndexed { i, f ->
     val video = f.streams.firstOrNull { it.kind == StreamKind.Video }
     FileInfo(
         id = f.id,
@@ -291,9 +295,9 @@ private fun mediaInfo(files: List<MediaFile>, locale: Locale): List<FileInfo> = 
         rows = buildList {
             add(InfoRow(InfoLabel.File, fileName(f.path)))
             add(InfoRow(InfoLabel.Container, f.container?.uppercase() ?: "—"))
-            if (f.size > 0) add(InfoRow(InfoLabel.Size, formatBytes(f.size)))
-            f.durationMs?.takeIf { it > 0 }?.let { add(InfoRow(InfoLabel.Duration, formatDuration(it))) }
-            f.bitrate?.takeIf { it > 0 }?.let { add(InfoRow(InfoLabel.Bitrate, formatBitrate(it))) }
+            if (f.size > 0) add(InfoRow(InfoLabel.Size, formatBytes(f.size, words)))
+            f.durationMs?.takeIf { it > 0 }?.let { add(InfoRow(InfoLabel.Duration, formatDuration(it, words))) }
+            f.bitrate?.takeIf { it > 0 }?.let { add(InfoRow(InfoLabel.Bitrate, formatBitrate(it, words))) }
             if (!f.videoCodec.isNullOrEmpty()) {
                 val value = listOfNotNull(codecLabel(f.videoCodec), resolutionLabel(f.width, f.height), dynamicRangeLabel(video))
                     .filter { it.isNotEmpty() }.joinToString(" · ")
@@ -304,7 +308,7 @@ private fun mediaInfo(files: List<MediaFile>, locale: Locale): List<FileInfo> = 
         streams = f.streams
             .filter { it.kind != StreamKind.Unknown }
             .sortedWith(compareBy({ it.kind.ordinal }, { it.index }))
-            .map { s -> StreamInfo(s.kind, codecLabel(s.codec), languageName(s.language), s.title?.takeIf { it.isNotBlank() }, streamDetails(s, locale)) },
+            .map { s -> StreamInfo(s.kind, codecLabel(s.codec), languageName(s.language, words), s.title?.takeIf { it.isNotBlank() }, streamDetails(s, locale, words)) },
         file = f,
     )
 }
@@ -312,7 +316,7 @@ private fun mediaInfo(files: List<MediaFile>, locale: Locale): List<FileInfo> = 
 /** The last part of a path, whichever separator it uses. */
 fun fileName(path: String): String = path.substringAfterLast('/').substringAfterLast('\\')
 
-private fun streamDetails(s: MediaStream, locale: Locale): List<UiText> {
+private fun streamDetails(s: MediaStream, locale: Locale, words: FormatWords): List<UiText> {
     val parts = mutableListOf<UiText>()
     fun add(text: String) {
         parts += UiText.raw(text)
@@ -329,7 +333,7 @@ private fun streamDetails(s: MediaStream, locale: Locale): List<UiText> {
             s.profile?.takeIf { it.isNotBlank() }?.let(::add)
         }
         StreamKind.Audio -> {
-            channelsLabel(s.channels, s.channelLayout).takeIf { it.isNotEmpty() }?.let(::add)
+            channelsLabel(s.channels, s.channelLayout, words).takeIf { it.isNotEmpty() }?.let(::add)
             s.sampleRate?.takeIf { it > 0 }?.let { parts += UiText.res(R.string.item_media_khz, it / 1000.0) }
         }
         else -> {
@@ -337,7 +341,7 @@ private fun streamDetails(s: MediaStream, locale: Locale): List<UiText> {
             if (s.external) parts += UiText.res(R.string.item_media_external)
         }
     }
-    s.bitrate?.takeIf { it > 0 }?.let { add(formatBitrate(it)) }
+    s.bitrate?.takeIf { it > 0 }?.let { add(formatBitrate(it, words)) }
     if (s.forced) parts += UiText.res(R.string.item_media_forced)
     if (s.default) parts += UiText.res(R.string.item_media_default)
     return parts
@@ -347,11 +351,11 @@ private fun streamDetails(s: MediaStream, locale: Locale): List<UiText> {
 private fun frameRate(fps: Double, locale: Locale): String =
     NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 2 }.format(Math.round(fps * 100) / 100.0)
 
-private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale): SeasonsSection? {
+private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, words: FormatWords): SeasonsSection? {
     val d = input.detail
     val tabs = when (d.kind) {
         ItemKind.Show, ItemKind.Season -> input.seasons.orEmpty().map { season ->
-            SeasonTab(season.id, seasonTitle(season.title, season.index), season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) })
+            SeasonTab(season.id, seasonTitle(season.title, season.index, words), season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) })
         }
         ItemKind.Episode -> emptyList()
         else -> return null
@@ -363,23 +367,23 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale): Sea
     return SeasonsSection(
         seasons = tabs,
         selected = input.selectedSeason,
-        episodes = input.episodes?.distinctBy { it.id }?.map { episodeLine(it, locale) },
+        episodes = input.episodes?.distinctBy { it.id }?.map { episodeLine(it, locale, words) },
         focus = focus,
     )
 }
 
-/** An episode's words for lists and rows, its dates in [locale]. */
-fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale): EpisodeLine {
+/** An episode's words for lists and rows, its dates in [locale], its runtime and numbers in [words]. */
+fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale, words: FormatWords = AppLanguage.formatWords()): EpisodeLine {
     val inProgress = isInProgress(e)
-    val runtime = formatRuntime(e.durationMs)
-    val length = if (inProgress) formatTimeLeft(e.userState.positionMs, e.durationMs) else runtime
+    val runtime = formatRuntime(e.durationMs, words)
+    val length = if (inProgress) formatTimeLeft(e.userState.positionMs, e.durationMs, words) else runtime
     return EpisodeLine(
         item = e,
         title = if (e.index != null) "${e.index}. ${e.title}" else e.title,
         length = length,
         line = listOf(length, formatDate(e.releaseDate, locale)).filter { it.isNotEmpty() }.joinToString(" · "),
         aired = formatLongDate(e.releaseDate, locale).ifEmpty { null },
-        longLabel = episodeLongLabel(e.parentIndex, e.index),
+        longLabel = episodeLongLabel(e.parentIndex, e.index, words),
         runtime = runtime,
         summary = e.summary?.takeIf { it.isNotBlank() },
         progress = if (inProgress) progressFraction(e) else 0f,
@@ -403,9 +407,9 @@ private val EXTRA_LABELS = mapOf(
     ExtraType.Short to R.string.item_extra_short,
 )
 
-/** An extra's caption line, as the web's Extras row: "Trailer · 2m". */
-fun extraSubtitle(item: ItemSummary): UiText {
+/** An extra's caption line, as the web's Extras row: "Trailer · 2m", its length in [words]. */
+fun extraSubtitle(item: ItemSummary, words: FormatWords): UiText {
     val kind = UiText.res(EXTRA_LABELS[item.extraType] ?: R.string.item_extra_other)
-    val length = formatDuration(item.durationMs)
+    val length = formatDuration(item.durationMs, words)
     return if (length.isEmpty()) kind else UiText.res(R.string.item_extra_caption, kind, length)
 }

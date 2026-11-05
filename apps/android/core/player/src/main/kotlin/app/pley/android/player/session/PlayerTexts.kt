@@ -3,10 +3,12 @@ package app.pley.android.player.session
 import android.content.Context
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
+import app.pley.android.common.formatWords
 import app.pley.android.common.resolve
-import app.pley.android.player.CastFrom
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
+import app.pley.android.model.format.FormatWords
+import app.pley.android.player.CastFrom
 import app.pley.android.player.R
 import java.util.Locale
 
@@ -130,6 +132,9 @@ interface PlayerTexts {
 
     /** [text] in the language shown: an error's words ([app.pley.android.common.errorText]). */
     fun words(text: UiText): String
+
+    /** The format functions' words in the language shown: an episode's numbers, a track's language, a bitrate. */
+    val format: FormatWords
 }
 
 /** [PlayerTexts] from the app's resources, in the language shown. */
@@ -294,6 +299,8 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override fun engineDroppedFrames(dropped: Long, total: Long): String = res.getString(R.string.session_engine_dropped, dropped, total)
 
     override fun words(text: UiText): String = text.resolve(res)
+
+    override val format: FormatWords get() = formatWords(res)
 }
 
 /** Lines as qualities name them: "4K", "1080p", "720p". */

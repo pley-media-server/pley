@@ -61,6 +61,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.Approval
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.RequestStatus
@@ -363,7 +364,7 @@ internal fun ApproveDialogView(dialog: ApproveDialog, texts: RequestTexts, onApp
                             Heading(stringResource(R.string.requests_approve_folder))
                             if (dialog.folder == null) ChoiceRow(stringResource(R.string.requests_approve_default), null, folder == null) { folder = null }
                             options.rootFolders.forEach { f ->
-                                val free = f.freeBytes?.let { stringResource(R.string.requests_folder_free, formatBytes(it)) }
+                                val free = f.freeBytes?.let { stringResource(R.string.requests_folder_free, formatBytes(it, formatWords())) }
                                 ChoiceRow(f.path, free, folder == f.path) { folder = f.path }
                             }
                         }

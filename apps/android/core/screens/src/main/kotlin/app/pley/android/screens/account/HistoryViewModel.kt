@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.HistoryRepository
 import app.pley.android.data.Loadable
 import app.pley.android.data.map
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.HistoryEntry
 import app.pley.android.model.ItemKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatRelative
 import app.pley.android.screens.PleyKey
@@ -27,10 +29,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** A play in the history, as a row shows it. */
@@ -94,14 +96,15 @@ class HistoryViewModel(
     private val retries = MutableStateFlow(0)
 
     val state: StateFlow<HistoryUiState> = retries.flatMapLatest {
-        combine(history.history(), origin, loadingMore) { load, server, more -> stateOf(load, server, more) }
+        // Made again when the language shown changes: the rows' times and episode numbers are written in it.
+        combine(history.history(), origin, loadingMore, AppLanguage.shown) { load, server, more, _ -> stateOf(load, server, more) }
     }.flowOn(compute).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState.Loading)
 
     private fun stateOf(load: Loadable<app.pley.android.model.HistoryPage>, server: String, more: Boolean): HistoryUiState {
         val page = load.valueOrNull
         return when {
             page != null -> HistoryUiState.Ready(
-                rows = page.entries.map { historyRow(it, nowSeconds()) },
+                rows = page.entries.map { historyRow(it, nowSeconds(), AppLanguage.formatWords()) },
                 total = page.total,
                 origin = server,
                 loadingMore = more,
@@ -155,12 +158,12 @@ class HistoryViewModel(
     }
 }
 
-/** [entry] as its row shows it (apps/web/src/components/HistoryList.tsx), its time worded from [now]. */
-fun historyRow(entry: HistoryEntry, now: Long): HistoryRow {
+/** [entry] as its row shows it (apps/web/src/components/HistoryList.tsx), its time worded from [now], in [words]. */
+fun historyRow(entry: HistoryEntry, now: Long, words: FormatWords = AppLanguage.formatWords()): HistoryRow {
     val item = entry.item
     val (title, subtitle) = when (item.kind) {
         ItemKind.Episode -> (item.grandparentTitle ?: item.title) to
-            listOf(episodeLabel(item), item.title).filter { it.isNotEmpty() }.joinToString(" · ")
+            listOf(episodeLabel(item, words), item.title).filter { it.isNotEmpty() }.joinToString(" · ")
         ItemKind.Track -> item.title to listOfNotNull(item.grandparentTitle, item.parentTitle).filter { it.isNotEmpty() }.joinToString(" · ")
         else -> item.title to (item.year?.toString().orEmpty())
     }
@@ -180,7 +183,7 @@ fun historyRow(entry: HistoryEntry, now: Long): HistoryRow {
         itemId = item.id,
         title = title,
         subtitle = subtitle,
-        time = formatRelative(entry.viewedAt, now),
+        time = formatRelative(entry.viewedAt, now, words),
         device = entry.device?.takeIf { it.isNotBlank() },
         artPaths = art,
         square = item.kind == ItemKind.Track || item.kind == ItemKind.Album || item.kind == ItemKind.Artist,

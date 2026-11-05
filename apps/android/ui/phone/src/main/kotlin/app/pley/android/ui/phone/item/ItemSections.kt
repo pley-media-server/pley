@@ -67,6 +67,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.formatWords
 import app.pley.android.common.resolve
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyPhone
@@ -75,6 +76,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonState
@@ -151,6 +153,7 @@ internal class TileRow(
 /** The page's rows: extras, an episode's season, the cast, More Like This. Built once per page, in the language of [resources]. */
 internal fun phoneRows(page: ItemPage, titles: RowTitles, resources: Resources): List<TileRow> = buildList {
     val origin = page.origin
+    val words = formatWords(resources)
     if (page.extras.isNotEmpty()) {
         val byId = page.extras.associateBy { it.id }
         add(
@@ -159,7 +162,7 @@ internal fun phoneRows(page: ItemPage, titles: RowTitles, resources: Resources):
                     "extras",
                     titles.extras,
                     TileKind.Landscape,
-                    page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin).copy(subtitle = extraSubtitle(it).resolve(resources)) },
+                    page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin, words).copy(subtitle = extraSubtitle(it, words).resolve(resources)) },
                 ),
                 open = { id, actions -> byId[id]?.let(actions::play) },
             ),
@@ -169,7 +172,7 @@ internal fun phoneRows(page: ItemPage, titles: RowTitles, resources: Resources):
     if (page.kind == ItemKind.Episode && !episodes.isNullOrEmpty()) {
         add(
             TileRow(
-                HubRowModel("season", titles.season, TileKind.Landscape, episodes.map { ArtworkTileModel.of(it.item, TileKind.Episode, origin) }),
+                HubRowModel("season", titles.season, TileKind.Landscape, episodes.map { ArtworkTileModel.of(it.item, TileKind.Episode, origin, words) }),
                 open = { id, actions -> actions.openItem(id) },
                 longPress = { id, actions -> actions.showActions(id) },
             ),
@@ -191,7 +194,7 @@ internal fun phoneRows(page: ItemPage, titles: RowTitles, resources: Resources):
     if (page.related.isNotEmpty()) {
         add(
             TileRow(
-                HubRowModel("related", titles.related, TileKind.Poster, page.related.map { ArtworkTileModel.of(it, TileKind.Poster, origin) }),
+                HubRowModel("related", titles.related, TileKind.Poster, page.related.map { ArtworkTileModel.of(it, TileKind.Poster, origin, words) }),
                 open = { id, actions -> actions.openItem(id) },
                 longPress = { id, actions -> actions.showActions(id) },
             ),
@@ -481,7 +484,8 @@ private fun EpisodeDownload(itemId: Long, title: String) {
 @Composable
 internal fun EpisodeRow(episode: EpisodeLine, origin: String, actions: PageActions, modifier: Modifier = Modifier) {
     val item = episode.item
-    val tile = remember(item, origin) { ArtworkTileModel.of(item, TileKind.Episode, origin) }
+    val words = formatWords()
+    val tile = remember(item, origin, words) { ArtworkTileModel.of(item, TileKind.Episode, origin, words) }
     val playLabel = stringResource(R.string.item_play_named, episode.title)
     Row(modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Box(

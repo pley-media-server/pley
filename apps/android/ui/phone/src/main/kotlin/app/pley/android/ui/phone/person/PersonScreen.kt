@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.formatWords
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.PleyShape
@@ -212,7 +212,7 @@ private fun PersonSkeleton() {
 /** The credit's poster, captioned with the year and the roles in the language of [resources]: "2019 · as Neo". */
 private fun CreditTile.tile(origin: String, resources: Resources): ArtworkTileModel {
     val caption = listOf(item.year?.toString().orEmpty(), roles.joined(resources, ", ")).filter { it.isNotEmpty() }.joinToString(" · ")
-    return ArtworkTileModel.of(item, TileKind.Poster, origin).copy(subtitle = caption)
+    return ArtworkTileModel.of(item, TileKind.Poster, origin, formatWords(resources)).copy(subtitle = caption)
 }
 
 /** "Idris Vale" → "IV". */

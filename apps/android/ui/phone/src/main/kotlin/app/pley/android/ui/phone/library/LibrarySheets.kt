@@ -1,36 +1,35 @@
 package app.pley.android.ui.phone.library
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
+import app.pley.android.model.format.dynamicRangeFilterLabel
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
-import app.pley.android.screens.library.labelText
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.kit.SegmentedControl
@@ -128,12 +127,12 @@ internal fun LibrarySheetHost(
             )
         }
         LibrarySheet.DynamicRange -> PleySheet(onDismiss = onDismiss, title = stringResource(R.string.library_dynamic_range)) {
-            val resources = LocalResources.current
+            val words = formatWords()
             Choices(
                 all = stringResource(R.string.library_all_dynamic_ranges),
                 values = state.dynamicRanges,
                 selected = params.dynamicRange,
-                label = { it.labelText.resolve(resources) },
+                label = { dynamicRangeFilterLabel(it, words) },
                 onSelect = {
                     vm.dynamicRange(it)
                     onDismiss()

@@ -150,7 +150,7 @@ class ItemActionsViewModel(
     /** Failures and "nothing to play", told once. */
     val events: Flow<ItemEvent> = eventChannel.receiveAsFlow()
 
-    /** The sheet, made again when the language shown changes: its subtitle's numbers are written in it. */
+    /** The sheet, made again when the language shown changes: its subtitle is written in it. */
     val state: StateFlow<ItemActionsUiState> = combine(data.items.detail(itemId), data.servers.active, AppLanguage.shown) { load, origin, _ ->
         when (load) {
             Loadable.Loading -> ItemActionsUiState.Loading
@@ -164,16 +164,16 @@ class ItemActionsViewModel(
     private fun ready(detail: ItemDetail, origin: String): ItemActionsUiState.Ready {
         val item = detail.toSummary()
         val episode = item.kind == ItemKind.Episode
-        val locale = AppLanguage.locale
+        val words = AppLanguage.formatWords()
         return ItemActionsUiState.Ready(
             item = item,
             origin = origin,
             title = if (episode) item.grandparentTitle?.takeIf { it.isNotEmpty() } ?: item.title else item.title,
             subtitle = if (episode) {
-                listOf(cardSubtitle(item, locale), item.title.takeIf { item.grandparentTitle?.isNotEmpty() == true }.orEmpty())
+                listOf(cardSubtitle(item, words), item.title.takeIf { item.grandparentTitle?.isNotEmpty() == true }.orEmpty())
                     .filter { it.isNotEmpty() }.joinToString(" · ")
             } else {
-                cardSubtitle(item, locale)
+                cardSubtitle(item, words)
             },
             actions = itemActions(item, detail.inWatchlist, continueWatching),
         )

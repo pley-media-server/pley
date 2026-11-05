@@ -41,11 +41,7 @@ fun episodeLongLabel(seasonNumber: Int?, episodeNumber: Int?, words: FormatWords
     episodeNumber?.let { words.episode(it) },
 ).joinToString(" · ")
 
-/** The short line under a card, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"… */
-fun cardSubtitle(item: ItemSummary, locale: Locale = Locale.getDefault()): String =
-    cardSubtitle(item, FormatWords.English, locale)
-
-/** [cardSubtitle] in [words], its counts in [locale]'s digits. */
+/** The short line under a card, by kind, in [words]: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"…; its counts in [locale]'s digits. */
 fun cardSubtitle(item: ItemSummary, words: FormatWords, locale: Locale = words.locale): String = when (item.kind) {
     ItemKind.Movie -> item.year?.toString().orEmpty()
     ItemKind.Show -> when {
@@ -104,13 +100,10 @@ fun isInProgress(item: ItemSummary): Boolean {
 
 /**
  * What a screen reader says for a tile: the title, then what places it,
- * then its state. "Glasshouse, Season 2 Episode 5, 26 minutes left";
- * "Northern Lights, 2024, watched"; "Severance, 2 seasons, 6 unwatched".
+ * then its state, in [words], its counts in [locale]'s digits.
+ * "Glasshouse, Season 2 Episode 5, 26 minutes left"; "Northern Lights,
+ * 2024, watched"; "Severance, 2 seasons, 6 unwatched".
  */
-fun tileDescription(item: ItemSummary, locale: Locale = Locale.getDefault()): String =
-    tileDescription(item, FormatWords.English, locale)
-
-/** [tileDescription] in [words], its counts in [locale]'s digits. */
 fun tileDescription(item: ItemSummary, words: FormatWords, locale: Locale = words.locale): String {
     val context = when (item.kind) {
         ItemKind.Episode -> listOfNotNull(

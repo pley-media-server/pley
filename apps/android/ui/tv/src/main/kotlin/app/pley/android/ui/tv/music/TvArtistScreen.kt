@@ -40,6 +40,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.screens.PleyKey
@@ -128,8 +129,9 @@ private fun ArtistContent(
     val memory = rememberFocusMemory()
     val backdrop = remember(page.backdropUrl, page.origin) { ArtworkImage.of(page.backdropUrl, page.origin) }
     val picture = remember(page.posterUrl, page.origin) { ArtworkImage.of(page.posterUrl, page.origin) }
-    val albums = remember(page) {
-        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin).copy(subtitle = it.year?.toString().orEmpty()) }
+    val words = formatWords()
+    val albums = remember(page, words) {
+        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin, words).copy(subtitle = it.year?.toString().orEmpty()) }
     }
     TvBackdrop(backdrop, page.title, scrim = BackdropScrim.Item)
     Column(Modifier.fillMaxSize().padding(top = TOP)) {

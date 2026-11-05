@@ -192,6 +192,7 @@ class ItemViewModel(
                     related = b.related,
                     partOf = b.partOf,
                     locale = AppLanguage.locale,
+                    words = AppLanguage.formatWords(),
                 ),
             )
             ItemUiState.Ready(page, load.map { })

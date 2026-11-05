@@ -31,7 +31,6 @@
     <string name="tv_library_all_resolutions">Toutes les résolutions</string>
     <string name="tv_library_dynamic_range">Plage dynamique</string>
     <string name="tv_library_all_dynamic_ranges">Toutes les plages dynamiques</string>
-    <string name="tv_library_any_hdr">Tout HDR</string>
     <string name="tv_library_clear_filters">Effacer les filtres</string>
     <string name="tv_library_save_as">Enregistrer comme…</string>
 

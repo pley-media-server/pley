@@ -27,8 +27,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -46,6 +46,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.ItemSummary
@@ -211,7 +212,8 @@ private fun EpisodeRow(
     onOpen: (ItemSummary) -> Unit,
     onActions: (ItemSummary) -> Unit,
 ) {
-    val tiles = remember(episodes, origin) { episodes.map { ArtworkTileModel.of(it.item, TileKind.Episode, origin) } }
+    val words = formatWords()
+    val tiles = remember(episodes, origin, words) { episodes.map { ArtworkTileModel.of(it.item, TileKind.Episode, origin, words) } }
     val byId = remember(episodes) { episodes.associateBy { it.item.id } }
     val start = remember(episodes, target) { episodes.indexOfFirst { it.item.id == target }.coerceAtLeast(0) }
     val state = rememberTvRowState(initialFirstVisibleItemIndex = start)

@@ -48,6 +48,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.ItemKind
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatBytes
@@ -95,11 +96,12 @@ internal fun DownloadsScreen() {
             contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, bottom = 32.dp),
         ) {
             item(key = "storage", contentType = "storage") {
+                val words = formatWords()
                 Text(
                     stringResource(
                         R.string.downloads_storage,
-                        formatBytes(storage.usedBytes),
-                        formatBytes(storage.freeBytes),
+                        formatBytes(storage.usedBytes, words),
+                        formatBytes(storage.freeBytes, words),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = PleyColors.Muted,
@@ -152,7 +154,7 @@ private fun ShowHeader(group: DownloadGroup, onOpen: () -> Unit) {
                 R.plurals.downloads_episodes,
                 group.entries.size,
                 group.entries.size,
-                formatBytes(group.sizeBytes),
+                formatBytes(group.sizeBytes, formatWords()),
             ),
             style = MaterialTheme.typography.bodySmall,
             color = PleyColors.Muted,
@@ -175,13 +177,14 @@ private fun DownloadRow(
     onOpen: (DownloadEntry) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val title = if (episode) listOf(episodeLabel(entry.seasonIndex, entry.episodeIndex), entry.title).filter { it.isNotEmpty() }.joinToString(" · ") else entry.title
-    val size = formatBytes(entry.sizeBytes)
+    val words = formatWords()
+    val title = if (episode) listOf(episodeLabel(entry.seasonIndex, entry.episodeIndex, words), entry.title).filter { it.isNotEmpty() }.joinToString(" · ") else entry.title
+    val size = formatBytes(entry.sizeBytes, words)
     val line = when (entry.state) {
         DownloadState.Done -> when {
             entry.watched -> stringResource(R.string.downloads_watched, size)
             entry.positionMs > 0 && (entry.durationMs ?: 0) > entry.positionMs ->
-                stringResource(R.string.downloads_left, size, formatRuntime((entry.durationMs ?: 0) - entry.positionMs))
+                stringResource(R.string.downloads_left, size, formatRuntime((entry.durationMs ?: 0) - entry.positionMs, words))
             else -> listOfNotNull(entry.year?.takeIf { entry.kind == ItemKind.Movie }?.toString(), size).joinToString(" · ")
         }
         DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), size)

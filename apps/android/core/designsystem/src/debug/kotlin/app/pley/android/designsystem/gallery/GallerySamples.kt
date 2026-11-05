@@ -7,6 +7,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.MediaSummary
 import app.pley.android.model.UserState
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatTimeLeft
 
 /** Made-up titles for the gallery, the design mockups' own. */
@@ -21,6 +22,7 @@ internal object GallerySamples {
             ItemSummary(id = id, libraryId = 1, kind = ItemKind.Movie, title = title, year = year, userState = UserState(watched = watched), media = media),
             app.pley.android.designsystem.tile.TileKind.Poster,
             origin = "",
+            words = FormatWords.English,
             badges = media != null,
         ).copy(image = poster(name))
 
@@ -47,6 +49,7 @@ internal object GallerySamples {
         ItemSummary(id = id, libraryId = 2, kind = ItemKind.Show, title = title, childCount = seasons, leafCount = leaves, viewedLeafCount = viewed),
         app.pley.android.designsystem.tile.TileKind.Poster,
         origin = "",
+        words = FormatWords.English,
     ).copy(image = poster(name))
 
     val shows = listOf(
@@ -61,7 +64,7 @@ internal object GallerySamples {
     private fun continueMovie(id: Long, name: String, title: String, positionMs: Long, durationMs: Long) = ArtworkTileModel(
         id = id,
         title = title,
-        subtitle = formatTimeLeft(positionMs, durationMs),
+        subtitle = formatTimeLeft(positionMs, durationMs, FormatWords.English),
         image = still(name),
         progress = positionMs.toFloat() / durationMs,
         description = title,
@@ -75,6 +78,7 @@ internal object GallerySamples {
             ),
             app.pley.android.designsystem.tile.TileKind.Landscape,
             origin = "",
+            words = FormatWords.English,
         ).copy(image = still(name))
 
     val continueWatching = listOf(
@@ -100,6 +104,7 @@ internal object GallerySamples {
             ),
             app.pley.android.designsystem.tile.TileKind.Episode,
             origin = "",
+            words = FormatWords.English,
         ).copy(image = still(names[n - 1]))
     }
 

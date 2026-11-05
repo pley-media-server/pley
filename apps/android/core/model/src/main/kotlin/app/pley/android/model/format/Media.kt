@@ -165,7 +165,7 @@ fun streamLabel(s: MediaStream, words: FormatWords = FormatWords.English): Strin
     val lang = languageName(s.language, words)
     val title = s.title?.takeIf { it.isNotEmpty() }
     // Files' titles mostly name the language in English ("English SDH"), whatever the language shown.
-    val named = title != null && listOfNotNull(lang, languageName(s.language)).any { title.lowercase().contains(it.lowercase()) }
+    val named = title != null && listOfNotNull(lang, languageName(s.language, FormatWords.English)).any { title.lowercase().contains(it.lowercase()) }
     val extra = if (title != null && lang != null && !named) " – $title" else ""
     return when (s.kind) {
         StreamKind.Audio -> {

@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.pley.android.data.AppSettings
-import app.pley.android.data.Loadable
 import app.pley.android.data.Session
 import app.pley.android.data.SessionRepository
 import app.pley.android.data.TrackDefaultsRepository
@@ -14,9 +13,11 @@ import app.pley.android.data.TrackDefaultsUnsupported
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.TrackDefaults
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.languageName
 import app.pley.android.player.MusicControl
 import app.pley.android.screens.screensGraph
+import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -208,7 +209,7 @@ class MeViewModel(
 /**
  * The languages offered as audio and subtitle defaults, as the web offers
  * them (apps/web/src/lib/languages.ts LANGUAGES): ISO 639-2/B codes, the
- * form ffprobe reports, sorted by their English names.
+ * form ffprobe reports, named and sorted in the language shown.
  */
 object TrackLanguages {
     val CODES: List<String> = listOf(
@@ -217,11 +218,14 @@ object TrackLanguages {
         "ukr", "vie",
     )
 
-    /** Code and name, by name. */
-    val ALL: List<Pair<String, String>> = CODES.map { it to (languageName(it) ?: it) }.sortedBy { it.second }
+    /** Code and name in [words]' language, in its order of names (Spanish "Árabe" with the A's, not after "Vietnamita"). */
+    fun all(words: FormatWords): List<Pair<String, String>> {
+        val order = Collator.getInstance(words.locale)
+        return CODES.map { it to (languageName(it, words) ?: it) }.sortedWith(compareBy(order) { it.second })
+    }
 
-    /** [code]'s name; `null` for none. */
-    fun nameOf(code: String?): String? = code?.let { c -> ALL.firstOrNull { it.first == c }?.second ?: languageName(c) }
+    /** [code]'s name in [words]' language; `null` for none. */
+    fun nameOf(code: String?, words: FormatWords): String? = languageName(code, words)
 }
 
 /** The order the web lists subtitle modes in. */

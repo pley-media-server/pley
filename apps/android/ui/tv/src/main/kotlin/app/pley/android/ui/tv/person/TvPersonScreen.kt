@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +32,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CreditRole
@@ -115,8 +115,9 @@ private fun PersonHeader(page: PersonPage?) {
 @Composable
 private fun PersonRows(page: PersonPage, onOpen: (Long) -> Unit, onActions: (Long) -> Unit) {
     val memory = rememberFocusMemory()
-    val rows = remember(page) {
-        page.roles.map { row -> row.role to row.credits.map { ArtworkTileModel.of(it.item, TileKind.Poster, page.origin).copy(subtitle = it.subtitle) } }
+    val words = formatWords()
+    val rows = remember(page, words) {
+        page.roles.map { row -> row.role to row.credits.map { ArtworkTileModel.of(it.item, TileKind.Poster, page.origin, words).copy(subtitle = it.subtitle) } }
     }
     TvRowColumn(
         modifier = Modifier.fillMaxSize(),

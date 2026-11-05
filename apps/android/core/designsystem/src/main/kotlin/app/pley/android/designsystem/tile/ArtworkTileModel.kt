@@ -44,20 +44,9 @@ data class ArtworkTileModel(
     companion object {
         /**
          * The model of [item] drawn as [kind], its pictures on the server at
-         * [origin]. Badges come from what a listing knows (its
-         * [ItemSummary.media]) when [badges] is true.
-         */
-        fun of(
-            item: ItemSummary,
-            kind: TileKind,
-            origin: String,
-            badges: Boolean = false,
-            locale: Locale = Locale.getDefault(),
-        ): ArtworkTileModel = of(item, kind, origin, FormatWords.English, badges, locale)
-
-        /**
-         * [of] with its words in [words] (`formatWords()`, the language
-         * shown), its counts in [locale]'s digits.
+         * [origin], its words in [words] (`formatWords()`, the language
+         * shown) and its counts in [locale]'s digits. Badges come from what
+         * a listing knows (its [ItemSummary.media]) when [badges] is true.
          */
         fun of(
             item: ItemSummary,

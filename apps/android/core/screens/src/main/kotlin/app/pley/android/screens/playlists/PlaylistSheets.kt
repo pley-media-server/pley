@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.data.ItemRepository
 import app.pley.android.data.Loadable
@@ -14,6 +15,7 @@ import app.pley.android.data.map
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.fullTitle
 import app.pley.android.model.format.pluralize
 import app.pley.android.screens.R
@@ -100,15 +102,18 @@ class AddToPlaylistViewModel(
         deps.playlists.playlists(),
         deps.origin.map { it.orEmpty() }.distinctUntilChanged(),
         working,
-    ) { known, playlists, origin, busy ->
+        // Made again when the language shown changes: what is added and the cards' durations are written in it.
+        AppLanguage.shown,
+    ) { known, playlists, origin, busy, _ ->
         if (known != null) summaries = known
+        val words = AppLanguage.formatWords()
         val kind = known?.let { list -> list.firstOrNull()?.let { Playlists.kindOf(it.kind) } ?: PlaylistKind.Video }
         AddToPlaylistUiState(
             title = known?.let(::titleOf),
-            titleText = known?.let(::titleTextOf),
+            titleText = known?.let { titleTextOf(it, words) },
             kind = kind,
             playlists = playlists.map { list ->
-                list.filter { it.smartFilter.isNullOrEmpty() && (kind == null || it.kind == kind) }.map { Playlists.card(it, origin) }
+                list.filter { it.smartFilter.isNullOrEmpty() && (kind == null || it.kind == kind) }.map { Playlists.card(it, origin, words) }
             },
             busy = busy,
             lead = known?.firstOrNull(),
@@ -155,14 +160,14 @@ class AddToPlaylistViewModel(
         /** What is added, in words: one item's full title, else how many, in English. See [titleTextOf]. */
         fun titleOf(items: List<ItemSummary>): String = when (items.size) {
             0 -> ""
-            1 -> fullTitle(items.single())
+            1 -> fullTitle(items.single(), FormatWords.English)
             else -> pluralize(items.size, "item")
         }
 
-        /** What is added, in words: one item's full title, else how many ("3 items"). */
-        fun titleTextOf(items: List<ItemSummary>): UiText = when (items.size) {
+        /** What is added, in words: one item's full title (in [words]), else how many ("3 items"). */
+        fun titleTextOf(items: List<ItemSummary>, words: FormatWords): UiText = when (items.size) {
             0 -> UiText.raw("")
-            1 -> UiText.raw(fullTitle(items.single()))
+            1 -> UiText.raw(fullTitle(items.single(), words))
             else -> UiText.plural(R.plurals.playlists_count_items, items.size)
         }
 

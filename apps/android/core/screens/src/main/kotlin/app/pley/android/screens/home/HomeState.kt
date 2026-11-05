@@ -8,6 +8,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.cardSubtitle
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatRuntime
@@ -194,19 +195,24 @@ private val VIDEO_KINDS = setOf(ItemKind.Movie, ItemKind.Show, ItemKind.Season, 
  * it is in: the summary of a movie, the content rating and the quality
  * badges come only with it.
  */
-fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = AppLanguage.locale): HomeInfo {
+fun homeInfo(
+    item: ItemSummary,
+    detail: ItemDetail?,
+    locale: Locale = AppLanguage.locale,
+    words: FormatWords = AppLanguage.formatWords(),
+): HomeInfo {
     val details = detail?.takeIf { it.id == item.id }
     val episode = item.kind == ItemKind.Episode
     val show = item.grandparentTitle?.takeIf { episode && it.isNotEmpty() }
     val inProgress = isInProgress(item)
     val runtime = when (item.kind) {
-        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album -> cardSubtitle(item, locale)
-        else -> formatRuntime(item.durationMs ?: details?.durationMs)
+        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album -> cardSubtitle(item, words, locale)
+        else -> formatRuntime(item.durationMs ?: details?.durationMs, words)
     }
     return HomeInfo(
         item = item,
         title = show ?: item.title,
-        context = if (episode) listOf(episodeLabel(item), item.title).filter { it.isNotEmpty() }.joinToString(" · ") else "",
+        context = if (episode) listOf(episodeLabel(item, words), item.title).filter { it.isNotEmpty() }.joinToString(" · ") else "",
         meta = HomeMeta(
             year = (item.year ?: details?.year)?.toString().orEmpty(),
             contentRating = details?.contentRating?.takeIf { it.isNotBlank() },
@@ -216,7 +222,7 @@ fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = AppLanguag
         ),
         summary = (details?.summary ?: item.summary).orEmpty().trim(),
         progress = if (inProgress) progressFraction(item) else 0f,
-        timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs) else "",
+        timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs, words) else "",
         video = item.kind == ItemKind.Movie || episode || item.kind == ItemKind.Extra,
         watched = item.userState.watched,
         complete = details != null,

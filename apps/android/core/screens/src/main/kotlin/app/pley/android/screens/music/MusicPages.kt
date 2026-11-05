@@ -4,6 +4,7 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.model.format.formatDuration
 import app.pley.android.model.format.pluralize
@@ -118,11 +119,17 @@ fun artistPage(detail: ItemDetail, albums: List<ItemSummary>?, origin: String, l
     )
 }
 
-/** The album page of [detail] with [tracks] (`null` while they load). */
-fun albumPage(detail: ItemDetail, tracks: List<ItemSummary>?, origin: String, locale: Locale = AppLanguage.locale): AlbumPage {
+/** The album page of [detail] with [tracks] (`null` while they load), its length in [words]. */
+fun albumPage(
+    detail: ItemDetail,
+    tracks: List<ItemSummary>?,
+    origin: String,
+    locale: Locale = AppLanguage.locale,
+    words: FormatWords = AppLanguage.formatWords(),
+): AlbumPage {
     val list = tracks.orEmpty()
     val total = list.sumOf { it.durationMs ?: 0 }
-    val length = formatDuration(total).takeIf { it.isNotEmpty() }
+    val length = formatDuration(total, words).takeIf { it.isNotEmpty() }
     val meta = listOfNotNull(
         list.size.takeIf { it > 0 }?.let { pluralize(it, "track", locale = locale) },
         length,

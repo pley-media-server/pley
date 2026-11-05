@@ -16,6 +16,7 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.model.PersonCredit
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
+import app.pley.android.model.format.FormatWords
 import app.pley.android.screens.collection.CollectionViewModel
 import app.pley.android.screens.home.libraryCount
 import app.pley.android.screens.home.libraryCountText
@@ -92,10 +93,10 @@ class BrowsingWordsTest {
         assertEquals(album.meta, album.metaTexts.inEnglish().joinToString(" · "))
 
         for ((count, ms) in listOf(12 to 11_520_000L, 1 to 0L, 0 to 0L)) {
-            assertEquals(Playlists.meta(count, ms, Locale.US), Playlists.metaTexts(count, ms).inEnglish().joinToString(" · "))
+            assertEquals(Playlists.meta(count, ms, Locale.US), Playlists.metaTexts(count, ms, FormatWords.English).inEnglish().joinToString(" · "))
         }
         val three = (1..3L).map { track(it) }
-        assertEquals(AddToPlaylistViewModel.titleOf(three), AddToPlaylistViewModel.titleTextOf(three).inEnglish())
+        assertEquals(AddToPlaylistViewModel.titleOf(three), AddToPlaylistViewModel.titleTextOf(three, FormatWords.English).inEnglish())
     }
 
     @Test
@@ -126,8 +127,8 @@ class BrowsingWordsTest {
         assertEquals(listOf("1 película", "2 series"), person.countTexts.map { it.inLanguage("es") })
         assertEquals(listOf("3 albums", "30 titres"), artistPage(ARTIST_DETAIL, null, "").countTexts.map { it.inLanguage("fr") })
         assertEquals("1 pista", albumPage(ALBUM_DETAIL, listOf(track(1)), "").metaTexts.first().inLanguage("es"))
-        assertEquals("0 élément", Playlists.metaTexts(0, 0).single().inLanguage("fr"))
-        assertEquals("3 elementos", AddToPlaylistViewModel.titleTextOf((1..3L).map { track(it) }).inLanguage("es"))
+        assertEquals("0 élément", Playlists.metaTexts(0, 0, FormatWords.English).single().inLanguage("fr"))
+        assertEquals("3 elementos", AddToPlaylistViewModel.titleTextOf((1..3L).map { track(it) }, FormatWords.English).inLanguage("es"))
     }
 
     private fun credit(id: Long, kind: ItemKind) = PersonCredit(ItemSummary(id, 1, kind, "Title $id", year = 2019), listOf(PersonRole(CreditRole.Actor, "Mara")))

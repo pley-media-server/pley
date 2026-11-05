@@ -53,6 +53,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.ItemKind
@@ -381,7 +382,7 @@ private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onCl
             Text(name, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(
-                session?.let { lineOf(it, stringResource(R.string.remote_live_tv)) } ?: stringResource(R.string.remote_ready),
+                session?.let { lineOf(it, stringResource(R.string.remote_live_tv), formatWords()) } ?: stringResource(R.string.remote_ready),
                 style = MaterialTheme.typography.bodySmall,
                 color = PleyColors.Muted,
                 maxLines = 1,

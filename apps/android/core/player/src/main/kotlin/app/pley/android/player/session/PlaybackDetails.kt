@@ -109,8 +109,8 @@ object PlaybackDetails {
             videoIn
         }
         val audioRow = if (converting && transcode?.audio != StreamAction.Copy) "$audioIn → ${transcode?.audioOut ?: pending}" else audioIn
-        val bitrate = formatBitrate(file?.bitrate)
-        val bitrateRow = if (transcode?.bitrateOut != null && bitrate.isNotEmpty()) "$bitrate → ${formatBitrate(transcode.bitrateOut)}" else bitrate
+        val bitrate = formatBitrate(file?.bitrate, texts.format)
+        val bitrateRow = if (transcode?.bitrateOut != null && bitrate.isNotEmpty()) "$bitrate → ${formatBitrate(transcode.bitrateOut, texts.format)}" else bitrate
         val ahead = transcode?.let { ((it.transcodedMs - positionMs) / 1000).toInt().coerceAtLeast(0) } ?: 0
 
         val rows = buildList {
