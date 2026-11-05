@@ -14,7 +14,10 @@ export interface AppDownload {
   received: number;
   /** `preparing`: the server is making the file for the app's player (`preparing` says how far, 0 to 1). */
   state: "queued" | "preparing" | "downloading" | "waiting" | "failed" | "done";
+  /** Why it failed or waits, in English. */
   error: string | null;
+  /** `error` as a key of the app's words and its values (`{ key: "notWritten", detail }`), to say it in the page's language. */
+  why?: ({ key: string } & Record<string, unknown>) | null;
   preparing?: number | null;
 }
 

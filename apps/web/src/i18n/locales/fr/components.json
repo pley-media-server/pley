@@ -44,7 +44,31 @@
     "downloadingFiles_many": "Téléchargement de {{count}} de fichiers",
     "downloadingFiles_other": "Téléchargement de {{count}} fichiers",
     "panel": "Téléchargements",
-    "hint": "Les téléchargements se lisent depuis « {{place}} » dans le menu du compte, même sans le serveur."
+    "hint": "Les téléchargements se lisent depuis « {{place}} » dans le menu du compte, même sans le serveur.",
+    "why": {
+      "notMedia": "Pley ne conserve que les fichiers audio et vidéo.",
+      "notSaved": "Le fichier n’a pas pu être enregistré.",
+      "invalidAddress": "L’adresse de ce serveur n’est pas valide.",
+      "noAnswer": "Le serveur n’a pas répondu.",
+      "namedOtherwise": "Le serveur se présente ici sous un autre nom : vérifiez le proxy placé devant lui.",
+      "anotherDevice": "Un autre appareil répond à l’adresse de ce serveur.",
+      "notOnServer": "Ce fichier n’est plus sur le serveur.",
+      "signedOut": "Reconnectez-vous au serveur, puis relancez le téléchargement.",
+      "diskFull": "Le disque est plein.",
+      "notWritten": "Le fichier n’a pas pu être écrit : {{detail}}",
+      "cantMake": "Le serveur ne sait pas préparer de fichiers pour le lecteur de cet ordinateur : mettez-le à jour.",
+      "notMade": "Le serveur n’a pas pu le préparer pour cet ordinateur.",
+      "notMadeBecause": "Le serveur n’a pas pu le préparer pour cet ordinateur : {{detail}}",
+      "unreadable": "La réponse du serveur est illisible.",
+      "busy": "Le serveur ne peut pas le préparer pour le moment.",
+      "noReply": "Le serveur n’a pas pu répondre.",
+      "unreachable": "Le serveur est injoignable.",
+      "dropped": "La connexion au serveur a été interrompue.",
+      "notSent": "Le serveur n’a pas pu envoyer le fichier.",
+      "stoppedSending": "Le serveur a cessé d’envoyer le fichier.",
+      "downloadGone": "Ce téléchargement n’existe plus.",
+      "notWhole": "Ce téléchargement est incomplet."
+    }
   },
   "cards": {
     "playTitle": "Lire {{title}}"

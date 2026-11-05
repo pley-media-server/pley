@@ -42,7 +42,31 @@
     "downloadingFiles_one": "Downloading {{count}} file",
     "downloadingFiles_other": "Downloading {{count}} files",
     "panel": "Downloads",
-    "hint": "Downloads play from {{place}} in the account menu, even with the server away."
+    "hint": "Downloads play from {{place}} in the account menu, even with the server away.",
+    "why": {
+      "notMedia": "Pley keeps audio and video files only.",
+      "notSaved": "The file couldn't be saved.",
+      "invalidAddress": "This server's address isn't valid.",
+      "noAnswer": "The server didn't answer.",
+      "namedOtherwise": "The server names itself otherwise here: check the proxy in front of it.",
+      "anotherDevice": "Another device answers at this server's address.",
+      "notOnServer": "This file is no longer on the server.",
+      "signedOut": "Sign in to the server again, then download it again.",
+      "diskFull": "The disk is full.",
+      "notWritten": "The file couldn't be written: {{detail}}",
+      "cantMake": "The server can't make files for this computer's player: update it.",
+      "notMade": "The server couldn't make it for this computer.",
+      "notMadeBecause": "The server couldn't make it for this computer: {{detail}}",
+      "unreadable": "The server's answer can't be read.",
+      "busy": "The server can't make it right now.",
+      "noReply": "The server couldn't answer.",
+      "unreachable": "The server can't be reached.",
+      "dropped": "The connection to the server dropped.",
+      "notSent": "The server couldn't send the file.",
+      "stoppedSending": "The server stopped sending.",
+      "downloadGone": "This download is gone.",
+      "notWhole": "This download isn't whole."
+    }
   },
   "cards": {
     "playTitle": "Play {{title}}"

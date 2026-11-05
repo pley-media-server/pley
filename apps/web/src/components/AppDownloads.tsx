@@ -13,6 +13,40 @@ import { formatBytes } from "@/lib/format";
 import { useDismiss } from "@/lib/hooks";
 import { useToast } from "./Toast";
 
+/** The reasons the desktop app gives by key (`Said` in apps/desktop/src-tauri/src/said.rs). */
+const WHY = [
+  "notMedia",
+  "notSaved",
+  "invalidAddress",
+  "noAnswer",
+  "namedOtherwise",
+  "anotherDevice",
+  "notOnServer",
+  "signedOut",
+  "diskFull",
+  "notWritten",
+  "cantMake",
+  "notMade",
+  "notMadeBecause",
+  "unreadable",
+  "busy",
+  "noReply",
+  "unreachable",
+  "dropped",
+  "notSent",
+  "stoppedSending",
+  "downloadGone",
+  "notWhole",
+] as const;
+
+/** Why a download failed, in the page's language when the app said it by a key this page knows, else as the app wrote it. */
+function whyOf(d: AppDownload, t: TFunction<"components">): string {
+  const key = WHY.find((k) => k === d.why?.key);
+  if (!key || !d.why) return d.error ?? "";
+  const detail = typeof d.why.detail === "string" ? d.why.detail : "";
+  return t(`appDownloads.why.${key}`, { detail });
+}
+
 /** A ring that fills as the downloads come (and turns while their size is unknown). */
 function Ring({ fraction }: { fraction: number | null }) {
   const r = 7;
@@ -69,7 +103,7 @@ export function AppDownloads() {
       if (d.id === 0) {
         // A file the page made, saved with the system's downloads.
         if (d.state === "done") toast.success(t("appDownloads.saved", { name: d.name }));
-        else toast.error(t("appDownloads.failed", { name: d.name, error: d.error ?? "" }));
+        else toast.error(t("appDownloads.failed", { name: d.name, error: whyOf(d, t) }));
         return;
       }
       if (d.state === before?.state) {
@@ -77,7 +111,7 @@ export function AppDownloads() {
         return;
       }
       if (d.state === "done") toast.success(t("appDownloads.done", { name: d.name }));
-      else if (d.state === "failed") toast.error(t("appDownloads.failed", { name: d.name, error: d.error ?? "" }));
+      else if (d.state === "failed") toast.error(t("appDownloads.failed", { name: d.name, error: whyOf(d, t) }));
       else if (!before && d.state !== "waiting") toast.info(t("appDownloads.downloading", { name: d.name }));
     },
     [toast, t],

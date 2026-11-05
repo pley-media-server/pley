@@ -1,6 +1,7 @@
 import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setLanguage } from "@/i18n";
 import { APP_DOWNLOAD_EVENT, type AppDownload } from "@/lib/appDownloads";
 import { renderWithProviders } from "@/test/render";
 import { AppDownloads } from "./AppDownloads";
@@ -70,5 +71,20 @@ describe("AppDownloads", () => {
     expect(screen.getByText("Couldn't download Heat (1995).mkv. This file is no longer on the server.")).toBeInTheDocument();
     tell({ ...ALIEN, id: 0, name: "pley-recovery-codes.txt", size: null, state: "done" });
     expect(screen.getByText("Saved pley-recovery-codes.txt in your Downloads folder")).toBeInTheDocument();
+  });
+
+  it("says why in the page's language when the app gives its reason by key, and as written otherwise", async () => {
+    await setLanguage("fr");
+    try {
+      renderWithProviders(<AppDownloads />);
+      const detail = "Access is denied. (os error 5)";
+      tell({ ...ALIEN, id: 6, state: "failed", error: `The file couldn't be written: ${detail}`, why: { key: "notWritten", detail } });
+      expect(document.body.textContent).toContain(`Impossible de télécharger Alien (1979).mkv. Le fichier n’a pas pu être écrit\u00a0: ${detail}`);
+      // A reason from a later app: its English.
+      tell({ ...ALIEN, id: 7, state: "failed", error: "The moon is in the way.", why: { key: "moon" } });
+      expect(document.body.textContent).toContain("Impossible de télécharger Alien (1979).mkv. The moon is in the way.");
+    } finally {
+      await setLanguage("en");
+    }
   });
 });

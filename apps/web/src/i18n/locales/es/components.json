@@ -44,7 +44,31 @@
     "downloadingFiles_many": "Descargando {{count}} archivos",
     "downloadingFiles_other": "Descargando {{count}} archivos",
     "panel": "Descargas",
-    "hint": "Las descargas se reproducen desde «{{place}}» en el menú de la cuenta, incluso sin el servidor."
+    "hint": "Las descargas se reproducen desde «{{place}}» en el menú de la cuenta, incluso sin el servidor.",
+    "why": {
+      "notMedia": "Pley solo guarda archivos de audio y video.",
+      "notSaved": "No se pudo guardar el archivo.",
+      "invalidAddress": "La dirección de este servidor no es válida.",
+      "noAnswer": "El servidor no respondió.",
+      "namedOtherwise": "Aquí el servidor se identifica con otro nombre: revisa el proxy que tiene delante.",
+      "anotherDevice": "Otro dispositivo responde en la dirección de este servidor.",
+      "notOnServer": "Este archivo ya no está en el servidor.",
+      "signedOut": "Vuelve a iniciar sesión en el servidor y descárgalo de nuevo.",
+      "diskFull": "El disco está lleno.",
+      "notWritten": "No se pudo escribir el archivo: {{detail}}",
+      "cantMake": "El servidor no puede preparar archivos para el reproductor de este equipo: actualízalo.",
+      "notMade": "El servidor no pudo prepararlo para este equipo.",
+      "notMadeBecause": "El servidor no pudo prepararlo para este equipo: {{detail}}",
+      "unreadable": "No se puede leer la respuesta del servidor.",
+      "busy": "El servidor no puede prepararlo ahora mismo.",
+      "noReply": "El servidor no pudo responder.",
+      "unreachable": "No se puede conectar con el servidor.",
+      "dropped": "Se cortó la conexión con el servidor.",
+      "notSent": "El servidor no pudo enviar el archivo.",
+      "stoppedSending": "El servidor dejó de enviar el archivo.",
+      "downloadGone": "Esta descarga ya no existe.",
+      "notWhole": "Esta descarga está incompleta."
+    }
   },
   "cards": {
     "playTitle": "Reproducir {{title}}"
