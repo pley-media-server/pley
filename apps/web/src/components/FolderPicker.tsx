@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowUp, ChevronRight, Folder, HardDrive } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useFs } from "@/api/hooks";
 import { Modal } from "./Modal";
@@ -17,6 +18,7 @@ export function FolderPicker({
   onSelect: (path: string) => void;
   initialPath?: string | null;
 }) {
+  const { t } = useTranslation(["components", "common"]);
   const [path, setPath] = useState<string | null>(initialPath ?? null);
   const [input, setInput] = useState(initialPath ?? "");
   const fs = useFs(path, open);
@@ -39,12 +41,12 @@ export function FolderPicker({
     <Modal
       open={open}
       onClose={onClose}
-      title="Choose a folder"
+      title={t("folderPicker.title")}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -53,7 +55,7 @@ export function FolderPicker({
               if (fs.data?.path) onSelect(fs.data.path);
             }}
           >
-            Select this folder
+            {t("folderPicker.select")}
           </Button>
         </>
       }
@@ -66,17 +68,17 @@ export function FolderPicker({
           setPath(p ? p : null);
         }}
       >
-        <IconButton label="Up one level" size="md" onClick={goUp} disabled={atRoots} className="rounded-md bg-surface-2">
+        <IconButton label={t("folderPicker.up")} size="md" onClick={goUp} disabled={atRoots} className="rounded-md bg-surface-2">
           <ArrowUp className="size-4" />
         </IconButton>
         <TextInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a path, e.g. D:\Media\Movies or /mnt/media"
+          placeholder={t("folderPicker.placeholder")}
           className="font-mono text-xs"
-          aria-label="Folder path"
+          aria-label={t("folderPicker.pathLabel")}
         />
-        <Button type="submit">Go</Button>
+        <Button type="submit">{t("folderPicker.go")}</Button>
       </form>
 
       <div className="h-80 overflow-y-auto rounded-md border border-border bg-bg/40">
@@ -88,11 +90,11 @@ export function FolderPicker({
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm">
             <p className="text-danger">{errorMessage(fs.error)}</p>
             <Button size="sm" onClick={() => setPath(null)}>
-              Back to top
+              {t("folderPicker.backToTop")}
             </Button>
           </div>
         ) : fs.data.entries.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-sm text-subtle">No sub-folders here.</div>
+          <div className="flex h-full items-center justify-center p-6 text-sm text-subtle">{t("folderPicker.empty")}</div>
         ) : (
           <ul className="divide-y divide-white/[0.04]">
             {fs.data.entries.map((e) => (
@@ -112,7 +114,7 @@ export function FolderPicker({
           </ul>
         )}
       </div>
-      <p className="mt-2 text-xs text-subtle">Click to open a folder, double-click to select it directly.</p>
+      <p className="mt-2 text-xs text-subtle">{t("folderPicker.hint")}</p>
     </Modal>
   );
 }

@@ -1,22 +1,18 @@
 import { useState, type KeyboardEvent } from "react";
 import { Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useSetRating } from "@/api/hooks";
 import type { ItemSummary } from "@/api/types";
 import { useToast } from "@/components/Toast";
 import { cn } from "@/lib/cn";
 
-/** 0-10 → "3.5 stars". */
-function label(value: number): string {
-  const stars = value / 2;
-  return `${stars} star${stars === 1 ? "" : "s"}`;
-}
-
 /**
  * The user's own rating: five stars, halves allowed (0-10 on the server).
  * Clicking the current rating clears it.
  */
 export function StarRating({ item, className }: { item: ItemSummary; className?: string }) {
+  const { t } = useTranslation("components");
   const toast = useToast();
   const setRating = useSetRating();
   const saved = item.user_state.rating ?? null;
@@ -24,6 +20,8 @@ export function StarRating({ item, className }: { item: ItemSummary; className?:
   const value = setRating.isPending && setRating.variables ? setRating.variables.rating : saved;
   const [hover, setHover] = useState<number | null>(null);
   const shown = hover ?? value ?? 0;
+  /** 0-10 → "3.5 stars". */
+  const label = (rating: number) => t("starRating.stars", { count: rating / 2 });
 
   const save = (rating: number | null) =>
     setRating.mutate({ id: item.id, rating }, { onError: (err) => toast.error(errorMessage(err)) });
@@ -59,12 +57,12 @@ export function StarRating({ item, className }: { item: ItemSummary; className?:
     <div
       role="slider"
       tabIndex={0}
-      aria-label="Your rating"
+      aria-label={t("starRating.label")}
       aria-valuemin={0}
       aria-valuemax={10}
       aria-valuenow={value ?? 0}
-      aria-valuetext={value ? label(value) : "Not rated"}
-      title={value ? `Your rating: ${label(value)}` : "Rate it"}
+      aria-valuetext={value ? label(value) : t("starRating.notRated")}
+      title={value ? t("starRating.yourRating", { stars: label(value) }) : t("starRating.rateIt")}
       onKeyDown={onKey}
       onPointerLeave={() => setHover(null)}
       className={cn("inline-flex items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent", className)}

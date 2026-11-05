@@ -1,4 +1,5 @@
 import { Check, Clapperboard, Music, Tv } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useLibraries } from "@/api/hooks";
 import type { Id, LibraryKind } from "@/api/types";
 import { AGE_OPTIONS, ageToSelect, selectToAge, toggleId } from "@/lib/access";
@@ -23,20 +24,21 @@ export function AccessFields({
   onChange: (v: AccessValue) => void;
   idPrefix: string;
 }) {
+  const { t } = useTranslation("components");
   const libs = useLibraries();
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
 
   return (
     <div className="space-y-4">
       <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-medium">Libraries</legend>
+        <legend className="mb-1.5 text-sm font-medium">{t("accessFields.libraries")}</legend>
         <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-sm">
           {[
-            { all: true, label: "All libraries" },
-            { all: false, label: "Only some" },
+            { all: true, label: t("accessFields.allLibraries") },
+            { all: false, label: t("accessFields.onlySome") },
           ].map((o) => (
             <button
-              key={o.label}
+              key={String(o.all)}
               type="button"
               aria-pressed={value.all_libraries === o.all}
               onClick={() => set({ all_libraries: o.all })}
@@ -50,7 +52,7 @@ export function AccessFields({
           ))}
         </div>
         {value.all_libraries ? (
-          <p className="text-xs text-subtle">Includes libraries you add later.</p>
+          <p className="text-xs text-subtle">{t("accessFields.includesLater")}</p>
         ) : (
           <div className="max-h-52 space-y-1 overflow-y-auto rounded-md border border-border p-1.5">
             {(libs.data ?? []).map((lib) => {
@@ -82,15 +84,15 @@ export function AccessFields({
                 </label>
               );
             })}
-            {libs.data && libs.data.length === 0 ? <p className="px-2 py-1.5 text-sm text-subtle">No libraries yet.</p> : null}
+            {libs.data && libs.data.length === 0 ? <p className="px-2 py-1.5 text-sm text-subtle">{t("accessFields.noLibraries")}</p> : null}
           </div>
         )}
       </fieldset>
 
       <Field
-        label="Age limit"
+        label={t("accessFields.ageLimit")}
         htmlFor={`${idPrefix}-age`}
-        hint="Movies and shows above this rating, and unrated ones, are hidden. Music is not affected."
+        hint={t("accessFields.ageLimitHint")}
       >
         <Select
           id={`${idPrefix}-age`}

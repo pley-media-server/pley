@@ -1,5 +1,6 @@
 import { forwardRef, useState, type InputHTMLAttributes } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TextInput } from "./ui";
 
 /** A password field whose text can be shown, so it needs no second "confirm" field. */
@@ -7,6 +8,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputHTMLAttribut
   { className, ...rest },
   ref,
 ) {
+  const { t } = useTranslation("components");
   const [visible, setVisible] = useState(false);
   return (
     <div className="relative">
@@ -14,7 +16,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputHTMLAttribut
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? "Hide password" : "Show password"}
+        aria-label={visible ? t("passwordInput.hide") : t("passwordInput.show")}
         aria-pressed={visible}
         className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-subtle transition-colors hover:text-fg"
       >

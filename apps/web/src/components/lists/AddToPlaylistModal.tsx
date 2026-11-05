@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { playlistKindOf, useAddToPlaylist, useCreatePlaylist, usePlaylists, type Playlist } from "@/api/lists";
 import type { ItemSummary } from "@/api/types";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, Skeleton, TextInput } from "@/components/ui";
-import { formatDuration, fullTitle, pluralize } from "@/lib/format";
+import { formatDuration, fullTitle } from "@/lib/format";
 import { PlaylistArt } from "./PlaylistArt";
 
 /** Pick (or start) a playlist for an item; shows, seasons, albums and artists add all their items. */
 export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null; onClose: () => void }) {
+  const { t } = useTranslation(["components", "common"]);
   const open = item != null;
   const kind = item ? playlistKindOf(item.kind) : "video";
   const playlists = usePlaylists(open);
@@ -30,7 +32,7 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
       { title: name, kind, item_ids: [item.id] },
       {
         onSuccess: (p) => {
-          toast.success(`Added to ${p.title}`);
+          toast.success(t("lists.addedTo", { title: p.title }));
           onClose();
         },
         onError: (err) => toast.error(errorMessage(err)),
@@ -44,8 +46,8 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
       { id: p.id, itemIds: [item.id] },
       {
         onSuccess: ({ added }) => {
-          if (added === 0) toast.info("Nothing to add");
-          else toast.success(added === 1 ? `Added to ${p.title}` : `Added ${added} items to ${p.title}`);
+          if (added === 0) toast.info(t("addToPlaylist.nothingToAdd"));
+          else toast.success(added === 1 ? t("lists.addedTo", { title: p.title }) : t("addToPlaylist.addedItems", { count: added, title: p.title }));
           onClose();
         },
         onError: (err) => toast.error(errorMessage(err)),
@@ -54,18 +56,18 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Add to playlist" size="sm" locked={busy}>
+    <Modal open={open} onClose={onClose} title={t("addToPlaylist.title")} size="sm" locked={busy}>
       {item ? <p className="-mt-1 mb-3 truncate text-sm text-muted">{fullTitle(item)}</p> : null}
       <form onSubmit={onCreate} className="flex gap-2">
         <TextInput
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={kind === "audio" ? "New music playlist" : "New video playlist"}
-          aria-label="New playlist name"
+          placeholder={kind === "audio" ? t("addToPlaylist.newMusic") : t("addToPlaylist.newVideo")}
+          aria-label={t("addToPlaylist.nameLabel")}
           maxLength={200}
         />
         <Button type="submit" variant="primary" icon={<Plus className="size-4" />} disabled={!title.trim() || add.isPending} loading={create.isPending}>
-          Create
+          {t("common:actions.create")}
         </Button>
       </form>
       <div className="mt-4">
@@ -77,7 +79,7 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
         ) : playlists.isError ? (
           <p className="text-sm text-danger">{errorMessage(playlists.error)}</p>
         ) : matching.length === 0 ? (
-          <p className="py-2 text-sm text-muted">No {kind === "audio" ? "music" : "video"} playlists yet: name one above.</p>
+          <p className="py-2 text-sm text-muted">{kind === "audio" ? t("addToPlaylist.emptyMusic") : t("addToPlaylist.emptyVideo")}</p>
         ) : (
           <ul className="-mx-2 max-h-72 overflow-y-auto">
             {matching.map((p) => (
@@ -92,7 +94,7 @@ export function AddToPlaylistModal({ item, onClose }: { item: ItemSummary | null
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-fg">{p.title}</span>
                     <span className="block text-xs text-muted">
-                      {[pluralize(p.item_count, "item"), formatDuration(p.duration_ms)].filter(Boolean).join(" · ")}
+                      {[t("lists.items", { count: p.item_count }), formatDuration(p.duration_ms)].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                 </button>

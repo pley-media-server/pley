@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { keys, useForgetMyLibraryOrder, useLibraries, useSortMyLibraries } from "@/api/hooks";
 import type { Id, Library } from "@/api/types";
@@ -20,6 +21,7 @@ type Direction = "up" | "down";
  * goes back to the one everyone else sees.
  */
 export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation(["components", "common"]);
   const libs = useLibraries();
   const sort = useSortMyLibraries();
   const forget = useForgetMyLibraryOrder();
@@ -35,13 +37,17 @@ export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: 
   const move = (from: number, to: number) => {
     const lib = libraries[from];
     if (!lib || to < 0 || to >= libraries.length || to === from) return;
-    setNote(`${lib.name} moved to position ${to + 1} of ${libraries.length}`);
+    setNote(t("sortLibraries.moved", { name: lib.name, position: to + 1, total: libraries.length }));
     sort.mutate(moved(libraries.map((l) => l.id), from, to), {
       onError: (e) => {
         toast.error(errorMessage(e));
         const saved = qc.getQueryData<Library[]>(keys.libraries) ?? [];
         const back = saved.findIndex((l) => l.id === lib.id);
-        setNote(back < 0 ? `${lib.name} wasn't moved` : `${lib.name} moved back to position ${back + 1} of ${saved.length}`);
+        setNote(
+          back < 0
+            ? t("sortLibraries.notMoved", { name: lib.name })
+            : t("sortLibraries.movedBack", { name: lib.name, position: back + 1, total: saved.length }),
+        );
       },
     });
   };
@@ -57,7 +63,7 @@ export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: 
   };
   const backToServerOrder = () =>
     forget.mutate(undefined, {
-      onSuccess: () => setNote("Libraries back in the server's order"),
+      onSuccess: () => setNote(t("sortLibraries.backInServerOrder")),
       onError: (e) => toast.error(errorMessage(e)),
     });
 
@@ -83,21 +89,21 @@ export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: 
     <Modal
       open={open}
       onClose={onClose}
-      title="Sort libraries"
+      title={t("sortLibraries.title")}
       size="sm"
       footer={
         <>
           <Button variant="ghost" className="mr-auto" onClick={backToServerOrder} loading={forget.isPending}>
-            Use the server's order
+            {t("sortLibraries.useServerOrder")}
           </Button>
           <Button variant="primary" onClick={onClose} data-autofocus>
-            Done
+            {t("common:actions.done")}
           </Button>
         </>
       }
     >
-      <p className="mb-4 text-sm text-muted">Your order, on every device you use Pley on.</p>
-      <ol ref={listRef} aria-label="Your libraries" className="space-y-2" {...drag.listProps}>
+      <p className="mb-4 text-sm text-muted">{t("sortLibraries.hint")}</p>
+      <ol ref={listRef} aria-label={t("sortLibraries.list")} className="space-y-2" {...drag.listProps}>
         {libraries.map((lib, i) => {
           const mark = drag.dropMark(i);
           return (
@@ -118,7 +124,7 @@ export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: 
                 <span
                   draggable
                   data-drag-handle
-                  title="Drag to reorder"
+                  title={t("sortLibraries.drag")}
                   aria-hidden
                   className="shrink-0 cursor-grab rounded p-1 text-subtle transition-colors hover:text-fg active:cursor-grabbing"
                 >
@@ -128,11 +134,11 @@ export function SortLibrariesModal({ open, onClose }: { open: boolean; onClose: 
                   <LibraryIcon kind={lib.kind} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{lib.name}</span>
-                <IconButton label={`Move ${lib.name} up`} size="sm" data-move="up" disabled={i === 0} onClick={() => moveBy(i, "up")}>
+                <IconButton label={t("sortLibraries.moveUp", { name: lib.name })} size="sm" data-move="up" disabled={i === 0} onClick={() => moveBy(i, "up")}>
                   <ChevronUp className="size-4" />
                 </IconButton>
                 <IconButton
-                  label={`Move ${lib.name} down`}
+                  label={t("sortLibraries.moveDown", { name: lib.name })}
                   size="sm"
                   data-move="down"
                   disabled={i === libraries.length - 1}

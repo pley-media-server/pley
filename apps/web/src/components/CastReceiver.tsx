@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, errorMessage } from "@/api/client";
 import { onServerEvent, setReceiver } from "@/api/events";
 import { queries } from "@/api/hooks";
@@ -57,6 +58,7 @@ const MUSIC = new Set(["album", "artist", "track"]);
  * otherwise go on playing over the music.
  */
 function useCastPlayer() {
+  const { t } = useTranslation("components");
   const navigate = useNavigate();
   const qc = useQueryClient();
   const play = usePlayItem();
@@ -64,7 +66,7 @@ function useCastPlayer() {
   const startQueue = useVideoQueue();
   const toast = useToast();
   return async (cast: Cast, onPlayer: boolean) => {
-    const from = `Playing from ${cast.from ?? "another device"}`;
+    const from = t("castReceiver.playingFrom", { device: cast.from ?? t("castReceiver.anotherDevice") });
     try {
       // When nothing plays (a show with nothing next, say), the page said why: no "Playing from".
       let played = true;

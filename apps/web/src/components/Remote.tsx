@@ -1,5 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   AppWindow,
   AudioLines,
@@ -32,7 +34,7 @@ import {
 } from "@/api/hooks";
 import type { Control, DeviceKind } from "@/api/types";
 import { cn } from "@/lib/cn";
-import { episodeLabel, formatClock, fullTitle, pluralize } from "@/lib/format";
+import { episodeLabel, formatClock, fullTitle } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
 import { formatTime } from "@/pages/livetv/common";
 import { posterCandidates } from "@/lib/images";
@@ -96,10 +98,10 @@ export function DeviceIcon({ kind, className }: { kind: DeviceKind; className?: 
 }
 
 /** What `device` plays, as its row says it: a title in full, a channel ("1 Channel One"), or "Ready to play". */
-function playingLine(device: OtherDevice): string {
+function playingLine(device: OtherDevice, t: TFunction<"components">): string {
   const s = device.session;
-  if (!s) return "Ready to play";
-  if (s.kind === "live") return s.channel ? [s.channel.number, s.channel.name].filter(Boolean).join(" ") : "Live TV";
+  if (!s) return t("remote.readyToPlay");
+  if (s.kind === "live") return s.channel ? [s.channel.number, s.channel.name].filter(Boolean).join(" ") : t("remote.liveTv");
   return s.item ? fullTitle(s.item) : "";
 }
 
@@ -109,6 +111,7 @@ function playingLine(device: OtherDevice): string {
  * the control around it to be described by.
  */
 export function DeviceSummary({ device, lineId, chosen }: { device: OtherDevice; lineId: string; chosen?: boolean }) {
+  const { t } = useTranslation("components");
   const nowMs = useNow(1_000) * 1000;
   const s = device.session;
   const progress = s?.kind === "item" && s.duration_ms ? estimatedPosition(s, nowMs) / s.duration_ms : null;
@@ -118,7 +121,7 @@ export function DeviceSummary({ device, lineId, chosen }: { device: OtherDevice;
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-fg">{device.name}</span>
         <span id={lineId} className="block truncate text-xs text-muted">
-          {playingLine(device)}
+          {playingLine(device, t)}
         </span>
         {progress !== null ? <ProgressBar value={progress} className="mt-1 h-0.5" /> : null}
       </span>
@@ -132,6 +135,7 @@ export function DeviceSummary({ device, lineId, chosen }: { device: OtherDevice;
  * plays there and the commands its player obeys.
  */
 export function RemoteButton() {
+  const { t } = useTranslation("components");
   const { devices, known } = useOtherDevices();
   const [open, setOpen] = useState(false);
   // Kept while the panel is open; with one device, that one is shown.
@@ -179,9 +183,7 @@ export function RemoteButton() {
 
   const current = devices.length === 1 ? devices[0] : devices.find((d) => d.id === chosen);
   const playing = devices.filter((d) => d.session).length;
-  const label = playing
-    ? `Remote, ${pluralize(playing, "device")} playing`
-    : `Remote, ${pluralize(devices.length, "device")} ready to play`;
+  const label = playing ? t("remote.buttonPlaying", { count: playing }) : t("remote.buttonReady", { count: devices.length });
   return (
     <div ref={ref} className="relative">
       <button
@@ -212,7 +214,7 @@ export function RemoteButton() {
         >
           <div className="p-2">
             <h2 id={headingId} className="px-2 pb-1 pt-1 text-xs font-medium text-subtle">
-              Your devices
+              {t("remote.yourDevices")}
             </h2>
             {/* With a device's controls below, a long list scrolls on its own, about four and a half
                 rows tall, so the controls stay in view; alone, it takes the panel. */}
@@ -267,12 +269,13 @@ function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: 
 
 /** A device ready to play, that plays nothing: how to send it something. */
 function IdleDevice({ device }: { device: OtherDevice }) {
+  const { t } = useTranslation("components");
   return (
     <div role="group" aria-label={device.name} className="flex flex-col items-center gap-1 px-6 py-5 text-center">
       <DeviceIcon kind={device.kind} className="mb-1 size-8 text-subtle" />
       <div className="text-sm font-semibold text-fg">{device.name}</div>
-      <div className="text-sm text-muted">Nothing playing</div>
-      <p className="mt-1 text-xs text-subtle [text-wrap:pretty]">Send something here with Play on…</p>
+      <div className="text-sm text-muted">{t("remote.nothingPlaying")}</div>
+      <p className="mt-1 text-xs text-subtle [text-wrap:pretty]">{t("remote.sendHint")}</p>
     </div>
   );
 }
@@ -282,10 +285,10 @@ function IdleDevice({ device }: { device: OtherDevice }) {
  * then its title; a track, then its artist; a channel's number and name,
  * then what's on.
  */
-function titleLines(session: RemoteSession): [string, string | null] {
+function titleLines(session: RemoteSession, t: TFunction<"components">): [string, string | null] {
   if (session.kind === "live") {
     const c = session.channel;
-    return [c ? [c.number, c.name].filter(Boolean).join(" ") : "Live TV", c?.now ?? null];
+    return [c ? [c.number, c.name].filter(Boolean).join(" ") : t("remote.liveTv"), c?.now ?? null];
   }
   const item = session.item;
   if (!item) return ["", null];
@@ -302,8 +305,6 @@ interface PickerOption {
   label: string;
 }
 
-const PICKER_NAMES: Record<Picker, string> = { audio: "Audio", subtitles: "Subtitles", quality: "Quality" };
-
 function PickerIcon({ picker }: { picker: Picker }) {
   if (picker === "audio") return <AudioLines className="size-4" />;
   if (picker === "subtitles") return <Captions className="size-4" />;
@@ -312,6 +313,7 @@ function PickerIcon({ picker }: { picker: Picker }) {
 
 /** A playing device's controls: what plays, how far, and the commands its player listed. */
 function PlayingControls({ device, session }: { device: OtherDevice; session: RemoteSession }) {
+  const { t } = useTranslation(["components", "common"]);
   const name = device.name;
   const qc = useQueryClient();
   const command = useSessionCommand();
@@ -344,7 +346,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
           // A player with nothing next or before stays where it is, as it should.
           if (sent.command === "next" || sent.command === "previous") return;
           if (list && !commandAnswered(sent, newestOn(list, sent.before.device_id, isPlayingHere), Date.now())) {
-            setError(`${name} didn't answer.`);
+            setError(t("remote.noAnswer", { device: name }));
           }
         });
     }, ANSWER_WAIT_MS);
@@ -352,7 +354,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
       current = false;
       window.clearTimeout(timer);
     };
-  }, [sent, qc, name]);
+  }, [sent, qc, name, t]);
 
   const position = estimatedPosition(session, nowMs);
   const duration = session.duration_ms;
@@ -388,7 +390,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
   const nextShown = can("next") || live || kind === "episode" || kind === "track";
   // A channel goes back and on, and pauses where the player can: no skips.
   const skips = can("skip") && !live;
-  const [title, detail] = titleLines(session);
+  const [title, detail] = titleLines(session, t);
   const waiting = command.isPending || !!sent;
 
   // Audio where there is a choice of tracks; subtitles where there are any,
@@ -402,10 +404,10 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
     quality: can("quality") && qualities.length > 0,
   };
   const options: Record<Picker, PickerOption[]> = {
-    audio: audio.map((t) => ({ key: String(t.index), label: trackLabel(t, "audio") })),
+    audio: audio.map((track) => ({ key: String(track.index), label: trackLabel(track, "audio") })),
     subtitles: [
-      { key: "-1", label: "Off" },
-      ...subtitles.map((t) => ({ key: String(t.index), label: trackLabel(t, "subtitle") })),
+      { key: "-1", label: t("remote.subtitlesOff") },
+      ...subtitles.map((track) => ({ key: String(track.index), label: trackLabel(track, "subtitle") })),
     ],
     quality: qualities.map((q) => ({ key: q.id, label: q.label })),
   };
@@ -422,7 +424,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
     if (picking) pickers.current[picking]?.focus();
     setPicking(null);
   };
-  const pickerLabel = (p: Picker) => `${PICKER_NAMES[p]} on ${name}`;
+  const pickerLabel = (p: Picker) => t(`remote.${p}On`, { device: name });
   const pickersShown = (["audio", "subtitles", "quality"] as const).filter((p) => offered[p]);
 
   const askStop = () => {
@@ -474,16 +476,16 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
           <span className="w-11 text-right">{formatClock(position / 1000)}</span>
           {can("seek") ? (
             <Slider
-              label={`Seek on ${name}`}
+              label={t("remote.seekOn", { device: name })}
               value={position}
               max={duration}
               step={1_000}
-              valueText={(ms) => `${formatClock(ms / 1000)} of ${formatClock(duration / 1000)}`}
+              valueText={(ms) => t("remote.timeOf", { position: formatClock(ms / 1000), duration: formatClock(duration / 1000) })}
               onCommit={(ms) => send("seek", { positionMs: Math.round(ms) })}
               className="flex-1"
             />
           ) : (
-            <ProgressBar value={position / duration} className="h-1 flex-1" label={`Progress on ${name}`} />
+            <ProgressBar value={position / duration} className="h-1 flex-1" label={t("remote.progressOn", { device: name })} />
           )}
           <span className="w-11">{formatClock(duration / 1000)}</span>
         </div>
@@ -495,8 +497,8 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
           {toggle ? (
             <button
               type="button"
-              aria-label={`${toggle === "play" ? "Play" : "Pause"} on ${name}`}
-              title={toggle === "play" ? "Play" : "Pause"}
+              aria-label={toggle === "play" ? t("remote.playOnDevice", { device: name }) : t("remote.pauseOnDevice", { device: name })}
+              title={toggle === "play" ? t("common:actions.play") : t("remote.pause")}
               onClick={() => send(toggle)}
               className="flex size-10 items-center justify-center rounded-full bg-fg text-bg transition hover:scale-105"
             >
@@ -504,13 +506,13 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
             </button>
           ) : null}
           <div className="flex items-center gap-0.5 rounded-full bg-white/5 p-1 ring-1 ring-inset ring-border">
-            <IconButton label={`Previous channel on ${name}`} size="sm" disabled={!can("previous")} onClick={() => send("previous")}>
+            <IconButton label={t("remote.previousChannelOn", { device: name })} size="sm" disabled={!can("previous")} onClick={() => send("previous")}>
               <ChevronDown className="size-5" />
             </IconButton>
             <span aria-hidden className="px-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-              Channel
+              {t("remote.channel")}
             </span>
-            <IconButton label={`Next channel on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
+            <IconButton label={t("remote.nextChannelOn", { device: name })} size="sm" disabled={!can("next")} onClick={() => send("next")}>
               <ChevronUp className="size-5" />
             </IconButton>
           </div>
@@ -518,20 +520,20 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
       ) : can("previous") || skips || toggle || nextShown ? (
         <div className={cn("flex items-center justify-center gap-2 transition-opacity", waiting && "opacity-50")}>
           {can("previous") ? (
-            <IconButton label={`Previous on ${name}`} size="sm" onClick={() => send("previous")}>
+            <IconButton label={t("remote.previousOn", { device: name })} size="sm" onClick={() => send("previous")}>
               <SkipBack className="size-4 fill-current" />
             </IconButton>
           ) : null}
           {skips ? (
-            <IconButton label={`Back 10 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: -SKIP_BACK_MS })}>
+            <IconButton label={t("remote.backOn", { device: name })} size="sm" onClick={() => send("skip", { offsetMs: -SKIP_BACK_MS })}>
               <RotateCcw className="size-4" />
             </IconButton>
           ) : null}
           {toggle ? (
             <button
               type="button"
-              aria-label={`${toggle === "play" ? "Play" : "Pause"} on ${name}`}
-              title={toggle === "play" ? "Play" : "Pause"}
+              aria-label={toggle === "play" ? t("remote.playOnDevice", { device: name }) : t("remote.pauseOnDevice", { device: name })}
+              title={toggle === "play" ? t("common:actions.play") : t("remote.pause")}
               onClick={() => send(toggle)}
               className="flex size-10 items-center justify-center rounded-full bg-fg text-bg transition hover:scale-105"
             >
@@ -539,19 +541,19 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
             </button>
           ) : null}
           {skips ? (
-            <IconButton label={`Forward 30 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: SKIP_FORWARD_MS })}>
+            <IconButton label={t("remote.forwardOn", { device: name })} size="sm" onClick={() => send("skip", { offsetMs: SKIP_FORWARD_MS })}>
               <RotateCw className="size-4" />
             </IconButton>
           ) : null}
           {nextShown ? (
-            <IconButton label={`Next on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
+            <IconButton label={t("remote.nextOn", { device: name })} size="sm" disabled={!can("next")} onClick={() => send("next")}>
               <SkipForward className="size-4 fill-current" />
             </IconButton>
           ) : null}
         </div>
       ) : null}
       <span className="sr-only" role="status">
-        {waiting ? `Waiting for ${name}` : ""}
+        {waiting ? t("remote.waitingFor", { device: name }) : ""}
       </span>
 
       {confirming ? (
@@ -580,12 +582,12 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
             type="button"
             onClick={askStop}
             disabled={stop.isPending}
-            aria-label={`Stop on ${name}`}
+            aria-label={t("remote.stopOn", { device: name })}
             aria-haspopup="dialog"
             className="ml-auto flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
           >
             <CircleStop className="size-4" />
-            Stop
+            {t("remote.stop")}
           </button>
         </div>
       )}
@@ -617,6 +619,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
  * Cancel goes back; Stop has focus, as it was the button pressed.
  */
 function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () => void; onStop: () => void }) {
+  const { t } = useTranslation(["components", "common"]);
   const stopRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   useEffect(() => stopRef.current?.focus(), []);
@@ -633,14 +636,14 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
       className="flex items-center gap-2 rounded-md bg-danger/10 py-1.5 pl-3 pr-1.5"
     >
       <span id={titleId} className="min-w-0 flex-1 truncate text-xs font-medium text-fg">
-        Stop playing on {name}?
+        {t("remote.stopConfirm", { device: name })}
       </span>
       <button
         type="button"
         onClick={onCancel}
         className="h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-white/10 hover:text-fg"
       >
-        Cancel
+        {t("common:actions.cancel")}
       </button>
       <button
         ref={stopRef}
@@ -648,7 +651,7 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
         onClick={onStop}
         className="h-7 rounded-full bg-danger px-3 text-xs font-semibold text-white transition-colors hover:bg-danger/90"
       >
-        Stop
+        {t("remote.stop")}
       </button>
     </div>
   );
@@ -659,6 +662,7 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
  * to its end, and what's on next. Nothing without a guide.
  */
 function LiveProgress({ channel, nowMs }: { channel: RemoteSession["channel"]; nowMs: number }) {
+  const { t } = useTranslation("components");
   const start = channel?.now_start;
   const stop = channel?.now_stop;
   const next = channel?.next;
@@ -672,12 +676,12 @@ function LiveProgress({ channel, nowMs }: { channel: RemoteSession["channel"]; n
           <ProgressBar
             value={Math.min(1, Math.max(0, (nowMs / 1000 - start) / (stop - start)))}
             className="h-1 flex-1"
-            label={`${channel.now}, ${formatTime(start)} to ${formatTime(stop)}`}
+            label={t("remote.programme", { title: channel.now, start: formatTime(start), end: formatTime(stop) })}
           />
           <span>{formatTime(stop)}</span>
         </div>
       ) : null}
-      {next ? <div className="truncate text-xs text-subtle">Next: {next}</div> : null}
+      {next ? <div className="truncate text-xs text-subtle">{t("remote.next", { title: next })}</div> : null}
     </div>
   );
 }

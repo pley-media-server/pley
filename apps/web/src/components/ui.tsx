@@ -1,5 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { LoaderCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
@@ -206,8 +207,9 @@ export function Badge({
   );
 }
 
-export function Spinner({ className, label = "Loading" }: { className?: string; label?: string }) {
-  return <LoaderCircle role="status" aria-label={label} className={cn("size-5 animate-spin text-muted", className)} />;
+export function Spinner({ className, label }: { className?: string; label?: string }) {
+  const { t } = useTranslation("components");
+  return <LoaderCircle role="status" aria-label={label ?? t("ui.loading")} className={cn("size-5 animate-spin text-muted", className)} />;
 }
 
 export function PageSpinner() {

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useDeleteHistory, useHistory, type HistoryScope } from "@/api/hooks";
 import type { HistoryEntry } from "@/api/types";
@@ -37,6 +38,7 @@ function HistoryRow({
   removing: boolean;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("components");
   const { item, user } = entry;
   const { title, subtitle } = describe(entry);
   return (
@@ -71,7 +73,7 @@ function HistoryRow({
       ) : null}
       <IconButton
         size="sm"
-        label="Remove from history"
+        label={t("historyList.remove")}
         disabled={removing}
         onClick={onRemove}
         className="shrink-0 [@media(hover:hover)]:sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
@@ -95,6 +97,7 @@ export function HistoryList({
   pageSize?: number;
   empty: string;
 }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const history = useHistory(scope, pageSize);
   const remove = useDeleteHistory();
@@ -134,7 +137,7 @@ export function HistoryList({
           loading={history.isFetchingNextPage}
           onClick={() => void history.fetchNextPage()}
         >
-          Show more
+          {t("actions.showMore")}
         </Button>
       ) : null}
     </div>

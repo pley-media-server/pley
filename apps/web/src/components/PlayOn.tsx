@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { Cast } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { castError, useCast } from "@/api/hooks";
 import type { CastKind, CastRequest } from "@/api/types";
 import { castTargets, openRemoteOn, type OtherDevice } from "@/lib/remote";
@@ -44,7 +45,7 @@ export interface PlayOnProps {
 export function PlayOn({
   kind,
   cast,
-  label = "Play on…",
+  label: given,
   icon = <Cast className="size-4" />,
   size = "lg",
   compact,
@@ -54,7 +55,9 @@ export function PlayOn({
   onOpenChange,
   onCast,
 }: PlayOnProps) {
+  const { t } = useTranslation("components");
   const targets = useCastTargets(kind);
+  const label = given ?? t("playOn.label");
   const send = useCast();
   const toast = useToast();
   if (!targets.length) return null;
@@ -65,7 +68,7 @@ export function PlayOn({
       { receiverId: device.receiver.receiver_id, cast: cast() },
       {
         onSuccess: () => {
-          toast.success(`Playing on ${device.name}`);
+          toast.success(t("playOn.playingOn", { device: device.name }));
           openRemoteOn(device.id);
           onCast?.();
         },

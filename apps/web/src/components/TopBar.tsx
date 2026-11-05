@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { LogOut, Menu as MenuIcon, RefreshCw, Search, Server, Settings, UserRound, Users, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useActivity, useLibraries, useLogout, useProfiles } from "@/api/hooks";
 import { useRequestSummary } from "@/api/requests";
-import type { ScanPhase } from "@/api/types";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
 import { useDebouncedValue, useOnChange } from "@/lib/hooks";
 import { requestsBadge } from "@/lib/requests";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
-import { AppDownloads, DOWNLOADS_PLACE } from "./AppDownloads";
+import { AppDownloads } from "./AppDownloads";
 import { Avatar } from "./Avatar";
 import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { RemoteButton } from "./Remote";
@@ -24,6 +23,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function SearchBox({ className }: { className?: string }) {
+  const { t } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -74,14 +74,14 @@ function SearchBox({ className }: { className?: string }) {
             inputRef.current?.blur();
           }
         }}
-        placeholder="Search"
-        aria-label="Search your libraries"
+        placeholder={t("common:actions.search")}
+        aria-label={t("topBar.searchLabel")}
         className="h-10 w-full rounded-full border border-transparent bg-surface-2 pl-9 pr-9 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent/70 focus:bg-surface-3 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t("topBar.clearSearch")}
           onClick={() => {
             setValue("");
             inputRef.current?.focus();
@@ -99,15 +99,8 @@ function SearchBox({ className }: { className?: string }) {
   );
 }
 
-const PHASES: Record<ScanPhase, string> = {
-  queued: "Queued",
-  walking: "Finding files",
-  probing: "Analyzing",
-  metadata: "Fetching metadata",
-  done: "Done",
-};
-
 function ScanIndicator() {
+  const { t } = useTranslation("components");
   const user = useAuth();
   const activity = useActivity();
   const libs = useLibraries();
@@ -118,11 +111,16 @@ function ScanIndicator() {
 
   const title = scans.length
     ? scans
-        .map((s) => `${s.library_name}: ${PHASES[s.phase]}${s.total ? ` ${Math.round((s.processed / s.total) * 100)}%` : ""}`)
+        .map((s) => {
+          const phase = t(`topBar.phases.${s.phase}`);
+          return s.total
+            ? t("topBar.scanLinePercent", { library: s.library_name, phase, percent: Math.round((s.processed / s.total) * 100) })
+            : t("topBar.scanLine", { library: s.library_name, phase });
+        })
         .join("\n")
-    : scanningLibs.map((l) => `${l.name}: scanning`).join("\n");
+    : scanningLibs.map((l) => t("topBar.scanningLine", { library: l.name })).join("\n");
   const first = scans[0]?.library_name ?? scanningLibs[0]?.name ?? "";
-  const label = count === 1 ? `Scanning ${first}` : `Scanning ${count} libraries`;
+  const label = count === 1 ? t("topBar.scanning", { library: first }) : t("topBar.scanningLibraries", { count });
   const content = (
     <>
       <RefreshCw className="size-4 animate-spin text-accent" />
@@ -142,6 +140,7 @@ function ScanIndicator() {
 }
 
 function UserMenu() {
+  const { t } = useTranslation(["components", "common"]);
   const user = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,7 +155,7 @@ function UserMenu() {
         <button
           type="button"
           onClick={toggle}
-          aria-label="Account menu"
+          aria-label={t("topBar.accountMenu")}
           aria-expanded={open}
           className="flex size-9 items-center justify-center rounded-full ring-accent ring-offset-2 ring-offset-bg transition hover:ring-2"
         >
@@ -171,7 +170,7 @@ function UserMenu() {
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">{user.name}</div>
               <div className="text-xs text-subtle">
-                {user.is_admin ? "Administrator" : user.managed ? "Managed profile" : "User"}
+                {user.is_admin ? t("topBar.administrator") : user.managed ? t("topBar.managedProfile") : t("topBar.user")}
               </div>
             </div>
           </div>
@@ -184,7 +183,7 @@ function UserMenu() {
                 void navigate(`/profiles?next=${encodeURIComponent(location.pathname + location.search)}`);
               }}
             >
-              Switch profile
+              {t("topBar.switchProfile")}
             </MenuItem>
           ) : null}
           <MenuItem
@@ -194,7 +193,7 @@ function UserMenu() {
               void navigate("/account");
             }}
           >
-            Account
+            {t("topBar.account")}
           </MenuItem>
           {user.is_admin ? (
             <MenuItem
@@ -204,7 +203,7 @@ function UserMenu() {
                 void navigate("/settings");
               }}
             >
-              Settings
+              {t("topBar.settings")}
             </MenuItem>
           ) : null}
           <MenuSeparator />
@@ -219,7 +218,7 @@ function UserMenu() {
               }}
             >
               {/* The desktop app's picker lists its downloads too. */}
-              {appShell() === "desktop" ? DOWNLOADS_PLACE : "Switch server"}
+              {appShell() === "desktop" ? t("appDownloads.place") : t("topBar.switchServer")}
             </MenuItem>
           ) : null}
           <MenuItem
@@ -230,7 +229,7 @@ function UserMenu() {
               logout.mutate(undefined, { onSettled: () => void navigate("/login", { replace: true }) });
             }}
           >
-            Sign out
+            {t("common:actions.signOut")}
           </MenuItem>
         </>
       )}
@@ -240,12 +239,13 @@ function UserMenu() {
 
 /** The menu's button, small screens' way to the sidebar: it carries the number on Requests, as the sidebar's entry does. */
 function MenuButton({ onMenu }: { onMenu: () => void }) {
+  const { t } = useTranslation("components");
   const summary = useRequestSummary();
   const { count, danger } = requestsBadge(summary.data);
   return (
     <IconButton
       className="relative lg:hidden"
-      label={count > 0 ? `Open menu, ${pluralize(count, "request")} waiting` : "Open menu"}
+      label={count > 0 ? t("topBar.openMenuWaiting", { count }) : t("topBar.openMenu")}
       onClick={onMenu}
     >
       <MenuIcon className="size-5" />

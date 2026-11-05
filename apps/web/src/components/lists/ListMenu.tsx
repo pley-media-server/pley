@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { BookmarkMinus, BookmarkPlus, Eye, EyeOff, FolderPlus, ListPlus, ListX, Play, Shuffle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { listable, useRemoveFromContinueWatching, useSetInWatchlist, useSetWatched, useWatchlist } from "@/api/hooks";
 import { collectable } from "@/api/lists";
@@ -99,6 +100,7 @@ function CardMenu({
   api: ListMenuApi & ReturnType<typeof useCardActions>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["components", "common"]);
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
   const user = useAuth();
@@ -152,19 +154,19 @@ function CardMenu({
     >
       <div className="truncate px-3.5 pb-1.5 pt-1 text-xs font-semibold text-subtle">{item.title}</div>
       <MenuItem icon={<Play />} onClick={run(() => void play(item))}>
-        Play
+        {t("common:actions.play")}
       </MenuItem>
       {music ? (
         <MenuItem icon={<Shuffle />} onClick={run(() => void play(item, { shuffle: true }))}>
-          Shuffle
+          {t("listMenu.shuffle")}
         </MenuItem>
       ) : null}
       <MenuItem icon={<ListPlus />} onClick={run(() => api.addToPlaylist(item))}>
-        Add to playlist…
+        {t("listMenu.addToPlaylist")}
       </MenuItem>
       {user.is_admin && collectable(item) ? (
         <MenuItem icon={<FolderPlus />} onClick={run(() => api.addToCollection(item))}>
-          Add to collection…
+          {t("listMenu.addToCollection")}
         </MenuItem>
       ) : null}
       {onList ? (
@@ -174,7 +176,7 @@ function CardMenu({
           disabled={!watchlist.data}
           onClick={run(() => api.setInWatchlist(item, !inList))}
         >
-          {inList ? "Remove from My List" : "Add to My List"}
+          {inList ? t("listMenu.removeFromMyList") : t("listMenu.addToMyList")}
         </MenuItem>
       ) : null}
       {watchable ? (
@@ -186,13 +188,13 @@ function CardMenu({
               setWatched.mutate({ id: item.id, watched: !watched }, { onError: (err) => toast.error(errorMessage(err)) }),
             )}
           >
-            {watched ? "Mark as unwatched" : "Mark as watched"}
+            {watched ? t("listMenu.markUnwatched") : t("listMenu.markWatched")}
           </MenuItem>
         </>
       ) : null}
       {context?.continueWatching ? (
         <MenuItem icon={<ListX />} onClick={run(() => api.removeContinuing(item))}>
-          Remove from Continue Watching
+          {t("listMenu.removeFromContinueWatching")}
         </MenuItem>
       ) : null}
     </div>,

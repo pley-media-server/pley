@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/cn";
 import { Button, IconButton } from "./ui";
 
@@ -33,6 +34,7 @@ export function keepTabInside(e: KeyboardEvent, container: HTMLElement) {
 }
 
 export function Modal({ open, onClose, title, children, footer, size = "md", locked }: ModalProps) {
+  const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   /** Escape closes the dialog unless it is locked (a request in flight). */
@@ -96,7 +98,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
           <h2 id={titleId} className="min-w-0 break-words text-base font-semibold">
             {title}
           </h2>
-          <IconButton label="Close" size="sm" onClick={onClose} disabled={locked}>
+          <IconButton label={t("actions.close")} size="sm" onClick={onClose} disabled={locked}>
             <X className="size-4" />
           </IconButton>
         </div>
@@ -114,7 +116,7 @@ export function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmLabel = "Confirm",
+  confirmLabel,
   danger,
   loading,
 }: {
@@ -127,6 +129,7 @@ export function ConfirmModal({
   danger?: boolean;
   loading?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <Modal
       open={open}
@@ -137,10 +140,10 @@ export function ConfirmModal({
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} loading={loading} data-autofocus>
-            {confirmLabel}
+            {confirmLabel ?? t("actions.confirm")}
           </Button>
         </>
       }

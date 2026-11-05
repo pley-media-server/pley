@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Link } from "react-router";
 import { Check, Play } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ItemSummary } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { cardSubtitle, episodeLabel, formatRemaining, mediaBadges, mediaLine, progressFraction, seasonTitle, unwatchedCount } from "@/lib/format";
@@ -104,11 +105,12 @@ export const MediaCard = memo(function MediaCard({
   badges: showBadges,
   className,
 }: MediaCardProps) {
+  const { t } = useTranslation(["components", "common"]);
   const play = usePlayItem();
   const lists = useListMenu();
   const defaults = defaultCardTitles(item, continueStyle);
-  const t = title ?? defaults.title;
-  const st = subtitle ?? (media ? mediaLine(item.media) : defaults.subtitle);
+  const name = title ?? defaults.title;
+  const line = subtitle ?? (media ? mediaLine(item.media) : defaults.subtitle);
   const badges = showBadges ? mediaBadges(item.media) : [];
   const to = href ?? itemUrl(item.id);
   const candidates = aspect === "thumb" ? thumbCandidates(item) : posterCandidates(item);
@@ -139,13 +141,13 @@ export const MediaCard = memo(function MediaCard({
             "relative block overflow-hidden bg-surface-2 outline-none ring-1 ring-white/5 transition duration-200 hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent",
             round ? "rounded-full" : "rounded-md",
           )}
-          aria-label={t}
+          aria-label={name}
         >
           <Artwork
             candidates={candidates}
             width={width}
             alt=""
-            title={t}
+            title={name}
             className={cn(ASPECT_CLASS[aspect], "w-full")}
             imgClassName="transition-transform duration-300 motion-safe:group-hover/card:scale-[1.04]"
           />
@@ -181,8 +183,8 @@ export const MediaCard = memo(function MediaCard({
         {playable ? (
           <button
             type="button"
-            aria-label={`Play ${t}`}
-            title="Play"
+            aria-label={t("cards.playTitle", { title: name })}
+            title={t("common:actions.play")}
             onClick={() => void play(item)}
             {...playIntent(item.kind, () => prefetchPlay(item))}
             className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 scale-90 items-center justify-center rounded-full bg-accent text-accent-fg opacity-0 shadow-lg shadow-black/50 transition duration-200 hover:bg-accent-hover group-hover/card:scale-100 group-hover/card:opacity-100 group-has-focus-visible/card:scale-100 group-has-focus-visible/card:opacity-100"
@@ -193,12 +195,12 @@ export const MediaCard = memo(function MediaCard({
       </div>
       <div className={cn("mt-2 px-0.5", round && "text-center")}>
         {/* The artwork above is the same link: Tab stops there once, not twice. */}
-        <Link to={to} tabIndex={-1} className="block truncate text-sm font-medium text-fg transition-colors hover:text-accent" title={t}>
-          {t}
+        <Link to={to} tabIndex={-1} className="block truncate text-sm font-medium text-fg transition-colors hover:text-accent" title={name}>
+          {name}
         </Link>
-        {st ? (
-          <div className="truncate text-xs text-muted" title={st}>
-            {st}
+        {line ? (
+          <div className="truncate text-xs text-muted" title={line}>
+            {line}
           </div>
         ) : (
           <div className="h-4" />

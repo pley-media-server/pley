@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { ArrowUpDown, Compass, Film, House, Inbox, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useLibraries } from "@/api/hooks";
 import { useLiveSummary } from "@/api/livetv";
 import { usePlaylists } from "@/api/lists";
@@ -48,6 +49,7 @@ function NavItem({ to, icon, children, end, trailing }: { to: string; icon: Reac
 }
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
+  const { t } = useTranslation("components");
   const user = useAuth();
   const libs = useLibraries();
   const live = useLiveSummary();
@@ -56,13 +58,13 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const showLive = live.data?.available ?? false;
 
   return (
-    <nav className="flex h-full flex-col overflow-y-auto px-3 pb-4 pt-4" aria-label="Main">
+    <nav className="flex h-full flex-col overflow-y-auto px-3 pb-4 pt-4" aria-label={t("sidebar.main")}>
       <div className="mb-5 flex items-center justify-between px-2">
-        <Link to="/" aria-label="Pley home">
+        <Link to="/" aria-label={t("sidebar.pleyHome")}>
           <Logo />
         </Link>
         {onClose ? (
-          <IconButton label="Close menu" size="sm" onClick={onClose}>
+          <IconButton label={t("sidebar.closeMenu")} size="sm" onClick={onClose}>
             <X className="size-4" />
           </IconButton>
         ) : null}
@@ -70,20 +72,20 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       <div className="space-y-0.5">
         <NavItem to="/" end icon={<House className="size-4" />}>
-          Home
+          {t("sidebar.home")}
         </NavItem>
         {showLive ? (
           <NavItem to="/live" icon={<Tv2 className="size-4" />}>
-            Live TV
+            {t("sidebar.liveTv")}
           </NavItem>
         ) : null}
         <RequestsNav />
       </div>
 
       <div className="mb-0.5 mt-4 flex h-7 items-center justify-between pl-3 pr-1 text-xs font-medium text-subtle">
-        Libraries
+        {t("sidebar.libraries")}
         {(libs.data?.length ?? 0) > 1 ? (
-          <IconButton label="Sort libraries" size="xs" className="text-subtle" onClick={() => setSorting(true)}>
+          <IconButton label={t("sidebar.sortLibraries")} size="xs" className="text-subtle" onClick={() => setSorting(true)}>
             <ArrowUpDown className="size-3.5" />
           </IconButton>
         ) : null}
@@ -99,7 +101,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 icon={<LibraryIcon kind={lib.kind} className="size-4" />}
                 trailing={
                   lib.scanning ? (
-                    <LoaderCircle className="size-3.5 animate-spin text-accent" aria-label="Scanning" />
+                    <LoaderCircle className="size-3.5 animate-spin text-accent" aria-label={t("sidebar.scanning")} />
                   ) : null
                 }
               >
@@ -113,10 +115,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               className="flex h-8 items-center gap-2.5 rounded-md px-3 text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-fg"
             >
               <Plus className="size-4 text-subtle" />
-              Add library
+              {t("sidebar.addLibrary")}
             </Link>
           ) : (
-            <p className="px-3 py-2 text-xs text-subtle">No libraries yet.</p>
+            <p className="px-3 py-2 text-xs text-subtle">{t("sidebar.noLibraries")}</p>
           )
         ) : null}
       </div>
@@ -128,7 +130,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       {user.is_admin ? (
         <div className="mt-4 space-y-0.5">
           <NavItem to="/settings" icon={<Settings className="size-4" />}>
-            Settings
+            {t("sidebar.settings")}
           </NavItem>
         </div>
       ) : null}
@@ -142,6 +144,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
  * at: in the danger colour while some failed.
  */
 function RequestsNav() {
+  const { t } = useTranslation("components");
   const summary = useRequestSummary();
   const data = summary.data;
   if (!hasRequests(data) && !data?.manage) return null;
@@ -150,7 +153,7 @@ function RequestsNav() {
     <>
       {mayRequest(data) ? (
         <NavItem to={discoverUrl()} icon={<Compass className="size-4" />}>
-          Discover
+          {t("sidebar.discover")}
         </NavItem>
       ) : null}
       <NavItem
@@ -167,13 +170,13 @@ function RequestsNav() {
                   danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
                 )}
               >
-                {count > 99 ? "99+" : count} <span className="sr-only">waiting</span>
+                {count > 99 ? "99+" : count} <span className="sr-only">{t("sidebar.waiting")}</span>
               </span>
             </>
           ) : null
         }
       >
-        {data?.manage ? "Requests" : "Your requests"}
+        {data?.manage ? t("sidebar.requests") : t("sidebar.yourRequests")}
       </NavItem>
     </>
   );
@@ -181,11 +184,12 @@ function RequestsNav() {
 
 /** The user's playlists (the first few) and a link to all of them. */
 function PlaylistsSection() {
+  const { t } = useTranslation("components");
   const playlists = usePlaylists();
   const shown = playlists.data?.slice(0, 8) ?? [];
   return (
     <>
-      <div className="mb-0.5 mt-4 flex h-7 items-center px-3 text-xs font-medium text-subtle">Playlists</div>
+      <div className="mb-0.5 mt-4 flex h-7 items-center px-3 text-xs font-medium text-subtle">{t("sidebar.playlists")}</div>
       <div className="space-y-0.5">
         {shown.map((p) => (
           <NavItem
@@ -197,7 +201,7 @@ function PlaylistsSection() {
           </NavItem>
         ))}
         <NavItem to="/playlists" end icon={<List className="size-4" />}>
-          {shown.length ? "All playlists" : "Your playlists"}
+          {shown.length ? t("sidebar.allPlaylists") : t("sidebar.yourPlaylists")}
         </NavItem>
       </div>
     </>
@@ -205,6 +209,7 @@ function PlaylistsSection() {
 }
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("components");
   const location = useLocation();
   const drawerRef = useRef<HTMLElement>(null);
 
@@ -246,7 +251,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Menu"
+            aria-label={t("sidebar.menu")}
             className="absolute inset-y-0 left-0 w-72 max-w-[85vw] animate-pop-in border-r border-border bg-surface shadow-2xl"
           >
             <SidebarContent onClose={onClose} />

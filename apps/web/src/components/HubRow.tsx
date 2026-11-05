@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Hub } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { smoothScroll, useMediaQuery } from "@/lib/hooks";
@@ -74,6 +75,7 @@ function useFittedCards(aspect: CardAspect) {
 
 /** `inset`: inside a page that already has the side margin (item pages). */
 export function HubRow({ hub, inset }: { hub: Hub; inset?: boolean }) {
+  const { t } = useTranslation("components");
   const aspect = hubAspect(hub);
   const { ref: scroller, width, perPage, gap } = useFittedCards(aspect);
   const [canLeft, setCanLeft] = useState(false);
@@ -114,7 +116,7 @@ export function HubRow({ hub, inset }: { hub: Hub; inset?: boolean }) {
         <div className="flex shrink-0 items-center gap-1">
           {link ? (
             <Link to={link} className="mr-2 text-xs font-medium text-muted transition-colors hover:text-accent">
-              See all
+              {t("hubRow.seeAll")}
             </Link>
           ) : null}
           {scrollable ? (
@@ -146,11 +148,12 @@ export function HubRow({ hub, inset }: { hub: Hub; inset?: boolean }) {
 }
 
 export function ArrowButton({ side, enabled, onClick }: { side: "left" | "right"; enabled: boolean; onClick: () => void }) {
+  const { t } = useTranslation();
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
-      aria-label={side === "left" ? "Previous" : "Next"}
+      aria-label={side === "left" ? t("actions.previous") : t("actions.next")}
       onClick={onClick}
       disabled={!enabled}
       className={cn(

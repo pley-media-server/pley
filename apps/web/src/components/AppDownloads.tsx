@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   coming,
   fractionOf,
@@ -10,9 +12,6 @@ import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 import { useDismiss } from "@/lib/hooks";
 import { useToast } from "./Toast";
-
-/** Where the desktop app lists its downloads (the account menu's way to its server picker). */
-export const DOWNLOADS_PLACE = "Servers and downloads";
 
 /** A ring that fills as the downloads come (and turns while their size is unknown). */
 function Ring({ fraction }: { fraction: number | null }) {
@@ -36,13 +35,15 @@ function Ring({ fraction }: { fraction: number | null }) {
   );
 }
 
-function progressLine(d: AppDownload): string {
+function progressLine(d: AppDownload, t: TFunction<"components">): string {
   if (d.state === "preparing") {
-    return d.preparing != null ? `Preparing on the server · ${Math.floor(d.preparing * 100)}%` : "Preparing on the server";
+    return d.preparing != null
+      ? t("appDownloads.preparingPercent", { percent: Math.floor(d.preparing * 100) })
+      : t("appDownloads.preparing");
   }
-  if (d.state === "waiting") return "Waiting for the server to answer";
-  if (d.state === "queued") return "Waiting its turn";
-  return d.size ? `${formatBytes(d.received)} of ${formatBytes(d.size)}` : formatBytes(d.received);
+  if (d.state === "waiting") return t("appDownloads.waiting");
+  if (d.state === "queued") return t("appDownloads.queued");
+  return d.size ? t("appDownloads.progress", { received: formatBytes(d.received), size: formatBytes(d.size) }) : formatBytes(d.received);
 }
 
 /** How full a download's bar is: what came of the file, or how far the server has come making it. */
@@ -56,6 +57,7 @@ function barOf(d: AppDownload): number {
  * bar while they come, with a word when each starts, is done or fails.
  */
 export function AppDownloads() {
+  const { t } = useTranslation("components");
   const toast = useToast();
   const all = useAppDownloads();
   const [open, setOpen] = useState(false);
@@ -66,27 +68,28 @@ export function AppDownloads() {
     (d: AppDownload, before: AppDownload | undefined) => {
       if (d.id === 0) {
         // A file the page made, saved with the system's downloads.
-        if (d.state === "done") toast.success(`Saved ${d.name} in your Downloads folder`);
-        else toast.error(`Couldn't download ${d.name}. ${d.error ?? ""}`);
+        if (d.state === "done") toast.success(t("appDownloads.saved", { name: d.name }));
+        else toast.error(t("appDownloads.failed", { name: d.name, error: d.error ?? "" }));
         return;
       }
       if (d.state === before?.state) {
-        if (d.state === "done") toast.info(`${d.name} is downloaded already`);
+        if (d.state === "done") toast.info(t("appDownloads.already", { name: d.name }));
         return;
       }
-      if (d.state === "done") toast.success(`Downloaded ${d.name}`);
-      else if (d.state === "failed") toast.error(`Couldn't download ${d.name}. ${d.error ?? ""}`);
-      else if (!before && d.state !== "waiting") toast.info(`Downloading ${d.name}`);
+      if (d.state === "done") toast.success(t("appDownloads.done", { name: d.name }));
+      else if (d.state === "failed") toast.error(t("appDownloads.failed", { name: d.name, error: d.error ?? "" }));
+      else if (!before && d.state !== "waiting") toast.info(t("appDownloads.downloading", { name: d.name }));
     },
-    [toast],
+    [toast, t],
   );
   useAppDownloadChanges(onChange);
 
   const active = all.filter(coming);
   if (!active.length) return null;
   const fraction = fractionOf(active);
-  const percent = fraction == null ? null : `${Math.floor(fraction * 100)}%`;
-  const label = active.length === 1 ? `Downloading ${active[0]!.name}` : `Downloading ${active.length} files`;
+  const percent = fraction == null ? null : t("appDownloads.percent", { percent: Math.floor(fraction * 100) });
+  const label =
+    active.length === 1 ? t("appDownloads.downloading", { name: active[0]!.name }) : t("appDownloads.downloadingFiles", { count: active.length });
 
   return (
     <div ref={ref} className="relative">
@@ -103,7 +106,7 @@ export function AppDownloads() {
       </button>
       {open ? (
         <div
-          aria-label="Downloads"
+          aria-label={t("appDownloads.panel")}
           className="absolute right-0 top-full z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] animate-pop-in space-y-3 rounded-lg border border-border bg-surface-2 px-4 py-3 shadow-xl shadow-black/50"
         >
           {active.map((d) => (
@@ -118,11 +121,12 @@ export function AppDownloads() {
                   style={{ width: `${barOf(d) * 100}%` }}
                 />
               </div>
-              <div className="text-xs tabular-nums text-subtle">{progressLine(d)}</div>
+              <div className="text-xs tabular-nums text-subtle">{progressLine(d, t)}</div>
             </div>
           ))}
           <p className="border-t border-border pt-2.5 text-xs text-muted">
-            Downloads play from {DOWNLOADS_PLACE} in the account menu, even with the server away.
+            {/* The account menu's way to the desktop app's server picker, which lists its downloads. */}
+            {t("appDownloads.hint", { place: t("appDownloads.place") })}
           </p>
         </div>
       ) : null}

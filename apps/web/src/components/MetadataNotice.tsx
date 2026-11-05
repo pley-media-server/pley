@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Info, X } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { useSettings } from "@/api/hooks";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
@@ -22,6 +23,7 @@ export function useNeedsTmdbKey(): boolean | undefined {
 }
 
 function Notice({ children, onDismiss, className }: { children: ReactNode; onDismiss?: () => void; className?: string }) {
+  const { t } = useTranslation("components");
   return (
     <div
       role="note"
@@ -30,7 +32,7 @@ function Notice({ children, onDismiss, className }: { children: ReactNode; onDis
       <Info className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
       <div className="min-w-0 flex-1 leading-relaxed">{children}</div>
       {onDismiss ? (
-        <IconButton label="Dismiss" size="xs" className="-my-1 -mr-2" onClick={onDismiss}>
+        <IconButton label={t("metadataNotice.dismiss")} size="xs" className="-my-1 -mr-2" onClick={onDismiss}>
           <X className="size-4" />
         </IconButton>
       ) : null}
@@ -40,31 +42,33 @@ function Notice({ children, onDismiss, className }: { children: ReactNode; onDis
 
 /** Movie libraries without a TMDB key: why there are no posters, and where to fix it. */
 export function TmdbKeyNotice({ className }: { className?: string }) {
+  const { t } = useTranslation("components");
   const needsKey = useNeedsTmdbKey();
   const [dismissed, setDismissed] = useLocalStorage("pley.notice.tmdbKey", false);
   if (!needsKey || dismissed) return null;
   return (
     <Notice className={className} onDismiss={() => setDismissed(true)}>
-      Movie posters, summaries and cast come from TMDB, which needs an API key.{" "}
-      <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline">
-        Add a free key in Settings
-      </Link>{" "}
-      to fill them in.
+      <Trans
+        t={t}
+        i18nKey="metadataNotice.tmdbKey"
+        components={{ settings: <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline" /> }}
+      />
     </Notice>
   );
 }
 
 /** For administrators, on a movie without details: TMDB has none to give without a key. */
 export function MissingKeyNotice({ className }: { className?: string }) {
+  const { t } = useTranslation("components");
   const needsKey = useNeedsTmdbKey();
   if (!needsKey) return null;
   return (
     <Notice className={className}>
-      No details yet: movie details come from TMDB, which needs an API key.{" "}
-      <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline">
-        Add a free key in Settings
-      </Link>
-      .
+      <Trans
+        t={t}
+        i18nKey="metadataNotice.missingKey"
+        components={{ settings: <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline" /> }}
+      />
     </Notice>
   );
 }

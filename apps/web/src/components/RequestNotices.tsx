@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, qs } from "@/api/client";
 import { onServerEvent } from "@/api/events";
 import { requestKeys, requestQueries, useRequestSummary, type RequestList, type RequestStatus } from "@/api/requests";
@@ -62,6 +63,7 @@ function readMark(userId: number): NewsMark {
  * summary's `changed_at` refreshes what shows requests.
  */
 export function RequestNotices() {
+  const { t } = useTranslation("components");
   const me = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -84,7 +86,7 @@ export function RequestNotices() {
         <span>
           {notice.text}
           <button type="button" onClick={() => void navigate(notice.to)} className="ml-2 font-medium text-accent hover:underline">
-            Open
+            {t("requestNotices.open")}
           </button>
         </span>
       );
@@ -92,7 +94,7 @@ export function RequestNotices() {
       else if (notice.tone === "success") toast.success(message, { duration: NOTICE_MS });
       else toast.info(message, { duration: NOTICE_MS });
     },
-    [toast, navigate],
+    [toast, navigate, t],
   );
 
   const show = useCallback(

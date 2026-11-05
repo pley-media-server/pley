@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useCollections, type Collection } from "@/api/lists";
 import type { Id, LibraryKind } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
 import { fitCards } from "@/components/HubRow";
-import { pluralize } from "@/lib/format";
 import { useMediaQuery } from "@/lib/hooks";
 import { collectionUrl, libraryUrl } from "@/lib/urls";
 
@@ -24,7 +24,9 @@ export function CollectionCard({
   noun: [string, string];
   fixed?: boolean;
 }) {
+  const { t } = useTranslation("components");
   const to = collectionUrl(collection.id);
+  const count = collection.item_count;
   return (
     <div className="group/card min-w-0" style={fixed ? { width } : undefined}>
       <Link
@@ -49,7 +51,10 @@ export function CollectionCard({
         <Link to={to} tabIndex={-1} className="block truncate text-sm font-medium text-fg transition-colors hover:text-accent" title={collection.title}>
           {collection.title}
         </Link>
-        <div className="truncate text-xs text-muted">{pluralize(collection.item_count, noun[0], noun[1])}</div>
+        <div className="truncate text-xs text-muted">
+          {/* `noun` says what the library holds; the count is in the reader's language. */}
+          {noun[1] === "shows" ? t("collectionCard.shows", { count }) : t("collectionCard.movies", { count })}
+        </div>
       </div>
     </div>
   );
@@ -57,6 +62,7 @@ export function CollectionCard({
 
 /** "Collections" shelf of a library's Recommended tab. */
 export function CollectionsRow({ libraryId, kind }: { libraryId: Id; kind: LibraryKind }) {
+  const { t } = useTranslation("components");
   const collections = useCollections(libraryId, kind !== "music");
   const desktop = useMediaQuery("(min-width: 640px)");
   const ref = useRef<HTMLDivElement>(null);
@@ -87,11 +93,11 @@ export function CollectionsRow({ libraryId, kind }: { libraryId: Id; kind: Libra
       <div className="mb-2 flex items-center justify-between gap-4 px-4 sm:px-8">
         <h2 className="truncate text-lg font-semibold tracking-tight">
           <Link to={libraryUrl(libraryId, "tab=collections")} className="transition-colors hover:text-accent">
-            Collections
+            {t("collectionCard.collections")}
           </Link>
         </h2>
         <Link to={libraryUrl(libraryId, "tab=collections")} className="shrink-0 text-xs font-medium text-muted transition-colors hover:text-accent">
-          See all
+          {t("hubRow.seeAll")}
         </Link>
       </div>
       <div className="px-4 sm:px-8">

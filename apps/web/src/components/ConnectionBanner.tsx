@@ -1,4 +1,5 @@
 import { ServerOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useConnectionLost } from "@/lib/connection";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
 
@@ -9,6 +10,7 @@ import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
  * without the server.
  */
 export function ConnectionBanner() {
+  const { t } = useTranslation("components");
   const lost = useConnectionLost();
   if (!lost) return null;
   return (
@@ -17,10 +19,10 @@ export function ConnectionBanner() {
       className="sticky top-16 z-10 flex items-center gap-3 border-b border-border bg-surface-2/95 px-3 py-2.5 text-sm text-fg/90 backdrop-blur-md sm:px-6 lg:px-8"
     >
       <ServerOff className="size-4 shrink-0 text-muted" aria-hidden />
-      <p className="min-w-0 flex-1">Pley is offline</p>
+      <p className="min-w-0 flex-1">{t("connectionBanner.offline")}</p>
       {appShell() === "desktop" ? (
         <a href={SWITCH_SERVER_PATH} className="shrink-0 font-medium text-accent hover:underline">
-          Downloads
+          {t("connectionBanner.downloads")}
         </a>
       ) : null}
     </div>

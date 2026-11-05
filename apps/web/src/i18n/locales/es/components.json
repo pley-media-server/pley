@@ -1,1 +1,237 @@
-{}
+{
+  "accessFields": {
+    "libraries": "Bibliotecas",
+    "allLibraries": "Todas las bibliotecas",
+    "onlySome": "Solo algunas",
+    "includesLater": "Incluye también las bibliotecas que añadas más adelante.",
+    "noLibraries": "Aún no hay bibliotecas.",
+    "ageLimit": "Límite de edad",
+    "ageLimitHint": "Las películas y series por encima de esta clasificación, y las que no tienen ninguna, se ocultan. La música no se ve afectada."
+  },
+  "addToCollection": {
+    "title": "Añadir a una colección",
+    "placeholder": "Nueva colección",
+    "nameLabel": "Nombre de la nueva colección",
+    "empty": "Esta biblioteca aún no tiene colecciones: escribe un nombre arriba.",
+    "alreadyIn": "Ya está en esta colección"
+  },
+  "addToPlaylist": {
+    "title": "Añadir a una lista de reproducción",
+    "nothingToAdd": "No hay nada que añadir",
+    "addedItems_one": "Se añadió {{count}} elemento a {{title}}",
+    "addedItems_many": "Se añadieron {{count}} elementos a {{title}}",
+    "addedItems_other": "Se añadieron {{count}} elementos a {{title}}",
+    "newMusic": "Nueva lista de música",
+    "newVideo": "Nueva lista de video",
+    "nameLabel": "Nombre de la nueva lista de reproducción",
+    "emptyMusic": "Aún no tienes listas de música: escribe un nombre arriba.",
+    "emptyVideo": "Aún no tienes listas de video: escribe un nombre arriba."
+  },
+  "appDownloads": {
+    "place": "Servidores y descargas",
+    "preparing": "Preparando en el servidor",
+    "preparingPercent": "Preparando en el servidor · {{percent}} %",
+    "waiting": "Esperando la respuesta del servidor",
+    "queued": "Esperando su turno",
+    "progress": "{{received}} de {{size}}",
+    "percent": "{{percent}} %",
+    "saved": "Se guardó {{name}} en tu carpeta Descargas",
+    "failed": "No se pudo descargar {{name}}. {{error}}",
+    "already": "Ya se descargó {{name}}",
+    "done": "Se descargó {{name}}",
+    "downloading": "Descargando {{name}}",
+    "downloadingFiles_one": "Descargando {{count}} archivo",
+    "downloadingFiles_many": "Descargando {{count}} archivos",
+    "downloadingFiles_other": "Descargando {{count}} archivos",
+    "panel": "Descargas",
+    "hint": "Las descargas se reproducen desde «{{place}}» en el menú de la cuenta, incluso sin el servidor."
+  },
+  "cards": {
+    "playTitle": "Reproducir {{title}}"
+  },
+  "castReceiver": {
+    "playingFrom": "Reproduciendo desde {{device}}",
+    "anotherDevice": "otro dispositivo"
+  },
+  "collectionCard": {
+    "collections": "Colecciones",
+    "movies_one": "{{count, number}} película",
+    "movies_many": "{{count, number}} películas",
+    "movies_other": "{{count, number}} películas",
+    "shows_one": "{{count, number}} serie",
+    "shows_many": "{{count, number}} series",
+    "shows_other": "{{count, number}} series"
+  },
+  "connectionBanner": {
+    "offline": "Pley está sin conexión",
+    "downloads": "Descargas"
+  },
+  "folderPicker": {
+    "title": "Elegir una carpeta",
+    "select": "Seleccionar esta carpeta",
+    "up": "Subir un nivel",
+    "placeholder": "Escribe una ruta, p. ej. D:\\Medios\\Películas o /mnt/media",
+    "pathLabel": "Ruta de la carpeta",
+    "go": "Ir",
+    "backToTop": "Volver a la raíz",
+    "empty": "No hay subcarpetas aquí.",
+    "hint": "Haz clic para abrir una carpeta o doble clic para seleccionarla directamente."
+  },
+  "historyList": {
+    "remove": "Quitar del historial"
+  },
+  "hubRow": {
+    "seeAll": "Ver todo"
+  },
+  "listMenu": {
+    "shuffle": "Reproducción aleatoria",
+    "addToPlaylist": "Añadir a una lista de reproducción…",
+    "addToCollection": "Añadir a una colección…",
+    "addToMyList": "Añadir a Mi lista",
+    "removeFromMyList": "Quitar de Mi lista",
+    "markWatched": "Marcar como visto",
+    "markUnwatched": "Marcar como no visto",
+    "removeFromContinueWatching": "Quitar de Seguir viendo"
+  },
+  "lists": {
+    "addedTo": "Añadido a {{title}}",
+    "items_one": "{{count, number}} elemento",
+    "items_many": "{{count, number}} elementos",
+    "items_other": "{{count, number}} elementos"
+  },
+  "metadataNotice": {
+    "dismiss": "Descartar",
+    "tmdbKey": "Los pósteres, sinopsis y repartos de las películas vienen de TMDB, que necesita una clave de API. <settings>Añade una clave gratuita en Ajustes</settings> para completarlos.",
+    "missingKey": "Aún no hay detalles: los de las películas vienen de TMDB, que necesita una clave de API. <settings>Añade una clave gratuita en Ajustes</settings>."
+  },
+  "partOfCollections": {
+    "partOf": "Forma parte de"
+  },
+  "passwordInput": {
+    "show": "Mostrar contraseña",
+    "hide": "Ocultar contraseña"
+  },
+  "playOn": {
+    "label": "Reproducir en…",
+    "playingOn": "Reproduciendo en {{device}}"
+  },
+  "remote": {
+    "readyToPlay": "Listo para reproducir",
+    "liveTv": "TV en vivo",
+    "buttonPlaying_one": "Control remoto, {{count, number}} dispositivo reproduciendo",
+    "buttonPlaying_many": "Control remoto, {{count, number}} dispositivos reproduciendo",
+    "buttonPlaying_other": "Control remoto, {{count, number}} dispositivos reproduciendo",
+    "buttonReady_one": "Control remoto, {{count, number}} dispositivo listo para reproducir",
+    "buttonReady_many": "Control remoto, {{count, number}} dispositivos listos para reproducir",
+    "buttonReady_other": "Control remoto, {{count, number}} dispositivos listos para reproducir",
+    "yourDevices": "Tus dispositivos",
+    "nothingPlaying": "No se está reproduciendo nada",
+    "sendHint": "Envía algo aquí con Reproducir en…",
+    "noAnswer": "{{device}} no respondió.",
+    "audioOn": "Audio en {{device}}",
+    "subtitlesOn": "Subtítulos en {{device}}",
+    "qualityOn": "Calidad en {{device}}",
+    "subtitlesOff": "Desactivados",
+    "seekOn": "Posición de reproducción en {{device}}",
+    "timeOf": "{{position}} de {{duration}}",
+    "progressOn": "Progreso en {{device}}",
+    "playOnDevice": "Reproducir en {{device}}",
+    "pauseOnDevice": "Pausar en {{device}}",
+    "pause": "Pausar",
+    "previousChannelOn": "Canal anterior en {{device}}",
+    "nextChannelOn": "Canal siguiente en {{device}}",
+    "channel": "Canal",
+    "previousOn": "Anterior en {{device}}",
+    "backOn": "Retroceder 10 segundos en {{device}}",
+    "forwardOn": "Avanzar 30 segundos en {{device}}",
+    "nextOn": "Siguiente en {{device}}",
+    "waitingFor": "Esperando a {{device}}",
+    "stopOn": "Detener en {{device}}",
+    "stop": "Detener",
+    "stopConfirm": "¿Detener la reproducción en {{device}}?",
+    "programme": "{{title}}, de {{start}} a {{end}}",
+    "next": "A continuación: {{title}}"
+  },
+  "requestNotices": {
+    "open": "Abrir"
+  },
+  "sidebar": {
+    "main": "Principal",
+    "pleyHome": "Inicio de Pley",
+    "menu": "Menú",
+    "closeMenu": "Cerrar menú",
+    "home": "Inicio",
+    "liveTv": "TV en vivo",
+    "libraries": "Bibliotecas",
+    "sortLibraries": "Ordenar bibliotecas",
+    "scanning": "Analizando",
+    "addLibrary": "Añadir biblioteca",
+    "noLibraries": "Aún no hay bibliotecas.",
+    "settings": "Ajustes",
+    "discover": "Descubrir",
+    "requests": "Solicitudes",
+    "yourRequests": "Tus solicitudes",
+    "waiting": "pendientes",
+    "playlists": "Listas de reproducción",
+    "allPlaylists": "Todas las listas",
+    "yourPlaylists": "Tus listas de reproducción"
+  },
+  "sortLibraries": {
+    "title": "Ordenar bibliotecas",
+    "hint": "Tu orden, en todos los dispositivos donde usas Pley.",
+    "list": "Tus bibliotecas",
+    "useServerOrder": "Usar el orden del servidor",
+    "backInServerOrder": "Las bibliotecas vuelven al orden del servidor",
+    "moved": "{{name}} pasó a la posición {{position}} de {{total}}",
+    "movedBack": "{{name}} volvió a la posición {{position}} de {{total}}",
+    "notMoved": "{{name}} no se movió",
+    "drag": "Arrastra para reordenar",
+    "moveUp": "Subir {{name}}",
+    "moveDown": "Bajar {{name}}"
+  },
+  "starRating": {
+    "label": "Tu valoración",
+    "stars_one": "{{count, number}} estrella",
+    "stars_many": "{{count, number}} estrellas",
+    "stars_other": "{{count, number}} estrellas",
+    "notRated": "Sin valorar",
+    "yourRating": "Tu valoración: {{stars}}",
+    "rateIt": "Valorar"
+  },
+  "toast": {
+    "dismiss": "Cerrar"
+  },
+  "topBar": {
+    "searchLabel": "Buscar en tus bibliotecas",
+    "clearSearch": "Borrar la búsqueda",
+    "phases": {
+      "queued": "En cola",
+      "walking": "Buscando archivos",
+      "probing": "Examinando archivos",
+      "metadata": "Obteniendo metadatos",
+      "done": "Listo"
+    },
+    "scanLine": "{{library}}: {{phase}}",
+    "scanLinePercent": "{{library}}: {{phase}} {{percent}} %",
+    "scanningLine": "{{library}}: analizando",
+    "scanning": "Analizando {{library}}",
+    "scanningLibraries_one": "Analizando {{count}} biblioteca",
+    "scanningLibraries_many": "Analizando {{count}} bibliotecas",
+    "scanningLibraries_other": "Analizando {{count}} bibliotecas",
+    "accountMenu": "Menú de la cuenta",
+    "administrator": "Administrador",
+    "managedProfile": "Perfil administrado",
+    "user": "Usuario",
+    "switchProfile": "Cambiar de perfil",
+    "account": "Cuenta",
+    "settings": "Ajustes",
+    "switchServer": "Cambiar de servidor",
+    "openMenu": "Abrir menú",
+    "openMenuWaiting_one": "Abrir menú, {{count, number}} solicitud pendiente",
+    "openMenuWaiting_many": "Abrir menú, {{count, number}} solicitudes pendientes",
+    "openMenuWaiting_other": "Abrir menú, {{count, number}} solicitudes pendientes"
+  },
+  "ui": {
+    "loading": "Cargando"
+  }
+}
