@@ -40,6 +40,12 @@ abstract class ShellPage
     {
     }
 
+    /// <summary>
+    /// The remote is in the middle of something on the page (libraries being sorted, a playlist's
+    /// entry lifted): requests' news waits, as a press meant for it would close the news instead.
+    /// </summary>
+    public virtual bool Busy => false;
+
     /// <summary>A focus that shows nothing, for a page with nothing to focus yet.</summary>
     protected FocusItem Waiting { get; } = new FocusItem("waiting");
 

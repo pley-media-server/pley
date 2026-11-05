@@ -13,7 +13,8 @@ namespace Pley.Tv.Tizen.Screens;
 /// Requests' news over the pages, one at a time (the Android app's TvRequestNotices): on a TV, what
 /// became ready to watch. A card at the bottom right with the title's poster, the news, Open and
 /// Close. It shows once the remote has rested 1.5 s, the app is in front, and the shell is on top
-/// with focus on a page (not the rail, a panel, a dialog or the player). On screen it is off the
+/// with focus on a page (not the rail, a panel, a dialog, the keyboard or the player, nor cards
+/// being sorted or moved). On screen it is off the
 /// queue, so newer news can't push it out. Focus stays in it: Close, Back, Up or Down close it and
 /// focus goes back where it was, as it does when 10 s pass untouched; Open opens the title where it
 /// is in a library, else the requests. An OK in its first 0.6 s was meant for the page: it does nothing.
@@ -79,8 +80,9 @@ sealed class RequestNotices : IDisposable
         var queue = source.Notices.Value;
         if (queue.Count == 0) return false;
         var current = page.Tree.Current;
-        // Not on the requests, which show it.
-        var free = visible() && !TextInput.Typing && layers.Top == page && page.Top?.Key is not PageKey.Requests && current != null && current.Parent != page.Rail.Group && gate.QuietFor() >= IdleMs;
+        // Not on the requests, which show it, nor while the page's cards are sorted or moved.
+        var free = visible() && !TextInput.Typing && layers.Top == page && page.Top is { Busy: false } top && top.Key is not PageKey.Requests && current != null
+            && current.Parent != page.Rail.Group && gate.QuietFor() >= IdleMs;
         if (!free) return true;
         var notice = queue[0];
         source.Dismiss(notice);

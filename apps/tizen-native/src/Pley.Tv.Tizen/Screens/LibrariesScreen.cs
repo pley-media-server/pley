@@ -76,6 +76,8 @@ sealed class LibrariesScreen : ShellPage
 
     public override bool Back() => model.Back();
 
+    public override bool Busy => model.Sorting.Value || model.Moving.Value != null;
+
     public override void Gone()
     {
         foreach (var w in watches) w.Dispose();

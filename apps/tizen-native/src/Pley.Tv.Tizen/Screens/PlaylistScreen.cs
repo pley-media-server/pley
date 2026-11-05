@@ -103,6 +103,8 @@ sealed class PlaylistScreen : ShellPage
         if (!Tree.Enter(Group)) Shell.FocusRail();
     }
 
+    public override bool Busy => moving != null;
+
     /// <summary>Back while an entry is lifted puts it back where it was.</summary>
     public override bool Back()
     {
