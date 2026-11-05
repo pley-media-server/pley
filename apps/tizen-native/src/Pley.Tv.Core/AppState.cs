@@ -498,6 +498,7 @@ public sealed class AppState
         store.Remove(SavedKey(HomeKey, server, id));
         store.Remove(SavedKey(MeKey, server, id));
         store.Remove(SavedKey(LibrariesKey, server, id));
+        foreach (var key in Requests.AppRequests.KeptKeys) store.Remove(SavedKey(key, server, id));
     }
 
     /// <summary>Everything saved from <paramref name="server"/>: signed out of it, or it was forgotten.</summary>

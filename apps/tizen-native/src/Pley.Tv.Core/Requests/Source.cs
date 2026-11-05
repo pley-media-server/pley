@@ -219,6 +219,13 @@ public sealed class AppRequests : IRequestsSource
     const string NewsKey = "pley.requestNews";
     const string RowKey = "pley.discover";
 
+    /// <summary>
+    /// What is kept per server and profile, and forgotten with their Home (AppState): the summary and
+    /// Discover's first pages, which hold the account's requests. The news mark stays, as on Android:
+    /// it only keeps what was told from being told again.
+    /// </summary>
+    public static IEnumerable<string> KeptKeys => new[] { SummaryKey }.Concat(DiscoverLists.All.Select(list => $"{RowKey}.{list.Wire()}"));
+
     /// <summary>Requests off: what an older server's answer is taken as.</summary>
     static readonly RequestSummary OffSummary = new RequestSummary { Enabled = false };
 

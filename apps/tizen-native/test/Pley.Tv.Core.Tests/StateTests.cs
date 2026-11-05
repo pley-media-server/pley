@@ -167,9 +167,12 @@ public class StateTests
         Assert.Contains($"pley.home.{Home}.4", store.Values.Keys);
         Assert.Contains($"pley.home.{Home}.1", store.Values.Keys);
         Assert.DoesNotContain($"pley.home.{Home}.2", store.Values.Keys);
-        // Signing out forgets them all.
+        // Signing out forgets them all, with what requests kept for each profile.
+        store.Set($"pley.requests.{Home}.1", "{}");
+        store.Set($"pley.discover.trending.{Home}.4", "{}");
         await state.SignOutNow();
         Assert.DoesNotContain(store.Values.Keys, k => k.StartsWith("pley.home."));
+        Assert.DoesNotContain(store.Values.Keys, k => k.StartsWith("pley.requests.") || k.StartsWith("pley.discover."));
     }
 
     [Fact]
