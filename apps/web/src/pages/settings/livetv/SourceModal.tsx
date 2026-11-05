@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ChevronDown, CircleCheck, FileText, KeyRound, TriangleAlert } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useAddSource, useTestSource, useUpdateSource, type LiveSource, type SourceInput, type SourceKind, type SourceTest } from "@/api/livetv";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, Field, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
 import { accountLine } from "./common";
 
 function blank(kind: SourceKind): SourceInput {
@@ -32,6 +32,7 @@ export function SourceModal({ source, open, onClose }: { source: LiveSource | nu
 }
 
 function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: () => void }) {
+  const { t } = useTranslation(["livetv", "common"]);
   const toast = useToast();
   const add = useAddSource();
   const update = useUpdateSource();
@@ -73,7 +74,7 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
   const save = () => {
     const done = {
       onSuccess: () => {
-        toast.success(source ? "Source saved" : "Source added: its channels are being read");
+        toast.success(source ? t("settings.source.saved") : t("settings.source.added"));
         onClose();
       },
       onError: (e: unknown) => toast.error(errorMessage(e)),
@@ -88,17 +89,17 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
       onClose={onClose}
       locked={saving}
       size="lg"
-      title={source ? `Edit ${source.name}` : "Add an IPTV source"}
+      title={source ? t("settings.editName", { name: source.name }) : t("settings.source.addTitle")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button onClick={runTest} loading={test.isPending} disabled={!complete || saving}>
-            Test
+            {t("settings.source.test")}
           </Button>
           <Button variant="primary" onClick={save} loading={saving} disabled={!complete}>
-            {source ? "Save" : "Add source"}
+            {source ? t("common:actions.save") : t("settings.source.add")}
           </Button>
         </>
       }
@@ -111,31 +112,36 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
         }}
       >
         {!source ? (
-          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Kind of source">
+          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t("settings.source.kind")}>
             <KindCard
               active={form.kind === "m3u"}
               onClick={() => set("kind", "m3u")}
               icon={<FileText className="size-5" />}
-              title="M3U playlist"
-              text="A playlist's address: what most providers give, and HDHomeRun tuners too."
+              title={t("settings.source.m3u")}
+              text={t("settings.source.m3uText")}
             />
             <KindCard
               active={xtream}
               onClick={() => set("kind", "xtream")}
               icon={<KeyRound className="size-5" />}
               title="Xtream Codes"
-              text="A server with a user name and password: channels, groups and guide come with it."
+              text={t("settings.source.xtreamText")}
             />
           </div>
         ) : null}
 
-        <Field label="Name" htmlFor="live-name" hint="What it is called in the lists. Leave it empty for the provider's address.">
-          <TextInput id="live-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={defaultName(form) || "My provider"} />
+        <Field label={t("settings.source.name")} htmlFor="live-name" hint={t("settings.source.nameHint")}>
+          <TextInput
+            id="live-name"
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            placeholder={defaultName(form) || t("settings.source.namePlaceholder")}
+          />
         </Field>
 
         {xtream ? (
           <>
-            <Field label="Server" htmlFor="live-url" hint="With its port: http://provider.example:8080">
+            <Field label={t("settings.source.server")} htmlFor="live-url" hint={t("settings.source.serverHint")}>
               <TextInput
                 id="live-url"
                 value={form.url}
@@ -147,10 +153,14 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="User name" htmlFor="live-user">
+              <Field label={t("settings.source.userName")} htmlFor="live-user">
                 <TextInput id="live-user" value={form.username} onChange={(e) => set("username", e.target.value)} autoComplete="off" spellCheck={false} />
               </Field>
-              <Field label="Password" htmlFor="live-pass" hint={source?.password_set ? "Saved. Type a new one to change it." : undefined}>
+              <Field
+                label={t("settings.source.password")}
+                htmlFor="live-pass"
+                hint={source?.password_set ? t("settings.source.passwordSaved") : undefined}
+              >
                 <TextInput
                   id="live-pass"
                   type="password"
@@ -163,7 +173,7 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
             </div>
           </>
         ) : (
-          <Field label="Playlist address" htmlFor="live-url" hint="Its http:// or https:// address (an .m3u or .m3u8, or get.php).">
+          <Field label={t("settings.source.playlist")} htmlFor="live-url" hint={t("settings.source.playlistHint")}>
             <TextInput
               id="live-url"
               value={form.url}
@@ -178,9 +188,9 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
 
         <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
           <Field
-            label="Guide (XMLTV)"
+            label={t("settings.source.guide")}
             htmlFor="live-guide"
-            hint={xtream ? "Leave it empty for the provider's own guide." : "Leave it empty for the one the playlist names, if it names one."}
+            hint={xtream ? t("settings.source.guideHintXtream") : t("settings.source.guideHintM3u")}
           >
             <TextInput
               id="live-guide"
@@ -192,7 +202,7 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
               spellCheck={false}
             />
           </Field>
-          <Field label="Connections" htmlFor="live-conn" hint="0: no limit">
+          <Field label={t("settings.source.connections")} htmlFor="live-conn" hint={t("settings.source.connectionsHint")}>
             <TextInput
               id="live-conn"
               type="number"
@@ -204,9 +214,7 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
           </Field>
         </div>
         <p className="-mt-2 text-xs text-subtle">
-          <strong className="font-medium text-muted">Connections</strong> is how many channels the provider lets the
-          account play at once. Everyone watching the same channel shares one; a channel nobody watches gives its
-          connection back after a few seconds.
+          <Trans t={t} i18nKey="settings.source.connectionsNote" components={{ strong: <strong className="font-medium text-muted" /> }} />
         </p>
 
         <div>
@@ -216,11 +224,11 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
             className="flex items-center gap-1 text-sm font-medium text-muted hover:text-fg"
             aria-expanded={advanced}
           >
-            <ChevronDown className={cn("size-4 transition-transform", advanced && "rotate-180")} /> Advanced
+            <ChevronDown className={cn("size-4 transition-transform", advanced && "rotate-180")} /> {t("settings.source.advanced")}
           </button>
           {advanced ? (
             <div className="mt-3">
-              <Field label="User agent" htmlFor="live-ua" hint="Some providers play only to the app they name (VLC, say). Empty: Pley's own.">
+              <Field label={t("settings.source.userAgent")} htmlFor="live-ua" hint={t("settings.source.userAgentHint")}>
                 <TextInput id="live-ua" value={form.user_agent} onChange={(e) => set("user_agent", e.target.value)} placeholder="VLC/3.0.20 LibVLC/3.0.20" spellCheck={false} />
               </Field>
             </div>
@@ -232,16 +240,20 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
             <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" />
             <div className="min-w-0">
               <div className="font-medium">
-                Found {pluralize(result.channels, "channel")} in {pluralize(result.groups, "group")}
+                {t("settings.source.found", {
+                  count: result.channels,
+                  channels: t("settings.source.foundChannels", { count: result.channels }),
+                  groups: t("settings.source.foundGroups", { count: result.groups }),
+                })}
               </div>
               {result.account ? <div className="mt-0.5 text-muted">{accountLine(result.account)}</div> : null}
               <div className="mt-0.5 truncate text-muted">
                 {result.guide_url ? (
                   <>
-                    Guide: <span className="font-mono text-xs">{result.guide_url}</span>
+                    {t("settings.source.guideFound")} <span className="font-mono text-xs">{result.guide_url}</span>
                   </>
                 ) : (
-                  "No guide: add one's address for what's on."
+                  t("settings.source.noGuide")
                 )}
               </div>
             </div>

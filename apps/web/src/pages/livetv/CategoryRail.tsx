@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, History, LayoutGrid, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { categoryKey, type LiveCategory, type LiveGroup, type LiveGroups } from "@/api/livetv";
 import { Skeleton } from "@/components/ui";
+import { currentLanguage, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 export interface Region {
@@ -35,11 +37,11 @@ export function groupSections(groups: LiveGroup[]): { regions: Region[]; others:
 export function categoryName(c: LiveCategory, groups: LiveGroup[] | undefined): string {
   switch (c.kind) {
     case "all":
-      return "All channels";
+      return t("categories.all", { ns: "livetv" });
     case "favorites":
-      return "Favourites";
+      return t("categories.favourites", { ns: "livetv" });
     case "recent":
-      return "Recently watched";
+      return t("categories.recent", { ns: "livetv" });
     case "group": {
       const g = groups?.find((x) => x.name === c.group);
       return g?.region ? `${g.region} · ${g.label}` : (g?.label ?? c.group);
@@ -47,7 +49,7 @@ export function categoryName(c: LiveCategory, groups: LiveGroup[] | undefined): 
   }
 }
 
-const count = (n: number) => n.toLocaleString();
+const count = (n: number) => n.toLocaleString(currentLanguage());
 
 /** The categories down the side of Live TV: the marked ones, all, then the regions and groups. */
 export function CategoryRail({
@@ -61,6 +63,7 @@ export function CategoryRail({
   onSelect: (c: LiveCategory) => void;
   className?: string;
 }) {
+  const { t } = useTranslation("livetv");
   const { regions, others } = useMemo(() => groupSections(groups?.groups ?? []), [groups]);
   const selectedRegion =
     selected.kind === "group" ? (regions.find((r) => r.groups.some((g) => g.name === selected.group))?.region ?? null) : null;
@@ -68,16 +71,16 @@ export function CategoryRail({
   const key = categoryKey(selected);
 
   return (
-    <nav aria-label="Channel groups" className={cn("flex min-h-0 flex-col", className)}>
+    <nav aria-label={t("categories.label")} className={cn("flex min-h-0 flex-col", className)}>
       <div className="space-y-0.5 border-b border-border p-2">
         <Item active={key === "favorites"} onClick={() => onSelect({ kind: "favorites" })} icon={<Star className="size-4" />} count={groups?.favorites}>
-          Favourites
+          {t("categories.favourites")}
         </Item>
         <Item active={key === "recent"} onClick={() => onSelect({ kind: "recent" })} icon={<History className="size-4" />} count={groups?.recent}>
-          Recently watched
+          {t("categories.recent")}
         </Item>
         <Item active={key === "all"} onClick={() => onSelect({ kind: "all" })} icon={<LayoutGrid className="size-4" />} count={groups?.total}>
-          All channels
+          {t("categories.all")}
         </Item>
       </div>
       {!groups ? (
@@ -90,7 +93,7 @@ export function CategoryRail({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-width:thin]">
           {regions.length ? (
             <>
-              <Heading>Regions</Heading>
+              <Heading>{t("categories.regions")}</Heading>
               <div className="space-y-0.5">
                 {regions.map((r) => (
                   <RegionItem
@@ -107,11 +110,11 @@ export function CategoryRail({
           ) : null}
           {others.length > 1 || (others.length === 1 && regions.length) ? (
             <>
-              <Heading>{regions.length ? "More groups" : "Groups"}</Heading>
+              <Heading>{regions.length ? t("categories.moreGroups") : t("categories.groups")}</Heading>
               <div className="space-y-0.5">
                 {others.map((g) => (
                   <Item key={g.name} active={key === `group:${g.name}`} onClick={() => onSelect({ kind: "group", group: g.name })} count={g.count}>
-                    {g.name || "No group"}
+                    {g.name || t("categories.noGroup")}
                   </Item>
                 ))}
               </div>

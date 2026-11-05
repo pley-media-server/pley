@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import { Play, Radio, Star } from "lucide-react";
-import { episodeLabel, programProgress, useSetFavorite, type Channel, type LiveCategory, type Program } from "@/api/livetv";
+import { useTranslation } from "react-i18next";
+import { programProgress, useSetFavorite, type Channel, type LiveCategory, type Program } from "@/api/livetv";
 import { Modal } from "@/components/Modal";
 import { PlayOn } from "@/components/PlayOn";
 import { Badge, Button, ProgressBar } from "@/components/ui";
@@ -20,13 +21,19 @@ export function ProgramModal({
   category?: LiveCategory;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("livetv");
   const navigate = useNavigate();
   const now = useNow(10_000);
   const favorite = useSetFavorite();
   if (!channel || !program) return null;
   const airing = program.start <= now && program.stop > now;
   const ended = program.stop <= now;
-  const episode = episodeLabel(program);
+  const episode =
+    program.season != null && program.episode != null
+      ? t("program.episode", { season: program.season, episode: program.episode })
+      : program.episode != null
+        ? t("program.episodeOnly", { episode: program.episode })
+        : null;
   const image = sizedImage(program.image, 640);
   return (
     <Modal
@@ -49,12 +56,12 @@ export function ProgramModal({
             icon={<Star className={channel.favorite ? "size-4 fill-current text-accent" : "size-4"} />}
             onClick={() => favorite.mutate({ id: channel.id, favorite: !channel.favorite })}
           >
-            {channel.favorite ? "Favourite" : "Add to favourites"}
+            {channel.favorite ? t("favourites.favourite") : t("favourites.add")}
           </Button>
           {/* Its menu opens above the footer; once a device took the channel, the dialog makes way for the remote. */}
           <PlayOn
             kind="live"
-            label="Watch on…"
+            label={t("watchOn")}
             size="md"
             placement="above"
             align="right"
@@ -62,7 +69,7 @@ export function ProgramModal({
             onCast={onClose}
           />
           <Button variant="primary" icon={<Play className="size-4 fill-current" />} onClick={() => void navigate(liveUrl(channel, category))}>
-            {airing ? "Watch now" : "Watch channel"}
+            {airing ? t("program.watchNow") : t("program.watchChannel")}
           </Button>
         </>
       }
@@ -84,11 +91,11 @@ export function ProgramModal({
             </span>
             {airing ? (
               <Badge tone="danger" className="ml-1">
-                <Radio className="size-3" /> On now
+                <Radio className="size-3" /> {t("program.onNow")}
               </Badge>
             ) : null}
-            {program.is_live ? <Badge tone="danger">Live</Badge> : null}
-            {program.is_new ? <Badge tone="accent">New</Badge> : null}
+            {program.is_live ? <Badge tone="danger">{t("live")}</Badge> : null}
+            {program.is_new ? <Badge tone="accent">{t("new")}</Badge> : null}
             {program.rating ? <Badge>{program.rating}</Badge> : null}
           </div>
           {airing ? (
@@ -100,7 +107,7 @@ export function ProgramModal({
           {program.description ? (
             <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-fg/90">{program.description}</p>
           ) : (
-            <p className="mt-4 text-sm text-subtle">The guide says nothing more of it.</p>
+            <p className="mt-4 text-sm text-subtle">{t("program.noDescription")}</p>
           )}
           {program.categories.length ? (
             <div className="mt-4 flex flex-wrap gap-1.5">
@@ -111,7 +118,7 @@ export function ProgramModal({
               ))}
             </div>
           ) : null}
-          {ended ? <p className="mt-4 text-xs text-subtle">It has ended.</p> : null}
+          {ended ? <p className="mt-4 text-xs text-subtle">{t("program.ended")}</p> : null}
         </div>
       </div>
     </Modal>

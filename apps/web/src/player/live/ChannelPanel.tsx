@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowLeft, ChevronDown, Search, Star, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   categoryKey,
   liveQueries,
@@ -34,6 +35,7 @@ export function ChannelPanel({
   onClose: () => void;
   onTune: (c: Channel, category: LiveCategory) => void;
 }) {
+  const { t } = useTranslation(["livetv", "common"]);
   const [shown, setShown] = useState<LiveCategory>(category);
   const [picking, setPicking] = useState(false);
   const [search, setSearch] = useState("");
@@ -99,7 +101,7 @@ export function ChannelPanel({
         "absolute inset-y-0 right-0 z-20 flex w-full max-w-sm flex-col border-l border-white/10 bg-black/90 shadow-2xl backdrop-blur-sm transition-transform duration-300 ease-out",
         open ? "translate-x-0" : "pointer-events-none translate-x-full",
       )}
-      aria-label="Channels"
+      aria-label={t("channels")}
       aria-hidden={!open}
       inert={!open}
       onKeyDown={(e) => {
@@ -114,7 +116,7 @@ export function ChannelPanel({
             onClick={() => setPicking(false)}
             className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-sm font-medium transition hover:bg-white/10"
           >
-            <ArrowLeft className="size-4 shrink-0" /> Channel groups
+            <ArrowLeft className="size-4 shrink-0" /> {t("categories.label")}
           </button>
         ) : (
           <>
@@ -122,7 +124,7 @@ export function ChannelPanel({
               type="button"
               onClick={() => setPicking(true)}
               className="flex h-9 min-w-0 max-w-[45%] items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.06] px-2.5 text-sm font-medium transition hover:bg-white/10"
-              title="Change group"
+              title={t("panel.changeGroup")}
             >
               {shown.kind === "favorites" ? <Star className="size-3.5 shrink-0 fill-accent text-accent" /> : null}
               <span className="truncate">{categoryName(shown, groups.data?.groups)}</span>
@@ -133,14 +135,14 @@ export function ChannelPanel({
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search channels"
-                aria-label="Search channels"
+                placeholder={t("panel.search")}
+                aria-label={t("panel.search")}
                 className="h-9 w-full rounded-md border border-white/10 bg-white/[0.06] pl-9 pr-3 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
               />
             </div>
           </>
         )}
-        <button type="button" aria-label="Close" onClick={onClose} className="flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-white/10">
+        <button type="button" aria-label={t("common:actions.close")} onClick={onClose} className="flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-white/10">
           <X className="size-5" />
         </button>
       </div>
@@ -159,7 +161,7 @@ export function ChannelPanel({
         />
       ) : (
         <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
-          {list.total === 0 ? <p className="p-6 text-center text-sm text-white/50">No channels match.</p> : null}
+          {list.total === 0 ? <p className="p-6 text-center text-sm text-white/50">{t("panel.noMatch")}</p> : null}
           <div className="relative" style={{ height: rows.getTotalSize() }}>
             {items.map((row) => {
               const c = list.at(row.index);

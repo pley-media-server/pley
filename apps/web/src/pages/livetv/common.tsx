@@ -1,15 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
 import { categoryKey, liveQueries, type Channel, type LiveCategory, type Program } from "@/api/livetv";
+import { currentLanguage, t } from "@/i18n";
 
 export { ChannelLogo } from "@/components/ChannelLogo";
 export { useNow } from "@/lib/hooks";
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
+let formats: { language: string; time: Intl.DateTimeFormat; day: Intl.DateTimeFormat } | null = null;
 
-/** "20:00" (or "8:00 PM"), as the browser's locale writes times. */
+/** The guide's time and day formats in the language shown, made once for each language: the guide formats thousands. */
+function guideFormats() {
+  const language = currentLanguage();
+  if (formats?.language !== language) {
+    formats = {
+      language,
+      time: new Intl.DateTimeFormat(language, { hour: "numeric", minute: "2-digit" }),
+      day: new Intl.DateTimeFormat(language, { weekday: "short", day: "numeric", month: "short" }),
+    };
+  }
+  return formats;
+}
+
+/** "20:00" (or "8:00 PM"), as the language shown writes times. */
 export function formatTime(ts: number): string {
-  return timeFormat.format(new Date(ts * 1000));
+  return guideFormats().time.format(new Date(ts * 1000));
 }
 
 /** "20:00 – 21:00". */
@@ -25,10 +38,10 @@ export function formatGuideDay(ts: number, now: number): string {
     return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000;
   };
   const apart = date(ts) - date(now);
-  if (apart === 0) return "Today";
-  if (apart === 1) return "Tomorrow";
-  if (apart === -1) return "Yesterday";
-  return dayFormat.format(new Date(ts * 1000));
+  if (apart === 0) return t("time.today", { ns: "livetv" });
+  if (apart === 1) return t("time.tomorrow", { ns: "livetv" });
+  if (apart === -1) return t("time.yesterday", { ns: "livetv" });
+  return guideFormats().day.format(new Date(ts * 1000));
 }
 
 /** Minutes left of a programme: "12 min left". */
@@ -37,9 +50,11 @@ export function timeLeft(p: Pick<Program, "stop">, now: number): string {
   if (minutes >= 60) {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    return m ? `${h} h ${m} min left` : `${h} h left`;
+    return m
+      ? t("time.hoursMinutesLeft", { ns: "livetv", hours: h, minutes: m })
+      : t("time.hoursLeft", { ns: "livetv", count: h });
   }
-  return `${minutes} min left`;
+  return t("time.minutesLeft", { ns: "livetv", count: minutes });
 }
 
 /**

@@ -1,7 +1,9 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { TFunction } from "i18next";
 import { Info, Play, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { categoryKey, programProgress, useSetFavorite, type Channel, type LiveCategory, type Program } from "@/api/livetv";
 import { cn } from "@/lib/cn";
 import { useChannelList } from "./channelList";
@@ -30,6 +32,7 @@ export function ChannelGrid({
   now: number;
   onDetails: (channel: Channel, program: Program) => void;
 }) {
+  const { t } = useTranslation("livetv");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
@@ -85,7 +88,7 @@ export function ChannelGrid({
     <div
       ref={scrollRef}
       className="relative h-full overflow-y-auto overscroll-contain [scrollbar-width:thin]"
-      aria-label="Channels"
+      aria-label={t("channels")}
       role="list"
     >
       <div className="relative w-full" style={{ height: rows.getTotalSize() }}>
@@ -147,12 +150,13 @@ const ChannelListRow = memo(function ChannelListRow({
   category: LiveCategory;
   now: number;
 }) {
+  const { t } = useTranslation("livetv");
   const on = channel.now && channel.now.start <= now && channel.now.stop > now ? channel.now : null;
   return (
     <Link
       to={liveUrl(channel, category)}
       className="flex h-full items-center gap-3 border-b border-border/60 px-3 transition-colors hover:bg-surface-2 active:bg-surface-2"
-      aria-label={`Watch ${channel.number ? `${channel.number} ` : ""}${channel.name}${on ? `, now: ${on.title}` : ""}`}
+      aria-label={watchLabel(t, channel, on)}
     >
       <ChannelLogo channel={channel} width={80} showName={false} className="h-10 w-16 shrink-0 rounded-md bg-surface-3" />
       <div className="min-w-0 flex-1">
@@ -169,7 +173,7 @@ const ChannelListRow = memo(function ChannelListRow({
             </div>
           </>
         ) : (
-          <div className="truncate text-xs text-subtle">{channel.has_guide ? "Nothing in the guide now" : "No guide"}</div>
+          <div className="truncate text-xs text-subtle">{channel.has_guide ? t("nothingNow") : t("noGuide")}</div>
         )}
       </div>
     </Link>
@@ -190,6 +194,7 @@ export const ChannelCard = memo(function ChannelCard({
   onDetails: (channel: Channel, program: Program) => void;
   className?: string;
 }) {
+  const { t } = useTranslation("livetv");
   const favorite = useSetFavorite();
   const on = channel.now && channel.now.stop > now ? channel.now : null;
   const next = on ? channel.next : (channel.next ?? channel.now);
@@ -203,7 +208,7 @@ export const ChannelCard = memo(function ChannelCard({
       <Link
         to={liveUrl(channel, category)}
         className="relative block outline-none"
-        aria-label={`Watch ${channel.number ? `${channel.number} ` : ""}${channel.name}${on ? `, now: ${on.title}` : ""}`}
+        aria-label={watchLabel(t, channel, on)}
       >
         <ChannelLogo
           channel={channel}
@@ -224,7 +229,7 @@ export const ChannelCard = memo(function ChannelCard({
       <button
         type="button"
         onClick={() => favorite.mutate({ id: channel.id, favorite: !channel.favorite })}
-        aria-label={channel.favorite ? `Remove ${channel.name} from favourites` : `Add ${channel.name} to favourites`}
+        aria-label={t(channel.favorite ? "favourites.removeChannel" : "favourites.addChannel", { name: channel.name })}
         aria-pressed={channel.favorite}
         className={cn(
           "absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-black/50 text-white/80 backdrop-blur-sm transition-[opacity,color] hover:text-white",
@@ -247,7 +252,7 @@ export const ChannelCard = memo(function ChannelCard({
             <Info className="mt-0.5 size-3.5 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
           </button>
         ) : (
-          <div className="text-sm text-subtle">{channel.has_guide ? "Nothing in the guide now" : "No guide"}</div>
+          <div className="text-sm text-subtle">{channel.has_guide ? t("nothingNow") : t("noGuide")}</div>
         )}
         {on ? (
           <div className="flex items-center gap-2">
@@ -273,3 +278,9 @@ export const ChannelCard = memo(function ChannelCard({
     </div>
   );
 });
+
+/** "Watch 5 News", with what's on now. */
+function watchLabel(t: TFunction<"livetv">, channel: Channel, on: Program | null): string {
+  const name = `${channel.number ? `${channel.number} ` : ""}${channel.name}`;
+  return on ? t("watchNow", { name, title: on.title }) : t("watch", { name });
+}

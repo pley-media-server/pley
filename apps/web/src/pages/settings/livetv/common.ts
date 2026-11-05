@@ -1,13 +1,14 @@
 import type { LivePlan, XtreamAccount } from "@/api/livetv";
+import { currentLanguage, t } from "@/i18n";
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
-
-/** "Active · expires 12 Mar 2027 · 2 connections". */
+/** "Active · expires 12 Mar 2027 · 2 connections": the status as the provider writes it. */
 export function accountLine(a: XtreamAccount): string {
-  const parts = [a.trial ? `${a.status} (trial)` : a.status];
-  if (a.expires_at) parts.push(`${a.expires_at * 1000 < Date.now() ? "expired" : "expires"} ${dateFormat.format(new Date(a.expires_at * 1000))}`);
-  else parts.push("doesn't expire");
-  if (a.max_connections != null) parts.push(`${a.max_connections} ${a.max_connections === 1 ? "connection" : "connections"}`);
+  const parts = [a.trial ? t("settings.account.trial", { ns: "livetv", status: a.status }) : a.status];
+  if (a.expires_at) {
+    const date = new Date(a.expires_at * 1000).toLocaleDateString(currentLanguage(), { day: "numeric", month: "short", year: "numeric" });
+    parts.push(t(a.expires_at * 1000 < Date.now() ? "settings.account.expired" : "settings.account.expires", { ns: "livetv", date }));
+  } else parts.push(t("settings.account.noExpiry", { ns: "livetv" }));
+  if (a.max_connections != null) parts.push(t("settings.account.connections", { ns: "livetv", count: a.max_connections }));
   return parts.join(" · ");
 }
 
@@ -29,40 +30,45 @@ const CODECS: Record<string, string> = {
   mp3: "MP3",
 };
 
+/** The hardware each encoder runs on; libx264, the processor, is named in the language shown. */
 const ENCODERS: Record<string, string> = {
   h264_nvenc: "NVIDIA",
   h264_qsv: "Intel Quick Sync",
   h264_amf: "AMD",
   h264_videotoolbox: "VideoToolbox",
-  libx264: "the processor",
 };
 
 /** What the transcoder makes of a channel: "1080i MPEG-2 → H.264 on NVIDIA · MP2 → AAC". */
 export function planLine(p: LivePlan): string {
   const lines = p.height ? `${p.height}${p.interlaced ? "i" : "p"}` : "";
   const source = [lines, CODECS[p.video_codec ?? ""] ?? p.video_codec].filter(Boolean).join(" ");
+  const encoder = p.video === "libx264" ? t("settings.plan.processor", { ns: "livetv" }) : (ENCODERS[p.video] ?? p.video);
   const video =
     p.video === "none"
-      ? "radio"
+      ? t("settings.plan.radio", { ns: "livetv" })
       : p.video === "copy"
-        ? `${source} as it is`
-        : `${source} → H.264 on ${ENCODERS[p.video] ?? p.video}${p.interlaced ? ", deinterlaced" : ""}`;
+        ? t("settings.plan.asItIs", { ns: "livetv", source })
+        : t(p.interlaced ? "settings.plan.transcodedDeinterlaced" : "settings.plan.transcoded", { ns: "livetv", source, encoder });
   const audioIn = CODECS[p.audio_codec ?? ""] ?? p.audio_codec ?? "";
-  const audio = p.audio === "none" ? "" : p.audio === "copy" ? `${audioIn} as it is` : `${audioIn} → AAC`;
+  const audio =
+    p.audio === "none" ? "" : p.audio === "copy" ? t("settings.plan.asItIs", { ns: "livetv", source: audioIn }) : `${audioIn} → AAC`;
   return [video, audio].filter(Boolean).join(" · ");
 }
 
 /** "4.2 Mbit/s". */
 export function formatKbps(kbps: number): string {
-  if (kbps >= 1000) return `${(kbps / 1000).toFixed(1)} Mbit/s`;
-  return `${kbps} kbit/s`;
+  if (kbps >= 1000) {
+    const value = (kbps / 1000).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+    return t("settings.rate.mbps", { ns: "livetv", value });
+  }
+  return t("settings.rate.kbps", { ns: "livetv", value: kbps });
 }
 
 /** "for 12 min", since `since`. */
 export function formatFor(since: number): string {
   const minutes = Math.max(0, Math.floor((Date.now() / 1000 - since) / 60));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `for ${minutes} min`;
+  if (minutes < 1) return t("settings.since.justNow", { ns: "livetv" });
+  if (minutes < 60) return t("settings.since.minutes", { ns: "livetv", minutes });
   const h = Math.floor(minutes / 60);
-  return `for ${h} h ${minutes % 60} min`;
+  return t("settings.since.hoursMinutes", { ns: "livetv", hours: h, minutes: minutes % 60 });
 }

@@ -3,8 +3,10 @@ import { useNavigate } from "react-router";
 import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Clock, Play, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CHANNEL_PAGE, categoryKey, liveQueries, type Channel, type LiveCategory, type Program } from "@/api/livetv";
 import { Skeleton } from "@/components/ui";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/hooks";
 import { useChannelList } from "./channelList";
@@ -43,6 +45,7 @@ export function GuideGrid({
   now: number;
   onDetails: (channel: Channel, program: Program) => void;
 }) {
+  const { t } = useTranslation("livetv");
   const wide = useMediaQuery("(min-width: 640px)");
   const layout = wide ? WIDE : NARROW;
   const pxPerSec = layout.pxPerMin / 60;
@@ -165,7 +168,7 @@ export function GuideGrid({
         onScroll={onScroll}
         className="relative h-full overflow-auto overscroll-contain rounded-lg border border-border bg-surface [scrollbar-width:thin]"
         role="grid"
-        aria-label="TV guide"
+        aria-label={t("guide.label")}
         aria-rowcount={list.total}
       >
         <div className="relative" style={{ width: layout.channelWidth + width, height: rows.getTotalSize() }}>
@@ -246,7 +249,7 @@ export function GuideGrid({
           onClick={() => toNow()}
           className="absolute bottom-4 right-4 z-40 flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-fg shadow-lg shadow-black/40 transition-transform animate-pop-in hover:scale-105"
         >
-          <Clock className="size-4" /> Now
+          <Clock className="size-4" /> {t("guide.now")}
         </button>
       ) : null}
     </div>
@@ -310,6 +313,7 @@ const GuideRow = memo(function GuideRow({
   index: number;
   onDetails: (channel: Channel, program: Program) => void;
 }) {
+  const { t } = useTranslation("livetv");
   const navigate = useNavigate();
   const pxPerSec = layout.pxPerMin / 60;
   const wide = layout === WIDE;
@@ -329,7 +333,7 @@ const GuideRow = memo(function GuideRow({
         onClick={() => void navigate(liveUrl(channel, category))}
         className="group/ch sticky left-0 z-10 flex shrink-0 items-center gap-2.5 border-r border-border bg-surface px-2.5 text-left transition-colors hover:bg-surface-2"
         style={{ width: layout.channelWidth }}
-        title={`Watch ${channel.name}`}
+        title={t("watch", { name: channel.name })}
       >
         <div className="relative">
           <ChannelLogo
@@ -360,7 +364,7 @@ const GuideRow = memo(function GuideRow({
             className="absolute inset-y-1 flex items-center rounded-md bg-white/[0.02] px-3 text-xs text-subtle"
             style={{ left: Math.max(0, (viewFrom - start) * pxPerSec) + 2, width: Math.max(0, (viewTo - viewFrom) * pxPerSec) - 4 }}
           >
-            {channel.has_guide ? "No information for this time" : <span className="truncate text-muted">{channelName(channel, category)}</span>}
+            {channel.has_guide ? t("guide.noInformation") : <span className="truncate text-muted">{channelName(channel, category)}</span>}
           </div>
         ) : null}
         {visible.map((p) => (
@@ -380,6 +384,7 @@ const GuideRow = memo(function GuideRow({
   );
 });
 
+/** Drawn by the hundred, so in its row's language rather than with a hook of its own. */
 function ProgramCell({
   channel,
   program,
@@ -420,9 +425,9 @@ function ProgramCell({
         <div className="flex h-full flex-col justify-center px-2.5" style={{ paddingLeft: 10 + indent }}>
           <div className="flex min-w-0 items-center gap-1.5">
             {program.is_live ? (
-              <span className="shrink-0 rounded-sm bg-danger px-1 text-[9px] font-bold uppercase leading-[14px] text-white">Live</span>
+              <span className="shrink-0 rounded-sm bg-danger px-1 text-[9px] font-bold uppercase leading-[14px] text-white">{t("live", { ns: "livetv" })}</span>
             ) : program.is_new ? (
-              <span className="shrink-0 rounded-sm bg-accent/20 px-1 text-[9px] font-bold uppercase leading-[14px] text-accent">New</span>
+              <span className="shrink-0 rounded-sm bg-accent/20 px-1 text-[9px] font-bold uppercase leading-[14px] text-accent">{t("new", { ns: "livetv" })}</span>
             ) : null}
             <span className={cn("truncate text-sm", airing ? "font-semibold" : "font-medium")}>{program.title}</span>
           </div>

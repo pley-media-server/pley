@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, ChevronDown, LayoutGrid, RefreshCw, Search, Settings2, Tv2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import {
   categoryKey,
@@ -17,6 +18,7 @@ import {
 import { useAuth } from "@/auth";
 import { Modal } from "@/components/Modal";
 import { Button, buttonClass, EmptyState, Skeleton, TextInput } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { CategoryRail, categoryName } from "./CategoryRail";
@@ -42,7 +44,8 @@ function stillThere(c: LiveCategory, groups: LiveGroups): boolean {
 }
 
 export function LiveTvPage() {
-  useDocumentTitle("Live TV");
+  const { t } = useTranslation(["livetv", "common"]);
+  useDocumentTitle(t("liveTv"));
   const user = useAuth();
   const summary = useLiveSummary();
   const groups = useLiveGroups(summary.data?.available ?? false);
@@ -83,7 +86,7 @@ export function LiveTvPage() {
   if (summary.data && !summary.data.allowed) {
     return (
       <Page>
-        <EmptyState icon={<Tv2 />} title="Live TV isn't open to this account" description="An administrator can open it in Settings → Live TV." />
+        <EmptyState icon={<Tv2 />} title={t("notOpen")} description={t("page.notOpenHint")} />
       </Page>
     );
   }
@@ -93,11 +96,11 @@ export function LiveTvPage() {
       <Page>
         <EmptyState
           icon={<Tv2 />}
-          title="Live TV didn't load"
+          title={t("didntLoad")}
           description={errorMessage(failed.error)}
           action={
             <Button icon={<RefreshCw className="size-4" />} onClick={() => void failed.refetch()}>
-              Try again
+              {t("common:actions.tryAgain")}
             </Button>
           }
         />
@@ -109,16 +112,12 @@ export function LiveTvPage() {
       <Page>
         <EmptyState
           icon={<Tv2 />}
-          title={user.is_admin ? "Watch TV on Pley" : "No channels yet"}
-          description={
-            user.is_admin
-              ? "Add your IPTV provider's playlist or Xtream Codes account: Pley reads its channels and guide, and everyone watches through this server."
-              : "Channels appear here once an administrator adds an IPTV provider."
-          }
+          title={user.is_admin ? t("page.setUpTitle") : t("page.noChannelsTitle")}
+          description={user.is_admin ? t("page.setUpHint") : t("page.noChannelsHint")}
           action={
             user.is_admin ? (
               <Link to="/settings/livetv" className={buttonClass("primary")}>
-                <Settings2 className="size-4" /> Set up Live TV
+                <Settings2 className="size-4" /> {t("page.setUp")}
               </Link>
             ) : undefined
           }
@@ -134,11 +133,11 @@ export function LiveTvPage() {
     <Page
       actions={
         <div className="flex items-center gap-2">
-          <div role="tablist" aria-label="View" className="flex rounded-lg border border-border bg-surface p-0.5">
+          <div role="tablist" aria-label={t("page.view")} className="flex rounded-lg border border-border bg-surface p-0.5">
             {(
               [
-                ["guide", "Guide", CalendarDays],
-                ["channels", "Channels", LayoutGrid],
+                ["guide", t("page.guide"), CalendarDays],
+                ["channels", t("channels"), LayoutGrid],
               ] as const
             ).map(([key, label, Icon]) => (
               <button
@@ -158,7 +157,7 @@ export function LiveTvPage() {
             ))}
           </div>
           {user.is_admin ? (
-            <Link to="/settings/livetv" className={buttonClass("ghost", "sm", "size-9 px-0")} aria-label="Live TV settings" title="Live TV settings">
+            <Link to="/settings/livetv" className={buttonClass("ghost", "sm", "size-9 px-0")} aria-label={t("settingsTitle")} title={t("settingsTitle")}>
               <Settings2 className="size-4" />
             </Link>
           ) : null}
@@ -178,17 +177,17 @@ export function LiveTvPage() {
               onClick={() => setPicking(true)}
               className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-sm font-medium transition-colors hover:border-border-strong lg:hidden"
             >
-              <span className="truncate">{searching ? `Results for “${search.trim()}”` : name}</span>
-              {total !== undefined && !searching ? <span className="text-xs tabular-nums text-subtle">{total.toLocaleString()}</span> : null}
+              <span className="truncate">{searching ? t("page.resultsFor", { search: search.trim() }) : name}</span>
+              {total !== undefined && !searching ? <span className="text-xs tabular-nums text-subtle">{total.toLocaleString(currentLanguage())}</span> : null}
               <ChevronDown className="ml-auto size-4 shrink-0 text-subtle" />
             </button>
             <h2 className="hidden min-w-0 flex-1 items-baseline gap-2 lg:flex">
               {searching ? (
-                <span className="truncate text-lg font-semibold tracking-tight">Results for “{search.trim()}”</span>
+                <span className="truncate text-lg font-semibold tracking-tight">{t("page.resultsFor", { search: search.trim() })}</span>
               ) : (
                 <>
                   <span className="truncate text-lg font-semibold tracking-tight">{name}</span>
-                  {total !== undefined ? <span className="text-sm tabular-nums text-subtle">{total.toLocaleString()} channels</span> : null}
+                  {total !== undefined ? <span className="text-sm tabular-nums text-subtle">{t("page.channelCount", { count: total })}</span> : null}
                 </>
               )}
             </h2>
@@ -200,15 +199,15 @@ export function LiveTvPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setSearch("");
                 }}
-                placeholder="Search channels, groups and what's on"
-                aria-label="Search Live TV"
+                placeholder={t("page.searchPlaceholder")}
+                aria-label={t("page.searchLabel")}
                 className="h-9 pl-9 pr-9"
               />
               {search ? (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  aria-label="Clear"
+                  aria-label={t("common:actions.clear")}
                   className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-subtle hover:bg-white/10 hover:text-fg"
                 >
                   <X className="size-3.5" />
@@ -218,8 +217,8 @@ export function LiveTvPage() {
           </div>
 
           {searching && foundGroups.length ? (
-            <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Groups found">
-              <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-subtle">Groups</span>
+            <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("page.groupsFound")}>
+              <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-subtle">{t("page.groups")}</span>
               {foundGroups.map((g) => (
                 <button
                   key={g.name}
@@ -229,7 +228,7 @@ export function LiveTvPage() {
                 >
                   {g.region ? <span className="text-xs font-semibold text-subtle">{g.region}</span> : null}
                   {g.label}
-                  <span className="text-xs tabular-nums text-subtle">{g.count.toLocaleString()}</span>
+                  <span className="text-xs tabular-nums text-subtle">{g.count.toLocaleString(currentLanguage())}</span>
                 </button>
               ))}
             </div>
@@ -239,7 +238,7 @@ export function LiveTvPage() {
         </div>
       </div>
 
-      <Modal open={picking} onClose={() => setPicking(false)} title="Channel groups" size="md">
+      <Modal open={picking} onClose={() => setPicking(false)} title={t("categories.label")} size="md">
         <div className="-mx-6 -my-2 h-[min(70dvh,36rem)]">{rail}</div>
       </Modal>
       <ProgramModal channel={details ? (detailChannel ?? details.channel) : null} program={details?.program ?? null} category={category} onClose={() => setDetails(null)} />
@@ -261,17 +260,18 @@ function Results({
   now: number;
   onDetails: (channel: Channel, program: Program) => void;
 }) {
+  const { t } = useTranslation(["livetv", "common"]);
   const first = useQuery(liveQueries.page(category, search, 0));
   const height = "h-[calc(100dvh-13rem)] min-h-[22rem] sm:h-[calc(100dvh-12.5rem)]";
   if (first.isError) {
     return (
       <EmptyState
         icon={<Tv2 />}
-        title="The channels didn't load"
+        title={t("page.channelsDidntLoad")}
         description={errorMessage(first.error)}
         action={
           <Button icon={<RefreshCw className="size-4" />} onClick={() => void first.refetch()}>
-            Try again
+            {t("common:actions.tryAgain")}
           </Button>
         }
       />
@@ -282,8 +282,8 @@ function Results({
     return (
       <EmptyState
         icon={<Search />}
-        title={search ? "No channels match" : "No channels here"}
-        description={search ? `No channel's name, number or programme on now has “${search.trim()}” in it.` : "Nothing in this group now."}
+        title={search ? t("page.noMatch") : t("page.empty")}
+        description={search ? t("page.noMatchHint", { search: search.trim() }) : t("page.emptyHint")}
       />
     );
   }
@@ -299,13 +299,14 @@ function Results({
 }
 
 function Page({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
+  const { t } = useTranslation("livetv");
   return (
     <div className="px-4 pb-6 pt-6 sm:px-8">
       <div className="mb-5 flex items-center gap-3">
         <div className="flex size-10 items-center justify-center rounded-lg bg-surface-2 text-accent">
           <Tv2 className="size-5" />
         </div>
-        <h1 className="flex-1 text-2xl font-bold tracking-tight">Live TV</h1>
+        <h1 className="flex-1 text-2xl font-bold tracking-tight">{t("liveTv")}</h1>
         {actions}
       </div>
       {children}

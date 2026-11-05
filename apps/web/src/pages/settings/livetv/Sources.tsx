@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CalendarClock, CircleAlert, FileText, KeyRound, LoaderCircle, Pencil, Plus, Radio, RefreshCw, Satellite, Square, Trash2, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import {
   useDeleteSource,
@@ -14,12 +15,14 @@ import {
 import { ConfirmModal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, Card, CardTitle, EmptyState, IconButton, PageSpinner, Toggle } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatAgo, pluralize } from "@/lib/format";
+import { formatAgo } from "@/lib/format";
 import { accountLine, expiresSoon, formatFor, formatKbps, planLine } from "./common";
 import { SourceModal } from "./SourceModal";
 
 export function Sources() {
+  const { t } = useTranslation(["livetv", "common"]);
   const sources = useLiveSources();
   const [editing, setEditing] = useState<LiveSource | null>(null);
   const [adding, setAdding] = useState(false);
@@ -29,7 +32,13 @@ export function Sources() {
 
   if (sources.isPending) return <PageSpinner />;
   if (sources.isError) {
-    return <EmptyState title="Couldn't load the sources" description={errorMessage(sources.error)} action={<Button onClick={() => void sources.refetch()}>Retry</Button>} />;
+    return (
+      <EmptyState
+        title={t("settings.sources.couldntLoad")}
+        description={errorMessage(sources.error)}
+        action={<Button onClick={() => void sources.refetch()}>{t("common:actions.retry")}</Button>}
+      />
+    );
   }
   const list = sources.data;
   return (
@@ -38,12 +47,12 @@ export function Sources() {
 
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Sources</h3>
-          <p className="text-sm text-muted">Where channels come from. Channels and guides are read again on their own.</p>
+          <h3 className="text-base font-semibold">{t("settings.sources.title")}</h3>
+          <p className="text-sm text-muted">{t("settings.sources.hint")}</p>
         </div>
         {list.length ? (
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>
-            Add source
+            {t("settings.sources.add")}
           </Button>
         ) : null}
       </div>
@@ -52,11 +61,11 @@ export function Sources() {
         <Card className="py-2">
           <EmptyState
             icon={<Satellite />}
-            title="No IPTV source yet"
-            description="Add your provider's M3U playlist or Xtream Codes account. Its channels and guide show in Live TV, for everyone you let watch."
+            title={t("settings.sources.noneTitle")}
+            description={t("settings.sources.noneHint")}
             action={
               <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>
-                Add a source
+                {t("settings.sources.addFirst")}
               </Button>
             }
           />
@@ -75,16 +84,16 @@ export function Sources() {
       <ConfirmModal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        title={`Remove ${deleting?.name ?? "this source"}?`}
-        message="Its channels, their guide and everyone's favourites of them go too. Anyone watching one stops."
-        confirmLabel="Remove"
+        title={t("settings.sources.removeTitle", { name: deleting?.name ?? t("settings.sources.thisSource") })}
+        message={t("settings.sources.removeMessage")}
+        confirmLabel={t("settings.sources.remove")}
         danger
         loading={remove.isPending}
         onConfirm={() =>
           deleting &&
           remove.mutate(deleting.id, {
             onSuccess: () => {
-              toast.success(`${deleting.name} removed`);
+              toast.success(t("settings.sources.removed", { name: deleting.name }));
               setDeleting(null);
             },
             onError: (e) => toast.error(errorMessage(e)),
@@ -96,6 +105,7 @@ export function Sources() {
 }
 
 function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdit: () => void; onDelete: () => void }) {
+  const { t } = useTranslation(["livetv", "common"]);
   const refresh = useRefreshSource();
   const update = useUpdateSource();
   const toast = useToast();
@@ -114,10 +124,10 @@ function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdi
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="truncate font-semibold">{s.name}</h4>
             <Badge>{s.kind === "xtream" ? "Xtream Codes" : "M3U"}</Badge>
-            {!s.enabled ? <Badge>Off</Badge> : null}
+            {!s.enabled ? <Badge>{t("settings.sources.off")}</Badge> : null}
             {busy ? (
               <Badge tone="info">
-                <LoaderCircle className="size-3 animate-spin" /> Reading
+                <LoaderCircle className="size-3 animate-spin" /> {t("settings.sources.reading")}
               </Badge>
             ) : null}
           </div>
@@ -126,31 +136,55 @@ function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdi
           </div>
 
           <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-            <Stat label="Channels" value={s.channels_at ? visible.toLocaleString() : "—"} note={s.hidden_count ? `${s.hidden_count} hidden` : undefined} />
-            <Stat label="In the guide" value={s.guide_at ? `${guided}%` : "—"} note={s.guide_at ? `${s.guided_count.toLocaleString()} channels` : "no guide yet"} />
             <Stat
-              label="Connections"
-              value={s.max_connections === 0 ? `${s.connections_in_use} in use` : `${s.connections_in_use} of ${s.max_connections}`}
-              note={s.max_connections === 0 ? "no limit" : s.connections_in_use >= s.max_connections ? "all in use" : "in use"}
+              label={t("channels")}
+              value={s.channels_at ? visible.toLocaleString(currentLanguage()) : "—"}
+              note={s.hidden_count ? t("settings.sources.hidden", { count: s.hidden_count }) : undefined}
+            />
+            <Stat
+              label={t("settings.sources.inGuide")}
+              value={s.guide_at ? (guided / 100).toLocaleString(currentLanguage(), { style: "percent" }) : "—"}
+              note={s.guide_at ? t("settings.sources.guideChannels", { count: s.guided_count }) : t("settings.sources.noGuideYet")}
+            />
+            <Stat
+              label={t("settings.sources.connections")}
+              value={
+                s.max_connections === 0
+                  ? t("settings.sources.inUseCount", { count: s.connections_in_use })
+                  : t("settings.sources.ofMax", { inUse: s.connections_in_use, max: s.max_connections })
+              }
+              note={
+                s.max_connections === 0
+                  ? t("settings.sources.noLimit")
+                  : s.connections_in_use >= s.max_connections
+                    ? t("settings.sources.allInUse")
+                    : t("settings.sources.inUse")
+              }
               meter={s.max_connections ? s.connections_in_use / s.max_connections : undefined}
             />
-            <Stat label="Read" value={s.channels_at ? formatAgo(s.channels_at) : "never"} note={s.guide_at ? `guide ${formatAgo(s.guide_at)}` : undefined} />
+            <Stat
+              label={t("settings.sources.read")}
+              value={s.channels_at ? formatAgo(s.channels_at) : t("common:format.never")}
+              note={s.guide_at ? t("settings.sources.guideAgo", { ago: formatAgo(s.guide_at) }) : undefined}
+            />
           </dl>
 
           {s.account ? (
             <div className={cn("mt-3 flex items-center gap-1.5 text-xs", soon !== null ? "text-danger" : "text-muted")}>
               <CalendarClock className="size-3.5" />
               {accountLine(s.account)}
-              {soon !== null ? <strong className="ml-1">{soon <= 0 ? "· renew it" : `· ${pluralize(soon, "day")} left`}</strong> : null}
+              {soon !== null ? (
+                <strong className="ml-1">· {soon <= 0 ? t("settings.sources.renew") : t("settings.sources.daysLeft", { count: soon })}</strong>
+              ) : null}
             </div>
           ) : null}
           {s.channels_error ? <Problem>{s.channels_error}</Problem> : null}
-          {s.guide_error ? <Problem>Guide: {s.guide_error}</Problem> : null}
+          {s.guide_error ? <Problem>{t("settings.sources.guideError", { error: s.guide_error })}</Problem> : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
           <Toggle
             checked={s.enabled}
-            label={s.enabled ? `Turn ${s.name} off` : `Turn ${s.name} on`}
+            label={t(s.enabled ? "settings.sources.turnOff" : "settings.sources.turnOn", { name: s.name })}
             onChange={(enabled) =>
               update.mutate(
                 {
@@ -172,17 +206,17 @@ function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdi
           />
           <div className="flex">
             <IconButton
-              label="Read again now"
+              label={t("settings.sources.readNow")}
               size="sm"
               disabled={busy || !s.enabled}
               onClick={() => refresh.mutate(s.id, { onError: (e) => toast.error(errorMessage(e)) })}
             >
               <RefreshCw className={cn("size-4", busy && "animate-spin")} />
             </IconButton>
-            <IconButton label="Edit" size="sm" onClick={onEdit}>
+            <IconButton label={t("common:actions.edit")} size="sm" onClick={onEdit}>
               <Pencil className="size-4" />
             </IconButton>
-            <IconButton label="Remove" size="sm" onClick={onDelete} className="hover:text-danger">
+            <IconButton label={t("settings.sources.remove")} size="sm" onClick={onDelete} className="hover:text-danger">
               <Trash2 className="size-4" />
             </IconButton>
           </div>
@@ -218,6 +252,7 @@ function Problem({ children }: { children: React.ReactNode }) {
 
 /** What is being watched now: each connection, who is on it, what it carries. */
 function Connections({ sources }: { sources: LiveSource[] }) {
+  const { t } = useTranslation("livetv");
   const tuners = useTuners(sources.length > 0);
   const stop = useStopTuner();
   const toast = useToast();
@@ -225,9 +260,9 @@ function Connections({ sources }: { sources: LiveSource[] }) {
   const list = tuners.data ?? [];
   return (
     <Card>
-      <CardTitle icon={<Radio />}>Watching now</CardTitle>
+      <CardTitle icon={<Radio />}>{t("settings.sources.watchingNow")}</CardTitle>
       {list.length === 0 ? (
-        <p className="text-sm text-muted">Nobody is watching. Each channel being watched takes one of its source's connections.</p>
+        <p className="text-sm text-muted">{t("settings.sources.nobodyWatching")}</p>
       ) : (
         <ul className="divide-y divide-border">
           {list.map((t) => (
@@ -244,29 +279,30 @@ function Connections({ sources }: { sources: LiveSource[] }) {
   );
 }
 
-function TunerRow({ tuner: t, stopping, onStop }: { tuner: TunerStatus; stopping: boolean; onStop: () => void }) {
+function TunerRow({ tuner, stopping, onStop }: { tuner: TunerStatus; stopping: boolean; onStop: () => void }) {
+  const { t } = useTranslation("livetv");
   return (
     <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <span className={cn("size-2 shrink-0 rounded-full", t.error ? "bg-danger" : t.connected ? "bg-success animate-pulse" : "bg-white/30")} />
+      <span className={cn("size-2 shrink-0 rounded-full", tuner.error ? "bg-danger" : tuner.connected ? "bg-success animate-pulse" : "bg-white/30")} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="truncate font-medium">{t.channel_name}</span>
-          <span className="text-xs text-subtle">{t.source_name}</span>
-          {t.idle ? <Badge>Letting go</Badge> : null}
+          <span className="truncate font-medium">{tuner.channel_name}</span>
+          <span className="text-xs text-subtle">{tuner.source_name}</span>
+          {tuner.idle ? <Badge>{t("settings.sources.lettingGo")}</Badge> : null}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
           <span className="flex items-center gap-1">
             <Users className="size-3" />
-            {t.viewers.length ? t.viewers.map((v) => v.username).join(", ") : "nobody"}
+            {tuner.viewers.length ? tuner.viewers.map((v) => v.username).join(", ") : t("settings.sources.nobody")}
           </span>
-          {t.kbps ? <span className="tabular-nums">{formatKbps(t.kbps)}</span> : null}
-          <span>{formatFor(t.started_at)}</span>
-          {t.plan ? <span className="truncate">{planLine(t.plan)}</span> : null}
+          {tuner.kbps ? <span className="tabular-nums">{formatKbps(tuner.kbps)}</span> : null}
+          <span>{formatFor(tuner.started_at)}</span>
+          {tuner.plan ? <span className="truncate">{planLine(tuner.plan)}</span> : null}
         </div>
-        {t.error ? <div className="mt-0.5 truncate text-xs text-danger">{t.error}</div> : null}
+        {tuner.error ? <div className="mt-0.5 truncate text-xs text-danger">{tuner.error}</div> : null}
       </div>
       <Button size="sm" variant="ghost" icon={<Square className="size-3.5 fill-current" />} loading={stopping} onClick={onStop}>
-        Stop
+        {t("settings.sources.stop")}
       </Button>
     </li>
   );

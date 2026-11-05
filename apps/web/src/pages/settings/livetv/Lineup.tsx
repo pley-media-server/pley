@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CalendarCheck, CalendarX, Eye, EyeOff, Pencil, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import {
   CHANNEL_PAGE,
@@ -17,7 +18,6 @@ import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, EmptyState, Field, IconButton, PageSpinner, Select, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
 import { ChannelLogo } from "@/pages/livetv/common";
 
 const ROW = 56;
@@ -31,6 +31,7 @@ type Chosen = { all: false; ids: ReadonlySet<number> } | { all: true };
  * tens of thousands opens at once.
  */
 export function Lineup() {
+  const { t } = useTranslation(["livetv", "common"]);
   const sources = useLiveSources();
   const groups = useLineupGroups();
   const patch = usePatchLineup();
@@ -87,10 +88,16 @@ export function Lineup() {
 
   if (everything.isPending) return <PageSpinner />;
   if (everything.isError) {
-    return <EmptyState title="Couldn't load the channels" description={errorMessage(everything.error)} action={<Button onClick={() => void everything.refetch()}>Retry</Button>} />;
+    return (
+      <EmptyState
+        title={t("settings.lineup.couldntLoad")}
+        description={errorMessage(everything.error)}
+        action={<Button onClick={() => void everything.refetch()}>{t("common:actions.retry")}</Button>}
+      />
+    );
   }
   if (!everything.data?.total) {
-    return <EmptyState title="No channels yet" description="Channels show here once a source has been read." />;
+    return <EmptyState title={t("settings.lineup.noneTitle")} description={t("settings.lineup.noneHint")} />;
   }
 
   const chosenCount = chosen.all ? total : chosen.ids.size;
@@ -100,7 +107,7 @@ export function Lineup() {
       {
         onSuccess: () => {
           const n = ids ? ids.length : total;
-          if (n > 1) toast.success(`${pluralize(n, "channel")} ${hidden ? "hidden" : "shown"}`);
+          if (n > 1) toast.success(t(hidden ? "settings.lineup.hidden" : "settings.lineup.shown", { count: n }));
           setChosen({ all: false, ids: new Set() });
         },
         onError: (e) => toast.error(errorMessage(e)),
@@ -119,20 +126,26 @@ export function Lineup() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-base font-semibold">Channels</h3>
+        <h3 className="text-base font-semibold">{t("channels")}</h3>
         <p className="text-sm text-muted">
-          {pluralize(all.total - all.hidden, "channel")} shown{all.hidden ? `, ${all.hidden.toLocaleString()} hidden` : ""}. Hidden channels are nobody's to
-          watch; names and numbers set here stay when the source is read again. Whole groups are hidden in Groups.
+          {t("settings.lineup.shown", { count: all.total - all.hidden })}
+          {all.hidden ? t("settings.lineup.alsoHidden", { count: all.hidden }) : ""}. {t("settings.lineup.hint")}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-48 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-          <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a channel" aria-label="Find a channel" className="h-9 pl-9" />
+          <TextInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("settings.lineup.find")}
+            aria-label={t("settings.lineup.find")}
+            className="h-9 pl-9"
+          />
         </div>
         {(sources.data?.length ?? 0) > 1 ? (
-          <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Source">
-            <option value="all">Every source</option>
+          <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label={t("settings.lineup.source")}>
+            <option value="all">{t("settings.lineup.everySource")}</option>
             {sources.data?.map((s) => (
               <option key={s.id} value={String(s.id)}>
                 {s.name}
@@ -141,8 +154,8 @@ export function Lineup() {
           </Select>
         ) : null}
         {groupNames.length > 1 ? (
-          <Select value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Group" className="max-w-52">
-            <option value="all">Every group</option>
+          <Select value={group} onChange={(e) => setGroup(e.target.value)} aria-label={t("settings.lineup.group")} className="max-w-52">
+            <option value="all">{t("settings.lineup.everyGroup")}</option>
             {groupNames.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -150,12 +163,12 @@ export function Lineup() {
             ))}
           </Select>
         ) : null}
-        <Select value={shown} onChange={(e) => setShown(e.target.value as LineupState)} aria-label="Which">
-          <option value="all">Shown and hidden</option>
-          <option value="shown">Shown</option>
-          <option value="hidden">Hidden</option>
-          <option value="no-guide">Without a guide</option>
-          <option value="offline">Offline</option>
+        <Select value={shown} onChange={(e) => setShown(e.target.value as LineupState)} aria-label={t("settings.lineup.which")}>
+          <option value="all">{t("settings.lineup.shownAndHidden")}</option>
+          <option value="shown">{t("settings.lineup.shownOnly")}</option>
+          <option value="hidden">{t("settings.lineup.hiddenOnly")}</option>
+          <option value="no-guide">{t("settings.lineup.withoutGuide")}</option>
+          <option value="offline">{t("settings.lineup.offline")}</option>
         </Select>
       </div>
 
@@ -163,27 +176,27 @@ export function Lineup() {
         <div className="flex h-11 items-center gap-3 border-b border-border bg-surface-2/60 px-3 text-xs font-medium text-subtle">
           <input
             type="checkbox"
-            aria-label="Choose every channel listed"
+            aria-label={t("settings.lineup.chooseAll")}
             checked={total > 0 && chosen.all}
             onChange={() => setChosen(chosen.all ? { all: false, ids: new Set() } : { all: true })}
             className="size-4 accent-[var(--color-accent)]"
           />
           {chosenCount ? (
             <div className="flex flex-1 items-center gap-2 text-fg animate-fade-in">
-              <span className="text-sm">{chosenCount.toLocaleString()} chosen</span>
+              <span className="text-sm">{t("settings.lineup.chosen", { count: chosenCount })}</span>
               <Button size="sm" variant="ghost" icon={<EyeOff className="size-4" />} onClick={() => setHidden(true, chosen.all ? null : [...chosen.ids])} loading={patch.isPending}>
-                Hide
+                {t("settings.lineup.hide")}
               </Button>
               <Button size="sm" variant="ghost" icon={<Eye className="size-4" />} onClick={() => setHidden(false, chosen.all ? null : [...chosen.ids])} loading={patch.isPending}>
-                Show
+                {t("settings.lineup.show")}
               </Button>
             </div>
           ) : (
-            <span className="flex-1">{first.data ? pluralize(total, "channel") : "…"}</span>
+            <span className="flex-1">{first.data ? t("settings.lineup.count", { count: total }) : "…"}</span>
           )}
         </div>
         {first.data && total === 0 ? (
-          <p className="p-6 text-center text-sm text-muted">No channels match.</p>
+          <p className="p-6 text-center text-sm text-muted">{t("settings.lineup.noMatch")}</p>
         ) : (
           <div ref={scrollRef} className="h-[min(36rem,65dvh)] overflow-y-auto [scrollbar-width:thin]">
             <ul className="relative" style={{ height: rows.getTotalSize() }}>
@@ -206,7 +219,7 @@ export function Lineup() {
                   >
                     <input
                       type="checkbox"
-                      aria-label={`Choose ${c.name}`}
+                      aria-label={t("settings.lineup.choose", { name: c.name })}
                       checked={isChosen(c.id)}
                       onChange={() => toggle(c.id)}
                       className="size-4 accent-[var(--color-accent)]"
@@ -216,25 +229,28 @@ export function Lineup() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{c.name}</div>
                       <div className="truncate text-xs text-subtle">
-                        {[c.group, c.custom_name ? `“${c.source_name}” at the source` : null].filter(Boolean).join(" · ")}
+                        {[c.group, c.custom_name ? t("settings.lineup.atSource", { name: c.source_name }) : null].filter(Boolean).join(" · ")}
                       </div>
                     </div>
                     {c.offline ? (
-                      <span className="hidden rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger sm:inline" title="It didn't play when last tried">
-                        Offline
+                      <span
+                        className="hidden rounded bg-danger/15 px-1.5 py-0.5 text-[11px] font-medium text-danger sm:inline"
+                        title={t("settings.lineup.offlineTitle")}
+                      >
+                        {t("settings.lineup.offline")}
                       </span>
                     ) : null}
                     <span
                       className={cn("hidden items-center gap-1 text-xs sm:flex", c.has_guide ? "text-success" : "text-subtle")}
-                      title={c.has_guide ? `Guide: ${c.guide_id}` : "No guide"}
+                      title={c.has_guide ? t("settings.lineup.guideId", { id: c.guide_id }) : t("noGuide")}
                     >
                       {c.has_guide ? <CalendarCheck className="size-3.5" /> : <CalendarX className="size-3.5" />}
-                      {c.has_guide ? "Guide" : "No guide"}
+                      {c.has_guide ? t("settings.lineup.guide") : t("noGuide")}
                     </span>
-                    <IconButton label={c.hidden ? `Show ${c.name}` : `Hide ${c.name}`} size="sm" onClick={() => setHidden(!c.hidden, [c.id])}>
+                    <IconButton label={t(c.hidden ? "settings.showName" : "settings.hideName", { name: c.name })} size="sm" onClick={() => setHidden(!c.hidden, [c.id])}>
                       {c.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </IconButton>
-                    <IconButton label={`Edit ${c.name}`} size="sm" onClick={() => setEditing(c)}>
+                    <IconButton label={t("settings.editName", { name: c.name })} size="sm" onClick={() => setEditing(c)}>
                       <Pencil className="size-4" />
                     </IconButton>
                   </li>
@@ -250,6 +266,7 @@ export function Lineup() {
 }
 
 function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: () => void }) {
+  const { t } = useTranslation(["livetv", "common"]);
   const patch = usePatchLineup();
   const toast = useToast();
   const [name, setName] = useState(channel.custom_name ?? "");
@@ -260,7 +277,7 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
       { ids: [channel.id], name, number, guide_id: guide },
       {
         onSuccess: () => {
-          toast.success("Channel saved");
+          toast.success(t("settings.editor.saved"));
           onClose();
         },
         onError: (e) => toast.error(errorMessage(e)),
@@ -280,10 +297,10 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={patch.isPending}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" onClick={save} loading={patch.isPending}>
-            Save
+            {t("common:actions.save")}
           </Button>
         </>
       }
@@ -295,21 +312,25 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
           save();
         }}
       >
-        <Field label="Name" htmlFor="ch-name" hint="Empty: the source's.">
+        <Field label={t("settings.editor.name")} htmlFor="ch-name" hint={t("settings.editor.nameHint")}>
           <TextInput id="ch-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={channel.source_name} />
         </Field>
-        <Field label="Number" htmlFor="ch-number" hint={channel.source_number ? `Empty: the source's, ${channel.source_number}.` : "Channels go by number, then as their source lists them."}>
+        <Field
+          label={t("settings.editor.number")}
+          htmlFor="ch-number"
+          hint={channel.source_number ? t("settings.editor.numberHint", { number: channel.source_number }) : t("settings.editor.numberHintNone")}
+        >
           <TextInput id="ch-number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder={channel.source_number ?? ""} inputMode="decimal" />
         </Field>
         <Field
-          label="Guide channel"
+          label={t("settings.editor.guide")}
           htmlFor="ch-guide"
           hint={
             channel.source_guide_id
-              ? `Its id in the guide (XMLTV). Empty: the source's, ${channel.source_guide_id}.`
+              ? t("settings.editor.guideHintSource", { id: channel.source_guide_id })
               : channel.matched_guide_id
-                ? `Its id in the guide (XMLTV). Empty: ${channel.matched_guide_id}, found by its name.`
-                : "Its id in the guide (XMLTV): the source names none, and none goes by its name."
+                ? t("settings.editor.guideHintMatched", { id: channel.matched_guide_id })
+                : t("settings.editor.guideHintNone")
           }
         >
           <TextInput
@@ -321,7 +342,7 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
             className="font-mono"
           />
         </Field>
-        <p className="text-xs text-subtle">A new guide channel shows its programmes once the guide is read again.</p>
+        <p className="text-xs text-subtle">{t("settings.editor.note")}</p>
         <button type="submit" hidden />
       </form>
     </Modal>
