@@ -371,18 +371,9 @@ const COUNTED = {
 
 export type Counted = keyof typeof COUNTED;
 
-/**
- * "1 movie", "12,345 movies", in the language shown, for the words of
- * {@link Counted}; any other English word (and its plural, `many`) is
- * counted in English.
- */
-export function pluralize(n: number, what: Counted): string;
-export function pluralize(n: number, one: string, many?: string): string;
-export function pluralize(n: number, one: string, many?: string): string {
-  if (many === undefined && Object.prototype.hasOwnProperty.call(COUNTED, one)) {
-    return t(`format.counts.${COUNTED[one as Counted]}`, { count: n });
-  }
-  return `${n.toLocaleString("en-US")} ${n === 1 ? one : many ?? `${one}s`}`;
+/** "1 movie", "12,345 movies", in the language shown. */
+export function pluralize(n: number, what: Counted): string {
+  return t(`format.counts.${COUNTED[what]}`, { count: n });
 }
 
 /** The short line under a card, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"… */

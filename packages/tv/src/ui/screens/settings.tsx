@@ -20,7 +20,7 @@ import type { Entry } from "../shell/navigator";
 import { Dialog, failedTitle, problem, sentence, useApp } from "./common";
 import { licenseRows } from "../../licenses";
 import { pageOf } from "./item-actions";
-import { librarySorting } from "./library";
+import { librarySorting, sortNeedsNewer } from "./library";
 import { ProfileAvatar, QrCode } from "./onboarding/kit";
 
 type Category = "profile" | "playback" | "audio" | "display" | "server" | "diagnostics" | "about" | "signout";
@@ -273,7 +273,7 @@ export function SettingsScreen(p: { entry: Entry }) {
                 ? ui.nav.open({ name: "libraries", sort: true })
                 : librariesSort === "refused"
                   ? setWeb(true)
-                  : ui.toast(t("settings.profile.sortNeedsNewerToast"), true)
+                  : ui.toast(sortNeedsNewer(), true)
             }
           />,
         );

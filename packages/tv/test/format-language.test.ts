@@ -88,11 +88,6 @@ describe("durations, counts, episodes and sizes", () => {
     expect(pluralize(2, "album")).toBe("2 álbumes");
     expect(formatBytes(1536)).toBe("1,5 KB");
   });
-
-  it("count English words the format area doesn't have in English", () => {
-    setLanguage("fr");
-    expect(pluralize(2, "more movie", "more movies")).toBe("2 more movies");
-  });
 });
 
 describe("relative times and dates", () => {

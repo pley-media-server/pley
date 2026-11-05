@@ -911,9 +911,6 @@ export function sortNeedsNewer(): string {
   return t("browse.libraries.needsNewer");
 }
 
-/** {@link sortNeedsNewer}'s words in English, whatever the language shown. */
-export const SORT_NEEDS_NEWER = "Sorting libraries needs a newer Pley on the server.";
-
 /**
  * Every library (TvLibrariesScreen): the rail lists six, and Libraries
  * opens this page. A card a library, in the profile's order: its kind's
