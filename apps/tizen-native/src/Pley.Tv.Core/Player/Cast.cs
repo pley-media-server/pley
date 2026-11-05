@@ -23,10 +23,11 @@ public enum CastAct
 
 /// <summary>
 /// What a cast asks of this TV: <paramref name="Act"/> on <paramref name="Id"/>, a title from
-/// <paramref name="StartMs"/> (null: where Play resumes), a playlist, album or artist
-/// <paramref name="Shuffle"/>d.
+/// <paramref name="StartMs"/> (null: where Play resumes) with the audio <paramref name="AudioIndex"/>
+/// and the subtitles <paramref name="SubtitleIndex"/> (-1: none) picked on the remote's page (null:
+/// the profile's choices), a playlist, album or artist <paramref name="Shuffle"/>d.
 /// </summary>
-public sealed record CastAction(CastAct Act, long Id = 0, long? StartMs = null, bool Shuffle = false)
+public sealed record CastAction(CastAct Act, long Id = 0, long? StartMs = null, bool Shuffle = false, int? AudioIndex = null, int? SubtitleIndex = null)
 {
     public static readonly CastAction None = new CastAction(CastAct.None);
 }
@@ -80,7 +81,8 @@ public static class Casts
     public static CastAction Action(string receiver, bool shown, ServerEvent e)
     {
         if (!shown || e.Type != "cast" || e.ReceiverId != receiver) return CastAction.None;
-        if (e.ItemId is long item) return new CastAction(CastAct.Item, item, e.StartMs is long at ? Math.Max(0, at) : null, e.Shuffle == true);
+        if (e.ItemId is long item)
+            return new CastAction(CastAct.Item, item, e.StartMs is long at ? Math.Max(0, at) : null, e.Shuffle == true, e.AudioIndex, e.SubtitleIndex);
         if (e.PlaylistId is long playlist) return new CastAction(CastAct.Playlist, playlist, Shuffle: e.Shuffle == true);
         if (e.ChannelId is long channel) return new CastAction(CastAct.Channel, channel);
         return CastAction.None;
@@ -216,7 +218,9 @@ public sealed class CastReceiver
         switch (plan.Plays)
         {
             case ItemPlays.Video:
-                return banner => target.Video(new PlayRequest(detail.Id, plan.StartMs ?? ResumeOf(detail), false), banner);
+                // The tracks picked on the remote's page play, in place of the profile's choices, for this play only.
+                return banner => target.Video(new PlayRequest(detail.Id, plan.StartMs ?? ResumeOf(detail), false,
+                    AudioIndex: action.AudioIndex, SubtitleIndex: action.SubtitleIndex), banner);
             case ItemPlays.NextEpisode:
             {
                 // As a show's Play (Plays.Resolve): the episode from where it was left.

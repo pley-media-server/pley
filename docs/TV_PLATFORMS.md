@@ -520,7 +520,13 @@ the music behind the other pages and the live player say what they obey
 `stream.ts` it reads too), act only on their own session, and report each
 change at once; a film or music told to play or pause as it already is
 says so again. The player changes the audio and subtitles as its Audio
-and Subtitles panels do, and every report of it says which play. The
+and Subtitles panels do, and the quality (`quality`) as its Quality panel
+does, the pick kept for the next titles as the panel's is: a quality that
+plays something else starts a new session, which reports as it begins,
+and Original from Automatic, or the quality picked already, reports at
+once. Every report of it says which tracks play and which quality is
+picked (`quality`, by id: `auto`, `original`, `8m`…). A file on a drive
+has no Quality menu, and lists no `quality`. The
 remote's next and previous on Live TV go through the
 channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
@@ -530,7 +536,13 @@ Casts play as on the web app ([Remote control](#remote-control)), taken
 while the rail's pages or a player show: what a remote sends takes the
 place of the player showing once that one has let go of the TV's player,
 with "Playing from …" at the player's top right, or over Now Playing as
-the pages' toasts show, at their foot. A music playlist plays as the
+the pages' toasts show, at their foot. A movie or an episode sent with
+the tracks picked on the remote's page (`audio_index`, `subtitle_index`,
+`-1` for none) plays with them, for that play only and without saving
+them; a track its file doesn't have (another version's) leaves the choice
+to the profile's, and the quality stays the TV's own. A channel opens the
+live player on it, as Watch on that channel does, with channel up and
+down going through All channels. A music playlist plays as the
 music's queue, where the playlist page's own Play opens its first entry's
 album, as Android TV's does. The rules are `Player/Cast.cs`.
 

@@ -28,6 +28,9 @@ public class CastRuleTests
 
     static long? Long(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null : e.GetInt64();
 
+    /// <summary><paramref name="name"/> of <paramref name="e"/>; null when it is null or left out.</summary>
+    static int? Int(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind != JsonValueKind.Null ? v.GetInt32() : null;
+
     [Theory]
     [MemberData(nameof(CastCases))]
     public void A_cast_does_what_the_fixture_says(int i)
@@ -44,10 +47,13 @@ public class CastRuleTests
             ChannelId = Long(e.GetProperty("channel_id")),
             StartMs = Long(e.GetProperty("start_ms")),
             Shuffle = e.GetProperty("shuffle").GetBoolean(),
+            AudioIndex = Int(e, "audio_index"),
+            SubtitleIndex = Int(e, "subtitle_index"),
             From = e.GetProperty("from").GetString(),
         };
         var action = Casts.Action(input.GetProperty("receiver_id").GetString()!, input.GetProperty("shown").GetBoolean(), cast);
         var banner = Casts.Banner(cast.From);
+        var expected = c.GetProperty("out");
         var written = action.Act switch
         {
             CastAct.Item => new Dictionary<string, object?> { ["act"] = "item", ["item_id"] = action.Id, ["start_ms"] = action.StartMs, ["shuffle"] = action.Shuffle, ["banner"] = banner },
@@ -55,7 +61,10 @@ public class CastRuleTests
             CastAct.Channel => new Dictionary<string, object?> { ["act"] = "channel", ["channel_id"] = action.Id, ["banner"] = banner },
             _ => new Dictionary<string, object?> { ["act"] = "none" },
         };
-        Fixtures.SameFields(input, written, c.GetProperty("out"));
+        // The tracks a title's cast plays with, in the cases that say them (casts made before they were sent don't).
+        if (action.Act == CastAct.Item && expected.TryGetProperty("audio_index", out _)) written["audio_index"] = action.AudioIndex;
+        if (action.Act == CastAct.Item && expected.TryGetProperty("subtitle_index", out _)) written["subtitle_index"] = action.SubtitleIndex;
+        Fixtures.SameFields(input, written, expected);
     }
 
     [Theory]
@@ -92,6 +101,15 @@ public class CastRuleTests
             ("player_command", null, null, null, null, null, null),
         }, events.Select(e => (e.Type, e.ReceiverId, e.ItemId, e.PlaylistId, e.StartMs, e.Shuffle, e.From)));
         Assert.Equal(-1, events.Last().StreamIndex);
+    }
+
+    [Fact]
+    public void A_title_cast_carries_the_tracks_picked_on_the_remotes_page()
+    {
+        var e = new SseReader().Feed(
+            "data: {\"type\":\"cast\",\"receiver_id\":\"tizen-1\",\"item_id\":5,\"playlist_id\":null,\"channel_id\":null,\"start_ms\":null,\"shuffle\":false,\"audio_index\":2,\"subtitle_index\":-1,\"from\":null}\n\n").Single();
+        Assert.Equal((2, -1), (e.AudioIndex, e.SubtitleIndex));
+        Assert.Equal(new CastAction(CastAct.Item, 5, AudioIndex: 2, SubtitleIndex: -1), Casts.Action("tizen-1", true, e));
     }
 }
 
@@ -151,8 +169,22 @@ public class CastReceiverTests
     static ItemDetail Detail(long id, string kind, long? parent = null, long positionMs = 0, bool watched = false) =>
         new ItemDetail { Id = id, LibraryId = 1, Kind = kind, Title = $"{kind} {id}", ParentId = parent, UserState = new UserState { PositionMs = positionMs, Watched = watched } };
 
-    static ServerEvent Cast(long? item = null, long? playlist = null, long? channel = null, long? startMs = null, bool shuffle = false, string? from = "Living room phone", string receiver = "tizen-1") =>
-        new ServerEvent { Type = "cast", ReceiverId = receiver, ItemId = item, PlaylistId = playlist, ChannelId = channel, StartMs = startMs, Shuffle = shuffle, From = from };
+    static ServerEvent Cast(long? item = null, long? playlist = null, long? channel = null, long? startMs = null, bool shuffle = false, string? from = "Living room phone", string receiver = "tizen-1",
+        int? audio = null, int? subtitle = null) =>
+        new ServerEvent { Type = "cast", ReceiverId = receiver, ItemId = item, PlaylistId = playlist, ChannelId = channel, StartMs = startMs, Shuffle = shuffle, From = from, AudioIndex = audio, SubtitleIndex = subtitle };
+
+    [Fact]
+    public void A_movie_or_an_episode_plays_with_the_tracks_picked_on_the_remotes_page()
+    {
+        server.Items[5] = Detail(5, "movie", positionMs: 600_000);
+        receiver.Take(Cast(item: 5, startMs: 60_000, audio: 2, subtitle: -1));
+        receiver.Take(Cast(item: 5, subtitle: 3));
+        Assert.Equal(new[]
+        {
+            new PlayRequest(5, 60_000, false, AudioIndex: 2, SubtitleIndex: -1),
+            new PlayRequest(5, 600_000, false, SubtitleIndex: 3),
+        }, target.Videos.Select(v => v.Request));
+    }
 
     [Fact]
     public void A_movie_or_an_episode_plays_from_where_it_was_sent_else_where_Play_resumes_saying_where_it_came_from()
@@ -338,5 +370,36 @@ public class ReceiverStreamTests
             Home + "/api/events?receiver=tizen-0a1b&device_kind=tv&casts=item,live",
         }, urls);
         state.Listen(false);
+    }
+}
+
+/// <summary>A title cast with the tracks picked on the remote's page plays with them, for that play.</summary>
+public class CastTracksTests
+{
+    readonly PlayerHarness h = new PlayerHarness();
+
+    [Fact]
+    public void The_tracks_sent_play_in_place_of_the_profiles_choices_without_being_saved()
+    {
+        h.Add(PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { SelectedSubtitle = 3 } } });
+        h.Start(new PlayRequest(1, 0, false, AudioIndex: 2, SubtitleIndex: -1));
+        h.Play(4_000);
+        h.Model.Pause();
+        Assert.Equal(2, h.LastBody["audio_index"]);
+        Assert.Equal(new PlayingTracks(2, -1), h.Source.ReportTracks.Single());
+        Assert.True(h.State.Subtitles.Single(s => s.Index == null).Selected);
+        Assert.Empty(h.Source.Streams);
+    }
+
+    [Fact]
+    public void Tracks_the_file_doesnt_have_leave_it_to_the_profiles_choices()
+    {
+        // Another version's tracks: the audio is the server's pick, the subtitles the profile's.
+        h.Add(PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { SelectedSubtitle = 3 } } });
+        h.Start(new PlayRequest(1, 0, false, AudioIndex: 9, SubtitleIndex: 8));
+        h.Play(4_000);
+        h.Model.Pause();
+        Assert.False(h.LastBody.ContainsKey("audio_index"));
+        Assert.Equal(new PlayingTracks(1, 3), h.Source.ReportTracks.Single());
     }
 }

@@ -474,15 +474,17 @@ public sealed class Api
     /// <summary>
     /// POST /api/items/{id}/progress, with the session, so it and its conversion stay alive.
     /// <paramref name="tracks"/>: a video's tracks playing, which the server keeps on the session for
-    /// the profile's remotes; music has none to say.
+    /// the profile's remotes, and <paramref name="quality"/>, its Quality menu's pick by id ("auto",
+    /// "original", "8m"…); music has neither to say.
     /// </summary>
-    public Task<JsonElement?> Progress(long itemId, long positionMs, long? durationMs, string state, string? session, PlayingTracks? tracks = null)
+    public Task<JsonElement?> Progress(long itemId, long positionMs, long? durationMs, string state, string? session, PlayingTracks? tracks = null, string? quality = null)
     {
         var body = new Dictionary<string, object?> { ["position_ms"] = positionMs, ["state"] = state };
         if (durationMs != null) body["duration_ms"] = durationMs;
         if (session != null) body["session_id"] = session;
         if (tracks?.Audio != null) body["audio_index"] = tracks.Audio;
         if (tracks != null) body["subtitle_index"] = tracks.Subtitle;
+        if (quality != null) body["quality"] = quality;
         return Call("POST", $"/api/items/{itemId}/progress", body);
     }
 

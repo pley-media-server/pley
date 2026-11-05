@@ -21,7 +21,9 @@ public abstract record ItemEvent
 /// <summary>
 /// What the player is asked to play: <paramref name="ItemId"/> from <paramref name="StartMs"/>
 /// (0: the start). The version and tracks are the page's own choices, for the page's own item:
-/// the audio only when picked there, else the server picks the track the device plays best.
+/// the audio only when picked there, else the server picks the track the device plays best. A
+/// cast's tracks are those picked on the remote's page (<paramref name="SubtitleIndex"/> -1: none),
+/// for that play only.
 /// </summary>
 /// <param name="FileId">The version, when the item has several.</param>
 /// <param name="Queue">A playlist or collection to keep playing from, in its order, when this item ends.</param>

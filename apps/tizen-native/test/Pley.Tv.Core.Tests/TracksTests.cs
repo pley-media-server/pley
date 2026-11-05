@@ -81,11 +81,11 @@ public class VideoTrackTests
     {
         h.Add(Film());
         h.Start(new PlayRequest(1, 0, true));
-        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio", "subtitles" }, Controls(h.LastBody));
+        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio", "subtitles", "quality" }, Controls(h.LastBody));
 
         var bare = new PlayerHarness().Add(Film(PlayerHarness.FileOf(10) with { Streams = new[] { PlayerHarness.Video, PlayerHarness.English } }));
         bare.Start(new PlayRequest(1, 0, true));
-        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio" }, Controls(bare.LastBody));
+        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio", "quality" }, Controls(bare.LastBody));
     }
 
     [Fact]

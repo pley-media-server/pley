@@ -93,6 +93,26 @@ public sealed record TrackAction(TrackAct Act, bool Report, int Index = 0)
 }
 
 /// <summary>
+/// A video's qualities, as much as the remote's quality needs: <paramref name="Session"/> is the
+/// session it plays now, null while it has none; <paramref name="Offered"/> the ids its Quality menu
+/// offers for the file; <paramref name="Picked"/> the one picked there.
+/// </summary>
+public sealed record QualityPlayer(string? Session, IReadOnlyList<string> Offered, string Picked);
+
+/// <summary>
+/// What a video does with the remote's quality: switch to <paramref name="Id"/> as picking it in its
+/// Quality menu does, and report; or nothing (<paramref name="Id"/> null), saying again what it plays
+/// (<paramref name="Report"/>) when the pick is the one it has, so a remote a little behind settles.
+/// </summary>
+public sealed record QualityAction(string? Id, bool Report)
+{
+    public static readonly QualityAction None = new QualityAction(null, false);
+
+    /// <summary>Picked already: said again.</summary>
+    public static readonly QualityAction Same = new QualityAction(null, true);
+}
+
+/// <summary>
 /// The profile's remote, on another of its devices (docs/API.md, "Remote control"): what each
 /// player here obeys, and what it does with a command. The TV obeys and shows no remote of its
 /// own. The rules are the Android app's and the web's, pinned for both Samsung apps by
@@ -112,13 +132,15 @@ public static class Remote
     /// <summary>
     /// What a video obeys: next only when something may come after it; audio and subtitles when its
     /// file has tracks of them (<paramref name="audio"/> and <paramref name="subtitles"/> count them),
-    /// which a remote picks from.
+    /// which a remote picks from; the quality when the player has a Quality menu for it
+    /// (<paramref name="quality"/>: not for a file on a drive, which nothing converts).
     /// </summary>
-    public static IReadOnlyList<string> VideoControls(bool hasNext, int audio = 0, int subtitles = 0)
+    public static IReadOnlyList<string> VideoControls(bool hasNext, int audio = 0, int subtitles = 0, bool quality = false)
     {
         var controls = new List<string>(hasNext ? VideoWithNext : VideoCommands);
         if (audio > 0) controls.Add("audio");
         if (subtitles > 0) controls.Add("subtitles");
+        if (quality) controls.Add("quality");
         return controls;
     }
 
@@ -186,6 +208,18 @@ public static class Remote
             default:
                 return TrackAction.None;
         }
+    }
+
+    /// <summary>
+    /// The quality's rule: a command for another session is someone else's player's; a quality its
+    /// Quality menu offers for the file switches to it, as picking it there does; the one picked
+    /// already is said again; one it doesn't offer (or a command without one) does nothing.
+    /// </summary>
+    public static QualityAction Quality(QualityPlayer p, ServerEvent c)
+    {
+        if (p.Session == null || c.SessionId != p.Session || c.Command != "quality" || c.Quality is not string id) return QualityAction.None;
+        if (!p.Offered.Contains(id)) return QualityAction.None;
+        return id == p.Picked ? QualityAction.Same : new QualityAction(id, true);
     }
 
     /// <summary>

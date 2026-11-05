@@ -207,13 +207,13 @@ public class VideoRemoteTests
     {
         h.Add(PlayerHarness.Movie());
         h.Start(new PlayRequest(1, 0, true));
-        // Its file has audio and subtitles, which the remote picks from (TracksTests).
-        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio", "subtitles" }, Controls(h.LastBody));
+        // Its file has audio and subtitles, which the remote picks from (TracksTests), and a Quality menu (QualityTests).
+        Assert.Equal(new[] { "play", "pause", "seek", "skip", "audio", "subtitles", "quality" }, Controls(h.LastBody));
         Assert.Equal("tv", h.LastBody["device_kind"]);
 
         var e = new PlayerHarness().Add(PlayerHarness.Episode(1, 1));
         e.Start(new PlayRequest(1, 0, true));
-        Assert.Equal(new[] { "play", "pause", "seek", "skip", "next", "audio", "subtitles" }, Controls(e.LastBody));
+        Assert.Equal(new[] { "play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality" }, Controls(e.LastBody));
     }
 
     [Fact]

@@ -37,28 +37,37 @@ public sealed record ServerEvent
     /// <summary>
     /// cast: the profile's remote, on another device, sent the device of this receiver id something
     /// to play (docs/API.md, "Casting"): one of <see cref="ItemId"/>, <see cref="PlaylistId"/> and
-    /// <see cref="ChannelId"/>, a title from <see cref="StartMs"/>, a playlist, album or artist
-    /// <see cref="Shuffle"/>d; <see cref="From"/> names the remote's device, when it has a name.
+    /// <see cref="ChannelId"/>, a title from <see cref="StartMs"/>, a movie or an episode with the
+    /// tracks <see cref="AudioIndex"/> and <see cref="SubtitleIndex"/> picked on the remote's page, a
+    /// playlist, album or artist <see cref="Shuffle"/>d; <see cref="From"/> names the remote's device,
+    /// when it has a name.
     /// </summary>
     public string? ReceiverId { get; init; }
     public long? ItemId { get; init; }
     public long? PlaylistId { get; init; }
     public long? StartMs { get; init; }
     public bool? Shuffle { get; init; }
+    /// <summary>cast: the audio to play, by stream index; null leaves it to the profile's choices.</summary>
+    public int? AudioIndex { get; init; }
+    /// <summary>cast: the subtitles to show, by stream index, -1 none; null leaves them to the profile's choices.</summary>
+    public int? SubtitleIndex { get; init; }
     public string? From { get; init; }
     public string? Message { get; init; }
     public bool? ByAdmin { get; init; }
     /// <summary>
     /// player_command: what the profile's remote, on another device, asks of the player of
     /// <see cref="SessionId"/> ("play", "pause", "seek", "skip", "next", "previous", "audio",
-    /// "subtitles"; a newer server may send others), with <see cref="PositionMs"/> for a seek,
-    /// <see cref="OffsetMs"/> for a skip and <see cref="StreamIndex"/> for a track.
+    /// "subtitles", "quality"; a newer server may send others), with <see cref="PositionMs"/> for a
+    /// seek, <see cref="OffsetMs"/> for a skip, <see cref="StreamIndex"/> for a track and
+    /// <see cref="Quality"/> for a quality.
     /// </summary>
     public string? Command { get; init; }
     public long? PositionMs { get; init; }
     public long? OffsetMs { get; init; }
     /// <summary>player_command: the audio or subtitle track to play, by stream index; -1 turns the subtitles off.</summary>
     public int? StreamIndex { get; init; }
+    /// <summary>player_command: the Quality menu's entry to play, by id ("auto", "original", "8m"…).</summary>
+    public string? Quality { get; init; }
     /// <summary>scan_progress: "queued", "walking", "probing", "metadata" or "done".</summary>
     public string? Phase { get; init; }
     /// <summary>scan_progress: the files read so far, of <see cref="Total"/>.</summary>

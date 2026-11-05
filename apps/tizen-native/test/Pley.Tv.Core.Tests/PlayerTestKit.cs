@@ -152,6 +152,8 @@ sealed class FakePlayerSource : IPlayerSource
     public List<(long ItemId, long Position, string State, string Session)> Reports { get; } = new List<(long, long, string, string)>();
     /// <summary>The tracks each of <see cref="Reports"/> said play, in the same order.</summary>
     public List<PlayingTracks?> ReportTracks { get; } = new List<PlayingTracks?>();
+    /// <summary>The quality each of <see cref="Reports"/> said is picked, in the same order.</summary>
+    public List<string?> ReportQualities { get; } = new List<string?>();
     public List<string> Stopped { get; } = new List<string>();
     /// <summary>A session's status; null: it answers with no transcode.</summary>
     public Func<string, SessionStatus>? Status { get; set; }
@@ -212,10 +214,11 @@ sealed class FakePlayerSource : IPlayerSource
         return Task.CompletedTask;
     }
 
-    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null)
+    public Task Progress(long itemId, long positionMs, long? durationMs, string state, string session, PlayingTracks? tracks = null, string? quality = null)
     {
         Reports.Add((itemId, positionMs, state, session));
         ReportTracks.Add(tracks);
+        ReportQualities.Add(quality);
         return Task.CompletedTask;
     }
 
