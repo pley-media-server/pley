@@ -174,6 +174,8 @@ impl Ids {
 #[derive(Clone, Debug, Default)]
 struct Seen {
     notice: u64,
+    remote_notice: u64,
+    paused_by_remote: bool,
     up_next: Option<i64>,
     error: bool,
     skip: bool,
@@ -219,6 +221,9 @@ enum Act {
 #[derive(Debug)]
 pub struct PlayerView {
     controls: bool,
+    /// The user's remote on another device paused the video, and no key here has touched the
+    /// player since: the pause doesn't keep the controls, which hide as they do while it plays.
+    remote_pause: bool,
     /// The chapters as cards, while they are open.
     strip: Option<Strip>,
     /// The item the title banner was last shown or due for.
@@ -282,6 +287,7 @@ impl PlayerView {
     pub fn new() -> PlayerView {
         PlayerView {
             controls: false,
+            remote_pause: false,
             last_input: 0,
             panel: None,
             last_narrow: None,
@@ -485,13 +491,21 @@ impl PlayerView {
         s.sleep.seconds_left.is_some() && !matches!(s.phase, Phase::Error { .. })
     }
 
-    /// Acts on what changed in the playback: its notices become toasts; Up Next and errors take
-    /// the screen; Skip and the sleep notice take focus as they come; the end, a stop by the
-    /// server and the sleep timer's long pause make the player leave.
+    /// Acts on what changed in the playback: its notices become toasts, and what the user's
+    /// remote did a 2 s one, never the controls; Up Next and errors take the screen; Skip and the
+    /// sleep notice take focus as they come; the end, a stop by the server and the sleep timer's
+    /// long pause make the player leave.
     fn follow(&mut self, ui: &mut Ui, p: &mut dyn Playback, now: i64, ids: &Ids, out: &mut Out) {
         let s = p.state();
         let notice = if s.notice_id != self.seen.notice { s.notice.clone() } else { None };
         self.seen.notice = s.notice_id;
+        let remote = if s.remote_notice_id != self.seen.remote_notice { s.remote_notice.clone() } else { None };
+        self.seen.remote_notice = s.remote_notice_id;
+        // The remote's pause is the remote's until a key here (or anyone playing it again).
+        if s.paused_by_remote != self.seen.paused_by_remote {
+            self.remote_pause = s.paused_by_remote;
+        }
+        self.seen.paused_by_remote = s.paused_by_remote;
         let note = s.note.clone().unwrap_or_default();
         let original = s.can_play_original && !self.seen.original && !note.is_empty();
         let lower = s.suggest_lower_quality && !self.seen.lower && !note.is_empty();
@@ -542,6 +556,9 @@ impl PlayerView {
         if let Some(n) = notice {
             self.say(ui, n, TOAST_SECS, false);
             p.dismiss_notice();
+        }
+        if let Some(n) = remote {
+            self.say(ui, n, KEY_TOAST_SECS, false);
         }
         if original {
             self.say(ui, format!("{note} Play original is in Quality."), LONG_TOAST_SECS, false);
@@ -646,6 +663,11 @@ impl PlayerView {
         let keys: Vec<KeyEvent> = ui.keys().to_vec();
         if !keys.is_empty() {
             self.touch(now);
+        }
+        // A key or the pointer here: a pause the remote made is the person's from now on, which
+        // keeps the controls as any pause does.
+        if moved || !keys.is_empty() {
+            self.remote_pause = false;
         }
         // An error on screen: only Stop, which leaves (`TvPlayerScreen.kt`'s `onKey`). The others
         // would seek, change a track or play the next episode under it.
@@ -1293,6 +1315,12 @@ impl PlayerView {
             s.phase == Phase::Preparing || s.switching
         };
         ui.request_repaint();
+        // OK and the pointer's clicks go to what has focus, never to the keys: what they did is
+        // a key here too, or the controls OK shows after a while untouched would hide at once.
+        if !matches!(a, Act::Details(_)) {
+            self.touch(now);
+            self.remote_pause = false;
+        }
         match a {
             // OK with the controls hidden confirms a seek coming, else shows the controls on the
             // scrubber as Up does; it never pauses there.
@@ -1388,12 +1416,12 @@ impl PlayerView {
 
     // ---------------------------------------------------------------- time
 
-    /// The controls hide 5 s after the last key unless paused, in a panel or seeking; the next
-    /// frame is asked for when anything is next due.
+    /// The controls hide 5 s after the last key unless paused (but by the remote, before a key
+    /// here), in a panel or seeking; the next frame is asked for when anything is next due.
     fn timers(&mut self, ui: &mut Ui, p: &dyn Playback, now: i64, env: &FrameEnv) {
         let s = p.state();
-        if self.controls && self.panel.is_none() && self.strip.is_none() && p.wants_to_play() && !self.seeker.pending()
-        {
+        let kept = !p.wants_to_play() && !self.remote_pause;
+        if self.controls && self.panel.is_none() && self.strip.is_none() && !kept && !self.seeker.pending() {
             let at = self.last_input + HIDE_AFTER_MS;
             if now >= at {
                 let skip = self.skip_shown(s);

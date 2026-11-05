@@ -306,7 +306,7 @@ pub struct Toast {
 }
 
 /// How long toasts stay (`TvPlayerUi.kt`): 3.5 s, errors and quality notes 6 s, the subtitles
-/// key's 2 s.
+/// key's and what the user's remote did 2 s.
 pub const TOAST_SECS: f64 = 3.5;
 /// See [`TOAST_SECS`].
 pub const LONG_TOAST_SECS: f64 = 6.0;

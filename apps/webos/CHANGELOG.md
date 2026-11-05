@@ -23,6 +23,10 @@ describes how they are made.
   the same, and goes back a track; Live TV changes channel. Live TV
   stopped from another device, or by the server's administrator, stops
   on the TV and says who, with their message.
+- What your phone or browser does to the film or episode on the TV is
+  said there for 2 s at the top right ("Paused", "+30 s", "Jumped to
+  12:34", "Audio: French"), without bringing up the player's controls; a
+  pause sent from it doesn't keep them up either.
 - Your phone or browser changes the audio and subtitles of the film or
   episode on the TV, as the player's own menu does, and shows which
   play.
@@ -44,6 +48,8 @@ describes how they are made.
 - Live TV's channel up or down, still finding the next channel when
   another is picked from the list, Watch again is pressed or the app is
   hidden, no longer changes channel a moment later.
+- OK on a film or episode left untouched for a few seconds brings up the
+  player's controls for 5 s; they went again at once.
 
 ## [0.1.5] - 2026-11-04
 

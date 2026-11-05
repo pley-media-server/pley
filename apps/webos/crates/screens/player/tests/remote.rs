@@ -149,6 +149,11 @@ impl TestApp {
     fn shows(&self, text: &str) -> bool {
         self.list.texts().any(|t| t == text)
     }
+
+    /// Whether the last frame drew a text that starts with `start`.
+    fn shows_start(&self, start: &str) -> bool {
+        self.list.texts().any(|t| t.starts_with(start))
+    }
 }
 
 /// Where a phone's remote casts from.
@@ -187,6 +192,18 @@ fn sign_in(server: &FixtureServer, profile: i64, store: &Store, http: &Http) {
     store.set_active_server(Some(url)).unwrap();
 }
 
+/// The remote's `command` for `session`, with where to or how far.
+fn command(session: &str, command: &str, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command: command.into(),
+        position_ms,
+        offset_ms,
+        stream_index: None,
+        quality: None,
+    }
+}
+
 /// The remote picking track `index` of the kind of `command` for `session`.
 fn pick(session: &str, command: &str, index: i64) -> ServerEvent {
     ServerEvent::PlayerCommand {
@@ -217,10 +234,12 @@ fn the_remotes_tracks_switch_as_the_menus_do_and_every_report_says_which_play() 
     let engine = app.engine().expect("the player made an engine");
     assert!(app.until(|_| engine.playing()), "the film never played");
 
-    // The French picture subtitles, drawn here from the server's .mks: said at once.
+    // The French picture subtitles, drawn here from the server's .mks: said at once, to the
+    // remote and on the TV.
     let before = app.reports(ids::PGS_MOVIE).len();
     app.server.emit(pick(&session, "subtitles", ids::PGS_MOVIE_SUBTITLE));
     assert!(app.until(|a| a.reports(ids::PGS_MOVIE).len() > before), "the pick wasn't said at once");
+    assert!(app.until(|a| a.shows_start("Subtitles: French")), "the TV didn't say the pick");
     assert_eq!(tracks(&app.reports(ids::PGS_MOVIE)[before]), (Some(1), Some(ids::PGS_MOVIE_SUBTITLE)));
     let shown = |a: &TestApp| a.server.sessions_of(ids::ALEX).into_iter().find(|s| s["session_id"] == *session);
     let kept = shown(&app).unwrap();
@@ -231,6 +250,7 @@ fn the_remotes_tracks_switch_as_the_menus_do_and_every_report_says_which_play() 
     app.server.emit(pick(&session, "audio", 2));
     assert!(app.until(|a| a.reports(ids::PGS_MOVIE).len() > before), "the pick wasn't said at once");
     assert_eq!(tracks(&app.reports(ids::PGS_MOVIE)[before]), (Some(2), Some(4)));
+    assert!(app.until(|a| a.shows_start("Audio: French")), "the TV didn't say the pick");
     assert_eq!(engine.switched().last(), Some(&1), "the second audio track wasn't switched to");
     assert_eq!(app.server.writes("POST", "/api/playback").len(), 1, "the audio took a new session");
 
@@ -250,6 +270,34 @@ fn the_remotes_tracks_switch_as_the_menus_do_and_every_report_says_which_play() 
     );
     let stopped = app.reports(ids::PGS_MOVIE).into_iter().find(|r| r["state"] == "stopped").unwrap();
     assert_eq!(tracks(&stopped), (Some(2), Some(-1)));
+}
+
+#[test]
+fn the_remotes_commands_are_said_for_2_s_at_the_top_right_and_never_bring_up_the_controls() {
+    let mut app = TestApp::start();
+    app.open(Route::Player(PlayRequest::item(ids::SAMPLE_HDR10)));
+    let session = app.session_of(ids::SAMPLE_HDR10)["session_id"].as_str().unwrap().to_string();
+    let engine = app.engine().expect("the player made an engine");
+    assert!(app.until(|_| engine.playing()), "the film never played");
+
+    // Paused, the controls would say when it ends: they don't show.
+    app.server.emit(command(&session, "pause", None, None));
+    assert!(app.until(|a| a.shows("Paused")), "the TV didn't say the pause");
+    assert!(!engine.playing(), "the remote's pause didn't pause");
+    assert!(!app.shows_start("Ends at"), "the remote's pause brought up the controls");
+    app.advance(1.8);
+    assert!(app.shows("Paused"), "the notice went early");
+    app.advance(0.4);
+    assert!(!app.shows("Paused"), "the notice stayed");
+
+    app.server.emit(command(&session, "skip", None, Some(-10_000)));
+    assert!(app.until(|a| a.shows("−10 s")), "the TV didn't say the skip");
+    app.server.emit(command(&session, "seek", Some(12_000), None));
+    assert!(app.until(|a| a.shows("Jumped to 0:12")), "the TV didn't say the seek");
+    assert!(!app.shows_start("Ends at"), "the remote's seek brought up the controls");
+    app.server.emit(command(&session, "play", None, None));
+    assert!(app.until(|a| a.shows("Playing")), "the TV didn't say the play");
+    assert!(engine.playing(), "the remote's play didn't play");
 }
 
 #[test]
