@@ -56,6 +56,7 @@ class PlayerScreenState(
     val hasThumbnails: Boolean by derivedStateOf { ui.value.hasThumbnails }
     val notice: String? by derivedStateOf { ui.value.notice }
     val remoteNotice: String? by derivedStateOf { ui.value.remoteNotice }
+    val remoteNoticeId: Int by derivedStateOf { ui.value.remoteNoticeId }
 
     /** Paused by the remote, on another device: the controls don't come up for it. */
     val pausedByRemote: Boolean by derivedStateOf { ui.value.pausedByRemote }

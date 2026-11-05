@@ -135,6 +135,8 @@ export interface PlayerState {
    * controls; `null` once said.
    */
   remoteNotice: string | null;
+  /** Counts `remoteNotice`s, so the same words twice ("+30 s", "+30 s") are said twice. */
+  remoteNoticeId: number;
   /** The user's remote paused it, and nothing has played it since: the controls don't stay up for that pause, as they do for the person's own. */
   pausedByRemote: boolean;
   subtitleOffsetMs: number;
@@ -186,6 +188,7 @@ const INITIAL: PlayerState = {
   details: null,
   notice: null,
   remoteNotice: null,
+  remoteNoticeId: 0,
   pausedByRemote: false,
   subtitleOffsetMs: 0,
   subtitleSync: false,
@@ -1208,11 +1211,12 @@ export class PlaybackController {
       case "play":
         this.play();
         this.report("playing");
-        this.update({ remoteNotice: T.remote.playing });
+        this.sayRemote(T.remote.playing);
         break;
       case "pause":
         this.pause();
-        this.update({ remoteNotice: T.remote.paused, pausedByRemote: true });
+        this.update({ pausedByRemote: true });
+        this.sayRemote(T.remote.paused);
         break;
       case "none":
         // Playing or paused already: said again, so a remote a little behind settles.
@@ -1221,7 +1225,7 @@ export class PlaybackController {
       case "seek":
         this.seekTo(action.positionMs);
         // A skip by the offset asked for, as the seek badge says it; a seek by where it went.
-        this.update({ remoteNotice: command.command === "skip" ? badgeText(command.offset_ms ?? 0) : T.remote.jumpedTo(formatClock(action.positionMs)) });
+        this.sayRemote(command.command === "skip" ? badgeText(command.offset_ms ?? 0) : T.remote.jumpedTo(formatClock(action.positionMs)));
         // Not a second later, as after the screen's seeks; a seek that started a new session has that report itself.
         if (this.seekReportTimer === null) break;
         clearTimeout(this.seekReportTimer);
@@ -1259,7 +1263,7 @@ export class PlaybackController {
     // The rule found the track among the file's.
     const index = action.index;
     const label = (streams: MediaStream[]) => streamLabel(streams.filter((s) => s.index === index)[0]!);
-    this.update({ remoteNotice: action.act === "audio" ? T.remote.audio(label(audioStreams(this.file))) : T.remote.subtitles(index < 0 ? null : label(subtitleStreams(this.file))) });
+    this.sayRemote(action.act === "audio" ? T.remote.audio(label(audioStreams(this.file))) : T.remote.subtitles(index < 0 ? null : label(subtitleStreams(this.file))));
     // Set first: a new session may begin before the switch returns.
     this.reportBegun = true;
     const generation = this.generation;
@@ -1286,7 +1290,7 @@ export class PlaybackController {
       return;
     }
     const id = action.id;
-    this.update({ remoteNotice: T.remote.quality(offered.filter((p) => p.id === id)[0]!.label) });
+    this.sayRemote(T.remote.quality(offered.filter((p) => p.id === id)[0]!.label));
     // Set first: a new session may begin before the switch returns.
     this.reportBegun = true;
     const generation = this.generation;
@@ -1599,6 +1603,11 @@ export class PlaybackController {
     this.update({ remoteNotice: null });
   }
 
+  /** What the remote did, said for a moment (`remoteNotice`). */
+  private sayRemote(text: string): void {
+    this.update({ remoteNotice: text, remoteNoticeId: this.state.value.remoteNoticeId + 1 });
+  }
+
   retry(): void {
     if (this.closed || this.stopped) return;
     this.endOutage();
@@ -1745,11 +1754,11 @@ export class PlaybackController {
       subtitleIndex: null,
     };
     this.current = req;
-    const { sleep, title, pausedByRemote } = this.state.value;
+    const { sleep, title, pausedByRemote, remoteNoticeId } = this.state.value;
     // The next title plays at normal speed.
     if (this.state.value.speed !== 1) this.engineRef?.setSpeed?.(1);
     // The next title starts paused when this one is: the remote's pause stays the remote's.
-    this.state.value = { ...INITIAL, itemId: target.id, title, sleep, pausedByRemote, speeds: this.state.value.speeds };
+    this.state.value = { ...INITIAL, itemId: target.id, title, sleep, pausedByRemote, remoteNoticeId, speeds: this.state.value.speeds };
     this.setClock({ positionMs: req.startMs ?? 0, bufferedMs: 0 });
     const generation = this.nextGeneration();
     const prefetched = this.nextDetail?.id === target.id ? this.nextDetail : null;

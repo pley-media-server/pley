@@ -1422,7 +1422,7 @@ class SessionPlaybackController(
         }
     }
 
-    private fun remoteNotice(text: String) = ui.update { it.copy(remoteNotice = text) }
+    private fun remoteNotice(text: String) = ui.update { it.copy(remoteNotice = text, remoteNoticeId = it.remoteNoticeId + 1) }
 
     /**
      * After a track the remote picked: what plays is said at once, the pick
@@ -1447,9 +1447,10 @@ class SessionPlaybackController(
      * title; `null` when nothing plays to seek in.
      */
     private fun seekNow(positionMs: Long): Long? {
-        if (link == null || closed || stopped) return null
+        if (closed || stopped) return null
         seekTo(positionMs)
-        val at = ui.value.positionMs
+        // Nothing to say without an engine to seek, but the report still goes.
+        val at = ui.value.positionMs.takeIf { link != null }
         // Seeking past the end starts a new session, which reports itself.
         if (ended || session == null) return at
         seekReport?.cancel()
@@ -2110,6 +2111,9 @@ class SessionPlaybackController(
                 title = it.title,
                 positionMs = req.startMs ?: 0,
                 sleep = it.sleep,
+                // The next title starts paused when this one is: the remote's pause stays the remote's.
+                pausedByRemote = it.pausedByRemote,
+                remoteNoticeId = it.remoteNoticeId,
             )
         }
         sessionJob?.cancel()

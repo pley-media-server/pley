@@ -486,9 +486,10 @@ internal fun TvPlayerScreen(
         }
     }
     // What the remote did, from another device: a toast of a moment, as the CAPTIONS key's, in place of the controls.
-    val remoteNotice by remember(state) { derivedStateOf { state.value.remoteNotice } }
+    // Keyed by its count too: the same words again are said again.
+    val remoteNotice by remember(state) { derivedStateOf { state.value.remoteNoticeId to state.value.remoteNotice } }
     LaunchedEffect(remoteNotice) {
-        remoteNotice?.let {
+        remoteNotice.second?.let {
             ui.toast(it, TvPlayerUi.CAPTIONS_TOAST_MS)
             controller.dismissRemoteNotice()
         }

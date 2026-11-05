@@ -236,6 +236,23 @@ class RemoteTest {
     }
 
     @Test
+    fun `the remote's pause stays the remote's through its next, and the same words twice are said twice`() {
+        val c = playing()
+        val first = c.state.value.remoteNoticeId
+        command(Control.Skip, offsetMs = 3_000)
+        command(Control.Skip, offsetMs = 3_000)
+        assertEquals("+3 s", c.state.value.remoteNotice)
+        assertEquals(first + 2, c.state.value.remoteNoticeId)
+
+        command(Control.Pause)
+        command(Control.Next)
+        assertEquals(FixtureIds.SHOW_S1E2, c.state.value.itemId)
+        // The next episode starts paused, and its pause is still the remote's: the screens bring up nothing for it.
+        assertTrue(c.state.value.pausedByRemote)
+        c.close()
+    }
+
+    @Test
     fun `the remote's seek says where it went, and its skip how far it asked`() {
         val c = playing()
         command(Control.Seek, positionMs = 4_000)

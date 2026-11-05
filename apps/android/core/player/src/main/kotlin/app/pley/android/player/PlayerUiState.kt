@@ -236,6 +236,8 @@ data class PlayerUiState(
      * jumped, without the controls over the picture.
      */
     val remoteNotice: String? = null,
+    /** Counts [remoteNotice]s, so the same words twice ("+30 s", "+30 s") are said twice. */
+    val remoteNoticeId: Int = 0,
     /**
      * Paused by the remote, and not played since: the screens don't bring up
      * their controls for this pause, nor keep them for it.

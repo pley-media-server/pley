@@ -40,6 +40,7 @@ const PLAYING: PlayerState = {
   details: null,
   notice: null,
   remoteNotice: null,
+  remoteNoticeId: 0,
   pausedByRemote: false,
   subtitleOffsetMs: 0,
   subtitleSync: false,
@@ -114,10 +115,10 @@ function setup() {
     pause: () =>
       act(() => {
         wantPlay = false;
-        set({ phase: { kind: "paused" }, pausedByRemote: true, remoteNotice: "Paused" });
+        set({ phase: { kind: "paused" }, pausedByRemote: true, remoteNotice: "Paused", remoteNoticeId: state.value.remoteNoticeId + 1 });
       }),
     play: () => act(() => controller.play()),
-    said: (text: string) => act(() => void set({ remoteNotice: text })),
+    said: (text: string) => act(() => void set({ remoteNotice: text, remoteNoticeId: state.value.remoteNoticeId + 1 })),
   };
   const press = (key: Key) => {
     act(() => input.dispatch(key, "down", false));

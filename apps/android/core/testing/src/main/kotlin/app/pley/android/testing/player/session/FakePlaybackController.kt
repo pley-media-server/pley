@@ -195,6 +195,7 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             ),
             notice = "This is the last episode",
             remoteNotice = "Paused",
+            remoteNoticeId = 1,
             pausedByRemote = true,
             subtitleOffsetMs = 500,
             subtitleSync = true,

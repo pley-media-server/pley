@@ -173,11 +173,12 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
     c.dismissNotice();
   }, [s.notice]);
   // What the user's remote, on another device, did: said for a moment, the controls left as they are, since whoever pressed it isn't here.
+  // Keyed by its count: the same words again are said again.
   useEffect(() => {
     if (!s.remoteNotice) return;
     say(s.remoteNotice, BRIEF_MS);
     c.dismissRemoteNotice();
-  }, [s.remoteNotice]);
+  }, [s.remoteNoticeId]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), toast.ms);

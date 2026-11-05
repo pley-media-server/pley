@@ -269,7 +269,8 @@ private fun PlayerEffects(state: PlayerScreenState, picture: PictureState, toast
     }
     // What the remote did, from another device ("Paused", "+30 s"): a toast, in place of the controls.
     LaunchedEffect(state, toasts) {
-        snapshotFlow { state.remoteNotice }.collect { notice ->
+        // Keyed by its count too: the same words again are said again.
+        snapshotFlow { state.remoteNoticeId to state.remoteNotice }.collect { (_, notice) ->
             if (notice != null) {
                 toasts.show(notice)
                 state.controller.dismissRemoteNotice()

@@ -1679,7 +1679,8 @@ public sealed class PlayerModel : IDisposable
         // The speed is this title's: the next one plays at normal speed.
         if (State.Value.Speed != 1) engine?.SetSpeed(1);
         var was = State.Value;
-        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Sleep = was.Sleep, Speeds = was.Speeds };
+        // The next title starts paused when this one is: the remote's pause stays the remote's.
+        State.Value = new PlayerState { ItemId = target.Id, Title = was.Title, Sleep = was.Sleep, Speeds = was.Speeds, PausedByRemote = was.PausedByRemote };
         SetClock(positionMs: request.StartMs, bufferedMs: 0);
         var at = NextGeneration();
         var prefetched = nextDetail?.Id == target.Id ? nextDetail : null;
