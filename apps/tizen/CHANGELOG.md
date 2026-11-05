@@ -33,6 +33,10 @@ describes how they are made.
 
 ### Added
 
+- Someone else in your household can cast to the TV from their phone or
+  browser while it is on your profile: the TV switches to their profile
+  (their phone or browser asks their PIN, not the TV) and plays what they
+  sent. A switch that fails says so and plays nothing.
 - When your phone or browser pauses, plays, seeks or skips a film or
   episode on the TV, or changes its audio, subtitles or quality, the TV
   says so for 2 s at the top right ("Paused", "+30 s", "Jumped to 12:34",

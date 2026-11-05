@@ -279,6 +279,9 @@ public sealed class AppState
     public Tokens? TokenStore => tokens;
     public bool SignedIn => tokens?.SignedIn == true;
 
+    /// <summary>The profile the app acts as: who is watching as heard, else the one it was left on; null when neither is known.</summary>
+    public long? Profile => Me.Value?.Id ?? profile;
+
     T? Read<T>(string key, JsonSerializerOptions? options = null) where T : class => Parse<T>(store.Get(key), options);
 
     static T? Parse<T>(string? text, JsonSerializerOptions? options = null) where T : class
