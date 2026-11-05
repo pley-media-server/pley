@@ -10,6 +10,28 @@ describes how they are made.
 
 ### Added
 
+- What your phone or browser does to the film or episode on the TV is
+  said there for 2 s at the top right ("Paused", "+30 s", "Jumped to
+  12:34", "Audio: French"), without bringing up the player's controls; a
+  pause sent from it doesn't keep them up either.
+
+### Changed
+
+- The TV starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+
+### Fixed
+
+- OK on a film or episode left untouched for a few seconds brings up the
+  player's controls for 5 s; they went again at once.
+
+## [0.1.6] - 2026-11-05
+
+### Added
+
 - Your phone or browser changes the quality of the film or episode on
   the TV, as the player's Quality menu does (the pick is kept for the
   next ones), and shows which is picked. A film or episode sent from a
@@ -23,21 +45,12 @@ describes how they are made.
   the same, and goes back a track; Live TV changes channel. Live TV
   stopped from another device, or by the server's administrator, stops
   on the TV and says who, with their message.
-- What your phone or browser does to the film or episode on the TV is
-  said there for 2 s at the top right ("Paused", "+30 s", "Jumped to
-  12:34", "Audio: French"), without bringing up the player's controls; a
-  pause sent from it doesn't keep them up either.
 - Your phone or browser changes the audio and subtitles of the film or
   episode on the TV, as the player's own menu does, and shows which
   play.
 
 ### Changed
 
-- The TV starts straight into Home as the profile it was left on when it
-  has no PIN, where a household of several profiles was asked "Who's
-  watching?" each time. A profile with a PIN still asks first, and Switch
-  profile still shows every profile. Settings' Always start as
-  calls this Profile used last, where it said Ask who's watching.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - When the server can't be reached, the app says "Pley is offline", where
@@ -53,8 +66,6 @@ describes how they are made.
 - Live TV's channel up or down, still finding the next channel when
   another is picked from the list, Watch again is pressed or the app is
   hidden, no longer changes channel a moment later.
-- OK on a film or episode left untouched for a few seconds brings up the
-  player's controls for 5 s; they went again at once.
 
 ## [0.1.5] - 2026-11-04
 
@@ -393,7 +404,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

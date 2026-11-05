@@ -9,6 +9,27 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The web and desktop apps' remote shows a command at once (the place a
+  seek goes, playing or paused), and keeps what plays while a next starts
+  the one after. Previous and Next sit at its edges, with the skips and
+  Play or Pause centred between them. A device that plays is chosen for
+  its controls, whose bar is the only one shown; one ready to play is only
+  listed.
+- Signing in on the web and in the desktop app goes straight in as the
+  profile the browser was last used as, when it has no PIN, where a
+  household of several profiles was asked "Who's watching?" each time. A
+  profile with a PIN, or another person signing in, still picks first.
+- The web and desktop apps' video player no longer brings up its controls
+  when a remote pauses it, seeks or changes its audio, subtitles or
+  quality: a brief notice says what changed ("Paused", "+30 s", "Jumped
+  to 12:34", "Subtitles off"), and the controls show as before once you
+  move the mouse, tap or press a key. On Live TV a remote's change of
+  channel shows only the channel's tuning screen.
+
+## [0.1.7] - 2026-11-05
+
 ### Added
 
 - Pley for Home Assistant can sign in with a code, as Pley's TV apps do.
@@ -35,11 +56,8 @@ describes how they are made.
 - The web and desktop apps have a remote in the header while something
   plays on another of your devices: it shows what plays there and how far
   along, and plays, pauses, seeks, skips, goes to the next or previous
-  title or channel and stops it, Previous and Next at its edges with the
-  skips and Play or Pause centred between them. What a command asks shows
-  at once (the place a seek goes, playing or paused), and what plays stays
-  on the remote while a next starts the one after. Their players obey the remote
-  too, and the dashboard says which device each session plays on.
+  title or channel and stops it. Their players obey the remote too, and
+  the dashboard says which device each session plays on.
 - Every session says which device plays it, the same for everything one
   sign-in plays, and what kind of device that is (a TV, a phone, a
   tablet, a computer, a browser): what the player says, else what the
@@ -67,20 +85,14 @@ describes how they are made.
   quality as its own menu does.
 - The web and desktop apps' remote lists your other devices that are on,
   those playing first, then those ready to play, and changes the audio
-  track and the subtitles of what plays on one; a device that plays is
-  chosen for its controls, one ready to play is only listed. Play on…
-  beside Play (Shuffle on… beside Shuffle, Watch on… for a Live TV
-  channel) plays a
+  track and the subtitles of what plays on one. Play on… beside Play
+  (Shuffle on… beside Shuffle, Watch on… for a Live TV channel) plays a
   title, music, a playlist or a channel on one of them, and opens the
   remote on it. Their video player takes a remote's change of audio and
   subtitles as its own menu does, and tells remotes which it plays.
 
 ### Changed
 
-- Signing in on the web and in the desktop app goes straight in as the
-  profile the browser was last used as, when it has no PIN, where a
-  household of several profiles was asked "Who's watching?" each time. A
-  profile with a PIN, or another person signing in, still picks first.
 - Requests on the web: a sign-in from before the app could ask says "Sign in again to ask
   for movies and shows" without a second line, and its button reads Sign in.
 - The setup page says more plainly where the setup code is: opening Pley
@@ -89,12 +101,6 @@ describes how they are made.
 - When the server can't be reached, the web app and the desktop app say
   "Pley is offline", where they said "Can't reach the server.
   Reconnecting…". The desktop app's Downloads stays beside it.
-- The web and desktop apps' video player no longer brings up its controls
-  when a remote pauses it, seeks or changes its audio, subtitles or
-  quality: a brief notice says what changed ("Paused", "+30 s", "Jumped
-  to 12:34", "Subtitles off"), and the controls show as before once you
-  move the mouse, tap or press a key. On Live TV a remote's change of
-  channel shows only the channel's tuning screen.
 - In the web and desktop apps, a movie or show in Discover or Search's
   Discover results that a library has whole opens its library page, where
   it plays, not a page with only Open on it. A show partly there still
@@ -716,7 +722,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

@@ -8,6 +8,20 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The Roku starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+- A pause from your phone or browser no longer brings up Roku's controls
+  on the TV: the player says what the remote did for a moment at the top
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", the audio, subtitles
+  or quality picked). Your own key brings the controls back.
+
+## [0.1.6] - 2026-11-05
+
 ### Added
 
 - Your phone or browser changes the quality of a film or episode playing
@@ -65,15 +79,6 @@ describes how they are made.
 
 ### Changed
 
-- The Roku starts straight into Home as the profile it was left on when it
-  has no PIN, where a household of several profiles was asked "Who's
-  watching?" each time. A profile with a PIN still asks first, and Switch
-  profile still shows every profile. Settings' Always start as
-  calls this Profile used last, where it said Ask who's watching.
-- A pause from your phone or browser no longer brings up Roku's controls
-  on the TV: the player says what the remote did for a moment at the top
-  ("Paused", "Playing", "+30 s", "Jumped to 12:34", the audio, subtitles
-  or quality picked). Your own key brings the controls back.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - Up Next waits at the end of an episode once cancelled, or when the next
@@ -375,7 +380,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The version is the app's, as Directory.Build.props has it. -->
-<manifest package="app.pley.tizen" version="0.0.1" api-version="9.0" xmlns="http://tizen.org/ns/packages">
+<manifest package="app.pley.tizen" version="0.1.6" api-version="9.0" xmlns="http://tizen.org/ns/packages">
   <profile name="tv" />
   <ui-application appid="app.pley.tizen" exec="Pley.Tv.Tizen.dll" multiple="false" nodisplay="false" taskmanage="true" type="dotnet-nui" launch_mode="single">
     <!-- Beside the web app on the same TV, so the two can be told apart. -->

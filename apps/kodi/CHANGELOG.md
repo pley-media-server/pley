@@ -8,6 +8,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Pley's window opens straight on Home as the profile Kodi was left on
+  when it has no PIN, where a household of several profiles was asked
+  "Who's watching?" each time Kodi started. A profile with a PIN still
+  asks first, and Switch profile still shows every profile.
+- What your phone, the web or another device does to a film or episode
+  playing on Kodi shows for a moment as a quiet Kodi notification:
+  "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio,
+  subtitles or quality picked.
+
+## [0.1.6] - 2026-11-05
+
 ### Added
 
 - Your phone, the web and your other devices control what Kodi plays:
@@ -33,14 +46,6 @@ describes how they are made.
 
 ### Changed
 
-- Pley's window opens straight on Home as the profile Kodi was left on
-  when it has no PIN, where a household of several profiles was asked
-  "Who's watching?" each time Kodi started. A profile with a PIN still
-  asks first, and Switch profile still shows every profile.
-- What your phone, the web or another device does to a film or episode
-  playing on Kodi shows for a moment as a quiet Kodi notification:
-  "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio,
-  subtitles or quality picked.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 
@@ -226,7 +231,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

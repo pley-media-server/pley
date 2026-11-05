@@ -8,6 +8,23 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- When your phone or browser pauses, plays, seeks or skips a film or
+  episode on the TV, or changes its audio, subtitles or quality, the TV
+  says so for 2 s at the top right ("Paused", "+30 s", "Jumped to 12:34",
+  "Subtitles off") and doesn't bring up the player's controls. Controls
+  already up hide as they do while it plays, even once it is paused, until
+  a key is pressed on the TV.
+
+### Changed
+
+- The TV starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+
 ### Security
 
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
@@ -33,12 +50,6 @@ describes how they are made.
 
 ### Added
 
-- When your phone or browser pauses, plays, seeks or skips a film or
-  episode on the TV, or changes its audio, subtitles or quality, the TV
-  says so for 2 s at the top right ("Paused", "+30 s", "Jumped to 12:34",
-  "Subtitles off") and doesn't bring up the player's controls. Controls
-  already up hide as they do while it plays, even once it is paused, until
-  a key is pressed on the TV.
 - Your phone or browser changes the quality of a film or episode playing
   on the TV, as the player's Quality menu does (the pick is kept for the
   next ones), and sees which is picked. A film or episode sent from a
@@ -95,11 +106,6 @@ describes how they are made.
 
 ### Changed
 
-- The TV starts straight into Home as the profile it was left on when it
-  has no PIN, where a household of several profiles was asked "Who's
-  watching?" each time. A profile with a PIN still asks first, and Switch
-  profile still shows every profile. Settings' Always start as
-  calls this Profile used last, where it said Ask who's watching.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - The app's icon is square, as the TV's menu draws the other apps, where
