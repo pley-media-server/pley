@@ -192,18 +192,19 @@ what to play (Play on…); phones and TVs alike obey a remote and play
 what one sends them. A TV shows no remote and has no Play on….
 
 On the phone, while another of the profile's devices is on, playing or
-not, a bar above the tabs, over the mini player when music plays here
-too, says **Playing on** the device and what plays there, or how many
-devices play and their names, or, while none plays, **Your devices**.
-The devices are the receivers (`GET /api/remote/devices`, the apps that
-take casts) merged with the sessions (`GET /api/sessions`) by
+not, Home's top bar has the remote's button, beside the profile's
+avatar, in the accent while one of them plays (TalkBack says "Remote, 2
+devices playing" or "Remote, 1 device ready to play"); the other tabs
+reach the remote through the bar below while the phone controls a
+device. The devices are the receivers (`GET /api/remote/devices`, the
+apps that take casts) merged with the sessions (`GET /api/sessions`) by
 `device_id`, both read again on `sessions_changed`, `session_stopped`
 and each time the event stream connects; a session whose device takes no
 casts (a Jellyfin or Plex app) is listed too, and a device with several
 sessions shows its newest. The phone's own sessions are left out (its
 players say which they play), and so is its own receiver.
 
-Tapping the bar opens the remote, a sheet of **Your devices**: a row for
+The button opens the remote, a sheet of **Your devices**: a row for
 each, those that play first, then the others, each by name (**Unknown
 device** when the server can't name it; two of the same name are
 numbered), with an icon for its kind (TV, phone, tablet, computer,
@@ -215,6 +216,17 @@ device ready to play is only listed: it has nothing to control. With one
 device only, playing, its controls show at once. The device Play on…
 sent something to is kept while the sheet is open, so its controls show
 once it plays.
+
+While the phone controls what a device plays, a bar above the tabs, over
+the mini player when music plays here too, says **Playing on** the device
+(**Paused on** while it is paused) and what plays there, and opens that device's controls. The phone
+controls it once it sends it a command from the remote, or once what it
+sent with Play on… plays there (not what played there before); what
+others play on their own shows no bar. The bar keeps to that device
+through a title ending into the next one, and lets go once the device
+has played nothing for 5 s (stopped, or at the end). A cast that hasn't
+started playing within 30 s isn't waited for, so what plays there later
+isn't taken for the phone's.
 
 A device's controls, top to bottom:
 
@@ -228,13 +240,13 @@ A device's controls, top to bottom:
   it ends (the channel's `now_start` and `now_stop`), its times as the
   phone writes them ("20:00 – 21:00"), and **Next:** the programme after
   it; no seek bar;
-- the transport: previous at the left edge and next at the right, and
-  between them, centred, back 10 s, play or pause and forward 30 s, each
-  where its player declares it; play stays in the middle whichever ends
-  show. Next shows where its player declares it or what plays has a next
-  by nature (an episode, a track), dimmed when the player didn't declare
-  it; a movie whose player declares none has no next. On Live TV, centred,
-  play or pause only where its player declares pause,
+- the transport, one centred row: previous, back 10 s, play or pause,
+  forward 30 s and next, each where its player declares it. Next shows
+  where its player declares it or what plays has a next by nature (an
+  episode, a track), dimmed when the player didn't declare it; a movie
+  whose player declares none has no next. Where only one of previous and
+  next shows, the other's place is kept, so play stays in the middle. On
+  Live TV, play or pause only where its player declares pause,
   then a channel rocker: one rounded pill holding channel down, the word
   **CHANNEL** and channel up, each dimmed when the player can't change
   channel that way;

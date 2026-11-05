@@ -62,6 +62,7 @@ import app.pley.android.ui.phone.kit.HubRow
 import app.pley.android.ui.phone.kit.HubRowModel
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.rememberHubRowState
+import app.pley.android.ui.phone.remote.RemoteButton
 import app.pley.android.ui.phone.shell.Brand
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
@@ -70,8 +71,9 @@ import kotlinx.coroutines.delay
 
 /**
  * Home on phones and tablets (design spec §4.1, mockup phone-home): no
- * hero; the pley mark and the profile's avatar (which opens Me) in the
- * top bar, then the server's rows: Continue Watching as 16:9 stills with
+ * hero; the Pley mark in the top bar, with the remote's button while
+ * another of the profile's devices is on and the profile's avatar (which
+ * opens Me), then the server's rows: Continue Watching as 16:9 stills with
  * their progress and time left, "Recently Added in …" as posters (squares
  * for music), each title leading to its library listed that way.
  *
@@ -107,7 +109,10 @@ internal fun PhoneHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewMod
         PleyTopAppBar(
             title = { Brand() },
             scrolled = { list.canScrollBackward },
-            actions = { ProfileButton(profile, onClick = { navigator.open(PleyKey.Me) }) },
+            actions = {
+                if (shell.remote != null) RemoteButton(shell.remoteDevices, onOpen = { shell.openRemote() })
+                ProfileButton(profile, onClick = { navigator.open(PleyKey.Me) })
+            },
         )
         PullToRefreshBox(
             isRefreshing = refreshing,

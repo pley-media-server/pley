@@ -86,8 +86,11 @@ class PhoneShellState internal constructor(
         playingOn = target
     }
 
-    /** The remote opens on [deviceId], its controls showing once what it was sent plays. */
-    internal fun openRemote(deviceId: String) {
+    /**
+     * The remote opens: on [deviceId], which this phone sent something to,
+     * its controls showing once that plays; on "Your devices" without one.
+     */
+    internal fun openRemote(deviceId: String? = null) {
         remoteAsked = RemoteAsk(deviceId)
     }
 

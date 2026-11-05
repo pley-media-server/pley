@@ -73,7 +73,7 @@ class PlayOnUiTest {
             }
         }
         // The remote comes after the first frame, off the main thread.
-        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BAR).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BUTTON).fetchSemanticsNodes().isNotEmpty() }
     }
 
     /** Play on… asked for [target], as a page's button asks. */

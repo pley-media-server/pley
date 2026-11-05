@@ -10,16 +10,17 @@ describes how they are made.
 
 ### Added
 
-- The phone is a remote for your other devices: while something plays on
-  one of them, a bar above the tabs says where and what, and opens a
-  remote with what plays on each, how far, and the controls its player
-  obeys (play and pause, back 10 s and forward 30 s, next and previous,
-  channel up and down, a slider to seek), and Stop; previous and next sit
-  at its edges, the skips and play or pause centred. What a command asks
+- The phone is a remote for your other devices: a button in Home's top
+  bar, while another of them is on, opens a remote with what plays on
+  each, how far, and the controls its player obeys (play and pause, back
+  10 s and forward 30 s, next and previous, channel up and down, a slider
+  to seek, audio, subtitles and quality), and Stop. What a command asks
   shows at once (the place a seek goes, playing or paused, the track
   picked), and what plays stays while a next starts the one after; a
   device that doesn't act on a command within a few seconds is said not
-  to have answered.
+  to have answered. While the phone controls what one plays (it sent it a
+  command, or something with Play on…), a bar above the tabs says where
+  and what, and opens its controls.
   TVs show no remote.
 - The players obey the remote on your other devices, on phones and TVs:
   videos play, pause, seek, skip and go to the next episode; music does

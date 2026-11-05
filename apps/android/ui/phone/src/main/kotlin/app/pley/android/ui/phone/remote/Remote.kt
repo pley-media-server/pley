@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -110,19 +111,26 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** A request to open the remote on a device ([RemoteSlot]): each one opens it, the same device's too. */
-internal class RemoteAsk(val deviceId: String)
+/**
+ * A request to open the remote ([RemoteSlot]): on a device this phone sent something to ([deviceId], Play on…),
+ * or on "Your devices" (`null`, Home's [RemoteButton]). Each one opens it, the same device's too.
+ */
+internal class RemoteAsk(val deviceId: String? = null)
 
 /**
- * The remote's place above the tabs (over the mini player when both
- * show): the bar while another of the profile's devices is on, playing or
- * ready to ([devices]), and the sheet it opens, which closes when no
- * device is left and opens closed when one is on again. A next, or a track
- * that needs a new session, ends one session to start another: until the
- * device plays the new one (or the wait for it is over), the one that
- * ended stays, on the bar and in the sheet. The device chosen in the sheet
- * is kept while it is open. [asked] opens it on a device (Play on… sent it
- * something).
+ * The remote's place above the tabs (over the mini player when both show)
+ * and its sheet. The sheet lists the profile's other devices that are on
+ * ([devices]); [asked] opens it, from Home's header or on a device Play on…
+ * sent something to, and it closes when no device is left. The bar shows
+ * only while this phone controls what a device plays: a command from the
+ * sheet, or what it sent with Play on… once that plays (not what played
+ * there before it). It goes once that device has played nothing for
+ * [RemoteRepository.ANSWER_WAIT_MS], so a title ending into the next one
+ * keeps it, and a cast that hasn't started within [CAST_START_WAIT_MS] isn't
+ * waited for. A next, or a track that needs a new session, ends one session
+ * to start another: until the device plays the new one (or the wait for it
+ * is over), the one that ended stays, on the bar and in the sheet. The
+ * device chosen in the sheet is kept while it is open.
  */
 @Composable
 internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, origin: String?, asked: RemoteAsk? = null) {
@@ -130,7 +138,15 @@ internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, o
     var open by rememberSaveable { mutableStateOf(false) }
     var chosen by rememberSaveable { mutableStateOf<String?>(null) }
     var ended by remember { mutableStateOf<RemoteSession?>(null) }
+    // The device this phone controls; until `started`, a cast on its way, which the session the device played
+    // as it was sent (`castOver`) isn't. Each cast (`casts`) waits its own CAST_START_WAIT_MS.
+    var controlling by rememberSaveable { mutableStateOf<String?>(null) }
+    var started by rememberSaveable { mutableStateOf(false) }
+    var castOver by rememberSaveable { mutableStateOf<String?>(null) }
+    var casts by rememberSaveable { mutableIntStateOf(0) }
     val listed = remember(devices, ended) { RemoteRepository.withEnded(devices, ended) }
+    val controlled = controlling?.let { id -> listed.firstOrNull { it.deviceId == id } }
+    val playingThere = controlled?.session?.sessionId
     LaunchedEffect(devices, ended) {
         val gone = ended ?: return@LaunchedEffect
         val now = devices.firstOrNull { it.deviceId == RemoteRepository.deviceOf(gone) }?.session
@@ -141,20 +157,49 @@ internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, o
         delay(RemoteRepository.ANSWER_WAIT_MS)
         ended = null
     }
+    // What a cast sent plays: the device plays a session other than the one it played as it was sent.
+    LaunchedEffect(playingThere, castOver) {
+        if (controlling != null && !started && playingThere != null && playingThere != castOver) started = true
+    }
+    LaunchedEffect(controlling, started, casts) {
+        if (controlling == null || started) return@LaunchedEffect
+        delay(CAST_START_WAIT_MS)
+        controlling = null
+    }
+    // Playing nothing a while (stopped there, or at the end): no longer this phone's. A moment between one title
+    // and the next, or before the list is read again after a cold start, isn't enough.
+    val idle = started && playingThere == null
+    LaunchedEffect(idle) {
+        if (!idle) return@LaunchedEffect
+        delay(RemoteRepository.ANSWER_WAIT_MS)
+        controlling = null
+        started = false
+    }
     val none = listed.isEmpty()
     LaunchedEffect(asked) {
         val ask = asked ?: return@LaunchedEffect
         chosen = ask.deviceId
         open = true
+        // Sent something from here: what it plays is this phone's to control, once it plays.
+        ask.deviceId?.let { id ->
+            controlling = id
+            started = false
+            castOver = listed.firstOrNull { it.deviceId == id }?.session?.sessionId
+            casts++
+        }
     }
     LaunchedEffect(none) { if (none) open = false }
-    RemoteBar(
-        listed,
-        onOpen = {
-            chosen = null
-            open = true
-        },
-    )
+    val mine = controlled?.takeIf { started && it.playing }
+    if (mine != null) {
+        RemoteBar(
+            mine,
+            deviceNames(listed).getValue(mine.deviceId),
+            onOpen = {
+                chosen = mine.deviceId
+                open = true
+            },
+        )
+    }
     if (open && !none) {
         RemoteSheet(
             listed,
@@ -162,10 +207,37 @@ internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, o
             origin,
             chosen = chosen,
             onChoose = { chosen = it },
-            onEnding = { ended = it },
+            onCommand = { session, command ->
+                controlling = RemoteRepository.deviceOf(session)
+                started = true
+                if (RemoteRepository.mayEndSession(command)) ended = session
+            },
             onDismiss = { open = false },
         )
     }
+}
+
+/**
+ * The remote's button in Home's header while another of the profile's
+ * devices is on (the web's header button): it opens "Your devices"
+ * ([onOpen]). In the accent while one of them plays.
+ */
+@Composable
+internal fun RemoteButton(devices: List<OtherDevice>, onOpen: () -> Unit) {
+    if (devices.isEmpty()) return
+    val playing = devices.count { it.playing }
+    val label = if (playing > 0) {
+        pluralStringResource(R.plurals.remote_button_playing, playing, playing)
+    } else {
+        pluralStringResource(R.plurals.remote_button_ready, devices.size, devices.size)
+    }
+    PleyIconButton(
+        PleyIcons.MonitorSmartphone,
+        label,
+        onClick = onOpen,
+        modifier = Modifier.testTag(REMOTE_BUTTON),
+        tint = if (playing > 0) PleyColors.Accent else PleyColors.Fg,
+    )
 }
 
 /** What the remote calls each device ([RemoteRepository.deviceNames]), numbered as the app says it. */
@@ -179,38 +251,27 @@ internal fun deviceNames(devices: List<OtherDevice>): Map<String, String> {
 }
 
 /**
- * The bar above the tabs while another of the profile's devices is on
- * (apps/web/src/components/Remote.tsx, as a bar): "Playing on Living room
- * TV" over what plays there, or how many devices play and their names, or,
- * while none plays, "Your devices" and their names. Tapping it opens the
- * remote ([RemoteSheet]).
+ * The bar above the tabs while this phone controls what [device] plays
+ * ([RemoteSlot]): "Playing on Living room TV" ([name]), or "Paused on",
+ * over what plays there. Tapping it opens that device's controls.
  */
 @Composable
-internal fun RemoteBar(devices: List<OtherDevice>, onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    if (devices.isEmpty()) return
-    val names = deviceNames(devices)
-    val playing = devices.filter { it.playing }
-    val single = playing.singleOrNull()
-    val headline = when {
-        single != null -> stringResource(R.string.remote_playing_on, names.getValue(single.deviceId))
-        playing.isNotEmpty() -> pluralStringResource(R.plurals.remote_playing_on_devices, playing.size, playing.size)
-        else -> stringResource(R.string.remote_title)
-    }
-    val liveTv = stringResource(R.string.remote_live_tv)
-    val separator = stringResource(R.string.remote_device_separator)
-    val detail = single?.session?.let { titleOf(it, liveTv) }
-        ?: playing.ifEmpty { devices }.joinToString(separator) { names.getValue(it.deviceId) }
+internal fun RemoteBar(device: OtherDevice, name: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val session = device.session ?: return
+    val paused = session.session.state == ProgressState.Paused
+    val headline = stringResource(if (paused) R.string.remote_paused_on else R.string.remote_playing_on, name)
+    val detail = titleOf(session, stringResource(R.string.remote_live_tv))
     Row(
         modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .background(PleyColors.Surface2)
-            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.remote_open), onClick = onOpen)
+            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.remote_open_device), onClick = onOpen)
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .testTag(REMOTE_BAR),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(if (playing.isEmpty()) PleyIcons.Cast else PleyIcons.MonitorPlay, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+        Icon(PleyIcons.MonitorPlay, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(headline, style = MaterialTheme.typography.labelMedium, color = PleyColors.AccentBright, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -229,8 +290,8 @@ internal fun RemoteBar(devices: List<OtherDevice>, onOpen: () -> Unit, modifier:
  * One ready to play is only listed: it has nothing to control. With one
  * device only, playing, its controls show at once. Positions are estimated
  * each second while a device plays. Pictures come from [origin], the
- * server in use; [onEnding] is told of a session a command may end
- * ([RemoteRepository.mayEndSession]).
+ * server in use; [onCommand] is told of each command sent, with the
+ * session it went to.
  */
 @Composable
 internal fun RemoteSheet(
@@ -239,7 +300,7 @@ internal fun RemoteSheet(
     origin: String?,
     chosen: String? = null,
     onChoose: (String?) -> Unit = {},
-    onEnding: (RemoteSession) -> Unit = {},
+    onCommand: (RemoteSession, Control) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
 ) {
     val names = deviceNames(devices)
@@ -270,7 +331,7 @@ internal fun RemoteSheet(
             val back = { onChoose(null) }.takeIf { single == null }
             BackHandler(enabled = back != null) { onChoose(null) }
             key(shown.deviceId) {
-                DeviceControls(shown, session, names.getValue(shown.deviceId), now, remote, origin, onEnding, back)
+                DeviceControls(shown, session, names.getValue(shown.deviceId), now, remote, origin, onCommand, back)
             }
         }
     }
@@ -361,7 +422,7 @@ private fun DeviceControls(
     now: Long,
     remote: RemoteRepository,
     origin: String?,
-    onEnding: (RemoteSession) -> Unit,
+    onCommand: (RemoteSession, Control) -> Unit,
     onBack: (() -> Unit)?,
 ) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 8.dp).testTag(REMOTE_CONTROLS + device.deviceId)) {
@@ -377,7 +438,7 @@ private fun DeviceControls(
             Spacer(Modifier.width(10.dp))
             Text(name, style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Playing(device.deviceId, session, name, now, remote, origin, onEnding)
+        Playing(device.deviceId, session, name, now, remote, origin, onCommand)
     }
 }
 
@@ -389,7 +450,7 @@ private fun DeviceControls(
  * on within [RemoteRepository.ANSWER_WAIT_MS] says so, and what it plays
  * shows again. Its session may change under it (the next episode, a track
  * that needed a new session): the device's newest is followed, and
- * [onEnding] is told of the one a command may end.
+ * [onCommand] is told of each command, with the session it went to.
  */
 @Composable
 private fun Playing(
@@ -399,7 +460,7 @@ private fun Playing(
     now: Long,
     remote: RemoteRepository,
     origin: String?,
-    onEnding: (RemoteSession) -> Unit,
+    onCommand: (RemoteSession, Control) -> Unit,
 ) {
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -447,12 +508,15 @@ private fun Playing(
         say(null)
         val before = current
         val sentAt = remote.clock()
-        // A skip goes from where the bar shows, a seek still on its way too.
-        val target = RemoteRepository.target(RemoteRepository.asSent(before, sent), request.command, sentAt, request.positionMs, request.offsetMs)
+        // A skip goes from where the bar shows, a seek still on its way too; a play or pause stays there.
+        val shown = RemoteRepository.asSent(before, sent)
+        val toggle = request.command == Control.Play || request.command == Control.Pause
+        val target = RemoteRepository.target(shown, request.command, sentAt, request.positionMs, request.offsetMs)
+            ?: shown.positionAt(sentAt).takeIf { toggle }
         val entry = SentCommand(request.command, before, sentAt, target, request.streamIndex, request.quality)
         // Shown at once, and waited for from now: the player's report confirms it.
         sent = entry
-        if (RemoteRepository.mayEndSession(request.command)) onEnding(before)
+        onCommand(before, request.command)
         scope.launch {
             try {
                 remote.command(before.sessionId, request)
@@ -691,14 +755,14 @@ private fun Progress(session: RemoteSession, device: String, now: Long, onSeek: 
 }
 
 /**
- * The transport. A title's: previous at the left edge and next at the
- * right, and between them, centred, back 10 s, play or pause and forward
- * 30 s, each where the player declares it; play stays in the middle
- * whichever ends show. Next shows where the player declares it or what
- * plays has a next by nature (an episode, a track), dimmed when the player
- * can't go there; a movie whose player declares none has no Next. A
- * channel's, centred: play or pause where the player declares pause, then
- * the channel rocker ([ChannelRocker]).
+ * The transport, one centred row. A title's: previous, back 10 s, play or
+ * pause, forward 30 s and next, each where the player declares it. Next
+ * shows where the player declares it or what plays has a next by nature
+ * (an episode, a track), dimmed when the player can't go there; a movie
+ * whose player declares none has no Next. Where only one of previous and
+ * next shows, the other's place is kept, so play stays in the middle. A
+ * channel's: play or pause where the player declares pause, then the
+ * channel rocker ([ChannelRocker]).
  */
 @Composable
 private fun Transport(session: RemoteSession, device: String, live: Boolean, send: (PlayerCommandRequest) -> Unit, modifier: Modifier = Modifier) {
@@ -716,42 +780,43 @@ private fun Transport(session: RemoteSession, device: String, live: Boolean, sen
         }
         return
     }
-    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        // The edges' glyphs line up with the artwork and the times above: their touch targets reach past instead.
-        if (session.can(Control.Previous)) {
+    val previous = session.can(Control.Previous)
+    val kind = session.session.item?.kind
+    val next = session.can(Control.Next) || kind == ItemKind.Episode || kind == ItemKind.Track
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        if (previous) {
             PleyIconButton(
                 PleyIcons.SkipBack,
                 stringResource(R.string.remote_previous, device),
                 onClick = { send(PlayerCommandRequest(Control.Previous)) },
-                modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp),
+            )
+        } else if (next) {
+            Spacer(Modifier.size(48.dp))
+        }
+        if (session.can(Control.Skip)) {
+            PleyIconButton(
+                PleyIcons.RotateCcw,
+                stringResource(R.string.remote_back, device),
+                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = -RemoteRepository.SKIP_BACK_MS)) },
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (session.can(Control.Skip)) {
-                PleyIconButton(
-                    PleyIcons.RotateCcw,
-                    stringResource(R.string.remote_back, device),
-                    onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = -RemoteRepository.SKIP_BACK_MS)) },
-                )
-            }
-            toggle?.let { PlayPause(it, device, send) }
-            if (session.can(Control.Skip)) {
-                PleyIconButton(
-                    PleyIcons.RotateCw,
-                    stringResource(R.string.remote_forward, device),
-                    onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = RemoteRepository.SKIP_FORWARD_MS)) },
-                )
-            }
+        toggle?.let { PlayPause(it, device, send) }
+        if (session.can(Control.Skip)) {
+            PleyIconButton(
+                PleyIcons.RotateCw,
+                stringResource(R.string.remote_forward, device),
+                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = RemoteRepository.SKIP_FORWARD_MS)) },
+            )
         }
-        val kind = session.session.item?.kind
-        if (session.can(Control.Next) || kind == ItemKind.Episode || kind == ItemKind.Track) {
+        if (next) {
             PleyIconButton(
                 PleyIcons.SkipForward,
                 stringResource(R.string.remote_next, device),
                 onClick = { send(PlayerCommandRequest(Control.Next)) },
-                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp),
                 enabled = session.can(Control.Next),
             )
+        } else if (previous) {
+            Spacer(Modifier.size(48.dp))
         }
     }
 }
@@ -974,8 +1039,18 @@ private fun linesOf(playing: PlayingSession, liveTv: String): Pair<String, Strin
 /** How often the sheet moves its estimates on. */
 private const val TICK_MS = 1_000L
 
+/**
+ * How long the bar waits for what this phone sent a device to play there
+ * ([RemoteSlot]): long enough for a TV to wake its player and open the
+ * title, not so long that a cast that failed makes a later one the phone's.
+ */
+internal const val CAST_START_WAIT_MS = 30_000L
+
 /** The bar's test tag. */
 internal const val REMOTE_BAR = "pley.phone.remote_bar"
+
+/** The remote's button in Home's header. */
+internal const val REMOTE_BUTTON = "pley.phone.remote_button"
 
 /** The sheet's test tag. */
 internal const val REMOTE_SHEET = "pley.phone.remote_sheet"
