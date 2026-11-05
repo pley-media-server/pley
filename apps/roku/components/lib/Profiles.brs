@@ -175,10 +175,10 @@ sub profSetStartAs(section as object, server as string, id as integer)
     section.Flush()
 end sub
 
-' Settings' choices of "Always start as": Ask who's watching, then the
+' Settings' choices of "Always start as": Profile used last, then the
 ' household's profiles ([{ id, name }]); the one kept checked.
 function profStartAsChoices(profiles as object, startAs as integer) as object
-    choice = { title: "Always start as", labels: ["Ask who's watching"], values: [0], hints: [], current: 0 }
+    choice = { title: "Always start as", labels: ["Profile used last"], values: [0], hints: [], current: 0 }
     for each profile in profiles
         if profile.id = startAs then choice.current = choice.values.Count()
         choice.labels.Push(profile.name)
@@ -187,13 +187,13 @@ function profStartAsChoices(profiles as object, startAs as integer) as object
     return choice
 end function
 
-' What the row says: the profile kept, or Ask who's watching (also for one
+' What the row says: the profile kept, or Profile used last (also for one
 ' gone from the household).
 function profStartAsLabel(profiles as object, startAs as integer) as string
     for each profile in profiles
         if profile.id = startAs then return profile.name
     end for
-    return "Ask who's watching"
+    return "Profile used last"
 end function
 
 ' The household's profiles as Settings lists them: [{ id, name }].

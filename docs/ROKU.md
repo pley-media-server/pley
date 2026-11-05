@@ -624,15 +624,15 @@ plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
 shows Pley's licence and the notices of what the package bundles.
 
 Always start as, for a household of several profiles, names the profile
-the app starts as, or Ask who's watching. As on the other TVs, the app
+the app starts as, or Profile used last. As on the other TVs, the app
 starts as the profile it was left on, but never past its PIN: without a
 PIN it goes straight in either way, and with one Always start as opens
-its PIN pad first, where Ask who's watching shows the profiles. Whether it
+its PIN pad first, where Profile used last shows the profiles. Whether it
 has one is kept in the registry section `household` each time `GET
 /api/auth/me` answers, and forgotten when a sign-in or a switch changes
 the profile; until the Roku knows, the start asks "Who's watching?". A
 profile since gone from the household (deleted, or another account's,
-signed in since) counts as Ask who's watching, as Settings then shows it.
+signed in since) counts as Profile used last, as Settings then shows it.
 It is kept on the Roku for each server.
 
 ## Building and testing

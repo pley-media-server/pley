@@ -97,7 +97,8 @@ describes how they are made.
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
-  profile still shows every profile.
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - The app's icon is square, as the TV's menu draws the other apps, where

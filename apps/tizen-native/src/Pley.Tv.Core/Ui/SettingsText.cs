@@ -43,7 +43,7 @@ public static class SettingsText
     public const string SortLibraries = "Sort libraries";
     public const string SortLibrariesValue = "Your order, on all your devices";
     public const string AlwaysStartAs = "Always start as";
-    public const string AskWho = "Ask who's watching";
+    public const string AskWho = "Profile used last";
     public const string ManageWeb = "Manage your account on the web";
     public const string ManageWebValue = "Name, picture, password, PIN, two-step, devices and apps";
     public const string WebTitle = "Manage your account on the web";

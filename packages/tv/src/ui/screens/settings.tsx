@@ -244,9 +244,9 @@ export function SettingsScreen(p: { entry: Entry }) {
             fid="row-always"
             icon="user-round"
             label="Always start as"
-            value={always === null ? "Ask who's watching" : household.filter((h) => h.id === always)[0]?.name ?? "Ask who's watching"}
+            value={always === null ? "Profile used last" : household.filter((h) => h.id === always)[0]?.name ?? "Profile used last"}
             onSelect={() =>
-              choose("row-always", "Always start as", [{ value: null, label: "Ask who's watching" }, ...household.map((h) => ({ value: h.id, label: h.name }))], always, (v) =>
+              choose("row-always", "Always start as", [{ value: null, label: "Profile used last" }, ...household.map((h) => ({ value: h.id, label: h.name }))], always, (v) =>
                 app.setAlwaysStartAs(v as number | null),
               )
             }

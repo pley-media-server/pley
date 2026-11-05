@@ -33,7 +33,8 @@
     <string name="tv_account_sort_libraries">Sort libraries</string>
     <string name="tv_account_sort_libraries_value">Your order, on all your devices</string>
     <string name="tv_account_always_start_as">Always start as</string>
-    <string name="tv_account_ask_who">Ask who\'s watching</string>
+    <!-- "Always start as" left unset: the TV starts as the profile it was left on, and asks only for a profile with a PIN. -->
+    <string name="tv_account_ask_who">Profile used last</string>
     <string name="tv_account_manage_web">Manage your account on the web</string>
     <string name="tv_account_manage_web_value">Name, picture, password, PIN, two-step, devices and apps</string>
     <string name="tv_account_web_title">Manage your account on the web</string>

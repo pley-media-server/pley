@@ -13,7 +13,8 @@ It has no releases yet: it is built and installed by hand
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
-  profile still shows every profile.
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
 - Your phone or browser's play, pause, seek, skip, audio, subtitles or
   quality on a film or episode playing on the TV says what it did for 2 s
   at the top right ("Paused", "+30 s", "Jumped to 12:34", "Audio: …"),
