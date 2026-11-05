@@ -22,7 +22,6 @@ import {
   isPlayableVideo,
   mediaBadges,
   mediaLine,
-  pluralize,
   progressFraction,
   resolutionLabel,
   seasonTitle,
@@ -168,19 +167,6 @@ describe("formatUptime", () => {
     expect(formatUptime(3_700)).toBe("1h 1m");
     expect(formatUptime(120)).toBe("2m");
     expect(formatUptime(59)).toBe("0m");
-  });
-});
-
-describe("pluralize", () => {
-  it("uses the singular for exactly one", () => {
-    expect(pluralize(1, "movie")).toBe("1 movie");
-    expect(pluralize(0, "movie")).toBe("0 movies");
-    expect(pluralize(2, "movie")).toBe("2 movies");
-    expect(pluralize(3, "child", "children")).toBe("3 children");
-  });
-
-  it("formats the count for the locale", () => {
-    expect(pluralize(12_345, "movie")).toBe(`${(12_345).toLocaleString()} movies`);
   });
 });
 

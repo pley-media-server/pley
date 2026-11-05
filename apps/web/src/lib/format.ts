@@ -191,9 +191,6 @@ export function formatUptime(secs: number): string {
   return t("format.minutes", { n: Math.max(m, 0) });
 }
 
-export function pluralize(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
-}
 
 /** "S1 · E3" for episodes. */
 export function episodeLabel(item: Pick<ItemSummary, "parent_index" | "index">): string {
