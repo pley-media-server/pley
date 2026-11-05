@@ -101,6 +101,12 @@ jobs:
             echo "::error::The package's manifest isn't version $VERSION"
             exit 1
           fi
+          for f in shared/res/LICENSE.txt shared/res/LICENSING.md shared/res/NOTICES.txt; do
+            if ! unzip -l "$tpk" "$f" > /dev/null; then
+              echo "::error::The package has no $f"
+              exit 1
+            fi
+          done
           mkdir -p dist
           cp "$tpk" "dist/pley-samsung-native-$VERSION.tpk"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

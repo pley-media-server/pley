@@ -160,7 +160,7 @@ the .ipk and reads it back; it keeps the package (`lg-ipk`) and the binary
 before stripping (`lg-symbols`) as artifacts. A release adds the package
 as `pley-lg-<version>.ipk` ([LG.md](LG.md#releases)).
 
-Samsung TV (native) tests the app's logic, builds its .tpk and checks the
-licences of its NuGet packages; a release adds that .tpk as
-`pley-samsung-native-<version>.tpk`
+Samsung TV (native) checks its version, tests the app's logic, builds its
+.tpk and checks the licences of its NuGet packages and its `NOTICES.txt`; a
+release adds that .tpk as `pley-samsung-native-<version>.tpk`
 ([TV_PLATFORMS.md](TV_PLATFORMS.md#installing-a-release)).

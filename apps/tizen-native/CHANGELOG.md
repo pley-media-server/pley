@@ -34,12 +34,36 @@ describes how they are made.
   resume point rather than fetching the film's start and seeking, its
   playlists are asked for while the player is set up, and the screen and
   its spinner keep moving while the film opens.
+- The native app's icon, and its debug build's, are square, as the TV's
+  menu draws the other apps, where they were wider than the rest.
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, where they could take up to a minute: the
+  TV tells the server where it plays, and the server reads those around it
+  first.
+- Search shows movies, shows and episodes first, then music, then
+  people, the closest matches first in each.
+- A Live TV channel whose connection someone else takes over stops at
+  once and says why, under "Live TV stopped", with Watch again, where it
+  said so only once its picture had stopped, after a video's "Playback was
+  stopped by the server's administrator." "Live TV stopped" stays when the
+  app is hidden and shown again, until Watch again.
+- The native app's rail has smaller entries and lists up to six
+  libraries, where four or more went behind Libraries; nothing leaves the
+  rail to make room for Live TV, Now Playing or a USB drive any more, and
+  the entries scroll between the avatar and Settings when they don't all
+  fit, keeping the focused entry fourth from the top, as the app's lists
+  keep theirs.
+- The native app's search rows hold every result, up to 200 titles, 200
+  people and 200 Live TV channels, where they stopped at 60 titles and 12
+  people and channels. A row makes its tiles as focus comes near them, so
+  a long one shows as quickly as a short one.
 
 ### Added
 
 - Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
   to sign with your own Samsung certificate and install on a TV in Developer
-  Mode, without building the app.
+  Mode, without building the app. The package carries Pley's licence and
+  the full licences of the libraries in it (`NOTICES.txt`).
 - Your phone or browser changes the quality of a film or episode playing
   on the TV, as the player's own Quality does, and sees which is picked.
 - A film or an episode sent from your phone or browser plays with the
@@ -328,32 +352,6 @@ describes how they are made.
   HDR, its own subtitles and the subtitle files beside it (UTF-8, UTF-16 or
   UTF-32, or Windows' Western code page, as in the Android app; 2 MB at
   most).
-
-### Changed
-
-- The native app's icon, and its debug build's, are square, as the TV's
-  menu draws the other apps, where they were wider than the rest.
-- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
-  playback starting or a seek, where they could take up to a minute: the
-  TV tells the server where it plays, and the server reads those around it
-  first.
-- Search shows movies, shows and episodes first, then music, then
-  people, the closest matches first in each.
-- A Live TV channel whose connection someone else takes over stops at
-  once and says why, under "Live TV stopped", with Watch again, where it
-  said so only once its picture had stopped, after a video's "Playback was
-  stopped by the server's administrator." "Live TV stopped" stays when the
-  app is hidden and shown again, until Watch again.
-- The native app's rail has smaller entries and lists up to six
-  libraries, where four or more went behind Libraries; nothing leaves the
-  rail to make room for Live TV, Now Playing or a USB drive any more, and
-  the entries scroll between the avatar and Settings when they don't all
-  fit, keeping the focused entry fourth from the top, as the app's lists
-  keep theirs.
-- The native app's search rows hold every result, up to 200 titles, 200
-  people and 200 Live TV channels, where they stopped at 60 titles and 12
-  people and channels. A row makes its tiles as focus comes near them, so
-  a long one shows as quickly as a short one.
 
 ### Fixed
 
