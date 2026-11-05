@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { Plus } from "lucide-react";
 import { hasRequests, mayRequest, useItemRequest, useRequestSummary } from "@/api/requests";
@@ -14,6 +15,7 @@ import { StagePill } from "../requests/shared";
  * only by accounts with requests to see; nothing shows otherwise.
  */
 export function ItemRequestLine({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation("item");
   const summary = useRequestSummary().data;
   const titled = item.kind === "movie" || item.kind === "show";
   const state = useItemRequest(item.id, titled && hasRequests(summary)).data;
@@ -27,14 +29,14 @@ export function ItemRequestLine({ item }: { item: ItemDetail }) {
         <>
           <StagePill request={request} manage={summary.manage} className="max-w-sm" />
           <Link to={titleUrl(request.kind, request.tmdb_id)} className="text-xs font-medium text-muted transition-colors hover:text-accent">
-            See the request
+            {t("request.see")}
           </Link>
         </>
       ) : null}
       {more ? (
         <Link to={`${titleUrl("show", state.tmdb_id)}?pick=1`} className={buttonClass("secondary", "sm")}>
           <Plus className="size-4" />
-          Request more seasons
+          {t("request.moreSeasons")}
         </Link>
       ) : null}
     </div>

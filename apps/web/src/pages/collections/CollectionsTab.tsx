@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Layers, Plus } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -8,7 +9,6 @@ import { useAuth } from "@/auth";
 import { ItemGridSkeleton } from "@/components/ItemGrid";
 import { CollectionCard, collectionNoun } from "@/components/lists/CollectionCard";
 import { Button, EmptyState } from "@/components/ui";
-import { pluralize } from "@/lib/format";
 import { useElementWidth } from "@/lib/hooks";
 import { CollectionFormModal } from "./CollectionFormModal";
 import { collectionUrl } from "@/lib/urls";
@@ -17,6 +17,7 @@ const CARD_WIDTH = 160;
 
 /** The "Collections" tab of a movie or TV library. */
 export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: LibraryKind }) {
+  const { t } = useTranslation(["item", "common"]);
   const user = useAuth();
   const navigate = useNavigate();
   const collections = useCollections(libraryId);
@@ -29,14 +30,14 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const list = collections.data ?? [];
   const newButton = (variant: "primary" | "secondary") => (
     <Button variant={variant} size={variant === "primary" ? "md" : "sm"} icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-      New collection
+      {t("collectionForm.new")}
     </Button>
   );
 
   return (
     <div className="px-4 pt-5 sm:px-8">
       <div className="mb-4 flex min-h-8 items-center justify-between gap-3">
-        <span className="text-sm tabular-nums text-muted">{collections.data ? pluralize(list.length, "collection") : ""}</span>
+        <span className="text-sm tabular-nums text-muted">{collections.data ? t("counts.collections", { count: list.length }) : ""}</span>
         {user.is_admin && list.length > 0 ? newButton("secondary") : null}
       </div>
       <div ref={ref}>
@@ -44,20 +45,20 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
           <ItemGridSkeleton aspect="poster" cardWidth={CARD_WIDTH} />
         ) : collections.isError ? (
           <EmptyState
-            title="Couldn't load collections"
+            title={t("collections.loadError")}
             description={errorMessage(collections.error)}
-            action={<Button onClick={() => void collections.refetch()}>Retry</Button>}
+            action={<Button onClick={() => void collections.refetch()}>{t("common:actions.retry")}</Button>}
           />
         ) : list.length === 0 ? (
           <EmptyState
             icon={<Layers />}
-            title="No collections yet"
+            title={t("collections.empty")}
             description={
               kind === "movies"
-                ? `Movies of the same TMDB collection are grouped here once two of them are in this library.${user.is_admin ? " You can also make your own." : ""}`
+                ? t(user.is_admin ? "collections.moviesHintAdmin" : "collections.moviesHint")
                 : user.is_admin
-                  ? "Group shows into collections of your own."
-                  : "There are no collections in this library yet."
+                  ? t("collections.showsHintAdmin")
+                  : t("collections.noneHere")
             }
             action={user.is_admin ? newButton("primary") : undefined}
           />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { Download, Ellipsis, FastForward, FolderPlus, ListPlus, RefreshCw } from "lucide-react";
 import { api, errorMessage } from "@/api/client";
@@ -25,6 +26,7 @@ const ANALYZABLE = new Set(["movie", "show", "season", "episode"]);
  * given).
  */
 export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; file?: MediaFile }) {
+  const { t } = useTranslation(["item", "common"]);
   const user = useAuth();
   const lists = useListMenu();
   const toast = useToast();
@@ -41,9 +43,9 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
   if (!lists && !admin && !download) return null;
 
   const findMarkers = () => {
-    const scope = item.kind === "episode" ? "this season" : item.kind === "show" ? "every season" : "this item";
+    const scope = item.kind === "episode" ? "season" : item.kind === "show" ? "show" : "item";
     analyze.mutate(item.id, {
-      onSuccess: () => toast.success(`Looking for intros and credits in ${scope}…`),
+      onSuccess: () => toast.success(t(`actions.findingMarkers.${scope}`)),
       onError: (e) => toast.error(errorMessage(e)),
     });
   };
@@ -54,7 +56,7 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
         // Opens leftwards: the button sits at the end of the row (near the edge on phones).
         trigger={({ open, toggle }) => (
           <IconButton
-            label="More actions"
+            label={t("actions.more")}
             size="lg"
             aria-haspopup="menu"
             aria-expanded={open}
@@ -70,19 +72,19 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
           <>
             {download ? (
               <MenuItem icon={<Download />} onClick={() => (close(), saveFile(fileUrl(download, item), downloadName(item, download)))}>
-                Download
+                {t("common:actions.download")}
                 <span className="ml-auto whitespace-nowrap pl-6 text-xs tabular-nums text-subtle">{formatBytes(download.size)}</span>
               </MenuItem>
             ) : null}
             {download && lists ? <MenuSeparator /> : null}
             {lists ? (
               <MenuItem icon={<ListPlus />} onClick={() => (close(), lists.addToPlaylist(item))}>
-                Add to playlist…
+                {t("actions.addToPlaylist")}
               </MenuItem>
             ) : null}
             {lists && canCollect ? (
               <MenuItem icon={<FolderPlus />} onClick={() => (close(), lists.addToCollection(item))}>
-                Add to collection…
+                {t("actions.addToCollection")}
               </MenuItem>
             ) : null}
             {edits.length ? <MenuSeparator /> : null}
@@ -100,18 +102,18 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
                   onClick={() => {
                     close();
                     refresh.mutate(item.id, {
-                      onSuccess: () => toast.success("Refreshing metadata…"),
+                      onSuccess: () => toast.success(t("actions.refreshing")),
                       onError: (e) => toast.error(errorMessage(e)),
                     });
                   }}
                 >
-                  Refresh metadata
+                  {t("actions.refreshMetadata")}
                 </MenuItem>
               </>
             ) : null}
             {canAnalyze ? (
               <MenuItem icon={<FastForward />} disabled={analyze.isPending} onClick={() => (close(), findMarkers())}>
-                Find intro and credits
+                {t("actions.findMarkers")}
               </MenuItem>
             ) : null}
           </>

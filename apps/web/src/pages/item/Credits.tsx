@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import type { Credit, CreditRole } from "@/api/types";
 import { ArrowButton, useFittedRow } from "@/components/HubRow";
@@ -6,13 +7,6 @@ import { PersonCard } from "@/components/PersonCard";
 import { SectionTitle } from "@/components/ui";
 import { smoothScroll } from "@/lib/hooks";
 import { personUrl } from "@/lib/urls";
-
-const CREW_LABELS: Record<Exclude<CreditRole, "actor">, [string, string]> = {
-  creator: ["Created by", "Created by"],
-  director: ["Director", "Directors"],
-  writer: ["Writer", "Writers"],
-  producer: ["Producer", "Producers"],
-};
 
 /** Smallest card width: [mobile, desktop]; cards grow to fill whole rows. */
 const CARD_WIDTHS: [number, number] = [96, 120];
@@ -68,6 +62,7 @@ export function CastRow({ title, credits }: { title: string; credits?: Credit[] 
 }
 
 function PeopleLinks({ people, max = 4 }: { people: Credit[]; max?: number }) {
+  const { t } = useTranslation("item");
   return (
     <>
       {people.slice(0, max).map((p, i) => (
@@ -78,26 +73,26 @@ function PeopleLinks({ people, max = 4 }: { people: Credit[]; max?: number }) {
           </Link>
         </Fragment>
       ))}
-      {people.length > max ? <span className="text-muted"> and {people.length - max} more</span> : null}
+      {people.length > max ? <span className="text-muted"> {t("crew.more", { count: people.length - max })}</span> : null}
     </>
   );
 }
 
-const CREW_ROLES: Exclude<CreditRole, "actor">[] = ["creator", "director", "writer"];
+const CREW_ROLES = ["creator", "director", "writer"] as const satisfies CreditRole[];
 
 export function hasCrew(crew?: Credit[]): boolean {
-  return !!crew?.some((c) => (CREW_ROLES as CreditRole[]).includes(c.role));
+  return !!crew?.some((c) => (CREW_ROLES as readonly CreditRole[]).includes(c.role));
 }
 
 /** `<dt>`/`<dd>` pairs for a details list: who created, directed and wrote it. */
 export function CrewRows({ crew }: { crew?: Credit[] }) {
+  const { t } = useTranslation("item");
   return CREW_ROLES.map((role) => {
     const people = crew?.filter((c) => c.role === role) ?? [];
     if (!people.length) return null;
-    const [one, many] = CREW_LABELS[role];
     return (
       <Fragment key={role}>
-        <dt className="text-subtle">{people.length > 1 ? many : one}</dt>
+        <dt className="text-subtle">{t(`crew.${role}`, { count: people.length })}</dt>
         <dd className="text-fg/85">
           <PeopleLinks people={people} />
         </dd>

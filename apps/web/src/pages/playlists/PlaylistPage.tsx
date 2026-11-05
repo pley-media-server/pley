@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { AudioLines, ChevronDown, ChevronUp, GripVertical, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
@@ -26,6 +27,7 @@ import { itemUrl, playlistUrl } from "@/lib/urls";
 import { idParam } from "@/lib/ids";
 
 export function PlaylistPage() {
+  const { t } = useTranslation(["item", "common"]);
   const { id } = useParams();
   const playlistId = idParam(id);
   const playlist = usePlaylist(playlistId);
@@ -38,9 +40,9 @@ export function PlaylistPage() {
     return (
       <EmptyState
         className="min-h-[60vh]"
-        title="Couldn't load this playlist"
+        title={t("playlist.loadError")}
         description={errorMessage(playlist.error)}
-        action={<Button onClick={() => void playlist.refetch()}>Retry</Button>}
+        action={<Button onClick={() => void playlist.refetch()}>{t("common:actions.retry")}</Button>}
       />
     );
   }
@@ -48,6 +50,7 @@ export function PlaylistPage() {
 }
 
 function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
+  const { t } = useTranslation(["item", "common"]);
   const navigate = useNavigate();
   const toast = useToast();
   const audio = useAudioPlayer();
@@ -82,26 +85,26 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
         <PlaylistArt playlist={p} width={240} className="w-44 shrink-0 shadow-2xl shadow-black/60 sm:w-52 lg:w-60" />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium text-muted">
-            {video ? "Video playlist" : "Music playlist"}
-            {p.smart_filter ? <Badge tone="accent">Smart</Badge> : null}
+            {video ? t("playlist.video") : t("playlist.music")}
+            {p.smart_filter ? <Badge tone="accent">{t("smart")}</Badge> : null}
           </div>
           <h1 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-5xl">{p.title}</h1>
           <MetaLine parts={[playlistMeta(p), ...(p.smart_filter ? describeSmartFilter(p.smart_filter) : [])]} />
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <Button variant="primary" size="lg" icon={<Play className="size-5 fill-current" />} onClick={() => playFrom(0)} disabled={!items.length}>
-              Play
+              {t("common:actions.play")}
             </Button>
             <Button size="lg" icon={<Shuffle className="size-4" />} onClick={() => playFrom(0, true)} disabled={items.length < 2}>
-              Shuffle
+              {t("shuffle")}
             </Button>
             {items.length ? <PlayOn kind="item" cast={() => ({ playlist_id: p.id })} /> : null}
             {items.length > 1 ? (
-              <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ playlist_id: p.id, shuffle: true })} />
+              <PlayOn kind="item" label={t("shuffleOn")} icon={<Shuffle className="size-4" />} cast={() => ({ playlist_id: p.id, shuffle: true })} />
             ) : null}
-            <IconButton label="Rename playlist" size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setRenaming(true)}>
+            <IconButton label={t("playlist.rename")} size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setRenaming(true)}>
               <Pencil className="size-5" />
             </IconButton>
-            <IconButton label="Delete playlist" size="lg" className="bg-surface-3/80 hover:bg-border hover:text-danger!" onClick={() => setDeleting(true)}>
+            <IconButton label={t("playlist.delete")} size="lg" className="bg-surface-3/80 hover:bg-border hover:text-danger!" onClick={() => setDeleting(true)}>
               <Trash2 className="size-5" />
             </IconButton>
           </div>
@@ -110,13 +113,11 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
 
       <section className="mt-10 max-w-5xl">
         {p.entries.length === 0 && p.smart_filter ? (
-          <p className="text-sm text-muted">Nothing matches this playlist's filter yet.</p>
+          <p className="text-sm text-muted">{t("playlist.noMatches")}</p>
         ) : p.entries.length === 0 ? (
-          <p className="text-sm text-muted">
-            This playlist is empty. Use “Add to playlist” on {video ? "a movie, show or episode" : "an artist or album"}, or right-click a poster.
-          </p>
+          <p className="text-sm text-muted">{video ? t("playlist.emptyVideo") : t("playlist.emptyMusic")}</p>
         ) : (
-          <ol className="-mx-2 space-y-0.5" aria-label="Playlist items">
+          <ol className="-mx-2 space-y-0.5" aria-label={t("playlist.items")}>
             {p.entries.map((entry, i) => {
               const item = entry.item;
               const { title, subtitle } = defaultCardTitles(item);
@@ -143,7 +144,7 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
                   <button
                     type="button"
                     onClick={() => playFrom(i)}
-                    aria-label={`Play ${title}`}
+                    aria-label={t("playTitle", { title })}
                     className={cn("relative shrink-0 overflow-hidden rounded ring-1 ring-white/5", video ? "w-24 sm:w-32" : "w-12")}
                   >
                     <Artwork
@@ -177,14 +178,14 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
                     hidden={!editable}
                     className="flex shrink-0 items-center opacity-100 transition-opacity [@media(hover:hover)]:sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
                   >
-                    <IconButton label="Move up" size="sm" disabled={i === 0} onClick={() => move(i, i - 1)}>
+                    <IconButton label={t("moveUp")} size="sm" disabled={i === 0} onClick={() => move(i, i - 1)}>
                       <ChevronUp className="size-4" />
                     </IconButton>
-                    <IconButton label="Move down" size="sm" disabled={i === p.entries.length - 1} onClick={() => move(i, i + 1)}>
+                    <IconButton label={t("moveDown")} size="sm" disabled={i === p.entries.length - 1} onClick={() => move(i, i + 1)}>
                       <ChevronDown className="size-4" />
                     </IconButton>
                     <IconButton
-                      label="Remove from playlist"
+                      label={t("playlist.remove")}
                       size="sm"
                       className="hover:text-danger!"
                       onClick={() => remove.mutate({ id: p.id, entryId: entry.entry_id }, { onError: (err) => toast.error(errorMessage(err)) })}
@@ -203,15 +204,15 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
       <ConfirmModal
         open={deleting}
         onClose={() => setDeleting(false)}
-        title="Delete playlist?"
-        message={`"${p.title}" will be deleted. What's in it stays in your libraries.`}
-        confirmLabel="Delete"
+        title={t("playlist.deleteTitle")}
+        message={t("playlist.deleteMessage", { title: p.title })}
+        confirmLabel={t("common:actions.delete")}
         danger
         loading={deletePlaylist.isPending}
         onConfirm={() =>
           deletePlaylist.mutate(p.id, {
             onSuccess: () => {
-              toast.success("Playlist deleted");
+              toast.success(t("playlist.deleted"));
               void navigate("/playlists", { replace: true });
             },
             onError: (err) => toast.error(errorMessage(err)),

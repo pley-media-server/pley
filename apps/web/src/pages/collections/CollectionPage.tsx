@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
@@ -7,13 +8,11 @@ import { useCollection, useDeleteCollection, useRemoveFromCollection, useReorder
 import { useAuth } from "@/auth";
 import { Artwork } from "@/components/Artwork";
 import { CardSkeleton, MediaCard } from "@/components/cards";
-import { collectionNoun } from "@/components/lists/CollectionCard";
 import { moved, useDragReorder } from "@/components/lists/reorder";
 import { ConfirmModal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, EmptyState, IconButton, SectionTitle, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
 import { describeSmartFilter } from "@/lib/smartFilter";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { posterCandidates } from "@/lib/images";
@@ -25,9 +24,8 @@ import { CollectionFormModal } from "./CollectionFormModal";
 import { collectionUrl, itemUrl, libraryUrl } from "@/lib/urls";
 import { idParam } from "@/lib/ids";
 
-const SORT_NOTE = { release: "By release date", title: "By title", custom: "Custom order" } as const;
-
 export function CollectionPage() {
+  const { t } = useTranslation(["item", "common"]);
   const { id } = useParams();
   const collectionId = idParam(id);
   const collection = useCollection(collectionId);
@@ -40,9 +38,9 @@ export function CollectionPage() {
     return (
       <EmptyState
         className="min-h-[60vh]"
-        title="Couldn't load this collection"
+        title={t("collection.loadError")}
         description={errorMessage(collection.error)}
-        action={<Button onClick={() => void collection.refetch()}>Retry</Button>}
+        action={<Button onClick={() => void collection.refetch()}>{t("common:actions.retry")}</Button>}
       />
     );
   }
@@ -50,12 +48,14 @@ export function CollectionPage() {
 }
 
 function CollectionView({ collection: c }: { collection: CollectionDetail }) {
+  const { t } = useTranslation(["item", "common"]);
   const user = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const libs = useLibraries();
   const lib = libs.data?.find((l) => l.id === c.library_id);
-  const noun = collectionNoun(lib?.kind);
+  // A TV library's collections hold shows; any other's, movies.
+  const shows = lib?.kind === "shows";
   const startQueue = useVideoQueue();
   const play = usePlayItem();
   const remove = useDeleteCollection();
@@ -102,21 +102,21 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
           </div>
           <div className="min-w-0 flex-1 space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted">
-              <Layers className="size-3.5" /> Collection
+              <Layers className="size-3.5" /> {t("collection.label")}
               {c.automatic ? <Badge>TMDB</Badge> : null}
-              {c.smart_filter ? <Badge tone="accent">Smart</Badge> : null}
+              {c.smart_filter ? <Badge tone="accent">{t("smart")}</Badge> : null}
             </div>
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">{c.title}</h1>
             <MetaLine
               parts={[
-                pluralize(c.item_count, noun[0], noun[1]),
+                t(shows ? "counts.shows" : "counts.movies", { count: c.item_count }),
                 lib ? (
                   <Link key="lib" to={libraryUrl(lib.id, "tab=collections")} className="transition-colors hover:text-fg">
                     {lib.name}
                   </Link>
                 ) : null,
                 // A smart collection shows what its filter finds, in its order.
-                ...(c.smart_filter ? describeSmartFilter(c.smart_filter) : [SORT_NOTE[c.sort]]),
+                ...(c.smart_filter ? describeSmartFilter(c.smart_filter) : [t(`collection.sortNotes.${c.sort}`)]),
               ]}
             />
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
@@ -127,19 +127,19 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
                 onClick={() => onPlay(false)}
                 disabled={!c.items.length}
               >
-                Play
+                {t("common:actions.play")}
               </Button>
               <Button size="lg" icon={<Shuffle className="size-4" />} onClick={() => onPlay(true)} disabled={c.items.length < 2}>
-                Shuffle
+                {t("shuffle")}
               </Button>
               {user.is_admin ? (
                 <>
-                  <IconButton label="Edit collection" size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setEditing(true)}>
+                  <IconButton label={t("collection.edit")} size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setEditing(true)}>
                     <Pencil className="size-5" />
                   </IconButton>
                   {c.smart_filter ? null : (
                     <IconButton
-                      label={managing ? "Done reordering" : "Reorder and remove"}
+                      label={managing ? t("collection.doneManaging") : t("collection.manage")}
                       size="lg"
                       active={managing}
                       className="bg-surface-3/80 hover:bg-border"
@@ -149,7 +149,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
                       <ArrowUpDown className="size-5" />
                     </IconButton>
                   )}
-                  <IconButton label="Delete collection" size="lg" className="bg-surface-3/80 hover:bg-border hover:text-danger!" onClick={() => setDeleting(true)}>
+                  <IconButton label={t("collection.delete")} size="lg" className="bg-surface-3/80 hover:bg-border hover:text-danger!" onClick={() => setDeleting(true)}>
                     <Trash2 className="size-5" />
                   </IconButton>
                 </>
@@ -164,17 +164,15 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
             action={
               managing ? (
                 <Button size="sm" variant="primary" onClick={() => setManaging(false)}>
-                  Done
+                  {t("common:actions.done")}
                 </Button>
               ) : undefined
             }
           >
-            {noun[1].charAt(0).toUpperCase() + noun[1].slice(1)}
+            {shows ? t("collection.shows") : t("collection.movies")}
           </SectionTitle>
           {c.items.length === 0 ? (
-            <p className="text-sm text-muted">
-              Nothing in this collection yet. Add {noun[1]} from their page, or by right-clicking a poster.
-            </p>
+            <p className="text-sm text-muted">{shows ? t("collection.emptyShows") : t("collection.emptyMovies")}</p>
           ) : managing ? (
             <ManageItems collection={c} />
           ) : (
@@ -195,19 +193,17 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
           <ConfirmModal
             open={deleting}
             onClose={() => setDeleting(false)}
-            title="Delete collection?"
-            message={
-              c.automatic
-                ? `"${c.title}" is made from TMDB: it comes back the next time these movies' metadata is refreshed.`
-                : `"${c.title}" will be deleted. The ${noun[1]} in it stay in the library.`
-            }
-            confirmLabel="Delete"
+            title={t("collection.deleteTitle")}
+            message={t(c.automatic ? "collection.deleteAutomatic" : shows ? "collection.deleteShows" : "collection.deleteMovies", {
+              title: c.title,
+            })}
+            confirmLabel={t("common:actions.delete")}
             danger
             loading={remove.isPending}
             onConfirm={() =>
               remove.mutate(c, {
                 onSuccess: () => {
-                  toast.success("Collection deleted");
+                  toast.success(t("collection.deleted"));
                   void navigate(libraryUrl(c.library_id, "tab=collections"), { replace: true });
                 },
                 onError: (err) => toast.error(errorMessage(err)),
@@ -240,6 +236,7 @@ function ItemsGrid({ collection }: { collection: CollectionDetail }) {
 
 /** Administrators: drag (or move up / down) to reorder, remove items. */
 function ManageItems({ collection: c }: { collection: CollectionDetail }) {
+  const { t } = useTranslation("item");
   const reorder = useReorderCollection();
   const remove = useRemoveFromCollection();
   const toast = useToast();
@@ -254,7 +251,7 @@ function ManageItems({ collection: c }: { collection: CollectionDetail }) {
 
   return (
     <div className="max-w-3xl">
-      {c.sort !== "custom" ? <p className="mb-2 text-xs text-muted">Moving an item switches this collection to a custom order.</p> : null}
+      {c.sort !== "custom" ? <p className="mb-2 text-xs text-muted">{t("collection.customOrderNote")}</p> : null}
       <ol className="-mx-2 space-y-0.5">
         {c.items.map((item, i) => {
           const mark = dropMark(i);
@@ -278,14 +275,14 @@ function ManageItems({ collection: c }: { collection: CollectionDetail }) {
                 </Link>
                 <div className="text-xs text-muted">{item.year ?? ""}</div>
               </div>
-              <IconButton label="Move up" size="sm" disabled={i === 0} onClick={() => move(i, i - 1)}>
+              <IconButton label={t("moveUp")} size="sm" disabled={i === 0} onClick={() => move(i, i - 1)}>
                 <ChevronUp className="size-4" />
               </IconButton>
-              <IconButton label="Move down" size="sm" disabled={i === c.items.length - 1} onClick={() => move(i, i + 1)}>
+              <IconButton label={t("moveDown")} size="sm" disabled={i === c.items.length - 1} onClick={() => move(i, i + 1)}>
                 <ChevronDown className="size-4" />
               </IconButton>
               <IconButton
-                label="Remove from collection"
+                label={t("collection.remove")}
                 size="sm"
                 className="hover:text-danger!"
                 disabled={remove.isPending}
@@ -293,7 +290,7 @@ function ManageItems({ collection: c }: { collection: CollectionDetail }) {
                   remove.mutate(
                     { collection: c, itemId: item.id },
                     {
-                      onSuccess: () => toast.success(`Removed ${item.title}`),
+                      onSuccess: () => toast.success(t("collection.removed", { title: item.title })),
                       onError: (err) => toast.error(errorMessage(err)),
                     },
                   )

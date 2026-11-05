@@ -1,26 +1,25 @@
 import { useCallback, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ItemSummary } from "@/api/types";
 import { MediaCard } from "@/components/cards";
 import { ArrowButton, useFittedRow } from "@/components/HubRow";
 import { SectionTitle } from "@/components/ui";
+import { t as translate } from "@/i18n";
 import { smoothScroll } from "@/lib/hooks";
 import { formatDuration } from "@/lib/format";
 import { playUrl } from "@/lib/usePlayItem";
 
-const EXTRA_LABELS: Record<string, string> = {
-  trailer: "Trailer",
-  behind_the_scenes: "Behind the Scenes",
-  deleted_scene: "Deleted Scene",
-  featurette: "Featurette",
-  interview: "Interview",
-  scene: "Scene",
-  short: "Short",
-  other: "Extra",
-};
+/** The kinds of extra with a name of their own; any other is an "Extra". */
+const EXTRA_TYPES = ["trailer", "behind_the_scenes", "deleted_scene", "featurette", "interview", "scene", "short", "other"] as const;
+
+function isExtraType(type: string): type is (typeof EXTRA_TYPES)[number] {
+  return (EXTRA_TYPES as readonly string[]).includes(type);
+}
 
 /** "Trailer · 2m" */
 export function extraSubtitle(item: Pick<ItemSummary, "extra_type" | "duration_ms">): string {
-  const label = EXTRA_LABELS[item.extra_type ?? "other"] ?? "Extra";
+  const type = item.extra_type ?? "other";
+  const label = translate(`extras.types.${isExtraType(type) ? type : "other"}`, { ns: "item" });
   return [label, formatDuration(item.duration_ms)].filter(Boolean).join(" · ");
 }
 
@@ -29,6 +28,7 @@ const CARD_WIDTHS: [number, number] = [200, 260];
 
 /** Trailers and other bonus material; a card plays its extra. */
 export function ExtrasRow({ extras }: { extras?: ItemSummary[] }) {
+  const { t } = useTranslation("item");
   const { ref, width, perPage, gap } = useFittedRow(CARD_WIDTHS);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -60,7 +60,7 @@ export function ExtrasRow({ extras }: { extras?: ItemSummary[] }) {
           ) : null
         }
       >
-        Extras
+        {t("extras.title")}
       </SectionTitle>
       <div
         ref={ref}

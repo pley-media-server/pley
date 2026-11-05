@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Play, RotateCcw } from "lucide-react";
@@ -9,6 +10,7 @@ import { MissingKeyNotice } from "@/components/MetadataNotice";
 import { PlayOn } from "@/components/PlayOn";
 import { StarRating } from "@/components/StarRating";
 import { Button, Select } from "@/components/ui";
+import { t as translate } from "@/i18n";
 import { audioPicked, automaticAudioLabel, codecLabel, formatBytes, formatDate, formatDuration, resolutionLabel, seasonTitle, streamLabel } from "@/lib/format";
 import { saveStreamChoice } from "@/lib/progress";
 import { usePlayItem } from "@/lib/usePlayItem";
@@ -38,7 +40,7 @@ import { itemUrl } from "@/lib/urls";
 
 export function versionLabel(f: MediaFile, i: number): string {
   const parts = [f.edition, resolutionLabel(f.width, f.height), codecLabel(f.video_codec), f.container?.toUpperCase(), formatBytes(f.size)].filter(Boolean);
-  return parts.length ? parts.join(" · ") : `Version ${i + 1}`;
+  return parts.length ? parts.join(" · ") : translate("versionNumber", { ns: "item", number: i + 1 });
 }
 
 function LabeledSelect({ label, children, value, onChange }: { label: string; children: ReactNode; value: string; onChange: (v: string) => void }) {
@@ -53,6 +55,7 @@ function LabeledSelect({ label, children, value, onChange }: { label: string; ch
 }
 
 export function VideoItemView({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation(["item", "common"]);
   const play = usePlayItem();
   const isEpisode = item.kind === "episode";
   const [edit, setEdit] = useState<EditDialog | null>(null);
@@ -142,10 +145,12 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               <div className="text-sm text-muted">
                 {item.parent_id ? (
                   <Link to={itemUrl(item.parent_id)} className="hover:text-fg">
-                    {item.parent_index != null ? seasonTitle({ title: "", index: item.parent_index }) : (item.parent_title ?? "Season")}
+                    {item.parent_index != null
+                      ? seasonTitle({ title: "", index: item.parent_index })
+                      : (item.parent_title ?? t("common:format.season"))}
                   </Link>
                 ) : null}
-                {item.index != null ? <span> · Episode {item.index}</span> : null}
+                {item.index != null ? <span> · {t("video.episodeNumber", { number: item.index })}</span> : null}
               </div>
             </div>
           ) : null}
@@ -182,11 +187,11 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
                 className="max-sm:min-w-0 max-sm:px-4"
                 {...playIntent(item.kind)}
               >
-                <span className="truncate">{resumable ? "Resume" : "Play"}</span>
+                <span className="truncate">{resumable ? t("common:actions.resume") : t("common:actions.play")}</span>
               </Button>
             ) : (
               <Button variant="secondary" size="lg" disabled>
-                Unavailable
+                {t("video.unavailable")}
               </Button>
             )}
             {resumable ? (
@@ -198,7 +203,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
                 className="max-sm:w-11 max-sm:px-0"
                 {...playIntent(item.kind)}
               >
-                <span className="hidden sm:inline">From start</span>
+                <span className="hidden sm:inline">{t("video.fromStart")}</span>
               </Button>
             ) : null}
             {item.files.length ? (
@@ -231,7 +236,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
           {file && (item.files.length > 1 || audioStreams.length > 1 || subStreams.length > 0) ? (
             <div className="flex flex-wrap gap-3 pt-2">
               {item.files.length > 1 ? (
-                <LabeledSelect label="Version" value={String(file.id)} onChange={(v) => setFileId(Number(v))}>
+                <LabeledSelect label={t("video.version")} value={String(file.id)} onChange={(v) => setFileId(Number(v))}>
                   {item.files.map((f, i) => (
                     <option key={f.id} value={f.id}>
                       {versionLabel(f, i)}
@@ -241,7 +246,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               ) : null}
               {audioStreams.length > 1 ? (
                 <LabeledSelect
-                  label="Audio"
+                  label={t("video.audio")}
                   value={audioIndex == null ? "auto" : String(audioIndex)}
                   onChange={(v) => {
                     const index = v === "auto" ? null : Number(v);
@@ -259,7 +264,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               ) : null}
               {subStreams.length > 0 ? (
                 <LabeledSelect
-                  label="Subtitles"
+                  label={t("video.subtitles")}
                   value={subIndex == null ? "off" : String(subIndex)}
                   onChange={(v) => {
                     const index = v === "off" ? null : Number(v);
@@ -267,7 +272,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
                     remember(audioChoice === "auto" ? undefined : audioIndex, index);
                   }}
                 >
-                  <option value="off">Off</option>
+                  <option value="off">{t("video.subtitlesOff")}</option>
                   {subStreams.map((s) => (
                     <option key={s.index} value={s.index}>
                       {streamLabel(s)}
@@ -282,25 +287,25 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
             <CrewRows crew={item.crew} />
             {item.original_title && item.original_title !== item.title ? (
               <>
-                <dt className="text-subtle">Original title</dt>
+                <dt className="text-subtle">{t("video.originalTitle")}</dt>
                 <dd className="text-fg/85">{item.original_title}</dd>
               </>
             ) : null}
             {item.release_date && !isEpisode ? (
               <>
-                <dt className="text-subtle">Released</dt>
+                <dt className="text-subtle">{t("video.released")}</dt>
                 <dd className="text-fg/85">{formatDate(item.release_date)}</dd>
               </>
             ) : null}
             {item.studio ? (
               <>
-                <dt className="text-subtle">{isEpisode ? "Network" : "Studio"}</dt>
+                <dt className="text-subtle">{isEpisode ? t("video.network") : t("video.studio")}</dt>
                 <dd className="text-fg/85">{item.studio}</dd>
               </>
             ) : null}
             {item.user_state.play_count > 0 ? (
               <>
-                <dt className="text-subtle">Plays</dt>
+                <dt className="text-subtle">{t("video.plays")}</dt>
                 <dd className="text-fg/85">{item.user_state.play_count}</dd>
               </>
             ) : null}
@@ -310,7 +315,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
         </div>
       </div>
       <ExtrasRow extras={item.extras} />
-      <CastRow title={isEpisode ? "Guest Stars" : "Cast"} credits={item.cast} />
+      <CastRow title={isEpisode ? t("guestStars") : t("cast")} credits={item.cast} />
       {isEpisode ? null : <MoreLikeThis item={item} />}
     </ItemPageShell>
   );

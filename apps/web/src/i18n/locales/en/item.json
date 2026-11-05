@@ -1,1 +1,286 @@
-{}
+{
+  "loadError": "Couldn't load this item",
+  "playTitle": "Play {{title}}",
+  "playTitleOn": "Play {{title}} on…",
+  "pauseTitle": "Pause {{title}}",
+  "playEpisode": "Play {{episode}}",
+  "resumeEpisode": "Resume {{episode}}",
+  "shuffle": "Shuffle",
+  "shuffleOn": "Shuffle on…",
+  "smart": "Smart",
+  "moveUp": "Move up",
+  "moveDown": "Move down",
+  "cast": "Cast",
+  "guestStars": "Guest Stars",
+  "moreLikeThis": "More Like This",
+  "versionNumber": "Version {{number}}",
+  "counts": {
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} track",
+    "tracks_other": "{{count, number}} tracks",
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "movies_one": "{{count, number}} movie",
+    "movies_other": "{{count, number}} movies",
+    "shows_one": "{{count, number}} show",
+    "shows_other": "{{count, number}} shows",
+    "collections_one": "{{count, number}} collection",
+    "collections_other": "{{count, number}} collections",
+    "items_one": "{{count, number}} item",
+    "items_other": "{{count, number}} items"
+  },
+  "sectionError": {
+    "albums": "Couldn't load the albums: {{error}}",
+    "tracks": "Couldn't load the tracks: {{error}}",
+    "seasons": "Couldn't load the seasons: {{error}}",
+    "episodes": "Couldn't load the episodes: {{error}}"
+  },
+  "summary": {
+    "readMore": "Read more"
+  },
+  "watched": {
+    "markWatched": "Mark as watched",
+    "markUnwatched": "Mark as unwatched",
+    "watched": "Watched",
+    "unwatched": "Unwatched"
+  },
+  "myList": {
+    "add": "Add to My List",
+    "remove": "Remove from My List",
+    "inList": "In My List"
+  },
+  "video": {
+    "episodeNumber": "Episode {{number}}",
+    "unavailable": "Unavailable",
+    "fromStart": "From start",
+    "version": "Version",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "subtitlesOff": "Off",
+    "originalTitle": "Original title",
+    "released": "Released",
+    "network": "Network",
+    "studio": "Studio",
+    "plays": "Plays"
+  },
+  "crew": {
+    "creator_one": "Created by",
+    "creator_other": "Created by",
+    "director_one": "Director",
+    "director_other": "Directors",
+    "writer_one": "Writer",
+    "writer_other": "Writers",
+    "more_one": "and {{count}} more",
+    "more_other": "and {{count}} more"
+  },
+  "extras": {
+    "title": "Extras",
+    "types": {
+      "trailer": "Trailer",
+      "behind_the_scenes": "Behind the Scenes",
+      "deleted_scene": "Deleted Scene",
+      "featurette": "Featurette",
+      "interview": "Interview",
+      "scene": "Scene",
+      "short": "Short",
+      "other": "Extra"
+    }
+  },
+  "actions": {
+    "more": "More actions",
+    "addToPlaylist": "Add to playlist…",
+    "addToCollection": "Add to collection…",
+    "refreshMetadata": "Refresh metadata",
+    "refreshing": "Refreshing metadata…",
+    "findMarkers": "Find intro and credits",
+    "findingMarkers": {
+      "season": "Looking for intros and credits in this season…",
+      "show": "Looking for intros and credits in every season…",
+      "item": "Looking for intros and credits in this item…"
+    }
+  },
+  "edit": {
+    "menu": {
+      "details": "Edit details…",
+      "match": "Fix match…",
+      "thumb": "Choose thumbnail…",
+      "poster": "Choose poster…",
+      "backdrop": "Choose background…"
+    },
+    "details": {
+      "title": "Edit details",
+      "hint": "Edited fields are locked <lock/> so metadata refreshes keep them. Unlock a field to let the next refresh fill it again.",
+      "genresPlaceholder": "Drama, Thriller",
+      "locked": "Locked: click to unlock",
+      "willUnlock": "Will be unlocked",
+      "fields": {
+        "title": "Title",
+        "sort_title": "Sort title",
+        "original_title": "Original title",
+        "year": "Year",
+        "release_date": "Release date",
+        "content_rating": "Content rating",
+        "studio": "Studio",
+        "tagline": "Tagline",
+        "genres": "Genres",
+        "summary": "Summary"
+      }
+    },
+    "match": {
+      "title": "Fix match",
+      "matched": "Matched to “{{title}}”",
+      "noMatches": "No matches. Try another title or no year.",
+      "current": "Current"
+    },
+    "artwork": {
+      "titles": {
+        "poster": "Choose poster",
+        "backdrop": "Choose background",
+        "thumb": "Choose thumbnail"
+      },
+      "reset": "Use automatic artwork",
+      "resetDone": "Back to automatic artwork",
+      "updated": "Artwork updated",
+      "upload": "Upload a picture…",
+      "uploading": "Uploading…",
+      "loadError": "{{error}} You can still upload a picture.",
+      "none": "TMDB has no other artwork for this item."
+    }
+  },
+  "request": {
+    "see": "See the request",
+    "moreSeasons": "Request more seasons"
+  },
+  "mediaInfo": {
+    "title": "Media info",
+    "versions_one": "({{count}} version)",
+    "versions_other": "({{count}} versions)",
+    "columns": {
+      "type": "Type",
+      "codec": "Codec",
+      "language": "Language",
+      "details": "Details"
+    },
+    "kinds": {
+      "video": "video",
+      "audio": "audio",
+      "subtitle": "subtitle"
+    },
+    "rows": {
+      "file": "File",
+      "container": "Container",
+      "size": "Size",
+      "duration": "Duration",
+      "bitrate": "Bitrate",
+      "video": "Video",
+      "audio": "Audio"
+    },
+    "fps": "{{value}} fps",
+    "bitDepth": "{{depth}}-bit",
+    "dvLevel": "DV level {{level}}",
+    "imageBased": "Image-based",
+    "text": "Text",
+    "external": "External",
+    "forced": "Forced",
+    "default": "Default"
+  },
+  "music": {
+    "artist": "Artist",
+    "album": "Album",
+    "albums": "Albums",
+    "noAlbums": "No albums found.",
+    "tracks": "Tracks",
+    "noTracks": "No tracks found",
+    "title": "Title",
+    "time": "Time",
+    "disc": "Disc {{number}}"
+  },
+  "season": {
+    "breadcrumb": "Breadcrumb",
+    "show": "Show",
+    "episodes": "Episodes",
+    "noEpisodes": "No episodes found."
+  },
+  "show": {
+    "seasons": "Seasons",
+    "noSeasons": "No seasons found."
+  },
+  "collection": {
+    "loadError": "Couldn't load this collection",
+    "label": "Collection",
+    "sortNotes": {
+      "release": "By release date",
+      "title": "By title",
+      "custom": "Custom order"
+    },
+    "edit": "Edit collection",
+    "manage": "Reorder and remove",
+    "doneManaging": "Done reordering",
+    "delete": "Delete collection",
+    "movies": "Movies",
+    "shows": "Shows",
+    "emptyMovies": "Nothing in this collection yet. Add movies from their page, or by right-clicking a poster.",
+    "emptyShows": "Nothing in this collection yet. Add shows from their page, or by right-clicking a poster.",
+    "deleteTitle": "Delete collection?",
+    "deleteAutomatic": "\"{{title}}\" is made from TMDB: it comes back the next time these movies' metadata is refreshed.",
+    "deleteMovies": "\"{{title}}\" will be deleted. The movies in it stay in the library.",
+    "deleteShows": "\"{{title}}\" will be deleted. The shows in it stay in the library.",
+    "deleted": "Collection deleted",
+    "customOrderNote": "Moving an item switches this collection to a custom order.",
+    "remove": "Remove from collection",
+    "removed": "Removed {{title}}"
+  },
+  "collectionForm": {
+    "new": "New collection",
+    "saved": "Collection saved",
+    "title": "Title",
+    "summary": "Summary",
+    "order": "Order",
+    "orderHint": "A title or summary changed here is kept when TMDB metadata is refreshed.",
+    "sorts": {
+      "release": "Release date",
+      "title": "Title",
+      "custom": "Custom"
+    }
+  },
+  "collections": {
+    "loadError": "Couldn't load collections",
+    "empty": "No collections yet",
+    "moviesHint": "Movies of the same TMDB collection are grouped here once two of them are in this library.",
+    "moviesHintAdmin": "Movies of the same TMDB collection are grouped here once two of them are in this library. You can also make your own.",
+    "showsHintAdmin": "Group shows into collections of your own.",
+    "noneHere": "There are no collections in this library yet."
+  },
+  "playlist": {
+    "loadError": "Couldn't load this playlist",
+    "video": "Video playlist",
+    "music": "Music playlist",
+    "rename": "Rename playlist",
+    "delete": "Delete playlist",
+    "noMatches": "Nothing matches this playlist's filter yet.",
+    "emptyVideo": "This playlist is empty. Use “Add to playlist” on a movie, show or episode, or right-click a poster.",
+    "emptyMusic": "This playlist is empty. Use “Add to playlist” on an artist or album, or right-click a poster.",
+    "items": "Playlist items",
+    "remove": "Remove from playlist",
+    "deleteTitle": "Delete playlist?",
+    "deleteMessage": "\"{{title}}\" will be deleted. What's in it stays in your libraries.",
+    "deleted": "Playlist deleted"
+  },
+  "playlistForm": {
+    "new": "New playlist",
+    "title": "Title",
+    "for": "For",
+    "kind": "Playlist kind",
+    "video": "Movies & TV",
+    "audio": "Music"
+  },
+  "playlists": {
+    "title": "Playlists",
+    "loadError": "Couldn't load your playlists",
+    "empty": "No playlists yet",
+    "emptyHint": "Make one here, or use “Add to playlist” on a movie, show, album or episode (also when right-clicking a poster)."
+  }
+}

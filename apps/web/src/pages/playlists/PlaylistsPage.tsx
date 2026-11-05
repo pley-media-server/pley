@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 import { ListMusic, ListPlus, Plus } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -6,7 +7,8 @@ import { usePlaylists, type Playlist } from "@/api/lists";
 import { PlaylistArt } from "@/components/lists/PlaylistArt";
 import { CardSkeleton } from "@/components/cards";
 import { Button, EmptyState } from "@/components/ui";
-import { formatDuration, pluralize } from "@/lib/format";
+import { t as translate } from "@/i18n";
+import { formatDuration } from "@/lib/format";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { PlaylistFormModal } from "./PlaylistFormModal";
 import { playlistUrl } from "@/lib/urls";
@@ -14,11 +16,12 @@ import { playlistUrl } from "@/lib/urls";
 const CARD_WIDTH = 180;
 
 export function playlistMeta(p: Pick<Playlist, "item_count" | "duration_ms">): string {
-  return [pluralize(p.item_count, "item"), formatDuration(p.duration_ms)].filter(Boolean).join(" · ");
+  return [translate("counts.items", { ns: "item", count: p.item_count }), formatDuration(p.duration_ms)].filter(Boolean).join(" · ");
 }
 
 export function PlaylistsPage() {
-  useDocumentTitle("Playlists");
+  const { t } = useTranslation(["item", "common"]);
+  useDocumentTitle(t("playlists.title"));
   const navigate = useNavigate();
   const playlists = usePlaylists();
   const [creating, setCreating] = useState(false);
@@ -35,11 +38,11 @@ export function PlaylistsPage() {
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-accent">
             <ListMusic className="size-5" />
           </div>
-          <h1 className="truncate text-2xl font-bold tracking-tight">Playlists</h1>
+          <h1 className="truncate text-2xl font-bold tracking-tight">{t("playlists.title")}</h1>
         </div>
         {list.length > 0 ? (
           <Button icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-            New playlist
+            {t("playlistForm.new")}
           </Button>
         ) : null}
       </div>
@@ -56,18 +59,18 @@ export function PlaylistsPage() {
           </div>
         ) : playlists.isError ? (
           <EmptyState
-            title="Couldn't load your playlists"
+            title={t("playlists.loadError")}
             description={errorMessage(playlists.error)}
-            action={<Button onClick={() => void playlists.refetch()}>Retry</Button>}
+            action={<Button onClick={() => void playlists.refetch()}>{t("common:actions.retry")}</Button>}
           />
         ) : list.length === 0 ? (
           <EmptyState
             icon={<ListPlus />}
-            title="No playlists yet"
-            description="Make one here, or use “Add to playlist” on a movie, show, album or episode (also when right-clicking a poster)."
+            title={t("playlists.empty")}
+            description={t("playlists.emptyHint")}
             action={
               <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-                New playlist
+                {t("playlistForm.new")}
               </Button>
             }
           />

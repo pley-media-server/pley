@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { BookmarkCheck, BookmarkPlus, Check, Eye, EyeOff, Star } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSetInWatchlist, useSetWatched } from "@/api/hooks";
@@ -7,19 +8,27 @@ import { Artwork } from "@/components/Artwork";
 import { ASPECT_CLASS, type CardAspect } from "@/components/cards";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, IconButton, ProgressBar } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { dynamicRangeBadges, formatRemaining, progressFraction } from "@/lib/format";
 import { backdropCandidates, posterCandidates, thumbCandidates } from "@/lib/images";
 
 /** A section of an item's page (its seasons, episodes, albums, tracks) that couldn't load, with Retry. */
-export function SectionError({ what, error, retry }: { what: string; error: unknown; retry: () => void }) {
+export function SectionError({
+  what,
+  error,
+  retry,
+}: {
+  what: "albums" | "tracks" | "seasons" | "episodes";
+  error: unknown;
+  retry: () => void;
+}) {
+  const { t } = useTranslation(["item", "common"]);
   return (
     <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-      <span className="text-danger">
-        Couldn't load {what}: {errorMessage(error)}
-      </span>
+      <span className="text-danger">{t(`sectionError.${what}`, { error: errorMessage(error) })}</span>
       <Button size="sm" onClick={retry}>
-        Retry
+        {t("common:actions.retry")}
       </Button>
     </div>
   );
@@ -110,7 +119,7 @@ export function RatingBadge({ rating }: { rating: number | null }) {
   return (
     <span className="inline-flex items-center gap-1 text-fg">
       <Star className="size-3.5 fill-accent text-accent" />
-      {rating.toFixed(1)}
+      {rating.toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
     </span>
   );
 }
@@ -134,6 +143,7 @@ export function Genres({ genres }: { genres: string[] }) {
 }
 
 export function Summary({ text, className }: { text?: string | null; className?: string }) {
+  const { t } = useTranslation(["item", "common"]);
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
   const long = text.length > 360;
@@ -142,7 +152,7 @@ export function Summary({ text, className }: { text?: string | null; className?:
       <p className={cn("whitespace-pre-line text-[15px] leading-relaxed text-fg/85", !expanded && long && "line-clamp-4")}>{text}</p>
       {long ? (
         <button type="button" onClick={() => setExpanded((e) => !e)} className="mt-1 text-sm font-medium text-accent hover:underline">
-          {expanded ? "Show less" : "Read more"}
+          {expanded ? t("common:actions.showLess") : t("summary.readMore")}
         </button>
       ) : null}
     </div>
@@ -162,13 +172,14 @@ export function ResumeProgress({ item }: { item: ItemSummary }) {
 
 /** Mark watched / unwatched toggle. For containers "watched" means every episode is watched. */
 export function WatchedButton({ item, compact }: { item: ItemSummary; compact?: boolean }) {
+  const { t } = useTranslation("item");
   const setWatched = useSetWatched();
   const toast = useToast();
   const isContainer = item.kind === "show" || item.kind === "season";
   const watched = isContainer
     ? item.leaf_count != null && item.leaf_count > 0 && (item.viewed_leaf_count ?? 0) >= item.leaf_count
     : item.user_state.watched;
-  const label = watched ? "Mark as unwatched" : "Mark as watched";
+  const label = watched ? t("watched.markUnwatched") : t("watched.markWatched");
   const onClick = () =>
     setWatched.mutate(
       { id: item.id, watched: !watched },
@@ -192,13 +203,14 @@ export function WatchedButton({ item, compact }: { item: ItemSummary; compact?: 
       title={label}
       className="max-sm:w-11 max-sm:px-0"
     >
-      <span className="hidden sm:inline">{watched ? "Unwatched" : "Watched"}</span>
+      <span className="hidden sm:inline">{watched ? t("watched.unwatched") : t("watched.watched")}</span>
     </Button>
   );
 }
 
 /** Puts a movie or show on My List, or takes it off. */
 export function MyListButton({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation("item");
   const setInWatchlist = useSetInWatchlist();
   const toast = useToast();
   const inList = !!item.in_watchlist;
@@ -208,10 +220,10 @@ export function MyListButton({ item }: { item: ItemDetail }) {
       size="lg"
       onClick={() => setInWatchlist.mutate({ item, on: !inList }, { onError: (e) => toast.error(errorMessage(e)) })}
       icon={inList ? <BookmarkCheck className="size-4 text-accent" /> : <BookmarkPlus className="size-4" />}
-      title={inList ? "Remove from My List" : "Add to My List"}
+      title={inList ? t("myList.remove") : t("myList.add")}
       className="max-sm:w-11 max-sm:px-0"
     >
-      <span className="hidden sm:inline">{inList ? "In My List" : "Add to My List"}</span>
+      <span className="hidden sm:inline">{inList ? t("myList.inList") : t("myList.add")}</span>
     </Button>
   );
 }

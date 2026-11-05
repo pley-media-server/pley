@@ -1,7 +1,9 @@
 import { useId, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { MediaFile, MediaStream } from "@/api/types";
 import { useAuth } from "@/auth";
+import { currentLanguage, t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
 import {
   channelsLabel,
@@ -29,43 +31,53 @@ function streamDetails(s: MediaStream): string[] {
     const res = resolutionLabel(s.width, s.height);
     if (res) parts.push(res);
     if (s.width && s.height) parts.push(`${s.width}×${s.height}`);
-    if (s.frame_rate) parts.push(`${Math.round(s.frame_rate * 100) / 100} fps`);
-    if (s.bit_depth) parts.push(`${s.bit_depth}-bit`);
+    if (s.frame_rate) {
+      const value = (Math.round(s.frame_rate * 100) / 100).toLocaleString(currentLanguage());
+      parts.push(translate("mediaInfo.fps", { ns: "item", value }));
+    }
+    if (s.bit_depth) parts.push(translate("mediaInfo.bitDepth", { ns: "item", depth: s.bit_depth }));
     const range = dynamicRangeLabel(s);
     if (range) parts.push(range);
-    if (s.dynamic_range === "dolby_vision" && s.dv_level != null) parts.push(`DV level ${s.dv_level}`);
+    if (s.dynamic_range === "dolby_vision" && s.dv_level != null) parts.push(translate("mediaInfo.dvLevel", { ns: "item", level: s.dv_level }));
     if (s.profile) parts.push(s.profile);
   } else if (s.kind === "audio") {
     const ch = channelsLabel(s.channels, s.channel_layout);
     if (ch) parts.push(ch);
-    if (s.sample_rate) parts.push(`${(s.sample_rate / 1000).toFixed(1)} kHz`);
+    if (s.sample_rate) parts.push(`${kilohertz(s.sample_rate)} kHz`);
   } else {
-    parts.push(s.text_based === false ? "Image-based" : "Text");
-    if (s.external) parts.push("External");
+    parts.push(translate(s.text_based === false ? "mediaInfo.imageBased" : "mediaInfo.text", { ns: "item" }));
+    if (s.external) parts.push(translate("mediaInfo.external", { ns: "item" }));
   }
   if (s.bitrate) parts.push(formatBitrate(s.bitrate));
-  if (s.forced) parts.push("Forced");
-  if (s.default) parts.push("Default");
+  if (s.forced) parts.push(translate("mediaInfo.forced", { ns: "item" }));
+  if (s.default) parts.push(translate("mediaInfo.default", { ns: "item" }));
   return parts;
 }
 
+/** 48000 → "48.0" ("48,0" in French). */
+function kilohertz(hz: number): string {
+  return (hz / 1000).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 function StreamTable({ streams }: { streams: MediaStream[] }) {
+  const { t } = useTranslation("item");
   if (!streams.length) return null;
   return (
     <div className="mt-3 overflow-x-auto">
       <table className="w-full min-w-[520px] text-left text-sm">
         <thead>
           <tr className="text-xs text-subtle">
-            <th className="py-1.5 pr-4 font-semibold">Type</th>
-            <th className="py-1.5 pr-4 font-semibold">Codec</th>
-            <th className="py-1.5 pr-4 font-semibold">Language</th>
-            <th className="py-1.5 pr-4 font-semibold">Details</th>
+            <th className="py-1.5 pr-4 font-semibold">{t("mediaInfo.columns.type")}</th>
+            <th className="py-1.5 pr-4 font-semibold">{t("mediaInfo.columns.codec")}</th>
+            <th className="py-1.5 pr-4 font-semibold">{t("mediaInfo.columns.language")}</th>
+            <th className="py-1.5 pr-4 font-semibold">{t("mediaInfo.columns.details")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.05]">
           {streams.map((s) => (
             <tr key={`${s.kind}-${s.index}`} className="align-top">
-              <td className="py-1.5 pr-4 capitalize text-muted">{s.kind}</td>
+              {/* Only the first letter goes up: `capitalize` would make the French "sous-titres" "Sous-Titres". */}
+              <td className="py-1.5 pr-4 text-muted first-letter:uppercase">{t(`mediaInfo.kinds.${s.kind}`)}</td>
               <td className="py-1.5 pr-4 font-medium">{codecLabel(s.codec)}</td>
               <td className="py-1.5 pr-4 text-fg/85">
                 {languageName(s.language) ?? "—"}
@@ -119,6 +131,7 @@ function fileName(path: string): string {
 }
 
 function FileInfo({ file }: { file: MediaFile }) {
+  const { t } = useTranslation("item");
   // Where the server keeps it is for its administrators; everyone else sees the file's name, as in the apps.
   const admin = useAuth().is_admin;
   const order: Record<MediaFile["streams"][number]["kind"], number> = { video: 0, audio: 1, subtitle: 2 };
@@ -126,15 +139,15 @@ function FileInfo({ file }: { file: MediaFile }) {
   return (
     <div className="rounded-lg border border-border bg-surface/80 p-4 backdrop-blur">
       <dl>
-        <Row label="File">
+        <Row label={t("mediaInfo.rows.file")}>
           <span className="break-all font-mono text-xs text-fg/80">{admin ? file.path : fileName(file.path)}</span>
         </Row>
-        <Row label="Container">{file.container?.toUpperCase() ?? "—"}</Row>
-        <Row label="Size">{formatBytes(file.size)}</Row>
-        {file.duration_ms ? <Row label="Duration">{formatDuration(file.duration_ms)}</Row> : null}
-        {file.bitrate ? <Row label="Bitrate">{formatBitrate(file.bitrate)}</Row> : null}
+        <Row label={t("mediaInfo.rows.container")}>{file.container?.toUpperCase() ?? "—"}</Row>
+        <Row label={t("mediaInfo.rows.size")}>{formatBytes(file.size)}</Row>
+        {file.duration_ms ? <Row label={t("mediaInfo.rows.duration")}>{formatDuration(file.duration_ms)}</Row> : null}
+        {file.bitrate ? <Row label={t("mediaInfo.rows.bitrate")}>{formatBitrate(file.bitrate)}</Row> : null}
         {file.video_codec ? (
-          <Row label="Video">
+          <Row label={t("mediaInfo.rows.video")}>
             {[
               codecLabel(file.video_codec),
               resolutionLabel(file.width, file.height),
@@ -144,7 +157,7 @@ function FileInfo({ file }: { file: MediaFile }) {
               .join(" · ")}
           </Row>
         ) : null}
-        {file.audio_codec ? <Row label="Audio">{codecLabel(file.audio_codec)}</Row> : null}
+        {file.audio_codec ? <Row label={t("mediaInfo.rows.audio")}>{codecLabel(file.audio_codec)}</Row> : null}
       </dl>
       <StreamTable streams={streams} />
     </div>
@@ -156,6 +169,7 @@ function FileInfo({ file }: { file: MediaFile }) {
  * several versions, each one opens on its own too.
  */
 export function MediaInfo({ files }: { files: MediaFile[] }) {
+  const { t } = useTranslation("item");
   if (!files.length) return null;
   const only = files.length === 1 ? files[0] : undefined;
   return (
@@ -165,8 +179,8 @@ export function MediaInfo({ files }: { files: MediaFile[] }) {
         panelClassName="mt-3"
         label={
           <>
-            Media info{" "}
-            {files.length > 1 ? <span className="text-subtle">({files.length} versions)</span> : null}
+            {t("mediaInfo.title")}{" "}
+            {files.length > 1 ? <span className="text-subtle">{t("mediaInfo.versions", { count: files.length })}</span> : null}
           </>
         }
       >
@@ -176,7 +190,7 @@ export function MediaInfo({ files }: { files: MediaFile[] }) {
           <ul className="space-y-2">
             {files.map((f, i) => (
               <li key={f.id}>
-                <Disclosure className="text-fg/90" panelClassName="mt-2" label={f.edition ?? `Version ${i + 1}`}>
+                <Disclosure className="text-fg/90" panelClassName="mt-2" label={f.edition ?? t("versionNumber", { number: i + 1 })}>
                   <FileInfo file={f} />
                 </Disclosure>
               </li>

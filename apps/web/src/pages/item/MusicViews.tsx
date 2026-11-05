@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { AudioLines, Cast, Play, Shuffle } from "lucide-react";
 import { useChildren, type ChildItem } from "@/api/hooks";
@@ -8,8 +9,9 @@ import { CardSkeleton, MediaCard } from "@/components/cards";
 import { PlayOn } from "@/components/PlayOn";
 import { StarRating } from "@/components/StarRating";
 import { Button, IconButton, SectionTitle, Skeleton } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatClock, formatDuration, pluralize } from "@/lib/format";
+import { formatClock, formatDuration } from "@/lib/format";
 import { useElementWidth } from "@/lib/hooks";
 import { usePlayItem } from "@/lib/usePlayItem";
 import { MoreActions } from "./ItemActions";
@@ -34,6 +36,7 @@ function MusicHeader({ item, kindLabel, meta, actions }: { item: ItemDetail; kin
 }
 
 export function ArtistView({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation(["item", "common"]);
   const play = usePlayItem();
   const albums = useChildren(item.id);
   const [gridRef, gridWidth] = useElementWidth<HTMLDivElement>();
@@ -41,7 +44,9 @@ export function ArtistView({ item }: { item: ItemDetail }) {
   const colWidth = gridWidth > 0 ? (gridWidth - 18 * (cols - 1)) / cols : 170;
   const sorted = useMemo(
     () =>
-      [...(albums.data ?? [])].sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.sort_title.localeCompare(b.sort_title)),
+      [...(albums.data ?? [])].sort(
+        (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.sort_title.localeCompare(b.sort_title, currentLanguage()),
+      ),
     [albums.data],
   );
 
@@ -49,25 +54,32 @@ export function ArtistView({ item }: { item: ItemDetail }) {
     <div className="animate-fade-in px-4 pb-16 pt-8 sm:px-8">
       <MusicHeader
         item={item}
-        kindLabel="Artist"
-        meta={<MetaLine parts={[item.child_count != null ? pluralize(item.child_count, "album") : null, item.leaf_count != null ? pluralize(item.leaf_count, "track") : null]} />}
+        kindLabel={t("music.artist")}
+        meta={
+          <MetaLine
+            parts={[
+              item.child_count != null ? t("counts.albums", { count: item.child_count }) : null,
+              item.leaf_count != null ? t("counts.tracks", { count: item.leaf_count }) : null,
+            ]}
+          />
+        }
         actions={
           <>
             <Button variant="primary" size="lg" icon={<Play className="size-5 fill-current" />} onClick={() => void play(item)}>
-              Play
+              {t("common:actions.play")}
             </Button>
             <Button size="lg" icon={<Shuffle className="size-4" />} onClick={() => void play(item, { shuffle: true })}>
-              Shuffle
+              {t("shuffle")}
             </Button>
             <PlayOn kind="item" cast={() => ({ item_id: item.id })} />
-            <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
+            <PlayOn kind="item" label={t("shuffleOn")} icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
             <MoreActions item={item} />
           </>
         }
       />
       <Summary text={item.summary} className="mt-6" />
       <section className="mt-10">
-        <SectionTitle>Albums</SectionTitle>
+        <SectionTitle>{t("music.albums")}</SectionTitle>
         <div ref={gridRef} className="grid gap-x-[18px] gap-y-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {albums.isPending
             ? Array.from({ length: Math.min(cols, 6) }, (_, i) => <CardSkeleton key={i} aspect="square" />)
@@ -75,9 +87,9 @@ export function ArtistView({ item }: { item: ItemDetail }) {
                 <MediaCard key={a.id} item={a} aspect="square" width={colWidth} subtitle={a.year ? String(a.year) : ""} />
               ))}
         </div>
-        {albums.data && albums.data.length === 0 ? <p className="text-sm text-muted">No albums found.</p> : null}
+        {albums.data && albums.data.length === 0 ? <p className="text-sm text-muted">{t("music.noAlbums")}</p> : null}
         {albums.isError && !albums.data ? (
-          <SectionError what="the albums" error={albums.error} retry={() => void albums.refetch()} />
+          <SectionError what="albums" error={albums.error} retry={() => void albums.refetch()} />
         ) : null}
       </section>
     </div>
@@ -85,6 +97,7 @@ export function ArtistView({ item }: { item: ItemDetail }) {
 }
 
 export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId?: number }) {
+  const { t } = useTranslation(["item", "common"]);
   const play = usePlayItem();
   const audio = useAudioPlayer();
   const tracks = useChildren(item.id);
@@ -99,20 +112,20 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
     <div className="animate-fade-in px-4 pb-16 pt-8 sm:px-8">
       <MusicHeader
         item={item}
-        kindLabel="Album"
+        kindLabel={t("music.album")}
         meta={
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <MetaLine
               parts={[
                 item.parent_id ? (
                   <Link key="artist" to={itemUrl(item.parent_id)} className="font-semibold text-fg hover:text-accent">
-                    {item.parent_title ?? "Artist"}
+                    {item.parent_title ?? t("music.artist")}
                   </Link>
                 ) : (
                   item.parent_title
                 ),
                 item.year,
-                list.length ? pluralize(list.length, "track") : null,
+                list.length ? t("counts.tracks", { count: list.length }) : null,
                 totalMs ? formatDuration(totalMs) : null,
               ]}
             />
@@ -128,7 +141,7 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
               onClick={() => (list.length ? playFrom(0) : void play(item))}
               disabled={tracks.isSuccess && list.length === 0}
             >
-              Play
+              {t("common:actions.play")}
             </Button>
             <Button
               size="lg"
@@ -136,12 +149,12 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
               onClick={() => (list.length ? audio.playQueue(list, 0, { shuffle: true }) : void play(item, { shuffle: true }))}
               disabled={tracks.isSuccess && list.length === 0}
             >
-              Shuffle
+              {t("shuffle")}
             </Button>
             {tracks.isSuccess && list.length === 0 ? null : (
               <>
                 <PlayOn kind="item" cast={() => ({ item_id: item.id })} />
-                <PlayOn kind="item" label="Shuffle on…" icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
+                <PlayOn kind="item" label={t("shuffleOn")} icon={<Shuffle className="size-4" />} cast={() => ({ item_id: item.id, shuffle: true })} />
               </>
             )}
             <MoreActions item={item} />
@@ -158,13 +171,13 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
             ))}
           </div>
         ) : tracks.isError && !tracks.data ? (
-          <SectionError what="the tracks" error={tracks.error} retry={() => void tracks.refetch()} />
+          <SectionError what="tracks" error={tracks.error} retry={() => void tracks.refetch()} />
         ) : (
-          <div role="table" aria-label="Tracks" className="text-sm">
+          <div role="table" aria-label={t("music.tracks")} className="text-sm">
             <div role="row" className="grid grid-cols-[2.5rem_1fr_4rem] gap-3 border-b border-border px-3 pb-2 text-xs font-medium text-subtle">
               <span role="columnheader" className="text-right">#</span>
-              <span role="columnheader">Title</span>
-              <span role="columnheader" className="text-right">Time</span>
+              <span role="columnheader">{t("music.title")}</span>
+              <span role="columnheader" className="text-right">{t("music.time")}</span>
             </div>
             {list.map((t, i) => {
               const showDisc = multiDisc && (i === 0 || (list[i - 1]?.parent_index ?? 1) !== (t.parent_index ?? 1));
@@ -181,7 +194,7 @@ export function AlbumView({ item, highlightId }: { item: ItemDetail; highlightId
                 />
               );
             })}
-            {list.length === 0 ? <SectionTitle className="mt-6">No tracks found</SectionTitle> : null}
+            {list.length === 0 ? <SectionTitle className="mt-6">{t("music.noTracks")}</SectionTitle> : null}
           </div>
         )}
       </section>
@@ -206,11 +219,12 @@ function TrackRow({
   albumArtist?: string | null;
   onPlay: () => void;
 }) {
+  const { t } = useTranslation("item");
   const artist = track.grandparent_title && track.grandparent_title !== albumArtist ? track.grandparent_title : null;
   return (
     <>
       {disc != null ? (
-        <div className="px-3 pb-1 pt-4 text-xs font-medium text-subtle">Disc {disc}</div>
+        <div className="px-3 pb-1 pt-4 text-xs font-medium text-subtle">{t("music.disc", { number: disc })}</div>
       ) : null}
       <div
         role="row"
@@ -225,7 +239,7 @@ function TrackRow({
           <span className={cn("tabular-nums text-subtle group-hover:invisible", current && "invisible")}>{track.index ?? ""}</span>
           <button
             type="button"
-            aria-label={playing ? `Pause ${track.title}` : `Play ${track.title}`}
+            aria-label={playing ? t("pauseTitle", { title: track.title }) : t("playTitle", { title: track.title })}
             onClick={onPlay}
             className={cn(
               "absolute inset-y-0 right-0 flex items-center text-fg",
@@ -248,7 +262,7 @@ function TrackRow({
               cast={() => ({ item_id: track.id })}
               trigger={({ open, toggle }) => (
                 <IconButton
-                  label={`Play ${track.title} on…`}
+                  label={t("playTitleOn", { title: track.title })}
                   size="xs"
                   aria-haspopup="menu"
                   aria-expanded={open}

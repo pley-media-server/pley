@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ChevronRight, Play } from "lucide-react";
 import { useChildren, useOnDeck, type ChildItem } from "@/api/hooks";
@@ -5,7 +6,7 @@ import type { ItemDetail } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
 import { PlayOn } from "@/components/PlayOn";
 import { Button, SectionTitle, Skeleton } from "@/components/ui";
-import { episodeLabel, formatDate, formatDuration, pluralize, progressFraction, seasonTitle } from "@/lib/format";
+import { episodeLabel, formatDate, formatDuration, progressFraction, seasonTitle } from "@/lib/format";
 import { thumbCandidates } from "@/lib/images";
 import { prefetchPlay } from "@/lib/prefetchPlay";
 import { usePlayItem } from "@/lib/usePlayItem";
@@ -16,6 +17,7 @@ import { CastRow } from "./Credits";
 import { itemUrl } from "@/lib/urls";
 
 function EpisodeRow({ ep }: { ep: ChildItem }) {
+  const { t } = useTranslation("item");
   const play = usePlayItem();
   const progress = ep.user_state.watched ? 0 : progressFraction(ep);
   return (
@@ -31,7 +33,7 @@ function EpisodeRow({ ep }: { ep: ChildItem }) {
         </Link>
         <button
           type="button"
-          aria-label={`Play ${ep.title}`}
+          aria-label={t("playTitle", { title: ep.title })}
           onClick={() => void play(ep)}
           {...playIntent(ep.kind, () => prefetchPlay(ep))}
           className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-accent-fg opacity-0 shadow-lg transition hover:bg-accent-hover focus-visible:opacity-100 group-hover:opacity-100"
@@ -61,6 +63,7 @@ function EpisodeRow({ ep }: { ep: ChildItem }) {
 }
 
 export function SeasonView({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation(["item", "common"]);
   const play = usePlayItem();
   const episodes = useChildren(item.id);
   const onDeck = useOnDeck(item.id);
@@ -70,10 +73,10 @@ export function SeasonView({ item }: { item: ItemDetail }) {
 
   return (
     <ItemPageShell item={item}>
-      <nav className="mb-4 flex items-center gap-1 text-sm text-muted" aria-label="Breadcrumb">
+      <nav className="mb-4 flex items-center gap-1 text-sm text-muted" aria-label={t("season.breadcrumb")}>
         {item.parent_id ? (
           <Link to={itemUrl(item.parent_id)} className="font-medium transition-colors hover:text-fg">
-            {item.parent_title ?? "Show"}
+            {item.parent_title ?? t("season.show")}
           </Link>
         ) : null}
         <ChevronRight className="size-4 text-subtle" />
@@ -88,7 +91,7 @@ export function SeasonView({ item }: { item: ItemDetail }) {
             {item.parent_title ? <div className="text-lg font-semibold text-fg/80">{item.parent_title}</div> : null}
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
           </div>
-          <MetaLine parts={[item.year, item.leaf_count ? pluralize(item.leaf_count, "episode") : null]} />
+          <MetaLine parts={[item.year, item.leaf_count ? t("counts.episodes", { count: item.leaf_count }) : null]} />
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <Button
               variant="primary"
@@ -98,7 +101,9 @@ export function SeasonView({ item }: { item: ItemDetail }) {
               {...playIntent(item.kind)}
               disabled={episodes.data?.length === 0}
             >
-              {ep ? `${resuming ? "Resume" : "Play"} ${episodeLabel(ep)}` : "Play"}
+              {ep
+                ? t(resuming ? "resumeEpisode" : "playEpisode", { episode: episodeLabel(ep) })
+                : t("common:actions.play")}
             </Button>
             {/* The device plays the episode its own Play would. */}
             {episodes.data?.length === 0 ? null : <PlayOn kind="item" cast={() => ({ item_id: item.id })} />}
@@ -110,7 +115,7 @@ export function SeasonView({ item }: { item: ItemDetail }) {
       </div>
 
       <section className="mt-10 max-w-5xl">
-        <SectionTitle>Episodes</SectionTitle>
+        <SectionTitle>{t("season.episodes")}</SectionTitle>
         <div className="-mx-2 space-y-1">
           {episodes.isPending
             ? Array.from({ length: 4 }, (_, i) => (
@@ -124,15 +129,15 @@ export function SeasonView({ item }: { item: ItemDetail }) {
                 </div>
               ))
             : episodes.data?.map((e) => <EpisodeRow key={e.id} ep={e} />)}
-          {episodes.data && episodes.data.length === 0 ? <p className="px-2 text-sm text-muted">No episodes found.</p> : null}
+          {episodes.data && episodes.data.length === 0 ? <p className="px-2 text-sm text-muted">{t("season.noEpisodes")}</p> : null}
           {episodes.isError && !episodes.data ? (
             <div className="px-2">
-              <SectionError what="the episodes" error={episodes.error} retry={() => void episodes.refetch()} />
+              <SectionError what="episodes" error={episodes.error} retry={() => void episodes.refetch()} />
             </div>
           ) : null}
         </div>
       </section>
-      <CastRow title="Cast" credits={item.cast} />
+      <CastRow title={t("cast")} credits={item.cast} />
     </ItemPageShell>
   );
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Navigate, useLocation, useParams } from "react-router";
 import { errorMessage, isApiError } from "@/api/client";
 import { useItem } from "@/api/hooks";
@@ -32,6 +33,7 @@ function ItemSkeleton() {
 }
 
 export function ItemPage() {
+  const { t } = useTranslation(["item", "common"]);
   const { id } = useParams();
   const location = useLocation();
   const highlight = (location.state as { highlight?: number } | null)?.highlight;
@@ -48,9 +50,9 @@ export function ItemPage() {
     return (
       <EmptyState
         className="min-h-[60vh]"
-        title="Couldn't load this item"
+        title={t("loadError")}
         description={errorMessage(item.error)}
-        action={<Button onClick={() => void item.refetch()}>Retry</Button>}
+        action={<Button onClick={() => void item.refetch()}>{t("common:actions.retry")}</Button>}
       />
     );
   }

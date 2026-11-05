@@ -1,1 +1,299 @@
-{}
+{
+  "loadError": "Impossible de charger cet élément",
+  "playTitle": "Lire {{title}}",
+  "playTitleOn": "Lire {{title}} sur…",
+  "pauseTitle": "Mettre en pause {{title}}",
+  "playEpisode": "Lire {{episode}}",
+  "resumeEpisode": "Reprendre {{episode}}",
+  "shuffle": "Aléatoire",
+  "shuffleOn": "Aléatoire sur…",
+  "smart": "Intelligente",
+  "moveUp": "Monter",
+  "moveDown": "Descendre",
+  "cast": "Distribution",
+  "guestStars": "Invités",
+  "moreLikeThis": "Titres similaires",
+  "versionNumber": "Version {{number}}",
+  "counts": {
+    "albums_one": "{{count, number}} album",
+    "albums_many": "{{count, number}} d’albums",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} titre",
+    "tracks_many": "{{count, number}} de titres",
+    "tracks_other": "{{count, number}} titres",
+    "seasons_one": "{{count, number}} saison",
+    "seasons_many": "{{count, number}} de saisons",
+    "seasons_other": "{{count, number}} saisons",
+    "episodes_one": "{{count, number}} épisode",
+    "episodes_many": "{{count, number}} d’épisodes",
+    "episodes_other": "{{count, number}} épisodes",
+    "movies_one": "{{count, number}} film",
+    "movies_many": "{{count, number}} de films",
+    "movies_other": "{{count, number}} films",
+    "shows_one": "{{count, number}} série",
+    "shows_many": "{{count, number}} de séries",
+    "shows_other": "{{count, number}} séries",
+    "collections_one": "{{count, number}} collection",
+    "collections_many": "{{count, number}} de collections",
+    "collections_other": "{{count, number}} collections",
+    "items_one": "{{count, number}} élément",
+    "items_many": "{{count, number}} d’éléments",
+    "items_other": "{{count, number}} éléments"
+  },
+  "sectionError": {
+    "albums": "Impossible de charger les albums : {{error}}",
+    "tracks": "Impossible de charger les titres : {{error}}",
+    "seasons": "Impossible de charger les saisons : {{error}}",
+    "episodes": "Impossible de charger les épisodes : {{error}}"
+  },
+  "summary": {
+    "readMore": "Lire la suite"
+  },
+  "watched": {
+    "markWatched": "Marquer comme vu",
+    "markUnwatched": "Marquer comme non vu",
+    "watched": "Vu",
+    "unwatched": "Non vu"
+  },
+  "myList": {
+    "add": "Ajouter à Ma liste",
+    "remove": "Retirer de Ma liste",
+    "inList": "Dans Ma liste"
+  },
+  "video": {
+    "episodeNumber": "Épisode {{number}}",
+    "unavailable": "Indisponible",
+    "fromStart": "Depuis le début",
+    "version": "Version",
+    "audio": "Audio",
+    "subtitles": "Sous-titres",
+    "subtitlesOff": "Désactivés",
+    "originalTitle": "Titre original",
+    "released": "Date de sortie",
+    "network": "Chaîne",
+    "studio": "Studio",
+    "plays": "Lectures"
+  },
+  "crew": {
+    "creator_one": "Création",
+    "creator_many": "Création",
+    "creator_other": "Création",
+    "director_one": "Réalisation",
+    "director_many": "Réalisation",
+    "director_other": "Réalisation",
+    "writer_one": "Scénario",
+    "writer_many": "Scénario",
+    "writer_other": "Scénario",
+    "more_one": "et {{count}} autre",
+    "more_many": "et {{count}} autres",
+    "more_other": "et {{count}} autres"
+  },
+  "extras": {
+    "title": "Bonus",
+    "types": {
+      "trailer": "Bande-annonce",
+      "behind_the_scenes": "Coulisses",
+      "deleted_scene": "Scène coupée",
+      "featurette": "Reportage",
+      "interview": "Entretien",
+      "scene": "Scène",
+      "short": "Court métrage",
+      "other": "Bonus"
+    }
+  },
+  "actions": {
+    "more": "Plus d’actions",
+    "addToPlaylist": "Ajouter à une playlist…",
+    "addToCollection": "Ajouter à une collection…",
+    "refreshMetadata": "Actualiser les métadonnées",
+    "refreshing": "Actualisation des métadonnées…",
+    "findMarkers": "Trouver l’intro et le générique",
+    "findingMarkers": {
+      "season": "Recherche des intros et génériques de cette saison…",
+      "show": "Recherche des intros et génériques de toutes les saisons…",
+      "item": "Recherche de l’intro et du générique de cet élément…"
+    }
+  },
+  "edit": {
+    "menu": {
+      "details": "Modifier les détails…",
+      "match": "Corriger la correspondance…",
+      "thumb": "Choisir la miniature…",
+      "poster": "Choisir l’affiche…",
+      "backdrop": "Choisir l’arrière-plan…"
+    },
+    "details": {
+      "title": "Modifier les détails",
+      "hint": "Les champs modifiés sont verrouillés <lock/> pour que les actualisations des métadonnées les conservent. Déverrouillez un champ pour que la prochaine actualisation le remplisse à nouveau.",
+      "genresPlaceholder": "Drame, Thriller",
+      "locked": "Verrouillé : cliquez pour déverrouiller",
+      "willUnlock": "Sera déverrouillé",
+      "fields": {
+        "title": "Titre",
+        "sort_title": "Titre de tri",
+        "original_title": "Titre original",
+        "year": "Année",
+        "release_date": "Date de sortie",
+        "content_rating": "Classification",
+        "studio": "Studio",
+        "tagline": "Slogan",
+        "genres": "Genres",
+        "summary": "Résumé"
+      }
+    },
+    "match": {
+      "title": "Corriger la correspondance",
+      "matched": "Associé à « {{title}} »",
+      "noMatches": "Aucune correspondance. Essayez un autre titre, ou sans année.",
+      "current": "Actuel"
+    },
+    "artwork": {
+      "titles": {
+        "poster": "Choisir l’affiche",
+        "backdrop": "Choisir l’arrière-plan",
+        "thumb": "Choisir la miniature"
+      },
+      "reset": "Utiliser l’illustration automatique",
+      "resetDone": "Illustration automatique rétablie",
+      "updated": "Illustration mise à jour",
+      "upload": "Envoyer une image…",
+      "uploading": "Envoi…",
+      "loadError": "{{error}} Vous pouvez quand même envoyer une image.",
+      "none": "TMDB n’a pas d’autre illustration pour cet élément."
+    }
+  },
+  "request": {
+    "see": "Voir la demande",
+    "moreSeasons": "Demander d’autres saisons"
+  },
+  "mediaInfo": {
+    "title": "Informations sur le média",
+    "versions_one": "({{count}} version)",
+    "versions_many": "({{count}} versions)",
+    "versions_other": "({{count}} versions)",
+    "columns": {
+      "type": "Type",
+      "codec": "Codec",
+      "language": "Langue",
+      "details": "Détails"
+    },
+    "kinds": {
+      "video": "vidéo",
+      "audio": "audio",
+      "subtitle": "sous-titres"
+    },
+    "rows": {
+      "file": "Fichier",
+      "container": "Conteneur",
+      "size": "Taille",
+      "duration": "Durée",
+      "bitrate": "Débit",
+      "video": "Vidéo",
+      "audio": "Audio"
+    },
+    "fps": "{{value}} i/s",
+    "bitDepth": "{{depth}} bits",
+    "dvLevel": "DV niveau {{level}}",
+    "imageBased": "Image",
+    "text": "Texte",
+    "external": "Externes",
+    "forced": "Forcés",
+    "default": "Par défaut"
+  },
+  "music": {
+    "artist": "Artiste",
+    "album": "Album",
+    "albums": "Albums",
+    "noAlbums": "Aucun album trouvé.",
+    "tracks": "Titres",
+    "noTracks": "Aucun titre trouvé",
+    "title": "Titre",
+    "time": "Durée",
+    "disc": "Disque {{number}}"
+  },
+  "season": {
+    "breadcrumb": "Fil d’Ariane",
+    "show": "Série",
+    "episodes": "Épisodes",
+    "noEpisodes": "Aucun épisode trouvé."
+  },
+  "show": {
+    "seasons": "Saisons",
+    "noSeasons": "Aucune saison trouvée."
+  },
+  "collection": {
+    "loadError": "Impossible de charger cette collection",
+    "label": "Collection",
+    "sortNotes": {
+      "release": "Par date de sortie",
+      "title": "Par titre",
+      "custom": "Ordre personnalisé"
+    },
+    "edit": "Modifier la collection",
+    "manage": "Réorganiser et retirer",
+    "doneManaging": "Terminer la réorganisation",
+    "delete": "Supprimer la collection",
+    "movies": "Films",
+    "shows": "Séries",
+    "emptyMovies": "Cette collection est encore vide. Ajoutez des films depuis leur page, ou d’un clic droit sur une affiche.",
+    "emptyShows": "Cette collection est encore vide. Ajoutez des séries depuis leur page, ou d’un clic droit sur une affiche.",
+    "deleteTitle": "Supprimer la collection ?",
+    "deleteAutomatic": "« {{title}} » vient de TMDB : elle reviendra la prochaine fois que les métadonnées de ces films seront actualisées.",
+    "deleteMovies": "La collection « {{title}} » sera supprimée. Les films qu’elle contient restent dans la bibliothèque.",
+    "deleteShows": "La collection « {{title}} » sera supprimée. Les séries qu’elle contient restent dans la bibliothèque.",
+    "deleted": "Collection supprimée",
+    "customOrderNote": "Déplacer un élément fait passer cette collection en ordre personnalisé.",
+    "remove": "Retirer de la collection",
+    "removed": "Retiré de la collection : {{title}}"
+  },
+  "collectionForm": {
+    "new": "Nouvelle collection",
+    "saved": "Collection enregistrée",
+    "title": "Titre",
+    "summary": "Résumé",
+    "order": "Ordre",
+    "orderHint": "Un titre ou un résumé modifié ici est conservé quand les métadonnées TMDB sont actualisées.",
+    "sorts": {
+      "release": "Date de sortie",
+      "title": "Titre",
+      "custom": "Personnalisé"
+    }
+  },
+  "collections": {
+    "loadError": "Impossible de charger les collections",
+    "empty": "Aucune collection pour l’instant",
+    "moviesHint": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.",
+    "moviesHintAdmin": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque. Vous pouvez aussi créer les vôtres.",
+    "showsHintAdmin": "Regroupez des séries dans vos propres collections.",
+    "noneHere": "Cette bibliothèque n’a pas encore de collection."
+  },
+  "playlist": {
+    "loadError": "Impossible de charger cette playlist",
+    "video": "Playlist vidéo",
+    "music": "Playlist musicale",
+    "rename": "Renommer la playlist",
+    "delete": "Supprimer la playlist",
+    "noMatches": "Rien ne correspond encore au filtre de cette playlist.",
+    "emptyVideo": "Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un film, une série ou un épisode, ou faites un clic droit sur une affiche.",
+    "emptyMusic": "Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un artiste ou un album, ou faites un clic droit sur une affiche.",
+    "items": "Éléments de la playlist",
+    "remove": "Retirer de la playlist",
+    "deleteTitle": "Supprimer la playlist ?",
+    "deleteMessage": "La playlist « {{title}} » sera supprimée. Son contenu reste dans vos bibliothèques.",
+    "deleted": "Playlist supprimée"
+  },
+  "playlistForm": {
+    "new": "Nouvelle playlist",
+    "title": "Titre",
+    "for": "Pour",
+    "kind": "Type de playlist",
+    "video": "Films et séries",
+    "audio": "Musique"
+  },
+  "playlists": {
+    "title": "Playlists",
+    "loadError": "Impossible de charger vos playlists",
+    "empty": "Aucune playlist pour l’instant",
+    "emptyHint": "Créez-en une ici, ou utilisez « Ajouter à une playlist » sur un film, une série, un album ou un épisode (aussi d’un clic droit sur une affiche)."
+  }
+}

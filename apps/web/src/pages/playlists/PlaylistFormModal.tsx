@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { ListMusic, ListVideo } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useCreatePlaylist, useRenamePlaylist, type Playlist, type PlaylistDetail, type PlaylistKind } from "@/api/lists";
@@ -20,6 +21,7 @@ export function PlaylistFormModal({
   playlist?: Playlist;
   onCreated?: (created: PlaylistDetail) => void;
 }) {
+  const { t } = useTranslation(["item", "common"]);
   const create = useCreatePlaylist();
   const rename = useRenamePlaylist();
   const toast = useToast();
@@ -52,32 +54,32 @@ export function PlaylistFormModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={playlist ? "Rename playlist" : "New playlist"}
+      title={playlist ? t("playlist.rename") : t("playlistForm.new")}
       size="sm"
       locked={busy}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" type="submit" form="playlist-form" loading={busy} disabled={!title.trim()}>
-            {playlist ? "Save" : "Create"}
+            {playlist ? t("common:actions.save") : t("common:actions.create")}
           </Button>
         </>
       }
     >
       <form id="playlist-form" onSubmit={onSubmit} className="space-y-4">
-        <Field label="Title" htmlFor="playlist-title">
+        <Field label={t("playlistForm.title")} htmlFor="playlist-title">
           <TextInput id="playlist-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} required />
         </Field>
         {playlist ? null : (
           <div className="space-y-1.5">
-            <span className="block text-sm font-medium text-fg">For</span>
-            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Playlist kind">
+            <span className="block text-sm font-medium text-fg">{t("playlistForm.for")}</span>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("playlistForm.kind")}>
               {(
                 [
-                  ["video", "Movies & TV", ListVideo],
-                  ["audio", "Music", ListMusic],
+                  ["video", t("playlistForm.video"), ListVideo],
+                  ["audio", t("playlistForm.audio"), ListMusic],
                 ] as const
               ).map(([value, label, Icon]) => (
                 <button

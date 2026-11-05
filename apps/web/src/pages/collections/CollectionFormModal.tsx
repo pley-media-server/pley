@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import { useCreateCollection, useUpdateCollection, type Collection, type CollectionDetail, type CollectionSort } from "@/api/lists";
 import type { Id } from "@/api/types";
@@ -6,11 +7,7 @@ import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, Field, Select, TextInput } from "@/components/ui";
 
-const SORT_LABELS: Record<CollectionSort, string> = {
-  release: "Release date",
-  title: "Title",
-  custom: "Custom",
-};
+const SORTS: CollectionSort[] = ["release", "title", "custom"];
 
 /** Create a collection in a library, or edit one (administrators). */
 export function CollectionFormModal({
@@ -27,6 +24,7 @@ export function CollectionFormModal({
   collection?: Collection;
   onCreated?: (created: CollectionDetail) => void;
 }) {
+  const { t } = useTranslation(["item", "common"]);
   const create = useCreateCollection();
   const update = useUpdateCollection();
   const toast = useToast();
@@ -51,7 +49,7 @@ export function CollectionFormModal({
         },
         {
           onSuccess: () => {
-            toast.success("Collection saved");
+            toast.success(t("collectionForm.saved"));
             onClose();
           },
           onError: (err) => toast.error(errorMessage(err)),
@@ -75,24 +73,24 @@ export function CollectionFormModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={collection ? "Edit collection" : "New collection"}
+      title={collection ? t("collection.edit") : t("collectionForm.new")}
       locked={busy}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" type="submit" form="collection-form" loading={busy} disabled={!title.trim()}>
-            {collection ? "Save" : "Create"}
+            {collection ? t("common:actions.save") : t("common:actions.create")}
           </Button>
         </>
       }
     >
       <form id="collection-form" onSubmit={onSubmit} className="space-y-4">
-        <Field label="Title" htmlFor="collection-title">
+        <Field label={t("collectionForm.title")} htmlFor="collection-title">
           <TextInput id="collection-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} required />
         </Field>
-        <Field label="Summary" htmlFor="collection-summary">
+        <Field label={t("collectionForm.summary")} htmlFor="collection-summary">
           <textarea
             id="collection-summary"
             rows={4}
@@ -103,14 +101,14 @@ export function CollectionFormModal({
         </Field>
         {collection && !collection.smart_filter ? (
           <Field
-            label="Order"
+            label={t("collectionForm.order")}
             htmlFor="collection-sort"
-            hint={collection.automatic ? "A title or summary changed here is kept when TMDB metadata is refreshed." : undefined}
+            hint={collection.automatic ? t("collectionForm.orderHint") : undefined}
           >
             <Select id="collection-sort" value={sort} onChange={(e) => setSort(e.target.value as CollectionSort)}>
-              {(Object.keys(SORT_LABELS) as CollectionSort[]).map((s) => (
+              {SORTS.map((s) => (
                 <option key={s} value={s}>
-                  {SORT_LABELS[s]}
+                  {t(`collectionForm.sorts.${s}`)}
                 </option>
               ))}
             </Select>
