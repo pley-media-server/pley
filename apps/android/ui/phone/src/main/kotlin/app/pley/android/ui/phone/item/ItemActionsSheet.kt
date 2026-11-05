@@ -19,10 +19,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.item.ItemAction
 import app.pley.android.screens.item.ItemActionsUiState
 import app.pley.android.screens.item.ItemActionsViewModel
@@ -65,7 +66,7 @@ internal fun ItemActionsSheet(itemId: Long, continueWatching: Boolean = false) {
                 DelayedSpinner(stringResource(R.string.item_loading))
             }
             is ItemActionsUiState.Failed -> Text(
-                sentenceOf(s.error),
+                errorSentence(s.error).asString(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = PleyColors.DangerText,
                 modifier = Modifier.padding(24.dp),

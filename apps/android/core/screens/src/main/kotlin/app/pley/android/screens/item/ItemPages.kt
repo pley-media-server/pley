@@ -1,5 +1,7 @@
 package app.pley.android.screens.item
 
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.CollectionRef
@@ -26,7 +28,6 @@ import app.pley.android.model.format.formatRuntime
 import app.pley.android.model.format.formatTimeLeft
 import app.pley.android.model.format.isInProgress
 import app.pley.android.model.format.languageName
-import app.pley.android.model.format.pluralize
 import app.pley.android.model.format.progressFraction
 import app.pley.android.model.format.qualityBadges
 import app.pley.android.model.format.resolutionLabel
@@ -34,6 +35,8 @@ import app.pley.android.model.format.seasonTitle
 import app.pley.android.model.format.streamLabel
 import app.pley.android.model.format.versionDescription
 import app.pley.android.model.format.versionLabel
+import app.pley.android.screens.R
+import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -68,7 +71,8 @@ data class PageInput(
     val episodes: List<ItemSummary>? = null,
     val related: List<ItemSummary> = emptyList(),
     val partOf: List<CollectionSummary> = emptyList(),
-    val locale: Locale = Locale.getDefault(),
+    /** The locale the page's dates and numbers are written in: the language shown's. */
+    val locale: Locale = AppLanguage.locale,
 )
 
 /**
@@ -147,8 +151,8 @@ fun itemPage(input: PageInput): ItemPage {
         summary = d.summary?.takeIf { it.isNotBlank() },
         tracks = trackChoices(d, playing),
         trailer = d.extras.firstOrNull { it.extraType == ExtraType.Trailer },
-        details = details(d, playing.file),
-        mediaInfo = mediaInfo(d.files),
+        details = details(d, playing.file, locale),
+        mediaInfo = mediaInfo(d.files, locale),
         extras = d.extras.distinctBy { it.id },
         castTitle = if (kind == ItemKind.Episode) CastTitle.GuestStars else CastTitle.Cast,
         cast = d.cast.distinctBy { it.id },
@@ -203,12 +207,12 @@ private fun meta(d: ItemDetail, file: MediaFile?, seasons: List<ItemSummary>?, l
     when (d.kind) {
         ItemKind.Show -> {
             val count = d.childCount ?: seasons?.count { (it.index ?: 1) > 0 }
-            if (count != null && count > 0) text(pluralize(count, "season", locale = locale))
+            if (count != null && count > 0) add(MetaPart.Text(UiText.plural(R.plurals.item_season_count, count)))
             text(yearRange(d.year, seasons))
         }
         ItemKind.Season -> {
             text(d.year?.toString())
-            d.leafCount?.takeIf { it > 0 }?.let { text(pluralize(it, "episode", locale = locale)) }
+            d.leafCount?.takeIf { it > 0 }?.let { add(MetaPart.Text(UiText.plural(R.plurals.item_episode_count, it))) }
         }
         ItemKind.Episode -> {
             text(formatDate(d.releaseDate, locale))
@@ -222,7 +226,7 @@ private fun meta(d: ItemDetail, file: MediaFile?, seasons: List<ItemSummary>?, l
         }
     }
     d.contentRating?.takeIf { it.isNotBlank() }?.let { add(MetaPart.ContentRating(it)) }
-    d.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(String.format(Locale.ROOT, "%.1f", it))) }
+    d.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(String.format(locale, "%.1f", it))) }
     val badges = qualityBadges(file)
     if (badges.isNotEmpty()) add(MetaPart.Badges(badges))
 }
@@ -265,13 +269,13 @@ private val CREW_ROLES = listOf(CreditRole.Creator, CreditRole.Director, CreditR
 /** At most this many names per crew line, then "and N more" (Credits.tsx). */
 const val CREW_NAMES = 4
 
-private fun details(d: ItemDetail, file: MediaFile?): ItemDetails = ItemDetails(
+private fun details(d: ItemDetail, file: MediaFile?, locale: Locale): ItemDetails = ItemDetails(
     crew = CREW_ROLES.mapNotNull { role ->
         val people = d.crew.filter { it.role == role }.distinctBy { it.id }
         if (people.isEmpty()) null else CrewLine(role, people.take(CREW_NAMES), (people.size - CREW_NAMES).coerceAtLeast(0))
     },
     originalTitle = d.originalTitle?.takeIf { it.isNotBlank() && it != d.title },
-    released = d.releaseDate?.takeIf { d.kind != ItemKind.Episode && it.isNotBlank() }?.let { formatDate(it) },
+    released = d.releaseDate?.takeIf { d.kind != ItemKind.Episode && it.isNotBlank() }?.let { formatDate(it, locale) },
     studio = d.studio?.takeIf { it.isNotBlank() },
     network = d.kind == ItemKind.Episode || d.kind == ItemKind.Show,
     plays = d.userState.playCount.takeIf { it > 0 },
@@ -279,11 +283,11 @@ private fun details(d: ItemDetail, file: MediaFile?): ItemDetails = ItemDetails(
 )
 
 /** Media info (MediaInfo.tsx). An app's token gets file names only; whatever comes, only the name shows. */
-private fun mediaInfo(files: List<MediaFile>): List<FileInfo> = files.mapIndexed { i, f ->
+private fun mediaInfo(files: List<MediaFile>, locale: Locale): List<FileInfo> = files.mapIndexed { i, f ->
     val video = f.streams.firstOrNull { it.kind == StreamKind.Video }
     FileInfo(
         id = f.id,
-        title = f.edition?.takeIf { it.isNotBlank() } ?: if (files.size > 1) "Version ${i + 1}" else null,
+        title = f.edition?.takeIf { it.isNotBlank() }?.let(UiText::raw) ?: if (files.size > 1) UiText.res(R.string.item_media_version, i + 1) else null,
         rows = buildList {
             add(InfoRow(InfoLabel.File, fileName(f.path)))
             add(InfoRow(InfoLabel.Container, f.container?.uppercase() ?: "—"))
@@ -300,7 +304,7 @@ private fun mediaInfo(files: List<MediaFile>): List<FileInfo> = files.mapIndexed
         streams = f.streams
             .filter { it.kind != StreamKind.Unknown }
             .sortedWith(compareBy({ it.kind.ordinal }, { it.index }))
-            .map { s -> StreamInfo(s.kind, codecLabel(s.codec), languageName(s.language), s.title?.takeIf { it.isNotBlank() }, streamDetails(s)) },
+            .map { s -> StreamInfo(s.kind, codecLabel(s.codec), languageName(s.language), s.title?.takeIf { it.isNotBlank() }, streamDetails(s, locale)) },
         file = f,
     )
 }
@@ -308,42 +312,46 @@ private fun mediaInfo(files: List<MediaFile>): List<FileInfo> = files.mapIndexed
 /** The last part of a path, whichever separator it uses. */
 fun fileName(path: String): String = path.substringAfterLast('/').substringAfterLast('\\')
 
-private fun streamDetails(s: MediaStream): String {
-    val parts = mutableListOf<String>()
+private fun streamDetails(s: MediaStream, locale: Locale): List<UiText> {
+    val parts = mutableListOf<UiText>()
+    fun add(text: String) {
+        parts += UiText.raw(text)
+    }
     when (s.kind) {
         StreamKind.Video -> {
-            resolutionLabel(s.width, s.height)?.let(parts::add)
+            resolutionLabel(s.width, s.height)?.let(::add)
             val w = s.width ?: 0
             val h = s.height ?: 0
-            if (w > 0 && h > 0) parts += "$w×$h"
-            s.frameRate?.takeIf { it > 0 }?.let { parts += "${trimmed(Math.round(it * 100) / 100.0)} fps" }
-            s.bitDepth?.takeIf { it > 0 }?.let { parts += "$it-bit" }
-            dynamicRangeLabel(s)?.let(parts::add)
-            s.profile?.takeIf { it.isNotBlank() }?.let(parts::add)
+            if (w > 0 && h > 0) add("$w×$h")
+            s.frameRate?.takeIf { it > 0 }?.let { parts += UiText.res(R.string.item_media_fps, frameRate(it, locale)) }
+            s.bitDepth?.takeIf { it > 0 }?.let { parts += UiText.res(R.string.item_media_bit_depth, it) }
+            dynamicRangeLabel(s)?.let(::add)
+            s.profile?.takeIf { it.isNotBlank() }?.let(::add)
         }
         StreamKind.Audio -> {
-            channelsLabel(s.channels, s.channelLayout).takeIf { it.isNotEmpty() }?.let(parts::add)
-            s.sampleRate?.takeIf { it > 0 }?.let { parts += String.format(Locale.ROOT, "%.1f kHz", it / 1000.0) }
+            channelsLabel(s.channels, s.channelLayout).takeIf { it.isNotEmpty() }?.let(::add)
+            s.sampleRate?.takeIf { it > 0 }?.let { parts += UiText.res(R.string.item_media_khz, it / 1000.0) }
         }
         else -> {
-            parts += if (s.textBased == false) "Image-based" else "Text"
-            if (s.external) parts += "External"
+            parts += UiText.res(if (s.textBased == false) R.string.item_media_image_based else R.string.item_media_text)
+            if (s.external) parts += UiText.res(R.string.item_media_external)
         }
     }
-    s.bitrate?.takeIf { it > 0 }?.let { parts += formatBitrate(it) }
-    if (s.forced) parts += "Forced"
-    if (s.default) parts += "Default"
-    return parts.joinToString(" · ")
+    s.bitrate?.takeIf { it > 0 }?.let { add(formatBitrate(it)) }
+    if (s.forced) parts += UiText.res(R.string.item_media_forced)
+    if (s.default) parts += UiText.res(R.string.item_media_default)
+    return parts
 }
 
-/** 23.98 → "23.98", 24.0 → "24". */
-private fun trimmed(value: Double): String = if (value == Math.floor(value)) value.toLong().toString() else value.toString()
+/** 23.976 → "23.98", 24.0 → "24", in [locale]'s digits ("23,98" in French). */
+private fun frameRate(fps: Double, locale: Locale): String =
+    NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 2 }.format(Math.round(fps * 100) / 100.0)
 
 private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale): SeasonsSection? {
     val d = input.detail
     val tabs = when (d.kind) {
         ItemKind.Show, ItemKind.Season -> input.seasons.orEmpty().map { season ->
-            SeasonTab(season.id, seasonTitle(season.title, season.index), season.leafCount?.let { pluralize(it, "episode", locale = locale) })
+            SeasonTab(season.id, seasonTitle(season.title, season.index), season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) })
         }
         ItemKind.Episode -> emptyList()
         else -> return null
@@ -360,8 +368,8 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale): Sea
     )
 }
 
-/** An episode's words for lists and rows. */
-fun episodeLine(e: ItemSummary, locale: Locale = Locale.getDefault()): EpisodeLine {
+/** An episode's words for lists and rows, its dates in [locale]. */
+fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale): EpisodeLine {
     val inProgress = isInProgress(e)
     val runtime = formatRuntime(e.durationMs)
     val length = if (inProgress) formatTimeLeft(e.userState.positionMs, e.durationMs) else runtime
@@ -386,15 +394,18 @@ fun defaultSeason(seasons: List<ItemSummary>, onDeck: ItemSummary?): Long? =
         ?: seasons.firstOrNull()?.id
 
 private val EXTRA_LABELS = mapOf(
-    ExtraType.Trailer to "Trailer",
-    ExtraType.BehindTheScenes to "Behind the Scenes",
-    ExtraType.DeletedScene to "Deleted Scene",
-    ExtraType.Featurette to "Featurette",
-    ExtraType.Interview to "Interview",
-    ExtraType.Scene to "Scene",
-    ExtraType.Short to "Short",
+    ExtraType.Trailer to R.string.item_extra_trailer,
+    ExtraType.BehindTheScenes to R.string.item_extra_behind_the_scenes,
+    ExtraType.DeletedScene to R.string.item_extra_deleted_scene,
+    ExtraType.Featurette to R.string.item_extra_featurette,
+    ExtraType.Interview to R.string.item_extra_interview,
+    ExtraType.Scene to R.string.item_extra_scene,
+    ExtraType.Short to R.string.item_extra_short,
 )
 
 /** An extra's caption line, as the web's Extras row: "Trailer · 2m". */
-fun extraSubtitle(item: ItemSummary): String =
-    listOf(EXTRA_LABELS[item.extraType] ?: "Extra", formatDuration(item.durationMs)).filter { it.isNotEmpty() }.joinToString(" · ")
+fun extraSubtitle(item: ItemSummary): UiText {
+    val kind = UiText.res(EXTRA_LABELS[item.extraType] ?: R.string.item_extra_other)
+    val length = formatDuration(item.durationMs)
+    return if (length.isEmpty()) kind else UiText.res(R.string.item_extra_caption, kind, length)
+}

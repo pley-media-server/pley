@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_item_play">Lire</string>
+    <string name="tv_item_resume">Reprendre</string>
+    <string name="tv_item_play_episode">Lire %1$s</string>
+    <string name="tv_item_resume_episode">Reprendre %1$s</string>
+    <string name="tv_item_unavailable">Indisponible</string>
+    <string name="tv_item_from_start">Depuis le début</string>
+    <string name="tv_item_mark_watched">Marquer comme vu</string>
+    <string name="tv_item_mark_unwatched">Marquer comme non vu</string>
+    <string name="tv_item_tracks">Audio et sous-titres</string>
+    <string name="tv_item_add_to_playlist">Ajouter à une playlist</string>
+    <string name="tv_item_trailer">Bande-annonce</string>
+    <string name="tv_item_more">Plus</string>
+    <string name="tv_item_full_summary">Résumé complet</string>
+
+    <string name="tv_item_directed_by">Réalisation :</string>
+    <string name="tv_item_credits_created_by">Création :</string>
+    <string name="tv_item_starring">Distribution :</string>
+    <string name="tv_item_aired">Diffusé le %1$s</string>
+    <string name="tv_item_extras">Bonus</string>
+    <string name="tv_item_cast">Distribution</string>
+    <string name="tv_item_guest_stars">Invités</string>
+    <string name="tv_item_cast_and_crew">Distribution et équipe</string>
+    <string name="tv_item_guest_stars_and_crew">Invités et équipe</string>
+    <string name="tv_item_crew">Équipe</string>
+    <string name="tv_item_creator">Création</string>
+    <string name="tv_item_more_like_this">Titres similaires</string>
+    <string name="tv_item_episodes">Épisodes</string>
+    <string name="tv_item_details">Détails</string>
+    <string name="tv_item_versions">Versions</string>
+    <string name="tv_item_media_info">Informations sur le média</string>
+    <string name="tv_item_media_info_hint">Les flux vidéo, audio et sous-titres de chaque fichier</string>
+    <string name="tv_item_media_info_open">Développé</string>
+    <string name="tv_item_media_info_closed">Réduit</string>
+    <string name="tv_item_no_episodes">Aucun épisode trouvé.</string>
+    <string name="tv_item_close">Fermer</string>
+    <string name="tv_item_back">Retour</string>
+    <string name="tv_item_retry">Réessayer</string>
+    <string name="tv_item_part_of">Fait partie de %1$s</string>
+
+    <string name="tv_item_created_by">Création</string>
+    <string name="tv_item_director">Réalisation</string>
+    <string name="tv_item_directors">Réalisation</string>
+    <string name="tv_item_writer">Scénario</string>
+    <string name="tv_item_writers">Scénario</string>
+    <plurals name="tv_item_and_more">
+        <item quantity="one">et %1$d autre</item>
+        <item quantity="many">et %1$d d’autres</item>
+        <item quantity="other">et %1$d autres</item>
+    </plurals>
+    <string name="tv_item_original_title">Titre original</string>
+    <string name="tv_item_released">Date de sortie</string>
+    <string name="tv_item_studio">Studio</string>
+    <string name="tv_item_network">Chaîne</string>
+    <string name="tv_item_plays">Lectures</string>
+
+    <string name="tv_item_version">Version</string>
+    <string name="tv_item_audio">Audio</string>
+    <string name="tv_item_audio_automatic">Automatique</string>
+    <string name="tv_item_audio_automatic_language">Automatique (%1$s)</string>
+    <string name="tv_item_subtitles">Sous-titres</string>
+    <string name="tv_item_subtitles_off">Désactivés</string>
+    <string name="tv_item_your_rating">Votre note</string>
+    <string name="tv_item_no_rating">Aucune note</string>
+    <plurals name="tv_item_stars">
+        <item quantity="one">%1$s étoile</item>
+        <item quantity="many">%1$s d’étoiles</item>
+        <item quantity="other">%1$s étoiles</item>
+    </plurals>
+    <string name="tv_item_action_play">Lire</string>
+    <string name="tv_item_action_resume">Reprendre</string>
+    <string name="tv_item_action_from_start">Lire depuis le début</string>
+    <string name="tv_item_action_go_to_show">Aller à la série</string>
+    <string name="tv_item_action_go_to_season">Aller à la saison</string>
+    <string name="tv_item_action_open">Ouvrir</string>
+
+    <string name="tv_item_failed">Impossible de charger cet élément</string>
+    <string name="tv_item_not_found">Élément introuvable</string>
+    <string name="tv_item_not_found_body">Il a peut-être été supprimé, ou ce profil n’y a pas accès.</string>
+    <string name="tv_item_nothing_to_play">Rien à lire : cet élément n’a aucun fichier multimédia.</string>
+
+    <string name="tv_person_acting">Interprétation</string>
+    <string name="tv_person_directing">Réalisation</string>
+    <string name="tv_person_creating">Création</string>
+    <string name="tv_person_writing">Scénario</string>
+    <string name="tv_person_producing">Production</string>
+    <string name="tv_person_in_libraries">%1$s dans vos bibliothèques</string>
+    <string name="tv_person_not_found">Personne introuvable</string>
+    <string name="tv_person_not_found_body">Personne ne correspond à ce lien dans vos bibliothèques.</string>
+    <string name="tv_person_failed">Impossible de charger cette personne</string>
+</resources>

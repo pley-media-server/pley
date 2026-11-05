@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
+import app.pley.android.common.resolve
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
@@ -117,11 +119,10 @@ internal fun TvItemScreen(model: ItemViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val toasts = remember { TvToastState() }
-    val resources = LocalResources.current
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                ItemEvent.NothingToPlay -> toasts.show(resources.getString(R.string.tv_item_nothing_to_play))
+                ItemEvent.NothingToPlay -> toasts.show(UiText.res(R.string.tv_item_nothing_to_play))
                 is ItemEvent.Failed -> toasts.report(event.error)
             }
         }
@@ -317,8 +318,9 @@ private fun LazyListScope.rowsOf(
     val origin = page.origin
     if (page.extras.isNotEmpty()) {
         item(key = "extras", contentType = TileKind.Landscape) {
-            val tiles = remember(page.extras, origin) {
-                page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin).copy(subtitle = extraSubtitle(it)) }
+            val resources = LocalResources.current
+            val tiles = remember(page.extras, origin, resources) {
+                page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin).copy(subtitle = extraSubtitle(it).resolve(resources)) }
             }
             val byId = remember(page.extras) { page.extras.associateBy { it.id } }
             val group = sections.of("extras")

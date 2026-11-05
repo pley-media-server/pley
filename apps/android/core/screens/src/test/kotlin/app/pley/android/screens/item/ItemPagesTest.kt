@@ -8,16 +8,24 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
 import app.pley.android.model.UserState
+import app.pley.android.screens.inEnglish
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+/** Item pages as both interfaces show them; on Robolectric, to read their words in English. */
+@RunWith(RobolectricTestRunner::class)
 class ItemPagesTest {
     private fun page(detail: ItemDetail, input: PageInput.() -> PageInput = { this }) =
         itemPage(PageInput(detail = detail, origin = ORIGIN, locale = Locale.US).input())
+
+    /** [meta] with its words as a screen shows them in English. */
+    private fun shown(meta: List<MetaPart>): List<Any?> = meta.map { if (it is MetaPart.Text) it.text.inEnglish() else it }
 
     @Test
     fun `a movie not started plays, with no From start`() {
@@ -140,8 +148,8 @@ class ItemPagesTest {
         val show = ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", year = 2021, childCount = 3, contentRating = "TV-14")
         val seasons = listOf(2021, 2023, 2025).mapIndexed { i, y -> summary(30L + i, ItemKind.Season, index = i + 1).copy(year = y) }
         assertEquals(
-            listOf(MetaPart.Text("3 seasons"), MetaPart.Text("2021-2025"), MetaPart.ContentRating("TV-14")),
-            page(show) { copy(seasons = seasons) }.meta,
+            listOf("3 seasons", "2021-2025", MetaPart.ContentRating("TV-14")),
+            shown(page(show) { copy(seasons = seasons) }.meta),
         )
     }
 
@@ -195,7 +203,7 @@ class ItemPagesTest {
     @Test
     fun `extras say what they are and how long`() {
         val trailer = summary(5, ItemKind.Extra, durationMs = 120_000).copy(extraType = app.pley.android.model.ExtraType.Trailer)
-        assertEquals("Trailer · 2m", extraSubtitle(trailer))
-        assertEquals("Extra", extraSubtitle(summary(6, ItemKind.Extra, durationMs = null)))
+        assertEquals("Trailer · 2m", extraSubtitle(trailer).inEnglish())
+        assertEquals("Extra", extraSubtitle(summary(6, ItemKind.Extra, durationMs = null)).inEnglish())
     }
 }

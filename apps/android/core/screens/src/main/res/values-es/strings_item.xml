@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_extra_trailer">Tráiler</string>
+    <string name="item_extra_behind_the_scenes">Detrás de cámaras</string>
+    <string name="item_extra_deleted_scene">Escena eliminada</string>
+    <string name="item_extra_featurette">Reportaje</string>
+    <string name="item_extra_interview">Entrevista</string>
+    <string name="item_extra_scene">Escena</string>
+    <string name="item_extra_short">Cortometraje</string>
+    <string name="item_extra_other">Extra</string>
+
+    <plurals name="item_season_count">
+        <item quantity="one">%1$,d temporada</item>
+        <item quantity="many">%1$,d temporadas</item>
+        <item quantity="other">%1$,d temporadas</item>
+    </plurals>
+    <plurals name="item_episode_count">
+        <item quantity="one">%1$,d episodio</item>
+        <item quantity="many">%1$,d episodios</item>
+        <item quantity="other">%1$,d episodios</item>
+    </plurals>
+
+    <string name="item_media_version">Versión %1$d</string>
+    <string name="item_media_fps">%1$s fps</string>
+    <string name="item_media_bit_depth">%1$d bits</string>
+    <string name="item_media_image_based">Imagen</string>
+    <string name="item_media_text">Texto</string>
+    <string name="item_media_external">Externos</string>
+    <string name="item_media_forced">Forzados</string>
+    <string name="item_media_default">Por defecto</string>
+</resources>

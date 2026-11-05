@@ -21,11 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
@@ -144,14 +144,13 @@ private enum class Phase { Waiting, Shown, Closed }
 private fun TileActions(request: TileActionsRequest, page: Any?, state: TvTileActionsState, navigator: Navigator) {
     val model: ItemActionsViewModel = viewModel(factory = ItemActionsViewModel.factory(request.itemId, request.continueWatching))
     val toasts = remember { TvToastState() }
-    val resources = LocalResources.current
     var phase by remember { mutableStateOf(Phase.Waiting) }
     var shown by remember { mutableStateOf<ItemActionsUiState.Ready?>(null) }
     val pageNow by rememberUpdatedState(page)
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                ItemEvent.NothingToPlay -> toasts.show(resources.getString(R.string.tv_item_nothing_to_play))
+                ItemEvent.NothingToPlay -> toasts.show(UiText.res(R.string.tv_item_nothing_to_play))
                 is ItemEvent.Failed -> toasts.report(event.error)
             }
         }

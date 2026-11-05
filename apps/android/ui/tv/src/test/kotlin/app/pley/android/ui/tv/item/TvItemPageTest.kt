@@ -99,6 +99,24 @@ class TvItemPageTest {
     }
 
     @Test
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
+    fun theButtonsAreInFrench() {
+        show(ItemData(movie(positionMs = 60_000)))
+        compose.onNodeWithText("Reprendre").assertExists()
+        press(Key.DirectionRight, 3)
+        compose.onNode(isFocused()).assert(hasContentDescription("Audio et sous-titres"))
+    }
+
+    @Test
+    @Config(qualifiers = "es-w960dp-h540dp-xhdpi")
+    fun theButtonsAreInSpanish() {
+        show(ItemData(movie(positionMs = 60_000)))
+        compose.onNodeWithText("Reanudar").assertExists()
+        press(Key.DirectionRight, 3)
+        compose.onNode(isFocused()).assert(hasContentDescription("Audio y subtítulos"))
+    }
+
+    @Test
     fun theTracksPanelTakesFocusSavesAChoiceAndBackClosesIt() {
         val data = ItemData(movie())
         show(data)

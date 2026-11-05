@@ -13,13 +13,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
@@ -52,12 +52,11 @@ internal fun TvItemActionsScreen(itemId: Long, continueWatching: Boolean = false
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val toasts = remember { TvToastState() }
-    val resources = LocalResources.current
     val tier = LocalTvTier.current
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                ItemEvent.NothingToPlay -> toasts.show(resources.getString(R.string.tv_item_nothing_to_play))
+                ItemEvent.NothingToPlay -> toasts.show(UiText.res(R.string.tv_item_nothing_to_play))
                 is ItemEvent.Failed -> toasts.report(event.error)
             }
         }

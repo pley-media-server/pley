@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- The item page's buttons (design spec §2.5, §4.3, §4.4). -->
     <string name="tv_item_play">Play</string>
     <string name="tv_item_resume">Resume</string>
@@ -16,8 +16,9 @@
     <string name="tv_item_full_summary">Full summary</string>
 
     <!-- The page. -->
+    <!-- Before the names in the hero's credits line: "Directed by Lena Okafor · Starring Idris Vale". -->
     <string name="tv_item_directed_by">Directed by</string>
-    <string name="tv_item_created_by">Created by</string>
+    <string name="tv_item_credits_created_by">Created by</string>
     <string name="tv_item_starring">Starring</string>
     <string name="tv_item_aired">Aired %1$s</string>
     <string name="tv_item_extras">Extras</string>
@@ -43,6 +44,7 @@
     <string name="tv_item_part_of">Part of %1$s</string>
 
     <!-- Details (Credits.tsx, VideoItemView.tsx, MediaInfo.tsx). -->
+    <string name="tv_item_created_by">Created by</string>
     <string name="tv_item_director">Director</string>
     <string name="tv_item_directors">Directors</string>
     <string name="tv_item_writer">Writer</string>

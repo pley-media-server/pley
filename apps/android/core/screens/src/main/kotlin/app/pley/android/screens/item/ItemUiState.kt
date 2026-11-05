@@ -1,5 +1,6 @@
 package app.pley.android.screens.item
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.model.CollectionRef
 import app.pley.android.model.Credit
@@ -99,7 +100,10 @@ data class ItemContext(
 /** One piece of the metadata line, in order; the interfaces put "·" between them. */
 sealed interface MetaPart {
     /** A year, an air date, "3 seasons", "2021-2025", an edition, a runtime. */
-    data class Text(val text: String) : MetaPart
+    data class Text(val text: UiText) : MetaPart {
+        /** Words that are no language's own: a year, an edition, a date already written. */
+        constructor(text: String) : this(UiText.raw(text))
+    }
 
     /** "PG-13", boxed. */
     data class ContentRating(val rating: String) : MetaPart
@@ -196,7 +200,7 @@ enum class CastTitle { Cast, GuestStars }
 data class FileInfo(
     val id: Long,
     /** Its edition, or "Version 2" when there are several; `null` for the only one. */
-    val title: String?,
+    val title: UiText?,
     val rows: List<InfoRow>,
     val streams: List<StreamInfo>,
     /** The file as the server describes it, for media info in full (the TV's). */
@@ -215,8 +219,8 @@ data class StreamInfo(
     /** "English", or `null`. */
     val language: String?,
     val title: String?,
-    /** "4K · 3840×2160 · 23.98 fps · 10-bit · Dolby Vision P8.1 · Main 10". */
-    val details: String,
+    /** "4K", "3840×2160", "23.98 fps", "10-bit", "Dolby Vision P8.1", "Main 10": shown with "·" between them. */
+    val details: List<UiText>,
 )
 
 /**
@@ -238,7 +242,7 @@ data class SeasonsSection(
 }
 
 /** A season among a show's: "Season 2", "Specials", with "8 episodes". */
-data class SeasonTab(val id: Long, val title: String, val episodes: String?)
+data class SeasonTab(val id: Long, val title: String, val episodes: UiText?)
 
 /** An episode in a list or row, its words worked out. */
 data class EpisodeLine(

@@ -37,7 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.describe
+import app.pley.android.common.errorText
+import app.pley.android.common.resolve
 import app.pley.android.data.DownloadEntry
 import app.pley.android.data.DownloadState
 import app.pley.android.data.Downloads
@@ -99,7 +100,10 @@ internal fun rememberItemDownloads(): ItemDownloads? {
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                is DownloadMessage.Failed -> shell.toasts.show(resources.getString(R.string.downloads_failed_toast, describe(event.error)), error = true)
+                is DownloadMessage.Failed -> shell.toasts.show(
+                    resources.getString(R.string.downloads_failed_toast, errorText(event.error).resolve(resources)),
+                    error = true,
+                )
             }
         }
     }
