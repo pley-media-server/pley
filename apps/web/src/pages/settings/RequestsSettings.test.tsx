@@ -8,6 +8,7 @@ import { RequestsSettings } from "./RequestsSettings";
 
 const SETTINGS = {
   server_name: "Den",
+  language: "",
   tmdb_api_key: "t0k",
   metadata_language: "en-US",
   tv_metadata: "auto",

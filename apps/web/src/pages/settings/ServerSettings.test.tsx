@@ -8,6 +8,7 @@ import { TestButton } from "./SettingsForm";
 
 const SETTINGS = {
   server_name: "Den",
+  language: "",
   tmdb_api_key: "",
   metadata_language: "en-US",
   tv_metadata: "auto",

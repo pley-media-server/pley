@@ -146,8 +146,9 @@ What each build contains of others' work, and where its notices are:
 - The server's and the transcoder's Rust dependencies are permissive (MIT,
   Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0 unmodified).
   `scripts/check-licenses.ps1` prints the full list.
-- The web UI uses React, React Router, TanStack Query and Virtual, and
-  Tailwind (all MIT), hls.js and mpegts.js (Apache-2.0) and lucide (ISC).
+- The web UI uses React, React Router, TanStack Query and Virtual,
+  i18next and react-i18next, and Tailwind (all MIT), hls.js and mpegts.js
+  (Apache-2.0) and lucide (ISC).
 - The Android app uses AndroidX, Media3, Kotlin and kotlinx, OkHttp and
   Okio, Coil, Accompanist and the Guava and annotation pieces AndroidX
   brings (Apache-2.0), Lucide's icons (ISC; the notice ships in the app's

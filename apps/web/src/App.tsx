@@ -9,6 +9,7 @@ import { requestQueries } from "@/api/requests";
 import { RequireAuth, Splash } from "@/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { ToastProvider } from "@/components/Toast";
+import { LanguageSync } from "@/i18n/LanguageSync";
 import { PageSpinner } from "@/components/ui";
 import { AccountPage } from "@/pages/AccountPage";
 import { HomePage } from "@/pages/HomePage";
@@ -277,6 +278,7 @@ setUnauthorizedHandler(() => {
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <LanguageSync />
       <ToastProvider>
         <RouterProvider router={router} />
       </ToastProvider>

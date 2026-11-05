@@ -5,6 +5,8 @@ import { keys, useSettings, useSystemInfo, useUsers, useWatchingHours } from "@/
 import type { LibraryWork, Settings, TvMetadata } from "@/api/types";
 import { useAuth } from "@/auth";
 import { Select, TextInput, Toggle } from "@/components/ui";
+import { LanguageOptions } from "@/i18n/LanguageOptions";
+import { useTranslation } from "react-i18next";
 import { formatTimestamp, pluralize } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SecretInput, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
@@ -14,6 +16,7 @@ import { hourOfDay, WatchingHoursChart } from "./WatchingHoursChart";
 /** The settings this page edits (the transcoder's are on their own page). */
 const KEYS = [
   "server_name",
+  "language",
   "tmdb_api_key",
   "metadata_language",
   "tv_metadata",
@@ -76,6 +79,7 @@ function automaticTvSource(form: Settings): Exclude<TvMetadata, "auto"> {
 
 export function ServerSettings() {
   useDocumentTitle("Server settings");
+  const { t } = useTranslation();
   const draft = useSettingsForm(KEYS);
   const system = useSystemInfo();
   const qc = useQueryClient();
@@ -94,6 +98,8 @@ export function ServerSettings() {
       void qc.invalidateQueries({ queryKey: appKeys.mine });
       void qc.invalidateQueries({ queryKey: ["users"] });
     }
+    // The pages before signing in, and accounts without their own, show the server's language.
+    if (changes.language !== undefined) void qc.invalidateQueries({ queryKey: keys.server });
     // Requiring two-step sign-in signed out everyone without it.
     if (changes.require_two_step !== undefined) {
       void qc.invalidateQueries({ queryKey: keys.server });
@@ -116,6 +122,12 @@ export function ServerSettings() {
             <Group title="General">
               <Row label="Server name" hint="Shown on the sign-in screen." htmlFor="server-name">
                 <TextInput id="server-name" value={form.server_name} onChange={(e) => set("server_name", e.target.value)} />
+              </Row>
+              <Row label={t("language.label")} hint={t("language.serverHint")} htmlFor="server-language">
+                <Select id="server-language" value={form.language} onChange={(e) => set("language", e.target.value)}>
+                  <option value="">{t("language.eachDevice")}</option>
+                  <LanguageOptions />
+                </Select>
               </Row>
             </Group>
 

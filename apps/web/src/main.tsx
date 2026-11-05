@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { startLanguage } from "./i18n";
 import "./index.css";
 
 // After pley is upgraded, a page that was open asks for pieces of the old
@@ -21,8 +22,12 @@ window.addEventListener("vite:preloadError", (event) => {
 const root = document.getElementById("root");
 if (!root) throw new Error("#root element missing");
 
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+// The first page shows in the language of the last visit (or the browser's),
+// its words loaded first.
+void startLanguage().then(() =>
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  ),
 );

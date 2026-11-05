@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Pley is in English, French and Spanish. Each account picks its language
+  on the Account page; until it does, the server's language applies,
+  which an administrator sets in Settings → General, else the browser's.
+  Home's rows and the tray's menu are in that language too.
 - In the desktop app the web app takes casts, as a TV does: your other
   devices' Play on… lists it by its system ("Pley for Windows"), and what
   they send it plays there with the tracks picked, saying where it came

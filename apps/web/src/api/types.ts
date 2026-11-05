@@ -31,6 +31,8 @@ export interface User {
   /** `null`: the audio language. */
   subtitle_language: string | null;
   subtitle_mode: SubtitleMode;
+  /** The language Pley is in for this account (`en`, `fr`, `es`); `null`: the server's. Absent from servers before it. */
+  language?: string | null;
   /** `false`: a managed profile, or an account without a password. */
   has_password: boolean;
   /** Signs in with a code from an authenticator app after the password. */
@@ -55,6 +57,8 @@ export interface ProfilePatch {
   audio_language?: string | null;
   subtitle_language?: string | null;
   subtitle_mode?: SubtitleMode;
+  /** `null`: the server's language. */
+  language?: string | null;
 }
 
 /** A signed-in session (browser, app). */
@@ -87,6 +91,8 @@ export interface InviteCheck {
 
 export interface ServerStatus {
   name: string;
+  /** The language set for the server; `null`: each device's own. Absent from servers before it. */
+  language?: string | null;
   version: string;
   /** The server build's short commit hash; "unknown" without the repository. */
   commit?: string;
@@ -902,6 +908,8 @@ export type LibraryWork = "auto" | "hours" | "idle";
 
 export interface Settings {
   server_name: string;
+  /** For accounts without a language of their own; `""`: each device's. */
+  language: string;
   tmdb_api_key: string;
   metadata_language: string;
   tv_metadata: TvMetadata;

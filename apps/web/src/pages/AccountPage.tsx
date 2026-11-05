@@ -44,6 +44,7 @@ import { formatAgo, formatDay } from "@/lib/format";
 import { LANGUAGES } from "@/lib/languages";
 import { useDocumentTitle } from "@/lib/hooks";
 import { passwordProblem } from "@/lib/passwords";
+import { LanguageCard } from "./LanguageCard";
 import { CompatibilityTokensCard } from "./CompatibilityTokensCard";
 import { TwoStepCard } from "./TwoStepCard";
 
@@ -663,6 +664,7 @@ export function AccountPage() {
         </Button>
       </div>
       <ProfileCard key={user.id} />
+      <LanguageCard />
       <PlaybackCard />
       <PinCard />
       {user.managed ? null : user.has_password === false ? <NoPasswordCard /> : <PasswordCard />}
