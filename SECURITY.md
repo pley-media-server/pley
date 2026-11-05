@@ -154,6 +154,14 @@ protect your server.
 - Switching from a restricted profile to one that can see more (an
   administrator, a higher age limit, other libraries) takes that profile's
   PIN, or its password (and code).
+- A remote casting to a device of another of the household's profiles
+  switches that device to its own profile, signed in as it already. When
+  that profile has a PIN, the remote gives it first, checked and throttled
+  as a switch's. The device switches with a ticket the cast carries: random,
+  stored hashed, good once for 60 seconds for that device, from the profile
+  it is on to the caster's. A copy shown by anything else spends it. Another
+  profile's devices are listed by name and profile, never with what they
+  play, and only to home members of the same household.
 
 ### Apps signing in
 
