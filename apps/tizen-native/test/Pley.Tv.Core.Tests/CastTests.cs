@@ -50,8 +50,12 @@ public class CastRuleTests
             AudioIndex = Int(e, "audio_index"),
             SubtitleIndex = Int(e, "subtitle_index"),
             From = e.GetProperty("from").GetString(),
+            ProfileId = e.TryGetProperty("profile_id", out var p) ? Long(p) : null,
+            SwitchTicket = e.TryGetProperty("switch_ticket", out var t) ? t.GetString() : null,
         };
-        var action = Casts.Action(input.GetProperty("receiver_id").GetString()!, input.GetProperty("shown").GetBoolean(), cast);
+        // The profile the TV acts as: none known when the case leaves it out.
+        var profile = input.TryGetProperty("profile", out var on) ? Long(on) : null;
+        var action = Casts.Action(input.GetProperty("receiver_id").GetString()!, profile, input.GetProperty("shown").GetBoolean(), cast);
         var banner = Casts.Banner(cast.From);
         var expected = c.GetProperty("out");
         var written = action.Act switch
@@ -64,6 +68,8 @@ public class CastRuleTests
         // The tracks a title's cast plays with, in the cases that say them (casts made before they were sent don't).
         if (action.Act == CastAct.Item && expected.TryGetProperty("audio_index", out _)) written["audio_index"] = action.AudioIndex;
         if (action.Act == CastAct.Item && expected.TryGetProperty("subtitle_index", out _)) written["subtitle_index"] = action.SubtitleIndex;
+        // The switch to the remote's profile first, when it makes one.
+        if (action.SwitchTo is { } to) written["switch"] = new Dictionary<string, object?> { ["profile"] = to.Profile, ["ticket"] = to.Ticket };
         Fixtures.SameFields(input, written, expected);
     }
 
@@ -109,7 +115,16 @@ public class CastRuleTests
         var e = new SseReader().Feed(
             "data: {\"type\":\"cast\",\"receiver_id\":\"tizen-1\",\"item_id\":5,\"playlist_id\":null,\"channel_id\":null,\"start_ms\":null,\"shuffle\":false,\"audio_index\":2,\"subtitle_index\":-1,\"from\":null}\n\n").Single();
         Assert.Equal((2, -1), (e.AudioIndex, e.SubtitleIndex));
-        Assert.Equal(new CastAction(CastAct.Item, 5, AudioIndex: 2, SubtitleIndex: -1), Casts.Action("tizen-1", true, e));
+        Assert.Equal(new CastAction(CastAct.Item, 5, AudioIndex: 2, SubtitleIndex: -1), Casts.Action("tizen-1", 2, true, e));
+    }
+
+    [Fact]
+    public void A_cast_from_another_profile_carries_its_profile_and_ticket()
+    {
+        var e = new SseReader().Feed(
+            "data: {\"type\":\"cast\",\"receiver_id\":\"tizen-1\",\"item_id\":5,\"playlist_id\":null,\"channel_id\":null,\"start_ms\":null,\"shuffle\":false,\"from\":null,\"profile_id\":4,\"switch_ticket\":\"t1\"}\n\n").Single();
+        Assert.Equal(((long?)4, (string?)"t1"), (e.ProfileId, e.SwitchTicket));
+        Assert.Equal(new CastSwitch(4, "t1"), Casts.Action("tizen-1", 2, true, e).SwitchTo);
     }
 }
 
@@ -146,16 +161,31 @@ public class CastReceiverTests
             Playlists.TryGetValue(id, out var p) ? Task.FromResult(p) : Task.FromException<PlaylistDetail>(new ApiException(404, "not_found", "playlist not found"));
     }
 
-    /// <summary>The app's side: what it was told to play, and what it said.</summary>
+    /// <summary>The app's side: what it was told to play, the switches it made, and what it said.</summary>
     sealed class Target : ICastTarget
     {
         public readonly List<(PlayRequest Request, string Banner)> Videos = new List<(PlayRequest, string)>();
         public readonly List<(long[] Tracks, int At, bool Shuffle, long FromMs, string Banner)> Queues = new List<(long[], int, bool, long, string)>();
         public readonly List<(long Channel, string Banner)> Channels = new List<(long, string)>();
         public readonly List<string> Said = new List<string>();
+        public readonly List<(long Profile, string Ticket)> Switches = new List<(long, string)>();
+        /// <summary>When set, a switch is answered only once it is.</summary>
+        public TaskCompletionSource<bool>? SwitchHeld;
+        /// <summary>When set, a switch fails with it.</summary>
+        public Exception? Refuse;
 
         public string ReceiverId => "tizen-1";
         public bool Shown { get; set; } = true;
+        public long? Profile { get; set; } = 2;
+
+        public async Task SwitchTo(long profile, string ticket)
+        {
+            Switches.Add((profile, ticket));
+            if (SwitchHeld != null) await SwitchHeld.Task;
+            if (Refuse != null) throw Refuse;
+            Profile = profile;
+        }
+
         public void Video(PlayRequest request, string banner) => Videos.Add((request, banner));
         public void Music(IReadOnlyList<ItemSummary> tracks, int at, bool shuffle, long fromMs, string banner) => Queues.Add((tracks.Select(t => t.Id).ToArray(), at, shuffle, fromMs, banner));
         public void Channel(long channelId, string banner) => Channels.Add((channelId, banner));
@@ -170,8 +200,63 @@ public class CastReceiverTests
         new ItemDetail { Id = id, LibraryId = 1, Kind = kind, Title = $"{kind} {id}", ParentId = parent, UserState = new UserState { PositionMs = positionMs, Watched = watched } };
 
     static ServerEvent Cast(long? item = null, long? playlist = null, long? channel = null, long? startMs = null, bool shuffle = false, string? from = "Living room phone", string receiver = "tizen-1",
-        int? audio = null, int? subtitle = null) =>
-        new ServerEvent { Type = "cast", ReceiverId = receiver, ItemId = item, PlaylistId = playlist, ChannelId = channel, StartMs = startMs, Shuffle = shuffle, From = from, AudioIndex = audio, SubtitleIndex = subtitle };
+        int? audio = null, int? subtitle = null, long? profile = null, string? ticket = null) =>
+        new ServerEvent
+        {
+            Type = "cast", ReceiverId = receiver, ItemId = item, PlaylistId = playlist, ChannelId = channel, StartMs = startMs, Shuffle = shuffle, From = from, AudioIndex = audio,
+            SubtitleIndex = subtitle, ProfileId = profile, SwitchTicket = ticket,
+        };
+
+    [Fact]
+    public void A_cast_from_another_profiles_remote_switches_to_it_with_its_ticket_then_plays_once()
+    {
+        server.Items[5] = Detail(5, "movie");
+        receiver.Take(Cast(item: 5, startMs: 60_000, profile: 4, ticket: "t1"));
+        Assert.Equal(new[] { (4L, "t1") }, target.Switches);
+        Assert.Equal(new[] { (new PlayRequest(5, 60_000, false), "Playing from Living room phone") }, target.Videos);
+        Assert.Equal(4, target.Profile);
+    }
+
+    [Fact]
+    public void A_cast_plays_at_once_on_its_profile_already_and_does_nothing_from_another_without_a_ticket()
+    {
+        server.Items[5] = Detail(5, "movie");
+        receiver.Take(Cast(item: 5, profile: 3));
+        receiver.Take(Cast(item: 5, profile: 2, ticket: "t1"));
+        Assert.Empty(target.Switches);
+        Assert.Single(target.Videos);
+    }
+
+    [Fact]
+    public void A_failed_switch_says_so_and_plays_nothing_nor_says_anything_once_signed_out()
+    {
+        server.Items[5] = Detail(5, "movie");
+        target.Refuse = new TokenException(400, null);
+        receiver.Take(Cast(item: 5, profile: 4, ticket: "t1"));
+        Assert.Empty(target.Videos);
+        Assert.Equal(new[] { Casts.SwitchFailed }, target.Said);
+        Assert.Equal(2, target.Profile);
+        target.SwitchHeld = new TaskCompletionSource<bool>();
+        receiver.Take(Cast(item: 5, profile: 4, ticket: "t2"));
+        target.Shown = false;
+        target.SwitchHeld.SetResult(true);
+        Assert.Equal(new[] { Casts.SwitchFailed }, target.Said);
+    }
+
+    [Fact]
+    public void A_cast_heard_during_the_switch_is_weighed_as_the_profile_switched_to()
+    {
+        server.Items[5] = Detail(5, "movie");
+        server.Items[6] = Detail(6, "movie");
+        target.SwitchHeld = new TaskCompletionSource<bool>();
+        receiver.Take(Cast(item: 5, profile: 4, ticket: "t1"));
+        // One for the profile the TV leaves, and the same remote's next, with a ticket of its own.
+        receiver.Take(Cast(item: 5, from: "Kitchen tablet"));
+        receiver.Take(Cast(item: 6, profile: 4, ticket: "t2"));
+        target.SwitchHeld.SetResult(true);
+        Assert.Equal(new[] { (4L, "t1") }, target.Switches);
+        Assert.Equal(new[] { (new PlayRequest(6, 0, false), "Playing from Living room phone") }, target.Videos);
+    }
 
     [Fact]
     public void A_movie_or_an_episode_plays_with_the_tracks_picked_on_the_remotes_page()

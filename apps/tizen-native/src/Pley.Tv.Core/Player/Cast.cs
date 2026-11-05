@@ -22,12 +22,20 @@ public enum CastAct
 }
 
 /// <summary>
+/// The remote's profile, another of the household's, that this TV switches to before it plays a
+/// cast, with the cast's <paramref name="Ticket"/>.
+/// </summary>
+public sealed record CastSwitch(long Profile, string Ticket);
+
+/// <summary>
 /// What a cast asks of this TV: <paramref name="Act"/> on <paramref name="Id"/>, a title from
 /// <paramref name="StartMs"/> (null: where Play resumes) with the audio <paramref name="AudioIndex"/>
 /// and the subtitles <paramref name="SubtitleIndex"/> (-1: none) picked on the remote's page (null:
-/// the profile's choices), a playlist, album or artist <paramref name="Shuffle"/>d.
+/// the profile's choices), a playlist, album or artist <paramref name="Shuffle"/>d; after switching
+/// to the remote's profile (<paramref name="SwitchTo"/>) when it is another one.
 /// </summary>
-public sealed record CastAction(CastAct Act, long Id = 0, long? StartMs = null, bool Shuffle = false, int? AudioIndex = null, int? SubtitleIndex = null)
+public sealed record CastAction(CastAct Act, long Id = 0, long? StartMs = null, bool Shuffle = false, int? AudioIndex = null, int? SubtitleIndex = null,
+    CastSwitch? SwitchTo = null)
 {
     public static readonly CastAction None = new CastAction(CastAct.None);
 }
@@ -55,7 +63,8 @@ public sealed record ItemPlay(ItemPlays Plays, long? StartMs = null, bool Shuffl
 /// <summary>
 /// Casts from the profile's remote, on another of its devices (docs/API.md, "Casting"): this TV
 /// takes them while it shows, and plays what it is sent as its own Play would, in place of what
-/// plays, saying where it came from. The rules are packages/tv's, pinned for both Samsung apps by
+/// plays, saying where it came from. A remote on another profile of the household switches the TV
+/// to its profile first. The rules are packages/tv's, pinned for both Samsung apps by
 /// packages/tv/test/fixtures/tracks.json.
 /// </summary>
 public static class Casts
@@ -65,6 +74,9 @@ public static class Casts
 
     /// <summary>Said when a show, an album or a playlist has nothing to play.</summary>
     public const string NothingToPlay = "Nothing to play";
+
+    /// <summary>Said when the switch to the remote's profile failed: the cast plays nothing.</summary>
+    public const string SwitchFailed = "Couldn't switch to the remote's profile";
 
     /// <summary>
     /// The event stream's query that makes this TV a receiver: its install id, a TV, taking titles
@@ -76,15 +88,24 @@ public static class Casts
     /// <summary>
     /// The casts' rule: one for another receiver is another device's, and one that comes while the
     /// app can't take it (hidden, signed out, asking who's watching: <paramref name="shown"/> false)
-    /// does nothing; else it plays what it names.
+    /// does nothing; else it plays what it names. One from a remote on another profile than
+    /// <paramref name="profile"/>, the one the app acts as (null while it isn't known), switches to it
+    /// first with its ticket; without a ticket it does nothing, as the TV can't play it as the
+    /// profile that sent it.
     /// </summary>
-    public static CastAction Action(string receiver, bool shown, ServerEvent e)
+    public static CastAction Action(string receiver, long? profile, bool shown, ServerEvent e)
     {
         if (!shown || e.Type != "cast" || e.ReceiverId != receiver) return CastAction.None;
+        CastSwitch? switchTo = null;
+        if (e.ProfileId is long other && other != profile)
+        {
+            if (string.IsNullOrEmpty(e.SwitchTicket)) return CastAction.None;
+            switchTo = new CastSwitch(other, e.SwitchTicket!);
+        }
         if (e.ItemId is long item)
-            return new CastAction(CastAct.Item, item, e.StartMs is long at ? Math.Max(0, at) : null, e.Shuffle == true, e.AudioIndex, e.SubtitleIndex);
-        if (e.PlaylistId is long playlist) return new CastAction(CastAct.Playlist, playlist, Shuffle: e.Shuffle == true);
-        if (e.ChannelId is long channel) return new CastAction(CastAct.Channel, channel);
+            return new CastAction(CastAct.Item, item, e.StartMs is long at ? Math.Max(0, at) : null, e.Shuffle == true, e.AudioIndex, e.SubtitleIndex, switchTo);
+        if (e.PlaylistId is long playlist) return new CastAction(CastAct.Playlist, playlist, Shuffle: e.Shuffle == true, SwitchTo: switchTo);
+        if (e.ChannelId is long channel) return new CastAction(CastAct.Channel, channel, SwitchTo: switchTo);
         return CastAction.None;
     }
 
@@ -135,6 +156,16 @@ public interface ICastTarget
     /// <summary>Whether it takes casts now: the app shows, signed in, past "Who's watching?".</summary>
     bool Shown { get; }
 
+    /// <summary>The profile the app acts as, null while it isn't known.</summary>
+    long? Profile { get; }
+
+    /// <summary>
+    /// Moves the app to <paramref name="profile"/> with a cast's <paramref name="ticket"/>, as a
+    /// switch on "Who's watching?" would, what played as the profile before ending first; fails when
+    /// it can't.
+    /// </summary>
+    Task SwitchTo(long profile, string ticket);
+
     /// <summary>Plays <paramref name="request"/> in the player, in place of what plays, <paramref name="banner"/> over it as it starts.</summary>
     void Video(PlayRequest request, string banner);
 
@@ -157,7 +188,8 @@ public interface ICastTarget
 
 /// <summary>
 /// This TV's side of casting: a cast for it plays (the latest one, when another comes while the
-/// first is still asked for), and says where it came from as it starts. UI thread only.
+/// first is still asked for), and says where it came from as it starts. One from another profile's
+/// remote plays once the TV switched to that profile, or says it couldn't. UI thread only.
 /// </summary>
 public sealed class CastReceiver
 {
@@ -166,6 +198,8 @@ public sealed class CastReceiver
     readonly IScheduler scheduler;
     readonly Random random;
     int casts;
+    /// <summary>While a cast's switch is being made, the casts heard meanwhile, weighed once it is over; null otherwise.</summary>
+    List<ServerEvent>? waiting;
 
     public CastReceiver(ICastServer server, ICastTarget target, IScheduler scheduler, Random? random = null)
     {
@@ -178,10 +212,47 @@ public sealed class CastReceiver
     /// <summary>A cast heard on the event stream.</summary>
     public void Take(ServerEvent e)
     {
-        var action = Casts.Action(target.ReceiverId, target.Shown, e);
+        if (waiting != null)
+        {
+            // Weighed once the switch is over, as the profile the TV is on then: one sent to the
+            // profile it leaves (no profile id) is that profile's, which the TV no longer is.
+            if (e.ProfileId != null) waiting.Add(e);
+            return;
+        }
+        var action = Casts.Action(target.ReceiverId, target.Profile, target.Shown, e);
         if (action.Act == CastAct.None) return;
         var mine = ++casts;
         var banner = Casts.Banner(e.From);
+        if (action.SwitchTo is not { } to)
+        {
+            Play(action, mine, banner);
+            return;
+        }
+        waiting = new List<ServerEvent>();
+        Plays.When(scheduler, () => target.SwitchTo(to.Profile, to.Ticket), () =>
+        {
+            // Those heard meanwhile are newer: the latest of them plays in its place.
+            TakeWaiting();
+            Play(action, mine, banner);
+        }, _ =>
+        {
+            if (mine == casts && target.Shown) target.Say(Casts.SwitchFailed);
+            TakeWaiting();
+        });
+    }
+
+    /// <summary>The switch is over: the casts heard while it was made are taken now, in order.</summary>
+    void TakeWaiting()
+    {
+        var heard = waiting ?? new List<ServerEvent>();
+        waiting = null;
+        foreach (var e in heard) Take(e);
+    }
+
+    /// <summary>Plays <paramref name="action"/>, cast number <paramref name="mine"/>, as the profile the app acts as now.</summary>
+    void Play(CastAction action, int mine, string banner)
+    {
+        if (mine != casts || !target.Shown) return;
         Plays.When(scheduler, () => Resolve(action), play =>
         {
             // Another cast came since, or the app went: this one plays nothing.

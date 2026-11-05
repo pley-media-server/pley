@@ -4,7 +4,7 @@ import { EventStream } from "../src/api/events";
 import type { ItemDetail, ItemKind, ItemSummary, LiveSummary, Playlist, PlaylistEntry } from "../src/api/types";
 import type { KeyValue, Tokens } from "../src/auth/tokens";
 import type { Platform } from "../src/platform";
-import { CAST_BANNER_MS, CastReceiver, NOTHING_TO_PLAY, receiverQuery, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
+import { CAST_BANNER_MS, CastReceiver, NOTHING_TO_PLAY, receiverQuery, SWITCH_FAILED, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
 import type { PlayRequest } from "../src/player/plan";
 import { AppState } from "../src/state";
 
@@ -33,7 +33,8 @@ function tv() {
   const videos: PlayRequest[] = [];
   const queues: { tracks: number[]; at: number; shuffle: boolean; fromMs: number }[] = [];
   const said: string[] = [];
-  const state = { shown: true, held: null as null | Promise<void> };
+  /** The profile the app acts as; a switch's answer, held until `release` when the test holds it, refused when `refuse` says so. */
+  const state = { shown: true, held: null as null | Promise<void>, profile: 2 as number | null, switchHeld: null as null | Promise<void>, refuse: null as null | Error };
   const wait = async () => {
     if (state.held) await state.held;
   };
@@ -63,6 +64,13 @@ function tv() {
   const env: CastEnv = {
     id: () => "tizen-1",
     shown: () => state.shown,
+    profile: () => state.profile,
+    switchTo: async (profile, ticket) => {
+      did.push(`switch to ${profile} with ${ticket}`);
+      if (state.switchHeld) await state.switchHeld;
+      if (state.refuse) throw state.refuse;
+      state.profile = profile;
+    },
     server: () => server,
     video: (r) => {
       did.push("video");
@@ -227,6 +235,61 @@ describe("a cast to this TV", () => {
     t.receiver.take(cast({ item_id: 9 }));
     await settle();
     expect(t.said).toEqual(["failed: item not found"]);
+  });
+});
+
+describe("a cast from another profile's remote", () => {
+  it("switches to the remote's profile with its ticket, then plays it once", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.receiver.take(cast({ item_id: 5, start_ms: 60_000, profile_id: 4, switch_ticket: "t1" }));
+    await settle();
+    expect(t.did).toEqual(["switch to 4 with t1", "item 5", "video"]);
+    expect(t.videos).toEqual([{ itemId: 5, startMs: 60_000 }]);
+    expect(t.said).toEqual(["Playing from Living room phone"]);
+  });
+
+  it("plays at once when the TV is on that profile already, and does nothing without a ticket", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.receiver.take(cast({ item_id: 5, profile_id: 3 }));
+    t.receiver.take(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+    await settle();
+    expect(t.did).toEqual(["item 5", "video"]);
+  });
+
+  it("says the switch failed and plays nothing, nor says anything once signed out", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.state.refuse = new Error("this cast's switch has expired or was used: cast again");
+    t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
+    await settle();
+    expect([t.did, t.said]).toEqual([["switch to 4 with t1"], [SWITCH_FAILED]]);
+    expect(t.state.profile).toBe(2);
+    let release: () => void = () => undefined;
+    t.state.switchHeld = new Promise<void>((r) => (release = r));
+    t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t2" }));
+    t.state.shown = false;
+    release();
+    await settle();
+    expect(t.said).toEqual([SWITCH_FAILED]);
+  });
+
+  it("weighs a cast heard during the switch as the profile switched to: the left profile's goes, the remote's plays", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.items.set(6, detail(6, "movie"));
+    let release: () => void = () => undefined;
+    t.state.switchHeld = new Promise<void>((r) => (release = r));
+    t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
+    // One for the profile the TV leaves, and the same remote's next, with a ticket of its own.
+    t.receiver.take(cast({ item_id: 5, from: "Kitchen tablet" }));
+    t.receiver.take(cast({ item_id: 6, profile_id: 4, switch_ticket: "t2" }));
+    release();
+    await settle();
+    expect(t.did.filter((d) => d.startsWith("switch"))).toEqual(["switch to 4 with t1"]);
+    expect(t.videos).toEqual([{ itemId: 6, fromStart: false }]);
+    expect(t.said).toEqual(["Playing from Living room phone"]);
   });
 });
 

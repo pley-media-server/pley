@@ -390,9 +390,18 @@ class App : NUIApplication
         }
     }
 
+    /// <summary>The player showing closes: done once it has let go of the TV's player, at once when none shows.</summary>
+    Task ClosePlayer()
+    {
+        var gone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Replacing(() => gone.TrySetResult(true));
+        return gone.Task;
+    }
+
     /// <summary>
     /// What a cast does here (Core's <see cref="CastReceiver"/> decides what): it plays in place of
-    /// what plays, over the rail's pages, with "Playing from …" over it as it starts.
+    /// what plays, over the rail's pages, with "Playing from …" over it as it starts. A cast from
+    /// another profile's remote switches to that profile first, which starts on its Home.
     /// </summary>
     sealed class Casting : ICastTarget
     {
@@ -403,6 +412,29 @@ class App : NUIApplication
         public string ReceiverId => app.state.InstallId();
 
         public bool Shown => app.state.Visible.Value && app.state.SignedIn && !app.state.SignedOut.Value && app.pages != null;
+
+        public long? Profile => app.state.Profile;
+
+        public async Task SwitchTo(long profile, string ticket)
+        {
+            var tokens = app.state.TokenStore ?? throw new Core.Auth.SignedOutException();
+            // What plays as the profile before ends while its sign-in still works, as signing out has it.
+            await app.ClosePlayer();
+            app.state.EndPlayback();
+            await Task.WhenAny(app.reporter.Flush(), Task.Delay(2_000));
+            await tokens.SwitchProfile(profile, null, ticket);
+            try
+            {
+                await app.state.Switched(profile);
+            }
+            catch (Exception)
+            {
+                // The switch is made: who is watching failed to load after it, which the pages' Retry
+                // has, as for a switch on "Who's watching?" (ProfilesModel).
+            }
+            // As a switch on "Who's watching?": the profile's Home, under what the cast plays.
+            app.Go(new PageKey.Home());
+        }
 
         public void Video(PlayRequest request, string banner) => app.Replacing(() =>
         {

@@ -462,7 +462,8 @@ export type ServerEvent =
    * The user's remote sent their device of `receiver_id` something to play: one of `item_id`, `playlist_id` and
    * `channel_id`, a title from `start_ms`, a playlist, album or artist shuffled; a movie or an episode with the
    * tracks picked on the remote's page, `audio_index` and `subtitle_index` (`-1`: none), when it sent them;
-   * `from` names the remote's device (docs/API.md, "Casting").
+   * `from` names the remote's device (docs/API.md, "Casting"). From another profile of the household, `profile_id`
+   * is the remote's, which the TV switches to with `switch_ticket` before it plays.
    */
   | {
       type: "cast";
@@ -475,6 +476,8 @@ export type ServerEvent =
       audio_index?: number | null;
       subtitle_index?: number | null;
       from: string | null;
+      profile_id?: Id | null;
+      switch_ticket?: string | null;
     }
   | { type: "scan_started" | "scan_progress" | "scan_finished"; library_id: Id }
   /** Live TV's sources, channels or guide changed: ask again. */

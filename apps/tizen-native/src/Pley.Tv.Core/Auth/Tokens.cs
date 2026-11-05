@@ -537,8 +537,10 @@ public sealed class Tokens
     /// <summary>
     /// Moves the sign-in to another profile of the household (the switch-profile grant of Pley's
     /// own apps), or checks the PIN of the one it acts as. A wrong PIN changes nothing.
+    /// <paramref name="ticket"/>, in place of a PIN: a cast's from another profile's remote
+    /// (docs/API.md, "Casting"); a spent one is invalid_grant with reason ticket_spent, and changes nothing.
     /// </summary>
-    public Task SwitchProfile(long profile, string? pin) => Serial(async () =>
+    public Task SwitchProfile(long profile, string? pin, string? ticket = null) => Serial(async () =>
     {
         var tokens = Load() ?? throw new SignedOutException();
         if (tokens.RefreshToken == null) throw SignedOut();
@@ -548,6 +550,7 @@ public sealed class Tokens
             ("refresh_token", tokens.RefreshToken),
             ("profile", profile.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         if (pin != null) fields.Add(new KeyValuePair<string, string>("pin", pin));
+        if (ticket != null) fields.Add(new KeyValuePair<string, string>("ticket", ticket));
         await Proved(tokens, now: true).ConfigureAwait(false);
         JsonElement? answer;
         try
