@@ -351,6 +351,15 @@ TEXT = {
     "dynamic_range": 30554,
     "any_resolution": 30555,
     "any_dynamic_range": 30556,
+    "remote_paused": 30566,
+    "remote_playing": 30567,
+    "remote_ahead": 30568,
+    "remote_back": 30569,
+    "remote_jumped": 30570,
+    "remote_audio": 30571,
+    "remote_subtitles": 30572,
+    "remote_subtitles_off": 30573,
+    "remote_quality": 30574,
 }
 
 
@@ -463,11 +472,11 @@ def refresh_listing() -> None:
         xbmc.executebuiltin("NotifyAll(%s,changed)" % ADDON_ID)
 
 
-def notify(message: str, error: bool = False, icon=None, ms: int = 5000) -> None:
+def notify(message: str, error: bool = False, icon=None, ms: int = 5000, sound: bool = True) -> None:
     """A notice; `icon`: a picture's address (a poster) for Kodi's own icon."""
     if not icon:
         icon = xbmcgui.NOTIFICATION_ERROR if error else xbmcgui.NOTIFICATION_INFO
-    xbmcgui.Dialog().notification("Pley", message, icon, ms)
+    xbmcgui.Dialog().notification("Pley", message, icon, ms, sound)
 
 
 def ask_sign_out() -> bool:

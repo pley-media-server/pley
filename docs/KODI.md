@@ -256,6 +256,19 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   once; another title, channel or quality reports with its own session.
 - Kodi stopped or playing something else obeys nothing. A command it
   doesn't know, or a seek or skip without its place, does nothing.
+- **What shows:** the add-on brings up nothing of Kodi's player for a
+  command. What the remote did to a video shows for 2 seconds as a Kodi
+  notification with the add-on's icon, without its sound: "Paused",
+  "Playing", the skip asked for ("+30 s", "−10 s"), where a seek went
+  ("Jumped to 12:34"), the audio or subtitles switched to, by the
+  language and title Kodi's own Audio and Subtitles menus name them by
+  ("Audio: French - Commentary", "Subtitles off"), and the quality picked
+  as the Quality setting names it. A command that changes nothing shows nothing; next
+  and channel up and down show what Kodi shows as it plays the title or
+  channel, and music shows nothing. Kodi's own pause and seek bar are its
+  skin's: most skins show the seek bar while paused and for a moment
+  after a seek, whoever made it, and the add-on can't keep it away (a
+  skin opens it again while its condition holds).
 
 ### Casting
 

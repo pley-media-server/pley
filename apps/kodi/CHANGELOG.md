@@ -37,6 +37,10 @@ describes how they are made.
   when it has no PIN, where a household of several profiles was asked
   "Who's watching?" each time Kodi started. A profile with a PIN still
   asks first, and Switch profile still shows every profile.
+- What your phone, the web or another device does to a film or episode
+  playing on Kodi shows for a moment as a quiet Kodi notification:
+  "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio,
+  subtitles or quality picked.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 
