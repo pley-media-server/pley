@@ -70,13 +70,6 @@ public static class Format
         return left.Length > 0 ? Strings.T("format.spoken.left", ("time", left)) : "";
     }
 
-    /// <summary>
-    /// "1 movie", "0 movies", "12,345 movies", "3 children": English words, put together the English
-    /// way. Words in the language shown are counted with <see cref="Strings.Count"/> and a key of their own.
-    /// </summary>
-    public static string Pluralize(long n, string one, string? many = null) =>
-        $"{n.ToString("N0", CultureInfo.InvariantCulture)} {(n == 1 ? one : many ?? one + "s")}";
-
     /// <summary>"S1 · E3", "E3", or "" with neither number.</summary>
     public static string EpisodeLabel(int? season, int? episode) => (season, episode) switch
     {

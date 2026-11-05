@@ -42,13 +42,8 @@ public class FormatTests
     }
 
     [Fact]
-    public void Counts_and_episode_labels()
+    public void Episode_labels()
     {
-        Assert.Equal("1 movie", Format.Pluralize(1, "movie"));
-        Assert.Equal("0 movies", Format.Pluralize(0, "movie"));
-        Assert.Equal("2 movies", Format.Pluralize(2, "movie"));
-        Assert.Equal("3 children", Format.Pluralize(3, "child", "children"));
-        Assert.Equal("12,345 movies", Format.Pluralize(12_345, "movie"));
         Assert.Equal("S1 · E3", Format.EpisodeLabel(1, 3));
         Assert.Equal("E3", Format.EpisodeLabel(null, 3));
         Assert.Equal("S0 · E0", Format.EpisodeLabel(0, 0));
