@@ -55,6 +55,11 @@ describes how they are made.
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same
   goes to the device's log.
+- Pley is shown in your account's language, else your server's, else this
+  device's, in English, French or Spanish, and Settings has a Language row
+  on phones and TVs that sets it for your account on every device. Signing
+  in is in French and Spanish too. On Android 13 and later the system's
+  settings list Pley's languages.
 
 ### Changed
 

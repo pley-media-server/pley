@@ -67,6 +67,26 @@ class NetworkGraphTest {
     }
 
     @Test
+    fun theRootAsksForTheLanguageShown() {
+        MockPley.server().use { server ->
+            var language: String? = "fr-CA"
+            val root = HttpRoot.create(TEST_AGENT, language = { language })
+            server.enqueue(MockResponse.Builder().body("ok").build())
+            root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
+            assertEquals("fr-CA", server.takeRequest().headers["Accept-Language"])
+            // Shown in another language now: the next request asks for it.
+            language = "es"
+            server.enqueue(MockResponse.Builder().body("ok").build())
+            root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
+            assertEquals("es", server.takeRequest().headers["Accept-Language"])
+            language = null
+            server.enqueue(MockResponse.Builder().body("ok").build())
+            root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
+            assertNull(server.takeRequest().headers["Accept-Language"])
+        }
+    }
+
+    @Test
     fun theRootIntroducesItself() {
         MockPley.server().use { server ->
             server.enqueue(MockResponse.Builder().body("ok").build())

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.pley.android.common.AppLanguage
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -53,6 +54,10 @@ class TvLivePlayerActivity : ComponentActivity() {
     private var attached: PlayerEngine? = null
     private var session: VideoMediaSession? = null
     private var screenOn = false
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

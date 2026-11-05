@@ -5,10 +5,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.pley.android.auth.AuthException
+import app.pley.android.auth.NO_BROWSER
 import app.pley.android.auth.SignInState
 import app.pley.android.auth.TOO_OLD
 import app.pley.android.auth.UNENCRYPTED
-import app.pley.android.common.describe
+import app.pley.android.common.UiText
+import app.pley.android.common.errorText
 import app.pley.android.screens.PleyKey
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -52,7 +54,8 @@ sealed interface BrowserSignIn {
 
     data object SignedIn : BrowserSignIn
 
-    data class Failed(val server: String, val problem: SignInProblem, val message: String) : BrowserSignIn
+    /** It didn't go through: why, for the screen to word, and the sign-in's own words for it ([text]). */
+    data class Failed(val server: String, val problem: SignInProblem, val text: UiText) : BrowserSignIn
 }
 
 /**
@@ -105,7 +108,7 @@ class SignInViewModel(
                     SignInState.Idle -> Unit
                     SignInState.Finishing -> _state.value = BrowserSignIn.Finishing
                     is SignInState.SignedIn -> signedIn()
-                    is SignInState.Failed -> _state.value = BrowserSignIn.Failed(server.orEmpty(), SignInProblem.Refused, auth.message)
+                    is SignInState.Failed -> _state.value = BrowserSignIn.Failed(server.orEmpty(), SignInProblem.Refused, auth.text)
                 }
             }
         }
@@ -124,19 +127,18 @@ class SignInViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthException) {
-                val message = e.message.orEmpty()
-                when {
-                    NO_BROWSER in message -> {
+                when (e.text) {
+                    NO_BROWSER -> {
                         this@SignInViewModel.server = null
                         _state.value = BrowserSignIn.Idle
                         moves.send(OnboardingMove.Open(PleyKey.Link(server)))
                     }
-                    message == TOO_OLD -> _state.value = BrowserSignIn.Failed(server, SignInProblem.TooOld, message)
-                    message == UNENCRYPTED -> _state.value = BrowserSignIn.Failed(server, SignInProblem.Unencrypted, message)
-                    else -> _state.value = BrowserSignIn.Failed(server, SignInProblem.Refused, message)
+                    TOO_OLD -> _state.value = BrowserSignIn.Failed(server, SignInProblem.TooOld, e.text)
+                    UNENCRYPTED -> _state.value = BrowserSignIn.Failed(server, SignInProblem.Unencrypted, e.text)
+                    else -> _state.value = BrowserSignIn.Failed(server, SignInProblem.Refused, e.text)
                 }
             } catch (e: IOException) {
-                _state.value = BrowserSignIn.Failed(server, SignInProblem.Unreachable, describe(e))
+                _state.value = BrowserSignIn.Failed(server, SignInProblem.Unreachable, errorText(e))
             }
         }
     }
@@ -181,8 +183,6 @@ class SignInViewModel(
     }
 
     private companion object {
-        /** What the sign-in module says when no browser can open the page (SignIn.open). */
-        const val NO_BROWSER = "no browser"
         const val SETTLE_MS = 300L
         const val SERVER = "sign-in.server"
     }

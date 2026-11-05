@@ -1,6 +1,7 @@
 package app.pley.android.auth
 
 import app.pley.android.common.Addresses
+import app.pley.android.common.UiText
 import java.io.IOException
 import java.net.URI
 import java.net.URISyntaxException
@@ -15,7 +16,7 @@ import org.json.JSONObject
 const val DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
 /** What a server without sign-in with a code answers. */
-const val NO_CODES = "this server can't sign in with a code yet: update it, or sign in with a password"
+val NO_CODES: UiText = UiText.res(R.string.auth_no_codes)
 
 /**
  * A code for signing in a TV (RFC 8628): shown as [userCode] with
@@ -68,7 +69,8 @@ sealed interface DevicePoll {
      */
     data class Unreachable(val retryInMs: Long) : DevicePoll
 
-    data class Failed(val message: String) : DevicePoll
+    /** It can't go on: an older server, or a refusal, in [text]. */
+    data class Failed(val text: UiText) : DevicePoll
 }
 
 /**
@@ -105,7 +107,7 @@ class DeviceGrant(
     private val clock: () -> Long = System::currentTimeMillis,
 ) : DeviceSignIn {
     override suspend fun start(server: String): DeviceCode {
-        val home = Addresses.origin(server) ?: throw AuthException("that isn't a server address")
+        val home = Addresses.origin(server) ?: throw AuthException(NOT_AN_ADDRESS)
         Transport.checkAddress(home)
         val metadata = ServerMetadata.fetch(http, home)
         val endpoint = metadata.deviceAuthorizationEndpoint?.takeIf { metadata.signsInWithCodes }
@@ -143,12 +145,12 @@ class DeviceGrant(
                     "access_denied" -> DevicePoll.Denied
                     "expired_token" -> DevicePoll.Expired
                     // invalid_grant: the code is unknown, or was collected already.
-                    "invalid_grant" -> DevicePoll.Failed("this code doesn't work anymore: get a new one")
-                    else -> DevicePoll.Failed(e.message.orEmpty())
+                    "invalid_grant" -> DevicePoll.Failed(UiText.res(R.string.auth_code_used))
+                    else -> DevicePoll.Failed(e.text)
                 }
             } catch (e: AuthException) {
                 // Refused by the app itself: plain http beyond the home network.
-                DevicePoll.Failed(e.message.orEmpty())
+                DevicePoll.Failed(e.text)
             } catch (_: IOException) {
                 failures++
                 null
@@ -179,7 +181,7 @@ class DeviceGrant(
         DevicePoll.SignedIn(code.issuer)
     } catch (e: AuthException) {
         // Unreadable, or more than was asked (ended already).
-        DevicePoll.Failed(e.message.orEmpty())
+        DevicePoll.Failed(e.text)
     }
 
     companion object {
@@ -194,7 +196,7 @@ class DeviceGrant(
 
         /** The code in [text], the answer of [server]'s device authorization endpoint (§3.2). */
         fun parse(text: String, server: String, metadata: ServerMetadata, scope: String, now: Long): DeviceCode {
-            val bad = AuthException("the server's answer can't be read: try again")
+            val bad = AuthException(UNREADABLE)
             val o = try {
                 JSONObject(text)
             } catch (_: JSONException) {

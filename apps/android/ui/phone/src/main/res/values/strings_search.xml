@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- Search (apps/web/src/pages/SearchPage.tsx, design spec §4.5). -->
     <string name="search_field">Search movies, shows, people…</string>
     <string name="search_clear_field">Clear</string>

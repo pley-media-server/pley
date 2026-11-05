@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_not_an_address">ce n’est pas une adresse de serveur</string>
+    <string name="auth_unencrypted">l’adresse de ce serveur n’est pas sur votre réseau et sa connexion n’est pas chiffrée : ouvrez-le par son adresse https pour vous connecter</string>
+    <string name="auth_too_old">ce serveur est trop ancien pour cette application</string>
+    <string name="auth_redirected">ce serveur répond à une autre adresse : ouvrez-le par celle-ci</string>
+    <string name="auth_other_issuer">ce serveur se présente comme %1$s : ouvrez-le par cette adresse, ou vérifiez que le proxy placé devant lui transmet Host</string>
+    <string name="auth_other_endpoint">ce serveur envoie les applications à une autre adresse pour se connecter : Pley ne le fait pas</string>
+    <string name="auth_not_your_server">un autre appareil répond à cette adresse</string>
+    <string name="auth_no_browser">aucun navigateur sur cet appareil ne permet de se connecter</string>
+
+    <string name="auth_unreadable">la réponse du serveur est illisible : réessayez</string>
+    <string name="auth_server_failed">le serveur n’a pas pu répondre (HTTP %1$d)</string>
+    <string name="auth_refused">le serveur a refusé : réessayez</string>
+    <string name="auth_refused_said">le serveur a refusé : %1$s</string>
+    <string name="auth_refused_code">le serveur a refusé (%1$s)</string>
+    <string name="auth_refused_status">le serveur a refusé (HTTP %1$d)</string>
+
+    <string name="auth_other_server">la réponse vient d’un autre serveur que celui auquel vous vous connectez : réessayez</string>
+    <string name="auth_denied">vous n’avez pas autorisé l’application</string>
+    <string name="auth_no_code">le serveur n’a envoyé aucun code : réessayez</string>
+    <string name="auth_too_long">la connexion a pris trop de temps : réessayez</string>
+    <string name="auth_not_finished">la connexion n’a pas pu aboutir : réessayez</string>
+
+    <string name="auth_no_codes">ce serveur ne permet pas encore de se connecter avec un code : mettez-le à jour, ou connectez-vous avec un mot de passe</string>
+    <string name="auth_code_used">ce code ne fonctionne plus : demandez-en un nouveau</string>
+
+    <string name="auth_cant_switch">cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser</string>
+    <string name="auth_profile_locked">ce profil ne peut pas être utilisé depuis l’application</string>
+    <string name="auth_wrong_pin">code PIN incorrect</string>
+    <string name="auth_throttled">trop de codes PIN incorrects : réessayez dans quelques minutes</string>
+    <string name="auth_pin_locked">le code PIN de ce profil est bloqué après trop d’essais incorrects. Son propriétaire ou un administrateur peut le réinitialiser</string>
+    <string name="auth_needs_password">ce profil demande son mot de passe : reconnectez-vous pour l’utiliser</string>
+    <string name="auth_not_allowed">vous ne pouvez pas passer à ce profil</string>
+
+    <string name="auth_signed_out">votre session a pris fin : reconnectez-vous</string>
+    <string name="auth_unreadable_here">cet appareil ne peut plus lire sa connexion : reconnectez-vous</string>
+    <string name="auth_not_kept">la connexion n’a pas pu être enregistrée sur cet appareil : reconnectez-vous</string>
+    <string name="auth_wider_scope">le serveur a accordé plus que ce que demande cette application : session fermée</string>
+</resources>

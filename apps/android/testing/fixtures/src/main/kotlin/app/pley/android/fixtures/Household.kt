@@ -21,6 +21,9 @@ internal class Profile(
 ) {
     var trackDefaults = TrackDefaults(audioLanguage = "eng", subtitleLanguage = null, subtitleMode = SubtitleMode.Forced)
 
+    /** The language Pley is in for it ("fr"); `null`: the server's. */
+    var language: String? = null
+
     /** Playable items' states (positions, watched marks) and any item's own rating. */
     val states = HashMap<Long, UserState>()
 

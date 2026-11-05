@@ -66,6 +66,9 @@ interface DataGraph {
     /** The remote of the profile's other devices (none unless the graph has it). */
     val remote: RemoteRepository get() = RemoteRepository.None
 
+    /** The account's language, and what decides the one shown (nothing unless the graph has it). */
+    val language: LanguageRepository get() = LanguageRepository.None
+
     companion object {
         /**
          * The data side of the app over [network] and [auth]. Making it
@@ -207,6 +210,7 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     override val playItem: PlayItem by lazy { CachedPlayItem(cache, itemsImpl) }
     override val liveTv: LiveTvRepository by lazy { CachedLiveTv(cache) }
     override val remote: RemoteRepository by lazy { ServerRemote(cache, live, env.scope, env.clock, ownReceiver = serversImpl::clientId) }
+    override val language: LanguageRepository by lazy { SessionLanguage(sessionImpl) { if (cacheLazy.isInitialized()) cache else null } }
     override val requests: RequestsRepository by lazy {
         ServerRequests(
             cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,

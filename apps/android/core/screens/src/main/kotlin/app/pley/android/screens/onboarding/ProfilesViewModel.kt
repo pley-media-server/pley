@@ -9,8 +9,11 @@ import app.pley.android.auth.Profile
 import app.pley.android.auth.Profiles
 import app.pley.android.auth.SignedOutException
 import app.pley.android.auth.TokenException
-import app.pley.android.common.describe
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
+import app.pley.android.common.errorText
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -91,7 +94,7 @@ sealed interface ProfilesStep {
     data class Pin(
         val profile: ProfileTile,
         val digits: Int = 0,
-        val error: String? = null,
+        val error: UiText? = null,
         val shakes: Int = 0,
         val lockedOut: Boolean = false,
         val busy: Boolean = false,
@@ -115,7 +118,7 @@ data class ProfilesUiState(
     val canSwitch: Boolean = true,
     val step: ProfilesStep = ProfilesStep.Pick,
     /** On the picker: the list couldn't load, or a switch failed. */
-    val error: String? = null,
+    val error: UiText? = null,
     /** The profile being switched to. */
     val busy: Long? = null,
 )
@@ -183,7 +186,7 @@ class ProfilesViewModel(
         } catch (_: SignedOutException) {
             signedOut()
         } catch (e: IOException) {
-            _state.update { it.copy(loading = false, error = if (list.isEmpty()) sentence(describe(e)) else null) }
+            _state.update { it.copy(loading = false, error = if (list.isEmpty()) errorSentence(e) else null) }
         }
     }
 
@@ -232,7 +235,7 @@ class ProfilesViewModel(
                 Needs.PASSWORD -> _state.update { it.copy(step = if (tv) ProfilesStep.Approve(tile) else ProfilesStep.Browser(tile)) }
                 Needs.LOCKED -> {
                     pin.clear()
-                    _state.update { it.copy(step = ProfilesStep.Pin(tile, lockedOut = true, error = sentence(LOCKED))) }
+                    _state.update { it.copy(step = ProfilesStep.Pin(tile, lockedOut = true, error = UiText.Sentence(Profiles.LOCKED))) }
                 }
             }
         }
@@ -296,7 +299,7 @@ class ProfilesViewModel(
             } catch (e: TokenException) {
                 refused(tile, e)
             } catch (e: AuthException) {
-                failed(tile, e.message.orEmpty())
+                failed(tile, e.text)
             } catch (e: IOException) {
                 unreachable(tile, e)
             } finally {
@@ -312,7 +315,7 @@ class ProfilesViewModel(
             try {
                 when (val check = source.profiles(origin).confirmPin(profile, typed)) {
                     PinCheck.Confirmed, PinCheck.Unsupported -> done()
-                    is PinCheck.Failed -> wrong(tile, check.message, lockedOut = PIN_LOCKED_WORDS in check.message)
+                    is PinCheck.Failed -> wrong(tile, check.text, lockedOut = check.text == Profiles.PIN_LOCKED)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -341,11 +344,11 @@ class ProfilesViewModel(
         }
     }
 
-    private fun wrong(tile: ProfileTile, message: String, lockedOut: Boolean) {
+    private fun wrong(tile: ProfileTile, text: UiText, lockedOut: Boolean) {
         pin.clear()
         _state.update { s ->
             val step = s.step as? ProfilesStep.Pin ?: ProfilesStep.Pin(tile)
-            s.copy(step = step.copy(digits = 0, busy = false, error = sentence(message), shakes = step.shakes + 1, lockedOut = lockedOut))
+            s.copy(step = step.copy(digits = 0, busy = false, error = UiText.Sentence(text), shakes = step.shakes + 1, lockedOut = lockedOut))
         }
     }
 
@@ -354,7 +357,7 @@ class ProfilesViewModel(
      * shake; it says so, and the PIN can be typed again once it answers.
      */
     private fun unreachable(tile: ProfileTile, e: IOException) {
-        val message = sentence("can't reach your server: ${describe(e)}")
+        val message = UiText.Sentence(UiText.res(R.string.onboarding_cant_reach_server, errorText(e)))
         pin.clear()
         _state.update { s ->
             when (val step = s.step) {
@@ -364,11 +367,11 @@ class ProfilesViewModel(
         }
     }
 
-    private fun failed(tile: ProfileTile, message: String) {
+    private fun failed(tile: ProfileTile, text: UiText) {
         if (_state.value.step is ProfilesStep.Pin) {
-            wrong(tile, message, lockedOut = false)
+            wrong(tile, text, lockedOut = false)
         } else {
-            _state.update { it.copy(error = sentence(message)) }
+            _state.update { it.copy(error = UiText.Sentence(text)) }
         }
     }
 
@@ -381,13 +384,6 @@ class ProfilesViewModel(
     private fun signedOut() {
         val origin = server ?: return
         moves.trySend(OnboardingMove.Restart(if (tv) PleyKey.Link(origin) else PleyKey.SignIn(origin)))
-    }
-
-    private companion object {
-        const val LOCKED = "this profile can't be used from the app"
-
-        /** How the sign-in module words a PIN locked after too many wrong tries (Profiles.message). */
-        const val PIN_LOCKED_WORDS = "PIN is locked"
     }
 }
 

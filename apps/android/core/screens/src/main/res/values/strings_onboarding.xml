@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What getting in says, made by its ViewModels: in lower case, the screens make sentences of them. -->
+<resources>
+    <!-- %1$s: why ("no answer in time"). -->
+    <string name="onboarding_cant_reach_server">can\'t reach your server: %1$s</string>
+    <string name="onboarding_demo_failed">the demo server didn\'t answer</string>
+</resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The TV player's subtitle sync, sleep timer and a playback the server stopped. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- The subtitles panel's row that moves the subtitles in time. -->
     <string name="tv_player_sync">Sync</string>
     <string name="tv_player_sync_hint">OK resets</string>

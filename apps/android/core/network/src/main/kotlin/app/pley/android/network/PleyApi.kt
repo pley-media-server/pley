@@ -109,11 +109,18 @@ interface PleyApi {
     /** GET /api/health: `{ "status": "ok" }` while the server runs. No token needed. */
     suspend fun health(): Health
 
-    /** GET /api/server: the server's name and version. No token needed. */
+    /** GET /api/server: the server's name, version and language. No token needed. */
     suspend fun server(): ServerInfo
 
     /** GET /api/auth/me: the profile the app acts as, and what it was allowed. Any app token. */
     suspend fun me(): Me
+
+    /**
+     * PUT /api/me/language: the language Pley is in for the profile ("en",
+     * "fr", "es"), `null` for the server's; the profile, as [me] answers it.
+     * Scope `play`.
+     */
+    suspend fun setLanguage(language: String?): Me
 
     /**
      * GET /api/users/{id}/avatar: a profile's picture (JPEG, 256 px). Apps

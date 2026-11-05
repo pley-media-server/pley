@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- What the playback session says, in the web player's words (apps/web/src/player). -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- Qualities, in the menu's order (docs/QUALITY.md). -->
     <string name="session_quality_original">Original</string>
     <string name="session_quality_automatic">Automatic</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The phone player's subtitle sync, sleep timer and a playback the server stopped. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- The subtitles page's row that moves the subtitles in time. -->
     <string name="player_sync">Sync</string>
     <string name="player_sync_earlier">Show subtitles earlier</string>

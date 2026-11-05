@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="language_title">Langue</string>
+    <string name="language_server_default">Langue du serveur (%1$s)</string>
+    <string name="language_this_device">langue de cet appareil, %1$s</string>
+    <string name="language_hint">La langue de Pley pour vous, sur tous les appareils où vous vous connectez.</string>
+</resources>

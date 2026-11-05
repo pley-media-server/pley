@@ -1,5 +1,6 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -30,8 +31,8 @@ class ServerMetadataTest {
         .apply(change)
         .toString()
 
-    private fun refused(text: String, at: String = "http://192.168.1.20:7539"): String =
-        assertThrows(AuthException::class.java) { ServerMetadata.parse(text, at) }.message!!
+    private fun refused(text: String, at: String = "http://192.168.1.20:7539"): UiText =
+        assertThrows(AuthException::class.java) { ServerMetadata.parse(text, at) }.text
 
     @Test
     fun theServersOwnMetadataIsKept() {
@@ -47,7 +48,7 @@ class ServerMetadataTest {
 
     @Test
     fun theIssuerMustBeTheAddressUsed() {
-        assertTrue(refused(metadata("http://192.168.1.21:7539")).startsWith("this server calls itself"))
+        assertEquals(UiText.res(R.string.auth_other_issuer, "http://192.168.1.21:7539"), refused(metadata("http://192.168.1.21:7539")))
         refused(metadata("https://192.168.1.20:7539"))
         refused(metadata("http://192.168.1.20:7539/"))
         refused(metadata("http://192.168.1.20:7539/pley"))
@@ -78,7 +79,7 @@ class ServerMetadataTest {
         server.enqueue(MockResponse().setBody("not json").setHeader("Content-Type", "application/json"))
         repeat(3) {
             val e = runCatching { ServerMetadata.fetch(http, server.url("/").toString()) }.exceptionOrNull()
-            assertEquals(TOO_OLD, e?.message)
+            assertEquals(TOO_OLD, textOf(e))
         }
         assertEquals("/.well-known/oauth-authorization-server", server.takeRequest().path)
     }

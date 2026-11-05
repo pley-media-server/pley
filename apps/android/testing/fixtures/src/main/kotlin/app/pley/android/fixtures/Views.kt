@@ -320,6 +320,7 @@ internal class Views(private val catalog: Catalog) {
         subtitleMode = profile.trackDefaults.subtitleMode,
         hasPassword = profile.hasPassword,
         scope = scope,
+        language = profile.language,
     )
 
     fun history(record: HistoryRecord, profile: Profile): HistoryEntry? {

@@ -1,5 +1,6 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -109,15 +110,15 @@ class ProfilesTest {
         store.save(savedTokens(issuer))
         val (profiles, tokens) = profiles()
         val kid = Profile(2, "Kid", null, null, false, Needs.PIN)
-        for ((reason, message) in listOf(
-            "wrong_pin" to "wrong PIN",
+        for ((reason, text) in listOf(
+            "wrong_pin" to UiText.res(R.string.auth_wrong_pin),
             // The server's own sentence says how long to wait.
-            "throttled" to "too many attempts, try again in 12 min",
-            "pin_locked" to "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
-            "not_allowed" to "you can't switch to this profile",
+            "throttled" to UiText.raw("too many attempts, try again in 12 min"),
+            "pin_locked" to Profiles.PIN_LOCKED,
+            "not_allowed" to UiText.res(R.string.auth_not_allowed),
         )) {
-            switchAnswer = refusal(reason, description = if (reason == "throttled") message else "no")
-            assertEquals(SwitchResult.Failed(message), profiles.switchTo(kid, "0000"))
+            switchAnswer = refusal(reason, description = if (text is UiText.Raw) text.text else "no")
+            assertEquals(SwitchResult.Failed(text), profiles.switchTo(kid, "0000"))
             assertEquals("pley_rt_one", store.load(issuer)!!.refreshToken)
             assertTrue(tokens.signedIn.value)
         }
@@ -132,7 +133,7 @@ class ProfilesTest {
         assertEquals(SwitchResult.NeedsPin, profiles.switchTo(Profile(1, "Sam", null, null, false, Needs.NONE)))
         assertFalse(switches.single().containsKey("pin"))
         // A PIN that was sent is wrong.
-        assertEquals(SwitchResult.Failed("wrong PIN"), profiles.switchTo(Profile(2, "Kid", null, null, false, Needs.PIN), "0000"))
+        assertEquals(SwitchResult.Failed(UiText.res(R.string.auth_wrong_pin)), profiles.switchTo(Profile(2, "Kid", null, null, false, Needs.PIN), "0000"))
     }
 
     @Test
@@ -145,7 +146,7 @@ class ProfilesTest {
         switchAnswer = refusal("browser")
         assertEquals(SwitchResult.SignInAgain, profiles.switchTo(Profile(1, "Sam", null, null, false, Needs.NONE)))
         assertTrue(tokens.signedIn.value)
-        assertEquals(SwitchResult.Failed("this profile can't be used from the app"), profiles.switchTo(Profile(4, "Old", null, null, false, Needs.LOCKED)))
+        assertEquals(SwitchResult.Failed(Profiles.LOCKED), profiles.switchTo(Profile(4, "Old", null, null, false, Needs.LOCKED)))
     }
 
     @Test
@@ -154,7 +155,7 @@ class ProfilesTest {
         val (profiles, tokens) = profiles()
         val sam = Profile(1, "Sam", null, null, false, Needs.NONE)
         switchAnswer = refusal(null, "unauthorized_client")
-        assertEquals(SwitchResult.Failed("this sign-in can't switch profiles: sign in again to allow it"), profiles.switchTo(sam))
+        assertEquals(SwitchResult.Failed(Profiles.CANT_SWITCH), profiles.switchTo(sam))
         // A spent refresh token: signed out.
         switchAnswer = refusal(null)
         assertThrows(SignedOutException::class.java) { runBlocking { profiles.switchTo(sam) } }

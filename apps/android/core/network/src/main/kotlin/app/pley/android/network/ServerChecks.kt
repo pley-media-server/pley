@@ -1,11 +1,13 @@
 package app.pley.android.network
 
+import app.pley.android.auth.NOT_AN_ADDRESS
 import app.pley.android.common.Addresses
 import app.pley.android.common.DEFAULT_PORT
 import app.pley.android.common.FoundServer
 import app.pley.android.common.LocalNetwork
 import app.pley.android.common.Servers
-import app.pley.android.common.describe
+import app.pley.android.common.UiText
+import app.pley.android.common.errorText
 import app.pley.android.model.ServerInfo
 import java.io.IOException
 import java.net.URI
@@ -21,6 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import app.pley.android.common.R as CommonR
 
 /** What GET /api/server at [origin] answered, if it is pley: a name and a version. */
 internal suspend fun OkHttpClient.pleyAt(origin: String): ServerInfo {
@@ -119,7 +122,7 @@ internal class HttpServerProbe(
 ) : ServerProbe {
     override suspend fun probe(input: String): ProbeResult {
         val candidates = ArrayDeque(Servers.candidates(input))
-        if (candidates.isEmpty()) return ProbeResult.Unreachable("that isn't a server address")
+        if (candidates.isEmpty()) return ProbeResult.Unreachable(NOT_AN_ADDRESS)
         val tried = mutableSetOf<String>()
         var notPley: ProbeResult.NotPley? = null
         var failure: Throwable? = null
@@ -149,7 +152,7 @@ internal class HttpServerProbe(
                 failure = e
             }
         }
-        return notPley ?: ProbeResult.Unreachable(failure?.let { describe(it.cause ?: it) } ?: "nothing answers there")
+        return notPley ?: ProbeResult.Unreachable(failure?.let { errorText(it.cause ?: it) } ?: UiText.res(CommonR.string.error_nothing_answers))
     }
 
     /** A redirect from http to https on the same host (a proxy that wants https): that origin, else `null`. */

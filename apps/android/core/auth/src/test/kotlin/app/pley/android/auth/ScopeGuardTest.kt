@@ -80,7 +80,7 @@ class ScopeGuardTest {
         val state = java.net.URI(url).rawQuery.split('&').first { it.startsWith("state=") }.substringAfter('=')
         answer = wider()
         val callback = Callback.parse("$REDIRECT_URI?code=c&state=$state&iss=${SignIn.encode(issuer)}")!!
-        assertEquals(SignInState.Failed(WIDER_SCOPE_MESSAGE), signIn.finish(callback))
+        assertEquals(SignInState.Failed(WIDER_SCOPE), signIn.finish(callback))
         assertEquals(listOf(mapOf("token" to "pley_rt_wide", "client_id" to CLIENT_ID)), revokes)
         // Nothing kept: the sign-in before stays.
         assertEquals("pley_rt_old", store.load(issuer)!!.refreshToken)

@@ -1,5 +1,6 @@
 package app.pley.android
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.Tier
 import app.pley.android.common.perf.FrameRate
 import app.pley.android.data.SessionState
@@ -55,6 +57,10 @@ class TvActivity : ComponentActivity() {
 
     /** The item of [link], once its profile is the one signed in. */
     private val opened = MutableStateFlow<Long?>(null)
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

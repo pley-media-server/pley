@@ -1,6 +1,7 @@
 package app.pley.android
 
 import android.app.UiModeManager
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -12,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import app.pley.android.common.AppLanguage
 import app.pley.android.ui.phone.shell.PhoneApp
 import app.pley.android.ui.phone.shell.PhoneStart
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,10 @@ import kotlinx.coroutines.launch
  * activity's back dispatcher).
  */
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)

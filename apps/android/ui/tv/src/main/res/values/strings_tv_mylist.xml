@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- My List: the item page's button and the tiles' actions. -->
     <string name="tv_item_add_to_my_list">Add to My List</string>
     <string name="tv_item_in_my_list">In My List</string>

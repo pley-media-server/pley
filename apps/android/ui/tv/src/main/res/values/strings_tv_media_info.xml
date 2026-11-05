@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The technical readout: the player's Info panel and Playback details, and the item page's Media info. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="tv_readout_playback">Playback</string>
     <string name="tv_readout_why">Why</string>
     <string name="tv_readout_quality">Quality</string>

@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import app.pley.android.auth.AuthEvent
 import app.pley.android.common.describe
+import app.pley.android.common.resolve
 import app.pley.android.data.Loadable
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
@@ -162,7 +163,7 @@ class PhoneShellState internal constructor(
     /** The sign-in module ended a sign-in: if it was this server's, back to signing in to it, saying why. */
     internal fun on(event: AuthEvent) {
         when (event) {
-            is AuthEvent.SignedOut -> if (signedOut(event.issuer)) toasts.show(sentence(event.reason.message), error = true)
+            is AuthEvent.SignedOut -> if (signedOut(event.issuer)) toasts.show(sentence(event.reason.text.resolve(resources)), error = true)
         }
     }
 

@@ -40,18 +40,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.onboarding.LinkStatus
 import app.pley.android.screens.onboarding.LinkUiState
 import app.pley.android.screens.onboarding.LinkViewModel
 import app.pley.android.screens.onboarding.go
 import app.pley.android.screens.onboarding.onboardingSource
-import app.pley.android.screens.onboarding.sentence
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.BusyLine
 import app.pley.android.ui.phone.kit.PleyTextButton
@@ -202,7 +203,7 @@ private fun Status(status: LinkStatus) {
         }
         LinkStatus.Declined -> Text(stringResource(R.string.onboarding_link_declined), style = MaterialTheme.typography.bodyMedium, color = PleyColors.DangerText, modifier = live)
         LinkStatus.Expired -> Text(stringResource(R.string.onboarding_link_expired), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, modifier = live)
-        is LinkStatus.Failed -> Text(sentence(status.message), style = MaterialTheme.typography.bodyMedium, color = PleyColors.DangerText, modifier = live)
+        is LinkStatus.Failed -> Text(UiText.Sentence(status.text).asString(), style = MaterialTheme.typography.bodyMedium, color = PleyColors.DangerText, modifier = live)
         is LinkStatus.SignedIn -> Unit
     }
 }

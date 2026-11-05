@@ -34,6 +34,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.AppSettings
 import app.pley.android.data.SessionState
 import app.pley.android.data.Settings
@@ -100,6 +101,10 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             val c = controller.value ?: return
             if (isPlaying(c.state.value.phase)) c.pause() else c.play()
         }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

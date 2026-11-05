@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!-- The remote of the profile's other devices: the bar above the tabs and its sheet (apps/web/src/components/Remote.tsx). -->
     <string name="remote_playing_on">Playing on %1$s</string>
     <plurals name="remote_playing_on_devices">

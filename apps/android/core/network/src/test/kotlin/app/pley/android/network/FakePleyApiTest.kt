@@ -37,6 +37,7 @@ class FakePleyApiTest {
         assertEquals("ok", api.health().status)
         assertEquals("Living Room", api.server().name)
         assertEquals(2L, api.me().id)
+        assertEquals("fr", api.setLanguage("fr").language)
         assertEquals(3, api.libraries().size)
         assertEquals("Movies", api.library(1).name)
         assertEquals(listOf(3L, 1L, 2L), api.sortLibraries(LibraryIds(listOf(3, 1, 2))).map { it.id })

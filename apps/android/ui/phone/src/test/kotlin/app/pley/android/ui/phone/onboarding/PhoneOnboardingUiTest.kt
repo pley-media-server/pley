@@ -18,6 +18,8 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import app.pley.android.auth.Needs
+import app.pley.android.auth.TOO_OLD
+import app.pley.android.common.UiText
 import app.pley.android.screens.onboarding.BrowserSignIn
 import app.pley.android.screens.onboarding.LinkCode
 import app.pley.android.screens.onboarding.LinkStatus
@@ -35,6 +37,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import app.pley.android.common.R as CommonR
 
 /**
  * Getting in on a phone: the sign-in page (cards, the typed address, the
@@ -117,7 +120,7 @@ class PhoneOnboardingUiTest {
     @Test
     fun theUnencryptedWarningAndTheBrowsersStatesShow() {
         signIn(
-            ServersUiState(rows = listOf(nas), selected = nas.url, problem = ServersProblem.Unreachable("192.168.1.20:7539", "nothing answers there")),
+            ServersUiState(rows = listOf(nas), selected = nas.url, problem = ServersProblem.Unreachable("192.168.1.20:7539", UiText.res(CommonR.string.error_nothing_answers))),
             BrowserSignIn.Waiting,
         )
         compose.onNodeWithText("Couldn't reach 192.168.1.20:7539: nothing answers there").assertExists()
@@ -129,7 +132,7 @@ class PhoneOnboardingUiTest {
     fun anOlderServerOffersItsPageInTheBrowser() {
         signIn(
             ServersUiState(rows = listOf(nas), selected = nas.url),
-            BrowserSignIn.Failed(nas.url, SignInProblem.TooOld, "this server is too old for this app"),
+            BrowserSignIn.Failed(nas.url, SignInProblem.TooOld, TOO_OLD),
         )
         compose.onNodeWithText("Update Pley on Living room NAS to sign in from the app").assertExists()
         compose.onNodeWithText("Open in browser").performClick()

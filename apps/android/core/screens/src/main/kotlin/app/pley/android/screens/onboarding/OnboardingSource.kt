@@ -12,6 +12,7 @@ import app.pley.android.auth.AuthException
 import app.pley.android.auth.DeviceCode
 import app.pley.android.auth.DevicePoll
 import app.pley.android.auth.DeviceSignIn
+import app.pley.android.auth.NO_BROWSER
 import app.pley.android.auth.PinCheck
 import app.pley.android.auth.Profile
 import app.pley.android.auth.SignInState
@@ -176,7 +177,7 @@ private class GraphOnboardingSource(private val graph: ScreensGraph, private val
     }
 
     override suspend fun signInWithBrowser(activity: Activity?, server: String) {
-        if (activity == null) throw AuthException("there's no browser on this device to sign in with")
+        if (activity == null) throw AuthException(NO_BROWSER)
         val private = withContext(Dispatchers.Default) { graph.data.settings.settings.first().privateSignInTab }
         // Keeping the waiting sign-in writes to disk; the tab opens from any thread.
         withContext(Dispatchers.IO) { graph.auth.signInWithBrowser(activity, server, private) }

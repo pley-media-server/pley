@@ -40,11 +40,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.onboarding.LinkCode
 import app.pley.android.screens.onboarding.LinkPurpose
@@ -53,7 +55,6 @@ import app.pley.android.screens.onboarding.LinkUiState
 import app.pley.android.screens.onboarding.LinkViewModel
 import app.pley.android.screens.onboarding.go
 import app.pley.android.screens.onboarding.onboardingSource
-import app.pley.android.screens.onboarding.sentence
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextButton
@@ -295,7 +296,7 @@ private fun Status(status: LinkStatus, modifier: Modifier) {
         }
         LinkStatus.Declined -> StatusLine(stringResource(R.string.tv_onboarding_declined), live, style = danger)
         LinkStatus.Expired -> StatusLine(stringResource(R.string.tv_onboarding_expired), live, style = muted)
-        is LinkStatus.Failed -> StatusLine(sentence(status.message), live.width(440.dp), style = danger)
+        is LinkStatus.Failed -> StatusLine(UiText.Sentence(status.text).asString(), live.width(440.dp), style = danger)
         is LinkStatus.SignedIn -> Unit
     }
 }

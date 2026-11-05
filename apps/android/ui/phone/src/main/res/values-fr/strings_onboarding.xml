@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_title">Se connecter à Pley</string>
+    <string name="onboarding_found">Choisissez votre serveur. Pley a trouvé ceux-ci sur votre réseau.</string>
+    <string name="onboarding_choose">Choisissez votre serveur.</string>
+    <string name="onboarding_none">Aucun serveur n’a répondu. Vérifiez que Pley y est lancé, ou saisissez son adresse.</string>
+    <string name="onboarding_searching">Recherche de serveurs sur ce réseau…</string>
+    <string name="onboarding_search_again">Relancer la recherche sur le réseau</string>
+    <string name="onboarding_on_network">Sur ce réseau</string>
+    <string name="onboarding_unreachable">Injoignable</string>
+    <string name="onboarding_lookalike">Pas votre serveur enregistré</string>
+    <string name="onboarding_unencrypted">Non chiffré</string>
+    <string name="onboarding_enter_address">Saisir une adresse</string>
+    <string name="onboarding_address_label">Adresse du serveur</string>
+    <string name="onboarding_address_placeholder">nas, 192.168.1.20 ou https://…</string>
+    <string name="onboarding_connect">Connecter</string>
+    <string name="onboarding_checking">Vérification…</string>
+    <string name="onboarding_continue">Continuer dans le navigateur</string>
+    <string name="onboarding_two_step_required">Ce serveur exige la connexion en deux étapes : vous la configurerez en vous connectant, si ce n’est pas déjà fait.</string>
+    <string name="onboarding_code_primary">Se connecter avec un code depuis un autre appareil</string>
+    <string name="onboarding_demo">Utiliser le serveur de démonstration</string>
+    <string name="onboarding_forget">Oublier</string>
+    <string name="onboarding_forget_title">Oublier %1$s ?</string>
+    <string name="onboarding_forget_body">Pley déconnecte ce téléphone de ce serveur et supprime ce qu’il en a enregistré.</string>
+    <string name="onboarding_retry">Réessayer</string>
+
+    <string name="onboarding_access_denied">Pley a besoin d’accéder aux appareils de votre réseau pour trouver et joindre les serveurs de votre domicile.</string>
+    <string name="onboarding_open_settings">Ouvrir les paramètres</string>
+
+    <string name="onboarding_problem_unreachable">Impossible de joindre %1$s : %2$s</string>
+    <string name="onboarding_problem_not_pley">Quelque chose répond à %1$s, mais ce n’est pas Pley.</string>
+    <string name="onboarding_problem_unencrypted">%1$s n’est pas chiffré : votre mot de passe et ce que vous regardez pourraient être lus en chemin. Utilisez son adresse https s’il en a une, ou touchez de nouveau Connecter pour continuer quand même.</string>
+    <string name="onboarding_problem_address">Saisissez une adresse comme nas, 192.168.1.20 ou https://pley.example.com.</string>
+
+    <string name="onboarding_opening">Ouverture de votre navigateur…</string>
+    <string name="onboarding_waiting">Terminez la connexion dans votre navigateur.</string>
+    <string name="onboarding_finishing">Connexion…</string>
+    <string name="onboarding_too_old">Mettez à jour Pley sur %1$s pour vous connecter depuis l’application</string>
+    <string name="onboarding_open_in_browser">Ouvrir dans le navigateur</string>
+
+    <string name="onboarding_link_title">Se connecter avec un code</string>
+    <string name="onboarding_link_go_to">Sur un autre appareil, allez sur</string>
+    <string name="onboarding_link_enter">et saisissez ce code</string>
+    <string name="onboarding_link_other_device">Ou ouvrez Pley sur un appareil connecté → Associer une TV</string>
+    <string name="onboarding_link_two_step_required">Ce serveur exige la connexion en deux étapes : l’appareil qui approuve le code la configure si ce n’est pas déjà fait.</string>
+    <string name="onboarding_link_waiting">En attente d’approbation…</string>
+    <string name="onboarding_link_getting">Obtention d’un code…</string>
+    <string name="onboarding_link_declined">Demande refusée</string>
+    <string name="onboarding_link_expired">Code expiré : demandez-en un nouveau</string>
+    <string name="onboarding_link_new_code">Obtenir un nouveau code</string>
+    <string name="onboarding_link_retrying">Impossible de joindre le serveur. Nouvel essai dans %1$d s</string>
+    <string name="onboarding_link_signed_in">Connexion réussie en tant que %1$s</string>
+    <string name="onboarding_link_signed_in_plain">Connexion réussie</string>
+    <string name="onboarding_link_code_label">Le code : %1$s</string>
+    <string name="onboarding_change_server">Changer de serveur</string>
+
+    <string name="onboarding_profiles_title">Changer de profil</string>
+    <string name="onboarding_profile_current">%1$s, le profil utilisé</string>
+    <string name="onboarding_profile_pin">%1$s, profil protégé par un code PIN</string>
+    <string name="onboarding_enter_pin">Saisissez le code PIN de %1$s</string>
+    <plurals name="onboarding_pin_entered">
+        <item quantity="one">%1$d chiffre saisi</item>
+        <item quantity="many">%1$d de chiffres saisis</item>
+        <item quantity="other">%1$d chiffres saisis</item>
+    </plurals>
+    <string name="onboarding_digit">chiffre %1$d</string>
+    <string name="onboarding_delete">Effacer</string>
+    <string name="onboarding_ok">OK</string>
+    <string name="onboarding_use_another">Utiliser un autre profil</string>
+    <string name="onboarding_another_profile">Se connecter avec un autre profil</string>
+    <string name="onboarding_password_title">Se connecter en tant que %1$s ?</string>
+    <string name="onboarding_password_body">Le profil de %1$s demande un mot de passe. Saisissez-le sur la page de Pley dans votre navigateur.</string>
+    <string name="onboarding_another_body">Connectez-vous sur la page de Pley dans votre navigateur, avec le profil de votre choix.</string>
+    <string name="onboarding_profiles_failed">Impossible de charger les profils</string>
+</resources>

@@ -1,6 +1,7 @@
 package app.pley.android.player.session
 
 import android.content.Context
+import app.pley.android.common.AppLanguage
 import app.pley.android.player.CastFrom
 import app.pley.android.common.asSentence
 import app.pley.android.model.PlaybackInfo
@@ -128,9 +129,10 @@ interface PlayerTexts {
     fun speed(speed: String, readySeconds: Int): String
 }
 
-/** [PlayerTexts] from the app's resources. */
+/** [PlayerTexts] from the app's resources, in the language shown. */
 class ResourcePlayerTexts(context: Context) : PlayerTexts {
-    private val res = context.applicationContext.resources
+    private val app = context.applicationContext
+    private val res get() = AppLanguage.resources(app)
 
     private fun s(id: Int) = res.getString(id)
 

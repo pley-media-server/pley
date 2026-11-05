@@ -6,6 +6,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import app.pley.android.common.Addresses
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.common.UserFacing
 import java.io.IOException
 import java.security.MessageDigest
@@ -61,14 +63,17 @@ data class ServerProof(val serverId: String, val proofId: String, val proofKey: 
 }
 
 /** Why a token isn't sent to a server's address: what answers there can't prove it is the server signed in to. */
-const val NOT_YOUR_SERVER = "another device answers there"
+val NOT_YOUR_SERVER: UiText = UiText.res(R.string.auth_not_your_server)
 
 /**
  * What answers at the server's address can't prove it is the server signed
  * in to. Not an [AuthException]: the app treats it as the server being out
  * of reach, shows what it saved and tries again later.
  */
-class NotYourServerException : IOException(NOT_YOUR_SERVER), UserFacing
+class NotYourServerException : IOException(), UserFacing {
+    override val text: UiText get() = NOT_YOUR_SERVER
+    override val message: String get() = AppLanguage.wordsOf(text)
+}
 
 /** The server's proofs, as the app checks them. */
 object ServerProofs {

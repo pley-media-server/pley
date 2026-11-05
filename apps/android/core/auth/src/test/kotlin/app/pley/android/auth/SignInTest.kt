@@ -1,5 +1,6 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import java.net.URI
 import java.net.URLDecoder
 import kotlinx.coroutines.runBlocking
@@ -157,14 +158,14 @@ class SignInTest {
     fun errorsFromTheServerAreShown() = runBlocking {
         var state = query(signIn.start(server.url("/").toString()))["state"]!!
         assertEquals(
-            SignInState.Failed("you didn't allow the app"),
+            SignInState.Failed(UiText.res(R.string.auth_denied)),
             signIn.finish(callback("error" to "access_denied", "state" to state, "iss" to issuer)),
         )
         state = query(signIn.start(server.url("/").toString()))["state"]!!
         val failed = signIn.finish(
             callback("error" to "invalid_scope", "error_description" to "this app asked for access‮ Pley doesn't offer", "state" to state, "iss" to issuer),
         ) as SignInState.Failed
-        assertEquals("the server refused: this app asked for access Pley doesn't offer", failed.message)
+        assertEquals(UiText.res(R.string.auth_refused_said, "this app asked for access Pley doesn't offer"), failed.text)
         state = query(signIn.start(server.url("/").toString()))["state"]!!
         assertTrue(signIn.finish(callback("state" to state, "iss" to issuer)) is SignInState.Failed)
         assertEquals(0, posted("/api/oauth/token").size)
@@ -217,7 +218,7 @@ class SignInTest {
     fun aRefusedCodeSaysToTryAgain() = runBlocking {
         val state = query(signIn.start(server.url("/").toString()))["state"]!!
         tokenAnswers += MockResponse().setResponseCode(400).setBody("{\"error\":\"invalid_grant\",\"error_description\":\"the code was used already\"}")
-        assertEquals(SignInState.Failed("the sign-in took too long: try again"), signIn.finish(callback("code" to "c", "state" to state, "iss" to issuer)))
+        assertEquals(SignInState.Failed(UiText.res(R.string.auth_too_long)), signIn.finish(callback("code" to "c", "state" to state, "iss" to issuer)))
         assertNull(store.load(issuer))
     }
 
@@ -275,7 +276,7 @@ class SignInTest {
     @Test
     fun plainHttpIsForTheHomeNetworkOnly() {
         val refused = runCatching { runBlocking { signIn.start("http://pley.example.com:7539") } }.exceptionOrNull()
-        assertEquals(UNENCRYPTED, refused?.message)
+        assertEquals(UNENCRYPTED, textOf(refused))
         assertEquals(0, server.requestCount)
     }
 }

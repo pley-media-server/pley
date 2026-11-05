@@ -5,12 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.DownloadState
 import app.pley.android.model.format.formatBytes
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +34,11 @@ import kotlinx.coroutines.withContext
 class DownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var run: Job? = null
+
+    // The notification's words in the language shown.
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLanguage.wrap(base))
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 

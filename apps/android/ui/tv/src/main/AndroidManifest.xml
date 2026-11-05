@@ -5,12 +5,12 @@
         <!--
           The TV player: a remote or keyboard connecting mid-film doesn't
           restart it, and neither does the display changing its mode for the
-          video (size, density, layout). Never in picture in picture, and
-          never playing behind another app.
+          video (size, density, layout) or another language. Never in
+          picture in picture, and never playing behind another app.
         -->
         <activity
             android:name=".player.TvPlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode|locale|layoutDirection"
             android:supportsPictureInPicture="false"
             android:exported="false"
             android:theme="@style/Theme.PleyTv.Player" />
@@ -18,7 +18,7 @@
         <!-- The live player (Live TV), as the player: never rebuilt mid-channel, never in picture in picture. -->
         <activity
             android:name=".livetv.TvLivePlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode|locale|layoutDirection"
             android:supportsPictureInPicture="false"
             android:exported="false"
             android:theme="@style/Theme.PleyTv.Player" />

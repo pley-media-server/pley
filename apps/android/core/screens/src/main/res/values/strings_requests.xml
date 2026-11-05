@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!--
         Requests and Discover, on phones and tablets.
         Buttons say Request; running text says "ask for". Limits are "per

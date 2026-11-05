@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_cant_reach_server">no se puede conectar con tu servidor: %1$s</string>
+    <string name="onboarding_demo_failed">el servidor de demostración no respondió</string>
+</resources>

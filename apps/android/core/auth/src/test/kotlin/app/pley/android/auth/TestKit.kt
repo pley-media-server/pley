@@ -1,10 +1,15 @@
 package app.pley.android.auth
 
 import app.pley.android.common.Addresses
+import app.pley.android.common.UiText
+import app.pley.android.common.UserFacing
 import javax.crypto.KeyGenerator
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+
+/** What the screens show of [error]: the sign-in's own words. */
+fun textOf(error: Throwable?): UiText? = (error as? UserFacing)?.text
 
 /** The shelf of a test: a map, with what was written. */
 class MemoryShelf : Shelf {

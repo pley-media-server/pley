@@ -1,5 +1,6 @@
 package app.pley.android.network
 
+import app.pley.android.auth.NOT_AN_ADDRESS
 import app.pley.android.common.FoundServer
 import app.pley.android.common.Tier
 import app.pley.android.model.ServerInfo
@@ -253,7 +254,7 @@ class ServerChecksTest {
 
         // Refused, or (Windows retries refused loopback connections) no answer in time.
         assertTrue(graph.probe.probe(closedPort()) is ProbeResult.Unreachable)
-        assertEquals(ProbeResult.Unreachable("that isn't a server address"), graph.probe.probe("not an address"))
+        assertEquals(ProbeResult.Unreachable(NOT_AN_ADDRESS), graph.probe.probe("not an address"))
     }
 
     @Test

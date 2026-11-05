@@ -8,6 +8,7 @@ import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.JobState
+import app.pley.android.model.LanguageChoice
 import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
 import app.pley.android.model.Me
@@ -104,6 +105,7 @@ internal class PlayRoutes(private val s: State) {
             if (c.profile.history.removeAll { it.id == id }) Reply.noContent() else Reply.notFound("no such play")
         },
         route("PUT", "/api/me/track-defaults", PLAY) { call, c, _ -> trackDefaults(call, c) },
+        route("PUT", "/api/me/language", PLAY) { call, c, _ -> language(call, c) },
     )
 
     // ---------------------------------------------------------------- sessions
@@ -717,7 +719,19 @@ internal class PlayRoutes(private val s: State) {
         return Reply.json(Me.serializer(), s.views.me(caller.profile, caller.scope))
     }
 
+    /** PUT /api/me/language: "en", "fr", "es" or `null` (the server's); answers the profile. */
+    private fun language(call: Call, caller: Caller): MockResponse {
+        val choice = call.body(LanguageChoice.serializer()) ?: return Reply.badRequest("the body isn't a language")
+        if (choice.language != null && choice.language !in LANGUAGES) return Reply.badRequest("language is one of en, fr, es, or null")
+        caller.profile.language = choice.language
+        caller.profile.version++
+        return Reply.json(Me.serializer(), s.views.me(caller.profile, caller.scope))
+    }
+
     companion object {
+        /** The languages Pley is in. */
+        private val LANGUAGES = setOf("en", "fr", "es")
+
         /** Segments of the committed HLS stream (20 s in 4 s segments). */
         const val HLS_SEGMENTS = 5
 

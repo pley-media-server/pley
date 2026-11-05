@@ -164,7 +164,8 @@ class SnapshotFirstTest {
         assertEquals(Loadable.Ready(home, fresh = true), seen.last())
         // The listings' requests carry the profile, so they get its HTTP cache.
         assertTrue(data.apis.contains(data.issuer to 2L))
-        assertEquals(listOf("me", "homeHubs"), data.api.calls.map { it.method })
+        // GET /api/server, for the server's language, goes beside GET /api/auth/me.
+        assertEquals(listOf("me", "server", "homeHubs"), data.api.calls.map { it.method })
     }
 
     @Test

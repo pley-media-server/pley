@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_onboarding_servers_title">Choisissez votre serveur</string>
+    <string name="tv_onboarding_on_network">Sur ce réseau</string>
+    <string name="tv_onboarding_unreachable">Injoignable</string>
+    <string name="tv_onboarding_lookalike">Pas votre serveur enregistré</string>
+    <string name="tv_onboarding_unencrypted">Non chiffré</string>
+    <string name="tv_onboarding_searching">Recherche de Pley sur votre réseau…</string>
+    <string name="tv_onboarding_none_found">Aucun serveur trouvé. Vérifiez que cette TV et le serveur sont sur le même réseau.</string>
+    <string name="tv_onboarding_enter_address">Saisir une adresse</string>
+    <string name="tv_onboarding_search_network">Rechercher sur ce réseau</string>
+    <string name="tv_onboarding_sweeping">Vérification de %1$s…</string>
+    <string name="tv_onboarding_sweeping_network">Vérification de ce réseau…</string>
+    <string name="tv_onboarding_demo">Utiliser le serveur de démonstration</string>
+    <string name="tv_onboarding_demo_starting">Démarrage du serveur de démonstration…</string>
+    <string name="tv_onboarding_connecting">Connexion à %1$s…</string>
+    <string name="tv_onboarding_forget_hint">Maintenez OK sur un serveur enregistré pour l’oublier.</string>
+    <string name="tv_onboarding_forget_title">Oublier %1$s ?</string>
+    <string name="tv_onboarding_forget_body">Pley déconnecte cette TV de ce serveur et supprime ce qu’elle en a enregistré.</string>
+    <string name="tv_onboarding_forget">Oublier</string>
+    <string name="tv_onboarding_cancel">Annuler</string>
+
+    <string name="tv_onboarding_access_title">Autoriser Pley sur votre réseau</string>
+    <string name="tv_onboarding_access_body">Pley recherche les serveurs sur le réseau de votre domicile. Autorisez-le à voir les appareils de ce réseau.</string>
+    <string name="tv_onboarding_continue">Continuer</string>
+    <string name="tv_onboarding_access_denied">Pley a besoin d’accéder aux appareils de votre réseau pour trouver et joindre les serveurs de votre domicile.</string>
+    <string name="tv_onboarding_open_settings">Ouvrir les paramètres</string>
+
+    <string name="tv_onboarding_problem_unreachable">Impossible de joindre %1$s : %2$s</string>
+    <string name="tv_onboarding_problem_not_pley">Quelque chose répond à %1$s, mais ce n’est pas Pley.</string>
+    <string name="tv_onboarding_problem_unencrypted">%1$s n’est pas chiffré : ce que vous regardez pourrait être lu en chemin. Utilisez son adresse https s’il en a une, ou appuyez de nouveau sur Connecter pour continuer quand même.</string>
+    <string name="tv_onboarding_problem_address">Saisissez une adresse comme nas, 192.168.1.20 ou pley.example.com.</string>
+
+    <string name="tv_onboarding_address_title">Saisissez l’adresse de votre serveur</string>
+    <string name="tv_onboarding_address_placeholder">192.168.1.20 ou pley.example.com</string>
+    <string name="tv_onboarding_address_hint">Le port 7539 est utilisé par défaut.</string>
+    <string name="tv_onboarding_connect">Connecter</string>
+    <string name="tv_onboarding_checking">Vérification…</string>
+
+    <string name="tv_onboarding_link_title">Se connecter à Pley</string>
+    <string name="tv_onboarding_two_step_required">Ce serveur exige la connexion en deux étapes : votre téléphone la configure si ce n’est pas déjà fait.</string>
+    <string name="tv_onboarding_link_scan_step">Scannez le code avec votre téléphone</string>
+    <string name="tv_onboarding_link_go_to">ou allez sur</string>
+    <string name="tv_onboarding_link_enter_step">et saisissez ce code</string>
+    <string name="tv_onboarding_link_same_wifi">Votre téléphone doit être sur le même réseau Wi-Fi que cette TV.</string>
+    <string name="tv_onboarding_link_other_device">Ou ouvrez Pley sur un appareil connecté → Associer une TV</string>
+    <string name="tv_onboarding_link_scan">Scannez avec l’appareil photo de votre téléphone</string>
+    <string name="tv_onboarding_change_server">Changer de serveur</string>
+    <string name="tv_onboarding_waiting">En attente d’approbation…</string>
+    <string name="tv_onboarding_getting_code">Obtention d’un code…</string>
+    <string name="tv_onboarding_declined">Demande refusée</string>
+    <string name="tv_onboarding_expired">Code expiré : appuyez sur OK pour en obtenir un nouveau</string>
+    <string name="tv_onboarding_new_code">Obtenir un nouveau code</string>
+    <string name="tv_onboarding_retrying">Impossible de joindre le serveur. Nouvel essai dans %1$d s</string>
+    <string name="tv_onboarding_signed_in">Connexion réussie en tant que %1$s</string>
+    <string name="tv_onboarding_signed_in_plain">Connexion réussie</string>
+    <string name="tv_onboarding_code_label">Le code : %1$s</string>
+
+    <string name="tv_onboarding_whos_watching">Qui regarde ?</string>
+    <string name="tv_onboarding_has_pin">%1$s, profil protégé par un code PIN</string>
+    <string name="tv_onboarding_enter_pin">Saisissez le code PIN de %1$s</string>
+    <string name="tv_onboarding_pin_hint">Vous pouvez aussi utiliser les touches numériques de votre télécommande.</string>
+    <plurals name="tv_onboarding_pin_entered">
+        <item quantity="one">%1$d chiffre saisi</item>
+        <item quantity="many">%1$d de chiffres saisis</item>
+        <item quantity="other">%1$d chiffres saisis</item>
+    </plurals>
+    <string name="tv_onboarding_digit">chiffre %1$d</string>
+    <string name="tv_onboarding_delete">Effacer</string>
+    <string name="tv_onboarding_ok">OK</string>
+    <string name="tv_onboarding_use_another">Utiliser un autre profil</string>
+    <string name="tv_onboarding_approve_title">Approuvez sur votre téléphone</string>
+    <string name="tv_onboarding_approve_body">Le profil de %1$s demande son mot de passe : approuvez ce code sur un téléphone connecté à Pley, et choisissez-y %1$s.</string>
+    <string name="tv_onboarding_another_profile">Se connecter avec un autre profil</string>
+    <string name="tv_onboarding_another_body">Approuvez ce code sur un téléphone connecté à Pley, et choisissez-y le profil.</string>
+    <string name="tv_onboarding_retry">Réessayer</string>
+</resources>

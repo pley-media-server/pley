@@ -3,6 +3,7 @@ package app.pley.android.screens.onboarding
 import androidx.lifecycle.viewModelScope
 import app.pley.android.auth.AuthException
 import app.pley.android.auth.DevicePoll
+import app.pley.android.auth.NO_CODES
 import app.pley.android.model.Me
 import app.pley.android.screens.PleyKey
 import java.io.IOException
@@ -216,7 +217,7 @@ class LinkViewModelTest {
     @Test
     fun anOlderServerSaysSoInTheModulesWords() = runTest {
         val vm = link()
-        source.startError = AuthException("this server can't sign in with a code yet: update it, or sign in with a password")
+        source.startError = AuthException(NO_CODES)
         vm.started()
         runCurrent()
         val status = vm.state.value.status

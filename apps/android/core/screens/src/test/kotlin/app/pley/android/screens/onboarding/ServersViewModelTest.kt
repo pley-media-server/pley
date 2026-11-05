@@ -187,7 +187,7 @@ class ServersViewModelTest {
         assertEquals(ServersProblem.NotPley("router:7539"), vm.state.value.addressProblem)
         vm.connect("192.168.1.77", open = true)
         advanceUntilIdle()
-        assertEquals(ServersProblem.Unreachable("192.168.1.77:7539", "nothing answers there"), vm.state.value.addressProblem)
+        assertEquals(ServersProblem.Unreachable("192.168.1.77:7539", NOTHING_ANSWERS), vm.state.value.addressProblem)
     }
 
     @Test

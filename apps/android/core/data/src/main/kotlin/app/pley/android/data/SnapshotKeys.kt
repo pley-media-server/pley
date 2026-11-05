@@ -59,6 +59,9 @@ object SnapshotKeys {
 
     fun libraryHubs(libraryId: Long) = "libhubs:$libraryId"
 
+    /** Whether [key] holds words the server writes in the language asked for: the rows' titles of Home and of a library. */
+    fun isWorded(key: String): Boolean = key == HOME || key.startsWith("libhubs:")
+
     /** The first items of a library's listing, for the first frame. */
     fun libraryHead(libraryId: Long, query: LibraryQuery) = "library:$libraryId:${queryKey(query)}:head"
 

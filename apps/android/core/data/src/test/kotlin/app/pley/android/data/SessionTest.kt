@@ -64,8 +64,8 @@ class SessionTest {
         testScheduler.runCurrent()
 
         assertEquals(alex, (states.last() as SessionState.SignedIn).session.me)
-        // Only GET /api/auth/me is waiting.
-        assertEquals(listOf("me"), after.api.calls.map { it.method })
+        // Only GET /api/auth/me is waiting, and GET /api/server for the server's language.
+        assertEquals(listOf("me", "server"), after.api.calls.map { it.method }.sorted())
         assertEquals("http://192.168.1.20:7539", File(dir, "files/${StartupFiles.SERVER}").readText())
     }
 

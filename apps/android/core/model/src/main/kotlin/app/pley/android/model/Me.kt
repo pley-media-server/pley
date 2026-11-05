@@ -43,6 +43,8 @@ data class Me(
     val twoStep: Boolean = false,
     /** What the app was allowed, separated by spaces ("library play"); `null` for a browser's session. */
     val scope: String? = null,
+    /** The language Pley is in for the profile ("en", "fr", "es"); `null`: the server's. */
+    val language: String? = null,
 ) {
     /** [scope] as a list: "library", "play", "playlists", "profiles". */
     val scopes: List<String> get() = scope?.split(' ')?.filter { it.isNotEmpty() }.orEmpty()
@@ -50,6 +52,10 @@ data class Me(
     /** The track defaults this profile has. */
     val trackDefaults: TrackDefaults get() = TrackDefaults(audioLanguage, subtitleLanguage, subtitleMode)
 }
+
+/** PUT /api/me/language: the profile's language ("en", "fr", "es"), `null` for the server's (left out on the wire). */
+@Serializable
+data class LanguageChoice(val language: String?)
 
 /** What switching to a profile takes (`needs` of GET /api/oauth/profiles). */
 @Serializable(with = ProfileNeeds.Serializer::class)

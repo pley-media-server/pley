@@ -195,7 +195,7 @@ class TokensTest {
         // The AndroidKeyStore provider throws ProviderException, a RuntimeException.
         val broken = Vault { throw java.security.ProviderException("Keystore key generation failed") }
         val refused = assertThrows(AuthException::class.java) { broken.seal(ByteArray(3), "http://nas:7539") }
-        assertEquals(Vault.UNKEPT, refused.message)
+        assertEquals(Vault.UNKEPT, refused.text)
         assertNull(broken.open(ByteArray(40), "http://nas:7539"))
         // So signing in can't keep its tokens, and says so.
         assertThrows(AuthException::class.java) { TokenStore(MemoryShelf(), broken).save(savedTokens("http://nas:7539")) }

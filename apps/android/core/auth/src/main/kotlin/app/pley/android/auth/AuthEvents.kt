@@ -1,20 +1,21 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-/** Why the app was signed out of a server without being asked to. */
-enum class SignOutReason(val message: String) {
+/** Why the app was signed out of a server without being asked to, in [text]. */
+enum class SignOutReason(val text: UiText) {
     /** The server ended the sign-in: a refresh or a profile switch answered invalid_grant. */
-    ENDED("you were signed out: sign in again"),
+    ENDED(UiText.res(R.string.auth_signed_out)),
 
     /** This device can't read its tokens anymore (the Keystore's key went with a reset or a restore). */
-    UNREADABLE("this device can't read its sign-in anymore: sign in again"),
+    UNREADABLE(UiText.res(R.string.auth_unreadable_here)),
 
     /** The server allowed more than the app asks for, so the app ended that sign-in itself. */
-    WIDER_SCOPE(WIDER_SCOPE_MESSAGE),
+    WIDER_SCOPE(app.pley.android.auth.WIDER_SCOPE),
 }
 
 /** Something about signing in that the screens should hear about, wherever it happens. */
