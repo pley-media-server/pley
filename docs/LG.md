@@ -67,12 +67,13 @@ with Dev Manager.
 Sign-in, server discovery (a broadcast, then a sweep of the TV's subnet),
 the screens, the player's keys and panels, music and offline behaviour
 follow the Android TV app. The TV shows a code to type on the server's
-`/link` page (or a QR code to it), and asks "Who's watching?" at start
-when the household has more than one profile. With Always start as, a
-start never goes on as a profile with a PIN without it: the TV keeps the
-profile it was left on (`GET /api/auth/me`, with `has_pin`), opens on its
-PIN pad when it has one, and until it knows, asks "Who's watching?". What
-differs on LG:
+`/link` page (or a QR code to it), and starts straight into Home as the
+profile it was left on when that profile has no PIN (`GET /api/auth/me`,
+with `has_pin`, kept from the last launch). In a household of more than
+one profile, a start never goes on as a profile with a PIN without it: it
+asks "Who's watching?", or opens on that profile's PIN pad with Always
+start as, and asks "Who's watching?" too until the TV knows. What differs
+on LG:
 
 ### Remote and Magic Remote
 

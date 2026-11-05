@@ -151,13 +151,10 @@ fn the_start_gate_picks_the_first_page_from_what_the_tv_kept() {
     // "Always start as" asks too while the TV doesn't know whether the profile has a PIN…
     app.state.set_always_start_as(Some(pley_fixtures::ids::ALEX));
     assert_eq!(app.state.start_route(), Route::Profiles);
-    // …and goes on as it once that is known and it has none.
+    // …and goes on as it once that is known and it has none, as a start without it does.
     assert!(app.until(|a| a.state.me().is_some()));
     assert_eq!(app.state.start_route(), Route::Home);
     app.state.set_always_start_as(None);
-    assert_eq!(app.state.start_route(), Route::Profiles);
-    // Answered in this launch: Home.
-    app.state.pass_profile_gate();
     assert_eq!(app.state.start_route(), Route::Home);
     drop(app);
 
@@ -170,6 +167,12 @@ fn the_start_gate_picks_the_first_page_from_what_the_tv_kept() {
     app.state.set_always_start_as(Some(pley_fixtures::ids::SAM));
     assert!(app.until(|a| a.state.me().is_some()));
     assert_eq!(app.state.start_route(), Route::Pin { profile: pley_fixtures::ids::SAM });
+    // Without "Always start as", "Who's watching?" asks first, until it is answered in this launch.
+    app.state.set_always_start_as(None);
+    assert_eq!(app.state.start_route(), Route::Profiles);
+    app.state.pass_profile_gate();
+    assert_eq!(app.state.start_route(), Route::Home);
+    app.state.set_always_start_as(Some(pley_fixtures::ids::SAM));
     // Who it is is saved off the main thread: the next start finds it once it is on disk.
     let snapshots = app.state.snapshots().clone();
     let start = std::time::Instant::now();
