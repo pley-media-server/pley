@@ -442,12 +442,12 @@ public static class ItemPages
         {
             case "show":
                 var count = d.ChildCount ?? seasons?.Count(s => (s.Index ?? 1) > 0);
-                if (count > 0) Text(Format.Pluralize(count.Value, "season"));
+                if (count > 0) Text(Strings.Count("item.counts.seasons", count.Value));
                 Text(YearRange(d.Year, seasons));
                 break;
             case "season":
                 Text(d.Year?.ToString(CultureInfo.InvariantCulture));
-                if (d.LeafCount > 0) Text(Format.Pluralize(d.LeafCount.Value, "episode"));
+                if (d.LeafCount > 0) Text(Strings.Count("item.counts.episodes", d.LeafCount.Value));
                 break;
             case "episode":
                 Text(ItemFormat.Date(d.ReleaseDate, culture));
@@ -533,7 +533,7 @@ public static class ItemPages
             .OrderBy(s => Array.IndexOf(StreamKinds, s.Kind)).ThenBy(s => s.Index)
             .Select(s => new StreamInfo(s.Kind, ItemFormat.CodecLabel(s.Codec), ItemFormat.LanguageName(s.Language), string.IsNullOrWhiteSpace(s.Title) ? null : s.Title, StreamDetails(s)))
             .ToList();
-        var title = !string.IsNullOrWhiteSpace(f.Edition) ? f.Edition : files.Count > 1 ? $"Version {i + 1}" : null;
+        var title = !string.IsNullOrWhiteSpace(f.Edition) ? f.Edition : files.Count > 1 ? ItemFormat.VersionNumber(i + 1) : null;
         return new MediaFileInfo(f.Id, title, rows, streams, f);
     }).ToList();
 
@@ -552,24 +552,24 @@ public static class ItemPages
             case "video":
                 if (ItemFormat.ResolutionLabel(s.Width, s.Height) is { } resolution) parts.Add(resolution);
                 if (s.Width > 0 && s.Height > 0) parts.Add($"{s.Width}×{s.Height}");
-                if (s.FrameRate > 0) parts.Add($"{Trimmed(Math.Floor(s.FrameRate.Value * 100 + 0.5) / 100.0)} fps");
-                if (s.BitDepth > 0) parts.Add($"{s.BitDepth}-bit");
+                if (s.FrameRate > 0) parts.Add(ItemFormat.FramesPerSecond(ItemFormat.Quantity(Trimmed(Math.Floor(s.FrameRate.Value * 100 + 0.5) / 100.0))));
+                if (s.BitDepth > 0) parts.Add(ItemFormat.BitDepth(s.BitDepth.Value));
                 if (ItemFormat.DynamicRangeLabel(s) is { } range) parts.Add(range);
                 if (!string.IsNullOrWhiteSpace(s.Profile)) parts.Add(s.Profile!);
                 break;
             case "audio":
                 var channels = ItemFormat.ChannelsLabel(s.Channels, s.ChannelLayout);
                 if (channels.Length > 0) parts.Add(channels);
-                if (s.SampleRate > 0) parts.Add($"{ItemFormat.Fixed(s.SampleRate.Value / 1000.0, 1)} kHz");
+                if (s.SampleRate > 0) parts.Add(ItemFormat.Kilohertz(ItemFormat.Quantity(ItemFormat.Fixed(s.SampleRate.Value / 1000.0, 1))));
                 break;
             default:
-                parts.Add(s.TextBased == false ? "Image-based" : "Text");
-                if (s.External == true) parts.Add("External");
+                parts.Add(s.TextBased == false ? Strings.T("item.mediaInfo.imageBased") : Strings.T("item.mediaInfo.textBased"));
+                if (s.External == true) parts.Add(Strings.T("item.format.external"));
                 break;
         }
         if (s.Bitrate > 0) parts.Add(ItemFormat.Bitrate(s.Bitrate));
-        if (s.Forced) parts.Add("Forced");
-        if (s.Default) parts.Add("Default");
+        if (s.Forced) parts.Add(Strings.T("item.format.forced"));
+        if (s.Default) parts.Add(Strings.T("item.format.default"));
         return string.Join(" · ", parts);
     }
 
@@ -586,7 +586,7 @@ public static class ItemPages
             case "show":
             case "season":
                 tabs = (input.Seasons ?? Array.Empty<ItemSummary>())
-                    .Select(s => new SeasonTab(s.Id, ItemFormat.SeasonTitle(s.Title, s.Index), s.LeafCount is { } n ? Format.Pluralize(n, "episode") : null))
+                    .Select(s => new SeasonTab(s.Id, ItemFormat.SeasonTitle(s.Title, s.Index), s.LeafCount is { } n ? Strings.Count("item.counts.episodes", n) : null))
                     .ToList();
                 break;
             case "episode":
@@ -630,18 +630,19 @@ public static class ItemPages
         return seasons.FirstOrDefault(s => (s.Index ?? 1) > 0)?.Id ?? seasons.FirstOrDefault()?.Id;
     }
 
-    static readonly Dictionary<string, string> ExtraLabels = new Dictionary<string, string>
+    /// <summary>What kind of extra it is: "Trailer", "Behind the Scenes"…, else "Extra".</summary>
+    static string ExtraLabel(string? type) => type switch
     {
-        ["trailer"] = "Trailer",
-        ["behind_the_scenes"] = "Behind the Scenes",
-        ["deleted_scene"] = "Deleted Scene",
-        ["featurette"] = "Featurette",
-        ["interview"] = "Interview",
-        ["scene"] = "Scene",
-        ["short"] = "Short",
+        "trailer" => Strings.T("item.extras.trailer"),
+        "behind_the_scenes" => Strings.T("item.extras.behindTheScenes"),
+        "deleted_scene" => Strings.T("item.extras.deletedScene"),
+        "featurette" => Strings.T("item.extras.featurette"),
+        "interview" => Strings.T("item.extras.interview"),
+        "scene" => Strings.T("item.extras.scene"),
+        "short" => Strings.T("item.extras.short"),
+        _ => Strings.T("item.extras.other"),
     };
 
     /// <summary>An extra's caption line, as the web's Extras row: "Trailer · 2m".</summary>
-    public static string ExtraSubtitle(ItemSummary item) =>
-        ItemFormat.Join(" · ", item.ExtraType != null && ExtraLabels.TryGetValue(item.ExtraType, out var label) ? label : "Extra", Format.Duration(item.DurationMs));
+    public static string ExtraSubtitle(ItemSummary item) => ItemFormat.Join(" · ", ExtraLabel(item.ExtraType), Format.Duration(item.DurationMs));
 }

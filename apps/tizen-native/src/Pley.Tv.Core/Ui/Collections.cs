@@ -358,9 +358,9 @@ public static class CollectionRules
     /// <summary>The web's words for a collection's order.</summary>
     public static string? SortNote(string? sort) => sort switch
     {
-        "release" => "By release date",
-        "title" => "By title",
-        "custom" => "Custom order",
+        "release" => Strings.T("item.collections.byRelease"),
+        "title" => Strings.T("item.collections.byTitle"),
+        "custom" => Strings.T("item.collections.customOrder"),
         _ => null,
     };
 }
@@ -368,17 +368,18 @@ public static class CollectionRules
 /// <summary>What the TV's collections' pages say (the Android app's tv_collection* strings in strings_tv_library.xml).</summary>
 public static class CollectionText
 {
-    public const string Title = "Collections";
-    public const string None = "No collections yet";
-    public const string NoneBody = "Movies of the same TMDB collection are grouped here once two of them are in a library.";
-    public const string Label = "Collection";
+    public static string Title => Strings.T("item.collections.title");
+    public static string None => Strings.T("item.collections.none");
+    public static string NoneBody => Strings.T("item.collections.noneBody");
+    public static string Label => Strings.T("item.collections.label");
+    /// <summary>The badge of a collection made from TMDB's: the service's name, in every language.</summary>
     public const string Tmdb = "TMDB";
-    public const string Smart = "Smart";
-    public const string Play = "Play";
-    public const string Shuffle = "Shuffle";
-    public const string Empty = "Nothing in this collection yet.";
-    public const string Failed = "Couldn't load this collection";
-    public const string NothingToPlay = "Nothing to play: this show has no episodes yet";
+    public static string Smart => Strings.T("item.collections.smart");
+    public static string Play => ItemText.Play;
+    public static string Shuffle => Strings.T("item.collections.shuffle");
+    public static string Empty => Strings.T("item.collections.empty");
+    public static string Failed => Strings.T("item.collections.failed");
+    public static string NothingToPlay => Strings.T("item.collections.nothingToPlay");
 
     /// <summary>How long a message beside Play shows.</summary>
     public const long MessageMs = 4_000;

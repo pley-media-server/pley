@@ -1,0 +1,30 @@
+{
+  "field": "Search movies, shows, people…",
+  "searching": "Searching…",
+  "recent": {
+    "title": "Recent searches",
+    "clear": "Clear"
+  },
+  "empty": {
+    "title": "Search your libraries",
+    "body": "Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type, or use your keyboard's microphone."
+  },
+  "none": {
+    "title": "No results for “{{query}}”",
+    "body": "Try a different spelling or fewer words."
+  },
+  "nothingInLibraries": "Nothing in your libraries matches",
+  "failed": "Search failed",
+  "retry": "Retry",
+  "groups": {
+    "people": "People",
+    "liveTv": "Live TV",
+    "movies": "Movies",
+    "shows": "Shows",
+    "seasons": "Seasons",
+    "episodes": "Episodes",
+    "artists": "Artists",
+    "albums": "Albums",
+    "tracks": "Tracks"
+  }
+}

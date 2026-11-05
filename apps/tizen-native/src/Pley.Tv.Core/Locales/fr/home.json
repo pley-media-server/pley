@@ -1,0 +1,15 @@
+{
+  "hero": {
+    "info": "Infos"
+  },
+  "states": {
+    "failed": "Impossible de charger votre accueil",
+    "noLibraries": "Aucune bibliothèque pour l’instant",
+    "noLibrariesBody": "Demandez au propriétaire du serveur d’ajouter une bibliothèque.",
+    "scanning": "Analyse de vos bibliothèques…",
+    "scanningBody": "Les nouveaux éléments apparaîtront ici dès qu’ils seront trouvés.",
+    "empty": "Rien pour l’instant",
+    "emptyBody": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse."
+  },
+  "comesNext": "Cette page arrive bientôt dans l’application native."
+}

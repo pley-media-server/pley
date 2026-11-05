@@ -74,13 +74,13 @@ sealed class HomeScreen : ShellPage
         hero.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(HeroTop));
         heroText = new Redrawn(hero);
         heroButtons = new ButtonRow();
-        resume = heroButtons.Add(new ButtonView("Resume", ButtonKind.Pill, () => Play(false), iconName: "play"));
-        fromStart = new RoundButton("From start", "rotate-ccw", () => Play(true));
-        info = new RoundButton("Info", "info", () =>
+        resume = heroButtons.Add(new ButtonView(ItemText.Resume, ButtonKind.Pill, () => Play(false), iconName: "play"));
+        fromStart = new RoundButton(ItemText.FromStart, "rotate-ccw", () => Play(true));
+        info = new RoundButton(Strings.T("home.hero.info"), "info", () =>
         {
             if (heroInfo != null) open(heroInfo.Item);
         });
-        watched = new RoundButton("Mark as watched", "circle-check", () =>
+        watched = new RoundButton(ItemText.MarkWatched, "circle-check", () =>
         {
             if (heroInfo != null) model.SetWatched(heroInfo.Item, !heroInfo.Watched);
         });
@@ -161,15 +161,15 @@ sealed class HomeScreen : ShellPage
                 skeletonTimer.Start();
                 break;
             case HomeState.Failed f:
-                Notice(Errors.Unreachable(f.Error) ? Errors.OfflineTitle : "Couldn't load your home screen",
+                Notice(Errors.Unreachable(f.Error) ? Errors.OfflineTitle : Strings.T("home.states.failed"),
                     Errors.Unreachable(f.Error) ? Errors.OfflineBody(f.Error) : Errors.Message(f.Error), retry: true);
                 break;
             case HomeState.NoLibraries:
-                Notice("No libraries yet", "Ask the server owner to add a library.", retry: false);
+                Notice(Strings.T("home.states.noLibraries"), Strings.T("home.states.noLibrariesBody"), retry: false);
                 break;
             case HomeState.Empty e:
-                Notice(e.Scanning ? "Scanning your libraries…" : "Nothing here yet",
-                    e.Scanning ? "New items will show up here as soon as they're found." : "Your libraries are empty. Add media to the library folders and run a scan.", retry: false);
+                Notice(e.Scanning ? Strings.T("home.states.scanning") : Strings.T("home.states.empty"),
+                    e.Scanning ? Strings.T("home.states.scanningBody") : Strings.T("home.states.emptyBody"), retry: false);
                 break;
         }
     }
@@ -208,7 +208,7 @@ sealed class HomeScreen : ShellPage
         if (retry)
         {
             var row = new ButtonRow();
-            row.Add(new ButtonView("Retry", ButtonKind.Pill, model.Refresh, iconName: "refresh-cw"));
+            row.Add(new ButtonView(ItemText.Retry, ButtonKind.Pill, model.Refresh, iconName: "refresh-cw"));
             row.Position = new Position(Ui.Dp(left + (width - row.WidthDp) / 2), Ui.Dp(top + PleyType.PageTitle.Line + 12 + PleyType.Body.Line * 3 + 24));
             body.Add(row);
             page.Add(row.Group);
@@ -310,7 +310,7 @@ sealed class HomeScreen : ShellPage
                 Tree.Focus,
                 row.SeeAll is { } more ? (LibraryText.SeeAll, () =>
                 {
-                    if (!Shell.Open(new PageKey.Library(more.LibraryId, LibraryTab.Library, more.View))) Shell.Toast("That page comes next in the native app.");
+                    if (!Shell.Open(new PageKey.Library(more.LibraryId, LibraryTab.Library, more.View))) Shell.Toast(Strings.T("home.comesNext"));
                 }) : null);
             column.Add(view);
             rowViews.Add(view);
@@ -388,8 +388,8 @@ sealed class HomeScreen : ShellPage
         }
         y += 20;
         heroButtons.PositionY = Ui.Dp(y);
-        resume.SetText(h.InProgress ? "Resume" : "Play");
-        watched.SetText(h.Watched ? "Mark as unwatched" : "Mark as watched");
+        resume.SetText(h.InProgress ? ItemText.Resume : ItemText.Play);
+        watched.SetText(h.Watched ? ItemText.MarkUnwatched : ItemText.MarkWatched);
         LayoutHeroButtons(h.InProgress);
     }
 

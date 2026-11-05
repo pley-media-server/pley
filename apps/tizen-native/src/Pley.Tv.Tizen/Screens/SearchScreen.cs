@@ -238,7 +238,7 @@ sealed class SearchScreen : ShellPage
     void OnlyTmdb(string query)
     {
         ClearBody(("tmdb", query));
-        var line = Text.Label("Nothing in your libraries matches", PleyType.Body, PleyColors.Muted, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
+        var line = Text.Label(SearchText.NothingInLibraries, PleyType.Body, PleyColors.Muted, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
         line.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ResultsTop));
         body.Add(line);
         var top = ResultsTop + 20 + PleyTv.RowGap;
@@ -396,7 +396,7 @@ sealed class ChannelRowView : View
         this.now = now;
         this.gate = gate;
         this.images = images;
-        Group = new FocusGroup(Axis.Row, SearchText.LiveTv);
+        Group = new FocusGroup(Axis.Row, "live");
         Group.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
         var header = Text.Label(SearchText.LiveTv, PleyType.Section, PleyColors.Fg, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
         header.Position = new Position(Ui.Dp(PleyTv.Gutter), 0);
@@ -408,7 +408,7 @@ sealed class ChannelRowView : View
         {
             var channel = channels[i];
             var at = i;
-            var item = Group.Add(new FocusItem($"{SearchText.LiveTv}/{channel.Id}") { Selected = () => onWatch(channel) });
+            var item = Group.Add(new FocusItem($"live/{channel.Id}") { Selected = () => onWatch(channel) });
             item.FocusChanged += on =>
             {
                 if (at < cards.Count) cards[at].Focus(on);

@@ -39,13 +39,13 @@ public static class ItemFormat
     public static string ChannelsLabel(int? channels, string? layout = null) => channels switch
     {
         null or 0 => layout ?? "",
-        1 => "Mono",
-        2 => "Stereo",
+        1 => Strings.T("item.format.mono"),
+        2 => Strings.T("item.format.stereo"),
         3 => "2.1",
         6 => "5.1",
         7 => "6.1",
         8 => "7.1",
-        _ => $"{channels}ch",
+        _ => Strings.T("item.format.channels", ("n", channels)),
     };
 
     /// <summary>"4K", "1440p", "1080p", "720p", "576p", "480p" or "SD", cropped pictures included; null without a size.</summary>
@@ -95,25 +95,38 @@ public static class ItemFormat
     {
         var lang = LanguageName(s.Language);
         var title = string.IsNullOrEmpty(s.Title) ? null : s.Title;
-        var extra = title != null && lang != null && title.ToLowerInvariant().IndexOf(lang.ToLowerInvariant(), StringComparison.Ordinal) < 0 ? $" – {title}" : "";
+        var extra = title != null && lang != null && !NamesLanguage(title, s.Language, lang) ? $" – {title}" : "";
         switch (s.Kind)
         {
             case "audio":
             {
                 var details = AudioFormatLabel(s);
-                var name = title != null && lang == null ? title : lang ?? title ?? "Unknown";
+                var name = title != null && lang == null ? title : lang ?? title ?? Strings.T("item.format.unknown");
                 return name + extra + (details.Length > 0 ? $" ({details})" : "");
             }
             case "subtitle":
             {
-                var name = lang ?? title ?? "Unknown";
-                var flags = Join(", ", CodecLabel(s.Codec), IsForced(s) ? "Forced" : "", s.External == true ? "External" : "");
+                var name = lang ?? title ?? Strings.T("item.format.unknown");
+                var flags = Join(", ", CodecLabel(s.Codec), IsForced(s) ? Strings.T("item.format.forced") : "", s.External == true ? Strings.T("item.format.external") : "");
                 return name + extra + (flags.Length > 0 ? $" ({flags})" : "");
             }
             default:
-                return Join(" ", ResolutionLabel(s.Width, s.Height), CodecLabel(s.Codec), DynamicRangeLabel(s), s.BitDepth > 8 ? $"{s.BitDepth}-bit" : null);
+                return Join(" ", ResolutionLabel(s.Width, s.Height), CodecLabel(s.Codec), DynamicRangeLabel(s), s.BitDepth > 8 ? BitDepth(s.BitDepth.Value) : null);
         }
     }
+
+    /// <summary>
+    /// Whether a track's <paramref name="title"/> names its language: as shown (<paramref name="shown"/>),
+    /// or in English, which files' titles mostly are in ("English SDH" when Pley is in French).
+    /// </summary>
+    static bool NamesLanguage(string title, string? code, string shown)
+    {
+        bool Has(string? name) => name != null && title.ToLowerInvariant().IndexOf(name.ToLowerInvariant(), StringComparison.Ordinal) >= 0;
+        return Has(shown) || (Strings.Language != Core.Languages.English && Has(LanguageName(code, Strings.In(Core.Languages.English))));
+    }
+
+    /// <summary>10 → "10-bit".</summary>
+    internal static string BitDepth(int bits) => Strings.T("item.format.bitDepth", ("n", bits));
 
     static readonly Regex Words = new Regex(@"[^\p{L}\p{N}]+", RegexOptions.CultureInvariant);
 
@@ -159,8 +172,11 @@ public static class ItemFormat
     {
         var label = Join(" · ", file.Edition, ResolutionLabel(file.Width, file.Height), CodecLabel(file.VideoCodec),
             file.Container?.ToUpperInvariant(), file.Size > 0 ? Bytes(file.Size) : null);
-        return label.Length > 0 ? label : $"Version {position + 1}";
+        return label.Length > 0 ? label : VersionNumber(position + 1);
     }
+
+    /// <summary>"Version 2".</summary>
+    public static string VersionNumber(int number) => Strings.T("item.format.version", ("number", number));
 
     /// <summary>A version in an item's Details: "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1 · 62.0 GB".</summary>
     public static string VersionDescription(MediaFile file)
@@ -172,9 +188,7 @@ public static class ItemFormat
             file.Size > 0 ? Bytes(file.Size) : null);
     }
 
-    // ---- sizes and rates, with a point for decimals whatever the language, like JavaScript's toFixed
-
-    static readonly string[] ByteUnits = { "B", "KB", "MB", "GB", "TB" };
+    // ---- sizes and rates, with JavaScript's toFixed digits and the language's decimal mark, as the web writes them
 
     /// <summary>1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024, up to TB.</summary>
     public static string Bytes(long? bytes)
@@ -182,27 +196,42 @@ public static class ItemFormat
         if (bytes == null) return "";
         double v = bytes.Value;
         var i = 0;
-        while (v >= 1024 && i < ByteUnits.Length - 1)
+        while (v >= 1024 && i < 4)
         {
             v /= 1024;
             i++;
         }
-        return $"{Fixed(v, v >= 100 || i == 0 ? 0 : 1)} {ByteUnits[i]}";
+        var n = Quantity(Fixed(v, v >= 100 || i == 0 ? 0 : 1));
+        return i switch
+        {
+            0 => Strings.T("item.format.bytes", ("n", n)),
+            1 => Strings.T("item.format.kilobytes", ("n", n)),
+            2 => Strings.T("item.format.megabytes", ("n", n)),
+            3 => Strings.T("item.format.gigabytes", ("n", n)),
+            _ => Strings.T("item.format.terabytes", ("n", n)),
+        };
     }
 
     /// <summary>Bits per second → "8.2 Mbps", "12 Mbps", "320 kbps"; empty without a rate.</summary>
     public static string Bitrate(long? bps)
     {
         if (bps == null || bps == 0) return "";
-        if (bps >= 1_000_000) return $"{Fixed(bps.Value / 1_000_000.0, bps >= 10_000_000 ? 0 : 1)} Mbps";
-        return $"{(long)Math.Floor(bps.Value / 1000.0 + 0.5)} kbps";
+        if (bps >= 1_000_000) return Strings.T("item.format.mbps", ("n", Quantity(Fixed(bps.Value / 1_000_000.0, bps >= 10_000_000 ? 0 : 1))));
+        return Strings.T("item.format.kbps", ("n", (long)Math.Floor(bps.Value / 1000.0 + 0.5)));
     }
 
-    /// <summary><paramref name="value"/> with <paramref name="digits"/> decimals and a point.</summary>
+    /// <summary><paramref name="value"/> with <paramref name="digits"/> decimals and a point: for numbers that name things (a level, "5.1"), and to start a quantity from.</summary>
     internal static string Fixed(double value, int digits) => value.ToString("F" + digits, CultureInfo.InvariantCulture);
 
-    /// <summary><paramref name="value"/> with up to <paramref name="digits"/> decimals, trailing zeros dropped: 24.0 → "24", 23.976 → "23.976".</summary>
+    /// <summary><paramref name="value"/> with up to <paramref name="digits"/> decimals, trailing zeros dropped, and a point: 24.0 → "24", 23.976 → "23.976".</summary>
     static string Trimmed(double value, int digits) => Fixed(value, digits).TrimEnd('0').TrimEnd('.');
+
+    /// <summary>
+    /// A quantity written with a point (<see cref="Fixed"/>) with the language's decimal mark
+    /// instead: "1,5" in French. English keeps its point whatever the TV's region, as it always had.
+    /// </summary>
+    internal static string Quantity(string number) =>
+        Strings.Language == Core.Languages.English ? number : number.Replace(".", Strings.Culture.NumberFormat.NumberDecimalSeparator);
 
     // ---- technical details, for media info
 
@@ -224,13 +253,22 @@ public static class ItemFormat
 
     /// <summary>"Main 10 · Level 5.1", "High · Level 4", "LC"; empty when neither is known.</summary>
     public static string ProfileLevelLabel(MediaStream s) =>
-        Join(" · ", string.IsNullOrWhiteSpace(s.Profile) ? null : s.Profile, LevelLabel(s.Codec, s.Level) is { } l ? $"Level {l}" : null);
+        Join(" · ", string.IsNullOrWhiteSpace(s.Profile) ? null : s.Profile, LevelLabel(s.Codec, s.Level) is { } l ? Level(l) : null);
+
+    /// <summary>"Level 5.1".</summary>
+    static string Level(object level) => Strings.T("item.format.level", ("level", level));
 
     /// <summary>23.976 → "23.976 fps", 24.0 → "24 fps"; null when unknown.</summary>
-    public static string? FrameRateLabel(double? fps) => fps > 0 ? Trimmed(fps.Value, 3) + " fps" : null;
+    public static string? FrameRateLabel(double? fps) => fps > 0 ? FramesPerSecond(Quantity(Trimmed(fps.Value, 3))) : null;
+
+    /// <summary>"23.976" → "23.976 fps".</summary>
+    internal static string FramesPerSecond(string rate) => Strings.T("item.format.fps", ("rate", rate));
 
     /// <summary>48000 → "48 kHz", 44100 → "44.1 kHz"; null when unknown.</summary>
-    public static string? SampleRateLabel(int? hz) => hz > 0 ? Trimmed(hz.Value / 1000.0, 1) + " kHz" : null;
+    public static string? SampleRateLabel(int? hz) => hz > 0 ? Kilohertz(Quantity(Trimmed(hz.Value / 1000.0, 1))) : null;
+
+    /// <summary>"44.1" → "44.1 kHz".</summary>
+    internal static string Kilohertz(string rate) => Strings.T("item.format.kilohertz", ("rate", rate));
 
     /// <summary>"yuv420p10le" → "4:2:0"; null for formats that aren't YUV.</summary>
     public static string? ChromaLabel(string? pixFmt)
@@ -246,7 +284,7 @@ public static class ItemFormat
     }
 
     /// <summary>"10-bit · 4:2:0", from the stream's bit depth and pixel format; empty when neither is known.</summary>
-    public static string BitDepthLabel(MediaStream s) => Join(" · ", s.BitDepth > 0 ? $"{s.BitDepth}-bit" : null, ChromaLabel(s.PixFmt));
+    public static string BitDepthLabel(MediaStream s) => Join(" · ", s.BitDepth > 0 ? BitDepth(s.BitDepth.Value) : null, ChromaLabel(s.PixFmt));
 
     static readonly Dictionary<string, string> Primaries = new Dictionary<string, string>
     {
@@ -299,17 +337,19 @@ public static class ItemFormat
     {
         if (s.DynamicRange != "dolby_vision") return null;
         var compat = s.DvBlCompat;
-        var profile = s.DvProfile is { } p ? $"Profile {p}" + (p >= 8 && compat > 0 ? $".{compat}" : "") : null;
+        var profile = s.DvProfile is { } p
+            ? Strings.T("item.format.dvProfile", ("profile", p.ToString(CultureInfo.InvariantCulture) + (p >= 8 && compat > 0 ? $".{compat}" : "")))
+            : null;
         var baseLayer = compat == null ? null
-            : compat == 0 ? "no compatible base layer"
-            : DvCompatLabel(compat) is { } c ? $"{c}-compatible base layer" : null;
+            : compat == 0 ? Strings.T("item.format.dvNoBaseLayer")
+            : DvCompatLabel(compat) is { } c ? Strings.T("item.format.dvBaseLayer", ("format", c)) : null;
         var layer = s.DvProfile == 7 ? s.DvEl switch
         {
-            "fel" => "full enhancement layer",
-            "mel" => "minimal enhancement layer",
+            "fel" => Strings.T("item.format.dvFullLayer"),
+            "mel" => Strings.T("item.format.dvMinimalLayer"),
             _ => null,
         } : null;
-        var text = Join(" · ", profile, s.DvLevel > 0 ? $"Level {s.DvLevel}" : null, baseLayer, layer);
+        var text = Join(" · ", profile, s.DvLevel > 0 ? Level(s.DvLevel.Value) : null, baseLayer, layer);
         return text.Length > 0 ? text : null;
     }
 
@@ -325,62 +365,134 @@ public static class ItemFormat
         return $"{w}×{h}" + (ResolutionLabel(w, h) is { } r ? $" ({r})" : "");
     }
 
-    // ---- languages, as apps/web/src/lib/languages.ts
+    // ---- languages, as apps/web/src/lib/languages.ts, named in the language shown
 
-    static readonly Dictionary<string, string> Languages = new Dictionary<string, string>
+    /// <summary>
+    /// The key of the name of a language, by its ISO 639-2 (either form) or 639-1 code in lower
+    /// case: "eng" and "en" → "languages.eng"; null for a code Pley doesn't name.
+    /// </summary>
+    internal static string? LanguageKey(string code) => code switch
     {
-        ["afr"] = "Afrikaans", ["alb"] = "Albanian", ["sqi"] = "Albanian", ["amh"] = "Amharic", ["ara"] = "Arabic",
-        ["arm"] = "Armenian", ["hye"] = "Armenian", ["aze"] = "Azerbaijani", ["baq"] = "Basque", ["eus"] = "Basque",
-        ["bel"] = "Belarusian", ["ben"] = "Bengali", ["bos"] = "Bosnian", ["bre"] = "Breton", ["bul"] = "Bulgarian",
-        ["bur"] = "Burmese", ["mya"] = "Burmese", ["cat"] = "Catalan", ["chi"] = "Chinese", ["zho"] = "Chinese",
-        ["cze"] = "Czech", ["ces"] = "Czech", ["dan"] = "Danish", ["dut"] = "Dutch", ["nld"] = "Dutch", ["eng"] = "English",
-        ["est"] = "Estonian", ["fao"] = "Faroese", ["fil"] = "Filipino", ["fin"] = "Finnish", ["fre"] = "French",
-        ["fra"] = "French", ["geo"] = "Georgian", ["kat"] = "Georgian", ["ger"] = "German", ["deu"] = "German",
-        ["gle"] = "Irish", ["glg"] = "Galician", ["gre"] = "Greek", ["ell"] = "Greek", ["guj"] = "Gujarati",
-        ["heb"] = "Hebrew", ["hin"] = "Hindi", ["hrv"] = "Croatian", ["hun"] = "Hungarian", ["ice"] = "Icelandic",
-        ["isl"] = "Icelandic", ["ind"] = "Indonesian", ["ita"] = "Italian", ["jpn"] = "Japanese", ["kan"] = "Kannada",
-        ["kaz"] = "Kazakh", ["khm"] = "Khmer", ["kor"] = "Korean", ["kur"] = "Kurdish", ["lao"] = "Lao", ["lat"] = "Latin",
-        ["lav"] = "Latvian", ["lit"] = "Lithuanian", ["ltz"] = "Luxembourgish", ["mac"] = "Macedonian",
-        ["mkd"] = "Macedonian", ["mal"] = "Malayalam", ["mao"] = "Maori", ["mri"] = "Maori", ["mar"] = "Marathi",
-        ["may"] = "Malay", ["msa"] = "Malay", ["mlt"] = "Maltese", ["mon"] = "Mongolian", ["nep"] = "Nepali",
-        ["nob"] = "Norwegian Bokmål", ["nno"] = "Norwegian Nynorsk", ["nor"] = "Norwegian", ["per"] = "Persian",
-        ["fas"] = "Persian", ["pol"] = "Polish", ["por"] = "Portuguese", ["pan"] = "Punjabi", ["rum"] = "Romanian",
-        ["ron"] = "Romanian", ["rus"] = "Russian", ["slo"] = "Slovak", ["slk"] = "Slovak", ["slv"] = "Slovenian",
-        ["som"] = "Somali", ["spa"] = "Spanish", ["srp"] = "Serbian", ["swa"] = "Swahili", ["swe"] = "Swedish",
-        ["tam"] = "Tamil", ["tel"] = "Telugu", ["tgl"] = "Tagalog", ["tha"] = "Thai", ["tib"] = "Tibetan",
-        ["bod"] = "Tibetan", ["tur"] = "Turkish", ["ukr"] = "Ukrainian", ["urd"] = "Urdu", ["uzb"] = "Uzbek",
-        ["vie"] = "Vietnamese", ["wel"] = "Welsh", ["cym"] = "Welsh", ["yid"] = "Yiddish", ["zul"] = "Zulu",
-        ["yue"] = "Cantonese", ["cmn"] = "Mandarin", ["nan"] = "Min Nan", ["hat"] = "Haitian Creole",
-        ["haw"] = "Hawaiian", ["ibo"] = "Igbo", ["yor"] = "Yoruba", ["hau"] = "Hausa", ["sin"] = "Sinhala",
-        ["pus"] = "Pashto", ["tat"] = "Tatar", ["kir"] = "Kyrgyz", ["tuk"] = "Turkmen", ["tgk"] = "Tajik",
-        ["und"] = "Unknown", ["mul"] = "Multiple", ["zxx"] = "No linguistic content", ["qaa"] = "Original",
-        // ISO 639-1
-        ["af"] = "Afrikaans", ["sq"] = "Albanian", ["am"] = "Amharic", ["ar"] = "Arabic", ["hy"] = "Armenian",
-        ["az"] = "Azerbaijani", ["eu"] = "Basque", ["be"] = "Belarusian", ["bn"] = "Bengali", ["bs"] = "Bosnian",
-        ["bg"] = "Bulgarian", ["my"] = "Burmese", ["ca"] = "Catalan", ["zh"] = "Chinese", ["cs"] = "Czech",
-        ["da"] = "Danish", ["nl"] = "Dutch", ["en"] = "English", ["et"] = "Estonian", ["fi"] = "Finnish",
-        ["fr"] = "French", ["ka"] = "Georgian", ["de"] = "German", ["ga"] = "Irish", ["gl"] = "Galician",
-        ["el"] = "Greek", ["gu"] = "Gujarati", ["he"] = "Hebrew", ["hi"] = "Hindi", ["hr"] = "Croatian",
-        ["hu"] = "Hungarian", ["is"] = "Icelandic", ["id"] = "Indonesian", ["it"] = "Italian", ["ja"] = "Japanese",
-        ["kn"] = "Kannada", ["kk"] = "Kazakh", ["km"] = "Khmer", ["ko"] = "Korean", ["ku"] = "Kurdish", ["lo"] = "Lao",
-        ["la"] = "Latin", ["lv"] = "Latvian", ["lt"] = "Lithuanian", ["lb"] = "Luxembourgish", ["mk"] = "Macedonian",
-        ["ml"] = "Malayalam", ["mi"] = "Maori", ["mr"] = "Marathi", ["ms"] = "Malay", ["mt"] = "Maltese",
-        ["mn"] = "Mongolian", ["ne"] = "Nepali", ["nb"] = "Norwegian Bokmål", ["nn"] = "Norwegian Nynorsk",
-        ["no"] = "Norwegian", ["fa"] = "Persian", ["pl"] = "Polish", ["pt"] = "Portuguese", ["pa"] = "Punjabi",
-        ["ro"] = "Romanian", ["ru"] = "Russian", ["sk"] = "Slovak", ["sl"] = "Slovenian", ["so"] = "Somali",
-        ["es"] = "Spanish", ["sr"] = "Serbian", ["sw"] = "Swahili", ["sv"] = "Swedish", ["ta"] = "Tamil",
-        ["te"] = "Telugu", ["tl"] = "Tagalog", ["th"] = "Thai", ["bo"] = "Tibetan", ["tr"] = "Turkish",
-        ["uk"] = "Ukrainian", ["ur"] = "Urdu", ["uz"] = "Uzbek", ["vi"] = "Vietnamese", ["cy"] = "Welsh",
-        ["yi"] = "Yiddish", ["zu"] = "Zulu",
+        "afr" or "af" => "languages.afr",
+        "alb" or "sqi" or "sq" => "languages.alb",
+        "amh" or "am" => "languages.amh",
+        "ara" or "ar" => "languages.ara",
+        "arm" or "hye" or "hy" => "languages.arm",
+        "aze" or "az" => "languages.aze",
+        "baq" or "eus" or "eu" => "languages.baq",
+        "bel" or "be" => "languages.bel",
+        "ben" or "bn" => "languages.ben",
+        "bos" or "bs" => "languages.bos",
+        "bre" => "languages.bre",
+        "bul" or "bg" => "languages.bul",
+        "bur" or "mya" or "my" => "languages.bur",
+        "cat" or "ca" => "languages.cat",
+        "chi" or "zho" or "zh" => "languages.chi",
+        "cze" or "ces" or "cs" => "languages.cze",
+        "dan" or "da" => "languages.dan",
+        "dut" or "nld" or "nl" => "languages.dut",
+        "eng" or "en" => "languages.eng",
+        "est" or "et" => "languages.est",
+        "fao" => "languages.fao",
+        "fil" => "languages.fil",
+        "fin" or "fi" => "languages.fin",
+        "fre" or "fra" or "fr" => "languages.fre",
+        "geo" or "kat" or "ka" => "languages.geo",
+        "ger" or "deu" or "de" => "languages.ger",
+        "gle" or "ga" => "languages.gle",
+        "glg" or "gl" => "languages.glg",
+        "gre" or "ell" or "el" => "languages.gre",
+        "guj" or "gu" => "languages.guj",
+        "heb" or "he" => "languages.heb",
+        "hin" or "hi" => "languages.hin",
+        "hrv" or "hr" => "languages.hrv",
+        "hun" or "hu" => "languages.hun",
+        "ice" or "isl" or "is" => "languages.ice",
+        "ind" or "id" => "languages.ind",
+        "ita" or "it" => "languages.ita",
+        "jpn" or "ja" => "languages.jpn",
+        "kan" or "kn" => "languages.kan",
+        "kaz" or "kk" => "languages.kaz",
+        "khm" or "km" => "languages.khm",
+        "kor" or "ko" => "languages.kor",
+        "kur" or "ku" => "languages.kur",
+        "lao" or "lo" => "languages.lao",
+        "lat" or "la" => "languages.lat",
+        "lav" or "lv" => "languages.lav",
+        "lit" or "lt" => "languages.lit",
+        "ltz" or "lb" => "languages.ltz",
+        "mac" or "mkd" or "mk" => "languages.mac",
+        "mal" or "ml" => "languages.mal",
+        "mao" or "mri" or "mi" => "languages.mao",
+        "mar" or "mr" => "languages.mar",
+        "may" or "msa" or "ms" => "languages.may",
+        "mlt" or "mt" => "languages.mlt",
+        "mon" or "mn" => "languages.mon",
+        "nep" or "ne" => "languages.nep",
+        "nob" or "nb" => "languages.nob",
+        "nno" or "nn" => "languages.nno",
+        "nor" or "no" => "languages.nor",
+        "per" or "fas" or "fa" => "languages.per",
+        "pol" or "pl" => "languages.pol",
+        "por" or "pt" => "languages.por",
+        "pan" or "pa" => "languages.pan",
+        "rum" or "ron" or "ro" => "languages.rum",
+        "rus" or "ru" => "languages.rus",
+        "slo" or "slk" or "sk" => "languages.slo",
+        "slv" or "sl" => "languages.slv",
+        "som" or "so" => "languages.som",
+        "spa" or "es" => "languages.spa",
+        "srp" or "sr" => "languages.srp",
+        "swa" or "sw" => "languages.swa",
+        "swe" or "sv" => "languages.swe",
+        "tam" or "ta" => "languages.tam",
+        "tel" or "te" => "languages.tel",
+        "tgl" or "tl" => "languages.tgl",
+        "tha" or "th" => "languages.tha",
+        "tib" or "bod" or "bo" => "languages.tib",
+        "tur" or "tr" => "languages.tur",
+        "ukr" or "uk" => "languages.ukr",
+        "urd" or "ur" => "languages.urd",
+        "uzb" or "uz" => "languages.uzb",
+        "vie" or "vi" => "languages.vie",
+        "wel" or "cym" or "cy" => "languages.wel",
+        "yid" or "yi" => "languages.yid",
+        "zul" or "zu" => "languages.zul",
+        "yue" => "languages.yue",
+        "cmn" => "languages.cmn",
+        "nan" => "languages.nan",
+        "hat" => "languages.hat",
+        "haw" => "languages.haw",
+        "ibo" => "languages.ibo",
+        "yor" => "languages.yor",
+        "hau" => "languages.hau",
+        "sin" => "languages.sin",
+        "pus" => "languages.pus",
+        "tat" => "languages.tat",
+        "kir" => "languages.kir",
+        "tuk" => "languages.tuk",
+        "tgk" => "languages.tgk",
+        "und" => "languages.und",
+        "mul" => "languages.mul",
+        "zxx" => "languages.zxx",
+        "qaa" => "languages.qaa",
+        _ => null,
     };
 
-    /// <summary>"eng" → "English", "pt-BR" → "Portuguese (BR)"; an unknown code comes back upper-cased; null without one.</summary>
-    public static string? LanguageName(string? code)
+    /// <summary>
+    /// "eng" → "English", "pt-BR" → "Portuguese (BR)", in the language shown ("Anglais" in French);
+    /// an unknown code comes back upper-cased; null without one.
+    /// </summary>
+    public static string? LanguageName(string? code) => LanguageName(code, null);
+
+    /// <param name="words">The catalog to name it from; null: the language shown.</param>
+    static string? LanguageName(string? code, Catalog? words)
     {
         var raw = code?.Trim() ?? "";
         if (raw.Length == 0) return null;
         var parts = raw.ToLowerInvariant().Split('-', '_');
-        if (!Languages.TryGetValue(parts[0], out var name)) return raw.Length <= 3 ? raw.ToUpperInvariant() : raw;
+        if (LanguageKey(parts[0]) is not { } key) return raw.Length <= 3 ? raw.ToUpperInvariant() : raw;
+        var name = words != null ? words.T(key) : Strings.T(key);
         return parts.Length > 1 ? $"{name} ({parts[1].ToUpperInvariant()})" : name;
     }
 
@@ -388,26 +500,34 @@ public static class ItemFormat
 
     /// <summary>A season's own title, else "Specials" for season 0, else "Season 2".</summary>
     public static string SeasonTitle(string? title, int? index) =>
-        !string.IsNullOrEmpty(title) ? title! : index == 0 ? "Specials" : index != null ? $"Season {index}" : "Season";
+        !string.IsNullOrEmpty(title) ? title!
+        : index == 0 ? Strings.T("item.format.specials")
+        : index != null ? Strings.T("item.format.seasonNumber", ("number", index))
+        : Strings.T("item.format.season");
 
-    /// <summary>"2023-04-01" → "Apr 1, 2023" (en-US) or "1 Apr 2023" (en-GB); what doesn't parse comes back as it is.</summary>
-    public static string Date(string? date, CultureInfo? culture = null) => DateIn(date, culture, "MMM");
+    /// <summary>"2023-04-01" → "Apr 1, 2023" (en-US) or "1 Apr 2023" (en-GB, "1 avr. 2023" in French); what doesn't parse comes back as it is.</summary>
+    public static string Date(string? date, CultureInfo? culture = null) => DateIn(date, culture, false);
 
-    /// <summary>"2024-03-12" → "March 12, 2024" (en-US) or "12 March 2024" (en-GB): air dates on item pages.</summary>
-    public static string LongDate(string? date, CultureInfo? culture = null) => DateIn(date, culture, "MMMM");
+    /// <summary>"2024-03-12" → "March 12, 2024" (en-US) or "12 March 2024" (en-GB, "12 de marzo de 2024" in Spanish): air dates on item pages.</summary>
+    public static string LongDate(string? date, CultureInfo? culture = null) => DateIn(date, culture, true);
 
     /// <summary>
-    /// A day in the order <paramref name="culture"/> puts the day and the month, with its month
-    /// names, as Java's medium and long styles do for the languages people use: .NET has no
-    /// medium style of its own.
+    /// A day in the order <paramref name="culture"/> (else the language shown's) puts the day and
+    /// the month, with its month names, as Java's medium and long styles do for the languages
+    /// people use: .NET has no medium style of its own.
     /// </summary>
-    static string DateIn(string? date, CultureInfo? culture, string month)
+    static string DateIn(string? date, CultureInfo? culture, bool fullMonth)
     {
         if (string.IsNullOrEmpty(date)) return "";
         if (!DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)) return date!;
-        var c = culture ?? CultureInfo.CurrentCulture;
+        var c = culture ?? Strings.Culture;
+        var month = fullMonth ? "MMMM" : "MMM";
         var dayFirst = c.DateTimeFormat.MonthDayPattern.TrimStart().StartsWith("d", StringComparison.Ordinal);
-        return day.ToString(dayFirst ? $"d {month} yyyy" : $"{month} d, yyyy", c);
+        // Spanish joins the day, a month written out and the year with "de": "12 de marzo de 2024".
+        var pattern = !dayFirst ? $"{month} d, yyyy"
+            : fullMonth && c.TwoLetterISOLanguageName == "es" ? "d 'de' MMMM 'de' yyyy"
+            : $"d {month} yyyy";
+        return day.ToString(pattern, c);
     }
 
     /// <summary>The parts that are neither null nor empty, joined.</summary>
