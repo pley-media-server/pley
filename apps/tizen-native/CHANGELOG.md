@@ -8,6 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Pley in French and Spanish: the app shows your profile's language, else
+  the server's, else the TV's, and starts in the last one it showed. Settings
+  → Profile → Language chooses it for your profile on every device, or the
+  server's.
+
+## [0.1.6] - 2026-11-05
+
 ### Changed
 
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
@@ -60,10 +69,6 @@ describes how they are made.
 
 ### Added
 
-- Pley in French and Spanish: the app shows your profile's language, else
-  the server's, else the TV's, and starts in the last one it showed. Settings
-  → Profile → Language chooses it for your profile on every device, or the
-  server's.
 - Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
   to sign with your own Samsung certificate and install on a TV in Developer
   Mode, without building the app. The package carries Pley's licence and
@@ -455,5 +460,6 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/5f6405a7af22a8102cb0ebfa414c66492e161102...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.0.1]: https://github.com/pley-media-server/pley/tree/5f6405a7af22a8102cb0ebfa414c66492e161102

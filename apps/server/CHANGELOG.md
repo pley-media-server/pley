@@ -15,6 +15,11 @@ describes how they are made.
   on the Account page; until it does, the server's language applies,
   which an administrator sets in Settings → General, else the browser's.
   Home's rows and the tray's menu are in that language too.
+
+## [0.1.7] - 2026-11-05
+
+### Added
+
 - Pley for Home Assistant can sign in with a code, as Pley's TV apps do.
   It shows as Home Assistant in your signed-in apps and on a TV it plays
   something on.
@@ -705,7 +710,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
