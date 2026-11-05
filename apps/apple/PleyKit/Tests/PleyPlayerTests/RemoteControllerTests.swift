@@ -212,6 +212,8 @@ struct RemoteControllerTests {
         let next = try #require(rig.controller.session)
         #expect(next.id != session.id)
 
+        // Its first frame's report comes by itself: counted before the command.
+        try await until("the new session's report") { await rig.reports().contains { $0.sessionId == next.id } }
         // The one picked already: nothing starts again, and it is said again, so a remote a little behind settles.
         let before = await rig.reports().count
         rig.controller.obey(.quality("4m"), for: next.id)
