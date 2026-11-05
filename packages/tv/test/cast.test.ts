@@ -100,6 +100,20 @@ describe("a cast to this TV", () => {
     expect(CAST_BANNER_MS).toBe(4_000);
   });
 
+  it("plays a movie or an episode with the tracks picked on the remote's page, for that play", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.items.set(6, detail(6, "episode"));
+    t.receiver.take(cast({ item_id: 5, start_ms: 60_000, audio_index: 2, subtitle_index: -1 }));
+    await settle();
+    t.receiver.take(cast({ item_id: 6, audio_index: null, subtitle_index: 4 }));
+    await settle();
+    expect(t.videos).toEqual([
+      { itemId: 5, startMs: 60_000, audioIndex: 2, subtitleIndex: -1 },
+      { itemId: 6, fromStart: false, subtitleIndex: 4 },
+    ]);
+  });
+
   it("plays a show's or a season's next episode, as their Play does, or says there is nothing to play", async () => {
     const t = tv();
     t.items.set(20, detail(20, "show"));

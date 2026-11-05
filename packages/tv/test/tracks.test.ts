@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { castAction, castBanner, itemPlay, type CastAction, type CastEvent } from "../src/player/cast";
-import { trackAction, videoControls, type PlayerCommand, type TrackAction } from "../src/player/remote";
+import { qualityAction, trackAction, videoControls, type PlayerCommand, type QualityAction, type TrackAction } from "../src/player/remote";
 // Shared with the native Samsung app's tests, which must answer the same.
 import fixture from "./fixtures/tracks.json";
 
@@ -15,13 +15,18 @@ function writtenTrack(a: TrackAction): Record<string, unknown> {
   return a.act === "none" ? { act: "none", report: a.report } : { act: a.act, stream_index: a.index, report: a.report };
 }
 
+/** A quality command's answer as the fixture writes it. */
+function writtenQuality(a: QualityAction): Record<string, unknown> {
+  return a.act === "none" ? { act: "none", report: a.report } : { act: a.act, quality: a.id, report: a.report };
+}
+
 /** A cast's answer as the fixture writes it, with the banner it shows as it starts. */
 function writtenCast(a: CastAction, from: string | null): Record<string, unknown> {
   switch (a.act) {
     case "none":
       return { act: "none" };
     case "item":
-      return { act: "item", item_id: a.itemId, start_ms: a.startMs, shuffle: a.shuffle, banner: castBanner(from) };
+      return { act: "item", item_id: a.itemId, start_ms: a.startMs, shuffle: a.shuffle, audio_index: a.audioIndex, subtitle_index: a.subtitleIndex, banner: castBanner(from) };
     case "playlist":
       return { act: "playlist", playlist_id: a.playlistId, shuffle: a.shuffle, banner: castBanner(from) };
     case "channel":
@@ -38,7 +43,7 @@ interface Player {
 }
 
 describe("tracks and casts, as the shared fixture has them", () => {
-  it("controls: a video declares audio and subtitles when its file has them", () => {
+  it("controls: a video declares audio and subtitles when its file has them, and its quality", () => {
     for (const c of fixture.controls) {
       expect([c.in, videoControls(c.in.has_next, c.in.audio, c.in.subtitles)]).toEqual([c.in, c.out]);
     }
@@ -50,6 +55,14 @@ describe("tracks and casts, as the shared fixture has them", () => {
       const command = { type: "player_command", position_ms: null, offset_ms: null, ...c.in.command } as PlayerCommand;
       const answer = trackAction({ session: p.session_id, audio: p.audio, subtitles: p.subtitles, audioIndex: p.audio_index, subtitleIndex: p.subtitle_index }, command);
       sameFields(c.in, writtenTrack(answer), c.out);
+    }
+  });
+
+  it("qualities: what its Quality menu offers", () => {
+    for (const c of fixture.qualities) {
+      const p = c.in.player;
+      const command = { type: "player_command", position_ms: null, offset_ms: null, stream_index: null, ...c.in.command } as PlayerCommand;
+      sameFields(c.in, writtenQuality(qualityAction({ session: p.session_id, offered: p.offered, picked: p.picked }, command)), c.out);
     }
   });
 

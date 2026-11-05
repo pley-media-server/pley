@@ -172,7 +172,10 @@ on a TV (`device_kind: "tv"`); the server names the TV from its web engine
   previous. The audio and subtitles, where the file has them (`audio`,
   `subtitles`), change as the player's own Audio and Subtitles change
   them, picks saved the same way: in place where the TV's player can, else
-  with a new session (a stream's audio, picture subtitles burned in).
+  with a new session (a stream's audio, picture subtitles burned in). The
+  quality (`quality`, one of the ids the Quality menu offers for the file)
+  changes as a pick in that menu does, kept for the next titles; a new
+  session plays it where it asks for another stream.
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track, or on the first, goes back to its
   start. Music playing behind the other screens obeys too.
@@ -189,11 +192,13 @@ tells the server with its own session, and a new session for an audio or
 subtitle track reports as it begins. A play on a player already playing,
 a pause on one already paused, or a track picked that is the one chosen,
 says so again at once, so a remote a little behind settles; a track the
-file doesn't have does nothing. Every report of a video says which audio
-and subtitles play (`audio_index`, `subtitle_index`, `-1` for none), so
-the remote ticks them; music has none. The rule is pinned for both
-Samsung apps by `packages/tv/test/fixtures/remote.json`, and the tracks
-by `tracks.json` beside it.
+file doesn't have, or a quality its menu doesn't offer, does nothing.
+Every report of a video says which audio and subtitles play
+(`audio_index`, `subtitle_index`, `-1` for none) and which quality is
+picked (`quality`: `auto`, `original`, `8m`…), so the remote ticks them;
+music has none. The rule is pinned for both Samsung apps by
+`packages/tv/test/fixtures/remote.json`, and the tracks and the quality by
+`tracks.json` beside it.
 
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open: the stream
@@ -204,7 +209,10 @@ it, as it does its players. What a remote sends plays as the TV's own
 Play would, in place of what plays:
 
 - a movie or an episode in the player, from the place sent, else where
-  Play resumes; a show or a season its next episode;
+  Play resumes, with the audio and subtitles sent (`-1`: none) for that
+  play, in place of the saved ones, which stay for a track its file
+  doesn't have; a show or a season its next episode. The quality is the
+  TV's own;
 - an album or an artist as the music's queue, in order or shuffled, with
   Now Playing; a track its album from it, at the place sent;
 - a playlist as its page plays it: music as the queue, video in the

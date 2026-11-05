@@ -5,7 +5,8 @@ import type { Control, ServerEvent } from "../api/types";
  * control"): what each player here obeys, and what it does with a
  * command. The TV obeys and shows no remote of its own. The rules are the
  * web's and the Android app's, pinned for both Samsung apps by the shared
- * fixtures (test/fixtures/remote.json, and tracks.json for the tracks).
+ * fixtures (test/fixtures/remote.json, and tracks.json for the tracks and
+ * the quality).
  */
 
 export type PlayerCommand = Extract<ServerEvent, { type: "player_command" }>;
@@ -21,12 +22,14 @@ const LIVE_CONTROLS: Control[] = ["next", "previous"];
 /**
  * What a video obeys: next only when something may come after it; audio
  * and subtitles when its file has tracks of them (`audio` and `subtitles`
- * count them), which a remote picks from.
+ * count them), which a remote picks from; and the quality, which its
+ * Quality menu always offers (the original and Automatic at least).
  */
 export function videoControls(hasNext: boolean, audio = 0, subtitles = 0): Control[] {
   const controls: Control[] = hasNext ? [...VIDEO_CONTROLS, "next"] : VIDEO_CONTROLS.slice();
   if (audio > 0) controls.push("audio");
   if (subtitles > 0) controls.push("subtitles");
+  controls.push("quality");
   return controls;
 }
 
@@ -154,6 +157,38 @@ export function trackAction(p: TrackPlayer, c: PlayerCommand): TrackAction {
     return index === p.subtitleIndex ? SAME_TRACK : { act: "subtitles", index, report: true };
   }
   return NO_TRACK;
+}
+
+/** A video's Quality menu, as much as the remote's `quality` needs. */
+export interface QualityPlayer {
+  /** The session it plays now; `null` while it has none. */
+  session: string | null;
+  /** The ids its menu offers for the file, and the one picked. */
+  offered: string[];
+  picked: string;
+}
+
+/**
+ * What a video does with the remote's `quality`: pick `id` as its Quality
+ * menu does (kept for the next titles, as a pick there is) and report it;
+ * or nothing, saying again what is picked when it is that one already.
+ */
+export type QualityAction = { report: boolean } & ({ act: "none" } | { act: "quality"; id: string });
+
+const NO_QUALITY: QualityAction = { act: "none", report: false };
+const SAME_QUALITY: QualityAction = { act: "none", report: true };
+
+/**
+ * The quality's rule: a command for another session is someone else's
+ * player's; a quality its menu offers for the file is picked, and the one
+ * picked already is said again; one it doesn't offer (or a command
+ * without one) does nothing.
+ */
+export function qualityAction(p: QualityPlayer, c: PlayerCommand): QualityAction {
+  if (p.session === null || c.session_id !== p.session || c.command !== "quality") return NO_QUALITY;
+  const id = c.quality;
+  if (typeof id !== "string" || p.offered.indexOf(id) < 0) return NO_QUALITY;
+  return id === p.picked ? SAME_QUALITY : { act: "quality", id, report: true };
 }
 
 /** Previous starts the track again (rather than playing the one before) past 3 s, or on the first track. */

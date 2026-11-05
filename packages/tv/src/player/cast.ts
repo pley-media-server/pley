@@ -28,7 +28,8 @@ export function receiverQuery(id: string, live: boolean): string {
 /** What a cast asks of this TV: nothing, or the title, playlist or channel to play. */
 export type CastAction =
   | { act: "none" }
-  | { act: "item"; itemId: Id; startMs: number | null; shuffle: boolean }
+  /** `audioIndex` and `subtitleIndex` (`-1`: none): the tracks picked on the remote's page, `null` when it sent none. */
+  | { act: "item"; itemId: Id; startMs: number | null; shuffle: boolean; audioIndex: number | null; subtitleIndex: number | null }
   | { act: "playlist"; playlistId: Id; shuffle: boolean }
   | { act: "channel"; channelId: Id };
 
@@ -37,11 +38,21 @@ const NO_CAST: CastAction = { act: "none" };
 /**
  * The casts' rule: one for another receiver is another device's, and one
  * that comes while the app can't take it (hidden, signed out, asking who's
- * watching: `shown` false) does nothing; else it plays what it names.
+ * watching: `shown` false) does nothing; else it plays what it names, a
+ * title with the tracks sent.
  */
 export function castAction(receiver: string, shown: boolean, e: CastEvent): CastAction {
   if (!shown || e.receiver_id !== receiver) return NO_CAST;
-  if (typeof e.item_id === "number") return { act: "item", itemId: e.item_id, startMs: typeof e.start_ms === "number" ? Math.max(0, e.start_ms) : null, shuffle: !!e.shuffle };
+  if (typeof e.item_id === "number") {
+    return {
+      act: "item",
+      itemId: e.item_id,
+      startMs: typeof e.start_ms === "number" ? Math.max(0, e.start_ms) : null,
+      shuffle: !!e.shuffle,
+      audioIndex: typeof e.audio_index === "number" ? e.audio_index : null,
+      subtitleIndex: typeof e.subtitle_index === "number" ? e.subtitle_index : null,
+    };
+  }
   if (typeof e.playlist_id === "number") return { act: "playlist", playlistId: e.playlist_id, shuffle: !!e.shuffle };
   if (typeof e.channel_id === "number") return { act: "channel", channelId: e.channel_id };
   return NO_CAST;
@@ -169,9 +180,14 @@ export class CastReceiver {
     if (!current()) return "dropped";
     const plan = itemPlay(detail.kind, action.startMs, action.shuffle);
     switch (plan.plays) {
-      case "video":
-        env.video(plan.startMs !== null ? { itemId: detail.id, startMs: plan.startMs } : { itemId: detail.id, fromStart: false });
+      case "video": {
+        const request: PlayRequest = plan.startMs !== null ? { itemId: detail.id, startMs: plan.startMs } : { itemId: detail.id, fromStart: false };
+        // The tracks picked on the remote's page, for this play: the player falls back to the saved ones for a track its file lacks.
+        if (action.audioIndex !== null) request.audioIndex = action.audioIndex;
+        if (action.subtitleIndex !== null) request.subtitleIndex = action.subtitleIndex;
+        env.video(request);
         return "played";
+      }
       case "next_episode": {
         const { item } = await server.onDeck(detail.id);
         if (!current()) return "dropped";

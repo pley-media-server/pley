@@ -4,7 +4,7 @@ import type { ClientCaps, ItemDetail, MediaFile, MediaStream, PlaybackInfo, Play
 import type { KeyValue } from "../../src/auth/tokens";
 import { PlaybackController, type PlayerEnv } from "../../src/player/controller";
 import type { EngineListener, EngineSource, EngineStatus, PlayerEngine } from "../../src/player/engine";
-import { dvContainerMode, dvRetryMode, initialAudio, initialSubtitle, pictureUrlAt, playbackRequest, playingAudio, withTracks, type Choices } from "../../src/player/plan";
+import { dvContainerMode, dvRetryMode, initialAudio, initialSubtitle, pictureUrlAt, playbackRequest, playingAudio, withTracks, type Choices, type PlayRequest } from "../../src/player/plan";
 import { storedMemory, type Remembered } from "../../src/player/autoquality";
 import type { NetworkMemory } from "../../src/player/network";
 import { ORIGINAL } from "../../src/player/quality";
@@ -297,6 +297,8 @@ function world(detail: ItemDetail, answer: (req: PlaybackRequest) => PlaybackInf
   const saved: [number | null | undefined, number | null][] = [];
   /** What each progress report said plays, in order: "stopped 600000 audio 1 subtitles -1". */
   const reported: string[] = [];
+  /** The Quality menu's pick each progress report said, in order: "playing 8m". */
+  const qualities: string[] = [];
   /**
    * `down`: nothing answers (the Wi-Fi dropped, the server restarts). `busy`: no transcode free for a session asked for
    * beside another (503). `transcoderGone`: the server answers, but starts no session until its transcoder is back (503).
@@ -326,6 +328,7 @@ function world(detail: ItemDetail, answer: (req: PlaybackRequest) => PlaybackInf
     progress: async (_id: number, pos: number, _d: number | null, state: string, _session: string | null, tracks?: PlayingTracks) => {
       calls.push(`progress ${state} ${Math.round(pos)}`);
       reported.push(`${state} ${Math.round(pos)} audio ${tracks?.audio ?? "none"} subtitles ${tracks?.subtitle ?? "none"}`);
+      qualities.push(`${state} ${tracks?.quality ?? "none"}`);
     },
     stopSession: async (id: string) => void calls.push(`delete ${id}`),
     setBitrate: (id: string, kbps: number) => answered(() => calls.push(`bitrate ${id} ${kbps}`)).then(() => bitrate.answer(kbps)),
@@ -356,7 +359,7 @@ function world(detail: ItemDetail, answer: (req: PlaybackRequest) => PlaybackInf
       return () => undefined;
     },
   };
-  return { env, engine, calls, requests, saved, reported, net, media, bitrate, send: (e: ServerEvent) => listeners.forEach((l) => l(e)) };
+  return { env, engine, calls, requests, saved, reported, qualities, net, media, bitrate, send: (e: ServerEvent) => listeners.forEach((l) => l(e)) };
 }
 
 /** A stream in two sizes, each in 4 s segments over the film's two hours. */
@@ -1374,17 +1377,17 @@ describe("the user's remote, on another device", () => {
     return { w, c };
   }
 
-  it("is told what the player obeys: next only when something may come after it, audio and subtitles when the file has them", async () => {
+  it("is told what the player obeys: next only when something may come after it, audio and subtitles when the file has them, the quality always", async () => {
     const film = await playing();
-    expect(film.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "audio", "subtitles"]);
+    expect(film.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "audio", "subtitles", "quality"]);
     film.c.close();
     const episode = await playing(item(file(), { kind: "episode" }));
-    expect(episode.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "next", "audio", "subtitles"]);
+    expect(episode.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality"]);
     episode.c.close();
     const bare = file();
     bare.streams = bare.streams.filter((s) => s.kind !== "subtitle");
     const noSubtitles = await playing(item(bare));
-    expect(noSubtitles.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "audio"]);
+    expect(noSubtitles.w.requests[0]!.controls).toEqual(["play", "pause", "seek", "skip", "audio", "quality"]);
     noSubtitles.c.close();
   });
 
@@ -1546,8 +1549,82 @@ describe("the user's remote, on another device", () => {
       c.close();
       await vi.advanceTimersByTimeAsync(10);
       expect(w.reported).toEqual(["playing 600000 audio 1 subtitles 4", "paused 600000 audio 1 subtitles 4", "stopped 600000 audio 1 subtitles 4"]);
+      expect(w.qualities).toEqual(["playing original", "paused original", "stopped original"]);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("picks a quality as its Quality menu does, kept for the next titles, in a new session that says so as it begins", async () => {
+    let sessions = 0;
+    const w = world(item(file()), () => info({ session_id: `s${++sessions}` }));
+    const picked: string[] = [];
+    w.env.quality = { remembered: () => "original", remember: (id) => void picked.push(id) };
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.firstFrame();
+    w.engine.listener?.status("ready");
+    await settle();
+    w.qualities.length = 0;
+    w.send(command({ session_id: "s1", command: "quality", quality: "8m" }));
+    await settle();
+    expect(w.requests[1]).toMatchObject({ mode: "transcode", keep_previous: true });
+    expect(picked).toEqual(["8m"]);
+    expect(c.state.value.quality).toBe("8 Mbps 1080p");
+    // The one it leaves, then the new one as it begins.
+    expect(w.qualities).toEqual(["stopped 8m", "playing 8m"]);
+    c.close();
+  });
+
+  it("says again which quality is picked when picked again, and leaves another session's and one its menu lacks alone", async () => {
+    const { w, c } = await playing();
+    w.qualities.length = 0;
+    w.send(command({ session_id: "s1", command: "quality", quality: "original" }));
+    w.send(command({ session_id: "s2", command: "quality", quality: "8m" }));
+    w.send(command({ session_id: "s1", command: "quality", quality: "best" }));
+    w.send(command({ session_id: "s1", command: "quality", quality: null }));
+    await settle();
+    expect(w.qualities).toEqual(["playing original"]);
+    expect(w.requests).toHaveLength(1);
+    c.close();
+  });
+});
+
+describe("a title cast with the tracks picked on the remote's page", () => {
+  async function started(request: PlayRequest) {
+    const w = world(item(file({ selected_subtitle: 4 })), (req) => info({ audio_index: req.audio_index ?? 1 }));
+    const c = new PlaybackController(request, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.firstFrame();
+    w.engine.listener?.status("ready");
+    await settle();
+    // What it plays, said at once.
+    w.send({ type: "player_command", session_id: "s1", command: "play", position_ms: null, offset_ms: null });
+    await settle();
+    return { w, c };
+  }
+
+  it("plays with them for that play, saving nothing, and no subtitles for -1", async () => {
+    const { w, c } = await started({ itemId: 70, fromStart: false, audioIndex: 2, subtitleIndex: -1 });
+    expect(w.requests[0]!.audio_index).toBe(2);
+    expect(w.reported[0]).toBe("playing 600000 audio 2 subtitles -1");
+    expect(w.saved).toEqual([]);
+    c.close();
+  });
+
+  it("leaves a track the file doesn't have to the saved choices", async () => {
+    const { w, c } = await started({ itemId: 70, fromStart: false, audioIndex: 9, subtitleIndex: 12 });
+    expect(w.requests[0]!.audio_index).toBeUndefined();
+    expect(w.reported[0]).toBe("playing 600000 audio 1 subtitles 4");
+    c.close();
+  });
+
+  it("starts with subtitles off for -1, else as asked, else the profile's choice", () => {
+    const f = file({ selected_subtitle: 4 });
+    expect([initialSubtitle(f, -1), initialSubtitle(f, 3)?.index, initialSubtitle(f, null)?.index]).toEqual([null, 3, 4]);
   });
 });

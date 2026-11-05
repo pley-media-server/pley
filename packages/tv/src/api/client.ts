@@ -526,8 +526,9 @@ export class Api {
 
   /**
    * Where a playback is. `tracks`: a video's audio and subtitles playing
-   * (`subtitle` `-1`: none), by stream index, which the server keeps on the
-   * session for the user's remotes; music has none to say.
+   * (`subtitle` `-1`: none), by stream index, and its Quality menu's pick,
+   * which the server keeps on the session for the user's remotes; music has
+   * none to say.
    */
   progress(itemId: Id, positionMs: number, durationMs: number | null, state: PlaybackState, session: string | null, tracks?: PlayingTracks): Promise<unknown> {
     return this.call("POST", `/api/items/${itemId}/progress`, {
@@ -537,6 +538,7 @@ export class Api {
       session_id: session ?? undefined,
       audio_index: tracks && tracks.audio !== null ? tracks.audio : undefined,
       subtitle_index: tracks ? tracks.subtitle : undefined,
+      quality: tracks?.quality,
     });
   }
 

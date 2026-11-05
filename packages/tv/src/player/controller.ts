@@ -53,7 +53,7 @@ import type { NetworkMemory } from "./network";
 import { PREPARE_LEAD_MS, warmStream, type StreamFetch } from "./prepare";
 import { AUTO, autoLadder, chooseQuality, fileHint, liveFloor, liveLabel, modeOf, namedFor, ORIGINAL, presetById, PRESETS, qualitiesFor, streamLines, type QualityPreset } from "./quality";
 import { failureText, Recovery, StruggleMeter, type EngineError, type RecoveryAction } from "./recovery";
-import { remoteAction, trackAction, videoControls, type PlayerCommand } from "./remote";
+import { qualityAction, remoteAction, trackAction, videoControls, type PlayerCommand } from "./remote";
 import type { Reporter } from "./reporter";
 import { SLEEP_OFF, SleepTimer, type SleepChoice, type SleepState } from "./sleep";
 import { SPEEDS } from "./speed";
@@ -282,8 +282,9 @@ interface Outage {
  * - **Markers, Up Next, the sleep timer**, and a session the server
  *   stopped: it says so and plays no more.
  * - **The remote** on the user's other devices: play, pause, seek, skip,
- *   next, and the audio and subtitles, through the menus' own paths; every
- *   report says which tracks play (remote.ts has the rules).
+ *   next, and the audio, subtitles and quality, through the menus' own
+ *   paths; every report says which tracks play and which quality is picked
+ *   (remote.ts has the rules).
  */
 export class PlaybackController {
   readonly state: Signal<PlayerState> = signal(INITIAL);
@@ -721,7 +722,7 @@ export class PlaybackController {
     this.clearProgress();
     const itemId = this.item?.id ?? this.current.itemId;
     const api = this.env.api;
-    const tracks = this.playingTracks;
+    const tracks = this.reportedTracks();
     this.env.reporter.send(() => api.progress(itemId, positionMs, info.duration_ms, "stopped", info.session_id, tracks));
     this.env.reporter.send(() => api.stopSession(info.session_id));
     return true;
@@ -1090,8 +1091,13 @@ export class PlaybackController {
     if (!info || this.sessionEnded) return;
     const itemId = this.item?.id ?? this.current.itemId;
     const api = this.env.api;
-    const tracks = this.playingTracks;
+    const tracks = this.reportedTracks();
     this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, state, info.session_id, tracks));
+  }
+
+  /** What a report says plays: the session's tracks, and the Quality menu's pick. */
+  private reportedTracks(): PlayingTracks {
+    return { ...this.playingTracks, quality: this.quality.id };
   }
 
   /** The tracks chosen, by stream index (`-1`: no subtitles). */
@@ -1137,7 +1143,7 @@ export class PlaybackController {
       this.clearProgress();
       const itemId = this.item?.id ?? this.current.itemId;
       const api = this.env.api;
-      const tracks = this.playingTracks;
+      const tracks = this.reportedTracks();
       this.env.reporter.send(() => api.progress(itemId, position, info.duration_ms, "stopped", info.session_id, tracks));
     }
     if (this.seekReportTimer !== null) clearTimeout(this.seekReportTimer);
@@ -1162,6 +1168,10 @@ export class PlaybackController {
     if (!info || this.closed || this.stopped || this.sessionEnded || this.state.value.phase.kind === "error") return;
     if (command.command === "audio" || command.command === "subtitles") {
       this.obeyTrack(info, command);
+      return;
+    }
+    if (command.command === "quality") {
+      this.obeyQuality(info, command);
       return;
     }
     const detail = this.item;
@@ -1231,6 +1241,27 @@ export class PlaybackController {
     else this.selectSubtitle(action.index < 0 ? null : action.index);
     if (this.generation !== generation) return;
     // Switched in place: no new session to say so.
+    this.reportBegun = false;
+    this.report(this.wantPlay ? "playing" : "paused");
+  }
+
+  /**
+   * The remote's quality (remote.ts has the rule), as picked in the Quality
+   * menu, kept for the next titles as a pick there is. A new session
+   * reports as it begins; the same stream playing on reports at once. A
+   * pick of what is picked already says so again.
+   */
+  private obeyQuality(info: PlaybackInfo, command: PlayerCommand): void {
+    const action = qualityAction({ session: info.session_id, offered: qualitiesFor(this.file).map((p) => p.id), picked: this.quality.id }, command);
+    if (action.act === "none") {
+      if (action.report) this.report(this.wantPlay ? "playing" : "paused");
+      return;
+    }
+    // Set first: a new session may begin before the switch returns.
+    this.reportBegun = true;
+    const generation = this.generation;
+    this.selectQuality(action.id);
+    if (this.generation !== generation) return;
     this.reportBegun = false;
     this.report(this.wantPlay ? "playing" : "paused");
   }

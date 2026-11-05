@@ -50,7 +50,9 @@ function played(kind: "video" | "music", p: Player, c: PlayerCommand) {
 describe("the remote, as the shared fixture has it", () => {
   it("controls", () => {
     for (const c of fixture.controls) {
-      const declared = c.in.kind === "video" ? videoControls(!!c.in.has_next) : c.in.kind === "music" ? MUSIC_CONTROLS : liveControls(!!c.in.has_order);
+      // A video's part every app shares; its tracks and quality follow it (tracks.json has those).
+      const video = () => videoControls(!!c.in.has_next).filter((x) => x !== "quality");
+      const declared = c.in.kind === "video" ? video() : c.in.kind === "music" ? MUSIC_CONTROLS : liveControls(!!c.in.has_order);
       expect([c.in, declared]).toEqual([c.in, c.out]);
     }
   });

@@ -413,17 +413,21 @@ export interface PlaybackRequest {
 }
 
 /** A command of the user's remote, on another of their devices (docs/API.md, "Remote control"). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
 
 /** What kind of device a player plays on, as remotes show it. */
 export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 export type PlaybackState = "playing" | "paused" | "stopped";
 
-/** The tracks a video plays now, by stream index: its audio (`null` when it has none) and subtitles (`-1`: none). */
+/**
+ * The tracks a video plays now, by stream index: its audio (`null` when it has none) and subtitles (`-1`: none);
+ * and its Quality menu's pick, by id (`"auto"`, `"original"`, `"8m"`…).
+ */
 export interface PlayingTracks {
   audio: number | null;
   subtitle: number;
+  quality?: string;
 }
 
 /**
@@ -442,13 +446,23 @@ export type ServerEvent =
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
   /**
    * The user's remote, on another device, for the player of `session_id`: `position_ms` for `seek`, `offset_ms` for
-   * `skip`, `stream_index` for `audio` and `subtitles` (`-1`: subtitles off), else null (left out by an older server).
+   * `skip`, `stream_index` for `audio` and `subtitles` (`-1`: subtitles off), `quality` for `quality` (one of the
+   * Quality menu's ids), else null (left out by an older server).
    */
-  | { type: "player_command"; session_id: string; command: Control; position_ms: number | null; offset_ms: number | null; stream_index?: number | null }
+  | {
+      type: "player_command";
+      session_id: string;
+      command: Control;
+      position_ms: number | null;
+      offset_ms: number | null;
+      stream_index?: number | null;
+      quality?: string | null;
+    }
   /**
    * The user's remote sent their device of `receiver_id` something to play: one of `item_id`, `playlist_id` and
-   * `channel_id`, a title from `start_ms`, a playlist, album or artist shuffled; `from` names the remote's device
-   * (docs/API.md, "Casting").
+   * `channel_id`, a title from `start_ms`, a playlist, album or artist shuffled; a movie or an episode with the
+   * tracks picked on the remote's page, `audio_index` and `subtitle_index` (`-1`: none), when it sent them;
+   * `from` names the remote's device (docs/API.md, "Casting").
    */
   | {
       type: "cast";
@@ -458,6 +472,8 @@ export type ServerEvent =
       channel_id: Id | null;
       start_ms: number | null;
       shuffle: boolean;
+      audio_index?: number | null;
+      subtitle_index?: number | null;
       from: string | null;
     }
   | { type: "scan_started" | "scan_progress" | "scan_finished"; library_id: Id }

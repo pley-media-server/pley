@@ -2,23 +2,23 @@
   "controls": [
     {
       "in": { "has_next": false, "audio": 0, "subtitles": 0 },
-      "out": ["play", "pause", "seek", "skip"]
+      "out": ["play", "pause", "seek", "skip", "quality"]
     },
     {
       "in": { "has_next": false, "audio": 1, "subtitles": 0 },
-      "out": ["play", "pause", "seek", "skip", "audio"]
+      "out": ["play", "pause", "seek", "skip", "audio", "quality"]
     },
     {
       "in": { "has_next": false, "audio": 0, "subtitles": 2 },
-      "out": ["play", "pause", "seek", "skip", "subtitles"]
+      "out": ["play", "pause", "seek", "skip", "subtitles", "quality"]
     },
     {
       "in": { "has_next": false, "audio": 2, "subtitles": 2 },
-      "out": ["play", "pause", "seek", "skip", "audio", "subtitles"]
+      "out": ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"]
     },
     {
       "in": { "has_next": true, "audio": 2, "subtitles": 3 },
-      "out": ["play", "pause", "seek", "skip", "next", "audio", "subtitles"]
+      "out": ["play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality"]
     }
   ],
   "commands": [
@@ -107,18 +107,72 @@
       "out": { "act": "none", "report": false }
     }
   ],
+  "qualities": [
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s2", "command": "quality", "quality": "8m" } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": null, "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": "8m" } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": "8m" } },
+      "out": { "act": "quality", "quality": "8m", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "8m" }, "command": { "session_id": "s1", "command": "quality", "quality": "original" } },
+      "out": { "act": "quality", "quality": "original", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "original" }, "command": { "session_id": "s1", "command": "quality", "quality": "auto" } },
+      "out": { "act": "quality", "quality": "auto", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": "auto" } },
+      "out": { "act": "none", "report": true }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": "30m" } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": "best" } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "quality", "quality": null } },
+      "out": { "act": "none", "report": false }
+    },
+    {
+      "in": { "player": { "session_id": "s1", "offered": ["original", "auto", "8m", "4m", "2m"], "picked": "auto" }, "command": { "session_id": "s1", "command": "audio", "quality": "8m" } },
+      "out": { "act": "none", "report": false }
+    }
+  ],
   "casts": [
     {
       "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": 60000, "shuffle": false, "from": "Living room phone" } },
-      "out": { "act": "item", "item_id": 5, "start_ms": 60000, "shuffle": false, "banner": "Playing from Living room phone" }
+      "out": { "act": "item", "item_id": 5, "start_ms": 60000, "shuffle": false, "audio_index": null, "subtitle_index": null, "banner": "Playing from Living room phone" }
     },
     {
       "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "from": "Living room phone" } },
-      "out": { "act": "item", "item_id": 5, "start_ms": null, "shuffle": false, "banner": "Playing from Living room phone" }
+      "out": { "act": "item", "item_id": 5, "start_ms": null, "shuffle": false, "audio_index": null, "subtitle_index": null, "banner": "Playing from Living room phone" }
     },
     {
       "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 6, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": true, "from": null } },
-      "out": { "act": "item", "item_id": 6, "start_ms": null, "shuffle": true, "banner": "Playing from another device" }
+      "out": { "act": "item", "item_id": 6, "start_ms": null, "shuffle": true, "audio_index": null, "subtitle_index": null, "banner": "Playing from another device" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": 60000, "shuffle": false, "audio_index": 2, "subtitle_index": 4, "from": "Living room phone" } },
+      "out": { "act": "item", "item_id": 5, "start_ms": 60000, "shuffle": false, "audio_index": 2, "subtitle_index": 4, "banner": "Playing from Living room phone" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "audio_index": 1, "subtitle_index": -1, "from": "Living room phone" } },
+      "out": { "act": "item", "item_id": 5, "start_ms": null, "shuffle": false, "audio_index": 1, "subtitle_index": -1, "banner": "Playing from Living room phone" }
+    },
+    {
+      "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": 5, "playlist_id": null, "channel_id": null, "start_ms": null, "shuffle": false, "audio_index": null, "subtitle_index": 3, "from": "Living room phone" } },
+      "out": { "act": "item", "item_id": 5, "start_ms": null, "shuffle": false, "audio_index": null, "subtitle_index": 3, "banner": "Playing from Living room phone" }
     },
     {
       "in": { "receiver_id": "tizen-1", "shown": true, "cast": { "receiver_id": "tizen-1", "item_id": null, "playlist_id": 3, "channel_id": null, "start_ms": null, "shuffle": true, "from": "Firefox on Windows" } },
