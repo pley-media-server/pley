@@ -559,10 +559,3 @@ export function leaveChannel(sessionId: string, keepalive = false): Promise<void
 export function programProgress(p: Pick<Program, "start" | "stop">, now: number): number {
   return Math.max(0, Math.min(1, (now - p.start) / Math.max(1, p.stop - p.start)));
 }
-
-/** "S2 E14", when the guide numbers the episode. */
-export function episodeLabel(p: Pick<Program, "season" | "episode">): string | null {
-  if (p.season != null && p.episode != null) return `S${p.season} E${p.episode}`;
-  if (p.episode != null) return `E${p.episode}`;
-  return null;
-}
