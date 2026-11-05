@@ -14,6 +14,11 @@ It has no releases yet: it is built and installed by hand
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile.
+- Your phone or browser's play, pause, seek, skip, audio, subtitles or
+  quality on a film or episode playing on the TV says what it did for 2 s
+  at the top right ("Paused", "+30 s", "Jumped to 12:34", "Audio: …"),
+  without the player's controls; a pause from there doesn't keep the
+  controls on screen until you press a key on the TV.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - The icon shows Pley's name under the mark, as the other apps in the

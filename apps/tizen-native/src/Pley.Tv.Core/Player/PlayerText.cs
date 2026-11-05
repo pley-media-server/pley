@@ -48,7 +48,11 @@ public static class PlayerText
     public const string TryAgain = "Try again";
     public const string BackLabel = "Back";
 
-    /// <summary>Toasts show this long (design spec §2.10); errors longer; the CAPTIONS key's shorter.</summary>
+    // What the remote did, toasted.
+    public const string PausedToast = "Paused";
+    public const string PlayingToast = "Playing";
+
+    /// <summary>Toasts show this long (design spec §2.10); errors longer; the CAPTIONS key's and the remote's shorter.</summary>
     public const long ToastMs = 3_500, ErrorToastMs = 6_000, CaptionsToastMs = 2_000;
 
     /// <summary>The controls hide after this long without a key, unless paused or in a panel.</summary>
@@ -71,6 +75,15 @@ public static class PlayerText
 
     /// <summary>"Subtitles: English (SRT)", when the CAPTIONS key turns them on.</summary>
     public static string SubtitlesToast(string label) => $"Subtitles: {label}";
+
+    /// <summary>"Audio: French (AC3 5.1)", when the remote changes the audio.</summary>
+    public static string AudioToast(string label) => $"Audio: {label}";
+
+    /// <summary>"Quality: 8 Mbps 1080p", when the remote changes the quality.</summary>
+    public static string QualityToast(string label) => $"Quality: {label}";
+
+    /// <summary>"Jumped to 12:34", when the remote seeks to a place.</summary>
+    public static string JumpedToast(long ms) => $"Jumped to {Time(ms)}";
 
     /// <summary>A transcode the player chose, toasted: the session's note, then where the way back is.</summary>
     public static string TranscodeToast(string note) => $"{note} Play original is in Quality.";

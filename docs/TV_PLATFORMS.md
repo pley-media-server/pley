@@ -597,6 +597,11 @@ channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
 stopped it and, on a line of its own, their message, as on Android TV. The
 rule is `Player/Remote.cs`, pinned by the same fixtures as the web app's.
+As on Android TV, a command shows no controls: what it changed is a toast
+for 2 s at the player's top right, as the CAPTIONS key's, in the Samsung
+app's words ([Remote control](#remote-control)); one that changes nothing
+says nothing, and the remote's pause keeps no controls up until a key on
+the TV makes it the person's own.
 Casts play as on the web app ([Remote control](#remote-control)), taken
 while the rail's pages or a player show: what a remote sends takes the
 place of the player showing once that one has let go of the TV's player,

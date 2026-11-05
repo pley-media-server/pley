@@ -289,6 +289,8 @@ public class VideoRemoteTests
         h.Source.Emit(Command("next"));
         Assert.Equal(2L, h.LastBody["item_id"]);
         Assert.Equal(2, h.State.ItemId);
+        // The screen's banner shows the next title as it begins: nothing is toasted for it.
+        Assert.Empty(h.Toasts);
 
         // The last episode: the screen's Next says so, the remote's says nothing here (Android's).
         var last = new PlayerHarness().Add(PlayerHarness.Episode(1, 1));
@@ -301,6 +303,46 @@ public class VideoRemoteTests
         movie.Start(new PlayRequest(1, 0, true));
         movie.Source.Emit(Command("next"));
         Assert.Single(movie.Source.Bodies);
+    }
+
+    [Fact]
+    public void What_it_does_is_toasted_as_briefly_as_the_captions_key_and_a_command_that_changes_nothing_says_nothing()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        h.Play(600_000);
+        h.Source.Emit(Command("pause", session: "s2"));
+        h.Source.Emit(Command("play"));
+        Assert.Empty(h.Toasts);
+        h.Source.Emit(Command("pause"));
+        h.Source.Emit(Command("pause"));
+        h.Source.Emit(Command("play"));
+        // A skip says the offset asked for, as the seek badge does; a seek where it went, the end short of it.
+        h.Source.Emit(Command("skip", offsetMs: 30_000));
+        h.Source.Emit(Command("skip", offsetMs: -10_000));
+        h.Source.Emit(Command("seek", positionMs: 754_000));
+        h.Source.Emit(Command("seek", positionMs: 9_000_000));
+        Assert.Equal(new[] { "Paused", "Playing", "+30 s", "−10 s", "Jumped to 12:34", "Jumped to 44:59" }, h.Toasts.Select(t => t.Text));
+        Assert.All(h.Toasts, t => Assert.Equal((PlayerText.CaptionsToastMs, false), (t.Ms, t.Error)));
+    }
+
+    [Fact]
+    public void The_remotes_pause_isnt_the_persons_until_it_plays_again_whoever_plays_it()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        h.Play(4_000);
+        h.Model.Pause();
+        Assert.False(h.State.PausedByRemote);
+        h.Model.Play();
+        h.Source.Emit(Command("pause"));
+        Assert.True(h.State.PausedByRemote);
+        Assert.Equal(PhaseKind.Paused, h.State.Phase.Kind);
+        h.Model.Play();
+        Assert.False(h.State.PausedByRemote);
+        h.Source.Emit(Command("pause"));
+        h.Source.Emit(Command("play"));
+        Assert.False(h.State.PausedByRemote);
     }
 
     [Fact]
