@@ -4,7 +4,7 @@ import { EventStream } from "../src/api/events";
 import type { ItemDetail, ItemKind, ItemSummary, LiveSummary, Playlist, PlaylistEntry } from "../src/api/types";
 import type { KeyValue, Tokens } from "../src/auth/tokens";
 import type { Platform } from "../src/platform";
-import { CAST_BANNER_MS, CastReceiver, NOTHING_TO_PLAY, receiverQuery, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
+import { CAST_BANNER_MS, CastReceiver, receiverQuery, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
 import type { PlayRequest } from "../src/player/plan";
 import { AppState } from "../src/state";
 
@@ -124,7 +124,7 @@ describe("a cast to this TV", () => {
     t.receiver.take(cast({ item_id: 21 }));
     await settle();
     expect(t.videos).toEqual([{ itemId: 23, fromStart: false }]);
-    expect(t.said).toEqual(["Playing from Living room phone", NOTHING_TO_PLAY]);
+    expect(t.said).toEqual(["Playing from Living room phone", "Nothing to play"]);
   });
 
   it("plays an album's tracks in order, or shuffled from a random one, as the music's queue", async () => {
@@ -182,7 +182,7 @@ describe("a cast to this TV", () => {
     await settle();
     expect(t.queues).toEqual([{ tracks: [71, 72, 73], at: 1, shuffle: true, fromMs: 0 }]);
     expect(t.videos).toEqual([{ itemId: 81, queue: { kind: "playlist", id: 4 } }]);
-    expect(t.said).toEqual(["Playing from Living room phone", "Playing from Living room phone", NOTHING_TO_PLAY]);
+    expect(t.said).toEqual(["Playing from Living room phone", "Playing from Living room phone", "Nothing to play"]);
   });
 
   it("tunes a channel in the live player at once", () => {

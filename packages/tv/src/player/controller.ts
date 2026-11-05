@@ -9,6 +9,7 @@ import type {
   MediaFile,
   MediaStream,
   PlaybackInfo,
+  PlaybackMethod,
   PlaybackMode,
   PlaybackRequest,
   PlayingTracks,
@@ -21,10 +22,11 @@ import type {
 import { SignedOutError } from "../auth/tokens";
 import { Cancel } from "../net/transport";
 import { episodeLabel, streamLabel, twoLetterCode } from "../format/format";
+import { t } from "../i18n";
 import { decide } from "../caps/policy";
 import { NOTHING_SHOWN, SubtitlePresenter, type ShownSubtitles } from "../subs/presenter";
 import { clampOffset, type OffsetStore } from "../subs/sync";
-import { buildDetails, fallbackText, methodText, stoppedText, T, type PlaybackDetails } from "./details";
+import { automaticAt, automaticNow, buildDetails, fallbackText, loweredText, methodText, stoppedText, upNextHeading, type PlaybackDetails } from "./details";
 import type { EngineSource, EngineStatus, PlayerEngine } from "./engine";
 import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget } from "./markers";
 import { hasNext, labelOf, nextAfter, startOf, TRICKPLAY_GIVE_UP_MS, TRICKPLAY_RETRY_MS } from "./nextup";
@@ -117,7 +119,9 @@ export interface PlayerState {
   subtitles: TrackChoice[];
   quality: string;
   qualities: QualityChoice[];
+  /** How it plays, in words ("Direct play"), and which way, for the badge's colour. */
   method: string | null;
+  methodKind: PlaybackMethod | null;
   note: string | null;
   canPlayOriginal: boolean;
   suggestLowerQuality: boolean;
@@ -155,7 +159,8 @@ export interface PlayerClock {
   bufferedMs: number;
 }
 
-const INITIAL: PlayerState = {
+/** The state before anything is known, its words in the language shown. */
+const initial = (): PlayerState => ({
   phase: { kind: "preparing" },
   itemId: 0,
   kind: null,
@@ -163,9 +168,10 @@ const INITIAL: PlayerState = {
   subtitle: null,
   audio: [],
   subtitles: [],
-  quality: "Original",
+  quality: ORIGINAL.label,
   qualities: [],
   method: null,
+  methodKind: null,
   note: null,
   canPlayOriginal: false,
   suggestLowerQuality: false,
@@ -186,7 +192,7 @@ const INITIAL: PlayerState = {
   firstFrameMs: null,
   stalls: 0,
   switching: false,
-};
+});
 
 /** What a player needs from the app around it. */
 export interface PlayerEnv {
@@ -287,7 +293,7 @@ interface Outage {
  *   (remote.ts has the rules).
  */
 export class PlaybackController {
-  readonly state: Signal<PlayerState> = signal(INITIAL);
+  readonly state: Signal<PlayerState> = signal(initial());
   readonly clock: Signal<PlayerClock> = signal({ positionMs: 0, durationMs: 0, bufferedMs: 0 });
   readonly subs: Signal<ShownSubtitles> = signal(NOTHING_SHOWN);
 
@@ -387,7 +393,7 @@ export class PlaybackController {
       position: () => this.livePosition(),
       offsetMs: () => this.offset,
       onShown: (shown) => (this.subs.value = shown),
-      onFailed: () => this.notice(T.subtitlesFailed),
+      onFailed: () => this.notice(t("player.toasts.subtitlesNotLoaded")),
       onPicturesUnavailable: () => this.picturesFailed(),
     });
     this.sleep = new SleepTimer({
@@ -569,7 +575,7 @@ export class PlaybackController {
     if (!detail) return;
     const chosen = this.file;
     if (!chosen) {
-      this.fail(T.noFile, false);
+      this.fail(t("player.errors.noFile"), false);
       return;
     }
     let alongside = prepared;
@@ -643,7 +649,7 @@ export class PlaybackController {
     }
     if (this.env.keyedUrls && !isKeyed(info.url)) {
       this.discard(info);
-      this.fail("This server is too old to play on this TV: update it.", false);
+      this.fail(t("player.errors.serverTooOld"), false);
       return;
     }
     if (alongside && preparing) {
@@ -674,6 +680,7 @@ export class PlaybackController {
     }
     this.update({
       method: methodText(info),
+      methodKind: info.method,
       note: this.noteText(),
       canPlayOriginal: this.recovery.struggleSwitched && this.recovery.fallbackMode !== null,
     });
@@ -913,10 +920,10 @@ export class PlaybackController {
         break;
       }
       case "suggest_lower_quality":
-        this.update({ suggestLowerQuality: true, note: T.slowServer });
+        this.update({ suggestLowerQuality: true, note: t("player.errors.slowServer") });
         break;
       case "fail":
-        this.fail(failureText(action.failure, action.detail), action.failure !== "unplayable", action.failure === "network" ? T.offlineTitle : undefined);
+        this.fail(failureText(action.failure, action.detail), action.failure !== "unplayable", action.failure === "network" ? t("common.server.cantReach") : undefined);
         break;
     }
   }
@@ -1382,7 +1389,7 @@ export class PlaybackController {
   addFoundSubtitle(result: SubtitleResult): Promise<void> {
     const item = this.item;
     const file = this.file;
-    if (!item || !file) return Promise.reject(new Error(T.noFile));
+    if (!item || !file) return Promise.reject(new Error(t("player.errors.noFile")));
     return this.env.api.addSubtitle(item.id, file.id, result.id).then((track) => this.subtitleAdded(track));
   }
 
@@ -1409,7 +1416,7 @@ export class PlaybackController {
     this.item = { ...item, files: item.files.map((f) => (f.id === updated.id ? updated : f)) };
     const info = this.info;
     if (info) this.info = { ...info, subtitles: info.subtitles.filter((t) => t.index !== track.index).concat([track]) };
-    this.notice(T.subtitlesAdded(streamLabel(stream)));
+    this.notice(t("player.toasts.subtitlesAdded", { track: streamLabel(stream) }));
     if (this.subtitle?.index === track.index) this.publishChoices();
     else this.selectSubtitle(track.index);
   }
@@ -1496,7 +1503,7 @@ export class PlaybackController {
     }
     this.lookUpNext((found) => {
       if (found) this.switchTo(found);
-      else if (!quiet) this.notice(this.current.queue ? T.lastInQueue : T.lastEpisode);
+      else if (!quiet) this.notice(this.current.queue ? t("player.toasts.lastInQueue") : t("player.toasts.lastEpisode"));
     });
   }
 
@@ -1652,7 +1659,7 @@ export class PlaybackController {
     const card: UpNextCard = {
       itemId: found.id,
       title: found.title,
-      heading: T.upNext(labelOf(found)),
+      heading: upNextHeading(labelOf(found)),
       imageUrl: image ? this.env.api.url(withWidth(image, UP_NEXT_IMAGE_WIDTH)) : null,
       secondsLeft: null,
     };
@@ -1713,7 +1720,7 @@ export class PlaybackController {
     const title = this.state.value.title;
     // The next title plays at normal speed.
     if (this.state.value.speed !== 1) this.engineRef?.setSpeed?.(1);
-    this.state.value = { ...INITIAL, itemId: target.id, title, sleep, speeds: this.state.value.speeds };
+    this.state.value = { ...initial(), itemId: target.id, title, sleep, speeds: this.state.value.speeds };
     this.setClock({ positionMs: req.startMs ?? 0, bufferedMs: 0 });
     const generation = this.nextGeneration();
     const prefetched = this.nextDetail?.id === target.id ? this.nextDetail : null;
@@ -1873,7 +1880,7 @@ export class PlaybackController {
     const to = stream ? liveLabel(this.file, stream, step.bitrate!) : namedFor(this.file, presetById(step.to) ?? ORIGINAL).label;
     this.update({ suggestLowerQuality: false, note: this.noteText() });
     this.publishChoices();
-    if (step.why) this.notice(T.smoother(to));
+    if (step.why) this.notice(t("player.toasts.qualityLowered", { quality: to }));
     this.struggle.reset();
     if (step.bitrate !== undefined) this.sendBitrate(step.bitrate);
     else this.restart(this.livePosition(), true);
@@ -1884,7 +1891,7 @@ export class PlaybackController {
   private noteText(): string | null {
     if (this.recovery.fallbackReason) return fallbackText(this.recovery.fallbackReason);
     const auto = this.auto;
-    return auto && auto.lowered && (auto.playing !== ORIGINAL.id || auto.liveLowered) ? T.lowered[auto.lowered] : null;
+    return auto && auto.lowered && (auto.playing !== ORIGINAL.id || auto.liveLowered) ? loweredText(auto.lowered) : null;
   }
 
   // ---------------------------------------------------------------- state
@@ -1895,7 +1902,7 @@ export class PlaybackController {
     const info = this.info;
     const audio = audioStreams(file).map((s) => ({ index: s.index, label: streamLabel(s), selected: s.index === this.audio?.index, burnIn: false }));
     const subs = subtitleStreams(file);
-    const off: TrackChoice = { index: null, label: T.subtitlesOff, selected: !this.subtitle, burnIn: false };
+    const off: TrackChoice = { index: null, label: t("player.subtitles.off"), selected: !this.subtitle, burnIn: false };
     const subtitles: TrackChoice[] = subs.length
       ? [off].concat(
           subs.map((s) => ({ index: s.index, label: streamLabel(s), selected: s.index === this.subtitle?.index, burnIn: isPicture(s) && !this.sideload, added: !!s.added })),
@@ -1922,8 +1929,8 @@ export class PlaybackController {
       hint:
         p.id === AUTO.id
           ? auto
-            ? T.autoNow(autoNow, auto.lowered && (playing.id !== ORIGINAL.id || eased) ? T.lowered[auto.lowered] : null)
-            : T.autoHint
+            ? automaticNow(autoNow, auto.lowered && (playing.id !== ORIGINAL.id || eased) ? loweredText(auto.lowered) : null)
+            : t("player.quality.automaticHint")
           : p.id === ORIGINAL.id
             ? hint
             : null,
@@ -1933,7 +1940,7 @@ export class PlaybackController {
       audio,
       subtitles,
       qualities,
-      quality: auto ? T.automatic(autoNow) : this.quality.label,
+      quality: auto ? automaticAt(autoNow) : this.quality.label,
       subtitleSync: syncable,
       subtitleOffsetMs: this.offset,
     });
@@ -1992,7 +1999,7 @@ export class PlaybackController {
       return;
     }
     if (unreachable(e)) {
-      this.fail(T.offlineBody, true, T.offlineTitle);
+      this.fail(t("player.errors.reachHint"), true, t("common.server.cantReach"));
       return;
     }
     const canRetry = !(e instanceof SignedOutError) && !(e instanceof ApiError && (e.status === 403 || e.status === 404 || e.status === 401));
@@ -2046,7 +2053,7 @@ export class PlaybackController {
           this.reachBack(outage, true);
         } else if (this.now() - outage.since >= OUTAGE_MS) {
           this.endOutage();
-          this.fail(T.offlineBody, true, T.offlineTitle);
+          this.fail(t("player.errors.reachHint"), true, t("common.server.cantReach"));
         } else {
           this.askAgainLater(outage);
         }

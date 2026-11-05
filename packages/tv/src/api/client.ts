@@ -89,7 +89,7 @@ export class SessionStoppedError extends ApiError {
   /** What the one who stopped it wrote, if anything. */
   readonly note: string | null;
   constructor(note: string | null) {
-    super(410, "session_stopped", note ?? "Playback was stopped by the server's administrator");
+    super(410, "session_stopped", note ?? t("player.errors.sessionStopped"));
     this.name = "SessionStoppedError";
     this.note = note;
   }

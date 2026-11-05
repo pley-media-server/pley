@@ -1,4 +1,5 @@
 import type { Id, ItemDetail, ItemSummary, Playlist, PlaylistEntry, ServerEvent } from "../api/types";
+import { t } from "../i18n";
 import type { PlayRequest } from "./plan";
 
 /**
@@ -12,9 +13,6 @@ export type CastEvent = Extract<ServerEvent, { type: "cast" }>;
 
 /** How long "Playing from …" shows over what starts. */
 export const CAST_BANNER_MS = 4_000;
-
-/** Said when a show, an album or a playlist has nothing to play. */
-export const NOTHING_TO_PLAY = "Nothing to play";
 
 /**
  * The event stream's query that makes this TV a receiver: its install id,
@@ -61,7 +59,7 @@ export function castAction(receiver: string, shown: boolean, e: CastEvent): Cast
 /** "Playing from {device}", as the cast starts; "another device" when the remote's has no name. */
 export function castBanner(from: string | null): string {
   const name = (from ?? "").trim();
-  return `Playing from ${name || "another device"}`;
+  return name ? t("player.cast.playingFrom", { device: name }) : t("player.cast.playingFromAnother");
 }
 
 /**
@@ -150,7 +148,8 @@ export class CastReceiver {
     this.play(server, action, current).then(
       (outcome) => {
         if (outcome === "played") this.env.say(banner);
-        else if (outcome === "nothing") this.env.say(NOTHING_TO_PLAY);
+        // Said when a show, an album or a playlist has nothing to play.
+        else if (outcome === "nothing") this.env.say(t("player.cast.nothingToPlay"));
       },
       (error: unknown) => {
         if (current()) this.env.failed(error);

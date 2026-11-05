@@ -1,4 +1,5 @@
 import type { ItemDetail, Marker } from "../api/types";
+import { t } from "../i18n";
 
 /** The intro and credits of the file playing. */
 export function markersOf(item: ItemDetail, fileId: number): Marker[] {
@@ -22,7 +23,7 @@ export function skipTarget(m: Marker): number {
 }
 
 export function skipLabel(m: Marker): string {
-  return m.kind === "intro" ? "Skip Intro" : "Skip Credits";
+  return m.kind === "intro" ? t("player.skip.intro") : t("player.skip.credits");
 }
 
 /**

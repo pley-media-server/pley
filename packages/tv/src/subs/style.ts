@@ -5,24 +5,42 @@
  * is offered only when the TV has a face for it that differs from the
  * app's (`fontsHere`).
  */
+import { t } from "../i18n";
 
 export type SubtitleFont = "default" | "serif" | "mono" | "casual";
 export type SubtitlePosition = "bottom" | "raised" | "higher" | "highest";
 
-export const SUBTITLE_FONTS: { id: SubtitleFont; label: string; family: string }[] = [
-  { id: "default", label: "Default", family: '"Roboto", "SamsungOne", "LG Smart UI", sans-serif' },
-  { id: "serif", label: "Serif", family: '"Roboto Serif", "Noto Serif", "DejaVu Serif", "Tizen Serif", Georgia, serif' },
-  { id: "mono", label: "Monospace", family: '"Roboto Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace' },
-  { id: "casual", label: "Casual", family: '"Comic Sans MS", "Comic Neue", "Coming Soon", cursive' },
+/** A font as Settings offers it; its `label` is read in the language shown. */
+function font(id: SubtitleFont, family: string): { id: SubtitleFont; readonly label: string; family: string } {
+  return {
+    id,
+    get label() {
+      return t(`player.subtitleStyle.fonts.${id}`);
+    },
+    family,
+  };
+}
+
+/** A position as Settings offers it; its `label` is read in the language shown. */
+function position(id: SubtitlePosition, lift: number): { id: SubtitlePosition; readonly label: string; lift: number } {
+  return {
+    id,
+    get label() {
+      return t(`player.subtitleStyle.positions.${id}`);
+    },
+    lift,
+  };
+}
+
+export const SUBTITLE_FONTS = [
+  font("default", '"Roboto", "SamsungOne", "LG Smart UI", sans-serif'),
+  font("serif", '"Roboto Serif", "Noto Serif", "DejaVu Serif", "Tizen Serif", Georgia, serif'),
+  font("mono", '"Roboto Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace'),
+  font("casual", '"Comic Sans MS", "Comic Neue", "Coming Soon", cursive'),
 ];
 
 /** Raised from the usual place by this share of the screen's height (%), as the web's. */
-export const SUBTITLE_POSITIONS: { id: SubtitlePosition; label: string; lift: number }[] = [
-  { id: "bottom", label: "Bottom", lift: 0 },
-  { id: "raised", label: "A little higher", lift: 5 },
-  { id: "higher", label: "Higher", lift: 10 },
-  { id: "highest", label: "Highest", lift: 16 },
-];
+export const SUBTITLE_POSITIONS = [position("bottom", 0), position("raised", 5), position("higher", 10), position("highest", 16)];
 
 export function fontFamily(font: SubtitleFont): string {
   return (SUBTITLE_FONTS.filter((f) => f.id === font)[0] ?? SUBTITLE_FONTS[0]!).family;

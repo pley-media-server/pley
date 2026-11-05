@@ -1,4 +1,5 @@
 import type { PlaybackMethod, PlaybackMode } from "../api/types";
+import { t } from "../i18n";
 
 /** Why a fallback plays something other than the original. */
 export type FallbackReason = "unplayable" | "not_smooth";
@@ -215,19 +216,19 @@ export class Recovery {
 export function failureText(failure: Failure, detail: string | null): string {
   switch (failure) {
     case "unplayable":
-      return "This video can't be played on this device.";
+      return t("player.errors.unplayable");
     case "stuck":
-      return "This video doesn't play on this device: it stops at the same spot each time.";
+      return t("player.errors.sameSpot");
     case "short":
-      return "This video ends before the point it was to play from.";
+      return t("player.errors.endsEarly");
     case "stopped":
-      return "Playback stopped and couldn't get going again.";
+      return t("player.errors.stalled");
     case "network":
-      return "Check that the server is on and that this device is on its network.";
+      return t("player.errors.reachHint");
     case "engine": {
       // The TV's own words when it gives any ("PIPELINE_ERROR_DECODE"), not its generic ones.
       const short = (detail ?? "").split(":")[0]!.trim();
-      return short && !/^playback failed$/i.test(short) ? `The TV's player gave up (${short}).` : "The TV's player gave up.";
+      return short && !/^playback failed$/i.test(short) ? t("player.errors.playerGaveUpWith", { detail: short }) : t("player.errors.playerGaveUp");
     }
   }
 }
