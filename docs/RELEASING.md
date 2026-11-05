@@ -44,11 +44,12 @@ provenance (`gh attestation verify <file> --repo pley-media-server/pley`).
   files (`oci://ghcr.io/pley-media-server/pley:<version>` for `<file>`), and
   the repository's "Latest" release is the newest with the server.
 - Publish tags and publishes nothing until every other job in the run has
-  passed: a build that fails, or that GitHub cancels for want of a runner, holds back
-  the whole release. **Re-run failed jobs** runs what didn't pass, then
-  publishes, reusing the tag if an earlier attempt made it. If **What waits**
-  refuses the release, fix master (move Unreleased entries left behind under
-  the unit's new version, in a pull request) and run the workflow by hand.
+  passed: a build that fails, or that GitHub cancels for want of a runner,
+  holds back the whole release. **Re-run failed jobs** runs what didn't
+  pass, then publishes, reusing the tag if an earlier attempt made it. If
+  **What waits** refuses the release, fix master (move Unreleased entries
+  left behind under the unit's new version, in a pull request) and run the
+  workflow by hand.
 - Prepare release commits in the name of whoever runs it. It opens the pull
   request itself only with **Settings → Actions → General → Allow GitHub
   Actions to create and approve pull requests**; without it, it pushes the
