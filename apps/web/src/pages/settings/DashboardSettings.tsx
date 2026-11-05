@@ -33,7 +33,7 @@ import { useToast } from "@/components/Toast";
 import { ResourcesSection } from "./ResourcesSection";
 import { StorageSection } from "./StorageSection";
 import { Badge, Button, Card, EmptyState, Field, ProgressBar, SectionTitle, Skeleton } from "@/components/ui";
-import { currentLanguage, t as translate } from "@/i18n";
+import { currentLocale, t as translate } from "@/i18n";
 import { versionLabel, WEB_COMMIT, WEB_VERSION } from "@/lib/build";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatClock, formatTimestamp, formatUptime, fullTitle, transcodeSummary } from "@/lib/format";
@@ -422,7 +422,7 @@ function TranscoderLive({ status }: { status: TranscoderStatus }) {
   const { t } = useTranslation("settings");
   const c = status.counters;
   const avgProbe = c.probes > 0 ? Math.round(c.probe_ms_total / c.probes) : null;
-  const lang = currentLanguage();
+  const lang = currentLocale();
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -540,7 +540,7 @@ export function DashboardSettings() {
                   <span className="font-medium">{s.library_name}</span>
                   <span className="text-xs text-muted">
                     {t(`scanPhases.${s.phase}`)}
-                    {s.total > 0 ? ` · ${s.processed.toLocaleString(currentLanguage())} / ${s.total.toLocaleString(currentLanguage())}` : ""}
+                    {s.total > 0 ? ` · ${s.processed.toLocaleString(currentLocale())} / ${s.total.toLocaleString(currentLocale())}` : ""}
                   </span>
                 </div>
                 <ProgressBar value={s.total > 0 ? s.processed / s.total : 0} className="h-1.5" />
@@ -624,22 +624,22 @@ export function DashboardSettings() {
                 </dl>
               </Card>
               <div className="grid grid-cols-3 gap-3">
-                <Stat label={t("dashboard.counts.movies")} value={system.data.counts.movies.toLocaleString(currentLanguage())} />
+                <Stat label={t("dashboard.counts.movies")} value={system.data.counts.movies.toLocaleString(currentLocale())} />
                 <Stat
                   label={t("dashboard.counts.shows")}
-                  value={system.data.counts.shows.toLocaleString(currentLanguage())}
+                  value={system.data.counts.shows.toLocaleString(currentLocale())}
                   sub={t("dashboard.counts.episodes", { count: system.data.counts.episodes })}
                 />
                 <Stat
                   label={t("dashboard.counts.artists")}
-                  value={system.data.counts.artists.toLocaleString(currentLanguage())}
+                  value={system.data.counts.artists.toLocaleString(currentLocale())}
                   sub={t("dashboard.counts.albums", { count: system.data.counts.albums })}
                 />
-                <Stat label={t("dashboard.counts.tracks")} value={system.data.counts.tracks.toLocaleString(currentLanguage())} />
-                <Stat label={t("dashboard.counts.files")} value={system.data.counts.files.toLocaleString(currentLanguage())} />
+                <Stat label={t("dashboard.counts.tracks")} value={system.data.counts.tracks.toLocaleString(currentLocale())} />
+                <Stat label={t("dashboard.counts.files")} value={system.data.counts.files.toLocaleString(currentLocale())} />
                 <Stat
                   label={t("dashboard.counts.users")}
-                  value={system.data.counts.users.toLocaleString(currentLanguage())}
+                  value={system.data.counts.users.toLocaleString(currentLocale())}
                   sub={t("dashboard.counts.libraries", { count: system.data.counts.libraries })}
                 />
               </div>

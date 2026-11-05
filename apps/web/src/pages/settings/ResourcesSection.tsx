@@ -5,7 +5,7 @@ import { errorMessage } from "@/api/client";
 import { useResources } from "@/api/hooks";
 import type { ResourceSample, Resources } from "@/api/types";
 import { SectionTitle, Skeleton } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 
@@ -32,7 +32,7 @@ interface Series {
 /** A share in the language shown: one decimal below 10%, "12%" above. */
 const percent = (n: number) => {
   const digits = n === 0 || n >= 10 ? 0 : 1;
-  return new Intl.NumberFormat(currentLanguage(), { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n / 100);
+  return new Intl.NumberFormat(currentLocale(), { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n / 100);
 };
 
 /** The path through `points`, broken where samples are missing (the server was busy or restarted). */
@@ -186,7 +186,7 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
               )}
               style={{ left: `${(x(shown.at) / W) * 100}%` }}
             >
-              <div className="mb-1 text-subtle tabular-nums">{new Date(shown.at).toLocaleTimeString(currentLanguage())}</div>
+              <div className="mb-1 text-subtle tabular-nums">{new Date(shown.at).toLocaleTimeString(currentLocale())}</div>
               {series.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
                   <LineKey color={s.color} />

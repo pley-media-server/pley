@@ -37,7 +37,7 @@
       "title": "Métadonnées",
       "description": "Affiches, résumés, notes, distribution et titres des épisodes.",
       "tmdbKey": "Clé d’API TMDB",
-      "tmdbKeyHint": "Les films, les collections et la correction des correspondances utilisent TMDB. Clé gratuite sur <a>themoviedb.org/settings/api</a>. Sans clé, les films gardent le nom de leur fichier et leurs illustrations locales.",
+      "tmdbKeyHint": "Les films, les collections et « Corriger la correspondance » utilisent TMDB. Clé gratuite sur <a>themoviedb.org/settings/api</a>. Sans clé, les films gardent le nom de leur fichier et leurs illustrations locales.",
       "testTmdb": "Tester la clé TMDB",
       "tvShows": "Séries",
       "tvShowsHint": "Automatique utilise TMDB s’il a une clé, sinon TheTVDB s’il en a une, sinon <a>TVmaze</a>, qui n’en demande pas. Changer de source récupère à nouveau toutes les séries.",

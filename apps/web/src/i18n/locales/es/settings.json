@@ -37,7 +37,7 @@
       "title": "Metadatos",
       "description": "Pósteres, sinopsis, valoraciones, reparto y títulos de episodios.",
       "tmdbKey": "Clave de API de TMDB",
-      "tmdbKeyHint": "Las películas, las colecciones y la corrección de coincidencias usan TMDB. Clave gratuita en <a>themoviedb.org/settings/api</a>. Sin ella, las películas conservan el nombre de su archivo y sus ilustraciones locales.",
+      "tmdbKeyHint": "Las películas, las colecciones y “Corregir coincidencia” usan TMDB. Clave gratuita en <a>themoviedb.org/settings/api</a>. Sin ella, las películas conservan el nombre de su archivo y sus ilustraciones locales.",
       "testTmdb": "Probar la clave de TMDB",
       "tvShows": "Series",
       "tvShowsHint": "Automático usa TMDB si tiene clave, luego TheTVDB si tiene una y, si no, <a>TVmaze</a>, que no necesita ninguna. Cambiar la fuente vuelve a obtener todas las series.",

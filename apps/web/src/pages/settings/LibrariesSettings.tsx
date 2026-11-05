@@ -12,7 +12,7 @@ import { ConfirmModal } from "@/components/Modal";
 import { LibraryIcon } from "@/components/Sidebar";
 import { useToast } from "@/components/Toast";
 import { Button, EmptyState, IconButton, PageSpinner, ProgressBar } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -102,7 +102,7 @@ function LibraryRow({
                 </span>
                 {scan && scan.total > 0 ? (
                   <span className="tabular-nums text-muted">
-                    {scan.processed.toLocaleString(currentLanguage())} / {scan.total.toLocaleString(currentLanguage())}
+                    {scan.processed.toLocaleString(currentLocale())} / {scan.total.toLocaleString(currentLocale())}
                   </span>
                 ) : null}
               </div>

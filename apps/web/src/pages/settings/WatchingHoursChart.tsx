@@ -1,15 +1,15 @@
 import { useTranslation } from "react-i18next";
 import type { WatchingHours } from "@/api/types";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** Monday first; the server counts the week from Sunday (0). */
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 /** 7 January 2024 was a Sunday: day `d` of the server's week is 7 + d. */
-const dayName = (d: number) => new Intl.DateTimeFormat(currentLanguage(), { weekday: "short" }).format(new Date(2024, 0, 7 + d));
-const hourName = (h: number) => new Intl.DateTimeFormat(currentLanguage(), { hour: "numeric" }).format(new Date(2024, 0, 7, h));
+const dayName = (d: number) => new Intl.DateTimeFormat(currentLocale(), { weekday: "short" }).format(new Date(2024, 0, 7 + d));
+const hourName = (h: number) => new Intl.DateTimeFormat(currentLocale(), { hour: "numeric" }).format(new Date(2024, 0, 7, h));
 export const hourOfDay = (h: number) =>
-  new Intl.DateTimeFormat(currentLanguage(), { hour: "numeric", minute: "2-digit" }).format(new Date(2024, 0, 7, h));
+  new Intl.DateTimeFormat(currentLocale(), { hour: "numeric", minute: "2-digit" }).format(new Date(2024, 0, 7, h));
 
 /** How much a cell shows of the accent: from a trace of it (rarely watched) to all of it. */
 const shade = (playing: number) => `color-mix(in oklab, var(--color-accent) ${Math.round(8 + 92 * Math.min(1, playing))}%, var(--color-surface-2))`;
