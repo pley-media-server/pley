@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using Pley.Tv.Core;
 using Pley.Tv.Core.Auth;
@@ -38,7 +41,36 @@ static class Platform
         OsVersion = Info("http://tizen.org/feature/platform.version"),
         Model = Info("http://tizen.org/system/model_name"),
         TokenVault = new KeyManagerVault(),
+        Languages = Languages(),
     };
+
+    /// <summary>The TV's cultures as it started, before the app set its own: what the TV's settings say when they can't be read.</summary>
+    static readonly string StartLanguage = CultureInfo.CurrentUICulture.Name, StartRegion = CultureInfo.CurrentCulture.Name;
+
+    /// <summary>The TV's language, as its settings have it ("fr_FR"): Pley's when neither the account nor the server has one.</summary>
+    public static IReadOnlyList<string> Languages() =>
+        new[] { Setting(() => global::Tizen.System.SystemSettings.LocaleLanguage) ?? StartLanguage }.Where(t => t.Length > 0).ToList();
+
+    /// <summary>
+    /// What dates and numbers are written in (<see cref="Strings.Use"/>): the TV's region format
+    /// ("en_GB") when it is in the language shown, else the TV's language when that is.
+    /// </summary>
+    public static IReadOnlyList<string> CultureTags() =>
+        new[] { Setting(() => global::Tizen.System.SystemSettings.LocaleCountry) ?? StartRegion }.Concat(Languages()).Where(t => t.Length > 0).ToList();
+
+    static string? Setting(Func<string> read)
+    {
+        try
+        {
+            var value = read();
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+        catch (Exception)
+        {
+            // A TV that doesn't say: the cultures it started the app with.
+            return null;
+        }
+    }
 
     /// <summary>The version people see: "0.0.1", without the commit.</summary>
     public static string Version()

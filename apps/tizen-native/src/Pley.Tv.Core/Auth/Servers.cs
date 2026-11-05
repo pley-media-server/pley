@@ -14,7 +14,11 @@ namespace Pley.Tv.Core.Auth;
 /// Every account with a password must use two-step sign-in: the phone that approves a code sets it
 /// up for whoever hasn't yet. Servers before it leave it out.
 /// </param>
-public sealed record ServerInfo(string Url, string Name, string Version, bool TwoStepRequired = false);
+/// <param name="Language">
+/// The server's language, for accounts without their own ("fr"); null when it leaves it to each
+/// device, and from servers before languages.
+/// </param>
+public sealed record ServerInfo(string Url, string Name, string Version, bool TwoStepRequired = false, string? Language = null);
 
 /// <summary>Why an address isn't a server to sign in to.</summary>
 public abstract record ConnectProblem
@@ -32,13 +36,13 @@ public abstract record ConnectProblem
     /// </summary>
     public sealed record Unencrypted(string Address, string Url) : ConnectProblem;
 
-    /// <summary>The Android app's words for each problem (TvServersScreen's problemText).</summary>
+    /// <summary>The Android app's words for each problem (TvServersScreen's problemText), in the language shown.</summary>
     public string Text => this switch
     {
-        BadAddress => "Enter an address such as nas, 192.168.1.20 or pley.example.com.",
-        NotPley p => $"Something answers at {p.Address}, but it isn't Pley.",
-        Unreachable u => $"Couldn't reach {u.Address}: {u.Reason}",
-        Unencrypted u => $"{u.Address} isn't encrypted: what you watch could be read on the way. Use its https address if it has one, or press Connect again to go ahead anyway.",
+        BadAddress => Strings.T("signin.problem.badAddress"),
+        NotPley p => Strings.T("signin.problem.notPley", ("address", p.Address)),
+        Unreachable u => Strings.T("signin.problem.unreachable", ("address", u.Address), ("reason", u.Reason)),
+        Unencrypted u => Strings.T("signin.problem.unencrypted", ("address", u.Address)),
         _ => "",
     };
 }
@@ -101,7 +105,7 @@ public static class Servers
         var shown = Plain.Of(name);
         // On only when the server sends true: anything else (a string, a number) reads as off, as on Android.
         var twoStep = Json.Bool(body, "two_step_required") == true;
-        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!, twoStep), null);
+        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!, twoStep, Languages.Supported(Json.String(body, "language"))), null);
     }
 
     /// <summary>A home address gets 3 s to accept a connection, one on the internet 10 s.</summary>

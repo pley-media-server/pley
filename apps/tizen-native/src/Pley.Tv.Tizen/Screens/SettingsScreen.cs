@@ -153,6 +153,29 @@ sealed class SettingsScreen : ShellPage
 
     bool FocusFirst(SettingsCategory c) => FocusRow(model.FirstRow(c));
 
+    /// <summary>Where focus is: the category shown, and the row focused in its pane (null: the category).</summary>
+    public (SettingsCategory Category, string? Row) Spot
+    {
+        get
+        {
+            var current = Tree.Current;
+            return (shown, current != null && current.Parent == pane ? current.Name : null);
+        }
+    }
+
+    /// <summary>Focus back at <paramref name="spot"/>, as it was on this page before it was drawn again (in another language).</summary>
+    public void Return((SettingsCategory Category, string? Row) spot)
+    {
+        if (gone) return;
+        if (shown != spot.Category)
+        {
+            shown = spot.Category;
+            scroll = 0;
+            DrawPane();
+        }
+        if (spot.Row == null || !FocusRow(spot.Row)) Tree.Focus(categoryRows[shown].Item);
+    }
+
     bool FocusRow(string key)
     {
         foreach (var node in pane.Children)

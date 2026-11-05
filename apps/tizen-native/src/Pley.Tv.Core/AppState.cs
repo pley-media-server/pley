@@ -138,6 +138,8 @@ public sealed record AppPlatform(string Name, string ClientId, IKeyValue Storage
     public ITokenVault? TokenVault { get; init; }
     /// <summary>Makes the HTTP handlers; Core's own (<see cref="Transports.DefaultHandler"/>) without.</summary>
     public HandlerFactory? Handlers { get; init; }
+    /// <summary>The TV's languages, the one it is set to first ("fr-FR"): the app's when neither the account nor the server has one.</summary>
+    public IReadOnlyList<string> Languages { get; init; } = Array.Empty<string>();
 
     /// <summary>How every request introduces the app.</summary>
     public string UserAgent => UserAgents.Of(Version, OsVersion, Model);
@@ -178,6 +180,8 @@ public sealed class AppState
     const long LibraryGatherMs = 1_500;
     /// <summary>How long "Pley is offline" shows: as long as an error's toast.</summary>
     const long OfflineNoticeMs = 6_000;
+    /// <summary>The language last shown, for the next start to show before the server answers.</summary>
+    const string LanguageKey = "pley.language";
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     static readonly JsonSerializerOptions SettingsJson = new JsonSerializerOptions
@@ -214,18 +218,89 @@ public sealed class AppState
     Task orderQueue = Task.CompletedTask;
     /// <summary>When the events last brought everything up to date (<see cref="IScheduler.Elapsed"/>).</summary>
     long? lastSync;
+    /// <summary>What each server said of its language in this launch (GET /api/server), by its address; null: none of its own.</summary>
+    readonly Dictionary<string, string?> serverLanguages = new Dictionary<string, string?>();
+    IReadOnlyList<string> tvLanguages;
 
     /// <param name="http">Sends the app's requests; Core's transport over <see cref="AppPlatform.Handlers"/> without.</param>
     public AppState(AppPlatform platform, Transport? http = null, EventConnect? connect = null, IScheduler? scheduler = null)
     {
         this.platform = platform;
-        this.http = Transports.WithUserAgent(http ?? Transports.Create(platform.Handlers), platform.UserAgent);
+        tvLanguages = platform.Languages;
+        // The last language shown, until the account's or the server's is known: the TV's meanwhile would flash.
+        Language = new Signal<string>(Languages.Supported(platform.Storage.Get(LanguageKey)) ?? Languages.Pick(null, null, tvLanguages));
+        this.http = Transports.WithLanguage(Transports.WithUserAgent(http ?? Transports.Create(platform.Handlers), platform.UserAgent), () => Language.Value);
         this.connect = connect ?? EventStream.Over(platform.Handlers);
         this.scheduler = scheduler ?? new ContextScheduler();
         store = platform.Storage;
         Settings = new Signal<Settings>(Read<Settings>(SettingsKey, SettingsJson)?.Allowed() ?? new Settings());
+        Me.Changed += _ => ChooseLanguage();
         var server = store.Get(ServerKey);
         if (!string.IsNullOrEmpty(server)) Use(server!);
+    }
+
+    /// <summary>
+    /// The language the app shows ("en", "fr", "es"): the account's own, else the server's, else the
+    /// TV's that Pley has, else English (<see cref="Languages.Pick"/>). It starts as the last one
+    /// shown, and changes once the account or the server says otherwise; requests ask for answers
+    /// in it (<c>Accept-Language</c>).
+    /// </summary>
+    public Signal<string> Language { get; }
+
+    /// <summary>The TV's languages, the one it is set to first.</summary>
+    public IReadOnlyList<string> TvLanguages => tvLanguages;
+
+    /// <summary>The language of the server in use, for accounts without their own; null when it has none, or hasn't said yet.</summary>
+    public string? ServerLanguage => Server.Value != null && serverLanguages.TryGetValue(Server.Value, out var language) ? language : null;
+
+    /// <summary><paramref name="url"/>'s server said what its language is (GET /api/server): the app shows it when the account has none.</summary>
+    public void HeardServer(string url, string? language)
+    {
+        var home = Addresses.Origin(url);
+        if (home == null) return;
+        serverLanguages[home] = Languages.Supported(language);
+        ChooseLanguage();
+    }
+
+    /// <summary>Asks the server in use for its language (GET /api/server, no token); out of reach, the language shown stays.</summary>
+    public async Task LoadServer()
+    {
+        var server = Server.Value;
+        if (server == null) return;
+        try
+        {
+            if (await Servers.Probe(http, server) is { } info) HeardServer(server, info.Language);
+        }
+        catch (Exception)
+        {
+            // Asked again at the next sign-in or start.
+        }
+    }
+
+    /// <summary>The TV was set to other languages: the app follows when neither the account nor the server has one.</summary>
+    public void TvLanguagesChanged(IReadOnlyList<string> languages)
+    {
+        tvLanguages = languages;
+        ChooseLanguage();
+    }
+
+    /// <summary>
+    /// The language to show now: the account's once who is watching is known, else the server's
+    /// once it has said, else the TV's. Signed in and waiting for who is watching, or for the
+    /// server, the language shown stays. A change is kept for the next start.
+    /// </summary>
+    void ChooseLanguage()
+    {
+        var server = Server.Value;
+        var me = Me.Value;
+        string? next;
+        if (me != null && Languages.Supported(me.Language) is { } own) next = own;
+        else if (me == null && tokens?.Kept == true) next = null;
+        else if (server != null && serverLanguages.TryGetValue(server, out var language)) next = Languages.Pick(null, language, tvLanguages);
+        else next = null;
+        if (next == null || next == Language.Value) return;
+        Language.Value = next;
+        store.Set(LanguageKey, next);
     }
 
     public Signal<string?> Server { get; } = new Signal<string?>(null);
@@ -348,6 +423,8 @@ public sealed class AppState
         SignedOut.Value = false;
         profile = long.TryParse(store.Get($"{ProfileKey}.{home}"), out var id) ? id : null;
         ShowSaved();
+        // Another server: its own language, or its account's, as far as they are known.
+        ChooseLanguage();
     }
 
     /// <summary>The servers this TV chose, most recently used first.</summary>
@@ -579,6 +656,8 @@ public sealed class AppState
         Me.Value = null;
         Libraries.Value = null;
         ForgetItems();
+        // Signed out: the server's language, for signing in again.
+        ChooseLanguage();
         SignedOut.Value = true;
     }
 

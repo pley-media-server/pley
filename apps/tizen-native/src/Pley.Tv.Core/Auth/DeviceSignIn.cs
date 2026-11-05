@@ -78,7 +78,7 @@ public sealed class DeviceSignIn
     /// <summary>The waits after network failures in a row.</summary>
     public static readonly long[] BackoffMs = { 2_000, 4_000, 8_000, 16_000, 30_000 };
 
-    const string Unreadable = "the server's answer can't be read: try again";
+    static string Unreadable => Strings.T("signin.errors.unreadable");
 
     readonly Transport http;
     readonly string clientId;
@@ -112,7 +112,7 @@ public sealed class DeviceSignIn
 
     public async Task<DeviceCode> Start(string server)
     {
-        var home = Addresses.Origin(server) ?? throw new AuthException("that isn't a server address");
+        var home = Addresses.Origin(server) ?? throw new AuthException(Metadata.NotAnAddress);
         PlainHttp.Check(home);
         var metadata = await Metadata.Fetch(http, home).ConfigureAwait(false);
         if (!metadata.SignsInWithCodes) throw new AuthException(Metadata.NoCodes);
@@ -190,7 +190,7 @@ public sealed class DeviceSignIn
                         break;
                     // invalid_grant: the code is unknown, or was collected already.
                     case "invalid_grant":
-                        outcome = new DevicePoll.Failed("this code doesn't work anymore: get a new one");
+                        outcome = new DevicePoll.Failed(Strings.T("signin.errors.codeSpent"));
                         break;
                     default:
                         outcome = new DevicePoll.Failed(e.Message);
@@ -249,7 +249,7 @@ public sealed class DeviceSignIn
         if (userCode.Length == 0) throw bad;
         var uri = Link(Json.String(o, "verification_uri")) ?? throw bad;
         // The page to open must be this server's own: a code typed elsewhere would sign someone else's TV in.
-        if (Addresses.Origin(uri) != metadata.Issuer) throw new AuthException("this server sends people to another address to approve TVs: Pley doesn't");
+        if (Addresses.Origin(uri) != metadata.Issuer) throw new AuthException(Strings.T("signin.errors.approveElsewhere"));
         var complete = Link(Json.String(o, "verification_uri_complete"));
         if (complete != null && Addresses.Origin(complete) != metadata.Issuer) complete = null;
         // Without a lifetime the code can't be shown honestly: Pley's servers always send one.

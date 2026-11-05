@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Pley.Tv.Core;
 using Pley.Tv.Core.Local;
@@ -42,6 +44,14 @@ class App : NUIApplication
     Action? afterPlayer;
     /// <summary>Casts from the profile's remote, on another of its devices.</summary>
     CastReceiver casts = null!;
+    /// <summary>The UI thread's queue: a new language redraws what shows once what changed it has run its course.</summary>
+    ContextScheduler ui = null!;
+    /// <summary>The language what shows was drawn in: another redraws it (<see cref="Redraw"/>).</summary>
+    string? drawnIn;
+    /// <summary>The screen of its own that shows while the pages don't: the servers, signing in, Who's watching?.</summary>
+    PageKey? shown;
+    /// <summary>The code signing in is about, for the link screen to be drawn again with it.</summary>
+    LinkModel? link;
 
     protected override void OnCreate()
     {
@@ -67,6 +77,15 @@ class App : NUIApplication
         Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
+        // The language last shown, before the first page; the account's or the server's follows when it is another.
+        ApplyLanguage(state.Language.Value);
+        ui = new ContextScheduler();
+        state.Language.Changed += language =>
+        {
+            ApplyLanguage(language);
+            // Posted: a page that went while a signal's listeners ran would still hear from them.
+            ui.Post(Redraw);
+        };
         // Pictures come through the API in use, with its token.
         state.Api.Watch(api => images.Api = api);
         var services = Profile.Start();
@@ -125,6 +144,70 @@ class App : NUIApplication
         state.Visible.Value = true;
         shell.Visible(true);
         state.Listen(true);
+    }
+
+    /// <summary>The TV was set to another language: the app follows when neither the account nor the server has one.</summary>
+    protected override void OnLocaleChanged(global::Tizen.Applications.LocaleChangedEventArgs e)
+    {
+        base.OnLocaleChanged(e);
+        state.TvLanguagesChanged(Platform.Languages());
+        // Tizen set the thread's cultures to the TV's own: the language shown's again.
+        ApplyLanguage(state.Language.Value);
+    }
+
+    /// <summary>The TV's region format changed: dates and numbers follow it when it is in the language shown.</summary>
+    protected override void OnRegionFormatChanged(global::Tizen.Applications.RegionFormatChangedEventArgs e)
+    {
+        base.OnRegionFormatChanged(e);
+        ApplyLanguage(state.Language.Value);
+    }
+
+    /// <summary>
+    /// The words in <paramref name="language"/> from now on, and dates and numbers in its culture
+    /// (the TV's region when the TV is in that language), for the code that writes them with the
+    /// thread's culture too.
+    /// </summary>
+    static void ApplyLanguage(string language)
+    {
+        Strings.Use(language, Platform.CultureTags());
+        var culture = Strings.Culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        CultureInfo.CurrentCulture = culture;
+        CultureInfo.CurrentUICulture = culture;
+    }
+
+    /// <summary>
+    /// What shows, again in the language shown and where it was: the pages with their back stack
+    /// (Settings on its row), the servers, or the code being signed in with. A player keeps its
+    /// words until it closes, and the pages under it are drawn again then. Signing in once the code
+    /// is approved, and Who's watching?, keep theirs for the moment before the next page, which
+    /// the profile chosen brings its own language to.
+    /// </summary>
+    void Redraw()
+    {
+        if (drawnIn == Strings.Language || player != null) return;
+        if (pages is { } tv)
+        {
+            ShowHome(tv.Keys, (tv.Top as SettingsScreen)?.Spot);
+            return;
+        }
+        switch (shown)
+        {
+            case PageKey.Servers:
+                Go(new PageKey.Servers());
+                break;
+            case PageKey.Link key when link is { Approved: false } model:
+                ShowLink(model, key);
+                break;
+        }
+    }
+
+    /// <summary>A screen of its own shows (not the pages), drawn in the language shown now.</summary>
+    void Showing(PageKey key)
+    {
+        shown = key;
+        drawnIn = Strings.Language;
     }
 
     protected override void OnTerminate()
@@ -198,13 +281,14 @@ class App : NUIApplication
                     Chosen = chosen => Go(chosen.Next),
                 };
                 shell.Show(servers);
+                Showing(key);
                 break;
-            case PageKey.Link link:
-                var model = new LinkModel(new AppLinkSource(state), new ContextScheduler(), link.Server);
+            case PageKey.Link signIn:
+                // Asks the server whether it requires two-step sign-in, and so hears its language.
+                var model = new LinkModel(new AppLinkSource(state), new ContextScheduler(), signIn.Server);
                 model.Done += () => Go(new PageKey.Home());
-                var screen = new LinkScreen(model, ChangeServer);
-                shell.Show(screen);
-                screen.Started();
+                link = model;
+                ShowLink(model, signIn);
                 break;
             case PageKey.Profiles who:
                 var profiles = new ProfilesModel(new AppProfilesSource(state), gate: !state.ProfileGatePassed, pin: who.Pin);
@@ -215,6 +299,7 @@ class App : NUIApplication
                 };
                 profiles.SignedOut += () => Go(new PageKey.Link(state.Server.Value ?? ""));
                 shell.Show(new ProfilesScreen(shell, profiles, images, Approval));
+                Showing(key);
                 _ = profiles.Load();
                 break;
             default:
@@ -223,8 +308,21 @@ class App : NUIApplication
         }
     }
 
-    /// <summary>Home, with the rail; what was saved shows at once, and the server is asked for the rest.</summary>
-    void ShowHome()
+    /// <summary>The link screen on <paramref name="model"/>'s code: a new one, or the same code drawn again in another language.</summary>
+    void ShowLink(LinkModel model, PageKey.Link key)
+    {
+        var screen = new LinkScreen(model, ChangeServer);
+        shell.Show(screen);
+        Showing(key);
+        screen.Started();
+    }
+
+    /// <summary>
+    /// Home, with the rail; what was saved shows at once, and the server is asked for the rest.
+    /// <paramref name="reopen"/>: the pages to show again in their order (another language), and
+    /// Settings back at <paramref name="spot"/>.
+    /// </summary>
+    void ShowHome(IReadOnlyList<PageKey>? reopen = null, (SettingsCategory, string?)? spot = null)
     {
         var made = Profile.Start();
         TvShell? tv = null;
@@ -302,15 +400,22 @@ class App : NUIApplication
             if (pages == tv) pages = null;
         };
         shell.Show(tv);
-        var shown = Profile.Start();
-        tv.Restart(Home(tv));
-        Profile.Took("Home shown", shown);
+        shown = null;
+        drawnIn = Strings.Language;
+        var homeShown = Profile.Start();
+        var root = reopen is { Count: > 0 } && reopen[0] is not PageKey.Home ? tv.PageOf?.Invoke(reopen[0]) : null;
+        tv.Restart(root ?? Home(tv));
+        Profile.Took("Home shown", homeShown);
+        foreach (var key in reopen?.Skip(1) ?? Enumerable.Empty<PageKey>()) tv.Open(key);
+        if (spot is { } at && tv.Top is SettingsScreen settings) settings.Return(at);
         // Requests are followed from just after the first frame: reading them starts their events, catching up and polling.
         // Home again (a sign-in, a profile chosen), their summary is read again.
         requests.Start();
         // The first film opens without making the TV's first player on the UI thread.
         TizenMediaEngine.Warm();
         _ = state.LoadAccount();
+        // The server's language, for a profile without its own.
+        _ = state.LoadServer();
         var home = state.LoadHome();
         Profile.Ends("Home's data", home);
         // Signed in now (at start, after a sign-in or a profile chosen): the server's events from here.
@@ -363,6 +468,8 @@ class App : NUIApplication
     {
         if (player != sheet) return;
         player = null;
+        // The language changed while it played: the pages under it in the new one.
+        if (drawnIn != Strings.Language) ui.Post(Redraw);
         var then = afterPlayer;
         afterPlayer = null;
         then?.Invoke();
@@ -468,9 +575,9 @@ class App : NUIApplication
         model.Done += () => Go(new PageKey.Home());
         LinkScreen? screen = null;
         screen = profile.Id == 0
-            ? new LinkScreen(model, () => shell.Pop(screen!), "Sign in as another profile", "Approve this code on a phone signed in to Pley, and pick the profile there.", "Use another profile")
-            : new LinkScreen(model, () => shell.Pop(screen!), "Approve on your phone",
-                $"{profile.Name}'s profile needs its password: approve this code on a phone signed in to Pley, and pick {profile.Name} there.", "Use another profile");
+            ? new LinkScreen(model, () => shell.Pop(screen!), Strings.T("signin.approve.anyTitle"), Strings.T("signin.approve.anyIntro"), Strings.T("signin.approve.otherProfile"))
+            : new LinkScreen(model, () => shell.Pop(screen!), Strings.T("signin.approve.title"),
+                Strings.T("signin.approve.intro", ("name", profile.Name)), Strings.T("signin.approve.otherProfile"));
         return screen;
     }
 

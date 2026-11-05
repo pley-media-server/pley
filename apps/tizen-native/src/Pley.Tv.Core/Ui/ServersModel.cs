@@ -108,9 +108,17 @@ public sealed class AppServersSource : IServersSource
         return $"{b[0]}.{b[1]}.{b[2]}.";
     }
 
-    public Task<ServerInfo> Check(string url) => Servers.Check(app.Http, url);
+    public Task<ServerInfo> Check(string url) => Heard(Servers.Check(app.Http, url));
 
-    public Task<ServerInfo> Connect(string text, string? goAheadAt) => Servers.Connect(app.Http, text, goAheadAt);
+    public Task<ServerInfo> Connect(string text, string? goAheadAt) => Heard(Servers.Connect(app.Http, text, goAheadAt));
+
+    /// <summary>The server's answer, its language heard by the app: a server chosen signs in in it.</summary>
+    async Task<ServerInfo> Heard(Task<ServerInfo> asked)
+    {
+        var info = await asked;
+        app.HeardServer(info.Url, info.Language);
+        return info;
+    }
 
     public void Use(string url, string name, string? id)
     {

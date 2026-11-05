@@ -60,6 +60,11 @@ describes how they are made.
 
 ### Added
 
+- Pley in French and Spanish: the app shows your profile's language, else
+  the server's, else the TV's, and starts in the last one it showed. Settings
+  → Profile → Language chooses it for your profile on every device, or the
+  server's. Choosing a server and signing in are translated so far; the
+  other pages follow.
 - Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
   to sign with your own Samsung certificate and install on a TV in Developer
   Mode, without building the app. The package carries Pley's licence and

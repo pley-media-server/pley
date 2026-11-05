@@ -75,7 +75,7 @@ public sealed record TokenResponse(
 /// <summary>The token endpoint said no: in the server's words, or its error code, or its status.</summary>
 public class TokenException : AuthException
 {
-    public TokenException(int status, OAuthError? oauth) : base(oauth?.Description ?? oauth?.Error ?? $"the server refused (HTTP {status})")
+    public TokenException(int status, OAuthError? oauth) : base(oauth?.Description ?? oauth?.Error ?? Strings.T("common.errors.refused", ("status", status)))
     {
         Status = status;
         OAuth = oauth;
@@ -87,7 +87,7 @@ public class TokenException : AuthException
 
 public class SignedOutException : AuthException
 {
-    public SignedOutException() : base("you were signed out: sign in again")
+    public SignedOutException() : base(Strings.T("signin.errors.signedOut"))
     {
     }
 }
@@ -106,15 +106,15 @@ public enum SignOutReason
 /// <summary>The Android app's token requests: reading and sending them.</summary>
 public static class TokenRequests
 {
-    public const string WiderScopeMessage = "the server allowed more than this app asks for: signed out";
+    public static string WiderScopeMessage => Strings.T("signin.errors.widerScope");
 
     /// <summary>Why tokens couldn't be sealed: they aren't used, and the person signs in again.</summary>
-    public const string Unkept = "the sign-in couldn't be kept on this device: sign in again";
+    public static string Unkept => Strings.T("signin.errors.unkept");
 
     /// <summary>Pley's access tokens last an hour; an answer without expires_in is read as that.</summary>
     const long DefaultExpiresIn = 3600;
 
-    const string Unreadable = "the server's answer can't be read: try again";
+    static string Unreadable => Strings.T("signin.errors.unreadable");
 
     public static TokenResponse ParseTokenResponse(JsonElement? body, string askedScope)
     {

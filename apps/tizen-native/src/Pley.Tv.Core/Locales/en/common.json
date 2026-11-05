@@ -1,0 +1,22 @@
+{
+  "actions": {
+    "cancel": "Cancel"
+  },
+  "network": {
+    "nothingAnswers": "nothing answers there",
+    "noAnswerInTime": "no answer in time",
+    "unknownAddress": "that address isn't known on this network",
+    "secureConnection": "its secure connection failed",
+    "cancelled": "cancelled",
+    "anotherDevice": "another device answers there",
+    "serverFailed": "the server couldn't answer",
+    "connectionFailed": "the connection to the server failed"
+  },
+  "errors": {
+    "notPley": "that isn't a Pley server",
+    "unreadable": "the server's answer can't be read: is it Pley, and up to date?",
+    "refused": "the server refused (HTTP {{status}})",
+    "offlineTitle": "Can't reach your server",
+    "offlineBody": "{{reason}} Check that the server is on and that this device is on its network."
+  }
+}

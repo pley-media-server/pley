@@ -650,6 +650,44 @@ album, as Android TV's does. The rules are `Player/Cast.cs`.
 | Screens | NUI, Samsung's C# toolkit on its DALi engine |
 | Oldest TV | Tizen 9 |
 
+### Language
+
+The native app is in English, French and Spanish, in the language
+[API.md](API.md#language) describes: the account's, else the server's,
+else the TV's own when Pley has it, else English
+(`packages/tv/test/fixtures/language.json` pins the order for both Samsung
+apps). The last language shown is kept on the TV, so the next start shows
+it before the server answers, rather than the TV's for a moment; when the
+account's or the server's turns out to be another, the app changes to it.
+The pages are drawn again where they were, Settings on the row that had
+focus; a film or a channel keeps its words until it closes. The server
+list and the sign-in code are drawn again too, the code unchanged, while
+Who's watching? and the moment after a code is approved keep theirs until
+the next page, which the profile brings its own language to.
+
+Settings → Profile → Language lists "Server default (Français)" ("Server
+default (this device's language, English)" when the server leaves it to
+each device), then English, Français and Español, each in itself. Choosing
+one sends `PUT /api/me/language`, and the app shows it once the server has
+it. Requests carry `Accept-Language` with the language shown, so what the
+server writes itself (Home's rows) comes in it. Dates and numbers follow
+the language, in the TV's region format when the TV is in that language
+(en-GB keeps its 24-hour clock).
+
+The words are in `src/Pley.Tv.Core/Locales/<language>/<area>.json`, a file
+per area of the app, in the format of the server's and the web app's
+catalogs (i18next's: nested keys, `{{name}}` for values, `_one`, `_many`
+and `_other` for counts), built into the Core library and read with
+`Strings` (`Strings.T("signin.servers.title")`, `Strings.Count(key, n)`).
+JSON rather than .NET's resx: the same files and format as the rest of
+Pley, so the web app's words carry over as they are, plurals by CLDR's
+rules, which resx has no form for, and no satellite assemblies to package.
+A word a language lacks shows in English. The Core's tests hold every
+language to English's keys, its own plural forms and the same values, and
+French and Spanish to their punctuation. Choosing a server, signing in and
+the Language row are in French and Spanish so far; the other pages show
+English until their words are in the catalogs.
+
 ### How it is built
 
 - It is a port of the Android TV app: its screens, its words and its rules
@@ -673,7 +711,8 @@ album, as Android TV's does. The rules are `Player/Cast.cs`.
   the TV was left on when it has one); `rail.json` pins the rail's
   entries (up to six libraries, then Libraries; nothing left out for
   Live TV or Now Playing) and how far they scroll for the entry focus is
-  on; `requests.json` pins where a Discover poster opens. Where the
+  on; `requests.json` pins where a Discover poster opens; `language.json`
+  pins which language shows. Where the
   Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which

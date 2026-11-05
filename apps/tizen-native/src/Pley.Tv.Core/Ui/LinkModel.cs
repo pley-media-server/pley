@@ -89,7 +89,7 @@ public interface ILinkSource
 public static class LinkText
 {
     /// <summary>Under the title, signing in, when the server requires two-step sign-in.</summary>
-    public const string TwoStepRequired = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
+    public static string TwoStepRequired => Strings.T("signin.link.twoStepRequired");
 }
 
 /// <summary>The link screen's source in the app: <see cref="AppState"/>'s sign-in, then its account.</summary>
@@ -128,7 +128,10 @@ public sealed class AppLinkSource : ILinkSource
         if (profile != null) return false;
         try
         {
-            return (await Servers.Probe(app.Http, server).ConfigureAwait(false))?.TwoStepRequired == true;
+            // On the UI thread: the server's language, in the same answer, may change the app's.
+            var info = await Servers.Probe(app.Http, server);
+            if (info != null) app.HeardServer(server, info.Language);
+            return info?.TwoStepRequired == true;
         }
         catch (Exception)
         {
@@ -181,6 +184,12 @@ public sealed class LinkModel
     }
 
     public Signal<LinkState> State { get; }
+
+    /// <summary>
+    /// The code was approved: the app is signing in, and Home comes next. The screen isn't drawn
+    /// again meanwhile (another language), as that would ask about a code already spent.
+    /// </summary>
+    public bool Approved { get; private set; }
 
     /// <summary>Signed in, and the moment of saying so is over: Home.</summary>
     public event Action? Done;
@@ -318,6 +327,7 @@ public sealed class LinkModel
 
     async void SignedIn()
     {
+        Approved = true;
         job = null;
         string? name = null;
         try

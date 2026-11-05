@@ -16,6 +16,11 @@
     <PackageReference Include="System.Text.Json" Version="6.0.11" />
   </ItemGroup>
 
+  <!-- The app's words (Strings.cs), built in as Pley.Tv.Core.Locales.<language>.<area>.json. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Locales\**\*.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Pley.Tv.Core.Tests" />
   </ItemGroup>

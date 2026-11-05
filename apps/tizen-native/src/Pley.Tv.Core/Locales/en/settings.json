@@ -1,0 +1,7 @@
+{
+  "language": {
+    "label": "Language",
+    "serverDefault": "Server default ({{language}})",
+    "deviceLanguage": "this device's language, {{language}}"
+  }
+}

@@ -52,6 +52,15 @@ public static class SettingsText
     public const string SignOutTitle = "Sign out?";
     public const string Cancel = "Cancel";
 
+    // The language, in the catalogs (Locales/*/settings.json).
+    public static string Language => Strings.T("settings.language.label");
+
+    /// <summary>"Server default (Français)": the profile has no language of its own.</summary>
+    public static string ServerDefault(string language) => Strings.T("settings.language.serverDefault", ("language", language));
+
+    /// <summary>"this device's language, English": what Server default stands for when the server has no language.</summary>
+    public static string TvLanguage(string language) => Strings.T("settings.language.deviceLanguage", ("language", language));
+
     // Playback.
     public const string Quality = "Quality";
     public const string QualityOriginal = "Original";

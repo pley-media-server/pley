@@ -20,7 +20,7 @@ public class AuthException : Exception
 public class UnreachableException : AuthException
 {
     public UnreachableException(NetworkException? cause = null)
-        : base("the server can't be reached: check its address and that it's on", cause)
+        : base(Strings.T("signin.errors.unreachable"), cause)
     {
     }
 }
@@ -40,7 +40,7 @@ public static class PlainHttp
     /// </summary>
     public static void Check(string url)
     {
-        if (Addresses.Origin(url) == null) throw new AuthException("that isn't a server address");
+        if (Addresses.Origin(url) == null) throw new AuthException(Metadata.NotAnAddress);
         if (Addresses.IsUnencrypted(url)) throw new AuthException(Addresses.Unencrypted);
     }
 }
@@ -68,7 +68,10 @@ public sealed record ServerMetadata(
 /// <summary>The Android app's <c>ServerMetadata</c>.</summary>
 public static class Metadata
 {
-    public const string TooOld = "this server is too old for this app";
+    public static string TooOld => Strings.T("signin.errors.tooOld");
+
+    /// <summary>What was given isn't an address a server answers at.</summary>
+    public static string NotAnAddress => Strings.T("signin.errors.notAddress");
 
     /// <summary>RFC 8628's grant: a TV collects its tokens with the code it was given.</summary>
     public const string DeviceCodeGrant = "urn:ietf:params:oauth:grant-type:device_code";
@@ -77,10 +80,10 @@ public static class Metadata
     public const string SwitchProfileGrant = "urn:pley:params:oauth:grant-type:switch-profile";
 
     /// <summary>What a server without sign-in with a code answers (the Android app's words).</summary>
-    public const string NoCodes = "this server can't sign in with a code yet: update it, or sign in with a password";
+    public static string NoCodes => Strings.T("signin.errors.noCodes");
 
     /// <summary>A server that redirects its metadata elsewhere.</summary>
-    public const string Moved = "this server answers at another address: open it by that one";
+    public static string Moved => Strings.T("signin.errors.moved");
 
     public const string Path = "/.well-known/oauth-authorization-server";
 
@@ -93,7 +96,7 @@ public static class Metadata
     /// </summary>
     public static async Task<ServerMetadata> Fetch(Transport http, string server)
     {
-        var home = Addresses.Origin(server) ?? throw new AuthException("that isn't a server address");
+        var home = Addresses.Origin(server) ?? throw new AuthException(NotAnAddress);
         PlainHttp.Check(home);
         HttpResponse res;
         try
@@ -111,7 +114,7 @@ public static class Metadata
         }
         if (res.Status is 300 or 301 or 302 or 303 or 307 or 308) throw new AuthException(Moved);
         if (res.Status == 404) throw new AuthException(TooOld);
-        if (res.Status < 200 || res.Status >= 300) throw new AuthException($"the server couldn't answer (HTTP {res.Status})");
+        if (res.Status < 200 || res.Status >= 300) throw new AuthException(Strings.T("signin.errors.failed", ("status", res.Status)));
         // Older servers answer their web app's page here.
         if (Subtype(res.Header("Content-Type")) != "json") throw new AuthException(TooOld);
         return Parse(res.Text ?? "", home);
@@ -128,7 +131,7 @@ public static class Metadata
     /// <summary>The checks of <see cref="Fetch"/>, on the answer <paramref name="text"/> of the server at <paramref name="server"/>.</summary>
     public static ServerMetadata Parse(string text, string server)
     {
-        var home = Addresses.Origin(server) ?? throw new AuthException("that isn't a server address");
+        var home = Addresses.Origin(server) ?? throw new AuthException(NotAnAddress);
         JsonElement o;
         try
         {
@@ -146,8 +149,7 @@ public static class Metadata
         if (issuer != home)
         {
             var named = Plain.Of(issuer);
-            throw new AuthException(
-                $"this server calls itself {(named.Length > 100 ? named.Substring(0, 100) : named)}: open it by that address, or check the proxy in front of it passes Host");
+            throw new AuthException(Strings.T("signin.errors.callsItself", ("name", named.Length > 100 ? named.Substring(0, 100) : named)));
         }
         // A server without PKCE's S256 predates Pley's sign-in for apps.
         if (!(Json.Strings(o, "code_challenge_methods_supported") ?? new string[0]).Contains("S256")) throw new AuthException(TooOld);
@@ -156,7 +158,7 @@ public static class Metadata
             var url = Json.String(o, name);
             if (string.IsNullOrEmpty(url)) throw new AuthException(TooOld);
             if (Addresses.Origin(url!) != issuer || !url!.StartsWith(issuer + "/", StringComparison.Ordinal))
-                throw new AuthException("this server sends apps to another address to sign in: Pley doesn't");
+                throw new AuthException(Strings.T("signin.errors.signInElsewhere"));
             return url;
         }
         var authorization = Endpoint("authorization_endpoint");

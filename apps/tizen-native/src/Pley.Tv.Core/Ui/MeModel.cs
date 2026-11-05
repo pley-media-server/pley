@@ -30,7 +30,12 @@ public sealed record TrackDefaultsState(TrackDefaults Defaults, bool Editable, b
     public bool ReadsSubtitles => Defaults.SubtitleMode is "foreign" or "always";
 }
 
-public sealed record MeState(MeProfile? Profile = null, TrackDefaultsState? TrackDefaults = null, bool SigningOut = false);
+/// <summary>The language the profile chose for Pley, and whether this app may change it.</summary>
+/// <param name="Code">"en", "fr" or "es"; null: the server's.</param>
+/// <param name="Editable">False: shown read-only, to change on the web (no "play" scope, or a server without the route).</param>
+public sealed record LanguageState(string? Code, bool Editable, bool Saving = false);
+
+public sealed record MeState(MeProfile? Profile = null, TrackDefaultsState? TrackDefaults = null, bool SigningOut = false, LanguageState? Language = null);
 
 /// <summary>Which track default a change was of.</summary>
 public enum TrackField
@@ -48,6 +53,9 @@ public abstract record MeEvent
 
     /// <summary>The server doesn't let the app change track defaults: they show read-only now.</summary>
     public sealed record ReadOnly : MeEvent;
+
+    /// <summary>The profile's language was saved: "Saved", which shows unless the app changes to the language and is drawn again.</summary>
+    public sealed record LanguageSaved : MeEvent;
 
     public sealed record Failed(Exception Error) : MeEvent;
 
@@ -67,6 +75,9 @@ public interface IMeSource
     /// <summary>PUT /api/me/track-defaults: the profile as the server has it after.</summary>
     Task<User> SaveTrackDefaults(TrackDefaults defaults);
 
+    /// <summary>PUT /api/me/language ("en", "fr", "es", or null for the server's): the profile as the server has it after.</summary>
+    Task<User> SaveLanguage(string? language);
+
     /// <summary>The track defaults changed: item details kept name the tracks they started with before.</summary>
     void TracksChanged();
 
@@ -76,16 +87,17 @@ public interface IMeSource
 
 /// <summary>
 /// The Me page, Settings' Profile (the Android app's MeViewModel): who is signed in, the
-/// profile's audio and subtitle defaults (PUT /api/me/track-defaults), and signing out, which
-/// ends the sign-in on the server, deletes what was saved from it and stops the music.
-/// Profiles are switched on "Who's watching?" (<see cref="ProfilesModel"/>).
+/// profile's audio and subtitle defaults (PUT /api/me/track-defaults), its language (PUT
+/// /api/me/language), and signing out, which ends the sign-in on the server, deletes what was
+/// saved from it and stops the music. Profiles are switched on "Who's watching?"
+/// (<see cref="ProfilesModel"/>).
 /// </summary>
 public sealed class MeModel : IDisposable
 {
     readonly IMeSource source;
     readonly IScheduler scheduler;
     readonly IDisposable watch;
-    bool readOnly, saving, signingOut, gone;
+    bool readOnly, saving, signingOut, gone, languageReadOnly, savingLanguage;
 
     public MeModel(IMeSource source, IScheduler scheduler)
     {
@@ -104,6 +116,40 @@ public sealed class MeModel : IDisposable
     public void SetSubtitleMode(string mode) => Save(TrackField.SubtitleMode, d => d with { SubtitleMode = mode });
 
     public void SetSubtitleLanguage(string? code) => Save(TrackField.SubtitleLanguage, d => d with { SubtitleLanguage = code });
+
+    /// <summary>
+    /// The profile's language ("en", "fr", "es"; null: the server's), on all its devices. The
+    /// profile the server answers is the app's from then on, so the app shows the language once
+    /// the server has it: a refusal leaves everything as it was.
+    /// </summary>
+    public void SetLanguage(string? code)
+    {
+        var current = State.Value.Language;
+        if (current == null || !current.Editable || current.Saving || current.Code == code) return;
+        var who = source.Me.Value?.Id;
+        savingLanguage = true;
+        Compute();
+        Plays.When(scheduler, () => source.SaveLanguage(code), me =>
+        {
+            savingLanguage = false;
+            // Another profile since: the answer was the one before's.
+            if (source.Me.Value is { } now && now.Id == who) source.Me.Value = me.Id > 0 ? me : now with { Language = code };
+            Compute();
+            Told?.Invoke(new MeEvent.LanguageSaved());
+        }, e =>
+        {
+            savingLanguage = false;
+            if (e is ApiException { Status: 403 or 404 or 405 })
+            {
+                languageReadOnly = true;
+                Compute();
+                Told?.Invoke(new MeEvent.ReadOnly());
+                return;
+            }
+            Compute();
+            Told?.Invoke(new MeEvent.Failed(e));
+        });
+    }
 
     /// <summary>Signs out of the server: the music stops, the sign-in ends there, what was saved from it goes.</summary>
     public void SignOut()
@@ -181,10 +227,11 @@ public sealed class MeModel : IDisposable
                 scopes.Contains("profiles"),
                 server),
             me == null ? null : new TrackDefaultsState(new TrackDefaults(me.AudioLanguage, me.SubtitleLanguage, me.SubtitleMode), !readOnly && MayChange(scopes), saving),
-            signingOut);
+            signingOut,
+            me == null ? null : new LanguageState(Languages.Supported(me.Language), !languageReadOnly && MayChange(scopes), savingLanguage));
     }
 
-    /// <summary>Changing track defaults needs the "play" scope; a sign-in whose scopes aren't known may try.</summary>
+    /// <summary>Changing track defaults and the language needs the "play" scope; a sign-in whose scopes aren't known may try.</summary>
     static bool MayChange(string[] scopes) => scopes.Length == 0 || scopes.Contains("play");
 }
 
@@ -202,8 +249,19 @@ public sealed class AppMeSource : IMeSource
     public async Task<User> SaveTrackDefaults(TrackDefaults defaults)
     {
         var api = app.Api.Value ?? throw new SignedOutException();
-        var answer = await api.SetTrackDefaults(defaults.AudioLanguage, defaults.SubtitleLanguage, defaults.SubtitleMode);
         // The profile as the server has it now; an answer without one keeps the change made here.
+        return Profile(await api.SetTrackDefaults(defaults.AudioLanguage, defaults.SubtitleLanguage, defaults.SubtitleMode));
+    }
+
+    public async Task<User> SaveLanguage(string? language)
+    {
+        var api = app.Api.Value ?? throw new SignedOutException();
+        return Profile(await api.SetLanguage(language));
+    }
+
+    /// <summary>The profile a change answers; an answer without one (Id 0) keeps the change made here.</summary>
+    static User Profile(JsonElement? answer)
+    {
         try
         {
             return answer is { ValueKind: JsonValueKind.Object } o ? JsonSerializer.Deserialize<User>(o.GetRawText(), ApiJson.Options) ?? new User() : new User();

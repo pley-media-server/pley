@@ -112,7 +112,7 @@ public class SignInTests
         var ok = await Auth.Metadata.Fetch(new FakeServer().On("GET", Home + Auth.Metadata.Path, 200, MetadataJson,
             new Dictionary<string, string> { ["Content-Type"] = "application/json; charset=utf-8" }).Transport, Home);
         Assert.Equal(Home + "/api/oauth/authorize", ok.AuthorizationEndpoint);
-        Assert.Equal(Auth.Metadata.NoCodes, "this server can't sign in with a code yet: update it, or sign in with a password");
+        Assert.Equal("this server can't sign in with a code yet: update it, or sign in with a password", Auth.Metadata.NoCodes);
     }
 
     [Fact]
