@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use ring::hmac;
 use serde_json::json;
 
+use crate::cast;
 use crate::http::{Request, Response};
 use crate::ids;
 use crate::model::AppProfile;
@@ -493,8 +494,9 @@ fn refresh_grant(form: &HashMap<String, String>, state: &mut State, now: i64) ->
 }
 
 /// The switch-profile grant: to another profile of the household (its PIN
-/// when it has one), or to the app's own profile with its PIN, which checks
-/// the PIN and rotates the tokens. A refusal spends nothing.
+/// when it has one, or a cast's ticket in its place), or to the app's own
+/// profile with its PIN, which checks the PIN and rotates the tokens. A
+/// refusal spends nothing but the ticket.
 fn switch_profile(form: &HashMap<String, String>, state: &mut State, now: i64) -> Answer {
     if form.get("client_id").map(String::as_str) != Some(ids::CLIENT_ID) {
         return Err(oauth_error("unauthorized_client", "only Pley's own apps switch profiles", None));
@@ -522,6 +524,21 @@ fn switch_profile(form: &HashMap<String, String>, state: &mut State, now: i64) -
         .get("profile")
         .and_then(|p| p.parse::<i64>().ok())
         .ok_or_else(|| oauth_error("invalid_request", "profile is missing or not an id", None))?;
+    // A cast from another profile's remote: its ticket stands for the PIN and the rest.
+    if let Some(ticket) = form.get("ticket") {
+        let device = format!("app-{grant_id}");
+        if !cast::redeem(state, ticket, &device, current, target, now) {
+            return Err(oauth_error(
+                "invalid_grant",
+                "this cast's switch has expired or was used: cast again",
+                Some("ticket_spent"),
+            ));
+        }
+        if state.household.profile(target).is_none() {
+            return Err(oauth_error("invalid_grant", "not a profile of the household", Some("not_allowed")));
+        }
+        return Ok(switched(state, &refresh, grant_id, target, now));
+    }
     let pin = form.get("pin");
     let now_s = now.div_euclid(1_000);
     let Some(profile) = state.household.profile_mut(target) else {
@@ -554,18 +571,23 @@ fn switch_profile(form: &HashMap<String, String>, state: &mut State, now: i64) -
             Some("browser"),
         ));
     }
+    Ok(switched(state, &refresh, grant_id, target, now))
+}
+
+/// Grant `grant_id` acts as `target` now: `refresh` is spent, the old access tokens stop at once,
+/// and a new pair is issued.
+fn switched(state: &mut State, refresh: &str, grant_id: u64, target: i64, now: i64) -> Response {
     let oauth = &mut state.oauth;
-    if let Some(token) = oauth.refresh.get_mut(&refresh) {
+    if let Some(token) = oauth.refresh.get_mut(refresh) {
         token.spent = true;
     }
-    // The old tokens stop at once.
     let grant = oauth.grants.get_mut(&grant_id).expect("grants are kept");
     let old: Vec<String> = grant.access.drain(..).map(|(t, _)| t).collect();
     grant.profile = target;
     for token in old {
         oauth.access.remove(&token);
     }
-    Ok(tokens_answer(&oauth.issue(grant_id, now)))
+    tokens_answer(&oauth.issue(grant_id, now))
 }
 
 /// POST /api/oauth/revoke: any token of the app ends its whole sign-in.

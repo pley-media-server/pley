@@ -205,6 +205,8 @@ fn a_cast_for_another_device_plays_nothing_and_what_cant_be_found_says_why() {
         audio_index: None,
         subtitle_index: None,
         from: Some("Pley for Android".into()),
+        profile_id: None,
+        switch_ticket: None,
     };
     // The profile's streams hear every cast: one for another device is that device's.
     server.emit(cast_to("webos-another", ids::SAMPLE_1080P));

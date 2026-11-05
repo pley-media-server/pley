@@ -171,6 +171,8 @@ fn cast_of(receiver: &str, item: i64) -> ServerEvent {
         audio_index: None,
         subtitle_index: None,
         from: Some("Pley for Android".into()),
+        profile_id: None,
+        switch_ticket: None,
     }
 }
 

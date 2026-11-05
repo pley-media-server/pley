@@ -6,7 +6,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{Api, Events, eventually, send};
+use common::{Api, Events, eventually, post_form, send};
 use pley_fixtures::{CastBody, FixtureServer, Options, ids};
 use serde_json::{Value, json};
 
@@ -121,6 +121,70 @@ fn a_cast_is_checked_in_the_servers_order() {
     assert!(eventually(|| !server.receivers_of(ids::SAM).is_empty()));
     assert_eq!(cast(&sam, "sams-tv", json!({ "channel_id": ids::LIVE_CHANNEL }), PHONE).status, 403);
     assert_eq!(server.cast(ids::SAM, "sams-tv", &CastBody::item(ids::SAMPLE_1080P), None), 202);
+}
+
+#[test]
+fn a_cast_to_another_profiles_receiver_carries_a_ticket_its_switch_spends_once() {
+    let server = server();
+    let robins = server.sign_in(ids::ROBIN);
+    let robin = Api { base: server.url().to_string(), token: robins.access_token.clone() };
+    let mut tv = Events::open_at(&robin, "/api/events?receiver=den-tv&device_name=Den%20TV&casts=item");
+    assert!(eventually(|| !server.receivers_of(ids::ROBIN).is_empty()));
+
+    // Alex's remote lists Robin's TV, on Robin's profile, and names it by that profile.
+    let alex = Api::alex(&server);
+    let listed = alex.get("/api/remote/devices").json();
+    assert_eq!(
+        (&listed[0]["receiver_id"], &listed[0]["profile"]),
+        (&json!("den-tv"), &json!({ "id": ids::ROBIN, "name": "Robin" }))
+    );
+    assert!(robin.get("/api/remote/devices").json()[0].get("profile").is_none(), "Robin's own");
+    assert_eq!(
+        cast(&alex, "den-tv", json!({ "item_id": ids::SAMPLE_1080P }), PHONE).status,
+        404,
+        "without its profile"
+    );
+    let film = json!({ "item_id": ids::SAMPLE_1080P, "profile_id": ids::ROBIN });
+    assert_eq!(cast(&alex, "den-tv", film.clone(), PHONE).status, 202);
+    let heard = tv.wait_for("cast", Duration::from_secs(5)).expect("Robin's TV hears it");
+    assert_eq!(heard["profile_id"], ids::ALEX);
+    let ticket = heard["switch_ticket"].as_str().expect("a ticket").to_string();
+
+    // Sam's profile has a PIN: Sam's remote gives it first.
+    let sam = Api::new(&server, ids::SAM);
+    let refused = cast(&sam, "den-tv", film.clone(), PHONE);
+    assert_eq!((refused.status, refused.json()["code"].as_str()), (403, Some("pin_needed")));
+    let wrong =
+        cast(&sam, "den-tv", json!({ "item_id": ids::SAMPLE_1080P, "profile_id": ids::ROBIN, "pin": "0000" }), PHONE);
+    assert_eq!((wrong.status, wrong.json()["code"].as_str()), (403, Some("wrong_pin")));
+    let with_pin = json!({ "item_id": ids::SAMPLE_1080P, "profile_id": ids::ROBIN, "pin": ids::PIN });
+    assert_eq!(cast(&sam, "den-tv", with_pin, PHONE).status, 202);
+    let sams = tv.wait_for("cast", Duration::from_secs(5)).unwrap();
+    assert_eq!(sams["profile_id"], ids::SAM);
+
+    // The ticket switches the TV to Alex once, and only to Alex.
+    let switch = |profile: i64, ticket: &str, refresh: &str| {
+        let profile = profile.to_string();
+        let form = [
+            ("grant_type", "urn:pley:params:oauth:grant-type:switch-profile"),
+            ("client_id", ids::CLIENT_ID),
+            ("refresh_token", refresh),
+            ("profile", profile.as_str()),
+            ("ticket", ticket),
+        ];
+        post_form(&robin.base, "/api/oauth/token", &form)
+    };
+    let sams_ticket = sams["switch_ticket"].as_str().unwrap().to_string();
+    let elsewhere = switch(ids::SAM, &sams_ticket, &server.sign_in(ids::ROBIN).refresh_token).json();
+    assert_eq!(elsewhere["reason"], "ticket_spent", "another device's");
+    assert_eq!(switch(ids::SAM, &sams_ticket, &robins.refresh_token).json()["reason"], "ticket_spent", "spent");
+    let switched = switch(ids::ALEX, &ticket, &robins.refresh_token);
+    assert_eq!(switched.status, 200, "{}", switched.text());
+    let token = switched.json()["access_token"].as_str().unwrap().to_string();
+    let now = Api { base: robin.base.clone(), token };
+    assert_eq!(now.get("/api/auth/me").json()["id"], ids::ALEX);
+    let refresh = switched.json()["refresh_token"].as_str().unwrap().to_string();
+    assert_eq!(switch(ids::ALEX, &ticket, &refresh).json()["reason"], "ticket_spent", "used once");
 }
 
 #[test]

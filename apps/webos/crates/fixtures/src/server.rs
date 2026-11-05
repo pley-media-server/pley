@@ -145,6 +145,8 @@ pub(crate) struct State {
     pub added_subtitles: HashMap<i64, Vec<AddedSubtitle>>,
     /// When casts went to each receiver in the last second, by profile and receiver.
     pub casts_sent: HashMap<(i64, String), Vec<i64>>,
+    /// The switch tickets of casts to another profile's receiver, waiting to be spent.
+    pub cast_tickets: HashMap<String, crate::cast::Ticket>,
 }
 
 impl State {
