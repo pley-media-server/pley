@@ -1,1 +1,207 @@
-{}
+{
+  "names": {
+    "requests": "Demandes",
+    "yourRequests": "Vos demandes",
+    "discover": "Découvrir"
+  },
+  "counts": {
+    "episodes_one": "{{count}} épisode",
+    "episodes_many": "{{count}} d’épisodes",
+    "episodes_other": "{{count}} épisodes",
+    "seasons_one": "{{count}} saison",
+    "seasons_many": "{{count}} de saisons",
+    "seasons_other": "{{count}} saisons"
+  },
+  "shared": {
+    "loadFailed": "Chargement impossible : {{error}}",
+    "couldNotLoad": "Chargement impossible",
+    "seeAll": "Tout voir",
+    "progress": "{{title}} : {{stage}}",
+    "tmdbCredit": "Informations et images fournies par TMDB.",
+    "tmdbEndorsement": "Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB.",
+    "checkKey": "Vérifier la clé",
+    "signIn": "Se connecter",
+    "pickSeason": "Choisissez une saison.",
+    "seasons": "Saisons",
+    "request": "Demander",
+    "reason": "Motif",
+    "approve": "Approuver",
+    "decline": "Refuser"
+  },
+  "off": {
+    "title": "Les demandes sont désactivées",
+    "text": "Activez-les pour que chacun puisse demander des films et des séries, et pour envoyer ce que vous approuvez à Radarr et Sonarr.",
+    "setUp": "Configurer les demandes"
+  },
+  "discover": {
+    "documentTitle": "Découvrir : {{query}}",
+    "lists": {
+      "trending": "Tendances de la semaine",
+      "movies": "Films populaires",
+      "shows": "Séries populaires",
+      "upcoming": "Bientôt au cinéma",
+      "anime": "Animes populaires"
+    },
+    "backToSearch": "Retour à la recherche",
+    "resultsFor": "Résultats pour « {{query}} »",
+    "searchFailed": "Impossible de rechercher sur TMDB",
+    "nothingFound": "Rien sur TMDB pour « {{query}} »",
+    "nothingFoundHint": "Essayez une autre orthographe, ou le titre dans sa langue d’origine.",
+    "backToDiscover": "Retour à Découvrir",
+    "emptyList": "Rien pour le moment",
+    "emptyListAgeLimit": "Ce que TMDB propose ici dépasse la limite d’âge de ce profil.",
+    "emptyListToday": "TMDB n’a rien dans cette liste aujourd’hui.",
+    "trendingNow": "Tendances du moment",
+    "moreAboutIt": "En savoir plus",
+    "waiting_one": "en attente",
+    "waiting_many": "en attente",
+    "waiting_other": "en attente",
+    "loadFailed": "Impossible de charger Découvrir",
+    "seeYourRequests": "Voir vos demandes"
+  },
+  "page": {
+    "manageHint": "Ce que les utilisateurs ont demandé. Approuver une demande envoie le titre à Radarr ou Sonarr, s’ils sont connectés.",
+    "ownHint": "Ce que vous avez demandé ou suivez, et où ça en est.",
+    "signInToDecide": "Reconnectez-vous pour approuver et refuser ici.",
+    "loadFailed": "Impossible de charger les demandes",
+    "tabs": {
+      "attention": "À traiter",
+      "all": "Toutes les demandes",
+      "mine": "Les vôtres"
+    },
+    "statusGroup": "Statut",
+    "kindGroup": "Type",
+    "all": "Toutes",
+    "statuses": {
+      "pending": "En attente",
+      "approved": "Approuvées",
+      "available": "Disponibles",
+      "declined": "Refusées",
+      "failed": "En échec"
+    },
+    "movies": "Films",
+    "shows": "Séries",
+    "whoAsked": "Qui a demandé",
+    "everyone": "Tout le monde",
+    "findTitle": "Rechercher un titre",
+    "searchLabel": "Demandes de titres contenant",
+    "clearFilters": "Effacer les filtres",
+    "attentionHint": "Les nouvelles demandes, et celles qui n’ont pas pu être envoyées, s’affichent ici.",
+    "seeAll": "Voir toutes les demandes",
+    "findSomething": "Trouver quelque chose à demander",
+    "empty": {
+      "match": "Aucune demande ne correspond.",
+      "attention": "Rien à traiter.",
+      "everyone": {
+        "pending": "Aucune demande n’attend de décision.",
+        "approved": "Aucune demande n’est en route.",
+        "available": "Aucune demande n’est encore prête à regarder.",
+        "declined": "Aucune demande n’a été refusée.",
+        "failed": "Aucune demande n’a échoué.",
+        "none": "Personne n’a encore rien demandé."
+      },
+      "yours": {
+        "pending": "Aucune de vos demandes n’attend de décision.",
+        "approved": "Aucune de vos demandes n’est en route.",
+        "available": "Aucune de vos demandes n’est encore prête à regarder.",
+        "declined": "Aucune de vos demandes n’a été refusée.",
+        "failed": "Aucune de vos demandes n’a échoué.",
+        "none": "Vous n’avez encore rien demandé."
+      }
+    }
+  },
+  "bulk": {
+    "region": "Demandes sélectionnées",
+    "picked_one": "{{count}} demande sélectionnée",
+    "picked_many": "{{count}} de demandes sélectionnées",
+    "picked_other": "{{count}} demandes sélectionnées",
+    "approved_one": "{{count}} demande approuvée.",
+    "approved_many": "{{count}} de demandes approuvées.",
+    "approved_other": "{{count}} demandes approuvées.",
+    "declined_one": "{{count}} demande refusée.",
+    "declined_many": "{{count}} de demandes refusées.",
+    "declined_other": "{{count}} demandes refusées.",
+    "approvedSome": "Approuvées : {{done}} sur {{total}}. « {{title}} » : {{error}}",
+    "declinedSome": "Refusées : {{done}} sur {{total}}. « {{title}} » : {{error}}",
+    "declineTitle_one": "Refuser {{count}} demande ?",
+    "declineTitle_many": "Refuser {{count}} de demandes ?",
+    "declineTitle_other": "Refuser {{count}} demandes ?",
+    "reasonHint": "Facultatif. Les personnes qui ont fait la demande le verront."
+  },
+  "card": {
+    "select": "Sélectionner {{title}}",
+    "new": "Nouveau",
+    "watch": "Regarder",
+    "youAsked": "Vous l’avez demandé <when/>",
+    "nameAsked": "<name>{{name}}</name> l’a demandé <when/>",
+    "someoneAsked": "Demandé par quelqu’un d’autre <when/>",
+    "youFollow": "Vous suivez cette demande",
+    "followers_one": "{{count}} personne la suit",
+    "followers_many": "{{count}} de personnes la suivent",
+    "followers_other": "{{count}} personnes la suivent",
+    "declined": "Refusée",
+    "declinedBy": "Refusée par {{name}}",
+    "declinedWhen": "Refusée <when/>",
+    "declinedByWhen": "Refusée par {{name}} <when/>",
+    "reason": " : « {{reason}} »",
+    "sentTo": "Envoyée à {{where}}",
+    "outOfReach": "Prête, dans une bibliothèque que vous ne pouvez pas ouvrir : demandez à un administrateur"
+  },
+  "actions": {
+    "more": "Plus d’actions pour {{title}}",
+    "markedByHand": "« {{title}} » est marqué comme ajouté à la main.",
+    "unfollowed": "Vous ne recevrez plus de nouvelles de « {{title}} ».",
+    "deleteText": "La demande disparaît pour toutes les personnes qui ont demandé <strong>{{title}}</strong> ou qui la suivent. Radarr et Sonarr gardent ce qu’ils ont.",
+    "askAgain": "Le titre pourra être demandé à nouveau.",
+    "noMore": "Le titre ne sera plus demandé.",
+    "noMoreUnlessFollowed": "Le titre ne sera plus demandé, sauf si les personnes qui suivent la demande la conservent."
+  },
+  "approve": {
+    "title": "Approuver « {{title}} »",
+    "retryTitle": "Réessayer « {{title}} »",
+    "withSettings": "Approuver avec les choix des paramètres",
+    "retryWithSettings": "Réessayer avec les choix des paramètres",
+    "notConnected": "{{service}} n’est pas connecté",
+    "notConnectedText": "La demande reste approuvée jusqu’à ce qu’il le soit, ou que quelqu’un ajoute le titre à la main.",
+    "lastOptions": "Ses profils et dossiers sont les derniers qu’il a fournis.",
+    "optionsFailed": "Impossible de charger les profils et dossiers de {{service}}",
+    "qualityProfile": "Profil de qualité",
+    "folder": "Dossier",
+    "settingsChoice": "Le choix des paramètres",
+    "goneProfile": "Profil {{id}} (n’existe plus)",
+    "goneFolder": "{{folder}} (n’existe plus)",
+    "freeSpace": "{{path}} ({{free}} libres)",
+    "seasonsHint": "Les saisons décochées quittent la demande, et pourront être demandées à nouveau."
+  },
+  "decline": {
+    "title": "Refuser « {{title}} » ?",
+    "nameHears": "{{name}} recevra une notification du refus, avec votre motif si vous en indiquez un.",
+    "someoneHears": "La personne qui l’a demandé recevra une notification du refus, avec votre motif si vous en indiquez un.",
+    "followersHear": "Les personnes qui suivent la demande la recevront aussi, sans le motif.",
+    "optional": "Facultatif.",
+    "placeholder": "Nous l’avons déjà sur disque"
+  },
+  "title": {
+    "coming": "Sortie le {{date}}",
+    "open": "Ouvrir",
+    "inLibrary": "Dans la bibliothèque",
+    "requestMoreSeasons": "Demander d’autres saisons",
+    "notOpen": "Les demandes ne sont pas ouvertes à ce compte.",
+    "signInToAsk": "Reconnectez-vous pour demander des films et des séries",
+    "requested": "Demandé",
+    "following": "Vous suivez",
+    "stopFollowing": "Ne plus suivre",
+    "tellMeToo": "Me prévenir aussi",
+    "askedAlready": "Quelqu’un l’a déjà demandé.",
+    "requests_one": "Demande",
+    "requests_many": "Demandes",
+    "requests_other": "Demandes",
+    "cast": "Distribution",
+    "loadFailed": "Impossible de charger ce titre"
+  },
+  "picker": {
+    "title": "Quelles saisons ?",
+    "auto": "Approuvée dès votre demande, puis envoyée au téléchargement.",
+    "decided": "Un administrateur en décide. Vous recevrez une notification dès que ce sera prêt à regarder."
+  }
+}

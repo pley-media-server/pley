@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAskRequest, type DiscoverDetail, type RequestSummary } from "@/api/requests";
 import { Artwork } from "@/components/Artwork";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { pluralize } from "@/lib/format";
 import { useOnChange } from "@/lib/hooks";
 import { allowanceText, askedText, defaultPicks, pickerButton, pickerSeasons, seasonAskable, seasonStateText } from "@/lib/requests";
 import { CheckRow, failure } from "./RequestCard";
@@ -27,6 +27,7 @@ export function SeasonPicker({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["requests", "common"]);
   const ask = useAskRequest();
   const toast = useToast();
   const seasons = pickerSeasons(title.seasons ?? []);
@@ -65,14 +66,14 @@ export function SeasonPicker({
       onClose={onClose}
       locked={ask.isPending}
       size="md"
-      title="Which seasons?"
+      title={t("picker.title")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={ask.isPending}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" onClick={submit} loading={ask.isPending} disabled={over || !picked.length} data-autofocus>
-            {picked.length ? pickerButton(picked.length) : "Request"}
+            {picked.length ? pickerButton(picked.length) : t("shared.request")}
           </Button>
         </>
       }
@@ -90,15 +91,13 @@ export function SeasonPicker({
             <div className="font-semibold leading-snug">{title.title}</div>
             {title.year ? <div className="text-sm text-muted">{title.year}</div> : null}
             <p className="pt-1 text-sm text-muted">
-              {summary?.access === "auto"
-                ? "Approved as you ask, and sent on to download."
-                : "An administrator decides on it. You'll hear when it's ready to watch."}
+              {summary?.access === "auto" ? t("picker.auto") : t("picker.decided")}
             </p>
           </div>
         </div>
 
         <fieldset>
-          <legend className="sr-only">Seasons</legend>
+          <legend className="sr-only">{t("shared.seasons")}</legend>
           <div className="max-h-80 space-y-0.5 overflow-y-auto rounded-md border border-border p-1.5">
             {seasons.map((s) => {
               const askable = seasonAskable(s, title);
@@ -109,9 +108,9 @@ export function SeasonPicker({
                   checked={askable && picked.includes(s.number)}
                   disabled={!askable}
                   onChange={() => toggle(s.number)}
-                  aside={seasonStateText(s) ?? (s.episodes ? pluralize(s.episodes, "episode") : null)}
+                  aside={seasonStateText(s) ?? (s.episodes ? t("counts.episodes", { count: s.episodes }) : null)}
                 >
-                  {s.name || (s.number === 0 ? "Specials" : `Season ${s.number}`)}
+                  {s.name || (s.number === 0 ? t("common:format.specials") : t("common:format.seasonNumber", { number: s.number }))}
                 </CheckRow>
               );
             })}
@@ -119,7 +118,7 @@ export function SeasonPicker({
         </fieldset>
 
         <div aria-live="polite" className="space-y-1">
-          {!picked.length ? <p className="text-sm text-muted">Pick a season.</p> : null}
+          {!picked.length ? <p className="text-sm text-muted">{t("shared.pickSeason")}</p> : null}
           {allowance ? (
             <p className={cn("text-xs", over ? "text-danger" : "text-subtle")}>
               {allowance.text}

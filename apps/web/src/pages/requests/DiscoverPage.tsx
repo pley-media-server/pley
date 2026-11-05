@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Ban, ChevronLeft, Inbox, SearchX, ShieldCheck } from "lucide-react";
 import { isApiError } from "@/api/client";
@@ -31,19 +32,14 @@ import { discoverUrl, requestsUrl, searchUrl, titleUrl } from "@/lib/urls";
 import { MainActions } from "./TitlePage";
 import { ProblemState, RequestsUnavailable, ScrollRow, StagePill, TitleGrid, TitleGridSkeleton, TitleRow, TmdbCredit } from "./shared";
 
-const LISTS: { list: DiscoverList; title: string }[] = [
-  { list: "trending", title: "Trending this week" },
-  { list: "movies", title: "Popular movies" },
-  { list: "shows", title: "Popular shows" },
-  { list: "upcoming", title: "Coming to cinemas" },
-  { list: "anime", title: "Popular anime" },
-];
+/** TMDB's lists, in Discover's order; each is named by `discover.lists.<list>`. */
+const LISTS: DiscoverList[] = ["trending", "movies", "shows", "upcoming", "anime"];
 
 /** A grid loads on past pages that came short until it holds this many. */
 const GRID_TITLES = 24;
 
-function listOf(value: string | null): (typeof LISTS)[number] | null {
-  return LISTS.find((l) => l.list === value) ?? null;
+function listOf(value: string | null): DiscoverList | null {
+  return LISTS.find((l) => l === value) ?? null;
 }
 
 /** A grid's heading, after the way back to where it was opened from. */
@@ -60,13 +56,14 @@ function GridHeading({ back, backLabel, children }: { back: string; backLabel: s
 
 /** All TMDB finds for Search's words (the See all of its Discover row), a page at a time. */
 function SearchResults({ q, manage }: { q: string; manage: boolean }) {
+  const { t } = useTranslation("requests");
   const search = useDiscoverSearch(q);
   useFillPages(search, GRID_TITLES);
   const titles = uniqueTitles(search.data?.pages);
   return (
     <section>
-      <GridHeading back={searchUrl(q)} backLabel="Back to search">
-        <h2 className="text-lg font-semibold tracking-tight">Results for “{q}”</h2>
+      <GridHeading back={searchUrl(q)} backLabel={t("discover.backToSearch")}>
+        <h2 className="text-lg font-semibold tracking-tight">{t("discover.resultsFor", { query: q })}</h2>
         {search.isFetching && !search.isPending ? <Spinner className="ml-1 size-4" /> : null}
       </GridHeading>
       {search.isPending ? (
@@ -76,12 +73,12 @@ function SearchResults({ q, manage }: { q: string; manage: boolean }) {
           className="py-16"
           error={search.error}
           manage={manage}
-          title="Couldn't search TMDB"
+          title={t("discover.searchFailed")}
           retrying={search.isFetching}
           onRetry={() => void search.refetch()}
         />
       ) : !titles.length && !search.hasNextPage ? (
-        <EmptyState icon={<SearchX />} title={`Nothing on TMDB for “${q}”`} description="Try another spelling, or the title in its own language." />
+        <EmptyState icon={<SearchX />} title={t("discover.nothingFound", { query: q })} description={t("discover.nothingFoundHint")} />
       ) : (
         <TitleGrid
           titles={titles}
@@ -93,14 +90,15 @@ function SearchResults({ q, manage }: { q: string; manage: boolean }) {
 }
 
 /** One of TMDB's lists whole; `ageLimit`: titles above this profile's age limit are left out of it. */
-function ListGrid({ list, title, manage, ageLimit }: { list: DiscoverList; title: string; manage: boolean; ageLimit: boolean }) {
+function ListGrid({ list, manage, ageLimit }: { list: DiscoverList; manage: boolean; ageLimit: boolean }) {
+  const { t } = useTranslation("requests");
   const query = useDiscoverList(list);
   useFillPages(query, GRID_TITLES);
   const titles = uniqueTitles(query.data?.pages);
   return (
     <section>
-      <GridHeading back={discoverUrl()} backLabel="Back to Discover">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <GridHeading back={discoverUrl()} backLabel={t("discover.backToDiscover")}>
+        <h2 className="text-lg font-semibold tracking-tight">{t(`discover.lists.${list}`)}</h2>
       </GridHeading>
       {query.isPending ? (
         <TitleGridSkeleton />
@@ -109,11 +107,11 @@ function ListGrid({ list, title, manage, ageLimit }: { list: DiscoverList; title
       ) : !titles.length && !query.hasNextPage && !query.isFetching ? (
         <EmptyState
           icon={ageLimit ? <ShieldCheck /> : <SearchX />}
-          title="Nothing here right now"
-          description={ageLimit ? "What TMDB lists here is above this profile's age limit." : "TMDB has nothing in this list today."}
+          title={t("discover.emptyList")}
+          description={t(ageLimit ? "discover.emptyListAgeLimit" : "discover.emptyListToday")}
           action={
             <Link to={discoverUrl()} className={buttonClass("outline")}>
-              Back to Discover
+              {t("discover.backToDiscover")}
             </Link>
           }
         />
@@ -138,6 +136,7 @@ function HeroSkeleton() {
  * page).
  */
 function Hero({ summary }: { summary: RequestSummary }) {
+  const { t } = useTranslation("requests");
   const navigate = useNavigate();
   const trending = useDiscoverList("trending");
   // The first title left (an age limit may leave a page empty).
@@ -148,7 +147,7 @@ function Hero({ summary }: { summary: RequestSummary }) {
   if (!first) return trending.isPending || trending.isFetchingNextPage ? <HeroSkeleton /> : null;
   const to = titleUrl(first.kind, first.tmdb_id);
   return (
-    <section aria-label="Trending now" className="px-4 sm:px-8">
+    <section aria-label={t("discover.trendingNow")} className="px-4 sm:px-8">
       <div className="relative isolate overflow-hidden rounded-xl bg-surface-2 ring-1 ring-white/5">
         {/* Placed by a box of its own: the picture's is positioned already (relative). */}
         <div className="absolute inset-0 -z-10">
@@ -166,7 +165,7 @@ function Hero({ summary }: { summary: RequestSummary }) {
         <div className="absolute inset-0 -z-10 bg-linear-to-t from-bg via-bg/60 to-transparent" />
         <div className="absolute inset-0 -z-10 bg-linear-to-r from-bg/90 via-bg/40 to-transparent" />
         <div className="flex min-h-[340px] flex-col justify-end gap-3 p-5 sm:min-h-[420px] sm:p-8 lg:min-h-[480px] lg:max-w-[60%]">
-          <p className="text-xs font-semibold uppercase tracking-wider text-accent">Trending this week</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">{t("discover.lists.trending")}</p>
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">
             <Link to={to} className="transition-colors hover:text-accent">
               {first.title}
@@ -179,7 +178,7 @@ function Hero({ summary }: { summary: RequestSummary }) {
               <MainActions title={detail.data} summary={summary} size="md" onPick={() => void navigate(`${to}?pick=1`)} />
             ) : (
               <Link to={to} className={buttonClass("secondary")}>
-                More about it
+                {t("discover.moreAboutIt")}
               </Link>
             )}
           </div>
@@ -224,12 +223,13 @@ function RequestPoster({ request, width, manage }: { request: MediaRequest; widt
 
 /** This account's requests and those it follows, newest first, for those who have any. */
 function YourRequestsRow({ summary }: { summary: RequestSummary }) {
+  const { t } = useTranslation("requests");
   const requests = useRequests(requestFilter({ mine: true }), { limit: 20 });
   const shown = requests.data?.pages.flatMap((p) => p.requests) ?? [];
   if (requests.isPending) return <HubRowSkeleton />;
   if (!shown.length) return null;
   return (
-    <ScrollRow title="Your requests" link={requestsUrl} count={shown.length}>
+    <ScrollRow title={t("names.yourRequests")} link={requestsUrl} count={shown.length}>
       {(width) =>
         shown.map((r) => (
           <div key={r.id} className="shrink-0 snap-start">
@@ -243,11 +243,12 @@ function YourRequestsRow({ summary }: { summary: RequestSummary }) {
 
 /** Where requests are: the account's own, or everyone's for managers, with what waits there. */
 function RequestsLink({ summary }: { summary: RequestSummary }) {
+  const { t } = useTranslation("requests");
   const badge = requestsBadge(summary);
   return (
     <Link to={requestsUrl} className={buttonClass("outline", "sm")}>
       <Inbox className="size-4" />
-      {summary.manage ? "Requests" : "Your requests"}
+      {t(summary.manage ? "names.requests" : "names.yourRequests")}
       {badge.count > 0 ? (
         <>
           {" "}
@@ -257,7 +258,7 @@ function RequestsLink({ summary }: { summary: RequestSummary }) {
               badge.danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
             )}
           >
-            {badge.count > 99 ? "99+" : badge.count} <span className="sr-only">waiting</span>
+            {badge.count > 99 ? "99+" : badge.count} <span className="sr-only">{t("discover.waiting", { count: badge.count })}</span>
           </span>
         </>
       ) : null}
@@ -271,6 +272,7 @@ function RequestsLink({ summary }: { summary: RequestSummary }) {
  * or isn't answering), one notice says so in place of every row.
  */
 function DiscoverHome({ summary }: { summary: RequestSummary }) {
+  const { t } = useTranslation("requests");
   const trending = useDiscoverList("trending");
   const problem = trending.data ? null : requestProblem(trending.error);
   const yours = summary.own > 0 ? <YourRequestsRow summary={summary} /> : null;
@@ -286,8 +288,8 @@ function DiscoverHome({ summary }: { summary: RequestSummary }) {
     <>
       <Hero summary={summary} />
       <div className="space-y-8">
-        {LISTS.map((l) => (
-          <TitleRow key={l.list} list={l.list} title={l.title} link={`/discover?list=${l.list}`} />
+        {LISTS.map((list) => (
+          <TitleRow key={list} list={list} title={t(`discover.lists.${list}`)} link={`/discover?list=${list}`} />
         ))}
         {yours}
       </div>
@@ -314,6 +316,7 @@ function DiscoverSkeleton() {
  * words (`?q=`, the See all of its Discover row).
  */
 export function DiscoverPage() {
+  const { t } = useTranslation("requests");
   const me = useAuth();
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
@@ -321,7 +324,7 @@ export function DiscoverPage() {
   const searched = searchText(q);
   const list = listOf(params.get("list"));
   const summary = useRequestSummary();
-  useDocumentTitle(searched ? `Discover: ${searched}` : "Discover");
+  useDocumentTitle(searched ? t("discover.documentTitle", { query: searched }) : t("names.discover"));
 
   if (summary.isPending) return <DiscoverSkeleton />;
   const data = summary.data;
@@ -332,7 +335,7 @@ export function DiscoverPage() {
       <ProblemState
         error={summary.error}
         manage={me.is_admin}
-        title="Couldn't load Discover"
+        title={t("discover.loadFailed")}
         retrying={summary.isFetching}
         onRetry={() => void summary.refetch()}
       />
@@ -352,7 +355,7 @@ export function DiscoverPage() {
           // What it asked for before stays its own to look at.
           hasRequests(data) ? (
             <Link to={requestsUrl} className={buttonClass("outline")}>
-              See your requests
+              {t("discover.seeYourRequests")}
             </Link>
           ) : undefined
         }
@@ -363,7 +366,7 @@ export function DiscoverPage() {
   return (
     <div className="space-y-8 pb-16 pt-6 sm:pt-8">
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8">
-        <h1 className="text-2xl font-bold tracking-tight">Discover</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("names.discover")}</h1>
         {hasRequests(data) || data.manage ? <RequestsLink summary={data} /> : null}
       </header>
 
@@ -373,7 +376,7 @@ export function DiscoverPage() {
         </div>
       ) : list ? (
         <div className="px-4 sm:px-8">
-          <ListGrid list={list.list} title={list.title} manage={data.manage} ageLimit={me.max_age !== null} />
+          <ListGrid list={list} manage={data.manage} ageLimit={me.max_age !== null} />
         </div>
       ) : (
         <DiscoverHome summary={data} />

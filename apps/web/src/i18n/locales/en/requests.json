@@ -1,1 +1,198 @@
-{}
+{
+  "names": {
+    "requests": "Requests",
+    "yourRequests": "Your requests",
+    "discover": "Discover"
+  },
+  "counts": {
+    "episodes_one": "{{count}} episode",
+    "episodes_other": "{{count}} episodes",
+    "seasons_one": "{{count}} season",
+    "seasons_other": "{{count}} seasons"
+  },
+  "shared": {
+    "loadFailed": "Couldn't load it: {{error}}",
+    "couldNotLoad": "Couldn't load it",
+    "seeAll": "See all",
+    "progress": "{{title}}: {{stage}}",
+    "tmdbCredit": "Details and pictures from TMDB.",
+    "tmdbEndorsement": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "checkKey": "Check the key",
+    "signIn": "Sign in",
+    "pickSeason": "Pick a season.",
+    "seasons": "Seasons",
+    "request": "Request",
+    "reason": "Reason",
+    "approve": "Approve",
+    "decline": "Decline"
+  },
+  "off": {
+    "title": "Requests are off",
+    "text": "Turn them on to let people ask for movies and shows, and send what you approve to Radarr and Sonarr.",
+    "setUp": "Set up requests"
+  },
+  "discover": {
+    "documentTitle": "Discover: {{query}}",
+    "lists": {
+      "trending": "Trending this week",
+      "movies": "Popular movies",
+      "shows": "Popular shows",
+      "upcoming": "Coming to cinemas",
+      "anime": "Popular anime"
+    },
+    "backToSearch": "Back to search",
+    "resultsFor": "Results for “{{query}}”",
+    "searchFailed": "Couldn't search TMDB",
+    "nothingFound": "Nothing on TMDB for “{{query}}”",
+    "nothingFoundHint": "Try another spelling, or the title in its own language.",
+    "backToDiscover": "Back to Discover",
+    "emptyList": "Nothing here right now",
+    "emptyListAgeLimit": "What TMDB lists here is above this profile's age limit.",
+    "emptyListToday": "TMDB has nothing in this list today.",
+    "trendingNow": "Trending now",
+    "moreAboutIt": "More about it",
+    "waiting_one": "waiting",
+    "waiting_other": "waiting",
+    "loadFailed": "Couldn't load Discover",
+    "seeYourRequests": "See your requests"
+  },
+  "page": {
+    "manageHint": "What people asked for. Approving sends a title to Radarr or Sonarr where they're connected.",
+    "ownHint": "What you asked for and follow, and how it's going.",
+    "signInToDecide": "Sign in again to approve and decline here.",
+    "loadFailed": "Couldn't load the requests",
+    "tabs": {
+      "attention": "Needs attention",
+      "all": "All requests",
+      "mine": "Yours"
+    },
+    "statusGroup": "Status",
+    "kindGroup": "Kind",
+    "all": "All",
+    "statuses": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "available": "Available",
+      "declined": "Declined",
+      "failed": "Failed"
+    },
+    "movies": "Movies",
+    "shows": "Shows",
+    "whoAsked": "Who asked",
+    "everyone": "Everyone",
+    "findTitle": "Find a title",
+    "searchLabel": "Requests for titles containing",
+    "clearFilters": "Clear filters",
+    "attentionHint": "New requests, and those that couldn't be sent, show up here.",
+    "seeAll": "See all requests",
+    "findSomething": "Find something to ask for",
+    "empty": {
+      "match": "No requests match.",
+      "attention": "Nothing waits for you.",
+      "everyone": {
+        "pending": "No requests wait for a decision.",
+        "approved": "No requests are on their way.",
+        "available": "No requests are ready to watch yet.",
+        "declined": "No requests were declined.",
+        "failed": "No requests failed.",
+        "none": "No one has asked for anything yet."
+      },
+      "yours": {
+        "pending": "No requests of yours wait for a decision.",
+        "approved": "No requests of yours are on their way.",
+        "available": "No requests of yours are ready to watch yet.",
+        "declined": "No requests of yours were declined.",
+        "failed": "No requests of yours failed.",
+        "none": "You haven't asked for anything yet."
+      }
+    }
+  },
+  "bulk": {
+    "region": "Requests picked",
+    "picked_one": "{{count}} request picked",
+    "picked_other": "{{count}} requests picked",
+    "approved_one": "Approved {{count}} request.",
+    "approved_other": "Approved {{count}} requests.",
+    "declined_one": "Declined {{count}} request.",
+    "declined_other": "Declined {{count}} requests.",
+    "approvedSome": "Approved {{done}} of {{total}}. “{{title}}”: {{error}}",
+    "declinedSome": "Declined {{done}} of {{total}}. “{{title}}”: {{error}}",
+    "declineTitle_one": "Decline {{count}} request?",
+    "declineTitle_other": "Decline {{count}} requests?",
+    "reasonHint": "Optional. Those who asked see it."
+  },
+  "card": {
+    "select": "Select {{title}}",
+    "new": "New",
+    "watch": "Watch",
+    "youAsked": "You asked <when/>",
+    "nameAsked": "<name>{{name}}</name> asked <when/>",
+    "someoneAsked": "Asked for by someone else <when/>",
+    "youFollow": "You follow it",
+    "followers_one": "{{count}} follows it",
+    "followers_other": "{{count}} follow it",
+    "declined": "Declined",
+    "declinedBy": "Declined by {{name}}",
+    "declinedWhen": "Declined <when/>",
+    "declinedByWhen": "Declined by {{name}} <when/>",
+    "reason": ": “{{reason}}”",
+    "sentTo": "Sent to {{where}}",
+    "outOfReach": "Ready, in a library you can't open: ask an administrator"
+  },
+  "actions": {
+    "more": "More for {{title}}",
+    "markedByHand": "“{{title}}” is marked as added by hand.",
+    "unfollowed": "You won't hear about “{{title}}” any more.",
+    "deleteText": "It goes for everyone who asked for <strong>{{title}}</strong> or follows it. Radarr and Sonarr keep what they have.",
+    "askAgain": "It may be asked for again.",
+    "noMore": "It won't be asked for any more.",
+    "noMoreUnlessFollowed": "It won't be asked for any more, unless those who follow it keep it."
+  },
+  "approve": {
+    "title": "Approve “{{title}}”",
+    "retryTitle": "Try “{{title}}” again",
+    "withSettings": "Approve with the settings' choices",
+    "retryWithSettings": "Try again with the settings' choices",
+    "notConnected": "{{service}} isn't connected",
+    "notConnectedText": "It stays approved until it is, or until someone adds it by hand.",
+    "lastOptions": "Its profiles and folders are the last ones it gave.",
+    "optionsFailed": "Couldn't load {{service}}'s profiles and folders",
+    "qualityProfile": "Quality profile",
+    "folder": "Folder",
+    "settingsChoice": "The settings' choice",
+    "goneProfile": "Profile {{id}} (gone)",
+    "goneFolder": "{{folder}} (gone)",
+    "freeSpace": "{{path}} ({{free}} free)",
+    "seasonsHint": "Those left out leave the request, and may be asked for again."
+  },
+  "decline": {
+    "title": "Decline “{{title}}”?",
+    "nameHears": "{{name}} hears that it was declined, with your reason if you give one.",
+    "someoneHears": "Whoever asked hears that it was declined, with your reason if you give one.",
+    "followersHear": "Those who follow it hear it too, without the reason.",
+    "optional": "Optional.",
+    "placeholder": "We have it on disc"
+  },
+  "title": {
+    "coming": "Coming {{date}}",
+    "open": "Open",
+    "inLibrary": "In library",
+    "requestMoreSeasons": "Request more seasons",
+    "notOpen": "Requests aren't open to this account.",
+    "signInToAsk": "Sign in again to ask for movies and shows",
+    "requested": "Requested",
+    "following": "Following",
+    "stopFollowing": "Stop following",
+    "tellMeToo": "Tell me too",
+    "askedAlready": "Someone asked for it already.",
+    "requests_one": "Request",
+    "requests_other": "Requests",
+    "cast": "Cast",
+    "loadFailed": "Couldn't load this title"
+  },
+  "picker": {
+    "title": "Which seasons?",
+    "auto": "Approved as you ask, and sent on to download.",
+    "decided": "An administrator decides on it. You'll hear when it's ready to watch."
+  }
+}

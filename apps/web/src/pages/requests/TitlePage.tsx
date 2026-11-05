@@ -1,4 +1,6 @@
 import { useCallback, useLayoutEffect, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Ban, Bell, Check, Clock, Play, Plus, UserMinus } from "lucide-react";
 import { isApiError } from "@/api/client";
@@ -20,7 +22,7 @@ import { PersonPhoto } from "@/components/PersonCard";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, buttonClass, SectionTitle, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDuration, pluralize } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import { smoothScroll, useDocumentTitle } from "@/lib/hooks";
 import { allowanceText, askedText, kindLabel, mainAction, seasonStateText, spent } from "@/lib/requests";
 import { itemUrl } from "@/lib/urls";
@@ -67,9 +69,9 @@ function Backdrop({ title }: { title: DiscoverDetail }) {
 }
 
 /** "Coming Nov 4, 2026" for a release still to come, else its year. */
-function released(title: DiscoverDetail): string | null {
+function released(title: DiscoverDetail, t: TFunction<"requests">): string | null {
   const date = title.release_date;
-  if (date && new Date(`${date}T00:00:00`).getTime() > Date.now()) return `Coming ${formatDate(date)}`;
+  if (date && new Date(`${date}T00:00:00`).getTime() > Date.now()) return t("title.coming", { date: formatDate(date) });
   return title.year ? String(title.year) : null;
 }
 
@@ -93,6 +95,7 @@ export function MainActions({
   size?: "md" | "lg";
   listed?: boolean;
 }) {
+  const { t } = useTranslation("requests");
   const toast = useToast();
   const ask = useAskRequest();
   const unwatch = useUnwatchRequest();
@@ -118,15 +121,15 @@ export function MainActions({
     itemId !== null ? (
       <Link to={itemUrl(itemId)} className={buttonClass(primary ? "primary" : "secondary", size)}>
         <Play className={cn(icon, "fill-current")} />
-        Open
+        {t("title.open")}
       </Link>
     ) : null;
   const moreSeasons = (
     <Button variant="secondary" size={size} icon={<Plus className={icon} />} disabled={used} onClick={onPick}>
-      Request more seasons
+      {t("title.requestMoreSeasons")}
     </Button>
   );
-  const notOpen = <p className="text-sm text-muted">Requests aren't open to this account.</p>;
+  const notOpen = <p className="text-sm text-muted">{t("title.notOpen")}</p>;
   const stage = (r: MediaRequest | null) => (r && !listed ? <StagePill request={r} manage={manage} className="basis-full" /> : null);
 
   let body;
@@ -134,7 +137,7 @@ export function MainActions({
     case "sign_in":
       body = (
         <div className="space-y-2">
-          <p className="font-medium">Sign in again to ask for movies and shows</p>
+          <p className="font-medium">{t("title.signInToAsk")}</p>
           <SignInAgain size={size} />
         </div>
       );
@@ -148,7 +151,7 @@ export function MainActions({
       );
       break;
     case "open":
-      body = open(action.itemId) ?? <Badge tone="success">In library</Badge>;
+      body = open(action.itemId) ?? <Badge tone="success">{t("title.inLibrary")}</Badge>;
       break;
     case "declined":
       body = (
@@ -166,7 +169,7 @@ export function MainActions({
         <>
           <span className={buttonClass("secondary", size, "pointer-events-none text-muted")} aria-disabled>
             <Check className={icon} />
-            Requested
+            {t("title.requested")}
           </span>
           {stage(action.request)}
         </>
@@ -177,7 +180,7 @@ export function MainActions({
         <>
           <span className={buttonClass("secondary", size, "pointer-events-none text-muted")} aria-disabled>
             <Bell className={icon} />
-            Following
+            {t("title.following")}
           </span>
           {action.request && !listed ? (
             <Button
@@ -190,7 +193,7 @@ export function MainActions({
                 if (followed) unwatch.mutate(followed, { onError: fail });
               }}
             >
-              Stop following
+              {t("title.stopFollowing")}
             </Button>
           ) : null}
           {stage(action.request)}
@@ -203,9 +206,9 @@ export function MainActions({
       ) : (
         <>
           <Button variant="primary" size={size} icon={<Bell className={icon} />} loading={ask.isPending} onClick={() => tellMeToo(action.seasons)}>
-            Tell me too
+            {t("title.tellMeToo")}
           </Button>
-          <p className="text-sm text-muted">Someone asked for it already.</p>
+          <p className="text-sm text-muted">{t("title.askedAlready")}</p>
         </>
       );
       break;
@@ -222,7 +225,7 @@ export function MainActions({
         notOpen
       ) : (
         <Button variant="primary" size={size} icon={<Plus className={icon} />} loading={ask.isPending} disabled={used} onClick={request}>
-          Request
+          {t("shared.request")}
         </Button>
       );
       break;
@@ -255,7 +258,8 @@ function SeasonState({ season, title, manage }: { season: DiscoverSeason; title:
   const text = seasonStateText(season);
   if (!text) return null;
   if (season.state === "library") return <Badge tone="success">{text}</Badge>;
-  if (text === "Declined") return <Badge tone="danger">{text}</Badge>;
+  // Declined, on seasonStateText's terms: its words are in the language shown, so they aren't compared.
+  if (season.declined && season.state !== "requested") return <Badge tone="danger">{text}</Badge>;
   if (season.state === "requested") {
     return (
       <Badge tone="info">
@@ -268,6 +272,7 @@ function SeasonState({ season, title, manage }: { season: DiscoverSeason; title:
 }
 
 function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: DiscoverDetail; manage: boolean }) {
+  const { t } = useTranslation(["requests", "common"]);
   return (
     <li className="flex items-center gap-3 rounded-lg border border-border bg-surface/80 px-3 py-2.5">
       <Artwork
@@ -279,9 +284,11 @@ function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: D
         className="aspect-[2/3] w-10 shrink-0 rounded ring-1 ring-white/5"
       />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{season.name || (season.number === 0 ? "Specials" : `Season ${season.number}`)}</div>
+        <div className="truncate text-sm font-medium">
+          {season.name || (season.number === 0 ? t("common:format.specials") : t("common:format.seasonNumber", { number: season.number }))}
+        </div>
         <div className="truncate text-xs text-subtle">
-          {[pluralize(season.episodes, "episode"), season.air_date ? season.air_date.slice(0, 4) : null].filter(Boolean).join(" · ")}
+          {[t("counts.episodes", { count: season.episodes }), season.air_date ? season.air_date.slice(0, 4) : null].filter(Boolean).join(" · ")}
         </div>
       </div>
       <SeasonState season={season} title={title} manage={manage} />
@@ -291,6 +298,7 @@ function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: D
 
 /** TMDB's cast: no pages of their own here (people have them only in a library). */
 function CastRow({ cast }: { cast: DiscoverDetail["cast"] }) {
+  const { t } = useTranslation("requests");
   const { ref, width, perPage, gap } = useFittedRow([96, 120]);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -320,7 +328,7 @@ function CastRow({ cast }: { cast: DiscoverDetail["cast"] }) {
           ) : null
         }
       >
-        Cast
+        {t("title.cast")}
       </SectionTitle>
       <div
         ref={ref}
@@ -348,6 +356,7 @@ function CastRow({ cast }: { cast: DiscoverDetail["cast"] }) {
 }
 
 function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; picking: boolean; setPicking: (open: boolean) => void }) {
+  const { t } = useTranslation("requests");
   const summary = useRequestSummary();
   const show = title.kind === "show";
   const numbered = (title.seasons ?? []).filter((s) => s.number > 0);
@@ -377,9 +386,9 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
             <MetaLine
               parts={[
                 kindLabel(title.kind),
-                released(title),
+                released(title, t),
                 title.runtime_minutes ? formatDuration(title.runtime_minutes * 60_000) : null,
-                show && numbered.length ? pluralize(numbered.length, "season") : null,
+                show && numbered.length ? t("counts.seasons", { count: numbered.length }) : null,
                 title.certification ? <ContentRating key="cr" value={title.certification} /> : null,
                 title.rating != null && title.rating > 0 ? <RatingBadge key="r" rating={title.rating} /> : null,
                 title.network,
@@ -398,7 +407,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
         {listed && summary.data ? (
           <section className="mt-12">
             <SectionTitle>
-              {title.requests.length === 1 ? "Request" : "Requests"}{" "}
+              {t("title.requests", { count: title.requests.length })}{" "}
               {title.requests.length > 1 ? <span className="ml-1 text-sm font-normal text-subtle">{title.requests.length}</span> : null}
             </SectionTitle>
             <ul className="divide-y divide-white/[0.05] rounded-lg border border-border bg-surface/80">
@@ -411,7 +420,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
 
         {show && title.seasons?.length ? (
           <section className="mt-12">
-            <SectionTitle>Seasons</SectionTitle>
+            <SectionTitle>{t("shared.seasons")}</SectionTitle>
             <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {[...numbered, ...title.seasons.filter((s) => s.number === 0)].map((s) => (
                 <SeasonRow key={s.number} season={s} title={title} manage={manage} />
@@ -435,6 +444,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
  * opens a show's season picker (Request more seasons, from a library).
  */
 export function TitlePage() {
+  const { t } = useTranslation("requests");
   const me = useAuth();
   const params = useParams();
   const [search, setSearch] = useSearchParams();
@@ -463,7 +473,7 @@ export function TitlePage() {
       <ProblemState
         error={title.error}
         manage={summary.data?.manage ?? me.is_admin}
-        title="Couldn't load this title"
+        title={t("title.loadFailed")}
         retrying={title.isFetching}
         onRetry={() => void title.refetch()}
       />

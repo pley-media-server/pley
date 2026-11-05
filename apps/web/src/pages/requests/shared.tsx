@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Ban, Check, CircleCheck, Clock, CloudOff, Inbox, KeyRound, LogIn } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -108,18 +109,19 @@ export function TitleGrid({
   titles: DiscoverTitle[];
   more?: { next: boolean; loading: boolean; load: () => void };
 }) {
+  const { t } = useTranslation("common");
   const { ref, cols, colWidth } = useGridColumns();
   return (
     <div>
       <div ref={ref} className="grid gap-x-[18px] gap-y-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {titles.map((t) => (
-          <TitleCard key={`${t.kind}-${t.tmdb_id}`} title={t} width={colWidth} />
+        {titles.map((title) => (
+          <TitleCard key={`${title.kind}-${title.tmdb_id}`} title={title} width={colWidth} />
         ))}
       </div>
       {more?.next ? (
         <div className="mt-8 flex justify-center">
           <Button variant="secondary" loading={more.loading} onClick={more.load}>
-            Show more
+            {t("actions.showMore")}
           </Button>
         </div>
       ) : null}
@@ -169,6 +171,7 @@ const ROW_TITLES = 20;
  * pages that came short until it is full.
  */
 export function TitleRow({ list, title, link }: { list: DiscoverList; title: string; link: string }) {
+  const { t } = useTranslation(["requests", "common"]);
   const [ref, inView] = useInView<HTMLDivElement>();
   const query = useDiscoverList(list, inView);
   useFillPages(query, ROW_TITLES);
@@ -187,10 +190,10 @@ export function TitleRow({ list, title, link }: { list: DiscoverList; title: str
       <section className="px-4 sm:px-8">
         <h2 className="mb-2 text-lg font-semibold tracking-tight">{title}</h2>
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-danger">{words ? words.title : `Couldn't load it: ${errorMessage(query.error)}`}</span>
+          <span className="text-danger">{words ? words.title : t("shared.loadFailed", { error: errorMessage(query.error) })}</span>
           {!words || words.retry ? (
             <Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>
-              Retry
+              {t("common:actions.retry")}
             </Button>
           ) : null}
         </div>
@@ -208,7 +211,7 @@ export function TitleRow({ list, title, link }: { list: DiscoverList; title: str
 export function ScrollRow({
   title,
   link,
-  linkLabel = "See all",
+  linkLabel,
   count,
   inset,
   children,
@@ -221,6 +224,7 @@ export function ScrollRow({
   inset?: boolean;
   children: (width: number) => ReactNode;
 }) {
+  const { t } = useTranslation("requests");
   const { ref: scroller, width, perPage, gap } = useFittedRow([118, 160]);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -248,7 +252,7 @@ export function ScrollRow({
         </h2>
         <div className="flex shrink-0 items-center gap-1">
           <Link to={link} className="mr-2 text-xs font-medium text-muted transition-colors hover:text-accent">
-            {linkLabel}
+            {linkLabel ?? t("shared.seeAll")}
           </Link>
           {canLeft || canRight ? (
             <>
@@ -344,6 +348,7 @@ export function StagePill({
   line?: boolean;
   compact?: boolean;
 }) {
+  const { t } = useTranslation("requests");
   const words = stageWords(request, manage);
   const download = words.download;
   return (
@@ -357,7 +362,7 @@ export function StagePill({
       {download ? (
         <div
           role="progressbar"
-          aria-label={`${request.title}: ${words.label}`}
+          aria-label={t("shared.progress", { title: request.title, stage: words.label })}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(download.progress * 100)}
@@ -376,10 +381,11 @@ export function StagePill({
 
 /** "Details and pictures from TMDB.", at the foot of Discover and of every title's page. */
 export function TmdbCredit({ className, full }: { className?: string; full?: boolean }) {
+  const { t } = useTranslation("requests");
   return (
     <p className={cn("text-xs text-subtle", className)}>
-      Details and pictures from TMDB.
-      {full ? " This product uses the TMDB API but is not endorsed or certified by TMDB." : null}
+      {t("shared.tmdbCredit")}
+      {full ? ` ${t("shared.tmdbEndorsement")}` : null}
     </p>
   );
 }
@@ -419,16 +425,17 @@ export function ProblemState({
   retrying?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation(["requests", "common"]);
   if (!problem) {
     return (
       <EmptyState
         className={className}
-        title={title ?? "Couldn't load it"}
+        title={title ?? t("shared.couldNotLoad")}
         description={errorMessage(error)}
         action={
           onRetry ? (
             <Button loading={retrying} onClick={onRetry}>
-              Retry
+              {t("common:actions.retry")}
             </Button>
           ) : undefined
         }
@@ -445,13 +452,13 @@ export function ProblemState({
       action={
         words.settings ? (
           <Link to={TMDB_KEY_SETTING} className={buttonClass("primary")}>
-            Check the key
+            {t("shared.checkKey")}
           </Link>
         ) : problem.kind === "sign_in" ? (
           <SignInAgain />
         ) : words.retry && onRetry ? (
           <Button loading={retrying} onClick={onRetry}>
-            Retry
+            {t("common:actions.retry")}
           </Button>
         ) : undefined
       }
@@ -464,6 +471,7 @@ export function ProblemState({
  * signs out, and back to this page once signed in again.
  */
 export function SignInAgain({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const { t } = useTranslation("requests");
   const logout = useLogout();
   const audio = useOptionalAudioPlayer();
   const navigate = useNavigate();
@@ -480,7 +488,7 @@ export function SignInAgain({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         logout.mutate(undefined, { onSettled: () => void navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true }) });
       }}
     >
-      Sign in
+      {t("shared.signIn")}
     </Button>
   );
 }
@@ -490,17 +498,18 @@ export function SignInAgain({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
  * where they're off may turn them on.
  */
 export function RequestsUnavailable({ reason, admin }: { reason: "off" | "no_access"; admin: boolean }) {
+  const { t } = useTranslation("requests");
   if (reason === "no_access") return <ProblemState problem={{ kind: "no_access" }} manage={false} />;
   if (!admin) return <ProblemState problem={{ kind: "off" }} manage={false} />;
   return (
     <EmptyState
       className="min-h-[60vh]"
       icon={<Inbox />}
-      title="Requests are off"
-      description="Turn them on to let people ask for movies and shows, and send what you approve to Radarr and Sonarr."
+      title={t("off.title")}
+      description={t("off.text")}
       action={
         <Link to="/settings/requests" className={buttonClass("primary")}>
-          Set up requests
+          {t("off.setUp")}
         </Link>
       }
     />

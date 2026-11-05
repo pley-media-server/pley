@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { Ban, Check, Ellipsis, Hand, Play, Plug, RotateCw, Settings2, Trash2, TriangleAlert, Undo2, UserMinus } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -27,7 +28,7 @@ import { Button, buttonClass, Field, IconButton, Select, Skeleton, TextInput } f
 import { cn } from "@/lib/cn";
 import { formatAgo, formatBytes, formatTimestamp } from "@/lib/format";
 import { useOnChange } from "@/lib/hooks";
-import { actionLabel, actionQuestion, askedText, decidedText, kindLabel, problemText, quoted, seasonsLabel } from "@/lib/requests";
+import { actionLabel, actionQuestion, askedText, decidedText, kindLabel, problemText, seasonsLabel } from "@/lib/requests";
 import { itemUrl, titleUrl } from "@/lib/urls";
 import { StagePill } from "./shared";
 
@@ -138,6 +139,7 @@ export function ApproveDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["requests", "common"]);
   const options = useApprovalOptions(open);
   const approve = useApproveRequest();
   const toast = useToast();
@@ -166,7 +168,7 @@ export function ApproveDialog({
   });
 
   const submit = () => {
-    if (asked.length && !seasons.length) return setError("Pick a season.");
+    if (asked.length && !seasons.length) return setError(t("shared.pickSeason"));
     const body: Approval = {};
     if (lists) {
       if (profile !== null && profile !== pick.profile) body.quality_profile = profile;
@@ -192,14 +194,14 @@ export function ApproveDialog({
       onClose={onClose}
       locked={approve.isPending}
       size="sm"
-      title={action === "retry" ? `Try ${quoted(request.title)} again` : `Approve ${quoted(request.title)}`}
+      title={t(action === "retry" ? "approve.retryTitle" : "approve.title", { title: request.title })}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={approve.isPending}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" onClick={submit} loading={approve.isPending} data-autofocus>
-            {settingsOnly ? `${actionLabel(action, request)} with the settings' choices` : actionLabel(action, request)}
+            {settingsOnly ? t(action === "retry" ? "approve.retryWithSettings" : "approve.withSettings") : actionLabel(action, request)}
           </Button>
         </>
       }
@@ -211,27 +213,27 @@ export function ApproveDialog({
             <Skeleton className="h-14" />
           </div>
         ) : choices === null ? (
-          <ServiceNote icon={<Plug className="text-subtle" />} title={`${service(request)} isn't connected`}>
-            It stays approved until it is, or until someone adds it by hand.
+          <ServiceNote icon={<Plug className="text-subtle" />} title={t("approve.notConnected", { service: service(request) })}>
+            {t("approve.notConnectedText")}
           </ServiceNote>
         ) : choices ? (
           <>
             {choices.error ? (
               <ServiceNote icon={<TriangleAlert className="text-warning" />} title={choices.error}>
-                {lists ? "Its profiles and folders are the last ones it gave." : null}
+                {lists ? t("approve.lastOptions") : null}
               </ServiceNote>
             ) : null}
             {lists ? (
               <>
-                <Field label="Quality profile" htmlFor={`approve-profile-${request.id}`}>
+                <Field label={t("approve.qualityProfile")} htmlFor={`approve-profile-${request.id}`}>
                   <Select
                     id={`approve-profile-${request.id}`}
                     className="w-full"
                     value={profile ?? ""}
                     onChange={(e) => setChosen((c) => ({ ...c, profile: Number(e.target.value) }))}
                   >
-                    {profile === null ? <option value="">The settings' choice</option> : null}
-                    {goneProfile !== null ? <option value={goneProfile}>{`Profile ${goneProfile} (gone)`}</option> : null}
+                    {profile === null ? <option value="">{t("approve.settingsChoice")}</option> : null}
+                    {goneProfile !== null ? <option value={goneProfile}>{t("approve.goneProfile", { id: goneProfile })}</option> : null}
                     {choices.quality_profiles.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -239,18 +241,18 @@ export function ApproveDialog({
                     ))}
                   </Select>
                 </Field>
-                <Field label="Folder" htmlFor={`approve-folder-${request.id}`}>
+                <Field label={t("approve.folder")} htmlFor={`approve-folder-${request.id}`}>
                   <Select
                     id={`approve-folder-${request.id}`}
                     className="w-full"
                     value={folder ?? ""}
                     onChange={(e) => setChosen((c) => ({ ...c, folder: e.target.value }))}
                   >
-                    {folder === null ? <option value="">The settings' choice</option> : null}
-                    {goneFolder !== null ? <option value={goneFolder}>{`${goneFolder} (gone)`}</option> : null}
+                    {folder === null ? <option value="">{t("approve.settingsChoice")}</option> : null}
+                    {goneFolder !== null ? <option value={goneFolder}>{t("approve.goneFolder", { folder: goneFolder })}</option> : null}
                     {choices.root_folders.map((f) => (
                       <option key={f.path} value={f.path}>
-                        {f.free_bytes !== null ? `${f.path} (${formatBytes(f.free_bytes)} free)` : f.path}
+                        {f.free_bytes !== null ? t("approve.freeSpace", { path: f.path, free: formatBytes(f.free_bytes) }) : f.path}
                       </option>
                     ))}
                   </Select>
@@ -260,12 +262,12 @@ export function ApproveDialog({
           </>
         ) : (
           // The options couldn't be had at all: the settings' choices still can.
-          <ServiceNote icon={<TriangleAlert className="text-warning" />} title={`Couldn't load ${service(request)}'s profiles and folders`} />
+          <ServiceNote icon={<TriangleAlert className="text-warning" />} title={t("approve.optionsFailed", { service: service(request) })} />
         )}
         {asked.length > 1 ? (
           <fieldset className="space-y-1">
-            <legend className="mb-1 text-sm font-medium">Seasons</legend>
-            <p className="pb-1 text-xs text-subtle">Those left out leave the request, and may be asked for again.</p>
+            <legend className="mb-1 text-sm font-medium">{t("shared.seasons")}</legend>
+            <p className="pb-1 text-xs text-subtle">{t("approve.seasonsHint")}</p>
             <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-md border border-border p-1.5">
               {[...asked]
                 .sort((a, b) => Number(a === 0) - Number(b === 0) || a - b)
@@ -276,7 +278,7 @@ export function ApproveDialog({
                     checked={seasons.includes(n)}
                     onChange={() => setSeasons((s) => (s.includes(n) ? s.filter((x) => x !== n) : [...s, n]))}
                   >
-                    {n === 0 ? "Specials" : `Season ${n}`}
+                    {n === 0 ? t("common:format.specials") : t("common:format.seasonNumber", { number: n })}
                   </CheckRow>
                 ))}
             </div>
@@ -294,6 +296,7 @@ export function ApproveDialog({
 
 /** Declining, with a reason for the person who asked if there is one. */
 export function DeclineDialog({ request, open, onClose }: { request: MediaRequest; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation(["requests", "common"]);
   const decline = useDeclineRequest();
   const toast = useToast();
   const [reason, setReason] = useState("");
@@ -330,14 +333,14 @@ export function DeclineDialog({ request, open, onClose }: { request: MediaReques
       onClose={onClose}
       locked={decline.isPending}
       size="sm"
-      title={`Decline ${quoted(request.title)}?`}
+      title={t("decline.title", { title: request.title })}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={decline.isPending}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="danger" onClick={submit} loading={decline.isPending}>
-            Decline
+            {t("shared.decline")}
           </Button>
         </>
       }
@@ -350,15 +353,15 @@ export function DeclineDialog({ request, open, onClose }: { request: MediaReques
         }}
       >
         <p className="text-sm text-muted">
-          {who ? `${who} hears that it was declined, with your reason if you give one.` : "Whoever asked hears that it was declined, with your reason if you give one."}
-          {request.watchers > 0 ? " Those who follow it hear it too, without the reason." : ""}
+          {who ? t("decline.nameHears", { name: who }) : t("decline.someoneHears")}
+          {request.watchers > 0 ? ` ${t("decline.followersHear")}` : ""}
         </p>
-        <Field label="Reason" htmlFor={`decline-${request.id}`} hint="Optional.">
+        <Field label={t("shared.reason")} htmlFor={`decline-${request.id}`} hint={t("decline.optional")}>
           <TextInput
             id={`decline-${request.id}`}
             maxLength={500}
             autoComplete="off"
-            placeholder="We have it on disc"
+            placeholder={t("decline.placeholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             data-autofocus
@@ -397,6 +400,7 @@ const IN_MENU: RequestAction[] = ["handled", "delete"];
  * asking.
  */
 export function RequestActions({ request, summary, skip = [] }: { request: MediaRequest; summary: RequestSummary; skip?: RequestAction[] }) {
+  const { t } = useTranslation(["requests", "common"]);
   const toast = useToast();
   const approve = useApproveRequest();
   const handled = useHandledRequest();
@@ -415,13 +419,13 @@ export function RequestActions({ request, summary, skip = [] }: { request: Media
       case "decline":
         return setDialog("decline");
       case "handled":
-        return handled.mutate(request, { onSuccess: (r) => toast.success(`${quoted(r.title)} is marked as added by hand.`), onError: fail });
+        return handled.mutate(request, { onSuccess: (r) => toast.success(t("actions.markedByHand", { title: r.title })), onError: fail });
       case "withdraw":
         return setDialog("withdraw");
       case "delete":
         return setDialog("delete");
       case "unwatch":
-        return unwatch.mutate(request, { onSuccess: () => toast.success(`You won't hear about ${quoted(request.title)} any more.`), onError: fail });
+        return unwatch.mutate(request, { onSuccess: () => toast.success(t("actions.unfollowed", { title: request.title })), onError: fail });
       case "ask_again":
         return ask.mutate(
           { kind: request.kind, tmdb_id: request.tmdb_id, ...(request.seasons ? { seasons: request.seasons } : {}) },
@@ -459,7 +463,7 @@ export function RequestActions({ request, summary, skip = [] }: { request: Media
         <Menu
           className="w-max"
           trigger={({ open, toggle }) => (
-            <IconButton size="sm" label={`More for ${request.title}`} aria-haspopup="menu" aria-expanded={open} onClick={toggle} disabled={busy}>
+            <IconButton size="sm" label={t("actions.more", { title: request.title })} aria-haspopup="menu" aria-expanded={open} onClick={toggle} disabled={busy}>
               <Ellipsis className="size-4" />
             </IconButton>
           )}
@@ -502,17 +506,15 @@ export function RequestActions({ request, summary, skip = [] }: { request: Media
         onClose={() => setDialog(null)}
         title={question ?? ""}
         danger
-        confirmLabel={dialog === "delete" ? "Delete" : actionLabel("withdraw", request)}
+        confirmLabel={dialog === "delete" ? t("common:actions.delete") : actionLabel("withdraw", request)}
         loading={remove.isPending}
         message={
           dialog === "delete" ? (
-            <>
-              It goes for everyone who asked for <strong className="text-fg">{request.title}</strong> or follows it. Radarr and Sonarr keep what they have.
-            </>
+            <Trans t={t} i18nKey="actions.deleteText" values={{ title: request.title }} components={{ strong: <strong className="text-fg" /> }} />
           ) : request.status === "declined" ? (
-            "It may be asked for again."
+            t("actions.askAgain")
           ) : (
-            `It won't be asked for any more${request.watchers > 0 ? ", unless those who follow it keep it." : "."}`
+            t(request.watchers > 0 ? "actions.noMoreUnlessFollowed" : "actions.noMore")
           )
         }
         onConfirm={() =>
@@ -531,17 +533,23 @@ export function RequestActions({ request, summary, skip = [] }: { request: Media
 
 /** Who asked, for managers (or "Asked for by someone else"), and when. */
 function Asker({ request, manage }: { request: MediaRequest; manage: boolean }) {
+  const { t } = useTranslation("requests");
   const by = request.mine ? null : request.requested_by;
+  const when = <When ts={request.created_at} />;
   return (
     <div className="flex items-center gap-1.5 text-xs text-subtle">
       {by ? <Avatar user={by} size="xs" /> : null}
       {/* One block of words, so a long name wraps them rather than leaving the picture alone on a line. */}
       <p className="min-w-0">
-        {request.mine ? "You asked" : by ? <span className="text-muted">{by.name}</span> : "Asked for by someone else"}
-        {request.mine || !by ? " " : " asked "}
-        <When ts={request.created_at} />
-        {request.watching && !request.mine ? " · You follow it" : null}
-        {manage && request.watchers > 0 ? ` · ${request.watchers === 1 ? "1 follows it" : `${request.watchers} follow it`}` : null}
+        {request.mine ? (
+          <Trans t={t} i18nKey="card.youAsked" components={{ when }} />
+        ) : by ? (
+          <Trans t={t} i18nKey="card.nameAsked" values={{ name: by.name }} components={{ name: <span className="text-muted" />, when }} />
+        ) : (
+          <Trans t={t} i18nKey="card.someoneAsked" components={{ when }} />
+        )}
+        {request.watching && !request.mine ? ` · ${t("card.youFollow")}` : null}
+        {manage && request.watchers > 0 ? ` · ${t("card.followers", { count: request.watchers })}` : null}
       </p>
     </div>
   );
@@ -549,25 +557,32 @@ function Asker({ request, manage }: { request: MediaRequest; manage: boolean }) 
 
 /** What there is to know beyond its stage: why it was declined, the managers' note, and where it was sent. */
 function Notes({ request, manage }: { request: MediaRequest; manage: boolean }) {
+  const { t } = useTranslation("requests");
   const lines: ReactNode[] = [];
   if (request.status === "declined") {
+    const by = request.decided_by && manage ? request.decided_by.name : null;
     lines.push(
       <span key="d">
-        Declined{request.decided_by && manage ? ` by ${request.decided_by.name}` : ""}
         {request.decided_at ? (
-          <>
-            {" "}
-            <When ts={request.decided_at} />
-          </>
-        ) : null}
-        {request.reason ? <span className="text-fg/85">: {quoted(request.reason)}</span> : null}
+          <Trans
+            t={t}
+            i18nKey={by ? "card.declinedByWhen" : "card.declinedWhen"}
+            values={{ name: by }}
+            components={{ when: <When ts={request.decided_at} /> }}
+          />
+        ) : by ? (
+          t("card.declinedBy", { name: by })
+        ) : (
+          t("card.declined")
+        )}
+        {request.reason ? <span className="text-fg/85">{t("card.reason", { reason: request.reason })}</span> : null}
       </span>,
     );
   }
   if (manage && request.note) lines.push(<span key="n">{request.note}</span>);
   if (manage && request.sent_to) {
     const where = [request.sent_to.service === "radarr" ? "Radarr" : "Sonarr", request.sent_to.quality_profile, request.sent_to.root_folder].filter(Boolean);
-    lines.push(<span key="s">Sent to {where.join(" · ")}</span>);
+    lines.push(<span key="s">{t("card.sentTo", { where: where.join(" · ") })}</span>);
   }
   if (!lines.length) return null;
   return (
@@ -585,8 +600,9 @@ function isReady(request: MediaRequest): boolean {
 
 /** Ready, in a library this account can't open: who can help (managers know). */
 function OutOfReach({ request, manage }: { request: MediaRequest; manage: boolean }) {
+  const { t } = useTranslation("requests");
   if (manage || !isReady(request) || request.item_id !== null) return null;
-  return <p className="text-xs text-muted">Ready, in a library you can't open: ask an administrator</p>;
+  return <p className="text-xs text-muted">{t("card.outOfReach")}</p>;
 }
 
 /**
@@ -612,6 +628,7 @@ export function RequestCard({
   onSelect?: (selected: boolean) => void;
   checkboxes?: boolean;
 }) {
+  const { t } = useTranslation("requests");
   const manage = summary.manage;
   const seasons = seasonsLabel(request.seasons);
   const to = titleUrl(request.kind, request.tmdb_id);
@@ -629,7 +646,7 @@ export function RequestCard({
               className="peer sr-only"
               checked={!!selected}
               onChange={(e) => onSelect(e.target.checked)}
-              aria-label={`Select ${request.title}`}
+              aria-label={t("card.select", { title: request.title })}
             />
             <Checkbox checked={!!selected} />
           </label>
@@ -666,7 +683,7 @@ export function RequestCard({
                 </span>
               ) : null}
               {request.unseen ? (
-                <span className="self-center rounded-full bg-accent/15 px-1.5 text-[10px] font-semibold uppercase leading-4 tracking-wider text-accent">New</span>
+                <span className="self-center rounded-full bg-accent/15 px-1.5 text-[10px] font-semibold uppercase leading-4 tracking-wider text-accent">{t("card.new")}</span>
               ) : null}
             </div>
           ) : null}
@@ -681,7 +698,7 @@ export function RequestCard({
           {watch !== null ? (
             <Link to={itemUrl(watch)} className={buttonClass("secondary", "sm")}>
               <Play className="size-3.5 fill-current" />
-              Watch
+              {t("card.watch")}
             </Link>
           ) : null}
           <RequestActions request={request} summary={summary} skip={skip} />
