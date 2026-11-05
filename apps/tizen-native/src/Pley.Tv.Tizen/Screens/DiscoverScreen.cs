@@ -328,8 +328,9 @@ sealed class DiscoverScreen : ShellPage
     {
         var shown = s.Rows.Where(r => !(r.Pages.Titles.Count == 0 && r.Pages.Settled)).ToList();
         // Made again only as rows come and go (one TMDB gave nothing for, Your requests): a row's
-        // first page, and the pages after it, change the row in place.
-        var next = string.Join(",", shown.Select(r => r.List)) + $"|{s.Yours.Count > 0}";
+        // first page, and the pages after it, change the row in place. Your requests are made again
+        // as their number changes too: a row changed in place keeps the tiles past a shorter list's end.
+        var next = string.Join(",", shown.Select(r => r.List)) + $"|{s.Yours.Count}";
         if (next != shape)
         {
             shape = next;
