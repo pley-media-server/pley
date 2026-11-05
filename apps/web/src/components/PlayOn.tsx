@@ -132,16 +132,19 @@ export function PlayOn({
             ask(device, request);
             return;
           }
-          // A wrong PIN, a locked one, too many tries, or no answer: the pad says so, to try again.
-          if (pin !== undefined && (isApiError(err, 403) || isApiError(err, 429) || isApiError(err, 0))) {
+          // The PIN's own refusals (wrong, locked, too many tries): the pad says so, to try again.
+          if (pin !== undefined && refusesPin(err)) {
             setPinMessage(pinError(err));
             setFailures((n) => n + 1);
             if (isApiError(err) && err.code === "pin_locked") setPinLocked(true);
             return;
           }
+          // Anything else (not allowed, the device gone, no answer) isn't the PIN's: said as the menu says it.
           if (pin !== undefined) stopAsking(true);
           toast.error(castError(err, device.name));
         },
+        // The cast is done with: its PIN goes from the mutation's cache (`useCast`) with it.
+        onSettled: () => send.reset(),
       },
     );
   };
@@ -241,6 +244,12 @@ export function PlayOn({
       ) : null}
     </div>
   );
+}
+
+/** Whether the server refused the PIN a cast was sent with, which the pad says, rather than the cast. */
+function refusesPin(err: unknown): boolean {
+  if (isApiError(err, 429)) return true;
+  return isApiError(err, 403) && (err.code === "pin_needed" || err.code === "wrong_pin" || err.code === "pin_locked");
 }
 
 /** A device in the menu, as the remote lists it. */

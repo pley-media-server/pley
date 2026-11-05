@@ -230,5 +230,47 @@ describe("PlayOn", () => {
       expect(await screen.findByText("Attic TV isn't on any more")).toBeInTheDocument();
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+
+    it("leaves the pad for what isn't the PIN's refusal: a cast not allowed, no answer", async () => {
+      let answer: () => unknown = () => apiError(403, "not_allowed", "you can't cast to this device");
+      serveAttic(() => answer());
+      renderWithProviders(<PlayOn kind="item" cast={() => ({ item_id: 7 })} />, { user: withPin });
+      const user = userEvent.setup();
+
+      await choose("Play on…", "Attic TV");
+      await screen.findByRole("dialog", { name: "Play on Attic TV" });
+      await user.keyboard("1234{Enter}");
+      expect(await screen.findByText("You can't cast to this device")).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.getByRole("button", { name: "Play on…" })).toHaveFocus();
+      act(() => screen.getByRole("button", { name: "Dismiss" }).click());
+
+      answer = () => {
+        throw new TypeError("Failed to fetch");
+      };
+      await choose("Play on…", "Attic TV");
+      await screen.findByRole("dialog", { name: "Play on Attic TV" });
+      await user.keyboard("1234{Enter}");
+      expect(await screen.findByText("Can't reach the server")).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("keeps no PIN in the mutation cache once a cast is done with", async () => {
+      serveAttic();
+      const { client } = renderWithProviders(<PlayOn kind="item" cast={() => ({ item_id: 7 })} />, { user: withPin });
+      const kept = () => JSON.stringify(client.getMutationCache().getAll().map((m) => m.state.variables));
+      const user = userEvent.setup();
+
+      await choose("Play on…", "Attic TV");
+      const asking = await screen.findByRole("dialog", { name: "Play on Attic TV" });
+      await user.keyboard("1111{Enter}");
+      await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("Wrong PIN"));
+      await waitFor(() => expect(kept()).not.toContain("1111"));
+
+      await user.keyboard("1234{Enter}");
+      expect(await screen.findByText("Playing on Attic TV")).toBeInTheDocument();
+      await waitFor(() => expect(kept()).not.toContain("1234"));
+      expect(client.getMutationCache().getAll()).toEqual([]);
+    });
   });
 });
