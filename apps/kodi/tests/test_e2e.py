@@ -203,14 +203,16 @@ class EndToEndTest(unittest.TestCase):
             self.assertEqual((playing[0]["audio_index"], playing[0]["subtitle_index"]), (1, -1))
             # The stream made this Kodi one the user's remotes cast to (a TV,
             # titles only on a server without Live TV), and a cast to it
-            # comes as the service hears it.
+            # comes as the service hears it, with the tracks the remote picked.
             mine = playback.install_id()
             devices = client.get("/api/remote/devices")
             self.assertEqual([(d["receiver_id"], d["kind"], d["casts"]) for d in devices], [(mine, "tv", ["item"])])
-            cast = client.request("POST", "/api/remote/devices/%s/cast" % mine, json_body={"item_id": item, "start_ms": 5000})
+            body = {"item_id": item, "start_ms": 5000, "audio_index": 1, "subtitle_index": -1}
+            cast = client.request("POST", "/api/remote/devices/%s/cast" % mine, json_body=body)
             self.assertEqual(cast.status, 202)
             sent = wait_for(lambda: [e for e in heard if e.get("type") == "cast"], 10, "the cast")
-            self.assertEqual(casting.action(mine, True, sent[0]), {"act": "item", "item_id": item, "start_ms": 5000, "shuffle": False})
+            expected = {"act": "item", "item_id": item, "start_ms": 5000, "shuffle": False, "audio_index": 1, "subtitle_index": -1}
+            self.assertEqual(casting.action(mine, True, sent[0]), expected)
             self.assertEqual(self.admin.request("DELETE", "/api/sessions/%s" % info["session_id"]).status, 204)
             stopped = wait_for(lambda: [e for e in heard if e.get("type") == "session_stopped"], 10, "session_stopped")
             self.assertEqual((stopped[0]["session_id"], stopped[0]["by_admin"]), (info["session_id"], False))
