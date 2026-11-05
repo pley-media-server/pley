@@ -299,18 +299,19 @@ public sealed class AppState
     public StartPage Start() => StartOf(Server.Value != null, tokens?.Kept == true, HouseholdSize(), AlwaysStartAs(), Me.Value);
 
     /// <summary>
-    /// The first screen (the Android app's startKey): no server, Servers; no sign-in, Link; a household
-    /// of several profiles, "Who's watching?". "Always start as" skips that question and goes on as the
-    /// profile the TV was left on (<paramref name="me"/>, as last heard), but never past its PIN: its
-    /// pad comes first when it has one, and "Who's watching?" when the TV doesn't know whether it has one.
+    /// The first screen (the Android app's startKey): no server, Servers; no sign-in, Link; otherwise
+    /// Home as the profile the TV was left on (<paramref name="me"/>, as last heard), but never past its
+    /// PIN. In a household of several profiles, one with a PIN asks first: "Who's watching?", or its pad
+    /// with "Always start as"; and so does one the TV doesn't know has none.
     /// </summary>
     public static StartPage StartOf(bool server, bool signedIn, int household, long? alwaysStartAs, User? me)
     {
         if (!server) return StartPage.Servers;
         if (!signedIn) return StartPage.Link;
         if (household <= 1) return StartPage.Home;
+        if (me is { HasPin: false }) return StartPage.Home;
         if (alwaysStartAs == null || me == null) return StartPage.Profiles;
-        return me.HasPin ? StartPage.Pin : StartPage.Home;
+        return StartPage.Pin;
     }
 
     Tokens NewTokens(string issuer, Action<SignOutReason>? onSignedOut = null) =>

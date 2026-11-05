@@ -733,6 +733,16 @@
           "has_pin": false
         }
       },
+      "out": "home"
+    },
+    {
+      "in": {
+        "server": "http://192.168.1.20:7539",
+        "signedIn": true,
+        "household": 3,
+        "alwaysStartAs": null,
+        "me": null
+      },
       "out": "profiles"
     },
     {

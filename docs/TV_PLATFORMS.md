@@ -51,10 +51,11 @@ The native Samsung app installs the same way, as a `.tpk`
 
 Sign-in, server discovery (a sweep of the TV's subnet), "Who's watching?"
 and its PINs, the screens, the player's keys and panels, and offline
-behaviour follow the Android TV app. With Always start as too, a start
-never goes on as a profile with a PIN without it: the TV keeps the profile
-it was left on (`GET /api/auth/me`, with `has_pin`), and until it has,
-asks "Who's watching?". What differs:
+behaviour follow the Android TV app. A start goes straight into Home as
+the profile the TV was left on when that profile has no PIN, and never
+goes on as one with a PIN without it, with Always start as too: the TV
+keeps the profile it was left on (`GET /api/auth/me`, with `has_pin`), and
+until it has, asks "Who's watching?". What differs:
 
 ### Remote keys
 
