@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionLost, eventsLive } from "@/lib/connection";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { makeDetail, makeRequest, makeRequestList, makeShowDetail, makeSummary, makeTitle } from "@/test/requests";
-import { LOST_AFTER_MS, onServerEvent, useServerEvents } from "./events";
+import { LOST_AFTER_MS, onServerEvent, setReceiver, useServerEvents } from "./events";
 import { keys } from "./hooks";
 import { EVERY_REQUEST, requestKeys, type DiscoverPage, type DiscoverTitle } from "./requests";
 import type { Activity, Library, ServerEvent } from "./types";
@@ -515,6 +515,24 @@ describe("useServerEvents", () => {
     stop();
     act(() => source().send({ type: "sessions_changed" }));
     expect(heard).toEqual([stopped]);
+  });
+
+  it("opens again as a receiver of casts, and as a plain stream once it takes none", () => {
+    const { source } = setup();
+    act(() => source().open());
+    expect(source().url).toBe("/api/events");
+    const plain = source();
+
+    act(() => setReceiver("receiver=desktop-1&casts=item"));
+    expect(plain.readyState).toBe(FakeEventSource.CLOSED);
+    expect(source().url).toBe("/api/events?receiver=desktop-1&casts=item");
+    // The same again opens nothing.
+    const count = FakeEventSource.all.length;
+    act(() => setReceiver("receiver=desktop-1&casts=item"));
+    expect(FakeEventSource.all).toHaveLength(count);
+
+    act(() => setReceiver(null));
+    expect(source().url).toBe("/api/events");
   });
 
   it("ignores events it can't read", () => {

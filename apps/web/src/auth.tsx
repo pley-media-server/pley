@@ -5,6 +5,7 @@ import { useMe, useServer } from "@/api/hooks";
 import { useServerEvents } from "@/api/events";
 import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
+import { CastReceiver } from "@/components/CastReceiver";
 import { Logo } from "@/components/Logo";
 import { RequestNotices } from "@/components/RequestNotices";
 import { Button, EmptyState, Spinner } from "@/components/ui";
@@ -88,6 +89,8 @@ export function RequireAuth() {
         {/* Out of the pages, so news heard during a video waits for it to stop; each profile's own, so what one
             heard or held back isn't told to the next. */}
         <RequestNotices key={me.data.id} />
+        {/* In the desktop app, what the user's remotes cast here plays here, over any page. */}
+        <CastReceiver key={`cast-${me.data.id}`} />
       </AudioPlayerProvider>
     </AuthContext.Provider>
   );

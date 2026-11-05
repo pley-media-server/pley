@@ -39,6 +39,7 @@ import { useAuth } from "@/auth";
 import { Slider } from "@/components/Slider";
 import { useToast } from "@/components/Toast";
 import { canPlayNativeHls, videoCaps } from "@/lib/caps";
+import { deviceFields } from "@/lib/castReceiver";
 import { cn } from "@/lib/cn";
 import { episodeLabel, fileResolution, formatBitrate, formatClock, streamLabel } from "@/lib/format";
 import { loadHls } from "@/lib/hls";
@@ -808,6 +809,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
           mode: requestMode,
           caps: videoCaps(),
           controls: videoControls(hasNext, audioStreams.length),
+          ...deviceFields(),
           ...(alongside ? { keep_previous: true } : {}),
         });
       let pinfo: PlaybackInfo;

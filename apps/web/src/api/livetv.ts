@@ -1,6 +1,7 @@
 // Live TV (docs/API.md, "Live TV"): types and React Query hooks.
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { deviceFields } from "@/lib/castReceiver";
 import { api, qs } from "./client";
 import type { Control, Id, Timestamp } from "./types";
 
@@ -519,7 +520,12 @@ export function busyConnections(err: unknown): BusyConnection[] {
  * connection to take; `controls`: the remote's commands its player obeys.
  */
 export function watchChannel(id: Id, clientId: string, takeOver?: Id, controls?: Control[]): Promise<Watching> {
-  return api.post<Watching>(`/api/live/channels/${id}/watch`, { client_id: clientId, take_over: takeOver, controls });
+  return api.post<Watching>(`/api/live/channels/${id}/watch`, {
+    client_id: clientId,
+    take_over: takeOver,
+    controls,
+    ...deviceFields(),
+  });
 }
 
 /**

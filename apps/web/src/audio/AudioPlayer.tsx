@@ -7,6 +7,7 @@ import { errorMessage } from "@/api/client";
 import { onServerEvent } from "@/api/events";
 import { invalidateWatchState } from "@/api/hooks";
 import { audioCaps, canPlayNativeHls } from "@/lib/caps";
+import { deviceFields } from "@/lib/castReceiver";
 import { loadHls } from "@/lib/hls";
 import { playingHere } from "@/lib/playingHere";
 import { getStored, writeStorage } from "@/lib/hooks";
@@ -222,7 +223,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const acquired = (async () => {
       await Promise.all([released, previousStart]);
       if (cancelled) return null;
-      const info = await startPlayback({ item_id: itemId, caps: audioCaps(), start_ms: startMs, mode, controls: MUSIC_CONTROLS });
+      const info = await startPlayback({
+        item_id: itemId,
+        caps: audioCaps(),
+        start_ms: startMs,
+        mode,
+        controls: MUSIC_CONTROLS,
+        ...deviceFields(),
+      });
       if (cancelled) {
         await stopSession(info.session_id);
         return null;

@@ -8,6 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The app takes casts: your phone's or browser's Play on… lists it as
+  "Pley for Windows", "Pley for Mac" or "Pley for Linux", and a title,
+  music, a playlist or a Live TV channel sent to it plays there, with the
+  audio and subtitles picked on the page, and says where it came from. Its
+  remote leaves itself out.
+
 ## [0.1.2] - 2026-11-02
 
 ### Security

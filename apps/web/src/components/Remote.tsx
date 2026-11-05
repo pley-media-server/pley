@@ -36,6 +36,7 @@ import { episodeLabel, formatClock, fullTitle, pluralize } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
 import { formatTime } from "@/pages/livetv/common";
 import { posterCandidates } from "@/lib/images";
+import { receiverId, takesCasts } from "@/lib/castReceiver";
 import { isPlayingHere, useSessionsHere } from "@/lib/playingHere";
 import {
   ANSWER_WAIT_MS,
@@ -67,7 +68,12 @@ export function useOtherDevices(): { devices: OtherDevice[]; known: boolean } {
   const sessions = usePlayingSessions();
   const receivers = useRemoteDevices();
   const here = useSessionsHere();
-  const devices = otherDevices(receivers.data ?? [], (sessions.data ?? []).filter((s) => !here.has(s.session_id)));
+  // The desktop app takes casts: its own receiver isn't another device either.
+  const mine = takesCasts() ? receiverId() : null;
+  const devices = otherDevices(
+    (receivers.data ?? []).filter((r) => r.receiver_id !== mine),
+    (sessions.data ?? []).filter((s) => !here.has(s.session_id)),
+  );
   return { devices, known: !sessions.isPending && !receivers.isPending };
 }
 

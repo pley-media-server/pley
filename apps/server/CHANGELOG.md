@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- In the desktop app the web app takes casts, as a TV does: your other
+  devices' Play on… lists it by its system ("Pley for Windows"), and what
+  they send it plays there with the tracks picked, saying where it came
+  from. A browser tab is still a remote only.
 - The server lets a user's devices control what plays on their other
   devices: it lists the user's own sessions with the device each plays
   on, Live TV channels included, and passes play, pause, seek, skip, next

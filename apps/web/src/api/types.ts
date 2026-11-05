@@ -554,6 +554,8 @@ export interface PlaybackRequest {
   controls?: Control[];
   /** What remotes call this device; left out: the server names it from the User-Agent ("Firefox on macOS"). */
   device_name?: string;
+  /** What kind of device it is; left out: the server tells from the app (a browser here). */
+  device_kind?: DeviceKind;
   caps: ClientCaps;
 }
 
@@ -817,8 +819,8 @@ export type ServerEvent =
     }
   /**
    * The user's remote sent their device of `receiver_id` something to play
-   * (`from`: the remote's device name). For apps that take casts: the web
-   * app is a remote only, and leaves it.
+   * (`from`: the remote's device name). The desktop app takes casts
+   * (components/CastReceiver.tsx); a browser tab is a remote only.
    */
   | {
       type: "cast";

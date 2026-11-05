@@ -56,7 +56,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
   on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
   on another of your devices that takes casts, as that device's own Play
   would, with the audio and subtitles picked on the page, and the remote
-  opens on it ([API.md](API.md#casting)).
+  opens on it ([API.md](API.md#casting)). The desktop app takes casts too,
+  as "Pley for Windows", "Pley for Mac" or "Pley for Linux"; a browser
+  tab doesn't, as a browser won't start sound in a tab in the background.
 
 ## Live TV
 
