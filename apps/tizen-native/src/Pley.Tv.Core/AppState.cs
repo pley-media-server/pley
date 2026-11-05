@@ -175,7 +175,7 @@ public sealed class AppState
     const long StateGatherMs = 300;
     /// <summary>A library's changes come in bursts during a scan: gathered this long.</summary>
     const long LibraryGatherMs = 1_500;
-    /// <summary>How long "Showing what Pley had saved. Reconnecting…" shows: as long as an error's toast.</summary>
+    /// <summary>How long "Pley is offline" shows: as long as an error's toast.</summary>
     const long OfflineNoticeMs = 6_000;
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -259,7 +259,7 @@ public sealed class AppState
     /// or a screen's fresh answer after a failure. A refusal (a 502 among them) is an answer.
     /// </summary>
     public Signal<bool> Offline { get; } = new Signal<bool>(false);
-    /// <summary>"Showing what Pley had saved. Reconnecting…" shows, for 6 s from going offline; then the rail's avatar keeps a mark.</summary>
+    /// <summary>"Pley is offline" shows, for 6 s from going offline; then the rail's avatar keeps a mark.</summary>
     public Signal<bool> OfflineNotice { get; } = new Signal<bool>(false);
     /// <summary>
     /// "Who's watching?" was answered in this launch (a profile picked, a PIN checked, or a

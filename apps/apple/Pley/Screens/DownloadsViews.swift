@@ -276,11 +276,18 @@ struct DownloadButton: View {
     }
 }
 
-/// "Showing what Pley had saved. Reconnecting…" (after "Another device
-/// answers there." when that is why), above the signed-in app
-/// while the server can't be reached; Try again asks it at once.
+/// "Pley is offline" (and "Another device answers at its address." when
+/// that is why), above the signed-in app while the server can't be
+/// reached, with the way to the downloads unless they are showing. The app
+/// tries the server again by itself, and the banner goes when it answers.
 struct OfflineBanner: View {
     @ObservedObject var app: AppModel
+    @ObservedObject private var shell: ShellModel
+
+    init(app: AppModel) {
+        self.app = app
+        _shell = ObservedObject(wrappedValue: app.shell)
+    }
 
     var body: some View {
         if app.offline {
@@ -290,9 +297,11 @@ struct OfflineBanner: View {
                     .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                Button("Try again") { Task { await app.reconnect() } }
-                    .font(.subheadline.weight(.semibold))
-                    .accessibilityIdentifier("offline.retry")
+                if app.downloads.available && shell.path(for: shell.section).last != .downloads {
+                    Button(DownloadWords.offlineAction) { shell.open(.downloads) }
+                        .font(.subheadline.weight(.semibold))
+                        .accessibilityIdentifier("offline.downloads")
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

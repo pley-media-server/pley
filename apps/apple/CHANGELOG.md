@@ -81,7 +81,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Next while the server is away; what you watched reaches the server once
   it is back.
 - When the server doesn't answer, the app opens on what it saved of your
-  screens and says so, and reconnects by itself (Apple TV too).
+  screens under "Pley is offline", with Downloads on iPhone, iPad and Mac,
+  and reconnects by itself (Apple TV too).
 - A video that loses the server plays what it has loaded and keeps trying
   to reach the server for 90 seconds, then plays on where it stood.
 - Continue Watching on Apple TV's Top Shelf: with Pley in the top row,

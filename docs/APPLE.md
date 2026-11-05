@@ -733,9 +733,8 @@ constant time. The proof covers the address the app asked at.
 
 A wrong `id` or `proof`, a redirect, a `403` or any other answer means
 another device answers there: no token goes, the app shows what it saved
-and the banner says "Another device answers there. Showing what Pley had
-saved. Reconnecting…", and tries again as it does for a server out of
-reach. A `5xx` is the server, or a proxy before it, out of reach for now.
+and the banner says "Pley is offline. Another device answers at its
+address.", and tries again as it does for a server out of reach. A `5xx` is the server, or a proxy before it, out of reach for now.
 
 A sign-in kept before servers gave keys has nothing to check: its tokens
 go as before, as on Android, until a refresh brings the sign-in's key,
@@ -1448,8 +1447,8 @@ seasons and episodes, playlists and a playlist, My List, the first page
 of History, the profile, a person, a search and Live TV's lists. When the
 server used last doesn't answer at start (3 seconds at most for a home
 address) and the app is signed in to it, the app opens as the profile
-used last on what it saved, with a banner: "Showing what Pley had saved.
-Reconnecting…", with Try again. A server that stops answering while the
+used last on what it saved, with a banner: "Pley is offline", with
+Downloads on iPhone, iPad and Mac. A server that stops answering while the
 app is open does the same. The app tries the server again after 2, 5, 15
 and 30 seconds, then every minute, and at once when the network changes
 or the app comes back to the front; once it answers, the banner goes and

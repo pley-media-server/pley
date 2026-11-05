@@ -155,12 +155,12 @@ class TvHomeTest {
         }
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("Severance").assertExists()
-        compose.onNodeWithText("Showing what Pley had saved. Reconnecting…").assertIsDisplayed()
+        compose.onNodeWithText("Pley is offline").assertIsDisplayed()
         compose.onNodeWithText("Resume").assertIsFocused()
 
         // Said for a while; the rail's mark stays.
         compose.mainClock.advanceTimeBy(ANNOUNCE_MS + 1_000)
-        compose.onNodeWithText("Showing what Pley had saved. Reconnecting…").assertDoesNotExist()
+        compose.onNodeWithText("Pley is offline").assertDoesNotExist()
         assertTrue(offline.offline)
 
         sources.home.value = Loadable.Ready(saved, fresh = true)

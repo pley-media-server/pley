@@ -192,10 +192,9 @@ struct ScreenView: View {
     }
 }
 
-/// "Showing what Pley had saved. Reconnecting…" (after "Another device
-/// answers there." when that is why), at the foot of the screen
-/// while the server can't be reached. It takes no focus: the app tries the
-/// server again by itself.
+/// "Pley is offline" (and "Another device answers at its address." when
+/// that is why), at the foot of the screen while the server can't be
+/// reached. It takes no focus: the app tries the server again by itself.
 private struct OfflineBanner: View {
     @ObservedObject var app: AppModel
 

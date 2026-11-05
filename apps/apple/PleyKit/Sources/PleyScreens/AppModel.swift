@@ -1162,8 +1162,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
     }
 
-    /// Tries the server now (the banner's Try again, the app coming back to
-    /// the front); `true` when it answered and the app is online again.
+    /// Tries the server now (the app coming back to the front, or the
+    /// retries while offline); `true` when it answered and the app is online
+    /// again.
     @discardableResult
     public func reconnect() async -> Bool {
         guard offline, user != nil else { return !offline }
