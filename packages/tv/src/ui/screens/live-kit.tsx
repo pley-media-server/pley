@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { LiveChannel, LiveProgram } from "../../api/types";
+import { t } from "../../i18n";
 import { nowSeconds } from "../../live/data";
 import { useUi } from "../context";
 import { placeholderGradient } from "../images";
@@ -63,7 +64,7 @@ export function NumberBox(p: { digits: string; missing: string | null }) {
   if (!p.digits && !p.missing) return null;
   return (
     <div class="live-digits" role="status" aria-live="polite">
-      {p.digits ? <span class="live-digits-n">{p.digits}</span> : <span class="t-label c-muted">{`No channel ${p.missing}`}</span>}
+      {p.digits ? <span class="live-digits-n">{p.digits}</span> : <span class="t-label c-muted">{t("livetv.noChannel", { number: p.missing ?? "" })}</span>}
     </div>
   );
 }
@@ -111,8 +112,8 @@ export function ProgressLine(p: { fraction: number; class?: string }) {
 export function ProgramMarks(p: { program: LiveProgram }) {
   return (
     <>
-      {p.program.is_live && <span class="live-mark live t-badge">LIVE</span>}
-      {!p.program.is_live && p.program.is_new && <span class="live-mark new t-badge">NEW</span>}
+      {p.program.is_live && <span class="live-mark live t-badge">{t("livetv.marks.live")}</span>}
+      {!p.program.is_live && p.program.is_new && <span class="live-mark new t-badge">{t("livetv.marks.new")}</span>}
     </>
   );
 }

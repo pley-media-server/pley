@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { LiveChannel, LiveProgram } from "../../api/types";
+import { t } from "../../i18n";
 import { airing, cellAt, channelName, formatGuideDay, formatSpan, formatTime, GUIDE_SPAN, guideCells, programProgress, SLOT, type GuideCell, type LiveCategory } from "../../live/data";
 import { GuideStore } from "../../live/guide";
 import type { ChannelPages } from "../../live/pages";
@@ -377,7 +378,7 @@ const GuideRow = memo(function GuideRow(p: RowProps) {
         <F
           class="guide-channel"
           fid={`guide/${c.id}`}
-          label={`${c.number ? `${c.number} ` : ""}${p.name}. Watch`}
+          label={t("livetv.guide.watch", { name: `${c.number ? `${c.number} ` : ""}${p.name}` })}
           onFocus={() => p.onChannel(p.index)}
           onSelect={() => p.onWatch(c)}
           onLongSelect={() => p.onDetails(c, null)}
@@ -393,7 +394,7 @@ const GuideRow = memo(function GuideRow(p: RowProps) {
           </div>
         </F>
       ) : (
-        <F class="guide-channel loading" fid={`guide/at${p.index}`} label="Loading" onFocus={() => p.onChannel(p.index)}>
+        <F class="guide-channel loading" fid={`guide/at${p.index}`} label={t("common.states.loading")} onFocus={() => p.onChannel(p.index)}>
           <div class="skeleton guide-logo" style="width:64px;height:36px" />
         </F>
       )}
@@ -409,7 +410,13 @@ const GuideRow = memo(function GuideRow(p: RowProps) {
             // A cell begun before the left edge keeps its words in view.
             const indent = Math.max(0, Math.min(viewLeft - left, width - 44));
             const noGuide = !!c && !c.has_guide;
-            const label = prog ? `${prog.title}, ${formatSpan(prog, p.hours24)}${on ? ", on now" : ""}` : !c ? "Loading" : noGuide ? `${p.name}, no guide` : "No information for this time";
+            const label = prog
+              ? t(on ? "livetv.guide.cellOnNow" : "livetv.guide.cell", { title: prog.title, time: formatSpan(prog, p.hours24) })
+              : !c
+                ? t("common.states.loading")
+                : noGuide
+                  ? t("livetv.guide.noGuideFor", { name: p.name })
+                  : t("livetv.guide.noInformationThen");
             return (
               <F
                 key={c ? cell.key : `at/${cell.key}`}
@@ -438,10 +445,10 @@ const GuideRow = memo(function GuideRow(p: RowProps) {
                       // A channel without a guide shows its name across it, as the web's does.
                       <>
                         <div class="t-label one-line">{p.name}</div>
-                        <div class="t-caption one-line guide-cell-sub">No guide for this channel</div>
+                        <div class="t-caption one-line guide-cell-sub">{t("livetv.noGuideHere")}</div>
                       </>
                     ) : (
-                      <div class="t-caption one-line guide-cell-sub">{p.loading ? "" : "No information"}</div>
+                      <div class="t-caption one-line guide-cell-sub">{p.loading ? "" : t("livetv.guide.noInformation")}</div>
                     )}
                   </div>
                 )}

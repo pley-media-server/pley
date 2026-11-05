@@ -1,5 +1,6 @@
 import type { LiveChannel, LiveGroup, LiveGuide, LiveProgram } from "../api/types";
 import { formatTimeOfDay } from "../format/format";
+import { currentLanguage, formatDate, t } from "../i18n";
 
 /**
  * Live TV's rules that draw nothing (docs/API.md, "Live TV"): what's on,
@@ -45,10 +46,10 @@ export function programProgress(p: Pick<LiveProgram, "start" | "stop">, now: num
 /** "12 min left", "1 h 5 min left". */
 export function timeLeft(p: Pick<LiveProgram, "stop">, now: number): string {
   const minutes = Math.max(1, Math.round((p.stop - now) / 60));
-  if (minutes < 60) return `${minutes} min left`;
+  if (minutes < 60) return t("livetv.time.minutesLeft", { count: minutes });
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m ? `${h} h ${m} min left` : `${h} h left`;
+  return m ? t("livetv.time.hoursMinutesLeft", { hours: h, minutes: m }) : t("livetv.time.hoursLeft", { count: h });
 }
 
 /** "20:00" or "8:00 PM", as the TV writes the time. */
@@ -64,25 +65,27 @@ export function formatSpan(p: Pick<LiveProgram, "start" | "stop">, hours24: bool
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** "Today", "Tomorrow", "Yesterday", or "Fri 30 Oct". */
+/** "Today", "Tomorrow", "Yesterday", or "Fri 30 Oct" ("ven. 30 oct." in French). */
 export function formatGuideDay(ts: number, now: number): string {
   // Dates apart, not 24-hour steps: a day is 23 or 25 hours when daylight saving starts or ends.
-  const date = (t: number) => {
-    const d = new Date(t * 1000);
+  const date = (at: number) => {
+    const d = new Date(at * 1000);
     return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000;
   };
   const apart = date(ts) - date(now);
-  if (apart === 0) return "Today";
-  if (apart === 1) return "Tomorrow";
-  if (apart === -1) return "Yesterday";
+  if (apart === 0) return t("livetv.time.today");
+  if (apart === 1) return t("livetv.time.tomorrow");
+  if (apart === -1) return t("livetv.time.yesterday");
   const d = new Date(ts * 1000);
+  // English keeps its one way, whatever the TV's region; French and Spanish are Intl's.
+  if (currentLanguage() !== "en") return formatDate(d, { weekday: "short", day: "numeric", month: "short" });
   return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 /** "S2 E14", when the guide numbers the episode. */
 export function episodeText(p: Pick<LiveProgram, "season" | "episode">): string | null {
-  if (p.season != null && p.episode != null) return `S${p.season} E${p.episode}`;
-  if (p.episode != null) return `E${p.episode}`;
+  if (p.season != null && p.episode != null) return t("livetv.program.episode", { season: p.season, episode: p.episode });
+  if (p.episode != null) return t("livetv.program.episodeOnly", { episode: p.episode });
   return null;
 }
 
@@ -169,13 +172,13 @@ export function groupsMatching(groups: LiveGroup[], q: string, max: number): Liv
 export function categoryName(c: LiveCategory, groups: LiveGroup[] | null | undefined): string {
   switch (c.kind) {
     case "all":
-      return "All channels";
+      return t("livetv.categories.all");
     case "favorites":
-      return "Favourites";
+      return t("livetv.categories.favourites");
     case "recent":
-      return "Recently watched";
+      return t("livetv.categories.recent");
     case "search":
-      return `Results for “${c.q}”`;
+      return t("livetv.categories.resultsFor", { search: c.q });
     default: {
       const g = (groups ?? []).filter((x) => x.name === c.group)[0];
       return g?.region ? `${g.region} · ${g.label}` : g?.label ?? c.group;
