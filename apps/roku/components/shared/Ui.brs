@@ -90,13 +90,14 @@ sub uiUnreachable(retry = invalid as dynamic)
 end sub
 
 ' What a failed answer leads to: true when it was handled here (the server
-' doesn't answer, or the sign-in ended and the scene shows sign-in).
+' doesn't answer, the sign-in ended and the scene shows sign-in, or the
+' request was the profile's before a switch, and the screens start again).
 function uiFailed(answer as object) as boolean
     if answer.error = "network"
         uiUnreachable()
         return true
     end if
-    return answer.error = "signed_out"
+    return answer.error = "signed_out" or answer.error = "profile_changed"
 end function
 
 ' Roku's launch beacon, once: the first screen can be used.
