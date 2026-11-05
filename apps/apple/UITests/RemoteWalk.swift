@@ -30,7 +30,7 @@ extension Admin {
 
 /// The remote: a movie playing on the TV shows in the bar above the tabs
 /// (at the page's foot beside the iPad's sidebar), and its sheet pauses
-/// it, says when the TV doesn't answer, and stops it.
+/// it, says when the TV doesn't answer, and stops it once asked.
 extension Walk {
     func remoteWalk(movies: Int) async {
         guard let id = await Admin.titles(library: movies)["Direct H264"] else {
@@ -65,7 +65,9 @@ extension Walk {
         XCTAssertEqual(error.label, "\(Admin.tvName) didn't answer.")
         shot("92-remote-no-answer")
 
+        // Stop asks first.
         tap("remote.stop.\(tv)", "Stop")
+        wait(button("remote.stop.confirm", or: "Stop"), "Stop in the confirmation").tap()
         let stopped = await holds { await !Admin.playing().contains(tv) }
         XCTAssertTrue(stopped, "Stop ends the TV's session at the server")
         // Nothing plays on another device: the sheet and the bar go.

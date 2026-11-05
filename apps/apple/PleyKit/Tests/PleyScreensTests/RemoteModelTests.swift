@@ -201,6 +201,53 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(plain.castTarget == .item(8))
     }
 
+    @Test func aQualityCommandIsAnsweredByTheReportThatSaysIt() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000, bitrate: 10_000_000, width: 1920,
+                                 height: 1080))
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app, answerWait: .milliseconds(300))
+        let tv = server.playElsewhere(7, deviceId: "app-90", device: "Bedroom TV",
+                                      controls: ["play", "pause", "quality"])
+        await model.reload()
+        let entry = try #require(model.others.first)
+        #expect(entry.session.qualities.map(\.id) == ["original", "auto", "8m", "4m", "2m"])
+        #expect(entry.session.quality == nil)
+
+        await model.send(.quality("4m"), to: entry)
+        #expect(model.waiting == [tv])
+        let version = app.sessionsVersion
+        server.reportSession(tv, state: "playing", positionMs: 0, quality: "4m")
+        #expect(await eventually { app.sessionsVersion > version })
+        await model.reload()
+        #expect(model.waiting.isEmpty)
+        #expect(model.others.first?.session.quality == "4m")
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(model.errors.isEmpty)
+    }
+
+    @Test func aQualityIsAnsweredByThePickItSays() {
+        let received = Date(timeIntervalSince1970: 1_000)
+        let film = ItemSummary(id: 7, libraryId: 1, kind: .movie, title: "Film")
+        let before = RemoteModel.Entry(PlayingSession(sessionId: "a", item: film, quality: "auto"), received: received)
+        let sent = RemoteModel.Sent(command: .quality, before: before, sentAt: received, target: nil, quality: "4m")
+        #expect(!RemoteModel.answered(sent, before, at: received))
+        let picked = RemoteModel.Entry(PlayingSession(sessionId: "a", item: film, quality: "4m"), received: received)
+        #expect(RemoteModel.answered(sent, picked, at: received))
+        // Another quality plays in a session beside it: the one sent to goes.
+        #expect(RemoteModel.answered(sent, nil, at: received))
+    }
+
+    @Test func theRemoteSaysItsControlsInEveryAppsWords() {
+        #expect(Words.castHint == "Send something here with Play on…")
+        #expect(Words.remoteQuality("Living room TV") == "Quality on Living room TV")
+        #expect(Words.remoteStopQuestion("Living room TV") == "Stop playing on Living room TV?")
+        #expect(Words.remoteNextProgramme("Weather") == "Next: Weather")
+        #expect(Words.remotePrevious("Living room TV", live: true) == "Previous channel on Living room TV")
+        #expect(Words.remoteNext("Living room TV", live: true) == "Next channel on Living room TV")
+    }
+
     @Test func thePlaceMovesOnWhilePlayingByThisDevicesClock() {
         let received = Date(timeIntervalSince1970: 1_000)
         let playing = RemoteModel.Entry(PlayingSession(sessionId: "a", state: .playing, positionMs: 60_000,

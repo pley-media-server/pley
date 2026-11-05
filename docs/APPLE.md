@@ -1367,30 +1367,48 @@ A playing device's controls, top to bottom:
    a track's title, then its artist; a channel's number and name, then
    what's on; anything else, its title;
 2. for a title, how far it is, with a seek slider when its player seeks;
-3. the buttons, centred: Previous (Previous channel) where the player
-   listed it, Back 10 seconds and Forward 30 seconds where it skips, Play
-   or Pause, and Next (Next channel), which shows for every episode, track
-   and channel, and for a title with one after it, dimmed when the player
-   doesn't take it;
-4. **Audio** and **Subtitles**, where the player listed them and the file
-   has tracks to pick (more than one audio track; any subtitles): each a
-   menu of the session's tracks (`tracks`), named as the player's own
-   menus name them ("French – Commentary (EAC3 5.1)", "English (SRT,
-   Forced)"), Subtitles with Off first, the one playing ticked
-   (`audio_index`, `subtitle_index`). Choosing one sends
-   `{ command: "audio" | "subtitles", stream_index }` (`-1` for Off);
-5. Stop, which every player obeys.
+   for a channel, no seek: a thin bar of how far along the programme on
+   is, by this device's clock between its start and end (`now_start`,
+   `now_stop`), its times under it ("8:00 PM – 9:00 PM", in the system's
+   time format), and "Next: …" when the guide says what follows;
+3. the buttons, centred. For a title: Previous where the player listed
+   it, Back 10 seconds and Forward 30 seconds where it skips, Play or
+   Pause, and Next, which shows for every episode and track and for a
+   title with one after it, dimmed when the player doesn't take it. For a
+   channel: a capsule of channel down, "Channel" and channel up, as a TV
+   remote's rocker (each half dimmed when the player doesn't take
+   `previous` or `next`; VoiceOver reads "Previous channel on …" and
+   "Next channel on …"), with Play or Pause beside it where the player
+   takes it;
+4. on the left, **Audio**, **Subtitles** and **Quality** as symbols (the
+   speaker, the captions bubble, and the sliders the player's own Quality
+   menu has), each where the player listed it and there is something to
+   pick (more than one audio track; any subtitles; the session's
+   `qualities`). Each is a menu, as the system draws them, with the one
+   playing ticked: the session's tracks (`tracks`), named as the player's
+   own menus name them ("French – Commentary (EAC3 5.1)", "English (SRT,
+   Forced)"), Subtitles with Off first (`audio_index`, `subtitle_index`);
+   the qualities by their menu's names ("8 Mbps 1080p"), none ticked
+   until the player says its pick (`quality`). Choosing one sends
+   `{ command: "audio" | "subtitles", stream_index }` (`-1` for Off) or
+   `{ command: "quality", quality }`. VoiceOver reads them "Audio on
+   Living room TV", "Subtitles on …", "Quality on …", which the pointer's
+   tooltip shows too, and Large Content names them;
+5. on the right, Stop, which every player obeys. It asks first, in the
+   system's confirmation dialog: "Stop playing on Living room TV?", with
+   Stop (destructive) and Cancel; on iPad and the Mac it shows beside the
+   button.
 
 A device ready to play shows its symbol and name, "Nothing playing" and
-"Find something to watch or listen to, then choose Play on… and this
-device."
+"Send something here with Play on…"
 
 The place moves on while it plays: the last report, plus how long ago
 the server says that was, plus the time since the answer came, by this
 device's clock. A command dims the buttons until the list shows the
 player acted on it (a new state, title or channel, a report from the
-place sent to, or, for a track, the track it plays); after 5 seconds
-without that the list is read once more, and the device's controls say
+place sent to, or, for a track or a quality, the one it says it plays);
+after 5 seconds without that the list is read once more, and the
+device's controls say
 "Living room TV didn't answer." A Next or Previous with nothing there
 says nothing. A `404` means the device stopped meanwhile: its session
 goes. Other refusals say what happened: "… can't do that." (`409`, the

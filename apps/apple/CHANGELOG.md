@@ -121,3 +121,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   episode's page, and the device plays it with them. A channel sent to a
   device already watching Live TV changes channel there, and what you send
   to an iPhone, iPad or Apple TV no longer waits behind a sheet open on it.
+- The remote on iPhone, iPad and Mac: Audio, Subtitles and a new Quality
+  are symbols beside Stop, which now asks first. Live TV shows how far
+  along the programme is, its times and what's next, with a channel
+  rocker in place of the seek bar and skips. A device playing nothing says
+  "Send something here with Play on…"

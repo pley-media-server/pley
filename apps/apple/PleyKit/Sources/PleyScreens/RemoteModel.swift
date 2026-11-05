@@ -61,6 +61,8 @@ public final class RemoteModel: ObservableObject {
         let target: Int?
         /// `audio` and `subtitles`: the track it should play once it acted.
         var stream: Int?
+        /// `quality`: the Quality menu's pick it should say once it acted.
+        var quality: String?
         /// Which send this was: a check judges only its own command, never one sent after it.
         var token = 0
     }
@@ -256,7 +258,7 @@ public final class RemoteModel: ObservableObject {
             try await api.send(command, to: id)
             guard latest[id] == token else { return }
             sent[id] = Sent(command: command.command, before: entry, sentAt: sentAt, target: target,
-                            stream: command.streamIndex, token: token)
+                            stream: command.streamIndex, quality: command.quality, token: token)
             checks[id]?.cancel()
             checks[id] = Task { [weak self, wait] in
                 try? await Task.sleep(for: wait)
@@ -311,9 +313,10 @@ public final class RemoteModel: ObservableObject {
     }
 
     /// Whether the list shows the player acted on `sent`, by `now`: it is
-    /// gone (next and previous end a session to start the next), plays
-    /// something else, plays the track sent (audio, subtitles), changed
-    /// state, or, for a seek, a skip or a previous on the same title, has
+    /// gone (next and previous end a session to start the next, and a new
+    /// quality one beside it), plays something else, plays the track sent
+    /// (audio, subtitles), says the quality sent, changed state, or, for a
+    /// seek, a skip or a previous on the same title, has
     /// reported since from somewhere new or where it was sent to. Server
     /// times are only compared with server times, and this device's with
     /// its own.
@@ -325,6 +328,7 @@ public final class RemoteModel: ObservableObject {
         // A track is answered by the track it plays, whatever else changed meanwhile.
         if sent.command == .audio { return sent.stream != nil && session.audioIndex == sent.stream }
         if sent.command == .subtitles { return sent.stream != nil && session.subtitleIndex == sent.stream }
+        if sent.command == .quality { return sent.quality != nil && session.quality == sent.quality }
         if session.state != before.state { return true }
         guard [.seek, .skip, .previous].contains(sent.command) else { return false }
         let reportedSince = session.updatedAt > before.updatedAt || session.positionMs != before.positionMs

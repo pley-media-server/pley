@@ -408,10 +408,12 @@ struct RemoteDeviceControls: View {
 
 /// A playing device's controls, top to bottom: the poster (or the
 /// channel's logo) with what plays; how far it is (a seek slider when its
-/// player seeks); Previous, Back 10 seconds, Play or Pause, Forward 30
-/// seconds and Next, each where its player obeys it (Next shows, dimmed,
-/// for whatever has one); Audio and Subtitles, where it has tracks to pick;
-/// and Stop, which every player obeys.
+/// player seeks; on Live TV, how far along the programme on is by the
+/// clock, its times and what's next); Previous, Back 10 seconds, Play or
+/// Pause, Forward 30 seconds and Next, each where its player obeys it (Next
+/// shows, dimmed, for whatever has one), or a channel's rocker; then
+/// Audio, Subtitles and Quality as symbols, each where it has something to
+/// pick, and Stop, which every player obeys, once asked.
 private struct RemotePlayingControls: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
@@ -419,6 +421,8 @@ private struct RemotePlayingControls: View {
     let device: String
     /// The slider's place while it is dragged.
     @State private var seeking: Double?
+    /// Stop's confirmation shows.
+    @State private var confirmingStop = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var session: PlayingSession { entry.session }
@@ -427,13 +431,15 @@ private struct RemotePlayingControls: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             heading
-            if !entry.live, let duration = session.durationMs, duration > 0 {
+            if entry.live {
+                programme
+            } else if let duration = session.durationMs, duration > 0 {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     progress(RemoteModel.position(entry, at: context.date), duration)
                 }
             }
             transport
-            tracksAndStop
+            pickersAndStop
             if let error = remote.errors[entry.id] {
                 Text(error)
                     .font(.footnote)
@@ -543,56 +549,122 @@ private struct RemotePlayingControls: View {
         "\(Words.clock(ms: position)) of \(Words.clock(ms: duration))"
     }
 
+    /// On Live TV, no seek: how far along the programme on is, by this
+    /// device's clock between its start and end ("20:00 – 21:00" in the
+    /// system's time format), then what's next, where the guide says.
+    @ViewBuilder private var programme: some View {
+        // Nothing at all while the guide says nothing of the channel.
+        if let channel = session.channel, channel.progress(at: 0) != nil || !(channel.next ?? "").isEmpty {
+            let next = channel.next.flatMap { $0.isEmpty ? nil : $0 }
+            VStack(alignment: .leading, spacing: 4) {
+                if let start = channel.nowStart, let stop = channel.nowStop, stop > start {
+                    let times = "\(LiveTvRules.time(start)) – \(LiveTvRules.time(stop))"
+                    TimelineView(.periodic(from: .now, by: 15)) { context in
+                        ProgressView(value: channel.progress(at: Int64(context.date.timeIntervalSince1970)) ?? 0)
+                            .accessibilityLabel(Words.remoteProgress(device))
+                            .accessibilityValue([channel.now, times].compactMap { $0 }.joined(separator: ", "))
+                    }
+                    Text(times)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                if let next {
+                    Text(Words.remoteNextProgramme(next))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                }
+            }
+            .accessibilityIdentifier("remote.programme.\(entry.id)")
+        }
+    }
+
     // MARK: Controls
 
+    /// A title's buttons: Previous, Back 10 seconds, Play or Pause, Forward
+    /// 30 seconds and Next. On Live TV, the channel rocker (down, "Channel",
+    /// up), as a TV remote has it, with Play or Pause beside it where the
+    /// player takes it.
     private var transport: some View {
         let paused = session.state == .paused
         let toggle: Control? = paused ? (session.obeys(.play) ? .play : nil) : (session.obeys(.pause) ? .pause : nil)
-        // Whatever has a next shows Next: an episode, a track, Live TV, a title with one after it.
+        // Whatever has a next shows Next: an episode, a track, a title with one after it.
         let kind = session.item?.kind
-        let next = session.obeys(.next) || entry.live || kind == .episode || kind == .track
-        return HStack(spacing: 4) {
+        let next = session.obeys(.next) || kind == .episode || kind == .track
+        return HStack(spacing: entry.live ? 16 : 4) {
             Spacer(minLength: 0)
-            if session.obeys(.previous) {
-                icon("backward.end.fill", Words.remotePrevious(device, live: entry.live), "previous") {
-                    send(.previous)
+            if entry.live {
+                channelRocker
+                if let toggle { toggleButton(toggle) }
+            } else {
+                if session.obeys(.previous) {
+                    icon("backward.end.fill", Words.remotePrevious(device, live: false), "previous") {
+                        send(.previous)
+                    }
                 }
-            }
-            if session.obeys(.skip) {
-                icon("gobackward.10", Words.remoteBack(device), "back") {
-                    send(.skip(byMs: -Words.remoteSkipBackMs))
+                if session.obeys(.skip) {
+                    icon("gobackward.10", Words.remoteBack(device), "back") {
+                        send(.skip(byMs: -Words.remoteSkipBackMs))
+                    }
                 }
-            }
-            if let toggle {
-                Button {
-                    send(toggle == .play ? .play : .pause)
-                } label: {
-                    Image(systemName: toggle == .play ? "play.fill" : "pause.fill")
-                        .font(.title3)
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Color.accentColor))
-                        .contentShape(Circle())
+                if let toggle { toggleButton(toggle) }
+                if session.obeys(.skip) {
+                    icon("goforward.30", Words.remoteForward(device), "forward") {
+                        send(.skip(byMs: Words.remoteSkipForwardMs))
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(toggle == .play ? Words.remotePlay(device) : Words.remotePause(device))
-                .accessibilityIdentifier("remote.toggle.\(entry.id)")
-            }
-            if session.obeys(.skip) {
-                icon("goforward.30", Words.remoteForward(device), "forward") {
-                    send(.skip(byMs: Words.remoteSkipForwardMs))
+                if next {
+                    icon("forward.end.fill", Words.remoteNext(device, live: false), "next") { send(.next) }
+                        .disabled(!session.obeys(.next))
+                        .opacity(session.obeys(.next) ? 1 : 0.35)
                 }
-            }
-            if next {
-                icon("forward.end.fill", Words.remoteNext(device, live: entry.live), "next") { send(.next) }
-                    .disabled(!session.obeys(.next))
-                    .opacity(session.obeys(.next) ? 1 : 0.35)
             }
             Spacer(minLength: 0)
         }
         // Larger, five buttons spill out of an iPhone's width; VoiceOver and Large Content read their names.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .opacity(waiting ? 0.5 : 1)
+    }
+
+    /// Play or Pause, the big round one.
+    private func toggleButton(_ toggle: Control) -> some View {
+        Button {
+            send(toggle == .play ? .play : .pause)
+        } label: {
+            Image(systemName: toggle == .play ? "play.fill" : "pause.fill")
+                .font(.title3)
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(Color.accentColor))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(toggle == .play ? Words.remotePlay(device) : Words.remotePause(device))
+        .accessibilityIdentifier("remote.toggle.\(entry.id)")
+    }
+
+    /// Channel down and up in one capsule, as a TV remote's rocker: each
+    /// half dimmed when the player doesn't take it (`previous`, `next`).
+    private var channelRocker: some View {
+        HStack(spacing: 0) {
+            icon("chevron.down", Words.remotePrevious(device, live: true), "previous") { send(.previous) }
+                .disabled(!session.obeys(.previous))
+                .opacity(session.obeys(.previous) ? 1 : 0.35)
+            Text(Words.remoteChannelTitle)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.horizontal, 2)
+                .accessibilityHidden(true)
+            icon("chevron.up", Words.remoteNext(device, live: true), "next") { send(.next) }
+                .disabled(!session.obeys(.next))
+                .opacity(session.obeys(.next) ? 1 : 0.35)
+        }
+        .padding(.horizontal, 6)
+        .background(Capsule().fill(Color.secondary.opacity(0.12)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Words.remoteChannelTitle)
     }
 
     private func icon(_ symbol: String, _ label: String, _ id: String,
@@ -613,21 +685,28 @@ private struct RemotePlayingControls: View {
         .accessibilityIdentifier("remote.\(id).\(entry.id)")
     }
 
-    /// Audio and Subtitles, where its player obeys them and it has tracks
-    /// to pick, then Stop at the end.
-    @ViewBuilder private var tracksAndStop: some View {
+    /// Audio, Subtitles and Quality as symbols, each where its player obeys
+    /// it and there is something to pick (more than one audio track; any
+    /// subtitles; the qualities its Quality menu offers), then Stop at the
+    /// end. Each is a menu of the choices with the one playing ticked, as
+    /// the system draws menus, its button marked while it is open.
+    @ViewBuilder private var pickersAndStop: some View {
         let audio = session.obeys(.audio) && session.tracks.audio.count > 1
         let subtitles = session.obeys(.subtitles) && !session.tracks.subtitles.isEmpty
+        let quality = session.obeys(.quality) && !session.qualities.isEmpty
+        let pickers = HStack(spacing: 8) {
+            if audio { audioMenu }
+            if subtitles { subtitlesMenu }
+            if quality { qualityMenu }
+        }
         if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 8) {
-                if audio { audioMenu }
-                if subtitles { subtitlesMenu }
+                if audio || subtitles || quality { pickers }
                 stop
             }
         } else {
-            HStack(spacing: 10) {
-                if audio { audioMenu }
-                if subtitles { subtitlesMenu }
+            HStack(spacing: 8) {
+                pickers
                 Spacer(minLength: 8)
                 stop
             }
@@ -636,57 +715,78 @@ private struct RemotePlayingControls: View {
 
     /// The audio tracks, labelled as the player's own menu labels them, the one playing ticked.
     private var audioMenu: some View {
-        Menu {
-            Picker(Words.remoteAudioTitle, selection: Binding(get: { session.audioIndex ?? Int.min }, set: { index in
-                guard index != session.audioIndex else { return }
-                send(.audio(index))
-            })) {
-                ForEach(session.tracks.audio) { track in
-                    Text(Words.stream(track.stream(.audio))).tag(track.index)
-                }
+        picker(Words.remoteAudioTitle, symbol: "speaker.wave.2", label: Words.remoteAudio(device), id: "audio",
+               selection: Binding(get: { session.audioIndex ?? Int.min }, set: { index in
+                   guard index != session.audioIndex else { return }
+                   send(.audio(index))
+               })) {
+            ForEach(session.tracks.audio) { track in
+                Text(Words.stream(track.stream(.audio))).tag(track.index)
             }
-            .pickerStyle(.inline)
-        } label: {
-            Label(Words.remoteAudioTitle, systemImage: "speaker.wave.2")
-                .font(.subheadline.weight(.medium))
         }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .opacity(waiting ? 0.5 : 1)
-        .accessibilityLabel(Words.remoteAudio(device))
-        .accessibilityIdentifier("remote.audio.\(entry.id)")
     }
 
     /// Off, then the subtitle tracks, the ones showing ticked.
     private var subtitlesMenu: some View {
-        Menu {
-            Picker(Words.remoteSubtitlesTitle, selection: Binding(get: { session.subtitleIndex ?? Int.min },
-                                                                  set: { index in
-                guard index != session.subtitleIndex else { return }
-                send(.subtitles(index == SessionTracks.off ? nil : index))
-            })) {
-                Text(Words.remoteSubtitlesOff).tag(SessionTracks.off)
-                ForEach(session.tracks.subtitles) { track in
-                    Text(Words.stream(track.stream(.subtitle))).tag(track.index)
-                }
+        picker(Words.remoteSubtitlesTitle, symbol: "captions.bubble", label: Words.remoteSubtitles(device),
+               id: "subtitles", selection: Binding(get: { session.subtitleIndex ?? Int.min }, set: { index in
+                   guard index != session.subtitleIndex else { return }
+                   send(.subtitles(index == SessionTracks.off ? nil : index))
+               })) {
+            Text(Words.remoteSubtitlesOff).tag(SessionTracks.off)
+            ForEach(session.tracks.subtitles) { track in
+                Text(Words.stream(track.stream(.subtitle))).tag(track.index)
             }
-            .pickerStyle(.inline)
+        }
+    }
+
+    /// The qualities its Quality menu offers for the file, by their names
+    /// there ("8 Mbps 1080p"), its pick ticked; none until its player says.
+    private var qualityMenu: some View {
+        picker(Words.remoteQualityTitle, symbol: "slider.horizontal.3", label: Words.remoteQuality(device),
+               id: "quality", selection: Binding(get: { session.quality ?? "" }, set: { id in
+                   guard !id.isEmpty, id != session.quality else { return }
+                   send(.quality(id))
+               })) {
+            ForEach(session.qualities) { quality in
+                Text(quality.label).tag(quality.id)
+            }
+        }
+    }
+
+    /// One of the pickers: a symbol whose menu holds `choices`, the one
+    /// `selection` names ticked. VoiceOver reads `label` ("Audio on Living
+    /// room TV"); the pointer's tooltip and Large Content say `title`.
+    private func picker<Value: Hashable, Choices: View>(
+        _ title: String, symbol: String, label: String, id: String, selection: Binding<Value>,
+        @ViewBuilder choices: () -> Choices
+    ) -> some View {
+        let content = choices()
+        return Menu {
+            Picker(title, selection: selection) { content }
+                .pickerStyle(.inline)
         } label: {
-            Label(Words.remoteSubtitlesTitle, systemImage: "captions.bubble")
-                .font(.subheadline.weight(.medium))
+            Image(systemName: symbol)
+                .font(.body.weight(.medium))
+                .frame(minWidth: 28, minHeight: 28)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
+        .help(label)
         .opacity(waiting ? 0.5 : 1)
-        .accessibilityLabel(Words.remoteSubtitles(device))
-        .accessibilityIdentifier("remote.subtitles.\(entry.id)")
+        .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer {
+            Label(title, systemImage: symbol)
+        }
+        .accessibilityIdentifier("remote.\(id).\(entry.id)")
     }
 
+    /// Stop asks first, in the system's confirmation: Stop, or Cancel.
     private var stop: some View {
         Button(role: .destructive) {
-            Task { await remote.stop(entry) }
+            confirmingStop = true
         } label: {
-            Label("Stop", systemImage: "stop.circle")
+            Label(Words.remoteStopTitle, systemImage: "stop.circle")
                 .font(.subheadline.weight(.medium))
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
@@ -695,6 +795,15 @@ private struct RemotePlayingControls: View {
         .disabled(remote.stopping.contains(entry.id))
         .accessibilityLabel(Words.remoteStop(device))
         .accessibilityIdentifier("remote.stop.\(entry.id)")
+        // On the button, so an iPad's and a Mac's show beside it.
+        .confirmationDialog(Words.remoteStopQuestion(device), isPresented: $confirmingStop,
+                            titleVisibility: .visible) {
+            Button(Words.remoteStopTitle, role: .destructive) {
+                Task { await remote.stop(entry) }
+            }
+            .accessibilityIdentifier("remote.stop.confirm")
+            Button(Words.remoteCancel, role: .cancel) {}
+        }
     }
 
     private func send(_ command: PlayerCommand) {

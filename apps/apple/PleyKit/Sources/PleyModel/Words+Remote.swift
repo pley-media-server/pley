@@ -18,7 +18,7 @@ extension Words {
     public static let readyToPlay = "Ready to play"
     /// Its controls.
     public static let nothingPlaying = "Nothing playing"
-    public static let castHint = "Find something to watch or listen to, then choose Play on… and this device."
+    public static let castHint = "Send something here with Play on…"
 
     /// Beside a page's Play: what plays it on another device. Live TV
     /// watches; Shuffle shuffles there.
@@ -26,10 +26,23 @@ extension Words {
     public static let watchOn = "Watch on…"
     public static let shuffleOn = "Shuffle on…"
 
-    /// The remote's track pickers, and the subtitles' choice of none.
+    /// The remote's track and quality pickers, and the subtitles' choice of none.
     public static let remoteAudioTitle = "Audio"
     public static let remoteSubtitlesTitle = "Subtitles"
+    public static let remoteQualityTitle = "Quality"
+    /// Between a channel's down and up on the remote, as on a TV remote's rocker.
+    public static let remoteChannelTitle = "Channel"
     public static let remoteSubtitlesOff = "Off"
+
+    /// Stop, and its confirmation's buttons.
+    public static let remoteStopTitle = "Stop"
+    public static let remoteCancel = "Cancel"
+
+    /// What Stop asks first: "Stop playing on Living room TV?".
+    public static func remoteStopQuestion(_ device: String) -> String { "Stop playing on \(device)?" }
+
+    /// Under a channel's progress: the programme after the one on.
+    public static func remoteNextProgramme(_ title: String) -> String { "Next: \(title)" }
 
     /// What the remote calls each device, by id. Two of the same name (two
     /// of the same TV) are numbered, "Living room TV (2)", in the order of
@@ -114,6 +127,7 @@ extension Words {
     public static func remoteWaiting(_ device: String) -> String { "Waiting for \(device)" }
     public static func remoteAudio(_ device: String) -> String { "Audio on \(device)" }
     public static func remoteSubtitles(_ device: String) -> String { "Subtitles on \(device)" }
+    public static func remoteQuality(_ device: String) -> String { "Quality on \(device)" }
 
     /// After a command the player didn't show it acted on.
     public static func remoteNoAnswer(_ device: String) -> String { "\(device) didn't answer." }
