@@ -1,7 +1,7 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, errorMessage, isApiError } from "@/api/client";
+import { api, errorMessage } from "@/api/client";
 import { onServerEvent, setReceiver } from "@/api/events";
 import { queries, useSwitchProfile } from "@/api/hooks";
 import type { PlaylistDetail } from "@/api/lists";
@@ -20,6 +20,7 @@ import {
   takesCasts,
   type Cast,
 } from "@/lib/castReceiver";
+import { sessionsEnded } from "@/lib/progress";
 import { playUrl, usePlayItem } from "@/lib/usePlayItem";
 import { itemUrl, playlistUrl } from "@/lib/urls";
 import { useVideoQueue } from "@/lib/videoQueue";
@@ -51,7 +52,6 @@ export function CastReceiver() {
 
   const receive = useCastPlayer();
   const switchTo = useCastSwitch();
-  const audio = useOptionalAudioPlayer();
   const location = useLocation();
   const onCast = useEffectEvent((ev: ServerEvent) => {
     if (ev.type !== "cast" || !desktop || ev.receiver_id !== receiverId()) return;
@@ -66,13 +66,10 @@ export function CastReceiver() {
   });
   useEffect(() => onServerEvent(onCast), []);
 
-  // A cast the previous profile's receiver switched to this one for. What played
-  // there was the previous profile's, as the profile picker's switch leaves it.
+  // A cast the previous profile's receiver switched to this one for, having closed what played there.
   const handedOver = useEffectEvent(() => {
     const cast = takeHandedOver(me.id);
-    if (!cast) return;
-    audio?.close();
-    void receive(cast, PLAYER_PAGE.test(location.pathname));
+    if (cast) void receive(cast, PLAYER_PAGE.test(location.pathname));
   });
   useEffect(() => {
     if (desktop) handedOver();
@@ -82,22 +79,59 @@ export function CastReceiver() {
 
 /**
  * Switches this device to the profile `cast` came from, with its ticket,
- * having handed the cast over to that profile's receiver. A switch that
- * doesn't go through says so, and nothing plays.
+ * having handed the cast over to that profile's receiver. What plays here
+ * is closed first, and the switch waits for its last report to be
+ * answered: sent after the switch, with the new profile's session, it would
+ * count for that profile. A switch that doesn't go through says so, and
+ * nothing plays.
  */
 function useCastSwitch() {
   const switchProfile = useSwitchProfile();
+  const closePlayers = useClosePlayers();
   const toast = useToast();
   return async (cast: Cast) => {
     if (cast.profile_id == null || !cast.switch_ticket) return;
     handOver(cast);
     try {
+      await closePlayers();
       await switchProfile.mutateAsync({ user_id: cast.profile_id, ticket: cast.switch_ticket });
-    } catch (err) {
+    } catch {
       dropHandedOver(cast);
-      const why = isApiError(err, 0) ? "Can't reach the server" : errorMessage(err);
-      toast.error(`Couldn't switch profiles to play what ${cast.from ?? "another device"} sent. ${why}`);
+      toast.error("Couldn't switch to the remote's profile");
     }
+  };
+}
+
+/**
+ * Closes what plays here: a player's page, for the home page, and music.
+ * Resolves once their last reports ("stopped", and the session's release)
+ * are answered (`sessionsEnded`).
+ */
+function useClosePlayers() {
+  const navigate = useNavigate();
+  const audio = useOptionalAudioPlayer();
+  const onPlayer = PLAYER_PAGE.test(useLocation().pathname);
+  // Waiting for the player's page to go: a player ends its session as it unmounts,
+  // which is done before this receiver's effects of the same render run.
+  const left = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (onPlayer) return;
+    left.current?.();
+    left.current = null;
+  }, [onPlayer]);
+  return async () => {
+    audio?.close();
+    if (onPlayer) {
+      await new Promise<void>((resolve) => {
+        const before = left.current;
+        left.current = () => {
+          before?.();
+          resolve();
+        };
+        void navigate("/", { replace: true });
+      });
+    }
+    await sessionsEnded();
   };
 }
 

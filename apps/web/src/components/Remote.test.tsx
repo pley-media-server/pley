@@ -195,7 +195,7 @@ describe("RemoteButton", () => {
   });
 
   it("lists the household's devices on another profile after the user's own, by that profile, never what they play", async () => {
-    serve(
+    const requests = serve(
       () => [episode()],
       () => [
         makeReceiver({ receiver_id: "attic", device_id: "app-6", name: "Attic TV", profile: { id: 2, name: "Sam" } }),
@@ -205,6 +205,8 @@ describe("RemoteButton", () => {
     );
     renderWithProviders(<RemoteButton />);
     const { panel } = await openRemote();
+    // Asked for: without it, the list is the user's own devices alone.
+    expect(requests.filter((r) => r.path.startsWith("/api/remote/devices")).map((r) => r.path)).toContain("/api/remote/devices?household=1");
     expect(within(within(panel).getByRole("list")).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
       "Living room TVTest Show — S1 · E1 — Pilot",
       "PhoneReady to play",

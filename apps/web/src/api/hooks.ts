@@ -363,11 +363,15 @@ export const queries = {
       queryFn: () => api.get<PlayingSession[]>("/api/sessions").then((list) => received(list, Date.now())),
       staleTime: 2_000,
     }),
-  /** The user's own devices that take casts, which a remote lists with what they play. */
+  /**
+   * The devices that take casts, which a remote lists: the user's own, with
+   * what they play, and those of the household's other profiles that switch
+   * to the user's for a cast (`household=1`).
+   */
   remoteDevices: () =>
     queryOptions({
       queryKey: keys.remoteDevices,
-      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices"),
+      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices?household=1"),
       staleTime: 2_000,
     }),
   item: (id: Id) => queryOptions({ queryKey: keys.item(id), queryFn: ({ signal }) => api.get<ItemDetail>(`/api/items/${id}`, { signal }) }),

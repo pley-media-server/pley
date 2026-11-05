@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router";
 import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ServerEvent } from "@/api/types";
 import { RequireAuth, useAuth } from "@/auth";
 import { castOf, receiverId, receiverQuery } from "@/lib/castReceiver";
+import { endSession } from "@/lib/progress";
 import { playUrl } from "@/lib/usePlayItem";
 import { itemUrl } from "@/lib/urls";
 import { makeItem } from "@/test/fixtures";
@@ -177,8 +179,11 @@ describe("CastReceiver", () => {
     const server = { name: "pley", version: "1.0.0", setup_required: false };
     const sam = { ...testUser, id: 2, name: "Sam" };
 
-    /** The app as it runs: signed in as `testUser`, the profile switching to Sam's with a ticket `switchAnswer` takes. */
-    function app(switchAnswer: (req: FakeRequest) => unknown = () => ({ user: sam })) {
+    /**
+     * The app as it runs at `route`: signed in as `testUser`, the profile switching to Sam's with a ticket
+     * `switchAnswer` takes; `more`, the server's other answers.
+     */
+    function app(switchAnswer: (req: FakeRequest) => unknown = () => ({ user: sam }), route = "/", more: Parameters<typeof mockApi>[0] = {}) {
       let me = testUser;
       const requests = mockApi({
         ...handlers(),
@@ -189,16 +194,19 @@ describe("CastReceiver", () => {
           if (!(answer instanceof Response)) me = sam;
           return answer;
         },
+        ...more,
       });
       renderWithProviders(
         <>
           <Routes>
             <Route element={<RequireAuth />}>
+              <Route path="play/:id" element={<Player />} />
               <Route path="*" element={<Signed />} />
             </Route>
           </Routes>
           <LocationDisplay />
         </>,
+        { route },
       );
       return requests;
     }
@@ -208,10 +216,28 @@ describe("CastReceiver", () => {
       return <p>Signed in as {useAuth().name}</p>;
     }
 
+    /** A film's player, which ends its session as it closes, as the app's players do. */
+    function Player() {
+      const name = useAuth().name;
+      useEffect(
+        () => () => {
+          void endSession(5, { session_id: "s1", duration_ms: 600_000 }, 30_000, true);
+        },
+        [],
+      );
+      return <p>Playing as {name}</p>;
+    }
+
     beforeEach(() => {
       // No event stream: the tests send the events.
       vi.stubGlobal("EventSource", undefined);
       desktop(true);
+      // The music player's element, closed before a switch.
+      vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+      vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
     it("switches to the caster's profile with the cast's ticket, then plays it, once", async () => {
@@ -236,13 +262,35 @@ describe("CastReceiver", () => {
       await screen.findByText("Signed in as Admin");
       send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
 
-      expect(
-        await screen.findByText("Couldn't switch profiles to play what Phone sent. This cast's switch has expired or was used: cast again"),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Couldn't switch to the remote's profile")).toBeInTheDocument();
       await settle();
       expect(screen.getByText("Signed in as Admin")).toBeInTheDocument();
       expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
       expect(requests.filter((r) => r.path === "/api/items/5")).toHaveLength(0);
+    });
+
+    it("closes the player first, and switches once its last report, as the profile that played, is answered", async () => {
+      let answer: (value: void) => void = () => undefined;
+      const answered = new Promise<void>((resolve) => (answer = resolve));
+      const requests = app(undefined, playUrl(5), {
+        "POST /api/items/5/progress": () => answered,
+        "DELETE /api/playback/s1": () => undefined,
+      });
+      await screen.findByText("Playing as Admin");
+      send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+
+      await waitFor(() => expect(requests.map((r) => r.path)).toContain("/api/items/5/progress"));
+      await settle();
+      // Sent, not answered yet: no switch.
+      expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(0);
+      expect(requests.find((r) => r.path === "/api/items/5/progress")?.body).toMatchObject({ state: "stopped", session_id: "s1" });
+
+      act(() => answer());
+      expect(await screen.findByText("Playing as Sam")).toBeInTheDocument();
+      const paths = requests.map((r) => r.path);
+      expect(paths.indexOf("/api/items/5/progress")).toBeLessThan(paths.indexOf("/api/auth/switch"));
+      expect(paths.indexOf("/api/playback/s1")).toBeLessThan(paths.indexOf("/api/auth/switch"));
+      expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
     });
 
     it("leaves one it has no ticket for, and plays one from the profile it is on without switching", async () => {
