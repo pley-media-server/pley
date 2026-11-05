@@ -22,6 +22,14 @@ export const NOTHING_TO_PLAY = "Nothing to play";
 export const SWITCH_FAILED = "Couldn't switch to the remote's profile";
 
 /**
+ * The longest a cast's switch waits for the last reports of what played
+ * (progress, `stopped`, the session's end) to go out with the sign-in of
+ * the profile before, as Android's does; what hasn't gone by then is
+ * dropped.
+ */
+export const CAST_SWITCH_WAIT_MS = 5_000;
+
+/**
  * The event stream's query that makes this TV a receiver: its install id,
  * a TV, taking titles and playlists always and channels where Live TV
  * shows. The server names the TV, as it does its players.
@@ -58,10 +66,12 @@ const NO_CAST: CastAction = { act: "none" };
  * title with the tracks sent. One from a remote on another profile than
  * `profile`, the one the app acts as (`null` while it isn't known), switches
  * to it first with its ticket; without a ticket it does nothing, as the TV
- * can't play it as the profile that sent it.
+ * can't play it as the profile that sent it. While such a switch is made
+ * (`switching`), any other cast does nothing: one for the profile the TV
+ * leaves isn't the new one's, and another switch would undo the first.
  */
-export function castAction(receiver: string, profile: Id | null, shown: boolean, e: CastEvent): CastAction {
-  if (!shown || e.receiver_id !== receiver) return NO_CAST;
+export function castAction(receiver: string, profile: Id | null, shown: boolean, e: CastEvent, switching = false): CastAction {
+  if (!shown || switching || e.receiver_id !== receiver) return NO_CAST;
   let switchTo: CastSwitch | null = null;
   if (typeof e.profile_id === "number" && e.profile_id !== profile) {
     if (typeof e.switch_ticket !== "string" || !e.switch_ticket) return NO_CAST;
@@ -140,10 +150,12 @@ export interface CastEnv {
   profile(): Id | null;
   /**
    * Moves the app to `profile` with a cast's `ticket`, as a switch on "Who's
-   * watching?" would, what played as the profile before ending first;
-   * rejects when it can't.
+   * watching?" would (AppState.switchForCast has the order: what plays ends
+   * and its reports go out first); rejects when it can't. `switched` is
+   * called the moment the app acts as the new profile, its tokens in place
+   * and `switched()` done, before what follows (its Home) shows.
    */
-  switchTo(profile: Id, ticket: string): Promise<void>;
+  switchTo(profile: Id, ticket: string, switched: () => void): Promise<void>;
   server(): CastServer | null;
   /** Plays a video in the player, in place of what plays. */
   video(request: PlayRequest): void;
@@ -162,13 +174,14 @@ export interface CastEnv {
  * This TV's side of casting: a cast for it plays (the latest one, when
  * another comes while the first is still fetched), and says where it came
  * from as it starts. One from another profile's remote plays once the TV
- * switched to that profile, or says it couldn't.
+ * switched to that profile, or says it couldn't; the casts heard while the
+ * switch is made are dropped, and those heard once it is play as usual.
  */
 export class CastReceiver {
   private readonly env: CastEnv;
   private casts = 0;
-  /** While a cast's switch is being made, the casts heard meanwhile, weighed once it is over; `null` otherwise. */
-  private waiting: CastEvent[] | null = null;
+  /** The cast whose switch is under way, from its start until the app acts as the new profile or the switch failed; `null` when none is. */
+  private switching: number | null = null;
 
   constructor(env: CastEnv) {
     this.env = env;
@@ -176,13 +189,7 @@ export class CastReceiver {
 
   /** A cast heard on the event stream. */
   take(e: CastEvent): void {
-    if (this.waiting) {
-      // Weighed once the switch is over, as the profile the TV is on then: one sent to the profile it leaves
-      // (no `profile_id`) is that profile's, which the TV no longer is.
-      if (typeof e.profile_id === "number") this.waiting.push(e);
-      return;
-    }
-    const action = castAction(this.env.id(), this.env.profile(), this.env.shown(), e);
+    const action = castAction(this.env.id(), this.env.profile(), this.env.shown(), e, this.switching !== null);
     if (action.act === "none" || !this.env.server()) return;
     const mine = ++this.casts;
     // Still the cast to play once what it needs comes, and the app still shows.
@@ -207,25 +214,22 @@ export class CastReceiver {
       start();
       return;
     }
-    this.waiting = [];
-    this.env.switchTo(to.profile, to.ticket).then(
+    this.switching = mine;
+    // Casts are taken again the moment the app acts as the new profile, its own remote's too: one heard from
+    // then on plays in place of this one, as the later of two casts does.
+    const switched = () => {
+      if (this.switching === mine) this.switching = null;
+    };
+    this.env.switchTo(to.profile, to.ticket, switched).then(
       () => {
-        // Those heard meanwhile are newer: the latest of them plays in its place.
-        this.takeWaiting();
+        switched();
         start();
       },
       () => {
+        switched();
         if (current()) this.env.say(SWITCH_FAILED);
-        this.takeWaiting();
       },
     );
-  }
-
-  /** The switch is over: the casts heard while it was made are taken now, in order. */
-  private takeWaiting(): void {
-    const heard = this.waiting ?? [];
-    this.waiting = null;
-    for (const e of heard) this.take(e);
   }
 
   /** Plays what `action` names: "dropped" when it no longer may (`current`), "nothing" when it has nothing to play. */

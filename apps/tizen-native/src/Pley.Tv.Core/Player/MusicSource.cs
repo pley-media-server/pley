@@ -12,7 +12,6 @@ public sealed class AppMusicServer : IMusicServer
 
     readonly AppState app;
     readonly Func<TizenFacts> facts;
-    readonly SessionReporter reporter = new SessionReporter();
 
     /// <param name="facts">What this TV is, for the report of what it plays.</param>
     public AppMusicServer(AppState app, Func<TizenFacts> facts)
@@ -28,11 +27,12 @@ public sealed class AppMusicServer : IMusicServer
     public async Task<IPlaybackSession> Start(long itemId, long startMs, bool transcode)
     {
         var api = Api;
-        // The session before goes first (stopped, then DELETE): the server's limit on conversions.
-        await Task.WhenAny(reporter.Flush(), Task.Delay(FlushWaitMs)).ConfigureAwait(false);
+        // The session before goes first (stopped, then DELETE): the server's limit on conversions. The
+        // reports go with the player's, the app's, which a cast's switch waits for.
+        await Task.WhenAny(app.Reporter.Flush(), Task.Delay(FlushWaitMs)).ConfigureAwait(false);
         var caps = TizenCaps.Of(facts(), app.Settings.Value.Passthrough);
         var body = PlayRequests.MusicBody(itemId, startMs, transcode, app.InstallId(), caps);
-        return await PlaybackSession.Start(api, itemId, body, reporter).ConfigureAwait(false);
+        return await PlaybackSession.Start(api, itemId, body, app.Reporter).ConfigureAwait(false);
     }
 
     public Task Status(string session) => Api.PlaybackStatus(session);

@@ -25,8 +25,6 @@ class App : NUIApplication
     /// <summary>Requests and Discover for the profile in use: the rail's way in, its number, and the news that pops up.</summary>
     AppRequests requests = null!;
     LiveTvEntry? liveEntry;
-    /// <summary>The players' reports to the server, in order: one for the app, so a player's last report goes out after it closed.</summary>
-    readonly SessionReporter reporter = new SessionReporter();
     /// <summary>The app's one music player: it plays on behind every page, and ends with the profile, the sign-in or the server.</summary>
     MusicPlayer music = null!;
     MediaKeys? musicKeys;
@@ -330,7 +328,7 @@ class App : NUIApplication
         var opened = Profile.Start();
         state.HoldRefresh(true);
         PlayerScreen? screen = null;
-        screen = new PlayerScreen(shell, state, request, reporter, images, gate, () =>
+        screen = new PlayerScreen(shell, state, request, state.Reporter, images, gate, () =>
         {
             state.HoldRefresh(false);
             PlayerGone(screen!);
@@ -415,25 +413,14 @@ class App : NUIApplication
 
         public long? Profile => app.state.Profile;
 
-        public async Task SwitchTo(long profile, string ticket)
+        public async Task SwitchTo(long profile, string ticket, Action switched)
         {
-            var tokens = app.state.TokenStore ?? throw new Core.Auth.SignedOutException();
             // What plays as the profile before ends while its sign-in still works, as signing out has it.
             await app.ClosePlayer();
-            app.state.EndPlayback();
-            await Task.WhenAny(app.reporter.Flush(), Task.Delay(2_000));
-            await tokens.SwitchProfile(profile, null, ticket);
-            try
-            {
-                await app.state.Switched(profile);
-            }
-            catch (Exception)
-            {
-                // The switch is made: who is watching failed to load after it, which the pages' Retry
-                // has, as for a switch on "Who's watching?" (ProfilesModel).
-            }
+            await app.state.SwitchForCast(profile, ticket);
             // As a switch on "Who's watching?": the profile's Home, under what the cast plays.
             app.Go(new PageKey.Home());
+            switched();
         }
 
         public void Video(PlayRequest request, string banner) => app.Replacing(() =>

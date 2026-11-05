@@ -2,7 +2,7 @@ import { useSignal, useSignalEffect } from "@preact/signals";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { AppState } from "../../state";
 import { errorMessage } from "../../api/client";
-import { networkMayHaveChanged, SignedOutError } from "../../auth/tokens";
+import { networkMayHaveChanged } from "../../auth/tokens";
 import { CAST_BANNER_MS, CastReceiver } from "../../player/cast";
 import { UiContext, type Ui } from "../context";
 import { FocusManager } from "../focus";
@@ -259,19 +259,13 @@ export function App(p: ShellProps) {
       id: () => state.installId(),
       shown: () => state.visible.value && state.signedIn && !state.signedOut.value && takesCasts(nav.root?.key),
       profile: () => state.me.value?.id ?? null,
-      switchTo: async (profile, ticket) => {
-        const tokens = state.tokenStore;
-        if (!tokens) throw new SignedOutError();
+      switchTo: async (profile, ticket, switched) => {
         // What plays as the profile before ends while its sign-in still works, as signing out has it.
         if (isPlayer(nav.top?.key)) nav.pop();
-        state.endPlayback();
-        // The player's last reports are made as its page goes, once drawn.
-        await new Promise((r) => setTimeout(r, 0));
-        await state.reporter.flush(2_000);
-        await tokens.switchProfile(profile, null, ticket);
+        await state.switchForCast(profile, ticket);
         // As a switch on "Who's watching?": the profile's Home, under what the cast plays.
-        await state.switched().catch(() => undefined);
         nav.restart({ name: "home" });
+        switched();
       },
       server: () => {
         const api = state.api.value;
