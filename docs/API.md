@@ -1,10 +1,11 @@
 # Pley HTTP API (v1)
 
 The API the web app and Pley's own apps (Android, Apple, desktop, Kodi,
-Roku, Samsung and LG) use, for anyone writing a client or a script. Tools built
-on Plex's API (Kometa, Tautulli, `python-plexapi`) and Jellyfin's apps go
-through the Plex- and Jellyfin-compatible APIs instead, with tokens of their
-own that this API refuses: [COMPATIBILITY.md](COMPATIBILITY.md).
+Roku, Samsung, LG and Home Assistant) use, for anyone writing a client or a
+script. Tools built on Plex's API (Kometa, Tautulli, `python-plexapi`) and
+Jellyfin's apps go through the Plex- and Jellyfin-compatible APIs instead,
+with tokens of their own that this API refuses:
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 The base URL is the server's address with `/api`:
 `http://pley.local:7539/api`, or `https://media.example.com/api` behind a
@@ -1120,8 +1121,9 @@ apps allowed `profiles` move to another profile of the household. Send
 TVs and other devices without a usable browser sign in with a code they
 show (OAuth 2.0 Device Authorization Grant, RFC 8628). Only Pley's own apps
 may: the Android app (also on Android TV and Fire TV), Pley for Kodi, Pley
-for Roku, the Samsung and LG apps, Pley for Apple TV, and Pley for iPhone
-and iPad (an iPad on a stand, an iPhone shared by the household).
+for Roku, the Samsung and LG apps, Pley for Apple TV, Pley for Home
+Assistant, and Pley for iPhone and iPad (an iPad on a stand, an iPhone
+shared by the household).
 
 1. The TV calls **`POST /api/oauth/device`** with `client_id` and an
    optional `scope` (as at `/oauth/authorize`: none means `library`):
@@ -1310,16 +1312,19 @@ profiles when the app's profile is in the household, else nothing:
 | Pley for Roku | `https://pley-media-server.github.io/pley/oauth/roku.json` | none: a code only |
 | Pley for Samsung TV | `https://pley-media-server.github.io/pley/oauth/tizen.json` | none: a code only |
 | Pley for LG TV | `https://pley-media-server.github.io/pley/oauth/webos.json` | none: a code only |
+| Pley for Home Assistant | `https://pley-media-server.github.io/pley/oauth/homeassistant.json` | none: a code only |
 
 - Their descriptions are built into the server and never fetched, so they
   sign in to servers without internet access.
 - All get refresh tokens and may ask for every scope, but the desktop app
   for `requests` and `approvals`: its window shows the server's own pages,
-  signed in as the web app is.
+  signed in as the web app is. Pley for Home Assistant asks for `library`,
+  `play` and `activity` alone: it shows and controls what plays, and plays
+  nothing itself.
 - The Android app and Pley for iPhone and iPad may also sign in with a
   code, on a TV or a shared screen ([TVs](#tvs)). The Kodi, Roku, Samsung,
-  LG and Apple TV apps sign in only that way: with no return address,
-  `/oauth/authorize` never sends them a code.
+  LG and Apple TV apps and Pley for Home Assistant sign in only that way:
+  with no return address, `/oauth/authorize` never sends them a code.
 - The Apple app has its own client ID on each kind of device, so someone
   with Pley for Mac and Pley for desktop on one Mac sees two sign-ins they
   can tell apart. Its User-Agent, `pleyApple/0.1.0 (iPadOS 16.7; iPad)`,
@@ -1329,6 +1334,9 @@ profiles when the app's profile is in the household, else nothing:
   the TV ("Samsung TV"; for an app's grant its system, "Tizen 7.0"). The LG
   app says `pleyLG/<version> (webOS <n>; <model>)`; a TV still on the
   earlier LG web app is named by its web engine ("LG TV", "webOS 23").
+- Pley for Home Assistant says `pleyHomeAssistant/<version> (Home Assistant
+  <version>)` and is named "Home Assistant", as people know it: a TV it
+  sends something to says it plays from Home Assistant.
 - The consent page marks them "Pley's own app". No other app may use a
   client ID on their host.
 
@@ -3414,10 +3422,10 @@ administrators stop other people's sessions (above) and nothing more.
   TV, Roku, Samsung, LG and Kodi apps play on TVs; its iPhone and iPad app
   on a phone or a tablet, by its User-Agent; its Mac and desktop apps on
   computers; the web app is a browser. The Android app plays on TVs and
-  phones alike and says which when it knows; until it does, and for apps by
-  other publishers and Jellyfin and Plex apps, the kind is `other`. A Live
-  TV player that reads `stream.ts` says its kind in the query
-  (`device_kind=tv`).
+  phones alike and says which when it knows; until it does, and for Pley for
+  Home Assistant (which never plays), apps by other publishers and Jellyfin
+  and Plex apps, the kind is `other`. A Live TV player that reads
+  `stream.ts` says its kind in the query (`device_kind=tv`).
 - **`GET /api/sessions`** lists the caller's own sessions whose players
   have been heard from in the last 90 seconds, an administrator's too
   (everyone's are on `/api/activity`). `age_ms` is how long ago its

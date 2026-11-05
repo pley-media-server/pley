@@ -172,8 +172,9 @@ async fn a_users_players_are_listed_to_them_alone() {
     assert_eq!(app.get("/api/sessions", &w.viewer).await.body.as_array().unwrap().len(), 1);
 }
 
-/// Tokens of pley's Roku app acting as `user_id`.
-async fn roku_token(w: &World, user_id: i64) -> String {
+/// Tokens of one of pley's own apps (`client_id`, saying `user_agent`)
+/// acting as `user_id`.
+async fn first_party_token(w: &World, user_id: i64, client_id: &str, user_agent: &str) -> String {
     let issued = w
         .app
         .state
@@ -181,18 +182,23 @@ async fn roku_token(w: &World, user_id: i64) -> String {
         .issue(pley::auth::grants::NewGrant {
             user_id,
             approved_by: user_id,
-            client_id: common::ROKU_APP.into(),
+            client_id: client_id.into(),
             client_name: Some("pley".into()),
             scopes: pley::auth::scopes::Scopes::parse("library play").unwrap(),
             refresh: true,
             first_party: true,
             session_hash: None,
-            user_agent: Some("pleyRoku/0.1.0 (Roku OS 15.0; Roku Ultra)".into()),
+            user_agent: Some(user_agent.into()),
             ip: Some("10.0.0.9".into()),
         })
         .await
         .unwrap();
     issued.access_token
+}
+
+/// Tokens of pley's Roku app acting as `user_id`.
+async fn roku_token(w: &World, user_id: i64) -> String {
+    first_party_token(w, user_id, common::ROKU_APP, "pleyRoku/0.1.0 (Roku OS 15.0; Roku Ultra)").await
 }
 
 #[tokio::test]
@@ -1153,12 +1159,13 @@ async fn a_cast_carries_the_tracks_picked() {
     }
 }
 
-/// Where the cast `token` sends to `tv-1` says it came from.
-async fn cast_from(w: &World, token: &str) -> Value {
+/// Where the cast `token` sends to `tv-1`, saying `user_agent`, says it
+/// came from.
+async fn cast_from(w: &World, token: &str, user_agent: &str) -> Value {
     let send = async {
         let uri = "/api/remote/devices/tv-1/cast";
         let body = Some(json!({"item_id": w.film}));
-        let sent = w.app.call(Method::POST, uri, Some(token), body, &[("user-agent", "pleyAndroid/0.1.6")]).await;
+        let sent = w.app.call(Method::POST, uri, Some(token), body, &[("user-agent", user_agent)]).await;
         assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
     };
     let heard = events_until(w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
@@ -1171,10 +1178,23 @@ async fn a_cast_comes_from_the_name_the_remote_gave_its_device() {
     let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
     let (android, _) = w.app.app_token(w.viewer_id, "library play").await;
     // A remote that isn't a receiver is named from its User-Agent.
-    assert_eq!(cast_from(&w, &android).await, json!("Pley for Android"));
+    assert_eq!(cast_from(&w, &android, "pleyAndroid/0.1.6").await, json!("Pley for Android"));
     // One that is goes by the name it gave its device there.
     let _phone = stream(&w, &android, "receiver=phone-1&device_name=Bedroom&device_kind=phone&casts=item").await;
-    assert_eq!(cast_from(&w, &android).await, json!("Bedroom"));
+    assert_eq!(cast_from(&w, &android, "pleyAndroid/0.1.6").await, json!("Bedroom"));
+}
+
+#[tokio::test]
+async fn a_cast_from_home_assistant_says_so() {
+    let w = world().await;
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    // Pley for Home Assistant plays nothing itself: the TV it sends a title
+    // to names it as people know it.
+    let agent = "pleyHomeAssistant/0.1.0 (Home Assistant 2026.11.0)";
+    let home = first_party_token(&w, w.viewer_id, common::HOMEASSISTANT_APP, agent).await;
+    assert_eq!(cast_from(&w, &home, agent).await, json!("Home Assistant"));
+    let received = read_until(&mut tv, r#""type":"cast""#, Duration::from_secs(10)).await;
+    assert_eq!(events_of(&received, "cast")[0]["from"], json!("Home Assistant"), "the receiver's own");
 }
 
 #[tokio::test]

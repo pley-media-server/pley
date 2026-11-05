@@ -30,6 +30,8 @@ const MAX_NAME_CHARS: usize = 64;
 pub const ANDROID_ID: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// pley for desktop.
 pub const DESKTOP_ID: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
+/// pley for Home Assistant.
+pub const HOMEASSISTANT_ID: &str = "https://pley-media-server.github.io/pley/oauth/homeassistant.json";
 /// pley for iPhone and iPad (iOS and iPadOS).
 pub const IOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/ios.json";
 /// pley for Kodi.
@@ -46,7 +48,7 @@ pub const TVOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/tvos.j
 pub const WEBOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 /// The client IDs of pley's own apps, matched as exact strings.
 pub const BUILTIN_IDS: &[&str] =
-    &[ANDROID_ID, DESKTOP_ID, IOS_ID, KODI_ID, MACOS_ID, ROKU_ID, TIZEN_ID, TVOS_ID, WEBOS_ID];
+    &[ANDROID_ID, DESKTOP_ID, HOMEASSISTANT_ID, IOS_ID, KODI_ID, MACOS_ID, ROKU_ID, TIZEN_ID, TVOS_ID, WEBOS_ID];
 
 /// An app that may ask people to allow it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -465,6 +467,7 @@ static BUILTINS: LazyLock<Vec<Client>> = LazyLock::new(|| {
     [
         (ANDROID_ID, include_str!("builtin/android.json")),
         (DESKTOP_ID, include_str!("builtin/desktop.json")),
+        (HOMEASSISTANT_ID, include_str!("builtin/homeassistant.json")),
         (IOS_ID, include_str!("builtin/ios.json")),
         (KODI_ID, include_str!("builtin/kodi.json")),
         (MACOS_ID, include_str!("builtin/macos.json")),
@@ -923,7 +926,18 @@ mod tests {
             format!(r#"{{"client_id": "{KODI_ID}", "grant_types": ["refresh_token"], "redirect_uris": []}}"#);
         assert!(parse_document(KODI_ID, no_grant.as_bytes(), true).is_err(), "a code or a return address");
 
-        assert_eq!(BUILTIN_IDS.len(), 9);
+        // Home Assistant signs in only with a code too, and may ask for less:
+        // no playlists, profiles, requests or approvals.
+        let home = builtin(HOMEASSISTANT_ID).unwrap();
+        assert_eq!(home.name.as_deref(), Some("Pley for Home Assistant"));
+        assert!(home.first_party && home.refresh && home.device);
+        assert!(home.redirect_uris.is_empty());
+        assert_eq!(home.scope_cap.as_deref(), Some("library play activity"));
+        assert!(matches!(redirect_kind(home, "app.pley.android:/oauth/callback"), Err(ClientError::Redirect(_))));
+        let json = include_str!("builtin/homeassistant.json");
+        assert!(parse_document(HOMEASSISTANT_ID, json.as_bytes(), false).is_err());
+
+        assert_eq!(BUILTIN_IDS.len(), 10);
         assert!(BUILTIN_IDS.iter().all(|id| builtin(id).is_some_and(|c| c.id == *id)));
         for near in [
             "https://pley-media-server.github.io/pley/oauth/android.json/",
