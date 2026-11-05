@@ -9,7 +9,9 @@ import { requestQueries } from "@/api/requests";
 import { RequireAuth, Splash } from "@/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { ToastProvider } from "@/components/Toast";
+import { loadNamespaces } from "@/i18n";
 import { LanguageSync } from "@/i18n/LanguageSync";
+import type { LazyNamespace } from "@/i18n/resources";
 import { PageSpinner } from "@/components/ui";
 import { AccountPage } from "@/pages/AccountPage";
 import { HomePage } from "@/pages/HomePage";
@@ -47,6 +49,11 @@ function PlayerFallback() {
       <LoaderCircle className="size-12 animate-spin text-white/70" />
     </div>
   );
+}
+
+/** `load`, with the words of `namespaces`, which come with the code that uses them. */
+function withWords<M>(namespaces: readonly LazyNamespace[], load: () => Promise<M>): () => Promise<M> {
+  return async () => (await Promise.all([load(), loadNamespaces(namespaces)]))[0];
 }
 
 /**
@@ -126,7 +133,7 @@ const router = createBrowserRouter([
       ...["/live/:sourceUid/:channelId", "/live/:channelId"].map((path) => ({
         path,
         ...onDemand(
-          () => import("@/player/live/LivePlayerPage"),
+          withWords(["livetv"], () => import("@/player/live/LivePlayerPage")),
           (m) => m.LivePlayerPage,
           (prefetch, params) => [prefetch(liveQueries.channel(Number(params.channelId)))],
           <PlayerFallback />,
@@ -145,7 +152,7 @@ const router = createBrowserRouter([
           {
             path: "live",
             ...onDemand(
-              () => import("@/pages/livetv/LiveTvPage"),
+              withWords(["livetv"], () => import("@/pages/livetv/LiveTvPage")),
               (m) => m.LiveTvPage,
               (prefetch) => [prefetch(liveQueries.summary()), prefetch(liveQueries.groups())],
             ),
@@ -181,7 +188,11 @@ const router = createBrowserRouter([
           { path: "account", element: <AccountPage /> },
           {
             path: "settings",
-            ...onDemand(() => import("@/pages/settings/SettingsLayout"), (m) => m.SettingsLayout),
+            // Its pages' words with it, Live TV's settings among them.
+            ...onDemand(
+              withWords(["settings", "livetv"], () => import("@/pages/settings/SettingsLayout")),
+              (m) => m.SettingsLayout,
+            ),
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               {

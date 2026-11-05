@@ -2,9 +2,11 @@
  * The languages the web app is in, with i18next.
  *
  * Each language's words are in `locales/<language>/<namespace>.json`.
- * English is built into the app; the others load on demand, all of a
- * language's namespaces at once. English is also the fallback for a word
- * missing elsewhere.
+ * English is in the main bundle, but for the namespaces of pages that load
+ * on demand (`LazyResources`), which come with those pages
+ * ({@link loadNamespaces}). The other languages load when first shown, all
+ * the namespaces wanted so far at once. English is also the fallback for a
+ * word missing elsewhere.
  *
  * The language shown is the account's own choice, else the server's
  * (Settings → General), else the first of the browser's languages that Pley
@@ -14,14 +16,23 @@
  */
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
-import { en } from "./resources";
+import { en, type LazyNamespace } from "./resources";
 
 export const LANGUAGES = ["en", "fr", "es"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 const STORAGE_KEY = "pley.language";
 
-const others = import.meta.glob<{ default: Record<string, unknown> }>(["./locales/*/*.json", "!./locales/en/*.json"]);
+/** Every catalog the main bundle doesn't carry, to load when wanted. */
+const catalogs = import.meta.glob<{ default: Record<string, unknown> }>([
+  "./locales/*/*.json",
+  "!./locales/en/common.json",
+  "!./locales/en/components.json",
+  "!./locales/en/item.json",
+  "!./locales/en/pages.json",
+  "!./locales/en/player.json",
+  "!./locales/en/requests.json",
+]);
 
 /** The language Pley has for a tag ("fr-CA" → "fr"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
@@ -57,21 +68,29 @@ function remembered(): Language | undefined {
   }
 }
 
-const loaded = new Set<string>(["en"]);
+/** The namespaces every language shown needs: the main bundle's, and the lazy ones asked for so far. */
+const wanted = new Set<string>(Object.keys(en));
 
-/** Loads a language's words, once. */
-async function load(language: Language): Promise<void> {
-  if (loaded.has(language)) return;
-  const prefix = `./locales/${language}/`;
+/** Loads `language`'s words of `namespaces` it doesn't have yet. */
+async function load(language: Language, namespaces: Iterable<string> = wanted): Promise<void> {
   await Promise.all(
-    Object.entries(others)
-      .filter(([path]) => path.startsWith(prefix))
-      .map(async ([path, importer]) => {
-        const namespace = path.slice(prefix.length, -".json".length);
-        i18next.addResourceBundle(language, namespace, (await importer()).default, true, true);
+    [...namespaces]
+      .filter((namespace) => !i18next.hasResourceBundle(language, namespace))
+      .map(async (namespace) => {
+        const importer = catalogs[`./locales/${language}/${namespace}.json`];
+        if (importer) i18next.addResourceBundle(language, namespace, (await importer()).default, true, true);
       }),
   );
-  loaded.add(language);
+}
+
+/**
+ * The words of pages whose code loads on demand, in English and the
+ * language shown: their route waits for them with the code, so they show
+ * complete. A language shown later loads them too.
+ */
+export async function loadNamespaces(namespaces: readonly LazyNamespace[]): Promise<void> {
+  namespaces.forEach((namespace) => wanted.add(namespace));
+  await Promise.all([...new Set<Language>(["en", currentLanguage()])].map((language) => load(language, namespaces)));
 }
 
 void i18next.use(initReactI18next).init({

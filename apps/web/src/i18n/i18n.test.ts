@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatDate } from "@/lib/format";
-import { currentLocale, LANGUAGES, pickLanguage, setLanguage, supportedLanguage } from ".";
-import { en } from "./resources";
+import { currentLocale, i18n, LANGUAGES, pickLanguage, setLanguage, supportedLanguage } from ".";
 
 const files = import.meta.glob<{ default: unknown }>("./locales/*/*.json", { eager: true });
 
@@ -44,8 +43,12 @@ function expectedKeys(language: string, english: Words): string[] {
 }
 
 describe("the languages' words", () => {
-  for (const namespace of Object.keys(en)) {
-    const english = flatten(en[namespace as keyof typeof en]);
+  // Every English namespace, those that load with their pages too.
+  const namespaces = Object.keys(files)
+    .filter((path) => path.startsWith("./locales/en/"))
+    .map((path) => path.slice("./locales/en/".length, -".json".length));
+  for (const namespace of namespaces) {
+    const english = catalog("en", namespace) ?? {};
 
     for (const language of LANGUAGES.filter((l) => l !== "en")) {
       it(`${language}/${namespace}.json has every word English has, with the same values`, () => {
@@ -109,6 +112,19 @@ describe("pickLanguage", () => {
     } finally {
       await setLanguage("en");
       delete (navigator as { languages?: unknown }).languages;
+    }
+  });
+
+  it("loads the words pages bring with them in a language shown later too", async () => {
+    // The test setup asked for them, as the settings' route does; French doesn't have them yet.
+    i18n.removeResourceBundle("fr", "settings");
+    i18n.removeResourceBundle("fr", "livetv");
+    try {
+      await setLanguage("fr");
+      expect(i18n.hasResourceBundle("fr", "settings")).toBe(true);
+      expect(i18n.hasResourceBundle("fr", "livetv")).toBe(true);
+    } finally {
+      await setLanguage("en");
     }
   });
 

@@ -1,8 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
-// The app's words, in English, as tests read them.
-import "@/i18n";
+import { loadNamespaces } from "@/i18n";
+
+// The app's words, in English, as tests read them: those that come with
+// their pages too, since tests show the pages without their routes.
+await loadNamespaces(["settings", "livetv"]);
 
 // `findBy…`/`waitFor` wait up to 5 s: busy CI runners can be slow to render.
 configure({ asyncUtilTimeout: 5000 });
