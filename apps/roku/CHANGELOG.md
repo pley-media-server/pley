@@ -65,6 +65,10 @@ describes how they are made.
 
 ### Changed
 
+- The Roku starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - Up Next waits at the end of an episode once cancelled, or when the next

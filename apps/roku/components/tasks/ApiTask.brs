@@ -763,10 +763,10 @@ sub apiBoot(request as object)
         end for
         apiSelect(current, name)
     end if
-    ' "Who's watching?" first when the household had more than one profile,
-    ' unless Settings' "Always start as" names one of them, which still
-    ' opens it on the PIN pad of the profile signed in when that one has a
-    ' PIN (pin).
+    ' Straight in as the profile signed in when it has no PIN; else "Who's
+    ' watching?" first when the household had more than one profile, on
+    ' that profile's PIN pad (pin) when Settings' "Always start as" names
+    ' one of them.
     atStart = ""
     if m.tokens <> invalid
         household = profKeptHousehold(CreateObject("roRegistrySection", "household"), m.server)

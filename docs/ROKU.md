@@ -35,15 +35,15 @@ The app finds Pley servers on the local network (or takes an address) and
 signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
-hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile, unless Settings' Always start as names one. Going on
-there as the profile it was left on asks that profile's PIN when it has
-one, as on the other TVs, and so does Always start as: the start opens on
-that profile's PIN pad, and Cancel shows the other profiles. A PIN is
-typed on Roku's own PIN pad: a wrong one, or too many, asks again saying
-why; a PIN locked after too many wrong tries is said on the screen, since
-Roku's pad can't be dimmed. A profile that needs its password is signed
-in to with a code, choosing it in the browser.
+hasn't yet. It starts straight into Home as the profile it was left on
+when that profile has no PIN. In a household of more than one profile, it
+asks "Who's watching?" at start when that profile has a PIN, where going
+on as it asks the PIN, as on the other TVs; with Always start as, the
+start opens on that profile's PIN pad, and Cancel shows the other
+profiles. A PIN is typed on Roku's own PIN pad: a wrong one, or too many,
+asks again saying why; a PIN locked after too many wrong tries is said on
+the screen, since Roku's pad can't be dimmed. A profile that needs its
+password is signed in to with a code, choosing it in the browser.
 
 ### Home
 
@@ -610,15 +610,16 @@ plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
 shows Pley's licence and the notices of what the package bundles.
 
 Always start as, for a household of several profiles, names the profile
-the app starts as, or Ask who's watching. As on the other TVs it only
-skips "Who's watching?" at a start: the app starts as the profile it was
-left on, but never past its PIN, which it asks first when that profile has
-one. Whether it has one is kept in the registry section `household` each
-time `GET /api/auth/me` answers, and forgotten when a sign-in or a switch
-changes the profile; until the Roku knows, the start asks "Who's
-watching?". A profile since gone from the household (deleted, or another
-account's, signed in since) counts as Ask who's watching, as Settings
-then shows it. It is kept on the Roku for each server.
+the app starts as, or Ask who's watching. As on the other TVs, the app
+starts as the profile it was left on, but never past its PIN: without a
+PIN it goes straight in either way, and with one Always start as opens
+its PIN pad first, where Ask who's watching shows the profiles. Whether it
+has one is kept in the registry section `household` each time `GET
+/api/auth/me` answers, and forgotten when a sign-in or a switch changes
+the profile; until the Roku knows, the start asks "Who's watching?". A
+profile since gone from the household (deleted, or another account's,
+signed in since) counts as Ask who's watching, as Settings then shows it.
+It is kept on the Roku for each server.
 
 ## Building and testing
 

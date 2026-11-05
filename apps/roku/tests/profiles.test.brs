@@ -65,13 +65,18 @@ end sub
 
 sub test_profiles_asked_at_a_start()
     scope = "library play playlists profiles"
+    ' The profile signed in has no PIN: straight in.
     household = { count: 2, ids: [7, 9], pin: 0 }
-    tkEqual(profAtStart(scope, household, 0), "ask")
-    tkEqual(profAtStart(scope, { count: 1, ids: [7], pin: 1 }, 0), "", "a household of one")
-    tkEqual(profAtStart("library play", { count: 3, ids: [7, 9, 11], pin: 0 }, 0), "", "a sign-in that can't switch")
+    tkEqual(profAtStart(scope, household, 0), "", "no PIN")
     tkEqual(profAtStart(scope, household, 9), "", "Always start as names a profile")
-    tkEqual(profAtStart(scope, household, 12), "ask", "a profile gone from the household: asked again")
-    tkEqual(profAtStart(scope, { count: 2, ids: [], pin: 0 }, 9), "ask", "the household's profiles not known yet: asked")
+    tkEqual(profAtStart(scope, household, 12), "", "a profile gone from the household: as without one")
+    ' It has one, or the Roku doesn't know: the profiles.
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: 1 }, 0), "ask", "a PIN")
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: -1 }, 0), "ask", "not known whether it has one")
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: 1 }, 12), "ask", "a PIN, and a profile gone from the household")
+    tkEqual(profAtStart(scope, { count: 2, ids: [], pin: 1 }, 9), "ask", "the household's profiles not known yet: asked")
+    tkEqual(profAtStart(scope, { count: 1, ids: [7], pin: 1 }, 0), "", "a household of one")
+    tkEqual(profAtStart("library play", { count: 3, ids: [7, 9, 11], pin: 1 }, 0), "", "a sign-in that can't switch")
     tkTrue(authAllows("library play", "play"))
     tkFalse(authAllows("library playlists", "play"))
 end sub
