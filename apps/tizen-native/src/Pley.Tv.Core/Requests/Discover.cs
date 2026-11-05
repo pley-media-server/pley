@@ -604,13 +604,14 @@ public sealed class DiscoverGridModel : IDisposable
     /// <summary>
     /// Reads the pages after <paramref name="start"/>'s while fewer than <paramref name="want"/>
     /// titles came, <paramref name="pages"/> of them at most; short of it with more to read, it
-    /// stops there (<see cref="Pages.Stopped"/>).
+    /// stops there (<see cref="Pages.Stopped"/>). Focus coming near the end while a page is read
+    /// wants more: the reading goes on to that.
     /// </summary>
     async Task FillTo(Pages start, int want, int pages, int mine)
     {
         var shown = start;
         var read = 0;
-        while (shown.More && shown.Titles.Count < want)
+        while (shown.More && shown.Titles.Count < Math.Max(want, wanted))
         {
             if (read == pages)
             {

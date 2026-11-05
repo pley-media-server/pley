@@ -250,6 +250,22 @@ public class RequestModelTests
     }
 
     [Fact]
+    public void A_grid_reads_on_to_what_focus_wanted_while_a_page_was_coming()
+    {
+        DiscoverGridModel? grid = null;
+        source.Searched = (_, page) =>
+        {
+            // Focus comes near the end while the third page is read.
+            if (page == 3) grid!.Want(35);
+            return PageOf(page, 10, Enumerable.Range(page * 10, 7).Select(i => Title(i)).ToArray());
+        };
+        using var model = grid = new DiscoverGridModel(source, new DiscoverSource.Words("dune"), screenful: 14);
+        Assert.Equal(14, ((DiscoverSearch.Ready)model.State.Value.Search).Pages.Titles.Count);
+        model.Want(21);
+        Assert.Equal(35, ((DiscoverSearch.Ready)model.State.Value.Search).Pages.Titles.Count);
+    }
+
+    [Fact]
     public void A_grid_says_when_nothing_matches_and_why_it_failed()
     {
         source.Searched = (_, _) => PageOf(1, 1);
