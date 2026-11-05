@@ -21,7 +21,6 @@ import { licenseRows } from "../../licenses";
 import { pageOf } from "./item-actions";
 import { librarySorting, SORT_NEEDS_NEWER } from "./library";
 import { ProfileAvatar, QrCode } from "./onboarding/kit";
-import { TMDB_NOTICE } from "../../requests";
 
 type Category = "profile" | "playback" | "audio" | "display" | "server" | "diagnostics" | "about" | "signout";
 
@@ -475,7 +474,7 @@ export function SettingsScreen(p: { entry: Entry }) {
         </div>,
       );
       // Discover's titles and pictures (TMDB's terms ask for this line).
-      rows.push(<SettingRow key="tmdb" fid="row-tmdb" label="TMDB" value={TMDB_NOTICE} onSelect={() => undefined} />);
+      rows.push(<SettingRow key="tmdb" fid="row-tmdb" label="TMDB" value={t("requests.tmdb.notice")} onSelect={() => undefined} />);
       break;
     case "signout":
       rows.push(

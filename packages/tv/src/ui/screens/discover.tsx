@@ -1,11 +1,14 @@
 import { useSignal, type Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { DiscoverDetail, DiscoverList, DiscoverPage, DiscoverTitle, MediaRequest, RequestList } from "../../api/types";
+import { formatNumber, t } from "../../i18n";
 import { Cancel } from "../../net/transport";
 import {
   addTitles,
   DISCOVER_ROWS,
+  discoverRowTitle,
   hasRequests,
+  kindWord,
   moving,
   problemWords,
   requestsCount,
@@ -20,7 +23,6 @@ import {
   titlePage,
   titleSubtitle,
   titleTone,
-  TMDB_CREDIT,
 } from "../../requests";
 import { useUi } from "../context";
 import { Backdrop, useRested } from "../kit/backdrop";
@@ -163,7 +165,7 @@ export function DiscoverScreen(p: { entry: Entry }) {
   const bar = useRef<HTMLElement | null>(null);
 
   const gate = summaryProblem(app);
-  if (gate) return <RequestsMessage problem={gate} title="Couldn't load Discover" onRetry={() => void app.loadRequests()} />;
+  if (gate) return <RequestsMessage problem={gate} title={t("requests.discover.loadFailed")} onRetry={() => void app.loadRequests()} />;
   return (
     <div class="discover-page">
       <DiscoverRows entry={entry} inRows={inRows} setInRows={setInRows} onBlocked={setBlocked} />
@@ -234,7 +236,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
   const lists = DISCOVER_ROWS.map((r, i) => usePages(entry.state, `list:${r.list}`, (n, c) => ui.api.discover(r.list, n, c), ROW_WANT, all || i <= reach));
   const rows = DISCOVER_ROWS.map((r, i) => {
     const pages = lists[i]!.pages;
-    return { ...r, pages, loading: lists[i]!.loading, titles: pages.titles.map((t) => marked(t, pages.at)) };
+    return { ...r, title: discoverRowTitle(r.list), pages, loading: lists[i]!.loading, titles: pages.titles.map((x) => marked(x, pages.at)) };
   });
   const trending = lists[0]!;
   // TMDB not answering for the first list, the page says so once rather than in every row.
@@ -253,7 +255,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
   usePoll(mine.reload, mineList.length && moving(mineList) ? 10_000 : app.eventsDown.value ? 30_000 : null);
 
   // The hero: the first title left (lists leave out what this profile can't ask for); its details for its main action.
-  const hero = rows.map((r) => r.titles[0]).filter((t): t is DiscoverTitle => !!t)[0] ?? null;
+  const hero = rows.map((r) => r.titles[0]).filter((x): x is DiscoverTitle => !!x)[0] ?? null;
   const heroKey = hero ? titleKey(hero) : "";
   const heroChanges = useTitleChanges(heroKey);
   const kept = entry.state.hero as DiscoverDetail | undefined;
@@ -298,9 +300,9 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
     if (toHero) backToHero();
   }, [toHero]);
 
-  if (blocked) return <RequestsMessage problem={blocked} title="Couldn't load Discover" onRetry={trending.again} />;
+  if (blocked) return <RequestsMessage problem={blocked} title={t("requests.discover.loadFailed")} onRetry={trending.again} />;
   if (!hero) {
-    if (rows.every((r) => pagesSettled(r.pages))) return <Message icon="compass" title="Nothing here right now" body="TMDB's lists have nothing this profile can ask for. Search for a title instead." />;
+    if (rows.every((r) => pagesSettled(r.pages))) return <Message icon="compass" title={t("requests.discover.nothing")} body={t("requests.discover.nothingText")} />;
     return <DiscoverSkeleton />;
   }
 
@@ -347,25 +349,25 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
             title={r.title}
             kind="poster"
             items={r.titles}
-            keyOf={(t) => titleKey(t)}
+            keyOf={(x) => titleKey(x)}
             enterAt={rowIndex[r.list]}
             onLeftEdge={ui.toRail}
             onFocusIndex={(i) => {
               rowIndex[r.list] = i;
-              const t = r.titles[i];
-              inRow(r.list, onFocus, t ? { title: t } : null);
+              const x = r.titles[i];
+              inRow(r.list, onFocus, x ? { title: x } : null);
             }}
-            tile={(t, _i, place) => (
+            tile={(x, _i, place) => (
               <TitleTile
-                name={t.title}
-                subtitle={titleSubtitle(t, r.mixed)}
-                poster={t.poster_url}
-                badge={titleBadge(t)}
-                tone={titleTone(t)}
-                fid={`${r.list}/${titleKey(t)}`}
+                name={x.title}
+                subtitle={titleSubtitle(x, r.mixed)}
+                poster={x.poster_url}
+                badge={titleBadge(x)}
+                tone={titleTone(x)}
+                fid={`${r.list}/${titleKey(x)}`}
                 priority={place.priority}
                 onFocus={place.onFocus}
-                onSelect={() => ui.nav.open(titlePage(t))}
+                onSelect={() => ui.nav.open(titlePage(x))}
               />
             )}
             seeAll={(place) => <SeeAllTile kind="poster" fid={`${r.list}/all`} onFocus={place.onFocus} onSelect={() => ui.nav.open({ name: "discoverList", list: r.list })} />}
@@ -382,7 +384,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
       anchor: ROWS_ANCHOR,
       render: (onFocus) => (
         <Row
-          title="Your requests"
+          title={t("requests.names.yourRequests")}
           kind="landscape"
           items={mineList}
           keyOf={(r) => r.id}
@@ -415,7 +417,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
       ),
     });
   }
-  sections.push({ key: "credit", height: 18, anchor: null, render: () => <div class="discover-credit t-caption c-subtle">{TMDB_CREDIT}</div> });
+  sections.push({ key: "credit", height: 18, anchor: null, render: () => <div class="discover-credit t-caption c-subtle">{t("requests.tmdb.credit")}</div> });
 
   return (
     <div class="discover-rows">
@@ -431,11 +433,11 @@ function DiscoverFocus(p: { hero: DiscoverTitle; inRows: boolean; focused: Signa
   const app = useApp();
   const rested = useRested(p.focused.value);
   const shown = p.inRows ? rested : null;
-  const t = shown && "title" in shown ? shown.title : null;
+  const title = shown && "title" in shown ? shown.title : null;
   const r = shown && "request" in shown ? shown.request : null;
   const stage = r ? stageOf(app, r) : null;
-  const picture = t ? t.backdrop_url : r ? r.backdrop_url : p.hero.backdrop_url;
-  const name = t ? t.title : r ? r.title : p.hero.title;
+  const picture = title ? title.backdrop_url : r ? r.backdrop_url : p.hero.backdrop_url;
+  const name = title ? title.title : r ? r.title : p.hero.title;
   return (
     <>
       <Backdrop candidates={picture ? [picture] : []} title={name} scrim={p.inRows ? "rows" : "hero"} />
@@ -443,14 +445,14 @@ function DiscoverFocus(p: { hero: DiscoverTitle; inRows: boolean; focused: Signa
         <div class="info-title">
           <div class="t-page c-fg one-line">{name}</div>
         </div>
-        {t && (
+        {title && (
           <>
             <div style="margin-top:10px">
-              <TitleMeta title={t} detail={null} />
+              <TitleMeta title={title} detail={null} />
             </div>
-            {t.overview && (
+            {title.overview && (
               <div class="t-body lines-2 info-summary" style="margin-top:8px">
-                {t.overview}
+                {title.overview}
               </div>
             )}
           </>
@@ -478,21 +480,23 @@ function DiscoverFocus(p: { hero: DiscoverTitle; inRows: boolean; focused: Signa
 
 /** A title's facts in a line: year and length (or seasons), Movie or Show, the certification, TMDB's rating with a star. */
 export function TitleMeta(p: { title: DiscoverTitle; detail: DiscoverDetail | null; maxWidth?: number }) {
-  const t = p.detail ?? p.title;
-  const facts = p.detail ? titleFacts(p.detail) : t.year ? String(t.year) : "";
-  const words = [facts, t.kind === "show" ? "Show" : "Movie"].filter(Boolean).join(" · ");
+  const title = p.detail ?? p.title;
+  const facts = p.detail ? titleFacts(p.detail) : title.year ? String(title.year) : "";
+  const words = [facts, kindWord(title.kind)].filter(Boolean).join(" · ");
   const cert = p.detail?.certification ?? null;
+  // "7.5", "7,5": one decimal, as the language writes it.
+  const rating = title.rating !== null && title.rating > 0 ? formatNumber(title.rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
   return (
     <div class="meta-line" style={`max-width:${p.maxWidth ?? 464}px`}>
       <span class="t-label c-muted one-line">{words}</span>
       {cert && <span class="t-label c-subtle">·</span>}
       {cert && <PageBadge text={cert} />}
-      {t.rating !== null && t.rating > 0 && <span class="t-label c-subtle">·</span>}
-      {t.rating !== null && t.rating > 0 && (
-        <span class="meta-rating" aria-label={`Rated ${t.rating.toFixed(1)} on TMDB`}>
+      {rating && <span class="t-label c-subtle">·</span>}
+      {rating && (
+        <span class="meta-rating" aria-label={t("requests.discover.rated", { rating })}>
           <Icon name="star" size={14} color="var(--accent)" />
           <span class="t-label c-fg" style="margin-left:4px">
-            {t.rating.toFixed(1)}
+            {rating}
           </span>
         </span>
       )}
@@ -502,7 +506,7 @@ export function TitleMeta(p: { title: DiscoverTitle; detail: DiscoverDetail | nu
 
 function DiscoverHero(p: { title: DiscoverTitle; detail: DiscoverDetail | null; hidden: boolean; onFocus: () => void }) {
   const ui = useUi();
-  const t = p.detail ?? p.title;
+  const title = p.detail ?? p.title;
   const box = useRef<HTMLDivElement>(null);
   // The pointer moving back up into the hero's place, hidden while it was on the rows, brings it back.
   const pointedAt = () => {
@@ -510,18 +514,18 @@ function DiscoverHero(p: { title: DiscoverTitle; detail: DiscoverDetail | null; 
     const el = (group && ui.focus.rememberedIn(group)) ?? box.current?.querySelector<HTMLElement>("[data-f]:not([data-fdisabled])") ?? null;
     if (el && ui.input.pointerMoved && ui.focus.inScope(el)) ui.focus.focus(el, true);
   };
-  const open = (pick: boolean) => ui.nav.open({ name: "title", kind: t.kind, tmdbId: t.tmdb_id, pick: pick || undefined });
+  const open = (pick: boolean) => ui.nav.open({ name: "title", kind: title.kind, tmdbId: title.tmdb_id, pick: pick || undefined });
   return (
     <>
       {p.hidden && <div class="hero-zone" onMouseMove={pointedAt} />}
       <div ref={box} class={`discover-hero${p.hidden ? " hidden" : ""}`}>
         <div class="hero-title">
-          <div class="t-hero c-fg lines-2">{t.title}</div>
+          <div class="t-hero c-fg lines-2">{title.title}</div>
         </div>
         <div style="margin-top:8px">
           <TitleMeta title={p.title} detail={p.detail} />
         </div>
-        {t.overview && <div class="t-body-large one-line hero-summary">{t.overview}</div>}
+        {title.overview && <div class="t-body-large one-line hero-summary">{title.overview}</div>}
         <div class="hero-buttons">
           <TitleActions
             detail={p.detail}
@@ -531,7 +535,9 @@ function DiscoverHero(p: { title: DiscoverTitle; detail: DiscoverDetail | null; 
             compact
             onFocus={p.onFocus}
             onPick={() => open(true)}
-            extra={(initial) => <Round key="details" label="Details" icon="info" fid="hero/details" initial={initial} onFocus={p.onFocus} onSelect={() => open(false)} />}
+            extra={(initial) => (
+              <Round key="details" label={t("requests.buttons.details")} icon="info" fid="hero/details" initial={initial} onFocus={p.onFocus} onSelect={() => open(false)} />
+            )}
           />
         </div>
       </div>
@@ -543,7 +549,7 @@ function DiscoverHero(p: { title: DiscoverTitle; detail: DiscoverDetail | null; 
 export function RowSkeleton(p: { title: string }) {
   const spec = TILES.poster;
   return (
-    <div class="row" aria-label={`Loading ${p.title}`} role="status">
+    <div class="row" aria-label={t("requests.discover.loadingRow", { title: p.title })} role="status">
       <div class="row-header t-section one-line">{p.title}</div>
       <div style="display:flex;margin:14px 0 0 96px">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
@@ -558,8 +564,8 @@ export function RowSkeleton(p: { title: string }) {
 function DiscoverSkeleton() {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setSlow(true), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSlow(true), 300);
+    return () => clearTimeout(timer);
   }, []);
   if (!slow) return null;
   const block = (x: number, y: number, w: number, h: number, r = 2) => (
@@ -567,7 +573,7 @@ function DiscoverSkeleton() {
   );
   const spec = TILES.poster;
   return (
-    <div class="discover-rows" aria-label="Loading Discover" role="status">
+    <div class="discover-rows" aria-label={t("requests.discover.loading")} role="status">
       {block(96, 131, 300, 38)}
       {block(96, 180, 200, 18)}
       {block(96, 212, 440, 15)}
@@ -583,7 +589,7 @@ function DiscoverSkeleton() {
 function GridSkeleton(p: { top: number }) {
   const spec = TILES.poster;
   return (
-    <div aria-label="Loading" role="status">
+    <div aria-label={t("common.states.loading")} role="status">
       {[0, 1].map((r) =>
         [0, 1, 2, 3, 4, 5].map((c) => (
           <div
@@ -609,7 +615,7 @@ function GridNote(p: { title: string; body: string | null; onRetry?: () => void 
       )}
       {p.onRetry && (
         <G kind="row" style="margin-top:20px">
-          <Pill label="Retry" icon="refresh-cw" fid="retry" onSelect={p.onRetry} />
+          <Pill label={t("common.actions.retry")} icon="refresh-cw" fid="retry" onSelect={p.onRetry} />
         </G>
       )}
     </div>
@@ -644,7 +650,7 @@ function TitleGrid(p: {
   const ui = useUi();
   const marked = useMarks();
   const cols = gridColumns("poster");
-  const titles = p.pages.titles.map((t) => marked(t, p.pages.at));
+  const titles = p.pages.titles.map((x) => marked(x, p.pages.at));
   const coming = !pagesSettled(p.pages);
   const failed = !!p.pages.error;
   const endTile = p.pages.stopped || failed;
@@ -663,13 +669,13 @@ function TitleGrid(p: {
         if (i >= titles.length - 2 * cols) p.more(titles.length + 3 * cols);
       }}
       cell={(i, place) => {
-        const t = titles[i];
-        if (!t && endTile) {
+        const x = titles[i];
+        if (!x && endTile) {
           return (
             <SeeAllTile
               kind="poster"
               icon={failed ? "refresh-cw" : "plus"}
-              label={failed ? "Retry" : "Show more"}
+              label={failed ? t("common.actions.retry") : t("common.actions.showMore")}
               fid={`${p.fidPrefix}/more`}
               initial={p.initial && i === 0}
               onFocus={place.onFocus}
@@ -678,19 +684,19 @@ function TitleGrid(p: {
           );
         }
         // The first well holds focus that was on Show more or Retry until the titles come.
-        if (!t) return i === titles.length ? <SkeletonTile kind="poster" fid={`${p.fidPrefix}/more`} focusable onFocus={place.onFocus} /> : <SkeletonTile kind="poster" />;
+        if (!x) return i === titles.length ? <SkeletonTile kind="poster" fid={`${p.fidPrefix}/more`} focusable onFocus={place.onFocus} /> : <SkeletonTile kind="poster" />;
         return (
           <TitleTile
-            name={t.title}
-            subtitle={titleSubtitle(t, true)}
-            poster={t.poster_url}
-            badge={titleBadge(t)}
-            tone={titleTone(t)}
-            fid={`${p.fidPrefix}/${titleKey(t)}`}
+            name={x.title}
+            subtitle={titleSubtitle(x, true)}
+            poster={x.poster_url}
+            badge={titleBadge(x)}
+            tone={titleTone(x)}
+            fid={`${p.fidPrefix}/${titleKey(x)}`}
             initial={p.initial && i === 0}
             priority={place.priority}
             onFocus={place.onFocus}
-            onSelect={() => ui.nav.open(titlePage(t))}
+            onSelect={() => ui.nav.open(titlePage(x))}
           />
         );
       }}
@@ -710,7 +716,7 @@ function gridGoesOn(p: Pages): boolean {
 /** Beside a grid's lone Show more or Retry: why it has no titles yet. */
 function GridAside(p: { pages: Pages; nothing: string; failed: string }) {
   if (p.pages.titles.length || !(p.pages.stopped || p.pages.error)) return null;
-  const why = p.pages.error ? gridProblem(p.pages.error, p.failed) : { title: p.nothing, body: "TMDB's pages read so far have nothing this profile can ask for." };
+  const why = p.pages.error ? gridProblem(p.pages.error, p.failed) : { title: p.nothing, body: t("requests.discover.nothingSoFar") };
   return (
     <div class="discover-aside" role="status">
       <div class="t-title c-fg">{why.title}</div>
@@ -730,13 +736,13 @@ export function DiscoverListScreen(p: { entry: Entry; list: DiscoverList }) {
   return (
     <TitlesPage
       entry={p.entry}
-      title={row.title}
+      title={discoverRowTitle(row.list)}
       pagesKey={`list:${p.list}`}
       fetch={(n, c) => ui.api.discover(p.list, n, c)}
       fidPrefix={p.list}
-      failed="Couldn't load it"
-      none={{ title: "Nothing here right now", body: "TMDB's list has nothing this profile can ask for." }}
-      noneYet="Nothing here yet"
+      failed={t("requests.discover.couldNotLoad")}
+      none={{ title: t("requests.discover.nothing"), body: t("requests.discover.nothingInList") }}
+      noneYet={t("requests.discover.nothingYet")}
     />
   );
 }
@@ -748,13 +754,13 @@ export function DiscoverSearchScreen(p: { entry: Entry; query: string }) {
   return (
     <TitlesPage
       entry={p.entry}
-      title={`Results for “${words}”`}
+      title={t("requests.discover.resultsFor", { query: words })}
       pagesKey={`q:${words}`}
       fetch={(n, c) => ui.api.discoverSearch(words, n, false, c)}
       fidPrefix="result"
-      failed="Couldn't search TMDB"
-      none={{ title: `Nothing on TMDB for “${words}”`, body: "Try another spelling, or the title in its own language." }}
-      noneYet={`Nothing yet for “${words}”`}
+      failed={t("requests.discover.searchFailed")}
+      none={{ title: t("requests.discover.nothingFound", { query: words }), body: t("requests.discover.nothingFoundHint") }}
+      noneYet={t("requests.discover.nothingYetFor", { query: words })}
     />
   );
 }

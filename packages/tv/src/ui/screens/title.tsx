@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { unreachable } from "../../api/client";
 import type { DiscoverDetail, DiscoverSeason, RequestSummary, TitleKind } from "../../api/types";
-import { pluralize } from "../../format/format";
+import { t } from "../../i18n";
 import {
   allowanceLines,
   askable,
@@ -15,9 +15,9 @@ import {
   requestsProblem,
   requestsTitle,
   seasonLine,
+  seasonName,
   seasonStage,
   titleKey,
-  TMDB_CREDIT,
   type Tone,
 } from "../../requests";
 import { useUi } from "../context";
@@ -51,10 +51,11 @@ export function canPick(d: DiscoverDetail, s: RequestSummary | null): boolean {
 
 /** A season's badge on its poster: what the season is for this profile, none where it's still to ask for. */
 export function seasonBadge(s: DiscoverSeason): { text: string; tone: Tone } | null {
-  if (s.state === "library") return { text: "In library", tone: "green" };
-  if (s.state === "partial") return { text: "Partly in library", tone: "green" };
-  if (s.state === "requested") return { text: "Requested", tone: "blue" };
-  if (s.declined) return { text: "Declined", tone: "red" };
+  // A poster's badge has room for a title's short words.
+  if (s.state === "library") return { text: t("requests.badge.library"), tone: "green" };
+  if (s.state === "partial") return { text: t("requests.badge.partial"), tone: "green" };
+  if (s.state === "requested") return { text: t("requests.season.requested"), tone: "blue" };
+  if (s.declined) return { text: t("requests.season.declined"), tone: "red" };
   return null;
 }
 
@@ -86,8 +87,10 @@ export function TitleScreen(p: { entry: Entry; kind: TitleKind; tmdbId: number; 
   if (!d) {
     if (loaded.error) {
       const why = requestsProblem(loaded.error);
-      if (why.kind === "missing") return <Message title="Not on TMDB" body="TMDB doesn't know this title, or it can't be shown here." action={{ label: "Back", onSelect: () => ui.nav.pop() }} />;
-      return <RequestsMessage problem={why} title="Couldn't load this title" onRetry={loaded.reload} />;
+      if (why.kind === "missing") {
+        return <Message title={t("requests.title.notOnTmdb")} body={t("requests.title.notOnTmdbText")} action={{ label: t("common.actions.back"), onSelect: () => ui.nav.pop() }} />;
+      }
+      return <RequestsMessage problem={why} title={t("requests.title.loadFailed")} onRetry={loaded.reload} />;
     }
     return <TitleSkeleton />;
   }
@@ -97,7 +100,7 @@ export function TitleScreen(p: { entry: Entry; kind: TitleKind; tmdbId: number; 
 function TitleSkeleton() {
   const b = (y: number, w: number, h: number, r = 2) => <div class="skeleton" style={`position:absolute;left:96px;top:${y}px;width:${w}px;height:${h}px;border-radius:${r}px`} />;
   return (
-    <div class="item-page" role="status" aria-label="Loading">
+    <div class="item-page" role="status" aria-label={t("common.states.loading")}>
       {b(82, 320, 40)}
       {b(136, 220, 18)}
       {b(166, 160, 14)}
@@ -187,7 +190,9 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
             {initial && hasRequests(s) && (
               <Round key="requests" label={requestsTitle(s)} icon="inbox" fid="requests" initial onFocus={() => toSection("hero", onFocus)} onSelect={() => ui.nav.open({ name: "requests" })} />
             )}
-            {cut && <Round key="overview" label="Overview" icon="ellipsis" fid="overview" onFocus={() => toSection("hero", onFocus)} onSelect={() => setOverview(true)} />}
+            {cut && (
+              <Round key="overview" label={t("requests.buttons.overview")} icon="ellipsis" fid="overview" onFocus={() => toSection("hero", onFocus)} onSelect={() => setOverview(true)} />
+            )}
           </>
         )}
       />,
@@ -203,7 +208,7 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
       anchor: ROWS_LINE,
       render: (onFocus) => (
         <Row
-          title="Seasons"
+          title={t("requests.title.seasons")}
           kind="poster"
           items={seasons}
           keyOf={(x) => x.number}
@@ -220,7 +225,7 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
             const caption = seasonCaption(x, stage);
             return (
               <SeasonTile
-                name={x.name || (x.number === 0 ? "Specials" : `Season ${x.number}`)}
+                name={x.name || seasonName(x.number)}
                 line={caption.text}
                 lineTone={caption.tone}
                 progress={stage ? stage.progress : null}
@@ -247,7 +252,7 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
       anchor: ROWS_LINE,
       render: (onFocus) => (
         <Row
-          title="Cast"
+          title={t("requests.title.cast")}
           kind="person"
           items={d.cast}
           keyOf={(c, i) => `${i}.${c.name}`}
@@ -272,7 +277,7 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
       ),
     });
   }
-  sections.push({ key: "credit", height: 18, anchor: null, render: () => <div class="discover-credit t-caption c-subtle">{TMDB_CREDIT}</div> });
+  sections.push({ key: "credit", height: 18, anchor: null, render: () => <div class="discover-credit t-caption c-subtle">{t("requests.tmdb.credit")}</div> });
 
   const showInfo = section !== "hero";
   return (
@@ -361,7 +366,7 @@ function TitleHero(p: {
 function seasonCaption(s: DiscoverSeason, stage: { text: string; tone: Tone } | null): { text: string; tone: Tone | null } {
   if (stage) return { text: stage.text, tone: stage.tone };
   if (s.state === "unaired") return { text: seasonLine(s), tone: null };
-  return { text: s.episodes ? pluralize(s.episodes, "episode") : seasonLine(s), tone: null };
+  return { text: s.episodes ? t("requests.counts.episodes", { count: s.episodes }) : seasonLine(s), tone: null };
 }
 
 /** A season's stage may take a second line under its name ("Waiting for / approval"). */
@@ -449,7 +454,7 @@ export function SeasonPicker(p: { detail: DiscoverDetail; start: number | null; 
   const over = left !== null && ticked.length > left;
   const firstAskable = list.filter((x) => askable(x, d))[0]?.number ?? null;
   const focusAt = p.start ?? firstAskable;
-  const toggle = (n: number) => setTicked((t) => (t.indexOf(n) >= 0 ? t.filter((x) => x !== n) : t.concat([n])));
+  const toggle = (n: number) => setTicked((was) => (was.indexOf(n) >= 0 ? was.filter((x) => x !== n) : was.concat([n])));
   const submit = () => {
     if (busy || !ticked.length || over) return;
     setBusy(true);
@@ -470,8 +475,8 @@ export function SeasonPicker(p: { detail: DiscoverDetail; start: number | null; 
       })
     : null;
   return (
-    <SidePanel onClose={p.onClose} label="Which seasons?">
-      <PanelTitle>Which seasons?</PanelTitle>
+    <SidePanel onClose={p.onClose} label={t("requests.picker.title")}>
+      <PanelTitle>{t("requests.picker.title")}</PanelTitle>
       <div class="picker-for t-caption c-muted one-line">{d.title}</div>
       {list.map((x) => {
         const can = askable(x, d);
@@ -480,7 +485,7 @@ export function SeasonPicker(p: { detail: DiscoverDetail; start: number | null; 
           <PanelRow
             key={x.number}
             fid={`pick/${x.number}`}
-            label={x.name || (x.number === 0 ? "Specials" : `Season ${x.number}`)}
+            label={x.name || seasonName(x.number)}
             sub={seasonLine(x)}
             disabled={!can}
             initial={x.number === focusAt}

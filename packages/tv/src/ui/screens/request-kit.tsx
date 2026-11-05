@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { DiscoverDetail, DiscoverTitle, ItemKind, ItemRequest, MediaRequest, NewRequest } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
+import { t } from "../../i18n";
 import {
   actionDone,
   allowanceLines,
@@ -11,7 +12,6 @@ import {
   mainAction,
   mayAsk,
   moving,
-  NO_ACCESS,
   problemWords,
   requestsProblem,
   requestsTitle,
@@ -316,7 +316,7 @@ export function TitleActions(p: {
   const ui = useUi();
   const s = app.requests.value;
   const d = p.detail;
-  const t = d ?? p.title;
+  const title = d ?? p.title;
   const action: MainAction = d ? mainAction(d, s) : listAction(p.title, s);
   const busy = useRef(false);
   const [signIn, setSignIn] = useState(false);
@@ -363,7 +363,7 @@ export function TitleActions(p: {
       seasons_next_at: left?.seasons_next_at ?? null,
       movies_limit: s?.movies_limit ?? null,
       seasons_limit: s?.seasons_limit ?? null,
-      kind: t.kind,
+      kind: title.kind,
     });
     for (const line of lines ?? []) notes.push({ text: line });
   };
@@ -375,14 +375,14 @@ export function TitleActions(p: {
 
   switch (action.kind) {
     case "signIn":
-      main("Sign in", "user-round", () => setSignIn(true));
+      main(t("requests.buttons.signIn"), "user-round", () => setSignIn(true));
       break;
     case "restricted":
       notes.push({ icon: "lock", text: action.text });
       break;
     case "open": {
       const id = action.itemId;
-      main("Open", "play", id !== null ? () => ui.nav.open({ name: "item", id }) : undefined, id === null);
+      main(t("requests.buttons.open"), "play", id !== null ? () => ui.nav.open({ name: "item", id }) : undefined, id === null);
       break;
     }
     case "declined":
@@ -390,16 +390,16 @@ export function TitleActions(p: {
       break;
     case "requested":
       // Inert: it says where things are; the stage beside it says how far.
-      main("Requested", "check", () => undefined);
+      main(t("requests.buttons.requested"), "check", () => undefined);
       break;
     case "following": {
-      main("Following", "bell", () => undefined);
+      main(t("requests.buttons.following"), "bell", () => undefined);
       const r = action.request;
       if (r && r.actions.indexOf("unwatch") >= 0) {
         after.push(
           <Round
             key="unwatch"
-            label="Stop following"
+            label={t("requests.buttons.stopFollowing")}
             icon="bell-off"
             fid={p.fid("unwatch")}
             onFocus={focus}
@@ -414,28 +414,39 @@ export function TitleActions(p: {
       break;
     }
     case "tellMeToo":
-      main("Tell me too", "bell", () => ask({ kind: t.kind, tmdb_id: t.tmdb_id, seasons: action.seasons && action.seasons.length ? action.seasons : undefined }));
-      notes.push({ text: "Someone asked for it already." });
+      main(t("requests.buttons.tellMeToo"), "bell", () =>
+        ask({ kind: title.kind, tmdb_id: title.tmdb_id, seasons: action.seasons && action.seasons.length ? action.seasons : undefined }),
+      );
+      notes.push({ text: t("requests.askedAlready") });
       break;
     case "more": {
       const id = action.itemId;
-      if (id !== null) main("Open", "play", () => ui.nav.open({ name: "item", id }));
+      if (id !== null) main(t("requests.buttons.open"), "play", () => ui.nav.open({ name: "item", id }));
       if (action.more && action.ask) {
         const initial = !!p.initial && id === null && !action.disabled;
         claimed = claimed || initial;
         buttons.push(
-          <Pill key="more" label="Request more seasons" icon="plus" fid={p.fid("more")} initial={initial} disabled={action.disabled} onFocus={focus} onSelect={p.onPick} />,
+          <Pill
+            key="more"
+            label={t("requests.buttons.requestMoreSeasons")}
+            icon="plus"
+            fid={p.fid("more")}
+            initial={initial}
+            disabled={action.disabled}
+            onFocus={focus}
+            onSelect={p.onPick}
+          />,
         );
         if (action.disabled) allowance();
-      } else if (!action.ask) notes.push({ text: NO_ACCESS });
+      } else if (!action.ask) notes.push({ text: t("requests.notOpen") });
       break;
     }
     case "request":
-      main("Request", "plus", () => (t.kind === "movie" ? ask({ kind: "movie", tmdb_id: t.tmdb_id }) : p.onPick()), action.disabled);
+      main(t("requests.buttons.request"), "plus", () => (title.kind === "movie" ? ask({ kind: "movie", tmdb_id: title.tmdb_id }) : p.onPick()), action.disabled);
       if (action.disabled) allowance();
       break;
     case "noAccess":
-      notes.push({ text: NO_ACCESS });
+      notes.push({ text: t("requests.notOpen") });
       break;
   }
 
@@ -484,13 +495,13 @@ export function SignInAgainDialog(p: { onClose: () => void }) {
   const server = app.server.value;
   return (
     <Dialog
-      title="Sign in again?"
-      body={`This TV signs out of ${server ? displayAddress(server) : "the server"} and shows a code to link it again.`}
+      title={t("requests.signInAgain.title")}
+      body={server ? t("requests.signInAgain.bodyServer", { server: displayAddress(server) }) : t("requests.signInAgain.body")}
       onDismiss={p.onClose}
       buttons={[
-        { label: "Cancel", onSelect: p.onClose },
+        { label: t("common.actions.cancel"), onSelect: p.onClose },
         {
-          label: "Sign in",
+          label: t("requests.buttons.signIn"),
           initial: true,
           onSelect: () => {
             p.onClose();
@@ -525,10 +536,10 @@ export function RequestsMessage(p: { problem: RequestsProblem; title: string; on
   let action: { label: string; icon?: IconName; onSelect: () => void } | undefined;
   if (!words) {
     const e = p.problem.kind === "other" ? p.problem.error : null;
-    return <Message title={failedTitle(e, p.title)} body={problem(e)} action={{ label: "Retry", icon: "refresh-cw", onSelect: p.onRetry }} />;
+    return <Message title={failedTitle(e, p.title)} body={problem(e)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: p.onRetry }} />;
   }
-  if (words.retry) action = { label: "Retry", icon: "refresh-cw", onSelect: p.onRetry };
-  else if (p.problem.kind === "signIn") action = { label: "Sign in", icon: "user-round", onSelect: () => setSignIn(true) };
+  if (words.retry) action = { label: t("common.actions.retry"), icon: "refresh-cw", onSelect: p.onRetry };
+  else if (p.problem.kind === "signIn") action = { label: t("requests.buttons.signIn"), icon: "user-round", onSelect: () => setSignIn(true) };
   else if (p.problem.kind === "noAccess" && s && (s.own > 0 || s.manage)) action = { label: requestsTitle(s), icon: "inbox", onSelect: () => ui.nav.open({ name: "requests" }) };
   return (
     <>
