@@ -1,0 +1,20 @@
+{
+  "title": "Qui regarde ?",
+  "signInAnother": "Se connecter avec un autre profil",
+  "pin": {
+    "title": "Saisissez le code PIN du profil {{name}}",
+    "keysHint": "Vous pouvez aussi le saisir avec les touches numériques de votre télécommande.",
+    "otherProfile": "Utiliser un autre profil"
+  },
+  "errors": {
+    "wrongPin": "code PIN erroné",
+    "throttled": "trop de codes PIN erronés : réessayez dans quelques minutes",
+    "pinLocked": "le code PIN de ce profil est verrouillé après trop d’essais erronés. Son propriétaire ou un administrateur peut le réinitialiser",
+    "browser": "ce profil demande son mot de passe : reconnectez-vous pour l’utiliser",
+    "notAllowed": "vous ne pouvez pas passer à ce profil",
+    "unauthorizedClient": "cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser",
+    "refused": "le serveur a refusé : réessayez",
+    "locked": "ce profil ne peut pas être utilisé depuis l’application",
+    "unreachable": "impossible de joindre votre serveur : {{reason}}"
+  }
+}

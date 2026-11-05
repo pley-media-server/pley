@@ -3,5 +3,120 @@
     "label": "Language",
     "serverDefault": "Server default ({{language}})",
     "deviceLanguage": "this device's language, {{language}}"
+  },
+  "title": "Settings",
+  "categories": {
+    "profile": "Profile",
+    "playback": "Playback",
+    "audio": "Audio",
+    "display": "Subtitles and display",
+    "server": "Server",
+    "diagnostics": "Diagnostics",
+    "about": "About",
+    "signOut": "Sign out"
+  },
+  "profile": {
+    "roleManaged": "Managed profile",
+    "switchProfile": "Switch profile",
+    "audioLanguage": "Audio language",
+    "subtitles": "Subtitles",
+    "subtitleLanguage": "Subtitle language",
+    "fileDefault": "The file's default",
+    "sameAsAudio": "Same as the audio language",
+    "changeOnWeb": "change on the web",
+    "readOnly": "This server doesn't let the app change these: change them on the web",
+    "saved": "Saved",
+    "history": "Watch history",
+    "sortLibraries": "Sort libraries",
+    "sortLibrariesValue": "Your order, on all your devices",
+    "alwaysStartAs": "Always start as",
+    "askWho": "Ask who's watching",
+    "manageWeb": "Manage your account on the web",
+    "manageWebValue": "Name, picture, password, PIN, two-step, devices and apps"
+  },
+  "subtitleModes": {
+    "off": "Off",
+    "offHint": "Subtitles stay off until you turn them on.",
+    "forced": "Only for foreign dialogue",
+    "forcedHint": "Only forced subtitles, for signs and foreign dialogue.",
+    "foreign": "When the audio is in another language",
+    "foreignHint": "Full subtitles come on when the audio isn't in your subtitle language.",
+    "always": "Always",
+    "alwaysHint": "Subtitles in your language come on whenever there are some."
+  },
+  "web": {
+    "title": "Manage your account on the web",
+    "body": "Scan the code with your phone, or go to this address on a phone or computer on the same network:"
+  },
+  "signOut": {
+    "title": "Sign out?",
+    "body": "You'll be signed out of {{server}}.",
+    "intro": "Sign this TV out of {{server}}. You'll need a new link code to sign in again."
+  },
+  "playback": {
+    "quality": "Quality",
+    "original": "Original",
+    "originalHint": "Full quality. May buffer on a slow connection.",
+    "automatic": "Automatic",
+    "automaticHint": "Dynamically adjust to conditions.",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "autoplay": "Play the next episode by itself",
+    "autoplayHint": "After a 10 second countdown",
+    "details": "Playback details",
+    "detailsHint": "Show how a video plays (direct, remux or transcode) over it"
+  },
+  "audio": {
+    "intro": "Send surround sound to your TV or receiver, or decode it here.",
+    "dtsHd": "DTS-HD and DTS:X",
+    "auto": "Auto",
+    "autoHint": "As the TV or receiver says it plays",
+    "on": "On",
+    "onHint": "Always pass it through",
+    "off": "Off",
+    "offHint": "Never: Pley converts it"
+  },
+  "display": {
+    "subtitleSize": "Subtitle size",
+    "subtitleBackground": "Subtitle background",
+    "subtitleFont": "Subtitle font",
+    "subtitlePosition": "Subtitle position",
+    "reduceMotion": "Reduce motion",
+    "reduceMotionHint": "No zooming, sliding or fading: things change in place",
+    "sizes": {
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large",
+      "huge": "Huge"
+    },
+    "backgrounds": {
+      "none": "None",
+      "darkBox": "Dark box"
+    },
+    "fonts": {
+      "sans": "Sans serif",
+      "serif": "Serif",
+      "monospace": "Monospace",
+      "casual": "Casual"
+    },
+    "positions": {
+      "bottom": "Bottom",
+      "raised": "Raised",
+      "higher": "Higher",
+      "highest": "Highest"
+    }
+  },
+  "server": {
+    "value": "The server this TV uses",
+    "unknown": "No server",
+    "switch": "Switch server"
+  },
+  "diagnostics": {
+    "open": "Open diagnostics",
+    "openValue": "What this TV decodes and shows, and why"
+  },
+  "about": {
+    "version": "Version",
+    "licences": "Open-source licences",
+    "credits": "Credits"
   }
 }

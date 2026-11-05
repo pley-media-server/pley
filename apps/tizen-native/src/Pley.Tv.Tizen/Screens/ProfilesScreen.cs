@@ -42,7 +42,7 @@ sealed class ProfilesScreen : Sheet
         this.images = images;
         this.approve = approve;
         View.BackgroundColor = PleyColors.Bg;
-        var title = Text.Label("Who's watching?", PleyType.PageTitle, PleyColors.Fg, width: PleyTv.CanvasWidth);
+        var title = Text.Label(Strings.T("profiles.title"), PleyType.PageTitle, PleyColors.Fg, width: PleyTv.CanvasWidth);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         title.PositionY = Ui.Dp(110);
         picker.Add(title);
@@ -196,10 +196,10 @@ sealed class ProfilesScreen : Sheet
             y += PleyType.Body.Line * 2 + 12;
         }
         ButtonView? first = null;
-        if (retry) first = belowButtons.Add(new ButtonView("Retry", ButtonKind.Pill, () => _ = model.Reload(), iconName: "refresh-cw"));
+        if (retry) first = belowButtons.Add(new ButtonView(Strings.T("common.actions.retry"), ButtonKind.Pill, () => _ = model.Reload(), iconName: "refresh-cw"));
         if (!state.CanSwitch)
         {
-            var another = belowButtons.Add(new ButtonView("Sign in as another profile", ButtonKind.Text, model.SignInAgain));
+            var another = belowButtons.Add(new ButtonView(Strings.T("profiles.signInAnother"), ButtonKind.Text, model.SignInAgain));
             if (state.Profiles.Count == 0) first ??= another;
         }
         if (belowButtons.WidthDp > 0)
@@ -318,7 +318,7 @@ sealed class PinPad : View
         var center = PleyTv.CanvasWidth / 2;
         var avatar = new AvatarView(profile.Name, profile.Color, profile.AvatarUrl, 56, images) { Position = new Position(Ui.Dp(center - 28), Ui.Dp(30)) };
         Add(avatar);
-        var title = Text.Label($"Enter {profile.Name}'s PIN", PleyType.Title, PleyColors.Fg, width: 600);
+        var title = Text.Label(Strings.T("profiles.pin.title", ("name", profile.Name)), PleyType.Title, PleyColors.Fg, width: 600);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         title.Position = new Position(Ui.Dp(center - 300), Ui.Dp(30 + 56 + 14));
         Add(title);
@@ -333,13 +333,13 @@ sealed class PinPad : View
         keypad.Position = new Position(Ui.Dp(center) - keypad.SizeWidth / 2, error.PositionY + Ui.Dp(22));
         Add(keypad);
         var underY = keypad.PositionY + keypad.SizeHeight + Ui.Dp(16);
-        hint = Text.Label("You can also type with the number keys on your remote.", PleyType.Caption, PleyColors.Muted, width: 600);
+        hint = Text.Label(Strings.T("profiles.pin.keysHint"), PleyType.Caption, PleyColors.Muted, width: 600);
         hint.HorizontalAlignment = HorizontalAlignment.Center;
         hint.Position = new Position(Ui.Dp(center - 300), underY);
         Add(hint);
         Group = new FocusGroup(Axis.Column, "pin-pad");
         Group.Add(keypad.Group);
-        anotherButton = new ButtonView("Use another profile", ButtonKind.Text, model.BackToPick);
+        anotherButton = new ButtonView(Strings.T("profiles.pin.otherProfile"), ButtonKind.Text, model.BackToPick);
         anotherButton.Position = new Position(Ui.Dp(center - anotherButton.WidthDp / 2), underY);
         anotherButton.Hide();
         anotherButton.Item.Shown = false;

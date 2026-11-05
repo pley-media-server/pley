@@ -1,0 +1,34 @@
+{
+  "title": "Diagnostic",
+  "device": "Cette TV",
+  "app": "Application",
+  "plays": "Ce qu’elle lit",
+  "probing": "Vérification de ce que cette TV lit…",
+  "probeFailed": "La vérification de cette TV a échoué.",
+  "probeAgain": "Vérifier de nouveau",
+  "facts": {
+    "model": "Modèle",
+    "system": "Système",
+    "systemValue": "Tizen {{version}} (modèles {{year}})",
+    "panel": "Dalle",
+    "soundOutput": "Sortie audio",
+    "tier": "Niveau"
+  },
+  "tiers": {
+    "low": "bas",
+    "mid": "moyen",
+    "high": "haut"
+  },
+  "lines": {
+    "tv": "TV : {{model}}",
+    "panel": "Dalle : {{panel}}",
+    "hdr": "HDR : {{formats}} · aucune TV Samsung n’affiche le Dolby Vision",
+    "none": "aucun",
+    "video": "Vidéo : {{decoders}}",
+    "audioDecoded": "Audio décodé : {{formats}}",
+    "sent": "Envoyé à l’ampli : {{formats}}",
+    "sentWithOutput": "Envoyé à l’ampli : {{formats}} (sortie audio {{output}})",
+    "nothing": "rien",
+    "streams": "Flux : HLS {{segments}}"
+  }
+}

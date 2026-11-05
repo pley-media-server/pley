@@ -1,6 +1,8 @@
 {
   "actions": {
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "retry": "Réessayer"
   },
   "network": {
     "nothingAnswers": "rien ne répond à cette adresse",

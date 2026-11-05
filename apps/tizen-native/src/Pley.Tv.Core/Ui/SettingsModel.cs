@@ -541,12 +541,17 @@ public sealed class SettingsModel : IDisposable
     static int LanguageIndex(string? code)
     {
         if (code == null) return 0;
-        for (var i = 0; i < TrackLanguages.All.Count; i++)
-            if (TrackLanguages.All[i].Code == code) return i + 1;
+        var all = TrackLanguages.All;
+        for (var i = 0; i < all.Count; i++)
+            if (all[i].Code == code) return i + 1;
         return 0;
     }
 
-    static string? LanguageAt(int index) => index == 0 || index > TrackLanguages.All.Count ? null : TrackLanguages.All[index - 1].Code;
+    static string? LanguageAt(int index)
+    {
+        var all = TrackLanguages.All;
+        return index == 0 || index > all.Count ? null : all[index - 1].Code;
+    }
 
     static int Index<T>(IReadOnlyList<T> list, T value)
     {

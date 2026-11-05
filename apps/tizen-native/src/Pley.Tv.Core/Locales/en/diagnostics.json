@@ -1,0 +1,34 @@
+{
+  "title": "Diagnostics",
+  "device": "This TV",
+  "app": "App",
+  "plays": "What it plays",
+  "probing": "Checking what this TV plays…",
+  "probeFailed": "The check of this TV failed.",
+  "probeAgain": "Check again",
+  "facts": {
+    "model": "Model",
+    "system": "System",
+    "systemValue": "Tizen {{version}} ({{year}} models)",
+    "panel": "Panel",
+    "soundOutput": "Sound output",
+    "tier": "Tier"
+  },
+  "tiers": {
+    "low": "low",
+    "mid": "mid",
+    "high": "high"
+  },
+  "lines": {
+    "tv": "TV: {{model}}",
+    "panel": "Panel: {{panel}}",
+    "hdr": "HDR: {{formats}} · no Samsung TV shows Dolby Vision",
+    "none": "none",
+    "video": "Video: {{decoders}}",
+    "audioDecoded": "Audio decoded: {{formats}}",
+    "sent": "Sent to the receiver: {{formats}}",
+    "sentWithOutput": "Sent to the receiver: {{formats}} (sound output {{output}})",
+    "nothing": "nothing",
+    "streams": "Streams: HLS {{segments}}"
+  }
+}

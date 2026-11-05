@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Pley.Tv.Core;
 using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
@@ -103,7 +104,7 @@ sealed class RailView : View
         avatarInitial.HorizontalAlignment = HorizontalAlignment.Center;
         avatarCircle.Add(avatarInitial);
         avatar.Box.Add(avatarCircle);
-        avatar.SetSecondLine("Switch profile");
+        avatar.SetSecondLine(Strings.T("shell.rail.switchProfile"));
         Group.Add(avatar.Item);
         Add(avatar.Box);
         // As wide as the rail with its edge, so an open entry at 1.05 isn't cut. Clipped to its box:

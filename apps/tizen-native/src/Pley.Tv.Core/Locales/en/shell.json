@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "Search",
+    "home": "Home",
+    "liveTv": "Live TV",
+    "libraries": "Libraries",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "Now Playing",
+    "storage": "USB drive",
+    "settings": "Settings",
+    "switchProfile": "Switch profile"
+  },
+  "exit": {
+    "title": "Exit Pley?",
+    "exit": "Exit"
+  },
+  "comesNext": "{{page}} comes next in the native app.",
+  "pageComesNext": "That page comes next in the native app."
+}

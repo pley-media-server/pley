@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "Recherche",
+    "home": "Accueil",
+    "liveTv": "TV en direct",
+    "libraries": "Bibliothèques",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "En cours de lecture",
+    "storage": "Périphérique USB",
+    "settings": "Paramètres",
+    "switchProfile": "Changer de profil"
+  },
+  "exit": {
+    "title": "Quitter Pley ?",
+    "exit": "Quitter"
+  },
+  "comesNext": "{{page}} arrive bientôt dans l’application native.",
+  "pageComesNext": "Cette page arrive bientôt dans l’application native."
+}

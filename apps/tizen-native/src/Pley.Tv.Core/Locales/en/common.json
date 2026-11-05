@@ -1,6 +1,8 @@
 {
   "actions": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "close": "Close",
+    "retry": "Retry"
   },
   "network": {
     "nothingAnswers": "nothing answers there",

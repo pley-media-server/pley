@@ -250,9 +250,7 @@ public sealed class AppProfilesSource : IProfilesSource
 /// </summary>
 public sealed class ProfilesModel
 {
-    const string LockedText = "this profile can't be used from the app";
-    /// <summary>How a PIN locked after too many wrong tries is worded (<see cref="Message"/>).</summary>
-    const string PinLockedWords = "PIN is locked";
+    static string LockedText => Strings.T("profiles.errors.locked");
 
     readonly IProfilesSource source;
     readonly bool gate;
@@ -282,16 +280,16 @@ public sealed class ProfilesModel
     /// </summary>
     public static string Message(OAuthError? error) => error?.Reason switch
     {
-        "wrong_pin" => "wrong PIN",
-        "throttled" => error.Description ?? "too many wrong PINs: try again in a few minutes",
-        "pin_locked" => "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
-        "browser" => "this profile needs its password: sign in again to use it",
-        "not_allowed" => "you can't switch to this profile",
+        "wrong_pin" => Strings.T("profiles.errors.wrongPin"),
+        "throttled" => error.Description ?? Strings.T("profiles.errors.throttled"),
+        "pin_locked" => Strings.T("profiles.errors.pinLocked"),
+        "browser" => Strings.T("profiles.errors.browser"),
+        "not_allowed" => Strings.T("profiles.errors.notAllowed"),
         _ => error?.Error switch
         {
-            "unauthorized_client" => "this sign-in can't switch profiles: sign in again to allow it",
-            "invalid_request" => error.Description ?? "you can't switch to this profile",
-            _ => error?.Description ?? "the server refused: try again",
+            "unauthorized_client" => Strings.T("profiles.errors.unauthorizedClient"),
+            "invalid_request" => error.Description ?? Strings.T("profiles.errors.notAllowed"),
+            _ => error?.Description ?? Strings.T("profiles.errors.refused"),
         },
     };
 
@@ -485,8 +483,8 @@ public sealed class ProfilesModel
         }
         catch (TokenException e)
         {
-            var message = Message(e.OAuth);
-            Wrong(tile, message, lockedOut: message.Contains(PinLockedWords));
+            // Locked by the server's reason, as Refused has it: the words are the language shown's.
+            Wrong(tile, Message(e.OAuth), lockedOut: e.OAuth?.Reason == "pin_locked");
         }
         catch (Exception e) when (e is NetworkException or UnreachableException)
         {
@@ -534,7 +532,7 @@ public sealed class ProfilesModel
     void Unreachable(Exception e)
     {
         var cause = e is UnreachableException { InnerException: NetworkException n } ? n : e;
-        var message = Errors.AsSentence($"can't reach your server: {Errors.Describe(cause)}");
+        var message = Errors.AsSentence(Strings.T("profiles.errors.unreachable", ("reason", Errors.Describe(cause))));
         pin.Clear();
         Update(s => s.Step is ProfilesStep.Pin step
             ? s with { Step = step with { Digits = 0, Busy = false, Error = message } }

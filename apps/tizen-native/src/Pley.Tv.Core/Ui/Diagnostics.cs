@@ -16,16 +16,16 @@ public sealed record Fact(string Label, string Value);
 /// <param name="Error">The check failed: "The check of this TV failed.", and Check again.</param>
 public sealed record DiagnosticsState(IReadOnlyList<Fact> Device, IReadOnlyList<string> Lines, bool Probing, Exception? Error = null);
 
-/// <summary>What Diagnostics says (the Android app's tv_diagnostics strings).</summary>
+/// <summary>What Diagnostics says (the Android app's tv_diagnostics strings), in the language shown (Locales/*/diagnostics.json).</summary>
 public static class DiagnosticsText
 {
-    public const string Title = "Diagnostics";
-    public const string Device = "This TV";
-    public const string App = "App";
-    public const string Plays = "What it plays";
-    public const string Probing = "Checking what this TV plays…";
-    public const string ProbeFailed = "The check of this TV failed.";
-    public const string ProbeAgain = "Check again";
+    public static string Title => Strings.T("diagnostics.title");
+    public static string Device => Strings.T("diagnostics.device");
+    public static string App => Strings.T("diagnostics.app");
+    public static string Plays => Strings.T("diagnostics.plays");
+    public static string Probing => Strings.T("diagnostics.probing");
+    public static string ProbeFailed => Strings.T("diagnostics.probeFailed");
+    public static string ProbeAgain => Strings.T("diagnostics.probeAgain");
 
     /// <summary>"Pley 0.1.0".</summary>
     public static string AppValue(string version) => $"Pley {version}";
@@ -37,14 +37,27 @@ public static class DiagnosticsText
     /// </summary>
     public static IReadOnlyList<Fact> DeviceFacts(TizenFacts f) => new[]
     {
-        new Fact("Model", f.Model),
-        new Fact("System", $"Tizen {f.Tizen.ToString("0.0", CultureInfo.InvariantCulture)} ({f.Year} models)"),
-        new Fact("Panel", Panel(f)),
-        new Fact("Sound output", f.OutputMode ?? "—"),
-        new Fact("Tier", TizenCaps.Tier(f)),
+        new Fact(Strings.T("diagnostics.facts.model"), f.Model),
+        new Fact(Strings.T("diagnostics.facts.system"), SystemValue(f)),
+        new Fact(Strings.T("diagnostics.facts.panel"), Panel(f)),
+        new Fact(Strings.T("diagnostics.facts.soundOutput"), f.OutputMode ?? "—"),
+        new Fact(Strings.T("diagnostics.facts.tier"), Tier(TizenCaps.Tier(f))),
     };
 
     static string Panel(TizenFacts f) => f.Uhd8k ? "8K" : f.Uhd ? "4K" : "HD";
+
+    /// <summary>"Tizen 8.0 (2024 models)".</summary>
+    static string SystemValue(TizenFacts f) => Strings.T("diagnostics.facts.systemValue",
+        ("version", f.Tizen.ToString("0.0", CultureInfo.InvariantCulture)), ("year", f.Year.ToString(CultureInfo.InvariantCulture)));
+
+    /// <summary>The tier the TV is counted in ("low", "mid", "high"), in words.</summary>
+    static string Tier(string tier) => tier switch
+    {
+        "low" => Strings.T("diagnostics.tiers.low"),
+        "mid" => Strings.T("diagnostics.tiers.mid"),
+        "high" => Strings.T("diagnostics.tiers.high"),
+        _ => tier,
+    };
 
     /// <summary>
     /// What the TV told the server it plays, one line each (the web TV app's caps lines for the same
@@ -65,16 +78,19 @@ public static class DiagnosticsText
         var decode = (IEnumerable<string>)c["audio_decode"]!;
         var passthrough = ((IEnumerable<string>)c["audio_passthrough"]!).ToList();
         var segments = (IEnumerable<string>)((Dictionary<string, object?>)c["hls"]!)["segments"]!;
+        var sent = passthrough.Count > 0 ? string.Join(", ", passthrough) : Strings.T("diagnostics.lines.nothing");
         return new[]
         {
-            $"TV: {f.Model}",
-            $"Tizen {f.Tizen.ToString("0.0", CultureInfo.InvariantCulture)} ({f.Year} models)",
-            $"Panel: {Panel(f)}",
-            $"HDR: {(hdr.Count > 0 ? string.Join(", ", hdr) : "none")} · no Samsung TV shows Dolby Vision",
-            $"Video: {string.Join(", ", video)}",
-            $"Audio decoded: {string.Join(", ", decode)}",
-            $"Sent to the receiver: {(passthrough.Count > 0 ? string.Join(", ", passthrough) : "nothing")}{(f.OutputMode != null ? $" (sound output {f.OutputMode})" : "")}",
-            $"Streams: HLS {string.Join(", ", segments)}",
+            Strings.T("diagnostics.lines.tv", ("model", f.Model)),
+            SystemValue(f),
+            Strings.T("diagnostics.lines.panel", ("panel", Panel(f))),
+            Strings.T("diagnostics.lines.hdr", ("formats", hdr.Count > 0 ? string.Join(", ", hdr) : Strings.T("diagnostics.lines.none"))),
+            Strings.T("diagnostics.lines.video", ("decoders", string.Join(", ", video))),
+            Strings.T("diagnostics.lines.audioDecoded", ("formats", string.Join(", ", decode))),
+            f.OutputMode != null
+                ? Strings.T("diagnostics.lines.sentWithOutput", ("formats", sent), ("output", f.OutputMode))
+                : Strings.T("diagnostics.lines.sent", ("formats", sent)),
+            Strings.T("diagnostics.lines.streams", ("segments", string.Join(", ", segments))),
         };
     }
 }

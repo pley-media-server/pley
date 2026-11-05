@@ -331,7 +331,7 @@ class App : NUIApplication
             {
                 if (item.Slot == RailSlot.Home) tv!.Restart(Home(tv));
                 else if (tv!.PageOf?.Invoke(item.Key) is { } page) tv.Restart(page);
-                else tv.Toast($"{item.Label} comes next in the native app.");
+                else tv.Toast(Strings.T("shell.comesNext", ("page", item.Label)));
             },
             () => Go(new PageKey.Profiles()));
         tv.PageOf = key => key switch
@@ -565,7 +565,7 @@ class App : NUIApplication
     /// <summary>Opens a page from another: an item's, over the one it was opened from; one the app doesn't have yet says so.</summary>
     void Go(TvShell tv, PageKey key)
     {
-        if (!tv.Open(key)) tv.Toast("That page comes next in the native app.");
+        if (!tv.Open(key)) tv.Toast(Strings.T("shell.pageComesNext"));
     }
 
     /// <summary>A code for a phone to approve: a profile that needs its password, or (id 0) any profile.</summary>
