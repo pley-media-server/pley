@@ -40,15 +40,19 @@ import { receiverId, takesCasts } from "@/lib/castReceiver";
 import { isPlayingHere, useSessionsHere } from "@/lib/playingHere";
 import {
   ANSWER_WAIT_MS,
+  asSent,
   commandAnswered,
   estimatedPosition,
+  mayEndSession,
   newestOn,
   otherDevices,
+  remoteClock,
   remoteOpened,
   SKIP_BACK_MS,
   SKIP_FORWARD_MS,
   trackLabel,
   useRemoteAsk,
+  withEnded,
   type OtherDevice,
   type RemoteAsk,
   type RemoteSession,
@@ -62,17 +66,20 @@ import { IconButton, ProgressBar } from "./ui";
 /**
  * The user's other devices: those that take casts and those that play, this
  * tab's own sessions left out (a tab controls the user's other devices, not
- * itself). `known`: both lists have been asked for.
+ * itself). `ended`, a session a command ended (`mayEndSession`), is kept
+ * while its device plays nothing else. `known`: both lists have been asked
+ * for.
  */
-export function useOtherDevices(): { devices: OtherDevice[]; known: boolean } {
+export function useOtherDevices(ended: RemoteSession | null = null): { devices: OtherDevice[]; known: boolean } {
   const sessions = usePlayingSessions();
   const receivers = useRemoteDevices();
   const here = useSessionsHere();
   // The desktop app takes casts: its own receiver isn't another device either.
   const mine = takesCasts() ? receiverId() : null;
+  const playing = (sessions.data ?? []).filter((s) => !here.has(s.session_id));
   const devices = otherDevices(
     (receivers.data ?? []).filter((r) => r.receiver_id !== mine),
-    (sessions.data ?? []).filter((s) => !here.has(s.session_id)),
+    withEnded(playing, ended),
   );
   return { devices, known: !sessions.isPending && !receivers.isPending };
 }
@@ -106,12 +113,13 @@ function playingLine(device: OtherDevice): string {
 /**
  * A device as the remote lists it: its icon, its name, and what it plays,
  * with how far for a title, or "Ready to play". `lineId` names the line, for
- * the control around it to be described by.
+ * the control around it to be described by. The device `chosen` has its
+ * controls below, whose bar says how far: its row has none.
  */
 export function DeviceSummary({ device, lineId, chosen }: { device: OtherDevice; lineId: string; chosen?: boolean }) {
   const nowMs = useNow(1_000) * 1000;
   const s = device.session;
-  const progress = s?.kind === "item" && s.duration_ms ? estimatedPosition(s, nowMs) / s.duration_ms : null;
+  const progress = !chosen && s?.kind === "item" && s.duration_ms ? estimatedPosition(s, nowMs) / s.duration_ms : null;
   return (
     <>
       <DeviceIcon kind={device.kind} className={cn("size-5 shrink-0", chosen ? "text-accent" : "text-muted")} />
@@ -129,12 +137,24 @@ export function DeviceSummary({ device, lineId, chosen }: { device: OtherDevice;
 /**
  * In the header while another of the user's devices is on, playing or ready
  * to: it lists them, and shows the one chosen below the list, with what
- * plays there and the commands its player obeys.
+ * plays there and the commands its player obeys. Only a device that plays
+ * is chosen: one ready to play has nothing to control.
  */
 export function RemoteButton() {
-  const { devices, known } = useOtherDevices();
+  // A next, or a track that needs a new session, ends one session to start
+  // another: until the device plays the new one (or the wait for it is
+  // over), the one that ended stays.
+  const [ended, setEnded] = useState<RemoteSession | null>(null);
+  const { devices, known } = useOtherDevices(ended);
+  const after = ended && devices.find((d) => d.id === ended.device_id)?.session;
+  if (ended && after?.session_id !== ended.session_id) setEnded(null);
+  useEffect(() => {
+    if (!ended) return;
+    const timer = window.setTimeout(() => setEnded(null), ANSWER_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [ended]);
   const [open, setOpen] = useState(false);
-  // Kept while the panel is open; with one device, that one is shown.
+  // Kept while the panel is open; with one device playing, that one is shown.
   const [chosen, setChosen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -177,10 +197,14 @@ export function RemoteButton() {
   if (known && !devices.length && open) close();
   if (!devices.length) return null;
 
-  const current = devices.length === 1 ? devices[0] : devices.find((d) => d.id === chosen);
-  const playing = devices.filter((d) => d.session).length;
-  const label = playing
-    ? `Remote, ${pluralize(playing, "device")} playing`
+  const playing = devices.filter((d) => d.session);
+  // A device chosen that plays nothing yet (Play on… just went to it) shows once it plays.
+  const waitingFor = devices.some((d) => d.id === chosen && !d.session);
+  const current = waitingFor
+    ? undefined
+    : (playing.find((d) => d.id === chosen) ?? (playing.length === 1 ? playing[0] : undefined));
+  const label = playing.length
+    ? `Remote, ${pluralize(playing.length, "device")} playing`
     : `Remote, ${pluralize(devices.length, "device")} ready to play`;
   return (
     <div ref={ref} className="relative">
@@ -224,13 +248,9 @@ export function RemoteButton() {
               ))}
             </ul>
           </div>
-          {current ? (
+          {current?.session ? (
             <div className="border-t border-border">
-              {current.session ? (
-                <PlayingControls key={current.id} device={current} session={current.session} />
-              ) : (
-                <IdleDevice device={current} />
-              )}
+              <PlayingControls key={current.id} device={current} session={current.session} onEnding={setEnded} />
             </div>
           ) : null}
         </div>
@@ -239,7 +259,7 @@ export function RemoteButton() {
   );
 }
 
-/** One device in the list: choosing it shows its controls below. */
+/** One device in the list: choosing one that plays shows its controls below. One ready to play is only listed. */
 function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: boolean; onChoose: () => void }) {
   const lineId = useId();
   const ref = useRef<HTMLButtonElement>(null);
@@ -247,6 +267,13 @@ function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: 
   useEffect(() => {
     if (chosen) ref.current?.scrollIntoView?.({ block: "nearest" });
   }, [chosen]);
+  if (!device.session) {
+    return (
+      <div className="flex w-full items-center gap-3 px-2 py-2">
+        <DeviceSummary device={device} lineId={lineId} />
+      </div>
+    );
+  }
   return (
     <button
       ref={ref}
@@ -262,18 +289,6 @@ function DeviceRow({ device, chosen, onChoose }: { device: OtherDevice; chosen: 
     >
       <DeviceSummary device={device} lineId={lineId} chosen={chosen} />
     </button>
-  );
-}
-
-/** A device ready to play, that plays nothing: how to send it something. */
-function IdleDevice({ device }: { device: OtherDevice }) {
-  return (
-    <div role="group" aria-label={device.name} className="flex flex-col items-center gap-1 px-6 py-5 text-center">
-      <DeviceIcon kind={device.kind} className="mb-1 size-8 text-subtle" />
-      <div className="text-sm font-semibold text-fg">{device.name}</div>
-      <div className="text-sm text-muted">Nothing playing</div>
-      <p className="mt-1 text-xs text-subtle [text-wrap:pretty]">Send something here with Play on…</p>
-    </div>
   );
 }
 
@@ -310,8 +325,21 @@ function PickerIcon({ picker }: { picker: Picker }) {
   return <SlidersHorizontal className="size-4" />;
 }
 
-/** A playing device's controls: what plays, how far, and the commands its player listed. */
-function PlayingControls({ device, session }: { device: OtherDevice; session: RemoteSession }) {
+/**
+ * A playing device's controls: what plays, how far, and the commands its
+ * player listed. A command shows what it asks at once (`asSent`). One its
+ * player may end the session for (`mayEndSession`) tells `onEnding`, for
+ * the remote to keep that session until the new one plays.
+ */
+function PlayingControls({
+  device,
+  session,
+  onEnding,
+}: {
+  device: OtherDevice;
+  session: RemoteSession;
+  onEnding: (ended: RemoteSession) => void;
+}) {
   const name = device.name;
   const qc = useQueryClient();
   const command = useSessionCommand();
@@ -343,7 +371,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
           setSent(null);
           // A player with nothing next or before stays where it is, as it should.
           if (sent.command === "next" || sent.command === "previous") return;
-          if (list && !commandAnswered(sent, newestOn(list, sent.before.device_id, isPlayingHere), Date.now())) {
+          if (list && !commandAnswered(sent, newestOn(list, sent.before.device_id, isPlayingHere), remoteClock())) {
             setError(`${name} didn't answer.`);
           }
         });
@@ -354,13 +382,16 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
     };
   }, [sent, qc, name]);
 
-  const position = estimatedPosition(session, nowMs);
+  // What the controls show: the session as its player reported it, with what was just asked of it.
+  const shown = asSent(session, sent);
+  const position = estimatedPosition(shown, nowMs);
   const duration = session.duration_ms;
 
   const send = (c: Control, extra: Pick<SessionCommand, "positionMs" | "offsetMs" | "streamIndex" | "quality"> = {}) => {
     setError(null);
-    const sentAt = Date.now();
-    const at = estimatedPosition(session, sentAt);
+    const sentAt = remoteClock();
+    // A skip goes from where the bar shows, a seek still on its way too.
+    const at = estimatedPosition(shown, sentAt);
     // A previous a few seconds in starts the title over, as players do.
     const target =
       extra.positionMs ??
@@ -369,17 +400,22 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
         : c === "previous" && session.kind !== "live"
           ? 0
           : undefined);
+    // Shown at once, and waited for from now: the player's report confirms it.
+    const entry: SentCommand = { command: c, before: session, sentAt, target, track: extra.streamIndex, quality: extra.quality };
+    setSent(entry);
+    if (mayEndSession(c)) onEnding(session);
     command.mutate(
       { sessionId: session.session_id, command: c, ...extra },
       {
-        onSuccess: () =>
-          setSent({ command: c, before: session, sentAt, target, track: extra.streamIndex, quality: extra.quality }),
-        onError: (err) => setError(`${sessionCommandError(err, name)}.`),
+        onError: (err) => {
+          setSent((s) => (s === entry ? null : s));
+          setError(`${sessionCommandError(err, name)}.`);
+        },
       },
     );
   };
 
-  const paused = session.state === "paused";
+  const paused = shown.state === "paused";
   const toggle = paused ? (can("play") ? "play" : null) : can("pause") ? "pause" : null;
   const live = session.kind === "live";
   const kind = session.item?.kind;
@@ -390,6 +426,8 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
   const skips = can("skip") && !live;
   const [title, detail] = titleLines(session);
   const waiting = command.isPending || !!sent;
+  // What a next or previous plays isn't known until it plays: what plays now is dimmed until then.
+  const changing = sent?.command === "next" || sent?.command === "previous";
 
   // Audio where there is a choice of tracks; subtitles where there are any,
   // with Off; quality where the player's menu offers some.
@@ -410,8 +448,8 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
     quality: qualities.map((q) => ({ key: q.id, label: q.label })),
   };
   const currentOf = (p: Picker): string | null => {
-    if (p === "quality") return session.quality ?? null;
-    const index = p === "audio" ? session.audio_index : session.subtitle_index;
+    if (p === "quality") return shown.quality ?? null;
+    const index = p === "audio" ? shown.audio_index : shown.subtitle_index;
     return index == null ? null : String(index);
   };
   const pick = (p: Picker, key: string) => {
@@ -445,7 +483,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
 
   return (
     <div role="group" aria-label={name} aria-busy={waiting} className="space-y-3 px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className={cn("flex items-center gap-3 transition-opacity", changing && "opacity-50")}>
         {live && session.channel ? (
           <ChannelLogo channel={session.channel} width={64} showName={false} className="h-10 w-14 shrink-0 rounded bg-surface-3" />
         ) : session.item ? (
@@ -491,7 +529,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
 
       {live ? (
         // A TV remote's channel rocker: down and up, with pause beside it where the player can.
-        <div className={cn("flex items-center justify-center gap-3 transition-opacity", waiting && "opacity-50")}>
+        <div className={cn("flex items-center justify-center gap-3 transition-opacity", changing && "opacity-50")}>
           {toggle ? (
             <button
               type="button"
@@ -516,7 +554,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
           </div>
         </div>
       ) : can("previous") || skips || toggle || nextShown ? (
-        <div className={cn("flex items-center justify-center gap-2 transition-opacity", waiting && "opacity-50")}>
+        <div className={cn("flex items-center justify-center gap-2 transition-opacity", changing && "opacity-50")}>
           {can("previous") ? (
             <IconButton label={`Previous on ${name}`} size="sm" onClick={() => send("previous")}>
               <SkipBack className="size-4 fill-current" />
