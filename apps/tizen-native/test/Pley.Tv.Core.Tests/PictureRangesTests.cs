@@ -95,6 +95,52 @@ public class PictureRangesTests
         Assert.Equal(PictureSubtitles.Of(track)!.FrameAt(1_080_500)?.Index, track.Samples.Count - 1);
     }
 
+    /// <summary>
+    /// A picture read before a part not read yet shows no further than where that part begins: what
+    /// clears it may be there, and a seek into it showed the old picture until that part came.
+    /// </summary>
+    [Fact]
+    public async Task A_picture_stops_where_the_part_not_read_begins()
+    {
+        var file = CuedMks.Pgs(EveryTwoMinutes);
+        var ranges = (await PictureRanges.Open(CuedMks.Serving(file, new List<(long, long)>())))!;
+        var subs = PictureSubtitles.Of(await ranges.Read(470_000, 800_000))!;
+        Assert.NotNull(subs.FrameAt(800_000));
+        Assert.Null(subs.FrameAt(850_000));
+        Assert.Equal(840_000, subs.NextChange(800_000));
+        subs = PictureSubtitles.Of(await ranges.Read(850_000, 900_000))!;
+        Assert.Equal(840_000, subs.TimeOf(subs.FrameAt(850_000)!.Value.Index));
+    }
+
+    /// <summary>A server or proxy that answers a range with the whole file: read whole once, not in parts that are each the whole.</summary>
+    [Fact]
+    public async Task A_server_without_ranges_has_it_read_whole()
+    {
+        var file = CuedMks.Pgs(EveryTwoMinutes.Concat(Enumerable.Range(10, 2_000).Select(i => i * 120_000)).ToArray());
+        Assert.True(file.Length > PictureRanges.HeadBytes);
+        var asked = 0;
+        Func<long, long, Task<SubtitlePart>> whole = (_, _) =>
+        {
+            asked++;
+            return Task.FromResult(new SubtitlePart(file, 0, file.Length, true));
+        };
+        Assert.Null(await PictureRanges.Open(whole));
+        Assert.Equal(1, asked);
+    }
+
+    /// <summary>The header is asked for where the player is (<c>?at=</c>), as the whole track is; the rest at the track's own address.</summary>
+    [Fact]
+    public async Task The_header_can_be_asked_for_elsewhere()
+    {
+        var file = CuedMks.Pgs(EveryTwoMinutes);
+        var asked = new List<(long, long)>();
+        var headAsked = new List<(long, long)>();
+        var ranges = await PictureRanges.Open(CuedMks.Serving(file, asked), CuedMks.Serving(file, headAsked));
+        Assert.NotNull(ranges);
+        Assert.Equal(new[] { (0L, (long)PictureRanges.HeadBytes - 1) }, headAsked);
+        Assert.Single(asked);
+    }
+
     [Fact]
     public async Task A_file_without_cues_or_still_being_made_is_read_whole()
     {

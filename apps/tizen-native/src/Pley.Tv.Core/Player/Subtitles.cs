@@ -515,11 +515,14 @@ public sealed class SubtitlePresenter
     void OpenParts(string url, int at)
     {
         var from = SubtitleSync.TrackTime(position(), offset());
+        // Its header asked for from where the player is, as the whole track is: a track the server is
+        // still making is made from there, and is then asked for around there at once.
+        var head = PlaybackPlan.PictureUrlAt(url, position());
         if (Marks.On) Marks.Note("subtitles: the pictures' .mks, read in parts");
         openingParts = true;
         Ui.Plays.When(scheduler, async () =>
         {
-            var opened = await PictureRanges.Open((a, b) => fetchPart!(url, a, b)).ConfigureAwait(false);
+            var opened = await PictureRanges.Open((a, b) => fetchPart!(url, a, b), (a, b) => fetchPart!(head, a, b)).ConfigureAwait(false);
             if (opened == null) return ((PictureRanges?)null, (PictureTrack?)null);
             return (opened, await opened.Read(from - PartBehindMs, from + PartAheadMs).ConfigureAwait(false));
         }, answer =>

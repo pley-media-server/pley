@@ -24,17 +24,24 @@ public sealed class PictureSample
 /// <summary>The one track of a <c>.mks</c> file: its codec, its private data, and its samples by time.</summary>
 public sealed class PictureTrack
 {
-    public PictureTrack(string codecId, byte[]? codecPrivate, IReadOnlyList<PictureSample> samples)
+    public PictureTrack(string codecId, byte[]? codecPrivate, IReadOnlyList<PictureSample> samples, IReadOnlyList<long>? unreadFrom = null)
     {
         CodecId = codecId;
         CodecPrivate = codecPrivate;
         Samples = samples;
+        UnreadFrom = unreadFrom ?? Array.Empty<long>();
     }
 
     /// <summary><c>S_HDMV/PGS</c>, <c>S_VOBSUB</c> or <c>S_DVBSUB</c>.</summary>
     public string CodecId { get; }
     public byte[]? CodecPrivate { get; }
     public IReadOnlyList<PictureSample> Samples { get; }
+
+    /// <summary>
+    /// Of a track read in parts, where each part not read yet begins, earliest first (empty when it
+    /// is read whole): a sample before one stops there, as what stops it may be in that part.
+    /// </summary>
+    public IReadOnlyList<long> UnreadFrom { get; }
 }
 
 /// <summary>Where a <c>.mks</c> file's parts are (<see cref="Mks.ReadIndex"/>): its Segment's data, its first cluster, its Cues (null: none), in bytes from its start; its time scale in ns.</summary>

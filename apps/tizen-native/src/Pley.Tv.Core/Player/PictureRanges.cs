@@ -53,13 +53,15 @@ public sealed class PictureRanges
     public int Clusters => clusters.Count;
 
     /// <summary>
-    /// The file's header and Cues, read through <paramref name="fetch"/> (bytes from, to inclusive);
-    /// null when it can't be read in parts: being made still, without Cues, or not a Matroska file.
+    /// The file's header and Cues, read through <paramref name="fetch"/> (bytes from, to inclusive),
+    /// the header through <paramref name="fetchHead"/> when given; null when it can't be read in parts:
+    /// being made still, without Cues, not a Matroska file, or served whole whatever was asked (a
+    /// server or proxy without ranges: each part would be the whole file again).
     /// </summary>
-    public static async Task<PictureRanges?> Open(Func<long, long, Task<SubtitlePart>> fetch)
+    public static async Task<PictureRanges?> Open(Func<long, long, Task<SubtitlePart>> fetch, Func<long, long, Task<SubtitlePart>>? fetchHead = null)
     {
-        var first = await fetch(0, HeadBytes - 1).ConfigureAwait(false);
-        if (!first.Complete || first.From != 0 || first.Total is not long total) return null;
+        var first = await (fetchHead ?? fetch)(0, HeadBytes - 1).ConfigureAwait(false);
+        if (!first.Complete || first.From != 0 || first.Total is not long total || first.Bytes.Length > HeadBytes) return null;
         var index = Mks.ReadIndex(first.Bytes);
         if (index?.CuesAt is not long cuesAt || cuesAt >= total) return null;
         var cueBytes = await fetch(cuesAt, Math.Min(total, cuesAt + MostCuesBytes) - 1).ConfigureAwait(false);
@@ -112,12 +114,21 @@ public sealed class PictureRanges
                 foreach (var sample in track.Samples) samples[sample.TimeMs] = sample;
                 for (var k = run; k < i; k++) loaded[k] = true;
             }
-            return new PictureTrack(codecId, codecPrivate, samples.Values.ToList());
+            return new PictureTrack(codecId, codecPrivate, samples.Values.ToList(), UnreadFrom());
         }
         finally
         {
             one.Release();
         }
+    }
+
+    /// <summary>Where each run of clusters not read yet begins: a sample read before one shows no further.</summary>
+    List<long> UnreadFrom()
+    {
+        var from = new List<long>();
+        for (var k = 0; k < clusters.Count; k++)
+            if (!loaded[k] && (k == 0 || loaded[k - 1])) from.Add(clusters[k].TimeMs);
+        return from;
     }
 
     /// <summary>The clusters holding <paramref name="fromMs"/> to <paramref name="toMs"/>: from the one it starts in to the first after it.</summary>

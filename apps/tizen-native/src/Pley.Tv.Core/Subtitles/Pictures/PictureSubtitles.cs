@@ -55,11 +55,21 @@ public sealed class PictureSubtitles
         return ms < EndOf(i) ? i : -1;
     }
 
-    /// <summary>When sample <paramref name="i"/> stops showing; <see cref="long.MaxValue"/> when nothing stops it.</summary>
+    /// <summary>
+    /// When sample <paramref name="i"/> stops showing; <see cref="long.MaxValue"/> when nothing stops
+    /// it. A part not read yet stops it too: the sample that clears it may be there, and a PGS
+    /// picture shown until the next sample read stayed on the screen past a seek into that part.
+    /// </summary>
     public long EndOf(int i)
     {
         var start = times[i];
         var next = i + 1 < times.Length ? times[i + 1] : long.MaxValue;
+        foreach (var unread in track.UnreadFrom)
+        {
+            if (unread <= start) continue;
+            next = System.Math.Min(next, unread);
+            break;
+        }
         var own = track.Samples[i].DurationMs ?? decoder.OwnDurationMs(i);
         return own is long d && d > 0 ? System.Math.Min(next, start + d) : next;
     }
