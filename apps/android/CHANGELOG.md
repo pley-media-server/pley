@@ -10,6 +10,16 @@ describes how they are made.
 
 ### Added
 
+- Pley is shown in your account's language, else your server's, else this
+  device's, in English, French or Spanish, and Settings has a Language row
+  on phones and TVs that sets it for your account on every device. Signing
+  in is in French and Spanish too. On Android 13 and later the system's
+  settings list Pley's languages.
+
+## [0.1.7] - 2026-11-05
+
+### Added
+
 - The phone is a remote for your other devices: while something plays on
   one of them, a bar above the tabs says where and what, and opens a
   remote with what plays on each, how far, and the controls its player
@@ -55,11 +65,6 @@ describes how they are made.
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same
   goes to the device's log.
-- Pley is shown in your account's language, else your server's, else this
-  device's, in English, French or Spanish, and Settings has a Language row
-  on phones and TVs that sets it for your account on every device. Signing
-  in is in French and Spanish too. On Android 13 and later the system's
-  settings list Pley's languages.
 
 ### Changed
 
@@ -586,7 +591,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

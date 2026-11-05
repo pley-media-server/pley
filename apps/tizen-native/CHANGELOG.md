@@ -8,6 +8,8 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-05
+
 ### Changed
 
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
@@ -451,5 +453,6 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/5f6405a7af22a8102cb0ebfa414c66492e161102...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.0.1]: https://github.com/pley-media-server/pley/tree/5f6405a7af22a8102cb0ebfa414c66492e161102
