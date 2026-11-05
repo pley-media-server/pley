@@ -495,7 +495,10 @@ A command never brings up the player's controls. Paused, the Video node
 shows its title, clock and bar whoever paused it, so for the remote's
 pause the player turns them off (`enableUI`) until the video plays again,
 from either side, or the person presses a key: Play plays on, and the
-Video node's other keys are its own again from the next press. What the
+Video node's other keys are its own again from the next press. That
+first OK, left, right or skip only brings its controls back, where the
+other TVs act on it at once: the Video node hasn't had its controls to
+take it. What the
 remote did shows instead for 2 s in the player's notice at the top:
 "Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
 went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
