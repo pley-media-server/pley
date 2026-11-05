@@ -657,6 +657,8 @@ pub(crate) const NO_WAY_IN: &str =
 pub(crate) const TICKET_SPENT: &str = "this cast's switch has expired or was used: cast again";
 pub(crate) const CAST_NEEDS_PIN: &str =
     "this device's profile can see less than yours: give your profile a PIN to cast to it";
+pub(crate) const CAST_ADMIN_TO_BROWSER: &str = "an administrator's profile isn't cast to a browser or the desktop app, \
+    which would stay signed in with its administrator rights: switch to it there";
 pub(crate) const SET_UP_FIRST: &str =
     "this profile has to set up two-step sign-in, which this server requires: switching to it takes its password";
 
@@ -732,13 +734,17 @@ pub(crate) async fn check_switch(
 /// `target`, is spent here; both are still home members, and the target
 /// is enabled. By [`switch_needs`] from `from`'s own rights, the target may
 /// take nothing more than the PIN the caster gave as the ticket was issued:
-/// never a password, and not a locked PIN.
+/// never a password, and not a locked PIN. Only an app (`app`), whose tokens
+/// never have administrator rights, switches to an administrator's profile
+/// so: a browser's or the desktop app's sign-in would keep them (casts
+/// there aren't sent; this holds whatever a ticket says).
 pub(crate) async fn check_ticket_switch(
     state: &AppState,
     from: &AuthUser,
     device_id: Option<&str>,
     target: i64,
     ticket: &str,
+    app: bool,
 ) -> Result<(), SwitchError> {
     if !device_id.is_some_and(|device| state.receivers.redeem(ticket, device, from.id, target)) {
         return Err(SwitchError::TicketSpent);
@@ -746,7 +752,7 @@ pub(crate) async fn check_ticket_switch(
     let Some(profile) = switch_target(state, from.id, target).await? else {
         return Err(SwitchError::NotFound);
     };
-    if !profile.both_home || profile.disabled {
+    if !profile.both_home || profile.disabled || (profile.is_admin && !app) {
         return Err(SwitchError::NotAllowed);
     }
     match switch_needs(from, &profile, state.auth.two_step_required()) {
@@ -810,7 +816,7 @@ pub async fn switch(
     let recovery_codes = match body.ticket.as_deref() {
         Some(ticket) => {
             let device = remote::device_id_of(&user, token.as_deref());
-            check_ticket_switch(&state, &user, device.as_deref(), body.user_id, ticket).await?;
+            check_ticket_switch(&state, &user, device.as_deref(), body.user_id, ticket, false).await?;
             None
         }
         None => {

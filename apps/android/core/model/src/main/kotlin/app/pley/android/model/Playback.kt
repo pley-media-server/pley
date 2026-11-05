@@ -335,8 +335,9 @@ data class DeviceProfileName(val id: Long, val name: String)
  * [subtitleIndex] ([PlayingSession.SUBTITLES_OFF]: none) the tracks picked
  * on a movie's or an episode's page, which the device plays with. To a
  * device of another of the household's profiles, [profileId] is that
- * profile's ([RemoteDevice.profile]) and [pin] the caller's PIN, when their
- * profile has one.
+ * profile's ([RemoteDevice.profile]), [deviceId] the device listed (the
+ * cast goes there or nowhere) and [pin] the caller's PIN, when their profile
+ * has one.
  */
 @Serializable
 data class CastRequest(
@@ -348,12 +349,14 @@ data class CastRequest(
     val audioIndex: Int? = null,
     val subtitleIndex: Int? = null,
     val profileId: Long? = null,
+    val deviceId: String? = null,
     val pin: String? = null,
 ) {
     // A PIN is never written out where a request is.
     override fun toString(): String =
         "CastRequest(itemId=$itemId, playlistId=$playlistId, channelId=$channelId, startMs=$startMs, shuffle=$shuffle, " +
-            "audioIndex=$audioIndex, subtitleIndex=$subtitleIndex, profileId=$profileId, pin=${if (pin == null) "null" else "…"})"
+            "audioIndex=$audioIndex, subtitleIndex=$subtitleIndex, profileId=$profileId, deviceId=$deviceId, " +
+            "pin=${if (pin == null) "null" else "…"})"
 }
 
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */

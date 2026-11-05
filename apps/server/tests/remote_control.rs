@@ -1052,7 +1052,17 @@ async fn devices(w: &World, token: &str) -> Value {
     listed.body
 }
 
-async fn cast(w: &World, token: &str, receiver: &str, body: Value) -> common::Reply {
+/// A cast to `receiver`. To another profile's (`profile_id`), with the
+/// `device_id` the caller's household list shows for it, as a remote sends
+/// it, unless `body` names one.
+async fn cast(w: &World, token: &str, receiver: &str, mut body: Value) -> common::Reply {
+    if body.get("profile_id").is_some() && body.get("device_id").is_none() {
+        let listed = w.app.get("/api/remote/devices?household=1", token).await.body;
+        let device = listed.as_array().and_then(|all| all.iter().find(|d| d["receiver_id"] == receiver));
+        if let Some(device) = device {
+            body["device_id"] = device["device_id"].clone();
+        }
+    }
     w.app.post(&format!("/api/remote/devices/{receiver}/cast"), token, body).await
 }
 
@@ -1600,7 +1610,8 @@ async fn a_home_member_lists_none_of_the_devices_outside_the_household_nor_a_dis
 async fn a_cast_from_another_profile_reaches_its_receiver_alone() {
     let w = world().await;
     let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
-    let mut other_device = stream(&w, &w.viewer, "receiver=phone-1&casts=item,switch").await;
+    let phone = w.app.login("viewer", "test-pass-1").await;
+    let mut other_device = stream(&w, &phone, "receiver=phone-1&casts=item,switch").await;
     let mut plain = stream(&w, &w.viewer, "").await;
     let sent = cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
     assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
@@ -1655,7 +1666,10 @@ async fn a_freer_profile_casts_to_another_profiles_device_only_with_its_pin() {
     let w = world().await;
     let app = &w.app;
     let admin_id = id_of(&w, &w.admin).await;
-    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
+    // The viewer's TV, an app, and their browser.
+    let (access, refresh) = app.app_token(w.viewer_id, "library play profiles").await;
+    let mut tv = stream(&w, &access, "receiver=tv-1&casts=item,switch").await;
+    let _browser = stream(&w, &w.viewer, "receiver=desk-1&casts=item,switch").await;
     // An administrator without a PIN would make the viewer's device theirs
     // with no password: refused.
     let refused = cast(&w, &w.admin, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
@@ -1665,14 +1679,96 @@ async fn a_freer_profile_casts_to_another_profiles_device_only_with_its_pin() {
     assert_eq!(pinned.status, StatusCode::NO_CONTENT, "{}", pinned.text());
     let without = cast(&w, &w.admin, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
     assert_eq!(without.body["code"], json!("pin_needed"));
-    let sent = cast(&w, &w.admin, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id, "pin": "2468"})).await;
+    // Never to a browser's or the desktop app's sign-in, PIN or not: it would
+    // stay signed in as the administrator, with their rights.
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "pin": "2468"});
+    let to_browser = cast(&w, &w.admin, "desk-1", body.clone()).await;
+    assert_eq!((to_browser.status, &to_browser.body["code"]), (StatusCode::FORBIDDEN, &json!("not_allowed")));
+    let sent = cast(&w, &w.admin, "tv-1", body).await;
     assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
     let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
     // Their PIN gone before the ticket is spent: the switch is refused at
     // the device, by the same rule.
     let removed = app.put("/api/me/pin", &w.admin, json!({"pin": null, "password": "secret-one"})).await;
     assert_eq!(removed.status, StatusCode::NO_CONTENT, "{}", removed.text());
-    let refused = app.post("/api/auth/switch", &w.viewer, json!({"user_id": admin_id, "ticket": ticket})).await;
-    assert_eq!(refused.status, StatusCode::FORBIDDEN, "{}", refused.text());
-    assert_eq!(id_of(&w, &w.viewer).await, w.viewer_id);
+    let admin = admin_id.to_string();
+    let pairs = [
+        ("grant_type", SWITCH),
+        ("client_id", common::ANDROID_APP),
+        ("refresh_token", refresh.as_str()),
+        ("profile", admin.as_str()),
+        ("ticket", ticket.as_str()),
+    ];
+    let refused = app.form_post("/api/oauth/token", &form(&pairs), &[]).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
+    assert_eq!(id_of(&w, &access).await, w.viewer_id);
+}
+
+#[tokio::test]
+async fn a_cast_goes_to_the_device_listed_or_not_at_all() {
+    let w = world().await;
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
+    let listed = household(&w, &w.other).await[0]["device_id"].clone();
+    // Without the device it lists: refused.
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": null});
+    let without = w.app.post("/api/remote/devices/tv-1/cast", &w.other, body).await;
+    assert_eq!(without.status, StatusCode::BAD_REQUEST, "{}", without.text());
+    // Another device under the id since: as unknown, and nothing reaches it.
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": "web-0000000000000000"});
+    let elsewhere = cast(&w, &w.other, "tv-1", body).await;
+    assert_eq!(elsewhere.status, StatusCode::NOT_FOUND, "{}", elsewhere.text());
+    let received = read_until(&mut tv, r#""type":"cast""#, Duration::from_millis(300)).await;
+    assert!(events_of(&received, "cast").is_empty(), "{received}");
+    // The one listed: on its way.
+    let sent =
+        cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": listed})).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    assert!(heard_cast(&mut tv).await["switch_ticket"].is_string());
+}
+
+#[tokio::test]
+async fn another_publishers_app_never_offers_to_switch() {
+    let w = world().await;
+    let issued = w
+        .app
+        .state
+        .auth
+        .issue(pley::auth::grants::NewGrant {
+            user_id: w.viewer_id,
+            approved_by: w.viewer_id,
+            client_id: "https://apps.example.com/player.json".into(),
+            client_name: Some("Example Player".into()),
+            scopes: pley::auth::scopes::Scopes::parse("library play profiles").unwrap(),
+            refresh: true,
+            first_party: false,
+            session_hash: None,
+            user_agent: None,
+            ip: None,
+        })
+        .await
+        .unwrap();
+    let _tv = stream(&w, &issued.access_token, "receiver=tv-1&casts=item,switch").await;
+    assert_eq!(household(&w, &w.other).await, json!([]), "it isn't offered across profiles");
+}
+
+#[tokio::test]
+async fn a_report_of_another_profiles_session_is_kept_for_neither() {
+    let w = world().await;
+    let session = play(&w, &w.viewer).await;
+    let place = |token: &str| {
+        let (app, film, token) = (&w.app, w.film, token.to_owned());
+        async move {
+            app.get(&format!("/api/items/{film}"), &token).await.body["user_state"]["position_ms"].as_i64().unwrap_or(0)
+        }
+    };
+    // The viewer's device switched to the other profile for a cast as its
+    // last report left: it went with the other's token, and isn't theirs.
+    let report = json!({"position_ms": 40_000, "duration_ms": LENGTH_MS, "state": "stopped", "session_id": session});
+    let late = w.app.post(&format!("/api/items/{}/progress", w.film), &w.other, report.clone()).await;
+    assert_eq!(late.status, StatusCode::NO_CONTENT, "{}", late.text());
+    assert_eq!(place(&w.other).await, 0, "nothing kept for the profile that didn't watch");
+    // The viewer's own report of it is kept, as ever.
+    let own = w.app.post(&format!("/api/items/{}/progress", w.film), &w.viewer, report).await;
+    assert_eq!(own.status, StatusCode::NO_CONTENT, "{}", own.text());
+    assert_eq!(place(&w.viewer).await, 40_000);
 }

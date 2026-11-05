@@ -115,7 +115,10 @@ export function PlayOn({
   /** Sends `request` to `device`: to one on another profile, with that profile and the user's `pin` once given. */
   const sendTo = (device: OtherDevice, request: CastRequest, pin?: string) => {
     if (!device.receiver) return;
-    const body = device.profile ? { ...request, profile_id: device.profile.id, ...(pin === undefined ? {} : { pin }) } : request;
+    // Another profile's device goes as the one listed, or not at all.
+    const body = device.profile
+      ? { ...request, profile_id: device.profile.id, device_id: device.receiver.device_id, ...(pin === undefined ? {} : { pin }) }
+      : request;
     if (pin !== undefined) setPinMessage(null);
     send.mutate(
       { receiverId: device.receiver.receiver_id, cast: body },

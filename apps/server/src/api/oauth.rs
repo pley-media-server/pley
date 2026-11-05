@@ -1176,7 +1176,7 @@ async fn switch_profile(
     if let Some(ticket) = form.get("ticket") {
         // A cast from another profile's remote: this device switches to it.
         let device = format!("app-{}", holder.grant_id);
-        check_ticket_switch(state, &holder.user, Some(&device), profile, ticket).await.map_err(refused_switch)?;
+        check_ticket_switch(state, &holder.user, Some(&device), profile, ticket, true).await.map_err(refused_switch)?;
     } else if profile == holder.user.id {
         // "Who's watching?" as a TV starts: the profile's own PIN, checked
         // and answered as a switch to it would be. Without a PIN to check,

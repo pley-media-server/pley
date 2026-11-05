@@ -3597,8 +3597,10 @@ would.
   the remote had picked on its page, by stream index of one of its files.
   The quality stays the receiver's own: what suits a phone's network
   doesn't suit a TV's. A receiver of another of the household's profiles
-  takes that profile's id, `profile_id` (its `profile.id` in the list), and
-  the caller's `pin` when their profile has one. It answers `202` and sends
+  takes that profile's id, `profile_id` (its `profile.id` in the list), the
+  `device_id` the list shows for it, and the caller's `pin` when their
+  profile has one: the cast goes to that device or to none, so a receiver
+  id another device holds since never gets it. It answers `202` and sends
   the event streams of the profile the receiver is on `{ type: "cast",
   receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle,
   audio_index, subtitle_index, from }`, `from` being the remote's device
@@ -3611,7 +3613,8 @@ would.
     than Pley's own, or one not allowed `profiles`;
   - `404` for a receiver unknown, gone, or of a profile outside the
     caller's household or without `profile_id` (an administrator's request
-    too: it never says which);
+    too: it never says which), or another device than its `device_id`
+    now; `400` for `profile_id` without `device_id`;
   - `400` for a body that doesn't name exactly one of the three;
   - `404` for a title the user can't see, `400` for one that isn't a
     movie, an episode, a show, a season, a track, an album or an artist;
@@ -3627,7 +3630,10 @@ would.
     app): `403` `{ code: "not_allowed" }` when the caller's profile is
     freer (an administrator, a higher age limit, other libraries) and has
     no PIN, as there is no password on a TV, or has to set up two-step
-    sign-in, which the server requires; then, when the caller's profile has
+    sign-in, which the server requires, or is an administrator's and the
+    receiver isn't an app (`device_id` `app-…`): a browser's or the desktop
+    app's sign-in would stay one with administrator rights, where an app's
+    tokens never have them; then, when the caller's profile has
     a PIN, `403` `{ code: "pin_needed" }` without `pin`, `wrong_pin` for a
     wrong one, `pin_locked` once it is locked, `429` after too many wrong
     ones, counted and throttled with the switches to the caller's profile;
@@ -3656,8 +3662,13 @@ would.
   the PIN the caster gave; the rest of a switch's rules are checked again
   as it is spent, from the rights the device has: a caster's profile that
   would now take its password (its PIN removed meanwhile) or whose PIN is
-  locked isn't switched to. A receiver that doesn't name `switch` gets no
-  such cast: it isn't offered across profiles.
+  locked isn't switched to, and `POST /api/auth/switch` never switches to
+  an administrator's profile with a ticket. A device keeps its 4 newest
+  tickets. A receiver that doesn't name `switch`, or whose stream comes
+  from an app other than Pley's own or one not allowed `profiles`, gets no
+  such cast: it isn't offered across profiles. A progress report naming
+  another profile's session (one that left with this profile's token as
+  its device switched) is answered `204` and kept for neither.
 
 ### Watch state on other devices
 

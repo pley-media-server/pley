@@ -201,7 +201,10 @@ pub async fn events(
             given_name: query.device_name.as_deref().and_then(crate::oauth::clients::clean_name),
             kind: remote::device_kind_of(declared, &user, remote::user_agent(&headers)),
             casts: query.casts.as_deref().map(remote::cast_kinds).unwrap_or_default(),
-            switches: query.casts.as_deref().is_some_and(remote::casts_switch),
+            // Only a stream that may switch profiles offers to: another
+            // app's would take the household's casts, and their PINs, for
+            // nothing.
+            switches: query.casts.as_deref().is_some_and(remote::casts_switch) && remote::reaches_household(&user),
         };
         (id.to_owned(), receiver)
     });
@@ -230,8 +233,10 @@ pub async fn events(
     // expires or its user is disabled, and follows changes of access.
     let ended = tokio_util::sync::CancellationToken::new();
     {
+        // Weak: the stream holds what it is a receiver by, and lets it go
+        // the moment it ends.
         let (state, libraries, manager, admin, ended, claim) =
-            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone(), claim.clone());
+            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone(), Arc::downgrade(&claim));
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(state.config.event_recheck);
             tick.tick().await;
@@ -253,7 +258,9 @@ pub async fn events(
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
                 admin.store(user.oversees_playback(), Ordering::Relaxed);
-                claim();
+                if let Some(claim) = claim.upgrade() {
+                    claim();
+                }
             }
         });
     }

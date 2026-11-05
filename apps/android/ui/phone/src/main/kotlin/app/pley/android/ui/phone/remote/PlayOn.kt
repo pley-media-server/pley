@@ -274,7 +274,11 @@ internal fun PlayOnSheet(
         sending = device.deviceId
         scope.launch {
             try {
-                remote.cast(receiver.receiverId, target.request(shuffle).copy(profileId = device.profile?.id, pin = typed))
+                // Another profile's device goes as the one listed, or not at all.
+                val profile = device.profile
+                val request = target.request(shuffle)
+                    .copy(profileId = profile?.id, deviceId = receiver.deviceId.takeIf { profile != null }, pin = typed)
+                remote.cast(receiver.receiverId, request)
                 ask(null)
                 onCast(device, name)
             } catch (e: CancellationException) {

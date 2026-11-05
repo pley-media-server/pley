@@ -159,16 +159,23 @@ protect your server.
   switch's rules from the device's profile: a freer profile (an
   administrator, a higher age limit, other libraries) takes its PIN and,
   without one, can't cast there, so a child's device never becomes an
-  administrator's without that PIN. When the profile has a PIN, the remote
+  administrator's without that PIN. An administrator's profile is cast
+  only to Pley's apps, whose tokens never carry administrator rights,
+  never to a browser's or the desktop app's sign-in, which would stay one
+  with those rights, and such a sign-in never switches to an
+  administrator with a ticket. When the profile has a PIN, the remote
   gives it first, checked and throttled as a switch's, and the rules are
   checked again as the device switches. Only devices whose app switches
-  are offered across profiles, so an older app never plays someone
-  else's cast as its own profile. The device switches with a ticket the cast carries: random,
-  stored hashed, good once for 60 seconds for that device, from the profile
-  it is on to the caster's. A copy shown by anything else spends it. Such a
-  cast reaches that device's stream alone, not the profile's other
-  devices, and a receiver's id stays its device's while it is open: another
-  sign-in of the profile that names it isn't that receiver. Another
+  (Pley's own, allowed to switch profiles) are offered across profiles,
+  so an older app never plays someone else's cast as its own profile. The
+  device switches with a ticket the cast carries: random, stored hashed,
+  good once for 60 seconds for that device, from the profile it is on to
+  the caster's. A copy shown by anything else spends it. Such a cast goes
+  to the device the remote listed or to none, reaches that device's
+  stream alone, not the profile's other devices, and a receiver's id stays
+  its device's while it is open: another sign-in of the profile that names
+  it isn't that receiver. A progress report of another profile's session
+  is kept for neither profile. Another
   profile's devices are listed by name and profile, never with what they
   play, and only to home members of the same household, from a person's
   own sign-in or Pley's own apps allowed to switch profiles (another app

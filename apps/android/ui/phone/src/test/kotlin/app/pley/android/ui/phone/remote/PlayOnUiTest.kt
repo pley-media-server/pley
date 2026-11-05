@@ -211,7 +211,7 @@ class PlayOnUiTest {
         compose.waitForIdle()
         // This profile has no PIN: no pad, straight there.
         compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
-        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3)), graph.castsSent.toList())
+        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31")), graph.castsSent.toList())
         compose.onNodeWithText("Playing on Den TV").assertExists()
     }
 
@@ -227,7 +227,7 @@ class PlayOnUiTest {
         compose.onNodeWithText("Den TV switches from Sam's profile to yours.").assertExists()
         assertTrue(graph.castsSent.isEmpty())
         type("1234")
-        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, pin = "1234")), graph.castsSent.toList())
+        assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31", pin = "1234")), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
         compose.onNodeWithText("Playing on Den TV").assertExists()
     }

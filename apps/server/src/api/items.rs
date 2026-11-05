@@ -276,6 +276,16 @@ pub async fn progress(
     {
         return Ok(StatusCode::NO_CONTENT);
     }
+    // A report of another profile's session went with this profile's token:
+    // its device switched profiles, for a cast, as it was sent. The place
+    // is that profile's, not this one's, so nothing is kept.
+    if let Some(sid) = body.session_id.as_deref()
+        && let Some(owner) =
+            state.sessions.get(sid).map(|s| s.user_id).or_else(|| state.sessions.stopped(sid).map(|s| s.user_id))
+        && owner != user.id
+    {
+        return Ok(StatusCode::NO_CONTENT);
+    }
     let duration = body.duration_ms.filter(|d| *d > 0).or(row.duration_ms).unwrap_or(0);
     let device = crate::accounts::device_name(headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()));
     let recorded = catalog::record_progress(

@@ -193,15 +193,17 @@ class RemoteControlTest {
     fun aCastToAnotherProfilesDeviceSendsItsProfileAndThePinAndSaysWhyItWasRefused() = runTest {
         val api = api(null)
         server.enqueue(MockPley.noContent())
-        api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204, profileId = 3, pin = "1234"))
+        val across = app.pley.android.model.CastRequest(itemId = 204, profileId = 3, deviceId = "app-31", pin = "1234")
+        api.cast("android-den", across)
         val body = sent()
         assertEquals(JsonPrimitive(3), body["profile_id"])
+        assertEquals(JsonPrimitive("app-31"), body["device_id"])
         assertEquals(JsonPrimitive("1234"), body["pin"])
-        // To the profile's own devices, neither goes.
+        // To the profile's own devices, none of them goes.
         server.enqueue(MockPley.noContent())
         api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204))
         val own = sent()
-        assertFalse("profile_id" in own || "pin" in own)
+        assertFalse("profile_id" in own || "device_id" in own || "pin" in own)
 
         suspend fun refusal(pin: String? = null): CastRefusal = try {
             api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204, profileId = 3, pin = pin))

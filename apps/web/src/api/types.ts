@@ -743,6 +743,8 @@ export interface CastRequest {
   subtitle_index?: number;
   /** A device on another profile: that profile (its `profile.id`), which the device switches from. */
   profile_id?: Id;
+  /** With `profile_id`: the device listed (its `device_id`), which the cast goes to or doesn't go at all. */
+  device_id?: string;
   /** The user's PIN, when their profile has one and the device is on another profile. */
   pin?: string;
 }

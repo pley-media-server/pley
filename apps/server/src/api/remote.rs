@@ -25,7 +25,7 @@ use parking_lot::Mutex;
 use pley_transcoder_api::{MediaStream, StreamKind};
 use serde::{Deserialize, Serialize};
 
-use super::auth::{CAST_NEEDS_PIN, PIN_NEEDED, SET_UP_FIRST, check_own_pin, switch_target};
+use super::auth::{CAST_ADMIN_TO_BROWSER, CAST_NEEDS_PIN, PIN_NEEDED, SET_UP_FIRST, check_own_pin, switch_target};
 use super::items::item_or_404;
 use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken, hash_token, new_token};
@@ -597,7 +597,10 @@ struct Open {
 const TICKET_TTL: Duration = Duration::from_secs(60);
 
 /// The most tickets waiting at once; past them, the oldest go.
-const MAX_TICKETS: usize = 256;
+const MAX_TICKETS: usize = 4096;
+
+/// The most tickets waiting for one device; past them, its oldest go.
+const TICKETS_EACH: usize = 4;
 
 /// What a cast's switch ticket lets its receiver do: device `device_id`,
 /// on profile `from`, switches to profile `to`, once.
@@ -711,9 +714,15 @@ impl Receivers {
 
     /// Counts a cast to receiver `id` of `user_id`: whether it may go, at
     /// most [`COMMANDS_PER_SECOND`] each second, or `None` when the receiver
-    /// has gone since.
-    fn take_cast(&self, user_id: i64, id: &str) -> Option<bool> {
-        self.by_user.lock().get_mut(&user_id)?.get_mut(id).map(|open| open.casts_sent.take())
+    /// has gone since, or is another device than `device` now (the one the
+    /// caller checked, as its remote listed it).
+    fn take_cast(&self, user_id: i64, id: &str, device: Option<&str>) -> Option<bool> {
+        let mut by_user = self.by_user.lock();
+        let open = by_user.get_mut(&user_id)?.get_mut(id)?;
+        if device.is_some_and(|device| device != open.receiver.device_id) {
+            return None;
+        }
+        Some(open.casts_sent.take())
     }
 
     /// Which device receiver `id` of `user_id` is, while it is there.
@@ -722,15 +731,27 @@ impl Receivers {
     }
 
     /// A ticket for device `device_id`, on profile `from`, to switch to
-    /// profile `to` once within [`TICKET_TTL`]. Kept by its hash only.
+    /// profile `to` once within [`TICKET_TTL`]. Kept by its hash only. A
+    /// device keeps its [`TICKETS_EACH`] newest, so one member's casts never
+    /// push out another's.
     fn issue_ticket(&self, device_id: &str, from: i64, to: i64) -> String {
         let ticket = new_token();
         let mut tickets = self.tickets.lock();
         tickets.retain(|_, t| t.issued.elapsed() < TICKET_TTL);
-        if tickets.len() >= MAX_TICKETS
-            && let Some(oldest) = tickets.iter().min_by_key(|(_, t)| t.issued).map(|(key, _)| key.clone())
+        // The oldest ticket, of `device` or of any.
+        let oldest = |tickets: &HashMap<String, Ticket>, device: Option<&str>| {
+            let of = tickets.iter().filter(|(_, t)| device.is_none_or(|d| t.device_id == d));
+            of.min_by_key(|(_, t)| t.issued).map(|(key, _)| key.clone())
+        };
+        if tickets.values().filter(|t| t.device_id == device_id).count() >= TICKETS_EACH
+            && let Some(key) = oldest(&tickets, Some(device_id))
         {
-            tickets.remove(&oldest);
+            tickets.remove(&key);
+        }
+        if tickets.len() >= MAX_TICKETS
+            && let Some(key) = oldest(&tickets, None)
+        {
+            tickets.remove(&key);
         }
         let entry = Ticket { device_id: device_id.to_owned(), from, to, issued: Instant::now() };
         tickets.insert(hash_token(&ticket), entry);
@@ -809,7 +830,7 @@ pub struct DevicesQuery {
 /// one of Pley's own apps allowed to switch profiles, as a switch itself
 /// takes. Another app would learn the household's names and take over its
 /// TVs as its own profile.
-fn reaches_household(user: &AuthUser) -> bool {
+pub(crate) fn reaches_household(user: &AuthUser) -> bool {
     user.first_party() && user.allowed(Scope::Profiles)
 }
 
@@ -850,6 +871,11 @@ pub async fn devices(
 pub struct Cast {
     #[serde(default)]
     item_id: Option<i64>,
+    /// With `profile_id`: the device the remote listed under the receiver
+    /// id (`device_id`). A cast goes to that device or to none, so the id
+    /// taken by another device since never gets its ticket.
+    #[serde(default)]
+    device_id: Option<String>,
     #[serde(default)]
     playlist_id: Option<i64>,
     #[serde(default)]
@@ -872,7 +898,18 @@ pub struct Cast {
     /// The caller's PIN, when their profile has one and the receiver is on
     /// another profile: it is about to act as theirs.
     #[serde(default)]
-    pin: Option<String>,
+    pin: Option<CastPin>,
+}
+
+/// A PIN a cast carries: never in Debug output, which logs may carry.
+#[derive(Deserialize)]
+#[serde(transparent)]
+struct CastPin(String);
+
+impl std::fmt::Debug for CastPin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CastPin(..)")
+    }
 }
 
 /// What has tracks to pick: a title of one file's worth.
@@ -920,6 +957,20 @@ pub async fn cast(
     if owner != user.id && !switches {
         return Err(AppError::not_found("no such device"));
     }
+    // Another profile's receiver is the device the remote listed, or none:
+    // an id another device holds now (the TV went, someone else's sign-in
+    // came) never gets the caller's profile.
+    let device = if owner == user.id {
+        None
+    } else {
+        let Some(listed) = body.device_id.as_deref() else {
+            return Err(AppError::bad_request("device_id, as the device list says, goes with profile_id"));
+        };
+        if state.receivers.device_of(owner, &id).as_deref() != Some(listed) {
+            return Err(AppError::not_found("no such device"));
+        }
+        Some(listed.to_owned())
+    };
     let picked = body.audio_index.is_some() || body.subtitle_index.is_some();
     let kind = match (body.item_id, body.playlist_id, body.channel_id) {
         (Some(item_id), None, None) => {
@@ -979,10 +1030,10 @@ pub async fn cast(
     // from the profile it is on: a freer profile takes its PIN (there is no
     // password on a TV), one that has to set up two-step sign-in can't be
     // switched to; then the PIN, when it has one.
-    if owner != user.id {
-        check_cast_switch(&state, owner, user.id).await?;
-        match body.pin.as_deref() {
-            Some(pin) => {
+    if let Some(device) = &device {
+        check_cast_switch(&state, owner, user.id, device).await?;
+        match &body.pin {
+            Some(CastPin(pin)) => {
                 check_own_pin(&state, &user, pin).await?;
             }
             None if has_pin(&state, user.id).await? => {
@@ -991,7 +1042,7 @@ pub async fn cast(
             None => {}
         }
     }
-    match state.receivers.take_cast(owner, &id) {
+    match state.receivers.take_cast(owner, &id, device.as_deref()) {
         None => return Err(AppError::not_found("no such device")),
         Some(false) => {
             return Err(AppError::TooManyRequests(format!(
@@ -1006,12 +1057,8 @@ pub async fn cast(
     let from = device_id_of(&user, token.as_deref())
         .and_then(|device| state.receivers.given_name(user.id, &device))
         .or_else(|| device_name(None, &headers));
-    let switch_ticket = if owner == user.id {
-        None
-    } else {
-        let device = state.receivers.device_of(owner, &id).ok_or_else(|| AppError::not_found("no such device"))?;
-        Some(SwitchTicket(state.receivers.issue_ticket(&device, owner, user.id)))
-    };
+    // The device it was counted for, just now.
+    let switch_ticket = device.map(|device| SwitchTicket(state.receivers.issue_ticket(&device, owner, user.id)));
     state.events.send(ServerEvent::Cast {
         user_id: owner,
         receiver_id: id,
@@ -1039,8 +1086,11 @@ async fn has_pin(state: &AppState, id: i64) -> ApiResult<bool> {
 /// the administrators' exemption (the receiver may be an app, which never
 /// has it): a caster freer than `owner` takes a PIN, and one that has to
 /// set up two-step sign-in, which the server requires, can't be switched
-/// to. The PIN itself is checked next.
-async fn check_cast_switch(state: &AppState, owner: i64, caster: i64) -> ApiResult<()> {
+/// to. An administrator's profile goes only to an app's device
+/// (`device_id`), whose tokens never have administrator rights: a browser's
+/// or the desktop app's sign-in would stay one with them. The PIN itself is
+/// checked next.
+async fn check_cast_switch(state: &AppState, owner: i64, caster: i64, device_id: &str) -> ApiResult<()> {
     let (Some(device), Some(to)) =
         (switch_target(state, owner, owner).await?, switch_target(state, owner, caster).await?)
     else {
@@ -1048,6 +1098,9 @@ async fn check_cast_switch(state: &AppState, owner: i64, caster: i64) -> ApiResu
     };
     if to.sets_up_two_step(state.auth.two_step_required()) {
         return Err(AppError::ForbiddenAs("not_allowed", SET_UP_FIRST.to_owned()));
+    }
+    if to.is_admin && !device_id.starts_with("app-") {
+        return Err(AppError::ForbiddenAs("not_allowed", CAST_ADMIN_TO_BROWSER.to_owned()));
     }
     let max_age = if device.is_admin { None } else { device.max_age };
     let all_libraries = device.all_libraries || device.is_admin;
@@ -1223,10 +1276,21 @@ mod tests {
     #[test]
     fn casts_to_a_receiver_are_limited_each_second() {
         let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
-        assert_eq!(receivers.take_cast(1, "tv"), None);
+        assert_eq!(receivers.take_cast(1, "tv", None), None);
         let _tv = receivers.open(&bus, 1, "tv", receiver("app-7", None, "item")).unwrap();
-        assert!((0..COMMANDS_PER_SECOND).all(|_| receivers.take_cast(1, "tv") == Some(true)));
-        assert_eq!(receivers.take_cast(1, "tv"), Some(false));
-        assert_eq!(receivers.take_cast(2, "tv"), None, "another user's");
+        assert_eq!(receivers.take_cast(1, "tv", Some("app-8")), None, "another device than the one listed");
+        assert!((0..COMMANDS_PER_SECOND).all(|_| receivers.take_cast(1, "tv", Some("app-7")) == Some(true)));
+        assert_eq!(receivers.take_cast(1, "tv", None), Some(false));
+        assert_eq!(receivers.take_cast(2, "tv", None), None, "another user's");
+    }
+
+    #[test]
+    fn a_device_keeps_its_newest_tickets_and_others_keep_theirs() {
+        let receivers = Receivers::default();
+        let others: Vec<String> = (0..2).map(|_| receivers.issue_ticket("app-1", 1, 2)).collect();
+        let mine: Vec<String> = (0..TICKETS_EACH + 2).map(|_| receivers.issue_ticket("app-2", 1, 2)).collect();
+        assert!(!receivers.redeem(&mine[0], "app-2", 1, 2), "its oldest went");
+        assert!(receivers.redeem(mine.last().unwrap(), "app-2", 1, 2), "its newest stays");
+        assert!(others.iter().all(|t| receivers.redeem(t, "app-1", 1, 2)), "another device's are kept");
     }
 }

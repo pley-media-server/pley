@@ -131,7 +131,7 @@ describe("PlayOn", () => {
       expect(items[1]).toHaveAccessibleDescription("On Sam's profile");
 
       await user.click(items[1]!);
-      expect(casts(requests)).toEqual([["/api/remote/devices/attic/cast", { item_id: 7, profile_id: 2 }]]);
+      expect(casts(requests)).toEqual([["/api/remote/devices/attic/cast", { item_id: 7, profile_id: 2, device_id: "app-6" }]]);
       expect(await screen.findByText("Playing on Attic TV")).toBeInTheDocument();
     });
 
@@ -158,8 +158,8 @@ describe("PlayOn", () => {
       expect(await screen.findByText("Playing on Attic TV")).toBeInTheDocument();
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(casts(requests)).toEqual([
-        ["/api/remote/devices/attic/cast", { item_id: 7, shuffle: true, profile_id: 2, pin: "1111" }],
-        ["/api/remote/devices/attic/cast", { item_id: 7, shuffle: true, profile_id: 2, pin: "1234" }],
+        ["/api/remote/devices/attic/cast", { item_id: 7, shuffle: true, profile_id: 2, device_id: "app-6", pin: "1111" }],
+        ["/api/remote/devices/attic/cast", { item_id: 7, shuffle: true, profile_id: 2, device_id: "app-6", pin: "1234" }],
       ]);
     });
 
@@ -179,8 +179,8 @@ describe("PlayOn", () => {
       expect(await screen.findByText("Playing on Attic TV")).toBeInTheDocument();
       expect(asking).not.toBeInTheDocument();
       expect(casts(requests).map(([, body]) => body)).toEqual([
-        { item_id: 7, profile_id: 2 },
-        { item_id: 7, profile_id: 2, pin: "1234" },
+        { item_id: 7, profile_id: 2, device_id: "app-6" },
+        { item_id: 7, profile_id: 2, device_id: "app-6", pin: "1234" },
       ]);
     });
 
