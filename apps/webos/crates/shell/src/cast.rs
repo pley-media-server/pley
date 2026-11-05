@@ -7,11 +7,15 @@
 //! found on the task pool ([`resolve`]): a title's kind, a show's next episode, the tracks of an
 //! album, an artist or a playlist. A newer cast replaces one still being found.
 //!
-//! A remote on another profile of the household casts with its profile and a ticket: the TV
-//! switches to that profile with the ticket first ([`AppState::switch_for_cast`]), then finds and
-//! plays the cast as the new profile. The switch restarts the event stream, so the cast waits
-//! here, not on the stream, and plays once. A switch the server refused plays nothing and says so;
-//! a cast from another profile without a ticket is ignored.
+//! A remote on another profile of the household casts with its profile and a ticket: the TV ends
+//! what plays, lets its last reports go out as the profile it played as (5 s at most), switches
+//! to the remote's profile with the ticket ([`AppState::switch_for_cast`]), then finds and plays
+//! the cast as the new profile. The switch restarts the event stream, so the cast waits here, not
+//! on the stream, and plays once; any other cast heard until the switch is done is dropped. A
+//! switch the server refused plays nothing and says so; a cast from another profile without a
+//! ticket is ignored.
+
+use std::time::Duration;
 
 use pley_core::auth::{AuthError, SwitchRefusal};
 use pley_core::model::{ItemKind, ItemSummary, PlaylistKind, ServerEvent, SwitchTicket};
@@ -23,6 +27,10 @@ use crate::state::AppState;
 
 /// How long "Playing from …" shows, as long as a player's title banner.
 pub const CAST_NOTICE_SECONDS: f64 = 4.0;
+
+/// How long a switch for a cast waits for the last reports of what played to go out as the
+/// profile it played as; what hasn't gone out by then is dropped.
+pub const LAST_REPORTS_WAIT: Duration = Duration::from_secs(5);
 
 /// What the TV says of a cast that names nothing to play: a show without episodes, an empty album
 /// or playlist.
@@ -264,8 +272,8 @@ struct Pending {
 }
 
 enum Stage {
-    /// The TV switches to the profile of the remote that cast; `cast` is found once it has, unless
-    /// it was let go (`play` false).
+    /// The TV switches to the profile of the remote that cast (its last reports out first); `cast`
+    /// is found once it has, unless it was let go (`play` false).
     Switching { profile: i64, cast: Cast, play: bool, answer: Promise<Result<(), AuthError>> },
     /// What the cast plays is being found.
     Finding { from: Option<String>, answer: Promise<Result<CastPlay, ApiError>> },
@@ -284,20 +292,15 @@ pub enum CastNews {
 }
 
 impl Casts {
-    /// Starts on `cast`: a switch to its remote's profile first, when it comes from another, else
-    /// finding what it plays, in place of a cast still being found (whose requests are let go). A
-    /// channel needs nothing found: its player tunes it.
+    /// Starts on `cast`: a switch to its remote's profile first, when it comes from another (the
+    /// shell has ended what played), else finding what it plays, in place of a cast still being
+    /// found (whose requests are let go). A channel needs nothing found: its player tunes it.
     ///
-    /// A switch under way goes on whatever comes next, as the server may have made it already: a
-    /// newer cast from the same profile plays after it in place of the first, any other is let go.
+    /// A switch under way goes on whatever comes next, as the server may have made it already, and
+    /// any cast heard until it is done is dropped, the new profile's own included.
     pub fn start(&mut self, mut cast: Cast, state: &AppState, now: f64) {
-        if let Some(Pending { stage: Stage::Switching { profile, cast: next, play, .. }, .. }) = &mut self.pending {
-            if cast.switch.as_ref().is_some_and(|s| s.profile == *profile) {
-                *next = Cast { switch: None, ..cast };
-                *play = true;
-            } else {
-                log::info!("a remote cast to this TV as it switched profiles for another cast");
-            }
+        if self.switching() {
+            log::info!("a remote cast to this TV as it switched profiles for another cast: dropped");
             return;
         }
         let generation = state.generation();
@@ -329,6 +332,11 @@ impl Casts {
     /// Whether a cast is being switched for or found.
     pub fn busy(&self) -> bool {
         self.pending.is_some()
+    }
+
+    /// Whether the TV is switching profiles for a cast.
+    pub fn switching(&self) -> bool {
+        matches!(self.pending, Some(Pending { stage: Stage::Switching { .. }, .. }))
     }
 
     /// What the cast being switched for or found came to, once it has. One heard under another
