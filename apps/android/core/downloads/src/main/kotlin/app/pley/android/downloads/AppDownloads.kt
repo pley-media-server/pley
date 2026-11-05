@@ -1,12 +1,17 @@
 package app.pley.android.downloads
 
 import android.annotation.SuppressLint
+import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import androidx.core.content.ContextCompat
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.resolve
 import app.pley.android.data.AppSettings
 import app.pley.android.data.DataGraph
 import app.pley.android.data.DownloadEntry
@@ -35,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -43,6 +49,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -90,10 +97,32 @@ class AppDownloads internal constructor(
     @Volatile
     private var offlineUntil = 0L
 
-    override val entries: StateFlow<List<DownloadEntry>> = combine(store.all, session) { all, s ->
+    /**
+     * Each change of the app's configuration: Android 13 and later put a
+     * language chosen into the application's resources then, a moment
+     * after [AppLanguage.shown] says it.
+     */
+    private val configurations = MutableStateFlow(0)
+
+    init {
+        context.registerComponentCallbacks(
+            object : ComponentCallbacks {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    configurations.update { it + 1 }
+                }
+
+                @Deprecated("Superseded by onTrimMemory, which nothing here needs either")
+                override fun onLowMemory() = Unit
+            },
+        )
+    }
+
+    // Worded again when the language changes: why one failed is in the language shown.
+    override val entries: StateFlow<List<DownloadEntry>> = combine(store.all, session, AppLanguage.shown, configurations) { all, s, _, _ ->
         val server = s?.issuer
         val userId = s?.me?.id
-        all.filter { it.server == server && it.userId == userId }.sortedByDescending { it.addedAt }.map(::entryOf)
+        val words = AppLanguage.resources(context)
+        all.filter { it.server == server && it.userId == userId }.sortedByDescending { it.addedAt }.map { entryOf(it, words) }
     }.flowOn(Dispatchers.Default).stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     // Measured at once, then at most once a [STORAGE_EVERY_MS] while the downloads change (the
@@ -154,7 +183,9 @@ class AppDownloads internal constructor(
             store.update(key) {
                 it.copy(
                     state = DownloadState.Queued,
+                    failure = null,
                     error = null,
+                    status = null,
                     conversion = it.conversion.takeIf { _ -> it.mediaUrl != null },
                     converting = null,
                     notBefore = 0,
@@ -377,7 +408,7 @@ class AppDownloads internal constructor(
         )
     }
 
-    private fun entryOf(s: Saved): DownloadEntry = DownloadEntry(
+    private fun entryOf(s: Saved, words: Resources): DownloadEntry = DownloadEntry(
         itemId = s.itemId,
         fileId = s.fileId,
         kind = s.kind,
@@ -395,7 +426,7 @@ class AppDownloads internal constructor(
         addedAt = s.addedAt,
         positionMs = s.positionMs,
         watched = s.watched,
-        error = s.error,
+        error = s.errorText()?.resolve(words),
         converting = s.converting?.takeIf { s.mediaUrl == null && s.state != DownloadState.Done && s.state != DownloadState.Failed },
         serverAway = s.state == DownloadState.Waiting && s.unreachable,
     )

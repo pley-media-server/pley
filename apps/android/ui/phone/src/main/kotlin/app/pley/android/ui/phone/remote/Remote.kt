@@ -71,7 +71,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
+import app.pley.android.common.resolve
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
 import app.pley.android.data.RemoteSession
@@ -443,7 +444,7 @@ private fun Playing(
         CommandRefusal.Gone -> resources.getString(R.string.remote_gone, device)
         CommandRefusal.NotControllable -> resources.getString(R.string.remote_cant, device)
         CommandRefusal.TooMany -> resources.getString(R.string.remote_too_many)
-        CommandRefusal.Offline, CommandRefusal.Other -> sentenceOf(e)
+        CommandRefusal.Offline, CommandRefusal.Other -> errorSentence(e).resolve(resources)
     }
 
     fun send(request: PlayerCommandRequest) {

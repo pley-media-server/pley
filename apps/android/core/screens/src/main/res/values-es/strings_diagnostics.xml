@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diagnostics_fact_model">Modelo</string>
+    <string name="diagnostics_fact_kind">Tipo</string>
+    <string name="diagnostics_fact_memory">Memoria</string>
+    <string name="diagnostics_fact_tier">Nivel de memoria</string>
+    <string name="diagnostics_fact_buffer">Búfer del reproductor</string>
+
+    <string name="diagnostics_kind_phone">Teléfono</string>
+
+    <string name="diagnostics_memory_gb">%1$.1f GB</string>
+    <string name="diagnostics_memory_low">%1$s (dispositivo con poca memoria)</string>
+
+    <string name="diagnostics_buffer_ahead">%1$d-%2$d s por delante</string>
+    <string name="diagnostics_buffer_bytes">%1$d MiB</string>
+    <string name="diagnostics_buffer_behind">%1$d s por detrás</string>
+</resources>

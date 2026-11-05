@@ -48,7 +48,12 @@ internal data class Saved(
     /** Where it was left, played here. */
     val positionMs: Long = 0,
     val watched: Boolean = false,
+    /** Why it failed, worded where it shows ([errorText]). */
+    val failure: Failure? = null,
+    /** The server's own words of a [Failure.ConversionFailed]; without a [failure], why it failed as an older version wrote it. */
     val error: String? = null,
+    /** The server's answer of a [Failure.ServerFailed]. */
+    val status: Int? = null,
     /** The server makes the file for this device ([maxHeight] and [maxBitrateKbps] when smaller). */
     val convert: Boolean = false,
     val maxHeight: Int? = null,
@@ -98,7 +103,7 @@ internal class DownloadStore(private val root: File) {
         state.value = read.map { s ->
             when (s.state) {
                 DownloadState.Downloading, DownloadState.Waiting -> s.copy(state = DownloadState.Queued, downloadedBytes = partOf(s).length())
-                DownloadState.Done -> if (mediaOf(s).isFile) s else s.copy(state = DownloadState.Failed, error = MISSING)
+                DownloadState.Done -> if (mediaOf(s).isFile) s else s.copy(state = DownloadState.Failed, failure = Failure.Missing, error = null)
                 else -> s
             }
         }
@@ -198,9 +203,6 @@ internal class DownloadStore(private val root: File) {
 
     companion object {
         const val INDEX = "index.json"
-
-        /** Why a download marked whole has no file: its folder was removed outside the app. */
-        const val MISSING = "The downloaded file is gone"
 
         /** A folder name for [server]: its address could hold anything. */
         fun hash(server: String): String = sha1Hex(server).take(16)

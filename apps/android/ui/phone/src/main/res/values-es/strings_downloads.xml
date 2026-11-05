@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_title">Descargas</string>
+    <string name="downloads_empty">Aún no has descargado nada</string>
+    <string name="downloads_empty_body">Descarga una película o un episodio desde su página para verlo sin conexión.</string>
+    <string name="downloads_storage">%1$s en este dispositivo · %2$s de espacio libre</string>
+    <plurals name="downloads_episodes">
+        <item quantity="one">%1$d episodio · %2$s</item>
+        <item quantity="many">%1$d de episodios · %2$s</item>
+        <item quantity="other">%1$d episodios · %2$s</item>
+    </plurals>
+    <string name="downloads_queued">Esperando para descargar</string>
+    <string name="downloads_waiting">Esperando una red Wi-Fi</string>
+    <string name="downloads_waiting_server">Esperando a tu servidor</string>
+    <string name="downloads_preparing">Preparando en el servidor · %1$d %%</string>
+    <string name="downloads_preparing_item">Preparando %1$s, %2$d %%</string>
+    <string name="downloads_progress">Descargando · %1$d %% de %2$s</string>
+    <string name="downloads_failed">No se descargó: %1$s</string>
+    <string name="downloads_left">%1$s · quedan %2$s</string>
+    <string name="downloads_watched">%1$s · Visto</string>
+    <string name="downloads_play">Reproducir</string>
+    <string name="downloads_retry">Volver a intentar</string>
+    <string name="downloads_delete">Eliminar la descarga</string>
+    <string name="downloads_cancel">Cancelar la descarga</string>
+    <string name="downloads_open">Ir a la página</string>
+
+    <string name="downloads_download">Descargar</string>
+    <string name="downloads_downloaded">Descargado</string>
+    <string name="downloads_failed_short">No se descargó</string>
+    <string name="downloads_queued_short">En cola</string>
+    <string name="downloads_waiting_short">Esperando</string>
+    <string name="downloads_download_season">Descargar la temporada</string>
+    <string name="downloads_download_item">Descargar %1$s</string>
+    <string name="downloads_downloaded_item">Descargado: %1$s</string>
+    <string name="downloads_downloading_item">Descargando %1$s, %2$d %%</string>
+    <string name="downloads_failed_toast">No se pudo descargar: %1$s</string>
+    <string name="downloads_started">Descargando. Lo encontrarás en Descargas, dentro de Yo.</string>
+    <string name="downloads_started_action">Descargas</string>
+
+    <string name="downloads_offline_action">Descargas</string>
+
+    <string name="downloads_me_value">Ver sin tu servidor</string>
+    <plurals name="downloads_me_count">
+        <item quantity="one">%1$d descarga · %2$s</item>
+        <item quantity="many">%1$d de descargas · %2$s</item>
+        <item quantity="other">%1$d descargas · %2$s</item>
+    </plurals>
+    <string name="downloads_settings">Descargas</string>
+    <string name="downloads_quality">Calidad</string>
+    <string name="downloads_quality_hint">Original descarga el archivo sin cambios cuando este teléfono puede reproducirlo. Las calidades más bajas ocupan menos espacio; el servidor las convierte primero.</string>
+    <string name="downloads_mobile_data">Descargar con datos móviles</string>
+    <string name="downloads_mobile_data_value">Si no, las descargas esperan una red Wi-Fi</string>
+    <string name="downloads_delete_all">Eliminar todas las descargas</string>
+    <string name="downloads_delete_all_title">¿Eliminar todas las descargas?</string>
+    <string name="downloads_delete_all_body">Se eliminarán todas las descargas de este dispositivo, de todos los servidores y perfiles.</string>
+    <string name="downloads_delete_all_confirm">Eliminar todo</string>
+    <string name="downloads_keep">Conservarlas</string>
+</resources>

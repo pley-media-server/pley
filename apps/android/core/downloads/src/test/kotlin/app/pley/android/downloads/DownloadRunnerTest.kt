@@ -1,5 +1,6 @@
 package app.pley.android.downloads
 
+import app.pley.android.common.UiText
 import app.pley.android.data.DownloadState
 import app.pley.android.model.ConversionInfo
 import app.pley.android.model.ConversionState
@@ -122,7 +123,7 @@ class DownloadRunnerTest {
 
         val failed = store.get(saved.key)!!
         assertEquals(DownloadState.Failed, failed.state)
-        assertEquals("This file is no longer on the server", failed.error)
+        assertEquals(UiText.res(R.string.downloads_error_gone), failed.errorText())
     }
 
     @Test
@@ -189,7 +190,7 @@ class DownloadRunnerTest {
         runner().run()
         val failed = store.get(smaller.key)!!
         assertEquals(DownloadState.Failed, failed.state)
-        assertEquals(DownloadRunner.NO_CONVERSIONS, failed.error)
+        assertEquals(UiText.res(R.string.downloads_error_no_conversions), failed.errorText())
     }
 
     @Test

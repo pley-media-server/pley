@@ -26,11 +26,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.network.OfflineException
 import app.pley.android.ui.phone.R
 import kotlinx.coroutines.delay
@@ -80,7 +81,7 @@ fun EmptyState(
 /**
  * Something failed to load (design spec §8): "Couldn't load your home
  * screen", the error's own sentence under it, and Retry as a tonal
- * button. The sentence is [describe]d from [error], so the server's and
+ * button. The sentence is [errorSentence] of [error], so the server's and
  * the network's words come through as they are; it is announced.
  */
 @Composable
@@ -92,12 +93,13 @@ fun ErrorState(
 ) {
     // The server answered nothing: said as the player says it, with what to check.
     val offline = error is OfflineException
+    val sentence = errorSentence(error).asString()
     EmptyState(
         title = if (offline) stringResource(R.string.kit_offline_title) else title,
         body = if (offline && !(error as OfflineException).blocked) {
-            stringResource(R.string.kit_offline_body, sentenceOf(error))
+            stringResource(R.string.kit_offline_body, sentence)
         } else {
-            sentenceOf(error)
+            sentence
         },
         icon = if (offline) PleyIcons.ServerOff else PleyIcons.CircleAlert,
         modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },

@@ -8,11 +8,13 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import app.pley.android.common.AppLanguage
+import app.pley.android.common.Language
 import app.pley.android.data.DownloadState
 import app.pley.android.model.format.formatBytes
 import kotlinx.coroutines.CoroutineScope
@@ -21,8 +23,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -35,12 +37,21 @@ class DownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var run: Job? = null
 
+    /** What the notification shows now, while the downloads run. */
+    private var shown: Shown? = null
+
     // The notification's words in the language shown.
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(AppLanguage.wrap(base))
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Android 13 and later put a language chosen into the app's words now: the notification says it.
+        shown?.let { manager().notify(NOTIFICATION_ID, notification(it)) }
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val downloads = (application as? DownloadsOwner)?.appDownloads
@@ -50,7 +61,7 @@ class DownloadService : Service() {
         }
         channel()
         try {
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(shownOf(downloads.all.value)), foregroundType())
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(shownOf(downloads.all.value, AppLanguage.shown.value)), foregroundType())
         } catch (_: Exception) {
             // Not allowed now (the app went to the background first): the app starts it again when it opens.
             stopSelf()
@@ -58,15 +69,18 @@ class DownloadService : Service() {
         }
         if (run?.isActive != true) {
             run = scope.launch {
-                val shown = launch {
-                    downloads.all
-                        .map(::shownOf)
+                val showing = launch {
+                    combine(downloads.all, AppLanguage.shown, ::shownOf)
                         .distinctUntilChanged()
-                        .collectLatest { manager().notify(NOTIFICATION_ID, notification(it)) }
+                        .collectLatest {
+                            shown = it
+                            manager().notify(NOTIFICATION_ID, notification(it))
+                        }
                 }
                 // Off the main thread: the index is written on every change.
                 withContext(Dispatchers.IO) { downloads.runQueue() }
-                shown.cancel()
+                showing.cancel()
+                shown = null
                 ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -91,16 +105,18 @@ class DownloadService : Service() {
 
     private fun manager(): NotificationManager = getSystemService(NotificationManager::class.java)
 
+    /** The channel, named in the language shown: the system's settings show it. */
     private fun channel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(CHANNEL, getString(R.string.downloads_channel), NotificationManager.IMPORTANCE_LOW).apply {
-            description = getString(R.string.downloads_channel_description)
+        val words = AppLanguage.resources(this)
+        val channel = NotificationChannel(CHANNEL, words.getString(R.string.downloads_channel), NotificationManager.IMPORTANCE_LOW).apply {
+            description = words.getString(R.string.downloads_channel_description)
             setShowBadge(false)
         }
         manager().createNotificationChannel(channel)
     }
 
-    /** What the notification shows: it changes only when one of these does (a whole percent). */
+    /** What the notification shows: it changes only when one of these does (a whole percent, the language). */
     private data class Shown(
         val title: String?,
         val doneBytes: Long,
@@ -112,9 +128,11 @@ class DownloadService : Service() {
         val away: Boolean = false,
         /** Nothing downloads, but the server makes one: its title, and how far (percent). */
         val converting: Pair<String, Int>? = null,
+        /** The language it is said in. */
+        val language: Language,
     )
 
-    private fun shownOf(all: List<Saved>): Shown {
+    private fun shownOf(all: List<Saved>, language: Language): Shown {
         val active = all.firstOrNull { it.state == DownloadState.Downloading }
         val making = all.firstOrNull { it.converting != null && it.mediaUrl == null && it.state == DownloadState.Queued }
         val left = all.count { it.state == DownloadState.Queued || it.state == DownloadState.Waiting || it.state == DownloadState.Downloading }
@@ -132,11 +150,14 @@ class DownloadService : Service() {
             converting = making?.takeIf { active == null }?.let { m ->
                 (m.showTitle?.let { "$it · ${m.title}" } ?: m.title) to ((m.converting ?: 0f) * 100).toInt()
             },
+            language = language,
         )
     }
 
     /** "Downloading The Distant Harbor", "1.2 GB of 4.6 GB · 2 more", its bar; or waiting for Wi-Fi or the server. */
     private fun notification(shown: Shown): Notification {
+        // In the language shown now, which may have changed since the service started.
+        val words = AppLanguage.resources(this)
         val open = packageManager.getLaunchIntentForPackage(packageName)?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         }
@@ -151,21 +172,21 @@ class DownloadService : Service() {
             shown.title != null -> {
                 val size = formatBytes(shown.sizeBytes)
                 val done = formatBytes(shown.doneBytes)
-                builder.setContentTitle(getString(R.string.downloads_notification_downloading, shown.title))
+                builder.setContentTitle(words.getString(R.string.downloads_notification_downloading, shown.title))
                     .setContentText(
-                        if (shown.more > 0) getString(R.string.downloads_notification_progress_more, done, size, shown.more)
-                        else getString(R.string.downloads_notification_progress, done, size),
+                        if (shown.more > 0) words.getString(R.string.downloads_notification_progress_more, done, size, shown.more)
+                        else words.getString(R.string.downloads_notification_progress, done, size),
                     )
                     .setProgress(100, shown.percent, shown.sizeBytes <= 0)
             }
-            shown.converting != null -> builder.setContentTitle(getString(R.string.downloads_notification_converting, shown.converting.first))
-                .setContentText(getString(R.string.downloads_notification_converting_text, shown.converting.second))
+            shown.converting != null -> builder.setContentTitle(words.getString(R.string.downloads_notification_converting, shown.converting.first))
+                .setContentText(words.getString(R.string.downloads_notification_converting_text, shown.converting.second))
                 .setProgress(100, shown.converting.second, false)
-            shown.waiting && shown.away -> builder.setContentTitle(getString(R.string.downloads_notification_waiting_server))
-                .setContentText(getString(R.string.downloads_notification_waiting_server_text))
-            shown.waiting -> builder.setContentTitle(getString(R.string.downloads_notification_waiting))
-                .setContentText(getString(R.string.downloads_notification_waiting_text))
-            else -> builder.setContentTitle(getString(R.string.downloads_notification_starting)).setProgress(0, 0, true)
+            shown.waiting && shown.away -> builder.setContentTitle(words.getString(R.string.downloads_notification_waiting_server))
+                .setContentText(words.getString(R.string.downloads_notification_waiting_server_text))
+            shown.waiting -> builder.setContentTitle(words.getString(R.string.downloads_notification_waiting))
+                .setContentText(words.getString(R.string.downloads_notification_waiting_text))
+            else -> builder.setContentTitle(words.getString(R.string.downloads_notification_starting)).setProgress(0, 0, true)
         }
         return builder.build()
     }

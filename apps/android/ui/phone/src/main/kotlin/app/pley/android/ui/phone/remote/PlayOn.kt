@@ -45,7 +45,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
+import app.pley.android.common.resolve
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
 import app.pley.android.designsystem.PleyColors
@@ -284,7 +285,7 @@ internal fun PlayOnSheet(
                                     CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
                                     CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
                                     CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
-                                    CastRefusal.Offline, CastRefusal.Other -> sentenceOf(e)
+                                    CastRefusal.Offline, CastRefusal.Other -> errorSentence(e).resolve(resources)
                                 }
                             } finally {
                                 sending = null

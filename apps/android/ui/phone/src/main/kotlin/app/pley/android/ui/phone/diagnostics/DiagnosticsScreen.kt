@@ -44,6 +44,7 @@ import app.pley.android.common.perf.FrameRate
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.diagnostics.DiagnosticsViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.RowDivider
@@ -102,9 +103,9 @@ internal fun DiagnosticsScreen() {
             item(key = "device") {
                 SettingsGroup(stringResource(R.string.diagnostics_device), Modifier.widthIn(max = MAX_WIDTH)) {
                     FactRow(stringResource(R.string.diagnostics_app), stringResource(R.string.diagnostics_app_value, versionOf(context)))
-                    state.device.forEach { fact ->
+                    state.facts.forEach { fact ->
                         RowDivider(inset = false)
-                        FactRow(fact.label, fact.value)
+                        FactRow(fact.label.asString(), fact.value.asString())
                     }
                     RowDivider(inset = false)
                     val frames by FrameRate.on.collectAsStateWithLifecycle()

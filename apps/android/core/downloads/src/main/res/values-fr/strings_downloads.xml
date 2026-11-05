@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_channel">Téléchargements</string>
+    <string name="downloads_channel_description">L’avancement des téléchargements</string>
+
+    <string name="downloads_notification_downloading">Téléchargement de %1$s</string>
+    <string name="downloads_notification_progress">%1$s sur %2$s</string>
+    <string name="downloads_notification_progress_more">%1$s sur %2$s · %3$d de plus</string>
+    <string name="downloads_notification_waiting">Les téléchargements attendent le Wi-Fi</string>
+    <string name="downloads_notification_waiting_text">Ils reprendront en Wi-Fi, ou en données mobiles si vous l’autorisez dans les Paramètres.</string>
+    <string name="downloads_notification_waiting_server">Les téléchargements attendent votre serveur</string>
+    <string name="downloads_notification_waiting_server_text">Ils reprendront dès qu’il répondra, comme quand l’application s’ouvre chez vous.</string>
+    <string name="downloads_notification_starting">Préparation des téléchargements</string>
+    <string name="downloads_notification_converting">Préparation de %1$s</string>
+    <string name="downloads_notification_converting_text">Le serveur le prépare pour ce téléphone · %1$d %%</string>
+
+    <string name="downloads_error_missing">Le fichier téléchargé a disparu</string>
+    <string name="downloads_error_no_space">Pas assez d’espace sur cet appareil</string>
+    <string name="downloads_error_no_conversions">Le serveur ne peut pas préparer de téléchargements plus légers : choisissez Original dans Paramètres → Téléchargements</string>
+    <string name="downloads_error_conversion">Le serveur n’a pas pu le préparer pour cet appareil</string>
+    <string name="downloads_error_conversion_said">Le serveur n’a pas pu le préparer pour cet appareil : %1$s</string>
+    <string name="downloads_error_sign_in">Reconnectez-vous au serveur pour télécharger ceci</string>
+    <string name="downloads_error_gone">Ce fichier n’est plus sur le serveur</string>
+    <string name="downloads_error_server">Le serveur n’a pas pu envoyer ce fichier (%1$d)</string>
+</resources>

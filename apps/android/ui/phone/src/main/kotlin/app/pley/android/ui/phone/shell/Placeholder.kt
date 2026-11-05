@@ -53,7 +53,7 @@ internal fun Placeholder(key: NavKey) {
         KitGallery(onBack = { kit = false })
         return
     }
-    val name = (key as? PleyKey)?.let(::screenName) ?: key.javaClass.simpleName
+    val name = (key as? PleyKey)?.let { screenName(it) } ?: key.javaClass.simpleName
     val debuggable = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     Column(Modifier.fillMaxSize().testTag(TestTags.PLACEHOLDER)) {
         if (key == PleyKey.Home) {
@@ -103,10 +103,12 @@ internal fun Brand() {
     }
 }
 
+/** What the top bar calls the screen of [key]: a few by name, the rest by their route's. */
+@Composable
 private fun screenName(key: PleyKey): String = when (key) {
-    is PleyKey.Search -> "Search"
-    is PleyKey.SignIn -> "Sign in"
-    is PleyKey.Item -> "Item ${key.itemId}"
+    is PleyKey.Search -> stringResource(R.string.shell_tab_search)
+    is PleyKey.SignIn -> stringResource(R.string.shell_scope_action)
+    is PleyKey.Item -> stringResource(R.string.shell_placeholder_item, key.itemId)
     else -> key.javaClass.simpleName
 }
 

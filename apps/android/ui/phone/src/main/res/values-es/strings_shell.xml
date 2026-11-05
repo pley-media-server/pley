@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shell_tab_home">Inicio</string>
+    <string name="shell_tab_libraries">Bibliotecas</string>
+    <string name="shell_tab_search">Buscar</string>
+    <string name="shell_tab_playlists">Listas</string>
+    <string name="shell_tab_me">Yo</string>
+
+    <string name="shell_offline">Pley está sin conexión</string>
+    <string name="kit_offline_title">No se puede conectar con tu servidor</string>
+    <string name="kit_offline_body">%1$s Comprueba que el servidor esté encendido y que este dispositivo esté en su red.</string>
+    <string name="shell_scope">Pley no tenía permiso para hacer eso: vuelve a iniciar sesión para permitirlo</string>
+    <string name="shell_scope_action">Iniciar sesión</string>
+    <string name="shell_now_playing">Abrir la reproducción en curso</string>
+
+    <string name="shell_placeholder_title">La pantalla %1$s aún no existe</string>
+    <string name="shell_placeholder_body">Esta es la aplicación nativa, aún en construcción. La aplicación que usas hoy sigue en la pantalla de inicio como Pley.</string>
+    <string name="shell_placeholder_next">Abrir otra pantalla</string>
+    <string name="shell_placeholder_in">Continuar al inicio</string>
+    <string name="shell_placeholder_kit">Mostrar el kit del teléfono</string>
+    <string name="shell_placeholder_item">Elemento %1$d</string>
+
+    <string name="kit_back">Atrás</string>
+    <string name="kit_cancel">Cancelar</string>
+    <string name="kit_retry">Reintentar</string>
+    <string name="kit_card_more">Más acciones</string>
+    <string name="kit_rating_label">Tu valoración</string>
+    <string name="kit_rating_none">Sin valorar</string>
+    <plurals name="kit_rating_stars">
+        <item quantity="one">%1$s estrella</item>
+        <item quantity="many">%1$s de estrellas</item>
+        <item quantity="other">%1$s estrellas</item>
+    </plurals>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What Diagnostics says of the device (DiagnosticsViewModel.factsOf), on phones and TVs. -->
+<resources>
+    <string name="diagnostics_fact_model">Model</string>
+    <string name="diagnostics_fact_kind">Kind</string>
+    <string name="diagnostics_fact_memory">Memory</string>
+    <string name="diagnostics_fact_tier">Memory tier</string>
+    <string name="diagnostics_fact_buffer">Player buffer</string>
+
+    <!-- Its kind ("Fire TV" is a product's name, the same in every language). -->
+    <string name="diagnostics_kind_tv" translatable="false">TV</string>
+    <string name="diagnostics_kind_phone">Phone</string>
+
+    <!-- Its memory: "2.0 GB". -->
+    <string name="diagnostics_memory_gb">%1$.1f GB</string>
+    <!-- %1$s: its memory, "2.0 GB". -->
+    <string name="diagnostics_memory_low">%1$s (low-memory device)</string>
+
+    <!-- How far the player reads ahead, in seconds: "15-50 s ahead". -->
+    <string name="diagnostics_buffer_ahead">%1$d-%2$d s ahead</string>
+    <!-- What it holds at most: "64 MiB". -->
+    <string name="diagnostics_buffer_bytes">%1$d MiB</string>
+    <!-- What it keeps behind, in seconds: "30 s behind". -->
+    <string name="diagnostics_buffer_behind">%1$d s behind</string>
+    <!-- The buffer's parts one after another: "15-50 s ahead, 64 MiB". -->
+    <string name="diagnostics_buffer_and" translatable="false">%1$s, %2$s</string>
+</resources>

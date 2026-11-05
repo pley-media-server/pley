@@ -10,7 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import app.pley.android.auth.AuthEvent
-import app.pley.android.common.describe
+import app.pley.android.common.errorSentence
 import app.pley.android.common.resolve
 import app.pley.android.data.Loadable
 import app.pley.android.data.OtherDevice
@@ -129,9 +129,9 @@ class PhoneShellState internal constructor(
             )
             error is OfflineException -> {
                 offlineState.value = true
-                toasts.show(sentence(describe(error)), error = true)
+                toasts.show(errorSentence(error).resolve(resources), error = true)
             }
-            else -> toasts.show(sentence(describe(error)), error = true)
+            else -> toasts.show(errorSentence(error).resolve(resources), error = true)
         }
     }
 
