@@ -304,6 +304,18 @@ again: its engine is stopped, and a next episode would play with no
 screen. What the server's events change meanwhile is fetched again
 on coming back, not in the background.
 
+A command never brings up a video player's controls: whoever sent it is
+on another device. What it changed shows as the player's toast instead,
+for 2 s on a TV, top right, and as long as the phone's toasts: "Paused",
+"Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+where a seek went, and "Audio: …", "Subtitles: …", "Subtitles off" or
+"Quality: …" as the menus name them. A command that changes nothing says
+nothing, and the next episode shows its title as it begins. The remote's
+pause is the remote's until anyone plays again: it doesn't bring up the
+controls as another pause does on the phone, and controls already up
+hide as they do while it plays. A key or a touch on the device makes the
+pause the person's own, and the controls then stay.
+
 #### Play on…
 
 On the phone, what a page plays goes to another of the profile's devices

@@ -75,6 +75,10 @@ import kotlinx.coroutines.launch
  *   a key unless paused, a seek waits, or in a panel or the chapters'
  *   cards. Up on the scrubber while a seek waits, or the Chapters button,
  *   opens the chapters as cards over it ([TvChapterStrip]).
+ * - **The remote**, on another of the profile's devices, never brings up
+ *   the controls: what it did is a toast for 2 s ("Paused", "+30 s",
+ *   "Audio: English"). Its pause keeps no controls that were showing; a key
+ *   here makes the pause the person's own, and then they stay.
  * - **Back** walks out: panel, then Up Next, then the chapters' cards, then
  *   a seek waiting (the controls stay, and it plays on from where it was),
  *   then the controls, then the player ([onExit]).
@@ -136,6 +140,12 @@ internal fun TvPlayerScreen(
     val sleepFired by remember(state) { derivedStateOf { state.value.sleep.fired } }
     val stopped by remember(state) { derivedStateOf { state.value.stoppedByServer } }
     val noticeShown = sleepNotice && error == null
+    val pausedByRemote by remember(state) { derivedStateOf { state.value.pausedByRemote } }
+    // A key came during the remote's pause: the pause is the person's own, until it plays again.
+    var pauseOwned by remember(controller) { mutableStateOf(false) }
+    LaunchedEffect(pausedByRemote) { if (!pausedByRemote) pauseOwned = false }
+    // Paused from another device, untouched here: the controls aren't kept for it.
+    val remotePause = pausedByRemote && !pauseOwned
 
     // ---------------------------------------------------------------- what the keys do
 
@@ -317,6 +327,8 @@ internal fun TvPlayerScreen(
     fun onKey(event: KeyEvent): Boolean {
         val native = event.nativeKeyEvent
         val code = native.keyCode
+        // A key during the remote's pause makes it the person's: paused, the controls then stay, as for theirs.
+        if (state.value.pausedByRemote) pauseOwned = true
         TvPlayerKeys.media(code)?.let { key ->
             // An error on screen: only Stop, which leaves. The others would seek, change a track or
             // play the next episode under it.
@@ -429,8 +441,10 @@ internal fun TvPlayerScreen(
     }
     // The controls hide after 5 s without a key, unless paused, a seek waits, or in a panel or the chapters' cards.
     // A seek waiting keeps them until it lands, 5 s after the last key too: they go with it, not 5 s later.
-    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, chaptersOpen) {
-        if (ui.controls && ui.panel == null && playing && !chaptersOpen) {
+    // The remote's pause doesn't keep them: someone elsewhere paused, not someone here using them.
+    val hides = playing || remotePause
+    LaunchedEffect(ui.controls, ui.panel, ui.input, hides, chaptersOpen) {
+        if (ui.controls && ui.panel == null && hides && !chaptersOpen) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
             snapshotFlow { seeker.target == null }.first { it }
             ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
@@ -469,6 +483,14 @@ internal fun TvPlayerScreen(
         notice?.let {
             ui.toast(it)
             controller.dismissNotice()
+        }
+    }
+    // What the remote did, from another device: a toast of a moment, as the CAPTIONS key's, in place of the controls.
+    val remoteNotice by remember(state) { derivedStateOf { state.value.remoteNotice } }
+    LaunchedEffect(remoteNotice) {
+        remoteNotice?.let {
+            ui.toast(it, TvPlayerUi.CAPTIONS_TOAST_MS)
+            controller.dismissRemoteNotice()
         }
     }
     // As the phone's player does: a switch to a transcode the player made by itself says why, and

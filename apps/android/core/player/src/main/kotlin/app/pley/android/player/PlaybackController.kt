@@ -99,6 +99,9 @@ interface PlaybackController {
     /** The notice was shown. */
     fun dismissNotice()
 
+    /** The remote's notice was shown ([PlayerUiState.remoteNotice]). */
+    fun dismissRemoteNotice()
+
     /** The seek preview at [positionMs]; `null` until the previews are made. */
     suspend fun thumbnail(positionMs: Long): Bitmap?
 

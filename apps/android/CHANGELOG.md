@@ -26,6 +26,12 @@ describes how they are made.
   a word when stopped from elsewhere. Music playing with the screen off
   still hears it, until it has been paused for a minute and a half. Remotes show the device by its name in Android's
   settings.
+- A command from your remote doesn't bring up the video player's controls
+  on the device it plays on: a toast says for a moment what it did
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", "Audio: …",
+  "Subtitles off", "Quality: …"). Controls already up as the remote pauses
+  hide as they do while it plays, until you press a key or touch the
+  screen there.
 - The video players change their audio and subtitles when your remote on
   another device asks, as their own track menus do, and tell your remotes
   which tracks they play.

@@ -119,6 +119,11 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
         ui.update { it.copy(notice = null) }
     }
 
+    override fun dismissRemoteNotice() {
+        record("dismissRemoteNotice")
+        ui.update { it.copy(remoteNotice = null) }
+    }
+
     override suspend fun thumbnail(positionMs: Long): Bitmap? = thumbnails(positionMs)
 
     override fun saveState(): SavedPlaybackState = ui.value.let {
@@ -189,6 +194,8 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
                 engine = listOf("Video decoder: fake"),
             ),
             notice = "This is the last episode",
+            remoteNotice = "Paused",
+            pausedByRemote = true,
             subtitleOffsetMs = 500,
             subtitleSync = true,
             subtitleStyled = true,
