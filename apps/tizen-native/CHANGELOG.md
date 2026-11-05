@@ -22,7 +22,7 @@ It has no releases yet: it is built and installed by hand
   their tabs, filters and actions; Discover's row in Search; a library
   title's request and Request more seasons; and a pop-up when something
   asked for is ready to watch. Sign-in asks for requests and approvals
-  where the server offers them.
+  where the server offers them, and Settings → About credits TMDB.
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with the app's icon under a yellow DEBUG ribbon, set in from the corner so
   the TV's rounded corners leave the word whole, and it installs beside the

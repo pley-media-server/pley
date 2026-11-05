@@ -88,6 +88,7 @@ public static class SettingsText
     public const string OpenDiagnosticsValue = "What this TV decodes and shows, and why";
     public const string Version = "Version";
     public const string Licences = "Open-source licences";
+    public const string Credits = "Credits";
 
     /// <summary>"You'll be signed out of 192.168.1.20:7539."</summary>
     public static string SignOutBody(string server) => $"You'll be signed out of {HostPort(server)}.";

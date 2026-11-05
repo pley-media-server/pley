@@ -205,7 +205,9 @@ public class SettingsModelTests
         Assert.Equal(new SettingAction.Open(new DiagnosticsPage()), Row(m, SettingsCategory.Diagnostics, "row-diagnostics").Action);
         Assert.Equal("QE55S95D", Assert.Single(((SettingsItem.Facts)m.Items(SettingsCategory.Diagnostics)[1]).List).Value);
         Assert.Equal("0.1.0", Row(m, SettingsCategory.About, "row-version").Value);
-        Assert.Equal(SettingsModel.Licences.Count + 2, m.Items(SettingsCategory.About).Count);
+        // The version, the licences under their heading, and TMDB's credit under its own, as TMDB's terms ask.
+        Assert.Equal(SettingsModel.Licences.Count + 4, m.Items(SettingsCategory.About).Count);
+        Assert.Equal("This product uses the TMDB API but is not endorsed or certified by TMDB.", Row(m, SettingsCategory.About, "row-tmdb").Value);
         var signOut = m.Items(SettingsCategory.SignOut);
         Assert.Equal("Sign this TV out of 192.168.1.20:7539. You'll need a new link code to sign in again.", ((SettingsItem.Intro)signOut[0]).Text);
         Assert.True(((SettingsItem.Row)signOut[1]).Danger);

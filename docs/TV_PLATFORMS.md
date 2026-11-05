@@ -414,7 +414,8 @@ from any of them, and pausing for a video; Discover and requests, ported from An
 ([Requests](#requests): the rail's entry and its number, Discover's hero
 and rows, a title's page and Which seasons?, the requests and their
 actions, Discover's row in Search, Request more seasons on a show's page,
-and what is ready to watch popping up; Overview opens in a panel beside
+what is ready to watch popping up, and TMDB's credit in Settings →
+About; Overview opens in a panel beside
 the page, where the TV's dialogs hold four lines); and the player: the stream on
 the TV's own player, chosen with the TV's capabilities, seeking with Left
 and Right with previews of where to (as YouTube's TV app: it waits for OK,
