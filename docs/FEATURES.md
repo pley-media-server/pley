@@ -104,9 +104,13 @@ What Pley does, in full. The [README](../README.md) has the short version.
   switching to it asks the PIN: a wrong one asks again, too many in 15
   minutes say how long to wait, and after 100 wrong ones in a row the PIN
   stops working until its owner or an administrator sets it again. A TV
-  that asks "Who's watching?" as it starts also asks the PIN of the profile
-  it was left on, and one set to always start as a profile asks that PIN
-  first, so a TV never starts as a profile with a PIN without it. A
+  starts straight into Home as the profile it was left on when that profile
+  has no PIN (Apple TV asks "Who's watching?" in a household of several,
+  unless Always start as names one). When it has one, the "Who's
+  watching?" a TV asks as it starts asks that PIN too, and one set to
+  always start as a profile asks it first, so a TV never starts as a
+  profile with a PIN without it. Signing in again on the web goes straight
+  in as the profile the browser was last used as, when it has no PIN. A
   profile that can see more than yours and has no PIN takes its password,
   in the browser; a TV signs in to it again with a code.
 - Two-step sign-in with an authenticator app, with recovery codes:
