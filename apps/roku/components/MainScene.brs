@@ -618,16 +618,10 @@ sub onCast(data as object)
     need = castSwitch(session.profileId, data)
     if need.needs = "ignore" then return
     banner = castBanner(data.from)
+    ' While the Roku changes profiles for a cast, any other cast is
+    ' dropped; once switched, casts play as ever.
     pending = m.castSwitch
-    if pending <> invalid and not pending.switched
-        ' While the Roku changes profiles, only a cast for the one it goes
-        ' to plays, after the switch: the later of them.
-        if need.needs = "switch" and need.profileId = pending.profileId
-            pending.action = action
-            pending.banner = banner
-        end if
-        return
-    end if
+    if pending <> invalid and not pending.switched then return
     m.castSwitch = invalid
     m.castAsk = m.castAsk + 1
     m.castGather = invalid
@@ -651,8 +645,10 @@ end sub
 
 ' A cast from another profile of the household (castSwitch's need): the
 ' Roku switches to the remote's profile with the cast's ticket, then it
-' plays. What plays stops first, so that what it last tells the server is
-' the profile's that watched it, not the remote's.
+' plays. What plays stops first, and its last progress, stopped report and
+' session end go before the switch (drain: the API task holds the switch
+' for them, 5 s at most), with the tokens of the profile that watched it,
+' never the remote's.
 sub castSwitchTo(need as object, action as object, banner as string)
     m.castSwitches = m.castSwitches + 1
     m.castSwitch = { seq: m.castSwitches, profileId: need.profileId, action: action, banner: banner, switched: false }
@@ -661,7 +657,7 @@ sub castSwitchTo(need as object, action as object, banner as string)
         top = m.stack.Peek().subtype()
         if top = "PlayerScreen" or top = "LivePlayerScreen" then pop()
     end if
-    uiRequest({ op: "switchProfile", profile: need.profileId, ticket: need.ticket, castSwitch: m.castSwitches }, "onCastSwitched")
+    uiRequest({ op: "switchProfile", profile: need.profileId, ticket: need.ticket, castSwitch: m.castSwitches, drain: true }, "onCastSwitched")
 end sub
 
 ' The switch's answer: switched, the cast plays once the Roku knows it is
@@ -721,8 +717,9 @@ function castAnswer(event as object) as dynamic
     if event.getRoSGNode().spec.cast <> m.castAsk or not castTaken() then return invalid
     answer = event.getData()
     if answer.ok and answer.data <> invalid then return answer.data
-    ' Signed out, the scene shows sign-in.
-    if answer.error <> "signed_out" then castSay(answer.message)
+    ' Signed out, the scene shows sign-in; asked for the profile before a
+    ' switch, it was left.
+    if answer.error <> "signed_out" and answer.error <> "profile_changed" then castSay(answer.message)
     return invalid
 end function
 

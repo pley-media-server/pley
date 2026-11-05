@@ -118,6 +118,56 @@ sub test_cast_switch_failed_says_why()
     tkEqual(castSwitchNotice({ ok: false, error: "switch_replaced", message: "Another profile was chosen." }), "")
 end sub
 
+' The API task's requests for a cast's switch, as it holds them: each
+' with the token or not (auth) and the profile switches made when it was
+' asked (gen).
+function castTestJob(name as string, auth as boolean, gen as integer) as object
+    return { name: name, auth: auth, gen: gen }
+end function
+
+' A cast from another profile: what played ends first, and the switch
+' waits for its last progress, its stopped report and its session end to
+' be answered, sent with the tokens of the profile that watched it; then
+' the switch goes, and the cast plays as the new profile.
+sub test_cast_switch_waits_for_the_playback_it_ended()
+    progress = castTestJob("POST /api/items/5/progress (stopped)", true, 0)
+    closed = castTestJob("DELETE /api/playback/s1", true, 0)
+    proof = castTestJob("GET /api/server?challenge=", false, 0)
+    tkEqual(authSwitchHeld([progress, closed, proof], 0, 1000, 1000), "wait", "asked as the player closed")
+    tkEqual(authSwitchHeld([closed, proof], 0, 1000, 1300), "wait", "the stopped report answered")
+    tkEqual(authSwitchHeld([proof], 0, 1000, 1500), "go", "the session ended: the switch goes, a proof carries no token")
+    tkEqual(authSwitchHeld([], 0, 1000, 1000), "go", "nothing played: at once")
+    tkTrue(authJobGoes(progress, 0), "the reports go as the profile that watched")
+    ' Switched: what the cast plays is asked as the remote's profile.
+    tkTrue(authJobGoes(castTestJob("POST /api/playback", true, 1), 1))
+end sub
+
+' What hasn't been answered 5 s after the switch was asked is dropped,
+' and the switch goes.
+sub test_cast_switch_waits_5_s_at_most()
+    tkEqual(authSwitchHoldMs(), 5000)
+    stuck = [castTestJob("DELETE /api/playback/s1", true, 0)]
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 5999), "wait")
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 6000), "drop", "5 s on: dropped, then the switch")
+    tkEqual(authSwitchHeld(stuck, 0, 1000, 60000), "drop")
+    tkEqual(authSwitchHeld([castTestJob("DELETE /api/playback/s1", true, 1)], 0, 1000, 1000), "go", "another profile's request isn't waited for")
+end sub
+
+' A request asked for the profile before a switch (refused while the switch
+' was under way and sent again, or waiting for a refresh or a proof) never
+' goes with the new profile's pair: it goes with its own profile's tokens,
+' or not at all. One that needs no token goes as it is.
+sub test_cast_switch_never_sends_the_profiles_requests_as_another()
+    refused = castTestJob("POST /api/items/5/progress (401, sent again)", true, 0)
+    waiting = castTestJob("DELETE /api/playback/s1 (waiting for a proof)", true, 0)
+    tkTrue(authJobGoes(refused, 0), "the switch refused: the profile stayed, it goes again")
+    tkFalse(authJobGoes(refused, 1), "switched: dropped")
+    tkFalse(authJobGoes(waiting, 1), "switched: dropped")
+    tkFalse(authJobGoes(waiting, 2))
+    tkTrue(authJobGoes(castTestJob("POST /oauth/token (revoke)", false, 0), 1), "no token")
+    tkTrue(authJobGoes(castTestJob("GET /api/auth/me", true, 1), 1), "asked as the new profile")
+end sub
+
 sub test_cast_says_where_it_came_from()
     tkEqual(castBanner("Living room phone"), "Playing from Living room phone")
     tkEqual(castBanner("Firefox on Windows"), "Playing from Firefox on Windows")
