@@ -147,6 +147,11 @@ describes how they are made.
 - Search's rows hold every result, up to 200 titles, 200 people and 200
   Live TV channels, where they stopped at 60 titles and 12 people and
   channels.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, filled for a
+  favourite, where Watch and Add to or Remove from favourites were rows of
+  the panel. In the live player, the star no longer shows its words under
+  it, which ran under Channels.
 
 ### Removed
 

@@ -60,6 +60,11 @@ describes how they are made.
   a library has whole opens its library page, where it plays, not a page
   with only Open on it. A show partly there still opens its Discover page,
   with Request more seasons.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, where Remove from
+  favourites was a wide button under Watch. In the live player, the star
+  no longer shows its words under it, which ran under Channels; Audio
+  Guidance still reads them.
 
 ### Fixed
 

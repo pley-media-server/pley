@@ -169,11 +169,19 @@ fn menu_opens_the_details_and_the_favourite_changes_at_once() {
     let watch = app.id(&["details", "content", "watch"]);
     assert!(app.until(|a| a.focused() == Some(watch)), "the details' Watch now hasn't focus");
     assert!(app.shows("Watch now") && app.shows("ON NOW"));
-    // Channel 1 is one of Alex's favourites.
-    assert!(app.shows("Remove from favourites"));
-    app.press(Key::Down);
+    // Channel 1 is one of Alex's favourites: the star beside Watch says so to Audio Guidance alone.
+    app.ui.set_speaking(true);
+    app.press(Key::Right);
+    assert_eq!(app.focused(), Some(app.id(&["details", "content", "favourite"])), "the star isn't beside Watch");
+    let words = app.ui.take_speech().unwrap_or_default();
+    assert!(words.starts_with("Remove from favourites"), "{words}");
+    assert!(!app.shows("Remove from favourites"), "the star shows its words");
     app.press(Key::Ok);
-    assert!(app.shows("Add to favourites"), "the button didn't change at once");
+    // Audio Guidance reads a name as focus comes: to Watch and back.
+    app.press(Key::Left);
+    app.press(Key::Right);
+    let words = app.ui.take_speech().unwrap_or_default();
+    assert!(words.ends_with("Add to favourites"), "the star didn't change at once: {words}");
     assert!(app.until(|a| !a.server.writes("DELETE", "/api/live/channels/1/favorite").is_empty()));
     // Back closes the panel, focus back in the guide.
     app.press(Key::Back);

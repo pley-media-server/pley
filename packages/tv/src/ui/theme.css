@@ -349,6 +349,7 @@ body {
 }
 .pill .icon { margin-right: 8px; }
 .round-box { position: relative; width: 40px; height: 63px; flex: none; }
+.round-box.bare { height: 40px; }
 .round {
   width: 40px;
   height: 40px;

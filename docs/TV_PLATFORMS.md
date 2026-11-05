@@ -137,7 +137,9 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **Guide:** two and a half hours across. Left and Right go programme by
   programme, rewind and fast forward (or Previous and Next) move two hours,
   CH+ and CH− a screen of channels, and Back returns to now before it goes
-  to the rail. A long OK or the menu key opens a programme's details.
+  to the rail. A long OK or the menu key opens a programme's details, with
+  Watch and, beside it, the favourite as a star alone, filled for a
+  favourite, as in the player's controls.
 - **Tuning:** `POST …/watch` with this TV's id (`pley.installId`) and
   `keyed_urls`, so AVPlay can play the playlist without the token. The app
   waits for the playlist, then plays the server's live HLS from its live

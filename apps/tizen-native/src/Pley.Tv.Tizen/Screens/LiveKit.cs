@@ -413,14 +413,15 @@ sealed class CategoryColumnView : View
 /// <summary>
 /// A programme's details in a side panel (the Android app's ProgramPanel): the channel; the
 /// programme's picture, title, episode, day and times with its badges, how far it is and what the
-/// guide says; then Watch and the favourite. Without a programme, the channel alone.
+/// guide says; then Watch and, beside it, the favourite as a star alone, filled for a favourite, as
+/// in the live player. Without a programme, the channel alone.
 /// </summary>
 sealed class ProgramPanelSheet : Sheet
 {
     const float Width = 360, Left = 24;
 
     readonly Shell shell;
-    readonly ButtonView favoriteButton;
+    readonly RoundButton favoriteButton;
     LiveChannel current;
     bool closed;
 
@@ -451,25 +452,23 @@ sealed class ProgramPanelSheet : Sheet
         card.Add(heading);
         y += 38;
 
-        // The buttons at the foot; the text above them takes the room left.
+        // The buttons at the foot, side by side; the text above them takes the room left. As a pill,
+        // Remove from favourites didn't fit beside Watch and went under it.
         var watchButton = new ButtonView(program == null || program.AiringAt(now) ? LiveText.WatchNow : LiveText.WatchChannel, ButtonKind.Pill, () =>
         {
             Close();
             watch();
         }, iconName: "play");
-        favoriteButton = new ButtonView(FavoriteLabel(), ButtonKind.Pill, () =>
+        favoriteButton = new RoundButton(current.Favorite ? LiveText.FavoriteRemove : LiveText.FavoriteAdd, FavoriteIcon(), () =>
         {
             toggleFavorite(current);
             current = current with { Favorite = !current.Favorite };
-            favoriteButton!.SetText(FavoriteLabel());
-        }, iconName: "star");
-        var side = watchButton.WidthDp + PleyTv.ButtonGap + Math.Max(favoriteButton.WidthDp, 210) <= inner;
-        var buttonsTop = PleyTv.CanvasHeight - PleyTv.SafeVertical - PleyTv.ButtonHeight - (side ? 0 : PleyTv.ButtonHeight + PleyTv.ButtonGap);
-        var buttons = new FocusGroup(side ? Axis.Row : Axis.Column, "buttons");
+            favoriteButton!.SetIcon(FavoriteIcon());
+        }, onArt: false, showLabel: false);
+        var buttonsTop = PleyTv.CanvasHeight - PleyTv.SafeVertical - PleyTv.ButtonHeight;
+        var buttons = new FocusGroup(Axis.Row, "buttons");
         watchButton.Position = new Position(Ui.Dp(Left), Ui.Dp(buttonsTop));
-        favoriteButton.Position = side
-            ? new Position(Ui.Dp(Left + watchButton.WidthDp + PleyTv.ButtonGap), Ui.Dp(buttonsTop))
-            : new Position(Ui.Dp(Left), Ui.Dp(buttonsTop + PleyTv.ButtonHeight + PleyTv.ButtonGap));
+        favoriteButton.Position = new Position(Ui.Dp(Left + watchButton.WidthDp + PleyTv.ButtonGap), Ui.Dp(buttonsTop));
         card.Add(watchButton);
         card.Add(favoriteButton);
         buttons.Add(watchButton.Item);
@@ -480,7 +479,7 @@ sealed class ProgramPanelSheet : Sheet
         Tree.Focus(watchButton.Item);
     }
 
-    string FavoriteLabel() => current.Favorite ? LiveText.FavoriteRemove : LiveText.FavoriteAdd;
+    string FavoriteIcon() => current.Favorite ? "star-filled" : "star";
 
     void Program(View card, Images images, LiveProgram program, string origin, long now, float inner, float y, float bottom)
     {

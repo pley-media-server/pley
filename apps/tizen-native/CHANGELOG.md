@@ -20,6 +20,11 @@ describes how they are made.
   at the top right ("Paused", "+30 s", "Jumped to 12:34", "Audio: …"),
   without the player's controls; a pause from there doesn't keep the
   controls on screen until you press a key on the TV.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, filled for a
+  favourite, where Remove from favourites was a wide button under Watch.
+  In the live player, the star no longer shows its words under it, which
+  ran under Channels.
 
 ## [0.1.6] - 2026-11-05
 

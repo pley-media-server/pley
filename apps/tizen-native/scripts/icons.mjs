@@ -30,18 +30,24 @@ names.push("TicketX", "TriangleAlert");
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Za-z])([0-9])/g, "$1-$2").toLowerCase();
 const attrs = (o) => Object.entries(o).map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`).join("");
 
+// Drawn filled as well as stroked, as `<name>-filled.svg` beside the outline: a favourite's star on
+// Live TV's buttons, filled as the Android app's and the web TV app's are.
+const filled = ["Star"];
+
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 // Through Lucide's own exports, which hold its renamed icons under their old names too.
 const all = await import(pathToFileURL(require.resolve("lucide")).href);
-for (const name of names) {
+const write = (name, file, fill) => {
   const node = all[name];
   if (!Array.isArray(node)) throw new Error(`Lucide has no ${name}`);
   const body = node.map(([tag, a]) => `<${tag}${attrs(a)}/>`).join("");
   writeFileSync(
-    join(out, `${kebab(name)}.svg`),
-    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>\n`,
+    join(out, file),
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${fill}" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>\n`,
   );
-}
+};
+for (const name of names) write(name, `${kebab(name)}.svg`, "none");
+for (const name of filled) write(name, `${kebab(name)}-filled.svg`, "#ffffff");
 writeFileSync(join(out, "LICENSE.txt"), readFileSync(join(lucide, "LICENSE"), "utf8"));
-console.log(`${names.length} icons in ${out}`);
+console.log(`${names.length + filled.length} icons in ${out}`);

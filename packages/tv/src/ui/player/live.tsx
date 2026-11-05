@@ -410,7 +410,8 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           <G kind="row" class="player-row">
             <div class="row-left">
               <PlayerButton fid="channels" icon="list" label="Channels" onSelect={() => setList(true)} />
-              <PlayerButton fid="favorite" icon={channel.favorite ? "star" : "star-outline"} label={channel.favorite ? "Remove from favourites" : "Add to favourites"} onSelect={toggleFavorite} />
+              {/* The star alone, as in Live TV's details: its label, wider than both buttons, ran under Channels. */}
+              <PlayerButton fid="favorite" icon={channel.favorite ? "star" : "star-outline"} label={channel.favorite ? "Remove from favourites" : "Add to favourites"} bare onSelect={toggleFavorite} />
             </div>
             <div class="row-centre" />
             <div class="row-right">
