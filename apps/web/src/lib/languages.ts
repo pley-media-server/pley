@@ -1,3 +1,5 @@
+import { currentLanguage, i18n, t, type Language } from "@/i18n";
+
 // ISO 639-2 (bibliographic + terminologic) and ISO 639-1 codes → English names.
 const NAMES: Record<string, string> = {
   afr: "Afrikaans", alb: "Albanian", sqi: "Albanian", amh: "Amharic", ara: "Arabic", arm: "Armenian", hye: "Armenian",
@@ -34,14 +36,64 @@ const NAMES: Record<string, string> = {
   yi: "Yiddish", zu: "Zulu",
 };
 
-/** "eng" → "English", "pt-BR" → "Portuguese (BR)", unknown codes are returned upper-cased. */
-export function languageName(code: string | null | undefined): string | null {
+/**
+ * Codes Pley names in its own words in every language: Intl has no name
+ * for some, and calls Mandarin plain Chinese.
+ */
+const OWN_WORDS = ["und", "mul", "zxx", "qaa", "cmn"] as const;
+type OwnWord = (typeof OWN_WORDS)[number];
+const isOwnWord = (code: string): code is OwnWord => (OWN_WORDS as readonly string[]).includes(code);
+
+const displayNames = new Map<Language, Intl.DisplayNames | null>();
+
+/** `language`'s names of languages, when this browser has them. */
+function namesIn(language: Language): Intl.DisplayNames | null {
+  if (!displayNames.has(language)) {
+    let names: Intl.DisplayNames | null = null;
+    try {
+      names = new Intl.DisplayNames(language, { type: "language", fallback: "none" });
+    } catch {
+      // None here: the English names stand in.
+    }
+    displayNames.set(language, names);
+  }
+  return displayNames.get(language) ?? null;
+}
+
+const named = new Map<string, string>();
+
+/** What `language` calls the language Pley knows as `english` (`base`, a code of {@link NAMES}). */
+function nameIn(language: Language, base: string, english: string): string {
+  if (language === "en") return english;
+  if (isOwnWord(base)) return t(`languages.${base}`, { lng: language });
+  const key = `${language}:${base}`;
+  let name = named.get(key);
+  if (name === undefined) {
+    let found: string | undefined;
+    try {
+      found = namesIn(language)?.of(twoLetterCode(base));
+    } catch {
+      // A code Intl refuses: the English name.
+    }
+    // French and Spanish write languages in lower case ("allemand"); a name on its own starts with a capital.
+    name = found ? found.charAt(0).toLocaleUpperCase(language) + found.slice(1) : english;
+    named.set(key, name);
+  }
+  return name;
+}
+
+/**
+ * "eng" → "English", "pt-BR" → "Portuguese (BR)", in the language shown
+ * ("Anglais" in French); unknown codes are returned upper-cased.
+ */
+export function languageName(code: string | null | undefined, language: Language = currentLanguage()): string | null {
   if (!code) return null;
   const raw = code.trim();
   if (!raw) return null;
   const [base = "", region] = raw.toLowerCase().split(/[-_]/);
-  const name = NAMES[base];
-  if (!name) return raw.length <= 3 ? raw.toUpperCase() : raw;
+  const english = NAMES[base];
+  if (!english) return raw.length <= 3 ? raw.toUpperCase() : raw;
+  const name = nameIn(language, base, english);
   return region ? `${name} (${region.toUpperCase()})` : name;
 }
 
@@ -58,14 +110,27 @@ export function twoLetterCode(code: string): string {
   return base;
 }
 
-/**
- * Languages offered as audio and subtitle defaults, by name. Codes are ISO
- * 639-2/B, the form ffprobe reports; the server matches the other forms too.
- */
-export const LANGUAGES: readonly { code: string; name: string }[] = [
+const OFFERED = [
   "ara", "bul", "cat", "chi", "cze", "dan", "dut", "eng", "fin", "fre", "ger", "gre", "heb", "hin", "hrv", "hun",
   "ind", "ita", "jpn", "kor", "nor", "per", "pol", "por", "rum", "rus", "slo", "spa", "srp", "swe", "tha", "tur",
   "ukr", "vie",
-]
-  .map((code) => ({ code, name: languageName(code) ?? code }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+];
+
+/**
+ * Languages offered as audio and subtitle defaults, by name in the language
+ * shown. Codes are ISO 639-2/B, the form ffprobe reports; the server matches
+ * the other forms too. The list is filled again, in place, when the language
+ * changes, so the pickers that read it name and sort them in the new one.
+ */
+export const LANGUAGES: readonly { code: string; name: string }[] = [];
+
+function offer() {
+  const language = currentLanguage();
+  const collator = new Intl.Collator(language);
+  const list = OFFERED.map((code) => ({ code, name: languageName(code, language) ?? code })).sort((a, b) =>
+    collator.compare(a.name, b.name),
+  );
+  (LANGUAGES as { code: string; name: string }[]).splice(0, LANGUAGES.length, ...list);
+}
+offer();
+i18n.on("languageChanged", offer);

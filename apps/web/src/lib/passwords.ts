@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 /** Shortest password the server accepts. */
 export const MIN_PASSWORD_LENGTH = 8;
 
@@ -6,7 +8,7 @@ export const MIN_PASSWORD_LENGTH = 8;
  * server (which also refuses common passwords), or `null`.
  */
 export function passwordProblem(password: string, username = ""): string | null {
-  if ([...password].length < MIN_PASSWORD_LENGTH) return `Use at least ${MIN_PASSWORD_LENGTH} characters for the password.`;
-  if (username.trim() && password.toLowerCase() === username.trim().toLowerCase()) return "The password can't be the username.";
+  if ([...password].length < MIN_PASSWORD_LENGTH) return t("passwords.tooShort", { min: MIN_PASSWORD_LENGTH });
+  if (username.trim() && password.toLowerCase() === username.trim().toLowerCase()) return t("passwords.sameAsUsername");
   return null;
 }

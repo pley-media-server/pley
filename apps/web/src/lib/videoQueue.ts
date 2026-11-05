@@ -6,6 +6,7 @@ import { keys } from "@/api/hooks";
 import type { Id, ItemDetail, ItemSummary } from "@/api/types";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useToast } from "@/components/Toast";
+import { t } from "@/i18n";
 import { isPlayableVideo } from "./format";
 import { shuffled } from "./shuffle";
 import { playUrl } from "./usePlayItem";
@@ -86,7 +87,7 @@ export function useVideoQueue() {
       else if (start) videos = videos.slice(Math.max(0, videos.indexOf(start)));
       const first = videos[0];
       if (!first) {
-        toast.info("Nothing to play");
+        toast.info(t("play.nothing"));
         return false;
       }
       const queue = saveQueue({ ids: videos.map((v) => v.id), returnTo: opts.returnTo });

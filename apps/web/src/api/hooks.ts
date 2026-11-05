@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { queryOptions, useInfiniteQuery, useMutation, useMutationState, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, errorMessage, isApiError, qs, request } from "./client";
 import { reordered } from "./lists";
+import { t } from "@/i18n";
 import { received, type RemoteSession } from "@/lib/remote";
 import type {
   Activity,
@@ -1001,10 +1002,10 @@ export function useSessionCommand() {
 
 /** What a remote says when `device` didn't take a command. */
 export function sessionCommandError(err: unknown, device: string | null): string {
-  const it = device ?? "This device";
-  if (isApiError(err, 404)) return `${it} isn't playing any more`;
-  if (isApiError(err, 409)) return `${it} can't do that`;
-  if (isApiError(err, 429)) return "Too many at once: try again in a moment";
+  const it = device ?? t("remote.thisDevice");
+  if (isApiError(err, 404)) return t("remote.notPlaying", { device: it });
+  if (isApiError(err, 409)) return t("remote.cantDoThat", { device: it });
+  if (isApiError(err, 429)) return t("remote.tooMany");
   return errorMessage(err);
 }
 
@@ -1027,9 +1028,9 @@ export function useCast() {
 
 /** What "Play on…" says when `device` didn't take a cast. */
 export function castError(err: unknown, device: string): string {
-  if (isApiError(err, 404)) return `${device} isn't on any more`;
-  if (isApiError(err, 409)) return `${device} can't play that`;
-  if (isApiError(err, 429)) return "Too many at once: try again in a moment";
+  if (isApiError(err, 404)) return t("remote.notOn", { device });
+  if (isApiError(err, 409)) return t("remote.cantPlay", { device });
+  if (isApiError(err, 429)) return t("remote.tooMany");
   return errorMessage(err);
 }
 

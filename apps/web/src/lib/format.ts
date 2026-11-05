@@ -1,15 +1,36 @@
 import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, RangeFilter, Resolution, TranscodeInfo } from "@/api/types";
+import { currentLanguage, t, type Language } from "@/i18n";
 import { languageName } from "./languages";
+
+/** `make`'s value for the language shown, made once for each language. */
+function perLanguage<T>(make: (language: Language) => T): () => T {
+  const made = new Map<Language, T>();
+  return () => {
+    const language = currentLanguage();
+    if (!made.has(language)) made.set(language, make(language));
+    return made.get(language) as T;
+  };
+}
+
+const decimalSeparator = perLanguage(
+  (language) => new Intl.NumberFormat(language).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".",
+);
+
+/** `value.toFixed(digits)` with the language's decimal separator: "1.5", "1,5" in French. */
+function fixed(value: number, digits: number): string {
+  const text = value.toFixed(digits);
+  return digits > 0 ? text.replace(".", decimalSeparator()) : text;
+}
 
 /** 6720000 → "1h 52m", 2700000 → "45m", 29000 → "29s" (rounded to whole minutes from 30s up). */
 export function formatDuration(ms: number | null | undefined): string {
   if (!ms || ms < 0) return "";
   const totalMin = Math.round(ms / 60000);
-  if (totalMin < 1) return `${Math.max(1, Math.round(ms / 1000))}s`;
+  if (totalMin < 1) return t("format.seconds", { n: Math.max(1, Math.round(ms / 1000)) });
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h === 0) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  if (h === 0) return t("format.minutes", { n: m });
+  return m ? t("format.hoursMinutes", { hours: h, minutes: m }) : t("format.hours", { n: h });
 }
 
 /** Seconds → "1:02:03" or "2:03". */
@@ -27,19 +48,20 @@ export function formatClock(seconds: number | null | undefined): string {
 export function formatRemaining(positionMs: number, durationMs: number | null | undefined): string {
   if (!durationMs) return "";
   const left = formatDuration(Math.max(0, durationMs - positionMs));
-  return left ? `${left} left` : "";
+  return left ? t("format.left", { time: left }) : "";
 }
+
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null || !Number.isFinite(bytes)) return "";
-  const units = ["B", "KB", "MB", "GB", "TB"];
   let v = bytes;
   let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
+  while (v >= 1024 && i < BYTE_UNITS.length - 1) {
     v /= 1024;
     i++;
   }
-  return `${v >= 100 || i === 0 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
+  return `${fixed(v, v >= 100 || i === 0 ? 0 : 1)} ${t(`format.bytes.${BYTE_UNITS[i] ?? "B"}`)}`;
 }
 
 /**
@@ -62,7 +84,10 @@ export const RESOLUTION_LABELS: Record<Resolution, string> = { "4k": "4K", "1080
 
 /** What the library filters by dynamic range call each one. */
 export const RANGE_FILTER_LABELS: Record<RangeFilter, string> = {
-  hdr: "Any HDR",
+  // The one in words, read in the language shown.
+  get hdr() {
+    return t("format.anyHdr");
+  },
   dolby_vision: "Dolby Vision",
   hdr10plus: "HDR+",
   hdr10: "HDR",
@@ -83,17 +108,19 @@ export function rangeFilterOf(value: string | null | undefined): RangeFilter | u
 /** The line under a title's poster: `"42 Mbps · 23.4 GB"`. */
 export function mediaLine(media: MediaSummary | null | undefined): string {
   if (!media) return "";
-  return [formatBitrate(media.bitrate), formatBytes(media.size)].filter(Boolean).join(" · ") || "Bitrate unknown";
+  return [formatBitrate(media.bitrate), formatBytes(media.size)].filter(Boolean).join(" · ") || t("format.bitrateUnknown");
 }
 
 /** Bits per second → "8.2 Mbps" / "320 kbps". */
 export function formatBitrate(bps: number | null | undefined): string {
   if (!bps) return "";
-  if (bps >= 1_000_000) return `${(bps / 1_000_000).toFixed(bps >= 10_000_000 ? 0 : 1)} Mbps`;
-  return `${Math.round(bps / 1000)} kbps`;
+  if (bps >= 1_000_000) return t("format.mbps", { n: fixed(bps / 1_000_000, bps >= 10_000_000 ? 0 : 1) });
+  return t("format.kbps", { n: Math.round(bps / 1000) });
 }
 
-const rtf = typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }) : null;
+const relativeTime = perLanguage((language) =>
+  typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new Intl.RelativeTimeFormat(language, { numeric: "auto" }) : null,
+);
 
 /**
  * Unix seconds of something that already happened → "3 minutes ago". A
@@ -101,13 +128,14 @@ const rtf = typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new In
  * the future reads as now, never "in 2 seconds".
  */
 export function formatAgo(ts: number | null | undefined): string {
-  if (!ts) return "never";
+  if (!ts) return t("format.never");
   return formatRelative(Math.min(ts, Date.now() / 1000));
 }
 
 /** Unix seconds → "3 minutes ago", or "in 3 days" for a time to come. */
 export function formatRelative(ts: number | null | undefined): string {
-  if (!ts) return "never";
+  if (!ts) return t("format.never");
+  const rtf = relativeTime();
   const diff = ts - Date.now() / 1000;
   const abs = Math.abs(diff);
   // [below this many seconds, unit, seconds per unit]
@@ -134,18 +162,18 @@ export function formatDate(date: string | null | undefined): string {
   if (!date) return "";
   const d = new Date(`${date}T00:00:00`);
   if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString(currentLanguage(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 /** Unix seconds → localized date ("Oct 23, 2026"). */
 export function formatDay(ts: number | null | undefined): string {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return new Date(ts * 1000).toLocaleDateString(currentLanguage(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 export function formatTimestamp(ts: number | null | undefined): string {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleString(undefined, {
+  return new Date(ts * 1000).toLocaleString(currentLanguage(), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -158,9 +186,9 @@ export function formatUptime(secs: number): string {
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);
   const m = Math.floor((secs % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${Math.max(m, 0)}m`;
+  if (d > 0) return t("format.daysHours", { days: d, hours: h });
+  if (h > 0) return t("format.hoursMinutes", { hours: h, minutes: m });
+  return t("format.minutes", { n: Math.max(m, 0) });
 }
 
 export function pluralize(n: number, one: string, many = `${one}s`): string {
@@ -169,16 +197,17 @@ export function pluralize(n: number, one: string, many = `${one}s`): string {
 
 /** "S1 · E3" for episodes. */
 export function episodeLabel(item: Pick<ItemSummary, "parent_index" | "index">): string {
-  const parts: string[] = [];
-  if (item.parent_index != null) parts.push(`S${item.parent_index}`);
-  if (item.index != null) parts.push(`E${item.index}`);
-  return parts.join(" · ");
+  const { parent_index: season, index: episode } = item;
+  if (season != null && episode != null) return t("format.episodeShort", { season, episode });
+  if (season != null) return t("format.seasonShort", { season });
+  if (episode != null) return t("format.episodeOnly", { episode });
+  return "";
 }
 
 export function seasonTitle(item: Pick<ItemSummary, "title" | "index">): string {
   if (item.title) return item.title;
-  if (item.index === 0) return "Specials";
-  return item.index != null ? `Season ${item.index}` : "Season";
+  if (item.index === 0) return t("format.specials");
+  return item.index != null ? t("format.seasonNumber", { number: item.index }) : t("format.season");
 }
 
 export function resolutionLabel(width: number | null | undefined, height: number | null | undefined): string | null {
@@ -255,9 +284,9 @@ export function channelsLabel(channels: number | undefined, layout?: string): st
   if (!channels) return layout ?? "";
   switch (channels) {
     case 1:
-      return "Mono";
+      return t("format.mono");
     case 2:
-      return "Stereo";
+      return t("format.stereo");
     case 3:
       return "2.1";
     case 6:
@@ -267,7 +296,7 @@ export function channelsLabel(channels: number | undefined, layout?: string): st
     case 8:
       return "7.1";
     default:
-      return `${channels}ch`;
+      return t("format.channels", { n: channels });
   }
 }
 
@@ -299,28 +328,39 @@ function subtitleTitleRest(title: string, lang: string): string {
     .trim();
 }
 
+/**
+ * The name of `code`'s language that `title` has: the one shown, or the
+ * English one, which files' titles mostly use ("English SDH" in French).
+ */
+function nameInTitle(title: string, code: string | null | undefined): string | null {
+  const lower = title.toLowerCase();
+  for (const name of [languageName(code), languageName(code, "en")]) {
+    if (name && lower.includes(name.toLowerCase())) return name;
+  }
+  return null;
+}
+
 /** Human readable label for an audio/subtitle/video stream. */
 export function streamLabel(s: MediaStream): string {
   const lang = languageName(s.language);
   if (s.kind === "audio") {
     const details = [codecLabel(s.codec), channelsLabel(s.channels, s.channel_layout)].filter(Boolean).join(" ");
-    const base = s.title && !lang ? s.title : lang ?? s.title ?? "Unknown";
-    const extra = s.title && lang && !s.title.toLowerCase().includes(lang.toLowerCase()) ? ` – ${s.title}` : "";
+    const base = s.title && !lang ? s.title : lang ?? s.title ?? t("states.unknown");
+    const extra = s.title && lang && !nameInTitle(s.title, s.language) ? ` – ${s.title}` : "";
     return `${base}${extra}${details ? ` (${details})` : ""}`;
   }
   if (s.kind === "subtitle") {
-    const base = lang ?? s.title ?? "Unknown";
-    const rest = s.title && lang ? subtitleTitleRest(s.title, lang) : "";
+    const base = lang ?? s.title ?? t("states.unknown");
+    const rest = s.title && lang ? subtitleTitleRest(s.title, nameInTitle(s.title, s.language) ?? lang) : "";
     const extra = rest ? ` – ${rest}` : "";
-    const flags = [codecLabel(s.codec), isForcedSubtitle(s) ? "Forced" : null, s.external ? "External" : null]
+    const flags = [codecLabel(s.codec), isForcedSubtitle(s) ? t("format.forced") : null, s.external ? t("format.external") : null]
       .filter(Boolean)
       .join(", ");
     return `${base}${extra}${flags ? ` (${flags})` : ""}`;
   }
   const res = resolutionLabel(s.width, s.height);
-  return [res, codecLabel(s.codec), dynamicRangeLabel(s), s.bit_depth && s.bit_depth > 8 ? `${s.bit_depth}-bit` : null]
-    .filter(Boolean)
-    .join(" ");
+  const depth = s.bit_depth && s.bit_depth > 8 ? t("format.bitDepth", { n: s.bit_depth }) : null;
+  return [res, codecLabel(s.codec), dynamicRangeLabel(s), depth].filter(Boolean).join(" ");
 }
 
 /**
@@ -332,7 +372,7 @@ export function automaticAudioLabel(file: MediaFile): string {
   const audio = file.streams.filter((s) => s.kind === "audio");
   const track = audio.find((s) => s.index === file.selected_audio) ?? audio.find((s) => s.default) ?? audio[0];
   const lang = track?.language && !["und", "zxx", "mul"].includes(track.language) ? languageName(track.language) : null;
-  return lang ? `Automatic (${lang})` : "Automatic";
+  return lang ? t("format.automaticLanguage", { language: lang }) : t("format.automatic");
 }
 
 /** Whether the person picked the file's audio track; older servers don't say, and their choice reads as picked. */
@@ -415,28 +455,28 @@ export function dynamicRangeBadges(s: RangeFields | null | undefined): string[] 
  * One-line description of what the transcoder is doing, e.g.
  * "HEVC 3840×2160 Dolby Vision P8.1 → H.264 1920×1080 · h264_nvenc · libplacebo · 3.2×".
  */
-export function transcodeSummary(t: TranscodeInfo): string {
+export function transcodeSummary(job: TranscodeInfo): string {
   const parts: string[] = [];
-  if (t.video === "transcode") {
-    parts.push([t.video_in, t.video_out].filter(Boolean).join(" → ") || "Video transcode");
-  } else if (t.video === "copy") {
-    parts.push(`${t.video_in ?? "Video"} (copy)`);
+  if (job.video === "transcode") {
+    parts.push([job.video_in, job.video_out].filter(Boolean).join(" → ") || t("format.transcode.videoTranscode"));
+  } else if (job.video === "copy") {
+    parts.push(t("format.transcode.copy", { stream: job.video_in ?? t("format.transcode.video") }));
   }
-  if (t.audio === "transcode") {
-    const a = [t.audio_in, t.audio_out].filter(Boolean).join(" → ");
+  if (job.audio === "transcode") {
+    const a = [job.audio_in, job.audio_out].filter(Boolean).join(" → ");
     if (a) parts.push(a);
-  } else if (t.audio === "copy" && t.audio_in) {
-    parts.push(`${t.audio_in} (copy)`);
+  } else if (job.audio === "copy" && job.audio_in) {
+    parts.push(t("format.transcode.copy", { stream: job.audio_in }));
   }
-  if (t.encoder && t.video === "transcode") parts.push(t.encoder);
+  if (job.encoder && job.video === "transcode") parts.push(job.encoder);
   // The CPU decoding a job whose GPU does the rest: the GPU couldn't decode.
-  const decoded = t.decoder !== "cpu" || t.pipeline === "hybrid";
-  if (t.decoder && decoded && t.video === "transcode") parts.push(`${t.decoder} decode`);
-  if (t.tonemap) parts.push(t.tonemap);
+  const decoded = job.decoder !== "cpu" || job.pipeline === "hybrid";
+  if (job.decoder && decoded && job.video === "transcode") parts.push(t("format.transcode.decode", { decoder: job.decoder }));
+  if (job.tonemap) parts.push(job.tonemap);
   // A stream in several sizes: which of them the player takes, the largest first.
-  if (t.variants) parts.push(`size ${(t.rendition ?? 0) + 1} of ${t.variants + 1}`);
-  if (t.subtitle_burn) parts.push("burn-in subs");
-  if (t.speed != null && t.speed > 0) parts.push(`${t.speed.toFixed(1)}×`);
+  if (job.variants) parts.push(t("format.transcode.size", { n: (job.rendition ?? 0) + 1, total: job.variants + 1 }));
+  if (job.subtitle_burn) parts.push(t("format.transcode.burnIn"));
+  if (job.speed != null && job.speed > 0) parts.push(`${fixed(job.speed, 1)}×`);
   return parts.join(" · ");
 }
 
@@ -446,15 +486,15 @@ export function cardSubtitle(item: ItemSummary): string {
     case "movie":
       return item.year ? String(item.year) : "";
     case "show":
-      if (item.child_count != null && item.child_count > 0) return pluralize(item.child_count, "season");
-      if (item.leaf_count != null) return pluralize(item.leaf_count, "episode");
+      if (item.child_count != null && item.child_count > 0) return t("format.seasons", { count: item.child_count });
+      if (item.leaf_count != null) return t("format.episodes", { count: item.leaf_count });
       return item.year ? String(item.year) : "";
     case "season":
-      return item.leaf_count != null ? pluralize(item.leaf_count, "episode") : "";
+      return item.leaf_count != null ? t("format.episodes", { count: item.leaf_count }) : "";
     case "episode":
       return episodeLabel(item);
     case "artist":
-      if (item.child_count != null) return pluralize(item.child_count, "album");
+      if (item.child_count != null) return t("format.albums", { count: item.child_count });
       return "";
     case "album":
       return [item.parent_title, item.year].filter(Boolean).join(" · ");

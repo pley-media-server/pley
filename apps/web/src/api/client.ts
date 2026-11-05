@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 export type ApiErrorCode =
   | "bad_request"
   | "unauthorized"
@@ -85,13 +87,13 @@ export async function requestWithStatus<T>(path: string, opts: RequestOptions = 
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    throw new ApiError(0, "network", "Can't reach the server");
+    throw new ApiError(0, "network", t("errors.unreachable"));
   }
 
   if (!res.ok) {
     let code: string = statusCode(res.status);
     // Without pley's own words (a proxy's page, say), plain ones rather than "Bad Gateway".
-    let message = res.status >= 502 && res.status <= 504 ? "the server isn't answering right now" : `the server couldn't answer (error ${res.status})`;
+    let message = res.status >= 502 && res.status <= 504 ? t("errors.notAnswering") : t("errors.failed", { status: res.status });
     let answer: unknown;
     try {
       const data = (await res.json()) as { code?: string; message?: string };

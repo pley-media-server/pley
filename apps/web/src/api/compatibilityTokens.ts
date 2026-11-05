@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { t } from "@/i18n";
 import { api } from "./client";
 import type { Id, Timestamp } from "./types";
 
@@ -35,26 +36,25 @@ export const compatibilityTokenKeys = {
   mine: ["me", "compatibility-tokens"] as const,
 };
 
+/** A scope with its words, read in the language shown each time. */
+function tokenScope(scope: "play" | "activity" | "manage", admin: boolean) {
+  return {
+    scope,
+    get label() {
+      return t(`tokens.${scope}.label`);
+    },
+    get hint() {
+      return t(`tokens.${scope}.hint`);
+    },
+    admin,
+  };
+}
+
 /** What a token may do, in the account page's words, in the order they are shown. */
-export const TOKEN_SCOPES: { scope: string; label: string; hint: string; admin: boolean }[] = [
-  {
-    scope: "play",
-    label: "Watch",
-    hint: "Browse and play.",
-    admin: false,
-  },
-  {
-    scope: "activity",
-    label: "See everyone's activity",
-    hint: "For tools such as Tautulli.",
-    admin: true,
-  },
-  {
-    scope: "manage",
-    label: "Manage libraries",
-    hint: "For tools such as Kometa.",
-    admin: true,
-  },
+export const TOKEN_SCOPES: { scope: string; readonly label: string; readonly hint: string; admin: boolean }[] = [
+  tokenScope("play", false),
+  tokenScope("activity", true),
+  tokenScope("manage", true),
 ];
 
 /** The most entries a token's "only from" takes. */
@@ -73,7 +73,7 @@ export function tokenScopesLabel(scopes: string[]): string {
 /** Where a token may be used from, in a few words: "only from 10.0.0.0/24, home network", or `null` for anywhere. */
 export function allowedFromLabel(allowed: string[]): string | null {
   if (allowed.length === 0) return null;
-  return `only from ${allowed.map((a) => (a === FROM_LOCAL ? "home network" : a)).join(", ")}`;
+  return t("tokens.onlyFrom", { places: allowed.map((a) => (a === FROM_LOCAL ? t("tokens.homeNetwork") : a)).join(", ") });
 }
 
 /** The signed-in account's tokens for other apps, most recently used first. */

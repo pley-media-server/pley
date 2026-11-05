@@ -1,5 +1,6 @@
 import { isApiError } from "@/api/client";
 import type { ServerStatus, TwoStepSetup, User } from "@/api/types";
+import { t } from "@/i18n";
 import { saveFile } from "./download";
 
 /** The server's answer to a sign-in that needs its second step, or got a wrong code. */
@@ -39,8 +40,8 @@ export function groupSecret(secret: string): string {
 /** The recovery codes as a text file. */
 export function recoveryCodesText(codes: string[], username: string, server?: string): string {
   return [
-    `Pley recovery codes for ${username}${server ? ` on ${server}` : ""}`,
-    "Each code signs in once, instead of a code from your authenticator app.",
+    server ? t("twoStep.codesForOn", { username, server }) : t("twoStep.codesFor", { username }),
+    t("twoStep.codesHint"),
     "",
     ...codes,
     "",

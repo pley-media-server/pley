@@ -81,6 +81,293 @@
       "MB": "MB",
       "GB": "GB",
       "TB": "TB"
+    },
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums",
+    "mono": "Mono",
+    "stereo": "Stereo",
+    "channels": "{{n}}ch",
+    "forced": "Forced",
+    "external": "External",
+    "bitDepth": "{{n}}-bit",
+    "automatic": "Automatic",
+    "automaticLanguage": "Automatic ({{language}})",
+    "transcode": {
+      "videoTranscode": "Video transcode",
+      "video": "Video",
+      "copy": "{{stream}} (copy)",
+      "decode": "{{decoder}} decode",
+      "size": "size {{n}} of {{total}}",
+      "burnIn": "burn-in subs"
+    }
+  },
+  "languages": {
+    "und": "Unknown",
+    "mul": "Multiple",
+    "zxx": "No linguistic content",
+    "qaa": "Original",
+    "cmn": "Mandarin"
+  },
+  "access": {
+    "noLimit": "No limit",
+    "littleKids": "Little kids (G, TV-Y)",
+    "kids": "Kids (TV-Y7)",
+    "olderKids": "Older kids (PG, TV-PG)",
+    "teens": "Teens (PG-13)",
+    "adults": "Adults (R, TV-MA)",
+    "upTo": "Up to {{age}}",
+    "allLibraries": "All libraries",
+    "noLibraries": "No libraries",
+    "libraries_one": "{{count, number}} library",
+    "libraries_other": "{{count, number}} libraries"
+  },
+  "passwords": {
+    "tooShort": "Use at least {{min}} characters for the password.",
+    "sameAsUsername": "The password can't be the username."
+  },
+  "twoStep": {
+    "codesFor": "Pley recovery codes for {{username}}",
+    "codesForOn": "Pley recovery codes for {{username}} on {{server}}",
+    "codesHint": "Each code signs in once, instead of a code from your authenticator app."
+  },
+  "play": {
+    "nothing": "Nothing to play",
+    "nothingYet": "Nothing to play yet",
+    "albumEmpty": "This album has no tracks",
+    "artistEmpty": "No tracks found for this artist"
+  },
+  "remote": {
+    "unknownDevice": "Unknown device",
+    "thisDevice": "This device",
+    "notPlaying": "{{device}} isn't playing any more",
+    "cantDoThat": "{{device}} can't do that",
+    "notOn": "{{device}} isn't on any more",
+    "cantPlay": "{{device}} can't play that",
+    "tooMany": "Too many at once: try again in a moment"
+  },
+  "errors": {
+    "unreachable": "Can't reach the server",
+    "notAnswering": "the server isn't answering right now",
+    "failed": "the server couldn't answer (error {{status}})"
+  },
+  "apps": {
+    "scopes": {
+      "library": "Libraries",
+      "play": "Play",
+      "playlists": "Playlists",
+      "profiles": "Profiles",
+      "requests": "Ask for movies and shows",
+      "approvals": "Approve requests"
+    }
+  },
+  "tokens": {
+    "play": {
+      "label": "Watch",
+      "hint": "Browse and play."
+    },
+    "activity": {
+      "label": "See everyone's activity",
+      "hint": "For tools such as Tautulli."
+    },
+    "manage": {
+      "label": "Manage libraries",
+      "hint": "For tools such as Kometa."
+    },
+    "onlyFrom": "only from {{places}}",
+    "homeNetwork": "home network"
+  },
+  "smartFilter": {
+    "sort": {
+      "titleSort": {
+        "asc": "By title",
+        "desc": "By title, Z to A"
+      },
+      "year": {
+        "asc": "Oldest first",
+        "desc": "Newest first"
+      },
+      "originallyAvailableAt": {
+        "asc": "Earliest release first",
+        "desc": "Latest release first"
+      },
+      "addedAt": {
+        "asc": "First added first",
+        "desc": "Recently added first"
+      },
+      "rating": {
+        "asc": "Lowest rated first",
+        "desc": "Best rated first"
+      },
+      "userRating": {
+        "asc": "Your lowest rated first",
+        "desc": "Your best rated first"
+      },
+      "lastViewedAt": {
+        "asc": "Least recently played first",
+        "desc": "Recently played first"
+      },
+      "duration": {
+        "asc": "Shortest first",
+        "desc": "Longest first"
+      },
+      "viewCount": {
+        "asc": "Least played first",
+        "desc": "Most played first"
+      }
+    },
+    "sortedBy": "Sorted by {{name}}",
+    "genre": "Genre: {{value}}",
+    "label": "Label: {{value}}",
+    "studio": "Studio: {{value}}",
+    "rated": "Rated {{value}}",
+    "watched": "Watched",
+    "unwatched": "Unwatched",
+    "inProgress": "In progress",
+    "notInProgress": "Not in progress",
+    "year": "From {{value}}",
+    "after": "After {{value}}",
+    "before": "Before {{value}}",
+    "decade": "The {{value}}s",
+    "resolution": "Resolution: {{value}}",
+    "dynamicRange": "Dynamic range: {{value}}",
+    "limit": "At most {{value}}"
+  },
+  "requests": {
+    "movie": "Movie",
+    "show": "Show",
+    "quoted": "“{{title}}”",
+    "seasonList_one": "Season {{list}}",
+    "seasonList_other": "Seasons {{list}}",
+    "andSpecials": "{{seasons}} and specials",
+    "soon": "soon",
+    "inMinutes": "in {{n}} min",
+    "inHours_one": "in {{count, number}} hour",
+    "inHours_other": "in {{count, number}} hours",
+    "inDays_one": "in {{count, number}} day",
+    "inDays_other": "in {{count, number}} days",
+    "todayAt": "today at {{time}}",
+    "tomorrowAt": "tomorrow at {{time}}",
+    "badge": {
+      "library": "In library",
+      "partial": "Partly in library",
+      "requested": "Requested",
+      "declined": "Declined"
+    },
+    "canAsk": "You can ask for {{list}}.",
+    "moreMovies_one": "{{count, number}} more movie",
+    "moreMovies_other": "{{count, number}} more movies",
+    "moreSeasons_one": "{{count, number}} more season",
+    "moreSeasons_other": "{{count, number}} more seasons",
+    "moviesUsedUp": "You've asked for all the movies you can for now.",
+    "moviesUsedUpUntil": "You've asked for all the movies you can for now: you can ask for more {{when}}.",
+    "seasonsUsedUp": "You've asked for all the seasons you can for now.",
+    "seasonsUsedUpUntil": "You've asked for all the seasons you can for now: you can ask for more {{when}}.",
+    "allUsedUp": "You've asked for all you can for now.",
+    "allUsedUpUntil": "You've asked for all you can for now: {{when}}.",
+    "moreMoviesWhen": "more movies {{when}}",
+    "moreSeasonsWhen": "more seasons {{when}}",
+    "limits": "Limits: {{list}} per 7 days.",
+    "movies_one": "{{count, number}} movie",
+    "movies_other": "{{count, number}} movies",
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "requestSeasons_one": "Request {{count, number}} season",
+    "requestSeasons_other": "Request {{count, number}} seasons",
+    "season": {
+      "declined": "Declined",
+      "library": "In library",
+      "partial": "Partly in library",
+      "requested": "Requested",
+      "notAired": "Not aired yet"
+    },
+    "airs": "Airs {{day}}",
+    "out": "Out {{day}}",
+    "notOut": "Not out yet",
+    "declined": "Declined.",
+    "declinedBecause": "Declined: {{reason}}.",
+    "askAgain": "You can ask again {{when}}.",
+    "restricted": "Above this account's age limit.",
+    "download": {
+      "downloading": "Downloading",
+      "queued": "Waiting to download",
+      "paused": "Download paused",
+      "warning": "The download has a problem",
+      "importing": "Adding to the library",
+      "progress": "Downloading {{percent}}%"
+    },
+    "stage": {
+      "pending": "Waiting for approval",
+      "approved": "Approved",
+      "searching": "Searching",
+      "importing": "Adding to the library",
+      "partial": "{{seasons}} ready",
+      "partialNoSeasons": "Partly ready",
+      "available": "Ready to watch",
+      "gone": "No longer in a library",
+      "declined": "Declined",
+      "failed": "Couldn't send",
+      "notSent": "Not sent yet",
+      "notSentLine": "It couldn't be sent to download yet: an administrator will look at it.",
+      "retry": "Trying again {{when}}."
+    },
+    "asked": {
+      "following": "You'll hear when {{title}} is ready.",
+      "pending": "Asked for {{title}}: an administrator decides.",
+      "failed": "Asked for {{title}}, but it couldn't be sent to download yet.",
+      "approved": "{{title}} is approved and on its way."
+    },
+    "action": {
+      "withdraw": "Withdraw",
+      "unwatch": "Stop following",
+      "approve": "Approve",
+      "decline": "Decline",
+      "handled": "Mark as added by hand",
+      "askAgain": "Request again"
+    },
+    "question": {
+      "remove": "Remove {{title}} from your requests?",
+      "withdraw": "Withdraw your request for {{title}}?",
+      "delete": "Delete this request?"
+    },
+    "ready": "{{title}} is ready to watch.",
+    "seasonsReady_one": "{{seasons}} of {{title}} is ready to watch.",
+    "seasonsReady_other": "{{seasons}} of {{title}} are ready to watch.",
+    "specialsReady": "Specials of {{title}} are ready to watch.",
+    "approved": "{{title}} was approved.",
+    "declinedNews": "{{title}} was declined.",
+    "declinedNewsBecause": "{{title}} was declined: {{reason}}.",
+    "created": "{{name}} asked for {{title}}.",
+    "createdSeasons": "{{name}} asked for {{title}} ({{seasons}}).",
+    "notSentTo": "{{title}} couldn't be sent to {{service}}.",
+    "notSentToBecause": "{{title}} couldn't be sent to {{service}}: {{reason}}",
+    "news_one": "{{count}} of your requests has news",
+    "news_other": "{{count}} of your requests have news",
+    "problem": {
+      "off": "Requests are off",
+      "offText": "This server doesn't take requests for movies and shows.",
+      "tmdbKey": "TMDB refused this server's key",
+      "tmdbKeyManage": "Check it in Settings → Server.",
+      "tmdbKeyText": "An administrator needs to check it.",
+      "tmdbDown": "TMDB isn't answering",
+      "tmdbDownText": "Try again in a moment.",
+      "noAccess": "Requests aren't open to this account",
+      "noAccessText": "An administrator can let it ask for movies and shows.",
+      "signIn": "Sign in again to ask for movies and shows",
+      "declined": "It was declined.",
+      "askMore": "You can ask for more {{when}}.",
+      "atMostMovies_one": "You can ask for at most {{count, number}} movie per 7 days: pick fewer.",
+      "atMostMovies_other": "You can ask for at most {{count, number}} movies per 7 days: pick fewer.",
+      "atMostSeasons_one": "You can ask for at most {{count, number}} season per 7 days: pick fewer.",
+      "atMostSeasons_other": "You can ask for at most {{count, number}} seasons per 7 days: pick fewer.",
+      "overLimit": "That's more than the limit allows: pick fewer.",
+      "removeWhen": "You can remove it {{when}}.",
+      "tryAgainWhen": "You can try again {{when}}."
     }
   }
 }

@@ -57,7 +57,7 @@ describe("words", () => {
 
   it("says a day, and the time within the next 24 hours", () => {
     const day = new Date(2027, 10, 4, 12).getTime() / 1000;
-    expect(dayText(day, day - 20 * DAY)).toBe(new Date(day * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+    expect(dayText(day, day - 20 * DAY)).toBe(new Date(day * 1000).toLocaleDateString("en", { month: "short", day: "numeric" }));
     expect(dayText(day, day - 400 * DAY)).toContain("2027");
     expect(dayText(day, day - 3600)).toMatch(/^today at /);
   });

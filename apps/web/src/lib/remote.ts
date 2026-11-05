@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { CastKind, Control, DeviceKind, PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
+import { t } from "@/i18n";
 import { streamLabel } from "./format";
 
 /** How long a remote waits for a player to show it acted on a command. */
@@ -9,8 +10,6 @@ export const ANSWER_WAIT_MS = 5_000;
 export const SKIP_BACK_MS = 10_000;
 export const SKIP_FORWARD_MS = 30_000;
 
-/** What a remote calls a device the server couldn't name. */
-export const UNNAMED_DEVICE = "Unknown device";
 
 /** A session as the remote keeps it: when its player last reported, by this browser's clock. */
 export interface RemoteSession extends PlayingSession {
@@ -65,7 +64,8 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
   }
   const devices = [...byId].map(([id, { receiver, session }]) => ({
     id,
-    name: receiver?.name ?? session?.device ?? UNNAMED_DEVICE,
+    // A device the server couldn't name.
+    name: receiver?.name ?? session?.device ?? t("remote.unknownDevice"),
     kind: receiver?.kind ?? session?.device_kind ?? "other",
     receiver,
     session,

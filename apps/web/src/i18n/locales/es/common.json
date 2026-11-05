@@ -81,6 +81,309 @@
       "MB": "MB",
       "GB": "GB",
       "TB": "TB"
+    },
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "episodes_one": "{{count, number}} episodio",
+    "episodes_many": "{{count, number}} episodios",
+    "episodes_other": "{{count, number}} episodios",
+    "albums_one": "{{count, number}} álbum",
+    "albums_many": "{{count, number}} álbumes",
+    "albums_other": "{{count, number}} álbumes",
+    "mono": "Mono",
+    "stereo": "Estéreo",
+    "channels": "{{n}} canales",
+    "forced": "Forzados",
+    "external": "Externos",
+    "bitDepth": "{{n}} bits",
+    "automatic": "Automática",
+    "automaticLanguage": "Automática ({{language}})",
+    "transcode": {
+      "videoTranscode": "Transcodificación de video",
+      "video": "Video",
+      "copy": "{{stream}} (copia)",
+      "decode": "decodificación {{decoder}}",
+      "size": "tamaño {{n}} de {{total}}",
+      "burnIn": "subtítulos incrustados"
+    }
+  },
+  "languages": {
+    "und": "Idioma desconocido",
+    "mul": "Varios idiomas",
+    "zxx": "Sin contenido lingüístico",
+    "qaa": "Versión original",
+    "cmn": "Mandarín"
+  },
+  "access": {
+    "noLimit": "Sin límite",
+    "littleKids": "Niños pequeños (G, TV-Y)",
+    "kids": "Niños (TV-Y7)",
+    "olderKids": "Niños mayores (PG, TV-PG)",
+    "teens": "Adolescentes (PG-13)",
+    "adults": "Adultos (R, TV-MA)",
+    "upTo": "Hasta {{age}} años",
+    "allLibraries": "Todas las bibliotecas",
+    "noLibraries": "Ninguna biblioteca",
+    "libraries_one": "{{count, number}} biblioteca",
+    "libraries_many": "{{count, number}} bibliotecas",
+    "libraries_other": "{{count, number}} bibliotecas"
+  },
+  "passwords": {
+    "tooShort": "Usa al menos {{min}} caracteres para la contraseña.",
+    "sameAsUsername": "La contraseña no puede ser el nombre de usuario."
+  },
+  "twoStep": {
+    "codesFor": "Códigos de recuperación de Pley de {{username}}",
+    "codesForOn": "Códigos de recuperación de Pley de {{username}} en {{server}}",
+    "codesHint": "Cada código sirve para iniciar sesión una vez, en lugar de un código de tu aplicación de autenticación."
+  },
+  "play": {
+    "nothing": "No hay nada que reproducir",
+    "nothingYet": "Aún no hay nada que reproducir",
+    "albumEmpty": "Este álbum no tiene pistas",
+    "artistEmpty": "No se encontraron pistas de este artista"
+  },
+  "remote": {
+    "unknownDevice": "Dispositivo desconocido",
+    "thisDevice": "Este dispositivo",
+    "notPlaying": "{{device}} ya no está reproduciendo nada",
+    "cantDoThat": "{{device}} no puede hacer eso",
+    "notOn": "{{device}} ya no está conectado",
+    "cantPlay": "{{device}} no puede reproducir eso",
+    "tooMany": "Demasiadas solicitudes a la vez: vuelve a intentarlo en un momento"
+  },
+  "errors": {
+    "unreachable": "No se puede conectar con el servidor",
+    "notAnswering": "el servidor no responde en este momento",
+    "failed": "el servidor no pudo responder (error {{status}})"
+  },
+  "apps": {
+    "scopes": {
+      "library": "Bibliotecas",
+      "play": "Reproducción",
+      "playlists": "Listas de reproducción",
+      "profiles": "Perfiles",
+      "requests": "Solicitar películas y series",
+      "approvals": "Aprobar solicitudes"
+    }
+  },
+  "tokens": {
+    "play": {
+      "label": "Ver",
+      "hint": "Explorar y reproducir."
+    },
+    "activity": {
+      "label": "Ver la actividad de todos",
+      "hint": "Para herramientas como Tautulli."
+    },
+    "manage": {
+      "label": "Gestionar bibliotecas",
+      "hint": "Para herramientas como Kometa."
+    },
+    "onlyFrom": "solo desde {{places}}",
+    "homeNetwork": "la red doméstica"
+  },
+  "smartFilter": {
+    "sort": {
+      "titleSort": {
+        "asc": "Por título",
+        "desc": "Por título, de la Z a la A"
+      },
+      "year": {
+        "asc": "Más antiguos primero",
+        "desc": "Más recientes primero"
+      },
+      "originallyAvailableAt": {
+        "asc": "Estreno más antiguo primero",
+        "desc": "Estreno más reciente primero"
+      },
+      "addedAt": {
+        "asc": "Añadidos hace más tiempo primero",
+        "desc": "Añadidos recientemente primero"
+      },
+      "rating": {
+        "asc": "Peor valorados primero",
+        "desc": "Mejor valorados primero"
+      },
+      "userRating": {
+        "asc": "Tus peor valorados primero",
+        "desc": "Tus mejor valorados primero"
+      },
+      "lastViewedAt": {
+        "asc": "Reproducidos hace más tiempo primero",
+        "desc": "Reproducidos recientemente primero"
+      },
+      "duration": {
+        "asc": "Más cortos primero",
+        "desc": "Más largos primero"
+      },
+      "viewCount": {
+        "asc": "Menos reproducidos primero",
+        "desc": "Más reproducidos primero"
+      }
+    },
+    "sortedBy": "Ordenado por {{name}}",
+    "genre": "Género: {{value}}",
+    "label": "Etiqueta: {{value}}",
+    "studio": "Estudio: {{value}}",
+    "rated": "Clasificación: {{value}}",
+    "watched": "Visto",
+    "unwatched": "No visto",
+    "inProgress": "En curso",
+    "notInProgress": "No en curso",
+    "year": "Año: {{value}}",
+    "after": "Después de {{value}}",
+    "before": "Antes de {{value}}",
+    "decade": "Años {{value}}",
+    "resolution": "Resolución: {{value}}",
+    "dynamicRange": "Rango dinámico: {{value}}",
+    "limit": "{{value}} como máximo"
+  },
+  "requests": {
+    "movie": "Película",
+    "show": "Serie",
+    "quoted": "«{{title}}»",
+    "seasonList_one": "Temporada {{list}}",
+    "seasonList_many": "Temporadas {{list}}",
+    "seasonList_other": "Temporadas {{list}}",
+    "andSpecials": "{{seasons}} y especiales",
+    "soon": "pronto",
+    "inMinutes": "en {{n}} min",
+    "inHours_one": "en {{count, number}} hora",
+    "inHours_many": "en {{count, number}} horas",
+    "inHours_other": "en {{count, number}} horas",
+    "inDays_one": "en {{count, number}} día",
+    "inDays_many": "en {{count, number}} días",
+    "inDays_other": "en {{count, number}} días",
+    "todayAt": "hoy a las {{time}}",
+    "tomorrowAt": "mañana a las {{time}}",
+    "badge": {
+      "library": "En la biblioteca",
+      "partial": "En parte en la biblioteca",
+      "requested": "Solicitado",
+      "declined": "Rechazado"
+    },
+    "canAsk": "Puedes solicitar {{list}}.",
+    "moreMovies_one": "{{count, number}} película más",
+    "moreMovies_many": "{{count, number}} películas más",
+    "moreMovies_other": "{{count, number}} películas más",
+    "moreSeasons_one": "{{count, number}} temporada más",
+    "moreSeasons_many": "{{count, number}} temporadas más",
+    "moreSeasons_other": "{{count, number}} temporadas más",
+    "moviesUsedUp": "Ya solicitaste todas las películas que puedes por ahora.",
+    "moviesUsedUpUntil": "Ya solicitaste todas las películas que puedes por ahora: podrás solicitar más {{when}}.",
+    "seasonsUsedUp": "Ya solicitaste todas las temporadas que puedes por ahora.",
+    "seasonsUsedUpUntil": "Ya solicitaste todas las temporadas que puedes por ahora: podrás solicitar más {{when}}.",
+    "allUsedUp": "Ya solicitaste todo lo que puedes por ahora.",
+    "allUsedUpUntil": "Ya solicitaste todo lo que puedes por ahora: {{when}}.",
+    "moreMoviesWhen": "más películas {{when}}",
+    "moreSeasonsWhen": "más temporadas {{when}}",
+    "limits": "Límites: {{list}} cada 7 días.",
+    "movies_one": "{{count, number}} película",
+    "movies_many": "{{count, number}} películas",
+    "movies_other": "{{count, number}} películas",
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "requestSeasons_one": "Solicitar {{count, number}} temporada",
+    "requestSeasons_many": "Solicitar {{count, number}} temporadas",
+    "requestSeasons_other": "Solicitar {{count, number}} temporadas",
+    "season": {
+      "declined": "Rechazada",
+      "library": "En la biblioteca",
+      "partial": "En parte en la biblioteca",
+      "requested": "Solicitada",
+      "notAired": "Aún no se ha emitido"
+    },
+    "airs": "Emisión: {{day}}",
+    "out": "Estreno: {{day}}",
+    "notOut": "Aún no se ha estrenado",
+    "declined": "Rechazado.",
+    "declinedBecause": "Rechazado: {{reason}}.",
+    "askAgain": "Podrás volver a solicitarlo {{when}}.",
+    "restricted": "Supera el límite de edad de esta cuenta.",
+    "download": {
+      "downloading": "Descargando",
+      "queued": "Esperando para descargar",
+      "paused": "Descarga en pausa",
+      "warning": "La descarga tiene un problema",
+      "importing": "Añadiendo a la biblioteca",
+      "progress": "Descargando {{percent}} %"
+    },
+    "stage": {
+      "pending": "Esperando aprobación",
+      "approved": "Aprobada",
+      "searching": "Buscando",
+      "importing": "Añadiendo a la biblioteca",
+      "partial": "Listo para ver: {{seasons}}",
+      "partialNoSeasons": "Listo en parte",
+      "available": "Listo para ver",
+      "gone": "Ya no está en una biblioteca",
+      "declined": "Rechazada",
+      "failed": "No se pudo enviar",
+      "notSent": "Aún no enviada",
+      "notSentLine": "Aún no se pudo enviar a descargar: un administrador la revisará.",
+      "retry": "Se volverá a intentar {{when}}."
+    },
+    "asked": {
+      "following": "Te avisaremos cuando {{title}} esté listo.",
+      "pending": "Solicitaste {{title}}: un administrador decidirá.",
+      "failed": "Solicitaste {{title}}, pero aún no se pudo enviar a descargar.",
+      "approved": "{{title}} está aprobado y en camino."
+    },
+    "action": {
+      "withdraw": "Retirar",
+      "unwatch": "Dejar de seguir",
+      "approve": "Aprobar",
+      "decline": "Rechazar",
+      "handled": "Marcar como añadido a mano",
+      "askAgain": "Volver a solicitar"
+    },
+    "question": {
+      "remove": "¿Quitar {{title}} de tus solicitudes?",
+      "withdraw": "¿Retirar tu solicitud de {{title}}?",
+      "delete": "¿Eliminar esta solicitud?"
+    },
+    "ready": "{{title}} está listo para ver.",
+    "seasonsReady_one": "{{seasons}} de {{title}} ya está lista para ver.",
+    "seasonsReady_many": "{{seasons}} de {{title}} ya están listas para ver.",
+    "seasonsReady_other": "{{seasons}} de {{title}} ya están listas para ver.",
+    "specialsReady": "Los especiales de {{title}} ya están listos para ver.",
+    "approved": "{{title}} se aprobó.",
+    "declinedNews": "{{title}} se rechazó.",
+    "declinedNewsBecause": "{{title}} se rechazó: {{reason}}.",
+    "created": "{{name}} solicitó {{title}}.",
+    "createdSeasons": "{{name}} solicitó {{title}} ({{seasons}}).",
+    "notSentTo": "No se pudo enviar {{title}} a {{service}}.",
+    "notSentToBecause": "No se pudo enviar {{title}} a {{service}}: {{reason}}",
+    "news_one": "{{count}} de tus solicitudes tiene novedades",
+    "news_many": "{{count}} de tus solicitudes tienen novedades",
+    "news_other": "{{count}} de tus solicitudes tienen novedades",
+    "problem": {
+      "off": "Las solicitudes están desactivadas",
+      "offText": "Este servidor no acepta solicitudes de películas y series.",
+      "tmdbKey": "TMDB rechazó la clave de este servidor",
+      "tmdbKeyManage": "Revísala en Ajustes → Servidor.",
+      "tmdbKeyText": "Un administrador tiene que revisarla.",
+      "tmdbDown": "TMDB no responde",
+      "tmdbDownText": "Vuelve a intentarlo en un momento.",
+      "noAccess": "Las solicitudes no están abiertas para esta cuenta",
+      "noAccessText": "Un administrador puede permitirle solicitar películas y series.",
+      "signIn": "Vuelve a iniciar sesión para solicitar películas y series",
+      "declined": "Se rechazó.",
+      "askMore": "Podrás solicitar más {{when}}.",
+      "atMostMovies_one": "Puedes solicitar como máximo {{count, number}} película cada 7 días: elige menos.",
+      "atMostMovies_many": "Puedes solicitar como máximo {{count, number}} películas cada 7 días: elige menos.",
+      "atMostMovies_other": "Puedes solicitar como máximo {{count, number}} películas cada 7 días: elige menos.",
+      "atMostSeasons_one": "Puedes solicitar como máximo {{count, number}} temporada cada 7 días: elige menos.",
+      "atMostSeasons_many": "Puedes solicitar como máximo {{count, number}} temporadas cada 7 días: elige menos.",
+      "atMostSeasons_other": "Puedes solicitar como máximo {{count, number}} temporadas cada 7 días: elige menos.",
+      "overLimit": "Eso supera el límite: elige menos.",
+      "removeWhen": "Podrás quitarla {{when}}.",
+      "tryAgainWhen": "Podrás volver a intentarlo {{when}}."
     }
   }
 }

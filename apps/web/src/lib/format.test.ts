@@ -117,7 +117,7 @@ describe("formatBitrate", () => {
 
 describe("formatRelative", () => {
   const now = 1_700_000_000;
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
   afterEach(() => {
     vi.useRealTimers();
@@ -152,7 +152,7 @@ describe("formatRelative", () => {
 
 describe("formatDate", () => {
   it("formats a calendar date in the local time zone", () => {
-    const expected = new Date(2023, 3, 1).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    const expected = new Date(2023, 3, 1).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric" });
     expect(formatDate("2023-04-01")).toBe(expected);
   });
 

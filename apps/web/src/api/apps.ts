@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { t } from "@/i18n";
 import { api } from "./client";
 import type { Id, Timestamp } from "./types";
 
@@ -32,18 +33,12 @@ export const appKeys = {
   user: (id: Id) => ["users", id, "apps"] as const,
 };
 
-const SCOPE_LABELS: Record<string, string> = {
-  library: "Libraries",
-  play: "Play",
-  playlists: "Playlists",
-  profiles: "Profiles",
-  requests: "Ask for movies and shows",
-  approvals: "Approve requests",
-};
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals"] as const;
+const isNamedScope = (scope: string): scope is (typeof SCOPES)[number] => (SCOPES as readonly string[]).includes(scope);
 
 /** What an app may do, in a few words: "Libraries · Play · Playlists". */
 export function scopesLabel(scopes: string[]): string {
-  return scopes.map((s) => SCOPE_LABELS[s] ?? s).join(" · ");
+  return scopes.map((s) => (isNamedScope(s) ? t(`apps.scopes.${s}`) : s)).join(" · ");
 }
 
 /** How an app is called: pley's own apps by name, others by host. */

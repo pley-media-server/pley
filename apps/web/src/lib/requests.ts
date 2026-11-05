@@ -17,17 +17,23 @@ import type {
   TitleKind,
 } from "@/api/requests";
 import type { Id, Timestamp } from "@/api/types";
-import { pluralize } from "./format";
+import { currentLanguage, t } from "@/i18n";
 import { itemUrl, titleUrl } from "./urls";
 
 const nowSeconds = () => Date.now() / 1000;
 
 export function kindLabel(kind: TitleKind): string {
-  return kind === "movie" ? "Movie" : "Show";
+  return kind === "movie" ? t("requests.movie") : t("requests.show");
 }
 
-/** A title as running text quotes it: “Heat”. */
-export const quoted = (title: string) => `“${title}”`;
+/** A title as running text quotes it: “Heat” (« Heat » in French). */
+export const quoted = (title: string) => t("requests.quoted", { title });
+
+/** "2 more movies and 5 more seasons", joined as the language shown joins them. */
+function both(items: string[]): string {
+  if (typeof Intl.ListFormat !== "function") return items.join(" and ");
+  return new Intl.ListFormat(currentLanguage(), { type: "conjunction" }).format(items);
+}
 
 /** "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials"; "" for none (movies). */
 export function seasonsLabel(seasons: number[] | null): string {
@@ -49,9 +55,9 @@ export function seasonsLabel(seasons: number[] | null): string {
     prev = n;
   }
   close();
-  if (!ranges.length) return "Specials";
-  const label = `${numbers.length === 1 ? "Season" : "Seasons"} ${ranges.join(", ")}`;
-  return seasons.includes(0) ? `${label} and specials` : label;
+  if (!ranges.length) return t("format.specials");
+  const label = t("requests.seasonList", { count: numbers.length, list: ranges.join(", ") });
+  return seasons.includes(0) ? t("requests.andSpecials", { seasons: label }) : label;
 }
 
 /**
@@ -61,10 +67,10 @@ export function seasonsLabel(seasons: number[] | null): string {
  */
 export function untilText(ts: Timestamp, now = nowSeconds()): string {
   const diff = ts - now;
-  if (diff <= 0) return "soon";
-  if (diff < 3600) return `in ${Math.max(1, Math.ceil(diff / 60))} min`;
-  if (diff < 86400) return `in ${pluralize(Math.round(diff / 3600), "hour")}`;
-  return `in ${pluralize(Math.ceil(diff / 86400), "day")}`;
+  if (diff <= 0) return t("requests.soon");
+  if (diff < 3600) return t("requests.inMinutes", { n: Math.max(1, Math.ceil(diff / 60)) });
+  if (diff < 86400) return t("requests.inHours", { count: Math.round(diff / 3600) });
+  return t("requests.inDays", { count: Math.ceil(diff / 86400) });
 }
 
 /** A day, "Nov 4" (with its year when it isn't this one); within the next 24 hours, the time: "today at 9:00 PM". */
@@ -72,10 +78,10 @@ export function dayText(ts: Timestamp, now = nowSeconds()): string {
   const date = new Date(ts * 1000);
   const today = new Date(now * 1000);
   if (ts > now && ts - now < 86400) {
-    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-    return `${date.toDateString() === today.toDateString() ? "today" : "tomorrow"} at ${time}`;
+    const time = date.toLocaleTimeString(currentLanguage(), { hour: "numeric", minute: "2-digit" });
+    return date.toDateString() === today.toDateString() ? t("requests.todayAt", { time }) : t("requests.tomorrowAt", { time });
   }
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(currentLanguage(), {
     month: "short",
     day: "numeric",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
@@ -86,13 +92,13 @@ export function dayText(ts: Timestamp, now = nowSeconds()): string {
 export function titleBadge(title: Pick<DiscoverTitle, "status" | "item_id">): string | null {
   switch (title.status) {
     case "library":
-      return "In library";
+      return t("requests.badge.library");
     case "partial":
-      return title.item_id !== null ? "Partly in library" : "Requested";
+      return title.item_id !== null ? t("requests.badge.partial") : t("requests.badge.requested");
     case "requested":
-      return "Requested";
+      return t("requests.badge.requested");
     case "declined":
-      return "Declined";
+      return t("requests.badge.declined");
     default:
       return null;
   }
@@ -156,26 +162,34 @@ export type Allowance = Pick<RequestSummary, "movies_left" | "seasons_left" | "m
  */
 export function allowanceText(allowance: Allowance, kind?: TitleKind, now = nowSeconds()): { text: string; limits: string | null } | null {
   const all = [
-    { kind: "movie", one: "movie", many: "movies", left: allowance.movies_left, next: allowance.movies_next_at, limit: allowance.movies_limit ?? null },
-    { kind: "show", one: "season", many: "seasons", left: allowance.seasons_left, next: allowance.seasons_next_at, limit: allowance.seasons_limit ?? null },
+    { kind: "movie", movies: true, left: allowance.movies_left, next: allowance.movies_next_at, limit: allowance.movies_limit ?? null },
+    { kind: "show", movies: false, left: allowance.seasons_left, next: allowance.seasons_next_at, limit: allowance.seasons_limit ?? null },
   ];
   const limited = all.filter((p) => (!kind || p.kind === kind) && p.left !== null);
   if (!limited.length) return null;
   const more = limited.filter((p) => (p.left ?? 0) > 0);
   const used = limited.filter((p) => (p.left ?? 0) <= 0);
   const sentences: string[] = [];
-  if (more.length) sentences.push(`You can ask for ${more.map((p) => pluralize(p.left ?? 0, `more ${p.one}`, `more ${p.many}`)).join(" and ")}.`);
+  if (more.length) {
+    const counts = more.map((p) => t(p.movies ? "requests.moreMovies" : "requests.moreSeasons", { count: p.left ?? 0 }));
+    sentences.push(t("requests.canAsk", { list: both(counts) }));
+  }
   const [only] = used;
   if (only && used.length === 1) {
-    sentences.push(`You've asked for all the ${only.many} you can for now${only.next ? `: you can ask for more ${untilText(only.next, now)}` : ""}.`);
+    const when = only.next ? untilText(only.next, now) : null;
+    if (only.movies) sentences.push(when ? t("requests.moviesUsedUpUntil", { when }) : t("requests.moviesUsedUp"));
+    else sentences.push(when ? t("requests.seasonsUsedUpUntil", { when }) : t("requests.seasonsUsedUp"));
   } else if (used.length > 1) {
-    const when = used.flatMap((p) => (p.next ? [`more ${p.many} ${untilText(p.next, now)}`] : []));
-    sentences.push(`You've asked for all you can for now${when.length ? `: ${when.join(", ")}` : ""}.`);
+    const when = used.flatMap((p) =>
+      p.next ? [t(p.movies ? "requests.moreMoviesWhen" : "requests.moreSeasonsWhen", { when: untilText(p.next, now) })] : [],
+    );
+    sentences.push(when.length ? t("requests.allUsedUpUntil", { when: when.join(", ") }) : t("requests.allUsedUp"));
   }
   const limits = limited.filter((p) => p.limit !== null);
+  const counts = limits.map((p) => t(p.movies ? "requests.movies" : "requests.seasons", { count: p.limit ?? 0 }));
   return {
     text: sentences.join(" "),
-    limits: limits.length ? `Limits: ${limits.map((p) => pluralize(p.limit ?? 0, p.one, p.many)).join(" and ")} per 7 days.` : null,
+    limits: limits.length ? t("requests.limits", { list: both(counts) }) : null,
   };
 }
 
@@ -215,22 +229,22 @@ export function defaultPicks(detail: Pick<DiscoverDetail, "status" | "seasons">,
 
 /** The picker's button: "Request 3 seasons", "Request 1 season". */
 export function pickerButton(count: number): string {
-  return `Request ${pluralize(count, "season")}`;
+  return t("requests.requestSeasons", { count });
 }
 
 /** How a season stands for this account, in the seasons' list and the picker; `null` when it may simply be asked for. */
 export function seasonStateText(season: DiscoverSeason, now = nowSeconds()): string | null {
-  if (season.declined && season.state !== "library" && season.state !== "requested") return "Declined";
+  if (season.declined && season.state !== "library" && season.state !== "requested") return t("requests.season.declined");
   switch (season.state) {
     case "library":
-      return "In library";
+      return t("requests.season.library");
     case "partial":
-      return "Partly in library";
+      return t("requests.season.partial");
     case "requested":
-      return "Requested";
+      return t("requests.season.requested");
     case "unaired": {
       const day = season.air_date ? Date.parse(`${season.air_date}T12:00:00Z`) / 1000 : NaN;
-      return Number.isFinite(day) && day > now ? `Airs ${dayText(day, now)}` : "Not aired yet";
+      return Number.isFinite(day) && day > now ? t("requests.airs", { day: dayText(day, now) }) : t("requests.season.notAired");
     }
     default:
       return null;
@@ -260,16 +274,16 @@ export type MainAction =
 
 /** "Declined: “Not on this server”. You can ask again in 12 days." */
 export function declinedText(declined: DiscoverDetail["declined"], now = nowSeconds()): string {
-  if (!declined) return "Declined.";
-  const reason = declined.reason ? `: ${quoted(declined.reason)}` : "";
-  return `Declined${reason}. You can ask again ${untilText(declined.again_at, now)}.`;
+  if (!declined) return t("requests.declined");
+  const reason = declined.reason ? t("requests.declinedBecause", { reason: quoted(declined.reason) }) : t("requests.declined");
+  return `${reason} ${t("requests.askAgain", { when: untilText(declined.again_at, now) })}`;
 }
 
 export function mainAction(detail: DiscoverDetail, summary: Pick<RequestSummary, "sign_in_again">, now = nowSeconds()): MainAction {
   if (summary.sign_in_again === "requests") return { kind: "sign_in" };
   switch (detail.status) {
     case "restricted":
-      return { kind: "restricted", text: detail.restriction ?? "Above this account's age limit." };
+      return { kind: "restricted", text: detail.restriction ?? t("requests.restricted") };
     case "library":
       return { kind: "open", itemId: detail.item_id };
     case "declined":
@@ -319,19 +333,19 @@ export interface StageWords {
 
 /** "Downloading 42% · in 20 min", or what the queue says instead ("Download paused"). */
 export function downloadText(download: RequestDownload | null, now = nowSeconds()): string {
-  if (!download) return "Downloading";
+  if (!download) return t("requests.download.downloading");
   switch (download.state) {
     case "queued":
-      return "Waiting to download";
+      return t("requests.download.queued");
     case "paused":
-      return "Download paused";
+      return t("requests.download.paused");
     case "warning":
-      return "The download has a problem";
+      return t("requests.download.warning");
     case "importing":
-      return "Adding to the library";
+      return t("requests.download.importing");
     default: {
       const eta = download.eta && download.eta > now ? ` · ${untilText(download.eta, now)}` : "";
-      return `Downloading ${Math.round(download.progress * 100)}%${eta}`;
+      return `${t("requests.download.progress", { percent: Math.round(download.progress * 100) })}${eta}`;
     }
   }
 }
@@ -346,40 +360,46 @@ export function stageWords(request: MediaRequest, manage: boolean, now = nowSeco
   let line: string | null = null;
   switch (request.stage) {
     case "pending":
-      label = "Waiting for approval";
+      label = t("requests.stage.pending");
       break;
     case "approved":
-      label = "Approved";
+      label = t("requests.stage.approved");
       break;
     case "waiting":
-      label = request.stage_at ? `${request.kind === "movie" ? "Out" : "Airs"} ${dayText(request.stage_at, now)}` : "Not out yet";
+      label = request.stage_at
+        ? t(request.kind === "movie" ? "requests.out" : "requests.airs", { day: dayText(request.stage_at, now) })
+        : t("requests.notOut");
       break;
     case "searching":
-      label = "Searching";
+      label = t("requests.stage.searching");
       break;
     case "downloading":
       label = downloadText(request.download, now);
       break;
     case "importing":
-      label = "Adding to the library";
+      label = t("requests.stage.importing");
       break;
     case "partial":
-      label = request.available_seasons.length ? `${seasonsLabel(request.available_seasons)} ready` : "Partly ready";
+      label = request.available_seasons.length
+        ? t("requests.stage.partial", { seasons: seasonsLabel(request.available_seasons) })
+        : t("requests.stage.partialNoSeasons");
       break;
     case "available":
-      label = "Ready to watch";
+      label = t("requests.stage.available");
       break;
     case "gone":
-      label = "No longer in a library";
+      label = t("requests.stage.gone");
       break;
     case "declined":
-      label = "Declined";
+      label = t("requests.stage.declined");
       break;
     case "failed": {
       const reason = manage ? request.reason : null;
-      label = manage ? "Couldn't send" : "Not sent yet";
-      line = manage ? reason : "It couldn't be sent to download yet: an administrator will look at it.";
-      if (request.retry_at) line = [reason && sentence(reason), `Trying again ${untilText(request.retry_at, now)}.`].filter(Boolean).join(" ");
+      label = manage ? t("requests.stage.failed") : t("requests.stage.notSent");
+      line = manage ? reason : t("requests.stage.notSentLine");
+      if (request.retry_at) {
+        line = [reason && sentence(reason), t("requests.stage.retry", { when: untilText(request.retry_at, now) })].filter(Boolean).join(" ");
+      }
       break;
     }
   }
@@ -390,31 +410,31 @@ export function stageWords(request: MediaRequest, manage: boolean, now = nowSeco
 /** What asking did, for a notice. */
 export function askedText({ request, following }: Asked): string {
   const title = quoted(request.title);
-  if (following) return `You'll hear when ${title} is ready.`;
-  if (request.status === "pending") return `Asked for ${title}: an administrator decides.`;
-  if (request.status === "failed") return `Asked for ${title}, but it couldn't be sent to download yet.`;
-  return `${title} is approved and on its way.`;
+  if (following) return t("requests.asked.following", { title });
+  if (request.status === "pending") return t("requests.asked.pending", { title });
+  if (request.status === "failed") return t("requests.asked.failed", { title });
+  return t("requests.asked.approved", { title });
 }
 
 /** An action's button. */
 export function actionLabel(action: RequestAction, request: Pick<MediaRequest, "status">): string {
   switch (action) {
     case "withdraw":
-      return request.status === "declined" ? "Remove" : "Withdraw";
+      return request.status === "declined" ? t("actions.remove") : t("requests.action.withdraw");
     case "unwatch":
-      return "Stop following";
+      return t("requests.action.unwatch");
     case "approve":
-      return "Approve";
+      return t("requests.action.approve");
     case "retry":
-      return "Try again";
+      return t("actions.tryAgain");
     case "decline":
-      return "Decline";
+      return t("requests.action.decline");
     case "handled":
-      return "Mark as added by hand";
+      return t("requests.action.handled");
     case "delete":
-      return "Delete";
+      return t("actions.delete");
     case "ask_again":
-      return "Request again";
+      return t("requests.action.askAgain");
   }
 }
 
@@ -423,10 +443,10 @@ export function actionQuestion(action: RequestAction, request: Pick<MediaRequest
   switch (action) {
     case "withdraw":
       return request.status === "declined"
-        ? `Remove ${quoted(request.title)} from your requests?`
-        : `Withdraw your request for ${quoted(request.title)}?`;
+        ? t("requests.question.remove", { title: quoted(request.title) })
+        : t("requests.question.withdraw", { title: quoted(request.title) });
     case "delete":
-      return "Delete this request?";
+      return t("requests.question.delete");
     default:
       return null;
   }
@@ -434,26 +454,31 @@ export function actionQuestion(action: RequestAction, request: Pick<MediaRequest
 
 /** "“Heat” is ready to watch.", "Season 2 of “Dark” is ready to watch.", "Seasons 1–2 of “Dark” are ready to watch." */
 export function readyText(title: string, seasons: number[] | null, complete: boolean): string {
-  if (complete || !seasons?.length) return `${quoted(title)} is ready to watch.`;
-  const many = seasons.length > 1 || seasons[0] === 0;
-  return `${seasonsLabel(seasons)} of ${quoted(title)} ${many ? "are" : "is"} ready to watch.`;
+  if (complete || !seasons?.length) return t("requests.ready", { title: quoted(title) });
+  // Specials alone have words of their own: they agree as a plural in French and Spanish.
+  if (seasons.every((n) => n === 0)) return t("requests.specialsReady", { title: quoted(title) });
+  return t("requests.seasonsReady", { count: seasons.length, seasons: seasonsLabel(seasons), title: quoted(title) });
 }
 
 /** "“Heat” was approved.", "“Heat” was declined: “Not here”." */
 export function decidedText(title: string, status: "approved" | "declined", reason: string | null): string {
-  if (status === "approved") return `${quoted(title)} was approved.`;
-  return reason ? `${quoted(title)} was declined: ${quoted(reason)}.` : `${quoted(title)} was declined.`;
+  if (status === "approved") return t("requests.approved", { title: quoted(title) });
+  return reason
+    ? t("requests.declinedNewsBecause", { title: quoted(title), reason: quoted(reason) })
+    : t("requests.declinedNews", { title: quoted(title) });
 }
 
 /** Managers: "Ann asked for “Dark” (Seasons 1–3)." */
 export function createdText(name: string, title: string, seasons: number[] | null): string {
-  return `${name} asked for ${quoted(title)}${seasons?.length ? ` (${seasonsLabel(seasons)})` : ""}.`;
+  return seasons?.length
+    ? t("requests.createdSeasons", { name, title: quoted(title), seasons: seasonsLabel(seasons) })
+    : t("requests.created", { name, title: quoted(title) });
 }
 
 /** Managers: "“Heat” couldn't be sent to Radarr: {reason}." */
 export function failedText(title: string, kind: TitleKind, reason: string | null): string {
-  const to = `${quoted(title)} couldn't be sent to ${kind === "movie" ? "Radarr" : "Sonarr"}`;
-  return reason ? `${to}: ${sentence(reason)}` : `${to}.`;
+  const words = { title: quoted(title), service: kind === "movie" ? "Radarr" : "Sonarr" };
+  return reason ? t("requests.notSentToBecause", { ...words, reason: sentence(reason) }) : t("requests.notSentTo", words);
 }
 
 /**
@@ -476,7 +501,7 @@ export function newsText(request: MediaRequest): string | null {
 
 /** "3 of your requests have news". */
 export function newsCountText(count: number): string {
-  return `${count} of your requests ${count === 1 ? "has" : "have"} news`;
+  return t("requests.news", { count });
 }
 
 /** How a request stood when a notice told of it: its status, and the seasons of a show ready then. */
@@ -554,36 +579,40 @@ export function problemWords(
   });
   switch (problem.kind) {
     case "off":
-      return words("Requests are off", "This server doesn't take requests for movies and shows.");
+      return words(t("requests.problem.off"), t("requests.problem.offText"));
     case "tmdb_key":
       return context.manage
-        ? words("TMDB refused this server's key", "Check it in Settings → Server.", { settings: true })
-        : words("TMDB refused this server's key", "An administrator needs to check it.");
+        ? words(t("requests.problem.tmdbKey"), t("requests.problem.tmdbKeyManage"), { settings: true })
+        : words(t("requests.problem.tmdbKey"), t("requests.problem.tmdbKeyText"));
     case "tmdb_down":
-      return words("TMDB isn't answering", "Try again in a moment.", { retry: true });
+      return words(t("requests.problem.tmdbDown"), t("requests.problem.tmdbDownText"), { retry: true });
     case "no_access":
-      return words("Requests aren't open to this account", "An administrator can let it ask for movies and shows.");
+      return words(t("requests.problem.noAccess"), t("requests.problem.noAccessText"));
     case "sign_in":
-      return words("Sign in again to ask for movies and shows");
+      return words(t("requests.problem.signIn"));
     case "restricted":
       return words(capitalize(problem.message));
     case "declined":
-      return words(problem.retry_at ? `You can ask again ${untilText(problem.retry_at, now)}.` : "It was declined.");
+      return words(
+        problem.retry_at ? t("requests.askAgain", { when: untilText(problem.retry_at, now) }) : t("requests.problem.declined"),
+      );
     case "too_many": {
-      if (problem.retry_at) return words(`You can ask for more ${untilText(problem.retry_at, now)}.`);
+      if (problem.retry_at) return words(t("requests.problem.askMore", { when: untilText(problem.retry_at, now) }));
       const movies = context.kind === "movie";
       const limit = movies ? context.limits?.movies_limit : context.limits?.seasons_limit;
       return words(
         limit != null
-          ? `You can ask for at most ${pluralize(limit, movies ? "movie" : "season", movies ? "movies" : "seasons")} per 7 days: pick fewer.`
-          : "That's more than the limit allows: pick fewer.",
+          ? t(movies ? "requests.problem.atMostMovies" : "requests.problem.atMostSeasons", { count: limit })
+          : t("requests.problem.overLimit"),
       );
     }
     case "conflict": {
       if (problem.retry_at === null) return words(capitalize(problem.message));
       // Its message says when as a date, in the server's words: said here from `retry_at` instead.
       const when = untilText(problem.retry_at, now);
-      return words(problem.request?.status === "declined" ? `You can remove it ${when}.` : `You can try again ${when}.`);
+      return words(
+        problem.request?.status === "declined" ? t("requests.problem.removeWhen", { when }) : t("requests.problem.tryAgainWhen", { when }),
+      );
     }
   }
 }

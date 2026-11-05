@@ -6,6 +6,7 @@ import { fetchChildren, fetchOnDeck } from "@/api/hooks";
 import type { Id, ItemSummary } from "@/api/types";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useToast } from "@/components/Toast";
+import { t } from "@/i18n";
 import { encodeId } from "./ids";
 
 export interface PlayUrlOptions {
@@ -59,7 +60,7 @@ export function usePlayItem() {
           case "season": {
             const ep = await fetchOnDeck(qc, item.id);
             if (!ep) {
-              toast.info("Nothing to play yet");
+              toast.info(t("play.nothingYet"));
               return false;
             }
             audio?.pause();
@@ -69,7 +70,7 @@ export function usePlayItem() {
           case "album": {
             const tracks = await fetchChildren(qc, item.id);
             if (!tracks.length) {
-              toast.info("This album has no tracks");
+              toast.info(t("play.albumEmpty"));
               return false;
             }
             audio?.playQueue(tracks, 0, { shuffle: opts.shuffle });
@@ -80,7 +81,7 @@ export function usePlayItem() {
             const lists = await Promise.all(albums.map((a) => fetchChildren(qc, a.id)));
             const tracks = lists.flat();
             if (!tracks.length) {
-              toast.info("No tracks found for this artist");
+              toast.info(t("play.artistEmpty"));
               return false;
             }
             audio?.playQueue(tracks, 0, { shuffle: opts.shuffle });
