@@ -64,6 +64,8 @@ struct LibrariesDecodingTests {
         #expect(event(#"{"type":"watchlist_changed"}"#) == .watchlistChanged)
         #expect(event(#"{"type":"session_stopped","session_id":"abc","message":null,"by_admin":true}"#)
             == .sessionStopped(sessionId: "abc", message: nil, byAdmin: true))
+        #expect(event(#"{"type":"live_taken_over","session_id":"abc","channel_id":7,"message":"Someone else needed the connection."}"#)
+            == .liveTakenOver(sessionId: "abc", message: "Someone else needed the connection."))
         // Missing what the type needs, or not an event at all.
         #expect(event(#"{"type":"library_changed"}"#) == nil)
         #expect(event("not json") == nil)

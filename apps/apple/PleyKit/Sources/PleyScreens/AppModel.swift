@@ -320,6 +320,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
+        serverEvents.onLiveTakenOver = { [weak self] id, message in self?.livePlayer?.playback.takenOver(id, message: message) }
         serverEvents.onPlayerCommand = { [weak self] id, command in self?.playerCommand(id, command) }
         serverEvents.onCast = { [weak self] receiverId, target, from in
             self?.heardCast(receiverId, target, from: from)
@@ -1252,7 +1253,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
             music.stoppedByServer()
             return
         }
-        // A live session's stop shows in its player, which asks why.
+        // Live TV says so in its player, which stays open on it.
+        livePlayer?.playback.stoppedElsewhere(id, message: message, byAdmin: byAdmin)
         guard let player, player.session?.id == id else { return }
         let text = player.stoppedByServer(message: message, byAdmin: byAdmin)
         shell.show(text)

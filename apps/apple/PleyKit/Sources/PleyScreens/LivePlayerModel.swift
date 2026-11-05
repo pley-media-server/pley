@@ -269,7 +269,8 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     // MARK: Life
 
     /// The app left the foreground (`false`): the channel and its
-    /// connection are let go, and tuned again from the live edge on return.
+    /// connection are let go, and tuned again from the live edge on return,
+    /// unless it had failed (stopped at the server, every connection in use).
     public func sceneActive(_ active: Bool) {
         if active {
             playback.resume()

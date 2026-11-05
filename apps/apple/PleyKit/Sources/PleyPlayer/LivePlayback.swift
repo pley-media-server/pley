@@ -46,7 +46,7 @@ public struct LiveTrouble: Equatable, Sendable {
         case .busy(let message, let connections)?:
             return LiveTrouble(kind: .busy, message: sentence(message ?? ""), connections: connections)
         case .sessionStopped(let message)?:
-            return LiveTrouble(kind: .stopped, message: sentence(message ?? "watching was stopped"))
+            return stopped(message)
         case .api(let status, _, let message)?:
             return LiveTrouble(kind: kind(of: status), message: sentence(message ?? "the server answered \(status)"))
         case let offline? where [.offline, .timedOut, .localNetworkBlocked].contains(offline) || offline.isUnreachable:
@@ -56,6 +56,15 @@ public struct LiveTrouble: Equatable, Sendable {
         case nil:
             return LiveTrouble(kind: .other, message: sentence(error.localizedDescription))
         }
+    }
+
+    /// A stop at the server: who stopped it, when known, then why on a line
+    /// of its own (Android's `session_stopped_message`); with neither,
+    /// "Watching was stopped."
+    public static func stopped(_ message: String?, who: String? = nil) -> LiveTrouble {
+        let why = sentence(message ?? "")
+        let text = [who, why].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+        return LiveTrouble(kind: .stopped, message: text.isEmpty ? "Watching was stopped." : text)
     }
 
     /// The kind of an HTTP status the server answered with.
@@ -136,8 +145,13 @@ public struct LiveState: Equatable, Sendable {
 /// - When AVPlayer fails, the session's plan is asked once: a `410` there
 ///   is a stop, with the server's why; anything else tunes again, twice at
 ///   most before it says the channel didn't start.
+/// - The session stopped from elsewhere (the server's `session_stopped`:
+///   an administrator, or the profile on another device) or its
+///   connection taken over (`live_taken_over`) stops it at once and says
+///   why, without waiting for the stream to run out.
 /// - `stop` lets the session and the engine go (the app went to the
-///   background), `resume` tunes the channel again, `close` ends it all.
+///   background), `resume` tunes the channel again unless it failed (the
+///   server stopped it, every connection in use), `close` ends it all.
 @MainActor
 public final class LivePlayback: ObservableObject {
     /// A stall shows the spinner once it has lasted this long (the web's 0.7 s).
@@ -159,6 +173,9 @@ public final class LivePlayback: ObservableObject {
     private let deviceName: String?
     private let clock: any PlayerClock
     private var session: String?
+    /// Stops heard while a tune waits for its session's id: the answer
+    /// may name one of them, which then never plays.
+    private var stoppedWhileTuning: [String: LiveTrouble] = [:]
     private var tuning: Task<Void, Never>?
     private var listening: Task<Void, Never>?
     private var stall: Task<Void, Never>?
@@ -197,7 +214,23 @@ public final class LivePlayback: ObservableObject {
         tune(id, takeOver: takeOver)
     }
 
-    /// Back in front: the channel left in `stop` plays again, from the live edge.
+    /// The server stopped session `sessionId` (`session_stopped`): if it is
+    /// the one watching or tuning, it stops now and says who stopped it, in
+    /// Android's words.
+    public func stoppedElsewhere(_ sessionId: String, message: String?, byAdmin: Bool) {
+        let who = byAdmin ? "Live TV was stopped by the server's administrator." : "Live TV was stopped from another device."
+        endedAtServer(sessionId, .stopped(message, who: who))
+    }
+
+    /// Someone took session `sessionId`'s connection (`live_taken_over`):
+    /// if it is the one watching or tuning, it stops now and says `message`.
+    public func takenOver(_ sessionId: String, message: String) {
+        endedAtServer(sessionId, .stopped(message))
+    }
+
+    /// Back in front: the channel left in `stop` plays again, from the live
+    /// edge; one that failed (the server stopped it, it's gone, every
+    /// connection is in use) keeps saying so until Watch again.
     public func resume() {
         if state.phase == .idle { retry() }
     }
@@ -209,7 +242,11 @@ public final class LivePlayback: ObservableObject {
         cancelWork()
         letSessionGo()
         releaseEngine()
-        state = LiveState(channelId: state.channelId)
+        if case .failed = state.phase {
+            state.buffering = false
+        } else {
+            state = LiveState(channelId: state.channelId)
+        }
     }
 
     /// Ends watching for good.
@@ -224,6 +261,7 @@ public final class LivePlayback: ObservableObject {
         guard !closed else { return }
         cancelWork()
         letSessionGo()
+        stoppedWhileTuning = [:]
         state = LiveState(channelId: channelId, phase: .tuning)
         let generation = generation
         // Not cancelled when another tune comes: the server may have
@@ -236,6 +274,11 @@ public final class LivePlayback: ObservableObject {
                 guard self.generation == generation, !self.closed else {
                     // Tuned elsewhere, stopped or closed meanwhile: this one isn't wanted.
                     self.live.leave(watch.sessionId)
+                    return
+                }
+                if let trouble = self.stoppedWhileTuning.removeValue(forKey: watch.sessionId) {
+                    // Stopped at the server before it played: nothing to let go.
+                    self.fail(trouble)
                     return
                 }
                 self.session = watch.sessionId
@@ -333,6 +376,20 @@ public final class LivePlayback: ObservableObject {
                 self.fail(LiveTrouble(kind: .other, message: ""))
             }
         }
+    }
+
+    /// Watching `sessionId` ended at the server: nothing to let go, and the
+    /// stream's end that follows is no break to tune again after.
+    private func endedAtServer(_ sessionId: String, _ trouble: LiveTrouble) {
+        guard !closed else { return }
+        if session == nil, state.phase == .tuning {
+            stoppedWhileTuning[sessionId] = trouble
+            return
+        }
+        guard session == sessionId else { return }
+        cancelWork()
+        session = nil
+        fail(trouble)
     }
 
     private func fail(_ trouble: LiveTrouble) {
