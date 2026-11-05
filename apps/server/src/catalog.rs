@@ -421,6 +421,9 @@ pub struct ItemDetail {
     pub markers: Vec<crate::markers::Marker>,
     /// Fields edited by hand (kept on refresh), see [`crate::overrides`].
     pub locked_fields: Vec<String>,
+    /// Fields the item's NFO file sets (named as `locked_fields` are, and
+    /// `rating`): they win over the online source, below hand edits.
+    pub nfo_fields: Vec<String>,
     /// Trailers, featurettes and other bonus material (movies and shows).
     pub extras: Vec<ItemSummary>,
     /// Actors in billing order; for episodes, the guest stars.
@@ -1076,6 +1079,7 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
         files: files.iter().map(FileRow::to_dto).collect(),
         markers,
         locked_fields: Vec::new(),
+        nfo_fields: Vec::new(),
         extras: Vec::new(),
         cast,
         crew,

@@ -50,6 +50,7 @@ struct Candidate {
     year: Option<i64>,
     tmdb_id: Option<i64>,
     imdb_id: Option<String>,
+    tvdb_id: Option<i64>,
     poster: Option<String>,
     backdrop: Option<String>,
 }
@@ -346,6 +347,11 @@ impl MetadataAgent {
         !self.settings.get().tmdb_api_key.is_empty()
     }
 
+    /// Whether scans read NFO files (see [`crate::library::nfo`]).
+    pub fn read_nfo(&self) -> bool {
+        self.settings.get().read_nfo
+    }
+
     /// Whether items of this kind (`movie`, `show`, `episode`, `album`, …)
     /// get metadata from somewhere.
     pub fn can_refresh(&self, kind: &str) -> bool {
@@ -383,7 +389,7 @@ impl MetadataAgent {
             LibraryKind::Music => return self.providers.refresh_music_library(lib, force, progress).await,
         };
         let items: Vec<Candidate> = sqlx::query_as(
-            "SELECT id, kind, title, year, tmdb_id, imdb_id, poster, backdrop FROM items
+            "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items
              WHERE library_id = ? AND kind = ? AND metadata_locked = 0 AND (? OR metadata_at IS NULL)
              ORDER BY added_at DESC",
         )
@@ -565,11 +571,16 @@ impl MetadataAgent {
             "track" => parent.context("track without album")?,
             _ => return Ok(()),
         };
-        let item: Candidate =
-            sqlx::query_as("SELECT id, kind, title, year, tmdb_id, imdb_id, poster, backdrop FROM items WHERE id = ?")
-                .bind(target)
-                .fetch_one(&self.db.read)
-                .await?;
+        // Not one locked by its NFO file (Jellyfin's lockdata): that is never
+        // fetched online.
+        let item: Option<Candidate> = sqlx::query_as(
+            "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items
+             WHERE id = ? AND metadata_locked = 0",
+        )
+        .bind(target)
+        .fetch_optional(&self.db.read)
+        .await?;
+        let Some(item) = item else { return Ok(()) };
         self.refresh_candidate(item).await.map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
@@ -584,7 +595,8 @@ impl MetadataAgent {
             "artist" | "album" => self.providers.refresh_music_item(id).await?,
             _ => return Ok(()),
         }
-        // Hand edits win over whatever was just fetched.
+        // NFO files win over whatever was just fetched, and hand edits over
+        // them.
         crate::overrides::apply_tree(&self.db, id).await.map_err(|e| TmdbError::Other(e.into()))
     }
 
@@ -621,13 +633,34 @@ impl MetadataAgent {
         Ok(out)
     }
 
-    /// Match a movie or show to another TMDB entry and refresh it.
+    /// Match a movie or show to another TMDB entry and refresh it. The
+    /// choice is kept as an override ([`crate::overrides::MATCH`]): the ids
+    /// of the item's NFO file don't undo it.
     pub async fn rematch(&self, item_id: i64, tmdb_id: i64) -> anyhow::Result<()> {
-        sqlx::query("UPDATE items SET tmdb_id = ?, imdb_id = NULL, metadata_at = NULL WHERE id = ? AND kind IN ('movie', 'show')")
-            .bind(tmdb_id)
+        let mut tx = self.db.write.begin().await?;
+        // The other ids were the old title's.
+        let matched = sqlx::query(
+            "UPDATE items SET tmdb_id = ?, imdb_id = NULL, tvdb_id = NULL, tvmaze_id = NULL, metadata_at = NULL
+             WHERE id = ? AND kind IN ('movie', 'show')",
+        )
+        .bind(tmdb_id)
+        .bind(item_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected()
+            > 0;
+        if matched {
+            sqlx::query(
+                "INSERT INTO item_overrides (item_id, field, value) VALUES (?, ?, ?)
+                 ON CONFLICT(item_id, field) DO UPDATE SET value = excluded.value",
+            )
             .bind(item_id)
-            .execute(&self.db.write)
+            .bind(crate::overrides::MATCH)
+            .bind(tmdb_id.to_string())
+            .execute(&mut *tx)
             .await?;
+        }
+        tx.commit().await?;
         // A show refreshed from TVmaze or TheTVDB is found there by the ids
         // TMDB has for the chosen entry.
         if matches!(self.providers.tv_source(), Some(TvSource::Tvmaze | TvSource::Tvdb)) {
@@ -643,6 +676,9 @@ impl MetadataAgent {
                 self.providers.rematched(item_id, ids.imdb_id, ids.tvdb_id).await?;
             }
         }
+        // An NFO file naming the old title no longer describes the item:
+        // what it set gives way to the chosen title's metadata.
+        crate::overrides::nfo_set_aside(&self.db, item_id).await?;
         self.refresh_item(item_id).await
     }
 
@@ -800,6 +836,26 @@ impl MetadataAgent {
         Ok(if tv { found.tv_results.first() } else { found.movie_results.first() }.map(|r| r.id))
     }
 
+    /// The TMDB show a show's IMDb or TheTVDB id (from an NFO file, or an
+    /// earlier source) names, before a search by title.
+    async fn find_show(&self, item: &Candidate) -> Result<Option<i64>, TmdbError> {
+        let ids = [
+            item.imdb_id.clone().filter(|i| i.starts_with("tt")).map(|i| (i, "imdb_id")),
+            item.tvdb_id.map(|i| (i.to_string(), "tvdb_id")),
+        ];
+        for (id, source) in ids.into_iter().flatten() {
+            let found: FindResults = match self.get(&format!("/find/{id}"), &[("external_source", source.into())]).await
+            {
+                Err(TmdbError::NotFound) => continue,
+                other => other?,
+            };
+            if let Some(show) = found.tv_results.first() {
+                return Ok(Some(show.id));
+            }
+        }
+        Ok(None)
+    }
+
     async fn search(&self, tv: bool, title: &str, year: Option<i64>) -> Result<Option<i64>, TmdbError> {
         let (path, year_param) = if tv { ("/search/tv", "first_air_date_year") } else { ("/search/movie", "year") };
         let mut query = vec![("query", title.to_owned()), ("include_adult", "false".to_owned())];
@@ -890,7 +946,10 @@ impl MetadataAgent {
     async fn refresh_show(&self, item: &Candidate) -> Result<(), TmdbError> {
         let tmdb_id = match item.tmdb_id {
             Some(id) => id,
-            None => self.search(true, &item.title, item.year).await?.ok_or(TmdbError::NotFound)?,
+            None => match self.find_show(item).await? {
+                Some(id) => id,
+                None => self.search(true, &item.title, item.year).await?.ok_or(TmdbError::NotFound)?,
+            },
         };
         let details: TvDetails = self
             .get(

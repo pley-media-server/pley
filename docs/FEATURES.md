@@ -21,6 +21,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Movies from TMDB (free API key); TV shows from TMDB, TheTVDB or TVmaze (no
   key); music from MusicBrainz and the Cover Art Archive (no key). See
   [Metadata sources](CONFIGURATION.md#metadata-sources).
+- NFO files from Kodi, Jellyfin, Radarr, Sonarr and the like, for movies,
+  shows, seasons and episodes: their ids decide the match and their fields
+  win over the online source. See [NFO files](CONFIGURATION.md#nfo-files).
 - Local artwork and hand edits always win. Cast and crew have their own
   pages.
 

@@ -302,7 +302,9 @@ interface ItemDetail extends ItemSummary {
   content_rating: string | null;    // "PG-13"
   tmdb_id: number | null;
   imdb_id: string | null;
-  locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id})
+  locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id}), and "match"
+                                    // after Fix Match
+  nfo_fields: string[];             // fields the item's NFO file sets, named as locked_fields are, and "rating"
   files: MediaFile[];               // empty for containers (show, season, artist, album)
   markers: Marker[];                // intro and credits (Skip Intro, Skip Credits)
   extras: ItemSummary[];            // movies and shows: trailers first, then other bonus material (kind "extra")
@@ -1554,7 +1556,7 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
-| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres? }` → `ItemDetail` |
+| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
 | POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
@@ -1615,11 +1617,22 @@ user's watch state and their access are unchanged.
     audio track.
 - **`PATCH`**: a value edits and locks the field (refreshes and scans keep
   it); `null` unlocks it. `ItemDetail.locked_fields` lists locked fields.
+  An edit wins over the item's NFO file
+  ([CONFIGURATION.md](CONFIGURATION.md#nfo-files)), whose fields
+  `ItemDetail.nfo_fields` lists. `match` takes only `null`, which undoes
+  Fix Match: the NFO file's ids decide the match again (any other value:
+  `400`).
 - **`match`**: a show whose TV source is TVmaze or TheTVDB is found there by
-  the chosen entry's IMDb and TheTVDB ids.
+  the chosen entry's IMDb and TheTVDB ids. The choice wins over the NFO
+  file's ids, and `locked_fields` then lists `"match"`. When none of the
+  NFO file's ids is the chosen entry's, its fields and lockdata stop
+  applying and `nfo_fields` is empty, until Fix Match is undone or the
+  file names that entry.
 - **`refresh`** sources: movies, TMDB; shows, seasons and episodes, the TV
   source; artists, albums and tracks, MusicBrainz. `400` when that source
-  is off or lacks its key.
+  is off or lacks its key. An item its NFO file locks (`<lockdata>`) is
+  never fetched, by `refresh` (still `202`) or by `match` to the title the
+  file names.
 - **`analyze`**: a movie's chapters, or every episode of the season of an
   episode, a season or a show. `400` for other kinds.
 
@@ -4167,6 +4180,8 @@ interface Settings {
   tvdb_api_key: string;             // TheTVDB v4 key; "" = not set
   tvdb_pin: string;                 // TheTVDB subscriber PIN, for user-supported keys
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
+  read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
+                                    // true; see CONFIGURATION.md). A change scans every library
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR

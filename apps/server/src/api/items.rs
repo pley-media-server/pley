@@ -27,6 +27,7 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     let resume = resume_ms(&row);
     let mut detail = catalog::item_detail(&state.db, row).await?;
     detail.locked_fields = crate::overrides::locked_fields(&state.db, id).await?;
+    detail.nfo_fields = crate::overrides::nfo_fields(&state.db, id).await?;
     detail.in_watchlist = catalog::in_watchlist(&state.db, user.id, id).await?;
     if matches!(detail.summary.kind.as_str(), "movie" | "show") {
         detail.extras = catalog::extras(&state.db, user.id, id).await?.iter().map(ItemRow::to_summary).collect();
