@@ -69,6 +69,10 @@ describes how they are made.
 
 ### Changed
 
+- Signing in on the web and in the desktop app goes straight in as the
+  profile the browser was last used as, when it has no PIN, where a
+  household of several profiles was asked "Who's watching?" each time. A
+  profile with a PIN, or another person signing in, still picks first.
 - Requests on the web: a sign-in from before the app could ask says "Sign in again to ask
   for movies and shows" without a second line, and its button reads Sign in.
 - The setup page says more plainly where the setup code is: opening Pley
