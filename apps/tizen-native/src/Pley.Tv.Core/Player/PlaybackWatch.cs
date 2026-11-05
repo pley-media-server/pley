@@ -42,6 +42,8 @@ public sealed class PlaybackWatch
     long firstAt = -1, settleFrom = -1, watchedAt = -1, stillSince;
     long shift;
     bool shiftKnown;
+    /// <summary>Where the player was last sent to (or stood) on the film's timeline: its first read is near there.</summary>
+    long jumpedTo;
 
     /// <param name="startMs">Where the source starts on the film's timeline: the position until the player says.</param>
     /// <param name="now">A clock in ms.</param>
@@ -116,6 +118,7 @@ public sealed class PlaybackWatch
     public void Jumped(long ms)
     {
         last = ms;
+        jumpedTo = ms;
         readAt = 0;
         Epoch++;
     }
@@ -193,12 +196,18 @@ public sealed class PlaybackWatch
         if (weigh) Weigh(last, playing);
     }
 
-    /// <summary>A trimmed playlist's player's first position while it plays: near 0, it counts from the playlist; else from the film.</summary>
+    /// <summary>
+    /// A trimmed playlist's player's first position while it plays, near where it was sent: counted
+    /// from the playlist, that's the window's start less on; from the film, as it is. Nearer the
+    /// first, it counts from the playlist. Sent into its first segment (a resume 9 s into a 10 s
+    /// one), it says 9 s from the playlist: weighed against the window's start alone, that was
+    /// taken for the film's time, and the clock and every seek were 10 s out.
+    /// </summary>
     void Learn(long raw)
     {
         if (WindowStart < 0 || shiftKnown) return;
         shiftKnown = true;
-        shift = raw < WindowStart / 2 ? WindowStart : 0;
+        shift = raw < jumpedTo - WindowStart / 2 ? WindowStart : 0;
     }
 
     /// <summary>Whether the player counts from its trimmed playlist (true) or from the film (false); null until its first read says.</summary>

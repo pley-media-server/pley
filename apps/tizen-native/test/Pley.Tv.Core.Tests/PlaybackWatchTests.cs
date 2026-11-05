@@ -207,6 +207,26 @@ public class PlaybackWatchTests
         Assert.False(w.Before(1_300_000));
     }
 
+    /// <summary>
+    /// A film resumed at 19 s in a playlist trimmed to its 10 s segment: sent 9 s into the playlist
+    /// first, the player counting from it says 9 s, the one counting from the film 19 s.
+    /// </summary>
+    [Theory]
+    [InlineData(9_000, true)]
+    [InlineData(19_000, false)]
+    public void A_trimmed_player_sent_into_its_first_segment_is_told_apart(long first, bool fromPlaylist)
+    {
+        var w = Watch(startMs: 19_000);
+        w.Trimmed(10_000);
+        w.Jumped(19_000);
+        w.Opened();
+        Plays(w, first);
+        Assert.Equal(fromPlaylist, w.CountsFromPlaylist);
+        Plays(w, first + 120);
+        Assert.Equal(19_120, w.PositionMs);
+        Assert.Equal(fromPlaylist ? 20_000 : 30_000, w.ToPlayer(30_000));
+    }
+
     [Fact]
     public void Not_trimmed_the_players_time_is_the_films()
     {
