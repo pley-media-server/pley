@@ -28,7 +28,6 @@ export const TMDB_CREDIT = "Details and pictures from TMDB.";
 export const TMDB_NOTICE = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
 
 export const SIGN_IN_TITLE = "Sign in again to ask for movies and shows";
-export const SIGN_IN_BODY = "This app signed in before it could ask. Signing in again lets it.";
 export const SIGN_IN_APPROVALS = "Sign in again to approve and decline here.";
 export const NO_ACCESS = "Requests aren't open to this account.";
 
@@ -767,7 +766,7 @@ export function requestsProblem(e: unknown): RequestsProblem {
 }
 
 /** A page that can't show requests: why, and whether Retry may help; `null` for what isn't about requests being usable. */
-export function problemWords(p: RequestsProblem, manage: boolean): { title: string; body: string; retry: boolean } | null {
+export function problemWords(p: RequestsProblem, manage: boolean): { title: string; body: string | null; retry: boolean } | null {
   switch (p.kind) {
     case "off":
       return { title: "Requests are off", body: "This server doesn't take requests for movies and shows.", retry: false };
@@ -778,7 +777,7 @@ export function problemWords(p: RequestsProblem, manage: boolean): { title: stri
     case "tmdbKey":
       return { title: "TMDB refused this server's key", body: manage ? "Check it in Settings → Server, on the web." : "An administrator needs to check it.", retry: false };
     case "signIn":
-      return { title: SIGN_IN_TITLE, body: SIGN_IN_BODY, retry: false };
+      return { title: SIGN_IN_TITLE, body: null, retry: false };
     default:
       return null;
   }

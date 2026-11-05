@@ -31,6 +31,11 @@ describes how they are made.
 - Stopping a Live TV channel, or Kodi, frees its connection at once, so
   another channel or device can use it straight away.
 
+### Changed
+
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
+
 ## [0.1.5] - 2026-11-04
 
 ### Changed

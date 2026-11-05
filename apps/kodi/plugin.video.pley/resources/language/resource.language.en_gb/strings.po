@@ -1238,12 +1238,8 @@ msgctxt "#30526"
 msgid "Sign in again to ask for movies and shows"
 msgstr ""
 
-msgctxt "#30527"
-msgid "This app signed in before it could ask. Signing in again lets it."
-msgstr ""
-
 msgctxt "#30528"
-msgid "Sign in again"
+msgid "Sign in"
 msgstr ""
 
 msgctxt "#30529"

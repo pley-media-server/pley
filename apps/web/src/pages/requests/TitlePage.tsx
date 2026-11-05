@@ -135,7 +135,6 @@ export function MainActions({
       body = (
         <div className="space-y-2">
           <p className="font-medium">Sign in again to ask for movies and shows</p>
-          <p className="text-sm text-muted">This app signed in before it could ask. Signing in again lets it.</p>
           <SignInAgain size={size} />
         </div>
       );

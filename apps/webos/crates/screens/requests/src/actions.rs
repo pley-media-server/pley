@@ -9,8 +9,8 @@ use pley_core::model::{
     DiscoverDetail, DiscoverTitle, MediaRequest, NewRequest, RequestAction, RequestSummary, TitleKind,
 };
 use pley_core::requests::{
-    Allowance, MainAction, NO_ACCESS, SIGN_IN_BODY, StageWords, TvTime, allowance_lines, list_action, main_action,
-    stage_words, title_request,
+    Allowance, MainAction, NO_ACCESS, StageWords, TvTime, allowance_lines, list_action, main_action, stage_words,
+    title_request,
 };
 use pley_kit::{Button, RoundButton, bar_group};
 use pley_ui::theme;
@@ -91,8 +91,7 @@ impl Actions {
         let request = d.and_then(title_request);
         match &action {
             MainAction::SignIn => {
-                out.buttons.push(main("Sign in again", Icon::UserRound, Some(TitleIntent::SignIn), true));
-                out.notes.push(note(SIGN_IN_BODY));
+                out.buttons.push(main("Sign in", Icon::UserRound, Some(TitleIntent::SignIn), true));
             }
             MainAction::Restricted { text } => {
                 out.notes.push(Note { icon: Some(Icon::Lock), text: text.clone(), danger: false })

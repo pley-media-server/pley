@@ -6,7 +6,7 @@ import UIKit
 #endif
 
 /// The shell's toast, at the bottom of the window, with its button (Undo,
-/// Open, Sign in again) when it has one, and a red mark when it says
+/// Open, Sign in) when it has one, and a red mark when it says
 /// something went wrong; VoiceOver reads it out when it shows.
 struct ToastView: View {
     @ObservedObject var shell: ShellModel

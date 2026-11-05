@@ -15,7 +15,6 @@ import {
   problemWords,
   requestsProblem,
   requestsTitle,
-  SIGN_IN_BODY,
   stageWords,
   titleKey,
   titleRequest,
@@ -376,8 +375,7 @@ export function TitleActions(p: {
 
   switch (action.kind) {
     case "signIn":
-      main("Sign in again", "user-round", () => setSignIn(true));
-      notes.push({ text: SIGN_IN_BODY });
+      main("Sign in", "user-round", () => setSignIn(true));
       break;
     case "restricted":
       notes.push({ icon: "lock", text: action.text });
@@ -492,7 +490,7 @@ export function SignInAgainDialog(p: { onClose: () => void }) {
       buttons={[
         { label: "Cancel", onSelect: p.onClose },
         {
-          label: "Sign in again",
+          label: "Sign in",
           initial: true,
           onSelect: () => {
             p.onClose();
@@ -530,7 +528,7 @@ export function RequestsMessage(p: { problem: RequestsProblem; title: string; on
     return <Message title={failedTitle(e, p.title)} body={problem(e)} action={{ label: "Retry", icon: "refresh-cw", onSelect: p.onRetry }} />;
   }
   if (words.retry) action = { label: "Retry", icon: "refresh-cw", onSelect: p.onRetry };
-  else if (p.problem.kind === "signIn") action = { label: "Sign in again", icon: "user-round", onSelect: () => setSignIn(true) };
+  else if (p.problem.kind === "signIn") action = { label: "Sign in", icon: "user-round", onSelect: () => setSignIn(true) };
   else if (p.problem.kind === "noAccess" && s && (s.own > 0 || s.manage)) action = { label: requestsTitle(s), icon: "inbox", onSelect: () => ui.nav.open({ name: "requests" }) };
   return (
     <>

@@ -478,7 +478,7 @@ export function SignInAgain({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         logout.mutate(undefined, { onSettled: () => void navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true }) });
       }}
     >
-      Sign in again
+      Sign in
     </Button>
   );
 }

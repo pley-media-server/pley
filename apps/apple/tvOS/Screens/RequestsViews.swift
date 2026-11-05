@@ -9,7 +9,7 @@ import SwiftUI
 /// on as the focus nears the end. Select on a card opens its panel down
 /// the right: Open where a library has it, the server's actions in its
 /// order, and Details. An administrator's app signed in before approvals
-/// says so, with Sign in again.
+/// says so, with Sign in.
 struct RequestsView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: RequestsListModel

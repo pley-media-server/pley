@@ -107,7 +107,7 @@ public enum Sheet: Hashable, Identifiable, Sendable {
     public var id: Self { self }
 }
 
-/// A toast's one button: Undo, Open, Sign in again.
+/// A toast's one button: Undo, Open, Sign in.
 public struct ToastAction {
     public let label: String
     /// The button's accessibility identifier.

@@ -144,7 +144,7 @@ sub showTabs()
     json = FormatJson(chips)
     if json <> m.tabChips
         m.tabChips = json
-        ' The filters (or Sign in again) keep about 180 pixels.
+        ' The filters (or Sign in) keep about 180 pixels.
         room = 1728
         if m.manage or summary.signInAgain = "approvals" then room = 1548
         for each pad in [44, 32, 24, 16]
@@ -157,7 +157,7 @@ sub showTabs()
 end sub
 
 ' At the right of the tabs: a manager's filters, saying what they keep;
-' for an administrator whose sign-in can't approve, Sign in again.
+' for an administrator whose sign-in can't approve, Sign in.
 sub showSide(summary as object)
     label = ""
     m.sideAction = ""
@@ -165,7 +165,7 @@ sub showSide(summary as object)
         label = reqFilterLabel(m.kind, m.personName, m.words)
         m.sideAction = "filter"
     else if summary.signInAgain = "approvals"
-        label = "Sign in again"
+        label = "Sign in"
         m.sideAction = "signIn"
     end if
     if label = ""
@@ -593,7 +593,7 @@ sub closePanel()
 end sub
 
 ' The summary changed: a manager's page in place of Your requests, or
-' back; Sign in again where it would help, and Needs attention's and
+' back; Sign in where it would help, and Needs attention's and
 ' Yours' numbers.
 sub onSummary()
     if not m.started then return
@@ -610,7 +610,7 @@ end sub
 
 ' --- What stops the requests ---
 
-' In place of the list, why it can't be shown: with Sign in again, Try
+' In place of the list, why it can't be shown: with Sign in, Try
 ' again, or nothing to do here.
 sub showProblem(problem as object)
     m.problemShown = problem
@@ -625,7 +625,7 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in again")
+    if problem.signIn then buttons.Push("Sign in")
     if problem.retry then buttons.Push("Try again")
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0
@@ -667,7 +667,7 @@ sub restoreFocus()
 end sub
 
 ' Down from the tabs goes to the requests, up from the first back; right
-' from the last tab reaches the filters (or Sign in again). Back closes
+' from the last tab reaches the filters (or Sign in). Back closes
 ' the panel (a filter's choices go back to the filters). The Options key
 ' on a request offers what can be done with it.
 function onKeyEvent(key as string, press as boolean) as boolean

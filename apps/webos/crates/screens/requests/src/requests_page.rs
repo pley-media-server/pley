@@ -664,7 +664,7 @@ impl Screen for RequestsScreen {
                     let y = FILTERS_Y + 2.0;
                     ui.icon(Rect::new(theme::GUTTER, y + 10.0, 20.0, 20.0), Icon::UserRound, theme::MUTED);
                     let x = theme::GUTTER + 30.0;
-                    let pill = Button::pill("Sign in again");
+                    let pill = Button::pill("Sign in");
                     let w = theme::CANVAS_W - theme::SAFE_X - x - pill.size(ui).w - 16.0;
                     let used = ui
                         .text(

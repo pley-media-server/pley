@@ -65,6 +65,8 @@ describes how they are made.
 
 ### Changed
 
+- Requests on the web: a sign-in from before the app could ask says "Sign in again to ask
+  for movies and shows" without a second line, and its button reads Sign in.
 - The setup page says more plainly where the setup code is: opening Pley
   from its tray icon fills it in, and on a server without one it's in
   Pley's log.

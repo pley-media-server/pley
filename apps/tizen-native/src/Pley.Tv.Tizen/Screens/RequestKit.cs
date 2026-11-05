@@ -223,7 +223,7 @@ static class RequestKit
     }
 
     /// <summary>
-    /// The button a problem's page offers: Retry where trying again may help, Sign in again for an
+    /// The button a problem's page offers: Retry where trying again may help, Sign in for an
     /// old sign-in, the requests for an account that may not ask but has some.
     /// </summary>
     public static NoticeAction? ProblemAction(RequestProblem problem, RequestSummary? summary, Action retry, Action signIn, Action requests)
@@ -238,7 +238,7 @@ static class RequestKit
     /// <summary>
     /// Signing in again, so this TV may ask for movies and shows (or decide on them): the link screen
     /// of <paramref name="server"/> with a new code, whose approval replaces this sign-in. Cancel, or
-    /// Sign in again with focus.
+    /// Sign in with focus.
     /// </summary>
     public static void SignInAgain(Shell shell, string server, Action<PageKey> restart)
     {

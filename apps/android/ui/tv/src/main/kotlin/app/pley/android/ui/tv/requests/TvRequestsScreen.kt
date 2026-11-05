@@ -631,7 +631,7 @@ private const val NEAR_END = 5
 
 private const val CARD_TYPE = "pley.requests.card"
 
-/** The page's elements in its [FocusMemory]: a card by its request, the note's button, Sign in again. */
+/** The page's elements in its [FocusMemory]: a card by its request, the note's button, Sign in. */
 private fun cardKey(id: Long) = "card/$id"
 private const val NOTE_KEY = "note"
 private const val SIGN_IN_KEY = "signin"

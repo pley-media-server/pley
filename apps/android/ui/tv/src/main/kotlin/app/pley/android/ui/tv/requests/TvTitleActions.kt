@@ -48,7 +48,7 @@ internal class TvTitleHandlers(
     val stopFollowing: () -> Unit,
     /** Open: the library's title. */
     val open: (Long) -> Unit,
-    /** Sign in again: its dialog. */
+    /** Sign in: its dialog. */
     val signInAgain: () -> Unit,
 )
 
@@ -62,7 +62,7 @@ private class Note(val text: String, val icon: PleyIcon? = null, val danger: Boo
 
 /**
  * A title's one main action as a row of buttons (packages/tv's
- * TitleActions), the first that applies: Sign in again; a restriction's
+ * TitleActions), the first that applies: Sign in; a restriction's
  * words; Open; why it was declined; Requested or Following, which say
  * where things are and do nothing (they keep focus, as every button
  * does), with the request's stage and download beside them and Stop
@@ -100,10 +100,7 @@ internal fun TvTitleActions(
         allowance?.let { texts.allowance(it, of) }?.forEach { notes += Note(it) }
     }
     when (action) {
-        MainAction.SignInAgain -> {
-            main = MainPill(stringResource(ScreensR.string.requests_sign_in), PleyIcons.LogOut, true, on.signInAgain)
-            notes += Note(stringResource(ScreensR.string.requests_sign_in_body))
-        }
+        MainAction.SignInAgain -> main = MainPill(stringResource(ScreensR.string.requests_sign_in), PleyIcons.LogOut, true, on.signInAgain)
         is MainAction.Restricted -> action.text?.takeIf { it.isNotBlank() }?.let { notes += Note(it, PleyIcons.Lock) }
         is MainAction.Open -> {
             val itemId = action.itemId

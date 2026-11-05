@@ -58,6 +58,8 @@ describes how they are made.
 
 ### Changed
 
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
 - On Android TV and Fire TV, a key held through a library's grid, along
   Home's rows or down through them scrolls more smoothly: tiles cost far
   less to bring in and to draw, rows are made ahead of the screen, and a

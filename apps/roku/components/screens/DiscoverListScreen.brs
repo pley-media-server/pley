@@ -167,7 +167,7 @@ sub onRequestNote()
     uiPatchRequestTiles(m.content, m.top.requestNote)
 end sub
 
-' In place of the grid, why it can't be shown: with Sign in again, Try
+' In place of the grid, why it can't be shown: with Sign in, Try
 ' again, or nothing to do here.
 sub showProblem(problem as object)
     m.problemShown = problem
@@ -175,7 +175,7 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in again")
+    if problem.signIn then buttons.Push("Sign in")
     if problem.retry then buttons.Push("Try again")
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0

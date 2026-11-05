@@ -228,7 +228,7 @@ export function seasonStateText(season: DiscoverSeason, now = nowSeconds()): str
 
 /** The one thing a title's page offers, the first that applies (docs/API.md, Discover). */
 export type MainAction =
-  /** This sign-in can't ask: it says so, with Sign in again. */
+  /** This sign-in can't ask: it says so, with Sign in. */
   | { kind: "sign_in" }
   /** Above the account's age limit: no button, the reason. */
   | { kind: "restricted"; text: string }
@@ -553,7 +553,7 @@ export function problemWords(
     case "no_access":
       return words("Requests aren't open to this account", "An administrator can let it ask for movies and shows.");
     case "sign_in":
-      return words("Sign in again to ask for movies and shows", "This app signed in before it could ask. Signing in again lets it.");
+      return words("Sign in again to ask for movies and shows");
     case "restricted":
       return words(capitalize(problem.message));
     case "declined":

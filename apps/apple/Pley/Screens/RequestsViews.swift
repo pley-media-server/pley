@@ -6,7 +6,7 @@ import SwiftUI
 /// attention: the views with how many each holds, movies or shows, and for
 /// managers a title, a person and their own; then the cards, read on as
 /// the list scrolls, and read again on a pull or ⌘R. An administrator's app
-/// signed in before approvals says so, with Sign in again.
+/// signed in before approvals says so, with Sign in.
 struct RequestsView: View {
     let app: AppModel
     @StateObject private var model: RequestsListModel

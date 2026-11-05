@@ -245,7 +245,7 @@ describe("DiscoverPage", () => {
     expect(requests.some((r) => r.path.startsWith("/api/discover"))).toBe(false);
 
     // Signing out first, so the sign-in comes back here.
-    await userEvent.click(screen.getByRole("button", { name: "Sign in again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/login?next=%2Fdiscover%3Flist%3Danime"));
     expect(requests.some((r) => r.method === "POST" && r.path === "/api/auth/logout")).toBe(true);
   });

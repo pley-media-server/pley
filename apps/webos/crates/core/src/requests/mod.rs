@@ -25,7 +25,6 @@ pub const TMDB_CREDIT: &str = "Details and pictures from TMDB.";
 pub const TMDB_NOTICE: &str = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
 
 pub const SIGN_IN_TITLE: &str = "Sign in again to ask for movies and shows";
-pub const SIGN_IN_BODY: &str = "This app signed in before it could ask. Signing in again lets it.";
 pub const SIGN_IN_APPROVALS: &str = "Sign in again to approve and decline here.";
 pub const NO_ACCESS: &str = "Requests aren't open to this account.";
 
@@ -1075,6 +1074,7 @@ pub fn requests_problem(e: &ApiError) -> RequestsProblem {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProblemWords {
     pub title: &'static str,
+    /// Empty where the title says it all.
     pub body: &'static str,
     pub retry: bool,
 }
@@ -1098,7 +1098,7 @@ pub fn problem_words(p: &RequestsProblem, manage: bool) -> Option<ProblemWords> 
             if manage { "Check it in Settings → Server, on the web." } else { "An administrator needs to check it." },
             false,
         ),
-        RequestsProblem::SignIn => words(SIGN_IN_TITLE, SIGN_IN_BODY, false),
+        RequestsProblem::SignIn => words(SIGN_IN_TITLE, "", false),
         _ => None,
     }
 }

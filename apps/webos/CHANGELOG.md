@@ -29,6 +29,8 @@ describes how they are made.
 
 ### Changed
 
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
 - When the server can't be reached, the app says "Pley is offline", where
   it said "Showing what Pley had saved. Reconnecting…". It still shows
   what it saved and reconnects by itself.

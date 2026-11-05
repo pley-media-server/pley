@@ -274,7 +274,7 @@ internal fun problemIcon(problem: RequestProblem): PleyIcon = when (problem) {
 /**
  * A page that can't show requests, saying why (design spec §8): off, not
  * open to this account (its requests still reachable when it has some),
- * signed in before requests (Sign in again), TMDB's key, TMDB not
+ * signed in before requests (Sign in), TMDB's key, TMDB not
  * answering or the server out of reach (Retry); anything else under
  * [failed] ("Couldn't load Discover"), with Retry. With nothing to press,
  * focus goes to the rail.
@@ -363,7 +363,7 @@ internal fun TvRequestsNotice(
 /**
  * Signing in again, so this TV may ask for movies and shows (or decide
  * on them): the link screen of [server] with a new code, whose approval
- * replaces this sign-in. Cancel, or Sign in again with focus; focus goes
+ * replaces this sign-in. Cancel, or Sign in with focus; focus goes
  * back to [returnTo] on Cancel.
  */
 @Composable

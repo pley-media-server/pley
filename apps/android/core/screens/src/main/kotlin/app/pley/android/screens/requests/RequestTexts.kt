@@ -314,7 +314,6 @@ class RequestTexts(
     fun problemBody(problem: RequestProblem, summary: RequestSummary?): String? = when (problem) {
         RequestProblem.Off -> res.getString(R.string.requests_off_body)
         RequestProblem.NoAccess -> res.getString(R.string.requests_no_access_body)
-        is RequestProblem.SignInAgain -> if (problem.scope == RequestScope.Approvals) null else res.getString(R.string.requests_sign_in_body)
         RequestProblem.TmdbKey -> res.getString(if (summary?.manage == true) R.string.requests_tmdb_key_manage else R.string.requests_tmdb_key_others)
         RequestProblem.TmdbDown -> res.getString(R.string.requests_tmdb_down_body)
         RequestProblem.NotFound -> res.getString(R.string.requests_not_found_body)

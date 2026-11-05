@@ -35,7 +35,7 @@ public sealed class RequestText
     public const string PickerNone = "Pick a season.";
     public const string Cancel = "Cancel";
     public const string Retry = "Retry";
-    public const string SignIn = "Sign in again";
+    public const string SignIn = "Sign in";
     public const string NoAccessLine = "Requests aren't open to this account.";
     public const string DiscoverFailed = "Couldn't load Discover";
     public const string SearchFailed = "Couldn't search TMDB";
@@ -410,7 +410,6 @@ public sealed class RequestText
     {
         RequestProblem.Off => "This server doesn't take requests for movies and shows.",
         RequestProblem.NoAccess => "An administrator can let it ask for movies and shows.",
-        RequestProblem.SignInAgain s => s.Scope == RequestScope.Approvals ? null : "This app signed in before it could ask. Signing in again lets it.",
         RequestProblem.TmdbKey => summary?.Manage == true ? "Fix it in the server's settings: Settings → Server, on the web." : "An administrator needs to check it.",
         RequestProblem.TmdbDown => "Its details and pictures come back once it answers again.",
         RequestProblem.NotFound => "It may have been taken off since.",

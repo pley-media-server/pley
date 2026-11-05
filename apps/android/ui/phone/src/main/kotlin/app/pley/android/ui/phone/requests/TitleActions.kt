@@ -44,7 +44,7 @@ internal class TitleActionHandlers(
 
 /**
  * A title's one main action, the first that applies:
- * Sign in again; a restriction's words; Open; why it was declined;
+ * Sign in; a restriction's words; Open; why it was declined;
  * Requested or Following (inert) with the request's stage and Stop
  * following; Tell me too; Open and Request more seasons; Request. With
  * nothing left to ask for, Request is disabled and the allowance says

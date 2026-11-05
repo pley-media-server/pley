@@ -65,6 +65,8 @@ describes how they are made.
 
 ### Changed
 
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
 - Up Next waits at the end of an episode once cancelled, or when the next
   episode doesn't play by itself, where the player used to leave.
 - A video that stands still for 12 s is converted or opened again, and the

@@ -265,9 +265,8 @@
     <string name="requests_tmdb_key_manage">Fix it in the server\'s settings: Settings → Server, on the web.</string>
     <string name="requests_tmdb_key_others">An administrator needs to check it.</string>
     <string name="requests_sign_in_title">Sign in again to ask for movies and shows</string>
-    <string name="requests_sign_in_body">This app signed in before it could ask. Signing in again lets it.</string>
     <string name="requests_sign_in_approvals">Sign in again to approve and decline here.</string>
-    <string name="requests_sign_in">Sign in again</string>
+    <string name="requests_sign_in">Sign in</string>
     <string name="requests_not_found">This title isn\'t on TMDB</string>
     <string name="requests_not_found_body">It may have been taken off since.</string>
     <string name="requests_retry">Retry</string>

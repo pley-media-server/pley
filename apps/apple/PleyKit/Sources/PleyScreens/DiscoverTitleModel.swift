@@ -215,7 +215,7 @@ public final class DiscoverTitleModel: ObservableObject {
         case .open:
             break
         case .hidden, .noAccess, .signInAgain:
-            // The page can't show: signed in before requests, only Sign in again shows.
+            // The page can't show: signed in before requests, only Sign in shows.
             let problem = RequestProblem.of(gate) ?? .off
             state = .failed(problem.words(manage: false, summary: gate.summary))
             return

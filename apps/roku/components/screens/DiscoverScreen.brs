@@ -38,7 +38,7 @@ sub init()
     ' A row answered: a problem after that is only that row's.
     m.answered = false
     ' The problem shown in place of the page (reqProblem's), or invalid;
-    ' whether the page shows only Sign in again.
+    ' whether the page shows only Sign in.
     m.problemShown = invalid
     m.signInOnly = false
     ' How far the page slides up to the rows, and where the focus was when
@@ -76,7 +76,7 @@ sub onActive()
     reloadRequests()
 end sub
 
-' The page for the summary: only Sign in again for a sign-in from before
+' The page for the summary: only Sign in for a sign-in from before
 ' apps could ask; else the hero and the rows, each row's tiles empty
 ' frames until it loads.
 sub showPage()
@@ -393,7 +393,7 @@ end sub
 
 ' --- What stops Discover ---
 
-' In place of the page, why it can't be used: with Sign in again, Try
+' In place of the page, why it can't be used: with Sign in, Try
 ' again, or nothing to do here.
 sub showProblem(problem as object)
     m.problemShown = problem
@@ -408,7 +408,7 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in again")
+    if problem.signIn then buttons.Push("Sign in")
     if problem.retry then buttons.Push("Try again")
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0

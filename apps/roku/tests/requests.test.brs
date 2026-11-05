@@ -480,7 +480,7 @@ sub test_requests_title_page_leaves_out_what_can_t_be_pressed()
     tkEqual(used.note, "You've asked for all the movies you can for now: you can ask for more in 3 days.")
     again = reqTitlePage(reqTestDetail({}), reqTestSummary({ signInAgain: "requests" }), "", now, 0)
     tkEqual(again.actions, ["signIn"])
-    tkEqual(again.note, "Sign in again to ask for movies and shows." + Chr(10) + "This app signed in before it could ask. Signing in again lets it.")
+    tkEqual(again.note, "Sign in again to ask for movies and shows.")
 end sub
 
 ' A movie is asked for after a question: what asking does, what may still

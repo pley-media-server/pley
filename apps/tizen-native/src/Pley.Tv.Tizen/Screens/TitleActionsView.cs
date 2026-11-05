@@ -17,7 +17,7 @@ sealed record ExtraButton(string Label, string Icon, Action Press);
 
 /// <summary>
 /// A title's one main action as a row of buttons (the Android app's TvTitleActions), the first that
-/// applies: Sign in again; a restriction's words; Open; why it was declined; Requested or Following,
+/// applies: Sign in; a restriction's words; Open; why it was declined; Requested or Following,
 /// which say where things are and do nothing (they keep focus, as every button does), with the
 /// request's stage and download beside them and Stop following; Tell me too; Open and Request more
 /// seasons; Request. At the limit Request is disabled and the allowance says when more may be asked
@@ -54,7 +54,6 @@ sealed class TitleActionsView : View
         {
             case MainAction.SignInAgain:
                 main = new Pill(RequestText.SignIn, "log-out", true, on.SignInAgain);
-                notes.Add(new Note("This app signed in before it could ask. Signing in again lets it."));
                 break;
             case MainAction.Restricted restricted:
                 if (!string.IsNullOrWhiteSpace(restricted.Text)) notes.Add(new Note(restricted.Text!, "lock"));

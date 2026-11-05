@@ -58,9 +58,8 @@ public enum RequestWords {
     public static let tmdbKeyManage = "Fix it in the server's settings: Settings → Server, on the web."
     public static let tmdbKeyOthers = "An administrator needs to check it."
     public static let signInTitle = "Sign in again to ask for movies and shows"
-    public static let signInBody = "This app signed in before it could ask. Signing in again lets it."
     public static let signInApprovals = "Sign in again to approve and decline here."
-    public static let signIn = "Sign in again"
+    public static let signIn = "Sign in"
     /// What the servers' screen says while the app signs in again for requests.
     public static let signInNotice = "Sign in again to let Pley ask for movies and shows."
     public static let notFound = "This title isn't on TMDB"

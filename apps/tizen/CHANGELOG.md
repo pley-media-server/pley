@@ -88,6 +88,8 @@ describes how they are made.
 
 ### Changed
 
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
 - The app's icon is square, as the TV's menu draws the other apps, where
   it was wider than the rest.
 - When the server can't be reached, the app says "Pley is offline", where

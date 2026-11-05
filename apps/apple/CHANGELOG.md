@@ -129,3 +129,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   along the programme is, its times and what's next, with a channel
   rocker in place of the seek bar and skips. A device playing nothing says
   "Send something here with Play on…"
+
+### Changed
+
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.

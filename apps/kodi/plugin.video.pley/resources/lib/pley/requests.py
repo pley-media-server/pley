@@ -497,9 +497,7 @@ def problem(error: api.ApiError, text, manage: bool = False, s=None, kind=None, 
     if code == "no_access":
         return text("no_access"), text("no_access_body"), False
     if code == "insufficient_scope":
-        if scope == "approvals":
-            return text("sign_in_to_approve"), "", False
-        return text("sign_in_to_ask"), text("sign_in_to_ask_body"), False
+        return text("sign_in_to_approve" if scope == "approvals" else "sign_in_to_ask"), "", False
     if code == "declined" and body.get("retry_at"):
         return text("ask_again") % words.relative(body["retry_at"], now), "", False
     if code == "too_many_requests":

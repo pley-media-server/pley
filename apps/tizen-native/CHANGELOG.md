@@ -10,6 +10,8 @@ It has no releases yet: it is built and installed by hand
 
 ### Changed
 
+- Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
+  and shows" without a second line, and its button reads Sign in.
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
 - Picture subtitles show within a second of a film's picture and of a

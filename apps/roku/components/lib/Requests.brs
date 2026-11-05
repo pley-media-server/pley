@@ -313,7 +313,7 @@ end function
 
 ' A sign-in from before apps could ask: Discover shows only this.
 function reqSignInAgain() as object
-    return { title: "Sign in again to ask for movies and shows", text: "This app signed in before it could ask. Signing in again lets it.", retry: false, signIn: true }
+    return { title: "Sign in again to ask for movies and shows", text: "", retry: false, signIn: true }
 end function
 
 ' What asking (POST /api/requests) did: 201 a new request, 200 following
@@ -894,8 +894,8 @@ function reqTitlePage(detail as object, summary as object, server as string, now
     note = ""
     if summary.signInAgain = "requests"
         again = reqSignInAgain()
-        note = again.title + "." + Chr(10) + again.text
-        buttons.Push("Sign in again")
+        note = again.title + "."
+        buttons.Push("Sign in")
         actions.Push("signIn")
     else if status = "restricted"
         note = httpSentence(detail.restriction)

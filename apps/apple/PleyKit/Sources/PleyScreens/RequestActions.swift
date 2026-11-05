@@ -22,7 +22,7 @@ extension AppModel {
         return api
     }
 
-    /// Tells `problem` in a toast: Sign in again with its button; the
+    /// Tells `problem` in a toast: Sign in with its button; the
     /// server out of reach in the offline banner.
     public func tell(_ problem: RequestProblem) {
         switch problem {

@@ -160,11 +160,8 @@ public enum RequestProblem: Hashable, Sendable {
         case .noAccess:
             ProblemWords(title: RequestWords.noAccessTitle, body: RequestWords.noAccessBody, symbol: "lock")
         case .signInAgain(let scope):
-            scope == .approvals
-                ? ProblemWords(title: RequestWords.signInApprovals, symbol: "rectangle.portrait.and.arrow.right",
-                               signInAgain: true)
-                : ProblemWords(title: RequestWords.signInTitle, body: RequestWords.signInBody,
-                               symbol: "rectangle.portrait.and.arrow.right", signInAgain: true)
+            ProblemWords(title: scope == .approvals ? RequestWords.signInApprovals : RequestWords.signInTitle,
+                         symbol: "rectangle.portrait.and.arrow.right", signInAgain: true)
         case .tmdbKey:
             ProblemWords(title: RequestWords.tmdbKey,
                          body: manage ? RequestWords.tmdbKeyManage : RequestWords.tmdbKeyOthers,
@@ -210,7 +207,7 @@ public struct ProblemWords: Hashable, Sendable {
     public var symbol: String
     /// A Retry shows.
     public var retry: Bool
-    /// A Sign in again shows.
+    /// A Sign in shows.
     public var signInAgain: Bool
 
     public init(title: String, body: String? = nil, symbol: String, retry: Bool = false, signInAgain: Bool = false) {

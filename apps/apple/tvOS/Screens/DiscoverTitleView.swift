@@ -180,7 +180,7 @@ struct DiscoverTitleView: View {
 
     // MARK: The main action
 
-    /// The one main action, the first that applies: Sign in again; Open;
+    /// The one main action, the first that applies: Sign in; Open;
     /// Requested or Following with the request's stage (and Stop
     /// following); Tell me too; Open and Request more seasons; Request.
     /// The lines under it say why there's no button and what's left, red

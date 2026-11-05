@@ -419,7 +419,7 @@ function RequestsPage(p: { entry: Entry }) {
         >
           <Icon name="user-round" size={20} color="var(--muted)" />
           <div class="t-body c-muted one-line requests-signin">{SIGN_IN_APPROVALS}</div>
-          <Pill label="Sign in again" fid="signin" onSelect={() => setSignIn(true)} />
+          <Pill label="Sign in" fid="signin" onSelect={() => setSignIn(true)} />
         </G>
       )}
       {body}

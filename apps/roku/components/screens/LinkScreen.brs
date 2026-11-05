@@ -41,7 +41,7 @@ sub onActive()
             m.intro.text = "The server allowed more than Pley for Roku asks for, so it was signed out."
             m.intro.visible = true
         else if reason = "requests"
-            ' Discover's Sign in again: this sign-in goes on until the new one.
+            ' Discover's Sign in: this sign-in goes on until the new one.
             m.intro.text = "Sign in again to let this TV ask for movies and shows."
             m.intro.visible = true
         else if reason = "approvals"

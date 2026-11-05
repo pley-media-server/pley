@@ -165,7 +165,7 @@ class DiscoverTest(Case):
         entries = self.run_plugin("route=discover")
         self.assertEqual(self.labels(entries), ["Sign in again to ask for movies and shows"])
         self.assertEqual((entries[0][0], entries[0][2]), (BASE + "?route=sign_in", False))
-        self.assertEqual(entries[0][1].label2, "Sign in again")
+        self.assertEqual(entries[0][1].label2, "Sign in")
 
     def test_requests_off(self):
         for answer in [(200, dict(ON, enabled=False, access="ask")), (404, {"code": "not_found", "message": "no"})]:

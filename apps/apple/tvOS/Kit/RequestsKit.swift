@@ -5,7 +5,7 @@ import SwiftUI
 // The pieces Apple TV's request screens share, sized for a television:
 // TMDB's posters with their badges, requests as tiles, stage pills in
 // their colours, the download's bar, the states a page can't show in,
-// Sign in again (which asks first), the count on the ways in, TMDB's
+// Sign in (which asks first), the count on the ways in, TMDB's
 // credit, the panel down the right of the screen, rows the focus comes
 // back to, and the grid of TMDB's titles.
 
@@ -339,7 +339,7 @@ struct SignInAgainButton: View {
 }
 
 /// Why a page can't show: requests off, no access, sign in again (with
-/// Sign in again), TMDB's key refused, TMDB away or the server out of
+/// Sign in), TMDB's key refused, TMDB away or the server out of
 /// reach (with Retry), a title not found. Its button takes the focus, and
 /// VoiceOver reads it out when it shows. Its identifiers start with
 /// `prefix`: `discover.problem`, `discover.retry`.

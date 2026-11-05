@@ -200,7 +200,7 @@ class Asking:
             return self.cant(self.summary_error)
         if s.get("enabled") and s.get("sign_in_again") == "requests":
             # Signed in before the add-on could ask: that alone shows.
-            self.entry(T("sign_in_to_ask"), {"route": "sign_in"}, "DefaultUser.png", folder=False, plot=T("sign_in_to_ask_body"), label2=T("sign_in_again"))
+            self.entry(T("sign_in_to_ask"), {"route": "sign_in"}, "DefaultUser.png", folder=False, label2=T("sign_in_again"))
             return self.end()
         if not requests.discovers(s) and not requests.lists(s):
             # Turned off since its entry showed.
@@ -378,7 +378,7 @@ class Asking:
         heading = heading_of(detail)
         kind = detail["kind"]
         if main == "sign_in":
-            if dialog.yesno(T("sign_in_to_ask"), T("sign_in_to_ask_body"), nolabel=T("cancel"), yeslabel=T("sign_in_again")):
+            if dialog.yesno(T("sign_in_to_ask"), "", nolabel=T("cancel"), yeslabel=T("sign_in_again")):
                 self.route_sign_in()
         elif main == "restricted":
             dialog.ok(heading, detail.get("restriction") or "")

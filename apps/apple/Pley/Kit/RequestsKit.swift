@@ -180,7 +180,7 @@ struct DownloadBar: View {
 }
 
 /// Why a page can't show: requests off, no access, sign in again (with
-/// Sign in again), TMDB's key refused, TMDB away or the server out of
+/// Sign in), TMDB's key refused, TMDB away or the server out of
 /// reach (with Retry), a title not found. VoiceOver reads it out when it
 /// shows. Its buttons' identifiers start with `prefix`: `discover.retry`.
 struct ProblemView: View {
