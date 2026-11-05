@@ -20,7 +20,7 @@
 //   --commit       commit the files changed, as "<unit>: release X.Y.Z"
 //   --json         the status, or the pending release, as JSON
 //
-// Units: server, desktop, android, samsung, lg, kodi, roku (scripts/version.mjs).
+// Units: server, desktop, android, samsung, samsung-native, lg, kodi, roku (scripts/version.mjs).
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -345,9 +345,10 @@ function pendingCommand(opts) {
   else if (!p.units.length) console.log(`Nothing waits: every unit has the version it had at ${p.since}.`);
   else {
     console.log(`${bold(p.title)}  ${dim(`(tag ${p.tag ?? "?"}, after ${p.since})`)}`);
+    const width = Math.max(...p.units.map((u) => u.unit.length));
     for (const u of p.units) {
-      console.log(`  ${u.unit.padEnd(8)} ${u.from ?? "new"} -> ${green(u.to)}`);
-      for (const c of u.later) console.log(dim(`           after its bump: ${c}`));
+      console.log(`  ${u.unit.padEnd(width)} ${u.from ?? "new"} -> ${green(u.to)}`);
+      for (const c of u.later) console.log(dim(`${" ".repeat(width + 3)}after its bump: ${c}`));
     }
   }
   if (p.problems.length) {

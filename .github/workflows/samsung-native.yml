@@ -1,10 +1,12 @@
 name: Samsung TV (native)
 
-# The native Samsung TV app (apps/tizen-native, Tizen .NET). Its logic's tests
-# run the web TV app's fixtures (packages/tv/test/fixtures), so a change there
-# runs them too. It has no release yet; its package is signed with a Samsung
-# certificate only its owner can make (`bun run tizen-native`,
-# docs/TV_PLATFORMS.md), so the build here checks the code and the .tpk only.
+# The native Samsung TV app (apps/tizen-native, Tizen .NET): one release unit,
+# samsung-native (docs/RELEASING.md). Its logic's tests run the web TV app's
+# fixtures (packages/tv/test/fixtures), so a change there runs them too. A TV
+# installs only a package signed with a Samsung certificate that lists it,
+# which only the TV's owner can make, so the Release workflow calls this with
+# `release: true` for the .tpk as the .NET SDK signs it, with Tizen's default
+# certificate, for its user to sign again (docs/TV_PLATFORMS.md).
 on:
   push:
     branches: [master]
@@ -28,13 +30,23 @@ on:
       - .github/workflows/samsung-native.yml
       - "!**/CHANGELOG.md"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Build the release's files too
+        type: boolean
+        default: false
+      version:
+        description: The version released (its manifests')
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
   # A new push to a pull request replaces its running checks; master runs them all.
-  group: samsung-native-${{ github.ref }}
+  group: ${{ inputs.release && 'samsung-native-release' || format('samsung-native-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Actions are pinned to commits.
@@ -53,7 +65,46 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
+      # Its manifests carry one version, which its CHANGELOG has (scripts/version.mjs).
+      - run: bun scripts/version.mjs check samsung-native
       - run: dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests
       # Built with Tizen's default certificate; a TV takes it once signed with a Samsung one.
       - run: dotnet build apps/tizen-native/src/Pley.Tv.Tizen -c Release
       - run: bun scripts/check-nuget-licenses.mjs
+
+  # ---- Release (called by release.yml) ---------------------------------------
+
+  # pley-samsung-native-<version>.tpk, with Tizen's default certificate.
+  package:
+    name: Package
+    if: inputs.release
+    needs: samsung-native
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: bun run tizen-native --unsigned
+      # The manifest the TV reads carries the version, so this also checks it is the one released.
+      - env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          tpk=apps/tizen-native/out/pley-tizen-unsigned.tpk
+          if ! unzip -p "$tpk" tizen-manifest.xml | grep -qF " version=\"$VERSION\""; then
+            echo "::error::The package's manifest isn't version $VERSION"
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$tpk" "dist/pley-samsung-native-$VERSION.tpk"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-samsung-native
+          path: dist/*
+          if-no-files-found: error

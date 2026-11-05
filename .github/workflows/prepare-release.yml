@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       units:
-        description: "Units, each with its own bump where it differs from the one below, such as: server kodi:minor. Blank: every unit with Unreleased entries, but Samsung"
+        description: "Units, each with its own bump where it differs from the one below, such as: server kodi:minor. Blank: every unit with Unreleased entries, but the web Samsung app (samsung)"
         type: string
         default: ""
       bump:
@@ -59,7 +59,7 @@ jobs:
           UNITS: ${{ inputs.units }}
           BUMP: ${{ inputs.bump }}
         run: |
-          # Samsung's package is signed by hand, so it's released only when named.
+          # The web Samsung app's package is signed by hand, so it's released only when named.
           if [ -z "${UNITS//[ ,]/}" ]; then
             UNITS=$(bun scripts/release.mjs --json | jq -r '.[] | select(.entries > 0 and .unit != "samsung") | .unit')
           fi

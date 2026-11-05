@@ -3,8 +3,8 @@
 Notable changes to Pley for Samsung TV, native (Tizen .NET), newest first.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-It has no releases yet: it is built and installed by hand
-([docs/TV_PLATFORMS.md](../../docs/TV_PLATFORMS.md#the-native-samsung-app)).
+Releases are tagged `release-<date>`; [docs/RELEASING.md](../../docs/RELEASING.md)
+describes how they are made.
 
 ## [Unreleased]
 
@@ -37,6 +37,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
+  to sign with your own Samsung certificate and install on a TV in Developer
+  Mode, without building the app.
 - Your phone or browser changes the quality of a film or episode playing
   on the TV, as the player's own Quality does, and sees which is picked.
 - A film or an episode sent from your phone or browser plays with the
@@ -443,3 +446,12 @@ It has no releases yet: it is built and installed by hand
   TV's own network may get an access token (an hour's) within the half
   hour, never the refresh token. A sign-in from before starts checking
   within the hour, as its token is renewed.
+
+## [0.0.1] - 2026-10-31
+
+### Added
+
+- The version of the builds made by hand before the app had releases.
+
+[Unreleased]: https://github.com/pley-media-server/pley/compare/5f6405a7af22a8102cb0ebfa414c66492e161102...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/tree/5f6405a7af22a8102cb0ebfa414c66492e161102
