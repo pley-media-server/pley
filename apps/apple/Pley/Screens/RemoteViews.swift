@@ -175,7 +175,8 @@ struct RemoteSheet: View {
         }
         // "Playing on …" after a cast, over the sheet that opens with it.
         .overlay(alignment: .bottom) { ToastView(shell: app.shell) }
-        .presentationDetents([.medium, .large])
+        // On an iPad the controls sit below the list: half a screen hides them.
+        .presentationDetents(wide ? [.large] : [.medium, .large])
         .accessibilityIdentifier("remote.sheet")
     }
 
