@@ -264,8 +264,10 @@ internal class OAuth(private val state: State) {
     /**
      * The switch-profile grant: to another profile of the household (its PIN
      * when it has one), or to the app's own profile with its PIN, which
-     * checks the PIN and rotates the tokens (S3-APP-ROUTES). A refusal
-     * spends nothing.
+     * checks the PIN and rotates the tokens (S3-APP-ROUTES); or, with a
+     * cast's `ticket`, to the profile of the remote that cast, in place of
+     * its PIN (`ticket_spent` once spent, expired, or not this app's for
+     * this switch). A refusal spends nothing else.
      */
     private fun switchProfile(form: Map<String, String>): MockResponse {
         if (form["client_id"] != CLIENT_ID) return error("unauthorized_client", "only Pley's own apps switch profiles")
@@ -277,6 +279,15 @@ internal class OAuth(private val state: State) {
         val grant = token.grant
         if ("profiles" !in grant.scopes) return error("unauthorized_client", "this app wasn't allowed to switch profiles")
         val target = form["profile"]?.toLongOrNull() ?: return error("invalid_request", "profile is missing or not an id")
+        val ticket = form["ticket"]
+        if (ticket != null) {
+            // A cast from another profile's remote: this device switches to it.
+            if (!state.events.redeem(ticket, "app-${grant.id}", grant.profileId, target, state.nowMs())) {
+                return error("invalid_grant", "this cast's switch has expired or was used: cast again", reason = "ticket_spent")
+            }
+            if (state.profile(target) == null) return error("invalid_grant", "not a profile of the household", reason = "not_allowed")
+            return rotate(token, target)
+        }
         val profile = state.profile(target) ?: return error("invalid_grant", "not a profile of the household", reason = "not_allowed")
         val pin = form["pin"]
         if (target == grant.profileId && (pin == null || profile.pin == null)) {
@@ -293,8 +304,13 @@ internal class OAuth(private val state: State) {
         } else if (profile.needs == ProfileNeeds.Password) {
             return error("invalid_grant", "this profile needs its password: sign in again", reason = "browser")
         }
+        return rotate(token, target)
+    }
+
+    /** [token]'s grant acts as profile [target] from now on, with new tokens: the old ones stop at once. */
+    private fun rotate(token: RefreshToken, target: Long): MockResponse {
+        val grant = token.grant
         token.spent = true
-        // The old tokens stop at once.
         grant.access.keys.forEach(accessTokens::remove)
         grant.access.clear()
         grant.profileId = target

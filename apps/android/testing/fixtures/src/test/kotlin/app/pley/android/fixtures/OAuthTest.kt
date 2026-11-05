@@ -1,8 +1,11 @@
 package app.pley.android.fixtures
 
 import app.pley.android.model.AppProfile
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.Me
 import app.pley.android.model.ProfileNeeds
+import app.pley.android.model.RemoteDevice
+import app.pley.android.model.ServerEvent
 import java.net.URI
 import java.net.URLDecoder
 import java.security.MessageDigest
@@ -10,6 +13,7 @@ import java.util.Base64
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -236,6 +240,66 @@ class OAuthTest {
         val old = refresh
         refresh = same.field("refresh_token")!!
         assertNotEquals(old, refresh)
+    }
+
+    @Test
+    fun aCastFromAnotherProfileSwitchesItsReceiverWithItsTicketOnce() = withServer(FixtureServer.Options(scanEveryMs = 0, keepAliveMs = 100)) { server ->
+        // The receiver: an app signed in as Alex, its stream open as the Den TV.
+        val tv = Client(server)
+        val tokens = exchange(tv, signIn(tv, server).getValue("code"))
+        tv.token = tokens.field("access_token")
+        var refresh = tokens.field("refresh_token")!!
+        fun switch(profile: Long, ticket: String) = tv.form(
+            "/api/oauth/token",
+            "grant_type" to "urn:pley:params:oauth:grant-type:switch-profile",
+            "client_id" to clientId,
+            "refresh_token" to refresh,
+            "profile" to profile.toString(),
+            "ticket" to ticket,
+        )
+        val sam = Client(server, server.accessToken(FixtureIds.SAM))
+        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item"
+        tv.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${tv.token}").build()).execute().use { response ->
+            val source = response.body.source()
+            assertEquals(": connected", source.readUtf8Line())
+            fun heard(): ServerEvent.Cast {
+                while (true) {
+                    val line = source.readUtf8Line() ?: error("the stream ended")
+                    if (line.startsWith("data: ")) (ServerEvent.parse(line.removePrefix("data: ")) as? ServerEvent.Cast)?.let { return it }
+                }
+            }
+            // Sam sees the Den TV as on Alex's profile, and casts to it with Sam's PIN.
+            val den = waitForDevice(sam)
+            assertEquals(DeviceProfileName(FixtureIds.ALEX, "Alex"), den.profile)
+            val path = "/api/remote/devices/android-den/cast"
+            assertEquals(202, sam.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"profile_id":${FixtureIds.ALEX},"pin":"${FixtureIds.PIN}"}""").code)
+            val cast = heard()
+            assertEquals(FixtureIds.SAMPLE_1080P to FixtureIds.SAM, cast.itemId to cast.profileId)
+            val ticket = cast.switchTicket!!
+
+            // Only for the switch it was issued for: shown for another, it is spent.
+            assertEquals("ticket_spent", switch(FixtureIds.ROBIN, ticket).field("reason"))
+            assertEquals("ticket_spent", switch(FixtureIds.SAM, ticket).field("reason"))
+            sam.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"profile_id":${FixtureIds.ALEX},"pin":"${FixtureIds.PIN}"}""")
+            val second = heard().switchTicket!!
+            val switched = switch(FixtureIds.SAM, second)
+            assertEquals(switched.text, 200, switched.code)
+            tv.token = switched.field("access_token")
+            refresh = switched.field("refresh_token")!!
+            assertEquals(FixtureIds.SAM, tv.read("/api/auth/me", Me.serializer()).id)
+            // Once.
+            assertEquals("ticket_spent", switch(FixtureIds.SAM, second).field("reason"))
+        }
+    }
+
+    /** The one device [client] lists, once its receiver is open: within 5 s. */
+    private fun waitForDevice(client: Client): RemoteDevice {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (true) {
+            client.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).singleOrNull()?.let { return it }
+            if (System.currentTimeMillis() > deadline) throw AssertionError("not by 5 s")
+            Thread.sleep(20)
+        }
     }
 
     @Test
