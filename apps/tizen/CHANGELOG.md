@@ -33,6 +33,12 @@ describes how they are made.
 
 ### Added
 
+- When your phone or browser pauses, plays, seeks or skips a film or
+  episode on the TV, or changes its audio, subtitles or quality, the TV
+  says so for 2 s at the top right ("Paused", "+30 s", "Jumped to 12:34",
+  "Subtitles off") and doesn't bring up the player's controls. Controls
+  already up hide as they do while it plays, even once it is paused, until
+  a key is pressed on the TV.
 - Your phone or browser changes the quality of a film or episode playing
   on the TV, as the player's Quality menu does (the pick is kept for the
   next ones), and sees which is picked. A film or episode sent from a

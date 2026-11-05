@@ -1590,6 +1590,75 @@ describe("the user's remote, on another device", () => {
     expect(w.requests).toHaveLength(1);
     c.close();
   });
+
+  /** What the player says, for the moment it says it, of each command sent, in order (`null`: nothing). */
+  function said(c: PlaybackController, w: ReturnType<typeof world>, commands: ServerEvent[]): (string | null)[] {
+    return commands.map((e) => {
+      w.send(e);
+      const notice = c.state.value.remoteNotice;
+      c.dismissRemoteNotice();
+      return notice;
+    });
+  }
+
+  it("says for a moment what a play, pause, seek or skip did, and nothing of what changes nothing", async () => {
+    const { w, c } = await playing(item(file(), { kind: "episode" }));
+    expect(
+      said(c, w, [
+        command({ session_id: "s1", command: "play" }),
+        command({ session_id: "s1", command: "pause" }),
+        command({ session_id: "s1", command: "pause" }),
+        command({ session_id: "s1", command: "play" }),
+        command({ session_id: "s1", command: "skip", offset_ms: 30_000 }),
+        command({ session_id: "s1", command: "skip", offset_ms: -10_000 }),
+        command({ session_id: "s1", command: "seek", position_ms: 754_000 }),
+        command({ session_id: "s1", command: "seek", position_ms: 3_723_000 }),
+        command({ session_id: "s1", command: "previous" }),
+        command({ session_id: "s2", command: "pause" }),
+      ]),
+    ).toEqual([null, "Paused", null, "Playing", "+30 s", "−10 s", "Jumped to 12:34", "Jumped to 1:02:03", null, null]);
+    c.close();
+  });
+
+  it("says the audio, subtitles and quality picked as their menus name them, and nothing of a pick already made", async () => {
+    const { w, c } = await playing(item(twoAudio()));
+    expect(
+      said(c, w, [
+        command({ session_id: "s1", command: "audio", stream_index: 2 }),
+        command({ session_id: "s1", command: "audio", stream_index: 2 }),
+        command({ session_id: "s1", command: "subtitles", stream_index: 4 }),
+        command({ session_id: "s1", command: "subtitles", stream_index: -1 }),
+        command({ session_id: "s1", command: "subtitles", stream_index: -1 }),
+        command({ session_id: "s1", command: "quality", quality: "original" }),
+        command({ session_id: "s1", command: "quality", quality: "auto" }),
+      ]),
+    ).toEqual(["Audio: French (AC3 5.1)", null, "Subtitles: English (SRT)", "Subtitles off", null, null, "Quality: Automatic"]);
+    // The menus' own words.
+    expect(c.state.value.audio.filter((a) => a.index === 2)[0]!.label).toBe("French (AC3 5.1)");
+    expect(c.state.value.qualities.filter((q) => q.id === "auto")[0]!.label).toBe("Automatic");
+    c.close();
+  });
+
+  it("marks a pause as the remote's until it plays again, by anyone; the player's own pause is its own", async () => {
+    const { w, c } = await playing(item(file(), { kind: "episode" }));
+    c.pause();
+    expect(c.state.value.pausedByRemote).toBe(false);
+    // Paused already: the pause stays the person's.
+    w.send(command({ session_id: "s1", command: "pause" }));
+    expect(c.state.value.pausedByRemote).toBe(false);
+    c.play();
+    w.send(command({ session_id: "s1", command: "pause" }));
+    expect(c.state.value.pausedByRemote).toBe(true);
+    // A seek leaves it paused, and the remote's.
+    w.send(command({ session_id: "s1", command: "skip", offset_ms: 10_000 }));
+    expect(c.state.value.pausedByRemote).toBe(true);
+    c.play();
+    expect(c.state.value.pausedByRemote).toBe(false);
+    w.send(command({ session_id: "s1", command: "pause" }));
+    w.send(command({ session_id: "s1", command: "play" }));
+    expect(c.state.value.pausedByRemote).toBe(false);
+    c.close();
+  });
 });
 
 describe("a title cast with the tracks picked on the remote's page", () => {

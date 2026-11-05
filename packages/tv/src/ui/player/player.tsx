@@ -29,6 +29,8 @@ const RING_MS = 500;
 const SWITCH_RING_MS = 2_500;
 /** The player leaves this long after the server stopped it. */
 const STOPPED_LEAVE_MS = 20_000;
+/** A track picked with a media key, and what the user's remote on another device did, is said this long. */
+const BRIEF_MS = 2_000;
 
 const MEDIA_KEYS: Key[] = ["playPause", "play", "pause", "stop", "fastForward", "rewind", "next", "previous", "captions", "audio"];
 
@@ -111,7 +113,8 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
   return <PlayerView key={run} controller={controller} host={host} queued={!!(saved ? saved.request : p.request).queue} />;
 }
 
-function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDivElement | null }; queued: boolean }) {
+/** The screen of one run of the player: what `controller` plays, its controls and its notices. */
+export function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDivElement | null }; queued: boolean }) {
   const app = useApp();
   const ui = useUi();
   const c = p.controller;
@@ -169,6 +172,12 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
     say(s.notice);
     c.dismissNotice();
   }, [s.notice]);
+  // What the user's remote, on another device, did: said for a moment, the controls left as they are, since whoever pressed it isn't here.
+  useEffect(() => {
+    if (!s.remoteNotice) return;
+    say(s.remoteNotice, BRIEF_MS);
+    c.dismissRemoteNotice();
+  }, [s.remoteNotice]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), toast.ms);
@@ -209,14 +218,21 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
     setControls(false);
   }, [!!s.upNext, !!error]);
 
-  // Controls hide 5 s after the last key while a video plays.
+  // When the user's remote last paused it: a key here since makes the pause the person's.
+  const remotePausedAt = useRef(0);
   useEffect(() => {
-    if (!controls || panel || !playing || seeker.target !== null) return;
+    if (s.pausedByRemote) remotePausedAt.current = Date.now();
+  }, [s.pausedByRemote]);
+
+  // Controls hide 5 s after the last key while a video plays. A pause keeps them up; the remote's only once a key here makes it the person's.
+  useEffect(() => {
+    if (!controls || panel || !(playing || s.pausedByRemote) || seeker.target !== null) return;
     const t = setInterval(() => {
-      if (Date.now() - lastInput.current >= HIDE_MS) setControls(false);
+      const pausedHere = !playing && lastInput.current > remotePausedAt.current;
+      if (!pausedHere && Date.now() - lastInput.current >= HIDE_MS) setControls(false);
     }, 250);
     return () => clearInterval(t);
-  }, [controls, panel, playing, seeker.target]);
+  }, [controls, panel, playing, seeker.target, s.pausedByRemote]);
 
   const focusFid = (fid: string) =>
     setTimeout(() => {
@@ -300,13 +316,13 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
         if (on) {
           rememberedSubtitle.current = on.index;
           c.selectSubtitle(null);
-          say("Subtitles off", 2000);
+          say("Subtitles off", BRIEF_MS);
         } else {
           const tracks = s.subtitles.filter((t) => t.index !== null);
           const pick = tracks.filter((t) => t.index === rememberedSubtitle.current)[0] ?? tracks.filter((t) => !t.burnIn)[0] ?? tracks[0];
           if (pick) {
             c.selectSubtitle(pick.index);
-            say(`Subtitles: ${pick.label}`, 2000);
+            say(`Subtitles: ${pick.label}`, BRIEF_MS);
           }
         }
         return;
@@ -317,7 +333,7 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
         const at = tracks.findIndex((t) => t.selected);
         const next = tracks[(at + 1) % tracks.length]!;
         if (next.index !== null) c.selectAudio(next.index);
-        say(`Audio: ${next.label}`, 2000);
+        say(`Audio: ${next.label}`, BRIEF_MS);
         return;
       }
       default:

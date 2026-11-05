@@ -201,6 +201,16 @@ music has none. The rule is pinned for both Samsung apps by
 `packages/tv/test/fixtures/remote.json`, and the tracks and the quality by
 `tracks.json` beside it.
 
+A command never brings up the player's controls: whoever sent it is on
+another device. What it changed shows for 2 s as the player's toast, top
+right, as a media key's track change does: "Paused", "Playing", "+30 s"
+or "−10 s" as far as a skip asked, "Jumped to 12:34" where a seek went,
+and "Audio: …", "Subtitles: …", "Subtitles off" or "Quality: …" as the
+menus name them. Next, a channel change and a command that changes
+nothing show nothing new. Controls already up as the remote pauses hide
+5 s after the last key, as while it plays, until a key on the TV makes
+the pause the person's own; then they stay, as for any pause.
+
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open: the stream
 names it a receiver by its id (`pley.installId`), a TV taking titles and
