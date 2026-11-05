@@ -20,6 +20,8 @@
 
     <!-- A device in the list that plays nothing: only listed, it has no controls. -->
     <string name="remote_ready">Ready to play</string>
+    <!-- A device on another profile of the household, by that profile's name; what it plays stays theirs. -->
+    <string name="remote_ready_on_profile">Ready to play · on %1$s\'s profile</string>
     <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
     <string name="remote_open_device">Show its controls</string>
     <string name="remote_back_to_devices">Back to your devices</string>
@@ -73,4 +75,10 @@
     <!-- Refused, said under the chooser's devices. -->
     <string name="play_on_gone">%1$s isn\'t on any more.</string>
     <string name="play_on_cant">%1$s can\'t play that.</string>
+    <!-- To a device on another profile, when this one has a PIN: the PIN pad, what it is for, and its way back. -->
+    <string name="play_on_pin_title">Enter your PIN</string>
+    <string name="play_on_pin_body">%1$s switches from %2$s\'s profile to yours.</string>
+    <string name="play_on_back">Back to the devices</string>
+    <string name="play_on_wrong_pin">Wrong PIN. Try again.</string>
+    <string name="play_on_pin_locked">Your PIN is locked after too many wrong tries. You or an administrator can reset it.</string>
 </resources>

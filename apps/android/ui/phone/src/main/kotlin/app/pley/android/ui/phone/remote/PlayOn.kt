@@ -1,5 +1,6 @@
 package app.pley.android.ui.phone.remote
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,7 +62,9 @@ import app.pley.android.model.PlayingSession
 import app.pley.android.model.format.isInProgress
 import app.pley.android.network.CastRefusal
 import app.pley.android.screens.item.TrackChoices
+import app.pley.android.screens.onboarding.PinEntry
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.kit.PinPad
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.kit.TonalButton
@@ -213,13 +217,29 @@ internal fun PlayOnButton(
 }
 
 /**
+ * The PIN pad of a cast to a device of another profile ([deviceId]), while
+ * it is asked for: [error] after a refusal ([shakes] counts the wrong
+ * ones), [lockedOut] once the PIN is locked.
+ */
+@Immutable
+private data class PinAsk(val deviceId: String, val error: String? = null, val shakes: Int = 0, val lockedOut: Boolean = false)
+
+/**
  * Play on…'s chooser, over the page it was asked on: the profile's other
  * devices that take [target], as the remote lists them (their kind's icon,
- * their name, what each plays now or that it is ready). Picking one sends
- * [target] there; once it is on its way, [onCast] is told with the name
- * the device goes by. A refusal says why under the list, and another
+ * their name, what each plays now or that it is ready), then the
+ * household's other profiles' (with the profile each is on). Picking one
+ * sends [target] there; once it is on its way, [onCast] is told with the
+ * name the device goes by. A refusal says why under the list, and another
  * device can be picked. What shuffles has a Shuffle switch, which makes it
  * Shuffle on…. With no device left to take it, it closes.
+ *
+ * A device of another profile switches to this one first: the cast names
+ * its profile, and, when this profile has a PIN
+ * ([RemoteRepository.castNeedsPin], or the server asks for it), the PIN pad
+ * shows in the list's place and the cast goes again with it. A wrong PIN
+ * shakes and can be typed again; throttled, the server says how long to
+ * wait; locked, the pad stops. Back, or the arrow, goes back to the list.
  */
 @Composable
 internal fun PlayOnSheet(
@@ -234,72 +254,153 @@ internal fun PlayOnSheet(
     var shuffle by remember(target) { mutableStateOf(false) }
     var sending by remember(target) { mutableStateOf<String?>(null) }
     var error by remember(target) { mutableStateOf<String?>(null) }
+    var asking by remember(target) { mutableStateOf<PinAsk?>(null) }
+    // Never shown, never kept: only its length is state.
+    val pin = remember(target) { PinEntry() }
+    var digits by remember(target) { mutableIntStateOf(0) }
     val names = deviceNames(devices)
     val choices = devices.filter { it.takes(target.kind) && it.receiver != null }
     LaunchedEffect(choices.isEmpty()) { if (choices.isEmpty()) onDismiss() }
-    PleySheet(onDismiss = onDismiss, modifier = Modifier.testTag(PLAY_ON_SHEET)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                when {
-                    target.kind == CastKind.Live -> stringResource(R.string.play_on_live)
-                    shuffle -> stringResource(R.string.play_on_shuffle)
-                    else -> stringResource(R.string.play_on)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = PleyColors.Fg,
-                modifier = Modifier.weight(1f).semantics { heading() },
-            )
-            if (target.shuffles) {
-                FilterChip(
-                    selected = shuffle,
-                    onClick = { shuffle = !shuffle },
-                    label = { Text(stringResource(R.string.play_on_shuffle_switch)) },
-                    leadingIcon = { Icon(PleyIcons.Shuffle, contentDescription = null, size = 18.dp, tint = if (shuffle) PleyColors.AccentBright else PleyColors.Muted) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = PleyColors.Surface3,
-                        labelColor = PleyColors.Fg,
-                        selectedContainerColor = PleyColors.Surface4,
-                        selectedLabelColor = PleyColors.Fg,
-                    ),
-                    modifier = Modifier.heightIn(min = 48.dp).testTag(PLAY_ON_SHUFFLE),
-                )
+
+    fun ask(next: PinAsk?) {
+        pin.clear()
+        digits = 0
+        asking = next
+    }
+
+    fun send(device: OtherDevice, name: String, typed: String?) {
+        val receiver = device.receiver ?: return
+        error = null
+        sending = device.deviceId
+        scope.launch {
+            try {
+                remote.cast(receiver.receiverId, target.request(shuffle).copy(profileId = device.profile?.id, pin = typed))
+                ask(null)
+                onCast(device, name)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val pad = asking?.takeIf { it.deviceId == device.deviceId } ?: PinAsk(device.deviceId)
+                when (CastRefusal.of(e, pinSent = typed != null)) {
+                    // A PIN set since GET /api/auth/me said there was none.
+                    CastRefusal.PinNeeded -> ask(pad.copy(error = null))
+                    CastRefusal.WrongPin -> ask(pad.copy(error = resources.getString(R.string.play_on_wrong_pin), shakes = pad.shakes + 1))
+                    CastRefusal.PinLocked -> ask(pad.copy(error = resources.getString(R.string.play_on_pin_locked), lockedOut = true))
+                    // The server's sentence says how long to wait.
+                    CastRefusal.Throttled -> ask(pad.copy(error = sentenceOf(e)))
+                    else -> {
+                        ask(null)
+                        error = when (CastRefusal.of(e)) {
+                            CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
+                            CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
+                            CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
+                            else -> sentenceOf(e)
+                        }
+                    }
+                }
+            } finally {
+                sending = null
             }
         }
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
-            choices.forEach { device ->
-                key(device.deviceId) {
-                    val name = names.getValue(device.deviceId)
-                    ChooserRow(device, name, enabled = sending == null) {
-                        val receiver = device.receiver ?: return@ChooserRow
-                        error = null
-                        sending = device.deviceId
-                        scope.launch {
-                            try {
-                                remote.cast(receiver.receiverId, target.request(shuffle))
-                                onCast(device, name)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                error = when (CastRefusal.of(e)) {
-                                    CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
-                                    CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
-                                    CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
-                                    CastRefusal.Offline, CastRefusal.Other -> sentenceOf(e)
-                                }
-                            } finally {
-                                sending = null
+    }
+
+    // The device the pad is for, while it is still there to cast to.
+    val padFor = asking?.let { open -> choices.firstOrNull { it.deviceId == open.deviceId } }
+    LaunchedEffect(asking != null, padFor == null) { if (asking != null && padFor == null) ask(null) }
+    PleySheet(onDismiss = onDismiss, modifier = Modifier.testTag(PLAY_ON_SHEET)) {
+        val shown = asking
+        if (padFor != null && shown != null) {
+            val name = names.getValue(padFor.deviceId)
+            val back = { ask(null) }
+            BackHandler(onBack = back)
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                PleyIconButton(PleyIcons.ArrowLeft, stringResource(R.string.play_on_back), onClick = back)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = PleyColors.Fg,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
+            PinPad(
+                title = stringResource(R.string.play_on_pin_title),
+                body = padFor.profile?.let { stringResource(R.string.play_on_pin_body, name, it.name) },
+                digits = digits,
+                onDigit = { d ->
+                    if (!shown.lockedOut && sending == null && pin.add(d)) digits = pin.length
+                },
+                onDelete = { if (pin.delete()) digits = pin.length },
+                onSubmit = {
+                    if (!shown.lockedOut && sending == null && pin.complete) {
+                        val typed = pin.take()
+                        digits = 0
+                        send(padFor, name, typed)
+                    }
+                },
+                onCancel = back,
+                lockedOutLabel = stringResource(R.string.play_on_back),
+                modifier = Modifier.fillMaxWidth().testTag(PLAY_ON_PIN),
+                error = shown.error,
+                shakes = shown.shakes,
+                lockedOut = shown.lockedOut,
+                busy = sending != null,
+            ) {
+                KindBadge(padFor.kind, playing = false)
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        target.kind == CastKind.Live -> stringResource(R.string.play_on_live)
+                        shuffle -> stringResource(R.string.play_on_shuffle)
+                        else -> stringResource(R.string.play_on)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = PleyColors.Fg,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                if (target.shuffles) {
+                    FilterChip(
+                        selected = shuffle,
+                        onClick = { shuffle = !shuffle },
+                        label = { Text(stringResource(R.string.play_on_shuffle_switch)) },
+                        leadingIcon = { Icon(PleyIcons.Shuffle, contentDescription = null, size = 18.dp, tint = if (shuffle) PleyColors.AccentBright else PleyColors.Muted) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = PleyColors.Surface3,
+                            labelColor = PleyColors.Fg,
+                            selectedContainerColor = PleyColors.Surface4,
+                            selectedLabelColor = PleyColors.Fg,
+                        ),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag(PLAY_ON_SHUFFLE),
+                    )
+                }
+            }
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
+                choices.forEach { device ->
+                    key(device.deviceId) {
+                        val name = names.getValue(device.deviceId)
+                        ChooserRow(device, name, enabled = sending == null) {
+                            // Another profile's device, with a PIN to give: the pad first.
+                            if (device.profile != null && remote.castNeedsPin) {
+                                error = null
+                                ask(PinAsk(device.deviceId))
+                            } else {
+                                send(device, name, typed = null)
                             }
                         }
                     }
                 }
-            }
-            error?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = PleyColors.DangerText,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
-                )
+                error?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PleyColors.DangerText,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
             }
         }
     }
@@ -361,7 +462,7 @@ internal object CastsSent {
     }
 }
 
-/** A device to send to: its kind's icon, its name, and what it plays now or that it is ready. */
+/** A device to send to: its kind's icon, its name, and what it plays now or that it is ready (on whose profile, for another's). */
 @Composable
 private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onClick: () -> Unit) {
     val session = device.session
@@ -380,7 +481,7 @@ private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onCl
             Text(name, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(
-                session?.let { lineOf(it, stringResource(R.string.remote_live_tv)) } ?: stringResource(R.string.remote_ready),
+                session?.let { lineOf(it, stringResource(R.string.remote_live_tv)) } ?: readyLine(device),
                 style = MaterialTheme.typography.bodySmall,
                 color = PleyColors.Muted,
                 maxLines = 1,
@@ -397,3 +498,6 @@ internal const val PLAY_ON = "pley.phone.play_on"
 internal const val PLAY_ON_SHEET = "pley.phone.play_on_sheet"
 internal const val PLAY_ON_SHUFFLE = "pley.phone.play_on_shuffle"
 internal const val PLAY_ON_DEVICE = "pley.phone.play_on_device."
+
+/** The PIN pad a cast to another profile's device asks first. */
+internal const val PLAY_ON_PIN = "pley.phone.play_on_pin"

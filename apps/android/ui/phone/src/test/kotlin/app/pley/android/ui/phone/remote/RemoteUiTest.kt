@@ -37,6 +37,7 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayerCommandRequest
@@ -223,6 +224,22 @@ class RemoteUiTest {
         compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_DEVICE + "app-20").assertHasNoClickAction()
         compose.onNodeWithTag(REMOTE_CONTROLS + "app-20").assertDoesNotExist()
+    }
+
+    @Test
+    fun anotherProfilesDeviceSaysWhoseItIsAndNothingOfWhatItPlays() {
+        val sams = OtherDevice(
+            "app-31",
+            receiver = RemoteDevice("tv-3", "app-31", "Den TV", DeviceKind.Tv, listOf(CastKind.Item), profile = DeviceProfileName(3, "Sam")),
+        )
+        remote.devices.value = listOf(episode(), bedroom(), sams)
+        show()
+        // Ready to play, with the profile: the button counts it with the others.
+        compose.onNodeWithContentDescription("Remote, 1 device playing").assertExists()
+        open()
+        compose.onNodeWithText("Ready to play · on Sam's profile").assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-31").assertHasNoClickAction()
+        compose.onNodeWithText("Ready to play").assertExists()
     }
 
     @Test

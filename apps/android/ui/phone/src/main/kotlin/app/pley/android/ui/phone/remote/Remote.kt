@@ -339,8 +339,9 @@ internal fun RemoteSheet(
 
 /**
  * A device in the list: its kind's icon, its name, and what it plays with
- * how far, or "Ready to play". One that plays is chosen with [onClick]; one
- * ready to play has no controls to show, and isn't.
+ * how far, or "Ready to play" (with the profile it is on, for another
+ * profile's). One that plays is chosen with [onClick]; one ready to play
+ * has no controls to show, and isn't.
  */
 @Composable
 private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () -> Unit) {
@@ -365,7 +366,7 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
         Column(Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (session == null) {
-                Text(stringResource(R.string.remote_ready), style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted)
+                Text(readyLine(device), style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             } else {
                 Text(
                     lineOf(session, stringResource(R.string.remote_live_tv)),
@@ -390,6 +391,15 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
         }
     }
 }
+
+/**
+ * What a device that plays nothing here says: "Ready to play", and on a
+ * device of another of the household's profiles, whose: "Ready to play · on
+ * Sam's profile", never what it plays.
+ */
+@Composable
+internal fun readyLine(device: OtherDevice): String =
+    device.profile?.let { stringResource(R.string.remote_ready_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
 
 /** A device's kind as an icon in a 40 dp circle: in the accent while it plays. */
 @Composable
