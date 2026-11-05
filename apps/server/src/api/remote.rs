@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 
 use super::auth::{CAST_NEEDS_PIN, PIN_NEEDED, SET_UP_FIRST, check_own_pin, switch_target};
 use super::items::item_or_404;
+use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken, hash_token, new_token};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
@@ -620,8 +621,12 @@ pub struct Receivers {
 impl Receivers {
     /// Counts one of `user_id`'s event streams as receiver `id` until the
     /// guard is dropped: `None` when the user has [`MAX_RECEIVERS_EACH`]
-    /// others already. A receiver new, or described anew, sends
-    /// `sessions_changed`, for the user's remotes to list devices again.
+    /// others already, or while another device holds `id`. Remotes list
+    /// receiver ids, and a cast's switch ticket goes to the device holding
+    /// one: another sign-in of the profile's (a child's phone) taking the
+    /// TV's id would get the ticket a parent's remote sent the TV. A
+    /// receiver new, or described anew, sends `sessions_changed`, for the
+    /// user's remotes to list devices again.
     pub(crate) fn open(
         self: &Arc<Self>,
         events: &EventBus,
@@ -634,6 +639,7 @@ impl Receivers {
             let theirs = by_user.entry(user_id).or_default();
             let full = theirs.len() >= MAX_RECEIVERS_EACH;
             match theirs.get_mut(id) {
+                Some(open) if open.receiver.device_id != receiver.device_id => return None,
                 Some(open) => {
                     open.streams += 1;
                     open.connected_at = Instant::now();
@@ -798,11 +804,21 @@ pub struct DevicesQuery {
     household: Option<String>,
 }
 
+/// Whether the request may list and cast to the household's other profiles'
+/// devices, which switches them to its profile: a person's own sign-in, or
+/// one of Pley's own apps allowed to switch profiles, as a switch itself
+/// takes. Another app would learn the household's names and take over its
+/// TVs as its own profile.
+fn reaches_household(user: &AuthUser) -> bool {
+    user.first_party() && user.allowed(Scope::Profiles)
+}
+
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
 /// caller's own, and with `household=1`, for a home member, those of the
 /// household's other profiles that switch to a casting remote's profile,
 /// each with the profile it is on (what they play stays theirs).
-/// Administrators get only the household's too.
+/// Administrators get only the household's too, and an app only when it
+/// [reaches the household](reaches_household).
 pub async fn devices(
     State(state): State<AppState>,
     user: AuthUser,
@@ -811,7 +827,7 @@ pub async fn devices(
     let mut out = state.receivers.listed(user.id);
     // A query that doesn't parse asks for nothing more.
     let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
-    if !asked {
+    if !asked || !reaches_household(&user) {
         return Ok(Json(out));
     }
     let everyone = crate::accounts::users(&state.db).await?;
@@ -884,6 +900,12 @@ pub async fn cast(
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     let owner = body.profile_id.unwrap_or(user.id);
+    if owner != user.id && !reaches_household(&user) {
+        return Err(AppError::ForbiddenAs(
+            "not_allowed",
+            format!("only Pley's own apps allowed to {} cast to another profile's device", Scope::Profiles.words()),
+        ));
+    }
     if owner != user.id {
         // A receiver outside the household is as unknown as one that isn't
         // there.
@@ -1157,6 +1179,19 @@ mod tests {
         assert!(receivers.listed(1).is_empty());
         assert_eq!(changes(&mut events), 1, "it went");
         assert!(receivers.by_user.lock().is_empty(), "nothing is kept of it");
+    }
+
+    #[test]
+    fn another_device_never_takes_over_a_receiver_id() {
+        let (receivers, bus) = (Arc::new(Receivers::default()), EventBus::new());
+        let tv = receivers.open(&bus, 1, "tv-1", receiver("app-7", Some("Den"), "item")).unwrap();
+        // Another sign-in of the profile's, with the TV's id: not a receiver.
+        assert!(receivers.open(&bus, 1, "tv-1", receiver("app-9", Some("Den"), "item")).is_none());
+        assert_eq!(receivers.device_of(1, "tv-1").as_deref(), Some("app-7"), "still the TV");
+        assert_eq!(receivers.listed(1)[0].device_id, "app-7");
+        // Once the TV's streams are gone, the id is free.
+        drop(tv);
+        assert!(receivers.open(&bus, 1, "tv-1", receiver("app-9", None, "item")).is_some());
     }
 
     #[test]

@@ -3553,15 +3553,22 @@ would.
   since an app that doesn't would play the cast as the profile it is on.
   The device takes casts
   while the stream is open: several streams with the same `receiver` count
-  once, and it goes when the last one closes. A user has at most 32
-  receivers; a stream past them still gets its events, but isn't one. A
-  receiver appearing or going sends `sessions_changed`.
+  once, and it goes when the last one closes. They are the same device's
+  (`device_id`, as sessions say it): while one device holds a `receiver`,
+  another's stream with it still gets its events, but isn't one, so a
+  sign-in that copies a TV's id from the list never gets what is cast to
+  the TV. A user has at most 32 receivers; a stream past them still gets
+  its events, but isn't one. A receiver appearing or going sends
+  `sessions_changed`.
 - **`GET /api/remote/devices`** lists the caller's receivers, an
   administrator's too. With `?household=1`, for a home member, it adds
   those of the household's other profiles (home members, not disabled)
   whose stream named `switch`, each with the `profile` it is on, `{ id,
   name }`, its name as "Who's watching?" says it; the caller's own have no
-  `profile`. A remote that doesn't ask (an older app) gets its own alone. One per device
+  `profile`. A remote that doesn't ask (an older app) gets its own alone,
+  and so does an app other than Pley's own, or one not allowed `profiles`:
+  a cast there switches someone's device to the caller's profile, which
+  only a switch's own apps may do. One per device
   (`device_id`, as sessions say it), the one that connected last, by name.
   Remotes show them with the sessions of the same `device_id`; another
   profile's sessions stay theirs, so its devices show as on that profile,
@@ -3584,6 +3591,8 @@ would.
   adds the caller's `profile_id` and a `switch_ticket` (below), and goes to
   that receiver's streams alone: the profile's other devices don't hear
   what someone else cast, nor the ticket. It answers, in this order:
+  - `403` `{ code: "not_allowed" }` for `profile_id` from an app other
+    than Pley's own, or one not allowed `profiles`;
   - `404` for a receiver unknown, gone, or of a profile outside the
     caller's household or without `profile_id` (an administrator's request
     too: it never says which);

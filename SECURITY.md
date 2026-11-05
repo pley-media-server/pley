@@ -167,10 +167,13 @@ protect your server.
   stored hashed, good once for 60 seconds for that device, from the profile
   it is on to the caster's. A copy shown by anything else spends it. Such a
   cast reaches that device's stream alone, not the profile's other
-  devices. Another profile's devices are listed by name and profile, never
-  with what they play, and only to home members of the same household, nor
-  are anyone's devices outside it, or a disabled profile's, listed or cast
-  to from it.
+  devices, and a receiver's id stays its device's while it is open: another
+  sign-in of the profile that names it isn't that receiver. Another
+  profile's devices are listed by name and profile, never with what they
+  play, and only to home members of the same household, from a person's
+  own sign-in or Pley's own apps allowed to switch profiles (another app
+  could take a TV over as its profile), nor are anyone's devices outside
+  it, or a disabled profile's, listed or cast to from it.
 
 ### Apps signing in
 
