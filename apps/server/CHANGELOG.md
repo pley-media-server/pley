@@ -53,6 +53,9 @@ describes how they are made.
 - Someone who isn't an administrator no longer hears when other people's
   playback starts or stops: the event for it goes only to that person's
   own devices and to administrators.
+- Music paused in the web app stays on your other devices' remotes: it
+  says it is paused every 30 seconds, where it used to drop off after a
+  minute and a half.
 
 ## [0.1.6] - 2026-11-04
 

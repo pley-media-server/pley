@@ -1179,7 +1179,9 @@ background mode). It is a port of the Android app's `MusicPlayback`:
   starting doesn't end music's session, nor the other way round. Before
   the next track starts, the one before ends (`stopped`, then `DELETE`,
   waiting 2 seconds at most), so a conversion never waits on it.
-- **Reports**: progress every 10 seconds while it plays and at a pause; at
+- **Reports**: progress every 10 seconds while it plays, `paused` at a
+  pause and every 30 seconds while paused (the server forgets a player
+  quiet for 90 seconds, and remotes drop it); at
   a track's end, `stopped` at its length, and the next track starts.
   Reports that can't go out wait with the video's ([Reports](#playing)).
 - **Failures**: a track the device can't decode is asked for again as a

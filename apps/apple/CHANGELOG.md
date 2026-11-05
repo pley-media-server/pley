@@ -103,7 +103,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the tabs, or a toolbar button on the Mac, shows what plays on them, and
   plays, pauses, seeks, skips, goes to the next or previous track (or
   channel) and stops it. Every Apple device, Apple TV included, obeys
-  your remotes, the web's too, while Pley is open or music plays.
+  your remotes, the web's too, while Pley is open or music plays, and
+  music paused here stays on them.
 - Your remotes can change the audio and subtitles of a movie or an episode
   playing on an Apple device, and see which ones it plays.
 - The remote lists all your other devices that are on, playing or ready

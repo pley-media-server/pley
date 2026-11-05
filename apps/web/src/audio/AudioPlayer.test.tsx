@@ -212,3 +212,54 @@ describe("AudioPlayer obeying the remote", () => {
     await waitFor(() => expect(starts(requests).at(-1)?.body).toMatchObject({ item_id: 21 }));
   });
 });
+
+describe("AudioPlayer paused", () => {
+  beforeEach(() => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps saying it is paused, so remotes keep listing it", async () => {
+    const requests = serve();
+    const { container } = renderWithProviders(
+      <AudioPlayerProvider>
+        <Queue />
+      </AudioPlayerProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+    const audio = container.querySelector("audio")!;
+    await waitFor(() => expect(audio.getAttribute("src")).toBe("/api/playback/t1/file"));
+    act(() => {
+      audio.dispatchEvent(new Event("play"));
+    });
+
+    vi.useFakeTimers();
+    act(() => {
+      audio.dispatchEvent(new Event("pause"));
+    });
+    const paused = reports(requests).length;
+    expect(reports(requests).at(-1)).toMatchObject({ state: "paused", session_id: "t1" });
+
+    // The server counts a player quiet for 90 s as gone: one report every 30 s.
+    act(() => {
+      vi.advanceTimersByTime(29_000);
+    });
+    expect(reports(requests)).toHaveLength(paused);
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(reports(requests)).toHaveLength(paused + 1);
+    expect(reports(requests).at(-1)).toMatchObject({ state: "paused", session_id: "t1" });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(reports(requests)).toHaveLength(paused + 3);
+  });
+});
