@@ -17,6 +17,9 @@ sub test_events_request_only_for_http()
     tkEqual(evRequest("http://[fd00::5]:7539", "t", "ua").host, "fd00::5", "an IPv6 address without its brackets")
     tkInvalid(evRequest("https://pley.example.com", "t", "ua"), "no TLS on Roku's sockets")
     tkInvalid(evRequest("http://nas:7539", "", "ua"), "signed out")
+    ' As a receiver of casts (Cast.brs).
+    receiver = evRequest("http://nas:7539", "t", "ua", castReceiverQuery("8f2c-41", "Den", true))
+    tkEqual(receiver.text.Split(crlf)[0], "GET /api/events?receiver=8f2c-41&device_name=Den&device_kind=tv&casts=item,live HTTP/1.1")
 end sub
 
 sub test_events_from_a_chunked_answer_in_pieces()

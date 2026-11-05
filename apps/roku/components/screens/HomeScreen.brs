@@ -141,12 +141,14 @@ sub onHousehold(event as object)
 end sub
 
 ' Live TV in the menu while the server has channels this profile may
-' watch; an older server (404) has none.
+' watch; an older server (404) has none. The scene says so to the user's
+' remotes, which then cast channels here.
 sub onLive(event as object)
     answer = event.getData()
     live = false
     if answer.ok and httpObject(answer.data) <> invalid then live = httpTrue(answer.data.available)
     if not answer.ok and answer.status <> 404 and answer.status <> 403 then return
+    m.top.getScene().liveTv = live
     if live = m.live then return
     m.live = live
     buildMenu()

@@ -31,6 +31,8 @@ sub init()
     ' whether it has played.
     m.attempt = 0
     m.sessionId = ""
+    ' Where the track opening starts (ms): 0 but for a place a cast sent.
+    m.startMs = 0
     m.info = invalid
     m.detail = invalid
     m.mode = "auto"
@@ -63,7 +65,7 @@ sub onPlay()
     showQueue()
     m.top.message = ""
     m.top.stoppedBy = ""
-    playTrack(m.queue.at, "auto")
+    playTrack(m.queue.at, "auto", Int(httpNumber(request.fromMs, 0)))
 end sub
 
 ' The queue as Now Playing lists it.
@@ -81,13 +83,17 @@ sub onJump()
     playTrack(at, "auto")
 end sub
 
-' The track at, from its start; its session and its details are asked for
-' together (the details say the file's container).
-sub playTrack(at as integer, mode as string)
+' The track at, from its start (or startMs into it: a place a cast sent);
+' its session and its details are asked for together (the details say the
+' file's container).
+sub playTrack(at as integer, mode as string, startMs = 0 as integer)
     showTrack(at, "loading")
     m.mode = mode
+    if startMs < 0 then startMs = 0
+    m.startMs = startMs
+    m.top.positionMs = startMs
     track = musicTrackAt(m.queue, at)
-    uiRequest({ op: "play", itemId: track.itemId, startMs: 0, mode: mode, attempt: m.attempt, controls: remoteMusicControls() }, "onSession")
+    uiRequest({ op: "play", itemId: track.itemId, startMs: startMs, mode: mode, attempt: m.attempt, controls: remoteMusicControls() }, "onSession")
     uiRequest({ method: "GET", path: "/api/items/" + urlValue(track.itemId), attempt: m.attempt }, "onDetail")
 end sub
 
@@ -151,6 +157,7 @@ sub begin()
     content.url = url
     content.streamFormat = musicStreamFormat(m.info, m.detail)
     content.title = track.title
+    if m.startMs > 0 then content.playStart = Int(m.startMs / 1000)
     if LCase(Left(url, 8)) = "https://" then nodesFillCertificates(content)
     duration = Int(httpNumber(m.info.duration_ms, 0))
     if duration > 0 then m.top.durationMs = duration

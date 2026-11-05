@@ -431,7 +431,8 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 ### Remote control
 
 The Roku obeys the remote on the profile's other devices that have one
-([API.md](API.md#remote-control)) and shows no remote of its own. Its
+([API.md](API.md#remote-control)), and plays what it casts here (Casts,
+below); it shows no remote of its own and casts nothing. Its
 players say what they obey when they start (`controls`), that they play
 on a TV (`device_kind: "tv"`) and the name given to the Roku in its
 settings (`device_name`, "Living room Roku"; a Roku nobody named goes by
@@ -482,6 +483,34 @@ puts Up Next away, as Rewind does. The rule is
 `components/lib/Remote.brs` (the step's, `components/lib/Live.brs`),
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
 (the tracks by cases of their own).
+
+**Casts.** While its event stream is open (an `http://` server, as for
+the commands), the Roku is one of the devices the profile's remotes play
+things on ([API.md](API.md#casting)): the stream names it a receiver by
+the `client_id` its players send, a TV with the name its players give,
+taking titles and playlists (`casts=item`) and channels while Home's menu
+has Live TV (`live`), and opens again when Live TV comes or goes. What a
+remote sends plays as the Roku's own Play would, in place of what plays:
+
+- a movie or an episode in the player, from the place sent, else where
+  its page's Play starts it; a show or a season its next episode;
+- an album or an artist as the music's queue, in order or shuffled, with
+  Now Playing; a track its album from it, from the place sent;
+- a playlist as its page plays it: music as the queue, videos in the
+  player one after the other, shuffled as its Shuffle does;
+- a channel in the live player, Up and Down going through All channels.
+
+A video or a channel playing gives way to it, as does music to a video.
+"Playing from" and the remote's device ("another device" when it has no
+name) shows for 4 s at the top, as the players' notices do (over the
+video player, under the title it shows as an item begins); a show,
+album, artist or playlist with nothing to play says "Nothing to play",
+and what couldn't be fetched says why. A cast for another device, or one
+that comes while the Roku is signed out, signing in or asking who's
+watching, does nothing (a cast never gets past a profile's PIN), and of
+two sent close together the later plays. The rules are
+`components/lib/Cast.brs`; the scene (`components/MainScene.brs`)
+fetches what a cast needs and plays it.
 
 ### Requests and Discover
 
@@ -587,7 +616,7 @@ then shows it. It is kept on the Roku for each server.
 | Path | What |
 |---|---|
 | `source/main.brs` | Starts the scene |
-| `components/MainScene.*` | The screen stack, the HTTP agent for pictures, sign-in when the server ends it |
+| `components/MainScene.*` | The screen stack, the HTTP agent for pictures, sign-in when the server ends it, what the user's remotes cast here |
 | `components/MusicPlayer.*` | The music queue on the scene's Audio node |
 | `components/screens/` | One component per screen |
 | `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`) |
@@ -718,8 +747,10 @@ bun run images    # the nine-patch focus and watched-mark images
   Next and its wait at the end, the title as an item begins, reconnecting,
   stalls, media that ends short, the sleep timers' ends, picture
   subtitles shown in time and the remote's commands, which a player obeys
-  only once it plays, have only unit tests), one fetch at a time, the
-  odd dropped key, and no measure of a Roku's speed.
+  only once it plays, have only unit tests), sockets that connect but send
+  nothing (the event stream, and the casts it brings, have only unit
+  tests), one fetch at a time, the odd dropped key, and no measure of a
+  Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.
@@ -738,9 +769,9 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, the requests, Discover's Your
   requests and a title page with a request each 30 s. The remote on other
   devices reaches the Roku only through them; with `https://`, the Roku
-  offers remotes only Stop, and a film or music stopped from another
-  device stops at its next report (within 10 s while playing, 30 s while
-  paused), a channel when its stream breaks off.
+  offers remotes only Stop and takes no casts, and a film or music
+  stopped from another device stops at its next report (within 10 s while
+  playing, 30 s while paused), a channel when its stream breaks off.
 - Audio other than the file's default isn't played as it is.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Not yet: an editable music queue.

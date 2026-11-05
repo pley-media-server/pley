@@ -8,8 +8,9 @@
 
 ' The request for server's stream with the access token: { host, port,
 ' text }, or invalid for an https server, an address that doesn't parse,
-' or no token.
-function evRequest(server as string, token as string, userAgent as string) as dynamic
+' or no token. query ("a=1&b=2", "" for none) says what the stream is for:
+' this Roku as a receiver of casts (Cast.brs's castReceiverQuery).
+function evRequest(server as string, token as string, userAgent as string, query = "" as string) as dynamic
     parts = urlParse(server)
     if parts = invalid or parts.scheme <> "http" or token = "" then return invalid
     port = parts.port
@@ -17,9 +18,11 @@ function evRequest(server as string, token as string, userAgent as string) as dy
     host = parts.host
     ' An IPv6 address: its brackets go in the Host header, not the socket.
     if Left(host, 1) = "[" then host = Mid(host, 2, Len(host) - 2)
+    path = "/api/events"
+    if query <> "" then path = path + "?" + query
     crlf = Chr(13) + Chr(10)
     lines = [
-        "GET /api/events HTTP/1.1",
+        "GET " + path + " HTTP/1.1",
         "Host: " + Mid(urlOriginOf("http", parts.host, parts.port), 8),
         "Authorization: Bearer " + token,
         "Accept: text/event-stream",

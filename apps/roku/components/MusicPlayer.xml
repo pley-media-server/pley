@@ -4,8 +4,10 @@
      being used, and reports where each got to. Now Playing shows it. -->
 <component name="MusicPlayer" extends="Group">
     <interface>
-        <!-- { queue: [tracks (lib/Music.brs)], at, shuffled }: plays queue
-             from at; shuffled, in a random order that starts there. -->
+        <!-- { queue: [tracks (lib/Music.brs)], at, shuffled, fromMs }:
+             plays queue from at (fromMs into it, a place a cast sent; 0
+             when left out); shuffled, in a random order that starts
+             there. -->
         <field id="play" type="assocarray" alwaysNotify="true" />
         <!-- "toggle", "pause", "resume", "next", "previous", "shuffle",
              "unshuffle", "stop", or "sleep": the sleep timer's button

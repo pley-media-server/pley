@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's one scene: it starts the API task and keeps the stack of
-     screens, with the ready-to-watch card over them; Back on the first
-     screen leaves the app. -->
+     screens, with the ready-to-watch card over them, and plays what the
+     user's remotes cast here; Back on the first screen leaves the app. -->
 <component name="MainScene" extends="Scene">
     <interface>
         <!-- Roku's AppLaunchComplete went (uiLaunched). -->
@@ -44,6 +44,10 @@
         <!-- The server's event stream is up: what changes elsewhere is
              told, so pages showing requests need not ask on their own. -->
         <field id="eventsLive" type="boolean" />
+        <!-- The server has Live TV for the profile signed in (Home's menu
+             has it): the event stream says this Roku takes channels from
+             the user's remotes. -->
+        <field id="liveTv" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -55,10 +59,22 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Cast.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
         <Group id="screens" />
         <!-- Ready-to-watch news, at the bottom right over the pages. -->
         <RequestNotice id="notice" translation="[1104, 702]" visible="false" />
+        <!-- "Playing from …" as a cast starts, over the screen on top, as
+             the players' notices look (castSay places it). -->
+        <Group id="castToast" visible="false">
+            <Rectangle width="1000" height="96" color="0x16191EE6" />
+            <Label id="castToastText" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+        </Group>
+        <Timer id="castToastTimer" duration="4" />
         <!-- While a notice waits: whether the remote has rested and the
              page is free for it, four times a second. -->
         <Timer id="noticeWait" duration="0.25" repeat="true" />

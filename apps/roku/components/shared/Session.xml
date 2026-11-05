@@ -13,6 +13,12 @@
         <!-- The current access token, for the HTTP agents of pictures and video. -->
         <field id="accessToken" type="string" />
         <field id="userAgent" type="string" />
+        <!-- This Roku as its players name it to the server: its client_id,
+             and the name its owner gave it ("" for none, Remote.brs's
+             remoteDeviceName). The event stream says it takes casts by
+             them. -->
+        <field id="playerId" type="string" />
+        <field id="deviceName" type="string" />
         <field id="appVersion" type="string" />
         <field id="device" type="string" />
         <!-- The profile signed in (GET /api/auth/me), once the server said:

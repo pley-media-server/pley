@@ -93,6 +93,8 @@ sub apiDeviceFacts()
     end if
     ' What the user's remotes call this Roku: the name its owner gave it.
     m.deviceName = remoteDeviceName(device.GetFriendlyName())
+    m.session.playerId = m.playerId
+    m.session.deviceName = m.deviceName
     m.session.userAgent = m.userAgent
     m.session.appVersion = version
     m.session.device = model + " · Roku OS " + httpOsVersion(os)

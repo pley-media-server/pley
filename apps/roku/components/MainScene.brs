@@ -35,6 +35,17 @@ sub init()
     m.gather.observeField("fire", "onGathered")
     session.observeField("accessToken", "onStream")
     session.observeField("server", "onStream")
+    m.top.observeField("liveTv", "onStream")
+
+    ' Casts from the user's remotes (Cast.brs): which cast plays (an
+    ' answer for an earlier one is left), an artist's albums gathered for
+    ' it, and the notice saying where it came from.
+    m.castAsk = 0
+    m.castGather = invalid
+    m.castToast = m.top.findNode("castToast")
+    m.castToastText = m.top.findNode("castToastText")
+    m.castToastTimer = m.top.findNode("castToastTimer")
+    m.castToastTimer.observeField("fire", "onCastToastTimer")
 
     ' Requests: what the profile may do (the summary), asked as a profile
     ' signs in, as the stream connects, a second after request events and,
@@ -120,9 +131,12 @@ sub launchDialogDone()
     m.top.signalBeacon("AppDialogComplete")
 end sub
 
-' The event stream follows the server and the token signed in with.
+' The event stream follows the server and the token signed in with, and
+' names this Roku a receiver of casts: of channels too while the profile
+' has Live TV.
 sub onStream()
     session = m.global.session
+    m.events.query = castReceiverQuery(session.playerId, session.deviceName, m.top.liveTv)
     m.events.userAgent = session.userAgent
     m.events.server = session.server
     m.events.token = session.accessToken
@@ -150,9 +164,14 @@ end sub
 ' elsewhere ends at once, as does a live channel whose connection someone
 ' took over. The user's remote, on another device, controls the player on
 ' top and the music (Remote.brs); each acts only on its own session, and
-' the music, playing behind the screens, hears of its own stop too.
+' the music, playing behind the screens, hears of its own stop too. What
+' the remote casts here plays (onCast).
 sub onServerEvent(event as object)
     data = event.getData()
+    if httpString(data.type) = "cast"
+        onCast(data)
+        return
+    end if
     if httpString(data.type) = "session_stopped"
         m.music.serverStopped = data
         if m.stack.Count() > 0 and m.stack.Peek().hasField("serverStopped") then m.stack.Peek().serverStopped = data
@@ -195,6 +214,9 @@ sub onProfile()
     m.badgesAsked = {}
     ' Live TV opens at the channel this profile watched last, not the last profile's.
     m.top.liveChannel = 0
+    ' A cast for the profile before, still fetching, plays nothing.
+    m.castAsk = m.castAsk + 1
+    m.castGather = invalid
     ' The notices were the profile before's: one shown goes.
     m.notices = []
     if m.shownNotice <> invalid
@@ -569,6 +591,229 @@ sub coverNotice()
     m.noticeCard.hide = true
     m.notices.Unshift(m.shownNotice)
     m.shownNotice = invalid
+end sub
+
+' --- Casts ---
+
+' A cast from the user's remote, on another device (Cast.brs has the
+' rules): for this Roku, while it takes casts, what it names plays as the
+' Roku's own Play would, in place of what plays, once what it needs has
+' come, and "Playing from …" says where it came from. Of two casts close
+' together the later plays; an answer that comes once casts aren't taken
+' (signed out, "Who's watching?") is left.
+sub onCast(data as object)
+    action = castAction(m.global.session.playerId, castTaken(), data)
+    if action.act = "none" then return
+    m.castAsk = m.castAsk + 1
+    m.castGather = invalid
+    banner = castBanner(data.from)
+    if action.act = "channel"
+        castRequest("/api/live/channels/" + urlValue(action.channelId), "onCastChannel", { banner: banner })
+    else if action.act = "playlist"
+        castRequest("/api/playlists/" + urlValue(action.playlistId), "onCastPlaylist", { build: "playlist", banner: banner, shuffle: action.shuffle })
+    else
+        castRequest("/api/items/" + urlValue(action.itemId), "onCastItem", { banner: banner, startMs: action.startMs, shuffle: action.shuffle })
+    end if
+end sub
+
+' Whether casts are taken now: signed in, past the sign-in and "Who's
+' watching?" (Cast.brs's castTakes).
+function castTaken() as boolean
+    routes = []
+    for each screen in m.stack
+        routes.Push(screen.route)
+    end for
+    return castTakes(m.global.session.signedIn, routes)
+end function
+
+' A request for the cast under way, its answer to callback; more: the
+' build, and what the cast said that the answer needs.
+sub castRequest(path as string, callback as string, more as object)
+    spec = { method: "GET", path: path, cast: m.castAsk }
+    spec.Append(more)
+    uiRequest(spec, callback)
+end sub
+
+' The data of a cast's answer while that cast is still the one to play
+' and casts are taken; invalid otherwise, or when it failed, which is
+' said where the cast would have been.
+function castAnswer(event as object) as dynamic
+    if event.getRoSGNode().spec.cast <> m.castAsk or not castTaken() then return invalid
+    answer = event.getData()
+    if answer.ok and answer.data <> invalid then return answer.data
+    ' Signed out, the scene shows sign-in.
+    if answer.error <> "signed_out" then castSay(answer.message)
+    return invalid
+end function
+
+' A title: a movie or an episode plays, a show or a season its next
+' episode, an album or an artist its tracks, a track its album from it.
+sub onCastItem(event as object)
+    item = castAnswer(event)
+    if item = invalid then return
+    spec = event.getRoSGNode().spec
+    id = urlValue(item.id)
+    plan = castItemPlay(httpString(item.kind), spec.startMs, spec.shuffle)
+    if plan.plays = "video"
+        ' The player has the item already: one request less before it plays.
+        castShow({ to: "player", params: { itemId: item.id, startMs: castVideoStartMs(plan.startMs, item), item: item } }, spec.banner)
+    else if plan.plays = "nextEpisode"
+        castRequest("/api/items/" + id + "/on-deck", "onCastOnDeck", { banner: spec.banner })
+    else if plan.plays = "album"
+        castRequest("/api/items/" + id + "/children", "onCastTracks", { build: "trackQueue", banner: spec.banner, shuffle: plan.shuffle })
+    else if plan.plays = "artist"
+        castRequest("/api/items/" + id + "/children", "onCastAlbums", { build: "albums", banner: spec.banner, shuffle: plan.shuffle })
+    else if plan.plays = "track"
+        startMs = plan.startMs
+        if startMs < 0 then startMs = 0
+        albumId = httpNumber(item.parent_id, 0)
+        if albumId > 0
+            castRequest("/api/items/" + urlValue(albumId) + "/children", "onCastTracks", { build: "trackQueue", banner: spec.banner, track: item, startMs: startMs })
+        else
+            castTracks(musicTracks([item], m.global.session.server), 0, false, startMs, spec.banner)
+        end if
+    else
+        castSay(castNothing())
+    end if
+end sub
+
+' A show's or a season's next episode, where its Play starts it.
+sub onCastOnDeck(event as object)
+    data = castAnswer(event)
+    if data = invalid then return
+    episode = httpObject(data.item)
+    if episode = invalid
+        castSay(castNothing())
+        return
+    end if
+    castShow({ to: "player", params: { itemId: episode.id, startMs: castVideoStartMs(-1, episode) } }, event.getRoSGNode().spec.banner)
+end sub
+
+' An album's tracks, from the first (shuffled: from any); or a track's
+' album from that track, as the album's page plays a track, the track
+' alone when it isn't there.
+sub onCastTracks(event as object)
+    data = castAnswer(event)
+    if data = invalid then return
+    spec = event.getRoSGNode().spec
+    tracks = httpArray(data.queue)
+    if spec.track = invalid
+        castTracks(tracks, 0, httpTrue(spec.shuffle), 0, spec.banner)
+        return
+    end if
+    at = castTrackAt(tracks, spec.track.id)
+    if at < 0
+        tracks = musicTracks([spec.track], m.global.session.server)
+        at = 0
+    end if
+    castTracks(tracks, at, false, spec.startMs, spec.banner)
+end sub
+
+' An artist's albums came, in the server's order: their tracks are asked
+' for an album at a time, then play together, as the artist's Play plays
+' them.
+sub onCastAlbums(event as object)
+    data = castAnswer(event)
+    if data = invalid then return
+    spec = event.getRoSGNode().spec
+    m.castGather = { ids: httpArray(data.order), at: 0, tracks: [], shuffle: spec.shuffle, banner: spec.banner }
+    castGatherNext()
+end sub
+
+sub castGatherNext()
+    gather = m.castGather
+    if gather.at < gather.ids.Count()
+        castRequest("/api/items/" + urlValue(gather.ids[gather.at]) + "/children", "onCastGathered", { build: "trackQueue" })
+        return
+    end if
+    m.castGather = invalid
+    castTracks(gather.tracks, 0, gather.shuffle, 0, gather.banner)
+end sub
+
+sub onCastGathered(event as object)
+    data = castAnswer(event)
+    if data = invalid or m.castGather = invalid then return
+    m.castGather.tracks.Append(httpArray(data.queue))
+    m.castGather.at = m.castGather.at + 1
+    castGatherNext()
+end sub
+
+' A playlist, as its page's Play (or Shuffle) plays it: music as the
+' queue with Now Playing, videos in the player one after the other.
+sub onCastPlaylist(event as object)
+    data = castAnswer(event)
+    if data = invalid then return
+    spec = event.getRoSGNode().spec
+    shuffled = httpTrue(spec.shuffle)
+    if httpString(data.kind) = "audio"
+        castTracks(httpArray(data.queue), 0, shuffled, 0, spec.banner)
+        return
+    end if
+    queue = pageQueueFrom(httpArray(data.queue), 0, shuffled)
+    if queue.Count() = 0
+        castSay(castNothing())
+        return
+    end if
+    castShow({ to: "player", params: { itemId: queue[0].itemId, startMs: queue[0].startMs, queue: queue } }, spec.banner)
+end sub
+
+' A channel, tuned in the live player; up and down go through All
+' channels.
+sub onCastChannel(event as object)
+    data = castAnswer(event)
+    if data = invalid then return
+    channel = liveChannel(data, m.global.session.server, liveLogoWidth(), "all")
+    if channel = invalid
+        castSay(castNothing())
+        return
+    end if
+    castShow({ to: "livePlayer", params: { channel: channel, category: "all", categoryName: liveCategoryName("all", []) } }, event.getRoSGNode().spec.banner)
+end sub
+
+' Tracks cast here play as the music's queue from at (shuffled: from any
+' track, the others after it in a random order, as Shuffle on their page
+' plays them), fromMs into the first, with Now Playing.
+sub castTracks(tracks as object, at as integer, shuffled as boolean, fromMs as integer, banner as string)
+    if tracks.Count() = 0
+        castSay(castNothing())
+        return
+    end if
+    if shuffled then at = Rnd(tracks.Count()) - 1
+    m.music.play = { queue: tracks, at: at, shuffled: shuffled, fromMs: fromMs }
+    if m.stack.Count() > 0 and m.stack.Peek().subtype() = "NowPlayingScreen"
+        castSay(banner)
+        return
+    end if
+    castShow({ to: "nowPlaying" }, banner)
+end sub
+
+' What a cast plays shows in place of the player on top (a video or a
+' channel, which then ends), else over the screen on top, a dialog up
+' closed; and where it came from over it.
+sub castShow(nav as object, banner as string)
+    if dialogShowing() and m.top.dialog.hasField("close") then m.top.dialog.close = true
+    top = ""
+    if m.stack.Count() > 0 then top = m.stack.Peek().subtype()
+    nav.replace = top = "PlayerScreen" or top = "LivePlayerScreen"
+    show(nav)
+    castSay(banner)
+end sub
+
+' A cast's notice for 4 s at the top, as the players' notices show; over
+' the video player, under the title it shows at the top as an item
+' begins.
+sub castSay(text as string)
+    top = 72
+    if m.stack.Count() > 0 and m.stack.Peek().subtype() = "PlayerScreen" then top = 232
+    m.castToast.translation = [460, top]
+    m.castToastText.text = text
+    m.castToast.visible = true
+    m.castToastTimer.control = "stop"
+    m.castToastTimer.control = "start"
+end sub
+
+sub onCastToastTimer()
+    m.castToast.visible = false
 end sub
 
 ' Music stopped from another device or by the server's administrator

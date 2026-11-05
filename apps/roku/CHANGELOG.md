@@ -10,6 +10,11 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser plays a film, an episode, a show, an album, an
+  artist, a track, a playlist or a Live TV channel on the Roku ("Play
+  on…"): it starts as the Roku's own Play would, in place of what plays,
+  and the Roku says "Playing from" the device it came from. It needs an
+  `http://` server, as the rest of the remote does.
 - Your phone or browser changes the audio and subtitles of a film or
   episode playing on the Roku, as the player's own menu does (a pick is
   saved for the show or movie), and sees which play. Like the rest of the

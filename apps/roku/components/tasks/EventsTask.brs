@@ -1,7 +1,8 @@
 ' The server's event stream on a socket (lib/Events.brs): connected while
 ' there is a server and a token, again with each new token (the server
-' ends a stream when its token does) and after the stream ends or fails,
-' 2 s later and doubling to a minute. Each event goes to `event`, for the
+' ends a stream when its token does) or query (what this Roku takes as a
+' receiver of casts) and after the stream ends or fails, 2 s later and
+' doubling to a minute. Each event goes to `event`, for the
 ' scene, and `live` says whether the stream is up (while it isn't, the
 ' scene asks the server itself). An https server's stream isn't followed:
 ' Roku's sockets have no TLS. A socket that misbehaves is closed and tried
@@ -15,6 +16,7 @@ sub eventsRun()
     m.port = CreateObject("roMessagePort")
     m.top.observeField("server", m.port)
     m.top.observeField("token", m.port)
+    m.top.observeField("query", m.port)
     m.clock = CreateObject("roTimespan")
     m.socket = invalid
     m.reader = invalid
@@ -29,7 +31,7 @@ sub eventsRun()
         msg = wait(1000, m.port)
         kind = type(msg)
         if kind = "roSGNodeEvent"
-            ' Another server or token: at once, with it.
+            ' Another server, token or query: at once, with it.
             m.failures = 0
             connect()
         else if kind = "roSocketEvent"
@@ -50,7 +52,7 @@ end sub
 sub connect()
     close()
     m.connectAt = -1
-    request = evRequest(m.top.server, m.top.token, m.top.userAgent)
+    request = evRequest(m.top.server, m.top.token, m.top.userAgent, m.top.query)
     if request = invalid then return
     connected = false
     socket = invalid

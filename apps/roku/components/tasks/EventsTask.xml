@@ -8,6 +8,10 @@
         <field id="server" type="string" />
         <field id="token" type="string" />
         <field id="userAgent" type="string" />
+        <!-- The stream's query: this Roku as a receiver of casts
+             (Cast.brs's castReceiverQuery). A change connects again, so
+             remotes learn what it takes now. -->
+        <field id="query" type="string" />
         <!-- The token the server refused (it ran out while nothing else
              asked the server): the scene has it renewed. -->
         <field id="tokenRefused" type="string" alwaysNotify="true" />
