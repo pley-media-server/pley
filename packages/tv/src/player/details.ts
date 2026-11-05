@@ -18,6 +18,15 @@ export const T = {
   subtitlesOff: "Off",
   subtitlesFailed: "These subtitles couldn't be loaded.",
   subtitlesAdded: (label: string) => `Subtitles added: ${label}`,
+  /** What the user's remote, on another device, did, said for a moment: a track or quality as its menu names it, `null` subtitles off. */
+  remote: {
+    paused: "Paused",
+    playing: "Playing",
+    jumpedTo: (at: string) => `Jumped to ${at}`,
+    audio: (label: string) => `Audio: ${label}`,
+    subtitles: (label: string | null) => (label === null ? "Subtitles off" : `Subtitles: ${label}`),
+    quality: (label: string) => `Quality: ${label}`,
+  },
   slowServer: "The server can't keep up with this video. Try a lower quality.",
   noFile: "This item has no file to play.",
   burnedIn: "Burned in",

@@ -114,6 +114,69 @@ function remoteAction(player as object, command as dynamic) as object
     return none
 end function
 
+' How long the video says what the remote did (remoteNotice), in seconds.
+function remoteNoticeSeconds() as integer
+    return 2
+end function
+
+' What the video says for a moment, where its notices show, of a command
+' it obeyed (action, as remoteAction gives it for command): "Paused",
+' "Playing", the skip asked for in whole seconds ("+30 s", "−10 s") or
+' where a seek went ("Jumped to 12:34"). The command never brings up the
+' player's controls, so this is all that shows of it. "" for the rest: a
+' command that changes nothing, and next, whose title shows as it begins.
+function remoteNotice(command as dynamic, action as object) as string
+    if action.act = "pause" then return "Paused"
+    if action.act = "play" then return "Playing"
+    data = httpObject(command)
+    if action.act <> "seek" or data = invalid then return ""
+    what = httpString(data.command)
+    if what = "seek" then return "Jumped to " + fmtClock(action.positionMs)
+    if what <> "skip" then return ""
+    offset = httpNumber(data.offset_ms, 0)
+    if offset = 0 then return ""
+    ' Rounded, and never 0 for a step there is, as Android TV's seek badge.
+    seconds = Int((Abs(offset) + 500) / 1000)
+    if seconds < 1 then seconds = 1
+    if offset < 0 then return "−" + seconds.ToStr() + " s"
+    return "+" + seconds.ToStr() + " s"
+end function
+
+' What the video says of the remote's audio or subtitles it picked (act
+' and index, as remoteTrackAction gives them), the track named as Pley's
+' menu names it (tracks: Media.brs's mediaTracks for the file): "Audio:
+' French (AC3 5.1)", "Subtitles: English (SRT)", "Subtitles off".
+function remoteTrackNotice(action as object, tracks as object) as string
+    if action.act = "audio"
+        list = tracks.audio
+        heading = "Audio: "
+    else if action.act = "subtitles"
+        if action.index = -1 then return "Subtitles off"
+        list = tracks.subtitles
+        heading = "Subtitles: "
+    else
+        return ""
+    end if
+    values = httpArray(list.values)
+    labels = httpArray(list.labels)
+    for at = 0 to values.Count() - 1
+        if httpNumber(values[at], -9) = action.index and at < labels.Count() then return heading + httpString(labels[at])
+    end for
+    return ""
+end function
+
+' What the video says of the remote's quality it picked (act and quality,
+' as remoteQualityAction gives them), named as the player's Quality menu
+' names it for the file (menu: AutoQuality.brs's aqMenuFor): "Quality: 8
+' Mbps 1080p", "Quality: Automatic".
+function remoteQualityNotice(action as object, menu as dynamic) as string
+    if action.act <> "quality" then return ""
+    for each quality in httpArray(menu)
+        if httpString(quality.id) = action.quality then return "Quality: " + httpString(quality.label)
+    end for
+    return ""
+end function
+
 ' What a video does with the remote's audio or subtitles, as { act, index,
 ' report }:
 ' - act "audio" or "subtitles": that track (index; -1 turns subtitles

@@ -140,17 +140,18 @@ export interface StartFacts {
 
 /**
  * The first screen (the Android app's startKey): no server, Servers; no
- * sign-in, Link; a household of several profiles, "Who's watching?".
- * "Always start as" skips that question and goes on as the profile the TV
- * was left on, but never past its PIN: its pad comes first when it has one,
- * and "Who's watching?" when the TV doesn't know whether it has one.
+ * sign-in, Link; otherwise Home as the profile the TV was left on, but never
+ * past its PIN. In a household of several profiles, one with a PIN asks
+ * first: "Who's watching?", or its pad with "Always start as"; and so does
+ * one the TV doesn't know has none.
  */
 export function startPage(f: StartFacts): Start["page"] {
   if (!f.server) return "servers";
   if (!f.signedIn) return "link";
   if (f.household <= 1) return "home";
+  if (f.me && !f.me.has_pin) return "home";
   if (f.alwaysStartAs === null || !f.me) return "profiles";
-  return f.me.has_pin ? "pin" : "home";
+  return "pin";
 }
 
 /**

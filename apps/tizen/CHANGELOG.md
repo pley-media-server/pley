@@ -8,6 +8,23 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- When your phone or browser pauses, plays, seeks or skips a film or
+  episode on the TV, or changes its audio, subtitles or quality, the TV
+  says so for 2 s at the top right ("Paused", "+30 s", "Jumped to 12:34",
+  "Subtitles off") and doesn't bring up the player's controls. Controls
+  already up hide as they do while it plays, even once it is paused, until
+  a key is pressed on the TV.
+
+### Changed
+
+- The TV starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+
 ### Security
 
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
@@ -130,6 +147,11 @@ describes how they are made.
 - Search's rows hold every result, up to 200 titles, 200 people and 200
   Live TV channels, where they stopped at 60 titles and 12 people and
   channels.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, filled for a
+  favourite, where Watch and Add to or Remove from favourites were rows of
+  the panel. In the live player, the star no longer shows its words under
+  it, which ran under Channels.
 
 ### Removed
 

@@ -51,10 +51,11 @@ The native Samsung app installs the same way, as a `.tpk`
 
 Sign-in, server discovery (a sweep of the TV's subnet), "Who's watching?"
 and its PINs, the screens, the player's keys and panels, and offline
-behaviour follow the Android TV app. With Always start as too, a start
-never goes on as a profile with a PIN without it: the TV keeps the profile
-it was left on (`GET /api/auth/me`, with `has_pin`), and until it has,
-asks "Who's watching?". What differs:
+behaviour follow the Android TV app. A start goes straight into Home as
+the profile the TV was left on when that profile has no PIN, and never
+goes on as one with a PIN without it, with Always start as too: the TV
+keeps the profile it was left on (`GET /api/auth/me`, with `has_pin`), and
+until it has, asks "Who's watching?". What differs:
 
 ### Remote keys
 
@@ -136,7 +137,9 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **Guide:** two and a half hours across. Left and Right go programme by
   programme, rewind and fast forward (or Previous and Next) move two hours,
   CH+ and CH− a screen of channels, and Back returns to now before it goes
-  to the rail. A long OK or the menu key opens a programme's details.
+  to the rail. A long OK or the menu key opens a programme's details, with
+  Watch and, beside it, the favourite as a star alone, filled for a
+  favourite, as in the player's controls.
 - **Tuning:** `POST …/watch` with this TV's id (`pley.installId`) and
   `keyed_urls`, so AVPlay can play the playlist without the token. The app
   waits for the playlist, then plays the server's live HLS from its live
@@ -199,6 +202,16 @@ picked (`quality`: `auto`, `original`, `8m`…), so the remote ticks them;
 music has none. The rule is pinned for both Samsung apps by
 `packages/tv/test/fixtures/remote.json`, and the tracks and the quality by
 `tracks.json` beside it.
+
+A command never brings up the player's controls: whoever sent it is on
+another device. What it changed shows for 2 s as the player's toast, top
+right, as a media key's track change does: "Paused", "Playing", "+30 s"
+or "−10 s" as far as a skip asked, "Jumped to 12:34" where a seek went,
+and "Audio: …", "Subtitles: …", "Subtitles off" or "Quality: …" as the
+menus name them. Next, a channel change and a command that changes
+nothing show nothing new. Controls already up as the remote pauses hide
+5 s after the last key, as while it plays, until a key on the TV makes
+the pause the person's own; then they stay, as for any pause.
 
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open: the stream
@@ -589,6 +602,11 @@ channels as channel up and down do. Live TV stopped from another device or
 by an administrator (`session_stopped`) shows the same card, saying who
 stopped it and, on a line of its own, their message, as on Android TV. The
 rule is `Player/Remote.cs`, pinned by the same fixtures as the web app's.
+As on Android TV, a command shows no controls: what it changed is a toast
+for 2 s at the player's top right, as the CAPTIONS key's, in the Samsung
+app's words ([Remote control](#remote-control)); one that changes nothing
+says nothing, and the remote's pause keeps no controls up until a key on
+the TV makes it the person's own.
 Casts play as on the web app ([Remote control](#remote-control)), taken
 while the rail's pages or a player show: what a remote sends takes the
 place of the player showing once that one has let go of the TV's player,

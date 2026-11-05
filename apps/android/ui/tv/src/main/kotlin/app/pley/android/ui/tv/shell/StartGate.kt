@@ -21,16 +21,16 @@ data class StartFacts(
 
 /**
  * The TV's start gate (tv-addendum §3.3): no server → Servers; no tokens →
- * Link; a household of several profiles → Who's watching?; otherwise Home.
- * "Always start as" skips Who's watching? and goes on as the profile the
- * app was left on, but never past its PIN: its pad comes first when it has
- * one, and Who's watching? when the app doesn't know whether it has one.
+ * Link; otherwise Home as the profile the app was left on, but never past
+ * its PIN. In a household of several profiles, one with a PIN asks first:
+ * Who's watching?, or its pad with "Always start as"; and so does one the
+ * app doesn't know has none.
  */
 fun startKey(facts: StartFacts): PleyKey = when {
     facts.server == null -> PleyKey.Servers
     !facts.signedIn -> PleyKey.Link(facts.server)
     facts.profiles <= 1 -> PleyKey.Home
+    facts.hasPin == false -> PleyKey.Home
     facts.alwaysStartAs == null || facts.hasPin == null -> PleyKey.Profiles()
-    facts.hasPin -> PleyKey.Profiles(pin = true)
-    else -> PleyKey.Home
+    else -> PleyKey.Profiles(pin = true)
 }

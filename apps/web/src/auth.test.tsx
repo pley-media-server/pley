@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { keys } from "@/api/hooks";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
+import { lastProfile } from "@/lib/lastProfile";
 import { makeRequest, makeRequestList, makeSummary } from "@/test/requests";
 import { RequireAdmin, RequireAuth, useAuth } from "./auth";
 
@@ -38,6 +39,13 @@ describe("RequireAuth", () => {
     mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => ({ ...testUser, name: "Sam" }) });
     renderApp();
     expect(await screen.findByText("Hello Sam")).toBeInTheDocument();
+  });
+
+  it("remembers the profile this browser is used as, for its next sign-in", async () => {
+    mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => ({ ...testUser, id: 4 }) });
+    expect(lastProfile()).toBeNull();
+    renderApp();
+    await waitFor(() => expect(lastProfile()).toBe(4));
   });
 
   it("sends everyone else to sign in, and back afterwards", async () => {

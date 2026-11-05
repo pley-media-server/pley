@@ -245,6 +245,11 @@ def to_kodi(entries: list, index, found: list):
     return found[place].get("index", place) if place is not None else None
 
 
+def listed(found: list, place):
+    """What Kodi lists at its place `place` (None for nothing there)."""
+    return next((e for i, e in enumerate(found) if e.get("index", i) == place), None)
+
+
 def from_kodi(entries: list, position, found: list):
     """pley's track at Kodi's place `position` (None for one pley doesn't
     know, as captions Kodi found in the video)."""
@@ -495,7 +500,8 @@ class Follower:
         held (turn). Only what Kodi lists can be picked: a converted stream
         carries only the audio the server put in, and subtitles drawn onto
         the video stay. Nothing until the account's choice is shown, which
-        would undo it. {act, report}, as remote.obey_track's."""
+        would undo it. {act, report}, as remote.obey_track's, with `track`,
+        Kodi's entry for the track switched to, which remote.notice names."""
         if not self.lock.acquire(timeout=1):
             return dict(remote.NONE)
         try:
@@ -531,12 +537,15 @@ class Follower:
                     return dict(remote.NONE)
                 self.rpc("Player.SetAudioStream", {"playerid": VIDEO_PLAYER, "stream": at})
                 playing = (index, playing[1])
+                action = dict(action, track=listed(audios, at))
             elif act == "subtitles" and index == -1:
                 self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": "off"})
                 playing = (playing[0], -1)
             elif act == "subtitles":
-                self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": to_kodi(lay["subtitles"], index, subtitles), "enable": True})
+                at = to_kodi(lay["subtitles"], index, subtitles)
+                self.rpc("Player.SetSubtitle", {"playerid": VIDEO_PLAYER, "subtitle": at, "enable": True})
                 playing = (playing[0], index)
+                action = dict(action, track=listed(subtitles, at))
             if act != "none":
                 self.told_until = self.clock() + QUIET
             self.now = playing

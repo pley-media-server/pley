@@ -1047,11 +1047,13 @@ fn info_bar(
                 if focus {
                     ui.request_focus(channels_id);
                 }
+                // The star alone, as in the details: its label, wider than both buttons, ran under Channels.
                 let favourite = if c.favorite {
                     RoundButton::new(Icon::Star, "Remove from favourites")
                 } else {
                     RoundButton::new(Icon::StarOutline, "Add to favourites")
-                };
+                }
+                .show_label(false);
                 ui.group(id.with("controls"), bar_group(), |ui| {
                     let r = RoundButton::new(Icon::List, "Channels").show(ui, channels_id, Point::new(x0, at));
                     if r.activated {

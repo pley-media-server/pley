@@ -67,12 +67,13 @@ with Dev Manager.
 Sign-in, server discovery (a broadcast, then a sweep of the TV's subnet),
 the screens, the player's keys and panels, music and offline behaviour
 follow the Android TV app. The TV shows a code to type on the server's
-`/link` page (or a QR code to it), and asks "Who's watching?" at start
-when the household has more than one profile. With Always start as, a
-start never goes on as a profile with a PIN without it: the TV keeps the
-profile it was left on (`GET /api/auth/me`, with `has_pin`), opens on its
-PIN pad when it has one, and until it knows, asks "Who's watching?". What
-differs on LG:
+`/link` page (or a QR code to it), and starts straight into Home as the
+profile it was left on when that profile has no PIN (`GET /api/auth/me`,
+with `has_pin`, kept from the last launch). In a household of more than
+one profile, a start never goes on as a profile with a PIN without it: it
+asks "Who's watching?", or opens on that profile's PIN pad with Always
+start as, and asks "Who's watching?" too until the TV knows. What differs
+on LG:
 
 ### Remote and Magic Remote
 
@@ -334,6 +335,21 @@ remote a little behind settles. The rule is `crates/player/src/remote.rs`,
 pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`
 (and a video's tracks and quality, which the fixture doesn't have, by its
 own tests).
+
+A command never brings up the video player's controls, as on Android TV:
+the person watching didn't press anything. What it changed shows for 2 s
+as the player's toast at the top right: "Paused", "Playing", "+30 s" or
+"−10 s" for a skip (the seconds asked for), "Jumped to 12:34" for a seek,
+"Audio: …", "Subtitles: …" or "Subtitles off", and "Quality: …", each
+named as the player's menu names it. The next title shows its banner as
+it begins, as it does by itself, and a command that changes nothing says
+nothing. Controls the person brought up stay as they were, hiding 5 s
+after their last key even when the remote pauses; a key on the TV after
+the remote's pause shows them as it does, and from then on the pause
+keeps them, as any pause does, until something plays it again. Music and
+Live TV show nothing new for a command: Now Playing is the music's
+controls already, and Live TV's channel up and down show the channel
+tuning, as the keys do, never its controls or what's on.
 
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open, so while

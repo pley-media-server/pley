@@ -8,6 +8,28 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The phone's remote opens from a button in Home's top bar, beside your
+  picture, while another of your devices is on. The bar above the tabs
+  shows only while the phone controls what one plays (it sent it a
+  command, or something with Play on…), says where and what, Playing or
+  Paused, and opens its controls. A command shows at once what it asks
+  (the place a seek goes, playing or paused, the track picked), and what
+  plays stays while a next starts the one after. A device ready to play is
+  only listed, without controls to open.
+- A command from your remote doesn't bring up the video player's controls
+  on the device it plays on: a toast says for a moment what it did
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", "Audio: …",
+  "Subtitles off", "Quality: …"). Controls already up as the remote pauses
+  hide as they do while it plays, until you press a key or touch the
+  screen there.
+- Android TV and Fire TV start straight into Home as the profile they were
+  left on when it has no PIN, where a household of several profiles was
+  asked "Who's watching?" each time. A profile with a PIN still asks
+  first, and Switch profile still shows every profile. Settings' Always
+  start as calls this Profile used last, where it said Ask who's watching.
+
 ## [0.1.7] - 2026-11-05
 
 ### Added
@@ -102,6 +124,11 @@ describes how they are made.
   opens, rather than moving a moment later: the buttons along the bottom
   show once the server has answered, and the controls keep clear of the
   status and navigation bars whether they show or not.
+- On Android TV and Fire TV, a programme's details in Live TV have Watch
+  and the favourite side by side, the favourite a star as in the live
+  player, where Remove from favourites was a wide button under Watch. In
+  the live player, the star no longer shows its words under it, which ran
+  under Channels.
 
 ## [0.1.6] - 2026-11-04
 

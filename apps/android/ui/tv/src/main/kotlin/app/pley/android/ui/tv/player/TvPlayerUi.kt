@@ -188,7 +188,7 @@ internal class TvPlayerUi {
         const val TOAST_MS = 3_500L
         const val ERROR_TOAST_MS = 6_000L
 
-        /** The CAPTIONS key's toast. */
+        /** The CAPTIONS key's toast, and the remote's ("Paused", "+30 s"). */
         const val CAPTIONS_TOAST_MS = 2_000L
 
         /** The controls hide after this long without a key, unless paused or in a panel. */

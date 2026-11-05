@@ -9,6 +9,25 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The web and desktop apps' remote shows a command at once (the place a
+  seek goes, playing or paused), and keeps what plays while a next starts
+  the one after. Previous and Next sit at its edges, with the skips and
+  Play or Pause centred between them. A device that plays is chosen for
+  its controls, whose bar is the only one shown; one ready to play is only
+  listed.
+- Signing in on the web and in the desktop app goes straight in as the
+  profile the browser was last used as, when it has no PIN, where a
+  household of several profiles was asked "Who's watching?" each time. A
+  profile with a PIN, or another person signing in, still picks first.
+- The web and desktop apps' video player no longer brings up its controls
+  when a remote pauses it, seeks or changes its audio, subtitles or
+  quality: a brief notice says what changed ("Paused", "+30 s", "Jumped
+  to 12:34", "Subtitles off"), and the controls show as before once you
+  move the mouse, tap or press a key. On Live TV a remote's change of
+  channel shows only the channel's tuning screen.
+
 ## [0.1.7] - 2026-11-05
 
 ### Added

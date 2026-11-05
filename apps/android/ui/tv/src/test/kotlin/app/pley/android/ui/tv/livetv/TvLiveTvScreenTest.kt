@@ -21,6 +21,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -29,6 +30,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -158,7 +160,7 @@ class TvLiveTvScreenTest {
     }
 
     @Test
-    fun `a programme's details keep the buttons whole, one under the other, under all the text`() {
+    fun `a programme's details keep Watch and the star side by side under all the text`() {
         val start = 1_800_000_000L
         live.lineup.value = listOf(
             LiveChannel(
@@ -187,14 +189,20 @@ class TvLiveTvScreenTest {
         compose.waitForIdle()
         press(Key.Info)
         val watch = compose.onNodeWithText(string(R.string.tv_livetv_watch_now)).getUnclippedBoundsInRoot()
-        val favorite = compose.onNodeWithText(string(R.string.tv_livetv_favorite_add)).getUnclippedBoundsInRoot()
+        val star = compose.onNodeWithContentDescription(string(R.string.tv_livetv_favorite_add)).getUnclippedBoundsInRoot()
         val text = compose.onNodeWithTag(TV_LIVE_PROGRAM_TEXT).getUnclippedBoundsInRoot()
         val root = compose.onRoot().getUnclippedBoundsInRoot()
         assertEquals(40f, watch.height.value, 0.5f)
-        assertEquals(40f, favorite.height.value, 0.5f)
-        assertTrue("the favourite under Watch", favorite.top >= watch.bottom)
+        assertEquals(40f, star.width.value, 0.5f)
+        assertEquals(40f, star.height.value, 0.5f)
+        assertEquals("the star beside Watch", watch.top.value, star.top.value, 0.5f)
+        assertTrue("the star after Watch", star.left >= watch.right)
         assertTrue("the text above the buttons", text.bottom <= watch.top)
-        assertTrue("in the panel", favorite.bottom <= root.bottom - TvSafeArea.Vertical)
+        assertTrue("in the panel", star.right <= root.right - TvSafeArea.Horizontal && star.bottom <= root.bottom - TvSafeArea.Vertical)
+        // The star alone, focused too: its words are only heard.
+        press(Key.DirectionRight)
+        compose.onNodeWithContentDescription(string(R.string.tv_livetv_favorite_add)).assertIsFocused()
+        compose.onNodeWithText(string(R.string.tv_livetv_favorite_add)).assertDoesNotExist()
     }
 
     @Test

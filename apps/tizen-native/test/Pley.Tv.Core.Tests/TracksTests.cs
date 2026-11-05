@@ -142,6 +142,7 @@ public class VideoTrackTests
         // The session it leaves says what it played; the new one, what it plays, at once.
         Assert.Equal(new[] { ("stopped", 5_000L, "s1"), ("playing", 5_000L, "s2") }, h.Source.Reports.Select(r => (r.State, r.Position, r.Session)));
         Assert.Equal(new PlayingTracks?[] { new PlayingTracks(1, -1), new PlayingTracks(2, -1) }, h.Source.ReportTracks);
+        Assert.Equal("Audio: French (AC3 5.1)", h.Toasts.Single().Text);
     }
 
     [Fact]
@@ -172,6 +173,27 @@ public class VideoTrackTests
         Assert.Equal(new PlayingTracks?[] { new PlayingTracks(1, -1), new PlayingTracks(1, -1) }, h.Source.ReportTracks);
         Assert.Single(h.Source.Bodies);
         Assert.Empty(h.Source.Streams);
+    }
+
+    [Fact]
+    public void A_track_the_remote_picks_is_toasted_by_its_panels_name_and_the_one_chosen_already_says_nothing()
+    {
+        h.Add(Film());
+        h.Source.Vtt[ItemKit.Origin + "/api/files/10/subtitles/3.vtt"] = new SubtitleText("WEBVTT\n", Complete: true);
+        h.Start(new PlayRequest(1, 0, true));
+        h.Play(4_000);
+        h.Source.Emit(Command("audio", 1));
+        h.Source.Emit(Command("subtitles", -1));
+        h.Source.Emit(Command("audio", 2, session: "s2"));
+        Assert.Empty(h.Toasts);
+        var french = h.State.Audio.Single(a => a.Index == 2).Label;
+        var english = h.State.Subtitles.Single(t => t.Index == 3).Label;
+        h.Source.Emit(Command("audio", 2));
+        h.Source.Emit(Command("subtitles", 3));
+        h.Source.Emit(Command("subtitles", -1));
+        Assert.Equal(new[] { "Audio: French (AC3 5.1)", "Subtitles: English (SRT)", "Subtitles off" }, h.Toasts.Select(t => t.Text));
+        Assert.Equal(new[] { $"Audio: {french}", $"Subtitles: {english}" }, h.Toasts.Take(2).Select(t => t.Text));
+        Assert.All(h.Toasts, t => Assert.Equal(PlayerText.CaptionsToastMs, t.Ms));
     }
 
     [Fact]

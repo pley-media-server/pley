@@ -104,6 +104,18 @@ impl Fake {
         }
     }
 
+    /// The user's remote on another device did something the playback says as `said`, as the
+    /// controller says it; a pause is the remote's until something plays it again.
+    pub fn remote(&mut self, said: &str) {
+        if said == pley_player::remote::PAUSED {
+            self.playing = false;
+            self.state.phase = Phase::Paused;
+            self.state.paused_by_remote = true;
+        }
+        self.state.remote_notice = Some(said.into());
+        self.state.remote_notice_id += 1;
+    }
+
     fn record(&mut self, call: Call) {
         self.calls.push(call);
     }
@@ -163,6 +175,7 @@ impl Playback for Fake {
 
     fn play(&mut self) {
         self.playing = true;
+        self.state.paused_by_remote = false;
         if self.state.phase == Phase::Paused {
             self.state.phase = Phase::Playing;
         }

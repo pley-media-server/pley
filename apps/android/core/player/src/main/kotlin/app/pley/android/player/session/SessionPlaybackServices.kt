@@ -196,6 +196,8 @@ private class FailedPlayback(message: String, private val onClosed: () -> Unit) 
 
     override fun dismissNotice() = Unit
 
+    override fun dismissRemoteNotice() = Unit
+
     override suspend fun thumbnail(positionMs: Long): Bitmap? = null
 
     override fun saveState(): SavedPlaybackState = SavedPlaybackState(0, null, 0, null, null, QualityPreset.ORIGINAL_ID, null)

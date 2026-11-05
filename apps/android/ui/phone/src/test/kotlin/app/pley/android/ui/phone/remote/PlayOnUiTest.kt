@@ -73,7 +73,7 @@ class PlayOnUiTest {
             }
         }
         // The remote comes after the first frame, off the main thread.
-        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BAR).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag(REMOTE_BUTTON).fetchSemanticsNodes().isNotEmpty() }
     }
 
     /** Play on… asked for [target], as a page's button asks. */
@@ -138,9 +138,9 @@ class PlayOnUiTest {
         assertEquals(listOf("tv-1" to CastRequest(itemId = 101, startMs = 60_000)), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        // The remote opens on the device, ready for what it was sent.
-        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertExists()
-        compose.onNodeWithTag(REMOTE_IDLE).assertExists()
+        // The remote opens on the list, the device's controls to show once it plays what it was sent.
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
+        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertDoesNotExist()
     }
 
     @Test
@@ -203,7 +203,9 @@ class PlayOnUiTest {
         CastsSent.tell("app-12", "Living room TV")
         compose.waitForIdle()
         compose.onNodeWithText("Playing on Living room TV").assertExists()
-        compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertExists()
+        // Open on the list until the device plays it.
+        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
+        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
         assertNull(CastsSent.pending.value)
     }
 

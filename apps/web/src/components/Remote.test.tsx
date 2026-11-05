@@ -8,8 +8,9 @@ import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
 import { RemoteButton } from "./Remote";
 
-// A short wait for an answer, so the tests don't sit through the real one.
-vi.mock("@/lib/remote", async (original) => ({ ...(await original<typeof import("@/lib/remote")>()), ANSWER_WAIT_MS: 50 }));
+// A short wait for an answer, so the tests don't sit through the real one, yet long enough
+// for a test to look at what shows while a command waits.
+vi.mock("@/lib/remote", async (original) => ({ ...(await original<typeof import("@/lib/remote")>()), ANSWER_WAIT_MS: 200 }));
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
@@ -112,11 +113,19 @@ describe("RemoteButton", () => {
     renderWithProviders(<RemoteButton />);
     const { panel } = await openRemote();
 
+    const items = within(within(panel).getByRole("list")).getAllByRole("listitem");
+    expect(items.map((i) => i.textContent)).toEqual([
+      "Living room TVTest Show — S1 · E1 — Pilot",
+      "Unknown device1 Channel One",
+      "Den TVReady to play",
+      "PhoneReady to play",
+    ]);
+    // Those that play are chosen; one ready to play has nothing to control.
     const rows = within(within(panel).getByRole("list")).getAllByRole("button");
-    expect(rows.map((r) => r.getAttribute("aria-label"))).toEqual(["Living room TV", "Unknown device", "Den TV", "Phone"]);
+    expect(rows.map((r) => r.getAttribute("aria-label"))).toEqual(["Living room TV", "Unknown device"]);
     expect(rows[0]).toHaveAccessibleDescription("Test Show — S1 · E1 — Pilot");
     expect(rows[1]).toHaveAccessibleDescription("1 Channel One");
-    expect(rows[3]).toHaveAccessibleDescription("Ready to play");
+    expect(within(items[3]!).queryByRole("button")).toBeNull();
   });
 
   it("numbers devices of the same name", async () => {
@@ -151,16 +160,21 @@ describe("RemoteButton", () => {
   });
 
   it("opens on the device a page cast to, once the header shows, and once only", async () => {
+    let sessions = [episode()];
     serve(
-      () => [episode()],
+      () => sessions,
       () => [phone],
     );
     // Cast from a player, which hides the header and leaves.
     openRemoteOn("app-3");
-    const { unmount } = renderWithProviders(<RemoteButton />);
+    const { client, unmount } = renderWithProviders(<RemoteButton />);
     const remote = await screen.findByRole("dialog", { name: "Your devices" });
+    // Its controls show once it plays, not the TV's meanwhile.
+    expect(within(remote).queryByRole("group")).toBeNull();
+    sessions = [episode(), episode({ session_id: "phone", device: "Phone", device_id: "app-3", device_kind: "phone" })];
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(await within(remote).findByRole("group", { name: "Phone" })).toBeInTheDocument();
     expect(within(remote).getByRole("button", { name: "Phone" })).toHaveAttribute("aria-current", "true");
-    expect(within(remote).getByRole("group", { name: "Phone" })).toBeInTheDocument();
     unmount();
 
     renderWithProviders(<RemoteButton />);
@@ -168,17 +182,28 @@ describe("RemoteButton", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("says how to send something to a device ready to play", async () => {
+  it("lists a device ready to play without offering to choose it", async () => {
     serve(
       () => [],
       () => [phone],
     );
     renderWithProviders(<RemoteButton />);
     const { panel } = await openRemote();
-    const idle = within(panel).getByRole("group", { name: "Phone" });
-    expect(idle).toHaveTextContent("Nothing playing");
-    expect(idle).toHaveTextContent("Send something here with Play on…");
-    expect(within(idle).queryByRole("button")).toBeNull();
+    expect(within(panel).getByRole("listitem")).toHaveTextContent("PhoneReady to play");
+    expect(within(panel).queryByRole("button")).toBeNull();
+    expect(within(panel).queryByRole("group")).toBeNull();
+  });
+
+  it("shows how far in the chosen device's controls, its row leaving it out", async () => {
+    serve(() => [episode(), episode({ session_id: "tv2", device: "Den TV", device_id: "app-5" })]);
+    renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+    const bars = (name: string) => within(panel).getByRole("button", { name }).querySelectorAll("[style]").length;
+    expect([bars("Den TV"), bars("Living room TV")]).toEqual([1, 1]);
+
+    await user.click(within(panel).getByRole("button", { name: "Den TV" }));
+    expect([bars("Den TV"), bars("Living room TV")]).toEqual([0, 1]);
+    expect(within(panel).getByRole("group", { name: "Den TV" })).toHaveTextContent("1:00");
   });
 
   it("offers the controls the player obeys, and Next greyed out where it doesn't take it", async () => {
@@ -198,6 +223,19 @@ describe("RemoteButton", () => {
       "Stop on Living room TV",
     ]);
     expect(within(tv).getByRole("button", { name: "Next on Living room TV" })).toBeDisabled();
+  });
+
+  it("puts Previous at the left edge and Next at the right, the skips and play or pause between them", async () => {
+    serve(() => [episode({ controls: ["previous", "next", "play", "pause", "skip"] })]);
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    const previous = within(panel).getByRole("button", { name: "Previous on Living room TV" });
+    const row = previous.parentElement!.parentElement!;
+    expect(Array.from(row.children).map((cell) => Array.from(cell.querySelectorAll("button")).map((b) => b.getAttribute("aria-label")))).toEqual([
+      ["Previous on Living room TV"],
+      ["Back 10 seconds on Living room TV", "Play on Living room TV", "Forward 30 seconds on Living room TV"],
+      ["Next on Living room TV"],
+    ]);
   });
 
   it("changes channel on Live TV, which has no place to show", async () => {
@@ -263,14 +301,16 @@ describe("RemoteButton", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Play on Living room TV" }));
     expect(commands(requests)).toEqual([{ command: "play" }]);
+    // It shows playing at once, not when the player's report comes.
+    expect(within(panel).getByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
     // The player's report brings `sessions_changed`.
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
-    expect(await within(panel).findByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
     await act(() => new Promise((r) => setTimeout(r, 100)));
+    expect(within(panel).getByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
     expect(within(panel).queryByRole("alert")).toBeNull();
   });
 
-  it("says so when the device didn't answer", async () => {
+  it("says so when the device didn't answer, and shows where it is again", async () => {
     serve(
       () => [episode({ controls: ["skip"] })],
       () => [],
@@ -280,7 +320,85 @@ describe("RemoteButton", () => {
     const { user, panel } = await openRemote();
 
     await user.click(within(panel).getByRole("button", { name: "Forward 30 seconds on Living room TV" }));
+    expect(within(panel).getByRole("group")).toHaveTextContent("1:30");
     expect(await within(panel).findByRole("alert")).toHaveTextContent("Living room TV didn't answer.");
+    expect(within(panel).getByRole("group")).toHaveTextContent("1:00");
+  });
+
+  it("goes where a seek or a skip sends it at once, a skip from where the last one went", async () => {
+    let sessions = [episode({ controls: ["seek", "skip"] })];
+    const requests = serve(
+      () => sessions,
+      () => [],
+      { "POST /api/sessions/tv/command": () => undefined },
+    );
+    const { client } = renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+    const tv = within(panel).getByRole("group");
+
+    const seek = within(tv).getByRole("slider", { name: "Seek on Living room TV" });
+    fireEvent.change(seek, { target: { value: "600000" } });
+    fireEvent.pointerUp(seek);
+    expect(tv).toHaveTextContent("10:00");
+    await waitFor(() => expect(commands(requests)).toEqual([{ command: "seek", position_ms: 600_000 }]));
+    await user.click(within(tv).getByRole("button", { name: "Forward 30 seconds on Living room TV" }));
+    await user.click(within(tv).getByRole("button", { name: "Forward 30 seconds on Living room TV" }));
+    expect(tv).toHaveTextContent("11:00");
+
+    // The player reports it went there: it stays there, with no failure.
+    sessions = [episode({ controls: ["seek", "skip"], position_ms: 660_000, updated_at: nowSecs() + 1 })];
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    await act(() => new Promise((r) => setTimeout(r, 100)));
+    expect(tv).toHaveTextContent("11:00");
+    expect(within(panel).queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps what played between a next and the next one, on a device that only plays too", async () => {
+    let sessions = [episode({ controls: ["next"] })];
+    serve(
+      () => sessions,
+      () => [],
+      {
+        // Next ends the session: the next one is listed a moment later.
+        "POST /api/sessions/tv/command": () => {
+          sessions = [];
+          return undefined;
+        },
+      },
+    );
+    const { client } = renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+
+    await user.click(within(panel).getByRole("button", { name: "Next on Living room TV" }));
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(within(panel).getByRole("group", { name: "Living room TV" })).toHaveTextContent("Pilot");
+    expect(within(panel).getByRole("button", { name: "Living room TV" })).toHaveAccessibleDescription("Test Show — S1 · E1 — Pilot");
+
+    const second = makeItem({ id: 8, kind: "episode", title: "Second", grandparent_title: "Test Show", parent_index: 1, index: 2 });
+    sessions = [episode({ session_id: "tv2", item: second, controls: ["next"] })];
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(await within(panel).findByText("Second")).toBeInTheDocument();
+    expect(within(panel).getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("lets a device go once a next started nothing", async () => {
+    let sessions = [episode({ controls: ["next"] })];
+    serve(
+      () => sessions,
+      () => [],
+      {
+        "POST /api/sessions/tv/command": () => {
+          sessions = [];
+          return undefined;
+        },
+      },
+    );
+    const { client } = renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+    await user.click(within(panel).getByRole("button", { name: "Next on Living room TV" }));
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(within(panel).getByRole("group", { name: "Living room TV" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Remote/ })).toBeNull());
   });
 
   it("doesn't call a next or previous that changed nothing a failure", async () => {
@@ -362,6 +480,31 @@ describe("RemoteButton", () => {
       await user.keyboard("{Escape}");
       expect(within(panel).queryByRole("menu")).toBeNull();
       expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("keeps what plays while a track picked starts a new session", async () => {
+      let sessions = [withTracks()];
+      serve(
+        () => sessions,
+        () => [],
+        {
+          "POST /api/sessions/tv/command": () => {
+            sessions = [];
+            return undefined;
+          },
+        },
+      );
+      const { client } = renderWithProviders(<RemoteButton />);
+      const { user, panel } = await openRemote();
+
+      await user.click(within(panel).getByRole("button", { name: "Subtitles on Living room TV" }));
+      await user.click(within(panel).getByRole("menuitemradio", { name: "French (SRT, Forced)" }));
+      await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+      expect(within(panel).getByRole("group", { name: "Living room TV" })).toBeInTheDocument();
+      sessions = [withTracks({ session_id: "tv2", subtitle_index: 3 })];
+      await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+      await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
+      expect(within(panel).queryByRole("alert")).toBeNull();
     });
 
     it("says so when the device didn't take the track picked", async () => {
@@ -524,7 +667,8 @@ describe("RemoteButton", () => {
     await user.click(within(ask).getByRole("button", { name: "Stop" }));
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/tv")).toBe(true);
     await waitFor(() => expect(within(panel).queryByRole("button", { name: "Living room TV" })).toBeNull());
-    // The phone is all that's left, and shown.
-    expect(within(panel).getByRole("group", { name: "Phone" })).toHaveTextContent("Nothing playing");
+    // The phone is all that's left, ready to play.
+    expect(within(panel).getByRole("listitem")).toHaveTextContent("PhoneReady to play");
+    expect(within(panel).queryByRole("group")).toBeNull();
   });
 });

@@ -1385,3 +1385,39 @@ msgstr ""
 msgctxt "#30565"
 msgid "Nothing to play"
 msgstr ""
+
+msgctxt "#30566"
+msgid "Paused"
+msgstr ""
+
+msgctxt "#30567"
+msgid "Playing"
+msgstr ""
+
+msgctxt "#30568"
+msgid "+%d s"
+msgstr ""
+
+msgctxt "#30569"
+msgid "−%d s"
+msgstr ""
+
+msgctxt "#30570"
+msgid "Jumped to %s"
+msgstr ""
+
+msgctxt "#30571"
+msgid "Audio: %s"
+msgstr ""
+
+msgctxt "#30572"
+msgid "Subtitles: %s"
+msgstr ""
+
+msgctxt "#30573"
+msgid "Subtitles off"
+msgstr ""
+
+msgctxt "#30574"
+msgid "Quality: %s"
+msgstr ""

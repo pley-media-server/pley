@@ -473,7 +473,8 @@ class Player(xbmc.Player):
             "duration_ms": playing.get("duration_ms") or None,
             "has_next": queued or following is not None,
         }
-        if (place is not None and place[0] == "music") or playing.get("kind") in listing.MUSIC:
+        music = (place is not None and place[0] == "music") or playing.get("kind") in listing.MUSIC
+        if music:
             player["index"] = place[1] if place is not None else 0
         if command.get("command") in remote.TRACKS:
             # Switched in Kodi's player (tracks.Follower.obey); music, and a
@@ -504,6 +505,9 @@ class Player(xbmc.Player):
                 self.play_next(following)
         elif act == "previous":
             self.playprevious()
+        # Music shows what plays where it plays, and is left as it was.
+        if not music:
+            self.remote_notice(remote.notice(command, action, kodi.text))
         if action["report"] and act not in ("play", "pause"):
             with self.lock:
                 if self.reports is not reports:
@@ -514,6 +518,15 @@ class Player(xbmc.Player):
                     (reports.pause if paused else reports.resume)()
                 else:
                     reports.report("paused" if paused else "playing")
+
+    def remote_notice(self, words: str) -> None:
+        """What the user's remote did to a video, for a moment as Kodi's
+        notification, without its sound. The add-on brings up nothing of
+        Kodi's player for a command; what Kodi shows itself for a pause or
+        a seek (the skin's seek bar, as for its own keys) is the skin's, and
+        stays."""
+        if words:
+            kodi.notify(words, icon=kodi.addon_icon(), ms=remote.NOTICE_MS, sound=False)
 
     def obey_quality(self, reports: Reports, command: dict) -> None:
         """The remote's quality (remote.obey_quality), as picking it in
@@ -538,6 +551,7 @@ class Player(xbmc.Player):
             return
         kodi.set_setting(playback.QUALITY, action["quality"])
         kodi.log("the remote picked the quality %s" % action["quality"])
+        self.remote_notice(remote.notice(command, action, kodi.text))
         item_id, position = playing["item_id"], self.position()
         with self.lock:
             # Not Automatic's restart: the title gets a watch of its own.

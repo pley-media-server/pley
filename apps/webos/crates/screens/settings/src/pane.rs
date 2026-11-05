@@ -450,7 +450,7 @@ fn profile(f: &Facts) -> Vec<Item> {
         let name = f
             .always_start_as
             .and_then(|id| f.household.iter().find(|(p, _)| *p == id))
-            .map_or("Ask who's watching".to_string(), |(_, name)| name.clone());
+            .map_or("Profile used last".to_string(), |(_, name)| name.clone());
         row(Row::new(Some(Icon::UserRound), "Always start as", name, RowAction::Choose(Picking::AlwaysStartAs)));
     }
     row(Row::new(
@@ -547,7 +547,7 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
         ),
         Picking::AlwaysStartAs => (
             "Always start as",
-            std::iter::once(Choice::new("Ask who's watching", Value::Profile(None)))
+            std::iter::once(Choice::new("Profile used last", Value::Profile(None)))
                 .chain(f.household.iter().map(|(id, name)| Choice::new(name.clone(), Value::Profile(Some(*id)))))
                 .collect(),
             Value::Profile(f.always_start_as),
@@ -673,7 +673,7 @@ mod tests {
         assert_eq!(r[2].value, "Only for foreign dialogue");
         assert_eq!(r[3].action, RowAction::Open(Route::History));
         assert_eq!(r[4].action, RowAction::Open(Route::Libraries { sort: true }));
-        assert_eq!(r[5].value, "Ask who's watching");
+        assert_eq!(r[5].value, "Profile used last");
         assert_eq!(r[6].value, "Name, picture, password, PIN, two-step, devices and apps");
         assert_eq!(first_row(&items), Some(1));
     }
@@ -814,7 +814,7 @@ mod tests {
         assert_eq!(modes.choices[0].hint, Some("Subtitles stay off until you turn them on."));
         let start = panel(Picking::AlwaysStartAs, &f, &[]);
         let names: Vec<&str> = start.choices.iter().map(|c| c.label.as_str()).collect();
-        assert_eq!(names, ["Ask who's watching", "Alex", "Sam", "Robin"]);
+        assert_eq!(names, ["Profile used last", "Alex", "Sam", "Robin"]);
     }
 
     #[test]

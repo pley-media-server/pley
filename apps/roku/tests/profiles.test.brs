@@ -65,13 +65,18 @@ end sub
 
 sub test_profiles_asked_at_a_start()
     scope = "library play playlists profiles"
+    ' The profile signed in has no PIN: straight in.
     household = { count: 2, ids: [7, 9], pin: 0 }
-    tkEqual(profAtStart(scope, household, 0), "ask")
-    tkEqual(profAtStart(scope, { count: 1, ids: [7], pin: 1 }, 0), "", "a household of one")
-    tkEqual(profAtStart("library play", { count: 3, ids: [7, 9, 11], pin: 0 }, 0), "", "a sign-in that can't switch")
+    tkEqual(profAtStart(scope, household, 0), "", "no PIN")
     tkEqual(profAtStart(scope, household, 9), "", "Always start as names a profile")
-    tkEqual(profAtStart(scope, household, 12), "ask", "a profile gone from the household: asked again")
-    tkEqual(profAtStart(scope, { count: 2, ids: [], pin: 0 }, 9), "ask", "the household's profiles not known yet: asked")
+    tkEqual(profAtStart(scope, household, 12), "", "a profile gone from the household: as without one")
+    ' It has one, or the Roku doesn't know: the profiles.
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: 1 }, 0), "ask", "a PIN")
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: -1 }, 0), "ask", "not known whether it has one")
+    tkEqual(profAtStart(scope, { count: 2, ids: [7, 9], pin: 1 }, 12), "ask", "a PIN, and a profile gone from the household")
+    tkEqual(profAtStart(scope, { count: 2, ids: [], pin: 1 }, 9), "ask", "the household's profiles not known yet: asked")
+    tkEqual(profAtStart(scope, { count: 1, ids: [7], pin: 1 }, 0), "", "a household of one")
+    tkEqual(profAtStart("library play", { count: 3, ids: [7, 9, 11], pin: 1 }, 0), "", "a sign-in that can't switch")
     tkTrue(authAllows("library play", "play"))
     tkFalse(authAllows("library playlists", "play"))
 end sub
@@ -109,7 +114,7 @@ sub test_profiles_always_start_as()
     tkEqual(profStartAs(section, "http://nas:7539"), 7)
     tkEqual(profStartAs(section, "http://other:7539"), 0, "for each server")
     profSetStartAs(section, "http://nas:7539", 0)
-    tkEqual(profStartAs(section, "http://nas:7539"), 0, "Ask who's watching forgets it")
+    tkEqual(profStartAs(section, "http://nas:7539"), 0, "Profile used last forgets it")
 
     kept = CreateObject("roRegistrySection", "householdTest")
     profKeepHousehold(kept, "http://nas:7539", ParseJson("[{""id"":7,""current"":false},{""id"":9,""current"":true}]"))
@@ -121,12 +126,12 @@ sub test_profiles_always_start_as()
     household = profHousehold(ParseJson("[{""id"":7,""name"":""Anna""},{""id"":9,""name"":""Kids""},{""id"":0,""name"":""?""}]"))
     tkEqual(household, [{ id: 7, name: "Anna" }, { id: 9, name: "Kids" }])
     choice = profStartAsChoices(household, 9)
-    tkEqual(choice.labels, ["Ask who's watching", "Anna", "Kids"])
+    tkEqual(choice.labels, ["Profile used last", "Anna", "Kids"])
     tkEqual(choice.values, [0, 7, 9])
     tkEqual(choice.current, 2)
     tkEqual(profStartAsChoices(household, 0).current, 0)
     tkEqual(profStartAsLabel(household, 7), "Anna")
-    tkEqual(profStartAsLabel(household, 3), "Ask who's watching", "a profile gone")
+    tkEqual(profStartAsLabel(household, 3), "Profile used last", "a profile gone")
 end sub
 
 sub test_profiles_switch_answers()

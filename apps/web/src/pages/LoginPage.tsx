@@ -3,10 +3,11 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { errorMessage, isApiError } from "@/api/client";
 import { fetchProfiles, useLogin, useMe, useServer } from "@/api/hooks";
-import type { TwoStepSetup } from "@/api/types";
+import type { TwoStepSetup, User } from "@/api/types";
 import { Splash } from "@/auth";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
+import { asksWhoIsWatching, lastProfile } from "@/lib/lastProfile";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
 import { codeKind, isTwoStepError, twoStepSetupOf } from "@/lib/twoStep";
 import { AuthLayout } from "./AuthLayout";
@@ -22,7 +23,7 @@ type Step =
   | { kind: "password" }
   | { kind: "code" }
   | { kind: "setup"; setup: TwoStepSetup }
-  | { kind: "codes"; codes: string[]; username: string };
+  | { kind: "codes"; codes: string[]; user: User };
 
 export function LoginPage() {
   useDocumentTitle("Sign in");
@@ -49,11 +50,16 @@ export function LoginPage() {
   if (me.data && !signingIn) return <Navigate to={next} replace />;
   if (server.isPending || (me.isPending && me.fetchStatus === "fetching")) return <Splash />;
 
-  // A household with several profiles picks one first.
-  const goOn = () => {
+  // A household with several profiles picks one first, unless this browser
+  // was last used as the profile signed in to and it has no PIN.
+  const goOn = (user: User) => {
     void fetchProfiles(qc)
       .catch(() => [])
-      .then((profiles) => navigate(profiles.length > 1 ? `/profiles?next=${encodeURIComponent(next)}` : next, { replace: true }));
+      .then((profiles) =>
+        navigate(asksWhoIsWatching(user, profiles.length, lastProfile()) ? `/profiles?next=${encodeURIComponent(next)}` : next, {
+          replace: true,
+        }),
+      );
   };
 
   const signIn = (withCode?: string, setupId?: string) => {
@@ -63,8 +69,8 @@ export function LoginPage() {
       {
         onSuccess: (res) => {
           // Set up on the way in: its recovery codes are shown once, first.
-          if (res.recovery_codes?.length) setStep({ kind: "codes", codes: res.recovery_codes, username: res.user.username });
-          else goOn();
+          if (res.recovery_codes?.length) setStep({ kind: "codes", codes: res.recovery_codes, user: res.user });
+          else goOn(res.user);
         },
         onError: (err) => {
           setSigningIn(false);
@@ -121,7 +127,12 @@ export function LoginPage() {
   if (step.kind === "codes") {
     return (
       <AuthLayout title="Save your recovery codes" subtitle="Two-step sign-in is on.">
-        <RecoveryCodesView codes={step.codes} username={step.username} serverName={server.data?.name} onDone={goOn} />
+        <RecoveryCodesView
+          codes={step.codes}
+          username={step.user.username}
+          serverName={server.data?.name}
+          onDone={() => goOn(step.user)}
+        />
       </AuthLayout>
     );
   }

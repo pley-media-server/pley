@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -218,6 +218,7 @@ describe("LivePlayerPage and the remote", () => {
     vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -259,6 +260,8 @@ describe("LivePlayerPage and the remote", () => {
   });
   const watched = (requests: FakeRequest[]) =>
     requests.filter((r) => r.method === "POST" && r.path.endsWith("/watch")).map((r) => r.path);
+  /** The player's controls are on screen: its top bar, which shows and hides with the rest. */
+  const controlsShown = () => !screen.getByRole("button", { name: "Back" }).parentElement!.classList.contains("opacity-0");
 
   it("says it obeys channel up and down as it watches", async () => {
     const requests = serveAll();
@@ -291,6 +294,39 @@ describe("LivePlayerPage and the remote", () => {
     await waitFor(() => expect(isPlayingHere("5-2")).toBe(true));
     act(() => FakeEventSource.last?.send(command("5-2", "previous")));
     await waitFor(() => expect(watched(requests).at(-1)).toBe("/api/live/channels/7/watch"));
+  });
+
+  it("changes channel for the remote without its controls: the channel's tuning screen shows", async () => {
+    // The controls' timer, faked, so they hide as they do after a while.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const requests = serveAll();
+    const { container } = renderWithProviders(<Player />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/live/browse"))).toBe(true));
+    const video = container.querySelector("video")!;
+    fireEvent.playing(video);
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(controlsShown()).toBe(false);
+
+    act(() => FakeEventSource.last?.send(command("5-1", "next")));
+    expect(await screen.findByLabelText("Tuning")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/live/src/6");
+    expect(controlsShown()).toBe(false);
+    await waitFor(() => expect(hlsInstances[1]?.calls).toContain("attachMedia"));
+    fireEvent.playing(video);
+    expect(screen.queryByLabelText("Tuning")).not.toBeInTheDocument();
+    expect(controlsShown()).toBe(false);
+
+    // Channel up here: the controls show while it tunes, as they always have.
+    fireEvent.keyDown(window, { key: "ArrowUp" });
+    expect(controlsShown()).toBe(true);
+    await waitFor(() => expect(watched(requests).at(-1)).toBe("/api/live/channels/7/watch"));
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(controlsShown()).toBe(true);
   });
 
   it("watches the channel on another device, and leaves it here", async () => {

@@ -8,8 +8,25 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- What your phone or browser does to the film or episode on the TV is
+  said there for 2 s at the top right ("Paused", "+30 s", "Jumped to
+  12:34", "Audio: French"), without bringing up the player's controls; a
+  pause sent from it doesn't keep them up either.
+
+### Changed
+
+- The TV starts straight into Home as the profile it was left on when it
+  has no PIN, where a household of several profiles was asked "Who's
+  watching?" each time. A profile with a PIN still asks first, and Switch
+  profile still shows every profile. Settings' Always start as
+  calls this Profile used last, where it said Ask who's watching.
+
 ### Fixed
 
+- OK on a film or episode left untouched for a few seconds brings up the
+  player's controls for 5 s; they went again at once.
 - Your phone or browser changes Live TV's channel, or stops it, while the
   channel is still starting on the TV, as it does once it plays.
 - Leaving Live TV, or the TV hiding the app, just as a channel starts lets
@@ -47,6 +64,11 @@ describes how they are made.
   a library has whole opens its library page, where it plays, not a page
   with only Open on it. A show partly there still opens its Discover page,
   with Request more seasons.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, where Remove from
+  favourites was a wide button under Watch. In the live player, the star
+  no longer shows its words under it, which ran under Channels; Audio
+  Guidance still reads them.
 
 ### Fixed
 

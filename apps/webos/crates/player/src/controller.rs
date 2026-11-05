@@ -40,9 +40,9 @@ use pley_core::media::{
     AudioFacts, AudioTrack, EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine, VideoFacts,
 };
 use pley_core::model::{
-    AddSubtitle, AudioChoice, BitrateAnswer, ClientCaps, DynamicRange, ItemDetail, ItemKind, ItemSummary, Marker,
-    MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, PlaybackMode, ProgressReport, ProgressState, ServerEvent,
-    SessionStatus, StreamChoice, StreamKind, SubtitleResult, SubtitleTrack, TranscodeInfo, TrickplayInfo,
+    AddSubtitle, AudioChoice, BitrateAnswer, ClientCaps, Control, DynamicRange, ItemDetail, ItemKind, ItemSummary,
+    Marker, MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, PlaybackMode, ProgressReport, ProgressState,
+    ServerEvent, SessionStatus, StreamChoice, StreamKind, SubtitleResult, SubtitleTrack, TranscodeInfo, TrickplayInfo,
 };
 use pley_core::task::{Cancel, Promise};
 use pley_core::{ApiError, CapsReport};
@@ -67,7 +67,7 @@ use crate::quality::{
     presets, qualities_for, stream_lines,
 };
 use crate::recovery::{EngineError, Failure, FallbackReason, Recovery, RecoveryAction, StruggleMeter, failure_text};
-use crate::remote::{Command, RemoteAction, RemoteKind, RemotePlayer, remote_action, video_controls_with_tracks};
+use crate::remote::{self, Command, RemoteAction, RemoteKind, RemotePlayer, remote_action, video_controls_with_tracks};
 use crate::sleep::{SleepChoice, SleepItem, SleepState, SleepTimer};
 
 /// The clock of the controller's own checks.
@@ -246,6 +246,13 @@ pub struct PlayerState {
     /// A one-shot toast; `notice_id` changes with each one.
     pub notice: Option<String>,
     pub notice_id: u64,
+    /// What the user's remote on another device just did here ("Paused", "+30 s"), for the
+    /// screen to say briefly in place of its controls ([`crate::remote`]); `remote_notice_id`
+    /// changes with each one.
+    pub remote_notice: Option<String>,
+    pub remote_notice_id: u64,
+    /// The remote paused it, and nothing has played it since.
+    pub paused_by_remote: bool,
     pub subtitle_offset_ms: i32,
     /// The Sync row shows.
     pub subtitle_sync: bool,
@@ -293,6 +300,9 @@ impl Default for PlayerState {
             details: None,
             notice: None,
             notice_id: 0,
+            remote_notice: None,
+            remote_notice_id: 0,
+            paused_by_remote: false,
             subtitle_offset_ms: 0,
             subtitle_sync: false,
             speed: 1.0,
@@ -2124,7 +2134,8 @@ impl PlaybackController {
     /// ([`crate::remote`] has the rule): what changed is reported at once, so the remote sees it.
     /// A pause reports as any pause does, the next item with its own session; a play or pause
     /// that finds it so already says it again. A remote's next that finds nothing says nothing
-    /// here, whoever pressed it being elsewhere.
+    /// here, whoever pressed it being elsewhere. What changed is said in a remote notice; what
+    /// changed nothing says nothing, and the next title shows as it begins, as it does by itself.
     fn obey(&mut self, command: &Command) {
         if self.closed || self.stopped || self.session_ended || self.in_error() {
             return;
@@ -2143,8 +2154,14 @@ impl PlaybackController {
             RemoteAction::Play => {
                 self.play();
                 self.report(ProgressState::Playing);
+                self.remote_notice(remote::PLAYING.into());
             }
-            RemoteAction::Pause => self.pause(),
+            RemoteAction::Pause => {
+                self.pause();
+                // Nobody here paused it: the screen doesn't keep its controls for this pause.
+                self.state.paused_by_remote = true;
+                self.remote_notice(remote::PAUSED.into());
+            }
             // Playing or paused already: said again, so a remote a little behind settles.
             RemoteAction::Report => {
                 self.report(if self.want_play { ProgressState::Playing } else { ProgressState::Paused })
@@ -2157,16 +2174,55 @@ impl PlaybackController {
                     let state = if self.want_play { ProgressState::Playing } else { ProgressState::Paused };
                     self.report_at(state, self.last_position_ms);
                 }
+                // A skip says how far it was asked to go, a seek where to.
+                let said = match command.offset_ms.filter(|_| command.command == Control::Skip) {
+                    Some(by) => remote::skipped(by),
+                    None => remote::jumped(at),
+                };
+                self.remote_notice(said);
             }
             RemoteAction::Next => match self.next.clone() {
                 Some(known) => self.switch_to(known),
                 None => self.look_up_next(NextFor::Remote),
             },
-            RemoteAction::Audio(index) => self.pick_track(|c| c.select_audio(index)),
-            RemoteAction::Subtitles(index) => self.pick_track(|c| c.select_subtitle(index)),
-            RemoteAction::Quality(id) => self.pick_quality(id),
+            RemoteAction::Audio(index) => {
+                let before = self.audio.as_ref().map(|a| a.index);
+                self.pick_track(|c| c.select_audio(index));
+                if self.audio.as_ref().map(|a| a.index) != before
+                    && let Some(label) = menu_label(&self.state.audio, Some(index))
+                {
+                    self.remote_notice(remote::audio_picked(&label));
+                }
+            }
+            RemoteAction::Subtitles(index) => {
+                let before = self.subtitle.as_ref().map(|s| s.index);
+                self.pick_track(|c| c.select_subtitle(index));
+                if self.subtitle.as_ref().map(|s| s.index) != before
+                    && let Some(label) = menu_label(&self.state.subtitles, index)
+                {
+                    // The menu's Off row says "Subtitles off".
+                    let shown = index.map(|_| label.as_str());
+                    self.remote_notice(remote::subtitles_picked(shown));
+                }
+            }
+            RemoteAction::Quality(id) => {
+                let before = self.quality.id;
+                self.pick_quality(id);
+                if self.quality.id != before
+                    && let Some(label) = self.state.qualities.iter().find(|q| q.id == id).map(|q| q.label.clone())
+                {
+                    self.remote_notice(remote::quality_picked(&label));
+                }
+            }
             RemoteAction::None | RemoteAction::Previous | RemoteAction::Channel(_) => {}
         }
+    }
+
+    /// What the remote did, for the screen to say briefly.
+    fn remote_notice(&mut self, text: String) {
+        self.state.remote_notice = Some(text);
+        self.state.remote_notice_id += 1;
+        self.changed();
     }
 
     /// A track the remote picked, through the menu's own path. What this session plays then (a
@@ -2232,6 +2288,10 @@ impl PlaybackController {
         if play {
             self.sleep.resumed();
             self.sleep_changed();
+            // Played again, by anyone: the remote's pause is over.
+            if std::mem::take(&mut self.state.paused_by_remote) {
+                self.changed();
+            }
         }
         if self.info.is_none() || was == play {
             return;
@@ -2807,9 +2867,18 @@ impl PlaybackController {
         if self.state.speed != 1.0 {
             self.engine.set_rate(1.0);
         }
-        let (title, sleep, speeds, notice_id) =
-            (self.state.title.clone(), self.state.sleep, self.state.speeds.clone(), self.state.notice_id);
-        self.state = PlayerState { item_id: target.id, title, sleep, speeds, notice_id, ..PlayerState::default() };
+        let s = &self.state;
+        self.state = PlayerState {
+            item_id: target.id,
+            title: s.title.clone(),
+            sleep: s.sleep,
+            speeds: s.speeds.clone(),
+            notice_id: s.notice_id,
+            remote_notice_id: s.remote_notice_id,
+            // A pause goes on into the next title: the remote's is still the remote's.
+            paused_by_remote: s.paused_by_remote,
+            ..PlayerState::default()
+        };
         self.clock.position_ms = req.start_ms.unwrap_or(0);
         self.clock.buffered_ms = 0;
         self.changed();
@@ -3478,6 +3547,11 @@ fn progress(
         subtitle_index: Some(tracks.subtitle),
         quality: Some(quality.to_owned()),
     }
+}
+
+/// What the menu of `tracks` calls the track of `index` (none: its Off row).
+fn menu_label(tracks: &[TrackChoice], index: Option<i64>) -> Option<String> {
+    tracks.iter().find(|t| t.index == index).map(|t| t.label.clone())
 }
 
 /// A language code as tracks are compared: its two-letter form where it has one, without a region

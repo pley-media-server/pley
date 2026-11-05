@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { PlayingSession, TrackOption } from "@/api/types";
 import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
 import {
+  asSent,
   commandAnswered,
   estimatedPosition,
   newestOn,
   otherDevices,
   received,
   trackLabel,
+  withEnded,
   type RemoteSession,
   type SentCommand,
 } from "./remote";
@@ -57,6 +59,62 @@ describe("estimatedPosition", () => {
       const [s] = received([{ ...report, updated_at: updatedAt, age_ms: 5_000 }], seen);
       expect(estimatedPosition(s!, seen + 10_000)).toBe(75_000);
     }
+  });
+});
+
+describe("asSent", () => {
+  const sentAt = seen + 2_000;
+  const sent = (command: SentCommand["command"], more: Partial<SentCommand> = {}): SentCommand => ({ command, before: tv, sentAt, ...more });
+
+  it("shows the session as it is with nothing out", () => {
+    expect(asSent(tv, null)).toBe(tv);
+  });
+
+  it("goes where a seek or a skip sends it, moving on from there while it plays", () => {
+    const shown = asSent(tv, sent("seek", { target: 10_000 }));
+    expect(estimatedPosition(shown, sentAt)).toBe(10_000);
+    expect(estimatedPosition(shown, sentAt + 3_000)).toBe(13_000);
+    expect(estimatedPosition(asSent({ ...tv, state: "paused" }, sent("skip", { target: 90_000 })), sentAt + 3_000)).toBe(90_000);
+  });
+
+  it("pauses where it was when the pause went, and plays on from there", () => {
+    const paused = asSent(tv, sent("pause"));
+    expect(paused.state).toBe("paused");
+    expect(estimatedPosition(paused, sentAt + 10_000)).toBe(62_000);
+    const played = asSent({ ...tv, state: "paused" }, sent("play"));
+    expect(played.state).toBe("playing");
+    expect(estimatedPosition(played, sentAt + 3_000)).toBe(63_000);
+  });
+
+  it("pauses where the controls showed it, a skip just before still on its way", () => {
+    const paused = asSent(tv, sent("pause", { target: 92_000 }));
+    expect(paused.state).toBe("paused");
+    expect(estimatedPosition(paused, sentAt + 10_000)).toBe(92_000);
+  });
+
+  it("has the track or the quality picked", () => {
+    expect(asSent(tv, sent("audio", { track: 2 })).audio_index).toBe(2);
+    expect(asSent(tv, sent("subtitles", { track: 3 })).subtitle_index).toBe(3);
+    expect(asSent(tv, sent("quality", { quality: "8m" })).quality).toBe("8m");
+  });
+
+  it("leaves a next as it is: what comes next isn't known", () => {
+    expect(asSent(tv, sent("next"))).toBe(tv);
+  });
+});
+
+describe("withEnded", () => {
+  const other = { ...tv, session_id: "s2", device_id: "app-2" };
+
+  it("keeps a session that ended while its device plays nothing else", () => {
+    expect(withEnded([other], tv)).toEqual([other, tv]);
+    expect(withEnded([other], null)).toEqual([other]);
+  });
+
+  it("lets it go once its device plays again, or still plays it", () => {
+    const next = { ...tv, session_id: "s3" };
+    expect(withEnded([other, next], tv)).toEqual([other, next]);
+    expect(withEnded([tv], tv)).toEqual([tv]);
   });
 });
 

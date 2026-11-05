@@ -3,6 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { User } from "@/api/types";
+import { rememberProfile } from "@/lib/lastProfile";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testSetup, testUser, twoStepSetupAnswer } from "@/test/render";
 import { LoginPage } from "./LoginPage";
 
@@ -10,6 +11,8 @@ interface Server {
   setupRequired?: boolean;
   signedIn?: boolean;
   profiles?: User[];
+  /** Who signing in signs in as. */
+  user?: User;
 }
 
 const RECOVERY_CODES = Array.from({ length: 10 }, (_, i) => `${i}aaa-bbbb-cccc-dddd`);
@@ -21,7 +24,7 @@ const NEW_SETUP = {
   id: "7RZCN3W2HLMQ5DKAXVBT6YPGEU",
 };
 
-function serve({ setupRequired = false, signedIn = false, profiles = [testUser] }: Server = {}) {
+function serve({ setupRequired = false, signedIn = false, profiles = [testUser], user = testUser }: Server = {}) {
   /** Wrong codes while setting up: the third starts over with a new secret. */
   let wrongSetupCodes = 0;
   return mockApi({
@@ -49,7 +52,7 @@ function serve({ setupRequired = false, signedIn = false, profiles = [testUser] 
         }
         return { user: testUser };
       }
-      return password === "open-sesame" ? { user: testUser, token: "t" } : apiError(401, "unauthorized", "invalid credentials");
+      return password === "open-sesame" ? { user, token: "t" } : apiError(401, "unauthorized", "invalid credentials");
     },
     "GET /api/auth/profiles": () => profiles,
   });
@@ -108,6 +111,31 @@ describe("LoginPage", () => {
     serve({ profiles: [testUser, { ...testUser, id: 2, name: "Kid" }] });
     renderLogin();
 
+    await signIn("open-sesame");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/profiles?next=%2Flibrary%2F2");
+  });
+
+  it("goes straight in as the profile this browser was last used as, when it has no PIN", async () => {
+    rememberProfile(testUser.id);
+    serve({ profiles: [testUser, { ...testUser, id: 2, name: "Kid" }] });
+    renderLogin();
+
+    await signIn("open-sesame");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
+  });
+
+  it("still lets a household pick when that profile has a PIN, or another was used last", async () => {
+    const household = [testUser, { ...testUser, id: 2, name: "Kid" }];
+    rememberProfile(testUser.id);
+    serve({ profiles: household, user: { ...testUser, has_pin: true } });
+    const first = renderLogin();
+    await signIn("open-sesame");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/profiles?next=%2Flibrary%2F2");
+    first.unmount();
+
+    rememberProfile(2);
+    serve({ profiles: household });
+    renderLogin();
     await signIn("open-sesame");
     expect(await screen.findByTestId("location")).toHaveTextContent("/profiles?next=%2Flibrary%2F2");
   });

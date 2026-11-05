@@ -78,7 +78,9 @@ describe("PlayOn", () => {
     expect(casts(requests)).toEqual([["/api/remote/devices/phone-1/cast", { item_id: 7, shuffle: true }]]);
     expect(await screen.findByText("Playing on Phone")).toBeInTheDocument();
     const remote = await screen.findByRole("dialog", { name: "Your devices" });
-    expect(within(remote).getByRole("group", { name: "Phone" })).toHaveTextContent("Nothing playing");
+    // Its controls show once its player lists what it plays.
+    expect(within(remote).getAllByRole("listitem").map((i) => i.textContent)).toContain("PhoneReady to play");
+    expect(within(remote).queryByRole("group")).toBeNull();
     expect(screen.getByRole("button", { name: /^Remote/ })).toHaveFocus();
   });
 

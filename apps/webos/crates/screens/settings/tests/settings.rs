@@ -218,7 +218,7 @@ fn always_start_as_is_kept_for_this_server() {
     app.press_n(Key::Down, 5);
     app.press(Key::Ok);
     app.settle();
-    assert!(app.shows("Ask who's watching"));
+    assert!(app.shows("Profile used last"));
     assert_eq!(app.focused(), Some(SettingsScreen::choice_id(app.page(), 0)));
     // Ask, Alex, Sam: Sam.
     app.press_n(Key::Down, 2);

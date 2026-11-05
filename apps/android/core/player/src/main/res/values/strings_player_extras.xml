@@ -13,6 +13,20 @@
     <string name="cast_playing_from">Playing from %1$s</string>
     <string name="cast_playing_from_another">Playing from another device</string>
 
+    <!-- What the profile's remote, on another device, just did here, said for a moment in place of the controls. -->
+    <string name="remote_paused">Paused</string>
+    <string name="remote_playing">Playing</string>
+    <!-- A skip by the remote, as far as it asked: "+30 s", "−10 s" (a true minus sign). -->
+    <string name="remote_skipped_forward">+%1$d s</string>
+    <string name="remote_skipped_back">−%1$d s</string>
+    <!-- A seek by the remote: where it went, "Jumped to 12:34". -->
+    <string name="remote_jumped">Jumped to %1$s</string>
+    <!-- A track or quality the remote picked, as the player's menu names it. -->
+    <string name="remote_audio">Audio: %1$s</string>
+    <string name="remote_subtitles">Subtitles: %1$s</string>
+    <string name="remote_subtitles_off">Subtitles off</string>
+    <string name="remote_quality">Quality: %1$s</string>
+
     <!-- The sleep timer's choices. -->
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_off">Off</string>
