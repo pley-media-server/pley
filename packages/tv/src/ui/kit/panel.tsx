@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { nudge, topIn } from "../focus";
 import { G } from "./focusable";
@@ -122,7 +123,7 @@ export function TextDialog(p: { title: string; text: string; onClose: () => void
           {p.text}
         </div>
         <G kind="row" style="display:flex;justify-content:flex-end;margin-top:16px">
-          <TextButton label="Close" initial onSelect={p.onClose} />
+          <TextButton label={t("common.actions.close")} initial onSelect={p.onClose} />
         </G>
       </div>
     </div>

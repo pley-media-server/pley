@@ -21,8 +21,10 @@ import {
   audioPicked,
   automaticAudioLabel,
   audioFormatLabel,
+  localDecimal,
 } from "../../format/format";
 import { mediaFacts } from "../../format/media-info";
+import { currentLanguage, formatDate, t } from "../../i18n";
 import { mayAsk } from "../../requests";
 import { audioStreams, subtitleStreams, withTracks } from "../../player/plan";
 import { useUi } from "../context";
@@ -54,22 +56,26 @@ const HERO_H = 371;
 
 type PanelKind = null | "tracks" | "more" | { actions: ItemSummary };
 
+/** The server's extra types, as the browse area's `item.extras` names them. */
+const EXTRA_TYPES = {
+  trailer: "trailer",
+  behind_the_scenes: "behind_the_scenes",
+  behindthescenes: "behind_the_scenes",
+  deleted: "deleted_scene",
+  deleted_scene: "deleted_scene",
+  featurette: "featurette",
+  interview: "interview",
+  scene: "scene",
+  short: "short",
+} as const;
+
 /** "Trailer · 2m", "Behind the Scenes · 5m", "Featurette". */
 export function extraCaption(item: ItemSummary): string {
-  const names: Record<string, string> = {
-    trailer: "Trailer",
-    behind_the_scenes: "Behind the Scenes",
-    behindthescenes: "Behind the Scenes",
-    deleted: "Deleted Scene",
-    deleted_scene: "Deleted Scene",
-    featurette: "Featurette",
-    interview: "Interview",
-    scene: "Scene",
-    short: "Short",
-  };
-  const kind = names[(item.extra_type ?? "").toLowerCase()] ?? "Extra";
+  const given = (item.extra_type ?? "").toLowerCase();
+  const type = Object.prototype.hasOwnProperty.call(EXTRA_TYPES, given) ? EXTRA_TYPES[given as keyof typeof EXTRA_TYPES] : "other";
+  const kind = t(`browse.item.extras.${type}`);
   const dur = item.duration_ms ? formatDuration(item.duration_ms).replace(/ \d+s$/, "") : "";
-  return dur && (kind === "Trailer" || kind === "Behind the Scenes") ? `${kind} · ${dur}` : kind;
+  return dur && (type === "trailer" || type === "behind_the_scenes") ? `${kind} · ${dur}` : kind;
 }
 
 /** A version's long form: "Final Cut · 4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1 · 62.0 GB". */
@@ -91,7 +97,7 @@ export function versionLong(file: MediaFile): string {
 /** A version's short form for the Tracks panel: "Final Cut · 4K · HEVC · MKV · 58.2 GB", else "Version N". */
 export function versionShort(file: MediaFile, n: number): string {
   const parts = [file.edition ?? "", resolutionLabel(file.width, file.height) ?? "", codecLabel(file.video_codec), file.container ? file.container.toUpperCase() : "", file.size ? formatBytes(file.size) : ""].filter(Boolean);
-  return parts.length ? parts.join(" · ") : `Version ${n}`;
+  return parts.length ? parts.join(" · ") : t("format.track.version", { number: n });
 }
 
 function isWatched(item: ItemSummary): boolean {
@@ -99,12 +105,8 @@ function isWatched(item: ItemSummary): boolean {
   return item.user_state.watched;
 }
 
-/** The crew the page names, in this order, with what each is called on a tile. */
-const CREW_ROLES: { role: CreditRole; label: string }[] = [
-  { role: "creator", label: "Creator" },
-  { role: "director", label: "Director" },
-  { role: "writer", label: "Writer" },
-];
+/** The crew the page names, in this order, each called by its role on a tile. */
+const CREW_ROLES: CreditRole[] = ["creator", "director", "writer"];
 /** At most this many people per crew role, then "and N more" (Credits.tsx). */
 const CREW_NAMES = 4;
 
@@ -122,14 +124,18 @@ function crewIn(item: ItemDetail, role: CreditRole): Credit[] {
  */
 export function castAndCrew(item: ItemDetail): { title: string; people: { credit: Credit; subtitle: string }[] } | null {
   const cast = (item.cast ?? []).filter((c) => c.role === "actor");
-  const crew = CREW_ROLES.map((r) => ({ label: r.label, people: crewIn(item, r.role).slice(0, CREW_NAMES) })).filter((l) => l.people.length);
+  const crew = CREW_ROLES.map((role) => ({ label: t(`browse.person.roles.${role}`), people: crewIn(item, role).slice(0, CREW_NAMES) })).filter((l) => l.people.length);
   if (!cast.length && !crew.length) return null;
   const seen = new Set<number>();
   const people: { credit: Credit; subtitle: string }[] = [];
   for (const c of cast) if (!seen.has(c.id) && seen.add(c.id)) people.push({ credit: c, subtitle: c.character ?? "" });
   for (const line of crew) for (const c of line.people) if (!seen.has(c.id) && seen.add(c.id)) people.push({ credit: c, subtitle: line.label });
-  const castTitle = item.kind === "episode" ? "Guest Stars" : "Cast";
-  const title = !crew.length ? castTitle : !cast.length ? "Crew" : `${castTitle} & Crew`;
+  const guests = item.kind === "episode";
+  const title = !crew.length
+    ? t(guests ? "browse.item.guestStars" : "browse.item.cast")
+    : !cast.length
+      ? t("browse.item.crew")
+      : t(guests ? "browse.item.guestStarsAndCrew" : "browse.item.castAndCrew");
   return { title, people };
 }
 
@@ -138,7 +144,7 @@ function creditsLine(item: ItemDetail): ComponentChildren {
   const crew = item.crew ?? [];
   const directors = crew.filter((c) => c.role === "director").slice(0, 2);
   const creators = crew.filter((c) => c.role === "creator").slice(0, 2);
-  const lead = directors.length ? { label: "Directed by", people: directors } : creators.length ? { label: "Created by", people: creators } : null;
+  const lead = directors.length ? { label: t("browse.item.directedBy"), people: directors } : creators.length ? { label: t("browse.item.createdBy"), people: creators } : null;
   const actors = (item.cast ?? []).filter((c) => c.role === "actor").slice(0, 3);
   const parts: ComponentChildren[] = [];
   if (lead) {
@@ -153,7 +159,7 @@ function creditsLine(item: ItemDetail): ComponentChildren {
     if (parts.length) parts.push(<span key="sep" class="c-subtle"> · </span>);
     parts.push(
       <span key="cast">
-        <span class="c-muted">Starring </span>
+        <span class="c-muted">{t("browse.item.starring")} </span>
         <span class="c-fg">{actors.map((p) => p.name).join(", ")}</span>
       </span>,
     );
@@ -192,9 +198,9 @@ export function ItemScreen(p: { entry: Entry; id: number }) {
   if (!item) {
     if (loaded.error) {
       if (isApiError(loaded.error, 404)) {
-        return <Message title="Item not found" body="It may have been removed, or this profile can't see it." action={{ label: "Back", onSelect: () => ui.nav.pop() }} />;
+        return <Message title={t("browse.item.notFound")} body={t("browse.notFoundHint")} action={{ label: t("common.actions.back"), onSelect: () => ui.nav.pop() }} />;
       }
-      return <Message title={failedTitle(loaded.error, "Couldn't load this item")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+      return <Message title={failedTitle(loaded.error, t("browse.item.cantLoad"))} body={problem(loaded.error)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }} />;
     }
     return <ItemSkeleton />;
   }
@@ -205,7 +211,7 @@ export function ItemScreen(p: { entry: Entry; id: number }) {
 function ItemSkeleton() {
   const b = (y: number, w: number, h: number, r = 2) => <div class="skeleton" style={`position:absolute;left:96px;top:${y}px;width:${w}px;height:${h}px;border-radius:${r}px`} />;
   return (
-    <div class="item-page" role="status" aria-label="Loading">
+    <div class="item-page" role="status" aria-label={t("common.states.loading")}>
       {b(82, 320, 40)}
       {b(136, 220, 18)}
       {b(178, 464, 15)}
@@ -289,10 +295,15 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   const playable = kind === "movie" || kind === "episode" ? item.files.length > 0 : !!target;
   const resume = target ? isInProgress(target) : false;
   const epLabel = (kind === "show" || kind === "season") && target ? episodeLabel(target.parent_index, target.index) : "";
-  const primary = !playable && !(onDeck.loading && (kind === "show" || kind === "season")) ? "Unavailable" : `${resume ? "Resume" : "Play"}${epLabel ? ` ${epLabel}` : ""}`;
+  const unavailable = !playable && !(onDeck.loading && (kind === "show" || kind === "season"));
+  const primary = unavailable
+    ? t("browse.item.unavailable")
+    : epLabel
+      ? t(resume ? "browse.item.resumeEpisode" : "browse.item.playEpisode", { episode: epLabel })
+      : t(resume ? "common.actions.resume" : "common.actions.play");
   const play = (fromStart: boolean) => {
     if (!target || !playable) {
-      ui.toast("Nothing to play: this item has no media files.");
+      ui.toast(t("browse.item.noFiles"));
       return;
     }
     const files = target.id === item.id ? item.files : [];
@@ -332,6 +343,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
         file={file}
         partOf={partOf.data ?? []}
         primary={primary}
+        unavailable={unavailable}
         resume={resume}
         playable={playable}
         watched={watched}
@@ -392,7 +404,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
       });
     }
     const seasonName =
-      kind === "episode" ? seasonTitle(null, item.parent_index) : seasonList.filter((s) => s.id === seasonId)[0] ? seasonTitle(seasonList.filter((s) => s.id === seasonId)[0]!.title, seasonList.filter((s) => s.id === seasonId)[0]!.index) : "Episodes";
+      kind === "episode" ? seasonTitle(null, item.parent_index) : seasonList.filter((s) => s.id === seasonId)[0] ? seasonTitle(seasonList.filter((s) => s.id === seasonId)[0]!.title, seasonList.filter((s) => s.id === seasonId)[0]!.index) : t("browse.item.episodes");
     const eps = episodes.data;
     const epIndex = eps ? Math.max(0, eps.findIndex((e) => e.id === toWatch)) : 0;
     sections.push({
@@ -404,7 +416,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
           <div style={`height:${152 + (multiSeason ? 0 : 38)}px`} />
         ) : !eps.length ? (
           <div class="t-body c-muted" style="padding-left:96px;height:104px">
-            No episodes found.
+            {t("browse.item.noEpisodes")}
           </div>
         ) : (
           <Row
@@ -439,7 +451,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   }
   const extras = item.extras ?? [];
   if (extras.length) {
-    sections.push(rowSection("extras", "Extras", "landscape", extras, (x, place) => (
+    sections.push(rowSection("extras", t("browse.item.extrasTitle"), "landscape", extras, (x, place) => (
       <Tile
         item={x}
         kind="landscape"
@@ -471,7 +483,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   const more = related.data ?? [];
   if (more.length) {
     sections.push(
-      rowSection("related", "More Like This", "poster", more, (r: ItemSummary, place) => (
+      rowSection("related", t("browse.item.moreLikeThis"), "poster", more, (r: ItemSummary, place) => (
         <Tile
           item={r}
           kind="poster"
@@ -604,7 +616,11 @@ function ItemInfo(p: { item: ItemDetail; file: MediaFile | null; title: string; 
             {episode.title}
           </div>
           <div class="t-caption c-muted one-line" style="margin-top:4px">
-            {[`Season ${episode.parent_index ?? "?"} · Episode ${episode.index ?? "?"}`, formatRuntime(episode.duration_ms), episode.release_date ? `Aired ${longDate(episode.release_date)}` : ""]
+            {[
+              t("browse.item.seasonEpisode", { season: episode.parent_index ?? "?", episode: episode.index ?? "?" }),
+              formatRuntime(episode.duration_ms),
+              episode.release_date ? t("browse.item.aired", { date: longDate(episode.release_date) }) : "",
+            ]
               .filter(Boolean)
               .join(" · ")}
           </div>
@@ -625,20 +641,21 @@ function ItemInfo(p: { item: ItemDetail; file: MediaFile | null; title: string; 
   );
 }
 
-/** "12 March 2024". */
+/** "12 March 2024" ("12 mars 2024" in French). */
 function longDate(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   if (isNaN(d.getTime())) return iso;
+  // English writes the day first, which Intl's en-US doesn't; French and Spanish as Intl writes them.
+  if (currentLanguage() !== "en") return formatDate(d, { day: "numeric", month: "long", year: "numeric" });
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** "Mar 5, 2024". */
+/** "Mar 5, 2024" ("5 mars 2024" in French). */
 export function mediumDate(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   if (isNaN(d.getTime())) return iso;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return formatDate(d, { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** The meta line of each kind (ItemPages): year, edition, runtime; seasons; air date. */
@@ -673,10 +690,10 @@ function MetaLineOf(p: { detail: ItemDetail; file: MediaFile | null; text: strin
       {p.detail.rating && p.detail.rating > 0 ? (
         <>
           <span class="t-label c-subtle">·</span>
-          <span class="meta-rating" aria-label={`Rated ${p.detail.rating.toFixed(1)}`}>
+          <span class="meta-rating" aria-label={t("browse.rated", { rating: localDecimal(p.detail.rating.toFixed(1)) })}>
             <Icon name="star" size={16} color="var(--accent)" />
             <span class="t-label c-fg" style="margin-left:4px">
-              {p.detail.rating.toFixed(1)}
+              {localDecimal(p.detail.rating.toFixed(1))}
             </span>
           </span>
         </>
@@ -702,6 +719,8 @@ function ItemHero(p: {
   file: MediaFile | null;
   partOf: { id: number; title: string }[];
   primary: string;
+  /** Nothing to play: Play is greyed out, and focus starts on the next button. */
+  unavailable: boolean;
   resume: boolean;
   playable: boolean;
   watched: boolean;
@@ -729,7 +748,7 @@ function ItemHero(p: {
   const kind = item.kind;
   const title = kind === "season" || kind === "episode" ? item.grandparent_title || item.parent_title || item.title : item.title;
   const context = kind === "episode" ? [episodeLabel(item.parent_index, item.index), item.title].filter(Boolean).join(" · ") : kind === "season" ? seasonTitle(item.title, item.index) : "";
-  const genres = (item.genres ?? []).concat(p.partOf.map((c) => `Part of ${c.title}`)).join(" · ");
+  const genres = (item.genres ?? []).concat(p.partOf.map((c) => t("browse.item.partOf", { title: c.title }))).join(" · ");
   const summary = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = summary.current;
@@ -782,34 +801,34 @@ function ItemHero(p: {
           <F
             class="pill t-label"
             fid="play"
-            initial={p.primary !== "Unavailable"}
-            disabled={p.primary === "Unavailable"}
+            initial={!p.unavailable}
+            disabled={p.unavailable}
             label={p.primary}
             onFocus={focus}
             onSelect={() => p.onPlay(false)}
             onLongSelect={p.onPlayActions}
           >
-            {p.primary !== "Unavailable" && <PlayIcon />}
+            {!p.unavailable && <PlayIcon />}
             <span class="one-line">{p.primary}</span>
           </F>
         </div>
-        {p.resume && <Round label="From start" icon="rotate-ccw" fid="fromStart" onFocus={focus} onSelect={() => p.onPlay(true)} />}
-        {p.onRequestMore && <Round label="Request more seasons" icon="plus" fid="requestMore" onFocus={focus} onSelect={p.onRequestMore} />}
+        {p.resume && <Round label={t("browse.actions.fromStart")} icon="rotate-ccw" fid="fromStart" onFocus={focus} onSelect={() => p.onPlay(true)} />}
+        {p.onRequestMore && <Round label={t("browse.item.requestMore")} icon="plus" fid="requestMore" onFocus={focus} onSelect={p.onRequestMore} />}
         <Round
-          label={p.watched ? "Mark as unwatched" : "Mark as watched"}
+          label={p.watched ? t("browse.actions.markUnwatched") : t("browse.actions.markWatched")}
           icon={p.watched ? "eye-off" : "circle-check"}
           fid="watched"
-          initial={p.primary === "Unavailable"}
+          initial={p.unavailable}
           onFocus={focus}
           onSelect={p.onWatched}
         />
-        {p.hasTracks && <Round label="Audio and subtitles" icon="captions" fid="tracks" onFocus={focus} onSelect={p.onTracks} />}
+        {p.hasTracks && <Round label={t("browse.item.audioSubtitles")} icon="captions" fid="tracks" onFocus={focus} onSelect={p.onTracks} />}
         {listable && (
-          <Round label={p.inList ? "In My List" : "Add to My List"} icon={p.inList ? "bookmark-check" : "bookmark-plus"} fid="myList" onFocus={focus} onSelect={p.onMyList} />
+          <Round label={p.inList ? t("browse.actions.inMyList") : t("browse.actions.addToMyList")} icon={p.inList ? "bookmark-check" : "bookmark-plus"} fid="myList" onFocus={focus} onSelect={p.onMyList} />
         )}
-        {p.onTrailer && <Round label="Trailer" icon="film" fid="trailer" onFocus={focus} onSelect={p.onTrailer} />}
-        <Round label="Add to playlist" icon="list-plus" fid="playlist" onFocus={focus} onSelect={p.onPlaylist} />
-        <Round label="More" icon="ellipsis" fid="more" onFocus={focus} onSelect={p.onMore} />
+        {p.onTrailer && <Round label={t("browse.item.trailer")} icon="film" fid="trailer" onFocus={focus} onSelect={p.onTrailer} />}
+        <Round label={t("browse.actions.addToPlaylist")} icon="list-plus" fid="playlist" onFocus={focus} onSelect={p.onPlaylist} />
+        <Round label={t("browse.actions.more")} icon="ellipsis" fid="more" onFocus={focus} onSelect={p.onMore} />
       </G>
     </div>
   );
@@ -862,22 +881,22 @@ function Details(p: { item: ItemDetail; file: MediaFile | null; onVersion: (f: M
   const facts: { label: string; value: string }[] = [];
   const names = (list: Credit[]) => {
     const shown = list.slice(0, CREW_NAMES).map((c) => c.name);
-    return list.length > CREW_NAMES ? `${shown.join(", ")} and ${list.length - CREW_NAMES} more` : shown.join(", ");
+    return list.length > CREW_NAMES ? t("browse.item.andMore", { names: shown.join(", "), count: list.length - CREW_NAMES }) : shown.join(", ");
   };
   const creators = crewIn(item, "creator");
   const directors = crewIn(item, "director");
   const writers = crewIn(item, "writer");
-  if (creators.length) facts.push({ label: "Created by", value: names(creators) });
-  if (directors.length) facts.push({ label: directors.length > 1 ? "Directors" : "Director", value: names(directors) });
-  if (writers.length) facts.push({ label: writers.length > 1 ? "Writers" : "Writer", value: names(writers) });
-  if (item.original_title && item.original_title !== item.title) facts.push({ label: "Original title", value: item.original_title });
-  if (item.release_date && item.kind !== "episode") facts.push({ label: "Released", value: mediumDate(item.release_date) });
-  if (item.studio) facts.push({ label: item.kind === "show" || item.kind === "episode" ? "Network" : "Studio", value: item.studio });
-  if (item.user_state.play_count > 0) facts.push({ label: "Plays", value: String(item.user_state.play_count) });
+  if (creators.length) facts.push({ label: t("browse.item.facts.createdBy"), value: names(creators) });
+  if (directors.length) facts.push({ label: t("browse.item.facts.director", { count: directors.length }), value: names(directors) });
+  if (writers.length) facts.push({ label: t("browse.item.facts.writer", { count: writers.length }), value: names(writers) });
+  if (item.original_title && item.original_title !== item.title) facts.push({ label: t("browse.item.facts.originalTitle"), value: item.original_title });
+  if (item.release_date && item.kind !== "episode") facts.push({ label: t("browse.item.facts.released"), value: mediumDate(item.release_date) });
+  if (item.studio) facts.push({ label: item.kind === "show" || item.kind === "episode" ? t("browse.item.facts.network") : t("browse.item.facts.studio"), value: item.studio });
+  if (item.user_state.play_count > 0) facts.push({ label: t("browse.item.facts.plays"), value: String(item.user_state.play_count) });
   if (!facts.length && !item.files.length) return null;
   return (
     <div class="details" style="padding-left:96px;width:664px">
-      <div class="t-section c-fg">Details</div>
+      <div class="t-section c-fg">{t("browse.item.details")}</div>
       {facts.length > 0 && (
         <div class="facts-card" style="margin-top:14px">
           {facts.map((f) => (
@@ -891,11 +910,11 @@ function Details(p: { item: ItemDetail; file: MediaFile | null; onVersion: (f: M
       {item.files.length > 0 && (
         <>
           <div class="t-title c-fg" style="margin-top:20px">
-            Versions
+            {t("browse.item.versions")}
           </div>
           <G kind="col" style="margin-top:8px">
             {item.files.map((f) => (
-              <PanelRow key={f.id} fid={`version/${f.id}`} label={versionLong(f) || "Version"} checked={p.file?.id === f.id} onSelect={() => p.onVersion(f)} />
+              <PanelRow key={f.id} fid={`version/${f.id}`} label={versionLong(f) || t("browse.item.version")} checked={p.file?.id === f.id} onSelect={() => p.onVersion(f)} />
             ))}
           </G>
           <MediaInfo item={item} />
@@ -914,8 +933,8 @@ function MediaInfo(p: { item: ItemDetail }) {
       <G kind="col" style="margin-top:20px">
         <PanelRow
           fid="media-info"
-          label="Media info"
-          sub="Each file's video, audio and subtitle streams"
+          label={t("browse.item.mediaInfo")}
+          sub={t("browse.item.mediaInfoHint")}
           icon={open ? "chevron-up" : "chevron-down"}
           onSelect={() => setOpen(!open)}
         />
@@ -923,7 +942,7 @@ function MediaInfo(p: { item: ItemDetail }) {
       {open && (
         <div style="margin-top:8px">
           {files.map((f, n) => (
-            <MediaInfoCard key={f.id} file={f} title={f.edition ?? (files.length > 1 ? `Version ${n + 1}` : null)} />
+            <MediaInfoCard key={f.id} file={f} title={f.edition ?? (files.length > 1 ? t("format.track.version", { number: n + 1 }) : null)} />
           ))}
         </div>
       )}
@@ -932,7 +951,7 @@ function MediaInfo(p: { item: ItemDetail }) {
 }
 
 function MediaInfoCard(p: { file: MediaFile; title: string | null }) {
-  const blocks = useMemo(() => mediaFacts(p.file), [p.file]);
+  const blocks = useMemo(() => mediaFacts(p.file), [p.file, currentLanguage()]);
   return (
     <div class="facts-card media-card">
       {p.title && <div class="t-label c-fg" style="margin-bottom:10px">{p.title}</div>}
@@ -974,11 +993,11 @@ function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[];
   };
   const firstChecked = p.files.length > 1 ? "version" : audio.length >= 2 ? "audio" : "subs";
   return (
-    <SidePanel onClose={p.onClose} label="Audio and subtitles">
-      <PanelTitle>Audio and subtitles</PanelTitle>
+    <SidePanel onClose={p.onClose} label={t("browse.item.audioSubtitles")}>
+      <PanelTitle>{t("browse.item.audioSubtitles")}</PanelTitle>
       {p.files.length > 1 && (
         <>
-          <PanelHeading>Version</PanelHeading>
+          <PanelHeading>{t("browse.item.version")}</PanelHeading>
           {p.files.map((f, i) => (
             <PanelRow key={f.id} label={versionShort(f, i + 1)} checked={f.id === p.file.id} initial={firstChecked === "version" && f.id === p.file.id} onSelect={() => p.onVersion(f)} />
           ))}
@@ -986,7 +1005,7 @@ function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[];
       )}
       {audio.length >= 2 && (
         <>
-          <PanelHeading>Audio</PanelHeading>
+          <PanelHeading>{t("browse.item.audio")}</PanelHeading>
           <PanelRow
             label={automaticAudioLabel(p.file)}
             checked={chosenAudio === null}
@@ -1014,9 +1033,9 @@ function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[];
       )}
       {subs.length > 0 && (
         <>
-          <PanelHeading>Subtitles</PanelHeading>
+          <PanelHeading>{t("browse.item.subtitles")}</PanelHeading>
           <PanelRow
-            label="Off"
+            label={t("browse.item.off")}
             checked={chosenSub === null}
             initial={firstChecked === "subs" && chosenSub === null}
             onSelect={() => {
@@ -1070,21 +1089,21 @@ function MorePanel(p: {
   const others = (rateable ? 1 : 0) + (goShow ? 1 : 0) + (goSeason ? 1 : 0) + p.partOf.length;
   const firstAction = !rateable && (goShow || goSeason || p.partOf.length);
   return (
-    <SidePanel onClose={p.onClose} label="More">
-      <PanelTitle>More</PanelTitle>
-      {p.summaryCut && <PanelRow label="Full summary" icon="info" onSelect={p.onSummary} />}
+    <SidePanel onClose={p.onClose} label={t("browse.actions.more")}>
+      <PanelTitle>{t("browse.actions.more")}</PanelTitle>
+      {p.summaryCut && <PanelRow label={t("browse.item.fullSummary")} icon="info" onSelect={p.onSummary} />}
       {rateable && (
         <>
-          <PanelHeading>Your rating</PanelHeading>
-          <PanelRow label="No rating" checked={stars === 0} initial={stars === 0} onSelect={() => rate(0)} />
+          <PanelHeading>{t("browse.item.yourRating")}</PanelHeading>
+          <PanelRow label={t("browse.item.noRating")} checked={stars === 0} initial={stars === 0} onSelect={() => rate(0)} />
           {[1, 2, 3, 4, 5].map((n) => (
-            <PanelRow key={n} label={n === 1 ? "1 star" : `${n} stars`} icon="star" checked={stars === n} initial={stars === n} onSelect={() => rate(n)} />
+            <PanelRow key={n} label={t("browse.item.stars", { count: n })} icon="star" checked={stars === n} initial={stars === n} onSelect={() => rate(n)} />
           ))}
         </>
       )}
       {goShow && (
         <PanelRow
-          label="Go to show"
+          label={t("browse.actions.goToShow")}
           icon="tv"
           initial={!!firstAction}
           onSelect={() => {
@@ -1095,7 +1114,7 @@ function MorePanel(p: {
       )}
       {goSeason && (
         <PanelRow
-          label="Go to season"
+          label={t("browse.actions.goToSeason")}
           icon="layers"
           initial={!!firstAction && !goShow}
           onSelect={() => {
@@ -1107,7 +1126,7 @@ function MorePanel(p: {
       {p.partOf.map((c, i) => (
         <PanelRow
           key={c.id}
-          label={`Part of ${c.title}`}
+          label={t("browse.item.partOf", { title: c.title })}
           icon="layers"
           initial={!!firstAction && !goShow && !goSeason && i === 0}
           onSelect={() => {
@@ -1118,7 +1137,7 @@ function MorePanel(p: {
       ))}
       {others === 0 && (
         <PanelRow
-          label="Add to playlist"
+          label={t("browse.actions.addToPlaylist")}
           icon="list-plus"
           initial
           onSelect={() => {

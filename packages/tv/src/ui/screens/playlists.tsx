@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
 import type { ItemSummary, Playlist, PlaylistEntry } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatDuration, pluralize, seasonTitle } from "../../format/format";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { nudge } from "../focus";
 import { Art, artCandidates } from "../kit/art";
@@ -35,7 +36,14 @@ export function PlaylistsScreen(p: { entry: Entry }) {
   const loaded = useLoad((c) => ui.api.playlists(c), []);
   const list = loaded.data?.playlists ?? null;
   if (!list && loaded.error) {
-    return <ColumnMessage top={80} title={failedTitle(loaded.error, "Couldn't load your playlists")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+    return (
+      <ColumnMessage
+        top={80}
+        title={failedTitle(loaded.error, t("browse.playlists.cantLoad"))}
+        body={problem(loaded.error)}
+        action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }}
+      />
+    );
   }
   if (!list) return null;
   // Back to the grid where it was; a playlist deleted there leaves focus on the one now in its place.
@@ -43,13 +51,13 @@ export function PlaylistsScreen(p: { entry: Entry }) {
   return (
     <div class="playlists-page">
       <div class="t-page c-fg" style="position:absolute;left:96px;top:27px">
-        Playlists
+        {t("browse.playlists.title")}
       </div>
       <G kind="row" class="playlists-new" onEdge={railOnLeft(ui.toRail)}>
-        <Pill label="New playlist" icon="plus" fid="new" initial={!list.length} onSelect={() => ui.nav.open({ name: "newPlaylist" })} />
+        <Pill label={t("browse.playlists.new")} icon="plus" fid="new" initial={!list.length} onSelect={() => ui.nav.open({ name: "newPlaylist" })} />
       </G>
       {!list.length ? (
-        <ColumnMessage top={80} title="No playlists yet" body="Make one here, or use “Add to playlist” on a movie, show, album or episode (also when holding OK on a poster)." />
+        <ColumnMessage top={80} title={t("browse.playlists.none")} body={t("browse.playlists.noneHint")} />
       ) : (
         <PosterGrid
           kind="square"
@@ -117,9 +125,18 @@ export function PlaylistScreen(p: { entry: Entry; id: number }) {
   if (!pl) {
     if (loaded.error) {
       if (isApiError(loaded.error, 404)) {
-        return <ColumnMessage top={58} title="Playlist not found" body="It was deleted, or it belongs to another profile." action={{ label: "Back", onSelect: () => ui.nav.pop() }} />;
+        return (
+          <ColumnMessage top={58} title={t("browse.playlists.notFound")} body={t("browse.playlists.notFoundHint")} action={{ label: t("common.actions.back"), onSelect: () => ui.nav.pop() }} />
+        );
       }
-      return <ColumnMessage top={58} title={failedTitle(loaded.error, "Couldn't load this playlist")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+      return (
+        <ColumnMessage
+          top={58}
+          title={failedTitle(loaded.error, t("browse.playlists.cantLoadOne"))}
+          body={problem(loaded.error)}
+          action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }}
+        />
+      );
     }
     return <PlaylistSkeleton />;
   }
@@ -231,7 +248,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
     const i = entries.findIndex((x) => x.entry_id === e.entry_id);
     const next = entries[i + 1] ?? entries[i - 1] ?? null;
     setGone((g) => g.concat([e.entry_id]));
-    ui.toast(`Removed “${entryTitles(e.item)[0]}”`);
+    ui.toast(t("browse.playlists.removed", { title: entryTitles(e.item)[0] }));
     if (next) focusFid(`entry/${next.entry_id}`);
     else focusFid(editable ? "rename" : "delete");
     ui.api.removeFromPlaylist(pl.id, e.entry_id).then(p.reload, (err) => {
@@ -309,29 +326,25 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
         <div class="playlist-hero">
           <div class="playlist-kind t-caption">
             <Icon name={video ? "list-video" : "list-music"} size={18} />
-            <span>{smart ? "Smart playlist" : video ? "Video playlist" : "Music playlist"}</span>
+            <span>{smart ? t("browse.playlists.smart") : video ? t("browse.playlists.video") : t("browse.playlists.music")}</span>
           </div>
           <div class="t-hero c-fg lines-2" style="margin-top:10px">
             {title}
           </div>
           <div class="playlist-facts" style="margin-top:12px">
-            {smart && <PageBadge text="Smart" />}
+            {smart && <PageBadge text={t("browse.smart")} />}
             <span class="t-label c-muted lines-2">{facts}</span>
           </div>
         </div>
         <G kind="row" restore class="buttons playlist-buttons" style={`top:${buttonsTop}px`} onEdge={railOnLeft(ui.toRail)}>
-          <Pill label="Play" icon="play" fid="play" initial={canPlay} disabled={!canPlay || lifting} onFocus={topFocus} onSelect={() => play(0)} />
-          <Round label="Shuffle" icon="shuffle" fid="shuffle" disabled={entries.length < 2 || lifting} onFocus={topFocus} onSelect={() => play(0, true)} />
-          {editable && <Round label="Rename" icon="pencil" fid="rename" initial={!canPlay} disabled={lifting} onFocus={topFocus} onSelect={() => setOverlay("rename")} />}
-          <Round label="Delete" icon="trash-2" fid="delete" initial={!canPlay && !editable} disabled={lifting} onFocus={topFocus} onSelect={() => setOverlay("delete")} />
+          <Pill label={t("common.actions.play")} icon="play" fid="play" initial={canPlay} disabled={!canPlay || lifting} onFocus={topFocus} onSelect={() => play(0)} />
+          <Round label={t("browse.actions.shuffle")} icon="shuffle" fid="shuffle" disabled={entries.length < 2 || lifting} onFocus={topFocus} onSelect={() => play(0, true)} />
+          {editable && <Round label={t("browse.playlists.rename")} icon="pencil" fid="rename" initial={!canPlay} disabled={lifting} onFocus={topFocus} onSelect={() => setOverlay("rename")} />}
+          <Round label={t("common.actions.delete")} icon="trash-2" fid="delete" initial={!canPlay && !editable} disabled={lifting} onFocus={topFocus} onSelect={() => setOverlay("delete")} />
         </G>
         {!canPlay && (
           <div class="t-body c-muted playlist-empty">
-            {smart
-              ? "Nothing matches this playlist's filter yet."
-              : video
-                ? "This playlist is empty. Use “Add to playlist” on a movie, show or episode, or hold OK on a poster."
-                : "This playlist is empty. Use “Add to playlist” on an artist or album, or hold OK on a cover."}
+            {smart ? t("browse.playlists.noMatches") : video ? t("browse.playlists.emptyVideo") : t("browse.playlists.emptyMusic")}
           </div>
         )}
         <G kind="col" restore class="playlist-entries" style={`top:${LIST_TOP}px;height:${entries.length * ROW_H}px`} elRef={(el) => (listRef.current = el)}>
@@ -346,7 +359,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
         )}
       </div>
       <div class="rail-fade" />
-      {moving !== null && <div class="moving-hint t-label">Up and down to move it, OK to drop it here, Back to put it back</div>}
+      {moving !== null && <div class="moving-hint t-label">{t("browse.playlists.movingHint")}</div>}
       {acting && actingTitles && (
         <SidePanel onClose={() => setOverlay(null)} label={actingTitles[0]}>
           <div class="panel-title">
@@ -354,7 +367,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
             {actingTitles[1] && <div class="t-caption c-muted one-line">{actingTitles[1]}</div>}
           </div>
           <PanelRow
-            label="Play from here"
+            label={t("browse.playlists.playFromHere")}
             icon="play"
             initial
             onSelect={() => {
@@ -363,7 +376,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
             }}
           />
           <PanelRow
-            label={`Go to ${actingTitles[0]}`}
+            label={t("browse.playlists.goTo", { title: actingTitles[0] })}
             icon="arrow-right"
             onSelect={() => {
               setOverlay(null);
@@ -372,7 +385,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
           />
           {editable && (
             <PanelRow
-              label="Move"
+              label={t("browse.actions.move")}
               icon="arrow-up-down"
               disabled={entries.length < 2}
               onSelect={() => {
@@ -384,7 +397,7 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
           )}
           {editable && (
             <PanelRow
-              label="Remove from playlist"
+              label={t("browse.playlists.remove")}
               icon="x"
               danger
               onSelect={() => {
@@ -396,19 +409,19 @@ function PlaylistPage(p: { entry: Entry; pl: Playlist & { entries: PlaylistEntry
         </SidePanel>
       )}
       {overlay === "rename" && (
-        <SidePanel onClose={() => setOverlay(null)} label="Rename playlist">
-          <PanelTitle>Rename playlist</PanelTitle>
+        <SidePanel onClose={() => setOverlay(null)} label={t("browse.playlists.renameTitle")}>
+          <PanelTitle>{t("browse.playlists.renameTitle")}</PanelTitle>
           <RenameForm current={title} onSave={rename} />
         </SidePanel>
       )}
       {overlay === "delete" && (
         <Dialog
-          title="Delete playlist?"
-          body={`“${title}” will be deleted. What's in it stays in your libraries.`}
+          title={t("browse.playlists.deleteTitle")}
+          body={t("browse.playlists.deleteBody", { title })}
           onDismiss={() => setOverlay(null)}
           buttons={[
-            { label: "Cancel", initial: true, onSelect: () => setOverlay(null) },
-            { label: "Delete", color: "var(--danger-text)", onSelect: del },
+            { label: t("common.actions.cancel"), initial: true, onSelect: () => setOverlay(null) },
+            { label: t("common.actions.delete"), color: "var(--danger-text)", onSelect: del },
           ]}
         />
       )}
@@ -487,7 +500,7 @@ function EntryRow(p: {
           ) : null}
         </F>
         <div class="entry-more">
-          <Round label="More" icon="ellipsis" fid={`more/${p.e.entry_id}`} offArt disabled={p.moving} onSelect={p.onMore} />
+          <Round label={t("browse.actions.more")} icon="ellipsis" fid={`more/${p.e.entry_id}`} offArt disabled={p.moving} onSelect={p.onMore} />
         </div>
       </G>
     </div>
@@ -501,13 +514,13 @@ function RenameForm(p: { current: string; onSave: (title: string) => void }) {
   return (
     <>
       <div style="padding:6px 4px">
-        <TextField value={name} placeholder="Title" initial onInput={setName} onSubmit={(v) => p.onSave(v)} />
+        <TextField value={name} placeholder={t("browse.playlists.titleField")} initial onInput={setName} onSubmit={(v) => p.onSave(v)} />
       </div>
       <div class="t-caption c-muted" style="padding:4px 0 0 8px">
-        Press OK on the title to type it.
+        {t("browse.playlists.typeHint")}
       </div>
       <G kind="row" style="padding:16px 4px 0">
-        <Pill label="Save" fid="save" disabled={!ok} onSelect={() => p.onSave(name)} />
+        <Pill label={t("common.actions.save")} fid="save" disabled={!ok} onSelect={() => p.onSave(name)} />
       </G>
     </>
   );
@@ -517,7 +530,7 @@ function RenameForm(p: { current: string; onSave: (title: string) => void }) {
 function PlaylistSkeleton() {
   const b = (top: number, w: number, h: number, r = 2) => <div class="skeleton" style={`position:absolute;left:96px;top:${top}px;width:${w}px;height:${h}px;border-radius:${r}px`} />;
   return (
-    <div class="playlist-page" role="status" aria-label="Loading">
+    <div class="playlist-page" role="status" aria-label={t("common.states.loading")}>
       {b(58, 120, 18)}
       {b(90, 360, 44)}
       {b(148, 200, 18)}
@@ -583,14 +596,14 @@ export function NewPlaylistScreen(p: { smart?: { libraryId: number; filter: stri
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"video" | "audio">("video");
   const [busy, setBusy] = useState(false);
-  const heading = smart ? "Save these filters" : "New playlist";
+  const heading = smart ? t("browse.playlists.saveFilters") : t("browse.playlists.new");
   const filters = smart ? describeSmartFilter(smart.filter) : [];
   const body = !smart
-    ? "Name it, then add to it with “Add to playlist” on any title."
+    ? t("browse.playlists.newHint")
     : filters.length
-      ? `${filters.join(" · ")}. It keeps up with the library by itself.`
-      : "It keeps up with the library by itself.";
-  const fits = (t: string) => t.length > 0 && t.length <= TITLE_MAX;
+      ? t("browse.playlists.filtersHint", { filters: filters.join(" · ") })
+      : t("browse.playlists.keepsUp");
+  const fits = (title: string) => title.length > 0 && title.length <= TITLE_MAX;
   const create = (typed?: string) => {
     const title = (typed ?? name).trim();
     if (!fits(title) || busy) return;
@@ -618,20 +631,20 @@ export function NewPlaylistScreen(p: { smart?: { libraryId: number; filter: stri
       <SidePanel onClose={() => ui.nav.pop()} label={heading}>
         <PanelTitle>{heading}</PanelTitle>
         <div style="padding:6px 4px">
-          <TextField value={name} placeholder="Title" initial onInput={setName} onSubmit={(v) => create(v)} />
+          <TextField value={name} placeholder={t("browse.playlists.titleField")} initial onInput={setName} onSubmit={(v) => create(v)} />
         </div>
         <div class="t-caption c-muted" style="padding:4px 0 0 8px">
-          Press OK on the title to type it.
+          {t("browse.playlists.typeHint")}
         </div>
         {!smart && (
           <>
-            <PanelHeading>For</PanelHeading>
-            <PanelRow label="Movies & TV" icon="list-video" checked={kind === "video"} onSelect={() => setKind("video")} />
-            <PanelRow label="Music" icon="list-music" checked={kind === "audio"} onSelect={() => setKind("audio")} />
+            <PanelHeading>{t("browse.playlists.for")}</PanelHeading>
+            <PanelRow label={t("browse.playlists.moviesTv")} icon="list-video" checked={kind === "video"} onSelect={() => setKind("video")} />
+            <PanelRow label={t("browse.playlists.musicKind")} icon="list-music" checked={kind === "audio"} onSelect={() => setKind("audio")} />
           </>
         )}
         <div style="height:16px" />
-        <PanelRow label={smart ? "Save" : "Create"} icon={smart ? "save" : "plus"} disabled={!fits(name.trim()) || busy} onSelect={() => create()} />
+        <PanelRow label={smart ? t("common.actions.save") : t("browse.playlists.create")} icon={smart ? "save" : "plus"} disabled={!fits(name.trim()) || busy} onSelect={() => create()} />
       </SidePanel>
     </div>
   );
@@ -663,7 +676,14 @@ export function AddToPlaylistScreen(p: { itemIds: number[]; title: string }) {
   };
   const add = (pl: Playlist) => {
     ui.api.addToPlaylist(pl.id, p.itemIds).then(
-      (r) => finish(r.added === 0 ? "Nothing to add" : r.added === 1 ? `Added to ${pl.title}` : `Added ${r.added} items to ${pl.title}`),
+      (r) =>
+        finish(
+          r.added === 0
+            ? t("browse.playlists.nothingToAdd")
+            : r.added === 1
+              ? t("browse.playlists.addedTo", { title: pl.title })
+              : t("browse.playlists.addedItems", { count: r.added, title: pl.title }),
+        ),
       (e) => setError(sentence(errorMessage(e))),
     );
   };
@@ -671,7 +691,7 @@ export function AddToPlaylistScreen(p: { itemIds: number[]; title: string }) {
     const title = name.trim();
     if (!title || title.length > 200) return;
     ui.api.createPlaylist(title, kind, p.itemIds).then(
-      (pl) => finish(`Added to ${pl.title}`),
+      (pl) => finish(t("browse.playlists.addedTo", { title: pl.title })),
       (e) => setError(sentence(errorMessage(e))),
     );
   };
@@ -681,13 +701,13 @@ export function AddToPlaylistScreen(p: { itemIds: number[]; title: string }) {
       <div class="sheet-left">
         <Icon name="list-plus" size={32} color="var(--muted)" />
         <div class="t-label c-muted" style="margin-top:16px">
-          Add to playlist
+          {t("browse.playlists.addTitle")}
         </div>
         <div class="t-page c-fg lines-3" style="margin-top:6px">
           {p.title}
         </div>
       </div>
-      <SidePanel onClose={() => ui.nav.pop()} label="Add to playlist">
+      <SidePanel onClose={() => ui.nav.pop()} label={t("browse.playlists.addTitle")}>
         {done ? (
           <div class="sheet-done">
             <Icon name="circle-check" size={48} color="var(--accent)" />
@@ -698,21 +718,21 @@ export function AddToPlaylistScreen(p: { itemIds: number[]; title: string }) {
         ) : (
           <>
             <div class="panel-title">
-              <div class="t-title c-fg">Add to playlist</div>
+              <div class="t-title c-fg">{t("browse.playlists.addTitle")}</div>
               <div class="t-caption c-muted one-line">{p.title}</div>
             </div>
             <div style="padding:4px 0 8px 0">
               <TextField
                 value={name}
-                placeholder={kind === "audio" ? "New music playlist" : "New video playlist"}
+                placeholder={kind === "audio" ? t("browse.playlists.newMusic") : t("browse.playlists.newVideo")}
                 initial={!!loaded.data && !lists.length}
                 onInput={setName}
                 onSubmit={() => setTimeout(create, 0)}
               />
             </div>
-            <PanelRow label="Create" icon="plus" disabled={!name.trim()} onSelect={create} />
+            <PanelRow label={t("browse.playlists.create")} icon="plus" disabled={!name.trim()} onSelect={create} />
             <div class="t-label c-muted" style="padding:16px 0 6px 16px">
-              Your playlists
+              {t("browse.playlists.yours")}
             </div>
             {!loaded.data && !loaded.error && (
               <>
@@ -723,7 +743,7 @@ export function AddToPlaylistScreen(p: { itemIds: number[]; title: string }) {
             {loaded.error && !loaded.data && <div class="t-body c-danger" style="padding-left:16px">{problem(loaded.error)}</div>}
             {loaded.data && !lists.length && (
               <div class="t-body c-muted" style="padding-left:16px">
-                {kind === "audio" ? "No music playlists yet: name one above." : "No video playlists yet: name one above."}
+                {kind === "audio" ? t("browse.playlists.noneMusic") : t("browse.playlists.noneVideo")}
               </div>
             )}
             {lists.map((pl, i) => (

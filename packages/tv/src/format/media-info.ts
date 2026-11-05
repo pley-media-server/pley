@@ -1,9 +1,11 @@
 import type { MediaFile, MediaStream } from "../api/types";
-import { channelsLabel, codecLabel, formatBitrate, formatBytes, formatDuration, isAtmos, languageName, resolutionLabel, streamRange } from "./format";
+import { t } from "../i18n";
+import { channelsLabel, codecLabel, formatBitrate, formatBytes, formatDuration, isAtmos, languageName, localDecimal, resolutionLabel, streamRange } from "./format";
 
 /*
  * The item page's media info (TvMediaInfo): a file's facts in blocks of
- * "label: value" lines, as the Android app's MediaFacts words them.
+ * "label: value" lines, as the Android app's MediaFacts words them, in the
+ * language shown. The colour standards keep their own names.
  */
 
 export interface FactBlock {
@@ -26,7 +28,7 @@ export function levelLabel(codec: string, level: number | null | undefined): str
 export function profileLevelLabel(s: MediaStream): string | null {
   const parts = [s.profile ?? "", (() => {
     const l = levelLabel(s.codec, s.level);
-    return l ? `Level ${l}` : "";
+    return l ? t("format.media.level", { level: l }) : "";
   })()].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -34,20 +36,20 @@ export function profileLevelLabel(s: MediaStream): string | null {
 /** "23.976 fps": up to three decimals, trailing zeros left out. */
 export function frameRateLabel(fps: number | null | undefined, interlaced = false): string | null {
   if (!fps || fps <= 0) return null;
-  const text = fps.toFixed(3).replace(/\.?0+$/, "");
-  return `${text} fps${interlaced ? ", interlaced" : ""}`;
+  const text = localDecimal(fps.toFixed(3).replace(/\.?0+$/, ""));
+  return interlaced ? t("format.media.fpsInterlaced", { fps: text }) : t("format.media.fps", { fps: text });
 }
 
 /** "48 kHz", "44.1 kHz". */
 export function sampleRateLabel(hz: number | null | undefined): string | null {
   if (!hz || hz <= 0) return null;
-  return `${(hz / 1000).toFixed(1).replace(/\.0$/, "")} kHz`;
+  return `${localDecimal((hz / 1000).toFixed(1).replace(/\.0$/, ""))} kHz`;
 }
 
 /** "10-bit · 4:2:0". */
 export function bitDepthLabel(depth: number | null | undefined, pixFmt: string | null | undefined): string | null {
   const parts: string[] = [];
-  if (depth) parts.push(`${depth}-bit`);
+  if (depth) parts.push(t("format.track.bitDepth", { n: depth }));
   const f = (pixFmt ?? "").toLowerCase();
   const chroma = /^(yuv420|nv12|p010)/.test(f) ? "4:2:0" : /^yuv422/.test(f) ? "4:2:2" : /^yuv444/.test(f) ? "4:4:4" : /^gray/.test(f) ? "4:0:0" : "";
   if (chroma) parts.push(chroma);
@@ -80,12 +82,12 @@ function colour(table: Record<string, string>, name: string | null | undefined):
 export function dolbyVisionDetails(s: MediaStream): string | null {
   if (s.dv_profile == null) return null;
   const compat = s.dv_bl_compat ?? 0;
-  const parts = [`Profile ${s.dv_profile}${s.dv_profile >= 8 && [1, 2, 4].includes(compat) ? `.${compat}` : ""}`];
-  if (s.dv_level != null) parts.push(`Level ${s.dv_level}`);
-  const base: Record<number, string> = { 0: "no compatible base layer", 1: "HDR10", 2: "SDR", 4: "HLG", 6: "Blu-ray HDR10" };
-  const b = base[compat];
-  if (b) parts.push(compat === 0 ? b : `${b}-compatible base layer`);
-  if (s.dv_profile === 7 && s.dv_el) parts.push(s.dv_el === "fel" ? "full enhancement layer" : "minimal enhancement layer");
+  const parts = [t("format.media.dvProfile", { profile: `${s.dv_profile}${s.dv_profile >= 8 && [1, 2, 4].includes(compat) ? `.${compat}` : ""}` })];
+  if (s.dv_level != null) parts.push(t("format.media.level", { level: s.dv_level }));
+  const base: Record<number, string> = { 1: "HDR10", 2: "SDR", 4: "HLG", 6: "Blu-ray HDR10" };
+  if (compat === 0) parts.push(t("format.media.noBaseLayer"));
+  else if (base[compat]) parts.push(t("format.media.baseLayer", { range: base[compat]! }));
+  if (s.dv_profile === 7 && s.dv_el) parts.push(s.dv_el === "fel" ? t("format.media.fullLayer") : t("format.media.minimalLayer"));
   return parts.join(" · ");
 }
 
@@ -97,7 +99,7 @@ export function dimensionsLabel(w: number | null | undefined, h: number | null |
 }
 
 function flags(s: MediaStream): string | null {
-  const f = [s.default ? "Default" : "", s.forced ? "Forced" : "", s.external ? "Beside the media" : ""].filter(Boolean);
+  const f = [s.default ? t("format.media.default") : "", s.forced ? t("format.track.forced") : "", s.external ? t("format.media.beside") : ""].filter(Boolean);
   return f.length ? f.join(", ") : null;
 }
 
@@ -120,12 +122,12 @@ function hdrValue(s: MediaStream): string {
 export function mediaFacts(file: MediaFile): FactBlock[] {
   const blocks: FactBlock[] = [];
   const f: { label: string; value: string }[] = [];
-  push(f, "Name", fileName(file.path));
-  push(f, "Container", file.container ? file.container.toUpperCase() : null);
-  push(f, "Size", file.size ? formatBytes(file.size) : null);
-  push(f, "Duration", file.duration_ms ? formatDuration(file.duration_ms) : null);
-  push(f, "Overall bitrate", file.bitrate ? formatBitrate(file.bitrate) : null);
-  blocks.push({ title: "File", facts: f });
+  push(f, t("format.media.name"), fileName(file.path));
+  push(f, t("format.media.container"), file.container ? file.container.toUpperCase() : null);
+  push(f, t("format.media.size"), file.size ? formatBytes(file.size) : null);
+  push(f, t("format.media.duration"), file.duration_ms ? formatDuration(file.duration_ms) : null);
+  push(f, t("format.media.overallBitrate"), file.bitrate ? formatBitrate(file.bitrate) : null);
+  blocks.push({ title: t("format.media.file"), facts: f });
   const order = { video: 0, audio: 1, subtitle: 2 } as const;
   const streams = file.streams.slice().sort((a, b) => order[a.kind] - order[b.kind] || a.index - b.index) as Stream[];
   const counts = { video: 0, audio: 0, subtitle: 0 };
@@ -133,7 +135,7 @@ export function mediaFacts(file: MediaFile): FactBlock[] {
   const seen = { video: 0, audio: 0, subtitle: 0 };
   for (const s of streams) {
     seen[s.kind]++;
-    const name = s.kind === "video" ? "Video" : s.kind === "audio" ? "Audio" : "Subtitles";
+    const name = s.kind === "video" ? t("format.media.video") : s.kind === "audio" ? t("format.media.audio") : t("format.media.subtitles");
     blocks.push(streamBlock(s, counts[s.kind] > 1 ? `${name} ${seen[s.kind]}` : name));
   }
   return blocks;
@@ -144,33 +146,33 @@ export function streamBlock(stream: MediaStream, title: string): FactBlock {
   const s = stream as Stream;
   const facts: { label: string; value: string }[] = [];
   if (s.kind === "video") {
-    push(facts, "Codec", codecLabel(s.codec));
-    push(facts, "Profile", profileLevelLabel(s));
-    push(facts, "Resolution", dimensionsLabel(s.width, s.height));
-    push(facts, "Frame rate", frameRateLabel(s.frame_rate, !!s.field_order && s.field_order !== "progressive"));
-    push(facts, "Bit depth", bitDepthLabel(s.bit_depth, s.pix_fmt));
+    push(facts, t("format.media.codec"), codecLabel(s.codec));
+    push(facts, t("format.media.profile"), profileLevelLabel(s));
+    push(facts, t("format.media.resolution"), dimensionsLabel(s.width, s.height));
+    push(facts, t("format.media.frameRate"), frameRateLabel(s.frame_rate, !!s.field_order && s.field_order !== "progressive"));
+    push(facts, t("format.media.bitDepth"), bitDepthLabel(s.bit_depth, s.pix_fmt));
     push(facts, "HDR", hdrValue(s));
     push(facts, "Dolby Vision", dolbyVisionDetails(s));
-    push(facts, "Primaries", colour(PRIMARIES, s.color_primaries));
-    push(facts, "Transfer", colour(TRANSFERS, s.color_transfer));
-    push(facts, "Matrix", colour(MATRICES, s.color_space));
-    push(facts, "Bitrate", s.bitrate ? formatBitrate(s.bitrate) : null);
-    push(facts, "Title", s.title);
+    push(facts, t("format.media.primaries"), colour(PRIMARIES, s.color_primaries));
+    push(facts, t("format.media.transfer"), colour(TRANSFERS, s.color_transfer));
+    push(facts, t("format.media.matrix"), colour(MATRICES, s.color_space));
+    push(facts, t("format.media.bitrate"), s.bitrate ? formatBitrate(s.bitrate) : null);
+    push(facts, t("format.media.title"), s.title);
   } else if (s.kind === "audio") {
-    push(facts, "Codec", codecLabel(s.codec) + (isAtmos(s) ? " Atmos" : ""));
-    push(facts, "Profile", s.profile);
+    push(facts, t("format.media.codec"), codecLabel(s.codec) + (isAtmos(s) ? " Atmos" : ""));
+    push(facts, t("format.media.profile"), s.profile);
     const ch = channelsLabel(s.channels, s.channel_layout);
-    push(facts, "Channels", s.channel_layout && ch && s.channel_layout !== ch ? `${ch} (${s.channel_layout})` : ch);
-    push(facts, "Sample rate", sampleRateLabel(s.sample_rate));
-    push(facts, "Language", languageName(s.language) ?? s.language);
-    push(facts, "Title", s.title);
-    push(facts, "Bitrate", s.bitrate ? formatBitrate(s.bitrate) : null);
-    push(facts, "Flags", flags(s));
+    push(facts, t("format.media.channels"), s.channel_layout && ch && s.channel_layout !== ch ? `${ch} (${s.channel_layout})` : ch);
+    push(facts, t("format.media.sampleRate"), sampleRateLabel(s.sample_rate));
+    push(facts, t("format.media.language"), languageName(s.language) ?? s.language);
+    push(facts, t("format.media.title"), s.title);
+    push(facts, t("format.media.bitrate"), s.bitrate ? formatBitrate(s.bitrate) : null);
+    push(facts, t("format.media.flags"), flags(s));
   } else {
-    push(facts, "Format", `${codecLabel(s.codec)}, ${s.text_based === false ? "picture" : "text"}`);
-    push(facts, "Language", languageName(s.language) ?? s.language);
-    push(facts, "Title", s.title);
-    push(facts, "Flags", flags(s));
+    push(facts, t("format.media.format"), `${codecLabel(s.codec)}, ${s.text_based === false ? t("format.media.picture") : t("format.media.text")}`);
+    push(facts, t("format.media.language"), languageName(s.language) ?? s.language);
+    push(facts, t("format.media.title"), s.title);
+    push(facts, t("format.media.flags"), flags(s));
   }
   return { title, facts };
 }
