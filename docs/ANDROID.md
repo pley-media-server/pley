@@ -390,6 +390,18 @@ as for Play there: music pauses for a video or a channel, and a player
 window open closes for music; one player window shows at a time, video
 or Live TV. A cast for another device does nothing.
 
+A cast from a remote on another profile of the household names that
+profile (`profile_id`) and carries a `switch_ticket`. The device switches
+to that profile first, as "Who's watching?" switches (the switch-profile
+grant with `ticket` in place of a PIN): what shows, its caches and the
+event stream follow the new profile, a TV at "Who's watching?" goes on
+to Home, and then it plays the cast once. A switch that fails (the ticket
+spent or expired, the server out of reach) plays nothing, and says
+**Couldn't switch profiles to play from** the remote's device, where
+**Playing from** would show on the shell: a toast on a phone, the top
+right on a TV. A cast that names another profile without a ticket is
+ignored.
+
 As it starts, it says where it came from, **Playing from** the remote's
 device (**Playing from another device** when the server can't name it),
 for about 4 s: the video players in their toast, the live players at the

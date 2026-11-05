@@ -97,6 +97,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 
 /**
  * The TV app (Android TV, Google TV, Fire TV): the theme, the D-pad rules
@@ -210,10 +211,18 @@ private fun TvShell(
     var cast by remember { mutableStateOf<Pair<String, Int>?>(null) }
     LaunchedEffect(source, navigator) {
         var casts = 0
+        launch {
+            // Another profile's remote couldn't switch the TV to its profile: nothing plays, said where music's would be.
+            source.castRefused.collect { from -> cast = from.refusal(resources) to ++casts }
+        }
         source.castMusic.collect { from ->
             if (rail.shown && backStack.lastOrNull() != PleyKey.NowPlaying) navigator.open(PleyKey.NowPlaying)
             cast = from.notice(resources) to ++casts
         }
+    }
+    // A cast from another profile's remote switched the TV to it, past "Who's watching?": Home, under what plays.
+    LaunchedEffect(source, navigator) {
+        source.castSwitched.collect { if (navigator.root is PleyKey.Profiles) navigator.restart(PleyKey.Home) }
     }
 
     // A Watch Next program: its page, and it plays, once past signing in and choosing a profile.

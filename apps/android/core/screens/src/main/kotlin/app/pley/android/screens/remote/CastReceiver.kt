@@ -14,10 +14,14 @@ import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerWindows
 import app.pley.android.screens.PlayerLauncher
+import app.pley.android.screens.onboarding.ProfileGate
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -26,16 +30,22 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Music a remote cast here started: where it came from. */
 data class CastMusic(val from: CastFrom)
 
+/** A cast from another profile's remote that couldn't switch this device to that profile: where it came from. */
+data class CastRefused(val from: CastFrom)
+
 /**
  * What the profile's remotes cast to this device (docs/API.md, "Casting").
  * The shells start it after their first frame; what plays says where it
  * came from: a video or a channel in its player, music through
- * [music] (the phone's shell says it, the TV's opens Now Playing).
+ * [music] (the phone's shell says it, the TV's opens Now Playing). A cast
+ * from another profile of the household switches this device to that
+ * profile first ([switched]); one that couldn't plays nothing ([refused]).
  */
 interface CastReceiver {
     /** Starts playing what is cast here, from now on; calling it again does nothing. */
@@ -43,6 +53,12 @@ interface CastReceiver {
 
     /** Each time music cast here starts. */
     val music: Flow<CastMusic> get() = emptyFlow()
+
+    /** Each time a cast switched this device to the profile of the remote that sent it, before it plays. */
+    val switched: Flow<Unit> get() = emptyFlow()
+
+    /** Each time a cast couldn't switch this device to the remote's profile: nothing plays, and the shells say so. */
+    val refused: Flow<CastRefused> get() = emptyFlow()
 
     companion object {
         /** Takes nothing: graphs made without one (tests of other screens). */
@@ -74,6 +90,13 @@ interface CastReceiver {
  * first entry (a random one with `shuffle`), video as a queue in the
  * player, music in the music player; a channel in the live player. A
  * newer cast replaces one still being looked up.
+ *
+ * A cast from another profile of the household (`profile_id` other than
+ * the profile in use) switches to that profile first, with its
+ * `switch_ticket`, as a profile switch does (what shows and the event
+ * stream follow it), then plays once. One that can't (a ticket spent or
+ * expired, the server out of reach) plays nothing and says so; one without
+ * a ticket is ignored, as one for another device.
  */
 internal class ServerCastReceiver(
     private val data: DataGraph,
@@ -83,11 +106,19 @@ internal class ServerCastReceiver(
     private val random: Random = Random.Default,
     /** Closes the player windows open, so music cast here plays alone. */
     private val closePlayers: () -> Unit = PlayerWindows::closeAll,
+    /** Where a switch keeps its tokens: off the main thread, as the profile pickers' switches. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : CastReceiver {
     private val started = AtomicBoolean(false)
     private val heard = MutableSharedFlow<CastMusic>(extraBufferCapacity = 4)
+    private val switches = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    private val refusals = MutableSharedFlow<CastRefused>(extraBufferCapacity = 4)
 
     override val music: Flow<CastMusic> = heard.asSharedFlow()
+
+    override val switched: Flow<Unit> = switches.asSharedFlow()
+
+    override val refused: Flow<CastRefused> = refusals.asSharedFlow()
 
     override fun start() {
         if (!started.compareAndSet(false, true)) return
@@ -95,6 +126,7 @@ internal class ServerCastReceiver(
             val live = data.liveUpdates
             live.events.filterIsInstance<ServerEvent.Cast>().collectLatest { cast ->
                 if (cast.receiverId != live.receiver.value) return@collectLatest
+                if (!asItsProfile(cast)) return@collectLatest
                 try {
                     play(cast)
                 } catch (e: CancellationException) {
@@ -104,6 +136,31 @@ internal class ServerCastReceiver(
                 }
             }
         }
+    }
+
+    /**
+     * Whether [cast] plays here, as the profile of the remote that sent it:
+     * this profile's own does; another's switches to it first with its
+     * ticket. A switch once asked for is let finish, even when a newer cast
+     * comes meanwhile: the server rotates the tokens either way.
+     */
+    private suspend fun asItsProfile(cast: ServerEvent.Cast): Boolean {
+        val profile = cast.profileId ?: return true
+        if (profile == data.session.session.value?.me?.id) return true
+        val ticket = cast.switchTicket ?: return false
+        try {
+            withContext(NonCancellable + io) { data.session.switchForCast(profile, ticket) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Spent, expired, refused or out of reach: still the profile it was on.
+            refusals.tryEmit(CastRefused(CastFrom(cast.from)))
+            return false
+        }
+        // The remote's PIN was asked for this: "Who's watching?" is answered.
+        ProfileGate.passed = true
+        switches.tryEmit(Unit)
+        return true
     }
 
     private suspend fun play(cast: ServerEvent.Cast) {

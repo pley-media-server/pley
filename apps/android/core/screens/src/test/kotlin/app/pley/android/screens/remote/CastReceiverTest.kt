@@ -5,6 +5,7 @@ package app.pley.android.screens.remote
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.Me
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.ServerEvent
 import app.pley.android.network.LiveEvent
@@ -14,7 +15,9 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
+import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.testing.Fixtures
+import app.pley.android.testing.auth.FakeAuthGraph
 import app.pley.android.testing.data.TestData
 import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,6 +25,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -45,15 +53,24 @@ class CastReceiverTest {
     private val music = Music()
     private var closed = 0
 
-    /** Signed in, in front, the stream connected naming this device: the receiver listening, and this device's id. */
-    private suspend fun TestScope.receiving(prepare: TestData.() -> Unit = {}): Pair<TestData, String> {
-        val data = TestData(this, folder.newFolder())
+    /**
+     * Signed in, in front, the stream connected naming this device: the
+     * receiver listening, and this device's id. The token endpoint answers
+     * through [auth].
+     */
+    private suspend fun TestScope.receiving(
+        auth: FakeAuthGraph = FakeAuthGraph(TestData.offlineHttp()),
+        prepare: TestData.() -> Unit = {},
+    ): Pair<TestData, String> {
+        val data = TestData(this, folder.newFolder(), auth = auth)
         data.prepare()
         data.signIn()
         data.useServer()
         data.graph.session
         testScheduler.runCurrent()
-        ServerCastReceiver(data.graph, launcher, { music }, backgroundScope, Random(7), closePlayers = { closed++ }).also { receiver = it }.start()
+        ServerCastReceiver(data.graph, launcher, { music }, backgroundScope, Random(7), closePlayers = { closed++ }, io = data.dispatcher)
+            .also { receiver = it }
+            .start()
         testScheduler.runCurrent()
         data.events.send(LiveEvent.Reconnected)
         testScheduler.runCurrent()
@@ -173,6 +190,103 @@ class CastReceiverTest {
         val (data, id) = receiving()
         cast(data, ServerEvent.Cast(id, channelId = 2, from = "Kitchen phone"))
         assertEquals(listOf(Triple(2L, "all", CastFrom("Kitchen phone"))), launcher.watched)
+    }
+
+    /**
+     * The token endpoint of a server whose switch tickets are [good]: the
+     * forms it was sent, a new pair for a good ticket, `ticket_spent` for
+     * any other.
+     */
+    private class TicketServer(private val good: Set<String>) {
+        val forms: MutableList<Map<String, String>> = java.util.Collections.synchronizedList(mutableListOf())
+
+        val http: OkHttpClient = OkHttpClient.Builder().addInterceptor { chain ->
+            val buffer = okio.Buffer()
+            chain.request().body?.writeTo(buffer)
+            val form = buffer.readUtf8().split('&').filter { it.isNotEmpty() }.associate {
+                java.net.URLDecoder.decode(it.substringBefore('='), "UTF-8") to java.net.URLDecoder.decode(it.substringAfter('='), "UTF-8")
+            }
+            forms += form
+            val (code, body) = if (form["ticket"] in good) {
+                200 to """{"access_token":"access-2","token_type":"Bearer","expires_in":3600,"refresh_token":"refresh-2","scope":"library play playlists profiles"}"""
+            } else {
+                400 to """{"error":"invalid_grant","error_description":"this cast's switch has expired or was used: cast again","reason":"ticket_spent"}"""
+            }
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(code).message("")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build()
+    }
+
+    /**
+     * Runs what is due until [done], for 5 s at most: the sign-in module
+     * sends a switch on its own thread, outside the test's scheduler.
+     */
+    private fun TestScope.settle(done: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!done() && System.currentTimeMillis() < deadline) {
+            testScheduler.runCurrent()
+            Thread.sleep(5)
+        }
+        testScheduler.runCurrent()
+    }
+
+    /** Sam, the profile another remote of the household casts from. */
+    private val sam: Me = TestData.me().copy(id = 3, username = "sam", name = "Sam", displayName = "Sam")
+
+    @Test
+    fun `a cast from another profile switches to it with its ticket, then plays once as it`() = runTest {
+        val tickets = TicketServer(good = setOf("t1"))
+        ProfileGate.passed = false
+        val switched = mutableListOf<Unit>()
+        val (data, id) = receiving(FakeAuthGraph(tickets.http))
+        backgroundScope.launch { receiver.switched.collect { switched += it } }
+        testScheduler.runCurrent()
+        assertEquals(2L, data.graph.session.session.value?.me?.id)
+        // Who the app is once switched, as the server says.
+        data.api.answer("me", sam)
+        cast(data, ServerEvent.Cast(id, itemId = 101, startMs = 5_000, from = "Kitchen phone", profileId = 3, switchTicket = "t1"))
+        settle { launcher.played.isNotEmpty() }
+        // The switch-profile grant, the ticket in place of a PIN.
+        val form = tickets.forms.single()
+        assertEquals("urn:pley:params:oauth:grant-type:switch-profile" to "3", form["grant_type"] to form["profile"])
+        assertEquals("t1" to null, form["ticket"] to form["pin"])
+        assertEquals(3L, data.graph.session.session.value?.me?.id)
+        assertEquals(listOf(PlayRequest(itemId = 101, startMs = 5_000, castFrom = CastFrom("Kitchen phone"))), launcher.played)
+        assertEquals(1, switched.size)
+        // A TV at "Who's watching?" has its answer.
+        assertTrue(ProfileGate.passed)
+
+        // Another from Sam's remote, now the profile in use, once the stream is back as Sam's: no switch.
+        data.events.send(LiveEvent.Reconnected)
+        testScheduler.runCurrent()
+        cast(data, ServerEvent.Cast(id, itemId = 101, profileId = 3, switchTicket = "t2"))
+        assertEquals(1, tickets.forms.size)
+        assertEquals(2, launcher.played.size)
+    }
+
+    @Test
+    fun `a ticket refused plays nothing and says so, and a cast from another profile without one is ignored`() = runTest {
+        val tickets = TicketServer(good = emptySet())
+        val refused = mutableListOf<CastRefused>()
+        val (data, id) = receiving(FakeAuthGraph(tickets.http))
+        backgroundScope.launch { receiver.refused.collect { refused += it } }
+        testScheduler.runCurrent()
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "spent"))
+        settle { refused.isNotEmpty() }
+        assertEquals(listOf(CastRefused(CastFrom("Kitchen phone"))), refused)
+        assertTrue(launcher.played.isEmpty())
+        // Still the profile it was on, signed in as before.
+        assertEquals(2L, data.graph.session.session.value?.me?.id)
+
+        // An older server's, or a copy: nothing to switch with, nothing played, nothing said.
+        cast(data, ServerEvent.Cast(id, itemId = 101, profileId = 3))
+        assertEquals(1, tickets.forms.size)
+        assertEquals(1, refused.size)
+        assertTrue(launcher.played.isEmpty())
+
+        // From the profile in use, said as such: it plays.
+        cast(data, ServerEvent.Cast(id, itemId = 101, profileId = 2))
+        assertEquals(1, launcher.played.size)
     }
 
     /** The players as the app launches them: what each was asked to play. */
