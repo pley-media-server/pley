@@ -172,6 +172,36 @@ async fn a_users_players_are_listed_to_them_alone() {
     assert_eq!(app.get("/api/sessions", &w.viewer).await.body.as_array().unwrap().len(), 1);
 }
 
+#[tokio::test]
+async fn a_session_carries_the_intro_and_credits_of_the_file_it_plays() {
+    let w = world().await;
+    let app = &w.app;
+    let file: i64 = sqlx::query_scalar("SELECT id FROM media_files WHERE item_id = ?")
+        .bind(w.film)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    for (kind, start, end) in [("intro", 5_000, 35_000), ("credits", 90_000, LENGTH_MS)] {
+        sqlx::query("INSERT INTO markers (file_id, kind, start_ms, end_ms, source, created_at) VALUES (?, ?, ?, ?, 'chapter', 0)")
+            .bind(file)
+            .bind(kind)
+            .bind(start)
+            .bind(end)
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+    }
+    play(&w, &w.viewer).await;
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    let markers = &listed[0]["markers"];
+    assert_eq!(markers.as_array().map(Vec::len), Some(2), "{listed}");
+    assert_eq!(
+        (markers[0]["kind"].clone(), markers[0]["start_ms"].clone(), markers[0]["end_ms"].clone()),
+        (json!("intro"), json!(5_000), json!(35_000))
+    );
+    assert_eq!((markers[1]["kind"].clone(), markers[1]["file_id"].clone()), (json!("credits"), json!(file)));
+}
+
 /// Tokens of one of pley's own apps (`client_id`, saying `user_agent`)
 /// acting as `user_id`.
 async fn first_party_token(w: &World, user_id: i64, client_id: &str, user_agent: &str) -> String {

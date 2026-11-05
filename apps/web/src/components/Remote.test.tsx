@@ -2,9 +2,10 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
+import { formatClock } from "@/lib/format";
 import { playingHere } from "@/lib/playingHere";
 import { openRemoteOn } from "@/lib/remote";
-import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
+import { makeItem, makeMarker, makeReceiver, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
 import { RemoteButton } from "./Remote";
 
@@ -238,7 +239,7 @@ describe("RemoteButton", () => {
     expect(tv).toHaveTextContent("Pilot");
     expect(within(tv).getByRole("slider", { name: "Seek on Living room TV" })).toBeInTheDocument();
     expect(within(tv).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
-      "Back 10 seconds on Living room TV",
+      "Back 30 seconds on Living room TV",
       "Play on Living room TV",
       "Forward 30 seconds on Living room TV",
       "Next on Living room TV",
@@ -255,7 +256,7 @@ describe("RemoteButton", () => {
     const row = previous.parentElement!.parentElement!;
     expect(Array.from(row.children).map((cell) => Array.from(cell.querySelectorAll("button")).map((b) => b.getAttribute("aria-label")))).toEqual([
       ["Previous on Living room TV"],
-      ["Back 10 seconds on Living room TV", "Play on Living room TV", "Forward 30 seconds on Living room TV"],
+      ["Back 30 seconds on Living room TV", "Play on Living room TV", "Forward 30 seconds on Living room TV"],
       ["Next on Living room TV"],
     ]);
   });
@@ -373,6 +374,129 @@ describe("RemoteButton", () => {
     await act(() => new Promise((r) => setTimeout(r, 100)));
     expect(tv).toHaveTextContent("11:00");
     expect(within(panel).queryByRole("alert")).toBeNull();
+  });
+
+  it("goes back 30 seconds", async () => {
+    const requests = serve(
+      () => [episode({ controls: ["skip"], position_ms: 600_000 })],
+      () => [],
+      { "POST /api/sessions/tv/command": () => undefined },
+    );
+    renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+
+    await user.click(within(panel).getByRole("button", { name: "Back 30 seconds on Living room TV" }));
+    expect(commands(requests)).toEqual([{ command: "skip", offset_ms: -30_000 }]);
+    expect(within(panel).getByRole("group")).toHaveTextContent("9:30");
+  });
+
+  describe("Skip Intro and Skip Credits", () => {
+    const intro = makeMarker({ kind: "intro", start_ms: 10_000, end_ms: 70_000 });
+    const credits = makeMarker({ kind: "credits", start_ms: 1_700_000, end_ms: 1_790_000 });
+    /** The episode, paused where `overrides` say, its player seeking. */
+    const withMarkers = (overrides: Partial<PlayingSession> = {}) =>
+      episode({ controls: ["seek", "skip"], markers: [intro, credits], ...overrides });
+    const offer = (panel: HTMLElement) => within(panel).queryByRole("button", { name: /^Skip/ });
+
+    it("offers to skip an intro or the credits while in them, until a second before they end", async () => {
+      let position = 9_999;
+      serve(() => [withMarkers({ position_ms: position })]);
+      const { client } = renderWithProviders(<RemoteButton />);
+      const { panel } = await openRemote();
+      const seek = within(panel).getByRole("slider", { name: "Seek on Living room TV" });
+      const at = async (ms: number) => {
+        position = ms;
+        await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+        // Once the remote shows it there.
+        await waitFor(() => expect(seek).toHaveAttribute("aria-valuetext", `${formatClock(ms / 1000)} of 30:00`));
+        return offer(panel);
+      };
+
+      expect(offer(panel)).toBeNull();
+      const skipIntro = await at(10_000);
+      expect(skipIntro).toHaveAccessibleName("Skip intro on Living room TV");
+      expect(skipIntro).toHaveTextContent("Skip Intro");
+      expect(await at(68_999)).toHaveAccessibleName("Skip intro on Living room TV");
+      expect(await at(69_000)).toBeNull();
+      expect(await at(600_000)).toBeNull();
+      const skipCredits = await at(1_700_000);
+      expect(skipCredits).toHaveAccessibleName("Skip credits on Living room TV");
+      expect(skipCredits).toHaveTextContent("Skip Credits");
+      expect(await at(1_788_999)).not.toBeNull();
+      expect(await at(1_789_000)).toBeNull();
+    });
+
+    it("skips an intro to its last moment, and goes once there", async () => {
+      const requests = serve(
+        () => [withMarkers({ position_ms: 30_000 })],
+        () => [],
+        { "POST /api/sessions/tv/command": () => undefined },
+      );
+      renderWithProviders(<RemoteButton />);
+      const { user, panel } = await openRemote();
+
+      await user.click(within(panel).getByRole("button", { name: "Skip intro on Living room TV" }));
+      expect(commands(requests)).toEqual([{ command: "seek", position_ms: 69_250 }]);
+      // The bar shows it there at once, past the offer.
+      expect(within(panel).getByRole("group")).toHaveTextContent("1:09");
+      expect(offer(panel)).toBeNull();
+    });
+
+    it("skips the credits to their end, and no further than the title's", async () => {
+      let markers = [credits];
+      const requests = serve(
+        () => [withMarkers({ position_ms: 1_750_000, markers })],
+        () => [],
+        { "POST /api/sessions/tv/command": () => undefined },
+      );
+      const { client } = renderWithProviders(<RemoteButton />);
+      const { user, panel } = await openRemote();
+
+      await user.click(within(panel).getByRole("button", { name: "Skip credits on Living room TV" }));
+      expect(commands(requests)).toEqual([{ command: "seek", position_ms: 1_790_000 }]);
+
+      // Credits said to run on past the end the player knows (its length is 30:00).
+      markers = [makeMarker({ kind: "credits", start_ms: 1_700_000, end_ms: 1_800_500 })];
+      await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+      await user.click(await within(panel).findByRole("button", { name: "Skip credits on Living room TV" }));
+      expect(commands(requests).at(-1)).toEqual({ command: "seek", position_ms: 1_800_000 });
+    });
+
+    it("offers no skip where the player doesn't seek, nor on Live TV", async () => {
+      let sessions = [withMarkers({ position_ms: 30_000 })];
+      serve(() => sessions);
+      const { client } = renderWithProviders(<RemoteButton />);
+      const { panel } = await openRemote();
+      expect(offer(panel)).not.toBeNull();
+
+      sessions = [withMarkers({ position_ms: 30_000, controls: ["play", "pause", "skip"] })];
+      await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+      await waitFor(() => expect(within(panel).getByRole("button", { name: "Play on Living room TV" })).toBeInTheDocument());
+      expect(offer(panel)).toBeNull();
+
+      // A channel its player can go back in, with a marker where it is.
+      sessions = [live({ controls: ["seek", "skip", "next", "previous"], markers: [makeMarker({ start_ms: 0, end_ms: 600_000 })] })];
+      await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+      expect(await within(panel).findByRole("group", { name: "Unknown device" })).toBeInTheDocument();
+      expect(offer(panel)).toBeNull();
+    });
+
+    it("keeps the offer whole at the end of the header, a long title beside it giving way", async () => {
+      const film = makeItem({ id: 9, kind: "movie", title: "A Title Long Enough to Take Several Lines in the Panel's Header" });
+      serve(() => [withMarkers({ item: film, position_ms: 30_000 })]);
+      renderWithProviders(<RemoteButton />);
+      const { panel } = await openRemote();
+
+      const skip = within(panel).getByRole("button", { name: "Skip intro on Living room TV" });
+      const title = within(within(panel).getByRole("group")).getByText(film.title);
+      const header = skip.parentElement!;
+      expect(header).toContainElement(title);
+      expect(header.lastElementChild).toBe(skip);
+      // One line at its own width; the title takes what is left, two lines at most, cut with an ellipsis.
+      expect(skip).toHaveClass("shrink-0", "whitespace-nowrap");
+      expect(title).toHaveClass("line-clamp-2");
+      expect(title.parentElement).toHaveClass("min-w-0", "flex-1");
+    });
   });
 
   it("keeps what played between a next and the next one, on a device that only plays too", async () => {

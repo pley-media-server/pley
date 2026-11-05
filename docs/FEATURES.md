@@ -50,13 +50,14 @@ What Pley does, in full. The [README](../README.md) has the short version.
   those that are on, the ones playing first, then those ready to play,
   then the devices of your household's other profiles whose app can switch
   to yours, each with the profile it is on and never what it plays. For
-  the one chosen it plays, pauses, seeks, skips, goes to the next or
-  previous title (or channel, on Live TV), changes the audio track, the
-  subtitles and the quality, and stops what plays there, once asked to.
-  On Live TV it shows the programme's progress and what's next. Each
-  player obeys the commands it can, without bringing up its controls
-  there: a brief notice says what changed. Any can be stopped
-  ([API.md](API.md#remote-control)).
+  the one chosen it plays, pauses, seeks, skips back and forward 30
+  seconds, goes to the next or previous title (or channel, on Live TV),
+  changes the audio track, the subtitles and the quality, and stops what
+  plays there, once asked to. In an intro or the credits there, it offers
+  Skip Intro or Skip Credits, as the player there would. On Live TV it
+  shows the programme's progress and what's next. Each player obeys the
+  commands it can, without bringing up its controls there: a brief notice
+  says what changed. Any can be stopped ([API.md](API.md#remote-control)).
 - Play on… in the web and desktop apps, beside Play on a movie, an episode,
   a show, a season, an artist, an album, a track and a playlist (Shuffle
   on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
