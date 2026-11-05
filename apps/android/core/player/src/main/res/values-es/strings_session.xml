@@ -23,9 +23,9 @@
     <string name="session_method_direct">Reproducción directa</string>
     <string name="session_method_downloaded">Descargado</string>
     <string name="session_error_download_needs_server">Esta descarga no se puede reproducir sin conexión en este dispositivo. Conéctate a tu servidor para reproducirla.</string>
-    <string name="session_drive_unplayable">Esta TV no puede reproducir este archivo tal como está, y un archivo en una unidad USB no tiene ningún servidor que lo convierta.</string>
+    <string name="session_drive_unplayable">Esta TV no puede reproducir este archivo tal como está, y un archivo en un dispositivo USB no tiene ningún servidor que lo convierta.</string>
     <string name="session_drive_stuck">Esta TV no reproduce este archivo: su imagen nunca llegó a empezar. Sin un servidor que lo convierta, prueba con otra copia.</string>
-    <string name="session_drive_unreadable">No se puede leer este video. Puede que se haya desconectado la unidad USB.</string>
+    <string name="session_drive_unreadable">No se puede leer este video. Puede que se haya desconectado el dispositivo USB.</string>
     <string name="session_drive_speed_undecodable">No con este archivo: su sonido va tal cual a tu receptor y nada aquí lo decodifica</string>
     <string name="session_method_remux">Transmisión directa</string>
     <string name="session_method_transcode">Transcodificación</string>

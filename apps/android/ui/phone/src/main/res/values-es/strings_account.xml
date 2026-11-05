@@ -54,13 +54,13 @@
     <string name="settings_quality_home">Calidad con Wi-Fi</string>
     <string name="settings_quality_mobile">Calidad con datos móviles</string>
     <string name="settings_quality_original">Original</string>
-    <string name="settings_quality_original_hint">Calidad completa. Puede detenerse a cargar con una conexión lenta.</string>
+    <string name="settings_quality_original_hint">Calidad máxima. Puede detenerse a cargar con una conexión lenta.</string>
     <string name="settings_quality_automatic">Automática</string>
     <string name="settings_quality_automatic_hint">Se adapta a las condiciones.</string>
     <string name="settings_quality_preset">%2$d Mbps %1$s</string>
     <string name="settings_refresh_rate">Ajustar la frecuencia de actualización</string>
     <string name="settings_refresh_seamless">Solo sin interrupciones</string>
-    <string name="settings_refresh_seamless_hint">La pantalla sigue la velocidad de fotogramas del video cuando puede hacerlo sin pausa.</string>
+    <string name="settings_refresh_seamless_hint">La pantalla sigue la frecuencia de fotogramas del video cuando puede hacerlo sin pausa.</string>
     <string name="settings_refresh_auto">Auto</string>
     <string name="settings_refresh_always">Siempre</string>
     <string name="settings_refresh_off">Desactivado</string>
@@ -99,7 +99,7 @@
     <string name="settings_private_tab_hint">El navegador no mantiene tu sesión iniciada, así que introduces tu contraseña cada vez</string>
     <string name="settings_advanced">Avanzado</string>
     <string name="settings_software_video">Decodificación de video por software</string>
-    <string name="settings_software_video_hint">Compilaciones de depuración: permite que los emuladores reproduzcan video sin decodificador por hardware</string>
+    <string name="settings_software_video_hint">Versiones de depuración: permite que los emuladores reproduzcan video sin decodificador por hardware</string>
     <string name="settings_about">Acerca de</string>
     <string name="settings_version">Versión</string>
     <string name="settings_licences">Licencias de código abierto</string>
@@ -111,7 +111,7 @@
     <string name="diagnostics_probe_failed">La comprobación de este dispositivo falló.</string>
     <string name="diagnostics_probe_again">Volver a comprobar</string>
     <string name="diagnostics_report">Lo que Pley le dice al servidor</string>
-    <string name="diagnostics_show_frame_rate">Mostrar la velocidad de fotogramas</string>
+    <string name="diagnostics_show_frame_rate">Mostrar la frecuencia de fotogramas</string>
     <string name="diagnostics_show_frame_rate_hint">Arriba mientras algo se mueve: fotogramas por segundo, el fotograma más largo y los fotogramas con retraso</string>
     <string name="diagnostics_copy">Copiar</string>
     <string name="diagnostics_copied">Copiado</string>

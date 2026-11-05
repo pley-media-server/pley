@@ -73,7 +73,7 @@
     <string name="tv_library_jump">Ir a una letra: %1$s</string>
 
     <string name="tv_library_failed">No se pudo cargar esta biblioteca</string>
-    <string name="tv_library_missing_title">Esta biblioteca no está aquí</string>
+    <string name="tv_library_missing_title">Esta biblioteca no está disponible</string>
     <string name="tv_library_missing_body">Puede que se haya eliminado o que este perfil no pueda verla.</string>
     <string name="tv_library_empty_title">Esta biblioteca está vacía</string>
     <string name="tv_library_empty_body">Aún no hay nada. Los títulos aparecen a medida que el servidor los añade.</string>

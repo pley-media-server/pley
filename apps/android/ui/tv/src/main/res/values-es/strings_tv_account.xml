@@ -19,7 +19,7 @@
     <string name="tv_account_file_default">El predeterminado del archivo</string>
     <string name="tv_account_same_as_audio">El mismo que el del audio</string>
     <string name="tv_account_change_on_web">se cambia en la web</string>
-    <string name="tv_account_defaults_read_only">Este servidor no deja que la aplicación los cambie: cámbialos en la web</string>
+    <string name="tv_account_defaults_read_only">Este servidor no permite que la aplicación los cambie: cámbialos en la web</string>
     <string name="tv_account_saved">Guardado</string>
     <string name="tv_account_subtitles_off">Desactivados</string>
     <string name="tv_account_subtitles_off_hint">Los subtítulos siguen desactivados hasta que los actives.</string>
@@ -83,7 +83,7 @@
     <string name="tv_settings_tunneling">Reproducción en modo túnel</string>
     <string name="tv_settings_tunneling_hint">Video más fluido en algunas TV; en otras puede causar fallos de reproducción</string>
     <string name="tv_settings_software_video">Decodificación de video por software</string>
-    <string name="tv_settings_software_video_hint">Versiones de depuración: permite a los emuladores reproducir video sin un decodificador por hardware</string>
+    <string name="tv_settings_software_video_hint">Versiones de depuración: permite que los emuladores reproduzcan video sin decodificador por hardware</string>
 
     <string name="tv_settings_passthrough_intro">Envía el sonido envolvente a tu TV o receptor, o decodifícalo aquí.</string>
     <string name="tv_settings_format_dts_hd">DTS-HD y DTS:X</string>

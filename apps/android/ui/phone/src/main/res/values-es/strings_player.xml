@@ -44,7 +44,7 @@
 
     <string name="player_error_title">No se puede reproducir este elemento</string>
     <string name="player_offline_title">No se puede conectar con tu servidor</string>
-    <string name="player_try_again">Reintentar</string>
+    <string name="player_try_again">Volver a intentar</string>
     <string name="player_play_original">Reproducir el original</string>
     <string name="player_lower_quality">Bajar la calidad</string>
 

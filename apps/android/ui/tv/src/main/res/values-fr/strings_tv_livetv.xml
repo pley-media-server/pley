@@ -79,7 +79,7 @@
     <string name="tv_live_player_hint">▲▼ changer de chaîne · OK pour les chaînes · maintenez OK pour plus</string>
     <string name="tv_live_player_retry">Réessayer</string>
     <string name="tv_live_player_other_channels">Autres chaînes</string>
-    <string name="tv_live_player_back_to_guide">Retour au guide</string>
+    <string name="tv_live_player_back_to_guide">Retour au guide des programmes</string>
     <string name="tv_live_player_busy">Toutes les connexions sont utilisées</string>
     <string name="tv_live_player_stopped">La TV en direct s’est arrêtée</string>
     <string name="tv_live_player_watch_again">Regarder à nouveau</string>

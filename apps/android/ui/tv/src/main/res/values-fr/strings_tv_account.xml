@@ -62,7 +62,7 @@
 
     <string name="tv_settings_quality">Qualité</string>
     <string name="tv_settings_quality_original">Original</string>
-    <string name="tv_settings_quality_original_hint">Qualité maximale. Peut s’interrompre pour charger sur une connexion lente.</string>
+    <string name="tv_settings_quality_original_hint">Qualité maximale. La lecture peut s’interrompre pour charger sur une connexion lente.</string>
     <string name="tv_settings_quality_automatic">Automatique</string>
     <string name="tv_settings_quality_automatic_hint">S’adapte aux conditions.</string>
     <string name="tv_settings_quality_preset">%2$d Mbit/s %1$s</string>
@@ -76,7 +76,7 @@
     <string name="tv_settings_autoplay">Lire l’épisode suivant automatiquement</string>
     <string name="tv_settings_autoplay_hint">Après un compte à rebours de 10 secondes</string>
     <string name="tv_settings_playback_details">Détails de lecture</string>
-    <string name="tv_settings_playback_details_hint">Afficher par-dessus la vidéo comment elle est lue (directe, remux ou transcodage)</string>
+    <string name="tv_settings_playback_details_hint">Afficher sur la vidéo comment elle est lue (direct, remux ou transcodage)</string>
     <string name="tv_settings_reduce_motion">Réduire les animations</string>
     <string name="tv_settings_reduce_motion_hint">Ni zoom, ni glissement, ni fondu : tout change sur place</string>
     <string name="tv_settings_advanced">Avancé</string>
@@ -119,7 +119,7 @@
     <string name="tv_settings_open_diagnostics">Ouvrir le diagnostic</string>
     <string name="tv_settings_open_diagnostics_value">Ce que cette TV décode et affiche, et pourquoi</string>
     <string name="tv_settings_show_frame_rate">Afficher la fréquence d’images</string>
-    <string name="tv_settings_show_frame_rate_hint">En haut de l’écran quand quelque chose bouge : images par seconde, image la plus longue et images en retard</string>
+    <string name="tv_settings_show_frame_rate_hint">En haut pendant que quelque chose bouge : images par seconde, l’image la plus longue et les images en retard</string>
     <string name="tv_settings_version">Version</string>
     <string name="tv_settings_licences">Licences open source</string>
     <string name="tv_settings_credits">Crédits</string>
@@ -129,5 +129,5 @@
     <string name="tv_diagnostics_plays">Ce qu’elle lit</string>
     <string name="tv_diagnostics_probing">Vérification de ce que cette TV lit…</string>
     <string name="tv_diagnostics_probe_failed">La vérification de cette TV a échoué.</string>
-    <string name="tv_diagnostics_probe_again">Vérifier de nouveau</string>
+    <string name="tv_diagnostics_probe_again">Vérifier à nouveau</string>
 </resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="search_field">Busca películas, series, personas…</string>
+    <string name="search_field">Buscar películas, series, personas…</string>
     <string name="search_clear_field">Borrar</string>
     <string name="search_recent">Búsquedas recientes</string>
     <string name="search_recent_clear">Borrar</string>

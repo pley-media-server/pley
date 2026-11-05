@@ -5,7 +5,7 @@
     <string name="tv_music_play">Lire</string>
     <string name="tv_music_pause">Pause</string>
     <string name="tv_music_shuffle">Aléatoire</string>
-    <string name="tv_music_shuffle_off">Désactiver l’aléatoire</string>
+    <string name="tv_music_shuffle_off">Arrêter la lecture aléatoire</string>
     <string name="tv_music_now_playing">En cours de lecture</string>
     <string name="tv_music_disc">Disque %1$d</string>
     <string name="tv_music_no_albums">Aucun album trouvé.</string>
@@ -26,7 +26,7 @@
     <string name="tv_music_sleep_running">%1$s : %2$s</string>
     <string name="tv_music_loading">Chargement…</string>
     <string name="tv_music_nothing_playing">Aucune lecture en cours</string>
-    <string name="tv_music_nothing_playing_body">Lancez un album ou un artiste : il s’affichera ici.</string>
+    <string name="tv_music_nothing_playing_body">Lancez un album ou un artiste, il apparaîtra ici.</string>
     <string name="tv_music_error_offline">Impossible de joindre le serveur.</string>
     <string name="tv_music_error_signed_out">Reconnectez-vous pour lire.</string>
     <string name="tv_music_error_stopped">Le serveur a arrêté la lecture.</string>

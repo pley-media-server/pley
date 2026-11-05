@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tv_search_field">Rechercher des films, séries, personnes…</string>
+    <string name="tv_search_field">Rechercher des films, des séries, des personnes…</string>
     <string name="tv_search_recent">Recherches récentes</string>
     <string name="tv_search_recent_clear">Effacer</string>
     <string name="tv_search_empty_title">Rechercher dans vos bibliothèques</string>

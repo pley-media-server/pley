@@ -234,7 +234,7 @@
     <string name="requests_notice_season_ready">%1$s of “%2$s” is ready to watch.</string>
     <string name="requests_notice_seasons_ready">%1$s of “%2$s” are ready to watch.</string>
     <!-- The specials alone. -->
-    <string name="requests_notice_specials_ready">Specials of “%1$s” is ready to watch.</string>
+    <string name="requests_notice_specials_ready">Specials of “%1$s” are ready to watch.</string>
     <string name="requests_notice_approved">“%1$s” was approved.</string>
     <string name="requests_notice_declined_reason">“%1$s” was declined: “%2$s”.</string>
     <string name="requests_notice_declined">“%1$s” was declined.</string>

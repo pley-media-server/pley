@@ -28,7 +28,7 @@
     <string name="tv_playlist_move">Déplacer</string>
     <string name="tv_playlist_remove">Retirer de la playlist</string>
     <string name="tv_playlist_moving">Haut et bas pour le déplacer, OK pour le poser ici, Retour pour le remettre à sa place</string>
-    <string name="tv_playlist_removed">Retiré de la playlist : %1$s</string>
+    <string name="tv_playlist_removed">Retiré de la playlist : « %1$s »</string>
     <string name="tv_playlist_delete_title">Supprimer la playlist ?</string>
     <string name="tv_playlist_delete_body">La playlist « %1$s » sera supprimée. Son contenu reste dans vos bibliothèques.</string>
     <string name="tv_playlist_cancel">Annuler</string>

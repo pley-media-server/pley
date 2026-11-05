@@ -151,7 +151,7 @@ class RequestTextsTest {
     @Test
     fun theSpecialsAloneHaveTheirOwnWords() {
         val specials = RequestNotice.Ready(11, 47, "Severance", TitleKind.Show, 201, listOf(0), complete = false)
-        assertEquals("Specials of “Severance” is ready to watch.", texts.notice(specials))
+        assertEquals("Specials of “Severance” are ready to watch.", texts.notice(specials))
         assertEquals("Les épisodes spéciaux de «${nb}Severance$nb» sont prêts à regarder.", textsIn("fr").notice(specials))
         assertEquals("Los especiales de «Severance» ya están listos para ver.", textsIn("es").notice(specials))
     }

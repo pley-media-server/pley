@@ -53,7 +53,7 @@ class TvBrowsingWordsTest {
         assertEquals("$million d’artistes", tvCount(fr, R.plurals.tv_library_count_artists, 1_000_000))
         assertEquals("3 sur 40 séries", tvCountOf(fr, R.plurals.tv_library_count_of_shows, 3, 40))
         assertEquals("Aucun résultat pour « nord »", fr.getString(R.string.tv_search_none_title, "nord"))
-        assertEquals("Retiré de la playlist : Vacances", fr.getString(R.string.tv_playlist_removed, "Vacances"))
+        assertEquals("Retiré de la playlist : « Vacances »", fr.getString(R.string.tv_playlist_removed, "Vacances"))
         assertEquals("8 éléments ajoutés à Vacances", addedMessage(fr, AddEvent.Added("Vacances", 8)))
     }
 

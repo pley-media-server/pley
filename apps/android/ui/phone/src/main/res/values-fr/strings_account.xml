@@ -8,7 +8,7 @@
     <string name="account_this_device">Cet appareil</string>
     <string name="account_settings">Paramètres</string>
     <string name="account_settings_value">Qualité, fréquence de rafraîchissement, sous-titres, confidentialité</string>
-    <string name="account_diagnostics">Diagnostics</string>
+    <string name="account_diagnostics">Diagnostic</string>
     <string name="account_diagnostics_value">Ce que cet appareil lit, et pourquoi</string>
     <string name="account_account">Compte</string>
     <string name="account_manage_web">Gérer votre compte sur le web</string>

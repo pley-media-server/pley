@@ -5,7 +5,7 @@
     <string name="tv_music_play">Reproducir</string>
     <string name="tv_music_pause">Pausar</string>
     <string name="tv_music_shuffle">Aleatorio</string>
-    <string name="tv_music_shuffle_off">Desactivar aleatorio</string>
+    <string name="tv_music_shuffle_off">Detener la reproducción aleatoria</string>
     <string name="tv_music_now_playing">Reproduciendo ahora</string>
     <string name="tv_music_disc">Disco %1$d</string>
     <string name="tv_music_no_albums">No se encontraron álbumes.</string>

@@ -76,7 +76,7 @@
     <string name="tv_library_missing_title">Cette bibliothèque est introuvable</string>
     <string name="tv_library_missing_body">Elle a peut-être été supprimée, ou ce profil n’y a pas accès.</string>
     <string name="tv_library_empty_title">Cette bibliothèque est vide</string>
-    <string name="tv_library_empty_body">Rien pour l’instant. Les titres apparaissent à mesure que le serveur les ajoute.</string>
+    <string name="tv_library_empty_body">Rien pour l’instant. Les titres apparaissent au fur et à mesure que le serveur les ajoute.</string>
     <string name="tv_library_no_matches_title">Aucun résultat</string>
     <string name="tv_library_no_matches_body">Rien dans cette bibliothèque ne correspond aux filtres actuels.</string>
     <string name="tv_library_recommended_failed">Impossible de charger les recommandations</string>

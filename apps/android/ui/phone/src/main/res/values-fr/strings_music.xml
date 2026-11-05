@@ -11,7 +11,7 @@
     <string name="music_disc">Disque %1$d</string>
     <string name="music_no_albums">Aucun album trouvé.</string>
     <string name="music_no_tracks">Aucun titre trouvé</string>
-    <string name="music_nothing_to_play">Rien à lire : aucun titre.</string>
+    <string name="music_nothing_to_play">Rien à lire : il n’y a aucun titre.</string>
     <string name="music_artist_not_found">Artiste introuvable</string>
     <string name="music_album_not_found">Album introuvable</string>
     <string name="music_not_found_body">Il a peut-être été supprimé, ou ce profil n’y a pas accès.</string>
@@ -31,6 +31,6 @@
     <string name="music_nothing_playing_body">Lancez un album ou un artiste, il apparaîtra ici.</string>
     <string name="music_error_offline">Impossible de joindre le serveur.</string>
     <string name="music_error_signed_out">Reconnectez-vous pour lire.</string>
-    <string name="music_error_stopped">La lecture a été arrêtée par le serveur.</string>
-    <string name="music_error_unplayable">Ce titre ne peut pas être lu.</string>
+    <string name="music_error_stopped">Le serveur a arrêté la lecture.</string>
+    <string name="music_error_unplayable">Impossible de lire ce titre.</string>
 </resources>
