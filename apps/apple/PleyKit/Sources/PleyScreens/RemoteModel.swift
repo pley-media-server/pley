@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import PleyModel
 import PleyNetwork
+import PleyPlayer
 
 /// The remote on iPhone, iPad and Mac (docs/APPLE.md, Remote control):
 /// the profile's other devices that are on, the ones that take casts
@@ -52,6 +53,30 @@ public final class RemoteModel: ObservableObject {
         public func takes(_ kind: CastKind) -> Bool { receiver?.takes(kind) ?? false }
     }
 
+    /// Skip Intro or Skip Credits on a device, while what plays there is in
+    /// one (`skipOffer`): the button's words, as the player's own button
+    /// says them, and the seek that skips it, to where the player's own lands.
+    public struct SkipOffer: Hashable, Sendable {
+        public let marker: Marker
+        /// The title's length, when known: the server refuses a seek past it.
+        public let durationMs: Int?
+
+        public init(_ marker: Marker, durationMs: Int? = nil) {
+            self.marker = marker
+            self.durationMs = durationMs
+        }
+
+        public var kind: MarkerKind { marker.kind }
+        /// "Skip Intro" or "Skip Credits".
+        public var label: String { Markers.label(marker) }
+        /// Just before an intro ends (at most half the intro before), at the end of credits, within the title.
+        public var targetMs: Int {
+            let at = Markers.skipTarget(marker)
+            return durationMs.map { $0 > 0 ? min(at, $0) : at } ?? at
+        }
+        public var command: PlayerCommand { .seek(toMs: targetMs) }
+    }
+
     /// A command sent, and what its session looked like then.
     struct Sent {
         let command: Control
@@ -69,6 +94,9 @@ public final class RemoteModel: ObservableObject {
 
     /// How long the remote waits for a player to show it acted on a command.
     public static let answerWait: Duration = .seconds(5)
+    /// The transport's Back and Forward, 30 seconds each way, as every remote skips.
+    public static let back = PlayerCommand.skip(byMs: -Words.remoteSkipBackMs)
+    public static let forward = PlayerCommand.skip(byMs: Words.remoteSkipForwardMs)
     /// Farther than this from where it should be, a report has moved (the server's rule for a seek).
     static let jumpMs = 5_000
 
@@ -232,6 +260,17 @@ public final class RemoteModel: ObservableObject {
         guard session.state == .playing else { return session.positionMs }
         let at = session.positionMs + max(0, Int((now.timeIntervalSince(entry.reportedAt) * 1000).rounded()))
         return session.durationMs.map { min(at, $0) } ?? at
+    }
+
+    /// Skip Intro or Skip Credits for `entry` at `now`, as its player would
+    /// offer it: never on Live TV, only where its player seeks, and while the
+    /// place the remote shows (`position`) is in an intro or the credits,
+    /// from its start until a second before its end. Nothing for a kind of
+    /// marker this app doesn't know.
+    public static func skipOffer(_ entry: Entry, at now: Date) -> SkipOffer? {
+        guard !entry.live, entry.session.obeys(.seek) else { return nil }
+        let markers = entry.session.markers.filter { $0.kind == .intro || $0.kind == .credits }
+        return Markers.active(markers, positionMs: position(entry, at: now)).map { SkipOffer($0, durationMs: entry.session.durationMs) }
     }
 
     /// Sends `entry`'s player `command`. Its player acts on it and reports,

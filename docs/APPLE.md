@@ -1367,14 +1367,23 @@ A playing device's controls, top to bottom:
 1. the poster (a channel's logo), the device, and what plays: an
    episode's show, season and number ("Show · S1 · E2"), then its title;
    a track's title, then its artist; a channel's number and name, then
-   what's on; anything else, its title;
+   what's on; anything else, its title. At the row's end, while the
+   place the remote shows is in an intro or the credits (the session's
+   `markers`, from a segment's start until a second before its end),
+   **Skip Intro** or **Skip Credits** with a double chevron, as the
+   player's own button says it: a small capsule on one line, with the
+   title at most two lines beside it. It shows on a title (never Live TV)
+   whose player seeks, and sends `{ command: "seek", position_ms }` to
+   where the player's own skip lands: 750 ms before an intro ends (half
+   the intro when it is shorter than 1.5 s), at the end of the credits.
+   VoiceOver reads it "Skip intro on Living room TV";
 2. for a title, how far it is, with a seek slider when its player seeks;
    for a channel, no seek: a thin bar of how far along the programme on
    is, by this device's clock between its start and end (`now_start`,
    `now_stop`), its times under it ("8:00 PM – 9:00 PM", in the system's
    time format), and "Next: …" when the guide says what follows;
 3. the buttons, centred. For a title: Previous where the player listed
-   it, Back 10 seconds and Forward 30 seconds where it skips, Play or
+   it, Back 30 seconds and Forward 30 seconds where it skips, Play or
    Pause, and Next, which shows for every episode and track and for a
    title with one after it, dimmed when the player doesn't take it. For a
    channel: a capsule of channel down, "Channel" and channel up, as a TV
@@ -1417,7 +1426,7 @@ goes. Other refusals say what happened: "… can't do that." (`409`, the
 list is read again), "Too many at once: try again in a moment." (`429`),
 and the server's own words otherwise. VoiceOver reads each button with
 its device ("Pause on Living room TV", "Audio on Living room TV"), the
-slider's swipes go back 10 and forward 30 seconds, and a refusal is read
+slider's swipes go back and forward 30 seconds, and a refusal is read
 out as it shows.
 
 **Play on…** On iPhone, iPad and Mac, beside the Play of a movie, an
