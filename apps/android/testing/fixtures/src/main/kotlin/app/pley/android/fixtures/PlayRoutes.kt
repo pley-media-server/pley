@@ -75,7 +75,11 @@ internal class PlayRoutes(private val s: State) {
         route("DELETE", "/api/sessions/*", PLAY) { call, c, v -> stopSession(call, c, v[0]) },
         route("GET", "/api/sessions", PLAY) { _, c, _ -> Reply.json(ListSerializer(PlayingSession.serializer()), playing(c)) },
         route("POST", "/api/sessions/*/command", PLAY) { call, c, v -> command(call, c, v[0]) },
-        route("GET", "/api/remote/devices", PLAY) { _, c, _ -> Reply.json(ListSerializer(RemoteDevice.serializer()), s.events.householdDevices(c.profile.id)) },
+        route("GET", "/api/remote/devices", PLAY) { call, c, _ ->
+            // The household's other profiles' devices only to a remote that asks for them.
+            val devices = if (call.query("household") == "1") s.events.householdDevices(c.profile.id) else s.events.devices(c.profile.id)
+            Reply.json(ListSerializer(RemoteDevice.serializer()), devices)
+        },
         route("POST", "/api/remote/devices/*/cast", PLAY) { call, c, v -> cast(call, c, v[0]) },
         route("GET", "/api/files/*/stream", PLAY, free = true) { call, _, v -> stream(call, v[0]) },
         route("GET", "/api/files/*/subtitles/*", PLAY) { _, _, v -> subtitles(v[0], v[1]) },
@@ -431,7 +435,8 @@ internal class PlayRoutes(private val s: State) {
     /**
      * POST /api/remote/devices/{id}/cast, refused in the server's order:
      * a receiver that isn't an open one of the caller's or, with
-     * `profile_id`, of that profile of the household (404), not exactly one
+     * `profile_id`, of that profile of the household that switches profile
+     * (`switch` in its `casts`) (404), not exactly one
      * of a title, a playlist and a channel (400), a title there isn't (404)
      * or of a kind that isn't cast (400), a playlist not the caller's (404),
      * a channel (404: there is no Live TV here), what the receiver doesn't
@@ -450,6 +455,8 @@ internal class PlayRoutes(private val s: State) {
         val owner = body.profileId ?: caller.profile.id
         if (s.profile(owner) == null) return Reply.notFound("no such device")
         val takes = s.events.casts(owner, receiverId) ?: return Reply.notFound("no such device")
+        // An app that can't switch to the caster's profile isn't another profile's device to them.
+        if (owner != caller.profile.id && CastKind.Switch !in takes) return Reply.notFound("no such device")
         val itemId = body.itemId
         val playlistId = body.playlistId
         val picked = body.audioIndex != null || body.subtitleIndex != null

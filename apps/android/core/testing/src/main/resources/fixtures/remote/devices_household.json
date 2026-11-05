@@ -1,4 +1,4 @@
 [
   { "receiver_id": "android-2d7c5e1b-0a4f-4c1e-9b36-5f1a8e0c4d21", "device_id": "app-12", "name": "Living room TV", "kind": "tv", "casts": ["item", "live"] },
-  { "receiver_id": "android-7e3b9c20-51d4-4a8f-b6e2-0c9d1f4a3b57", "device_id": "app-31", "name": "Bedroom TV", "kind": "tv", "casts": ["item", "live"], "profile": { "id": 3, "name": "Sam" } }
+  { "receiver_id": "android-7e3b9c20-51d4-4a8f-b6e2-0c9d1f4a3b57", "device_id": "app-31", "name": "Bedroom TV", "kind": "tv", "casts": ["item", "live", "switch"], "profile": { "id": 3, "name": "Sam" } }
 ]

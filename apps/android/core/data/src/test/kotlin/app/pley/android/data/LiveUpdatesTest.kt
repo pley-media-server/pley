@@ -167,13 +167,13 @@ class LiveUpdatesTest {
     }
 
     @Test
-    fun `in front the stream names this device as a receiver of titles, and of channels while Live TV is open`() = runTest {
+    fun `in front the stream names this device as a receiver of titles, of channels while Live TV is open, that switches profile`() = runTest {
         val data = signedIn(folder.newFolder())
         val id = data.graph.servers.clientId()
         val live = data.graph.liveUpdates
         live.start()
         testScheduler.runCurrent()
-        assertEquals(listOf(EventReceiver(id, listOf(CastKind.Item, CastKind.Live))), data.events.receivers)
+        assertEquals(listOf(EventReceiver(id, listOf(CastKind.Item, CastKind.Live, CastKind.Switch))), data.events.receivers)
         // Casts are this device's once it is connected as one.
         assertEquals(null, live.receiver.value)
         data.events.send(LiveEvent.Reconnected)
@@ -190,7 +190,7 @@ class LiveUpdatesTest {
         val data = signedIn(folder.newFolder()) { api.answer("liveSummary", LiveSummary(available = false, allowed = false)) }
         data.graph.liveUpdates.start()
         testScheduler.runCurrent()
-        assertEquals(listOf(CastKind.Item), data.events.receivers.single()?.casts)
+        assertEquals(listOf(CastKind.Item, CastKind.Switch), data.events.receivers.single()?.casts)
     }
 
     @Test
@@ -198,7 +198,7 @@ class LiveUpdatesTest {
         val data = signedIn(folder.newFolder()) { api.fail("liveSummary", OfflineException(java.io.IOException("away"))) }
         data.graph.liveUpdates.start()
         testScheduler.runCurrent()
-        assertEquals(listOf(CastKind.Item), data.events.receivers.single()?.casts)
+        assertEquals(listOf(CastKind.Item, CastKind.Switch), data.events.receivers.single()?.casts)
     }
 
     @Test
@@ -209,7 +209,7 @@ class LiveUpdatesTest {
         testScheduler.runCurrent()
         assertEquals(0, data.events.connections)
         time(ServerLiveUpdates.LIVE_WAIT_MS)
-        assertEquals(listOf(CastKind.Item), data.events.receivers.single()?.casts)
+        assertEquals(listOf(CastKind.Item, CastKind.Switch), data.events.receivers.single()?.casts)
         data.api.release()
     }
 

@@ -82,7 +82,7 @@ class RemoteRoutesTest {
         val robin = Client(server, server.accessToken(FixtureIds.ROBIN))
         fun devices() = robin.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer()))
         assertEquals(emptyList<RemoteDevice>(), devices())
-        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item,live,radio"
+        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item,live,switch,radio"
         robin.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${robin.token}").build()).execute().use { response ->
             val source = response.body.source()
             assertEquals(": connected", source.readUtf8Line())
@@ -91,11 +91,13 @@ class RemoteRoutesTest {
             assertEquals("Den TV", den.name)
             assertEquals(DeviceKind.Tv, den.kind)
             // Only the kinds the server knows.
-            assertEquals(listOf(CastKind.Item, CastKind.Live), den.casts)
+            assertEquals(listOf(CastKind.Item, CastKind.Live, CastKind.Switch), den.casts)
             assertTrue(den.deviceId.startsWith("app-"))
             assertEquals(null, den.profile)
-            // The household's other profiles see it as on Robin's, an administrator too.
-            val alexSees = Client(server, server.accessToken()).read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).single()
+            // The household's other profiles see it as on Robin's when they ask for the household, an administrator too.
+            val alex = Client(server, server.accessToken())
+            assertEquals(emptyList<RemoteDevice>(), alex.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())))
+            val alexSees = alex.read("/api/remote/devices?household=1", ListSerializer(RemoteDevice.serializer())).single()
             assertEquals(den.copy(profile = DeviceProfileName(FixtureIds.ROBIN, "Robin")), alexSees)
             // It appearing told the profile's streams.
             var heard: ServerEvent? = null
@@ -124,6 +126,9 @@ class RemoteRoutesTest {
             // Another profile's is as unknown without its profile.
             assertEquals(404, robin.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P}}""").code)
             assertEquals(404, robin.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"profile_id":999}""").code)
+            // And with it, since it doesn't say it switches profile (`switch`): nor is it listed to them.
+            assertEquals(404, robin.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"profile_id":${FixtureIds.ALEX}}""").code)
+            assertEquals(emptyList<RemoteDevice>(), robin.read("/api/remote/devices?household=1", ListSerializer(RemoteDevice.serializer())))
             assertEquals(400, alex.send("POST", path, """{}""").code)
             assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"playlist_id":${FixtureIds.PLAYLIST_VIDEO}}""").code)
             assertEquals(404, alex.send("POST", path, """{"item_id":999999999}""").code)
@@ -179,11 +184,11 @@ class RemoteRoutesTest {
         val sam = Client(server, server.accessToken(FixtureIds.SAM))
         val robin = Client(server, server.accessToken(FixtureIds.ROBIN))
         val path = "/api/remote/devices/android-den/cast"
-        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item"
+        val url = "${server.url}/api/events?receiver=android-den&device_name=Den%20TV&device_kind=tv&casts=item,switch"
         alex.http.newCall(Request.Builder().url(url).header("Authorization", "Bearer ${alex.token}").build()).execute().use { response ->
             val source = response.body.source()
             assertEquals(": connected", source.readUtf8Line())
-            waitFor { sam.read("/api/remote/devices", ListSerializer(RemoteDevice.serializer())).singleOrNull() }
+            waitFor { sam.read("/api/remote/devices?household=1", ListSerializer(RemoteDevice.serializer())).singleOrNull() }
             fun toAlex(pin: String? = null) =
                 sam.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"profile_id":${FixtureIds.ALEX}${pin?.let { ""","pin":"$it"""" } ?: ""}}""")
             // Sam has a PIN: asked for, checked, and throttled with Sam's switches.

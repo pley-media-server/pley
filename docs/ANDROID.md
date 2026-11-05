@@ -204,10 +204,11 @@ apps that take casts) merged with the sessions (`GET /api/sessions`) by
 and each time the event stream connects; a session whose device takes no
 casts (a Jellyfin or Plex app) is listed too, and a device with several
 sessions shows its newest. The phone's own sessions are left out (its
-players say which they play), and so is its own receiver. For a home
-member, the receivers include the household's other profiles' devices,
-each with the profile it is on (`profile`); what those play stays their
-profile's, so they are listed as ready to play.
+players say which they play), and so is its own receiver. The phone asks
+for the household's too (`?household=1`): for a home member, the
+receivers include the other profiles' devices that switch to the
+caster's profile, each with the profile it is on (`profile`); what those
+play stays their profile's, so they are listed as ready to play.
 
 The button opens the remote, a sheet of **Your devices**: a row for
 each, those that play first, then the profile's own, then the other
@@ -392,7 +393,9 @@ event stream names the device as a receiver: its install id (the
 `client_id` its players send), its name and kind as its play requests
 give them, and what it plays, titles always and Live TV's channels while
 Live TV is open to the profile (the stream waits up to 2 s for Live TV's
-summary as it opens, so it doesn't open twice). In the background, where
+summary as it opens, so it doesn't open twice), and that it switches to
+the profile of a remote on another profile of the household (`switch`,
+as in `casts=item,live,switch`). In the background, where
 a player keeps the stream open, it names none: going there and back opens
 the stream again, and nothing cast plays while the app is hidden.
 

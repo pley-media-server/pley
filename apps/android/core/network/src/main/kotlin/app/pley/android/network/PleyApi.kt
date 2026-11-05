@@ -350,8 +350,10 @@ interface PleyApi {
     suspend fun stopSession(sessionId: String)
 
     /**
-     * GET /api/remote/devices (scope play): the profile's devices that take
-     * casts (docs/API.md, "Casting"), this one too, one each, by name.
+     * GET /api/remote/devices?household=1 (scope play): the profile's
+     * devices that take casts (docs/API.md, "Casting"), this one too, and
+     * those of the household's other profiles that switch to the caster's,
+     * one each, by name.
      */
     suspend fun remoteDevices(): List<RemoteDevice>
 
