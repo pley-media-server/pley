@@ -78,6 +78,38 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(remote.controls("music", audio=2, subtitles=2), ["play", "pause", "seek", "skip", "next", "previous"])
         self.assertEqual(remote.controls("live", has_order=True, audio=1, subtitles=1), ["next", "previous"])
 
+    def test_a_video_offers_its_quality(self):
+        video = ["play", "pause", "seek", "skip"]
+        self.assertEqual(remote.controls("video", audio=1, quality=True), video + ["audio", "quality"])
+        # Music and live channels have no quality.
+        self.assertEqual(remote.controls("music", quality=True), ["play", "pause", "seek", "skip", "next", "previous"])
+        self.assertEqual(remote.controls("live", has_order=True, quality=True), ["next", "previous"])
+
+
+class QualityRuleTest(unittest.TestCase):
+    """The remote's quality: a film whose menu offers Original, Automatic
+    and 8 Mbps 1080p, at Automatic."""
+
+    PLAYER = {"session_id": "s1", "qualities": ["original", "auto", "8m"], "quality": "auto"}
+
+    def obey(self, quality, session="s1", what="quality", **player):
+        return remote.obey_quality(dict(self.PLAYER, **player), {"session_id": session, "command": what, "quality": quality})
+
+    def test_a_quality_the_menu_offers(self):
+        self.assertEqual(self.obey("8m"), {"act": "quality", "quality": "8m", "report": True})
+        self.assertEqual(self.obey("original"), {"act": "quality", "quality": "original", "report": True})
+        self.assertEqual(self.obey("auto"), {"act": "none", "report": True}, "the one picked: said again")
+        unknown = remote.obey_quality(dict(self.PLAYER, quality=None), {"session_id": "s1", "command": "quality", "quality": "auto"})
+        self.assertEqual(unknown, {"act": "quality", "quality": "auto", "report": True}, "the pick not known")
+
+    def test_one_it_doesnt_offer_another_sessions_or_another_command(self):
+        for quality in ("30m", "best", None, 8, ""):
+            with self.subTest(quality=quality):
+                self.assertEqual(self.obey(quality), {"act": "none", "report": False})
+        self.assertEqual(self.obey("8m", session="s2"), {"act": "none", "report": False})
+        self.assertEqual(self.obey("8m", session_id=None), {"act": "none", "report": False})
+        self.assertEqual(self.obey("8m", what="audio"), {"act": "none", "report": False})
+
     def test_kodi_is_named_by_the_name_it_was_given(self):
         self.addCleanup(xbmc.setting_values.pop, "services.devicename", None)
         self.addCleanup(xbmc.info_labels.pop, "System.FriendlyName", None)
@@ -291,6 +323,72 @@ class VideoTest(Wiring):
         self.start("episode")
         self.player.heard(command("s1", "next"))
         self.assertEqual((xbmc.asked, xbmc.played), ([("playnext",)], []), "Kodi's queue first")
+
+
+class QualityTest(Wiring):
+    """The remote's quality: Kodi's Quality setting changes, as picking it
+    there does, and the title plays again where it is at it."""
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(xbmcaddon.settings.pop, playback.QUALITY, None)
+        xbmcaddon.settings[playback.QUALITY] = "auto"
+        self.restarted = []
+        self.player.restart = lambda item_id, position, quality: self.restarted.append((item_id, position, quality))
+
+    def play(self, kind="movie"):
+        playing = {
+            "item_id": 7,
+            "session_id": "s1",
+            "duration_ms": 7_200_000,
+            "path": "http://proxy/7",
+            "kind": kind,
+            "qualities": ["original", "auto", "8m", "4m", "2m"],
+            "quality": "auto",
+        }
+        if kind == "track":
+            del playing["qualities"], playing["quality"]
+        kodi.set_property(kodi.PLAYING, json.dumps(playing))
+        self.player.file = playing["path"]
+        self.player.seconds = 600.0
+        self.player.onAVStarted()
+        self.bodies = []
+        self.player.send = lambda playing, path, body: self.bodies.append(body)
+
+    def quality(self, quality, session="s1"):
+        return dict(command(session, "quality"), quality=quality)
+
+    def test_a_pick_changes_the_setting_and_plays_the_title_again_there(self):
+        self.play()
+        self.player.heard(self.quality("8m"))
+        self.assertEqual(xbmcaddon.settings[playback.QUALITY], "8m", "kept, as a pick in the setting is")
+        self.assertEqual(self.restarted, [(7, 600_000, None)], "at the setting, where it was")
+        self.assertEqual(self.player.restarting, (7, None, None), "not Automatic's: a watch of its own")
+        self.assertEqual(self.bodies, [], "the new session reports as it starts")
+        # Played again, it gets a watch of its own (Automatic picked again).
+        self.assertEqual(self.player.watching({"item_id": 7, "auto": None}), (None, None))
+
+    def test_the_quality_picked_already_is_said_again(self):
+        self.play()
+        self.player.heard(self.quality("auto"))
+        self.assertEqual((self.restarted, xbmcaddon.settings[playback.QUALITY]), ([], "auto"))
+        self.assertEqual([(b["state"], b["position_ms"], b["quality"]) for b in self.bodies], [("playing", 600_000, "auto")])
+
+    def test_one_the_file_doesnt_offer_another_sessions_or_music_does_nothing(self):
+        self.play()
+        self.player.heard(self.quality("30m"))
+        self.player.heard(self.quality("8m", "s2"))
+        self.play("track")
+        self.player.heard(self.quality("8m"))
+        self.assertEqual((self.restarted, self.bodies, xbmcaddon.settings[playback.QUALITY]), ([], [], "auto"))
+
+    def test_every_report_of_a_video_says_the_quality_picked(self):
+        self.play()
+        self.player.reports.report("playing")
+        self.assertEqual(self.bodies[-1]["quality"], "auto")
+        self.play("track")
+        self.player.reports.report("playing")
+        self.assertNotIn("quality", self.bodies[-1], "music has none")
 
 
 class MusicTest(Wiring):
@@ -536,25 +634,25 @@ class RequestsTest(unittest.TestCase):
         # Its details load while the play request goes: audio and subtitles
         # are offered without them.
         asked = self.play()
-        self.assertEqual(asked["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"])
+        self.assertEqual(asked["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"])
         self.assertEqual((asked["device_name"], asked["device_kind"]), ("Den", "tv"))
         queue(xbmc.PLAYLIST_VIDEO, [9, 10], 0)
-        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
+        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality"])
         queue(xbmc.PLAYLIST_VIDEO, [8, 9], 1)
-        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"], "the last of the queue")
+        self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"], "the last of the queue")
         queue(xbmc.PLAYLIST_MUSIC, [9], 0)
         self.assertEqual(self.play()["controls"], ["play", "pause", "seek", "skip", "next", "previous"])
 
     def test_a_kind_known_from_the_listing_says_what_it_obeys(self):
         # The details load while the play request goes: the listing's kind decides.
         self.assertEqual(self.play(kind="track")["controls"], ["play", "pause", "seek", "skip", "next", "previous"])
-        self.assertEqual(self.play(kind="episode")["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles"])
+        self.assertEqual(self.play(kind="episode")["controls"], ["play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality"])
 
     def test_the_details_say_which_tracks_are_offered(self):
         film = {"id": 9, "kind": "movie", "title": "Saltwind", "duration_ms": 1000, "files": [test_tracks.a_file()]}
-        self.assertEqual(self.play(film)["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles"])
+        self.assertEqual(self.play(film)["controls"], ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"])
         no_subtitles = dict(test_tracks.a_file(), streams=[s for s in test_tracks.STREAMS if s["kind"] != "subtitle"])
-        self.assertEqual(self.play(dict(film, files=[no_subtitles]))["controls"], ["play", "pause", "seek", "skip", "audio"])
+        self.assertEqual(self.play(dict(film, files=[no_subtitles]))["controls"], ["play", "pause", "seek", "skip", "audio", "quality"])
 
     def test_a_channel_obeys_channel_up_and_down_in_a_queue(self):
         class Server:

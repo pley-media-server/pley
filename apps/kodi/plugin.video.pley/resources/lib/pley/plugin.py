@@ -425,8 +425,20 @@ class Plugin(asking.Asking):
             start_ms = (detail.get("user_state") or {}).get("position_ms", 0)
         else:
             start_ms = int(listed or 0) if self.resume else 0
-        li = playback.prepare(client, self.proxy_base, item_id, start_ms, detail, kind=self.params.get("kind"))
+        given = self.given_tracks()
+        li = playback.prepare(client, self.proxy_base, item_id, start_ms, detail, kind=self.params.get("kind"), given=given)
         xbmcplugin.setResolvedUrl(self.handle, True, li)
+
+    def given_tracks(self):
+        """The tracks a cast named (casting.play checked them against the
+        file): {"audio", "subtitle"}, -1 for no subtitles; None for none."""
+        found = {}
+        for name in ("audio", "subtitle"):
+            value = self.params.get(name) or ""
+            found[name] = int(value) if re.fullmatch(r"-1|\d{1,9}", value) else None
+        if found["audio"] == -1:
+            found["audio"] = None
+        return found if found["audio"] is not None or found["subtitle"] is not None else None
 
     # --------------------------------------------------------------- Live TV
 

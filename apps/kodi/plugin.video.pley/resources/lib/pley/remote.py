@@ -17,6 +17,9 @@ packages/tv/test/fixtures/remote.json, which every app shares, through it:
 - audio switches to one of the tracks the player can play, and subtitles
   to one of its subtitles or to none (-1); the one playing already is said
   again; a track it can't play, or a command without one, does nothing;
+- the quality becomes one of the Quality menu's (Kodi's is the quality
+  setting) as picking it there does; the one picked already is said
+  again; one the menu doesn't offer for the file does nothing;
 - a command it doesn't know does nothing.
 
 What was played, sought or switched to is reported at once (`report`);
@@ -49,11 +52,14 @@ NONE = {"act": "none", "report": False}
 REPORT = {"act": "none", "report": True}
 
 
-def controls(kind: str, has_next: bool = False, has_order: bool = False, audio: int = 0, subtitles: int = 0) -> list:
+def controls(
+    kind: str, has_next: bool = False, has_order: bool = False, audio: int = 0, subtitles: int = 0, quality: bool = False
+) -> list:
     """What a player obeys: a video next only when something comes after
-    it, and audio and subtitles when its file has tracks of them (`audio`
-    and `subtitles` count them); a channel up and down only in a queue of
-    channels. Music and live channels change no track."""
+    it, audio and subtitles when its file has tracks of them (`audio` and
+    `subtitles` count them), and the quality where it has the Quality menu;
+    a channel up and down only in a queue of channels. Music and live
+    channels change no track and have no quality."""
     if kind == "music":
         return list(MUSIC)
     if kind == "live":
@@ -63,6 +69,8 @@ def controls(kind: str, has_next: bool = False, has_order: bool = False, audio: 
         found.append("audio")
     if subtitles > 0:
         found.append("subtitles")
+    if quality:
+        found.append("quality")
     return found
 
 
@@ -150,6 +158,21 @@ def obey_track(player: dict, command: dict) -> dict:
     if index == playing:
         return dict(REPORT)
     return {"act": what, "stream_index": index, "report": True}
+
+
+def obey_quality(player: dict, command: dict) -> dict:
+    """What a video's player does with the remote's `quality`: {act,
+    report}, with `quality` (one of the menu's ids) for a quality to pick.
+    `player`: its session_id, the ids its Quality menu offers for the file
+    (`qualities`) and the one it has picked (`quality`)."""
+    if not player.get("session_id") or command.get("session_id") != player["session_id"]:
+        return dict(NONE)
+    wanted = command.get("quality")
+    if command.get("command") != "quality" or not isinstance(wanted, str) or wanted not in (player.get("qualities") or []):
+        return dict(NONE)
+    if wanted == player.get("quality"):
+        return dict(REPORT)
+    return {"act": "quality", "quality": wanted, "report": True}
 
 
 def entry_params(playlist, at: int) -> dict:

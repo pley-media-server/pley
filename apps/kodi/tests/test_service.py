@@ -493,10 +493,12 @@ class RestartTest(unittest.TestCase):
         self.playback = playback
         self.prepare = playback.prepare
         self.asked = []
+        self.given = []
         kodi.set_property(kodi.PROXY, "http://127.0.0.1:1/secret")
 
-        def prepare(client, base, item_id, start_ms, detail=None, restart=None, kind=None):
+        def prepare(client, base, item_id, start_ms, detail=None, restart=None, kind=None, given=None):
             self.asked.append((base, item_id, start_ms, restart, kind))
+            self.given.append(given)
             kodi.set_property(kodi.PLAYING, json.dumps({"session_id": "new", "path": "http://proxy/new"}))
             return xbmcgui.ListItem(path="http://proxy/new")
 
@@ -516,6 +518,14 @@ class RestartTest(unittest.TestCase):
         self.assertEqual(self.asked, [("http://127.0.0.1:1/secret", 7, 754_321, "8m", "movie")])
         (path, li), = self.player.played
         self.assertEqual((path, li.properties["StartOffset"]), ("http://proxy/new", "754.321"))
+        self.assertEqual(self.given, [None])
+
+    def test_a_casts_tracks_and_the_remotes_quality_play_again_with_it(self):
+        given = {"audio": 2, "subtitle": -1}
+        self.player.starts(dict(automatic("s2"), kind="movie", given=given))
+        # The remote's pick: the setting's, not one of Automatic's.
+        self.player.restart(7, 1000, None)
+        self.assertEqual((self.asked[-1][3], self.given), (None, [given]))
 
     def test_stopped_meanwhile_it_isnt_played(self):
         self.player.file = ""

@@ -21,6 +21,11 @@ describes how they are made.
 - Your phone, the web and your other devices play things on Kodi: a film,
   an episode, a show's next episode, music, a playlist or a Live TV
   channel, in place of what plays. Kodi says which device sent it.
+- Your phone, the web and your other devices change the quality of a film
+  or episode playing on Kodi: the Quality setting changes, as picking it
+  there does, and the title plays again where it was. They see which
+  quality is picked. A film or episode they send plays with the audio and
+  subtitles picked on its page.
 - Live TV stopped from another device, or by the server's administrator,
   says so, with their message.
 - Stopping a Live TV channel, or Kodi, frees its connection at once, so

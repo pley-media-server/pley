@@ -133,7 +133,9 @@ Settings → Playback → Quality offers [the menu](QUALITY.md#the-menu):
 Original, Automatic (the default), 30 Mbps 4K down to 2 Mbps 480p. Kodi's
 player has no Pley quality menu, so you choose before playing, and one
 setting serves every title: the server converts a file above it and plays
-one below it as it is.
+one below it as it is. The remote on your other devices changes it while
+a title plays ([Remote control](#remote-control)), and the title plays
+again where it was at the new quality.
 
 Automatic follows the rules for
 [players that go black between streams](QUALITY.md#players-that-go-black-between-streams).
@@ -212,10 +214,10 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   remotes list it with the TVs. Until it is given a name, Kodi calls itself
   "Kodi" with the computer's host name after it, which isn't sent: the
   server names it from the add-on instead.
-- **Movies and episodes:** play, pause, seek, skip, audio and subtitles,
-  and next when Kodi's queue has something after it. An episode always
-  lists next: with nothing queued after it, Next plays the episode after
-  it, as Up Next does (and does nothing on a show's last).
+- **Movies and episodes:** play, pause, seek, skip, audio, subtitles and
+  quality, and next when Kodi's queue has something after it. An episode
+  always lists next: with nothing queued after it, Next plays the episode
+  after it, as Up Next does (and does nothing on a show's last).
 - **Audio and subtitles:** a video lists `audio` and `subtitles` when its
   file has tracks of them, and both while its details are still loading
   (they come with the server's answer). A pick switches Kodi's player to
@@ -225,11 +227,20 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   converted stream carries only the audio the server put in, subtitles
   drawn onto the video stay, and picture subtitles Kodi wasn't given as a
   file can't be picked. Such a pick does nothing.
+- **Quality:** the Quality setting is Kodi's Quality menu. A video lists
+  `quality`, and the remote picks among what the menu offers for the file
+  ([QUALITY.md](QUALITY.md#the-menu)). A pick changes the setting, as
+  choosing it there does (Automatic picked again starts afresh), and the
+  title plays again where it is at it, a new session that the remote
+  sees as it starts. The quality picked already reports again; one the
+  file isn't offered does nothing.
 - **What plays:** every progress report of a video says the audio and
   subtitles Kodi plays, by the server's stream indexes (`audio_index`,
   `subtitle_index`, `-1` for none), so remotes tick them. A track the
   server doesn't know (captions Kodi found in the video, subtitles added
   from Kodi's dialog) is left out, and the server keeps the one it knew.
+  It says the quality picked too (`quality`): the setting, or Original
+  for a file that isn't offered it, which then plays as it is.
 - **Music:** play, pause, seek, skip, next and previous. Previous starts the
   track again past 3 seconds in, or on the first track, else plays the one
   before.
@@ -237,10 +248,10 @@ tested against every case of `packages/tv/test/fixtures/remote.json`:
   channels, round its ends, when there is one; the stream can't pause or
   go back, so nothing else. Without a queue (a channel played again with
   Watch again), it obeys only Stop.
-- Play while playing, pause while paused, or the audio or subtitles that
-  play already change nothing and report again, so a remote a little
-  behind settles. A seek, a skip or another track is reported at once;
-  another title or channel reports with its own session.
+- Play while playing, pause while paused, or the audio, subtitles or
+  quality that play already change nothing and report again, so a remote
+  a little behind settles. A seek, a skip or another track is reported at
+  once; another title, channel or quality reports with its own session.
 - Kodi stopped or playing something else obeys nothing. A command it
   doesn't know, or a seek or skip without its place, does nothing.
 
@@ -257,7 +268,13 @@ it (`casting.py`):
 - **What plays:** what is sent plays as the add-on's own Play plays it,
   through the plugin's play routes, in place of what plays:
   - a movie or an episode from where it was sent, else where Play starts
-    it (its resume point);
+    it (its resume point), with the audio and subtitles picked on the
+    remote's page in place of the account's choice for that play, where
+    the file it plays (its first) has them: the audio is asked for with
+    the play request's `audio_index`, the subtitles shown as the account's
+    choice would be, and neither is saved. A track of another version
+    leaves the account's choice. Played again (another quality,
+    Automatic), it keeps them;
   - a show or a season its next episode;
   - an album or an artist as Kodi's music queue, shuffled when asked, and
     a track its album from it;

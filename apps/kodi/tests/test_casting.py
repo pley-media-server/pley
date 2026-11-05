@@ -82,8 +82,9 @@ class RuleTest(unittest.TestCase):
 
     def test_its_own_casts_while_it_takes_them(self):
         self.assertEqual(casting.action(MINE, True, cast(item_id=5, start_ms=60000)),
-                         {"act": "item", "item_id": 5, "start_ms": 60000, "shuffle": False})
-        self.assertEqual(casting.action(MINE, True, cast(item_id=5)), {"act": "item", "item_id": 5, "start_ms": None, "shuffle": False})
+                         {"act": "item", "item_id": 5, "start_ms": 60000, "shuffle": False, "audio_index": None, "subtitle_index": None})
+        self.assertEqual(casting.action(MINE, True, cast(item_id=5)),
+                         {"act": "item", "item_id": 5, "start_ms": None, "shuffle": False, "audio_index": None, "subtitle_index": None})
         self.assertEqual(casting.action(MINE, True, cast(item_id=6, shuffle=True))["shuffle"], True)
         self.assertEqual(casting.action(MINE, True, cast(playlist_id=3, shuffle=True)), {"act": "playlist", "playlist_id": 3, "shuffle": True})
         self.assertEqual(casting.action(MINE, True, cast(channel_id=7)), {"act": "channel", "channel_id": 7})
@@ -143,6 +144,32 @@ class PlayTest(Clean):
             route(route="play", id=5, kind="movie", start=1_200_000),
             route(route="play", id=5, kind="movie", start=0),
         ])
+
+    def test_a_movie_with_the_tracks_picked_on_the_remotes_page(self):
+        streams = [{"kind": "video", "index": 0}, {"kind": "audio", "index": 1}, {"kind": "audio", "index": 2}, {"kind": "subtitle", "index": 3}]
+        other = [{"kind": "video", "index": 0}, {"kind": "audio", "index": 7}, {"kind": "subtitle", "index": 8}]
+        film = {"id": 5, "kind": "movie", "duration_ms": 7_200_000, "files": [{"id": 50, "streams": streams}, {"id": 51, "streams": other}]}
+        answers = {"/api/items/5": film}
+        picked = lambda audio, subtitle: dict(self.item(5, start_ms=0), audio_index=audio, subtitle_index=subtitle)  # noqa: E731
+        self.play(answers, picked(2, 3))
+        self.play(answers, picked(1, -1))
+        self.play(answers, picked(None, 3))
+        # Another version's: the account's choice stays.
+        self.play(answers, picked(7, 8))
+        self.assertEqual(played(), [
+            route(route="play", id=5, kind="movie", start=0, audio=2, subtitle=3),
+            route(route="play", id=5, kind="movie", start=0, audio=1, subtitle=-1),
+            route(route="play", id=5, kind="movie", start=0, subtitle=3),
+            route(route="play", id=5, kind="movie", start=0),
+        ])
+
+    def test_the_cast_names_the_tracks_picked(self):
+        found = casting.action(MINE, True, dict(cast(item_id=5), audio_index=2, subtitle_index=-1))
+        self.assertEqual((found["audio_index"], found["subtitle_index"]), (2, -1))
+        found = casting.action(MINE, True, dict(cast(item_id=5), audio_index=-1, subtitle_index=-3))
+        self.assertEqual((found["audio_index"], found["subtitle_index"]), (None, None), "out of range: not named")
+        found = casting.action(MINE, True, dict(cast(item_id=5), audio_index="2", subtitle_index=True))
+        self.assertEqual((found["audio_index"], found["subtitle_index"]), (None, None))
 
     def test_a_show_or_a_season_plays_its_next_episode(self):
         episode = {"id": 8, "kind": "episode", "duration_ms": 2_400_000, "user_state": {"position_ms": 600_000}}

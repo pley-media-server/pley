@@ -108,6 +108,36 @@ def chosen_subtitle(file):
     return None
 
 
+def given_tracks(file, audio=None, subtitle=None) -> dict:
+    """The tracks a cast named for a movie or an episode (the server's
+    stream indexes, `subtitle` -1 for none) that `file`, the one it plays,
+    has: {"audio", "subtitle"}, each None when not named or not the file's
+    (a track of another version, which leaves the choice to the account)."""
+    streams = (file or {}).get("streams") or []
+
+    def has(kind, index):
+        return isinstance(index, int) and any(s.get("kind") == kind and s.get("index") == index for s in streams)
+
+    return {
+        "audio": audio if has("audio", audio) else None,
+        "subtitle": subtitle if subtitle == -1 or has("subtitle", subtitle) else None,
+    }
+
+
+def with_given(file, given):
+    """`file` as a play with `given` tracks (given_tracks) shows it: their
+    subtitles (-1 none) and audio as its choice, in place of the account's,
+    for that play alone; `file` itself when none are given."""
+    if not file or not given:
+        return file
+    shown = dict(file)
+    if given.get("subtitle") is not None:
+        shown["selected_subtitle"] = None if given["subtitle"] == -1 else given["subtitle"]
+    if given.get("audio") is not None:
+        shown["selected_audio"] = given["audio"]
+    return shown
+
+
 def burn_index(file):
     """The subtitles to ask the server to draw onto the video when the file
     is converted: the account's, when they are pictures other than PGS

@@ -62,14 +62,16 @@ def beside(base: str, info: dict, file=None) -> list:
 
 
 def prepare(
-    client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None, kind=None
+    client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None, kind=None, given=None
 ) -> xbmcgui.ListItem:
     """Kodi's item for playing `item_id` from `start_ms`, its address set,
     once the server said how. The item's details (for Kodi's info) are
     asked for while the server decides, unless given. Tells the service
     what plays (kodi.PLAYING). `restart` is Automatic's quality when the
     service plays the title again at another one. `kind` is the title's,
-    when known without its details (from a listing)."""
+    when known without its details (from a listing). `given`: the tracks a
+    cast named that the first file has (tracks.given_tracks), played in
+    place of the account's choice."""
     started = time.perf_counter()
     kind = (detail or {}).get("kind") or kind
     details = {"item": detail} if detail else {}
@@ -89,18 +91,21 @@ def prepare(
         "controls": obeys(item_id, kind, tracks.file_of(detail)),
     }
     request.update(remote.device())
-    # The account's subtitles, when they are pictures Kodi can't be given
-    # as a file (VobSub, DVB): drawn onto the video if the file is
-    # converted (the server draws nothing when Kodi shows them itself). PGS
-    # comes as a `.sup` file beside the stream (`beside`).
-    burn = tracks.burn_index(tracks.file_of(detail))
+    if (given or {}).get("audio") is not None:
+        # A cast's audio, of the first file, which plays when none is named.
+        request["audio_index"] = given["audio"]
+    # The account's subtitles (or a cast's), when they are pictures Kodi
+    # can't be given as a file (VobSub, DVB): drawn onto the video if the
+    # file is converted (the server draws nothing when Kodi shows them
+    # itself). PGS comes as a `.sup` file beside the stream (`beside`).
+    burn = tracks.burn_index(tracks.with_given(tracks.file_of(detail), given))
     if burn is not None:
         request.update(file_id=tracks.file_of(detail)["id"], subtitle_index=burn)
     info = client.post("/api/playback", request)
     if loader:
         loader.join(10)
     detail = details.get("item")
-    file = tracks.file_of(detail, info.get("file_id")) if detail else None
+    file = tracks.with_given(tracks.file_of(detail, info.get("file_id")), given) if detail else None
     if file is not None and "subtitle_index" not in request and tracks.needs_burn(info, file):
         # The details came with the answer: asked again, with them drawn on.
         request.update(file_id=file["id"], subtitle_index=tracks.chosen_subtitle(file)["index"])
@@ -143,6 +148,13 @@ def prepare(
     if (detail or {}).get("kind") not in listing.MUSIC:
         # The account's audio and subtitles, which the service shows in Kodi.
         playing["tracks"] = tracks.layout(info, file)
+        # The Quality menu (Kodi's setting) as the file offers it, and its
+        # pick, which reports say and the user's remote changes.
+        playing["qualities"] = qualities(file)
+        playing["quality"] = autoquality.picked(chosen_quality(), playing["qualities"])
+        if given:
+            # Played again (another quality, Automatic) with them too.
+            playing["given"] = given
         if asked["automatic"]:
             # What the service's Automatic watches the playback with.
             playing["auto"] = automatic(asked, info, file)
@@ -157,10 +169,11 @@ def obeys(item_id: int, kind=None, file=None) -> list:
     """What the user's remote may do with this playback (remote.controls):
     a track's, one in Kodi's music queue or known to be music; a video's
     otherwise, with next for an episode (the one after it, as Up Next
-    plays) or when Kodi's queue has something after it, and audio and
-    subtitles when `file` (its details) has tracks of them. Without the
-    details, which come with the server's answer, both: most files have
-    them, and a remote offers only the tracks the session lists."""
+    plays) or when Kodi's queue has something after it, audio and
+    subtitles when `file` (its details) has tracks of them, and the
+    quality. Without the details, which come with the server's answer,
+    both tracks: most files have them, and a remote offers only the tracks
+    the session lists."""
     place = remote.queue_place(item_id)
     music = (place is not None and place[0] == "music") or kind in listing.MUSIC
     if music:
@@ -171,7 +184,18 @@ def obeys(item_id: int, kind=None, file=None) -> list:
         streams = file.get("streams") or []
         audio = sum(1 for s in streams if s.get("kind") == "audio")
         subtitles = sum(1 for s in streams if s.get("kind") == "subtitle")
-    return remote.controls("video", has_next=has_next, audio=audio, subtitles=subtitles)
+    # The quality setting is Kodi's Quality menu: the remote changes it.
+    return remote.controls("video", has_next=has_next, audio=audio, subtitles=subtitles, quality=True)
+
+
+def qualities(file) -> list:
+    """The ids of the Quality menu as the file offers it (`file`, its
+    details; the whole menu when they couldn't be had), as the server lists
+    them to the user's remotes."""
+    file = file or {}
+    video = next((s for s in file.get("streams") or [] if s.get("kind") == "video"), None) or {}
+    width, height = file.get("width") or video.get("width"), file.get("height") or video.get("height")
+    return autoquality.menu_for(width, height, file.get("bitrate"))
 
 
 def file_mime(detail, file_id):

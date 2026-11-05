@@ -179,6 +179,40 @@ def offered(file_kbps: Optional[float], file_lines: Optional[int]) -> List[str]:
     return sorted(found, key=lambda q: -kbps_of(q))
 
 
+def menu_for(width: Optional[int], height: Optional[int], bitrate: Optional[float]) -> List[str]:
+    """The ids of the Quality menu as every app offers it for a file of
+    `width` × `height` and `bitrate` (bits per second), docs/QUALITY.md, "The
+    menu", and as the server lists them to remotes: Original, Automatic,
+    then each quality with fewer lines than the file or at most 80 % of its
+    bitrate (every one when neither is known), tallest first as the file
+    names them, then by bitrate. The setting offers the whole menu, which
+    keeps the table's order."""
+    lines = named_lines(width, height)
+    kbps = bitrate / 1000.0 if bitrate and bitrate > 0 else None
+    height = height if height and height > 0 else None
+    copies = []
+    for id_, _, cap_kbps, cap_lines in MENU:
+        if cap_kbps is None:
+            continue
+        if kbps is not None or height is not None:
+            fewer = height is not None and cap_lines < height
+            lighter = kbps is not None and cap_kbps <= kbps * 0.8
+            if not fewer and not lighter:
+                continue
+        shown = min(cap_lines, lines) if lines else cap_lines
+        copies.append((id_, shown, cap_kbps))
+    copies.sort(key=lambda c: (-c[1], -c[2]))
+    return [ORIGINAL, AUTO] + [c[0] for c in copies]
+
+
+def picked(choice: str, offered_ids: List[str]) -> str:
+    """What the Quality menu has picked for a file that offers
+    `offered_ids` (menu_for), as progress reports and the user's remotes
+    say it: the setting's choice, else Original, which a file that doesn't
+    offer it plays."""
+    return choice if choice in offered_ids else ORIGINAL
+
+
 def under_cap(qualities: List[str], cap: Optional[str]) -> List[str]:
     """Those no higher than what the server would convert the file to
     (auto_quality, which is at the file's lines or fewer)."""

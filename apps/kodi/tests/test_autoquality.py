@@ -36,6 +36,25 @@ class MenuTest(unittest.TestCase):
         self.assertEqual(aq.offered(None, None), ["30m", "20m", "15m", "12m", "8m", "4m", "2m"])
         self.assertEqual(aq.offered(1_500, 480), [])
 
+    def test_the_menu_a_file_offers_as_every_app_does(self):
+        # The server's cases (playback.rs, offered_qualities_are_the_players_menu),
+        # which it lists to remotes.
+        mbps = lambda m: m * 1_000_000  # noqa: E731
+        self.assertEqual(aq.menu_for(1920, 1080, mbps(9)), ["original", "auto", "4m", "2m"])
+        self.assertEqual(aq.menu_for(1920, 1080, mbps(10)), ["original", "auto", "8m", "4m", "2m"])
+        self.assertEqual(aq.menu_for(1280, 720, mbps(3)), ["original", "auto", "2m"])
+        self.assertEqual(aq.menu_for(3840, 2160, mbps(6)), ["original", "auto", "20m", "12m", "8m", "4m", "2m"])
+        self.assertEqual(aq.menu_for(3840, 2160, mbps(60)), aq.IDS, "a 4K file keeps the table's order")
+        self.assertEqual(aq.menu_for(3840, 2160, mbps(20)), ["original", "auto", "15m", "20m", "12m", "8m", "4m", "2m"])
+        self.assertEqual(aq.menu_for(1920, 800, mbps(25)), ["original", "auto", "20m", "15m", "12m", "8m", "4m", "2m"])
+        self.assertEqual(aq.menu_for(None, None, None), aq.IDS, "every one, when nothing is known")
+
+    def test_the_pick_a_file_plays(self):
+        offered = ["original", "auto", "4m", "2m"]
+        self.assertEqual(aq.picked("auto", offered), "auto")
+        self.assertEqual(aq.picked("4m", offered), "4m")
+        self.assertEqual(aq.picked("30m", offered), "original", "a quality the file doesn't offer plays the original")
+
     def test_where_a_remembered_ceiling_starts(self):
         self.assertIsNone(aq.start_quality(None))
         self.assertEqual(aq.start_quality(9_000), "8m")

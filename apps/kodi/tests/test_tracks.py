@@ -569,6 +569,41 @@ class PrepareTest(unittest.TestCase):
         self.assertEqual(server.posts[1]["subtitle_index"], 4)
         self.assertNotIn(BASE + "/api/files/7/subtitles/4.eng.sup", li.subtitles)
 
+    def test_a_casts_tracks_play_in_place_of_the_accounts(self):
+        # The French audio and the French forced subtitles, the account's being
+        # the English audio without subtitles.
+        server = Server(self.item(None), [direct(audio=2)])
+        playback.prepare(server, BASE, 9, 0, given={"audio": 2, "subtitle": 5})
+        self.assertEqual(server.posts[0]["audio_index"], 2)
+        playing = json.loads(kodi.get_property(kodi.PLAYING))
+        self.assertEqual((playing["tracks"]["audio_index"], playing["tracks"]["subtitle_index"]), (2, 5))
+        self.assertEqual(playing["given"], {"audio": 2, "subtitle": 5}, "played again with them")
+        # Subtitles off over the account's English; its pictures in VobSub,
+        # which would be drawn on, aren't.
+        vobsub = self.item(4, vobsub=True)
+        server = Server(vobsub, [streamed()])
+        playback.prepare(server, BASE, 9, 0, vobsub, given={"audio": None, "subtitle": -1})
+        self.assertNotIn("audio_index", server.posts[0])
+        self.assertNotIn("subtitle_index", server.posts[0])
+        self.assertIsNone(json.loads(kodi.get_property(kodi.PLAYING))["tracks"]["subtitle_index"])
+        # Nothing given: the account's.
+        server = Server(self.item(3), [direct()])
+        playback.prepare(server, BASE, 9, 0)
+        playing = json.loads(kodi.get_property(kodi.PLAYING))
+        self.assertEqual((playing["tracks"]["subtitle_index"], "given" in playing), (3, False))
+
+    def test_the_tracks_a_cast_names_that_the_file_has(self):
+        self.assertEqual(tracks.given_tracks(a_file(), 2, 5), {"audio": 2, "subtitle": 5})
+        self.assertEqual(tracks.given_tracks(a_file(), 1, -1), {"audio": 1, "subtitle": -1})
+        self.assertEqual(tracks.given_tracks(a_file(), 7, 8), {"audio": None, "subtitle": None}, "another version's")
+        self.assertEqual(tracks.given_tracks(a_file(), 3, 1), {"audio": None, "subtitle": None}, "not of their kind")
+        self.assertEqual(tracks.given_tracks(None, 1, -1), {"audio": None, "subtitle": -1})
+        shown = tracks.with_given(a_file(audio=1, subtitle=3), {"audio": 2, "subtitle": -1})
+        self.assertEqual((shown["selected_audio"], shown["selected_subtitle"]), (2, None))
+        self.assertEqual(a_file(audio=1, subtitle=3)["selected_subtitle"], 3, "the details stay as they were")
+        self.assertEqual(tracks.with_given(a_file(subtitle=3), {"audio": None, "subtitle": None})["selected_subtitle"], 3)
+        self.assertIsNone(tracks.with_given(None, {"audio": 2, "subtitle": 5}))
+
 
 class ServicePlayer(Player):
     """The service's player with Kodi's JSON-RPC stood in for, its requests noted."""

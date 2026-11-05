@@ -8,9 +8,12 @@ saying where it came from. The rule is the one every app follows:
   while Kodi can't take it (signed out, or "Who's watching?" on screen,
   whose PINs a remote mustn't play past) does nothing;
 - a movie or an episode plays from `start_ms`, else where Play starts it
-  (its resume point); a show or a season its next episode, as its Play
-  does; an album or an artist its tracks as Kodi's music queue, shuffled
-  with `shuffle`; a track its album from it, as the album's page plays it;
+  (its resume point), with the audio and subtitles the remote picked on
+  its page in place of the account's choice for that play, where the file
+  it plays (its first, as Play plays) has them; a show or a season its
+  next episode, as its Play does; an album or an artist its tracks as
+  Kodi's music queue, shuffled with `shuffle`; a track its album from it,
+  as the album's page plays it;
   a playlist what it holds, music as Kodi's music queue and titles as its
   video queue; a channel live, the channels around it in Kodi's queue of
   channels, as Live TV plays one;
@@ -22,7 +25,7 @@ from __future__ import annotations
 
 import time
 
-from . import kodi, listing, livetv, playback, remote, words
+from . import kodi, listing, livetv, playback, remote, tracks, words
 
 # How long "Playing from …" shows.
 BANNER_MS = 4000
@@ -49,8 +52,10 @@ def _id(value):
 
 def action(receiver: str, taking: bool, cast: dict) -> dict:
     """What a cast event asks of this Kodi (`receiver`, its id): {act:
-    "none"}, or {act: "item", item_id, start_ms, shuffle}, {act:
-    "playlist", playlist_id, shuffle} or {act: "channel", channel_id}.
+    "none"}, or {act: "item", item_id, start_ms, shuffle, audio_index,
+    subtitle_index}, {act: "playlist", playlist_id, shuffle} or {act:
+    "channel", channel_id}. The tracks are those the remote picked (the
+    server's stream indexes, subtitles -1 for none), None when not named.
     `taking`: whether Kodi takes casts now (signed in, and "Who's
     watching?" not on screen)."""
     if not taking or not receiver or cast.get("receiver_id") != receiver:
@@ -59,7 +64,15 @@ def action(receiver: str, taking: bool, cast: dict) -> dict:
     if _id(cast.get("item_id")) is not None:
         start = cast.get("start_ms")
         start = max(0, int(start)) if isinstance(start, (int, float)) and not isinstance(start, bool) else None
-        return {"act": "item", "item_id": cast["item_id"], "start_ms": start, "shuffle": shuffle}
+        audio, subtitle = _id(cast.get("audio_index")), _id(cast.get("subtitle_index"))
+        return {
+            "act": "item",
+            "item_id": cast["item_id"],
+            "start_ms": start,
+            "shuffle": shuffle,
+            "audio_index": audio if audio is not None and audio >= 0 else None,
+            "subtitle_index": subtitle if subtitle is not None and subtitle >= -1 else None,
+        }
     if _id(cast.get("playlist_id")) is not None:
         return {"act": "playlist", "playlist_id": cast["playlist_id"], "shuffle": shuffle}
     if _id(cast.get("channel_id")) is not None:
@@ -113,27 +126,30 @@ def play(client, base: str, cast: dict, player, current=lambda: True) -> str:
         return DROPPED
     what = plays(detail.get("kind"))
     start = cast["start_ms"]
+    # The tracks picked on the remote's page, those of the file Play plays.
+    given = tracks.given_tracks(tracks.file_of(detail), cast.get("audio_index"), cast.get("subtitle_index"))
+    more = {name: value for name, value in given.items() if value is not None}
     if what == "next_episode":
         detail = (client.get("/api/items/%d/on-deck" % detail["id"]) or {}).get("item")
         if not current():
             return DROPPED
         if not detail:
             return NOTHING
-        # Where the show's Play starts it.
-        what, start = "video", None
+        # Where the show's Play starts it, with the account's tracks.
+        what, start, more = "video", None, {}
     if what == "video":
         if start is None:
             # As Play starts it: where it was left, if it was.
             start = (words.state(detail).get("position_ms") or 0) if words.in_progress(detail) else 0
-        player.play(playback.play_url(detail["id"], kind=detail["kind"], start=int(start)))
+        player.play(playback.play_url(detail["id"], kind=detail["kind"], start=int(start), **more))
         return PLAYED
     if what in ("album", "artist"):
-        tracks = playback.music_tracks(client, detail)
+        found = playback.music_tracks(client, detail)
         if not current():
             return DROPPED
-        if not tracks:
+        if not found:
             return NOTHING
-        queue, at = playback.queue(base, tracks, shuffle=cast["shuffle"])
+        queue, at = playback.queue(base, found, shuffle=cast["shuffle"])
         player.play(queue, startpos=at)
         return PLAYED
     if what == "track":

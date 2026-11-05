@@ -50,7 +50,7 @@ class Reports:
     """Progress reports for one playback, by the rules above. `send(path,
     body)` and `end(path)` reach the server. `tracks()` says the audio and
     subtitles a video plays (tracks.Follower.playing), which each report
-    carries for the user's remotes."""
+    carries for the user's remotes, with the Quality menu's pick."""
 
     def __init__(self, playing: dict, send, end, clock=time.monotonic):
         self.playing = playing
@@ -77,6 +77,9 @@ class Reports:
             body["audio_index"] = audio
         if subtitle is not None:
             body["subtitle_index"] = subtitle
+        # The Quality menu's pick (Kodi's setting, as the file offers it).
+        if self.playing.get("quality"):
+            body["quality"] = self.playing["quality"]
         return body
 
     def report(self, state: str) -> None:
@@ -452,6 +455,8 @@ class Player(xbmc.Player):
             self.obey_live(live, command)
 
     def obey_title(self, reports: Reports, command: dict) -> None:
+        if command.get("command") == "quality":
+            return self.obey_quality(reports, command)
         playing = reports.playing
         paused = xbmc.getCondVisibility("Player.Paused")
         place = remote.queue_place(playing["item_id"])
@@ -509,6 +514,35 @@ class Player(xbmc.Player):
                     (reports.pause if paused else reports.resume)()
                 else:
                     reports.report("paused" if paused else "playing")
+
+    def obey_quality(self, reports: Reports, command: dict) -> None:
+        """The remote's quality (remote.obey_quality), as picking it in
+        Kodi's Quality setting, the add-on's Quality menu: the setting
+        changes (Automatic picked again starts afresh, as QualitySetting
+        sees), and the title plays again where it is at it, a new session
+        that reports as it starts. The one picked already is said again."""
+        from . import playback
+
+        playing = reports.playing
+        if "qualities" not in playing:
+            # Music, which has no quality.
+            return
+        player = {"session_id": playing.get("session_id"), "qualities": playing["qualities"], "quality": playing.get("quality")}
+        action = remote.obey_quality(player, command)
+        if action["act"] == "none":
+            if action["report"]:
+                with self.lock:
+                    if self.reports is reports:
+                        reports.position_ms = self.position()
+                        reports.report("paused" if reports.paused else "playing")
+            return
+        kodi.set_setting(playback.QUALITY, action["quality"])
+        kodi.log("the remote picked the quality %s" % action["quality"])
+        item_id, position = playing["item_id"], self.position()
+        with self.lock:
+            # Not Automatic's restart: the title gets a watch of its own.
+            self.restarting = (item_id, None, None)
+        self.worker.put(lambda: self.restart(item_id, position, None))
 
     def obey_live(self, live: dict, command: dict) -> None:
         """Channel up and down in Kodi's queue of channels, for the channel
@@ -648,7 +682,7 @@ class Player(xbmc.Player):
             return None, None
         now = self.clock()
         stream = dict(live=bool(auto.get("live")), lines=auto.get("lines"), converted=auto.get("converted"))
-        if restarting is not None and restarting[0] == playing.get("item_id"):
+        if restarting is not None and restarting[1] is not None and restarting[0] == playing.get("item_id"):
             _, watch, notice = restarting
             watch.restarted(now, auto["quality"], auto.get("playing_kbps"), **stream)
             return watch, notice
@@ -767,9 +801,10 @@ class Player(xbmc.Player):
         with self.lock:
             watch.answered(kbps, got)
 
-    def restart(self, item_id: int, position_ms: float, quality: str) -> None:
-        """Plays the title again where it is, at `quality` (from the
-        worker): a new session, which ends the one before."""
+    def restart(self, item_id: int, position_ms: float, quality) -> None:
+        """Plays the title again where it is, at `quality` (Automatic's;
+        None for the setting's, as the remote picked it), from the worker:
+        a new session, which ends the one before. A cast's tracks stay."""
         from . import playback
 
         if not self.still_playing(item_id):
@@ -778,14 +813,15 @@ class Player(xbmc.Player):
         base = kodi.get_property(kodi.PROXY)
         with self.lock:
             # What the remote may do stays as it was (playback.obeys).
-            kind = self.reports.playing.get("kind") if self.reports is not None else None
+            playing = self.reports.playing if self.reports is not None else {}
+            kind, given = playing.get("kind"), playing.get("given")
         try:
             # The settings as they are now (the service's are read once).
             kodi.begin()
             client = api.Client(base, self.user_agent, timeout=60, local=True)
-            li = playback.prepare(client, base, item_id, int(position_ms), restart=quality, kind=kind)
+            li = playback.prepare(client, base, item_id, int(position_ms), restart=quality, kind=kind, given=given)
         except (api.ApiError, OSError, ValueError, KeyError) as e:
-            kodi.log("automatic: couldn't play %d at %s: %r" % (item_id, quality, e), xbmc.LOGWARNING)
+            kodi.log("couldn't play %d again at %s: %r" % (item_id, quality or "the quality setting", e), xbmc.LOGWARNING)
             self.restarting = None
             return
         if not self.still_playing(item_id):
