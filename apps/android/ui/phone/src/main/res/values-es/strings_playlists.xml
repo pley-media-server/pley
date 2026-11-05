@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlists_title">Listas de reproducción</string>
+    <string name="playlists_new">Nueva lista de reproducción</string>
+    <string name="playlists_failed">No se pudieron cargar tus listas de reproducción</string>
+    <string name="playlists_none_title">Aún no hay listas de reproducción</string>
+    <string name="playlists_none_body">Crea una aquí o usa “Añadir a una lista de reproducción” en una película, serie, álbum o episodio (también al mantener pulsado un póster).</string>
+    <string name="playlists_smart">Inteligente</string>
+
+    <string name="playlist_video">Lista de reproducción de video</string>
+    <string name="playlist_music">Lista de reproducción de música</string>
+    <string name="playlist_play">Reproducir</string>
+    <string name="playlist_shuffle">Aleatorio</string>
+    <string name="playlist_rename">Cambiar nombre de la lista de reproducción</string>
+    <string name="playlist_delete">Eliminar lista de reproducción</string>
+    <string name="playlist_failed">No se pudo cargar esta lista de reproducción</string>
+    <string name="playlist_not_found">Lista de reproducción no encontrada</string>
+    <string name="playlist_not_found_body">Se eliminó o pertenece a otro perfil.</string>
+    <string name="playlist_empty_smart">Todavía nada coincide con el filtro de esta lista de reproducción.</string>
+    <string name="playlist_empty_video">Esta lista de reproducción está vacía. Usa “Añadir a una lista de reproducción” en una película, serie o episodio, o mantén pulsado un póster.</string>
+    <string name="playlist_empty_music">Esta lista de reproducción está vacía. Usa “Añadir a una lista de reproducción” en un artista o álbum, o mantén pulsada una portada.</string>
+    <string name="playlist_play_entry">Reproducir %1$s</string>
+    <string name="playlist_move_up">Subir</string>
+    <string name="playlist_move_down">Bajar</string>
+    <string name="playlist_remove">Quitar de la lista de reproducción</string>
+    <string name="playlist_removed">Se quitó “%1$s”</string>
+    <string name="playlist_undo">Deshacer</string>
+    <string name="playlist_deleted">Lista de reproducción eliminada</string>
+    <string name="playlist_delete_title">¿Eliminar la lista de reproducción?</string>
+    <string name="playlist_delete_body">Se eliminará “%1$s”. Su contenido seguirá en tus bibliotecas.</string>
+    <string name="playlist_delete_confirm">Eliminar</string>
+    <string name="playlist_rename_save">Guardar</string>
+
+    <string name="playlist_form_title">Título</string>
+    <string name="playlist_form_for">Para</string>
+    <string name="playlist_form_video">Películas y series</string>
+    <string name="playlist_form_music">Música</string>
+    <string name="playlist_form_create">Crear</string>
+    <string name="playlist_form_save">Guardar</string>
+    <string name="playlist_smart_title">Guardar estos filtros</string>
+    <string name="playlist_smart_body">%1$s. Se mantiene al día con la biblioteca por sí sola.</string>
+    <string name="playlist_smart_body_plain">Se mantiene al día con la biblioteca por sí sola.</string>
+
+    <string name="add_to_playlist">Añadir a una lista de reproducción</string>
+    <string name="add_new_video">Nueva lista de video</string>
+    <string name="add_new_music">Nueva lista de música</string>
+    <string name="add_create">Crear</string>
+    <string name="add_none_video">Aún no tienes listas de video: escribe un nombre arriba.</string>
+    <string name="add_none_music">Aún no tienes listas de música: escribe un nombre arriba.</string>
+    <string name="add_added">Añadido a %1$s</string>
+    <plurals name="add_added_many">
+        <item quantity="one">Se añadió %1$d elemento a %2$s</item>
+        <item quantity="many">Se añadieron %1$d elementos a %2$s</item>
+        <item quantity="other">Se añadieron %1$d elementos a %2$s</item>
+    </plurals>
+    <string name="add_nothing">No hay nada que añadir</string>
+</resources>

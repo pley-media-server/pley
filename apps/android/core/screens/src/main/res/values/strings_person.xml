@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- How many of a person's titles are in the libraries: "3 movies · 2 shows". -->
+    <plurals name="person_count_movies">
+        <item quantity="one">%1$,d movie</item>
+        <item quantity="other">%1$,d movies</item>
+    </plurals>
+    <plurals name="person_count_shows">
+        <item quantity="one">%1$,d show</item>
+        <item quantity="other">%1$,d shows</item>
+    </plurals>
+
+    <!-- What a person is credited as on a title (roleWords), as the web says it. -->
+    <string name="person_role_actor">Actor</string>
+    <string name="person_role_creator">Creator</string>
+    <string name="person_role_director">Director</string>
+    <string name="person_role_writer">Writer</string>
+    <string name="person_role_producer">Producer</string>
+    <string name="person_role_crew">Crew</string>
+    <!-- %1$s: the character, "Neo". -->
+    <string name="person_role_as">as %1$s</string>
+    <string name="person_role_guest_star">Guest star</string>
+    <!-- %1$s: the role ("Director", "as Neo"); %2$d: how many episodes. -->
+    <plurals name="person_role_episodes">
+        <item quantity="one">%1$s (%2$,d episode)</item>
+        <item quantity="other">%1$s (%2$,d episodes)</item>
+    </plurals>
+</resources>

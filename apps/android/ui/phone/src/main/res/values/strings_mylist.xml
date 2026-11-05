@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- My List: the item page's button and the action sheet. -->
     <string name="item_my_list">My List</string>
     <string name="item_in_my_list">In My List</string>

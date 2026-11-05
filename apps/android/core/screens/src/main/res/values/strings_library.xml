@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What a library holds, in the list of libraries (libraryCountText). -->
+    <plurals name="library_entry_movies">
+        <item quantity="one">%1$,d movie</item>
+        <item quantity="other">%1$,d movies</item>
+    </plurals>
+    <plurals name="library_entry_shows">
+        <item quantity="one">%1$,d show</item>
+        <item quantity="other">%1$,d shows</item>
+    </plurals>
+    <plurals name="library_entry_artists">
+        <item quantity="one">%1$,d artist</item>
+        <item quantity="other">%1$,d artists</item>
+    </plurals>
+    <plurals name="library_entry_items">
+        <item quantity="one">%1$,d item</item>
+        <item quantity="other">%1$,d items</item>
+    </plurals>
+
+    <!--
+      What a smart filter finds, in words (SmartFilter.words), as the web
+      says it. %1$s is the filter's value as it is ("Comedy", "2019").
+    -->
+    <string name="library_filter_genre">Genre: %1$s</string>
+    <string name="library_filter_label">Label: %1$s</string>
+    <string name="library_filter_studio">Studio: %1$s</string>
+    <string name="library_filter_rated">Rated %1$s</string>
+    <string name="library_filter_watched">Watched</string>
+    <string name="library_filter_unwatched">Unwatched</string>
+    <string name="library_filter_in_progress">In progress</string>
+    <string name="library_filter_not_in_progress">Not in progress</string>
+    <string name="library_filter_from">From %1$s</string>
+    <string name="library_filter_after">After %1$s</string>
+    <string name="library_filter_before">Before %1$s</string>
+    <!-- %1$s: the decade's first year, "1990". -->
+    <string name="library_filter_decade">The %1$ss</string>
+    <string name="library_filter_at_most">At most %1$s</string>
+    <!-- A filter Pley has no words for: its field and value as they are, "country: France". -->
+    <string name="library_filter_other">%1$s: %2$s</string>
+    <!-- The dynamic range filter that takes every kind of HDR. -->
+    <string name="library_filter_any_hdr">Any HDR</string>
+
+    <!-- A smart filter's order, by field: first, then reversed. -->
+    <string name="library_filter_title_asc">By title</string>
+    <string name="library_filter_title_desc">By title, Z to A</string>
+    <string name="library_filter_year_asc">Oldest first</string>
+    <string name="library_filter_year_desc">Newest first</string>
+    <string name="library_filter_release_asc">Earliest release first</string>
+    <string name="library_filter_release_desc">Latest release first</string>
+    <string name="library_filter_added_asc">First added first</string>
+    <string name="library_filter_added_desc">Recently added first</string>
+    <string name="library_filter_rating_asc">Lowest rated first</string>
+    <string name="library_filter_rating_desc">Best rated first</string>
+    <string name="library_filter_user_rating_asc">Your lowest rated first</string>
+    <string name="library_filter_user_rating_desc">Your best rated first</string>
+    <string name="library_filter_played_asc">Least recently played first</string>
+    <string name="library_filter_played_desc">Recently played first</string>
+    <string name="library_filter_duration_asc">Shortest first</string>
+    <string name="library_filter_duration_desc">Longest first</string>
+    <string name="library_filter_plays_asc">Least played first</string>
+    <string name="library_filter_plays_desc">Most played first</string>
+    <!-- An order Pley has no words for: %1$s is its field, "originalTitle". -->
+    <string name="library_filter_sorted_by">Sorted by %1$s</string>
+
+    <!-- A collection's own order (CollectionViewModel.sortNoteText). -->
+    <string name="collection_order_release">By release date</string>
+    <string name="collection_order_title">By title</string>
+    <string name="collection_order_custom">Custom order</string>
+</resources>

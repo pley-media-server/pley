@@ -130,7 +130,7 @@ class LibraryGridTest {
         // The listing's head first, as a big library's comes.
         listing.value = Loadable.Ready(LibraryItems(total = all.size, items = all.take(60)), fresh = true)
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val vm = LibraryViewModel(movies.id, LibraryTab.Library, null, deps, PhoneTiles(resources))
+        val vm = LibraryViewModel(movies.id, LibraryTab.Library, null, deps, PhoneTiles { resources })
         compose.setContent {
             Page {
                 val state by vm.state.collectAsStateWithLifecycle()
@@ -157,7 +157,7 @@ class LibraryGridTest {
         listing.value = Loadable.Ready(LibraryItems(total = 3, items = all.take(3).map { it.copy(media = uhd) }), fresh = true)
         filters.value = Loadable.Ready(LibraryFilters(resolutions = listOf("4k", "1080"), dynamicRanges = listOf("dolby_vision", "sdr")), fresh = true)
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val vm = LibraryViewModel(movies.id, LibraryTab.Library, null, deps, PhoneTiles(resources))
+        val vm = LibraryViewModel(movies.id, LibraryTab.Library, null, deps, PhoneTiles { resources })
         compose.setContent {
             Page {
                 val state by vm.state.collectAsStateWithLifecycle()

@@ -52,7 +52,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -107,6 +106,7 @@ import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.rememberHubRowState
 import app.pley.android.ui.phone.kit.rowCardWidth
 import app.pley.android.ui.phone.library.PhoneTiles
+import app.pley.android.ui.phone.library.rememberPhoneTiles
 import app.pley.android.ui.phone.livetv.ChannelTile
 import app.pley.android.ui.phone.livetv.ProgramProgress
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -124,9 +124,9 @@ import kotlinx.coroutines.delay
  */
 @Composable
 internal fun PhoneSearchScreen(key: PleyKey.Search) {
-    val resources = LocalResources.current
+    val tiles = rememberPhoneTiles()
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
-        SearchViewModel(key.query, SearchDeps.of(screensGraph()), phoneSearchTiles(PhoneTiles(resources)))
+        SearchViewModel(key.query, SearchDeps.of(screensGraph()), phoneSearchTiles(tiles))
     }
     val entries: RequestsEntryViewModel = viewModel(factory = RequestsEntryViewModel.factory)
     val state by vm.state.collectAsStateWithLifecycle()

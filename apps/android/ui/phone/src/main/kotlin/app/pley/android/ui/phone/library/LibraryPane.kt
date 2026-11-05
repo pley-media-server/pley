@@ -42,6 +42,7 @@ import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.rememberImagePrefetcher
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonState
 import app.pley.android.designsystem.tile.SkeletonTile
@@ -53,6 +54,7 @@ import app.pley.android.screens.library.GridCells as Cells
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.library.labelText
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
@@ -195,7 +197,7 @@ private fun Toolbar(state: LibraryUiState<ArtworkTileModel>, vm: LibraryViewMode
                 if (state.dynamicRanges.isNotEmpty()) {
                     item(key = "dynamic_range") {
                         PleyChip(
-                            label = params.dynamicRange?.label ?: stringResource(R.string.library_dynamic_range),
+                            label = params.dynamicRange?.labelText?.asString() ?: stringResource(R.string.library_dynamic_range),
                             selected = params.dynamicRange != null,
                             onClick = { onSheet(LibrarySheet.DynamicRange) },
                             dropdown = true,

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="music_count_albums">
+        <item quantity="one">%1$,d álbum</item>
+        <item quantity="many">%1$,d álbumes</item>
+        <item quantity="other">%1$,d álbumes</item>
+    </plurals>
+    <plurals name="music_count_tracks">
+        <item quantity="one">%1$,d pista</item>
+        <item quantity="many">%1$,d pistas</item>
+        <item quantity="other">%1$,d pistas</item>
+    </plurals>
+</resources>

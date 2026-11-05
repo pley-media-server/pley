@@ -103,7 +103,8 @@ import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.kit.RowDrag
 import app.pley.android.ui.phone.kit.TonalButton
-import app.pley.android.ui.phone.library.PhoneTiles
+import app.pley.android.ui.phone.library.joined
+import app.pley.android.ui.phone.library.rememberPhoneTiles
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -124,9 +125,10 @@ import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 @Composable
 internal fun PhonePlaylistScreen(playlistId: Long) {
     val resources = LocalResources.current
+    val tiles = rememberPhoneTiles()
     val vm: PlaylistViewModel<ArtworkTileModel> = viewModel {
         val graph = screensGraph()
-        PlaylistViewModel(playlistId, PlaylistDeps.of(graph), graph.playerLauncher, PhoneTiles(resources))
+        PlaylistViewModel(playlistId, PlaylistDeps.of(graph), graph.playerLauncher, tiles)
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
@@ -342,10 +344,10 @@ private fun Header(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistAction
             color = PleyColors.Fg,
             modifier = Modifier.semantics { heading() },
         )
-        val facts = (listOf(page.meta) + page.notes).filter { it.isNotEmpty() }
+        val facts = (page.metaTexts + page.noteTexts).joined(LocalResources.current)
         if (facts.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
-            Text(facts.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
+            Text(facts, style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
         }
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

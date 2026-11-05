@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="person_count_movies">
+        <item quantity="one">%1$,d película</item>
+        <item quantity="many">%1$,d películas</item>
+        <item quantity="other">%1$,d películas</item>
+    </plurals>
+    <plurals name="person_count_shows">
+        <item quantity="one">%1$,d serie</item>
+        <item quantity="many">%1$,d series</item>
+        <item quantity="other">%1$,d series</item>
+    </plurals>
+
+    <string name="person_role_actor">Interpretación</string>
+    <string name="person_role_creator">Creación</string>
+    <string name="person_role_director">Dirección</string>
+    <string name="person_role_writer">Guion</string>
+    <string name="person_role_producer">Producción</string>
+    <string name="person_role_crew">Equipo técnico</string>
+    <string name="person_role_as">como %1$s</string>
+    <string name="person_role_guest_star">Aparición especial</string>
+    <plurals name="person_role_episodes">
+        <item quantity="one">%1$s (%2$,d episodio)</item>
+        <item quantity="many">%1$s (%2$,d episodios)</item>
+        <item quantity="other">%1$s (%2$,d episodios)</item>
+    </plurals>
+</resources>

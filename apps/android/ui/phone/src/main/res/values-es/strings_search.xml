@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_field">Busca películas, series, personas…</string>
+    <string name="search_clear_field">Borrar</string>
+    <string name="search_recent">Búsquedas recientes</string>
+    <string name="search_recent_clear">Borrar</string>
+    <string name="search_empty_title">Busca en tus bibliotecas</string>
+    <string name="search_empty_body">Encuentra películas, series, episodios, personas, artistas, álbumes, pistas y canales de TV en vivo.</string>
+    <string name="search_results_for">Resultados de «%1$s»</string>
+    <string name="search_loading">Buscando…</string>
+    <string name="search_none_title">No hay resultados para «%1$s»</string>
+    <string name="search_none_body">Prueba con otra ortografía o con menos palabras.</string>
+    <string name="search_failed">La búsqueda falló</string>
+
+    <string name="search_group_people">Personas</string>
+    <string name="search_group_live">TV en vivo</string>
+    <string name="search_group_movies">Películas</string>
+    <string name="search_group_shows">Series</string>
+    <string name="search_group_seasons">Temporadas</string>
+    <string name="search_group_episodes">Episodios</string>
+    <string name="search_group_artists">Artistas</string>
+    <string name="search_group_albums">Álbumes</string>
+    <string name="search_group_tracks">Pistas</string>
+    <plurals name="search_group_count">
+        <item quantity="one">%1$s, %2$s resultado</item>
+        <item quantity="many">%1$s, %2$s resultados</item>
+        <item quantity="other">%1$s, %2$s resultados</item>
+    </plurals>
+</resources>

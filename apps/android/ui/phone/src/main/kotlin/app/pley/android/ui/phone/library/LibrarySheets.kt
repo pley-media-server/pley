@@ -16,9 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
@@ -28,6 +30,7 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
+import app.pley.android.screens.library.labelText
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.kit.SegmentedControl
@@ -125,11 +128,12 @@ internal fun LibrarySheetHost(
             )
         }
         LibrarySheet.DynamicRange -> PleySheet(onDismiss = onDismiss, title = stringResource(R.string.library_dynamic_range)) {
+            val resources = LocalResources.current
             Choices(
                 all = stringResource(R.string.library_all_dynamic_ranges),
                 values = state.dynamicRanges,
                 selected = params.dynamicRange,
-                label = { it.label },
+                label = { it.labelText.resolve(resources) },
                 onSelect = {
                     vm.dynamicRange(it)
                     onDismiss()

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_profile">%1$s: abrir la página Yo</string>
+    <string name="home_no_libraries">Aún no hay bibliotecas</string>
+    <string name="home_no_libraries_body">Pide al propietario del servidor que añada una biblioteca.</string>
+    <string name="home_empty">Aún no hay nada</string>
+    <string name="home_empty_body">Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis.</string>
+    <string name="home_scanning">Analizando tus bibliotecas…</string>
+    <string name="home_scanning_body">Los nuevos elementos aparecerán aquí en cuanto se encuentren.</string>
+    <string name="home_failed">No se pudo cargar tu pantalla de inicio</string>
+    <string name="home_nothing_to_play">No hay nada que reproducir</string>
+    <string name="home_loading">Cargando tu pantalla de inicio</string>
+
+    <string name="home_libraries_title">Bibliotecas</string>
+    <string name="home_libraries_failed">No se pudieron cargar tus bibliotecas</string>
+    <string name="home_libraries_scanning">Analizando</string>
+    <string name="home_libraries_loading">Cargando tus bibliotecas</string>
+    <string name="home_libraries_sort">Ordenar bibliotecas</string>
+    <string name="home_libraries_sort_done">Listo</string>
+    <string name="home_libraries_sort_hint">Arrastra una biblioteca por su asa para moverla. Tu orden se aplica en todos tus dispositivos.</string>
+    <string name="home_libraries_server_order">Usar el orden del servidor</string>
+    <string name="home_libraries_move_up">Subir</string>
+    <string name="home_libraries_move_down">Bajar</string>
+    <string name="home_libraries_sort_needs_newer_server">Para ordenar las bibliotecas, el servidor necesita una versión más reciente de Pley.</string>
+</resources>

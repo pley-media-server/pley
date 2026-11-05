@@ -3,9 +3,15 @@ package app.pley.android.ui.phone.library
 import android.content.res.Resources
 import androidx.annotation.PluralsRes
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
+import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.image.ArtworkImage
@@ -27,9 +33,10 @@ import kotlin.math.max
 /**
  * The phone's tiles for library pages, made by the screens' ViewModels off
  * the main thread: the design system's models, the collection counts in
- * this app's words.
+ * this app's words, in the language of [resources] as each tile is made
+ * (the ViewModels outlive a change of language).
  */
-internal class PhoneTiles(private val resources: Resources) : TileFactory<ArtworkTileModel> {
+internal class PhoneTiles(private val resources: () -> Resources) : TileFactory<ArtworkTileModel> {
     override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
         TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
         TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
@@ -46,7 +53,7 @@ internal class PhoneTiles(private val resources: Resources) : TileFactory<Artwor
     }
 
     override fun collection(collection: CollectionSummary, kind: LibraryKind?, origin: String): ArtworkTileModel {
-        val count = count(resources, if (kind == LibraryKind.Shows) R.plurals.library_count_shows else R.plurals.library_count_movies, collection.itemCount)
+        val count = count(resources(), if (kind == LibraryKind.Shows) R.plurals.library_count_shows else R.plurals.library_count_movies, collection.itemCount)
         return ArtworkTileModel(
             id = collection.id,
             title = collection.title,
@@ -57,15 +64,30 @@ internal class PhoneTiles(private val resources: Resources) : TileFactory<Artwor
     }
 }
 
-/** "1,500 movies": [n] in this locale's digits, with its plural. */
-internal fun count(resources: Resources, @PluralsRes plural: Int, n: Int): String =
-    resources.getQuantityString(plural, n, NumberFormat.getIntegerInstance().format(n))
+/**
+ * The phone's tiles for a screen's ViewModel, in the language shown each
+ * time it makes one: the app's resources (AppLanguage.resources), never a
+ * screen's, which the ViewModel would keep after the screen is gone.
+ */
+@Composable
+internal fun rememberPhoneTiles(): PhoneTiles {
+    val app = LocalContext.current.applicationContext
+    return remember(app) { PhoneTiles { AppLanguage.resources(app) } }
+}
 
-/** "23 of 1,500 movies": [n] of [of] in this locale's digits, with the plural of [of]. */
+/** "1,500 movies": [n] in the digits of [resources]' language, with its plural. */
+internal fun count(resources: Resources, @PluralsRes plural: Int, n: Int): String =
+    resources.getQuantityString(plural, n, NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(n))
+
+/** "23 of 1,500 movies": [n] of [of] in the digits of [resources]' language, with the plural of [of]. */
 internal fun countOf(resources: Resources, @PluralsRes plural: Int, n: Int, of: Int): String {
-    val digits = NumberFormat.getIntegerInstance()
+    val digits = NumberFormat.getIntegerInstance(resources.configuration.locales[0])
     return resources.getQuantityString(plural, of, digits.format(n), digits.format(of))
 }
+
+/** These words one after the other, in the language of [resources]: "4 albums · 40 tracks". */
+internal fun List<UiText>.joined(resources: Resources, separator: String = " · "): String =
+    joinToString(separator) { it.resolve(resources) }
 
 /** The noun of a filtered listing of a library of [kind]: "23 of 1,500 movies". */
 @PluralsRes

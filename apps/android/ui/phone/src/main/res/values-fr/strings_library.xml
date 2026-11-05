@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_tab_recommended">Recommandations</string>
+    <string name="library_tab_library">Bibliothèque</string>
+    <string name="library_tab_collections">Collections</string>
+    <string name="library_search">Rechercher</string>
+
+    <string name="library_sort_title">Titre</string>
+    <string name="library_sort_year">Année</string>
+    <string name="library_sort_added">Date d’ajout</string>
+    <string name="library_sort_rating">Note</string>
+    <string name="library_sort_user_rating">Votre note</string>
+    <string name="library_sort_release">Date de sortie</string>
+    <string name="library_sort_duration">Durée</string>
+    <string name="library_sort_last_played">Dernière lecture</string>
+    <string name="library_sort_bitrate">Débit</string>
+    <string name="library_sort_by">Trier par</string>
+    <string name="library_order">Ordre</string>
+    <string name="library_ascending">Croissant</string>
+    <string name="library_descending">Décroissant</string>
+    <string name="library_show">Afficher</string>
+    <string name="library_show_all">Tout</string>
+    <string name="library_card_size">Taille des vignettes</string>
+    <string name="library_density_small">Petite</string>
+    <string name="library_density_medium">Moyenne</string>
+    <string name="library_density_large">Grande</string>
+
+    <string name="library_unwatched">Non vu</string>
+    <string name="library_watched">Vu</string>
+    <string name="library_genre">Genre</string>
+    <string name="library_all_genres">Tous les genres</string>
+    <string name="library_year">Année</string>
+    <string name="library_all_years">Toutes les années</string>
+    <string name="library_resolution">Résolution</string>
+    <string name="library_all_resolutions">Toutes les résolutions</string>
+    <string name="library_dynamic_range">Plage dynamique</string>
+    <string name="library_all_dynamic_ranges">Toutes les plages dynamiques</string>
+    <string name="library_clear_filters">Effacer les filtres</string>
+    <string name="library_save_as">Enregistrer comme…</string>
+
+    <plurals name="library_count_movies">
+        <item quantity="one">%s film</item>
+        <item quantity="many">%s de films</item>
+        <item quantity="other">%s films</item>
+    </plurals>
+    <plurals name="library_count_shows">
+        <item quantity="one">%s série</item>
+        <item quantity="many">%s de séries</item>
+        <item quantity="other">%s séries</item>
+    </plurals>
+    <plurals name="library_count_artists">
+        <item quantity="one">%s artiste</item>
+        <item quantity="many">%s d’artistes</item>
+        <item quantity="other">%s artistes</item>
+    </plurals>
+    <plurals name="library_count_of_movies">
+        <item quantity="one">%1$s sur %2$s film</item>
+        <item quantity="many">%1$s sur %2$s de films</item>
+        <item quantity="other">%1$s sur %2$s films</item>
+    </plurals>
+    <plurals name="library_count_of_shows">
+        <item quantity="one">%1$s sur %2$s série</item>
+        <item quantity="many">%1$s sur %2$s de séries</item>
+        <item quantity="other">%1$s sur %2$s séries</item>
+    </plurals>
+    <plurals name="library_count_of_artists">
+        <item quantity="one">%1$s sur %2$s artiste</item>
+        <item quantity="many">%1$s sur %2$s d’artistes</item>
+        <item quantity="other">%1$s sur %2$s artistes</item>
+    </plurals>
+    <plurals name="library_count_collections">
+        <item quantity="one">%s collection</item>
+        <item quantity="many">%s de collections</item>
+        <item quantity="other">%s collections</item>
+    </plurals>
+
+    <string name="library_failed">Impossible de charger cette bibliothèque</string>
+    <string name="library_missing_title">Cette bibliothèque est introuvable</string>
+    <string name="library_missing_body">Elle a peut-être été supprimée, ou ce profil n’y a pas accès.</string>
+    <string name="library_empty_title">Cette bibliothèque est vide</string>
+    <string name="library_empty_body">Rien pour l’instant. Les titres apparaissent au fur et à mesure que le serveur les ajoute.</string>
+    <string name="library_no_matches_title">Aucun résultat</string>
+    <string name="library_no_matches_body">Rien dans cette bibliothèque ne correspond aux filtres actuels.</string>
+    <string name="library_recommended_failed">Impossible de charger les recommandations</string>
+    <string name="library_recommended_empty_title">Rien à recommander pour l’instant</string>
+    <string name="library_recommended_empty_body">Les recommandations apparaissent dès que la bibliothèque contient quelques éléments.</string>
+    <string name="library_collections_failed">Impossible de charger les collections</string>
+    <string name="library_collections_empty_title">Aucune collection pour l’instant</string>
+    <string name="library_collections_empty_movies">Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.</string>
+    <string name="library_collections_empty_shows">Cette bibliothèque n’a pas encore de collection.</string>
+
+    <string name="collection_label">Collection</string>
+    <string name="collection_smart">Intelligente</string>
+    <string name="collection_play">Lire</string>
+    <string name="collection_shuffle">Aléatoire</string>
+    <string name="collection_more">Voir plus</string>
+    <string name="collection_less">Voir moins</string>
+    <string name="collection_movies">Films</string>
+    <string name="collection_shows">Séries</string>
+    <string name="collection_empty_movies">Cette collection est encore vide.</string>
+    <string name="collection_failed">Impossible de charger cette collection</string>
+    <string name="collection_nothing_to_play">Rien à lire : cette série n’a pas encore d’épisode</string>
+    <string name="collections_title">Collections</string>
+</resources>

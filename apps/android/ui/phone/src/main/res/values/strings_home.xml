@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- Home (design spec §4.1, §8), in the web's words. -->
     <string name="home_profile">%1$s: open Me</string>
     <string name="home_no_libraries">No libraries yet</string>

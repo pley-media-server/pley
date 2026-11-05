@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlists_title">Playlists</string>
+    <string name="playlists_new">Nouvelle playlist</string>
+    <string name="playlists_failed">Impossible de charger vos playlists</string>
+    <string name="playlists_none_title">Aucune playlist pour l’instant</string>
+    <string name="playlists_none_body">Créez-en une ici, ou utilisez « Ajouter à une playlist » sur un film, une série, un album ou un épisode (aussi par un appui long sur une affiche).</string>
+    <string name="playlists_smart">Intelligente</string>
+
+    <string name="playlist_video">Playlist vidéo</string>
+    <string name="playlist_music">Playlist musicale</string>
+    <string name="playlist_play">Lire</string>
+    <string name="playlist_shuffle">Aléatoire</string>
+    <string name="playlist_rename">Renommer la playlist</string>
+    <string name="playlist_delete">Supprimer la playlist</string>
+    <string name="playlist_failed">Impossible de charger cette playlist</string>
+    <string name="playlist_not_found">Playlist introuvable</string>
+    <string name="playlist_not_found_body">Elle a été supprimée, ou elle appartient à un autre profil.</string>
+    <string name="playlist_empty_smart">Rien ne correspond encore au filtre de cette playlist.</string>
+    <string name="playlist_empty_video">Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un film, une série ou un épisode, ou faites un appui long sur une affiche.</string>
+    <string name="playlist_empty_music">Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un artiste ou un album, ou faites un appui long sur une pochette.</string>
+    <string name="playlist_play_entry">Lire %1$s</string>
+    <string name="playlist_move_up">Monter</string>
+    <string name="playlist_move_down">Descendre</string>
+    <string name="playlist_remove">Retirer de la playlist</string>
+    <string name="playlist_removed">Retiré de la playlist : « %1$s »</string>
+    <string name="playlist_undo">Annuler</string>
+    <string name="playlist_deleted">Playlist supprimée</string>
+    <string name="playlist_delete_title">Supprimer la playlist ?</string>
+    <string name="playlist_delete_body">La playlist « %1$s » sera supprimée. Son contenu reste dans vos bibliothèques.</string>
+    <string name="playlist_delete_confirm">Supprimer</string>
+    <string name="playlist_rename_save">Enregistrer</string>
+
+    <string name="playlist_form_title">Titre</string>
+    <string name="playlist_form_for">Pour</string>
+    <string name="playlist_form_video">Films et séries</string>
+    <string name="playlist_form_music">Musique</string>
+    <string name="playlist_form_create">Créer</string>
+    <string name="playlist_form_save">Enregistrer</string>
+    <string name="playlist_smart_title">Enregistrer ces filtres</string>
+    <string name="playlist_smart_body">%1$s. Elle se met à jour toute seule avec la bibliothèque.</string>
+    <string name="playlist_smart_body_plain">Elle se met à jour toute seule avec la bibliothèque.</string>
+
+    <string name="add_to_playlist">Ajouter à une playlist</string>
+    <string name="add_new_video">Nouvelle playlist vidéo</string>
+    <string name="add_new_music">Nouvelle playlist musicale</string>
+    <string name="add_create">Créer</string>
+    <string name="add_none_video">Aucune playlist vidéo pour l’instant : saisissez un nom ci-dessus.</string>
+    <string name="add_none_music">Aucune playlist musicale pour l’instant : saisissez un nom ci-dessus.</string>
+    <string name="add_added">Ajouté à %1$s</string>
+    <plurals name="add_added_many">
+        <item quantity="one">%1$d élément ajouté à %2$s</item>
+        <item quantity="many">%1$d d’éléments ajoutés à %2$s</item>
+        <item quantity="other">%1$d éléments ajoutés à %2$s</item>
+    </plurals>
+    <string name="add_nothing">Rien à ajouter</string>
+</resources>

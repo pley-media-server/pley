@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- How much a playlist holds, "12 items · 3h 12m", and what Add to playlist adds when it is several. -->
+    <plurals name="playlists_count_items">
+        <item quantity="one">%1$,d item</item>
+        <item quantity="other">%1$,d items</item>
+    </plurals>
+</resources>

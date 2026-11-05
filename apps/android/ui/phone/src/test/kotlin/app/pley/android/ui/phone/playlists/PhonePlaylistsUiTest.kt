@@ -21,6 +21,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistKind
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.library.SmartFilter
 import app.pley.android.screens.playlists.AddEvent
 import app.pley.android.screens.playlists.AddToPlaylistUiState
 import app.pley.android.screens.playlists.PlaylistCard
@@ -216,7 +217,14 @@ class PhonePlaylistsUiTest {
     fun savingFiltersSaysWhatTheyFind() {
         compose.setContent {
             PhoneTheme {
-                NewPlaylistContent(smart = true, filters = listOf("Genre: Comedy", "Unwatched"), asksKind = false, busy = false, onCreate = { _, _ -> true }, onCancel = {})
+                NewPlaylistContent(
+                    smart = true,
+                    filters = SmartFilter.words("genre=Comedy&unwatched=1"),
+                    asksKind = false,
+                    busy = false,
+                    onCreate = { _, _ -> true },
+                    onCancel = {},
+                )
             }
         }
         compose.onNodeWithText("Save these filters").assertExists()

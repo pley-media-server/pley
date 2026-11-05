@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.ItemRepository
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayItem
@@ -106,7 +107,7 @@ class ArtistViewModel(
     val artistId: Long,
     compute: CoroutineDispatcher = Dispatchers.Default,
     private val random: Random = Random.Default,
-    locale: Locale = Locale.getDefault(),
+    locale: Locale = AppLanguage.locale,
 ) : ViewModel() {
     private val retries = MutableStateFlow(0)
     private val busy = MutableStateFlow(false)
@@ -180,7 +181,7 @@ class AlbumViewModel(
     val highlightId: Long? = null,
     compute: CoroutineDispatcher = Dispatchers.Default,
     private val random: Random = Random.Default,
-    locale: Locale = Locale.getDefault(),
+    locale: Locale = AppLanguage.locale,
 ) : ViewModel() {
     private val retries = MutableStateFlow(0)
     private val channel = Channel<MusicEvent>(Channel.BUFFERED)

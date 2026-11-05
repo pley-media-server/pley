@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- A library's page: its tabs (apps/web/src/pages/LibraryPage.tsx). -->
     <string name="library_tab_recommended">Recommended</string>
     <string name="library_tab_library">Library</string>

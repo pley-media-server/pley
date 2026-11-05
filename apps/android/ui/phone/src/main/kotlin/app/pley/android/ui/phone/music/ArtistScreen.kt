@@ -64,6 +64,7 @@ import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.fullWidth
+import app.pley.android.ui.phone.library.joined
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -156,7 +157,7 @@ private fun ArtistContent(
                 round = true,
                 kind = stringResource(R.string.music_artist),
                 title = page.title,
-                lines = listOf(page.counts, page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() },
+                lines = listOf(page.countTexts.joined(LocalResources.current), page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() },
                 busy = busy,
                 onPlay = onPlay,
                 onShuffle = onShuffle,

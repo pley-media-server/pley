@@ -1,5 +1,7 @@
 package app.pley.android.screens.home
 
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.model.Hub
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
@@ -16,6 +18,7 @@ import app.pley.android.model.format.progressFraction
 import app.pley.android.model.format.qualityBadges
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import java.util.Locale
 
 /**
@@ -117,11 +120,14 @@ data class HomeMeta(
 /** A library in the list of libraries (phone's Libraries tab, the TV's Libraries page). */
 data class LibraryEntry(
     val library: Library,
-    /** "412 movies", "38 shows", "120 artists". */
+    /** "412 movies", "38 shows", "120 artists", in English: the TV's, until it shows [countText]. */
     val count: String,
     /** The server is scanning it now. */
     val scanning: Boolean,
-)
+) {
+    /** "412 movies", "38 shows", "120 artists", in the language shown. */
+    val countText: UiText = libraryCountText(library)
+}
 
 internal const val CONTINUE_PREFIX = "continue"
 
@@ -188,7 +194,7 @@ private val VIDEO_KINDS = setOf(ItemKind.Movie, ItemKind.Show, ItemKind.Season, 
  * it is in: the summary of a movie, the content rating and the quality
  * badges come only with it.
  */
-fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = Locale.getDefault()): HomeInfo {
+fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = AppLanguage.locale): HomeInfo {
     val details = detail?.takeIf { it.id == item.id }
     val episode = item.kind == ItemKind.Episode
     val show = item.grandparentTitle?.takeIf { episode && it.isNotEmpty() }
@@ -217,8 +223,8 @@ fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = Locale.get
     )
 }
 
-/** "412 movies", "38 shows", "120 artists": what a library holds, by its kind. */
-fun libraryCount(library: Library, locale: Locale = Locale.getDefault()): String {
+/** "412 movies", "38 shows", "120 artists": what a library holds, by its kind, in English. See [libraryCountText]. */
+fun libraryCount(library: Library, locale: Locale = AppLanguage.locale): String {
     val (one, many) = when (library.kind) {
         LibraryKind.Movies -> "movie" to "movies"
         LibraryKind.Shows -> "show" to "shows"
@@ -227,6 +233,17 @@ fun libraryCount(library: Library, locale: Locale = Locale.getDefault()): String
     }
     return pluralize(library.itemCount, one, many, locale)
 }
+
+/** "412 movies", "38 shows", "120 artists": what a library holds, by its kind. */
+fun libraryCountText(library: Library): UiText = UiText.plural(
+    when (library.kind) {
+        LibraryKind.Movies -> R.plurals.library_entry_movies
+        LibraryKind.Shows -> R.plurals.library_entry_shows
+        LibraryKind.Music -> R.plurals.library_entry_artists
+        LibraryKind.Unknown -> R.plurals.library_entry_items
+    },
+    library.itemCount,
+)
 
 /** The page an item opens: music has its own pages (P5), the rest the item page. */
 fun pageOf(item: ItemSummary): PleyKey = when (item.kind) {
