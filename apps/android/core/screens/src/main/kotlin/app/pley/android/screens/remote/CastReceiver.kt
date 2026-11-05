@@ -66,7 +66,9 @@ interface CastReceiver {
  *
  * It plays as the app's own Play on that page would, what plays now
  * making way for it as pressing Play there would: a movie or an episode
- * in the player, from `start_ms` when given, else where Play resumes; a
+ * in the player, from `start_ms` when given, else where Play resumes, with
+ * the audio and subtitles the remote picked when it says (for this play
+ * only: the profile's saved choices stay as they are); a
  * show or a season its next episode; a track, an album or an artist in
  * the music player, shuffled with `shuffle`; a playlist in order from its
  * first entry (a random one with `shuffle`), video as a queue in the
@@ -120,9 +122,18 @@ internal class ServerCastReceiver(
         val item = itemOf(itemId) ?: return
         when (val target = data.playItem.resolve(item, fromStart = false)) {
             is PlayTarget.Video -> {
-                // Where the title starts, when the remote says: a show's or a season's episode resumes as Play would.
-                val start = cast.startMs?.takeIf { target.itemId == itemId } ?: target.startMs
-                launcher.play(PlayRequest(itemId = target.itemId, startMs = start, castFrom = from))
+                // Where the title starts and its tracks, when the remote says: a show's or a season's episode
+                // resumes as Play would, with the tracks saved for it.
+                val own = target.itemId == itemId
+                launcher.play(
+                    PlayRequest(
+                        itemId = target.itemId,
+                        startMs = cast.startMs?.takeIf { own } ?: target.startMs,
+                        audioIndex = cast.audioIndex?.takeIf { own }?.toLong(),
+                        subtitleIndex = cast.subtitleIndex?.takeIf { own }?.toLong(),
+                        castFrom = from,
+                    ),
+                )
             }
             is PlayTarget.Music -> {
                 val start = if (cast.shuffle) random.nextInt(target.tracks.size) else target.startIndex

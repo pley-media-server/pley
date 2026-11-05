@@ -79,11 +79,23 @@ class CastReceiverTest {
     }
 
     @Test
+    fun `a movie cast with the tracks the remote picked plays with them, subtitles off as -1`() = runTest {
+        val (data, id) = receiving()
+        cast(data, ServerEvent.Cast(id, itemId = 101, audioIndex = 2, subtitleIndex = -1, from = "Kitchen phone"))
+        assertEquals(
+            PlayRequest(itemId = 101, startMs = 2_412_000, audioIndex = 2, subtitleIndex = -1, castFrom = CastFrom("Kitchen phone")),
+            launcher.played.single(),
+        )
+    }
+
+    @Test
     fun `a show plays its next episode as its Play does`() = runTest {
         val (data, id) = receiving()
         cast(data, ServerEvent.Cast(id, itemId = 201, startMs = 5_000, from = "Kitchen phone"))
-        // The episode on deck, where it was left: a place is a title's own.
+        // The episode on deck, where it was left, with its own tracks: a place and tracks are a title's own.
         assertEquals(listOf(PlayRequest(itemId = 204, startMs = 1_185_000, castFrom = CastFrom("Kitchen phone"))), launcher.played)
+        cast(data, ServerEvent.Cast(id, itemId = 201, audioIndex = 2, subtitleIndex = 3))
+        assertEquals(PlayRequest(itemId = 204, startMs = 1_185_000, castFrom = CastFrom(null)), launcher.played.last())
     }
 
     @Test

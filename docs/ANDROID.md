@@ -253,7 +253,9 @@ obey:
   player's own track menu changes them, and are remembered the same way:
   another track in the file as it plays switches at once, one a stream
   doesn't carry, or picture subtitles to burn in, starts a new session
-  where it is. A pick of what plays already is said again at once.
+  where it is. The quality changes as a pick in the player's Quality menu
+  does, and is kept as its pick the same way. A pick of what plays
+  already is said again at once.
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track goes back to its start.
 - **Live TV:** next and previous, channel up and down in the order the
@@ -266,8 +268,10 @@ within the title, and a skip counts from where it is. Each change is
 reported at once, so the remote sees it, and a play or pause that changes
 nothing is reported too, so a remote a little behind settles. A video's
 reports say the audio and subtitles it plays (`audio_index` and
-`subtitle_index`, `-1` for none); a track that needs a new session is said
-by that session as it starts, not by the one it replaces. While a
+`subtitle_index`, `-1` for none), and its Quality menu's pick (`quality`:
+`auto`, `original`, `8m`…); a track that needs a new session is said by
+that session as it starts, not by the one it replaces, and a quality is
+said at once and again as its session starts. While a
 player has a session, the event stream stays open in the background too,
 so music playing with the screen off still hears the remote; it closes
 once playback ends, once music has been paused for 90 s (the server's
@@ -320,11 +324,15 @@ the stream again, and nothing cast plays while the app is hidden.
 
 A `cast` for this device's receiver, heard while the stream names it,
 plays as the app's own Play on that page would: a movie or an episode in
-the player, from `start_ms` when given, else where Play resumes; a show
-or a season its next episode; a track, an album or an artist in the
+the player, from `start_ms` when given, else where Play resumes, with the
+audio and subtitles cast (`audio_index`, `subtitle_index`, `-1` for none)
+in place of the profile's saved choices for that play, not saved, a track
+the file it plays doesn't have leaving the choice to them; a show or a
+season its next episode; a track, an album or an artist in the
 music player, shuffled with `shuffle`; a playlist from its first entry
 (a random one with `shuffle`), video as a queue in the player and music
-in the music player; a channel in the live player. What plays makes way,
+in the music player; a channel in the live player, tuned as Watch on that
+channel would, on a phone or a TV, Fire TV included. What plays makes way,
 as for Play there: music pauses for a video or a channel, and a player
 window open closes for music; one player window shows at a time, video
 or Live TV. A cast for another device does nothing.

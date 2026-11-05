@@ -126,9 +126,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   plays no more.
  * - **The remote**, on another of the profile's devices (docs/API.md,
  *   "Remote control"): play, pause, seek and skip, next when something
- *   can come next, and the audio and subtitles of a file that has them, as
- *   the web's; each reported at once ([obey]). Every report says the tracks
- *   playing ([PlayedTracks]).
+ *   can come next, the audio and subtitles of a file that has them, and
+ *   the quality, as the web's; each reported at once ([obey]). Every report
+ *   says the tracks playing and the quality picked ([PlayedTracks]).
  * - **Downloads.** A file downloaded to the device plays from there as it
  *   is, with no session on the server; its progress goes through
  *   [PlaybackEnvironment.local], which keeps it while the server is out of
@@ -639,6 +639,7 @@ class SessionPlaybackController(
             nextUp.hasNext(detail.kind, current.queue),
             audio = PlaybackPlan.audioStreams(chosen).isNotEmpty(),
             subtitles = PlaybackPlan.subtitleStreams(chosen).isNotEmpty(),
+            quality = true,
         )
         var sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious, controls)
         try {
@@ -664,9 +665,9 @@ class SessionPlaybackController(
         }
     }
 
-    /** POST /api/playback for [request]: a session whose reports say the tracks playing then. */
+    /** POST /api/playback for [request]: a session whose reports say the tracks playing then, and the quality picked. */
     private suspend fun open(request: PlaybackRequest): ServerPlaybackSession =
-        ServerPlaybackSession.start(env.api, request, env.reporter) { playedTracks }
+        ServerPlaybackSession.start(env.api, request, env.reporter) { playedTracks?.copy(quality = picked.id) }
 
     /** [started], left out of the remote from now: the server lists it before it plays. */
     private fun held(started: ServerPlaybackSession): ServerPlaybackSession = started.also { env.here(starting, it.id) }
@@ -1360,10 +1361,10 @@ class SessionPlaybackController(
      * A command of the profile's remote, as the web's player obeys it: a
      * seek stays within the title, a skip goes from where it is now, next
      * plays what comes next (nothing at the end, and nothing said here:
-     * whoever sent it is elsewhere), and a video has no previous. Audio and
-     * subtitles change as the player's own menu changes them. What changed
-     * is reported at once, so the remote sees it (a pause reports by
-     * itself, and a new item with its new session).
+     * whoever sent it is elsewhere), and a video has no previous. Audio,
+     * subtitles and the quality change as the player's own menus change
+     * them. What changed is reported at once, so the remote sees it (a
+     * pause reports by itself, and a new item with its new session).
      */
     private fun obey(command: ServerEvent.PlayerCommand) {
         if (closed || stopped || away || ui.value.phase is PlayerPhase.Error) return
@@ -1381,6 +1382,12 @@ class SessionPlaybackController(
             Control.Audio -> command.streamIndex?.let { reportPicked(changeAudio(it.toLong())) }
             Control.Subtitles -> command.streamIndex?.let { index ->
                 reportPicked(changeSubtitle(index.takeIf { it != PlayingSession.SUBTITLES_OFF }?.toLong()))
+            }
+            Control.Quality -> command.quality?.let { id ->
+                // The pick is said at once, by the session playing; one that needs a new session says it again as
+                // that one starts.
+                if (changeQuality(id) == TrackChange.NewSession) reportOnLoad = true
+                if (!ended) report(if (wantPlay.value) ProgressState.Playing else ProgressState.Paused)
             }
             Control.Previous, Control.Unknown -> Unit
         }
@@ -1782,9 +1789,14 @@ class SessionPlaybackController(
     }
 
     override fun selectQuality(name: String) {
+        changeQuality(name)
+    }
+
+    /** The menu's quality choice, and the remote's: kept as the pick, and played from where it is when it plays otherwise. */
+    private fun changeQuality(name: String): TrackChange {
         val wanted = Qualities.byIdOrLabel(name)
-        val choice = Qualities.forFile(file).firstOrNull { it.id == wanted.id } ?: return
-        if (choice.id == picked.id) return
+        val choice = Qualities.forFile(file).firstOrNull { it.id == wanted.id } ?: return TrackChange.Unchanged
+        if (choice.id == picked.id) return TrackChange.Unchanged
         val before = quality
         picked = choice
         streamingPicked = !choice.original && !choice.automatic
@@ -1812,7 +1824,9 @@ class SessionPlaybackController(
         }
         publishChoices()
         refreshDetails()
-        if (item != null && !same) restart(livePosition(), alongside = true)
+        if (item == null || same) return TrackChange.Now
+        restart(livePosition(), alongside = true)
+        return TrackChange.NewSession
     }
 
     override fun skip() {
@@ -2230,11 +2244,17 @@ class SessionPlaybackController(
 
         /**
          * What a video obeys from the remote (the web's): Next too when
-         * something can come next ([hasNext]: an episode, a queue), and
-         * Audio and Subtitles when its file has such tracks to pick from.
+         * something can come next ([hasNext]: an episode, a queue), Audio
+         * and Subtitles when its file has such tracks to pick from, and
+         * Quality when it has the Quality menu.
          */
-        fun remoteControls(hasNext: Boolean, audio: Boolean = false, subtitles: Boolean = false): List<Control> =
-            VIDEO_CONTROLS + listOfNotNull(Control.Next.takeIf { hasNext }, Control.Audio.takeIf { audio }, Control.Subtitles.takeIf { subtitles })
+        fun remoteControls(hasNext: Boolean, audio: Boolean = false, subtitles: Boolean = false, quality: Boolean = false): List<Control> =
+            VIDEO_CONTROLS + listOfNotNull(
+                Control.Next.takeIf { hasNext },
+                Control.Audio.takeIf { audio },
+                Control.Subtitles.takeIf { subtitles },
+                Control.Quality.takeIf { quality },
+            )
 
         /** What every video obeys from the remote. */
         private val VIDEO_CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip)

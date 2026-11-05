@@ -72,32 +72,67 @@ class RemoteTest {
         offsetMs: Long? = null,
         session: String = sessionId(),
         streamIndex: Int? = null,
+        quality: String? = null,
     ) {
-        events.tryEmit(ServerEvent.PlayerCommand(session, control, positionMs, offsetMs, streamIndex))
+        events.tryEmit(ServerEvent.PlayerCommand(session, control, positionMs, offsetMs, streamIndex, quality))
         h.settle()
     }
 
     @Test
-    fun `a video says what it obeys, next only when something can come next, tracks when its file has them`() {
+    fun `a video says what it obeys, next only when something can come next, tracks when its file has them, and its quality`() {
         playing()
-        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Audio), h.playbackRequests().last().controls)
+        assertEquals(
+            listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Audio, Control.Quality),
+            h.playbackRequests().last().controls,
+        )
         val movie = h.play(PlayRequest(FixtureIds.SAMPLE_1080P, startMs = 0))
-        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio), h.playbackRequests().last().controls)
+        assertEquals(listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio, Control.Quality), h.playbackRequests().last().controls)
         movie.close()
         val tracks = h.play(PlayRequest(Catalogue.movieWithTracks(h.api).id, startMs = 0))
         assertEquals(
-            listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio, Control.Subtitles),
+            listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Audio, Control.Subtitles, Control.Quality),
             h.playbackRequests().last().controls,
         )
         tracks.close()
     }
 
     @Test
-    fun `every report says the tracks playing, -1 for no subtitles`() {
+    fun `every report says the tracks playing, -1 for no subtitles, and the quality picked`() {
         playing()
         val first = h.progress(SessionHarness.S1E1).last().second
         assertEquals(1, first.audioIndex)
         assertEquals(PlayingSession.SUBTITLES_OFF, first.subtitleIndex)
+        assertEquals("original", first.quality)
+    }
+
+    @Test
+    fun `the remote's quality plays as the menu's pick would, is kept as the pick, and is said at once and by its session`() {
+        val c = h.play(PlayRequest(FixtureIds.SAMPLE_1080P, startMs = 0))
+        h.engine.ready()
+        h.advance(10_500)
+        val first = sessionId(FixtureIds.SAMPLE_1080P)
+        val reports = h.progress(FixtureIds.SAMPLE_1080P).size
+        command(Control.Quality, quality = "4m", session = first)
+        // Said at once by the session playing, then by the one its pick needed as it starts.
+        val said = h.progress(FixtureIds.SAMPLE_1080P).drop(reports)
+        assertEquals("4m", said.first().second.quality)
+        assertEquals(first, said.first().second.sessionId)
+        assertEquals(4_000, h.playbackRequests().last().maxBitrate)
+        assertEquals(listOf("4m"), h.remembered)
+        assertTrue(c.state.value.qualities.first { it.id == "4m" }.selected)
+        val next = h.progress(FixtureIds.SAMPLE_1080P).last().second
+        assertTrue(next.sessionId != first)
+        assertEquals("4m", next.quality)
+
+        // Automatic, then what plays already: said again, nothing asked of the server.
+        command(Control.Quality, quality = "auto", session = next.sessionId!!)
+        assertEquals("auto", h.progress(FixtureIds.SAMPLE_1080P).last().second.quality)
+        val requests = h.playbackRequests().size
+        val before = h.progress(FixtureIds.SAMPLE_1080P).size
+        command(Control.Quality, quality = "auto", session = sessionId(FixtureIds.SAMPLE_1080P))
+        assertEquals(before + 1, h.progress(FixtureIds.SAMPLE_1080P).size)
+        assertEquals(requests, h.playbackRequests().size)
+        c.close()
     }
 
     @Test

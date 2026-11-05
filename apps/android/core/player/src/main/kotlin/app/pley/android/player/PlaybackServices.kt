@@ -20,7 +20,11 @@ data class PlayRequest(
      * device plays best.
      */
     val audioIndex: Long? = null,
-    /** The server's subtitle stream index; `null` keeps the remembered or default one. */
+    /**
+     * The server's subtitle stream index, `-1` for none
+     * ([PlayingSession.SUBTITLES_OFF][app.pley.android.model.PlayingSession.SUBTITLES_OFF]);
+     * `null` keeps the remembered or default one.
+     */
     val subtitleIndex: Long? = null,
     /** A playlist or collection to keep playing from, in order. */
     val queue: PlayQueue? = null,

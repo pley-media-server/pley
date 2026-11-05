@@ -136,6 +136,9 @@ enum class Control(override val wire: String) : WireEnum {
 
     /** Other subtitles of the title, or none: `stream_index`, `-1` for none. */
     Subtitles("subtitles"),
+
+    /** Another entry of the Quality menu: `quality`, one of the session's [PlayingSession.qualities]. */
+    Quality("quality"),
     Unknown("unknown"),
     ;
 
@@ -156,7 +159,11 @@ enum class PlayingKind(override val wire: String) : WireEnum {
     object Serializer : LenientEnumSerializer<PlayingKind>("PlayingKind", PlayingKind.entries, PlayingKind.Unknown)
 }
 
-/** The channel a live session of GET /api/sessions watches; [now] is the programme on. */
+/**
+ * The channel a live session of GET /api/sessions watches: [now] is the
+ * programme on, from [nowStart] to [nowStop] (unix seconds), and [next] the
+ * one after it.
+ */
 @Serializable
 data class PlayingChannel(
     val id: Long,
@@ -164,6 +171,9 @@ data class PlayingChannel(
     val number: String? = null,
     val logo: String? = null,
     val now: String? = null,
+    val nowStart: Long? = null,
+    val nowStop: Long? = null,
+    val next: String? = null,
 )
 
 /**
@@ -206,6 +216,10 @@ data class PlayingSession(
     val subtitleIndex: Int? = null,
     /** Its file's tracks, which [Control.Audio] and [Control.Subtitles] pick from; none on live. */
     val tracks: SessionTracks = SessionTracks(),
+    /** Its Quality menu's pick, by id ("auto", "original", "8m"…); `null` until its player says, and on live and music. */
+    val quality: String? = null,
+    /** What its Quality menu offers for the file, which [Control.Quality] picks from; none on live and music. */
+    val qualities: List<QualityOption> = emptyList(),
 ) {
     companion object {
         /** The subtitle index of none, in sessions, commands and progress reports. */
@@ -235,12 +249,23 @@ data class TrackOption(
     val forced: Boolean = false,
 )
 
+/** One entry of a session's Quality menu (GET /api/sessions): [id] is what commands and reports name. */
+@Serializable
+data class QualityOption(
+    /** "auto", "original", "8m"… */
+    val id: String,
+    /** "Automatic", "Original", "8 Mbps 1080p"… */
+    val label: String = "",
+)
+
 /**
  * The body of POST /api/sessions/{id}/command: [positionMs] for
  * [Control.Seek] (0 to the length), [offsetMs] for [Control.Skip] (up to
  * 10 minutes either way), [streamIndex] for [Control.Audio] and
  * [Control.Subtitles] (one of the session's tracks; subtitles
- * [PlayingSession.SUBTITLES_OFF] for none); the other commands take none.
+ * [PlayingSession.SUBTITLES_OFF] for none), [quality] for [Control.Quality]
+ * (one of the session's [PlayingSession.qualities]); the other commands take
+ * none.
  */
 @Serializable
 data class PlayerCommandRequest(
@@ -248,6 +273,7 @@ data class PlayerCommandRequest(
     val positionMs: Long? = null,
     val offsetMs: Long? = null,
     val streamIndex: Int? = null,
+    val quality: String? = null,
 )
 
 /** What a device plays when a remote casts to it (docs/API.md, "Casting"). */
@@ -286,7 +312,9 @@ data class RemoteDevice(
  * The body of POST /api/remote/devices/{id}/cast: exactly one of [itemId]
  * (a movie, an episode, a show, a season, a track, an album or an artist),
  * [playlistId] and [channelId]; [startMs] where a title starts (0 to a
- * day), [shuffle] for a playlist, an album or an artist.
+ * day), [shuffle] for a playlist, an album or an artist; [audioIndex] and
+ * [subtitleIndex] ([PlayingSession.SUBTITLES_OFF]: none) the tracks picked
+ * on a movie's or an episode's page, which the device plays with.
  */
 @Serializable
 data class CastRequest(
@@ -295,6 +323,8 @@ data class CastRequest(
     val channelId: Long? = null,
     val startMs: Long? = null,
     val shuffle: Boolean? = null,
+    val audioIndex: Int? = null,
+    val subtitleIndex: Int? = null,
 )
 
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */
@@ -525,6 +555,8 @@ data class ProgressReport(
     val audioIndex: Int? = null,
     /** The subtitles it shows, by stream index, [PlayingSession.SUBTITLES_OFF] for none; `null` leaves it out. */
     val subtitleIndex: Int? = null,
+    /** Its Quality menu's pick, by id ("auto", "original", "8m"…); `null` leaves it out (music, Live TV). */
+    val quality: String? = null,
 )
 
 /**

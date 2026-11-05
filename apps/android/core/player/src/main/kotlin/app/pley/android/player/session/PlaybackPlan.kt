@@ -12,6 +12,7 @@ import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.StreamKind
 import app.pley.android.model.caps.ClientCaps
 import app.pley.android.player.PlayRequest
@@ -135,11 +136,12 @@ object PlaybackPlan {
     private fun isCommentary(stream: MediaStream): Boolean = stream.title?.contains("commentary", ignoreCase = true) == true
 
     /**
-     * The subtitles to start with: as asked, else the profile's choice (the
-     * server applies its defaults to `selected_subtitle`); `null` is off,
-     * whatever the file flags as default.
+     * The subtitles to start with: as asked (`-1`: none, as a remote's cast
+     * asks), else the profile's choice (the server applies its defaults to
+     * `selected_subtitle`); `null` is off, whatever the file flags as default.
      */
     fun initialSubtitle(file: MediaFile?, requested: Long?): MediaStream? {
+        if (requested == PlayingSession.SUBTITLES_OFF.toLong()) return null
         val subs = subtitleStreams(file)
         return requested?.let { r -> subs.firstOrNull { it.index.toLong() == r } }
             ?: subs.firstOrNull { it.index == file?.selectedSubtitle }

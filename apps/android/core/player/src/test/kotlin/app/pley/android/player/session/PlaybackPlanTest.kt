@@ -67,6 +67,10 @@ class PlaybackPlanTest {
         assertEquals(srt, PlaybackPlan.initialSubtitle(file.copy(selectedSubtitle = 3), null))
         // The track the file flags as default doesn't show by itself.
         assertNull(PlaybackPlan.initialSubtitle(file, null))
+        // None asked for (a remote's cast with them off), whatever the profile's choice; one the file doesn't have
+        // leaves the choice to it.
+        assertNull(PlaybackPlan.initialSubtitle(file.copy(selectedSubtitle = 3), -1))
+        assertEquals(srt, PlaybackPlan.initialSubtitle(file.copy(selectedSubtitle = 3), 99))
     }
 
     @Test

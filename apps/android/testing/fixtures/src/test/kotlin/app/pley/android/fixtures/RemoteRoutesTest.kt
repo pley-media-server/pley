@@ -127,6 +127,11 @@ class RemoteRoutesTest {
             // A channel: this receiver doesn't take Live TV, and there is none here.
             assertEquals(404, alex.send("POST", path, """{"channel_id":1}""").code)
             assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_1080P},"start_ms":-1}""").code)
+            // Tracks go with a movie or an episode, and are of its files.
+            assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SHOW},"audio_index":1}""").code)
+            assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_HDR10},"audio_index":7}""").code)
+            assertEquals(400, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_HDR10},"subtitle_index":99}""").code)
+            assertEquals(400, alex.send("POST", path, """{"playlist_id":${FixtureIds.PLAYLIST_VIDEO},"subtitle_index":-1}""").code)
 
             assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.SHOW},"start_ms":60000}""").code)
             var heard: ServerEvent.Cast? = null
@@ -136,10 +141,17 @@ class RemoteRoutesTest {
             }
             assertEquals(ServerEvent.Cast("android-den", itemId = FixtureIds.SHOW, startMs = 60_000, from = heard?.from), heard)
             assertTrue("from the caller's User-Agent", heard?.from?.isNotEmpty() == true)
+            assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.SAMPLE_HDR10},"audio_index":1,"subtitle_index":-1}""").code)
+            heard = null
+            while (heard == null) {
+                val line = source.readUtf8Line() ?: break
+                if (line.startsWith("data: ")) heard = ServerEvent.parse(line.removePrefix("data: ")) as? ServerEvent.Cast
+            }
+            assertEquals(1 to -1, heard?.audioIndex to heard?.subtitleIndex)
             assertEquals(202, alex.send("POST", path, """{"playlist_id":${FixtureIds.PLAYLIST_VIDEO},"shuffle":true}""").code)
 
-            // Ten a second to one receiver, as on the server: two went already.
-            repeat(8) { assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.TRACK}}""").code) }
+            // Ten a second to one receiver, as on the server: three went already.
+            repeat(7) { assertEquals(202, alex.send("POST", path, """{"item_id":${FixtureIds.TRACK}}""").code) }
             assertEquals(429, alex.send("POST", path, """{"item_id":${FixtureIds.TRACK}}""").code)
         }
     }
@@ -173,7 +185,7 @@ class RemoteRoutesTest {
         val session = robin.send(
             "POST",
             "/api/playback",
-            """{"item_id":${FixtureIds.SAMPLE_HDR10},"caps":{},"controls":["audio","subtitles"]}""",
+            """{"item_id":${FixtureIds.SAMPLE_HDR10},"caps":{},"controls":["audio","subtitles","quality"]}""",
         ).field("session_id")!!
         fun listed() = PleyJson.decodeFromString(ListSerializer(PlayingSession.serializer()), String(robin.get("/api/sessions").bytes)).single()
         val started = listed()
@@ -197,5 +209,15 @@ class RemoteRoutesTest {
         assertEquals(204, robin.send("POST", "/api/items/${FixtureIds.SAMPLE_HDR10}/progress", stray).code)
         assertEquals(1, listed().audioIndex)
         assertEquals(FixtureIds.SAMPLE_HDR10_SUBTITLE, listed().subtitleIndex)
+
+        // The quality: one its menu offers, as its player last said.
+        assertEquals(listOf("original", "auto"), started.qualities.take(2).map { it.id })
+        assertEquals(null, started.quality)
+        assertEquals(400, robin.send("POST", path, """{"command":"quality","quality":"9m"}""").code)
+        val offered = started.qualities.last().id
+        assertEquals(202, robin.send("POST", path, """{"command":"quality","quality":"$offered"}""").code)
+        val picked = """{"position_ms":3000,"session_id":"$session","quality":"$offered"}"""
+        assertEquals(204, robin.send("POST", "/api/items/${FixtureIds.SAMPLE_HDR10}/progress", picked).code)
+        assertEquals(offered, listed().quality)
     }
 }

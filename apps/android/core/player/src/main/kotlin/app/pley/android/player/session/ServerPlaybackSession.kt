@@ -55,9 +55,10 @@ class SessionReporter(scope: CoroutineScope) {
 /**
  * The tracks a video plays, as its progress reports say them for the
  * profile's remotes: stream indexes, [subtitle] [PlayingSession.SUBTITLES_OFF][app.pley.android.model.PlayingSession.SUBTITLES_OFF]
- * for none; [audio] `null` while it isn't known.
+ * for none; [audio] `null` while it isn't known. [quality] is the Quality
+ * menu's pick, by id ("auto", "original", "8m"…).
  */
-data class PlayedTracks(val audio: Int?, val subtitle: Int)
+data class PlayedTracks(val audio: Int?, val subtitle: Int, val quality: String? = null)
 
 /**
  * One session on the server (POST /api/playback): its progress reports and
@@ -126,6 +127,7 @@ class ServerPlaybackSession(
             sessionId = id,
             audioIndex = played?.audio,
             subtitleIndex = played?.subtitle,
+            quality = played?.quality,
         )
     }
 

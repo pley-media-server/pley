@@ -157,8 +157,8 @@ sealed interface ServerEvent {
      * The profile's remote, on another device, sent the player of
      * [sessionId] a command (POST /api/sessions/{id}/command): [positionMs]
      * for a seek, [offsetMs] for a skip, [streamIndex] for audio and
-     * subtitles (`-1`: none), `null` otherwise. Only the player playing that
-     * session acts on it.
+     * subtitles (`-1`: none), [quality] the Quality menu's entry by id,
+     * `null` otherwise. Only the player playing that session acts on it.
      */
     @Serializable
     data class PlayerCommand(
@@ -167,6 +167,7 @@ sealed interface ServerEvent {
         val positionMs: Long? = null,
         val offsetMs: Long? = null,
         val streamIndex: Int? = null,
+        val quality: String? = null,
     ) : ServerEvent {
         override val type: String get() = TYPE
 
@@ -180,8 +181,10 @@ sealed interface ServerEvent {
      * [receiverId] something to play (POST /api/remote/devices/{id}/cast):
      * exactly one of [itemId], [playlistId] and [channelId]; [startMs]
      * where a title starts, [shuffle] for a playlist, an album or an artist;
-     * [from] is the remote's device, `null` when the server can't name it.
-     * Only the device of that receiver plays it.
+     * [audioIndex] and [subtitleIndex] (`-1`: none) the tracks picked on the
+     * remote's page, which it plays with, `null` when not given; [from] is
+     * the remote's device, `null` when the server can't name it. Only the
+     * device of that receiver plays it.
      */
     @Serializable
     data class Cast(
@@ -191,6 +194,8 @@ sealed interface ServerEvent {
         val channelId: Long? = null,
         val startMs: Long? = null,
         val shuffle: Boolean = false,
+        val audioIndex: Int? = null,
+        val subtitleIndex: Int? = null,
         val from: String? = null,
     ) : ServerEvent {
         override val type: String get() = TYPE

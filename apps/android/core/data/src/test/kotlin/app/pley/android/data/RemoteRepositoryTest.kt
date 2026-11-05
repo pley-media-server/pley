@@ -388,6 +388,17 @@ class RemoteRepositoryTest {
         assertTrue(RemoteRepository.answered(audio, remote(before.session.copy(sessionId = "s9", audioIndex = 2), 2_000), 2_000))
     }
 
+    @Test
+    fun `a quality is answered by the player saying it picked it`() {
+        val before = remote(session(state = ProgressState.Playing).copy(quality = "auto"), reportedAt = 0)
+        val quality = SentCommand(Control.Quality, before, sentAt = 1_000, quality = "8m")
+        assertFalse(RemoteRepository.answered(quality, before, 2_000))
+        assertFalse(RemoteRepository.answered(quality, remote(before.session.copy(state = ProgressState.Buffering), 2_000), 2_000))
+        assertTrue(RemoteRepository.answered(quality, remote(before.session.copy(quality = "8m"), 2_000), 2_000))
+        // The new session its pick needed says it too.
+        assertTrue(RemoteRepository.answered(quality, remote(before.session.copy(sessionId = "s9", quality = "8m"), 2_000), 2_000))
+    }
+
     private fun remote(session: PlayingSession, reportedAt: Long) = RemoteSession(session, reportedAt)
 
     private fun receiver(id: String, deviceId: String, name: String?, kind: DeviceKind = DeviceKind.Tv) =

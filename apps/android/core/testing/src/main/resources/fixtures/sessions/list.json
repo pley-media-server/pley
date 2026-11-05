@@ -8,13 +8,18 @@
       "thumb_url": "/api/items/204/images/thumb?v=1761200400"
     },
     "channel": null, "state": "playing", "position_ms": 1185000, "duration_ms": 3209000,
-    "updated_at": 1761390000, "age_ms": 4200, "controls": ["play", "pause", "seek", "skip", "next"]
+    "updated_at": 1761390000, "age_ms": 4200, "controls": ["play", "pause", "seek", "skip", "next", "quality"],
+    "quality": "auto",
+    "qualities": [
+      { "id": "original", "label": "Original" }, { "id": "auto", "label": "Automatic" },
+      { "id": "8m", "label": "8 Mbps 1080p" }, { "id": "4m", "label": "4 Mbps 720p" }, { "id": "2m", "label": "2 Mbps 480p" }
+    ]
   },
   {
     "session_id": "5d0f7f2a", "kind": "live", "device": "Kitchen phone", "device_id": "app-15", "device_kind": "phone",
     "item": null,
-    "channel": { "id": 1, "name": "Pley News HD", "number": "101", "logo": "/api/live/channels/1/logo", "now": "The Evening News" },
+    "channel": { "id": 1, "name": "Pley News HD", "number": "101", "logo": "/api/live/channels/1/logo", "now": "The Evening News", "now_start": 1761388200, "now_stop": 1761391800, "next": "Weather" },
     "state": "playing", "position_ms": 0, "duration_ms": null, "updated_at": 1761390010, "age_ms": 900,
-    "controls": ["next", "previous"]
+    "controls": ["next", "previous"], "quality": null, "qualities": []
   }
 ]

@@ -127,13 +127,23 @@ class RemoteControlTest {
         assertEquals(204L, tv.item?.id)
         assertEquals(ProgressState.Playing, tv.state)
         assertEquals(4_200L, tv.ageMs)
-        assertEquals(Control.Next, tv.controls.last())
+        assertEquals(Control.Quality, tv.controls.last())
+        // Its Quality menu's pick, among what the menu offers for the file.
+        assertEquals("auto", tv.quality)
+        assertEquals(listOf("original", "auto", "8m", "4m", "2m"), tv.qualities.map { it.id })
+        assertEquals("8 Mbps 1080p", tv.qualities[2].label)
         assertEquals(PlayingKind.Live, phone.kind)
         assertEquals("app-15", phone.deviceId)
         assertEquals(DeviceKind.Phone, phone.deviceKind)
         assertEquals("The Evening News", phone.channel?.now)
+        // When the programme on started and ends, and the next.
+        assertEquals(1_761_388_200L, phone.channel?.nowStart)
+        assertEquals(1_761_391_800L, phone.channel?.nowStop)
+        assertEquals("Weather", phone.channel?.next)
         assertNull(phone.durationMs)
         assertEquals(listOf(Control.Next, Control.Previous), phone.controls)
+        assertNull(phone.quality)
+        assertEquals(emptyList<Any>(), phone.qualities)
     }
 
     @Test

@@ -20,6 +20,7 @@ import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
+import app.pley.android.model.QualityOption
 import app.pley.android.model.RatingRequest
 import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ServerEvent
@@ -322,8 +323,45 @@ internal class PlayRoutes(private val s: State) {
                 audioIndex = session.audioIndex,
                 subtitleIndex = session.subtitleIndex,
                 tracks = tracksOf(session.fileId),
+                quality = session.quality,
+                qualities = qualitiesOf(session.fileId),
             )
         }
+    }
+
+    /**
+     * What a player's Quality menu offers for a file, as the server works
+     * it out (apps/server/src/playback.rs, offered_qualities): Original and
+     * Automatic, then the transcodes with fewer lines or at most 80 % of its
+     * bitrate, once for each bitrate and lines they give it, by lines then
+     * bitrate. Every one when neither is known; none for a file without video.
+     */
+    private fun qualitiesOf(fileId: Long): List<QualityOption> {
+        val file = catalog.file(fileId)?.second ?: return emptyList()
+        if (file.streams.none { it.kind == StreamKind.Video }) return emptyList()
+        val w = file.width ?: 0
+        val h = file.height ?: 0
+        val lines = if (w <= 0 && h <= 0) null else when {
+            w >= 3800 || h >= 2100 -> 2160
+            w >= 1800 || h >= 1000 -> 1080
+            w >= 1200 || h >= 700 -> 720
+            else -> 480
+        }
+        val kbps = file.bitrate?.takeIf { it > 0 }?.let { it / 1000.0 }
+        val height = file.height?.takeIf { it > 0 }
+        val fixed = listOf(QualityOption("original", "Original"), QualityOption("auto", "Automatic"))
+        if (kbps == null && height == null) return fixed + QUALITY_MENU.map { QualityOption(it.id, it.label) }
+        val copies = mutableListOf<Triple<QualityOption, Int, Int>>()
+        for (q in QUALITY_MENU) {
+            val fewerLines = height != null && q.lines < height
+            val lighter = kbps != null && q.kbps <= kbps * 0.8
+            if (!fewerLines && !lighter) continue
+            val shown = lines?.let { minOf(q.lines, it) } ?: q.lines
+            if (copies.any { it.second == q.kbps && it.third == shown }) continue
+            val label = if (lines != null && q.lines > lines) "${q.kbps / 1000} Mbps ${if (lines >= 2160) "4K" else "${lines}p"}" else q.label
+            copies += Triple(QualityOption(q.id, label), q.kbps, shown)
+        }
+        return fixed + copies.sortedWith(compareByDescending<Triple<QualityOption, Int, Int>> { it.third }.thenByDescending { it.second }).map { it.first }
     }
 
     /** A file's audio and subtitles (added ones too), as sessions list them for the remote to pick from. */
@@ -348,9 +386,9 @@ internal class PlayRoutes(private val s: State) {
     /**
      * POST /api/sessions/{id}/command: the caller's own session only (an
      * administrator stops others', no more), a command its player listed,
-     * a seek within its length, a skip of up to 10 minutes, and audio or
-     * subtitles of the session's file (`-1`: subtitles off). The player's
-     * streams hear `player_command`.
+     * a seek within its length, a skip of up to 10 minutes, audio or
+     * subtitles of the session's file (`-1`: subtitles off), and one of the
+     * qualities its menu offers. The player's streams hear `player_command`.
      */
     private fun command(call: Call, caller: Caller, id: String): MockResponse {
         val body = call.body(PlayerCommandRequest.serializer()) ?: return Reply.badRequest("the body isn't a command")
@@ -366,6 +404,9 @@ internal class PlayRoutes(private val s: State) {
             Control.Subtitles -> if (body.streamIndex != PlayingSession.SUBTITLES_OFF && tracks.subtitles.none { it.index == body.streamIndex }) {
                 return Reply.badRequest("stream_index must be one of the file's subtitle tracks, or -1 for none")
             }
+            Control.Quality -> if (qualitiesOf(session.fileId).none { it.id == body.quality }) {
+                return Reply.badRequest("quality must be one of the session's qualities")
+            }
             else -> Unit
         }
         if (body.command !in session.controls) {
@@ -377,6 +418,7 @@ internal class PlayRoutes(private val s: State) {
             body.positionMs.takeIf { body.command == Control.Seek },
             body.offsetMs.takeIf { body.command == Control.Skip },
             body.streamIndex.takeIf { body.command == Control.Audio || body.command == Control.Subtitles },
+            body.quality.takeIf { body.command == Control.Quality },
         )
         s.events.emitTo(session.profileId, event)
         return MockResponse.Builder().code(202).build()
@@ -392,22 +434,28 @@ internal class PlayRoutes(private val s: State) {
      * of a title, a playlist and a channel (400), a title there isn't (404)
      * or of a kind that isn't cast (400), a playlist not the caller's (404),
      * a channel (404: there is no Live TV here), what the receiver doesn't
-     * play (409 `not_castable`), a `start_ms` past a day (400), and more
-     * than 10 casts a second (429). The caller's streams hear `cast`, from
-     * the caller's User-Agent.
+     * play (409 `not_castable`), a `start_ms` past a day or tracks that
+     * aren't one of a movie's or an episode's files' (400), and more than 10
+     * casts a second (429). The caller's streams hear `cast`, from the
+     * caller's User-Agent.
      */
     private fun cast(call: Call, caller: Caller, receiverId: String): MockResponse {
         val body = call.body(CastRequest.serializer()) ?: return Reply.badRequest("the body isn't a cast")
         val takes = s.events.casts(caller.profile.id, receiverId) ?: return Reply.notFound("no such device")
         val itemId = body.itemId
         val playlistId = body.playlistId
+        val picked = body.audioIndex != null || body.subtitleIndex != null
+        var streams: List<MediaStream>? = null
         val kind = when {
             listOfNotNull(itemId, playlistId, body.channelId).size != 1 -> return Reply.badRequest("name one of item_id, playlist_id and channel_id")
             itemId != null -> {
                 val item = catalog.item(itemId) ?: return Reply.notFound("no such item")
                 if (item.kind !in CASTABLE) return Reply.badRequest("only movies, episodes, shows, seasons, tracks, albums and artists can be cast")
+                if (picked && item.kind !in WITH_TRACKS) return Reply.badRequest("audio_index and subtitle_index go with a movie or an episode")
+                streams = item.files.flatMap { f -> catalog.file(f.id)?.second?.streams.orEmpty() }
                 CastKind.Item
             }
+            picked -> return Reply.badRequest("audio_index and subtitle_index go with item_id")
             playlistId != null -> {
                 s.household.playlists[playlistId]?.takeIf { it.owner == caller.profile.id } ?: return Reply.notFound("playlist $playlistId not found")
                 CastKind.Item
@@ -416,11 +464,29 @@ internal class PlayRoutes(private val s: State) {
         }
         if (kind !in takes) return Reply.error(409, "not_castable", "this device doesn't play titles from a remote")
         if (body.startMs?.let { it !in 0..DAY_MS } == true) return Reply.badRequest("start_ms must be between 0 and $DAY_MS")
+        val tracks = streams.orEmpty()
+        if (body.audioIndex?.let { index -> tracks.none { it.kind == StreamKind.Audio && it.index == index } } == true) {
+            return Reply.badRequest("audio_index must be one of the file's audio tracks")
+        }
+        val subtitle = body.subtitleIndex
+        if (subtitle != null && subtitle != PlayingSession.SUBTITLES_OFF && tracks.none { it.kind == StreamKind.Subtitle && it.index == subtitle }) {
+            return Reply.badRequest("subtitle_index must be one of the file's subtitle tracks, or -1 for none")
+        }
         if (!s.events.takeCast(caller.profile.id, receiverId, s.nowMs())) return Reply.error(429, "too_many_requests", "10 casts a second at most: wait a moment")
         val from = call.header("User-Agent")?.trim()?.take(DEVICE_NAME_MAX)?.ifEmpty { null }
         s.events.emitTo(
             caller.profile.id,
-            ServerEvent.Cast(receiverId, itemId, playlistId, body.channelId, body.startMs, shuffle = body.shuffle == true, from = from),
+            ServerEvent.Cast(
+                receiverId,
+                itemId,
+                playlistId,
+                body.channelId,
+                body.startMs,
+                shuffle = body.shuffle == true,
+                audioIndex = body.audioIndex,
+                subtitleIndex = body.subtitleIndex,
+                from = from,
+            ),
         )
         return MockResponse.Builder().code(202).build()
     }
@@ -567,6 +633,7 @@ internal class PlayRoutes(private val s: State) {
             report.audioIndex?.takeIf { index -> tracks.audio.any { it.index == index } }?.let { session.audioIndex = it }
             report.subtitleIndex?.takeIf { index -> index == PlayingSession.SUBTITLES_OFF || tracks.subtitles.any { it.index == index } }
                 ?.let { session.subtitleIndex = it }
+            report.quality?.takeIf { id -> qualitiesOf(session.fileId).any { it.id == id } }?.let { session.quality = it }
         }
         val done = duration > 0 && report.positionMs >= duration * 9 / 10
         val before = caller.profile.state(item.id)
@@ -665,6 +732,22 @@ internal class PlayRoutes(private val s: State) {
 
         /** What the server keeps of a device's name. */
         const val DEVICE_NAME_MAX = 64
+
+        /** A Quality menu's transcodes, in its order: id, label, kbps and lines (apps/server/src/playback.rs, MENU). */
+        private class MenuEntry(val id: String, val label: String, val kbps: Int, val lines: Int)
+
+        private val QUALITY_MENU = listOf(
+            MenuEntry("30m", "30 Mbps 4K", 30_000, 2160),
+            MenuEntry("15m", "15 Mbps 4K", 15_000, 2160),
+            MenuEntry("20m", "20 Mbps 1080p", 20_000, 1080),
+            MenuEntry("12m", "12 Mbps 1080p", 12_000, 1080),
+            MenuEntry("8m", "8 Mbps 1080p", 8_000, 1080),
+            MenuEntry("4m", "4 Mbps 720p", 4_000, 720),
+            MenuEntry("2m", "2 Mbps 480p", 2_000, 480),
+        )
+
+        /** What a remote casts with tracks: a title of one file's worth. */
+        private val WITH_TRACKS = setOf(ItemKind.Movie, ItemKind.Episode)
 
         /** What a remote casts from the library: what plays itself, a show or a season, an album or an artist. */
         private val CASTABLE = setOf(ItemKind.Movie, ItemKind.Episode, ItemKind.Show, ItemKind.Season, ItemKind.Track, ItemKind.Album, ItemKind.Artist)

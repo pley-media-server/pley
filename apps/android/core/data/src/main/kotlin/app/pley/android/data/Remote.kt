@@ -90,7 +90,8 @@ data class OtherDevice(
  * like then ([before]), and when, by the remote's clock ([sentAt]).
  * [target]: where it should be once the player acted, for a seek, a skip
  * and a previous that starts the title over; [streamIndex]: the track an
- * audio or subtitle command picked.
+ * audio or subtitle command picked; [quality]: the quality a quality
+ * command picked.
  */
 data class SentCommand(
     val command: Control,
@@ -98,6 +99,7 @@ data class SentCommand(
     val sentAt: Long,
     val target: Long? = null,
     val streamIndex: Int? = null,
+    val quality: String? = null,
 )
 
 /**
@@ -164,8 +166,8 @@ interface RemoteRepository {
          * Whether the list shows the player acted on [sent], by [now]
          * (the remote's clock), as the web's remote tells (lib/remote.ts):
          * it is gone (next and previous end a session to start the
-         * next), plays something else, says it plays the track picked,
-         * changed state, or, for a seek, a skip or a previous on the same
+         * next), plays something else, says it plays the track or the
+         * quality picked, changed state, or, for a seek, a skip or a previous on the same
          * title, reported since from somewhere new or from where it was
          * sent to. Server times are only compared with server times, and
          * this device's with its own.
@@ -174,10 +176,12 @@ interface RemoteRepository {
             val before = sent.before
             if (current == null) return true
             if (current.session.item?.id != before.session.item?.id || current.session.channel?.id != before.session.channel?.id) return true
-            // A track is answered by the player saying it plays it; a session started for it says so as it starts.
+            // A track or a quality is answered by the player saying it plays it; a session started for it says so as it
+            // starts.
             when (sent.command) {
                 Control.Audio -> return current.session.audioIndex == sent.streamIndex
                 Control.Subtitles -> return current.session.subtitleIndex == sent.streamIndex
+                Control.Quality -> return current.session.quality == sent.quality
                 else -> Unit
             }
             if (current.session.state != before.session.state) return true

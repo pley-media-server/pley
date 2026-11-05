@@ -66,6 +66,11 @@ class ServerEventTest {
             ServerEvent.PlayerCommand("s4", Control.Subtitles, streamIndex = -1),
             ServerEvent.parse("""{"type":"player_command","session_id":"s4","command":"subtitles","stream_index":-1}"""),
         )
+        // A quality names the menu's entry.
+        assertEquals(
+            ServerEvent.PlayerCommand("s4", Control.Quality, quality = "8m"),
+            ServerEvent.parse("""{"type":"player_command","session_id":"s4","command":"quality","position_ms":null,"offset_ms":null,"stream_index":null,"quality":"8m"}"""),
+        )
     }
 
     @Test
@@ -82,6 +87,11 @@ class ServerEventTest {
         )
         val channel = ServerEvent.Cast("tv-1", channelId = 1)
         assertEquals(channel, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), channel)))
+        // The tracks the remote's page picked; subtitles off is -1.
+        assertEquals(
+            ServerEvent.Cast("tv-1", itemId = 204, audioIndex = 2, subtitleIndex = -1),
+            ServerEvent.parse("""{"type":"cast","receiver_id":"tv-1","item_id":204,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":null}"""),
+        )
     }
 
     @Test

@@ -86,6 +86,8 @@ internal class PlaySession(
     /** The audio and the subtitles it plays (`-1`: none), as its player last said, else as it started; `null`: not known. */
     @Volatile var audioIndex: Int? = null,
     @Volatile var subtitleIndex: Int? = null,
+    /** Its Quality menu's pick by id, as its player last said; `null` until it does. */
+    @Volatile var quality: String? = null,
 )
 
 /** A session the server stopped, and why. */
