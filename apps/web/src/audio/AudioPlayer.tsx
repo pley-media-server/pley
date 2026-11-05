@@ -54,6 +54,9 @@ const AudioContext = createContext<AudioPlayerApi | null>(null);
 const AudioTimeContext = createContext<AudioTime>({ position: 0, duration: 0, buffered: 0 });
 
 const PROGRESS_INTERVAL = 10_000;
+// While paused, a report now and then keeps the session listed: the server
+// counts a player it hasn't heard from in 90 s as gone, and remotes drop it.
+const PAUSED_HEARTBEAT = 30_000;
 
 /** The remote's commands music obeys. */
 const MUSIC_CONTROLS: Control[] = ["play", "pause", "seek", "skip", "next", "previous"];
@@ -415,20 +418,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [qc, goTo, restartAt, recreateUnlessStopped, indexRef, queueRef]);
 
-  // Periodic progress while playing. One answered 410 was stopped on the
-  // server, heard without the event stream (for a direct play, the only
-  // request that can tell).
+  // Periodic progress while playing, and now and then while paused. One
+  // answered 410 was stopped on the server, heard without the event stream
+  // (for a direct play, the only request that can tell).
   useEffect(() => {
-    if (!playing) return;
     const timer = window.setInterval(() => {
       const s = sessionRef.current;
-      if (!s) return;
+      if (!s || (!playing && audioRef.current?.ended)) return;
       void reportProgress(
         s.itemId,
         {
           position_ms: s.positionMs,
           duration_ms: s.durationMs || undefined,
-          state: "playing",
+          state: playing ? "playing" : "paused",
           session_id: s.sessionId,
         },
         false,
@@ -436,7 +438,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           if (sessionRef.current === s) stopPlayback({ message: null, byAdmin: null });
         },
       );
-    }, PROGRESS_INTERVAL);
+    }, playing ? PROGRESS_INTERVAL : PAUSED_HEARTBEAT);
     return () => window.clearInterval(timer);
   }, [playing, stopPlayback]);
 
