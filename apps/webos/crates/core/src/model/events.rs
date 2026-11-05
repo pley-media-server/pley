@@ -74,7 +74,9 @@ pub enum ServerEvent {
     /// Live TV channel; `start_ms` where a title starts, `shuffle` a playlist, an album or an
     /// artist shuffled; a movie or an episode with the tracks picked on the remote's page,
     /// `audio_index` and `subtitle_index` (-1: none), when it sent them. `from` names the remote's
-    /// device, when the server could.
+    /// device, when the server could. Cast from another profile of the household, it comes to the
+    /// streams of the profile the device is on with the remote's profile, `profile_id`, and the
+    /// ticket the device switches to it with first, `switch_ticket`.
     Cast {
         receiver_id: String,
         item_id: Option<i64>,
@@ -85,6 +87,8 @@ pub enum ServerEvent {
         audio_index: Option<i64>,
         subtitle_index: Option<i64>,
         from: Option<String>,
+        profile_id: Option<i64>,
+        switch_ticket: Option<SwitchTicket>,
     },
     /// Live TV's sources, channels or guide changed.
     LiveChannelsChanged,
@@ -147,6 +151,23 @@ pub enum ServerEvent {
     Other(String),
 }
 
+/// A cast's ticket to switch to the remote's profile (docs/API.md, "Casting"): good once, for a
+/// minute, for this device. Like the tokens it stands for, it never reaches logs.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SwitchTicket(pub String);
+
+impl SwitchTicket {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for SwitchTicket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SwitchTicket(..)")
+    }
+}
+
 #[derive(Deserialize)]
 struct Raw {
     #[serde(rename = "type", default, deserialize_with = "nd")]
@@ -201,6 +222,10 @@ struct Raw {
     shuffle: bool,
     #[serde(default)]
     from: Option<String>,
+    #[serde(default)]
+    profile_id: Option<i64>,
+    #[serde(default)]
+    switch_ticket: Option<String>,
     #[serde(default)]
     request_id: Option<i64>,
     #[serde(rename = "kind", default)]
@@ -268,6 +293,8 @@ impl<'de> Deserialize<'de> for ServerEvent {
                 audio_index: r.audio_index,
                 subtitle_index: r.subtitle_index,
                 from: r.from,
+                profile_id: r.profile_id,
+                switch_ticket: r.switch_ticket.filter(|t| !t.is_empty()).map(SwitchTicket),
             },
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,
             "live_tuners_changed" => ServerEvent::LiveTunersChanged,

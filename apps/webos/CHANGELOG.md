@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Someone on another profile of the household plays something on the TV
+  from their phone or browser: the TV switches to their profile first
+  (their own device asked for its PIN), then plays it. A cast that comes
+  too late to switch says so and plays nothing.
 - Your phone or browser changes the quality of the film or episode on
   the TV, as the player's Quality menu does (the pick is kept for the
   next ones), and shows which is picked. A film or episode sent from a

@@ -481,6 +481,33 @@ fn switching_profile_sends_the_pin_and_keeps_the_new_pair() {
 }
 
 #[test]
+fn a_casts_ticket_stands_for_the_pin_and_a_spent_one_is_refused() {
+    let server = token_server(|req, n| {
+        if field(req, "ticket").as_deref() == Some("t1") && field(req, "pin").is_none() {
+            tokens_answer(n as u32, "library play profiles")
+        } else {
+            Response::json(
+                400,
+                &json!({"error": "invalid_grant", "error_description": "this cast's switch has expired or was used: cast again", "reason": "ticket_spent"}),
+            )
+        }
+    });
+    let clock = FakeClock::new();
+    let (tokens, _) = tokens_with(&server, &clock, Some(stored(clock.now_ms() + 3_600_000, "library play profiles")));
+    let spent = tokens.switch_profile_with_ticket(4, "t0").unwrap_err();
+    assert_eq!(SwitchRefusal::of(&spent), SwitchRefusal::TicketSpent);
+    assert!(tokens.signed_in(), "a spent ticket isn't a spent sign-in");
+    assert_eq!(tokens.load().unwrap().access_token, "pley_at_0", "a refusal changes nothing");
+    tokens.switch_profile_with_ticket(4, "t1").unwrap();
+    assert_eq!(tokens.load().unwrap().refresh_token.as_deref(), Some("pley_rt_2"));
+    let req = server.fake.requests().last().cloned().unwrap();
+    assert_eq!(field(&req, "grant_type").as_deref(), Some(SWITCH_PROFILE_GRANT));
+    assert_eq!(field(&req, "profile").as_deref(), Some("4"));
+    assert_eq!(field(&req, "ticket").as_deref(), Some("t1"));
+    assert_eq!(field(&req, "refresh_token").as_deref(), Some("pley_rt_0"));
+}
+
+#[test]
 fn a_spent_refresh_token_in_a_switch_signs_out_and_reasons_are_worded() {
     let server = token_server(|_, _| oauth_error("invalid_grant"));
     let clock = FakeClock::new();
