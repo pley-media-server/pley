@@ -151,7 +151,7 @@ internal fun RequestCard(
             )
             val reason = request.reason?.trim()?.takeIf { it.isNotEmpty() && request.status == RequestStatus.Declined }
             if (reason != null) {
-                Text("“$reason”", style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = PleyColors.Muted)
+                Text(stringResource(R.string.requests_reason_quoted, reason), style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = PleyColors.Muted)
             }
             request.note?.takeIf { manage && it.isNotBlank() }?.let { note ->
                 Text(note, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted)

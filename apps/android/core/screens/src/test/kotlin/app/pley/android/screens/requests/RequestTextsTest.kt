@@ -1,14 +1,19 @@
 package app.pley.android.screens.requests
 
 import android.content.Context
+import android.content.res.Configuration
+import android.os.LocaleList
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.data.RequestNotice
 import app.pley.android.model.Asked
+import app.pley.android.model.DiscoverSeason
 import app.pley.android.model.DownloadState
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
+import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
+import java.io.IOException
 import java.time.ZoneOffset
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -20,14 +25,19 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class RequestTextsTest {
     private val now = 1_761_825_600L
-    private val texts = RequestTexts(
-        ApplicationProvider.getApplicationContext<Context>().resources,
-        now = { now },
-        locale = Locale.US,
-        zone = ZoneOffset.UTC,
-    )
+    private val english = ApplicationProvider.getApplicationContext<Context>()
+    private val texts = RequestTexts(english.resources, now = { now }, locale = Locale.US, zone = ZoneOffset.UTC)
+
+    /** Requests' words in [tag]'s language, dates written in it as the screens' resources say. */
+    private fun textsIn(tag: String): RequestTexts {
+        val context = english.createConfigurationContext(Configuration().apply { setLocales(LocaleList(Locale.forLanguageTag(tag))) })
+        return RequestTexts(context.resources, now = { now }, zone = ZoneOffset.UTC)
+    }
 
     private val day = 86_400L
+
+    /** French puts a no-break space before : ; ? ! and %, and inside « ». */
+    private val nb = ' '
 
     @Test
     fun seasonsAreNamedAsTheWebNamesThem() {
@@ -135,5 +145,71 @@ class RequestTextsTest {
         assertEquals("TMDB refused this server's key", texts.problem(RequestProblem.TmdbKey, summary))
         assertEquals("An administrator needs to check it.", texts.problemBody(RequestProblem.TmdbKey, summary.copy(manage = false)))
         assertEquals("Sign in again to ask for movies and shows", texts.problem(RequestProblem.SignInAgain(app.pley.android.model.RequestScope.Requests), null))
+        assertEquals("The connection to the server failed.", texts.problem(RequestProblem.Other(IOException("unexpected end of stream")), null))
+    }
+
+    @Test
+    fun theSpecialsAloneHaveTheirOwnWords() {
+        val specials = RequestNotice.Ready(11, 47, "Severance", TitleKind.Show, 201, listOf(0), complete = false)
+        assertEquals("Specials of “Severance” is ready to watch.", texts.notice(specials))
+        assertEquals("Les épisodes spéciaux de «${nb}Severance$nb» sont prêts à regarder.", textsIn("fr").notice(specials))
+        assertEquals("Los especiales de «Severance» ya están listos para ver.", textsIn("es").notice(specials))
+    }
+
+    @Test
+    fun ratingsAreWrittenInTheLanguageShown() {
+        assertEquals("7.4", texts.rating(7.44))
+        assertEquals("7,4", textsIn("fr").rating(7.44))
+        assertEquals("7,4", textsIn("es").rating(7.44))
+    }
+
+    @Test
+    fun frenchSaysTheSame() {
+        val fr = textsIn("fr")
+        assertEquals("Saisons 1–3, 5", fr.seasons(listOf(5, 3, 2, 1)))
+        assertEquals("Saison 3 et épisodes spéciaux", fr.seasons(listOf(3, 0)))
+        assertEquals("Téléchargement 42$nb% · dans 20 min", fr.pill(StagePill.Downloading(0.42f, now + 20 * 60, DownloadState.Downloading)))
+        // A day in the locale's own order.
+        assertEquals("Sortie$nb: 4 nov.", fr.pill(StagePill.Waiting(show = false, at = 1_762_257_600)))
+        assertEquals("Nouvel essai dans 5 min.", fr.pillLine(StagePill.NotSentYet(now + 300)))
+        assertEquals("dans 1 heure", fr.until(now + 3_600))
+        assertEquals("dans 12 jours", fr.until(now + 12 * day))
+        assertEquals(
+            listOf("Vous pouvez encore demander 2 films et 5 saisons.", "Limites$nb: 3 films et 10 saisons sur 7 jours."),
+            fr.allowance(Allowance(2, 5, 3, 10, null, null)),
+        )
+        assertEquals("Vous pouvez encore demander 1 film.", fr.allowance(Allowance(1, null, 3, null, null, null), TitleKind.Movie).first())
+        assertEquals("Refusé$nb: «${nb}Not for us$nb». Vous pourrez redemander dans 12 jours.", fr.declined(MainAction.Declined("Not for us", now + 12 * day)))
+        assertEquals("Demander 1 saison", fr.pickerButton(SeasonPicker(emptyList(), setOf(3), null)))
+        assertEquals("Demander 3 saisons", fr.pickerButton(SeasonPicker(emptyList(), setOf(3, 4, 5), null)))
+        assertEquals("4 sur 10 épisodes dans la bibliothèque", fr.seasonState(DiscoverSeason(1, episodes = 10, inLibrary = 4, state = SeasonState.Partial)))
+        assertEquals("1 épisode", fr.seasonState(DiscoverSeason(1, episodes = 1, state = SeasonState.Missing)))
+        assertEquals("3 demandes vous attendent, 1 n’a pas pu être envoyée", fr.count(RequestsEntry(requests = true, manage = true, badge = 3, failed = 1)))
+        assertEquals("Saison 2 de «${nb}Severance$nb» est prête à regarder.", fr.notice(RequestNotice.Ready(2, 47, "Severance", TitleKind.Show, 201, listOf(2), complete = false)))
+        assertEquals("Kit a demandé «${nb}Arcane$nb» (Saisons 1–3).", fr.notice(RequestNotice.Asked(7, 49, "Arcane", "Kit", listOf(1, 2, 3))))
+        assertEquals("Vous pouvez demander au plus 5 saisons sur 7 jours$nb: choisissez-en moins.", fr.problem(RequestProblem.Limit(null), RequestSummary(enabled = true, seasonsLimit = 5)))
+        // An error's words are the app's, in the language shown.
+        assertEquals("La connexion au serveur a échoué.", fr.problem(RequestProblem.Other(IOException("unexpected end of stream")), null))
+    }
+
+    @Test
+    fun spanishSaysTheSame() {
+        val es = textsIn("es")
+        assertEquals("Temporadas 1–2 y especiales", es.seasons(listOf(0, 1, 2)))
+        assertEquals("Descargando 42$nb%", es.pill(StagePill.Downloading(0.42f, null, DownloadState.Downloading)))
+        assertEquals("Emisión: 4 nov", es.pill(StagePill.Waiting(show = true, at = 1_762_257_600)))
+        assertEquals("en 3 horas", es.until(now + 3 * 3_600))
+        assertEquals("mañana", es.until(now + day))
+        assertEquals(
+            listOf("Puedes solicitar 1 película más y 5 temporadas más.", "Límites: 3 películas y 10 temporadas cada 7 días."),
+            es.allowance(Allowance(1, 5, 3, 10, null, null)),
+        )
+        assertEquals("Solicitar 1 temporada", es.pickerButton(SeasonPicker(emptyList(), setOf(3), null)))
+        assertEquals("4 de 10 episodios en la biblioteca", es.seasonState(DiscoverSeason(1, episodes = 10, inLibrary = 4, state = SeasonState.Partial)))
+        assertEquals("1 de tus solicitudes tiene novedades", es.count(RequestsEntry(requests = true, badge = 1)))
+        assertEquals("¿Retirar tu solicitud de «Arrival»?", es.confirm(CardAction.Withdraw, "Arrival"))
+        assertEquals("No se pudo enviar «Arcane» a Sonarr.", es.notice(RequestNotice.Failed(9, 49, "Arcane", TitleKind.Show, null)))
+        assertEquals("Podrás volver a solicitarlo en 12 días", es.problem(RequestProblem.Declined(now + 12 * day), null))
+        assertEquals("Falló la conexión con el servidor.", es.problem(RequestProblem.Other(IOException("unexpected end of stream")), null))
     }
 }

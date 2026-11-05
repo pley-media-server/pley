@@ -49,6 +49,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverTitle
@@ -79,7 +80,6 @@ import app.pley.android.ui.tv.settings.hostPort
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
-import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 
 /*
@@ -90,11 +90,12 @@ import kotlinx.coroutines.flow.Flow
  * a screen tells once.
  */
 
-/** Requests' words, from this screen's resources. */
+/** Requests' words, from this screen's resources; made again when the language shown changes, for what remembers them. */
 @Composable
 internal fun rememberRequestTexts(): RequestTexts {
     val resources = LocalResources.current
-    return remember(resources) { RequestTexts(resources) }
+    val locale = shownLocale()
+    return remember(resources, locale) { RequestTexts(resources) }
 }
 
 /** A title's key in rows and grids: a movie and a show may share a TMDB id. */
@@ -136,18 +137,18 @@ internal fun requestTile(request: MediaRequest, origin: String, texts: RequestTe
  * whether it's a movie or a show), its certification boxed, its runtime
  * or how many seasons, TMDB's rating after a star.
  */
-internal fun titleMeta(detail: DiscoverDetail, seasons: String?, kind: String): List<MetaPart> = buildList {
-    add(MetaPart.Text(detail.year?.toString() ?: kind))
+internal fun titleMeta(detail: DiscoverDetail, seasons: String?, texts: RequestTexts): List<MetaPart> = buildList {
+    add(MetaPart.Text(detail.year?.toString() ?: texts.kind(detail.kind)))
     detail.certification?.takeIf { it.isNotBlank() }?.let { add(MetaPart.ContentRating(it)) }
     val length = if (detail.kind == TitleKind.Show) seasons else detail.runtimeMinutes?.takeIf { it > 0 }?.let { formatRuntime(it * 60_000L) }
     length?.takeIf { it.isNotEmpty() }?.let { add(MetaPart.Text(it)) }
-    detail.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(String.format(Locale.ROOT, "%.1f", it))) }
+    detail.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(texts.rating(it))) }
 }
 
 /** A list title's facts, before its page is read: its year and kind, TMDB's rating. */
 internal fun titleMeta(title: DiscoverTitle, texts: RequestTexts): List<MetaPart> = buildList {
     add(MetaPart.Text(titleLine(title.year, title.kind, texts)))
-    title.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(String.format(Locale.ROOT, "%.1f", it))) }
+    title.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(texts.rating(it))) }
 }
 
 /** A stage's colours: its words and dot, and the tint behind them. */

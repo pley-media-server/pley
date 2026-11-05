@@ -305,7 +305,6 @@ private fun Hero(
     val detail = page.detail
     val seasons = detail.seasons.orEmpty().count { it.number > 0 }
     val seasonsLine = if (detail.kind == TitleKind.Show && seasons > 0) pluralStringResource(ScreensR.plurals.requests_seasons, seasons, seasons) else null
-    val kind = texts.kind(detail.kind)
     Column(
         modifier
             .fillMaxWidth()
@@ -330,7 +329,7 @@ private fun Hero(
             )
         }
         Spacer(Modifier.height(12.dp))
-        TvMetaLine(remember(detail, seasonsLine, kind) { titleMeta(detail, seasonsLine, kind) })
+        TvMetaLine(remember(detail, seasonsLine, texts) { titleMeta(detail, seasonsLine, texts) })
         val facts = (listOfNotNull(detail.network?.takeIf { it.isNotBlank() }) + detail.genres).joinToString(" · ")
         if (facts.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
@@ -447,11 +446,10 @@ private fun seasonBadge(season: DiscoverSeason): TitleBadge? = when {
 private fun TitleInfo(detail: DiscoverDetail, texts: RequestTexts, modifier: Modifier = Modifier) {
     val seasons = detail.seasons.orEmpty().count { it.number > 0 }
     val seasonsLine = if (detail.kind == TitleKind.Show && seasons > 0) pluralStringResource(ScreensR.plurals.requests_seasons, seasons, seasons) else null
-    val kind = texts.kind(detail.kind)
     Column(modifier.padding(start = PleyTv.Gutter, top = 28.dp, end = TvSafeArea.Horizontal).width(TextColumn)) {
         BasicText(detail.title, style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(10.dp))
-        TvMetaLine(remember(detail, seasonsLine, kind) { titleMeta(detail, seasonsLine, kind) })
+        TvMetaLine(remember(detail, seasonsLine, texts) { titleMeta(detail, seasonsLine, texts) })
         if (detail.overview.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
             BasicText(detail.overview, style = PleyType.Tv.Body.copy(color = SummaryColor), maxLines = 2, overflow = TextOverflow.Ellipsis)

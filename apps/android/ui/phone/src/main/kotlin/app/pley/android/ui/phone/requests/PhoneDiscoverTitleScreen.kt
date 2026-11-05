@@ -90,7 +90,6 @@ import app.pley.android.ui.phone.kit.rowCardWidth
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.ui.phone.theme.WidthClass
-import java.util.Locale
 
 /**
  * A title found on TMDB, laid out as a
@@ -292,8 +291,7 @@ private fun TitleLines(detail: DiscoverDetail, texts: RequestTexts, large: Boole
     Spacer(Modifier.height(10.dp))
     val seasons = detail.seasons.orEmpty().count { it.number > 0 }
     val seasonsLine = if (detail.kind == TitleKind.Show && seasons > 0) pluralStringResource(R.plurals.requests_seasons, seasons, seasons) else null
-    val kind = texts.kind(detail.kind)
-    MetaLine(remember(detail, seasonsLine, kind) { metaOf(detail, seasonsLine, kind) })
+    MetaLine(remember(detail, seasonsLine, texts) { metaOf(detail, seasonsLine, texts) })
     if (detail.genres.isNotEmpty()) {
         Spacer(Modifier.height(6.dp))
         Text(detail.genres.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
@@ -306,12 +304,12 @@ private fun TitleLines(detail: DiscoverDetail, texts: RequestTexts, large: Boole
  * TMDB's rating after a star; without a year, whether it's a movie or a
  * show.
  */
-private fun metaOf(detail: DiscoverDetail, seasons: String?, kind: String): List<MetaPart> = buildList {
-    add(MetaPart.Text(detail.year?.toString() ?: kind))
+private fun metaOf(detail: DiscoverDetail, seasons: String?, texts: RequestTexts): List<MetaPart> = buildList {
+    add(MetaPart.Text(detail.year?.toString() ?: texts.kind(detail.kind)))
     detail.certification?.takeIf { it.isNotBlank() }?.let { add(MetaPart.ContentRating(it)) }
     val length = if (detail.kind == TitleKind.Show) seasons else detail.runtimeMinutes?.takeIf { it > 0 }?.let { formatRuntime(it * 60_000L) }
     length?.takeIf { it.isNotEmpty() }?.let { add(MetaPart.Text(it)) }
-    detail.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(String.format(Locale.ROOT, "%.1f", it))) }
+    detail.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(texts.rating(it))) }
 }
 
 @Composable
