@@ -2,7 +2,7 @@
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deviceFields } from "@/lib/castReceiver";
-import { ending } from "@/lib/progress";
+import { ending, reportsHeld } from "@/lib/progress";
 import { api, qs } from "./client";
 import type { Control, Id, Timestamp } from "./types";
 
@@ -549,8 +549,12 @@ export function streamUrl(channelId: Id, clientId: string): string {
   return `/api/live/channels/${channelId}/stream.ts${qs({ client_id: clientId })}`;
 }
 
-/** Stops watching (keepalive: also as the page goes away), as a profile switch waits for (`sessionsEnded`). */
+/**
+ * Stops watching (keepalive: also as the page goes away), as a profile
+ * switch waits for (`sessionsEnded`); dropped while it holds reports (`reportsHeld`).
+ */
 export function leaveChannel(sessionId: string, keepalive = false): Promise<void> {
+  if (reportsHeld()) return Promise.resolve();
   return ending(api.del<void>(`/api/live/sessions/${encodeURIComponent(sessionId)}`, { keepalive }).catch(() => undefined));
 }
 

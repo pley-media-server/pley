@@ -293,6 +293,95 @@ describe("CastReceiver", () => {
       expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
     });
 
+    it("drops the casts heard while what played ends, which would play as the profile it leaves", async () => {
+      let answer: (value: void) => void = () => undefined;
+      const answered = new Promise<void>((resolve) => (answer = resolve));
+      const requests = app(undefined, playUrl(5), {
+        "POST /api/items/5/progress": () => answered,
+        "DELETE /api/playback/s1": () => undefined,
+      });
+      await screen.findByText("Playing as Admin");
+      send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+      await waitFor(() => expect(requests.map((r) => r.path)).toContain("/api/items/5/progress"));
+
+      send(cast({ item_id: 9, profile_id: testUser.id }));
+      send(cast({ item_id: 9, profile_id: 2, switch_ticket: "t2" }));
+      await settle();
+      expect(requests.filter((r) => r.path.startsWith("/api/items/9"))).toHaveLength(0);
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/);
+
+      act(() => answer());
+      expect(await screen.findByText("Playing as Sam")).toBeInTheDocument();
+      expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
+      await settle();
+      expect(requests.filter((r) => r.path === "/api/auth/switch").map((r) => r.body)).toEqual([{ user_id: 2, ticket: "t1" }]);
+      expect(requests.filter((r) => r.path.startsWith("/api/items/9"))).toHaveLength(0);
+    });
+
+    it("drops every other cast until the switch is done, with one switch at a time, then takes casts as usual", async () => {
+      let answer: (value: void) => void = () => undefined;
+      const answered = new Promise<void>((resolve) => (answer = resolve));
+      const requests = app(() => answered.then(() => ({ user: sam })));
+      await screen.findByText("Signed in as Admin");
+      send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+      await waitFor(() => expect(requests.map((r) => r.path)).toContain("/api/auth/switch"));
+
+      send(cast({ item_id: 9, profile_id: testUser.id }));
+      send(cast({ item_id: 9, profile_id: 2, switch_ticket: "t2" }));
+      send(cast({ item_id: 9, profile_id: 3, switch_ticket: "t3" }));
+      await settle();
+      expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(1);
+      expect(requests.filter((r) => r.path.startsWith("/api/items/9"))).toHaveLength(0);
+
+      act(() => answer());
+      await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(playUrl(5, { startMs: 90_000 })));
+      expect(await screen.findByText("Playing as Sam")).toBeInTheDocument();
+      expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
+      expect(requests.filter((r) => r.path === "/api/auth/switch").map((r) => r.body)).toEqual([{ user_id: 2, ticket: "t1" }]);
+
+      // Switched, a cast from the profile it is on now plays as any would.
+      send(cast({ item_id: 9, profile_id: sam.id }));
+      expect(await screen.findByText("Nothing to play yet")).toBeInTheDocument();
+      expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(1);
+    });
+
+    it("switches after 5 seconds without the last reports, and drops what would go after, as the new profile", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let answer: (value: void) => void = () => undefined;
+      const unanswered = new Promise<void>((resolve) => (answer = resolve));
+      try {
+        const requests = app(
+          () => {
+            // A report a player sends while the switch is under way: held back, not sent.
+            void endSession(5, { session_id: "s2", duration_ms: 600_000 }, 1_000);
+            return { user: sam };
+          },
+          playUrl(5),
+          {
+            "POST /api/items/5/progress": () => unanswered,
+            "DELETE /api/playback/s1": () => unanswered,
+            "DELETE /api/playback/s2": () => undefined,
+          },
+        );
+        await screen.findByText("Playing as Admin");
+        send(cast({ item_id: 5, profile_id: 2, switch_ticket: "t1" }));
+        await waitFor(() => expect(requests.map((r) => r.path)).toContain("/api/items/5/progress"));
+
+        await act(() => vi.advanceTimersByTimeAsync(4_500));
+        expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(0);
+
+        await act(() => vi.advanceTimersByTimeAsync(600));
+        expect(await screen.findByText("Playing as Sam")).toBeInTheDocument();
+        expect(await screen.findByText("Playing from Phone")).toBeInTheDocument();
+        expect(requests.filter((r) => r.path === "/api/auth/switch")).toHaveLength(1);
+        const late = requests.filter((r) => r.path === "/api/playback/s2" || (r.body as { session_id?: string } | undefined)?.session_id === "s2");
+        expect(late).toEqual([]);
+      } finally {
+        act(() => answer());
+        vi.useRealTimers();
+      }
+    });
+
     it("leaves one it has no ticket for, and plays one from the profile it is on without switching", async () => {
       const requests = app();
       await screen.findByText("Signed in as Admin");
