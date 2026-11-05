@@ -177,6 +177,8 @@ pub enum SwitchRefusal {
     CantSwitch,
     /// An older server that can't check a PIN: the person goes through.
     CantCheckPin,
+    /// A cast's switch ticket that expired, was spent, or isn't this TV's.
+    TicketSpent,
     Unreachable(String),
     SignedOut,
     /// Anything else, as a sentence.
@@ -199,6 +201,7 @@ impl SwitchRefusal {
                     (_, Some("pin_locked")) => SwitchRefusal::PinLocked,
                     (_, Some("browser")) => SwitchRefusal::Browser,
                     (_, Some("not_allowed")) => SwitchRefusal::NotAllowed,
+                    (_, Some("ticket_spent")) => SwitchRefusal::TicketSpent,
                     (Some("unauthorized_client"), _) => SwitchRefusal::CantSwitch,
                     (Some("invalid_request"), None) => SwitchRefusal::CantCheckPin,
                     _ if *status >= 500 => SwitchRefusal::Other("The server refused: try again.".into()),
@@ -222,6 +225,7 @@ impl SwitchRefusal {
             SwitchRefusal::NotAllowed => "You can't switch to this profile.".into(),
             SwitchRefusal::CantSwitch => "This sign-in can't switch profiles: sign in again to allow it.".into(),
             SwitchRefusal::CantCheckPin => String::new(),
+            SwitchRefusal::TicketSpent => "This cast can't switch profiles any more: cast it again.".into(),
             SwitchRefusal::Unreachable(reason) => format!("Can't reach your server: {reason}."),
             SwitchRefusal::SignedOut => "You were signed out: sign in again.".into(),
             SwitchRefusal::Other(m) => m.clone(),
@@ -497,6 +501,19 @@ impl Tokens {
     /// switch-profile grant), or checks the PIN of the one it acts as. A
     /// refusal changes nothing, unless the refresh token itself is spent.
     pub fn switch_profile(&self, profile: i64, pin: Option<&str>) -> Result<(), AuthError> {
+        self.switch(profile, pin.map(|pin| ("pin", pin)))
+    }
+
+    /// Moves the sign-in to the profile of a remote that cast to this TV,
+    /// with the cast's switch ticket in place of a PIN (docs/API.md,
+    /// "Casting"). A ticket expired, spent or another device's is refused
+    /// with `ticket_spent` ([`SwitchRefusal::TicketSpent`]).
+    pub fn switch_profile_with_ticket(&self, profile: i64, ticket: &str) -> Result<(), AuthError> {
+        self.switch(profile, Some(("ticket", ticket)))
+    }
+
+    /// The switch-profile grant to `profile`, with what stands for its PIN.
+    fn switch(&self, profile: i64, proof: Option<(&str, &str)>) -> Result<(), AuthError> {
         let _one = lock(&self.serial);
         let tokens = self.load().ok_or(AuthError::SignedOut(SignOutReason::Ended))?;
         let Some(refresh) = tokens.refresh_token.clone() else { return Err(self.end(SignOutReason::Ended)) };
@@ -507,8 +524,8 @@ impl Tokens {
             ("refresh_token", refresh.as_str()),
             ("profile", profile.as_str()),
         ];
-        if let Some(pin) = pin {
-            fields.push(("pin", pin));
+        if let Some(field) = proof {
+            fields.push(field);
         }
         self.proved(&tokens, true)?;
         let answer = match post_form(&self.http, &tokens.token_endpoint, &fields) {

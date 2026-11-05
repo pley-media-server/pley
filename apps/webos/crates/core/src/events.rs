@@ -358,6 +358,7 @@ mod tests {
 
     use super::*;
     use crate::http::{FakeTransport, Http, Response, TokenSource};
+    use crate::model::SwitchTicket;
 
     #[test]
     fn events_are_split_on_blank_lines_whatever_the_chunks() {
@@ -664,6 +665,8 @@ mod tests {
                 audio_index: Some(2),
                 subtitle_index: Some(-1),
                 from: Some("Firefox on Linux".into()),
+                profile_id: None,
+                switch_ticket: None,
             })
         );
         assert_eq!(e.map(|e| e.kind().to_string()), Some("cast".into()));
@@ -685,5 +688,13 @@ mod tests {
                 ..
             })
         ));
+        // From another profile's remote: its profile, and the ticket to switch to it with, which
+        // never shows in logs.
+        let switch = parse_event(
+            r#"{"type":"cast","receiver_id":"webos-1","item_id":12,"from":null,"profile_id":4,"switch_ticket":"t1"}"#,
+        );
+        let Some(ServerEvent::Cast { profile_id, switch_ticket, .. }) = &switch else { panic!("{switch:?}") };
+        assert_eq!((*profile_id, switch_ticket.as_ref().map(SwitchTicket::as_str)), (Some(4), Some("t1")));
+        assert!(!format!("{switch:?}").contains("t1"));
     }
 }

@@ -69,7 +69,8 @@ pub enum ServerEvent {
     },
     /// The user's remote, on another device, sends receiver `receiver_id` one of a title, a
     /// playlist or a channel to play, a movie or an episode with the tracks picked on its page;
-    /// `from` names the remote's device.
+    /// `from` names the remote's device. From another profile's remote, it carries that profile,
+    /// `profile_id`, and the ticket the receiver switches to it with, `switch_ticket`.
     Cast {
         receiver_id: String,
         item_id: Option<i64>,
@@ -80,6 +81,8 @@ pub enum ServerEvent {
         audio_index: Option<i64>,
         subtitle_index: Option<i64>,
         from: Option<String>,
+        profile_id: Option<i64>,
+        switch_ticket: Option<String>,
     },
     LiveChannelsChanged,
     LiveTunersChanged,
@@ -133,11 +136,23 @@ impl ServerEvent {
                 audio_index,
                 subtitle_index,
                 from,
-            } => json!({
-                "type": "cast", "receiver_id": receiver_id, "item_id": item_id, "playlist_id": playlist_id,
-                "channel_id": channel_id, "start_ms": start_ms, "shuffle": shuffle,
-                "audio_index": audio_index, "subtitle_index": subtitle_index, "from": from,
-            }),
+                profile_id,
+                switch_ticket,
+            } => {
+                let mut cast = json!({
+                    "type": "cast", "receiver_id": receiver_id, "item_id": item_id, "playlist_id": playlist_id,
+                    "channel_id": channel_id, "start_ms": start_ms, "shuffle": shuffle,
+                    "audio_index": audio_index, "subtitle_index": subtitle_index, "from": from,
+                });
+                // Left out of a cast from the receiver's own profile, as the server does.
+                if let Some(profile) = profile_id {
+                    cast["profile_id"] = json!(profile);
+                }
+                if let Some(ticket) = switch_ticket {
+                    cast["switch_ticket"] = json!(ticket);
+                }
+                cast
+            }
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),
             ServerEvent::LiveTakenOver { session_id, channel_id, message } => json!({

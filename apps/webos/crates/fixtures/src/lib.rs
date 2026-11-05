@@ -287,6 +287,7 @@ impl FixtureServer {
             subtitle_asks: Default::default(),
             added_subtitles: Default::default(),
             casts_sent: Default::default(),
+            cast_tickets: Default::default(),
         };
         let libraries: Vec<(i64, i64)> = catalog.libraries.iter().map(|l| (l.id, l.item_count)).collect();
         let shared = Arc::new(Shared {
