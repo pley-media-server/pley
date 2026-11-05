@@ -50,7 +50,7 @@ private func tracksRig(_ request: PlayRequest = PlayRequest(itemId: 41), savedSu
     A line.
     """.utf8))
     let rig = try Rig(server: server, request: request, deviceName: "Living room")
-    rig.engine.audio =[EngineAudioOption(position: 0, language: "en"), EngineAudioOption(position: 1, language: "fr")]
+    rig.engine.audio = [EngineAudioOption(position: 0, language: "en"), EngineAudioOption(position: 1, language: "fr")]
     return rig
 }
 
