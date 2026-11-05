@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { LoaderCircle } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -29,11 +30,6 @@ export function subtitleSearchUnavailable(): "setup" | "older" | null {
 /** Forgets what the server said (tests). */
 export function forgetSubtitleSearch(): void {
   unavailable = null;
-}
-
-/** "1,234 downloads". */
-function downloads(n: number): string {
-  return `${n.toLocaleString("en")} download${n === 1 ? "" : "s"}`;
 }
 
 /** A language picker over the dark menu, the profile's language first when it has one. */
@@ -68,6 +64,7 @@ type Outcome =
  * file first; one picked is added on the server for everyone, and shows.
  */
 export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; onDone: () => void }) {
+  const { t } = useTranslation("player");
   const toast = useToast();
   const [language, setLanguage] = useState(sources.language || "eng");
   const [answer, setAnswer] = useState<{ language: string; outcome: Outcome } | null>(null);
@@ -99,7 +96,7 @@ export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; o
       },
       (err: unknown) => {
         setAdding(null);
-        toast.error(`These subtitles couldn't be added. ${errorMessage(err)}`);
+        toast.error(t("find.addFailed", { error: errorMessage(err) }));
       },
     );
   };
@@ -108,10 +105,10 @@ export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; o
   if (outcome?.kind === "setup" || outcome?.kind === "older") {
     return (
       <div className="px-4 py-2 text-sm text-white/80" role="status">
-        {outcome.kind === "setup" ? "Subtitle search isn't set up on this server." : "This server can't search for subtitles: it needs an update."}
+        {outcome.kind === "setup" ? t("find.notSetUp") : t("find.searchNeedsUpdate")}
         {outcome.kind === "setup" && sources.isAdmin ? (
           <Link to="/settings/server" className="mt-2 block font-semibold text-accent hover:underline" onClick={onDone}>
-            Set it up in Settings → Server
+            {t("find.setUp")}
           </Link>
         ) : null}
       </div>
@@ -120,20 +117,20 @@ export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; o
   return (
     <>
       <div className="px-4 pb-2 pt-1">
-        <LanguageSelect value={language} onChange={setLanguage} label="Subtitle language" />
+        <LanguageSelect value={language} onChange={setLanguage} label={t("find.language")} />
       </div>
       {!outcome ? (
         <div className="flex items-center gap-2 px-4 py-2 text-sm text-white/60" role="status">
           <LoaderCircle className="size-4 animate-spin" />
-          Searching…
+          {t("find.searching")}
         </div>
       ) : outcome.kind === "error" ? (
         <div className="px-4 py-2 text-sm text-white/80" role="alert">
-          {`Couldn't search for subtitles. ${outcome.message}`}
+          {t("find.searchFailed", { error: outcome.message })}
         </div>
       ) : !outcome.results.length ? (
         <div className="px-4 py-2 text-sm text-white/60" role="status">
-          {`No ${languageName(language) ?? language} subtitles found for this video.`}
+          {t("find.noResults", { language: languageName(language) ?? language })}
         </div>
       ) : (
         outcome.results.map((r) => (
@@ -153,11 +150,17 @@ export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; o
                 {r.name}
               </span>
               <span className="block truncate text-xs text-white/50">
-                {[languageName(r.language), r.format.toUpperCase(), r.hearing_impaired ? "SDH" : null, r.forced ? "Forced" : null, downloads(r.downloads)]
+                {[
+                  languageName(r.language),
+                  r.format.toUpperCase(),
+                  r.hearing_impaired ? t("find.sdh") : null,
+                  r.forced ? t("find.forced") : null,
+                  t("find.downloads", { count: r.downloads }),
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </span>
-              {r.matched === "hash" ? <span className="block text-xs text-accent">Made for this file</span> : null}
+              {r.matched === "hash" ? <span className="block text-xs text-accent">{t("find.madeForFile")}</span> : null}
             </span>
           </button>
         ))
@@ -172,6 +175,7 @@ export function FindSubtitles({ sources, onDone }: { sources: SubtitleSources; o
  * and shows.
  */
 export function AddSubtitleFile({ sources, file, onDone }: { sources: SubtitleSources; file: File; onDone: () => void }) {
+  const { t } = useTranslation(["player", "common"]);
   const toast = useToast();
   const [language, setLanguage] = useState(sources.language || "eng");
   const [sending, setSending] = useState(false);
@@ -187,8 +191,8 @@ export function AddSubtitleFile({ sources, file, onDone }: { sources: SubtitleSo
         setSending(false);
         toast.error(
           searchUnavailable(err) === "older"
-            ? "This server can't take subtitle files: it needs an update."
-            : `These subtitles couldn't be added. ${errorMessage(err)}`,
+            ? t("find.uploadNeedsUpdate")
+            : t("find.addFailed", { error: errorMessage(err) }),
         );
       },
     );
@@ -198,7 +202,7 @@ export function AddSubtitleFile({ sources, file, onDone }: { sources: SubtitleSo
       <div className="truncate text-sm" title={file.name}>
         {file.name}
       </div>
-      <LanguageSelect value={language} onChange={setLanguage} label="Language of the subtitles" />
+      <LanguageSelect value={language} onChange={setLanguage} label={t("find.fileLanguage")} />
       <button
         type="button"
         disabled={sending}
@@ -206,7 +210,7 @@ export function AddSubtitleFile({ sources, file, onDone }: { sources: SubtitleSo
         className="flex h-8 w-full items-center justify-center gap-2 rounded-md bg-accent text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-hover disabled:opacity-60"
       >
         {sending ? <LoaderCircle className="size-4 animate-spin" /> : null}
-        {sending ? "Adding…" : "Add"}
+        {sending ? t("find.adding") : t("common:actions.add")}
       </button>
     </div>
   );

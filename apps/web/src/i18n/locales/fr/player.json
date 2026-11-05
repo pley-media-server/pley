@@ -1,1 +1,198 @@
-{}
+{
+  "controls": {
+    "pause": "Pause",
+    "mute": "Couper le son",
+    "unmute": "Rétablir le son",
+    "volume": "Volume",
+    "seek": "Position de lecture",
+    "seekValue": "{{time}} sur {{duration}}"
+  },
+  "video": {
+    "nextEpisode": "Épisode suivant",
+    "fullscreen": "Plein écran",
+    "exitFullscreen": "Quitter le plein écran",
+    "fullscreenShortcut": "Plein écran (f)",
+    "speed": "Vitesse : {{speed}}",
+    "subtitlesShown": "Sous-titres : {{track}}",
+    "subtitlesOff": "Sous-titres désactivés",
+    "subtitlesAdded": "Sous-titres ajoutés : {{track}}",
+    "subtitlesDeleted": "Sous-titres supprimés",
+    "subtitlesNotDeleted": "Impossible de supprimer ces sous-titres. {{error}}",
+    "subtitlesNotLoaded": "Impossible de charger ces sous-titres.",
+    "lastInQueue": "C’est le dernier de la liste",
+    "lastEpisode": "C’est le dernier épisode",
+    "qualityLowered": "Qualité réduite à {{quality}}",
+    "lowered": {
+      "network": "Réduite pour votre connexion",
+      "device": "Réduite pour cet appareil"
+    },
+    "originalNotSmooth": "L’original n’était pas fluide dans ce navigateur.",
+    "originalFailed": "Ce navigateur n’a pas pu lire le fichier original.",
+    "sleepEnd": {
+      "episode": "Fin de cet épisode",
+      "movie": "Fin de ce film",
+      "video": "Fin de cette vidéo"
+    },
+    "stoppedElsewhere": "La lecture a été arrêtée depuis un autre appareil",
+    "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur",
+    "unreachable": "Impossible de joindre votre serveur",
+    "reachHint": "Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.",
+    "errorTitle": "Erreur de lecture",
+    "errors": {
+      "noHls": "Ce navigateur ne peut pas lire les flux HLS.",
+      "failed": "La lecture a échoué ({{details}}).",
+      "cantPlay": "Cette vidéo ne peut pas être lue dans votre navigateur.",
+      "sameSpot": "Cette vidéo ne se lit pas dans ce navigateur : elle s’arrête chaque fois au même endroit.",
+      "stalled": "La lecture s’est arrêtée et n’a pas pu reprendre."
+    }
+  },
+  "page": {
+    "goBack": "Retour",
+    "cantPlay": "Impossible de lire cet élément",
+    "nothingToPlay": "Rien à lire",
+    "noFiles": "Cet élément n’a aucun fichier multimédia."
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automatique"
+  },
+  "speed": {
+    "normal": "Normale"
+  },
+  "skip": {
+    "intro": "Passer l’intro",
+    "credits": "Passer le générique"
+  },
+  "upNext": {
+    "title": "À suivre",
+    "episode": "À suivre · {{episode}}",
+    "playNow": "Lire maintenant",
+    "cancel": "Annuler la lecture automatique"
+  },
+  "sleep": {
+    "pausingIn": "Mise en pause dans {{seconds}} s",
+    "keepWatching": "Continuer à regarder",
+    "minutes_one": "{{count}} minute",
+    "minutes_many": "{{count}} de minutes",
+    "minutes_other": "{{count}} minutes",
+    "minutesShort": "{{minutes}} min"
+  },
+  "chapters": {
+    "title": "Chapitres",
+    "numbered": "Chapitre {{number}}"
+  },
+  "details": {
+    "method": {
+      "direct": "Lecture directe",
+      "remux": "Flux direct",
+      "transcode": "Transcodage"
+    },
+    "audioTranscoding": "Audio transcodé",
+    "pipeline": {
+      "gpu": "GPU",
+      "hybrid": "GPU et CPU",
+      "cpu": "CPU",
+      "copy": "copie"
+    },
+    "toneMapped": "SDR (mappage tonal avec {{method}})",
+    "video": "Vidéo",
+    "audio": "Audio",
+    "bitrate": "Débit",
+    "encoder": "Encodeur",
+    "shownAs": "Affiché en",
+    "subtitles": "Sous-titres",
+    "burnedIn": "Incrustés",
+    "speed": "Vitesse",
+    "realTime": "{{speed}}× temps réel",
+    "ready": "{{seconds}} s d’avance"
+  },
+  "settings": {
+    "label": "Paramètres de lecture",
+    "panel": {
+      "quality": "Qualité",
+      "audio": "Audio",
+      "subtitles": "Sous-titres",
+      "find": "Trouver des sous-titres",
+      "upload": "Ajouter un fichier de sous-titres",
+      "style": "Style des sous-titres",
+      "speed": "Vitesse",
+      "sleep": "Minuteur de veille",
+      "details": "Détails de lecture"
+    },
+    "defaultAudio": "Par défaut",
+    "subtitlesOff": "Désactivés",
+    "automaticNow": "Actuellement {{quality}}",
+    "automaticHint": "S’adapte aux conditions",
+    "fileTooBig": "Les fichiers de sous-titres ne doivent pas dépasser 2 Mo.",
+    "added": "Ajoutés",
+    "deleteTrack": "Supprimer {{track}}",
+    "deleteForEveryone": "Supprimer pour tout le monde ?",
+    "keep": "Garder",
+    "deleteSubtitles": "Supprimer ces sous-titres",
+    "searchNotSetUp": "La recherche de sous-titres n’est pas configurée",
+    "findSubtitles": "Trouver des sous-titres…",
+    "addSubtitleFile": "Ajouter un fichier de sous-titres…",
+    "timing": "Synchronisation",
+    "earlier": "Afficher les sous-titres plus tôt",
+    "later": "Afficher les sous-titres plus tard",
+    "offset": "{{value}} s",
+    "style": {
+      "size": "Taille",
+      "background": "Fond",
+      "font": "Police",
+      "position": "Position"
+    },
+    "sizes": {
+      "small": "Petite",
+      "normal": "Normale",
+      "large": "Grande",
+      "huge": "Très grande"
+    },
+    "backgrounds": {
+      "none": "Aucun",
+      "box": "Encadré sombre"
+    },
+    "fonts": {
+      "sans": "Par défaut",
+      "serif": "Serif",
+      "mono": "Chasse fixe",
+      "casual": "Informelle"
+    },
+    "positions": {
+      "bottom": "En bas",
+      "raised": "Un peu plus haut",
+      "higher": "Plus haut",
+      "highest": "Encore plus haut"
+    }
+  },
+  "find": {
+    "notSetUp": "La recherche de sous-titres n’est pas configurée sur ce serveur.",
+    "searchNeedsUpdate": "Ce serveur ne peut pas rechercher de sous-titres : il doit être mis à jour.",
+    "setUp": "Configurez-la dans Paramètres → Serveur",
+    "language": "Langue des sous-titres",
+    "fileLanguage": "Langue des sous-titres",
+    "searching": "Recherche…",
+    "searchFailed": "Impossible de rechercher des sous-titres. {{error}}",
+    "noResults": "Aucun sous-titre en {{language}} trouvé pour cette vidéo.",
+    "sdh": "SME",
+    "forced": "Forcés",
+    "downloads_one": "{{count, number}} téléchargement",
+    "downloads_many": "{{count, number}} de téléchargements",
+    "downloads_other": "{{count, number}} téléchargements",
+    "madeForFile": "Conçus pour ce fichier",
+    "addFailed": "Impossible d’ajouter ces sous-titres. {{error}}",
+    "uploadNeedsUpdate": "Ce serveur n’accepte pas les fichiers de sous-titres : il doit être mis à jour.",
+    "adding": "Ajout…"
+  },
+  "music": {
+    "queue": "File d’attente",
+    "shuffleOn": "Lecture aléatoire activée",
+    "shuffleOff": "Lecture aléatoire désactivée",
+    "close": "Fermer le lecteur",
+    "stoppedElsewhere": "La lecture a été arrêtée depuis un autre appareil.",
+    "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur.",
+    "failed": "La lecture a échoué",
+    "noHls": "Ce navigateur ne peut pas lire les flux HLS",
+    "noSound": "Aucune sortie audio : vérifiez les haut-parleurs ou le casque"
+  }
+}

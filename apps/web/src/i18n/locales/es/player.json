@@ -1,1 +1,198 @@
-{}
+{
+  "controls": {
+    "pause": "Pausar",
+    "mute": "Silenciar",
+    "unmute": "Activar sonido",
+    "volume": "Volumen",
+    "seek": "Posición de reproducción",
+    "seekValue": "{{time}} de {{duration}}"
+  },
+  "video": {
+    "nextEpisode": "Siguiente episodio",
+    "fullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "fullscreenShortcut": "Pantalla completa (f)",
+    "speed": "Velocidad: {{speed}}",
+    "subtitlesShown": "Subtítulos: {{track}}",
+    "subtitlesOff": "Subtítulos desactivados",
+    "subtitlesAdded": "Subtítulos añadidos: {{track}}",
+    "subtitlesDeleted": "Subtítulos eliminados",
+    "subtitlesNotDeleted": "No se pudieron eliminar estos subtítulos. {{error}}",
+    "subtitlesNotLoaded": "No se pudieron cargar estos subtítulos.",
+    "lastInQueue": "Es el último de la lista",
+    "lastEpisode": "Es el último episodio",
+    "qualityLowered": "Calidad reducida a {{quality}}",
+    "lowered": {
+      "network": "Reducida para tu conexión",
+      "device": "Reducida para este dispositivo"
+    },
+    "originalNotSmooth": "El original no se reproducía con fluidez en este navegador.",
+    "originalFailed": "Este navegador no pudo reproducir el archivo original.",
+    "sleepEnd": {
+      "episode": "Final de este episodio",
+      "movie": "Final de esta película",
+      "video": "Final de este video"
+    },
+    "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo",
+    "stoppedByAdmin": "El administrador del servidor detuvo la reproducción",
+    "unreachable": "No se puede conectar con tu servidor",
+    "reachHint": "Comprueba que el servidor esté encendido y que este dispositivo esté en su red.",
+    "errorTitle": "Error de reproducción",
+    "errors": {
+      "noHls": "Este navegador no puede reproducir transmisiones HLS.",
+      "failed": "La reproducción falló ({{details}}).",
+      "cantPlay": "Este video no se puede reproducir en tu navegador.",
+      "sameSpot": "Este video no se reproduce en este navegador: se detiene en el mismo punto cada vez.",
+      "stalled": "La reproducción se detuvo y no pudo continuar."
+    }
+  },
+  "page": {
+    "goBack": "Volver",
+    "cantPlay": "No se puede reproducir este elemento",
+    "nothingToPlay": "Nada que reproducir",
+    "noFiles": "Este elemento no tiene archivos multimedia."
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automática"
+  },
+  "speed": {
+    "normal": "Normal"
+  },
+  "skip": {
+    "intro": "Saltar intro",
+    "credits": "Saltar créditos"
+  },
+  "upNext": {
+    "title": "A continuación",
+    "episode": "A continuación · {{episode}}",
+    "playNow": "Reproducir ahora",
+    "cancel": "Cancelar la reproducción automática"
+  },
+  "sleep": {
+    "pausingIn": "Se pausará en {{seconds}} s",
+    "keepWatching": "Seguir viendo",
+    "minutes_one": "{{count}} minuto",
+    "minutes_many": "{{count}} minutos",
+    "minutes_other": "{{count}} minutos",
+    "minutesShort": "{{minutes}} min"
+  },
+  "chapters": {
+    "title": "Capítulos",
+    "numbered": "Capítulo {{number}}"
+  },
+  "details": {
+    "method": {
+      "direct": "Reproducción directa",
+      "remux": "Transmisión directa",
+      "transcode": "Transcodificación"
+    },
+    "audioTranscoding": "Audio transcodificado",
+    "pipeline": {
+      "gpu": "GPU",
+      "hybrid": "GPU y CPU",
+      "cpu": "CPU",
+      "copy": "copia"
+    },
+    "toneMapped": "SDR (mapeo de tonos con {{method}})",
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Tasa de bits",
+    "encoder": "Codificador",
+    "shownAs": "Se muestra en",
+    "subtitles": "Subtítulos",
+    "burnedIn": "Incrustados",
+    "speed": "Velocidad",
+    "realTime": "{{speed}}× tiempo real",
+    "ready": "{{seconds}} s de adelanto"
+  },
+  "settings": {
+    "label": "Ajustes de reproducción",
+    "panel": {
+      "quality": "Calidad",
+      "audio": "Audio",
+      "subtitles": "Subtítulos",
+      "find": "Buscar subtítulos",
+      "upload": "Añadir archivo de subtítulos",
+      "style": "Estilo de subtítulos",
+      "speed": "Velocidad",
+      "sleep": "Temporizador de suspensión",
+      "details": "Detalles de reproducción"
+    },
+    "defaultAudio": "Predeterminado",
+    "subtitlesOff": "Desactivados",
+    "automaticNow": "Ahora {{quality}}",
+    "automaticHint": "Se adapta a las condiciones",
+    "fileTooBig": "Los archivos de subtítulos pueden ocupar hasta 2 MB.",
+    "added": "Añadidos",
+    "deleteTrack": "Eliminar {{track}}",
+    "deleteForEveryone": "¿Eliminar para todos?",
+    "keep": "Conservar",
+    "deleteSubtitles": "Eliminar estos subtítulos",
+    "searchNotSetUp": "La búsqueda de subtítulos no está configurada",
+    "findSubtitles": "Buscar subtítulos…",
+    "addSubtitleFile": "Añadir archivo de subtítulos…",
+    "timing": "Sincronización",
+    "earlier": "Mostrar los subtítulos antes",
+    "later": "Mostrar los subtítulos después",
+    "offset": "{{value}} s",
+    "style": {
+      "size": "Tamaño",
+      "background": "Fondo",
+      "font": "Fuente",
+      "position": "Posición"
+    },
+    "sizes": {
+      "small": "Pequeño",
+      "normal": "Normal",
+      "large": "Grande",
+      "huge": "Muy grande"
+    },
+    "backgrounds": {
+      "none": "Ninguno",
+      "box": "Recuadro oscuro"
+    },
+    "fonts": {
+      "sans": "Predeterminada",
+      "serif": "Serif",
+      "mono": "Monoespaciada",
+      "casual": "Informal"
+    },
+    "positions": {
+      "bottom": "Abajo",
+      "raised": "Un poco más arriba",
+      "higher": "Más arriba",
+      "highest": "Aún más arriba"
+    }
+  },
+  "find": {
+    "notSetUp": "La búsqueda de subtítulos no está configurada en este servidor.",
+    "searchNeedsUpdate": "Este servidor no puede buscar subtítulos: necesita una actualización.",
+    "setUp": "Configúrala en Ajustes → Servidor",
+    "language": "Idioma de los subtítulos",
+    "fileLanguage": "Idioma de los subtítulos",
+    "searching": "Buscando…",
+    "searchFailed": "No se pudieron buscar subtítulos. {{error}}",
+    "noResults": "No se encontraron subtítulos en {{language}} para este video.",
+    "sdh": "SDH",
+    "forced": "Forzados",
+    "downloads_one": "{{count, number}} descarga",
+    "downloads_many": "{{count, number}} descargas",
+    "downloads_other": "{{count, number}} descargas",
+    "madeForFile": "Hechos para este archivo",
+    "addFailed": "No se pudieron añadir estos subtítulos. {{error}}",
+    "uploadNeedsUpdate": "Este servidor no acepta archivos de subtítulos: necesita una actualización.",
+    "adding": "Añadiendo…"
+  },
+  "music": {
+    "queue": "Cola",
+    "shuffleOn": "Aleatorio activado",
+    "shuffleOff": "Aleatorio desactivado",
+    "close": "Cerrar el reproductor",
+    "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo.",
+    "stoppedByAdmin": "El administrador del servidor detuvo la reproducción.",
+    "failed": "La reproducción falló",
+    "noHls": "Este navegador no puede reproducir transmisiones HLS",
+    "noSound": "No hay salida de sonido: revisa los altavoces o los auriculares"
+  }
+}

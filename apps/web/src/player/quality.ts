@@ -1,4 +1,5 @@
 import type { MediaFile, PlaybackMode } from "@/api/types";
+import { t } from "@/i18n";
 import type { Rung } from "./autoQuality";
 
 /**
@@ -7,6 +8,7 @@ import type { Rung } from "./autoQuality";
  */
 export interface QualityOption {
   id: string;
+  /** Its name, as shown by `qualityLabel` (which says Original and Automatic in the app's language). */
   label: string;
   /** kbps */
   maxBitrate: number | null;
@@ -32,6 +34,17 @@ export const QUALITIES: QualityOption[] = [
 
 export function qualityById(id: string | null | undefined): QualityOption {
   return QUALITIES.find((q) => q.id === id) ?? ORIGINAL;
+}
+
+/**
+ * What a quality is called where people read it: Original and Automatic in
+ * the app's language, a conversion by its bitrate and lines ("8 Mbps
+ * 1080p"), the same in every language.
+ */
+export function qualityLabel(quality: QualityOption): string {
+  if (quality.id === ORIGINAL.id) return t("quality.original", { ns: "player" });
+  if (quality.id === AUTO.id) return t("quality.automatic", { ns: "player" });
+  return quality.label;
 }
 
 type FileSize = Pick<MediaFile, "bitrate" | "width" | "height">;

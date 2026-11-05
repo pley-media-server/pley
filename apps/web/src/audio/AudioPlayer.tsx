@@ -6,6 +6,7 @@ import type { Control, ItemSummary, PlaybackMethod, PlaybackMode, PlaybackState,
 import { errorMessage } from "@/api/client";
 import { onServerEvent } from "@/api/events";
 import { invalidateWatchState } from "@/api/hooks";
+import { t } from "@/i18n";
 import { audioCaps, canPlayNativeHls } from "@/lib/caps";
 import { deviceFields } from "@/lib/castReceiver";
 import { loadHls } from "@/lib/hls";
@@ -161,8 +162,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       const what =
         by.byAdmin === false
-          ? "Playback was stopped from another device."
-          : "Playback was stopped by the server's administrator.";
+          ? t("music.stoppedElsewhere", { ns: "player" })
+          : t("music.stoppedByAdmin", { ns: "player" });
       setError(by.message ? `${what} ${by.message}` : what);
       invalidateWatchState(qc);
     },
@@ -188,7 +189,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         else if (recoveries.current.recreate < 3) {
           recoveries.current.recreate += 1;
           restartAt(s.positionMs);
-        } else setError("Playback failed");
+        } else setError(t("music.failed", { ns: "player" }));
       });
     },
     [restartAt, stopPlayback],
@@ -261,7 +262,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         if (info.hls && !canPlayNativeHls(audio)) {
           const Hls = await loadHls();
           if (cancelled) return;
-          if (!Hls.isSupported()) throw new Error("This browser can't play HLS streams");
+          if (!Hls.isSupported()) throw new Error(t("music.noHls", { ns: "player" }));
           const hls = new Hls({ enableWorker: true, maxBufferLength: 60, startPosition: startMs / 1000 });
           hlsRef.current = hls;
           hls.on(Hls.Events.ERROR, (_e, data: ErrorData) => {
@@ -297,7 +298,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
               hls.recoverMediaError();
               return;
             }
-            setError("Playback failed");
+            setError(t("music.failed", { ns: "player" }));
           });
           hls.on(Hls.Events.FRAG_LOADED, () => {
             recoveries.current.recreate = 0;
@@ -388,7 +389,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         // Firefox without a sound output (none there, or it went away)
         // says it can't decode, and plays on in silence: another session
         // or a transcode wouldn't help.
-        setError("No sound output: check the speakers or headphones");
+        setError(t("music.noSound", { ns: "player" }));
         return;
       }
       const undecodable = code === MediaError.MEDIA_ERR_DECODE || code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED;
@@ -404,7 +405,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         recreateUnlessStopped(s);
         return;
       }
-      setError("Playback failed");
+      setError(t("music.failed", { ns: "player" }));
     };
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);

@@ -3,6 +3,7 @@
  * heavy, with a dark outline and no box, as Plex does; in a size, with a
  * background, in a font and as high up as chosen on each device.
  */
+import { currentLanguage, t } from "@/i18n";
 
 export type SubtitleSize = "small" | "normal" | "large" | "huge";
 export type SubtitleBackground = "none" | "box";
@@ -18,33 +19,33 @@ export interface SubtitleStyle {
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { size: "normal", background: "none", font: "sans", position: "bottom" };
 
+// The menu names each choice by its id, in the player's words (`settings.sizes.normal`).
+
 /** The sizes offered, with the text's height as a share of the player's. */
-export const SUBTITLE_SIZES: { id: SubtitleSize; label: string; share: number }[] = [
-  { id: "small", label: "Small", share: 3.8 },
-  { id: "normal", label: "Normal", share: 4.8 },
-  { id: "large", label: "Large", share: 6 },
-  { id: "huge", label: "Huge", share: 7.6 },
+export const SUBTITLE_SIZES: { id: SubtitleSize; share: number }[] = [
+  { id: "small", share: 3.8 },
+  { id: "normal", share: 4.8 },
+  { id: "large", share: 6 },
+  { id: "huge", share: 7.6 },
 ];
 
-export const SUBTITLE_BACKGROUNDS: { id: SubtitleBackground; label: string }[] = [
-  { id: "none", label: "None" },
-  { id: "box", label: "Dark box" },
-];
+/** No background, or a dark box. */
+export const SUBTITLE_BACKGROUNDS: { id: SubtitleBackground }[] = [{ id: "none" }, { id: "box" }];
 
 /** The fonts offered: the app's own, and the browser's serif, monospace and casual faces. */
-export const SUBTITLE_FONTS: { id: SubtitleFont; label: string; family: string }[] = [
-  { id: "sans", label: "Default", family: "var(--font-sans)" },
-  { id: "serif", label: "Serif", family: 'Georgia, "Times New Roman", "Noto Serif", serif' },
-  { id: "mono", label: "Monospace", family: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace' },
-  { id: "casual", label: "Casual", family: '"Comic Sans MS", "Comic Neue", "Chalkboard SE", cursive' },
+export const SUBTITLE_FONTS: { id: SubtitleFont; family: string }[] = [
+  { id: "sans", family: "var(--font-sans)" },
+  { id: "serif", family: 'Georgia, "Times New Roman", "Noto Serif", serif' },
+  { id: "mono", family: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace' },
+  { id: "casual", family: '"Comic Sans MS", "Comic Neue", "Chalkboard SE", cursive' },
 ];
 
 /** How high bottom subtitles sit: raised from the usual place by a share of the player's height (%). */
-export const SUBTITLE_POSITIONS: { id: SubtitlePosition; label: string; lift: number }[] = [
-  { id: "bottom", label: "Bottom", lift: 0 },
-  { id: "raised", label: "A little higher", lift: 5 },
-  { id: "higher", label: "Higher", lift: 10 },
-  { id: "highest", label: "Highest", lift: 16 },
+export const SUBTITLE_POSITIONS: { id: SubtitlePosition; lift: number }[] = [
+  { id: "bottom", lift: 0 },
+  { id: "raised", lift: 5 },
+  { id: "higher", lift: 10 },
+  { id: "highest", lift: 16 },
 ];
 
 /** The space under bottom subtitles, as a share of the player's height (%). */
@@ -160,11 +161,12 @@ export function clampSubtitleOffset(offset: number): number {
   return Math.max(-limit, Math.min(limit, steps)) / STEPS_PER_SECOND + 0;
 }
 
-/** `"+0.5 s"`, `"−1.2 s"`, `"0.0 s"`. */
+/** `"+0.5 s"`, `"−1.2 s"`, `"0.0 s"` (`"+0,5 s"` in French). */
 export function formatSubtitleOffset(offset: number): string {
   const value = clampSubtitleOffset(offset);
   const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  return `${sign}${Math.abs(value).toFixed(1)} s`;
+  const amount = Math.abs(value).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return t("settings.offset", { ns: "player", value: `${sign}${amount}` });
 }
 
 /**

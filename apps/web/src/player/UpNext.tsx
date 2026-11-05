@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Play, X } from "lucide-react";
 import type { ItemSummary } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
@@ -19,6 +20,7 @@ export function UpNext({
   onPlay: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation("player");
   const [left, setLeft] = useState(COUNTDOWN);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function UpNext({
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent" />
         <div className="absolute bottom-3 left-4 right-4">
           <div className="text-xs font-semibold text-accent">
-            {next.kind === "episode" ? `Up next · ${episodeLabel(next)}` : "Up next"}
+            {next.kind === "episode" ? t("upNext.episode", { episode: episodeLabel(next) }) : t("upNext.title")}
           </div>
           <div className="truncate text-base font-semibold">{next.title}</div>
         </div>
@@ -54,12 +56,12 @@ export function UpNext({
         >
           <span className="absolute inset-y-0 left-0 bg-accent/80 transition-[width] duration-1000 ease-linear" style={{ width: `${progress * 100}%` }} />
           <span className="relative flex items-center gap-2">
-            <Play className="size-4 fill-current" /> Play now {left > 0 ? `(${left})` : ""}
+            <Play className="size-4 fill-current" /> {t("upNext.playNow")} {left > 0 ? `(${left})` : ""}
           </span>
         </button>
         <button
           type="button"
-          aria-label="Cancel autoplay"
+          aria-label={t("upNext.cancel")}
           onClick={onCancel}
           className="flex size-10 items-center justify-center rounded-md bg-white/10 transition hover:bg-white/20"
         >

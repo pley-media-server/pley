@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ListOrdered } from "lucide-react";
 import type { Chapter } from "@/api/types";
+import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatClock } from "@/lib/format";
 
 export function chapterTitle(chapter: Chapter, index: number): string {
-  return chapter.title?.trim() || `Chapter ${index + 1}`;
+  return chapter.title?.trim() || translate("chapters.numbered", { ns: "player", number: index + 1 });
 }
 
 /** Index of the chapter playing at `ms` (chapters are sorted by start), or -1. */
@@ -45,6 +47,7 @@ export function ChaptersMenu({
   setOpen: (open: boolean) => void;
   onSeek: (seconds: number) => void;
 }) {
+  const { t } = useTranslation("player");
   const ref = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
   const currentMs = current * 1000;
@@ -75,8 +78,8 @@ export function ChaptersMenu({
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label="Chapters"
-        title="Chapters"
+        aria-label={t("chapters.title")}
+        title={t("chapters.title")}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-white/15", open && "bg-white/15")}
@@ -90,7 +93,7 @@ export function ChaptersMenu({
             pictures ? "w-[min(24rem,calc(100vw-2rem))]" : "w-72",
           )}
         >
-          <div className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-white/60">Chapters</div>
+          <div className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-white/60">{t("chapters.title")}</div>
           {chapters.map((chapter, i) => (
             <button
               key={`${chapter.start_ms}-${i}`}

@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Moon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -73,6 +74,7 @@ export function useSleepTimer({ initial, mediaLeft, onSleep }: { initial: SleepT
 
 /** "Pausing in 30 s", with a way to keep watching. */
 export function SleepNotice({ seconds, onKeepWatching, lifted }: { seconds: number; onKeepWatching: () => void; lifted: boolean }) {
+  const { t } = useTranslation("player");
   return (
     <div
       role="status"
@@ -84,13 +86,13 @@ export function SleepNotice({ seconds, onKeepWatching, lifted }: { seconds: numb
       onDoubleClick={(e) => e.stopPropagation()}
     >
       <Moon className="size-4 shrink-0 text-white/70" />
-      <span className="tabular-nums">Pausing in {seconds} s</span>
+      <span className="tabular-nums">{t("sleep.pausingIn", { seconds })}</span>
       <button
         type="button"
         onClick={onKeepWatching}
         className="h-8 rounded px-3 text-sm font-semibold transition-colors hover:bg-white/15 focus-visible:bg-white/15"
       >
-        Keep watching
+        {t("sleep.keepWatching")}
       </button>
     </div>
   );

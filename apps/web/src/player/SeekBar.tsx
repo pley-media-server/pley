@@ -1,4 +1,5 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useTranslation } from "react-i18next";
 import type { Chapter, Trickplay } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { formatClock } from "@/lib/format";
@@ -52,6 +53,7 @@ function Preview({ fileId, trickplay: tp, seconds }: { fileId: number; trickplay
 }
 
 export function SeekBar({ current, duration, buffered, onSeek, onScrub, previews, chapters = [] }: SeekBarProps) {
+  const { t } = useTranslation("player");
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
@@ -105,11 +107,11 @@ export function SeekBar({ current, duration, buffered, onSeek, onScrub, previews
       ref={ref}
       role="slider"
       tabIndex={0}
-      aria-label="Seek"
+      aria-label={t("controls.seek")}
       aria-valuemin={0}
       aria-valuemax={Math.round(duration)}
       aria-valuenow={Math.round(shown)}
-      aria-valuetext={`${formatClock(shown)} of ${formatClock(duration)}`}
+      aria-valuetext={t("controls.seekValue", { time: formatClock(shown), duration: formatClock(duration) })}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

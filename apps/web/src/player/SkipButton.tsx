@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronsRight } from "lucide-react";
 import type { ItemDetail, Marker } from "@/api/types";
 import { cn } from "@/lib/cn";
@@ -7,11 +8,6 @@ import { cn } from "@/lib/cn";
 const TAIL_MS = 1_000;
 /** Skip Intro lands this long before the intro ends, so it plays out. */
 const INTRO_LEAD_MS = 750;
-
-const LABEL: Record<Marker["kind"], string> = {
-  intro: "Skip Intro",
-  credits: "Skip Credits",
-};
 
 /** Markers of the file being played (the item's first file when unknown). */
 export function fileMarkers(item: ItemDetail, fileId: number | null | undefined): Marker[] {
@@ -64,6 +60,8 @@ export function useSkipMarkers({
 }
 
 export function SkipButton({ marker, onSkip, lifted }: { marker: Marker; onSkip: () => void; lifted: boolean }) {
+  const { t } = useTranslation("player");
+  const label = t(`skip.${marker.kind}`);
   return (
     <button
       type="button"
@@ -72,14 +70,14 @@ export function SkipButton({ marker, onSkip, lifted }: { marker: Marker; onSkip:
         onSkip();
       }}
       onDoubleClick={(e) => e.stopPropagation()}
-      title={`${LABEL[marker.kind]} (s)`}
+      title={`${label} (s)`}
       // Quiet over the picture: dark and see-through with a faint outline, firmer on hover or focus.
       className={cn(
         "absolute right-4 z-20 flex h-9 animate-fade-in items-center gap-1.5 rounded-md border border-white/25 bg-black/60 px-3.5 text-[13px] font-medium text-white/85 transition-[bottom,background-color,border-color,color] duration-300 hover:border-white/80 hover:bg-black/75 hover:text-white focus-visible:border-white/80 focus-visible:outline-none sm:right-8",
         lifted ? "bottom-28" : "bottom-10",
       )}
     >
-      {LABEL[marker.kind]}
+      {label}
       <ChevronsRight className="size-3.5" />
     </button>
   );
