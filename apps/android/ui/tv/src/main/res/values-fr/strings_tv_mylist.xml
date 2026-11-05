@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_item_add_to_my_list">Ajouter à Ma liste</string>
+    <string name="tv_item_in_my_list">Dans Ma liste</string>
+    <string name="tv_item_remove_from_my_list">Retirer de Ma liste</string>
+    <string name="tv_item_remove_from_continue_watching">Retirer de Reprendre la lecture</string>
+</resources>

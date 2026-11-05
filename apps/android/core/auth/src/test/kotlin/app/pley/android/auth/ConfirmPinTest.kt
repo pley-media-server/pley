@@ -1,5 +1,6 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -78,14 +79,14 @@ class ConfirmPinTest {
     fun wrongPinsAreExplainedAndChangeNothing() = runBlocking {
         store.save(savedTokens(issuer))
         val (profiles, tokens) = profiles()
-        for ((reason, message) in listOf(
-            "wrong_pin" to "wrong PIN",
+        for ((reason, text) in listOf(
+            "wrong_pin" to UiText.res(R.string.auth_wrong_pin),
             // The server's own sentence says how long to wait, as for a switch.
-            "throttled" to "too many attempts, try again in 12 min",
-            "pin_locked" to "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
+            "throttled" to UiText.raw("too many attempts, try again in 12 min"),
+            "pin_locked" to Profiles.PIN_LOCKED,
         )) {
-            answer = refusal("invalid_grant", if (reason == "throttled") message else "no", reason)
-            assertEquals(PinCheck.Failed(message), profiles.confirmPin(kid, "0000"))
+            answer = refusal("invalid_grant", if (text is UiText.Raw) text.text else "no", reason)
+            assertEquals(PinCheck.Failed(text), profiles.confirmPin(kid, "0000"))
             assertEquals("pley_rt_one", store.load(issuer)!!.refreshToken)
             assertTrue(tokens.signedIn.value)
         }

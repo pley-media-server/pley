@@ -1,20 +1,22 @@
 package app.pley.android.screens.item
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
+import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.Me
 import app.pley.android.model.PersonCredit
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
-import app.pley.android.model.CreditRole
 import app.pley.android.model.PleyJson
 import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import app.pley.android.screens.person.PersonUiState
 import app.pley.android.screens.person.PersonViewModel
-import app.pley.android.screens.person.roleText
+import app.pley.android.screens.person.roleWords
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -264,9 +266,10 @@ class ItemViewModelTest {
         )
         data.setPerson(7, Loadable.Ready(person, fresh = true))
         val page = (model.state.value as PersonUiState.Ready).page
-        assertEquals("1 movie · 1 show", page.counts)
-        assertEquals("2021 · as Mara", page.movies.single().subtitle)
-        assertEquals("2019 · Director (3 episodes)", page.shows.single().subtitle)
+        assertEquals(listOf(UiText.plural(R.plurals.person_count_movies, 1), UiText.plural(R.plurals.person_count_shows, 1)), page.countTexts)
+        assertEquals(listOf(UiText.res(R.string.person_role_as, "Mara")), page.movies.single().roles)
+        assertEquals(2021, page.movies.single().item.year)
+        assertEquals(listOf(UiText.plural(R.plurals.person_role_episodes, 3, UiText.res(R.string.person_role_director), 3)), page.shows.single().roles)
         assertEquals(listOf(CreditRole.Actor, CreditRole.Director), page.roles.map { it.role })
     }
 
@@ -281,8 +284,14 @@ class ItemViewModelTest {
 
     @Test
     fun `roles read as the web's`() {
-        assertEquals("as Neo", roleText(listOf(PersonRole(CreditRole.Actor, "Neo"))))
-        assertEquals("Guest star (1 episode)", roleText(listOf(PersonRole(CreditRole.Actor, episodes = 1))))
-        assertEquals("Actor, Writer", roleText(listOf(PersonRole(CreditRole.Actor), PersonRole(CreditRole.Writer))))
+        assertEquals(listOf(UiText.res(R.string.person_role_as, "Neo")), roleWords(listOf(PersonRole(CreditRole.Actor, "Neo"))))
+        assertEquals(
+            listOf(UiText.plural(R.plurals.person_role_episodes, 1, UiText.res(R.string.person_role_guest_star), 1)),
+            roleWords(listOf(PersonRole(CreditRole.Actor, episodes = 1))),
+        )
+        assertEquals(
+            listOf(UiText.res(R.string.person_role_actor), UiText.res(R.string.person_role_writer)),
+            roleWords(listOf(PersonRole(CreditRole.Actor), PersonRole(CreditRole.Writer))),
+        )
     }
 }

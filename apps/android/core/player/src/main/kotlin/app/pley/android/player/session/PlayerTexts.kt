@@ -1,13 +1,18 @@
 package app.pley.android.player.session
 
 import android.content.Context
-import app.pley.android.player.CastFrom
-import app.pley.android.common.asSentence
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
+import app.pley.android.common.formatWords
+import app.pley.android.common.resolve
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
+import app.pley.android.model.format.FormatWords
+import app.pley.android.player.CastFrom
 import app.pley.android.player.R
+import java.util.Locale
 
-/** What the session says to people, from strings_session.xml. */
+/** What the session says to people, from strings_session.xml, in the language shown. */
 interface PlayerTexts {
     /** A quality by the menu's name: "Original", "8 Mbps 1080p". */
     fun quality(preset: QualityPreset): String
@@ -16,30 +21,22 @@ interface PlayerTexts {
      * A quality as offered for a file of [fileLines]: one taller than the
      * file is named by the file's lines ("8 Mbps 720p" for a 720p file).
      */
-    fun quality(preset: QualityPreset, fileLines: Int?): String {
-        val most = preset.maxHeight
-        val kbps = preset.maxBitrateKbps
-        if (most == null || kbps == null || fileLines == null || fileLines >= most) return quality(preset)
-        return "${kbps / 1000} Mbps ${linesLabel(fileLines)}"
-    }
+    fun quality(preset: QualityPreset, fileLines: Int?): String
 
     /** The menu's row while Automatic plays [playing]: "Automatic · Original", "Automatic · 8 Mbps 1080p". */
-    fun automatic(playing: String): String = "Automatic · $playing"
+    fun automatic(playing: String): String
 
     /** Automatic's hint in the menu. */
-    val automaticHint: String get() = "Dynamically adjust to conditions"
+    val automaticHint: String
 
     /** Automatic's hint while it plays [playing], below the original: "Now 8 Mbps 1080p". */
-    fun automaticNow(playing: String): String = "Now $playing"
+    fun automaticNow(playing: String): String
 
     /** Said once when Automatic goes down to the quality named [label]. */
-    fun loweredNotice(label: String): String = "Quality lowered to $label"
+    fun loweredNotice(label: String): String
 
     /** Why Automatic plays lower, for the details. */
-    fun lowered(reason: LoweredFor): String = when (reason) {
-        LoweredFor.Network -> "Lowered for your connection"
-        LoweredFor.Device -> "Lowered for this device"
-    }
+    fun lowered(reason: LoweredFor): String
     val skipIntro: String
     val skipCredits: String
 
@@ -54,25 +51,25 @@ interface PlayerTexts {
     fun method(info: PlaybackInfo): String
 
     /** The method of a file played from its download: "Downloaded". */
-    val downloaded: String get() = "Downloaded"
+    val downloaded: String
 
     /** A download that doesn't play here as it is, with the server out of reach to convert it. */
-    val downloadNeedsServer: String get() = "This download can't play on this device offline. Connect to your server to play it."
+    val downloadNeedsServer: String
 
     /** A file on a drive that doesn't play here as it is: there is no server to convert it. */
-    val driveUnplayable: String get() = "This TV can't play this file as it is, and a file on a drive has no server to convert it."
+    val driveUnplayable: String
 
     /** A file on a drive whose picture never started. */
-    val driveStuck: String get() = "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy."
+    val driveStuck: String
 
     /** A file on a drive that can't be read. */
-    val driveUnreadable: String get() = "This video can't be read. The drive may have been pulled out."
+    val driveUnreadable: String
 
     /** The speed can't change: a file on a drive's sound goes to a receiver as it is, and nothing here decodes it. */
-    val driveSpeedUndecodable: String get() = "Not for this file: its sound goes to your receiver as it is, and nothing here decodes it"
+    val driveSpeedUndecodable: String
 
     /** The server out of reach, for [reason] ("no answer in time"): what to check. */
-    fun unreachable(reason: String): String = "${asSentence(reason)} Check that the server is on and that this device is on its network."
+    fun unreachable(reason: UiText): String
 
     fun fallback(reason: FallbackReason): String
     val slowServer: String
@@ -83,37 +80,31 @@ interface PlayerTexts {
     fun stopped(message: String?, byAdmin: Boolean): String
 
     /** A remote sent this here: "Playing from Living room TV". */
-    fun playingFrom(from: CastFrom): String = from.device?.let { "Playing from $it" } ?: "Playing from another device"
+    fun playingFrom(from: CastFrom): String
 
     /** The speed can't change: a download's sound goes to a receiver as it is, and nothing here decodes it. */
-    val speedUndecodable: String get() = "Not for this download: its sound goes to your receiver as it is, and nothing here decodes it"
+    val speedUndecodable: String
 
     /** The speed can't change: a stream's sound goes to a receiver as it is, nothing here decodes it, and the server couldn't convert it. */
-    val speedUnconverted: String get() = "Not now: its sound goes to your receiver as it is, nothing here decodes it, and the server couldn't convert it"
+    val speedUnconverted: String
 
     /** "Find subtitles…" when the server has no subtitle search set up. */
-    val searchNotSetUp: String get() = "Subtitle search isn't set up on this server"
+    val searchNotSetUp: String
 
     /** The server has no subtitle search at all (an older one). */
-    val searchUnsupported: String get() = "This server can't search for subtitles: it may need an update"
+    val searchUnsupported: String
 
     /** Nothing found in the profile's language. */
-    val searchNothing: String get() = "No subtitles found for this file"
+    val searchNothing: String
 
     /** The search or the adding failed, for [reason]. */
-    fun searchFailed(reason: String): String = "Couldn't find subtitles: $reason"
+    fun searchFailed(reason: UiText): String
 
     /** A result's line under its name: its language, whether it was made for this very file, and how often it was downloaded. */
-    fun foundHint(language: String?, exact: Boolean, hearingImpaired: Boolean, downloads: Long): String =
-        listOfNotNull(
-            language,
-            if (exact) "Made for this file" else null,
-            if (hearingImpaired) "SDH" else null,
-            if (downloads > 0) "%,d downloads".format(downloads) else null,
-        ).joinToString(" · ")
+    fun foundHint(language: String?, exact: Boolean, hearingImpaired: Boolean, downloads: Long): String
 
     /** The track added and shown. */
-    val subtitleAdded: String get() = "Subtitles added"
+    val subtitleAdded: String
 
     // The details' rows.
     val rowVideo: String
@@ -125,12 +116,31 @@ interface PlayerTexts {
     val rowSpeed: String
     fun toneMapped(tonemap: String): String
     val burnedIn: String
-    fun speed(speed: String, readySeconds: Int): String
+
+    /** A transcode's [speed] against real time, and how far ahead of the playhead it is: "2.5× real time · 40 s ready". */
+    fun speed(speed: Double, readySeconds: Int): String
+
+    /** Where a transcode runs, by the server's name for it ("gpu", "hybrid"): "GPU", "GPU and CPU". */
+    fun pipeline(pipeline: String): String
+
+    // The engine's own lines for the details, "Label: value".
+    fun engineVideo(format: String, width: Int, height: Int, frameRate: Float?): String
+    fun engineVideoDecoder(name: String): String
+    fun engineAudio(format: String, channels: Int): String
+    fun engineAudioDecoder(name: String): String
+    fun engineDroppedFrames(dropped: Long, total: Long): String
+
+    /** [text] in the language shown: an error's words ([app.pley.android.common.errorText]). */
+    fun words(text: UiText): String
+
+    /** The format functions' words in the language shown: an episode's numbers, a track's language, a bitrate. */
+    val format: FormatWords
 }
 
-/** [PlayerTexts] from the app's resources. */
+/** [PlayerTexts] from the app's resources, in the language shown. */
 class ResourcePlayerTexts(context: Context) : PlayerTexts {
-    private val res = context.applicationContext.resources
+    private val app = context.applicationContext
+    private val res get() = AppLanguage.resources(app)
 
     private fun s(id: Int) = res.getString(id)
 
@@ -212,7 +222,10 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override val driveUnreadable: String get() = s(R.string.session_drive_unreadable)
     override val driveSpeedUndecodable: String get() = s(R.string.session_drive_speed_undecodable)
 
-    override fun unreachable(reason: String): String = res.getString(R.string.session_error_unreachable, asSentence(reason))
+    override fun unreachable(reason: UiText): String {
+        val res = res
+        return res.getString(R.string.session_error_unreachable, UiText.Sentence(reason).resolve(res))
+    }
 
     override fun playingFrom(from: CastFrom): String = from.notice(res)
 
@@ -226,15 +239,20 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override val searchUnsupported: String get() = s(R.string.session_search_unsupported)
     override val searchNothing: String get() = s(R.string.session_search_nothing)
 
-    override fun searchFailed(reason: String): String = res.getString(R.string.session_search_failed, reason)
+    override fun searchFailed(reason: UiText): String {
+        val res = res
+        return res.getString(R.string.session_search_failed, reason.resolve(res))
+    }
 
-    override fun foundHint(language: String?, exact: Boolean, hearingImpaired: Boolean, downloads: Long): String =
-        listOfNotNull(
+    override fun foundHint(language: String?, exact: Boolean, hearingImpaired: Boolean, downloads: Long): String {
+        val res = res
+        return listOfNotNull(
             language,
-            if (exact) s(R.string.session_search_exact) else null,
-            if (hearingImpaired) s(R.string.session_search_sdh) else null,
+            if (exact) res.getString(R.string.session_search_exact) else null,
+            if (hearingImpaired) res.getString(R.string.session_search_sdh) else null,
             if (downloads > 0) res.getQuantityString(R.plurals.session_search_downloads, downloads.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), downloads) else null,
         ).joinToString(" · ")
+    }
 
     override val subtitleAdded: String get() = s(R.string.session_search_added)
     override val rowVideo: String get() = s(R.string.session_row_video)
@@ -249,8 +267,40 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
 
     override val burnedIn: String get() = s(R.string.session_burned_in)
 
-    override fun speed(speed: String, readySeconds: Int): String =
-        if (readySeconds > 0) res.getString(R.string.session_speed_ready, speed, readySeconds) else res.getString(R.string.session_speed, speed)
+    override fun speed(speed: Double, readySeconds: Int): String {
+        val res = res
+        // As the web writes it: one decimal, in the language's own way ("2,5" in French).
+        val times = String.format(res.configuration.locales[0] ?: Locale.ROOT, "%.1f", speed)
+        return if (readySeconds > 0) res.getString(R.string.session_speed_ready, times, readySeconds) else res.getString(R.string.session_speed, times)
+    }
+
+    override fun pipeline(pipeline: String): String = when (pipeline) {
+        "gpu" -> "GPU"
+        "cpu" -> "CPU"
+        "hybrid" -> s(R.string.session_pipeline_hybrid)
+        "copy" -> s(R.string.session_pipeline_copy)
+        else -> pipeline
+    }
+
+    override fun engineVideo(format: String, width: Int, height: Int, frameRate: Float?): String =
+        if (frameRate != null && frameRate > 0) {
+            // A technical readout: the rate as the decoder gives it, the same in every language.
+            res.getString(R.string.session_engine_video_rate, format, width, height, String.format(Locale.ROOT, "%.3f", frameRate))
+        } else {
+            res.getString(R.string.session_engine_video, format, width, height)
+        }
+
+    override fun engineVideoDecoder(name: String): String = res.getString(R.string.session_engine_video_decoder, name)
+
+    override fun engineAudio(format: String, channels: Int): String = res.getString(R.string.session_engine_audio, format, channels)
+
+    override fun engineAudioDecoder(name: String): String = res.getString(R.string.session_engine_audio_decoder, name)
+
+    override fun engineDroppedFrames(dropped: Long, total: Long): String = res.getString(R.string.session_engine_dropped, dropped, total)
+
+    override fun words(text: UiText): String = text.resolve(res)
+
+    override val format: FormatWords get() = formatWords(res)
 }
 
 /** Lines as qualities name them: "4K", "1080p", "720p". */

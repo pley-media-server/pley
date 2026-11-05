@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlaylistsRepository
 import app.pley.android.data.map
@@ -70,8 +71,10 @@ class PlaylistsViewModel(private val deps: PlaylistDeps) : ViewModel() {
 
     val state: StateFlow<Loadable<List<PlaylistCard>>> = retries
         .flatMapLatest {
-            combine(deps.playlists.playlists(), deps.origin.map { it.orEmpty() }.distinctUntilChanged()) { load, origin ->
-                load.map { list -> list.map { Playlists.card(it, origin) } }
+            // Made again when the language shown changes: the cards' durations are written in it.
+            combine(deps.playlists.playlists(), deps.origin.map { it.orEmpty() }.distinctUntilChanged(), AppLanguage.shown) { load, origin, _ ->
+                val words = AppLanguage.formatWords()
+                load.map { list -> list.map { Playlists.card(it, origin, words) } }
             }
         }
         .flowOn(deps.compute)

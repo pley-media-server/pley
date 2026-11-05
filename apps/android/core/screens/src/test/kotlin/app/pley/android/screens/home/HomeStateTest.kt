@@ -1,5 +1,6 @@
 package app.pley.android.screens.home
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.model.Hub
 import app.pley.android.model.Hubs
@@ -9,6 +10,8 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
+import app.pley.android.screens.home.libraryCountText
 import java.io.IOException
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -161,9 +164,9 @@ class HomeStateTest {
 
     @Test
     fun librariesCountWhatTheyHoldByKind() {
-        assertEquals("412 movies", libraryCount(MOVIES, Locale.US))
-        assertEquals("1 show", libraryCount(SHOWS.copy(itemCount = 1), Locale.US))
-        assertEquals("1,200 artists", libraryCount(MUSIC.copy(itemCount = 1200), Locale.US))
+        assertEquals(UiText.plural(R.plurals.library_entry_movies, 412), libraryCountText(MOVIES))
+        assertEquals(UiText.plural(R.plurals.library_entry_shows, 1), libraryCountText(SHOWS.copy(itemCount = 1)))
+        assertEquals(UiText.plural(R.plurals.library_entry_artists, 1200), libraryCountText(MUSIC.copy(itemCount = 1200)))
     }
 
     @Test
@@ -178,7 +181,7 @@ class HomeStateTest {
     fun theLibrariesListMarksTheOnesBeingScanned() {
         val state = librariesState(libraries, listOf(app.pley.android.data.ScanState(2, 0.5f))) as LibrariesState.Ready
         assertEquals(listOf(false, true, false), state.libraries.map { it.scanning })
-        assertEquals("38 shows", state.libraries[1].count.replace(' ', ' '))
+        assertEquals(UiText.plural(R.plurals.library_entry_shows, 38), state.libraries[1].countText)
         assertSame(LibrariesState.Loading, librariesState(Loadable.Loading, emptyList()))
         val error = IOException("no")
         assertEquals(LibrariesState.Failed(error), librariesState(Loadable.Failed(error), emptyList()))

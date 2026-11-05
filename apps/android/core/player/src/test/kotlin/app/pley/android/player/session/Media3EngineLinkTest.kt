@@ -51,7 +51,7 @@ class Media3EngineLinkTest {
         }
     }
     private val events = mutableListOf<String>()
-    private val link = Media3EngineLink(engine).apply {
+    private val link = Media3EngineLink(engine, ResourcePlayerTexts(RuntimeEnvironment.getApplication())).apply {
         setListener(
             object : EngineLink.Listener {
                 override fun onStatus(status: EngineStatus) {

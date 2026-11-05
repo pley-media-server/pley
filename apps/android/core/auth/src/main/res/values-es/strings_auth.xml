@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_not_an_address">no es una dirección de servidor</string>
+    <string name="auth_unencrypted">la dirección de este servidor no está en tu red y su conexión no está cifrada: ábrelo con su dirección https para iniciar sesión</string>
+    <string name="auth_too_old">este servidor es demasiado antiguo para esta aplicación</string>
+    <string name="auth_redirected">este servidor responde en otra dirección: ábrelo con esa</string>
+    <string name="auth_other_issuer">este servidor se presenta como %1$s: ábrelo con esa dirección o comprueba que el proxy que tiene delante transmite Host</string>
+    <string name="auth_other_endpoint">este servidor envía las aplicaciones a otra dirección para iniciar sesión: Pley no lo hace</string>
+    <string name="auth_not_your_server">otro dispositivo responde en esa dirección</string>
+    <string name="auth_no_browser">no hay ningún navegador en este dispositivo para iniciar sesión</string>
+
+    <string name="auth_unreadable">no se puede leer la respuesta del servidor: vuelve a intentarlo</string>
+    <string name="auth_server_failed">el servidor no pudo responder (HTTP %1$d)</string>
+    <string name="auth_refused">el servidor lo rechazó: vuelve a intentarlo</string>
+    <string name="auth_refused_said">el servidor lo rechazó: %1$s</string>
+    <string name="auth_refused_code">el servidor lo rechazó (%1$s)</string>
+    <string name="auth_refused_status">el servidor lo rechazó (HTTP %1$d)</string>
+
+    <string name="auth_other_server">la respuesta vino de un servidor distinto de aquel en el que iniciaste sesión: vuelve a intentarlo</string>
+    <string name="auth_denied">no autorizaste la aplicación</string>
+    <string name="auth_no_code">el servidor no envió ningún código: vuelve a intentarlo</string>
+    <string name="auth_too_long">el inicio de sesión tardó demasiado: vuelve a intentarlo</string>
+    <string name="auth_not_finished">no se pudo completar el inicio de sesión: vuelve a intentarlo</string>
+
+    <string name="auth_no_codes">este servidor aún no permite iniciar sesión con un código: actualízalo o inicia sesión con una contraseña</string>
+    <string name="auth_code_used">este código ya no funciona: pide uno nuevo</string>
+
+    <string name="auth_cant_switch">este inicio de sesión no permite cambiar de perfil: vuelve a iniciar sesión para permitirlo</string>
+    <string name="auth_profile_locked">este perfil no se puede usar desde la aplicación</string>
+    <string name="auth_wrong_pin">PIN incorrecto</string>
+    <string name="auth_throttled">demasiados PIN incorrectos: vuelve a intentarlo en unos minutos</string>
+    <string name="auth_pin_locked">el PIN de este perfil está bloqueado tras demasiados intentos incorrectos. Su propietario o un administrador puede restablecerlo</string>
+    <string name="auth_needs_password">este perfil necesita su contraseña: vuelve a iniciar sesión para usarlo</string>
+    <string name="auth_not_allowed">no puedes cambiar a este perfil</string>
+
+    <string name="auth_signed_out">se cerró tu sesión: vuelve a iniciar sesión</string>
+    <string name="auth_unreadable_here">este dispositivo ya no puede leer su inicio de sesión: vuelve a iniciar sesión</string>
+    <string name="auth_not_kept">no se pudo guardar el inicio de sesión en este dispositivo: vuelve a iniciar sesión</string>
+    <string name="auth_wider_scope">el servidor concedió más de lo que pide esta aplicación: sesión cerrada</string>
+</resources>

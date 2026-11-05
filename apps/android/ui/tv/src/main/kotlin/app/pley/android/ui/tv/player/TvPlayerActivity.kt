@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerEngine
@@ -65,6 +66,10 @@ class TvPlayerActivity : ComponentActivity() {
 
     /** Settings → Playback details: the readout shows over the video. */
     private var showDetails by mutableStateOf(false)
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -7,14 +7,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.data.ItemRepository
 import app.pley.android.data.Loadable
 import app.pley.android.data.map
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.fullTitle
-import app.pley.android.model.format.pluralize
+import app.pley.android.screens.R
 import app.pley.android.screens.library.SmartFilter
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.CancellationException
@@ -36,7 +39,7 @@ import kotlinx.coroutines.launch
 /** The Add to playlist sheet: what is being added, and the playlists it can go in. */
 data class AddToPlaylistUiState(
     /** "The Office — S2 · E3 — Office Olympics", "Heat (1995)", "3 items"; `null` while it loads. */
-    val title: String?,
+    val title: UiText?,
     /** What a playlist must play to take it; `null` while that isn't known. */
     val kind: PlaylistKind?,
     /** The profile's playlists of that kind, smart ones left out (they fill themselves). */
@@ -96,14 +99,17 @@ class AddToPlaylistViewModel(
         deps.playlists.playlists(),
         deps.origin.map { it.orEmpty() }.distinctUntilChanged(),
         working,
-    ) { known, playlists, origin, busy ->
+        // Made again when the language shown changes: what is added and the cards' durations are written in it.
+        AppLanguage.shown,
+    ) { known, playlists, origin, busy, _ ->
         if (known != null) summaries = known
+        val words = AppLanguage.formatWords()
         val kind = known?.let { list -> list.firstOrNull()?.let { Playlists.kindOf(it.kind) } ?: PlaylistKind.Video }
         AddToPlaylistUiState(
-            title = known?.let(::titleOf),
+            title = known?.let { titleOf(it, words) },
             kind = kind,
             playlists = playlists.map { list ->
-                list.filter { it.smartFilter.isNullOrEmpty() && (kind == null || it.kind == kind) }.map { Playlists.card(it, origin) }
+                list.filter { it.smartFilter.isNullOrEmpty() && (kind == null || it.kind == kind) }.map { Playlists.card(it, origin, words) }
             },
             busy = busy,
             lead = known?.firstOrNull(),
@@ -147,11 +153,11 @@ class AddToPlaylistViewModel(
     }
 
     companion object {
-        /** What is added, in words: one item's full title, else how many. */
-        fun titleOf(items: List<ItemSummary>): String = when (items.size) {
-            0 -> ""
-            1 -> fullTitle(items.single())
-            else -> pluralize(items.size, "item")
+        /** What is added, in words: one item's full title (in [words]), else how many ("3 items"). */
+        fun titleOf(items: List<ItemSummary>, words: FormatWords): UiText = when (items.size) {
+            0 -> UiText.raw("")
+            1 -> UiText.raw(fullTitle(items.single(), words))
+            else -> UiText.plural(R.plurals.playlists_count_items, items.size)
         }
 
         fun factory(itemIds: List<Long>): ViewModelProvider.Factory = viewModelFactory {
@@ -193,8 +199,8 @@ class NewPlaylistViewModel(
     /** Whether the sheet asks what the playlist plays: only an empty, ordinary one. */
     val asksKind: Boolean = mode is NewPlaylistMode.Items && mode.itemIds.isEmpty()
 
-    /** A smart playlist's filters in words: "Genre: Comedy · Unwatched". */
-    val filters: List<String> = (mode as? NewPlaylistMode.Smart)?.let { SmartFilter.describe(it.query) }.orEmpty()
+    /** A smart playlist's filters in words: "Genre: Comedy", "Unwatched". */
+    val filterTexts: List<UiText> = (mode as? NewPlaylistMode.Smart)?.let { SmartFilter.words(it.query) }.orEmpty()
 
     /** Makes it; `false` (and nothing sent) when [title] won't do or it is already being made. */
     fun create(title: String, kind: PlaylistKind = PlaylistKind.Video): Boolean {

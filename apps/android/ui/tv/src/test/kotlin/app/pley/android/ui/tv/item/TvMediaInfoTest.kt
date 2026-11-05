@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import app.pley.android.common.UiText
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
@@ -22,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import app.pley.android.screens.R as ScreensR
 
 /** Media info on the item page: every stream in full, as text that never takes focus. */
 @RunWith(RobolectricTestRunner::class)
@@ -72,5 +74,38 @@ class TvMediaInfoTest {
         compose.onNodeWithTag(TAG_MEDIA_INFO_TOGGLE).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Open"))
         compose.onNodeWithTag(TAG_MEDIA_INFO_TOGGLE).performClick()
         compose.onNodeWithTag(TAG_MEDIA_INFO).assertDoesNotExist()
+    }
+
+    /** Media info of [file] as the second of two versions, opened. */
+    private fun opened() {
+        compose.setContent { TvTheme { MediaInfoSection(listOf(FileInfo(1, UiText.res(ScreensR.string.item_media_version, 2), emptyList(), emptyList(), file = file)), itemId = 7) } }
+        compose.onNodeWithTag(TAG_MEDIA_INFO_TOGGLE).performClick()
+    }
+
+    @Test
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
+    fun `media info in French`() {
+        opened()
+        compose.onNodeWithText("Informations sur le média").assertExists()
+        compose.onNodeWithTag(TAG_MEDIA_INFO_TOGGLE).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Développé"))
+        compose.onNodeWithText("Version 2").assertExists()
+        compose.onNodeWithText("Fichier").assertExists()
+        compose.onNodeWithText("Fréquence d’images").assertExists()
+        compose.onNodeWithText("Audio 2").assertExists()
+        compose.onNodeWithText("PGS, image").assertExists()
+        compose.onNodeWithText("Forcés").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w960dp-h540dp-xhdpi")
+    fun `media info in Spanish`() {
+        opened()
+        compose.onNodeWithText("Información multimedia").assertExists()
+        compose.onNodeWithTag(TAG_MEDIA_INFO_TOGGLE).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Expandido"))
+        compose.onNodeWithText("Versión 2").assertExists()
+        compose.onNodeWithText("Archivo").assertExists()
+        compose.onNodeWithText("Velocidad de fotogramas").assertExists()
+        compose.onNodeWithText("PGS, imagen").assertExists()
+        compose.onNodeWithText("Forzados").assertExists()
     }
 }

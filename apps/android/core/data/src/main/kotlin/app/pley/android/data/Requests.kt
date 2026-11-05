@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import app.pley.android.common.UiText
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
 import app.pley.android.model.Decline
@@ -276,7 +277,7 @@ interface RequestsRepository {
             override fun dismiss(notice: RequestNotice) = Unit
 
             /** What a server with requests off answers. */
-            private fun off() = ApiException(503, "unavailable", "Requests are off")
+            private fun off() = ApiException(503, "unavailable", UiText.res(R.string.data_requests_off))
         }
     }
 }

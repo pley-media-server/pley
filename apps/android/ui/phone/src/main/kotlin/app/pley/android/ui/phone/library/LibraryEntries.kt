@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,9 +40,9 @@ fun EntryProviderScope<NavKey>.libraryEntries() {
 @Composable
 private fun CollectionsScreen(key: PleyKey.Collections) {
     val navigator = LocalPhoneNavigator.current
-    val resources = LocalResources.current
+    val tiles = rememberPhoneTiles()
     val vm: CollectionsViewModel<ArtworkTileModel> = viewModel {
-        CollectionsViewModel(key.libraryId, LibraryDeps.of(screensGraph()), PhoneTiles(resources))
+        CollectionsViewModel(key.libraryId, LibraryDeps.of(screensGraph()), tiles)
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val shelf = (state as? Loadable.Ready)?.value?.firstOrNull()

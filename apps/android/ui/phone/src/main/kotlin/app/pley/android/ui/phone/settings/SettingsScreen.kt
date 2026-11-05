@@ -24,14 +24,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.UnstableApi
+import app.pley.android.common.Language
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.GridDensity
 import app.pley.android.data.Settings
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.data.SubtitleFont
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.downloads.DownloadsViewModel
+import app.pley.android.screens.settings.LanguageUiState
+import app.pley.android.screens.settings.LanguageViewModel
 import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
 import app.pley.android.ui.phone.R
@@ -51,21 +55,25 @@ import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.screens.R as ScreensR
 
 /**
- * This phone's settings (design spec §4.8; P5-ACCOUNT): quality on Wi-Fi
- * and on mobile data, matching the refresh rate (only when seamless, or
- * off), autoplay, the playback details overlay, the subtitles' size and
- * background, the grid's density, the private sign-in tab, and About (with
- * TMDB's notice). Every change is saved at once.
+ * This phone's settings (design spec §4.8; P5-ACCOUNT): the account's
+ * language, quality on Wi-Fi and on mobile data, matching the refresh rate
+ * (only when seamless, or off), autoplay, the playback details overlay,
+ * the subtitles' size and background, the grid's density, the private
+ * sign-in tab, and About (with TMDB's notice). Every change is saved at
+ * once.
  */
 @Composable
 internal fun SettingsScreen() {
     val model: SettingsViewModel = viewModel(factory = SettingsViewModel.factory)
     val state by model.state.collectAsStateWithLifecycle()
     val downloads: DownloadsViewModel = viewModel(factory = DownloadsViewModel.factory)
+    val languageModel: LanguageViewModel = viewModel(factory = LanguageViewModel.factory)
+    val language by languageModel.state.collectAsStateWithLifecycle()
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     LaunchedEffect(model) { model.errors.collect(shell::report) }
+    LaunchedEffect(languageModel) { languageModel.errors.collect(shell::report) }
     var sheet by rememberSaveable { mutableStateOf<Sheet?>(null) }
     val list = rememberLazyListState()
     val s = state.settings
@@ -79,6 +87,19 @@ internal fun SettingsScreen() {
             verticalArrangement = Arrangement.spacedBy(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (language.available) {
+                item(key = "language") {
+                    SettingsGroup(null, Modifier.widthIn(max = MAX_WIDTH), footer = stringResource(ScreensR.string.language_hint)) {
+                        SettingsRow(
+                            stringResource(ScreensR.string.language_title),
+                            value = language.value.asString(),
+                            icon = PleyIcons.Globe,
+                            enabled = !language.saving,
+                            onClick = { sheet = Sheet.Language },
+                        )
+                    }
+                }
+            }
             item(key = "playback") {
                 SettingsGroup(stringResource(R.string.settings_playback), Modifier.widthIn(max = MAX_WIDTH)) {
                     SettingsRow(
@@ -241,7 +262,7 @@ internal fun SettingsScreen() {
             }
         }
     }
-    SettingsSheet(sheet, state, model, onDismiss = { sheet = null })
+    SettingsSheet(sheet, state, model, language, languageModel::choose, onDismiss = { sheet = null })
     if (confirmDeleteAll) {
         ConfirmDialog(
             title = stringResource(R.string.downloads_delete_all_title),
@@ -260,6 +281,7 @@ internal fun SettingsScreen() {
 
 /** The choice being made, if any. */
 private enum class Sheet {
+    Language,
     QualityHome,
     QualityMobile,
     DownloadQuality,
@@ -273,9 +295,23 @@ private enum class Sheet {
 }
 
 @Composable
-private fun SettingsSheet(sheet: Sheet?, state: SettingsUiState, model: SettingsViewModel, onDismiss: () -> Unit) {
+private fun SettingsSheet(
+    sheet: Sheet?,
+    state: SettingsUiState,
+    model: SettingsViewModel,
+    language: LanguageUiState,
+    onLanguage: (Language?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val s = state.settings
     when (sheet) {
+        Sheet.Language -> ChoiceSheet(
+            title = stringResource(ScreensR.string.language_title),
+            choices = language.choices.map { Choice(it, language.label(it).asString()) },
+            selected = language.chosen,
+            onPick = onLanguage,
+            onDismiss = onDismiss,
+        )
         Sheet.QualityHome, Sheet.QualityMobile -> {
             val mobile = sheet == Sheet.QualityMobile
             ChoiceSheet(

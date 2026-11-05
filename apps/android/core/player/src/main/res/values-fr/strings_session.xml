@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_quality_original">Original</string>
+    <string name="session_quality_automatic">Automatique</string>
+    <string name="session_quality_automatic_playing">Automatique · %1$s</string>
+    <string name="session_quality_automatic_hint">S’adapte aux conditions</string>
+    <string name="session_quality_automatic_now">Actuellement %1$s</string>
+    <string name="session_quality_lowered_notice">Qualité réduite à %1$s</string>
+    <string name="session_quality_lowered_network">Réduite pour votre connexion</string>
+    <string name="session_quality_lowered_device">Réduite pour cet appareil</string>
+
+    <string name="session_skip_intro">Passer l’intro</string>
+    <string name="session_skip_credits">Passer le générique</string>
+
+    <string name="session_up_next">À suivre</string>
+    <string name="session_up_next_episode">À suivre · %1$s</string>
+    <string name="session_last_episode">C’est le dernier épisode</string>
+    <string name="session_last_in_queue">C’est le dernier de la liste</string>
+
+    <string name="session_subtitles_off">Désactivés</string>
+    <string name="session_subtitles_failed">Impossible de charger ces sous-titres.</string>
+
+    <string name="session_method_direct">Lecture directe</string>
+    <string name="session_method_downloaded">Téléchargé</string>
+    <string name="session_error_download_needs_server">Ce téléchargement ne peut pas être lu hors ligne sur cet appareil. Connectez-vous à votre serveur pour le lire.</string>
+    <string name="session_drive_unplayable">Cette TV ne peut pas lire ce fichier tel quel, et un fichier sur un périphérique USB n’a aucun serveur pour le convertir.</string>
+    <string name="session_drive_stuck">Cette TV ne lit pas ce fichier : son image n’a jamais démarré. Sans serveur pour le convertir, essayez une autre copie.</string>
+    <string name="session_drive_unreadable">Impossible de lire cette vidéo. Le périphérique USB a peut-être été retiré.</string>
+    <string name="session_drive_speed_undecodable">Pas pour ce fichier : son audio est envoyé tel quel à votre ampli, et rien ici ne le décode</string>
+    <string name="session_method_remux">Flux direct</string>
+    <string name="session_method_transcode">Transcodage</string>
+    <string name="session_method_remux_audio">Flux direct · Audio transcodé</string>
+    <string name="session_fallback_unplayable">Cet appareil n’a pas pu lire le fichier original.</string>
+    <string name="session_fallback_not_smooth">L’original n’était pas fluide sur cet appareil.</string>
+    <string name="session_slow_server">Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure.</string>
+
+    <string name="session_row_video">Vidéo</string>
+    <string name="session_row_audio">Audio</string>
+    <string name="session_row_bitrate">Débit</string>
+    <string name="session_row_encoder">Encodeur</string>
+    <string name="session_row_hdr">Affiché en</string>
+    <string name="session_row_subtitles">Sous-titres</string>
+    <string name="session_row_speed">Vitesse</string>
+    <string name="session_tone_mapped">SDR (mappage tonal avec %1$s)</string>
+    <string name="session_burned_in">Incrustés</string>
+    <string name="session_speed">%1$s× temps réel</string>
+    <string name="session_speed_ready">%1$s× temps réel · %2$d s d’avance</string>
+    <string name="session_pipeline_hybrid">GPU et CPU</string>
+    <string name="session_pipeline_copy">copie</string>
+
+    <string name="session_engine_video">Vidéo : %1$s %2$d×%3$d</string>
+    <string name="session_engine_video_rate">Vidéo : %1$s %2$d×%3$d %4$s i/s</string>
+    <string name="session_engine_video_decoder">Décodeur vidéo : %1$s</string>
+    <string name="session_engine_audio">Audio : %1$s %2$d ch</string>
+    <string name="session_engine_audio_decoder">Décodeur audio : %1$s</string>
+    <string name="session_engine_dropped">Images perdues : %1$d sur %2$d</string>
+
+    <string name="session_speed_undecodable">Pas pour ce téléchargement : son audio est envoyé tel quel à votre ampli, et rien ici ne le décode</string>
+    <string name="session_speed_unconverted">Pas maintenant : son audio est envoyé tel quel à votre ampli, rien ici ne le décode, et le serveur n’a pas pu le convertir</string>
+
+    <string name="session_search_not_set_up">La recherche de sous-titres n’est pas configurée sur ce serveur</string>
+    <string name="session_search_unsupported">Ce serveur ne peut pas rechercher de sous-titres : il doit peut-être être mis à jour</string>
+    <string name="session_search_nothing">Aucun sous-titre trouvé pour ce fichier</string>
+    <string name="session_search_failed">Impossible de trouver des sous-titres : %1$s</string>
+    <string name="session_search_exact">Conçus pour ce fichier</string>
+    <plurals name="session_search_downloads">
+        <item quantity="one">%1$,d téléchargement</item>
+        <item quantity="many">%1$,d de téléchargements</item>
+        <item quantity="other">%1$,d téléchargements</item>
+    </plurals>
+    <string name="session_search_added">Sous-titres ajoutés</string>
+
+    <string name="session_error_unplayable">Cette vidéo ne peut pas être lue sur cet appareil.</string>
+    <string name="session_error_stuck">Cette vidéo ne se lit pas sur cet appareil : elle s’arrête chaque fois au même endroit.</string>
+    <string name="session_error_short">Cette vidéo se termine avant le moment où la lecture devait commencer.</string>
+    <string name="session_error_stopped">La lecture s’est arrêtée et n’a pas pu reprendre.</string>
+    <string name="session_error_network">Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.</string>
+    <string name="session_error_unreachable">%1$s Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.</string>
+    <string name="session_error_engine">La lecture a échoué (%1$s).</string>
+    <string name="session_error_no_file">Cet élément n’a aucun fichier à lire.</string>
+    <string name="session_sign_in_to_play">Connectez-vous pour lire</string>
+</resources>

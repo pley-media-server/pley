@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.playlists.PlaylistCard
@@ -31,7 +32,7 @@ class TvPlaylistsTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun card(id: Long, title: String, meta: String, smart: Boolean = false) =
-        PlaylistCard(id = id, title = title, meta = meta, video = true, smart = smart, artwork = emptyList(), origin = "http://pley")
+        PlaylistCard(id = id, title = title, metaTexts = listOf(UiText.raw(meta)), video = true, smart = smart, artwork = emptyList(), origin = "http://pley")
 
     @Test
     fun aCardSaysItsTitleAndWhatItHolds() {

@@ -39,6 +39,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.player.AudioDelays
 import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.sleep.SleepTimer
@@ -66,7 +67,7 @@ internal fun SyncControl(offsetMs: Long, onChange: (Long) -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.player_sync), style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg)
-            Text(SubtitleSync.label(offsetMs), style = MaterialTheme.typography.bodySmall, color = if (offsetMs != 0L) PleyColors.AccentBright else PleyColors.Muted)
+            Text(SubtitleSync.label(offsetMs, shownLocale()), style = MaterialTheme.typography.bodySmall, color = if (offsetMs != 0L) PleyColors.AccentBright else PleyColors.Muted)
         }
         PleyTextButton(stringResource(R.string.player_sync_reset), onClick = { onChange(0) }, enabled = offsetMs != 0L)
         PleyIconButton(PleyIcons.ChevronLeft, stringResource(R.string.player_sync_earlier), onClick = { onChange(offsetMs - SubtitleSync.STEP_MS) })
@@ -91,7 +92,7 @@ internal fun AudioDelayControl(delayMs: Long, onChange: (Long) -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.player_audio_delay), style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg)
             Text(
-                AudioDelays.label(delayMs),
+                AudioDelays.label(delayMs, shownLocale()),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (delayMs != 0L) PleyColors.AccentBright else PleyColors.Muted,
             )

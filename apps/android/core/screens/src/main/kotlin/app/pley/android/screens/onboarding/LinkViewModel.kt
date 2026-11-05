@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.pley.android.auth.AuthException
 import app.pley.android.auth.DeviceCode
 import app.pley.android.auth.DevicePoll
-import app.pley.android.common.describe
+import app.pley.android.common.UiText
 import app.pley.android.screens.PleyKey
 import java.io.IOException
 import java.net.URI
@@ -60,8 +60,8 @@ sealed interface LinkStatus {
     /** "Signed in as Anna", for a moment, then in. */
     data class SignedIn(val name: String?) : LinkStatus
 
-    /** It can't go on: an older server, or a refusal, in the module's words. */
-    data class Failed(val message: String) : LinkStatus
+    /** It can't go on: an older server, or a refusal, in the sign-in's words ([text]). */
+    data class Failed(val text: UiText) : LinkStatus
 }
 
 data class LinkUiState(
@@ -170,7 +170,7 @@ class LinkViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthException) {
-                _state.update { it.copy(status = LinkStatus.Failed(e.message.orEmpty())) }
+                _state.update { it.copy(status = LinkStatus.Failed(e.text)) }
                 return@launch
             } catch (e: IOException) {
                 // Can't reach the server: try again after a while, as the polling does.
@@ -201,7 +201,7 @@ class LinkViewModel(
                 DevicePoll.Denied -> _state.update { it.copy(status = LinkStatus.Declined) }
                 DevicePoll.Expired -> expired()
                 is DevicePoll.SignedIn -> signedIn()
-                is DevicePoll.Failed -> _state.update { it.copy(status = LinkStatus.Failed(poll.message)) }
+                is DevicePoll.Failed -> _state.update { it.copy(status = LinkStatus.Failed(poll.text)) }
             }
         }
     }

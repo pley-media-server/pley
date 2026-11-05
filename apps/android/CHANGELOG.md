@@ -8,6 +8,21 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Pley is in English, French and Spanish: your account's language, else
+  your server's, else this device's, and Settings has a Language row on
+  phones and TVs that sets it for your account on every device. Every
+  screen on phones, tablets and TVs is in it; dates, times, runtimes,
+  counts, the names of audio and subtitle languages and connection errors
+  follow it, and a download that failed says why in it. On Android 13 and
+  later the system's settings list Pley's languages.
+
+### Changed
+
+- On phones the player's Downloaded badge is green, as on TVs: the file
+  plays as it is.
+
 ## [0.1.7] - 2026-11-05
 
 ### Added

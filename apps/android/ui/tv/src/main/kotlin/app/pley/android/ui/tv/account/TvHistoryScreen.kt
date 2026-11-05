@@ -42,7 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -52,6 +53,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.account.HistoryRow
 import app.pley.android.screens.account.HistoryUiState
 import app.pley.android.screens.account.HistoryViewModel
@@ -80,8 +82,8 @@ internal fun TvHistoryScreen() {
     val model: HistoryViewModel = viewModel(factory = HistoryViewModel.factory)
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
-    var problem by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(model) { model.errors.collect { problem = sentenceOf(it) } }
+    var problem by remember { mutableStateOf<UiText?>(null) }
+    LaunchedEffect(model) { model.errors.collect { problem = errorSentence(it) } }
     val memory = rememberFocusMemory()
     // Each shown row's focus and its cross's, for the neighbour of a row removed.
     val focus = remember { HashMap<Long, Pair<FocusRequester, FocusRequester>>() }
@@ -93,7 +95,7 @@ internal fun TvHistoryScreen() {
                 BasicText(pluralStringResource(R.plurals.tv_account_history_count, it.total, it.total), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.padding(bottom = 6.dp))
             }
             Spacer(Modifier.weight(1f))
-            problem?.let { BasicText(it, style = PleyType.Tv.Label.copy(color = PleyColors.DangerText), maxLines = 1) }
+            problem?.let { BasicText(it.asString(), style = PleyType.Tv.Label.copy(color = PleyColors.DangerText), maxLines = 1) }
         }
         Spacer(Modifier.height(20.dp))
         when (val s = state) {

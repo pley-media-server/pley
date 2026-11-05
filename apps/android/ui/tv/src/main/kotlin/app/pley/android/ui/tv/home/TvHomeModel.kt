@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.home
 
 import androidx.compose.runtime.Immutable
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
@@ -61,13 +62,14 @@ internal data class TvHomeModel(
 
         fun of(state: HomeState, tier: Tier): TvHomeModel {
             if (state !is HomeState.Ready) return TvHomeModel(state)
+            val words = AppLanguage.formatWords()
             val rows = state.rows.map { row ->
                 val kind = row.shape.tileKind
                 TvHomeRow(
                     key = row.key,
                     title = row.title,
                     kind = kind,
-                    tiles = row.items.map { ArtworkTileModel.of(it, kind, state.origin) },
+                    tiles = row.items.map { ArtworkTileModel.of(it, kind, state.origin, words) },
                     items = row.items,
                     seeAll = row.seeAll,
                 )

@@ -133,7 +133,7 @@ internal fun CategoryList(
 private fun Heading(text: String, count: Int) {
     Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp)) {
         Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = PleyColors.Subtle, modifier = Modifier.weight(1f))
-        Text("%,d".format(count), style = MaterialTheme.typography.labelSmall, color = PleyColors.Subtle)
+        Text(formatCount(count), style = MaterialTheme.typography.labelSmall, color = PleyColors.Subtle)
     }
 }
 
@@ -164,7 +164,7 @@ private fun Entry(icon: PleyIcon?, name: String, count: Int?, selected: Boolean,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (count != null) Text("%,d".format(count), style = MaterialTheme.typography.bodySmall, color = PleyColors.Subtle)
+        if (count != null) Text(formatCount(count), style = MaterialTheme.typography.bodySmall, color = PleyColors.Subtle)
     }
 }
 

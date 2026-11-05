@@ -2,6 +2,7 @@ package app.pley.android.ui.tv.player
 
 import android.text.format.DateFormat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -21,11 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -63,13 +63,10 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.Image
 import androidx.tv.material3.Border
 import androidx.tv.material3.Glow
 import androidx.tv.material3.IconButton
 import androidx.tv.material3.IconButtonDefaults
-import app.pley.android.designsystem.image.GradientBitmaps
-import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.PleyMotion
@@ -83,13 +80,15 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkLoad
+import app.pley.android.designsystem.image.GradientBitmaps
+import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.model.MarkerKind
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
 import app.pley.android.player.markers.Markers
 import app.pley.android.ui.tv.R
-import app.pley.android.player.R as PlayerR
 
 /*
  * The controls of design spec §2.7, on the 960 × 540 canvas: the title and
@@ -105,6 +104,7 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
     val line by remember(state) { derivedStateOf { TvPlayerText.episodeLine(state.value.subtitle) } }
     val paused by remember(state) { derivedStateOf { state.value.phase == PlayerPhase.Paused } }
     val method by remember(state) { derivedStateOf { state.value.method } }
+    val way by remember(state) { derivedStateOf { state.value.playbackMethod } }
     Column(
         Modifier
             .align(Alignment.TopStart)
@@ -127,7 +127,7 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
         val clock = rememberClock(now)
         Row(verticalAlignment = Alignment.CenterVertically) {
             method?.let {
-                MethodBadge(it)
+                MethodBadge(it, way)
                 Spacer(Modifier.width(12.dp))
             }
             BasicText(clock, style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
@@ -153,12 +153,10 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
  * doesn't wash it out. Info, in the control row, says why.
  */
 @Composable
-private fun MethodBadge(method: String) {
-    val direct = setOf(stringResource(PlayerR.string.session_method_direct), stringResource(PlayerR.string.session_method_downloaded))
-    val stream = setOf(stringResource(PlayerR.string.session_method_remux), stringResource(PlayerR.string.session_method_remux_audio))
-    val colour = when (method) {
-        in direct -> PleyColors.Success
-        in stream -> PleyColors.Info
+private fun MethodBadge(method: String, way: PlaybackMethod?) {
+    val colour = when (way) {
+        PlaybackMethod.Direct -> PleyColors.Success
+        PlaybackMethod.Remux -> PleyColors.Info
         else -> PleyColors.Accent
     }
     BasicText(
@@ -225,7 +223,8 @@ internal fun BoxScope.TvScrubber(
     ) {
         BasicText(TvPlayerText.time(elapsed * 1000), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), modifier = Modifier.align(Alignment.TopStart))
         BasicText(TvPlayerText.remaining(0, remaining * 1000), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), modifier = Modifier.align(Alignment.TopEnd))
-        val spoken = stringResource(R.string.tv_player_position, TvPlayerText.spoken(elapsed * 1000), TvPlayerText.spoken(duration))
+        val resources = LocalResources.current
+        val spoken = stringResource(R.string.tv_player_position, TvPlayerText.spoken(resources, elapsed * 1000), TvPlayerText.spoken(resources, duration))
         Box(
             Modifier
                 .padding(top = TRACK_CENTRE - TIMES_TOP - SCRUB_HEIGHT / 2)

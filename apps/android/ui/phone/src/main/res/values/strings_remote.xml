@@ -10,9 +10,9 @@
     <string name="remote_title">Your devices</string>
     <string name="remote_unknown_device">Unknown device</string>
     <!-- Two devices of the same name, told apart: "Living room TV (2)". -->
-    <string name="remote_device_numbered">%1$s (%2$d)</string>
+    <string name="remote_device_numbered" translatable="false">%1$s (%2$d)</string>
     <!-- Between the devices' names on the bar: "Living room TV, Pixel 8". -->
-    <string name="remote_device_separator">", "</string>
+    <string name="remote_device_separator" translatable="false">", "</string>
     <string name="remote_live_tv">Live TV</string>
 
     <!-- A device in the list that plays nothing, and its controls then. -->
@@ -53,7 +53,7 @@
     <string name="remote_quality_on">Quality on %1$s</string>
 
     <!-- A channel playing: the programme on, its times ("20:00 – 21:00"), and the one after it. -->
-    <string name="remote_live_span">%1$s – %2$s</string>
+    <string name="remote_live_span" translatable="false">%1$s – %2$s</string>
     <string name="remote_live_next">Next: %1$s</string>
 
     <!-- A command that didn't go through, said under the device's controls. -->

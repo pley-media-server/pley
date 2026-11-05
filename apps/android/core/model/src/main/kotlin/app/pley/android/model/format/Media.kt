@@ -1,6 +1,7 @@
 package app.pley.android.model.format
 
 import app.pley.android.model.DynamicRange
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
@@ -13,7 +14,9 @@ import app.pley.android.model.TranscodeInfo
  * What files and streams are like, in words: the web's labels
  * (apps/web/src/lib/format.ts, pages/item/shared.tsx, VideoItemView.tsx),
  * and the short badges of the design spec (§2.6) for tiles and metadata
- * lines, where the long forms don't fit.
+ * lines, where the long forms don't fit. Codecs, formats and badges are
+ * named the same in every language; the labels with words take them
+ * last, English when given none.
  */
 
 private val CODECS: Map<String, String> = mapOf(
@@ -35,16 +38,16 @@ fun codecLabel(codec: String?): String {
 }
 
 /** 2 → "Stereo", 6 → "5.1", 8 → "7.1", 5 → "5ch"; the layout's name without a count. */
-fun channelsLabel(channels: Int?, layout: String? = null): String {
+fun channelsLabel(channels: Int?, layout: String? = null, words: FormatWords = FormatWords.English): String {
     if (channels == null || channels == 0) return layout.orEmpty()
     return when (channels) {
         1 -> "Mono"
-        2 -> "Stereo"
+        2 -> words.stereo
         3 -> "2.1"
         6 -> "5.1"
         7 -> "6.1"
         8 -> "7.1"
-        else -> "${channels}ch"
+        else -> words.channels(channels)
     }
 }
 
@@ -146,10 +149,10 @@ fun isAtmos(stream: MediaStream?): Boolean {
 }
 
 /** An audio stream's format: "TrueHD Atmos 7.1", "EAC3 5.1", "AAC Stereo". */
-fun audioFormatLabel(stream: MediaStream): String = listOf(
+fun audioFormatLabel(stream: MediaStream, words: FormatWords = FormatWords.English): String = listOf(
     codecLabel(stream.codec),
     if (isAtmos(stream)) "Atmos" else "",
-    channelsLabel(stream.channels, stream.channelLayout),
+    channelsLabel(stream.channels, stream.channelLayout, words),
 ).filter { it.isNotEmpty() }.joinToString(" ")
 
 /**
@@ -158,22 +161,24 @@ fun audioFormatLabel(stream: MediaStream): String = listOf(
  * "French – SDH (SRT, Forced)", "Portuguese (BR) (PGS)". Video: "4K HEVC
  * Dolby Vision P8.1 10-bit".
  */
-fun streamLabel(s: MediaStream): String {
-    val lang = languageName(s.language)
+fun streamLabel(s: MediaStream, words: FormatWords = FormatWords.English): String {
+    val lang = languageName(s.language, words)
     val title = s.title?.takeIf { it.isNotEmpty() }
-    val extra = if (title != null && lang != null && !title.lowercase().contains(lang.lowercase())) " – $title" else ""
+    // Files' titles mostly name the language in English ("English SDH"), whatever the language shown.
+    val named = title != null && listOfNotNull(lang, languageName(s.language, FormatWords.English)).any { title.lowercase().contains(it.lowercase()) }
+    val extra = if (title != null && lang != null && !named) " – $title" else ""
     return when (s.kind) {
         StreamKind.Audio -> {
-            val details = audioFormatLabel(s)
-            val base = if (title != null && lang == null) title else lang ?: title ?: "Unknown"
+            val details = audioFormatLabel(s, words)
+            val base = if (title != null && lang == null) title else lang ?: title ?: words.unknown
             base + extra + (if (details.isNotEmpty()) " ($details)" else "")
         }
         StreamKind.Subtitle -> {
-            val base = lang ?: title ?: "Unknown"
+            val base = lang ?: title ?: words.unknown
             val flags = listOfNotNull(
                 codecLabel(s.codec).takeIf { it.isNotEmpty() },
-                "Forced".takeIf { isForced(s) },
-                "External".takeIf { s.external },
+                words.forced.takeIf { isForced(s) },
+                words.external.takeIf { s.external },
             ).joinToString(", ")
             base + extra + (if (flags.isNotEmpty()) " ($flags)" else "")
         }
@@ -181,7 +186,7 @@ fun streamLabel(s: MediaStream): String {
             resolutionLabel(s.width, s.height),
             codecLabel(s.codec).takeIf { it.isNotEmpty() },
             dynamicRangeLabel(s),
-            s.bitDepth?.takeIf { it > 8 }?.let { "$it-bit" },
+            s.bitDepth?.takeIf { it > 8 }?.let { words.bitDepth(it) },
         ).joinToString(" ")
     }
 }
@@ -211,13 +216,17 @@ fun mediaBadges(media: MediaSummary?): List<String> {
 }
 
 /** "42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a summary. */
-fun mediaLine(media: MediaSummary?): String {
+fun mediaLine(media: MediaSummary?, words: FormatWords = FormatWords.English): String {
     if (media == null) return ""
-    return listOf(formatBitrate(media.bitrate), formatBytes(media.size))
+    return listOf(formatBitrate(media.bitrate, words), formatBytes(media.size, words))
         .filter { it.isNotEmpty() }
         .joinToString(" · ")
-        .ifEmpty { "Bitrate unknown" }
+        .ifEmpty { words.bitrateUnknown }
 }
+
+/** How the library filters name [filter]: "Any HDR", "Dolby Vision", "HDR+"… ([DynamicRangeFilter.label] in [words]). */
+fun dynamicRangeFilterLabel(filter: DynamicRangeFilter, words: FormatWords = FormatWords.English): String =
+    if (filter == DynamicRangeFilter.Hdr) words.anyHdr else filter.label
 
 /** The audio track a file starts with: the profile's choice, else the default, else the first. */
 fun startingAudio(file: MediaFile): MediaStream? {
@@ -261,24 +270,24 @@ fun qualityBadges(media: MediaSummary?): List<String> {
  * A version in the web's picker: "Final Cut · 4K · HEVC · MKV · 58.2 GB",
  * else "Version 2". A size of 0 means unknown here (the web never gets 0).
  */
-fun versionLabel(file: MediaFile, position: Int): String = listOf(
+fun versionLabel(file: MediaFile, position: Int, words: FormatWords = FormatWords.English): String = listOf(
     file.edition.orEmpty(),
     resolutionLabel(file.width, file.height).orEmpty(),
     codecLabel(file.videoCodec),
     file.container?.uppercase().orEmpty(),
-    if (file.size > 0) formatBytes(file.size) else "",
-).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { "Version ${position + 1}" }
+    if (file.size > 0) formatBytes(file.size, words) else "",
+).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { words.version(position + 1) }
 
 /** A version in an item's Details: "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1 · 62.0 GB". */
-fun versionDescription(file: MediaFile): String {
+fun versionDescription(file: MediaFile, words: FormatWords = FormatWords.English): String {
     val video = file.streams.firstOrNull { it.kind == StreamKind.Video }
     return listOf(
         file.edition.orEmpty(),
         resolutionLabel(file.width ?: video?.width, file.height ?: video?.height).orEmpty(),
         codecLabel(file.videoCodec ?: video?.codec),
         dynamicRangeLabel(video).orEmpty(),
-        startingAudio(file)?.let { audioFormatLabel(it) }.orEmpty(),
-        if (file.size > 0) formatBytes(file.size) else "",
+        startingAudio(file)?.let { audioFormatLabel(it, words) }.orEmpty(),
+        if (file.size > 0) formatBytes(file.size, words) else "",
     ).filter { it.isNotEmpty() }.joinToString(" · ")
 }
 
@@ -287,25 +296,25 @@ fun versionDescription(file: MediaFile): String {
  * P8.1 → H.264 1920×1080 · EAC3 5.1 (copy) · h264_nvenc · cuda decode ·
  * libplacebo · 3.2×".
  */
-fun transcodeSummary(t: TranscodeInfo): String {
+fun transcodeSummary(t: TranscodeInfo, words: FormatWords = FormatWords.English): String {
     val parts = mutableListOf<String>()
     when (t.video) {
         StreamAction.Transcode -> parts += listOfNotNull(t.videoIn, t.videoOut).filter { it.isNotEmpty() }
-            .joinToString(" → ").ifEmpty { "Video transcode" }
-        StreamAction.Copy -> parts += "${t.videoIn?.takeIf { it.isNotEmpty() } ?: "Video"} (copy)"
+            .joinToString(" → ").ifEmpty { words.videoTranscode }
+        StreamAction.Copy -> parts += words.copied(t.videoIn?.takeIf { it.isNotEmpty() } ?: words.video)
         else -> Unit
     }
     when (t.audio) {
         StreamAction.Transcode -> listOfNotNull(t.audioIn, t.audioOut).filter { it.isNotEmpty() }
             .joinToString(" → ").takeIf { it.isNotEmpty() }?.let { parts += it }
-        StreamAction.Copy -> t.audioIn?.takeIf { it.isNotEmpty() }?.let { parts += "$it (copy)" }
+        StreamAction.Copy -> t.audioIn?.takeIf { it.isNotEmpty() }?.let { parts += words.copied(it) }
         else -> Unit
     }
     val transcoding = t.video == StreamAction.Transcode
     if (transcoding) t.encoder?.takeIf { it.isNotEmpty() }?.let { parts += it }
-    if (transcoding) t.decoder?.takeIf { it.isNotEmpty() && it != "cpu" }?.let { parts += "$it decode" }
+    if (transcoding) t.decoder?.takeIf { it.isNotEmpty() && it != "cpu" }?.let { parts += words.decoded(it) }
     t.tonemap?.takeIf { it.isNotEmpty() }?.let { parts += it }
-    if (t.subtitleBurn) parts += "burn-in subs"
-    t.speed?.takeIf { it > 0 }?.let { parts += "${fixed(it, 1)}×" }
+    if (t.subtitleBurn) parts += words.burnIn
+    t.speed?.takeIf { it > 0 }?.let { parts += "${fixed(it, 1, words)}×" }
     return parts.joinToString(" · ")
 }

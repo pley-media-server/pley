@@ -225,7 +225,7 @@ fun librariesState(
     }
     // A scan the server didn't say the library of is shown on none: the list's own flag says which.
     return LibrariesState.Ready(
-        libraries = shown.map { LibraryEntry(it, libraryCount(it), it.scanning || it.id in scanning) },
+        libraries = shown.map { LibraryEntry(it, it.scanning || it.id in scanning) },
         fresh = libraries is Loadable.Ready && libraries.fresh,
         error = (libraries as? Loadable.Failed)?.error,
         refreshing = refreshing,

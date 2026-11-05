@@ -1,7 +1,10 @@
 package app.pley.android.screens.requests
 
 import android.content.res.Resources
-import app.pley.android.common.sentenceOf
+import android.text.format.DateFormat
+import app.pley.android.common.errorSentence
+import app.pley.android.common.formatWords
+import app.pley.android.common.resolve
 import app.pley.android.data.RequestNotice
 import app.pley.android.model.Asked
 import app.pley.android.model.DiscoverList
@@ -13,6 +16,7 @@ import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatDate
 import app.pley.android.model.format.formatRelative
 import app.pley.android.screens.R
@@ -28,14 +32,20 @@ import kotlin.math.roundToInt
 /**
  * Requests' words from [res]: what the rules decide, said. Times are
  * relative to [now] (unix seconds) and days are in [zone]: "in 3 days",
- * "tomorrow", "Out Nov 4".
+ * "tomorrow", "Out Nov 4". Dates and numbers are written in [locale], else
+ * in the language [res] is in, read each time: the language shown.
  */
 class RequestTexts(
     private val res: Resources,
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
-    private val locale: Locale = Locale.getDefault(),
+    private val locale: Locale? = null,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
+    private val shown: Locale get() = locale ?: res.configuration.locales[0]
+
+    /** The format functions' words in the same language: a runtime, a folder's free space. */
+    val words: FormatWords get() = formatWords(res)
+
     // ---------------------------------------------------------------- titles
 
     fun badge(badge: TitleBadge): String = res.getString(
@@ -58,6 +68,9 @@ class RequestTexts(
             DiscoverList.Anime -> R.string.requests_row_anime
         },
     )
+
+    /** TMDB's rating, with one decimal: "7.4", "7,4" in French. */
+    fun rating(value: Double): String = String.format(shown, "%.1f", value)
 
     /** "Declined: “Not for us”. You can ask again in 12 days." */
     fun declined(action: MainAction.Declined): String {
@@ -95,7 +108,7 @@ class RequestTexts(
         season.state == SeasonState.Requested -> res.getString(R.string.requests_season_requested)
         season.state == SeasonState.Partial -> res.getString(R.string.requests_season_partial, season.inLibrary, maxOf(season.episodes, season.inLibrary))
         season.state == SeasonState.Unaired ->
-            season.airDate?.let { res.getString(R.string.requests_season_airs, formatDate(it, locale)) } ?: res.getString(R.string.requests_season_unaired)
+            season.airDate?.let { res.getString(R.string.requests_season_airs, formatDate(it, shown)) } ?: res.getString(R.string.requests_season_unaired)
         else -> res.getQuantityString(R.plurals.requests_season_episodes, season.episodes, season.episodes)
     }
 
@@ -267,6 +280,8 @@ class RequestTexts(
             val seasons = notice.seasons.orEmpty()
             when {
                 notice.complete || seasons.isEmpty() -> res.getString(R.string.requests_notice_ready, notice.title)
+                // The specials alone have words of their own: in French and Spanish they agree as many episodes.
+                seasons.size == 1 && seasons[0] == 0 -> res.getString(R.string.requests_notice_specials_ready, notice.title)
                 seasons.size == 1 -> res.getString(R.string.requests_notice_season_ready, seasons(seasons), notice.title)
                 else -> res.getString(R.string.requests_notice_seasons_ready, seasons(seasons), notice.title)
             }
@@ -306,8 +321,8 @@ class RequestTexts(
         is RequestProblem.Limit -> problem.retryAt?.let { res.getString(R.string.requests_ask_more_at, until(it)) } ?: atMost(summary)
         is RequestProblem.Conflict -> problem.message
         RequestProblem.NotFound -> res.getString(R.string.requests_not_found)
-        is RequestProblem.Offline -> sentenceOf(problem.error)
-        is RequestProblem.Other -> sentenceOf(problem.error)
+        is RequestProblem.Offline -> errorSentence(problem.error).resolve(res)
+        is RequestProblem.Other -> errorSentence(problem.error).resolve(res)
     }
 
     /** The line under [problem]'s, where it has one. */
@@ -350,10 +365,14 @@ class RequestTexts(
     }
 
     /** How long ago [ts] was: "3 days ago", "yesterday". */
-    fun ago(ts: Long): String = formatRelative(ts, now())
+    fun ago(ts: Long): String = formatRelative(ts, now(), words)
 
-    /** A day, "Nov 4" ("Nov 4, 2027" in another year), with the time within 24 hours: "today, 9:00 PM". */
+    /**
+     * A day, "Nov 4" ("Nov 4, 2027" in another year; "4 nov." in French),
+     * with the time within 24 hours: "today, 9:00 PM".
+     */
     fun day(ts: Long): String {
+        val locale = shown
         val at = Instant.ofEpochSecond(ts).atZone(zone)
         val diff = ts - now()
         if (diff in 0 until DAY) {
@@ -361,8 +380,9 @@ class RequestTexts(
             val today = at.toLocalDate() == localDate(now())
             return res.getString(if (today) R.string.requests_today_at else R.string.requests_tomorrow_at, time)
         }
-        val pattern = if (at.year == localDate(now()).year) "MMM d" else "MMM d, yyyy"
-        return at.format(DateTimeFormatter.ofPattern(pattern, locale))
+        // The locale's own order for a month and a day: "MMM d" in English, "d MMM" in French and Spanish.
+        val skeleton = if (at.year == localDate(now()).year) "MMMd" else "yMMMd"
+        return at.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
     }
 
     private fun localDate(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()

@@ -115,6 +115,34 @@ class ItemPageTest {
     }
 
     @Test
+    @Config(qualifiers = "fr-w412dp-h915dp-xxhdpi")
+    fun thePageIsInFrench() {
+        show(movie(positionMs = 3_480_000))
+        compose.onNodeWithText("Reprendre").assertExists()
+        compose.onNodeWithText("Depuis le début").assertExists()
+        compose.onNodeWithText("Sous-titres").assertExists()
+        compose.onNodeWithTag(ITEM_PAGE).performScrollToNode(hasText("Informations sur le média"))
+        compose.onNodeWithText("Informations sur le média").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(ITEM_PAGE).performScrollToNode(hasText("Flux"))
+        compose.onNodeWithText("Texte").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w412dp-h915dp-xxhdpi")
+    fun thePageIsInSpanish() {
+        show(movie(positionMs = 3_480_000))
+        compose.onNodeWithText("Reanudar").assertExists()
+        compose.onNodeWithText("Desde el principio").assertExists()
+        compose.onNodeWithText("Lista de reproducción").assertExists()
+        compose.onNodeWithTag(ITEM_PAGE).performScrollToNode(hasText("Información multimedia"))
+        compose.onNodeWithText("Información multimedia").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(ITEM_PAGE).performScrollToNode(hasText("Pistas"))
+        compose.onNodeWithText("Texto").assertExists()
+    }
+
+    @Test
     fun noFilesIsUnavailable() {
         show(movie().copy(files = emptyList()))
         compose.onNodeWithText("Unavailable").assertExists()

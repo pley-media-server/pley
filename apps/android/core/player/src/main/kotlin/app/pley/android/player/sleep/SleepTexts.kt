@@ -16,7 +16,7 @@ object SleepTexts {
     fun summary(res: Resources, state: SleepState, music: Boolean = false): String {
         val minutes = state.minutesLeft
         return if (state.choice is SleepChoice.Minutes && minutes != null) {
-            res.getString(R.string.sleep_minutes_left, minutes)
+            res.getQuantityString(R.plurals.sleep_minutes_left, minutes, minutes)
         } else {
             choice(res, state.choice, music)
         }

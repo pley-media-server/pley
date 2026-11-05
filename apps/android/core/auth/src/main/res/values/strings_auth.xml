@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What signing in says when it doesn't go through (AuthException and the
+  sign-in states), in lower case and without a full stop: the screens put
+  them inside sentences, or make a sentence of one alone.
+-->
+<resources>
+    <!-- The address and the way there. -->
+    <string name="auth_not_an_address">that isn\'t a server address</string>
+    <string name="auth_unencrypted">this server\'s address isn\'t on your network and its connection isn\'t encrypted: open it by its https address to sign in</string>
+    <string name="auth_too_old">this server is too old for this app</string>
+    <string name="auth_redirected">this server answers at another address: open it by that one</string>
+    <!-- %1$s: the address the server gives for itself, "https://pley.example.com". -->
+    <string name="auth_other_issuer">this server calls itself %1$s: open it by that address, or check the proxy in front of it passes Host</string>
+    <string name="auth_other_endpoint">this server sends apps to another address to sign in: Pley doesn\'t</string>
+    <string name="auth_not_your_server">another device answers there</string>
+    <string name="auth_no_browser">there\'s no browser on this device to sign in with</string>
+
+    <!-- The server's answers. -->
+    <string name="auth_unreadable">the server\'s answer can\'t be read: try again</string>
+    <string name="auth_server_failed">the server couldn\'t answer (HTTP %1$d)</string>
+    <string name="auth_refused">the server refused: try again</string>
+    <!-- %1$s: the server's own words, as it wrote them. -->
+    <string name="auth_refused_said">the server refused: %1$s</string>
+    <!-- %1$s: the error's code, "invalid_request". -->
+    <string name="auth_refused_code">the server refused (%1$s)</string>
+    <string name="auth_refused_status">the server refused (HTTP %1$d)</string>
+
+    <!-- The sign-in in the browser. -->
+    <string name="auth_other_server">the answer came from another server than the one you signed in to: try again</string>
+    <string name="auth_denied">you didn\'t allow the app</string>
+    <string name="auth_no_code">the server sent no code: try again</string>
+    <string name="auth_too_long">the sign-in took too long: try again</string>
+    <string name="auth_not_finished">the sign-in couldn\'t be finished: try again</string>
+
+    <!-- The TV's code. -->
+    <string name="auth_no_codes">this server can\'t sign in with a code yet: update it, or sign in with a password</string>
+    <string name="auth_code_used">this code doesn\'t work anymore: get a new one</string>
+
+    <!-- Profiles and their PINs. -->
+    <string name="auth_cant_switch">this sign-in can\'t switch profiles: sign in again to allow it</string>
+    <string name="auth_profile_locked">this profile can\'t be used from the app</string>
+    <string name="auth_wrong_pin">wrong PIN</string>
+    <string name="auth_throttled">too many wrong PINs: try again in a few minutes</string>
+    <string name="auth_pin_locked">this profile\'s PIN is locked after too many wrong tries. Its owner or an administrator can reset it</string>
+    <string name="auth_needs_password">this profile needs its password: sign in again to use it</string>
+    <string name="auth_not_allowed">you can\'t switch to this profile</string>
+
+    <!-- Signed out without asking. -->
+    <string name="auth_signed_out">you were signed out: sign in again</string>
+    <string name="auth_unreadable_here">this device can\'t read its sign-in anymore: sign in again</string>
+    <string name="auth_not_kept">the sign-in couldn\'t be kept on this device: sign in again</string>
+    <string name="auth_wider_scope">the server allowed more than this app asks for: signed out</string>
+</resources>

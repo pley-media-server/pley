@@ -12,8 +12,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,12 +42,14 @@ import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.rememberImagePrefetcher
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonState
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.format.dynamicRangeFilterLabel
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.GridCells as Cells
 import app.pley.android.screens.library.LibraryUiState
@@ -195,7 +197,7 @@ private fun Toolbar(state: LibraryUiState<ArtworkTileModel>, vm: LibraryViewMode
                 if (state.dynamicRanges.isNotEmpty()) {
                     item(key = "dynamic_range") {
                         PleyChip(
-                            label = params.dynamicRange?.label ?: stringResource(R.string.library_dynamic_range),
+                            label = params.dynamicRange?.let { dynamicRangeFilterLabel(it, formatWords()) } ?: stringResource(R.string.library_dynamic_range),
                             selected = params.dynamicRange != null,
                             onClick = { onSheet(LibrarySheet.DynamicRange) },
                             dropdown = true,

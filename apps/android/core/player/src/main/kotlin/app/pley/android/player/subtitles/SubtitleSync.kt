@@ -2,6 +2,7 @@ package app.pley.android.player.subtitles
 
 import android.content.Context
 import androidx.media3.common.text.Cue
+import app.pley.android.common.AppLanguage
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -38,14 +39,14 @@ object SubtitleSync {
         return track.nextChangeAfter(at)?.let { it - at }
     }
 
-    /** "+0.5 s", "−1.2 s", "0.0 s". */
-    fun label(offsetMs: Long): String {
+    /** "+0.5 s", "−1.2 s", "0.0 s", with [locale]'s decimal separator ("+0,5 s" in French). */
+    fun label(offsetMs: Long, locale: Locale = AppLanguage.locale): String {
         val sign = when {
             offsetMs > 0 -> "+"
             offsetMs < 0 -> "−"
             else -> ""
         }
-        return sign + String.format(Locale.ROOT, "%.1f s", abs(offsetMs) / 1000.0)
+        return sign + String.format(locale, "%.1f s", abs(offsetMs) / 1000.0)
     }
 }
 

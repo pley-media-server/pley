@@ -5,7 +5,7 @@
     <string name="caps_form_phone">phone</string>
     <string name="caps_form_tablet">tablet</string>
     <string name="caps_form_tv">TV</string>
-    <string name="caps_form_fire_tv">Fire TV</string>
+    <string name="caps_form_fire_tv" translatable="false">Fire TV</string>
     <string name="caps_policy_tv">Video decoders: hardware only</string>
     <string name="caps_policy_phone">Video decoders: hardware, or software up to 1080p at 30 fps, 8-bit SDR</string>
     <string name="caps_policy_any">Video decoders: hardware and software at any size (debug setting)</string>

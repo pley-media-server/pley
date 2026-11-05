@@ -24,4 +24,7 @@ dependencies {
     testImplementation(libs.turbine)
     // Android's org.json is a stub in local unit tests (the sign-in module's tokens, discovery's answers).
     testImplementation(libs.json)
+    // The words of its errors, read in English, French and Spanish.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

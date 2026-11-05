@@ -1,6 +1,7 @@
 package app.pley.android.network
 
 import app.pley.android.common.FoundServer
+import app.pley.android.common.UiText
 import app.pley.android.model.ServerInfo
 import kotlinx.coroutines.flow.Flow
 
@@ -44,8 +45,8 @@ sealed interface ProbeResult {
     /** Something answered, and it isn't pley. */
     data class NotPley(val url: String) : ProbeResult
 
-    /** Nothing answered: [message] says how, for people. */
-    data class Unreachable(val message: String) : ProbeResult
+    /** Nothing answered: [reason] says how, for people ("nothing answers there"). */
+    data class Unreachable(val reason: UiText) : ProbeResult
 
     /** The system keeps the app off the home network. */
     data object Blocked : ProbeResult

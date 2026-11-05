@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.person
 
+import android.content.res.Resources
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,12 +19,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.resolve
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -33,10 +35,14 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CreditRole
+import app.pley.android.model.format.FormatWords
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.person.CreditTile
 import app.pley.android.screens.person.PersonPage
 import app.pley.android.screens.person.PersonUiState
 import app.pley.android.screens.person.PersonViewModel
@@ -104,8 +110,8 @@ private fun PersonHeader(page: PersonPage?) {
                 Box(Modifier.size(200.dp, 20.dp).background(PleyColors.Surface2, PleyShape.Badge))
             } else {
                 BasicText(page.name, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (page.counts.isNotEmpty()) {
-                    BasicText(stringResource(R.string.tv_person_in_libraries, page.counts), style = PleyType.Tv.Body.copy(color = PleyColors.Muted))
+                if (page.countTexts.isNotEmpty()) {
+                    BasicText(stringResource(R.string.tv_person_in_libraries, page.countTexts.asString()), style = PleyType.Tv.Body.copy(color = PleyColors.Muted))
                 }
             }
         }
@@ -115,8 +121,10 @@ private fun PersonHeader(page: PersonPage?) {
 @Composable
 private fun PersonRows(page: PersonPage, onOpen: (Long) -> Unit, onActions: (Long) -> Unit) {
     val memory = rememberFocusMemory()
-    val rows = remember(page) {
-        page.roles.map { row -> row.role to row.credits.map { ArtworkTileModel.of(it.item, TileKind.Poster, page.origin).copy(subtitle = it.subtitle) } }
+    val words = formatWords()
+    val resources = LocalResources.current
+    val rows = remember(page, words, resources) {
+        page.roles.map { row -> row.role to row.credits.map { it.tile(page.origin, words, resources) } }
     }
     TvRowColumn(
         modifier = Modifier.fillMaxSize(),
@@ -161,3 +169,9 @@ private val PhotoSize = 160.dp
 private val RowsTop = 240.dp
 
 internal const val TV_PERSON_PAGE = "pley.tv.person"
+
+/** The credit's poster, captioned with the year and the roles in the language of [resources]: "2019 · as Neo". */
+private fun CreditTile.tile(origin: String, words: FormatWords, resources: Resources): ArtworkTileModel {
+    val caption = listOf(item.year?.toString().orEmpty(), roles.joinToString(", ") { it.resolve(resources) }).filter { it.isNotEmpty() }.joinToString(" · ")
+    return ArtworkTileModel.of(item, TileKind.Poster, origin, words).copy(subtitle = caption)
+}

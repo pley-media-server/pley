@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -26,19 +27,26 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ChannelLogo
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.ui.tv.R
+import java.text.SimpleDateFormat
 import java.util.Date
 
-/** "20:00" or "8:00 PM", as the device writes times. */
+/**
+ * "20:00" or "8:00 PM", as the device writes times, in the language shown.
+ * Made again when the language changes: the live player takes the change
+ * without being made anew.
+ */
 @Composable
 internal fun rememberClock(): (Long) -> String {
     val context = LocalContext.current
-    return remember(context) {
-        val format = DateFormat.getTimeFormat(context)
+    val locale = shownLocale()
+    return remember(context, locale) {
+        val format = SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, if (DateFormat.is24HourFormat(context)) "Hm" else "hm"), locale)
         val clock: (Long) -> String = { seconds -> format.format(Date(seconds * 1000)) }
         clock
     }
@@ -54,8 +62,8 @@ internal fun spanOf(program: LiveProgram, clock: (Long) -> String): String =
 internal fun timeLeft(program: LiveProgram, now: Long): String {
     val (hours, minutes) = LiveTv.left(program, now)
     return when {
-        hours == 0 -> stringResource(R.string.tv_livetv_minutes_left, minutes)
-        minutes == 0 -> stringResource(R.string.tv_livetv_hours_left, hours)
+        hours == 0 -> pluralStringResource(R.plurals.tv_livetv_minutes_left, minutes, minutes)
+        minutes == 0 -> pluralStringResource(R.plurals.tv_livetv_hours_left, hours, hours)
         else -> stringResource(R.string.tv_livetv_hours_minutes_left, hours, minutes)
     }
 }
@@ -78,17 +86,26 @@ internal fun shortened(text: String, chars: Int = DESCRIPTION_CHARS): String {
 /** Three lines' worth of the guide's text over the grid, past which nothing shows. */
 internal const val DESCRIPTION_CHARS = 240
 
-/** "Today", "Tomorrow", "Yesterday", or the date as the device writes it. */
+/** "Today", "Tomorrow", "Yesterday", or the date as the language shown writes it. */
 @Composable
-internal fun dayOf(seconds: Long, now: Long): String {
-    val context = LocalContext.current
-    return when (LiveTv.daysApart(seconds, now)) {
-        0L -> stringResource(R.string.tv_livetv_today)
-        1L -> stringResource(R.string.tv_livetv_tomorrow)
-        -1L -> stringResource(R.string.tv_livetv_yesterday)
-        else -> DateFormat.getMediumDateFormat(context).format(Date(seconds * 1000))
-    }
+internal fun dayOf(seconds: Long, now: Long): String = when (LiveTv.daysApart(seconds, now)) {
+    0L -> stringResource(R.string.tv_livetv_today)
+    1L -> stringResource(R.string.tv_livetv_tomorrow)
+    -1L -> stringResource(R.string.tv_livetv_yesterday)
+    else -> java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, shownLocale()).format(Date(seconds * 1000))
 }
+
+/** "S2 E14", or "E14", when the guide numbers the episode. */
+@Composable
+internal fun episodeOf(program: LiveProgram): String? {
+    val episode = program.episode ?: return null
+    val season = program.season ?: return stringResource(R.string.tv_livetv_episode_only, episode)
+    return stringResource(R.string.tv_livetv_episode, season, episode)
+}
+
+/** A count as the language shown writes numbers: "1,234", "1 234". */
+@Composable
+internal fun formatCount(count: Int): String = "%,d".format(shownLocale(), count)
 
 /**
  * A channel's logo in a rounded [well], or on its gradient its number (its

@@ -1,11 +1,14 @@
 package app.pley.android.player
 
+import app.pley.android.common.AppLanguage
 import app.pley.android.model.Marker
 import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.TranscodeInfo
 import app.pley.android.player.sleep.SleepState
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 
 /** Where a playback stands. */
 sealed interface PlayerPhase {
@@ -134,12 +137,15 @@ data class UpNextUi(
 object PlaybackSpeeds {
     val ALL: List<Float> = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
-    /** "1×", "1.25×", "0.5×". */
-    fun label(speed: Float): String {
+    /** "1×", "1.25×", "0.5×", with [locale]'s decimal separator ("1,25×" in French). */
+    fun label(speed: Float, locale: Locale = AppLanguage.locale): String {
         val text = if (speed == speed.toInt().toFloat()) speed.toInt().toString() else speed.toString().trimEnd('0')
-        return "$text×"
+        return decimals(text, locale) + "×"
     }
 }
+
+/** [number], written with a point, with [locale]'s decimal separator instead. */
+internal fun decimals(number: String, locale: Locale): String = number.replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)
 
 /** The audio delay's range and step. */
 object AudioDelays {
@@ -149,11 +155,11 @@ object AudioDelays {
     /** [ms] within ±5 s, on a 50 ms step. */
     fun clamp(ms: Long): Long = (Math.round(ms.toDouble() / STEP_MS) * STEP_MS).coerceIn(-MAX_MS, MAX_MS)
 
-    /** "+0.25 s", "−1.5 s", "0 s": the sound later (+) or earlier (−) than the picture. */
-    fun label(ms: Long): String {
+    /** "+0.25 s", "−1.5 s", "0 s": the sound later (+) or earlier (−) than the picture, with [locale]'s decimal separator. */
+    fun label(ms: Long, locale: Locale = AppLanguage.locale): String {
         if (ms == 0L) return "0 s"
         val seconds = java.math.BigDecimal(kotlin.math.abs(ms)).movePointLeft(3).stripTrailingZeros().toPlainString()
-        return (if (ms > 0) "+" else "−") + seconds + " s"
+        return (if (ms > 0) "+" else "−") + decimals(seconds, locale) + " s"
     }
 }
 
@@ -206,6 +212,8 @@ data class PlayerUiState(
     val qualities: List<QualityChoice> = emptyList(),
     /** "Direct play", "Direct stream", "Transcoding"; `null` before the server answered. */
     val method: String? = null,
+    /** The way [method] names, for its badge's colour: a download plays as it is ([PlaybackMethod.Direct]). */
+    val playbackMethod: PlaybackMethod? = null,
     /** Why it plays this way when the player chose it: "The original didn't play smoothly on this device." */
     val note: String? = null,
     /** The player switched to a transcode by itself: offer "Play original". */

@@ -41,13 +41,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.PlaylistKind
@@ -63,6 +65,7 @@ import app.pley.android.screens.playlists.Playlists
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
+import app.pley.android.ui.phone.library.joined
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 
@@ -98,7 +101,7 @@ internal fun AddToPlaylistSheet(itemIds: List<Long>) {
 internal fun addedMessage(resources: android.content.res.Resources, event: AddEvent.Added): String = when (val n = event.entries) {
     0 -> resources.getString(R.string.add_nothing)
     null, 1 -> resources.getString(R.string.add_added, event.playlist)
-    else -> resources.getString(R.string.add_added_many, n.toString(), event.playlist)
+    else -> resources.getQuantityString(R.plurals.add_added_many, n, n, event.playlist)
 }
 
 @Composable
@@ -106,7 +109,7 @@ internal fun AddToPlaylistContent(state: AddToPlaylistUiState, onCreate: (String
     var name by rememberSaveable { mutableStateOf("") }
     val music = state.kind == PlaylistKind.Audio
     Column(Modifier.fillMaxWidth().imePadding().testTag(ADD_SHEET)) {
-        SheetTitle(stringResource(R.string.add_to_playlist), state.title)
+        SheetTitle(stringResource(R.string.add_to_playlist), state.title?.asString())
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -133,7 +136,7 @@ internal fun AddToPlaylistContent(state: AddToPlaylistUiState, onCreate: (String
             Loadable.Loading -> SkeletonRows()
             is Loadable.Failed -> if (playlists.stale == null) {
                 Text(
-                    sentenceOf(playlists.error),
+                    errorSentence(playlists.error).asString(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = PleyColors.DangerText,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -161,6 +164,7 @@ internal fun AddToPlaylistContent(state: AddToPlaylistUiState, onCreate: (String
 private fun PlaylistRows(list: List<PlaylistCard>, busy: Boolean, onAdd: (PlaylistCard) -> Unit) {
     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
         items(list, key = { it.id }, contentType = { "playlist" }) { card ->
+            val meta = card.metaTexts.joined(LocalResources.current)
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -175,8 +179,8 @@ private fun PlaylistRows(list: List<PlaylistCard>, busy: Boolean, onAdd: (Playli
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(card.title, style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (card.meta.isNotEmpty()) {
-                        Text(card.meta, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1)
+                    if (meta.isNotEmpty()) {
+                        Text(meta, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1)
                     }
                 }
             }
@@ -223,7 +227,7 @@ internal fun NewPlaylistSheet(mode: NewPlaylistMode) {
     }
     NewPlaylistContent(
         smart = mode is NewPlaylistMode.Smart,
-        filters = vm.filters,
+        filters = vm.filterTexts,
         asksKind = vm.asksKind,
         busy = busy,
         onCreate = vm::create,
@@ -234,7 +238,7 @@ internal fun NewPlaylistSheet(mode: NewPlaylistMode) {
 @Composable
 internal fun NewPlaylistContent(
     smart: Boolean,
-    filters: List<String>,
+    filters: List<UiText>,
     asksKind: Boolean,
     busy: Boolean,
     onCreate: (String, PlaylistKind) -> Boolean,
@@ -257,7 +261,7 @@ internal fun NewPlaylistContent(
                 if (filters.isEmpty()) {
                     stringResource(R.string.playlist_smart_body_plain)
                 } else {
-                    stringResource(R.string.playlist_smart_body, filters.joinToString(" · "))
+                    stringResource(R.string.playlist_smart_body, filters.joined(LocalResources.current))
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = PleyColors.Muted,

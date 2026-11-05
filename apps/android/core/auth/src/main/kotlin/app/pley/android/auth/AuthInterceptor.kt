@@ -2,6 +2,7 @@ package app.pley.android.auth
 
 import app.pley.android.common.Addresses
 import app.pley.android.common.Servers
+import app.pley.android.common.UiText
 import java.io.IOException
 import java.net.Inet4Address
 import java.net.Inet6Address
@@ -20,8 +21,7 @@ import okhttp3.Response
 import okhttp3.Route
 
 /** Signing in over plain http beyond the home network. */
-const val UNENCRYPTED =
-    "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in"
+val UNENCRYPTED: UiText = UiText.res(R.string.auth_unencrypted)
 
 /**
  * Plain http is for home networks: pley's apps send codes and tokens over
@@ -34,12 +34,12 @@ object Transport {
         val uri = try {
             URI(server)
         } catch (_: URISyntaxException) {
-            throw AuthException("that isn't a server address")
+            throw AuthException(NOT_AN_ADDRESS)
         }
         when (uri.scheme?.lowercase()) {
             "https" -> return
             "http" -> if (!Servers.isLocalHost(uri.host ?: "")) throw AuthException(UNENCRYPTED)
-            else -> throw AuthException("that isn't a server address")
+            else -> throw AuthException(NOT_AN_ADDRESS)
         }
     }
 

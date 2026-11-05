@@ -55,9 +55,6 @@ internal interface DownloadSources {
 /** The server's converted file went (it keeps them a week): it is asked for again. */
 private class ConversionGone : IOException("the converted file is gone")
 
-/** A download that can't go on by itself: [message] says why, for the list. */
-internal class DownloadFailure(message: String) : Exception(message)
-
 /**
  * Fetches downloads one at a time, oldest first: first the item's
  * details, a picture and its text subtitles as WebVTT, then the file
@@ -170,7 +167,7 @@ internal class DownloadRunner(
     private suspend fun runOne(saved: Saved): Outcome {
         val key = saved.key
         // It stays Queued while the server makes its file: Downloading is for bytes coming.
-        store.update(key, persist = false) { it.copy(error = null, unreachable = false) } ?: return Outcome.Removed
+        store.update(key, persist = false) { it.copy(failure = null, error = null, status = null, unreachable = false) } ?: return Outcome.Removed
         val job = Job(currentCoroutineContext()[Job])
         current = key to job
         return try {
@@ -180,7 +177,7 @@ internal class DownloadRunner(
                 if (s.convert && s.mediaUrl == null) s = converted(s) ?: return@withContext Outcome.Converting
                 s = keep(key) { it.copy(state = DownloadState.Downloading) }
                 fetchMedia(s)
-                s = store.update(key) { it.copy(state = DownloadState.Done, downloadedBytes = it.sizeBytes, error = null) } ?: s
+                s = store.update(key) { it.copy(state = DownloadState.Done, downloadedBytes = it.sizeBytes, failure = null, error = null, status = null) } ?: s
                 // Read whole by the server meanwhile, as a rule; else when the app opens again.
                 catchingUp.withLock { finishSubtitles(s) }
                 Outcome.Done
@@ -194,10 +191,10 @@ internal class DownloadRunner(
             // Only this download was stopped: it was removed.
             Outcome.Removed
         } catch (e: DownloadFailure) {
-            store.update(key) { it.copy(state = DownloadState.Failed, error = e.message) }
+            store.update(key) { it.copy(state = DownloadState.Failed, failure = e.failure, error = e.detail, status = null) }
             Outcome.Failed
         } catch (e: ApiException) {
-            store.update(key) { it.copy(state = DownloadState.Failed, error = messageFor(e)) }
+            store.update(key) { it.copy(state = DownloadState.Failed).failedWith(e) }
             Outcome.Failed
         } catch (_: ConversionGone) {
             // The server forgot it (it restarted) or pruned the file: asked for again in a while.
@@ -359,7 +356,7 @@ internal class DownloadRunner(
                 501, 404 -> if (saved.maxHeight == null) {
                     return keep(saved.key) { it.copy(convert = false, converting = null) }
                 } else {
-                    throw DownloadFailure(NO_CONVERSIONS)
+                    throw DownloadFailure(Failure.NoConversions)
                 }
                 else -> throw e
             }
@@ -369,7 +366,7 @@ internal class DownloadRunner(
             ConversionState.Done -> keep(saved.key) {
                 it.copy(conversion = info.id, mediaUrl = info.url, converting = null, sizeBytes = info.size ?: it.sizeBytes)
             }
-            ConversionState.Failed -> throw DownloadFailure(info.error?.let { "$CONVERSION_FAILED: $it" } ?: CONVERSION_FAILED)
+            ConversionState.Failed -> throw DownloadFailure(Failure.ConversionFailed, info.error)
             else -> {
                 keep(saved.key) {
                     it.copy(
@@ -395,7 +392,7 @@ internal class DownloadRunner(
         part.parentFile?.mkdirs()
         var have = if (part.isFile) part.length() else 0L
         val left = (saved.sizeBytes - have).coerceAtLeast(0)
-        if (left > 0 && withContext(io) { store.freeBytes() } < left + SPACE_MARGIN) throw DownloadFailure(NO_SPACE)
+        if (left > 0 && withContext(io) { store.freeBytes() } < left + SPACE_MARGIN) throw DownloadFailure(Failure.NoSpace)
         val api = sources.api(saved.server, saved.userId)
         val request = Request.Builder()
             .url(api.url(saved.mediaUrl ?: "/api/files/${saved.fileId}/stream"))
@@ -536,13 +533,8 @@ internal class DownloadRunner(
         /** How often a conversion the server is making is looked at. */
         const val CONVERSION_POLL_MS = 5_000L
 
-        const val CONVERSION_FAILED = "The server couldn't make it for this device"
-        const val NO_CONVERSIONS = "The server can't make smaller downloads: choose Original in Settings → Downloads"
-
         /** Room kept free beside a download, so the device doesn't fill up. */
         const val SPACE_MARGIN = 500L * 1024 * 1024
-
-        const val NO_SPACE = "Not enough space on this device"
 
         /** The whole file's size: from Content-Range for a range, else the body's length. */
         fun totalOf(response: Response, from: Long): Long {
@@ -550,13 +542,6 @@ internal class DownloadRunner(
             if (response.code == 206 && range != null) return range.substringAfterLast('/').trim().toLongOrNull() ?: -1
             val length = response.body.contentLength()
             return if (length >= 0) from + length else -1
-        }
-
-        /** What a failed download says, from the server's answer. */
-        fun messageFor(e: ApiException): String = when (e.status) {
-            401, 403 -> "Sign in to the server again to download this"
-            404, 410 -> "This file is no longer on the server"
-            else -> "The server couldn't send this file (${e.status})"
         }
     }
 }

@@ -1,8 +1,10 @@
 package app.pley.android.auth
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import app.pley.android.common.AppLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -21,6 +23,10 @@ import kotlinx.coroutines.withContext
  */
 class SignInRedirectActivity : Activity() {
     private val main = MainScope()
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

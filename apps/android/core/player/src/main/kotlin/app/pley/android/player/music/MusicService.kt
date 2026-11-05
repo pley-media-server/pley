@@ -1,6 +1,7 @@
 package app.pley.android.player.music
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.view.KeyEvent
 import androidx.annotation.OptIn
@@ -9,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import app.pley.android.common.AppLanguage
 
 /**
  * Music in the background (Android 17 plays background audio only from a
@@ -25,6 +27,11 @@ import androidx.media3.session.MediaSessionService
 @OptIn(markerClass = [UnstableApi::class])
 class MusicService : MediaSessionService() {
     private var session: MediaSession? = null
+
+    // The notification's words, Media3's included, in the language shown.
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLanguage.wrap(base))
+    }
 
     override fun onCreate() {
         super.onCreate()

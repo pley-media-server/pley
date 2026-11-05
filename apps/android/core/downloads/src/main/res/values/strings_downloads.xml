@@ -18,4 +18,19 @@
     <!-- While the server makes a smaller (or playable) file for this phone. -->
     <string name="downloads_notification_converting">Preparing %1$s</string>
     <string name="downloads_notification_converting_text">The server is making it for this phone · %1$d%%</string>
+
+    <!--
+      Why a download failed (Failure), one sentence without its full stop:
+      the screens put it after "Didn't download:".
+    -->
+    <string name="downloads_error_missing">The downloaded file is gone</string>
+    <string name="downloads_error_no_space">Not enough space on this device</string>
+    <string name="downloads_error_no_conversions">The server can\'t make smaller downloads: choose Original in Settings → Downloads</string>
+    <string name="downloads_error_conversion">The server couldn\'t make it for this device</string>
+    <!-- %1$s: the server's own words, as it wrote them. -->
+    <string name="downloads_error_conversion_said">The server couldn\'t make it for this device: %1$s</string>
+    <string name="downloads_error_sign_in">Sign in to the server again to download this</string>
+    <string name="downloads_error_gone">This file is no longer on the server</string>
+    <!-- %1$d: the server's answer, "502". -->
+    <string name="downloads_error_server">The server couldn\'t send this file (%1$d)</string>
 </resources>

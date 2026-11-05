@@ -86,8 +86,8 @@ class TvLibraryPanelTest {
             LibraryFilters(resolutions = listOf("4k", "1080"), dynamicRanges = listOf("hdr", "dolby_vision", "sdr")),
             fresh = true,
         )
-        val resources = ApplicationProvider.getApplicationContext<Context>().resources
-        val vm = LibraryViewModel(1, LibraryTab.Library, "resolution=1080", LibraryDeps.of(graph), TvTiles(resources))
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val vm = LibraryViewModel(1, LibraryTab.Library, "resolution=1080", LibraryDeps.of(graph), TvTiles(context))
         var panel by mutableStateOf<TvPanel?>(TvPanel.Filter)
         val navigator = TvNavigator(mutableListOf<NavKey>(PleyKey.Library(1)), RailState()) {}
         compose.setContent {

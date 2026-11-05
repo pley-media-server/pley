@@ -172,15 +172,6 @@ class FormatTest {
     }
 
     @Test
-    fun plurals() {
-        assertEquals("1 movie", pluralize(1, "movie", locale = us))
-        assertEquals("0 movies", pluralize(0, "movie", locale = us))
-        assertEquals("2 movies", pluralize(2, "movie", locale = us))
-        assertEquals("3 children", pluralize(3, "child", "children", us))
-        assertEquals("12,345 movies", pluralize(12_345, "movie", locale = us))
-    }
-
-    @Test
     fun episodeAndSeasonLabels() {
         assertEquals("S1 · E3", episodeLabel(1, 3))
         assertEquals("E3", episodeLabel(null, 3))
@@ -351,17 +342,17 @@ class FormatTest {
 
     @Test
     fun cardSubtitles() {
-        assertEquals("1999", cardSubtitle(item(year = 1999), us))
-        assertEquals("", cardSubtitle(item(), us))
-        assertEquals("3 seasons", cardSubtitle(item(ItemKind.Show, childCount = 3, leafCount = 30), us))
-        assertEquals("1 episode", cardSubtitle(item(ItemKind.Show, childCount = 0, leafCount = 1), us))
-        assertEquals("2005", cardSubtitle(item(ItemKind.Show, year = 2005), us))
-        assertEquals("10 episodes", cardSubtitle(item(ItemKind.Season, leafCount = 10), us))
-        assertEquals("S2 · E5", cardSubtitle(item(ItemKind.Episode, parentIndex = 2, index = 5), us))
-        assertEquals("1 album", cardSubtitle(item(ItemKind.Artist, childCount = 1), us))
-        assertEquals("Daft Punk · 2001", cardSubtitle(item(ItemKind.Album, parentTitle = "Daft Punk", year = 2001), us))
-        assertEquals("Daft Punk · Discovery", cardSubtitle(item(ItemKind.Track, grandparentTitle = "Daft Punk", parentTitle = "Discovery"), us))
-        assertEquals("", cardSubtitle(item(ItemKind.Extra), us))
+        assertEquals("1999", cardSubtitle(item(year = 1999), FormatWords.English, us))
+        assertEquals("", cardSubtitle(item(), FormatWords.English, us))
+        assertEquals("3 seasons", cardSubtitle(item(ItemKind.Show, childCount = 3, leafCount = 30), FormatWords.English, us))
+        assertEquals("1 episode", cardSubtitle(item(ItemKind.Show, childCount = 0, leafCount = 1), FormatWords.English, us))
+        assertEquals("2005", cardSubtitle(item(ItemKind.Show, year = 2005), FormatWords.English, us))
+        assertEquals("10 episodes", cardSubtitle(item(ItemKind.Season, leafCount = 10), FormatWords.English, us))
+        assertEquals("S2 · E5", cardSubtitle(item(ItemKind.Episode, parentIndex = 2, index = 5), FormatWords.English, us))
+        assertEquals("1 album", cardSubtitle(item(ItemKind.Artist, childCount = 1), FormatWords.English, us))
+        assertEquals("Daft Punk · 2001", cardSubtitle(item(ItemKind.Album, parentTitle = "Daft Punk", year = 2001), FormatWords.English, us))
+        assertEquals("Daft Punk · Discovery", cardSubtitle(item(ItemKind.Track, grandparentTitle = "Daft Punk", parentTitle = "Discovery"), FormatWords.English, us))
+        assertEquals("", cardSubtitle(item(ItemKind.Extra), FormatWords.English, us))
     }
 
     @Test
@@ -399,11 +390,11 @@ class FormatTest {
             ItemKind.Episode, "Glasshouse", grandparentTitle = "Driftline", parentIndex = 2, index = 5, durationMs = 3_480_000,
             userState = UserState(positionMs = 1_920_000),
         )
-        assertEquals("Glasshouse, Driftline, Season 2 Episode 5, 26 minutes left", tileDescription(episode, us))
-        assertEquals("Northern Lights, 2024, watched", tileDescription(item(title = "Northern Lights", year = 2024, userState = UserState(watched = true)), us))
+        assertEquals("Glasshouse, Driftline, Season 2 Episode 5, 26 minutes left", tileDescription(episode, FormatWords.English, us))
+        assertEquals("Northern Lights, 2024, watched", tileDescription(item(title = "Northern Lights", year = 2024, userState = UserState(watched = true)), FormatWords.English, us))
         assertEquals(
             "Severance, 2 seasons, 6 unwatched",
-            tileDescription(item(ItemKind.Show, "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13), us),
+            tileDescription(item(ItemKind.Show, "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13), FormatWords.English, us),
         )
     }
 

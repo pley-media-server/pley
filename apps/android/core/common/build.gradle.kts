@@ -1,6 +1,7 @@
 // Rules and small parts every module shares: server addresses, discovery,
 // the device's form and tier, image URLs, trace names, the frame-rate
-// counter. Depends on no module.
+// counter, the words the app shows. Depends on :core:model alone, whose
+// format functions it gives their words.
 plugins {
     alias(libs.plugins.pley.android.library)
 }
@@ -10,6 +11,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.tracing.ktx)
     api(libs.kotlinx.coroutines.android)

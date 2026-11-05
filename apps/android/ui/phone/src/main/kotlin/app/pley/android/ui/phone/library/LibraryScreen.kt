@@ -19,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,9 +56,9 @@ import kotlinx.coroutines.flow.map
 @Composable
 internal fun LibraryScreen(key: PleyKey.Library) {
     var saved by rememberSaveable { mutableStateOf<String?>(null) }
-    val resources = LocalResources.current
+    val tiles = rememberPhoneTiles()
     val vm: LibraryViewModel<ArtworkTileModel> = viewModel {
-        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), PhoneTiles(resources), key.view)
+        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), tiles, key.view)
     }
     LaunchedEffect(vm) {
         vm.state.map { it.params.toQueryString() }.distinctUntilChanged().collect { saved = it }

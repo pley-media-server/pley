@@ -64,10 +64,12 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.onboarding.BrowserSignIn
 import app.pley.android.screens.onboarding.LocalAccess
@@ -79,7 +81,6 @@ import app.pley.android.screens.onboarding.SignInProblem
 import app.pley.android.screens.onboarding.SignInViewModel
 import app.pley.android.screens.onboarding.go
 import app.pley.android.screens.onboarding.onboardingSource
-import app.pley.android.screens.onboarding.sentence
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.BusyLine
 import app.pley.android.ui.phone.kit.ConfirmDialog
@@ -461,7 +462,7 @@ private fun SignInStatus(signIn: BrowserSignIn, state: ServersUiState, onRetry: 
             val name = state.rows.firstOrNull { it.url == signIn.server }?.name ?: ServersViewModel.addressOf(signIn.server)
             val text = when (signIn.problem) {
                 SignInProblem.TooOld -> stringResource(R.string.onboarding_too_old, name)
-                else -> sentence(signIn.message)
+                else -> UiText.Sentence(signIn.text).asString()
             }
             Text(text, style = MaterialTheme.typography.bodyMedium, color = PleyColors.DangerText)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -478,11 +479,11 @@ private fun SignInStatus(signIn: BrowserSignIn, state: ServersUiState, onRetry: 
 /** What went wrong with a server, in words. */
 @Composable
 internal fun problemText(problem: ServersProblem): String = when (problem) {
-    is ServersProblem.Unreachable -> stringResource(R.string.onboarding_problem_unreachable, problem.address, problem.message)
+    is ServersProblem.Unreachable -> stringResource(R.string.onboarding_problem_unreachable, problem.address, problem.reason.asString())
     is ServersProblem.NotPley -> stringResource(R.string.onboarding_problem_not_pley, problem.address)
     is ServersProblem.Unencrypted -> stringResource(R.string.onboarding_problem_unencrypted, problem.address)
     ServersProblem.BadAddress -> stringResource(R.string.onboarding_problem_address)
-    is ServersProblem.Failed -> sentence(problem.message)
+    is ServersProblem.Failed -> UiText.Sentence(problem.text).asString()
 }
 
 internal const val SIGN_IN_TAG = "pley.signin"

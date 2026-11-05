@@ -1,13 +1,14 @@
 package app.pley.android.ui.phone.player
 
-import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.ChapterMark
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerPhase
@@ -46,6 +47,7 @@ class PlayerScreenState(
     val title: String by derivedStateOf { ui.value.title }
     val subtitle: String? by derivedStateOf { ui.value.subtitle }
     val method: String? by derivedStateOf { ui.value.method }
+    val playbackMethod: PlaybackMethod? by derivedStateOf { ui.value.playbackMethod }
     val skipLabel: String? by derivedStateOf { ui.value.skipLabel }
     val upNext: UpNextUi? by derivedStateOf { ui.value.upNextCard }
     val chapters: List<ChapterMark> by derivedStateOf { ui.value.chapters }

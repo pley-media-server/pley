@@ -1,11 +1,13 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import okhttp3.OkHttpClient
 
-const val WIDER_SCOPE_MESSAGE = "the server allowed more than this app asks for: signed out"
+/** Why a sign-in with more than the app asks for ended. */
+val WIDER_SCOPE: UiText = UiText.res(R.string.auth_wider_scope)
 
 /** A token answer with more rights than were asked for. Its grant was ended. */
-class WiderScopeException : AuthException(WIDER_SCOPE_MESSAGE)
+class WiderScopeException : AuthException(WIDER_SCOPE)
 
 /**
  * The app holds viewer tokens only. Every token answer (a code exchanged, a

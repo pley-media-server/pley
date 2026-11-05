@@ -1,5 +1,6 @@
 package app.pley.android.auth
 
+import app.pley.android.common.UiText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -47,7 +48,7 @@ data class Profile(
             val array = try {
                 JSONArray(text)
             } catch (_: JSONException) {
-                throw AuthException("the server's answer can't be read: try again")
+                throw AuthException(UNREADABLE)
             }
             return (0 until array.length()).mapNotNull { i ->
                 val o = array.optJSONObject(i) ?: return@mapNotNull null
@@ -79,7 +80,8 @@ sealed interface SwitchResult {
      */
     data object SignInAgain : SwitchResult
 
-    data class Failed(val message: String) : SwitchResult
+    /** Refused, in [text]. */
+    data class Failed(val text: UiText) : SwitchResult
 }
 
 /** How a PIN check of the current profile went (Profiles.confirmPin). */
@@ -89,8 +91,8 @@ sealed interface PinCheck {
     /** The server can't check a PIN for the profile the app uses: go on without it. */
     data object Unsupported : PinCheck
 
-    /** Wrong, throttled or locked: the server's reason in words. Nothing is retried. */
-    data class Failed(val message: String) : PinCheck
+    /** Wrong, throttled or locked: the server's reason in words ([text]). Nothing is retried. */
+    data class Failed(val text: UiText) : PinCheck
 }
 
 /**
@@ -110,8 +112,8 @@ class Profiles(private val api: OkHttpClient, private val tokens: Tokens) {
             when {
                 response.isSuccessful -> Profile.parseList(text)
                 response.code == 401 -> throw SignedOutException()
-                response.code == 403 -> throw AuthException("this sign-in can't switch profiles: sign in again to allow it")
-                else -> throw AuthException("the server couldn't answer (HTTP ${response.code})")
+                response.code == 403 -> throw AuthException(CANT_SWITCH)
+                else -> throw AuthException(UiText.res(R.string.auth_server_failed, response.code))
             }
         }
     }
@@ -122,7 +124,7 @@ class Profiles(private val api: OkHttpClient, private val tokens: Tokens) {
             Needs.NONE -> Unit
             Needs.PIN -> if (pin.isNullOrEmpty()) return SwitchResult.NeedsPin
             Needs.PASSWORD -> return SwitchResult.SignInAgain
-            Needs.LOCKED -> return SwitchResult.Failed("this profile can't be used from the app")
+            Needs.LOCKED -> return SwitchResult.Failed(LOCKED)
         }
         val sent = pin?.takeIf { profile.needs == Needs.PIN }
         return try {
@@ -162,22 +164,32 @@ class Profiles(private val api: OkHttpClient, private val tokens: Tokens) {
     companion object {
         const val PATH = "/api/oauth/profiles"
 
+        /** A profile that can't be used from the app. */
+        val LOCKED: UiText = UiText.res(R.string.auth_profile_locked)
+
+        /** A PIN locked after too many wrong tries. */
+        val PIN_LOCKED: UiText = UiText.res(R.string.auth_pin_locked)
+
+        /** A sign-in that wasn't allowed to switch profiles. */
+        val CANT_SWITCH: UiText = UiText.res(R.string.auth_cant_switch)
+
         /**
          * A refused switch in a few words, by the server's reason. Throttled,
          * the server's own sentence says how long to wait.
          */
-        fun message(error: OAuthError?): String = when (error?.reason) {
-            "wrong_pin" -> "wrong PIN"
-            "throttled" -> error.description ?: "too many wrong PINs: try again in a few minutes"
-            "pin_locked" ->
-                "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it"
-            "browser" -> "this profile needs its password: sign in again to use it"
-            "not_allowed" -> "you can't switch to this profile"
+        fun message(error: OAuthError?): UiText = when (error?.reason) {
+            "wrong_pin" -> UiText.res(R.string.auth_wrong_pin)
+            "throttled" -> error.description?.let(UiText::raw) ?: UiText.res(R.string.auth_throttled)
+            "pin_locked" -> PIN_LOCKED
+            "browser" -> UiText.res(R.string.auth_needs_password)
+            "not_allowed" -> NOT_ALLOWED
             else -> when (error?.error) {
-                "unauthorized_client" -> "this sign-in can't switch profiles: sign in again to allow it"
-                "invalid_request" -> error.description ?: "you can't switch to this profile"
-                else -> error?.description ?: "the server refused: try again"
+                "unauthorized_client" -> CANT_SWITCH
+                "invalid_request" -> error.description?.let(UiText::raw) ?: NOT_ALLOWED
+                else -> error?.description?.let(UiText::raw) ?: UiText.res(R.string.auth_refused)
             }
         }
+
+        private val NOT_ALLOWED = UiText.res(R.string.auth_not_allowed)
     }
 }

@@ -70,6 +70,50 @@ Whether it has one is the profile's `has_pin` from `GET /api/auth/me`, saved
 with the session, so the start reads it from the device; until the TV has
 heard it for that profile, the start asks "Who's watching?".
 
+### Language
+
+Pley is in English, French and Spanish. The app shows the language of the
+account, else the server's, else the first of the device's languages that
+Pley has, else English ([API.md](API.md#language)): `language` of
+`GET /api/auth/me` and of `GET /api/server`, which the app asks while
+signed in. With no server chosen, it shows the device's. A code Pley
+doesn't have counts as none, and a region doesn't count (`fr-CA` is
+French).
+
+Settings has a **Language** row, on phones at the top and on TVs under
+Profile: **Server default**, naming what it stands for ("Server default
+(Français)", or "Server default (this device's language, English)" when
+the server leaves it to each device), then English, Français and Español,
+each named in itself. A choice is the account's, on every device it signs
+in on (`PUT /api/me/language`); it shows at once, and is put back, with a
+word, if the server refuses.
+
+The app remembers the language it showed last and starts in it, before
+the server has answered; it doesn't turn to the device's language until
+the server has said that it should, so no other language shows for a
+moment. Android 13 and later keep it as the app's own language, which
+the system's settings list (Apps → Pley → Language); the app sets it
+again as it hears the account's and the server's. Below 13 the app keeps
+it itself, and remakes its screens when it changes. A player open then
+plays on: on Android 13 and later its words change where they are, below
+the next time it opens.
+
+Dates, times and numbers follow the language shown, in the device's
+region when the device is in that language (en-GB keeps its 24-hour
+clock). The app's requests to its server say the language shown
+(`Accept-Language`), in which the server writes the titles of Home's and
+the libraries' rows; they are asked for again when it changes.
+
+An open page follows a change at once: its words, and the runtimes, times
+left, "3 hours ago", episode numbers and track languages it writes. Tiles
+already listed in a library, a collection or search results follow when
+they load again. The names of audio and subtitle languages are the
+language shown's own ("Anglais", "Inglés"), sorted as it sorts them. A
+quality the server converts to keeps its name in every language ("8 Mbps
+1080p"), as on the web. Playback details write their numbers as the
+language shown does ("23,976 i/s" in French); Diagnostics writes frame
+rates as the decoder gives them, the same in every language.
+
 ### Phones and tablets
 
 - **The player** shows its controls, the title with them, for 3 s as
@@ -699,7 +743,7 @@ sees only what it builds on.
 | Module | What it holds | Builds on |
 |---|---|---|
 | `:app` | `PleyApplication`, `AppGraph`, the two launchers, Watch Next, the web view clean-up | everything |
-| `:core:common` | Address rules, discovery, local network access, device profile, trace names | nothing |
+| `:core:common` | Address rules, discovery, local network access, device profile, trace names, the language shown (`AppLanguage`), words made outside the interface (`UiText`), the format functions' words (`formatWords`) | model |
 | `:core:model` | The server's requests and answers, events, the capability report (plain Kotlin) | nothing |
 | `:core:auth` | Sign-in: the browser page, the TV's code, tokens | common |
 | `:core:network` | OkHttp clients, `PleyApi`, server events | common, model, auth |
@@ -726,6 +770,33 @@ Rules the build keeps:
 - The only exported components are the two launchers,
   `SignInRedirectActivity`, `MusicService` and `WatchNextImageProvider`
   (`CutoverTest` checks).
+
+### Words
+
+Each module keeps the words people read in
+`src/main/res/values/strings_<area>.xml`, with the same file in
+`values-fr/` and `values-es/`; a count is a `<plurals>` (English one and
+other, French and Spanish one, many and other). Lint fails on a word, or a
+count's form, missing in one of them (`MissingTranslation`,
+`MissingQuantity`, set in `build-logic`).
+
+Words made where nothing is drawn (a ViewModel, an error, the player's
+messages) are a `UiText` (`:core:common`): a resource and its arguments,
+a count's plural, or text as it is (the server's, a name). The interface
+puts them into words (`asString()` in Compose, `resolve` elsewhere), in
+the language shown, so they follow a change of language. An error's words
+are `errorText(error)`: the app's own (`UserFacing.text`) or the server's
+sentence. An activity or a service is made in the language shown
+(`AppLanguage.wrap` in `attachBaseContext`).
+
+`:core:model`'s format functions (durations and time left, relative
+times, episode numbers, counts, sizes and bitrates, a stream's details,
+track languages) take a `FormatWords` last, English when given none:
+`formatWords()` in Compose, `formatWords(resources)` with a screen's or a
+service's resources, `AppLanguage.formatWords()` where a ViewModel builds
+its state. A ViewModel that keeps what they write combines
+`AppLanguage.shown`, so it builds its state again when the language
+changes.
 
 ### Commands
 

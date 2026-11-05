@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Language row of Settings, on phones and TVs (LanguageViewModel). -->
+<resources>
+    <string name="language_title">Language</string>
+    <!-- %1$s: the server's language, named in itself ("Français"), or language_this_device. -->
+    <string name="language_server_default">Server default (%1$s)</string>
+    <!-- %1$s: this device's language, named in itself ("English"). -->
+    <string name="language_this_device">this device\'s language, %1$s</string>
+    <string name="language_hint">What Pley is in for you, on every device you sign in on.</string>
+</resources>

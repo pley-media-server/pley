@@ -7,8 +7,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
-import androidx.test.core.app.ApplicationProvider
 import app.pley.android.caps.CapsSnapshot
+import app.pley.android.common.UiText
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.Control
 import app.pley.android.model.LivePlan
@@ -17,6 +17,7 @@ import app.pley.android.model.caps.ClientCaps
 import app.pley.android.network.ApiException
 import app.pley.android.testing.Fixtures
 import app.pley.android.network.OfflineException
+import app.pley.android.player.inEnglish
 import app.pley.android.testing.data.FakeLiveTv
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import java.io.IOException
@@ -58,7 +59,6 @@ class LivePlaybackTest {
         events = events,
         playing = { _, playing -> held += playing },
         here = { _, id -> here += id },
-        stoppedText = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext()),
     )
 
     @After
@@ -189,7 +189,7 @@ class LivePlaybackTest {
         settle()
         val failed = playback.state.value.phase as LivePhase.Failed
         assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
-        assertEquals(message, failed.trouble.message)
+        assertEquals(message, failed.trouble.text.inEnglish())
         assertTrue(failed.trouble.canRetry)
         // The stream.ts read as the channel was asked for stops; no HLS was asked for.
         assertEquals(Player.STATE_IDLE, engine().player.playbackState)
@@ -216,7 +216,7 @@ class LivePlaybackTest {
         settle()
         assertEquals("watch 1 android-1 taking 2", live.sent.last())
         // Taken over from here later, the server's sentence says who took it, as it is.
-        assertEquals("Bob started watching Film Four on this connection.", LiveTrouble.of(ApiException(410, "gone", "Bob started watching Film Four on this connection.")).message)
+        assertEquals("Bob started watching Film Four on this connection.", LiveTrouble.of(ApiException(410, "gone", "Bob started watching Film Four on this connection.")).text.inEnglish())
     }
 
     @Test
@@ -236,7 +236,7 @@ class LivePlaybackTest {
         assertEquals(listOf("watch 1 android-1"), live.sent)
         val failed = playback.state.value.phase as LivePhase.Failed
         assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
-        assertEquals(message, failed.trouble.message)
+        assertEquals(message, failed.trouble.text.inEnglish())
     }
 
     @Test
@@ -282,7 +282,7 @@ class LivePlaybackTest {
         settle()
         val failed = playback.state.value.phase as LivePhase.Failed
         assertEquals(LiveTrouble.Kind.Stopped, failed.trouble.kind)
-        assertEquals(why, failed.trouble.message)
+        assertEquals(why, failed.trouble.text.inEnglish())
         // Gone at the server already: not left, not watched again.
         assertEquals(listOf("watch 1 android-1"), live.sent)
     }
@@ -303,7 +303,7 @@ class LivePlaybackTest {
         events.tryEmit(ServerEvent.LiveTakenOver("stream-session", 1, why))
         settle()
         val failed = playback.state.value.phase as LivePhase.Failed
-        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, why), failed.trouble)
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, UiText.Sentence(UiText.raw(why))), failed.trouble)
         assertTrue(failed.trouble.canRetry)
 
         // The 410 and the stream's end that follow change nothing; gone at the server already: not left.
@@ -462,7 +462,7 @@ class LivePlaybackTest {
         playback.resume()
         settle()
         assertEquals(stopped, playback.state.value.phase)
-        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, why), (playback.state.value.phase as LivePhase.Failed).trouble)
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, UiText.Sentence(UiText.raw(why))), (playback.state.value.phase as LivePhase.Failed).trouble)
         assertEquals(listOf("watch 1 android-1"), live.sent)
 
         // Watch again tunes it again.
@@ -485,12 +485,12 @@ class LivePlaybackTest {
         events.tryEmit(ServerEvent.SessionStopped("live-1", "Server maintenance", byAdmin = true))
         settle()
         val trouble = (playback.state.value.phase as LivePhase.Failed).trouble
-        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, "Live TV was stopped by the server's administrator.\nServer maintenance"), trouble)
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, LivePlayback.stoppedText("Server maintenance", byAdmin = true)), trouble)
+        assertEquals("Live TV was stopped by the server's administrator.\nServer maintenance", trouble.text.inEnglish())
         assertTrue(trouble.canRetry)
         // Gone at the server already: nothing is let go, and nothing tunes it again by itself.
         assertEquals(listOf("watch 1 android-1"), live.sent)
-        val texts = LivePlayback.stoppedText(ApplicationProvider.getApplicationContext())
-        assertEquals("Live TV was stopped from another device.", texts(null, false))
+        assertEquals("Live TV was stopped from another device.", LivePlayback.stoppedText(null, byAdmin = false).inEnglish())
     }
 
     @Test

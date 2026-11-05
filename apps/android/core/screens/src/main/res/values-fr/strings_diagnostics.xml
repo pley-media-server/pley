@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diagnostics_fact_model">Modèle</string>
+    <string name="diagnostics_fact_kind">Type</string>
+    <string name="diagnostics_fact_memory">Mémoire</string>
+    <string name="diagnostics_fact_tier">Niveau de mémoire</string>
+    <string name="diagnostics_fact_buffer">Tampon du lecteur</string>
+
+    <string name="diagnostics_kind_phone">Téléphone</string>
+
+    <string name="diagnostics_memory_gb">%1$.1f Go</string>
+    <string name="diagnostics_memory_low">%1$s (appareil à mémoire limitée)</string>
+
+    <string name="diagnostics_buffer_ahead">%1$d-%2$d s d’avance</string>
+    <string name="diagnostics_buffer_bytes">%1$d Mio</string>
+    <string name="diagnostics_buffer_behind">%1$d s en arrière</string>
+</resources>

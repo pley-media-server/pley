@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- What the playback session says, in the web player's words (apps/web/src/player). -->
 <resources>
-    <!-- Qualities, in the menu's order (docs/QUALITY.md). -->
+    <!--
+      Qualities, in the menu's order (docs/QUALITY.md). A conversion is
+      named by its bitrate and lines, the same in every language, as the
+      web app names it.
+    -->
     <string name="session_quality_original">Original</string>
     <string name="session_quality_automatic">Automatic</string>
-    <string name="session_quality_30m">30 Mbps 4K</string>
-    <string name="session_quality_15m">15 Mbps 4K</string>
-    <string name="session_quality_20m">20 Mbps 1080p</string>
-    <string name="session_quality_12m">12 Mbps 1080p</string>
-    <string name="session_quality_8m">8 Mbps 1080p</string>
-    <string name="session_quality_4m">4 Mbps 720p</string>
-    <string name="session_quality_2m">2 Mbps 480p</string>
+    <string name="session_quality_30m" translatable="false">30 Mbps 4K</string>
+    <string name="session_quality_15m" translatable="false">15 Mbps 4K</string>
+    <string name="session_quality_20m" translatable="false">20 Mbps 1080p</string>
+    <string name="session_quality_12m" translatable="false">12 Mbps 1080p</string>
+    <string name="session_quality_8m" translatable="false">8 Mbps 1080p</string>
+    <string name="session_quality_4m" translatable="false">4 Mbps 720p</string>
+    <string name="session_quality_2m" translatable="false">2 Mbps 480p</string>
     <!-- A quality taller than the file, named by the file's lines: "8 Mbps 720p". -->
-    <string name="session_quality_named">%1$d Mbps %2$s</string>
+    <string name="session_quality_named" translatable="false">%1$d Mbps %2$s</string>
     <!-- Automatic, with what it plays now: "Automatic · Original", "Automatic · 8 Mbps 1080p". -->
     <string name="session_quality_automatic_playing">Automatic · %1$s</string>
     <!-- Automatic's hint in the quality menu. -->
@@ -70,6 +74,21 @@
     <string name="session_speed">%1$s× real time</string>
     <!-- "2.5× real time · 40 s ready". -->
     <string name="session_speed_ready">%1$s× real time · %2$d s ready</string>
+    <!-- Where a transcode runs, by the server's "hybrid" and "copy" (GPU and CPU are named as they are). -->
+    <string name="session_pipeline_hybrid">GPU and CPU</string>
+    <string name="session_pipeline_copy">copy</string>
+
+    <!-- The player's own lines in the details, "Label: value": the TV shows the label beside the value. -->
+    <!-- "Video: video/hevc 3840×2160". -->
+    <string name="session_engine_video">Video: %1$s %2$d×%3$d</string>
+    <!-- "Video: video/hevc 3840×2160 23.976 fps". -->
+    <string name="session_engine_video_rate">Video: %1$s %2$d×%3$d %4$s fps</string>
+    <string name="session_engine_video_decoder">Video decoder: %1$s</string>
+    <!-- "Audio: audio/eac3 6 ch". -->
+    <string name="session_engine_audio">Audio: %1$s %2$d ch</string>
+    <string name="session_engine_audio_decoder">Audio decoder: %1$s</string>
+    <!-- "Dropped frames: 3 of 5000". -->
+    <string name="session_engine_dropped">Dropped frames: %1$d of %2$d</string>
 
     <!-- Playback speed, when a download's sound keeps it at 1×, or a stream's the server couldn't convert. -->
     <string name="session_speed_undecodable">Not for this download: its sound goes to your receiver as it is, and nothing here decodes it</string>
@@ -83,7 +102,7 @@
     <string name="session_search_failed">Couldn\'t find subtitles: %1$s</string>
     <string name="session_search_exact">Made for this file</string>
     <!-- Subtitles for the deaf and hard of hearing. -->
-    <string name="session_search_sdh">SDH</string>
+    <string name="session_search_sdh" translatable="false">SDH</string>
     <plurals name="session_search_downloads">
         <item quantity="one">%1$,d download</item>
         <item quantity="other">%1$,d downloads</item>
@@ -101,4 +120,6 @@
     <!-- "Playback failed (ERROR_CODE_DECODING_FAILED)." -->
     <string name="session_error_engine">Playback failed (%1$s).</string>
     <string name="session_error_no_file">This item has no file to play.</string>
+    <!-- Play pressed with no server signed in to. -->
+    <string name="session_sign_in_to_play">Sign in to play</string>
 </resources>

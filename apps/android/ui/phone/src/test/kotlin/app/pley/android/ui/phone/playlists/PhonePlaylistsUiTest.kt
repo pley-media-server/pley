@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.ItemKind
@@ -21,6 +22,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistKind
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.library.SmartFilter
 import app.pley.android.screens.playlists.AddEvent
 import app.pley.android.screens.playlists.AddToPlaylistUiState
 import app.pley.android.screens.playlists.PlaylistCard
@@ -69,8 +71,8 @@ class PhonePlaylistsUiTest {
         title = "Road trip",
         video = true,
         smart = smart,
-        meta = "3 items · 5h",
-        notes = if (smart) listOf("Genre: Comedy") else emptyList(),
+        metaTexts = listOf(UiText.raw("3 items · 5h")),
+        noteTexts = if (smart) listOf(UiText.raw("Genre: Comedy")) else emptyList(),
         artwork = emptyList(),
         origin = "http://pley",
         lead = null,
@@ -170,11 +172,11 @@ class PhonePlaylistsUiTest {
     fun addToPlaylistOffersANewOneAndTheOnesThatTakeIt() {
         val created = mutableListOf<String>()
         val added = mutableListOf<Long>()
-        val card = PlaylistCard(4, "Favourites", "12 items · 19h 6m", video = true, smart = false, artwork = emptyList(), origin = "http://pley")
+        val card = PlaylistCard(4, "Favourites", listOf(UiText.raw("12 items · 19h 6m")), video = true, smart = false, artwork = emptyList(), origin = "http://pley")
         compose.setContent {
             PhoneTheme {
                 AddToPlaylistContent(
-                    AddToPlaylistUiState("Heat (1995)", PlaylistKind.Video, Loadable.Ready(listOf(card), fresh = true), busy = false),
+                    AddToPlaylistUiState(UiText.raw("Heat (1995)"), PlaylistKind.Video, Loadable.Ready(listOf(card), fresh = true), busy = false),
                     onCreate = { created += it; true },
                     onAdd = { added += it.id },
                 )
@@ -216,7 +218,14 @@ class PhonePlaylistsUiTest {
     fun savingFiltersSaysWhatTheyFind() {
         compose.setContent {
             PhoneTheme {
-                NewPlaylistContent(smart = true, filters = listOf("Genre: Comedy", "Unwatched"), asksKind = false, busy = false, onCreate = { _, _ -> true }, onCancel = {})
+                NewPlaylistContent(
+                    smart = true,
+                    filters = SmartFilter.words("genre=Comedy&unwatched=1"),
+                    asksKind = false,
+                    busy = false,
+                    onCreate = { _, _ -> true },
+                    onCancel = {},
+                )
             }
         }
         compose.onNodeWithText("Save these filters").assertExists()

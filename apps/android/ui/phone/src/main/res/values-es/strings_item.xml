@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_play">Reproducir</string>
+    <string name="item_resume">Reanudar</string>
+    <string name="item_play_episode">Reproducir %1$s</string>
+    <string name="item_resume_episode">Reanudar %1$s</string>
+    <string name="item_unavailable">No disponible</string>
+    <string name="item_from_start">Desde el principio</string>
+    <string name="item_watched">Visto</string>
+    <string name="item_mark_watched">Marcar como visto</string>
+    <string name="item_mark_unwatched">Marcar como no visto</string>
+    <string name="item_playlist">Lista de reproducción</string>
+    <string name="item_trailer">Tráiler</string>
+    <string name="item_more_actions">Más acciones</string>
+    <string name="item_play_named">Reproducir %1$s</string>
+
+    <string name="item_your_rating">Tu valoración</string>
+    <string name="item_part_of">Forma parte de %1$s</string>
+    <string name="item_read_more">Ver más</string>
+    <string name="item_read_less">Ver menos</string>
+    <string name="item_version">Versión</string>
+    <string name="item_audio">Audio</string>
+    <string name="item_audio_automatic">Automática</string>
+    <string name="item_audio_automatic_language">Automática (%1$s)</string>
+    <string name="item_subtitles">Subtítulos</string>
+    <string name="item_subtitles_off">Desactivados</string>
+    <string name="item_extras">Extras</string>
+    <string name="item_cast">Reparto</string>
+    <string name="item_guest_stars">Estrellas invitadas</string>
+    <string name="item_more_like_this">Títulos similares</string>
+    <string name="item_details">Detalles</string>
+    <string name="item_episodes">Episodios</string>
+    <string name="item_more_episodes">Más episodios: %1$s</string>
+    <string name="item_no_episodes">No se encontraron episodios.</string>
+    <string name="item_choose_season">Elegir una temporada</string>
+    <string name="item_media_info">Información multimedia</string>
+    <plurals name="item_media_versions">
+        <item quantity="one">(%1$d versión)</item>
+        <item quantity="many">(%1$d versiones)</item>
+        <item quantity="other">(%1$d versiones)</item>
+    </plurals>
+
+    <string name="item_created_by">Creación</string>
+    <string name="item_director">Dirección</string>
+    <string name="item_directors">Dirección</string>
+    <string name="item_writer">Guion</string>
+    <string name="item_writers">Guion</string>
+    <plurals name="item_and_more">
+        <item quantity="one">y %1$d más</item>
+        <item quantity="many">y %1$d más</item>
+        <item quantity="other">y %1$d más</item>
+    </plurals>
+    <string name="item_original_title">Título original</string>
+    <string name="item_released">Fecha de estreno</string>
+    <string name="item_studio">Estudio</string>
+    <string name="item_network">Cadena</string>
+    <string name="item_plays">Reproducciones</string>
+    <string name="item_versions">Versiones</string>
+
+    <string name="item_info_file">Archivo</string>
+    <string name="item_info_container">Contenedor</string>
+    <string name="item_info_size">Tamaño</string>
+    <string name="item_info_duration">Duración</string>
+    <string name="item_info_bitrate">Tasa de bits</string>
+    <string name="item_info_video">Video</string>
+    <string name="item_info_audio">Audio</string>
+    <string name="item_info_streams">Pistas</string>
+    <string name="item_stream_video">Video</string>
+    <string name="item_stream_audio">Audio</string>
+    <string name="item_stream_subtitle">Subtítulos</string>
+
+    <string name="item_failed">No se pudo cargar este elemento</string>
+    <string name="item_not_found">Elemento no encontrado</string>
+    <string name="item_not_found_body">Puede que se haya eliminado o que este perfil no tenga acceso.</string>
+    <string name="item_nothing_to_play">No hay nada que reproducir: este elemento no tiene archivos multimedia.</string>
+    <string name="item_loading">Cargando</string>
+
+    <string name="item_action_play">Reproducir</string>
+    <string name="item_action_resume">Reanudar</string>
+    <string name="item_action_from_start">Reproducir desde el principio</string>
+    <string name="item_action_mark_watched">Marcar como visto</string>
+    <string name="item_action_mark_unwatched">Marcar como no visto</string>
+    <string name="item_action_add_to_playlist">Añadir a una lista de reproducción…</string>
+    <string name="item_action_go_to_show">Ir a la serie</string>
+    <string name="item_action_go_to_season">Ir a la temporada</string>
+    <string name="item_action_open">Abrir</string>
+
+    <string name="person_movies">Películas</string>
+    <string name="person_shows">Series</string>
+    <string name="person_in_libraries">%1$s en tus bibliotecas</string>
+    <string name="person_not_found">Persona no encontrada</string>
+    <string name="person_not_found_body">Nadie en tus bibliotecas corresponde a ese enlace.</string>
+    <string name="person_failed">No se pudo cargar esta persona</string>
+</resources>

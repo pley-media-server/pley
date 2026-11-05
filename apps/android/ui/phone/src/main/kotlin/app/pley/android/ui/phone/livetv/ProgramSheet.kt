@@ -85,7 +85,7 @@ internal fun ProgramSheet(
             }
             Spacer(Modifier.height(16.dp))
             Text(program.title, style = MaterialTheme.typography.headlineSmall, color = PleyColors.Fg)
-            val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
+            val episode = listOfNotNull(episodeOf(program), program.subtitle).joinToString(" · ")
             if (episode.isNotEmpty()) {
                 Text(episode, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, modifier = Modifier.padding(top = 2.dp))
             }

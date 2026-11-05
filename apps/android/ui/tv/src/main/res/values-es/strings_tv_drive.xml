@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_drive_title">Dispositivo USB</string>
+    <string name="tv_drive_space">%1$s libres de %2$s</string>
+    <string name="tv_drive_up">Carpeta superior</string>
+    <string name="tv_drive_resumes">%1$s · Se reanuda en %2$s</string>
+    <string name="tv_drive_none_title">No hay ningún dispositivo USB</string>
+    <string name="tv_drive_none_body">Conecta un dispositivo USB a la TV para reproducir aquí sus videos.</string>
+    <string name="tv_drive_unreadable_title">No se puede leer esta carpeta</string>
+    <string name="tv_drive_unreadable_body">Puede que se haya desconectado el dispositivo.</string>
+    <string name="tv_drive_empty_title">No hay nada que reproducir aquí</string>
+    <string name="tv_drive_empty_body">Esta carpeta no contiene videos ni carpetas.</string>
+    <string name="tv_drive_refused_title">Permitir que Pley lea el dispositivo</string>
+    <string name="tv_drive_refused_body">Pley necesita acceso a tus videos para mostrar y reproducir lo que hay en un dispositivo USB.</string>
+    <string name="tv_drive_open_settings">Abrir ajustes</string>
+</resources>

@@ -38,13 +38,15 @@ object HttpRoot {
 
     /**
      * The root client, introducing itself as [userAgent] (UserAgent.of: the
-     * server names the device after it). Redirects never go from http to
-     * https or back on their own; a connection that failed is tried again
-     * on another route. [localRoute], when given, sends connections to the
-     * home network over Wi-Fi or Ethernet while mobile data is the default
+     * server names the device after it) and asking for [language] (the
+     * language shown, "fr-CA"; `null`: none), in which the server writes
+     * the words it writes itself. Redirects never go from http to https or
+     * back on their own; a connection that failed is tried again on another
+     * route. [localRoute], when given, sends connections to the home
+     * network over Wi-Fi or Ethernet while mobile data is the default
      * network (LocalRoute).
      */
-    fun create(userAgent: String, localRoute: LocalRoute? = null): OkHttpClient = OkHttpClient.Builder()
+    fun create(userAgent: String, localRoute: LocalRoute? = null, language: () -> String? = { null }): OkHttpClient = OkHttpClient.Builder()
         .connectionPool(ConnectionPool(IDLE_CONNECTIONS, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS))
         .dispatcher(
             Dispatcher().apply {
@@ -55,6 +57,7 @@ object HttpRoot {
         .followSslRedirects(false)
         .retryOnConnectionFailure(true)
         .addInterceptor(userAgent(userAgent))
+        .addInterceptor(acceptLanguage(language))
         .addInterceptor(homeConnectTimeout())
         .apply { localRoute?.applyTo(this) }
         .build()
@@ -73,6 +76,13 @@ object HttpRoot {
                 chain.proceed(request)
             }
         }
+    }
+
+    /** Sets `Accept-Language` to [language] on every request, while there is one. */
+    fun acceptLanguage(language: () -> String?): Interceptor = Interceptor { chain ->
+        val tag = language()
+        val request = chain.request()
+        chain.proceed(if (tag.isNullOrEmpty()) request else request.newBuilder().header("Accept-Language", tag).build())
     }
 
     /** Sets `User-Agent` on every request. */

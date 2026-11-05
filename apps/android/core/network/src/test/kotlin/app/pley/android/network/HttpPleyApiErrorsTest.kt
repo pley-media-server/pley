@@ -1,5 +1,8 @@
 package app.pley.android.network
 
+import app.pley.android.auth.R as AuthR
+import app.pley.android.common.R as CommonR
+import app.pley.android.common.UiText
 import app.pley.android.common.sha1Hex
 import app.pley.android.testing.network.MockPley
 import java.util.concurrent.TimeUnit
@@ -103,16 +106,19 @@ class HttpPleyApiErrorsTest {
             assertEquals(status, e.status)
             assertNull(e.code)
             assertEquals("Failed to deserialize the JSON body into the target type: missing field `item_id`", e.message)
+            // The server's words, as it wrote them: none of the app's.
+            assertNull(e.text)
         }
     }
 
     @Test
     fun bodiesWithoutASentenceSayTheStatus() = runTest {
+        // In the app's words (NetworkWordsTest reads them): "the server refused (HTTP 500)".
         server.enqueue(MockResponse.Builder().code(500).build())
-        assertEquals("the server refused (HTTP 500)", failing<ApiException> { api.me() }.message)
+        assertEquals(UiText.res(AuthR.string.auth_refused_status, 500), failing<ApiException> { api.me() }.text)
 
         server.enqueue(MockResponse.Builder().code(502).setHeader("Content-Type", "text/html").body("<html><body>Bad gateway</body></html>").build())
-        assertEquals("the server refused (HTTP 502)", failing<ApiException> { api.me() }.message)
+        assertEquals(UiText.res(AuthR.string.auth_refused_status, 502), failing<ApiException> { api.me() }.text)
     }
 
     @Test
@@ -148,7 +154,9 @@ class HttpPleyApiErrorsTest {
         val tokens = testTokens(address)
         val e = failing<OfflineException> { testGraph(folder.newFolder(), { tokens }).api(address, 2).libraries() }
         assertFalse(e.blocked)
-        assertTrue(e.message, e.message == "nothing answers there" || e.message == "no answer in time")
+        // "nothing answers there" or "no answer in time", in the language shown.
+        val said = e.text
+        assertTrue("$said", said == UiText.res(CommonR.string.error_nothing_answers) || said == UiText.res(CommonR.string.error_no_answer))
     }
 
     @Test
@@ -156,6 +164,7 @@ class HttpPleyApiErrorsTest {
         server.enqueue(MockResponse.Builder().setHeader("Content-Type", "text/html").body("<html>router login</html>").build())
         val e = failing<UnreadableAnswerException> { api.server() }
         assertEquals(200, e.status)
+        assertEquals(UNREADABLE_ANSWER, e.text)
     }
 
     @Test

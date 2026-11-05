@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_playlists_title">Listas de reproducción</string>
+    <string name="tv_playlists_new">Nueva lista de reproducción</string>
+    <string name="tv_playlists_failed">No se pudieron cargar tus listas de reproducción</string>
+    <string name="tv_playlists_none_title">Aún no hay listas de reproducción</string>
+    <string name="tv_playlists_none_body">Crea una aquí o usa “Añadir a una lista de reproducción” en una película, serie, álbum o episodio (también manteniendo pulsado OK sobre un póster).</string>
+    <string name="tv_playlists_retry">Reintentar</string>
+    <string name="tv_playlists_smart">Inteligente</string>
+
+    <string name="tv_playlist_video">Lista de reproducción de video</string>
+    <string name="tv_playlist_music">Lista de reproducción de música</string>
+    <string name="tv_playlist_smart">Lista de reproducción inteligente</string>
+    <string name="tv_playlist_play">Reproducir</string>
+    <string name="tv_playlist_shuffle">Aleatorio</string>
+    <string name="tv_playlist_rename">Cambiar nombre</string>
+    <string name="tv_playlist_delete">Eliminar</string>
+    <string name="tv_playlist_failed">No se pudo cargar esta lista de reproducción</string>
+    <string name="tv_playlist_not_found">Lista de reproducción no encontrada</string>
+    <string name="tv_playlist_not_found_body">Se eliminó o pertenece a otro perfil.</string>
+    <string name="tv_playlist_back">Atrás</string>
+    <string name="tv_playlist_empty_smart">Todavía nada coincide con el filtro de esta lista de reproducción.</string>
+    <string name="tv_playlist_empty_video">Esta lista de reproducción está vacía. Usa “Añadir a una lista de reproducción” en una película, serie o episodio, o mantén pulsado OK sobre un póster.</string>
+    <string name="tv_playlist_empty_music">Esta lista de reproducción está vacía. Usa “Añadir a una lista de reproducción” en un artista o álbum, o mantén pulsado OK sobre una portada.</string>
+    <string name="tv_playlist_more">Más</string>
+    <string name="tv_playlist_play_from_here">Reproducir desde aquí</string>
+    <string name="tv_playlist_go_to">Ir a %1$s</string>
+    <string name="tv_playlist_move">Mover</string>
+    <string name="tv_playlist_remove">Quitar de la lista de reproducción</string>
+    <string name="tv_playlist_moving">Arriba y abajo para moverlo, OK para soltarlo aquí, Atrás para devolverlo a su sitio</string>
+    <string name="tv_playlist_removed">Se quitó “%1$s”</string>
+    <string name="tv_playlist_delete_title">¿Eliminar la lista de reproducción?</string>
+    <string name="tv_playlist_delete_body">Se eliminará “%1$s”. Su contenido seguirá en tus bibliotecas.</string>
+    <string name="tv_playlist_cancel">Cancelar</string>
+    <string name="tv_playlist_rename_title">Cambiar nombre de la lista de reproducción</string>
+    <string name="tv_playlist_save">Guardar</string>
+
+    <string name="tv_playlist_form_title">Título</string>
+    <string name="tv_playlist_form_for">Para</string>
+    <string name="tv_playlist_form_video">Películas y series</string>
+    <string name="tv_playlist_form_music">Música</string>
+    <string name="tv_playlist_form_create">Crear</string>
+    <string name="tv_playlist_form_hint">Pulsa OK en el título para escribirlo.</string>
+    <string name="tv_playlist_new_body">Ponle un nombre y luego añádele contenido con “Añadir a una lista de reproducción” en cualquier título.</string>
+    <string name="tv_playlist_smart_title">Guardar estos filtros</string>
+    <string name="tv_playlist_smart_body">%1$s. Se mantiene al día con la biblioteca por sí sola.</string>
+    <string name="tv_playlist_smart_body_plain">Se mantiene al día con la biblioteca por sí sola.</string>
+
+    <string name="tv_add_to_playlist">Añadir a una lista de reproducción</string>
+    <string name="tv_add_new_video">Nueva lista de video</string>
+    <string name="tv_add_new_music">Nueva lista de música</string>
+    <string name="tv_add_create">Crear</string>
+    <string name="tv_add_yours">Tus listas de reproducción</string>
+    <string name="tv_add_none_video">Aún no tienes listas de video: escribe un nombre arriba.</string>
+    <string name="tv_add_none_music">Aún no tienes listas de música: escribe un nombre arriba.</string>
+    <string name="tv_add_added">Añadido a %1$s</string>
+    <string name="tv_add_added_many">Se añadieron %1$s elementos a %2$s</string>
+    <string name="tv_add_nothing">No hay nada que añadir</string>
+</resources>

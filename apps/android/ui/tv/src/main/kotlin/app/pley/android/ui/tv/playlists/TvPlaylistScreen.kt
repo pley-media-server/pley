@@ -67,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.AppLanguage
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.PleyColors
@@ -78,6 +79,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkCandidates
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.QualityBadge
@@ -97,6 +99,7 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.kit.BackdropScrim
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvBackdrop
@@ -106,7 +109,6 @@ import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.TvTextField
-import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.menuKey
@@ -189,10 +191,15 @@ internal fun TvPlaylistScreen(vm: PlaylistViewModel<ArtworkTileModel>) {
     }
 }
 
-/** The TV's thumbnails: 16:9 stills for video entries, squares for music. */
+/** The TV's thumbnails: 16:9 stills for video entries, squares for music, in the language shown as each is made. */
 internal object TvPlaylistTiles : app.pley.android.screens.library.TileFactory<ArtworkTileModel> {
     override fun item(item: app.pley.android.model.ItemSummary, look: app.pley.android.screens.library.TileLook, origin: String) =
-        ArtworkTileModel.of(item, if (look == app.pley.android.screens.library.TileLook.Square) TileKind.Square else TileKind.Landscape, origin)
+        ArtworkTileModel.of(
+            item,
+            if (look == app.pley.android.screens.library.TileLook.Square) TileKind.Square else TileKind.Landscape,
+            origin,
+            AppLanguage.formatWords(),
+        )
 
     override fun collection(collection: app.pley.android.model.CollectionSummary, kind: app.pley.android.model.LibraryKind?, origin: String) =
         ArtworkTileModel(id = collection.id, title = collection.title)
@@ -385,7 +392,7 @@ private fun LazyListScope.hero(
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(Modifier.height(12.dp))
-            val facts = (listOf(page.meta) + page.notes).filter { it.isNotEmpty() }
+            val facts = listOf(page.metaTexts.asString(), page.noteTexts.asString("  ·  ")).filter { it.isNotEmpty() }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (page.smart) QualityBadge(stringResource(R.string.tv_playlists_smart), TileStyle.Tv)
                 BasicText(facts.joinToString("  ·  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 2, overflow = TextOverflow.Ellipsis)

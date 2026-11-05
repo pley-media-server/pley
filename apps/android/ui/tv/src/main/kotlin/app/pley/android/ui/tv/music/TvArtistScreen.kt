@@ -29,7 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -38,6 +39,8 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.screens.PleyKey
@@ -71,14 +74,13 @@ internal fun TvArtistScreen(artistId: Long) {
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val actions = tileActions()
-    var problem by remember { mutableStateOf<String?>(null) }
-    val nothing = stringResource(R.string.tv_music_nothing_to_play)
+    var problem by remember { mutableStateOf<UiText?>(null) }
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
                 MusicEvent.Played -> navigator.open(PleyKey.NowPlaying)
-                MusicEvent.NothingToPlay -> problem = nothing
-                is MusicEvent.Failed -> problem = sentenceOf(event.error)
+                MusicEvent.NothingToPlay -> problem = UiText.res(R.string.tv_music_nothing_to_play)
+                is MusicEvent.Failed -> problem = errorSentence(event.error)
             }
         }
     }
@@ -117,7 +119,7 @@ private fun ArtistContent(
     page: ArtistPage,
     busy: Boolean,
     musicPlaying: Boolean,
-    problem: String?,
+    problem: UiText?,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
     onAlbum: (Long) -> Unit,
@@ -127,8 +129,9 @@ private fun ArtistContent(
     val memory = rememberFocusMemory()
     val backdrop = remember(page.backdropUrl, page.origin) { ArtworkImage.of(page.backdropUrl, page.origin) }
     val picture = remember(page.posterUrl, page.origin) { ArtworkImage.of(page.posterUrl, page.origin) }
-    val albums = remember(page) {
-        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin).copy(subtitle = it.year?.toString().orEmpty()) }
+    val words = formatWords()
+    val albums = remember(page, words) {
+        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin, words).copy(subtitle = it.year?.toString().orEmpty()) }
     }
     TvBackdrop(backdrop, page.title, scrim = BackdropScrim.Item)
     Column(Modifier.fillMaxSize().padding(top = TOP)) {
@@ -140,7 +143,7 @@ private fun ArtistContent(
             Column(Modifier.widthIn(max = 520.dp)) {
                 BasicText(stringResource(R.string.tv_music_artist), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
                 BasicText(page.title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val meta = listOf(page.counts, page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                val meta = listOf(page.countTexts.asString(), page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() }.joinToString("  ·  ")
                 if (meta.isNotEmpty()) BasicText(meta, style = PleyType.Tv.Label.copy(color = PleyColors.Muted), modifier = Modifier.padding(top = 6.dp))
                 page.summary?.let {
                     BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
@@ -155,7 +158,7 @@ private fun ArtistContent(
             TvPillButton(stringResource(R.string.tv_music_play), onClick = onPlay, icon = PleyIcons.Play, enabled = !busy, modifier = Modifier.rememberedFocus(memory, "play", initial = true))
             TvRoundButton(stringResource(R.string.tv_music_shuffle), PleyIcons.Shuffle, onClick = onShuffle, enabled = !busy, modifier = Modifier.rememberedFocus(memory, "shuffle"))
             if (musicPlaying) TvRoundButton(stringResource(R.string.tv_music_now_playing), PleyIcons.AudioLines, onClick = onNowPlaying, modifier = Modifier.rememberedFocus(memory, "now"))
-            if (problem != null) BasicText(problem, style = PleyType.Tv.Caption.copy(color = PleyColors.DangerText), modifier = Modifier.padding(start = 8.dp, top = 14.dp))
+            if (problem != null) BasicText(problem.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.DangerText), modifier = Modifier.padding(start = 8.dp, top = 14.dp))
         }
         if (albums.isEmpty()) {
             BasicText(

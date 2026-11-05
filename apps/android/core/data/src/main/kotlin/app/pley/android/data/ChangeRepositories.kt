@@ -1,5 +1,7 @@
 package app.pley.android.data
 
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.common.UserFacing
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaylistDetail
@@ -103,5 +105,8 @@ interface TrackDefaultsRepository {
  * predates PUT /api/me/track-defaults, or the sign-in wasn't allowed to
  * play): show them read-only, to change on the web.
  */
-class TrackDefaultsUnsupported(cause: Throwable? = null) :
-    UnsupportedOperationException("change these on Pley's web app", cause), UserFacing
+class TrackDefaultsUnsupported(cause: Throwable? = null) : UnsupportedOperationException(cause), UserFacing {
+    override val text: UiText = UiText.res(R.string.data_track_defaults_on_web)
+
+    override val message: String get() = AppLanguage.wordsOf(text)
+}

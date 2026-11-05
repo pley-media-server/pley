@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -56,6 +57,7 @@ import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.cardPress
+import app.pley.android.ui.phone.library.joined
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -137,10 +139,11 @@ private fun Grid(list: List<PlaylistCard>, state: androidx.compose.foundation.la
 private fun PlaylistCardView(card: PlaylistCard, onClick: () -> Unit) {
     val interactions = remember { MutableInteractionSource() }
     val reduced = reducedMotion()
+    val meta = card.metaTexts.joined(LocalResources.current)
     Column(
         Modifier
             .fillMaxWidth()
-            .semantics(mergeDescendants = true) { contentDescription = "${card.title}, ${card.meta}" }
+            .semantics(mergeDescendants = true) { contentDescription = "${card.title}, $meta" }
             .combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
     ) {
         PlaylistArt(
@@ -154,7 +157,7 @@ private fun PlaylistCardView(card: PlaylistCard, onClick: () -> Unit) {
         Spacer(Modifier.height(PleyPhone.ArtToCaption))
         Text(card.title, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-            listOfNotNull(card.meta.ifEmpty { null }, if (card.smart) stringResource(R.string.playlists_smart) else null).joinToString(" · "),
+            listOfNotNull(meta.ifEmpty { null }, if (card.smart) stringResource(R.string.playlists_smart) else null).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
             color = PleyColors.Muted,
             maxLines = 1,

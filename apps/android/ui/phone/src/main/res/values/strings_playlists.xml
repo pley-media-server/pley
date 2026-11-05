@@ -52,6 +52,10 @@
     <string name="add_none_video">No video playlists yet: name one above.</string>
     <string name="add_none_music">No music playlists yet: name one above.</string>
     <string name="add_added">Added to %1$s</string>
-    <string name="add_added_many">Added %1$s items to %2$s</string>
+    <!-- %1$d: how many entries were added (more than one); %2$s: the playlist. -->
+    <plurals name="add_added_many">
+        <item quantity="one">Added %1$d item to %2$s</item>
+        <item quantity="other">Added %1$d items to %2$s</item>
+    </plurals>
     <string name="add_nothing">Nothing to add</string>
 </resources>

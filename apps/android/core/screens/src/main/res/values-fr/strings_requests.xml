@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="requests_discover">Découvrir</string>
+    <string name="requests_yours">Vos demandes</string>
+    <string name="requests_manage">Demandes</string>
+    <string name="requests_attention">À traiter</string>
+    <string name="requests_discover_hint">Trouvez des films et des séries à demander</string>
+    <string name="requests_manage_hint">Approuvez, refusez et suivez ce qui a été demandé</string>
+    <plurals name="requests_count_manage">
+        <item quantity="one">%1$d demande vous attend</item>
+        <item quantity="many">%1$d de demandes vous attendent</item>
+        <item quantity="other">%1$d demandes vous attendent</item>
+    </plurals>
+    <plurals name="requests_count_failed">
+        <item quantity="one">%1$d n’a pas pu être envoyée</item>
+        <item quantity="many">%1$d n’ont pas pu être envoyées</item>
+        <item quantity="other">%1$d n’ont pas pu être envoyées</item>
+    </plurals>
+    <string name="requests_count_and">%1$s, %2$s</string>
+
+    <string name="requests_row_trending">Tendances de la semaine</string>
+    <string name="requests_row_movies">Films populaires</string>
+    <string name="requests_row_shows">Séries populaires</string>
+    <string name="requests_row_upcoming">Bientôt au cinéma</string>
+    <string name="requests_row_anime">Animes populaires</string>
+    <string name="requests_search_none">Rien sur TMDB ne correspond à « %1$s »</string>
+    <string name="requests_search_none_body">Essayez une autre orthographe, ou le titre dans sa langue d’origine.</string>
+    <string name="requests_kind_movie">Film</string>
+    <string name="requests_kind_show">Série</string>
+
+    <string name="requests_badge_library">En bibliothèque</string>
+    <string name="requests_badge_partial">Partiellement</string>
+    <string name="requests_badge_requested">Demandé</string>
+    <string name="requests_badge_declined">Refusé</string>
+
+    <string name="requests_open">Ouvrir</string>
+    <string name="requests_request">Demander</string>
+    <string name="requests_requested">Demandé</string>
+    <string name="requests_following">Vous suivez</string>
+    <string name="requests_stop_following">Ne plus suivre</string>
+    <string name="requests_tell_me_too">Me prévenir aussi</string>
+    <string name="requests_asked_already">Quelqu’un l’a déjà demandé.</string>
+    <string name="requests_more_seasons">Demander d’autres saisons</string>
+    <string name="requests_declined_reason">Refusé : « %1$s ». Vous pourrez redemander %2$s.</string>
+    <string name="requests_declined_plain">Refusé. Vous pourrez redemander %1$s.</string>
+    <string name="requests_declined_reason_only">Refusé : « %1$s ».</string>
+    <string name="requests_declined_only">Refusé.</string>
+    <string name="requests_ready_elsewhere">Disponible dans une bibliothèque que vous ne pouvez pas ouvrir : demandez à un administrateur</string>
+    <string name="requests_watch">Regarder</string>
+    <string name="requests_details">Détails</string>
+
+    <string name="requests_stage_pending">En attente d’approbation</string>
+    <string name="requests_stage_approved">Approuvée</string>
+    <string name="requests_stage_out">Sortie : %1$s</string>
+    <string name="requests_stage_airs">Diffusion : %1$s</string>
+    <string name="requests_stage_not_out">Pas encore sorti</string>
+    <string name="requests_stage_searching">Recherche en cours</string>
+    <string name="requests_stage_downloading">Téléchargement %1$d %%</string>
+    <string name="requests_stage_eta">%1$s · %2$s</string>
+    <string name="requests_stage_importing">Ajout à la bibliothèque</string>
+    <string name="requests_stage_partial">Prêt à regarder : %1$s</string>
+    <string name="requests_stage_available">Prêt à regarder</string>
+    <string name="requests_stage_gone">N’est plus dans une bibliothèque</string>
+    <string name="requests_stage_declined">Refusée</string>
+    <string name="requests_stage_failed">Envoi impossible : %1$s</string>
+    <string name="requests_stage_failed_plain">Envoi impossible</string>
+    <string name="requests_stage_not_sent">Pas encore envoyée</string>
+    <string name="requests_not_sent_body">Elle n’a pas encore pu être envoyée au téléchargement : un administrateur va s’en occuper.</string>
+    <string name="requests_trying_again">Nouvel essai %1$s.</string>
+    <string name="requests_download_queued">En attente de téléchargement</string>
+    <string name="requests_download_paused">Téléchargement en pause</string>
+    <string name="requests_download_warning">Le téléchargement a un problème</string>
+    <string name="requests_by_someone">Demandé par quelqu’un d’autre</string>
+    <string name="requests_by_when">%1$s · %2$s</string>
+    <string name="requests_stage_unknown">Demandée</string>
+
+    <string name="requests_today_at">aujourd’hui à %1$s</string>
+    <string name="requests_tomorrow_at">demain à %1$s</string>
+    <string name="requests_tomorrow">demain</string>
+    <string name="requests_soon">dans un instant</string>
+    <plurals name="requests_in_minutes">
+        <item quantity="one">dans %1$d min</item>
+        <item quantity="many">dans %1$d min</item>
+        <item quantity="other">dans %1$d min</item>
+    </plurals>
+    <plurals name="requests_in_hours">
+        <item quantity="one">dans %1$d heure</item>
+        <item quantity="many">dans %1$d d’heures</item>
+        <item quantity="other">dans %1$d heures</item>
+    </plurals>
+    <plurals name="requests_in_days">
+        <item quantity="one">dans %1$d jour</item>
+        <item quantity="many">dans %1$d de jours</item>
+        <item quantity="other">dans %1$d jours</item>
+    </plurals>
+
+    <plurals name="requests_more_movies">
+        <item quantity="one">%1$d film</item>
+        <item quantity="many">%1$d de films</item>
+        <item quantity="other">%1$d films</item>
+    </plurals>
+    <plurals name="requests_more_seasons_count">
+        <item quantity="one">%1$d saison</item>
+        <item quantity="many">%1$d de saisons</item>
+        <item quantity="other">%1$d saisons</item>
+    </plurals>
+    <plurals name="requests_movies">
+        <item quantity="one">%1$d film</item>
+        <item quantity="many">%1$d de films</item>
+        <item quantity="other">%1$d films</item>
+    </plurals>
+    <plurals name="requests_seasons">
+        <item quantity="one">%1$d saison</item>
+        <item quantity="many">%1$d de saisons</item>
+        <item quantity="other">%1$d saisons</item>
+    </plurals>
+    <string name="requests_allowance_both">Vous pouvez encore demander %1$s et %2$s.</string>
+    <string name="requests_allowance_one">Vous pouvez encore demander %1$s.</string>
+    <string name="requests_limits_both">Limites : %1$s et %2$s sur 7 jours.</string>
+    <string name="requests_limits_one">Limite : %1$s sur 7 jours.</string>
+    <string name="requests_all_movies">Vous avez demandé tous les films possibles pour l’instant : vous pourrez en demander d’autres %1$s.</string>
+    <string name="requests_all_seasons">Vous avez demandé toutes les saisons possibles pour l’instant : vous pourrez en demander d’autres %1$s.</string>
+    <string name="requests_all_both">Vous avez demandé tout ce que vous pouviez pour l’instant : d’autres films %1$s, d’autres saisons %2$s.</string>
+    <string name="requests_all_for_now">Vous avez demandé tout ce que vous pouviez pour l’instant.</string>
+
+    <string name="requests_asked_pending">Demande envoyée pour « %1$s » : un administrateur décidera.</string>
+    <string name="requests_asked_approved">« %1$s » est approuvé et en route.</string>
+    <string name="requests_asked_failed">Demande envoyée pour « %1$s », mais elle n’a pas encore pu être envoyée au téléchargement.</string>
+    <string name="requests_asked_following">On vous préviendra quand « %1$s » sera prêt.</string>
+    <string name="requests_picker_title">Quelles saisons ?</string>
+    <plurals name="requests_picker_request">
+        <item quantity="one">Demander %1$d saison</item>
+        <item quantity="many">Demander %1$d de saisons</item>
+        <item quantity="other">Demander %1$d saisons</item>
+    </plurals>
+    <string name="requests_picker_none">Choisissez une saison.</string>
+    <string name="requests_season_library">Dans la bibliothèque</string>
+    <string name="requests_season_requested">Demandée</string>
+    <string name="requests_season_declined">Refusée</string>
+    <string name="requests_season_partial">%1$d sur %2$d épisodes dans la bibliothèque</string>
+    <string name="requests_season_unaired">Pas encore diffusée</string>
+    <string name="requests_season_airs">Diffusion : %1$s</string>
+    <plurals name="requests_season_episodes">
+        <item quantity="one">%1$d épisode</item>
+        <item quantity="many">%1$d d’épisodes</item>
+        <item quantity="other">%1$d épisodes</item>
+    </plurals>
+    <string name="requests_ask_again_at">Vous pourrez redemander %1$s</string>
+    <string name="requests_ask_more_at">Vous pourrez en demander d’autres %1$s</string>
+    <string name="requests_at_most_seasons">Vous pouvez demander au plus %1$s sur 7 jours : choisissez-en moins.</string>
+    <string name="requests_at_most_movies">Vous pouvez demander au plus %1$s sur 7 jours.</string>
+
+    <string name="requests_withdraw">Annuler la demande</string>
+    <string name="requests_withdraw_confirm">Annuler votre demande pour « %1$s » ?</string>
+    <string name="requests_remove">Retirer</string>
+    <string name="requests_remove_confirm">Retirer « %1$s » de vos demandes ?</string>
+    <string name="requests_approve">Approuver</string>
+    <string name="requests_approve_with">Approuver…</string>
+    <string name="requests_try_again">Réessayer</string>
+    <string name="requests_decline">Refuser</string>
+    <string name="requests_decline_with_reason">Refuser avec un motif…</string>
+    <string name="requests_handled">Marquer comme ajouté à la main</string>
+    <string name="requests_delete">Supprimer</string>
+    <string name="requests_delete_confirm">Supprimer cette demande ? Radarr et Sonarr gardent ce qu’ils ont.</string>
+    <string name="requests_ask_again">Redemander</string>
+    <string name="requests_cancel">Annuler</string>
+
+    <string name="requests_approve_title">Approuver « %1$s »</string>
+    <string name="requests_approve_profile">Profil de qualité</string>
+    <string name="requests_approve_folder">Dossier</string>
+    <string name="requests_approve_seasons">Saisons</string>
+    <string name="requests_approve_settings">Approuver avec les choix des paramètres</string>
+    <string name="requests_approve_default">Comme dans les paramètres</string>
+    <string name="requests_folder_free">%1$s libres</string>
+    <string name="requests_decline_title">Refuser « %1$s » ?</string>
+    <string name="requests_decline_reason">Motif (facultatif)</string>
+    <string name="requests_decline_reason_hint">La personne qui l’a demandé le verra.</string>
+
+    <string name="requests_filter_all">Toutes</string>
+    <string name="requests_filter_pending">En attente</string>
+    <string name="requests_filter_approved">Approuvées</string>
+    <string name="requests_filter_available">Disponibles</string>
+    <string name="requests_filter_declined">Refusées</string>
+    <string name="requests_filter_failed">En échec</string>
+    <string name="requests_filter_movies">Films</string>
+    <string name="requests_filter_shows">Séries</string>
+    <string name="requests_filter_everyone">Tout le monde</string>
+    <string name="requests_filter_mine">Les vôtres</string>
+    <string name="requests_filter_title">Rechercher des demandes</string>
+    <string name="requests_filter_count">%1$s · %2$d</string>
+    <string name="requests_none_title">Rien n’a encore été demandé</string>
+    <string name="requests_none_body">Trouvez des films et des séries dans Découvrir, et demandez ce que les bibliothèques n’ont pas.</string>
+    <string name="requests_none_body_off">Les demandes que vous avez faites ou que vous suivez s’affichent ici.</string>
+    <string name="requests_attention_none">Rien à traiter</string>
+    <string name="requests_attention_none_body">Les demandes qui attendent une décision, et celles qui n’ont pas pu être envoyées, s’affichent ici.</string>
+    <string name="requests_filtered_none">Aucune demande ne correspond</string>
+    <string name="requests_filtered_none_body">Essayez d’autres filtres.</string>
+    <string name="requests_reason_quoted">« %1$s »</string>
+    <plurals name="requests_watchers">
+        <item quantity="one">%1$d personne la suit</item>
+        <item quantity="many">%1$d de personnes la suivent</item>
+        <item quantity="other">%1$d personnes la suivent</item>
+    </plurals>
+
+    <string name="requests_notice_ready">« %1$s » est prêt à regarder.</string>
+    <string name="requests_notice_season_ready">%1$s de « %2$s » est prête à regarder.</string>
+    <string name="requests_notice_seasons_ready">%1$s de « %2$s » sont prêtes à regarder.</string>
+    <string name="requests_notice_specials_ready">Les épisodes spéciaux de « %1$s » sont prêts à regarder.</string>
+    <string name="requests_notice_approved">« %1$s » a été approuvé.</string>
+    <string name="requests_notice_declined_reason">« %1$s » a été refusé : « %2$s ».</string>
+    <string name="requests_notice_declined">« %1$s » a été refusé.</string>
+    <string name="requests_notice_asked_seasons">%1$s a demandé « %2$s » (%3$s).</string>
+    <string name="requests_notice_asked">%1$s a demandé « %2$s ».</string>
+    <string name="requests_notice_someone">Quelqu’un</string>
+    <string name="requests_notice_failed_radarr">« %1$s » n’a pas pu être envoyé à Radarr : %2$s</string>
+    <string name="requests_notice_failed_sonarr">« %1$s » n’a pas pu être envoyé à Sonarr : %2$s</string>
+    <string name="requests_notice_failed_radarr_plain">« %1$s » n’a pas pu être envoyé à Radarr.</string>
+    <string name="requests_notice_failed_sonarr_plain">« %1$s » n’a pas pu être envoyé à Sonarr.</string>
+    <plurals name="requests_notice_news">
+        <item quantity="one">%1$d de vos demandes a du nouveau</item>
+        <item quantity="many">%1$d de vos demandes ont du nouveau</item>
+        <item quantity="other">%1$d de vos demandes ont du nouveau</item>
+    </plurals>
+
+    <string name="requests_season">Saison %1$s</string>
+    <string name="requests_seasons">Saisons %1$s</string>
+    <string name="requests_season_and_specials">Saison %1$s et épisodes spéciaux</string>
+    <string name="requests_seasons_and_specials">Saisons %1$s et épisodes spéciaux</string>
+    <string name="requests_specials">Épisodes spéciaux</string>
+
+    <string name="requests_off_title">Les demandes sont désactivées</string>
+    <string name="requests_off_body">Ce serveur n’accepte pas de demandes de films et de séries.</string>
+    <string name="requests_no_access_title">Les demandes ne sont pas ouvertes à ce compte</string>
+    <string name="requests_no_access_body">Un administrateur peut lui permettre de demander des films et des séries.</string>
+    <string name="requests_tmdb_down">TMDB ne répond pas</string>
+    <string name="requests_tmdb_down_body">Ses informations et ses images reviendront dès qu’il répondra de nouveau.</string>
+    <string name="requests_tmdb_key">TMDB a refusé la clé de ce serveur</string>
+    <string name="requests_tmdb_key_manage">Corrigez-la dans les paramètres du serveur : Paramètres → Serveur, sur le web.</string>
+    <string name="requests_tmdb_key_others">Un administrateur doit la vérifier.</string>
+    <string name="requests_sign_in_title">Reconnectez-vous pour demander des films et des séries</string>
+    <string name="requests_sign_in_approvals">Reconnectez-vous pour approuver et refuser ici.</string>
+    <string name="requests_sign_in">Se connecter</string>
+    <string name="requests_not_found">Ce titre n’est pas sur TMDB</string>
+    <string name="requests_not_found_body">Il a peut-être été retiré depuis.</string>
+    <string name="requests_retry">Réessayer</string>
+    <string name="requests_no_access_line">Les demandes ne sont pas ouvertes à ce compte.</string>
+    <string name="requests_discover_failed">Impossible de charger Découvrir</string>
+    <string name="requests_search_failed">Impossible de rechercher sur TMDB</string>
+    <string name="requests_title_failed">Impossible de charger ce titre</string>
+    <string name="requests_list_failed">Impossible de charger les demandes</string>
+
+    <string name="requests_seasons_heading">Saisons</string>
+    <string name="requests_cast">Distribution</string>
+    <string name="requests_more_actions">Plus d’actions</string>
+
+    <string name="requests_search_row">Découvrir</string>
+    <string name="requests_see_all">Tout voir</string>
+    <string name="requests_nothing_in_libraries">Rien dans vos bibliothèques ne correspond</string>
+
+    <string name="requests_credit">Informations et images fournies par TMDB.</string>
+    <string name="requests_credit_about">Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB.</string>
+</resources>

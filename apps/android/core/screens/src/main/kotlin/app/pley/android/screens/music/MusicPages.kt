@@ -1,10 +1,13 @@
 package app.pley.android.screens.music
 
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.model.format.formatDuration
-import app.pley.android.model.format.pluralize
+import app.pley.android.screens.R
 import java.util.Locale
 
 /**
@@ -21,8 +24,8 @@ data class ArtistPage(
     val backdropUrl: String?,
     val summary: String?,
     val genres: List<String>,
-    /** "4 albums · 40 tracks"; empty when the server doesn't say. */
-    val counts: String,
+    /** "4 albums", "40 tracks"; empty when the server doesn't say. */
+    val countTexts: List<UiText>,
     /** Newest first, then by title; empty while they load ([albumsLoading]). */
     val albums: List<ItemSummary>,
     val albumsLoading: Boolean,
@@ -44,8 +47,8 @@ data class AlbumPage(
     val artist: String?,
     val artistId: Long?,
     val year: Int?,
-    /** "10 tracks · 42m"; the year and the artist go apart. */
-    val meta: String,
+    /** "10 tracks", "42m"; the year and the artist go apart. */
+    val metaTexts: List<UiText>,
     /** The profile's rating, 0 to 10. */
     val userRating: Int?,
     val summary: String?,
@@ -84,13 +87,13 @@ sealed interface AlbumRow {
 }
 
 /** The artist page of [detail] with [albums] (`null` while they load). */
-fun artistPage(detail: ItemDetail, albums: List<ItemSummary>?, origin: String, locale: Locale = Locale.getDefault()): ArtistPage {
+fun artistPage(detail: ItemDetail, albums: List<ItemSummary>?, origin: String, locale: Locale = AppLanguage.locale): ArtistPage {
     val sorted = albums.orEmpty().sortedWith(compareByDescending<ItemSummary> { it.year ?: 0 }.thenBy { it.sortTitle.ifEmpty { it.title }.lowercase(locale) })
     val albumCount = detail.childCount ?: albums?.size
-    val counts = listOfNotNull(
-        albumCount?.let { pluralize(it, "album", locale = locale) },
-        detail.leafCount?.let { pluralize(it, "track", locale = locale) },
-    ).joinToString(" · ")
+    val countTexts = listOfNotNull(
+        albumCount?.let { UiText.plural(R.plurals.music_count_albums, it) },
+        detail.leafCount?.let { UiText.plural(R.plurals.music_count_tracks, it) },
+    )
     return ArtistPage(
         id = detail.id,
         title = detail.title,
@@ -99,21 +102,22 @@ fun artistPage(detail: ItemDetail, albums: List<ItemSummary>?, origin: String, l
         backdropUrl = detail.backdropUrl?.takeIf { it.isNotEmpty() },
         summary = detail.summary?.takeIf { it.isNotBlank() },
         genres = detail.genres,
-        counts = counts,
+        countTexts = countTexts,
         albums = sorted,
         albumsLoading = albums == null,
         summaryItem = detail.toSummary(),
     )
 }
 
-/** The album page of [detail] with [tracks] (`null` while they load). */
-fun albumPage(detail: ItemDetail, tracks: List<ItemSummary>?, origin: String, locale: Locale = Locale.getDefault()): AlbumPage {
+/** The album page of [detail] with [tracks] (`null` while they load), its length in [words]. */
+fun albumPage(detail: ItemDetail, tracks: List<ItemSummary>?, origin: String, words: FormatWords = AppLanguage.formatWords()): AlbumPage {
     val list = tracks.orEmpty()
     val total = list.sumOf { it.durationMs ?: 0 }
-    val meta = listOfNotNull(
-        list.size.takeIf { it > 0 }?.let { pluralize(it, "track", locale = locale) },
-        formatDuration(total).takeIf { it.isNotEmpty() },
-    ).joinToString(" · ")
+    val length = formatDuration(total, words).takeIf { it.isNotEmpty() }
+    val metaTexts = listOfNotNull(
+        list.size.takeIf { it > 0 }?.let { UiText.plural(R.plurals.music_count_tracks, it) },
+        length?.let(UiText::raw),
+    )
     return AlbumPage(
         id = detail.id,
         title = detail.title,
@@ -122,7 +126,7 @@ fun albumPage(detail: ItemDetail, tracks: List<ItemSummary>?, origin: String, lo
         artist = detail.parentTitle,
         artistId = detail.parentId,
         year = detail.year,
-        meta = meta,
+        metaTexts = metaTexts,
         userRating = detail.userState.rating?.let { Math.round(it).toInt() }?.takeIf { it > 0 },
         summary = detail.summary?.takeIf { it.isNotBlank() },
         genres = detail.genres,

@@ -23,6 +23,8 @@
     <string name="shell_placeholder_next">Open another screen</string>
     <string name="shell_placeholder_in">Continue to Home</string>
     <string name="shell_placeholder_kit">Show the phone kit</string>
+    <!-- The top bar of a title's page not built yet: "Item 101". -->
+    <string name="shell_placeholder_item">Item %1$d</string>
 
     <!-- The kit. -->
     <string name="kit_back">Back</string>

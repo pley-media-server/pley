@@ -42,12 +42,12 @@ import app.pley.android.auth.SignIn
 import app.pley.android.common.AppBuild
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.account.MeEvent
 import app.pley.android.screens.account.MeProfile
-import app.pley.android.screens.account.MeUiState
 import app.pley.android.screens.account.MeViewModel
 import app.pley.android.screens.account.SUBTITLE_MODES
 import app.pley.android.screens.account.TrackDefaultsUi
@@ -152,7 +152,7 @@ internal fun MeScreen() {
                                     R.plurals.downloads_me_count,
                                     count,
                                     count,
-                                    formatBytes(downloaded.values.sumOf { it.sizeBytes }),
+                                    formatBytes(downloaded.values.sumOf { it.sizeBytes }, formatWords()),
                                 )
                             },
                             icon = PleyIcons.Download,
@@ -223,10 +223,12 @@ internal fun MeScreen() {
     }
 
     state.trackDefaults?.let { defaults ->
+        val words = formatWords()
+        val languages = remember(words) { TrackLanguages.all(words) }
         when (sheet) {
             TrackField.AudioLanguage -> ChoiceSheet(
                 title = stringResource(R.string.account_audio_language),
-                choices = listOf(Choice<String?>(null, stringResource(R.string.account_language_file_default))) + TrackLanguages.ALL.map { Choice<String?>(it.first, it.second) },
+                choices = listOf(Choice<String?>(null, stringResource(R.string.account_language_file_default))) + languages.map { Choice<String?>(it.first, it.second) },
                 selected = defaults.defaults.audioLanguage,
                 onPick = model::setAudioLanguage,
                 onDismiss = { sheet = null },
@@ -240,7 +242,7 @@ internal fun MeScreen() {
             )
             TrackField.SubtitleLanguage -> ChoiceSheet(
                 title = stringResource(R.string.account_subtitle_language),
-                choices = listOf(Choice<String?>(null, stringResource(R.string.account_language_same_as_audio))) + TrackLanguages.ALL.map { Choice<String?>(it.first, it.second) },
+                choices = listOf(Choice<String?>(null, stringResource(R.string.account_language_same_as_audio))) + languages.map { Choice<String?>(it.first, it.second) },
                 selected = defaults.defaults.subtitleLanguage,
                 onPick = model::setSubtitleLanguage,
                 onDismiss = { sheet = null },
@@ -314,9 +316,10 @@ private fun TrackDefaultsGroup(defaults: TrackDefaultsUi?, onOpen: (TrackField) 
             footer = if (defaults?.editable == false) null else stringResource(R.string.account_defaults_footer),
         ) {
             val d = defaults?.defaults
+            val words = formatWords()
             SettingsRow(
                 stringResource(R.string.account_audio_language),
-                value = d?.let { TrackLanguages.nameOf(it.audioLanguage) ?: stringResource(R.string.account_language_file_default) },
+                value = d?.let { TrackLanguages.nameOf(it.audioLanguage, words) ?: stringResource(R.string.account_language_file_default) },
                 icon = PleyIcons.AudioLines,
                 enabled = editable,
                 onClick = { onOpen(TrackField.AudioLanguage) },
@@ -333,7 +336,7 @@ private fun TrackDefaultsGroup(defaults: TrackDefaultsUi?, onOpen: (TrackField) 
                 RowDivider()
                 SettingsRow(
                     stringResource(R.string.account_subtitle_language),
-                    value = TrackLanguages.nameOf(d?.subtitleLanguage) ?: stringResource(R.string.account_language_same_as_audio),
+                    value = TrackLanguages.nameOf(d?.subtitleLanguage, words) ?: stringResource(R.string.account_language_same_as_audio),
                     icon = PleyIcons.Captions,
                     enabled = editable,
                     onClick = { onOpen(TrackField.SubtitleLanguage) },

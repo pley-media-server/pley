@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_not_allowed">Pley no tiene acceso a la red de tu casa: permítelo en los permisos de la aplicación</string>
+    <string name="network_unreadable_answer">no se puede leer la respuesta del servidor: ¿es Pley y está actualizado?</string>
+</resources>

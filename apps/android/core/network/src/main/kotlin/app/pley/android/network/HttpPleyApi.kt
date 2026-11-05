@@ -32,6 +32,7 @@ import app.pley.android.model.ItemIds
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemsPage
 import app.pley.android.model.DynamicRangeFilter
+import app.pley.android.model.LanguageChoice
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryIds
@@ -131,6 +132,9 @@ class HttpPleyApi(
     override suspend fun server(): ServerInfo = get(ServerInfo.serializer(), "api", "server")
 
     override suspend fun me(): Me = get(Me.serializer(), "api", "auth", "me")
+
+    override suspend fun setLanguage(language: String?): Me =
+        send("PUT", Me.serializer(), json(LanguageChoice.serializer(), LanguageChoice(language)), "api", "me", "language")
 
     override fun avatarUrl(userId: Long, version: String?): String =
         picture(listOf("api", "users", userId, "avatar"), width = null, version = version)

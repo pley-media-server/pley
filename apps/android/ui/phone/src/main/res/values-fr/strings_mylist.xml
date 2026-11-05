@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_my_list">Ma liste</string>
+    <string name="item_in_my_list">Dans Ma liste</string>
+    <string name="item_not_in_my_list">Pas dans Ma liste</string>
+    <string name="item_action_add_to_my_list">Ajouter à Ma liste</string>
+    <string name="item_action_remove_from_my_list">Retirer de Ma liste</string>
+    <string name="item_action_remove_from_continue_watching">Retirer de Reprendre la lecture</string>
+</resources>

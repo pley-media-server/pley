@@ -49,6 +49,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.model.ItemKind
@@ -253,7 +254,7 @@ internal fun MetaLine(parts: List<MetaPart>, modifier: Modifier = Modifier) {
         parts.forEachIndexed { i, part ->
             if (i > 0) Text("·", style = MaterialTheme.typography.labelMedium, color = PleyColors.Subtle)
             when (part) {
-                is MetaPart.Text -> Text(part.text, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+                is MetaPart.Text -> Text(part.text.asString(), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
                 is MetaPart.ContentRating -> QualityBadge(part.rating, TileStyle.Phone)
                 is MetaPart.Rating -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(PleyIcons.Star, contentDescription = null, size = 14.dp, tint = PleyColors.Accent)

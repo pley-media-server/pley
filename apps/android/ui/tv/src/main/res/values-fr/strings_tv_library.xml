@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_library_tab_recommended">Recommandations</string>
+    <string name="tv_library_tab_library">Bibliothèque</string>
+    <string name="tv_library_tab_collections">Collections</string>
+
+    <string name="tv_library_sort_title">Titre</string>
+    <string name="tv_library_sort_year">Année</string>
+    <string name="tv_library_sort_added">Date d’ajout</string>
+    <string name="tv_library_sort_rating">Note</string>
+    <string name="tv_library_sort_user_rating">Votre note</string>
+    <string name="tv_library_sort_release">Date de sortie</string>
+    <string name="tv_library_sort_duration">Durée</string>
+    <string name="tv_library_sort_last_played">Dernière lecture</string>
+    <string name="tv_library_sort_bitrate">Débit</string>
+    <string name="tv_library_sort_by">Trier par</string>
+    <string name="tv_library_order">Ordre</string>
+    <string name="tv_library_ascending">Croissant</string>
+    <string name="tv_library_descending">Décroissant</string>
+
+    <string name="tv_library_filter">Filtrer</string>
+    <string name="tv_library_show">Afficher</string>
+    <string name="tv_library_show_all">Tous</string>
+    <string name="tv_library_unwatched">Non vu</string>
+    <string name="tv_library_watched">Vu</string>
+    <string name="tv_library_genre">Genre</string>
+    <string name="tv_library_all_genres">Tous les genres</string>
+    <string name="tv_library_year">Année</string>
+    <string name="tv_library_all_years">Toutes les années</string>
+    <string name="tv_library_resolution">Résolution</string>
+    <string name="tv_library_all_resolutions">Toutes les résolutions</string>
+    <string name="tv_library_dynamic_range">Plage dynamique</string>
+    <string name="tv_library_all_dynamic_ranges">Toutes les plages dynamiques</string>
+    <string name="tv_library_clear_filters">Effacer les filtres</string>
+    <string name="tv_library_save_as">Enregistrer comme…</string>
+
+    <plurals name="tv_library_count_movies">
+        <item quantity="one">%1$s film</item>
+        <item quantity="many">%1$s de films</item>
+        <item quantity="other">%1$s films</item>
+    </plurals>
+    <plurals name="tv_library_count_shows">
+        <item quantity="one">%1$s série</item>
+        <item quantity="many">%1$s de séries</item>
+        <item quantity="other">%1$s séries</item>
+    </plurals>
+    <plurals name="tv_library_count_artists">
+        <item quantity="one">%1$s artiste</item>
+        <item quantity="many">%1$s d’artistes</item>
+        <item quantity="other">%1$s artistes</item>
+    </plurals>
+    <plurals name="tv_library_count_of_movies">
+        <item quantity="one">%1$s sur %2$s film</item>
+        <item quantity="many">%1$s sur %2$s de films</item>
+        <item quantity="other">%1$s sur %2$s films</item>
+    </plurals>
+    <plurals name="tv_library_count_of_shows">
+        <item quantity="one">%1$s sur %2$s série</item>
+        <item quantity="many">%1$s sur %2$s de séries</item>
+        <item quantity="other">%1$s sur %2$s séries</item>
+    </plurals>
+    <plurals name="tv_library_count_of_artists">
+        <item quantity="one">%1$s sur %2$s artiste</item>
+        <item quantity="many">%1$s sur %2$s d’artistes</item>
+        <item quantity="other">%1$s sur %2$s artistes</item>
+    </plurals>
+    <plurals name="tv_library_count_collections">
+        <item quantity="one">%1$s collection</item>
+        <item quantity="many">%1$s de collections</item>
+        <item quantity="other">%1$s collections</item>
+    </plurals>
+
+    <string name="tv_library_jump">Aller à une lettre : %1$s</string>
+
+    <string name="tv_library_failed">Impossible de charger cette bibliothèque</string>
+    <string name="tv_library_missing_title">Cette bibliothèque est introuvable</string>
+    <string name="tv_library_missing_body">Elle a peut-être été supprimée, ou ce profil n’y a pas accès.</string>
+    <string name="tv_library_empty_title">Cette bibliothèque est vide</string>
+    <string name="tv_library_empty_body">Rien pour l’instant. Les titres apparaissent au fur et à mesure que le serveur les ajoute.</string>
+    <string name="tv_library_no_matches_title">Aucun résultat</string>
+    <string name="tv_library_no_matches_body">Rien dans cette bibliothèque ne correspond aux filtres actuels.</string>
+    <string name="tv_library_recommended_failed">Impossible de charger les recommandations</string>
+    <string name="tv_library_recommended_empty_title">Rien à recommander pour l’instant</string>
+    <string name="tv_library_recommended_empty_body">Les recommandations apparaissent dès que la bibliothèque contient quelques éléments.</string>
+    <string name="tv_library_collections_failed">Impossible de charger les collections</string>
+    <string name="tv_library_collections_empty_title">Aucune collection pour l’instant</string>
+    <string name="tv_library_collections_empty_movies">Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.</string>
+    <string name="tv_library_collections_empty_shows">Cette bibliothèque n’a pas encore de collection.</string>
+    <string name="tv_library_retry">Réessayer</string>
+    <string name="tv_library_see_all">Tout voir</string>
+
+    <string name="tv_collections_title">Collections</string>
+    <string name="tv_collections_none">Aucune collection pour l’instant</string>
+    <string name="tv_collections_none_body">Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans une bibliothèque.</string>
+    <string name="tv_collection_label">Collection</string>
+    <string name="tv_collection_smart">Intelligente</string>
+    <string name="tv_collection_play">Lire</string>
+    <string name="tv_collection_shuffle">Aléatoire</string>
+    <string name="tv_collection_empty">Cette collection est encore vide.</string>
+    <string name="tv_collection_failed">Impossible de charger cette collection</string>
+    <string name="tv_collection_nothing_to_play">Rien à lire : cette série n’a pas encore d’épisode</string>
+</resources>

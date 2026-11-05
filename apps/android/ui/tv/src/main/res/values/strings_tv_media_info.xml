@@ -21,8 +21,8 @@
     <string name="tv_readout_frame_rate">Frame rate</string>
     <string name="tv_readout_interlaced">%1$s, interlaced</string>
     <string name="tv_readout_bit_depth">Bit depth</string>
-    <string name="tv_readout_hdr">HDR</string>
-    <string name="tv_readout_dolby_vision">Dolby Vision</string>
+    <string name="tv_readout_hdr" translatable="false">HDR</string>
+    <string name="tv_readout_dolby_vision" translatable="false">Dolby Vision</string>
     <string name="tv_readout_primaries">Primaries</string>
     <string name="tv_readout_transfer">Transfer</string>
     <string name="tv_readout_matrix">Matrix</string>

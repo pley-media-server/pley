@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The languages Pley is in, each named in itself (Language). -->
+    <string name="language_en" translatable="false">English</string>
+    <string name="language_fr" translatable="false">Français</string>
+    <string name="language_es" translatable="false">Español</string>
+
+    <!--
+      Why a request failed (errorText), in lower case and without a full
+      stop: they go inside sentences ("Couldn't reach nas: nothing answers
+      there"), and errorSentence makes one of them alone.
+    -->
+    <string name="error_nothing_answers">nothing answers there</string>
+    <string name="error_no_answer">no answer in time</string>
+    <string name="error_unknown_host">that address isn\'t known on this network</string>
+    <string name="error_secure_connection">its secure connection failed</string>
+    <string name="error_not_pley">that isn\'t a Pley server</string>
+    <string name="error_connection_failed">the connection to the server failed</string>
+</resources>

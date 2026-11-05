@@ -1,5 +1,6 @@
 package app.pley.android.ui.phone.person
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,13 +19,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.formatWords
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.PleyShape
@@ -61,6 +63,7 @@ import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.fullWidth
 import app.pley.android.ui.phone.kit.gridColumns
 import app.pley.android.ui.phone.kit.rememberItemGridState
+import app.pley.android.ui.phone.library.joined
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -99,8 +102,9 @@ internal fun PersonScreen(personId: Long) {
 private fun PersonContent(page: PersonPage, onOpen: (Long) -> Unit, onActions: (Long) -> Unit) {
     val metrics = LocalPhoneMetrics.current
     val gap = PleyPhone.TileGap
-    val movies = remember(page) { page.movies.map { it.tile(page.origin) } }
-    val shows = remember(page) { page.shows.map { it.tile(page.origin) } }
+    val resources = LocalResources.current
+    val movies = remember(page, resources) { page.movies.map { it.tile(page.origin, resources) } }
+    val shows = remember(page, resources) { page.shows.map { it.tile(page.origin, resources) } }
     val movieTitle = stringResource(R.string.person_movies)
     val showTitle = stringResource(R.string.person_shows)
     // About a screen composed ahead, and the posters of the next 1.5 screens asked for, as a library's grid does.
@@ -178,9 +182,13 @@ private fun PersonHeader(page: PersonPage) {
         }
         Spacer(Modifier.height(16.dp))
         Text(page.name, style = MaterialTheme.typography.headlineMedium, color = PleyColors.Fg, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
-        if (page.counts.isNotEmpty()) {
+        if (page.countTexts.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
-            Text(stringResource(R.string.person_in_libraries, page.counts), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+            Text(
+                stringResource(R.string.person_in_libraries, page.countTexts.joined(LocalResources.current)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = PleyColors.Muted,
+            )
         }
     }
 }
@@ -201,7 +209,11 @@ private fun PersonSkeleton() {
     }
 }
 
-private fun CreditTile.tile(origin: String): ArtworkTileModel = ArtworkTileModel.of(item, TileKind.Poster, origin).copy(subtitle = subtitle)
+/** The credit's poster, captioned with the year and the roles in the language of [resources]: "2019 · as Neo". */
+private fun CreditTile.tile(origin: String, resources: Resources): ArtworkTileModel {
+    val caption = listOf(item.year?.toString().orEmpty(), roles.joined(resources, ", ")).filter { it.isNotEmpty() }.joinToString(" · ")
+    return ArtworkTileModel.of(item, TileKind.Poster, origin, formatWords(resources)).copy(subtitle = caption)
+}
 
 /** "Idris Vale" → "IV". */
 internal fun initials(name: String): String =

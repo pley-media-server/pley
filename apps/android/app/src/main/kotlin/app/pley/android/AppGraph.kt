@@ -9,6 +9,7 @@ import app.pley.android.auth.AuthGraph
 import app.pley.android.caps.CapsDecision
 import app.pley.android.caps.CapsGraph
 import app.pley.android.caps.CapsSnapshot
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.UserAgent
 import app.pley.android.data.DataGraph
@@ -50,7 +51,8 @@ class AppGraph(private val app: Application) : ScreensGraph {
         // run on the main thread as the app starts (the manifest leaves it out):
         // its Android platform, with the app's context, before the first client.
         OkHttp.initialize(app)
-        HttpRoot.create(userAgent)
+        // The server writes some words itself (Home's rows), in the language shown.
+        HttpRoot.create(userAgent, language = { AppLanguage.locale.toLanguageTag() })
     }
     // Signing in and the servers' proofs go where the rest goes, the home network's way.
     override val auth: AuthGraph by lazy { AuthGraph.create(app, NetworkGraph.homeRouted(app, root), userAgent) }

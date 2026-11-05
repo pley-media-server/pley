@@ -46,7 +46,7 @@ class ProbingDeviceCapabilitiesTest {
         }
     }
 
-    private fun TestScope.probe(sources: Sources, cache: File? = null) = ProbingDeviceCapabilities(
+    private fun TestScope.probe(sources: Sources, cache: File? = null, language: () -> String = { "" }) = ProbingDeviceCapabilities(
         device = { sources.input.device },
         codecs = sources.codecs,
         display = sources.display,
@@ -55,10 +55,28 @@ class ProbingDeviceCapabilitiesTest {
         changes = sources.changes,
         cache = cache?.let { CapsCache(it) },
         installedAt = 1,
-        describe = { listOf("${it.report.device?.model}: ${it.report.videoCodecs.joinToString()}") },
+        describe = { listOf(language() + "${it.report.device?.model}: ${it.report.videoCodecs.joinToString()}") },
+        language = language,
         dispatcher = StandardTestDispatcher(testScheduler),
         scope = backgroundScope,
     )
+
+    @Test
+    fun aSnapshotAskedForInAnotherLanguageIsDescribedInIt() = runTest {
+        val sources = Sources(device)
+        var language = "en "
+        val caps = probe(sources, language = { language })
+        assertEquals(listOf("en AFTKRT: h264, hevc, vp9, av1"), caps.warmUp().lines)
+        // Asked for again in the same language: the same snapshot.
+        val first = caps.snapshot.value
+        assertTrue(first === caps.warmUp())
+        language = "fr "
+        val again = caps.warmUp()
+        assertEquals(listOf("fr AFTKRT: h264, hevc, vp9, av1"), again.lines)
+        assertEquals(again, caps.snapshot.value)
+        assertEquals(first!!.report, again.report)
+        assertEquals("described again, not probed again", 1, sources.codecReads)
+    }
 
     @Test
     fun warmUpProbesOnceAndWatches() = runTest {

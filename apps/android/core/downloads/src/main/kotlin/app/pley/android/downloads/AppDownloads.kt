@@ -43,9 +43,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -154,7 +154,9 @@ class AppDownloads internal constructor(
             store.update(key) {
                 it.copy(
                     state = DownloadState.Queued,
+                    failure = null,
                     error = null,
+                    status = null,
                     conversion = it.conversion.takeIf { _ -> it.mediaUrl != null },
                     converting = null,
                     notBefore = 0,
@@ -395,7 +397,7 @@ class AppDownloads internal constructor(
         addedAt = s.addedAt,
         positionMs = s.positionMs,
         watched = s.watched,
-        error = s.error,
+        error = s.errorText(),
         converting = s.converting?.takeIf { s.mediaUrl == null && s.state != DownloadState.Done && s.state != DownloadState.Failed },
         serverAway = s.state == DownloadState.Waiting && s.unreachable,
     )

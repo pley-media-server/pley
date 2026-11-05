@@ -1,21 +1,24 @@
 package app.pley.android.screens.home
 
+import app.pley.android.common.AppLanguage
+import app.pley.android.common.UiText
 import app.pley.android.model.Hub
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.cardSubtitle
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatRuntime
 import app.pley.android.model.format.formatTimeLeft
 import app.pley.android.model.format.isInProgress
-import app.pley.android.model.format.pluralize
 import app.pley.android.model.format.progressFraction
 import app.pley.android.model.format.qualityBadges
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import java.util.Locale
 
 /**
@@ -117,11 +120,12 @@ data class HomeMeta(
 /** A library in the list of libraries (phone's Libraries tab, the TV's Libraries page). */
 data class LibraryEntry(
     val library: Library,
-    /** "412 movies", "38 shows", "120 artists". */
-    val count: String,
     /** The server is scanning it now. */
     val scanning: Boolean,
-)
+) {
+    /** "412 movies", "38 shows", "120 artists", in the language shown. */
+    val countText: UiText = libraryCountText(library)
+}
 
 internal const val CONTINUE_PREFIX = "continue"
 
@@ -188,19 +192,24 @@ private val VIDEO_KINDS = setOf(ItemKind.Movie, ItemKind.Show, ItemKind.Season, 
  * it is in: the summary of a movie, the content rating and the quality
  * badges come only with it.
  */
-fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = Locale.getDefault()): HomeInfo {
+fun homeInfo(
+    item: ItemSummary,
+    detail: ItemDetail?,
+    locale: Locale = AppLanguage.locale,
+    words: FormatWords = AppLanguage.formatWords(),
+): HomeInfo {
     val details = detail?.takeIf { it.id == item.id }
     val episode = item.kind == ItemKind.Episode
     val show = item.grandparentTitle?.takeIf { episode && it.isNotEmpty() }
     val inProgress = isInProgress(item)
     val runtime = when (item.kind) {
-        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album -> cardSubtitle(item, locale)
-        else -> formatRuntime(item.durationMs ?: details?.durationMs)
+        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album -> cardSubtitle(item, words, locale)
+        else -> formatRuntime(item.durationMs ?: details?.durationMs, words)
     }
     return HomeInfo(
         item = item,
         title = show ?: item.title,
-        context = if (episode) listOf(episodeLabel(item), item.title).filter { it.isNotEmpty() }.joinToString(" · ") else "",
+        context = if (episode) listOf(episodeLabel(item, words), item.title).filter { it.isNotEmpty() }.joinToString(" · ") else "",
         meta = HomeMeta(
             year = (item.year ?: details?.year)?.toString().orEmpty(),
             contentRating = details?.contentRating?.takeIf { it.isNotBlank() },
@@ -210,7 +219,7 @@ fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = Locale.get
         ),
         summary = (details?.summary ?: item.summary).orEmpty().trim(),
         progress = if (inProgress) progressFraction(item) else 0f,
-        timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs) else "",
+        timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs, words) else "",
         video = item.kind == ItemKind.Movie || episode || item.kind == ItemKind.Extra,
         watched = item.userState.watched,
         complete = details != null,
@@ -218,15 +227,15 @@ fun homeInfo(item: ItemSummary, detail: ItemDetail?, locale: Locale = Locale.get
 }
 
 /** "412 movies", "38 shows", "120 artists": what a library holds, by its kind. */
-fun libraryCount(library: Library, locale: Locale = Locale.getDefault()): String {
-    val (one, many) = when (library.kind) {
-        LibraryKind.Movies -> "movie" to "movies"
-        LibraryKind.Shows -> "show" to "shows"
-        LibraryKind.Music -> "artist" to "artists"
-        LibraryKind.Unknown -> "item" to "items"
-    }
-    return pluralize(library.itemCount, one, many, locale)
-}
+fun libraryCountText(library: Library): UiText = UiText.plural(
+    when (library.kind) {
+        LibraryKind.Movies -> R.plurals.library_entry_movies
+        LibraryKind.Shows -> R.plurals.library_entry_shows
+        LibraryKind.Music -> R.plurals.library_entry_artists
+        LibraryKind.Unknown -> R.plurals.library_entry_items
+    },
+    library.itemCount,
+)
 
 /** The page an item opens: music has its own pages (P5), the rest the item page. */
 fun pageOf(item: ItemSummary): PleyKey = when (item.kind) {

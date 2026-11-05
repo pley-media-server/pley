@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_quality_original">Original</string>
+    <string name="session_quality_automatic">Automática</string>
+    <string name="session_quality_automatic_playing">Automática · %1$s</string>
+    <string name="session_quality_automatic_hint">Se adapta a las condiciones</string>
+    <string name="session_quality_automatic_now">Ahora %1$s</string>
+    <string name="session_quality_lowered_notice">Calidad reducida a %1$s</string>
+    <string name="session_quality_lowered_network">Reducida para tu conexión</string>
+    <string name="session_quality_lowered_device">Reducida para este dispositivo</string>
+
+    <string name="session_skip_intro">Saltar intro</string>
+    <string name="session_skip_credits">Saltar créditos</string>
+
+    <string name="session_up_next">A continuación</string>
+    <string name="session_up_next_episode">A continuación · %1$s</string>
+    <string name="session_last_episode">Es el último episodio</string>
+    <string name="session_last_in_queue">Es el último de la lista</string>
+
+    <string name="session_subtitles_off">Desactivados</string>
+    <string name="session_subtitles_failed">No se pudieron cargar estos subtítulos.</string>
+
+    <string name="session_method_direct">Reproducción directa</string>
+    <string name="session_method_downloaded">Descargado</string>
+    <string name="session_error_download_needs_server">Esta descarga no se puede reproducir sin conexión en este dispositivo. Conéctate a tu servidor para reproducirla.</string>
+    <string name="session_drive_unplayable">Esta TV no puede reproducir este archivo tal como está, y un archivo en un dispositivo USB no tiene ningún servidor que lo convierta.</string>
+    <string name="session_drive_stuck">Esta TV no reproduce este archivo: su imagen nunca llegó a empezar. Sin un servidor que lo convierta, prueba con otra copia.</string>
+    <string name="session_drive_unreadable">No se puede leer este video. Puede que se haya desconectado el dispositivo USB.</string>
+    <string name="session_drive_speed_undecodable">No con este archivo: su sonido va tal cual a tu receptor y nada aquí lo decodifica</string>
+    <string name="session_method_remux">Transmisión directa</string>
+    <string name="session_method_transcode">Transcodificación</string>
+    <string name="session_method_remux_audio">Transmisión directa · Audio transcodificado</string>
+    <string name="session_fallback_unplayable">Este dispositivo no pudo reproducir el archivo original.</string>
+    <string name="session_fallback_not_smooth">El original no se reproducía con fluidez en este dispositivo.</string>
+    <string name="session_slow_server">El servidor no da abasto con este video. Prueba una calidad más baja.</string>
+
+    <string name="session_row_video">Video</string>
+    <string name="session_row_audio">Audio</string>
+    <string name="session_row_bitrate">Tasa de bits</string>
+    <string name="session_row_encoder">Codificador</string>
+    <string name="session_row_hdr">Se muestra en</string>
+    <string name="session_row_subtitles">Subtítulos</string>
+    <string name="session_row_speed">Velocidad</string>
+    <string name="session_tone_mapped">SDR (mapeo de tonos con %1$s)</string>
+    <string name="session_burned_in">Incrustados</string>
+    <string name="session_speed">%1$s× tiempo real</string>
+    <string name="session_speed_ready">%1$s× tiempo real · %2$d s de adelanto</string>
+    <string name="session_pipeline_hybrid">GPU y CPU</string>
+    <string name="session_pipeline_copy">copia</string>
+
+    <string name="session_engine_video">Video: %1$s %2$d×%3$d</string>
+    <string name="session_engine_video_rate">Video: %1$s %2$d×%3$d %4$s fps</string>
+    <string name="session_engine_video_decoder">Decodificador de video: %1$s</string>
+    <string name="session_engine_audio">Audio: %1$s %2$d ch</string>
+    <string name="session_engine_audio_decoder">Decodificador de audio: %1$s</string>
+    <string name="session_engine_dropped">Fotogramas perdidos: %1$d de %2$d</string>
+
+    <string name="session_speed_undecodable">No con esta descarga: su sonido va tal cual a tu receptor y nada aquí lo decodifica</string>
+    <string name="session_speed_unconverted">Ahora no: su sonido va tal cual a tu receptor, nada aquí lo decodifica y el servidor no pudo convertirlo</string>
+
+    <string name="session_search_not_set_up">La búsqueda de subtítulos no está configurada en este servidor</string>
+    <string name="session_search_unsupported">Este servidor no puede buscar subtítulos: puede que necesite una actualización</string>
+    <string name="session_search_nothing">No se encontraron subtítulos para este archivo</string>
+    <string name="session_search_failed">No se pudieron encontrar subtítulos: %1$s</string>
+    <string name="session_search_exact">Hechos para este archivo</string>
+    <plurals name="session_search_downloads">
+        <item quantity="one">%1$,d descarga</item>
+        <item quantity="many">%1$,d descargas</item>
+        <item quantity="other">%1$,d descargas</item>
+    </plurals>
+    <string name="session_search_added">Subtítulos añadidos</string>
+
+    <string name="session_error_unplayable">Este video no se puede reproducir en este dispositivo.</string>
+    <string name="session_error_stuck">Este video no se reproduce en este dispositivo: se detiene en el mismo punto cada vez.</string>
+    <string name="session_error_short">Este video termina antes del punto desde el que debía reproducirse.</string>
+    <string name="session_error_stopped">La reproducción se detuvo y no pudo continuar.</string>
+    <string name="session_error_network">Comprueba que el servidor esté encendido y que este dispositivo esté en su red.</string>
+    <string name="session_error_unreachable">%1$s Comprueba que el servidor esté encendido y que este dispositivo esté en su red.</string>
+    <string name="session_error_engine">La reproducción falló (%1$s).</string>
+    <string name="session_error_no_file">Este elemento no tiene ningún archivo para reproducir.</string>
+    <string name="session_sign_in_to_play">Inicia sesión para reproducir</string>
+</resources>

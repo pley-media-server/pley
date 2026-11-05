@@ -46,12 +46,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.UnstableApi
 import app.pley.android.auth.Needs
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.common.perf.FrameRate
-import app.pley.android.common.sentenceOf
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Passthrough
 import app.pley.android.data.Settings
-import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.data.SubtitleBackground
 import app.pley.android.data.SubtitleFont
 import app.pley.android.designsystem.PleyColors
@@ -60,9 +60,13 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.SubtitleMode
+import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.account.MeEvent
 import app.pley.android.screens.account.MeUiState
 import app.pley.android.screens.account.MeViewModel
@@ -70,17 +74,18 @@ import app.pley.android.screens.account.SUBTITLE_MODES
 import app.pley.android.screens.account.TrackLanguages
 import app.pley.android.screens.diagnostics.DiagnosticsViewModel
 import app.pley.android.screens.onboarding.ProfileTile
+import app.pley.android.screens.settings.LanguageUiState
+import app.pley.android.screens.settings.LanguageViewModel
 import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
-import app.pley.android.screens.R as ScreensR
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.onboarding.ProfileAvatar
 import app.pley.android.ui.tv.onboarding.TvDialog
-import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 
 /** The TV settings' categories, top to bottom (design spec §4.8). */
@@ -97,6 +102,7 @@ internal enum class Category(val icon: PleyIcon) {
 
 /** The choice whose side panel is open. */
 private sealed interface Picking {
+    data object Language : Picking
     data object AudioLanguage : Picking
     data object SubtitleMode : Picking
     data object SubtitleLanguage : Picking
@@ -125,8 +131,10 @@ private sealed interface Picking {
 internal fun TvSettingsScreen(start: Category = Category.Profile) {
     val me: MeViewModel = viewModel(factory = MeViewModel.factory)
     val settingsModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory)
+    val languageModel: LanguageViewModel = viewModel(factory = LanguageViewModel.factory)
     val meState by me.state.collectAsStateWithLifecycle()
     val settings by settingsModel.state.collectAsStateWithLifecycle()
+    val language by languageModel.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val memory = rememberFocusMemory()
     var shown by rememberSaveable { mutableStateOf(start) }
@@ -134,7 +142,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
     var lastPicking by remember { mutableStateOf<Picking?>(null) }
     var web by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<UiText?>(null) }
     val rows = remember { HashMap<String, FocusRequester>() }
     fun requester(key: String) = rows.getOrPut(key) { FocusRequester() }
     // Focus goes back to Sign out once its dialog closes without signing out.
@@ -148,19 +156,17 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
             runCatching { requester("category-${Category.SignOut.name}").requestFocus() }
         }
     }
-    val savedText = stringResource(R.string.tv_account_saved)
-    val readOnlyText = stringResource(R.string.tv_account_defaults_read_only)
-
     LaunchedEffect(me) {
         me.events.collect { event ->
             when (event) {
-                is MeEvent.Saved -> message = savedText
-                MeEvent.ReadOnly -> message = readOnlyText
-                is MeEvent.Failed -> message = sentenceOf(event.error)
+                is MeEvent.Saved -> message = UiText.res(R.string.tv_account_saved)
+                MeEvent.ReadOnly -> message = UiText.res(R.string.tv_account_defaults_read_only)
+                is MeEvent.Failed -> message = errorSentence(event.error)
                 is MeEvent.SignedOut -> navigator.restart(event.server?.let { PleyKey.Link(it) } ?: PleyKey.Servers)
             }
         }
     }
+    LaunchedEffect(languageModel) { languageModel.errors.collect { message = errorSentence(it) } }
     LaunchedEffect(message) {
         if (message != null) {
             kotlinx.coroutines.delay(MESSAGE_MS)
@@ -239,6 +245,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
                         meState,
                         settings,
                         settingsModel,
+                        language,
                         memory = memory,
                         requester = ::requester,
                         pick = pick,
@@ -253,13 +260,13 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
         message?.let { text ->
             Box(Modifier.align(Alignment.TopEnd).padding(top = TvSafeArea.Vertical, end = TvSafeArea.Horizontal)) {
                 BasicText(
-                    text,
+                    text.asString(),
                     style = PleyType.Tv.Label.copy(color = PleyColors.Fg),
                     modifier = Modifier.background(PleyColors.Surface3, app.pley.android.designsystem.PleyShape.Pill).padding(horizontal = 20.dp, vertical = 10.dp),
                 )
             }
         }
-        Panels(picking, lastPicking, meState, settings, me, settingsModel, onClose = { picking = null }, returnTo = lastPicking?.let { requester(rowKeyOf(it)) })
+        Panels(picking, lastPicking, meState, settings, me, settingsModel, language, languageModel, onClose = { picking = null }, returnTo = lastPicking?.let { requester(rowKeyOf(it)) })
         web?.let { path ->
             val server = meState.profile?.server.orEmpty()
             TvWebDialog(server, path, onDismiss = {
@@ -299,6 +306,7 @@ private fun firstRowOf(c: Category, me: MeUiState): String = when (c) {
 
 /** The row each panel goes back to. */
 private fun rowKeyOf(p: Picking): String = when (p) {
+    Picking.Language -> "row-language"
     Picking.AudioLanguage -> "row-audio"
     Picking.SubtitleMode -> "row-subtitles"
     Picking.SubtitleLanguage -> "row-subtitle-language"
@@ -318,6 +326,7 @@ private fun LazyListScope.pane(
     me: MeUiState,
     ui: SettingsUiState,
     model: SettingsViewModel,
+    language: LanguageUiState,
     memory: app.pley.android.ui.tv.kit.FocusMemory,
     requester: (String) -> FocusRequester,
     pick: (Picking) -> Unit,
@@ -348,7 +357,7 @@ private fun LazyListScope.pane(
                 val webOnly = stringResource(R.string.tv_account_change_on_web)
                 TvSettingRow(
                     stringResource(R.string.tv_account_audio_language),
-                    value = if (defaults == null) null else (TrackLanguages.nameOf(defaults.defaults.audioLanguage) ?: stringResource(R.string.tv_account_file_default)) + if (editable) "" else " · $webOnly",
+                    value = if (defaults == null) null else (TrackLanguages.nameOf(defaults.defaults.audioLanguage, formatWords()) ?: stringResource(R.string.tv_account_file_default)) + if (editable) "" else " · $webOnly",
                     icon = PleyIcons.AudioLines,
                     onClick = { if (editable) pick(Picking.AudioLanguage) else onWeb("/account") },
                     modifier = keyed("row-audio"),
@@ -369,10 +378,22 @@ private fun LazyListScope.pane(
                     val webOnly = stringResource(R.string.tv_account_change_on_web)
                     TvSettingRow(
                         stringResource(R.string.tv_account_subtitle_language),
-                        value = (TrackLanguages.nameOf(defaults.defaults.subtitleLanguage) ?: stringResource(R.string.tv_account_same_as_audio)) + if (editable) "" else " · $webOnly",
+                        value = (TrackLanguages.nameOf(defaults.defaults.subtitleLanguage, formatWords()) ?: stringResource(R.string.tv_account_same_as_audio)) + if (editable) "" else " · $webOnly",
                         icon = PleyIcons.Captions,
                         onClick = { if (editable) pick(Picking.SubtitleLanguage) else onWeb("/account") },
                         modifier = keyed("row-subtitle-language"),
+                    )
+                }
+            }
+            // The account's: on every device it signs in on.
+            if (language.available) {
+                item(key = "row-language", contentType = SETTING_ROW) {
+                    TvSettingRow(
+                        stringResource(ScreensR.string.language_title),
+                        value = language.value.asString(),
+                        icon = PleyIcons.Globe,
+                        onClick = { pick(Picking.Language) },
+                        modifier = keyed("row-language"),
                     )
                 }
             }
@@ -630,12 +651,12 @@ private fun ProfileHeader(me: MeUiState) {
 @Composable
 private fun DeviceFacts() {
     val app = LocalContext.current.applicationContext
-    val facts = remember(app) { (app as? PleyGraphOwner)?.screensGraph?.device?.let { DiagnosticsViewModel.deviceFacts(it) }.orEmpty() }
+    val facts = remember(app) { (app as? PleyGraphOwner)?.screensGraph?.device?.let { DiagnosticsViewModel.factsOf(it) }.orEmpty() }
     Column(Modifier.padding(start = 20.dp, top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         facts.forEach { fact ->
             Row {
-                BasicText(fact.label, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.width(150.dp))
-                BasicText(fact.value, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg))
+                BasicText(fact.label.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.width(150.dp))
+                BasicText(fact.value.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg))
             }
         }
     }
@@ -650,17 +671,30 @@ private fun Panels(
     ui: SettingsUiState,
     model: MeViewModel,
     settings: SettingsViewModel,
+    language: LanguageUiState,
+    languageModel: LanguageViewModel,
     onClose: () -> Unit,
     returnTo: FocusRequester?,
 ) {
     val s = ui.settings
     val defaults = me.trackDefaults?.defaults
     val visible = open != null
+    val words = formatWords()
+    val languages = remember(words) { TrackLanguages.all(words) }
     when (shown) {
+        Picking.Language -> TvChoicePanel(
+            visible,
+            stringResource(ScreensR.string.language_title),
+            language.choices.map { TvChoice(it, language.label(it).asString()) },
+            language.chosen,
+            languageModel::choose,
+            onClose,
+            returnTo,
+        )
         Picking.AudioLanguage -> TvChoicePanel(
             visible,
             stringResource(R.string.tv_account_audio_language),
-            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_file_default))) + TrackLanguages.ALL.map { TvChoice<String?>(it.first, it.second) },
+            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_file_default))) + languages.map { TvChoice<String?>(it.first, it.second) },
             defaults?.audioLanguage,
             model::setAudioLanguage,
             onClose,
@@ -678,7 +712,7 @@ private fun Panels(
         Picking.SubtitleLanguage -> TvChoicePanel(
             visible,
             stringResource(R.string.tv_account_subtitle_language),
-            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_same_as_audio))) + TrackLanguages.ALL.map { TvChoice<String?>(it.first, it.second) },
+            listOf(TvChoice<String?>(null, stringResource(R.string.tv_account_same_as_audio))) + languages.map { TvChoice<String?>(it.first, it.second) },
             defaults?.subtitleLanguage,
             model::setSubtitleLanguage,
             onClose,

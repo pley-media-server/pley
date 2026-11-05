@@ -25,7 +25,8 @@ fun VersionCatalog.lib(alias: String) = findLibrary(alias).get()
 
 /**
  * The settings every Android module shares: SDK levels, Java 17, unit tests
- * with Android resources on Robolectric's SDK, and lint that fails the build.
+ * with Android resources on Robolectric's SDK, and lint that fails the build,
+ * also on a word missing in French or Spanish (docs/ANDROID.md, "Language").
  */
 internal fun Project.configureAndroid(android: CommonExtension) {
     android.compileSdk = Sdk.COMPILE
@@ -50,4 +51,7 @@ internal fun Project.configureAndroid(android: CommonExtension) {
     android.lint.checkReleaseBuilds = true
     // Versions move through the catalog, not lint.
     android.lint.disable += setOf("NewerVersionAvailable", "GradleDependency", "AndroidGradlePluginVersion")
+    // Every language has every word, every count its forms (French and Spanish:
+    // one, many, other), and a translation the arguments of the English.
+    android.lint.error += setOf("MissingTranslation", "MissingQuantity", "ImpliedQuantity", "StringFormatCount")
 }

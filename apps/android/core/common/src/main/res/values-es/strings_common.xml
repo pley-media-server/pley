@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_nothing_answers">nada responde en esa dirección</string>
+    <string name="error_no_answer">no hubo respuesta a tiempo</string>
+    <string name="error_unknown_host">esa dirección no se conoce en esta red</string>
+    <string name="error_secure_connection">falló su conexión segura</string>
+    <string name="error_not_pley">no es un servidor Pley</string>
+    <string name="error_connection_failed">falló la conexión con el servidor</string>
+</resources>

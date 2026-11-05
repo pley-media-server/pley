@@ -1,6 +1,6 @@
 package app.pley.android.auth
 
-import app.pley.android.common.describe
+import app.pley.android.common.errorText
 import java.util.Base64
 import kotlinx.coroutines.runBlocking
 import okhttp3.Request
@@ -215,7 +215,7 @@ class ServerProofTest {
             answer = each
             val refused = assertThrows(NotYourServerException::class.java) { runBlocking { tokens.accessToken() } }
             // Out of reach, as the app says it.
-            assertEquals("another device answers there", describe(refused))
+            assertEquals(NOT_YOUR_SERVER, errorText(refused))
             assertThrows(NotYourServerException::class.java) { runBlocking { tokens.refresh("pley_at_one") } }
             assertThrows(NotYourServerException::class.java) { runBlocking { tokens.switchProfile(2, null) } }
         }

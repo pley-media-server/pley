@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_onboarding_servers_title">Elige tu servidor</string>
+    <string name="tv_onboarding_on_network">En esta red</string>
+    <string name="tv_onboarding_unreachable">Inaccesible</string>
+    <string name="tv_onboarding_lookalike">No es tu servidor guardado</string>
+    <string name="tv_onboarding_unencrypted">Sin cifrar</string>
+    <string name="tv_onboarding_searching">Buscando Pley en tu red…</string>
+    <string name="tv_onboarding_none_found">No se encontró ningún servidor. Asegúrate de que esta TV y el servidor estén en la misma red.</string>
+    <string name="tv_onboarding_enter_address">Introducir una dirección</string>
+    <string name="tv_onboarding_search_network">Buscar en esta red</string>
+    <string name="tv_onboarding_sweeping">Comprobando %1$s…</string>
+    <string name="tv_onboarding_sweeping_network">Comprobando esta red…</string>
+    <string name="tv_onboarding_demo">Usar el servidor de demostración</string>
+    <string name="tv_onboarding_demo_starting">Iniciando el servidor de demostración…</string>
+    <string name="tv_onboarding_connecting">Conectando con %1$s…</string>
+    <string name="tv_onboarding_forget_hint">Mantén pulsado OK sobre un servidor guardado para olvidarlo.</string>
+    <string name="tv_onboarding_forget_title">¿Olvidar %1$s?</string>
+    <string name="tv_onboarding_forget_body">Pley cierra la sesión de esta TV en ese servidor y elimina lo que guardó de él.</string>
+    <string name="tv_onboarding_forget">Olvidar</string>
+    <string name="tv_onboarding_cancel">Cancelar</string>
+
+    <string name="tv_onboarding_access_title">Permitir Pley en tu red</string>
+    <string name="tv_onboarding_access_body">Pley busca servidores en la red de tu casa. Permítele ver los dispositivos de esta red.</string>
+    <string name="tv_onboarding_continue">Continuar</string>
+    <string name="tv_onboarding_access_denied">Pley necesita acceso a los dispositivos de tu red para encontrar los servidores de tu casa y conectarse a ellos.</string>
+    <string name="tv_onboarding_open_settings">Abrir ajustes</string>
+
+    <string name="tv_onboarding_problem_unreachable">No se pudo conectar con %1$s: %2$s</string>
+    <string name="tv_onboarding_problem_not_pley">Algo responde en %1$s, pero no es Pley.</string>
+    <string name="tv_onboarding_problem_unencrypted">%1$s no está cifrado: lo que ves podría leerse por el camino. Usa su dirección https si la tiene, o vuelve a pulsar Conectar para continuar de todos modos.</string>
+    <string name="tv_onboarding_problem_address">Introduce una dirección como nas, 192.168.1.20 o pley.example.com.</string>
+
+    <string name="tv_onboarding_address_title">Introduce la dirección de tu servidor</string>
+    <string name="tv_onboarding_address_placeholder">192.168.1.20 o pley.example.com</string>
+    <string name="tv_onboarding_address_hint">Se usa el puerto 7539 de forma predeterminada.</string>
+    <string name="tv_onboarding_connect">Conectar</string>
+    <string name="tv_onboarding_checking">Comprobando…</string>
+
+    <string name="tv_onboarding_link_title">Iniciar sesión en Pley</string>
+    <string name="tv_onboarding_two_step_required">Este servidor exige el inicio de sesión en dos pasos: tu teléfono lo configura si aún no lo has hecho.</string>
+    <string name="tv_onboarding_link_scan_step">Escanea el código con tu teléfono</string>
+    <string name="tv_onboarding_link_go_to">o ve a</string>
+    <string name="tv_onboarding_link_enter_step">e introduce este código</string>
+    <string name="tv_onboarding_link_same_wifi">Tu teléfono debe estar en la misma red Wi-Fi que esta TV.</string>
+    <string name="tv_onboarding_link_other_device">O abre Pley en un dispositivo con sesión iniciada → Vincular una TV</string>
+    <string name="tv_onboarding_link_scan">Escanea con la cámara de tu teléfono</string>
+    <string name="tv_onboarding_change_server">Cambiar de servidor</string>
+    <string name="tv_onboarding_waiting">Esperando la aprobación…</string>
+    <string name="tv_onboarding_getting_code">Obteniendo un código…</string>
+    <string name="tv_onboarding_declined">Solicitud rechazada</string>
+    <string name="tv_onboarding_expired">Código caducado: pulsa OK para obtener uno nuevo</string>
+    <string name="tv_onboarding_new_code">Obtener un código nuevo</string>
+    <string name="tv_onboarding_retrying">No se puede conectar con el servidor. Reintentando en %1$d s</string>
+    <string name="tv_onboarding_signed_in">Sesión iniciada como %1$s</string>
+    <string name="tv_onboarding_signed_in_plain">Sesión iniciada</string>
+    <string name="tv_onboarding_code_label">El código: %1$s</string>
+
+    <string name="tv_onboarding_whos_watching">¿Quién está viendo?</string>
+    <string name="tv_onboarding_has_pin">%1$s, perfil protegido con un PIN</string>
+    <string name="tv_onboarding_enter_pin">Introduce el PIN de %1$s</string>
+    <string name="tv_onboarding_pin_hint">También puedes usar las teclas numéricas del control remoto.</string>
+    <plurals name="tv_onboarding_pin_entered">
+        <item quantity="one">%1$d dígito introducido</item>
+        <item quantity="many">%1$d dígitos introducidos</item>
+        <item quantity="other">%1$d dígitos introducidos</item>
+    </plurals>
+    <string name="tv_onboarding_digit">dígito %1$d</string>
+    <string name="tv_onboarding_delete">Borrar</string>
+    <string name="tv_onboarding_ok">OK</string>
+    <string name="tv_onboarding_use_another">Usar otro perfil</string>
+    <string name="tv_onboarding_approve_title">Aprueba en tu teléfono</string>
+    <string name="tv_onboarding_approve_body">El perfil de %1$s necesita su contraseña: aprueba este código en un teléfono con sesión iniciada en Pley y elige %1$s allí.</string>
+    <string name="tv_onboarding_another_profile">Iniciar sesión con otro perfil</string>
+    <string name="tv_onboarding_another_body">Aprueba este código en un teléfono con sesión iniciada en Pley y elige allí el perfil.</string>
+    <string name="tv_onboarding_retry">Reintentar</string>
+</resources>

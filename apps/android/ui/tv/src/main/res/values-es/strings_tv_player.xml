@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_player_play">Reproducir</string>
+    <string name="tv_player_pause">Pausar</string>
+    <string name="tv_player_previous">Anterior</string>
+    <string name="tv_player_next">Siguiente</string>
+    <string name="tv_player_subtitles">Subtítulos</string>
+    <string name="tv_player_audio">Audio</string>
+    <string name="tv_player_quality">Calidad</string>
+    <string name="tv_player_chapters">Capítulos</string>
+    <string name="tv_player_info">Información</string>
+
+    <string name="tv_player_ends_at">Termina a las %1$s</string>
+    <string name="tv_player_intro">Intro</string>
+    <string name="tv_player_credits">Créditos</string>
+    <string name="tv_player_seek_back">−%1$d s</string>
+    <string name="tv_player_seek_forward">+%1$d s</string>
+    <string name="tv_player_position">%1$s de %2$s</string>
+    <string name="tv_player_chapter">Capítulo %1$d</string>
+    <string name="tv_player_chapter_named">Capítulo %1$d · %2$s</string>
+    <string name="tv_player_chapter_card">%1$s, a partir de %2$s</string>
+    <plurals name="tv_player_spoken_hours">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
+        <item quantity="other">%1$d horas</item>
+    </plurals>
+    <plurals name="tv_player_spoken_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="many">%1$d minutos</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <plurals name="tv_player_spoken_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="many">%1$d segundos</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
+
+    <string name="tv_player_play_now">Reproducir ahora</string>
+    <string name="tv_player_cancel">Cancelar</string>
+    <string name="tv_player_next_in">Siguiente en %1$d</string>
+
+    <string name="tv_player_subtitles_off_toast">Subtítulos desactivados</string>
+    <string name="tv_player_subtitles_toast">Subtítulos: %1$s</string>
+    <string name="tv_player_play_original">Reproducir el original</string>
+    <string name="tv_player_play_original_hint">Volver a probar el original</string>
+    <string name="tv_player_info_title">Detalles de reproducción</string>
+    <string name="tv_player_info_how">Modo de reproducción</string>
+    <string name="tv_player_info_device">Esta TV</string>
+    <string name="tv_player_info_video_decoder">Decodificador de video</string>
+    <string name="tv_player_info_audio_decoder">Decodificador de audio</string>
+    <string name="tv_player_info_picture">Imagen</string>
+    <string name="tv_player_info_bit_depth">%1$d bits</string>
+    <string name="tv_player_info_display">Pantalla</string>
+    <string name="tv_player_info_display_switched">Adaptada al video</string>
+    <string name="tv_player_info_display_kept">Sin cambios</string>
+    <string name="tv_player_info_dropped">Fotogramas perdidos</string>
+    <string name="tv_player_info_dropped_value">%1$d de %2$d</string>
+    <string name="tv_player_info_buffer">En búfer</string>
+    <string name="tv_player_info_buffer_value">%1$d s</string>
+    <string name="tv_player_info_rebuffers">Interrupciones</string>
+    <string name="tv_player_info_first_frame">Primer fotograma</string>
+    <string name="tv_player_info_first_frame_value">%1$d ms</string>
+    <string name="tv_player_info_hardware">hardware</string>
+    <string name="tv_player_info_software">software</string>
+    <string name="tv_player_info_waiting">Consultando al servidor…</string>
+
+    <string name="tv_player_transcode_toast">%1$s Para reproducir el original, abre Calidad.</string>
+    <string name="tv_player_slow_server_toast">%1$s Elige una en Calidad.</string>
+    <string name="tv_player_buffering">Cargando</string>
+    <string name="tv_player_reconnecting">Reconectando…</string>
+    <string name="tv_player_error_title">No se puede reproducir este elemento</string>
+    <string name="tv_player_offline_title">No se puede conectar con tu servidor</string>
+    <string name="tv_player_try_again">Volver a intentar</string>
+    <string name="tv_player_back">Volver</string>
+</resources>

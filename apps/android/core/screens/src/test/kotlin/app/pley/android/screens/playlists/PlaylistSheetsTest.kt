@@ -1,18 +1,21 @@
 package app.pley.android.screens.playlists
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.PlaylistSummary
+import app.pley.android.model.format.FormatWords
+import app.pley.android.screens.R
 import app.pley.android.screens.item.FakeData
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -82,12 +85,12 @@ class PlaylistSheetsTest {
         val (vm, _) = sheet(7)
         advanceUntilIdle()
         val state = vm.state.value
-        assertEquals("Severance — S1 · E2 — Half Loop", state.title)
+        assertEquals(UiText.raw("Severance — S1 · E2 — Half Loop"), state.title)
         assertEquals(PlaylistKind.Video, state.kind)
         // Smart playlists fill themselves; music ones don't take episodes.
         val cards = state.playlists.valueOrNull!!
         assertEquals(listOf("Road trip"), cards.map { it.title })
-        assertEquals("12 items · 3h 12m", cards.single().meta)
+        assertEquals(listOf(UiText.plural(R.plurals.playlists_count_items, 12), UiText.raw("3h 12m")), cards.single().metaTexts)
     }
 
     @Test
@@ -120,8 +123,8 @@ class PlaylistSheetsTest {
         assertEquals(1, Playlists.entriesOf(listOf(one)))
         assertEquals(0, Playlists.entriesOf(listOf(empty)))
         assertEquals(null, Playlists.entriesOf(listOf(one, unknown)))
-        assertEquals("3 items", AddToPlaylistViewModel.titleOf(listOf(one, empty, unknown)))
-        assertEquals("Heat", AddToPlaylistViewModel.titleOf(listOf(one)))
+        assertEquals(UiText.plural(R.plurals.playlists_count_items, 3), AddToPlaylistViewModel.titleOf(listOf(one, empty, unknown), FormatWords.English))
+        assertEquals(UiText.raw("Heat"), AddToPlaylistViewModel.titleOf(listOf(one), FormatWords.English))
     }
 
     @Test
@@ -171,7 +174,7 @@ class PlaylistSheetsTest {
     @Test
     fun savingFiltersMakesASmartPlaylist() = runTest(dispatcher) {
         val vm = NewPlaylistViewModel(NewPlaylistMode.Smart(1, "genre=Comedy&unwatched=1"), deps())
-        assertEquals(listOf("Genre: Comedy", "Unwatched"), vm.filters)
+        assertEquals(listOf(UiText.res(R.string.library_filter_genre, "Comedy"), UiText.res(R.string.library_filter_unwatched)), vm.filterTexts)
         assertFalse(vm.asksKind)
         assertTrue(vm.create("Comedies"))
         advanceUntilIdle()

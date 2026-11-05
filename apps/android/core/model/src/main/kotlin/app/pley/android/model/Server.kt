@@ -13,8 +13,9 @@ import kotlinx.serialization.json.booleanOrNull
 
 /**
  * GET /api/server, which answers without signing in: the server's name and
- * version, whether it still has to be set up in the browser, and whether
- * it requires two-step sign-in (apps/server/src/api/auth.rs, `server_status`).
+ * version, whether it still has to be set up in the browser, whether it
+ * requires two-step sign-in, and its language (apps/server/src/api/auth.rs,
+ * `server_status`).
  */
 @Serializable
 data class ServerInfo(
@@ -30,6 +31,12 @@ data class ServerInfo(
      */
     @Serializable(with = LenientFlagSerializer::class)
     val twoStepRequired: Boolean = false,
+    /**
+     * The server's language for accounts that haven't chosen one ("en",
+     * "fr", "es"); `null` when each device's own is used, and from servers
+     * before it.
+     */
+    val language: String? = null,
 )
 
 /** GET /api/health: `{ "status": "ok" }` while the server runs. */

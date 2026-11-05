@@ -2,6 +2,7 @@ package app.pley.android.player.session
 
 import app.pley.android.fixtures.FixtureIds
 import app.pley.android.model.DynamicRange
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.player.PlayRequest
 import app.pley.android.testing.caps.TestDevices
@@ -83,6 +84,7 @@ class QualityAndGuardsTest {
         assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Transcode), h.playbackRequests().map { it.mode })
         assertEquals(1, h.engine.prepared.size)
         assertEquals("Transcoding", c.state.value.method)
+        assertEquals(PlaybackMethod.Transcode, c.state.value.playbackMethod)
         // The remux was deleted without moving the resume point.
         assertEquals(1, h.deletes().size)
         assertTrue(h.progress(FixtureIds.DOLBY_VISION_P5).isEmpty())

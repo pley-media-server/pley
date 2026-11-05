@@ -297,7 +297,7 @@ class AuthInterceptorTest {
         broken = true
         val client = AuthHttp.api(endpointsClient(), Tokens(issuer, store, endpointsClient()))
         val failed = assertThrows(java.io.IOException::class.java) { get(client, home.url("/api/libraries").toString()) }
-        assertEquals(Vault.UNKEPT, failed.message)
+        assertEquals(Vault.UNKEPT, textOf(failed))
     }
 
     @Test
@@ -354,7 +354,7 @@ class AuthInterceptorTest {
         val interceptor = AuthInterceptor(Tokens(publicIssuer, store, endpointsClient()))
         var sent = 0
         val chain = FakeChain(Request.Builder().url("$publicIssuer/api/libraries").build(), InetAddress.getByName("8.8.8.8")) { sent++ }
-        assertEquals(UNENCRYPTED, assertThrows(AuthException::class.java) { interceptor.intercept(chain) }.message)
+        assertEquals(UNENCRYPTED, assertThrows(AuthException::class.java) { interceptor.intercept(chain) }.text)
         assertEquals(0, sent)
 
         // The same name on the home network works.

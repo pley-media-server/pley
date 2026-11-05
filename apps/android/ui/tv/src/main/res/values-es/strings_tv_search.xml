@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_search_field">Buscar películas, series, personas…</string>
+    <string name="tv_search_recent">Búsquedas recientes</string>
+    <string name="tv_search_recent_clear">Borrar</string>
+    <string name="tv_search_empty_title">Busca en tus bibliotecas</string>
+    <string name="tv_search_empty_body">Encuentra películas, series, episodios, personas, artistas, álbumes, pistas y canales de TV en vivo. Pulsa OK en el campo para escribir o usa el micrófono de tu teclado.</string>
+    <string name="tv_search_none_title">No hay resultados para «%1$s»</string>
+    <string name="tv_search_none_body">Prueba con otra ortografía o con menos palabras.</string>
+    <string name="tv_search_failed">La búsqueda falló</string>
+    <string name="tv_search_retry">Reintentar</string>
+    <string name="tv_search_loading">Buscando…</string>
+
+    <string name="tv_search_group_people">Personas</string>
+    <string name="tv_search_group_live">TV en vivo</string>
+    <string name="tv_search_group_movies">Películas</string>
+    <string name="tv_search_group_shows">Series</string>
+    <string name="tv_search_group_seasons">Temporadas</string>
+    <string name="tv_search_group_episodes">Episodios</string>
+    <string name="tv_search_group_artists">Artistas</string>
+    <string name="tv_search_group_albums">Álbumes</string>
+    <string name="tv_search_group_tracks">Pistas</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_playlists_title">Playlists</string>
+    <string name="tv_playlists_new">Nouvelle playlist</string>
+    <string name="tv_playlists_failed">Impossible de charger vos playlists</string>
+    <string name="tv_playlists_none_title">Aucune playlist pour l’instant</string>
+    <string name="tv_playlists_none_body">Créez-en une ici, ou utilisez « Ajouter à une playlist » sur un film, une série, un album ou un épisode (aussi en maintenant OK sur une affiche).</string>
+    <string name="tv_playlists_retry">Réessayer</string>
+    <string name="tv_playlists_smart">Intelligente</string>
+
+    <string name="tv_playlist_video">Playlist vidéo</string>
+    <string name="tv_playlist_music">Playlist musicale</string>
+    <string name="tv_playlist_smart">Playlist intelligente</string>
+    <string name="tv_playlist_play">Lire</string>
+    <string name="tv_playlist_shuffle">Aléatoire</string>
+    <string name="tv_playlist_rename">Renommer</string>
+    <string name="tv_playlist_delete">Supprimer</string>
+    <string name="tv_playlist_failed">Impossible de charger cette playlist</string>
+    <string name="tv_playlist_not_found">Playlist introuvable</string>
+    <string name="tv_playlist_not_found_body">Elle a été supprimée, ou elle appartient à un autre profil.</string>
+    <string name="tv_playlist_back">Retour</string>
+    <string name="tv_playlist_empty_smart">Rien ne correspond encore au filtre de cette playlist.</string>
+    <string name="tv_playlist_empty_video">Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un film, une série ou un épisode, ou maintenez OK sur une affiche.</string>
+    <string name="tv_playlist_empty_music">Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un artiste ou un album, ou maintenez OK sur une pochette.</string>
+    <string name="tv_playlist_more">Plus</string>
+    <string name="tv_playlist_play_from_here">Lire à partir d’ici</string>
+    <string name="tv_playlist_go_to">Aller à %1$s</string>
+    <string name="tv_playlist_move">Déplacer</string>
+    <string name="tv_playlist_remove">Retirer de la playlist</string>
+    <string name="tv_playlist_moving">Haut et bas pour le déplacer, OK pour le poser ici, Retour pour le remettre à sa place</string>
+    <string name="tv_playlist_removed">Retiré de la playlist : « %1$s »</string>
+    <string name="tv_playlist_delete_title">Supprimer la playlist ?</string>
+    <string name="tv_playlist_delete_body">La playlist « %1$s » sera supprimée. Son contenu reste dans vos bibliothèques.</string>
+    <string name="tv_playlist_cancel">Annuler</string>
+    <string name="tv_playlist_rename_title">Renommer la playlist</string>
+    <string name="tv_playlist_save">Enregistrer</string>
+
+    <string name="tv_playlist_form_title">Titre</string>
+    <string name="tv_playlist_form_for">Pour</string>
+    <string name="tv_playlist_form_video">Films et séries</string>
+    <string name="tv_playlist_form_music">Musique</string>
+    <string name="tv_playlist_form_create">Créer</string>
+    <string name="tv_playlist_form_hint">Appuyez sur OK sur le titre pour le saisir.</string>
+    <string name="tv_playlist_new_body">Donnez-lui un nom, puis remplissez-la avec « Ajouter à une playlist » sur n’importe quel titre.</string>
+    <string name="tv_playlist_smart_title">Enregistrer ces filtres</string>
+    <string name="tv_playlist_smart_body">%1$s. Elle se met à jour toute seule avec la bibliothèque.</string>
+    <string name="tv_playlist_smart_body_plain">Elle se met à jour toute seule avec la bibliothèque.</string>
+
+    <string name="tv_add_to_playlist">Ajouter à une playlist</string>
+    <string name="tv_add_new_video">Nouvelle playlist vidéo</string>
+    <string name="tv_add_new_music">Nouvelle playlist musicale</string>
+    <string name="tv_add_create">Créer</string>
+    <string name="tv_add_yours">Vos playlists</string>
+    <string name="tv_add_none_video">Aucune playlist vidéo pour l’instant : saisissez un nom ci-dessus.</string>
+    <string name="tv_add_none_music">Aucune playlist musicale pour l’instant : saisissez un nom ci-dessus.</string>
+    <string name="tv_add_added">Ajouté à %1$s</string>
+    <string name="tv_add_added_many">%1$s éléments ajoutés à %2$s</string>
+    <string name="tv_add_nothing">Rien à ajouter</string>
+</resources>

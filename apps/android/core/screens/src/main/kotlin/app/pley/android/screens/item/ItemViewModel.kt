@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.TraceNames
 import app.pley.android.data.DataGraph
 import app.pley.android.data.Loadable
@@ -53,7 +54,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 /**
  * Something the page tells the person once: nothing to play, or an action
@@ -78,7 +78,8 @@ sealed interface ItemEvent {
  * audio or subtitle track is saved for the item (PUT /api/items/{id}/streams),
  * as on the web.
  * Watched marks, ratings and My List show at once and are undone if the server
- * refuses.
+ * refuses. The page is made again when the language shown changes: its
+ * dates and numbers are written in it.
  */
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ItemViewModel(
@@ -86,7 +87,6 @@ class ItemViewModel(
     private val launcher: PlayerLauncher,
     val itemId: Long,
     compute: CoroutineDispatcher = Dispatchers.Default,
-    private val locale: Locale = Locale.getDefault(),
 ) : ViewModel() {
     private val pick = MutableStateFlow(StreamPick())
     private val chosenSeason = MutableStateFlow<Long?>(null)
@@ -177,7 +177,7 @@ class ItemViewModel(
         val beside = combine(onDeck, seasons, episodes, related, partOf) { next, list, (season, eps), rel, part ->
             Beside(next, list, season, eps, rel, part)
         }
-        return combine(detail, origin, pick, beside) { load, server, picked, b ->
+        return combine(detail, origin, pick, beside, AppLanguage.shown) { load, server, picked, b, _ ->
             val d = load.valueOrNull ?: return@combine withoutDetail(load)
             shown = d
             val page = itemPage(
@@ -191,7 +191,8 @@ class ItemViewModel(
                     episodes = b.episodes,
                     related = b.related,
                     partOf = b.partOf,
-                    locale = locale,
+                    locale = AppLanguage.locale,
+                    words = AppLanguage.formatWords(),
                 ),
             )
             ItemUiState.Ready(page, load.map { })

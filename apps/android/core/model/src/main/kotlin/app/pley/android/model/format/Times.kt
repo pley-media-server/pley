@@ -11,55 +11,46 @@ import kotlin.math.abs
 
 /*
  * Dates and relative times. The web leaves these to the browser's Intl in
- * the user's language; here they take a Locale (the device's by default)
- * and a clock, so tests can pin both. Relative times are in English, as
- * the rest of the app's text is.
+ * the language shown; here they take a Locale (the device's by default),
+ * relative times their words (English by default), and a clock, so tests
+ * can pin them.
  */
 
 /** Seconds per unit, and the age below which that unit is used, as the web's table. */
 private val RELATIVE_UNITS = listOf(
-    Triple(60L, "second", 1L),
-    Triple(3_600L, "minute", 60L),
-    Triple(86_400L, "hour", 3_600L),
-    Triple(86_400L * 7, "day", 86_400L),
-    Triple(86_400L * 30, "week", 86_400L * 7),
-    Triple(86_400L * 365, "month", 86_400L * 30),
-    Triple(Long.MAX_VALUE, "year", 86_400L * 365),
+    Triple(60L, RelativeUnit.Second, 1L),
+    Triple(3_600L, RelativeUnit.Minute, 60L),
+    Triple(86_400L, RelativeUnit.Hour, 3_600L),
+    Triple(86_400L * 7, RelativeUnit.Day, 86_400L),
+    Triple(86_400L * 30, RelativeUnit.Week, 86_400L * 7),
+    Triple(86_400L * 365, RelativeUnit.Month, 86_400L * 30),
+    Triple(Long.MAX_VALUE, RelativeUnit.Year, 86_400L * 365),
 )
 
 /**
  * Unix seconds → "3 minutes ago", "in 5 hours", "yesterday", "last week",
  * "now": the largest unit that fits, worded as Intl.RelativeTimeFormat
- * with numeric "auto" words it in English. "never" without a time.
+ * with numeric "auto" words it. "never" without a time.
  */
-fun formatRelative(ts: Long?, nowSeconds: Long = System.currentTimeMillis() / 1000): String {
-    if (ts == null || ts == 0L) return "never"
+fun formatRelative(
+    ts: Long?,
+    nowSeconds: Long = System.currentTimeMillis() / 1000,
+    words: FormatWords = FormatWords.English,
+): String {
+    if (ts == null || ts == 0L) return words.never
     val diff = ts - nowSeconds
     val ageAbs = abs(diff)
     val (_, unit, seconds) = RELATIVE_UNITS.first { ageAbs < it.first }
     val value = Math.round(diff / seconds.toDouble())
-    return relativeWords(value, unit)
+    return relativeWords(value, unit, words)
 }
 
-private fun relativeWords(value: Long, unit: String): String {
-    when (value) {
-        0L -> when (unit) {
-            "second" -> return "now"
-            "day" -> return "today"
-            else -> return "this $unit"
-        }
-        -1L -> when (unit) {
-            "day" -> return "yesterday"
-            "week", "month", "year" -> return "last $unit"
-        }
-        1L -> when (unit) {
-            "day" -> return "tomorrow"
-            "week", "month", "year" -> return "next $unit"
-        }
-    }
-    val n = abs(value)
-    val words = if (n == 1L) "1 $unit" else "$n ${unit}s"
-    return if (value < 0) "$words ago" else "in $words"
+private fun relativeWords(value: Long, unit: RelativeUnit, words: FormatWords): String = when {
+    value == 0L -> words.thisTime(unit)
+    value == -1L -> words.lastTime(unit)
+    value == 1L -> words.nextTime(unit)
+    value < 0 -> words.ago(-value, unit)
+    else -> words.later(value, unit)
 }
 
 /** "2023-04-01" → "Apr 1, 2023" in [locale]'s medium style; what doesn't parse comes back as it is. */

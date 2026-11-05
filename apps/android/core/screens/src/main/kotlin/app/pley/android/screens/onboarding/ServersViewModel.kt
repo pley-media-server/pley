@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import app.pley.android.common.FoundServer
 import app.pley.android.common.SavedServer
 import app.pley.android.common.Servers
+import app.pley.android.common.UiText
+import app.pley.android.common.errorText
 import app.pley.android.network.DiscoveryEvent
 import app.pley.android.network.OfflineException
 import app.pley.android.network.ProbeResult
+import app.pley.android.screens.R
 import java.net.URI
 import java.net.URISyntaxException
 import kotlinx.coroutines.CancellationException
@@ -56,8 +59,8 @@ enum class LocalAccess {
 
 /** Something that went wrong, for the screen to word. */
 sealed interface ServersProblem {
-    /** Nothing answered at [address]: [message] says how. */
-    data class Unreachable(val address: String, val message: String) : ServersProblem
+    /** Nothing answered at [address]: [reason] says how ("nothing answers there"). */
+    data class Unreachable(val address: String, val reason: UiText) : ServersProblem
 
     /** Something answers at [address], and it isn't pley. */
     data class NotPley(val address: String) : ServersProblem
@@ -68,8 +71,8 @@ sealed interface ServersProblem {
     /** What was typed can't be an address. */
     data object BadAddress : ServersProblem
 
-    /** The demo server didn't start. */
-    data class Failed(val message: String) : ServersProblem
+    /** The demo server didn't start, for the reason in [text]. */
+    data class Failed(val text: UiText) : ServersProblem
 }
 
 data class ServersUiState(
@@ -244,7 +247,7 @@ class ServersViewModel(
                         is ProbeResult.Unreachable -> {
                             unreachable += url
                             publish()
-                            _state.update { it.copy(problem = ServersProblem.Unreachable(addressOf(url), answer.message)) }
+                            _state.update { it.copy(problem = ServersProblem.Unreachable(addressOf(url), answer.reason)) }
                         }
                         ProbeResult.Blocked -> {
                             _state.update { it.copy(access = LocalAccess.Denied) }
@@ -296,7 +299,7 @@ class ServersViewModel(
                         }
                         is ProbeResult.NotPley -> _state.update { it.copy(addressProblem = ServersProblem.NotPley(addressOf(answer.url))) }
                         is ProbeResult.Unreachable ->
-                            _state.update { it.copy(addressProblem = ServersProblem.Unreachable(addressOf(candidates.last()), answer.message)) }
+                            _state.update { it.copy(addressProblem = ServersProblem.Unreachable(addressOf(candidates.last()), answer.reason)) }
                         ProbeResult.Blocked -> {
                             _state.update { it.copy(access = LocalAccess.Denied) }
                             requestAccess(source.localNetwork.missing().ifEmpty { source.localNetwork.required() }) { connect(text, open) }
@@ -339,7 +342,7 @@ class ServersViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(busy = null, problem = ServersProblem.Failed(e.message ?: e.javaClass.simpleName)) }
+                _state.update { it.copy(busy = null, problem = ServersProblem.Failed(errorText(e))) }
                 return@launch
             }
             _state.update { it.copy(busy = null) }
@@ -350,7 +353,7 @@ class ServersViewModel(
                     publish()
                     keep(answer.url, answer.info.name, null)
                 }
-                else -> _state.update { it.copy(problem = ServersProblem.Failed("the demo server didn't answer")) }
+                else -> _state.update { it.copy(problem = ServersProblem.Failed(UiText.res(R.string.onboarding_demo_failed))) }
             }
         }
     }

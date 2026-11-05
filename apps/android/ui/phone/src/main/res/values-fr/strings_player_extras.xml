@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_sync">Synchronisation</string>
+    <string name="player_sync_earlier">Afficher les sous-titres plus tôt</string>
+    <string name="player_sync_later">Afficher les sous-titres plus tard</string>
+    <string name="player_sync_reset">Réinitialiser</string>
+    <string name="player_audio_delay">Décalage audio</string>
+    <string name="player_audio_earlier">Avancer le son</string>
+    <string name="player_audio_later">Retarder le son</string>
+    <string name="player_speed">Vitesse</string>
+    <string name="player_find_subtitles">Trouver des sous-titres…</string>
+    <string name="player_searching">Recherche…</string>
+    <string name="player_adding">Ajout…</string>
+    <string name="player_sleep_timer">Minuteur de veille</string>
+    <string name="player_stopped_title">Lecture arrêtée</string>
+</resources>

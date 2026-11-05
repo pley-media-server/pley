@@ -11,6 +11,7 @@ import app.pley.android.data.drive.Drives
 import app.pley.android.data.drive.FileDriveFiles
 import app.pley.android.model.Chapter
 import app.pley.android.model.DynamicRange
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerPhase
 import app.pley.android.testing.caps.FakeDeviceCapabilities
@@ -124,6 +125,7 @@ class DrivePlaybackTest {
         val s = c.state.value
         assertEquals("Mad Max", s.title)
         assertEquals(texts.method(SessionTestInfo.direct), s.method)
+        assertEquals(PlaybackMethod.Direct, s.playbackMethod)
         // Nothing converts it, nor searches for subtitles for it.
         assertTrue(s.qualities.isEmpty())
         assertFalse(s.canFindSubtitles)

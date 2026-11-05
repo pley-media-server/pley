@@ -18,9 +18,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.resolve
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.text.asString
 import app.pley.android.model.StreamKind
 import app.pley.android.screens.item.FileInfo
 import app.pley.android.screens.item.InfoLabel
@@ -44,7 +46,7 @@ internal fun TvMediaInfo(files: List<FileInfo>, modifier: Modifier = Modifier) {
                     .background(PleyColors.Surface2.copy(alpha = 0.6f), PleyShape.Card)
                     .padding(16.dp),
             ) {
-                file.title?.let { BasicText(it, style = PleyType.Tv.Label.copy(color = PleyColors.Fg), modifier = Modifier.padding(bottom = 10.dp)) }
+                file.title?.let { BasicText(it.asString(), style = PleyType.Tv.Label.copy(color = PleyColors.Fg), modifier = Modifier.padding(bottom = 10.dp)) }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(BlockGap),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -88,7 +90,8 @@ private fun blocksOf(r: Resources, info: FileInfo): List<MediaFacts> {
                 else -> R.string.tv_readout_subtitles
             },
         )
-        MediaFacts(listOfNotNull(kind, s.language, s.title).joinToString(" · "), listOf(MediaFact(r.getString(R.string.tv_readout_codec), s.codec), MediaFact("", s.details)))
+        val details = s.details.joinToString(" · ") { it.resolve(r) }
+        MediaFacts(listOfNotNull(kind, s.language, s.title).joinToString(" · "), listOf(MediaFact(r.getString(R.string.tv_readout_codec), s.codec), MediaFact("", details)))
     }
     return listOf(MediaFacts(r.getString(R.string.tv_readout_file), rows)) + streams
 }

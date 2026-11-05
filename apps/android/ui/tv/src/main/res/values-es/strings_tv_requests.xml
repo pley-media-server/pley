@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_requests_loading">Cargando Descubrir</string>
+    <string name="tv_requests_nothing_title">No hay nada por ahora</string>
+    <string name="tv_requests_nothing_body">Las listas de TMDB no tienen nada que este perfil pueda solicitar. Mejor busca un título.</string>
+    <string name="tv_requests_list_nothing_body">La lista de TMDB no tiene nada que este perfil pueda solicitar.</string>
+    <string name="tv_requests_list_failed">No se pudo cargar</string>
+    <string name="tv_requests_none_yet">Aún no hay nada aquí</string>
+    <string name="tv_requests_search_none_yet">Aún no hay nada para «%1$s»</string>
+    <string name="tv_requests_none_yet_body">Las páginas de TMDB leídas hasta ahora no tienen nada que este perfil pueda solicitar.</string>
+    <string name="tv_requests_show_more">Ver más</string>
+    <string name="tv_requests_results_for">Resultados de «%1$s»</string>
+
+    <string name="tv_requests_overview">Sinopsis</string>
+    <string name="tv_requests_back">Atrás</string>
+
+    <string name="tv_requests_sign_in_title">¿Volver a iniciar sesión?</string>
+    <string name="tv_requests_sign_in_body">Esta TV muestra un código para volver a vincularla a %1$s.</string>
+
+    <string name="tv_requests_kind_all">Películas y series</string>
+    <string name="tv_requests_asked_by">Solicitado por</string>
+    <string name="tv_requests_find">Buscar algo que solicitar</string>
+
+    <string name="tv_requests_close">Cerrar</string>
+</resources>

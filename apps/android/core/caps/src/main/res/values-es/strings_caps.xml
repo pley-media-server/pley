@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dolby Vision is a name, not a misspelling of visión. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="caps_device">Dispositivo: %1$s de %2$s, API de Android %3$d, %4$s, nivel %5$s</string>
+    <string name="caps_form_phone">teléfono</string>
+    <string name="caps_form_tablet">tableta</string>
+    <string name="caps_form_tv">TV</string>
+    <string name="caps_policy_tv">Decodificadores de video: solo por hardware</string>
+    <string name="caps_policy_phone">Decodificadores de video: por hardware, o por software hasta 1080p a 30 fps, SDR de 8 bits</string>
+    <string name="caps_policy_any">Decodificadores de video: por hardware y por software, de cualquier tamaño (ajuste de depuración)</string>
+    <string name="caps_video">%1$s: %2$s, %3$s, hasta %4$s, %5$d bits, nivel %6$s</string>
+    <string name="caps_video_unlimited">%1$s: añadido por un ajuste, límites desconocidos</string>
+    <string name="caps_hardware">hardware</string>
+    <string name="caps_software">software</string>
+    <string name="caps_size_rate">%1$d×%2$d a %3$s fps</string>
+    <string name="caps_decoder">Decodificador %1$s para %2$s (%3$s)</string>
+    <string name="caps_no_video">Ningún decodificador de video que el reproductor pueda usar</string>
+    <string name="caps_screen_hdr">HDR de la pantalla: %1$s</string>
+    <string name="caps_hdr_played">HDR reproducido directamente: %1$s</string>
+    <string name="caps_dolby_vision">Perfiles de Dolby Vision: %1$s</string>
+    <string name="caps_dolby_vision_no_screen">Perfiles de Dolby Vision: %1$s, sin usar: la pantalla no muestra Dolby Vision</string>
+    <string name="caps_profile_level">%1$d (nivel %2$s)</string>
+    <string name="caps_screen">Pantalla: %1$d×%2$d a %3$s Hz, frecuencias a las que cambia: %4$s</string>
+    <string name="caps_modes">Modos de la pantalla: %1$s</string>
+    <string name="caps_match_content">Ajustar la frecuencia de fotogramas al contenido: %1$s</string>
+    <string name="caps_match_never">nunca</string>
+    <string name="caps_match_seamless">solo sin interrupciones</string>
+    <string name="caps_match_always">siempre</string>
+    <string name="caps_match_unknown">no indicado (Android 11 o anterior)</string>
+    <string name="caps_no_screen">Pantalla: desconocida</string>
+    <string name="caps_audio_decode">Decodificadores de audio: %1$s</string>
+    <string name="caps_passthrough">Passthrough: %1$s; canales: %2$d; dispositivo de salida: %3$s</string>
+    <string name="caps_quirks">Ajustes: %1$s</string>
+    <string name="caps_player_flags">Reproductor: modo asíncrono %1$s, tunneling %2$s, Dolby Vision+HDR10+ %3$s</string>
+    <string name="caps_on">activado</string>
+    <string name="caps_off">desactivado</string>
+    <string name="caps_hybrids_broken">sin su HDR10+</string>
+    <string name="caps_hybrids_fine">tal cual</string>
+    <string name="caps_none">ninguno</string>
+    <string name="caps_unknown">desconocido</string>
+</resources>

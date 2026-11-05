@@ -7,7 +7,9 @@
     <string name="live_stopped_by_admin">Live TV was stopped by the server\'s administrator.</string>
     <string name="live_stopped_elsewhere">Live TV was stopped from another device.</string>
     <!-- Who stopped it, then their message on its own line. -->
-    <string name="session_stopped_message">%1$s\n%2$s</string>
+    <string name="session_stopped_message" translatable="false">%1$s\n%2$s</string>
+    <!-- A channel's stream refused with no sentence of the server's: its HTTP status, "The server answered 503." -->
+    <string name="live_server_answered">The server answered %1$d.</string>
 
     <!-- Something another of the profile's devices sent here (Play on…), said a few seconds as it starts: the device. -->
     <string name="cast_playing_from">Playing from %1$s</string>
@@ -20,7 +22,10 @@
     <string name="sleep_end_of_episode">End of this episode</string>
     <string name="sleep_end_of_track">End of this track</string>
     <!-- The timer running, beside its row: "42 min left". -->
-    <string name="sleep_minutes_left">%1$d min left</string>
+    <plurals name="sleep_minutes_left">
+        <item quantity="one">%1$d min left</item>
+        <item quantity="other">%1$d min left</item>
+    </plurals>
     <!-- 30 s before the timer pauses. -->
     <string name="sleep_notice">Pausing in %1$d s</string>
     <string name="sleep_keep_watching">Keep watching</string>

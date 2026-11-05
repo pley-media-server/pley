@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.Display
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.DeviceProfile
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,8 +41,10 @@ class ProbingDeviceCapabilities(
     private val cache: CapsCache? = null,
     /** When the app was installed or updated: a new version probes again. */
     private val installedAt: Long = 0,
-    /** Diagnostics' lines for a snapshot. */
+    /** Diagnostics' lines for a snapshot, in the language shown. */
     private val describe: (CapsSnapshot) -> List<String> = { emptyList() },
+    /** The language shown: a snapshot described in another has its lines described again when it is asked for. */
+    private val language: () -> Any? = { null },
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + dispatcher),
     /** How long the screen or output must stay put before probing again. */
@@ -64,9 +67,18 @@ class ProbingDeviceCapabilities(
     @Volatile
     private var serverQuirks: QuirkTable? = null
 
+    /** The language the lines handed out are in. */
+    private var describedIn: Any? = null
+
     override suspend fun warmUp(): CapsSnapshot = withContext(dispatcher) {
         lock.withLock {
-            val done = state.value ?: probe()
+            val known = state.value
+            val done = when {
+                known == null -> probe()
+                language() == describedIn -> known
+                // The language shown changed since: the same snapshot, its lines in the new one.
+                else -> described(known).also { state.value = it }
+            }
             if (!watching) {
                 watching = true
                 // Registering reads the audio output once more: not on the caller's time.
@@ -135,18 +147,24 @@ class ProbingDeviceCapabilities(
         if (entry != null && entry.key == key) {
             decoders = entry.decoders(facts.fingerprint)
             // Described again: the language may have changed since.
-            val done = entry.snapshot.copy(lines = describe(entry.snapshot))
+            val done = described(entry.snapshot)
             state.value = done
             return@coroutineScope done
         }
         val found = known ?: probing?.await() ?: entry?.decoders(facts.fingerprint) ?: codecs.decoders()
         decoders = found
         val built = CapsBuilder.build(ProbeInput(facts, found, screen.await(), output.await()), quirks.await(), settings)
-        val done = built.copy(lines = describe(built))
+        val done = described(built)
         state.value = done
         // Saved after it is handed out: the player needn't wait for the disk.
         cache?.let { saving -> scope.launch { writing.withLock { saving.write(key, done) } } }
         done
+    }
+
+    /** [snapshot] with its lines in the language shown now. */
+    private fun described(snapshot: CapsSnapshot): CapsSnapshot {
+        describedIn = language()
+        return snapshot.copy(lines = describe(snapshot))
     }
 
     companion object {
@@ -164,7 +182,10 @@ class ProbingDeviceCapabilities(
                 changes = AndroidChangeSource(app),
                 cache = CapsCache(File(app.noBackupFilesDir, "caps/snapshot.json")),
                 installedAt = installedAt(app),
-                describe = { CapsDescription.lines(it, resources) },
+                // The app's resources in the language shown, asked for each time: below Android 13 the
+                // application's own stay in the language the app started in.
+                describe = { CapsDescription.lines(it, AppLanguage.resources(app)) },
+                language = { AppLanguage.locale },
                 displayId = displayId,
             )
         }

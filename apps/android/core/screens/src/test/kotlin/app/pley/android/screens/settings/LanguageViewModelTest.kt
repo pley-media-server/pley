@@ -1,0 +1,134 @@
+package app.pley.android.screens.settings
+
+import app.pley.android.common.Language
+import app.pley.android.common.UiText
+import app.pley.android.data.LanguageRepository
+import app.pley.android.data.LanguageSources
+import app.pley.android.network.ApiException
+import app.pley.android.screens.R
+import app.pley.android.screens.inEnglish
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/**
+ * The Language row: "Server default" (the server's language, or this
+ * device's when the server leaves it to each device), then each language
+ * by its own name; a choice goes to the server, and a refusal is said.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+class LanguageViewModelTest {
+    private class Account(sources: LanguageSources) : LanguageRepository {
+        override val sources = MutableStateFlow(sources)
+        val chosen = mutableListOf<String?>()
+        var answer: CompletableDeferred<Unit>? = null
+        var refusal: Exception? = null
+
+        override suspend fun choose(language: String?) {
+            chosen += language
+            answer?.await()
+            refusal?.let { throw it }
+            val now = sources.value as LanguageSources.SignedIn
+            sources.value = now.copy(account = language)
+        }
+    }
+
+    private fun signedIn(account: String? = null, server: String? = null) = LanguageSources.SignedIn(account, true, server, true)
+
+    @Before
+    fun main() = Dispatchers.setMain(UnconfinedTestDispatcher())
+
+    @After
+    fun reset() = Dispatchers.resetMain()
+
+    private suspend fun LanguageViewModel.shown(): LanguageUiState = state.first { it.available }
+
+    @Test
+    fun serverDefaultSaysWhatItStandsFor() = runTest {
+        val account = Account(signedIn(server = "fr"))
+        val vm = LanguageViewModel(account) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        val state = vm.shown()
+        assertEquals(null, state.chosen)
+        assertEquals("Server default (Français)", state.value.inEnglish())
+        assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
+        assertEquals(listOf("Server default (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
+
+        // A server that leaves it to each device: this device's.
+        account.sources.value = signedIn(server = null)
+        assertEquals("Server default (this device's language, English)", vm.state.first { it.server == null }.value.inEnglish())
+        account.sources.value = signedIn(account = "es", server = "de")
+        val chosen = vm.state.first { it.chosen != null }
+        assertEquals(Language.Spanish, chosen.chosen)
+        assertEquals(UiText.res(Language.Spanish.autonym), chosen.value)
+        assertEquals(
+            UiText.res(R.string.language_server_default, UiText.res(R.string.language_this_device, UiText.res(Language.English.autonym))),
+            chosen.label(null),
+        )
+    }
+
+    @Test
+    fun theDevicesLanguageIsTheSystems() = runTest {
+        val vm = LanguageViewModel(Account(signedIn())) { Language.French }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertEquals("Server default (this device's language, Français)", vm.shown().value.inEnglish())
+    }
+
+    @Test
+    fun withoutASignInThereIsNoRow() = runTest {
+        val vm = LanguageViewModel(Account(LanguageSources.NoServer)) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        assertFalse(vm.state.value.available)
+        vm.choose(Language.French)
+    }
+
+    @Test
+    fun aChoiceGoesToTheServerOnceAtATime() = runTest {
+        val account = Account(signedIn(server = "fr")).apply { answer = CompletableDeferred() }
+        val vm = LanguageViewModel(account) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.shown()
+        vm.choose(Language.Spanish)
+        assertTrue(vm.state.value.saving)
+        // Another choice while one is on its way, or the one shown, sends nothing.
+        vm.choose(Language.French)
+        assertEquals(listOf<String?>("es"), account.chosen)
+        account.answer!!.complete(Unit)
+        val after = vm.state.first { !it.saving && it.chosen == Language.Spanish }
+        assertEquals(Language.Spanish, after.chosen)
+        vm.choose(Language.Spanish)
+        vm.choose(null)
+        assertEquals(listOf("es", null), account.chosen)
+    }
+
+    @Test
+    fun aRefusalIsSaid() = runTest {
+        val refusal = ApiException(400, "bad_request", "language is one of en, fr, es, or null")
+        val account = Account(signedIn()).apply { this.refusal = refusal }
+        val vm = LanguageViewModel(account) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.shown()
+        val heard = mutableListOf<Throwable>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.errors.collect { heard += it } }
+        vm.choose(Language.French)
+        assertEquals(listOf<Throwable>(refusal), heard)
+        assertEquals(null, vm.state.value.chosen)
+        assertFalse(vm.state.value.saving)
+    }
+}

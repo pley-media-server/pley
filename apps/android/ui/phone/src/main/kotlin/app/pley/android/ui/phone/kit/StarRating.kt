@@ -30,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.ui.phone.R
+import java.text.NumberFormat
 import kotlin.math.roundToInt
 
 /**
@@ -54,11 +56,12 @@ fun StarRating(
     val change by rememberUpdatedState(onChange)
     val shown = (value ?: 0).coerceIn(0, MAX)
     val label = stringResource(R.string.kit_rating_label)
+    val locale = shownLocale()
     val described = if (value == null || value == 0) {
         stringResource(R.string.kit_rating_none)
     } else {
-        val stars = value / 2.0
-        val text = if (value % 2 == 0) (value / 2).toString() else stars.toString()
+        // "3.5", "3,5": a half star in the way the language shown writes it.
+        val text = NumberFormat.getInstance(locale).apply { maximumFractionDigits = 1 }.format(value / 2.0)
         pluralStringResource(R.plurals.kit_rating_stars, if (value == 2) 1 else 2, text)
     }
     fun pick(next: Int) = change(if (next <= 0) null else next.coerceAtMost(MAX))

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_shell_rail_search">Recherche</string>
+    <string name="tv_shell_rail_home">Accueil</string>
+    <string name="tv_shell_rail_live_tv">TV en direct</string>
+    <string name="tv_shell_rail_libraries">Bibliothèques</string>
+    <string name="tv_shell_rail_playlists">Playlists</string>
+    <string name="tv_shell_rail_collections">Collections</string>
+    <string name="tv_shell_rail_now_playing">En cours de lecture</string>
+    <string name="tv_shell_rail_drive">Périphérique USB</string>
+    <string name="tv_shell_rail_settings">Paramètres</string>
+    <string name="tv_shell_switch_profile">Changer de profil</string>
+
+    <string name="tv_shell_offline">Pley est hors ligne</string>
+    <string name="tv_shell_offline_title">Impossible de joindre votre serveur</string>
+    <string name="tv_shell_offline_body">%1$s Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.</string>
+
+    <string name="tv_shell_placeholder_title">%1$s n’est pas encore disponible</string>
+    <string name="tv_shell_placeholder_body">Voici Pley pour les TV, en préparation : la navigation à la télécommande, la connexion avec un code et la lecture avec la fréquence d’images et le HDR propres à la TV.</string>
+    <string name="tv_shell_placeholder_next">Ouvrir un autre écran</string>
+</resources>

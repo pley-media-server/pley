@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_back">Volver</string>
+    <string name="player_pip">Imagen en imagen</string>
+    <string name="player_settings">Ajustes de reproducción</string>
+
+    <string name="player_play">Reproducir</string>
+    <string name="player_pause">Pausar</string>
+    <string name="player_loading">Cargando</string>
+    <string name="player_reconnecting">Reconectando…</string>
+    <string name="player_seek_forward">+%1$d s</string>
+    <string name="player_seek_back">−%1$d s</string>
+
+    <string name="player_seek_bar">Posición de reproducción</string>
+    <string name="player_position_of">%1$s de %2$s</string>
+    <string name="player_show_total">Mostrar la duración total</string>
+    <string name="player_show_remaining">Mostrar el tiempo restante</string>
+    <string name="player_chapter_at">%1$s · %2$s</string>
+    <string name="player_chapter_number">Capítulo %1$d</string>
+
+    <string name="player_subtitles">Subtítulos</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_quality">Calidad</string>
+    <string name="player_chapters">Capítulos</string>
+    <string name="player_lock">Bloquear</string>
+    <string name="player_unlock">Desbloquear</string>
+    <string name="player_next_episode">Siguiente episodio</string>
+    <string name="player_fit">Ajustar</string>
+    <string name="player_fill">Rellenar</string>
+    <string name="player_zoom">Zoom</string>
+    <string name="player_fit_hint">Mostrar la imagen completa</string>
+    <string name="player_fill_hint">Rellenar la pantalla</string>
+    <string name="player_zoom_hint">Ampliar para ocultar las barras negras</string>
+    <string name="player_free">Zoom personalizado</string>
+    <string name="player_method_hint">Modo de reproducción: %1$s</string>
+
+    <string name="player_volume">Volumen</string>
+    <string name="player_brightness">Brillo</string>
+
+    <string name="player_play_now">Reproducir ahora</string>
+    <string name="player_play_now_in">Reproducir ahora (%1$d)</string>
+    <string name="player_next_in">Siguiente en %1$d</string>
+    <string name="player_cancel">Cancelar</string>
+
+    <string name="player_error_title">No se puede reproducir este elemento</string>
+    <string name="player_offline_title">No se puede conectar con tu servidor</string>
+    <string name="player_try_again">Volver a intentar</string>
+    <string name="player_play_original">Reproducir el original</string>
+    <string name="player_lower_quality">Bajar la calidad</string>
+
+    <string name="player_close">Cerrar</string>
+    <string name="player_sheet_back">Volver a los ajustes</string>
+    <string name="player_subtitle_style">Estilo de subtítulos</string>
+    <string name="player_details">Detalles de reproducción</string>
+    <string name="player_size">Tamaño</string>
+    <string name="player_background">Fondo</string>
+    <string name="player_size_small">Pequeño</string>
+    <string name="player_size_normal">Normal</string>
+    <string name="player_size_large">Grande</string>
+    <string name="player_size_huge">Muy grande</string>
+    <string name="player_background_none">Ninguno</string>
+    <string name="player_background_box">Recuadro oscuro</string>
+    <string name="player_none">Ninguno</string>
+    <string name="player_default">Predeterminado</string>
+    <string name="player_details_device">Este dispositivo</string>
+    <string name="player_details_decoder">Decodificador</string>
+    <string name="player_details_hardware">%1$s (hardware)</string>
+    <string name="player_details_software">%1$s (software)</string>
+    <string name="player_details_picture">Imagen</string>
+    <string name="player_details_frame_rate">%1$s fps</string>
+    <string name="player_details_display">Pantalla</string>
+    <string name="player_details_dropped">Fotogramas perdidos</string>
+    <string name="player_details_dropped_of">%1$d de %2$d</string>
+    <string name="player_details_audio_out">Salida de audio</string>
+    <plurals name="player_details_channels">
+        <item quantity="one">%1$d canal</item>
+        <item quantity="many">%1$d canales</item>
+        <item quantity="other">%1$d canales</item>
+    </plurals>
+    <string name="player_details_passthrough">%1$s, enviado tal cual al receptor</string>
+    <string name="player_details_decoded">%1$s, decodificado aquí</string>
+    <string name="player_details_first_frame">Primer fotograma</string>
+    <string name="player_details_ms">%1$d ms</string>
+</resources>

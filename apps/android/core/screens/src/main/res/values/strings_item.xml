@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The words an item page is made with (ItemPages), on phones and TVs. -->
+<resources>
+    <!-- What an extra is, under its tile (the web's extras.types). -->
+    <string name="item_extra_trailer">Trailer</string>
+    <string name="item_extra_behind_the_scenes">Behind the Scenes</string>
+    <string name="item_extra_deleted_scene">Deleted Scene</string>
+    <string name="item_extra_featurette">Featurette</string>
+    <string name="item_extra_interview">Interview</string>
+    <string name="item_extra_scene">Scene</string>
+    <string name="item_extra_short">Short</string>
+    <string name="item_extra_other">Extra</string>
+    <!-- %1$s: what the extra is, "Trailer"; %2$s: its length, "2m". -->
+    <string name="item_extra_caption" translatable="false">%1$s · %2$s</string>
+
+    <!-- A show's metadata line, and a season's. -->
+    <plurals name="item_season_count">
+        <item quantity="one">%1$,d season</item>
+        <item quantity="other">%1$,d seasons</item>
+    </plurals>
+    <plurals name="item_episode_count">
+        <item quantity="one">%1$,d episode</item>
+        <item quantity="other">%1$,d episodes</item>
+    </plurals>
+
+    <!-- Media info (the web's MediaInfo.tsx): a file among several, and a stream's details. -->
+    <string name="item_media_version">Version %1$d</string>
+    <!-- %1$s: frames a second, "23.98". -->
+    <string name="item_media_fps">%1$s fps</string>
+    <string name="item_media_bit_depth">%1$d-bit</string>
+    <string name="item_media_khz" translatable="false">%1$.1f kHz</string>
+    <string name="item_media_image_based">Image-based</string>
+    <string name="item_media_text">Text</string>
+    <string name="item_media_external">External</string>
+    <string name="item_media_forced">Forced</string>
+    <string name="item_media_default">Default</string>
+</resources>

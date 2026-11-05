@@ -37,11 +37,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -55,10 +54,11 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlaybackSpeeds
-import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.PlayerUiState
+import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.engine.EngineState
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -71,9 +71,9 @@ import app.pley.android.ui.tv.item.PanelRow
 import app.pley.android.ui.tv.kit.focusRow
 import app.pley.android.ui.tv.settings.fontLabel
 import app.pley.android.ui.tv.settings.raiseLabel
+import java.util.Locale
 import kotlin.math.abs
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 /**
  * The player's side panels (design spec §2.7): Subtitles (with Sync while
@@ -165,6 +165,7 @@ private fun ChoicePanel(
     val searching = stringResource(R.string.tv_player_searching)
     val adding = stringResource(R.string.tv_player_adding)
     val resources = LocalResources.current
+    val locale = shownLocale()
     // Each panel's own list: its current choice may be further down than shows.
     val list = remember(panel) { LazyListState() }
     LaunchedEffect(panel, ui.panel != null) {
@@ -232,7 +233,7 @@ private fun ChoicePanel(
             }
             PlayerPanel.Speed -> {
                 s.speedNote?.let { note -> item(key = "note") { PanelNote(note) } }
-                choices(PlaybackSpeeds.ALL.map { Row(PlaybackSpeeds.label(it), it == s.speed, null) }, focus) { i ->
+                choices(PlaybackSpeeds.ALL.map { Row(PlaybackSpeeds.label(it, locale), it == s.speed, null) }, focus) { i ->
                     controller.setSpeed(PlaybackSpeeds.ALL[i])
                     ui.closePanel()
                 }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_artist">Artista</string>
+    <string name="music_album">Álbum</string>
+    <string name="music_albums">Álbumes</string>
+    <string name="music_play">Reproducir</string>
+    <string name="music_pause">Pausar</string>
+    <string name="music_shuffle">Aleatorio</string>
+    <string name="music_more">Ver más</string>
+    <string name="music_less">Ver menos</string>
+    <string name="music_disc">Disco %1$d</string>
+    <string name="music_no_albums">No se encontraron álbumes.</string>
+    <string name="music_no_tracks">No se encontraron pistas</string>
+    <string name="music_nothing_to_play">No hay nada que reproducir: no tiene pistas.</string>
+    <string name="music_artist_not_found">Artista no encontrado</string>
+    <string name="music_album_not_found">Álbum no encontrado</string>
+    <string name="music_not_found_body">Puede que se haya eliminado o que este perfil no pueda verlo.</string>
+    <string name="music_artist_failed">No se pudo cargar este artista</string>
+    <string name="music_album_failed">No se pudo cargar este álbum</string>
+
+    <string name="music_now_playing">Reproduciendo ahora</string>
+    <string name="music_close_now_playing">Cerrar el reproductor</string>
+    <string name="music_queue">Cola</string>
+    <string name="music_next">Siguiente</string>
+    <string name="music_previous">Anterior</string>
+    <string name="music_shuffle_on">Reproducción aleatoria</string>
+    <string name="music_shuffle_off">Detener la reproducción aleatoria</string>
+    <string name="music_position">Posición en la pista</string>
+    <string name="music_loading">Cargando…</string>
+    <string name="music_nothing_playing">No se está reproduciendo nada</string>
+    <string name="music_nothing_playing_body">Reproduce un álbum o un artista y aparecerá aquí.</string>
+    <string name="music_error_offline">No se puede conectar con el servidor.</string>
+    <string name="music_error_signed_out">Vuelve a iniciar sesión para reproducir.</string>
+    <string name="music_error_stopped">El servidor detuvo la reproducción.</string>
+    <string name="music_error_unplayable">Esta pista no se puede reproducir.</string>
+</resources>

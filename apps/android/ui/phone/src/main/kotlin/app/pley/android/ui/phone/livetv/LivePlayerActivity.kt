@@ -25,6 +25,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.pley.android.common.AppLanguage
 import app.pley.android.player.CastFrom
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerWindows
@@ -57,6 +58,10 @@ class LivePlayerActivity : ComponentActivity() {
     private var attached: PlayerEngine? = null
     private var mediaSession: VideoMediaSession? = null
     private var screenOn = false
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

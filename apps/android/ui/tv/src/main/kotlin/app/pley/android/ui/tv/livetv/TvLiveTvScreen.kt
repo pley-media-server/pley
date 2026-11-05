@@ -69,7 +69,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -85,7 +84,8 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Glow
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -97,6 +97,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.TileCaption
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
@@ -152,9 +153,8 @@ internal fun TvLiveTvScreen(vm: LiveTvViewModel = viewModel(factory = LiveTvView
     val page by vm.state.collectAsStateWithLifecycle()
     val pages by vm.channels.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
-    val resources = LocalResources.current
     var details by remember { mutableStateOf<Pair<LiveChannel, LiveProgram?>?>(null) }
-    var notice by remember { mutableStateOf<String?>(null) }
+    var notice by remember { mutableStateOf<UiText?>(null) }
     val categories = remember { FocusRequester() }
     val shownCategory = remember { FocusRequester() }
     val categoryList = rememberLazyListState()
@@ -188,7 +188,7 @@ internal fun TvLiveTvScreen(vm: LiveTvViewModel = viewModel(factory = LiveTvView
     LaunchedEffect(vm) {
         vm.events.collect { event ->
             when (event) {
-                is LiveTvEvent.Failed -> notice = resources.getString(R.string.tv_livetv_favorite_failed, sentenceOf(event.error))
+                is LiveTvEvent.Failed -> notice = UiText.res(R.string.tv_livetv_favorite_failed, errorSentence(event.error))
             }
         }
     }
@@ -327,7 +327,7 @@ internal fun TvLiveTvScreen(vm: LiveTvViewModel = viewModel(factory = LiveTvView
                 notice = null
             }
             BasicText(
-                text,
+                text.asString(),
                 style = PleyType.Tv.Body.copy(color = PleyColors.Fg),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -571,7 +571,7 @@ private fun CategoryRow(icon: PleyIcon?, name: String, count: Int?, selected: Bo
                 Spacer(Modifier.width(10.dp))
             }
             BasicText(name, style = PleyType.Tv.Label.copy(color = content), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            if (count != null) BasicText("%,d".format(count), style = PleyType.Tv.Caption.copy(color = content.copy(alpha = 0.7f)))
+            if (count != null) BasicText(formatCount(count), style = PleyType.Tv.Caption.copy(color = content.copy(alpha = 0.7f)))
         }
     }
 }
@@ -775,7 +775,7 @@ private fun ColumnScope.ProgramText(program: LiveProgram, origin: String, now: L
     }
     Spacer(Modifier.height(14.dp))
     BasicText(program.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-    val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
+    val episode = listOfNotNull(episodeOf(program), program.subtitle).joinToString(" · ")
     if (episode.isNotEmpty()) BasicText(episode, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
     Spacer(Modifier.height(8.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {

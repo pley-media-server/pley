@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shell_tab_home">Accueil</string>
+    <string name="shell_tab_libraries">Bibliothèques</string>
+    <string name="shell_tab_search">Rechercher</string>
+    <string name="shell_tab_playlists">Playlists</string>
+    <string name="shell_tab_me">Moi</string>
+
+    <string name="shell_offline">Pley est hors ligne</string>
+    <string name="kit_offline_title">Impossible de joindre votre serveur</string>
+    <string name="kit_offline_body">%1$s Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.</string>
+    <string name="shell_scope">Pley n’a pas été autorisé à faire cela : reconnectez-vous pour l’autoriser</string>
+    <string name="shell_scope_action">Se connecter</string>
+    <string name="shell_now_playing">Ouvrir la lecture en cours</string>
+
+    <string name="shell_placeholder_title">L’écran %1$s n’existe pas encore</string>
+    <string name="shell_placeholder_body">Voici l’application native, en cours de création. L’application que vous utilisez aujourd’hui est toujours sur l’écran d’accueil sous le nom Pley.</string>
+    <string name="shell_placeholder_next">Ouvrir un autre écran</string>
+    <string name="shell_placeholder_in">Continuer vers l’accueil</string>
+    <string name="shell_placeholder_kit">Afficher le kit du téléphone</string>
+    <string name="shell_placeholder_item">Élément %1$d</string>
+
+    <string name="kit_back">Retour</string>
+    <string name="kit_cancel">Annuler</string>
+    <string name="kit_retry">Réessayer</string>
+    <string name="kit_card_more">Plus d’actions</string>
+    <string name="kit_rating_label">Votre note</string>
+    <string name="kit_rating_none">Pas de note</string>
+    <plurals name="kit_rating_stars">
+        <item quantity="one">%1$s étoile</item>
+        <item quantity="many">%1$s d’étoiles</item>
+        <item quantity="other">%1$s étoiles</item>
+    </plurals>
+</resources>

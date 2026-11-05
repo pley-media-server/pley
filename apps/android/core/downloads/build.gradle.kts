@@ -21,4 +21,7 @@ dependencies {
     testImplementation(project(":core:testing"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver3)
+    // Why a download failed, in each language's words.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

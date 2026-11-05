@@ -208,7 +208,11 @@ internal class CachedWatchState(private val cache: ResourceCache) : WatchStateRe
  * My List, changed at once in the list, Home's My List and the item's
  * page, and put back when the server refuses; then asked again.
  */
-internal class CachedWatchlist(private val cache: ResourceCache) : WatchlistRepository {
+internal class CachedWatchlist(
+    private val cache: ResourceCache,
+    /** What Home's My List is called until the server titles it ([DataEnvironment.myListTitle]). */
+    private val myListTitle: () -> String,
+) : WatchlistRepository {
     private val resource = Resource(SnapshotKeys.WATCHLIST, ItemList.serializer()) { api, _ -> api.watchlist() }
 
     override fun watchlist(): Flow<Loadable<List<ItemSummary>>> = cache.observe(resource).map { it.map(ItemList::items) }
@@ -231,7 +235,9 @@ internal class CachedWatchlist(private val cache: ResourceCache) : WatchlistRepo
             }
         }
         // Adding something not held anywhere: the row comes with the answer asked for after.
-        val inHome = cache.patchKey(SnapshotKeys.HOME) { value -> if (inList && item == null) null else ItemPatch.myList(value as Hubs, itemId, item) }
+        val inHome = cache.patchKey(SnapshotKeys.HOME) { value ->
+            if (inList && item == null) null else ItemPatch.myList(value as Hubs, itemId, item, myListTitle())
+        }
         val patched = ResourceCache.Patched(
             inPages.keys + listed.keys + inHome.keys,
             listOf(inPages::rollback, listed::rollback, inHome::rollback),

@@ -43,6 +43,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
@@ -64,6 +65,7 @@ import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.fullWidth
+import app.pley.android.ui.phone.library.joined
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -138,8 +140,9 @@ private fun ArtistContent(
 ) {
     val metrics = LocalPhoneMetrics.current
     val gap = PleyPhone.TileGap
-    val albums = remember(page) {
-        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin).copy(subtitle = it.year?.toString().orEmpty()) }
+    val words = formatWords()
+    val albums = remember(page, words) {
+        page.albums.map { ArtworkTileModel.of(it, TileKind.Square, page.origin, words).copy(subtitle = it.year?.toString().orEmpty()) }
     }
     LazyVerticalGrid(
         columns = remember(gap) { FittedCells(TileKind.Square, gap) },
@@ -156,7 +159,7 @@ private fun ArtistContent(
                 round = true,
                 kind = stringResource(R.string.music_artist),
                 title = page.title,
-                lines = listOf(page.counts, page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() },
+                lines = listOf(page.countTexts.joined(LocalResources.current), page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() },
                 busy = busy,
                 onPlay = onPlay,
                 onShuffle = onShuffle,

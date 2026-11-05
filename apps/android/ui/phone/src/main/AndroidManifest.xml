@@ -22,13 +22,13 @@
     <application>
         <!--
           The phone and tablet player: it keeps playing through rotation,
-          folding, a keyboard or a dark-mode change, and shrinks into
-          picture in picture. Phones turn it to landscape in code; tablets
-          stay as they are held.
+          folding, a keyboard, a dark-mode change or another language, and
+          shrinks into picture in picture. Phones turn it to landscape in
+          code; tablets stay as they are held.
         -->
         <activity
             android:name=".player.PhonePlayerActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|locale|layoutDirection"
             android:exported="false"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
@@ -40,7 +40,7 @@
         -->
         <activity
             android:name=".livetv.LivePlayerActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|locale|layoutDirection"
             android:exported="false"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="false"

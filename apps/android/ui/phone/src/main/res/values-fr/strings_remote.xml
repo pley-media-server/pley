@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_playing_on">Lecture sur %1$s</string>
+    <plurals name="remote_playing_on_devices">
+        <item quantity="one">Lecture sur %1$d appareil</item>
+        <item quantity="many">Lecture sur %1$d d’appareils</item>
+        <item quantity="other">Lecture sur %1$d appareils</item>
+    </plurals>
+    <string name="remote_open">Ouvrir la télécommande</string>
+    <string name="remote_title">Vos appareils</string>
+    <string name="remote_unknown_device">Appareil inconnu</string>
+    <string name="remote_live_tv">TV en direct</string>
+
+    <string name="remote_ready">Prêt pour la lecture</string>
+    <string name="remote_nothing_playing">Aucune lecture en cours</string>
+    <string name="remote_idle_hint">Envoyez-y quelque chose avec Lire sur…</string>
+    <string name="remote_open_device">Afficher ses commandes</string>
+    <string name="remote_back_to_devices">Retour à vos appareils</string>
+
+    <string name="remote_play">Lire sur %1$s</string>
+    <string name="remote_pause">Mettre en pause sur %1$s</string>
+    <string name="remote_previous">Précédent sur %1$s</string>
+    <string name="remote_next">Suivant sur %1$s</string>
+    <string name="remote_channel">Chaîne</string>
+    <string name="remote_previous_channel">Chaîne précédente sur %1$s</string>
+    <string name="remote_next_channel">Chaîne suivante sur %1$s</string>
+    <string name="remote_back">Reculer de 10 secondes sur %1$s</string>
+    <string name="remote_forward">Avancer de 30 secondes sur %1$s</string>
+    <string name="remote_seek">Position de lecture sur %1$s</string>
+    <string name="remote_progress">Progression sur %1$s</string>
+    <string name="remote_stop">Arrêter</string>
+    <string name="remote_stop_on">Arrêter sur %1$s</string>
+    <string name="remote_stop_confirm">Arrêter la lecture sur %1$s ?</string>
+    <string name="remote_waiting">En attente de %1$s</string>
+    <string name="remote_position">%1$s sur %2$s</string>
+
+    <string name="remote_audio">Audio</string>
+    <string name="remote_subtitles">Sous-titres</string>
+    <string name="remote_quality">Qualité</string>
+    <string name="remote_subtitles_off">Désactivés</string>
+    <string name="remote_audio_on">Audio sur %1$s</string>
+    <string name="remote_subtitles_on">Sous-titres sur %1$s</string>
+    <string name="remote_quality_on">Qualité sur %1$s</string>
+
+    <string name="remote_live_next">À suivre : %1$s</string>
+
+    <string name="remote_no_answer">%1$s n’a pas répondu.</string>
+    <string name="remote_gone">%1$s ne lit plus rien.</string>
+    <string name="remote_cant">%1$s ne peut pas faire ça.</string>
+    <string name="remote_too_many">Trop de demandes à la fois : réessayez dans un instant.</string>
+
+    <string name="play_on">Lire sur…</string>
+    <string name="play_on_live">Regarder sur…</string>
+    <string name="play_on_shuffle">Aléatoire sur…</string>
+    <string name="play_on_shuffle_switch">Aléatoire</string>
+    <string name="play_on_sent">Lecture sur %1$s</string>
+    <string name="play_on_gone">%1$s n’est plus connecté.</string>
+    <string name="play_on_cant">%1$s ne peut pas lire ça.</string>
+</resources>

@@ -4,6 +4,7 @@ package app.pley.android.screens.collection
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.pley.android.common.UiText
 import app.pley.android.data.CollectionsRepository
 import app.pley.android.data.LibrariesRepository
 import app.pley.android.data.Loadable
@@ -19,6 +20,7 @@ import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.SmartFilter
@@ -83,7 +85,7 @@ data class CollectionPage<T : Any>(
     val libraryName: String?,
     val kind: LibraryKind?,
     /** What it holds and in which order, in words: its filter's ("Genre: Comedy", "Newest first"), else its order ("By release date"). */
-    val notes: List<String>,
+    val noteTexts: List<UiText>,
     /** The server's addresses for its pictures, made absolute by the interface ([origin]). */
     val posterUrl: String?,
     val backdropUrl: String?,
@@ -177,8 +179,8 @@ class CollectionViewModel<T : Any>(
     private fun page(detail: CollectionDetail, libraryName: String?, kind: LibraryKind?, origin: String): CollectionPage<T> {
         details = detail
         val movies = detail.items.any { it.kind == ItemKind.Movie } || (detail.items.isEmpty() && kind != LibraryKind.Shows)
-        val notes = detail.smartFilter?.takeIf { it.isNotEmpty() }?.let(SmartFilter::describe)
-            ?: listOfNotNull(sortNote(detail.sort))
+        val filter = detail.smartFilter?.takeIf { it.isNotEmpty() }
+        val noteTexts = filter?.let(SmartFilter::words) ?: listOfNotNull(sortNoteText(detail.sort))
         return CollectionPage(
             id = detail.id,
             title = detail.title,
@@ -189,7 +191,7 @@ class CollectionViewModel<T : Any>(
             libraryId = detail.libraryId,
             libraryName = libraryName,
             kind = kind,
-            notes = notes,
+            noteTexts = noteTexts,
             posterUrl = detail.posterUrl,
             backdropUrl = detail.backdropUrl,
             origin = origin,
@@ -200,11 +202,11 @@ class CollectionViewModel<T : Any>(
     }
 
     companion object {
-        /** The web's words for a collection's order. */
-        fun sortNote(sort: CollectionSort): String? = when (sort) {
-            CollectionSort.Release -> "By release date"
-            CollectionSort.Title -> "By title"
-            CollectionSort.Custom -> "Custom order"
+        /** The web's words for a collection's order: "By release date". */
+        fun sortNoteText(sort: CollectionSort): UiText? = when (sort) {
+            CollectionSort.Release -> UiText.res(R.string.collection_order_release)
+            CollectionSort.Title -> UiText.res(R.string.collection_order_title)
+            CollectionSort.Custom -> UiText.res(R.string.collection_order_custom)
             CollectionSort.Unknown -> null
         }
     }

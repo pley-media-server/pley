@@ -7,45 +7,47 @@ import java.util.Locale
 
 /*
  * Titles, counts and episode numbers, as apps/web/src/lib/format.ts makes
- * them, plus the spoken descriptions screen readers get for tiles.
+ * them, plus the spoken descriptions screen readers get for tiles. Each
+ * takes its words last, English when given none.
  */
 
-/** "1 movie", "0 movies", "12,345 movies", "3 children": the count in [locale]'s digits. */
-fun pluralize(n: Int, one: String, many: String = "${one}s", locale: Locale = Locale.getDefault()): String =
-    "${NumberFormat.getIntegerInstance(locale).format(n)} ${if (n == 1) one else many}"
-
 /** "S1 · E3", "E3", or "" with neither number. */
-fun episodeLabel(seasonNumber: Int?, episodeNumber: Int?): String =
-    listOfNotNull(seasonNumber?.let { "S$it" }, episodeNumber?.let { "E$it" }).joinToString(" · ")
+fun episodeLabel(seasonNumber: Int?, episodeNumber: Int?, words: FormatWords = FormatWords.English): String = when {
+    seasonNumber != null && episodeNumber != null -> words.seasonEpisode(seasonNumber, episodeNumber)
+    seasonNumber != null -> words.seasonShort(seasonNumber)
+    episodeNumber != null -> words.episodeShort(episodeNumber)
+    else -> ""
+}
 
 /** [episodeLabel] of an episode: its season is [ItemSummary.parentIndex]. */
-fun episodeLabel(item: ItemSummary): String = episodeLabel(item.parentIndex, item.index)
+fun episodeLabel(item: ItemSummary, words: FormatWords = FormatWords.English): String =
+    episodeLabel(item.parentIndex, item.index, words)
 
 /** A season's own title, else "Specials" for season 0, else "Season 2". */
-fun seasonTitle(title: String?, index: Int?): String = when {
+fun seasonTitle(title: String?, index: Int?, words: FormatWords = FormatWords.English): String = when {
     !title.isNullOrEmpty() -> title
-    index == 0 -> "Specials"
-    index != null -> "Season $index"
-    else -> "Season"
+    index == 0 -> words.specials
+    index != null -> words.season(index)
+    else -> words.seasonUnnumbered
 }
 
 /** "Season 2 · Episode 5", for the episode lines of item pages; the parts that are known. */
-fun episodeLongLabel(seasonNumber: Int?, episodeNumber: Int?): String = listOfNotNull(
-    seasonNumber?.let { if (it == 0) "Specials" else "Season $it" },
-    episodeNumber?.let { "Episode $it" },
+fun episodeLongLabel(seasonNumber: Int?, episodeNumber: Int?, words: FormatWords = FormatWords.English): String = listOfNotNull(
+    seasonNumber?.let { if (it == 0) words.specials else words.season(it) },
+    episodeNumber?.let { words.episode(it) },
 ).joinToString(" · ")
 
-/** The short line under a card, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"… */
-fun cardSubtitle(item: ItemSummary, locale: Locale = Locale.getDefault()): String = when (item.kind) {
+/** The short line under a card, by kind, in [words]: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"…; its counts in [locale]'s digits. */
+fun cardSubtitle(item: ItemSummary, words: FormatWords, locale: Locale = words.locale): String = when (item.kind) {
     ItemKind.Movie -> item.year?.toString().orEmpty()
     ItemKind.Show -> when {
-        item.childCount != null && item.childCount > 0 -> pluralize(item.childCount, "season", locale = locale)
-        item.leafCount != null -> pluralize(item.leafCount, "episode", locale = locale)
+        item.childCount != null && item.childCount > 0 -> formatCount(Counted.Seasons, item.childCount, words, locale)
+        item.leafCount != null -> formatCount(Counted.Episodes, item.leafCount, words, locale)
         else -> item.year?.toString().orEmpty()
     }
-    ItemKind.Season -> item.leafCount?.let { pluralize(it, "episode", locale = locale) }.orEmpty()
-    ItemKind.Episode -> episodeLabel(item)
-    ItemKind.Artist -> item.childCount?.let { pluralize(it, "album", locale = locale) }.orEmpty()
+    ItemKind.Season -> item.leafCount?.let { formatCount(Counted.Episodes, it, words, locale) }.orEmpty()
+    ItemKind.Episode -> episodeLabel(item, words)
+    ItemKind.Artist -> item.childCount?.let { formatCount(Counted.Albums, it, words, locale) }.orEmpty()
     ItemKind.Album -> listOfNotNull(item.parentTitle?.takeIf { it.isNotEmpty() }, item.year?.toString()).joinToString(" · ")
     ItemKind.Track -> listOfNotNull(
         item.grandparentTitle?.takeIf { it.isNotEmpty() },
@@ -54,11 +56,15 @@ fun cardSubtitle(item: ItemSummary, locale: Locale = Locale.getDefault()): Strin
     else -> ""
 }
 
+/** "3 seasons", "12,345 episodes": [n] of [what] in [words], the number in [locale]'s digits. */
+fun formatCount(what: Counted, n: Int, words: FormatWords, locale: Locale = words.locale): String =
+    words.count(what, n, NumberFormat.getIntegerInstance(locale).format(n))
+
 /** A title with its context: "The Office — S2 · E3 — Office Olympics", "The Office — Season 2", "Heat (1995)". */
-fun fullTitle(item: ItemSummary): String = when (item.kind) {
-    ItemKind.Episode -> listOf(item.grandparentTitle.orEmpty(), episodeLabel(item), item.title)
+fun fullTitle(item: ItemSummary, words: FormatWords = FormatWords.English): String = when (item.kind) {
+    ItemKind.Episode -> listOf(item.grandparentTitle.orEmpty(), episodeLabel(item, words), item.title)
         .filter { it.isNotEmpty() }.joinToString(" — ")
-    ItemKind.Season -> listOf(item.parentTitle.orEmpty(), seasonTitle(item.title, item.index))
+    ItemKind.Season -> listOf(item.parentTitle.orEmpty(), seasonTitle(item.title, item.index, words))
         .filter { it.isNotEmpty() }.joinToString(" — ")
     ItemKind.Track -> listOf(item.title, item.grandparentTitle.orEmpty()).filter { it.isNotEmpty() }.joinToString(" — ")
     else -> if (item.year != null) "${item.title} (${item.year})" else item.title
@@ -90,22 +96,23 @@ fun isInProgress(item: ItemSummary): Boolean {
 
 /**
  * What a screen reader says for a tile: the title, then what places it,
- * then its state. "Glasshouse, Season 2 Episode 5, 26 minutes left";
- * "Northern Lights, 2024, watched"; "Severance, 2 seasons, 6 unwatched".
+ * then its state, in [words], its counts in [locale]'s digits.
+ * "Glasshouse, Season 2 Episode 5, 26 minutes left"; "Northern Lights,
+ * 2024, watched"; "Severance, 2 seasons, 6 unwatched".
  */
-fun tileDescription(item: ItemSummary, locale: Locale = Locale.getDefault()): String {
+fun tileDescription(item: ItemSummary, words: FormatWords, locale: Locale = words.locale): String {
     val context = when (item.kind) {
         ItemKind.Episode -> listOfNotNull(
             item.grandparentTitle?.takeIf { it.isNotEmpty() && it != item.title },
-            episodeLongLabel(item.parentIndex, item.index).replace(" · ", " ").takeIf { it.isNotEmpty() },
+            episodeLongLabel(item.parentIndex, item.index, words).replace(" · ", " ").takeIf { it.isNotEmpty() },
         ).joinToString(", ")
-        else -> cardSubtitle(item, locale)
+        else -> cardSubtitle(item, words, locale)
     }
     val unwatched = unwatchedCount(item)
     val state = when {
-        isInProgress(item) -> spokenTimeLeft(item.userState.positionMs, item.durationMs)
-        item.userState.watched -> "watched"
-        (item.kind == ItemKind.Show || item.kind == ItemKind.Season) && unwatched > 0 -> "$unwatched unwatched"
+        isInProgress(item) -> spokenTimeLeft(item.userState.positionMs, item.durationMs, words)
+        item.userState.watched -> words.watched
+        (item.kind == ItemKind.Show || item.kind == ItemKind.Season) && unwatched > 0 -> words.unwatched(unwatched)
         else -> ""
     }
     return listOf(item.title, context, state).filter { it.isNotEmpty() }.joinToString(", ")

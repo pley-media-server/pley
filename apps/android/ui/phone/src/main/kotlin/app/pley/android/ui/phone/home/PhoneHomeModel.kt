@@ -1,6 +1,7 @@
 package app.pley.android.ui.phone.home
 
 import androidx.compose.runtime.Immutable
+import app.pley.android.common.AppLanguage
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.ItemSummary
@@ -22,12 +23,13 @@ internal data class PhoneHomeModel(
     companion object {
         fun of(state: HomeState): PhoneHomeModel {
             if (state !is HomeState.Ready) return PhoneHomeModel(state)
+            val words = AppLanguage.formatWords()
             return PhoneHomeModel(
                 state,
                 state.rows.map { row ->
                     val kind = row.shape.tileKind
                     PhoneHomeRow(
-                        model = HubRowModel(row.key, row.title, kind, row.items.map { ArtworkTileModel.of(it, kind, state.origin) }),
+                        model = HubRowModel(row.key, row.title, kind, row.items.map { ArtworkTileModel.of(it, kind, state.origin, words) }),
                         items = row.items,
                         seeAll = row.seeAll,
                     )

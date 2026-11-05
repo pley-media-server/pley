@@ -58,11 +58,13 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.onboarding.LocalAccess
 import app.pley.android.screens.onboarding.ServerRow
@@ -70,7 +72,6 @@ import app.pley.android.screens.onboarding.ServersProblem
 import app.pley.android.screens.onboarding.ServersUiState
 import app.pley.android.screens.onboarding.ServersViewModel
 import app.pley.android.screens.onboarding.onboardingSource
-import app.pley.android.screens.onboarding.sentence
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.HeldEnds
@@ -383,11 +384,11 @@ private fun SweepBar() {
 /** What went wrong, in words. */
 @Composable
 internal fun problemText(problem: ServersProblem): String = when (problem) {
-    is ServersProblem.Unreachable -> stringResource(R.string.tv_onboarding_problem_unreachable, problem.address, problem.message)
+    is ServersProblem.Unreachable -> stringResource(R.string.tv_onboarding_problem_unreachable, problem.address, problem.reason.asString())
     is ServersProblem.NotPley -> stringResource(R.string.tv_onboarding_problem_not_pley, problem.address)
     is ServersProblem.Unencrypted -> stringResource(R.string.tv_onboarding_problem_unencrypted, problem.address)
     ServersProblem.BadAddress -> stringResource(R.string.tv_onboarding_problem_address)
-    is ServersProblem.Failed -> sentence(problem.message)
+    is ServersProblem.Failed -> UiText.Sentence(problem.text).asString()
 }
 
 private const val SWEEP_MS = 5_000

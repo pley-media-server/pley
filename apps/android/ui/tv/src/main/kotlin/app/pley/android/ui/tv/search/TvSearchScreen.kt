@@ -1,7 +1,5 @@
 package app.pley.android.ui.tv.search
 
-import app.pley.android.ui.tv.shell.failedTitle
-import app.pley.android.ui.tv.shell.failedBody
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -42,8 +40,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -51,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.AppLanguage
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -81,8 +80,8 @@ import app.pley.android.screens.search.SearchUiState
 import app.pley.android.screens.search.SearchViewModel
 import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.tv.R
-
 import app.pley.android.ui.tv.item.tileActions
+import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
@@ -98,11 +97,12 @@ import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
-import app.pley.android.ui.tv.kit.FocusMemory
-import app.pley.android.ui.tv.livetv.ChannelTileCard
 import app.pley.android.ui.tv.library.TvChip
 import app.pley.android.ui.tv.library.TvTiles
+import app.pley.android.ui.tv.livetv.ChannelTileCard
 import app.pley.android.ui.tv.shell.LocalTvNavigator
+import app.pley.android.ui.tv.shell.failedBody
+import app.pley.android.ui.tv.shell.failedTitle
 import kotlinx.coroutines.delay
 
 /**
@@ -119,9 +119,9 @@ import kotlinx.coroutines.delay
  */
 @Composable
 internal fun TvSearchScreen(key: PleyKey.Search) {
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
-        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(resources)))
+        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(context)))
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val tmdb by vm.tmdb.collectAsStateWithLifecycle()
@@ -158,7 +158,7 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
 internal fun tvSearchTiles(library: TvTiles): SearchTiles<ArtworkTileModel> {
     val items = object : TileFactory<ArtworkTileModel> by library {
         override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
-            TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin)
+            TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin, AppLanguage.formatWords())
             else -> library.item(item, look, origin)
         }
     }

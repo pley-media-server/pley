@@ -154,6 +154,9 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
 
     override suspend fun me(): Me = respond("me") { fixture("me/app_token.json") }
 
+    override suspend fun setLanguage(language: String?): Me =
+        respond("setLanguage", language) { fixture<Me>("me/app_token.json").copy(language = language) }
+
     override fun avatarUrl(userId: Long, version: String?): String = urls.avatarUrl(userId, version)
 
     override fun url(path: String, width: Int?): String = urls.url(path, width)

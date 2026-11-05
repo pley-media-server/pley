@@ -3,6 +3,7 @@
 package app.pley.android.player.session
 
 import app.pley.android.fixtures.FixtureIds
+import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
@@ -53,6 +54,7 @@ class ProtocolTest {
         assertEquals(0L, prepared.startMs)
         assertTrue(prepared.playWhenReady)
         assertEquals("Direct play", c.state.value.method)
+        assertEquals(PlaybackMethod.Direct, c.state.value.playbackMethod)
         assertTrue(c.state.value.title.startsWith("Sample 1080p"))
     }
 

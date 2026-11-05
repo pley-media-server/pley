@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="library_entry_movies">
+        <item quantity="one">%1$,d película</item>
+        <item quantity="many">%1$,d películas</item>
+        <item quantity="other">%1$,d películas</item>
+    </plurals>
+    <plurals name="library_entry_shows">
+        <item quantity="one">%1$,d serie</item>
+        <item quantity="many">%1$,d series</item>
+        <item quantity="other">%1$,d series</item>
+    </plurals>
+    <plurals name="library_entry_artists">
+        <item quantity="one">%1$,d artista</item>
+        <item quantity="many">%1$,d artistas</item>
+        <item quantity="other">%1$,d artistas</item>
+    </plurals>
+    <plurals name="library_entry_items">
+        <item quantity="one">%1$,d elemento</item>
+        <item quantity="many">%1$,d elementos</item>
+        <item quantity="other">%1$,d elementos</item>
+    </plurals>
+
+    <string name="library_filter_genre">Género: %1$s</string>
+    <string name="library_filter_label">Etiqueta: %1$s</string>
+    <string name="library_filter_studio">Estudio: %1$s</string>
+    <string name="library_filter_rated">Clasificación: %1$s</string>
+    <string name="library_filter_watched">Visto</string>
+    <string name="library_filter_unwatched">No visto</string>
+    <string name="library_filter_in_progress">En curso</string>
+    <string name="library_filter_not_in_progress">No en curso</string>
+    <string name="library_filter_from">Año: %1$s</string>
+    <string name="library_filter_after">Después de %1$s</string>
+    <string name="library_filter_before">Antes de %1$s</string>
+    <string name="library_filter_decade">Años %1$s</string>
+    <string name="library_filter_at_most">%1$s como máximo</string>
+    <string name="library_filter_other">%1$s: %2$s</string>
+    <string name="library_filter_any_hdr">Cualquier HDR</string>
+
+    <string name="library_filter_title_asc">Por título</string>
+    <string name="library_filter_title_desc">Por título, de la Z a la A</string>
+    <string name="library_filter_year_asc">Más antiguos primero</string>
+    <string name="library_filter_year_desc">Más recientes primero</string>
+    <string name="library_filter_release_asc">Estreno más antiguo primero</string>
+    <string name="library_filter_release_desc">Estreno más reciente primero</string>
+    <string name="library_filter_added_asc">Añadidos hace más tiempo primero</string>
+    <string name="library_filter_added_desc">Añadidos recientemente primero</string>
+    <string name="library_filter_rating_asc">Peor valorados primero</string>
+    <string name="library_filter_rating_desc">Mejor valorados primero</string>
+    <string name="library_filter_user_rating_asc">Tus peor valorados primero</string>
+    <string name="library_filter_user_rating_desc">Tus mejor valorados primero</string>
+    <string name="library_filter_played_asc">Reproducidos hace más tiempo primero</string>
+    <string name="library_filter_played_desc">Reproducidos recientemente primero</string>
+    <string name="library_filter_duration_asc">Más cortos primero</string>
+    <string name="library_filter_duration_desc">Más largos primero</string>
+    <string name="library_filter_plays_asc">Menos reproducidos primero</string>
+    <string name="library_filter_plays_desc">Más reproducidos primero</string>
+    <string name="library_filter_sorted_by">Ordenado por %1$s</string>
+
+    <string name="collection_order_release">Por fecha de estreno</string>
+    <string name="collection_order_title">Por título</string>
+    <string name="collection_order_custom">Orden personalizado</string>
+</resources>

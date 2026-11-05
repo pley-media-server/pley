@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.format.spokenDuration
 import app.pley.android.ui.phone.R
 import kotlinx.coroutines.flow.collectLatest
@@ -120,7 +121,8 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
     val name = stringResource(R.string.player_seek_bar)
     val second by remember(state) { derivedStateOf { state.playhead.longValue / 1000 } }
     val duration = state.durationMs
-    val spoken = stringResource(R.string.player_position_of, spokenDuration(second * 1000), spokenDuration(duration))
+    val words = formatWords()
+    val spoken = stringResource(R.string.player_position_of, spokenDuration(second * 1000, words), spokenDuration(duration, words))
     Layout(
         content = {
             Box(

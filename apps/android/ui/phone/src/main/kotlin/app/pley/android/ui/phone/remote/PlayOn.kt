@@ -45,13 +45,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
+import app.pley.android.common.resolve
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.ItemKind
@@ -284,7 +286,7 @@ internal fun PlayOnSheet(
                                     CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
                                     CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
                                     CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
-                                    CastRefusal.Offline, CastRefusal.Other -> sentenceOf(e)
+                                    CastRefusal.Offline, CastRefusal.Other -> errorSentence(e).resolve(resources)
                                 }
                             } finally {
                                 sending = null
@@ -380,7 +382,7 @@ private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onCl
             Text(name, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(
-                session?.let { lineOf(it, stringResource(R.string.remote_live_tv)) } ?: stringResource(R.string.remote_ready),
+                session?.let { lineOf(it, stringResource(R.string.remote_live_tv), formatWords()) } ?: stringResource(R.string.remote_ready),
                 style = MaterialTheme.typography.bodySmall,
                 color = PleyColors.Muted,
                 maxLines = 1,

@@ -66,6 +66,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.LibraryKind
@@ -258,7 +259,7 @@ private fun RowScope.KindAndName(entry: LibraryEntry) {
     Spacer(Modifier.width(16.dp))
     Column(Modifier.weight(1f)) {
         Text(entry.library.name, style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(entry.count, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 1)
+        Text(entry.countText.asString(), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 1)
     }
 }
 

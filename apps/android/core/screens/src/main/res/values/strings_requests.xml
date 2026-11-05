@@ -218,19 +218,23 @@
     <string name="requests_attention_none_body">Requests waiting for a decision, and those that couldn\'t be sent, show here.</string>
     <string name="requests_filtered_none">No requests match</string>
     <string name="requests_filtered_none_body">Try other filters.</string>
+    <!-- Why it was declined, in the words of whoever declined it. -->
+    <string name="requests_reason_quoted">“%1$s”</string>
     <plurals name="requests_watchers">
         <item quantity="one">%1$d person follows it</item>
         <item quantity="other">%1$d people follow it</item>
     </plurals>
     <!-- Managers: where it went. "Radarr · HD-1080p · /movies". -->
-    <string name="requests_sent_to_radarr">Radarr</string>
-    <string name="requests_sent_to_sonarr">Sonarr</string>
+    <string name="requests_sent_to_radarr" translatable="false">Radarr</string>
+    <string name="requests_sent_to_sonarr" translatable="false">Sonarr</string>
 
     <!-- Notices. -->
     <string name="requests_notice_ready">“%1$s” is ready to watch.</string>
     <!-- "Season 2 of “Severance” is ready to watch." -->
     <string name="requests_notice_season_ready">%1$s of “%2$s” is ready to watch.</string>
     <string name="requests_notice_seasons_ready">%1$s of “%2$s” are ready to watch.</string>
+    <!-- The specials alone. -->
+    <string name="requests_notice_specials_ready">Specials of “%1$s” are ready to watch.</string>
     <string name="requests_notice_approved">“%1$s” was approved.</string>
     <string name="requests_notice_declined_reason">“%1$s” was declined: “%2$s”.</string>
     <string name="requests_notice_declined">“%1$s” was declined.</string>

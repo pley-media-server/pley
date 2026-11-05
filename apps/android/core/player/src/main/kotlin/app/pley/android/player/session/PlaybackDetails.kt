@@ -14,7 +14,6 @@ import app.pley.android.model.format.resolutionLabel
 import app.pley.android.player.DetailRow
 import app.pley.android.player.PlaybackDetailsUi
 import app.pley.android.player.SubtitleDelivery
-import java.util.Locale
 
 /**
  * How a video plays, for the top of the player's menu
@@ -32,8 +31,6 @@ object PlaybackDetails {
         "h264_vulkan" to "Vulkan", "hevc_vulkan" to "Vulkan",
         "h264_v4l2m2m" to "V4L2",
     )
-
-    private val PIPELINE = mapOf("gpu" to "GPU", "hybrid" to "GPU and CPU", "cpu" to "CPU", "copy" to "copy")
 
     /** A video stream as "HEVC 4K Dolby Vision P8.1", "HEVC 4K Dolby Vision P7 FEL". */
     fun videoLabel(v: MediaStream?): String {
@@ -67,9 +64,9 @@ object PlaybackDetails {
     private val SIZE = Regex("""(\d+)×(\d+)""")
 
     /** The encoder and where it runs: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)". */
-    fun encoderLabel(t: TranscodeInfo): String {
+    fun encoderLabel(texts: PlayerTexts, t: TranscodeInfo): String {
         val name = t.encoder?.let { ENCODERS[it] ?: it }
-        val where = t.pipeline?.takeIf { it != "copy" }?.let { "(${PIPELINE[it] ?: it})" }
+        val where = t.pipeline?.takeIf { it != "copy" }?.let { "(${texts.pipeline(it)})" }
         return listOfNotNull(name, t.preset, where).joinToString(" ")
     }
 
@@ -112,23 +109,23 @@ object PlaybackDetails {
             videoIn
         }
         val audioRow = if (converting && transcode?.audio != StreamAction.Copy) "$audioIn → ${transcode?.audioOut ?: pending}" else audioIn
-        val bitrate = formatBitrate(file?.bitrate)
-        val bitrateRow = if (transcode?.bitrateOut != null && bitrate.isNotEmpty()) "$bitrate → ${formatBitrate(transcode.bitrateOut)}" else bitrate
+        val bitrate = formatBitrate(file?.bitrate, texts.format)
+        val bitrateRow = if (transcode?.bitrateOut != null && bitrate.isNotEmpty()) "$bitrate → ${formatBitrate(transcode.bitrateOut, texts.format)}" else bitrate
         val ahead = transcode?.let { ((it.transcodedMs - positionMs) / 1000).toInt().coerceAtLeast(0) } ?: 0
 
         val rows = buildList {
             if (video != null) add(DetailRow(texts.rowVideo, videoRow))
             if (audio != null) add(DetailRow(texts.rowAudio, audioRow))
             if (bitrateRow.isNotEmpty()) add(DetailRow(texts.rowBitrate, bitrateRow))
-            if (transcode?.video == StreamAction.Transcode && transcode.encoder != null) add(DetailRow(texts.rowEncoder, encoderLabel(transcode)))
+            if (transcode?.video == StreamAction.Transcode && transcode.encoder != null) add(DetailRow(texts.rowEncoder, encoderLabel(texts, transcode)))
             if (video != null) shownAs(texts, info, transcode)?.let { add(DetailRow(texts.rowHdr, it)) }
             if (transcode?.subtitleBurn == true) add(DetailRow(texts.rowSubtitles, texts.burnedIn))
-            transcode?.speed?.takeIf { it > 0 }?.let { add(DetailRow(texts.rowSpeed, texts.speed(String.format(Locale.ROOT, "%.1f", it), ahead))) }
+            transcode?.speed?.takeIf { it > 0 }?.let { add(DetailRow(texts.rowSpeed, texts.speed(it, ahead))) }
         }
         return PlaybackDetailsUi(
             method = texts.method(info),
             why = why,
-            pipeline = transcode?.pipeline?.takeIf { transcode.video == StreamAction.Transcode }?.let { PIPELINE[it] ?: it },
+            pipeline = transcode?.pipeline?.takeIf { transcode.video == StreamAction.Transcode }?.let(texts::pipeline),
             rows = rows,
             engine = engine,
             playbackMethod = info.method,

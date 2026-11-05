@@ -3,9 +3,11 @@ package app.pley.android.screens.onboarding
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import app.pley.android.auth.AuthException
+import app.pley.android.auth.NO_BROWSER
 import app.pley.android.auth.SignInState
 import app.pley.android.auth.TOO_OLD
 import app.pley.android.auth.UNENCRYPTED
+import app.pley.android.common.UiText
 import app.pley.android.screens.PleyKey
 import java.net.ConnectException
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import app.pley.android.auth.R as AuthR
 
 /**
  * A phone's sign-in in the browser: its states, its errors in the module's
@@ -112,7 +115,7 @@ class SignInViewModelTest {
         source.browserError = ConnectException("refused")
         vm.signIn(null, server)
         advanceUntilIdle()
-        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Unreachable, "nothing answers there"), vm.state.value)
+        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Unreachable, NOTHING_ANSWERS), vm.state.value)
     }
 
     @Test
@@ -120,9 +123,9 @@ class SignInViewModelTest {
         val vm = signIn()
         vm.signIn(null, server)
         advanceUntilIdle()
-        source.signInState.value = SignInState.Failed("you didn't allow the app")
+        source.signInState.value = SignInState.Failed(DENIED)
         advanceUntilIdle()
-        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Refused, "you didn't allow the app"), vm.state.value)
+        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Refused, DENIED), vm.state.value)
     }
 
     @Test
@@ -144,9 +147,9 @@ class SignInViewModelTest {
         val vm = signIn(saved)
         advanceUntilIdle()
         assertEquals(BrowserSignIn.Finishing, vm.state.value)
-        source.signInState.value = SignInState.Failed("you didn't allow the app")
+        source.signInState.value = SignInState.Failed(DENIED)
         advanceUntilIdle()
-        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Refused, "you didn't allow the app"), vm.state.value)
+        assertEquals(BrowserSignIn.Failed(server, SignInProblem.Refused, DENIED), vm.state.value)
     }
 
     @Test
@@ -174,10 +177,13 @@ class SignInViewModelTest {
     @Test
     fun withoutABrowserItSignsInWithACode() = runTest {
         val vm = signIn()
-        source.browserError = AuthException("there's no browser on this device to sign in with")
+        source.browserError = AuthException(NO_BROWSER)
         vm.signIn(null, server)
         advanceUntilIdle()
         assertEquals(BrowserSignIn.Idle, vm.state.value)
         assertEquals(OnboardingMove.Open(PleyKey.Link(server)), vm.navigation.first())
     }
 }
+
+/** What the sign-in module says when the person didn't allow the app. */
+private val DENIED = UiText.res(AuthR.string.auth_denied)

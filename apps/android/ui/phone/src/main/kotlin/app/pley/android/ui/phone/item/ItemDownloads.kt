@@ -37,12 +37,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.describe
+import app.pley.android.common.errorText
+import app.pley.android.common.resolve
 import app.pley.android.data.DownloadEntry
 import app.pley.android.data.DownloadState
 import app.pley.android.data.Downloads
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
@@ -99,7 +101,10 @@ internal fun rememberItemDownloads(): ItemDownloads? {
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                is DownloadMessage.Failed -> shell.toasts.show(resources.getString(R.string.downloads_failed_toast, describe(event.error)), error = true)
+                is DownloadMessage.Failed -> shell.toasts.show(
+                    resources.getString(R.string.downloads_failed_toast, errorText(event.error).resolve(resources)),
+                    error = true,
+                )
             }
         }
     }
@@ -133,7 +138,7 @@ internal fun DownloadButton(itemId: Long, title: String, modifier: Modifier = Mo
         DownloadState.Queued -> entry.converting?.let { stringResource(R.string.downloads_preparing, (it * 100).toInt()) }
             ?: stringResource(R.string.downloads_queued)
         DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
-        DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), formatBytes(entry.sizeBytes))
+        DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), formatBytes(entry.sizeBytes, formatWords()))
     }
     val description = downloadDescription(entry, title)
     val fraction = entry?.converting ?: if (entry?.state == DownloadState.Downloading) entry.fraction else 0f

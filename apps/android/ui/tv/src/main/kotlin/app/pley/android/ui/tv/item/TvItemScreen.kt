@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,16 +48,18 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
+import app.pley.android.common.resolve
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
-import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
@@ -76,11 +77,11 @@ import app.pley.android.screens.item.ItemViewModel
 import app.pley.android.screens.item.extraSubtitle
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.BackdropScrim
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
-import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.readOn
@@ -117,11 +118,10 @@ internal fun TvItemScreen(model: ItemViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
     val toasts = remember { TvToastState() }
-    val resources = LocalResources.current
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
-                ItemEvent.NothingToPlay -> toasts.show(resources.getString(R.string.tv_item_nothing_to_play))
+                ItemEvent.NothingToPlay -> toasts.show(UiText.res(R.string.tv_item_nothing_to_play))
                 is ItemEvent.Failed -> toasts.report(event.error)
             }
         }
@@ -317,8 +317,10 @@ private fun LazyListScope.rowsOf(
     val origin = page.origin
     if (page.extras.isNotEmpty()) {
         item(key = "extras", contentType = TileKind.Landscape) {
-            val tiles = remember(page.extras, origin) {
-                page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin).copy(subtitle = extraSubtitle(it)) }
+            val resources = LocalResources.current
+            val words = formatWords()
+            val tiles = remember(page.extras, origin, resources, words) {
+                page.extras.map { ArtworkTileModel.of(it, TileKind.Landscape, origin, words).copy(subtitle = extraSubtitle(it, words).resolve(resources)) }
             }
             val byId = remember(page.extras) { page.extras.associateBy { it.id } }
             val group = sections.of("extras")
@@ -363,7 +365,8 @@ private fun LazyListScope.rowsOf(
     }
     if (page.related.isNotEmpty()) {
         item(key = "related", contentType = TileKind.Poster) {
-            val tiles = remember(page.related, origin) { page.related.map { ArtworkTileModel.of(it, TileKind.Poster, origin) } }
+            val words = formatWords()
+            val tiles = remember(page.related, origin, words) { page.related.map { ArtworkTileModel.of(it, TileKind.Poster, origin, words) } }
             val byId = remember(page.related) { page.related.associateBy { it.id } }
             val group = sections.of("related")
             Box(Modifier.focusRequester(group).onFocusChanged { if (it.hasFocus) focus.area = Area.Rows }) {

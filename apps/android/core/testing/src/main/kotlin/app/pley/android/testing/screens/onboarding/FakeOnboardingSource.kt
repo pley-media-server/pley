@@ -11,6 +11,7 @@ import app.pley.android.auth.SignInState
 import app.pley.android.common.FoundServer
 import app.pley.android.common.SavedServer
 import app.pley.android.common.Servers
+import app.pley.android.common.UiText
 import app.pley.android.data.ServersRepository
 import app.pley.android.data.Session
 import app.pley.android.data.SessionRepository
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import app.pley.android.common.R as CommonR
 
 /**
  * Getting in, as a test drives it: servers saved and found, addresses that
@@ -91,12 +93,12 @@ class FakeOnboardingSource(
         }
     }
 
-    /** What each typed text or address answers; anything else is unreachable. */
+    /** What each typed text or address answers; anything else is unreachable ([NOTHING_ANSWERS]). */
     val answers = mutableMapOf<String, ProbeResult>()
     val probed = CopyOnWriteArrayList<String>()
     override val probe: ServerProbe = ServerProbe { input ->
         probed += input
-        answers[input] ?: ProbeResult.Unreachable("nothing answers there")
+        answers[input] ?: ProbeResult.Unreachable(NOTHING_ANSWERS)
     }
 
     /** Pley at [url], named [name], requiring two-step sign-in or not. */
@@ -263,3 +265,6 @@ class FakeOnboardingSource(
         )
     }
 }
+
+/** What the probe says of an address nothing answers at. */
+val NOTHING_ANSWERS: UiText = UiText.res(CommonR.string.error_nothing_answers)

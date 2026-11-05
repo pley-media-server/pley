@@ -3,7 +3,7 @@ package app.pley.android.player.session
 import android.graphics.Bitmap
 import androidx.media3.common.text.Cue
 import app.pley.android.caps.CapsSnapshot
-import app.pley.android.common.describe
+import app.pley.android.common.errorText
 import app.pley.android.data.LocalFile
 import app.pley.android.model.AddSubtitle
 import app.pley.android.model.Control
@@ -436,7 +436,7 @@ class SessionPlaybackController(
             it.copy(
                 itemId = detail.id,
                 title = if (episode) detail.grandparentTitle ?: detail.title else if (detail.year != null) "${detail.title} (${detail.year})" else detail.title,
-                subtitle = if (episode) listOf(episodeLabel(detail.parentIndex, detail.index), detail.title).filter { s -> s.isNotEmpty() }.joinToString(" · ") else null,
+                subtitle = if (episode) listOf(episodeLabel(detail.parentIndex, detail.index, texts.format), detail.title).filter { s -> s.isNotEmpty() }.joinToString(" · ") else null,
                 durationMs = chosen?.durationMs ?: detail.durationMs ?: 0,
                 markers = markers,
                 chapters = chosen?.chapters.orEmpty().map { c -> ChapterMark(c.title, c.startMs, c.endMs, c.thumbUrl?.let { u -> env.api.url(u) }) },
@@ -707,6 +707,7 @@ class SessionPlaybackController(
         ui.update {
             it.copy(
                 method = texts.method(info),
+                playbackMethod = info.method,
                 note = noteNow(),
                 canPlayOriginal = canPlayOriginal(),
                 durationMs = info.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
@@ -779,6 +780,7 @@ class SessionPlaybackController(
         ui.update {
             it.copy(
                 method = if (env.drive) texts.method(info) else texts.downloaded,
+                playbackMethod = info.method,
                 note = null,
                 canPlayOriginal = false,
                 durationMs = info.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
@@ -1764,15 +1766,15 @@ class SessionPlaybackController(
     /** A result as the list shows it: the release, then its language, whether it fits this very file, and downloads. */
     private fun foundSubtitle(r: SubtitleResult): FoundSubtitle = FoundSubtitle(
         id = r.id,
-        label = r.name.ifBlank { languageName(r.language) ?: r.id },
-        hint = texts.foundHint(languageName(r.language), r.matched == "hash", r.hearingImpaired, r.downloads).ifEmpty { null },
+        label = r.name.ifBlank { languageName(r.language, texts.format) ?: r.id },
+        hint = texts.foundHint(languageName(r.language, texts.format), r.matched == "hash", r.hearingImpaired, r.downloads).ifEmpty { null },
     )
 
     /** Why searching or adding failed, in a sentence: an older server has no search at all. */
     private fun searchFailure(e: Exception): String = when {
         e is ApiException && (e.status == 404 || e.status == 405) -> texts.searchUnsupported
         e is ApiException && e.status == 503 -> texts.searchNotSetUp
-        else -> texts.searchFailed(describe(e))
+        else -> texts.searchFailed(errorText(e))
     }
 
     override fun setSleep(choice: SleepChoice) {
@@ -2001,7 +2003,7 @@ class SessionPlaybackController(
         val card = UpNextUi(
             itemId = found.id,
             title = found.title,
-            heading = texts.upNext(NextUp.labelOf(found)),
+            heading = texts.upNext(NextUp.labelOf(found, texts.format)),
             // A download's picture is a file here.
             imageUrl = (found.thumbUrl ?: found.backdropUrl)?.let { if (it.startsWith("file:")) it else env.api.url(it, UP_NEXT_IMAGE_WIDTH) },
             secondsLeft = null,
@@ -2097,13 +2099,13 @@ class SessionPlaybackController(
         val chosenFile = file
         val streaming = session?.info?.hls ?: false
         val info = session?.info
-        val audioChoices = PlaybackPlan.audioStreams(chosenFile).map { TrackChoice(it.index.toLong(), streamLabel(it), it.index == audio?.index) }
+        val audioChoices = PlaybackPlan.audioStreams(chosenFile).map { TrackChoice(it.index.toLong(), streamLabel(it, texts.format), it.index == audio?.index) }
         val subs = PlaybackPlan.subtitleStreams(chosenFile)
         val subtitleChoices = if (subs.isEmpty()) {
             emptyList()
         } else {
             listOf(TrackChoice(null, texts.subtitlesOff, subtitle == null)) +
-                subs.map { TrackChoice(it.index.toLong(), streamLabel(it), it.index == subtitle?.index, burnIn = streaming && PlaybackPlan.isImage(it) && !sideload) }
+                subs.map { TrackChoice(it.index.toLong(), streamLabel(it, texts.format), it.index == subtitle?.index, burnIn = streaming && PlaybackPlan.isImage(it) && !sideload) }
         }
         val sub = subtitle
         // Text moves always; pictures only when drawn here from the server's .mks. On a drive, the
@@ -2115,7 +2117,7 @@ class SessionPlaybackController(
         val auto = serverQuality(info)
         val playing = label(auto ?: quality)
         val fileHint = chosenFile?.let { f ->
-            listOfNotNull(resolutionLabel(f.width, f.height), formatBitrate(f.bitrate).ifEmpty { null }).joinToString(" · ").ifEmpty { null }
+            listOfNotNull(resolutionLabel(f.width, f.height), formatBitrate(f.bitrate, texts.format).ifEmpty { null }).joinToString(" · ").ifEmpty { null }
         }
         // A download plays as it is: there is nothing to convert, and the server may be away.
         val downloaded = info?.url?.startsWith("file:") == true
@@ -2194,9 +2196,9 @@ class SessionPlaybackController(
         // A download that didn't play here as it is went to the server, which is out of reach.
         val leftDownload = recovery.fallbackMode != null && downloaded
         if (error is OfflineException && !leftDownload) {
-            return fail(if (error.blocked) describe(error) else texts.unreachable(describe(error)), canRetry = true, offline = true)
+            return fail(if (error.blocked) texts.words(errorText(error)) else texts.unreachable(errorText(error)), canRetry = true, offline = true)
         }
-        val message = if (leftDownload && error is OfflineException) texts.downloadNeedsServer else describe(error)
+        val message = if (leftDownload && error is OfflineException) texts.downloadNeedsServer else texts.words(errorText(error))
         val canRetry = !(error is ApiException && (error.status == 403 || error.status == 404 || error.signedOut))
         fail(message, canRetry)
     }

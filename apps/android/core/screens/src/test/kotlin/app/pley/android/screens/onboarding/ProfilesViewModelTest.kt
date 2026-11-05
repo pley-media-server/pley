@@ -6,8 +6,10 @@ import app.pley.android.auth.OAuthError
 import app.pley.android.auth.PinCheck
 import app.pley.android.auth.Profile
 import app.pley.android.auth.TokenException
+import app.pley.android.common.UiText
 import app.pley.android.model.Me
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.inEnglish
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -23,6 +25,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import app.pley.android.auth.R as AuthR
 
 /**
  * "Who's watching?" and its PIN pad: the household (saved, then fresh),
@@ -30,6 +35,7 @@ import org.junit.Test
  * (never retried), and a TV's cold start as a PIN profile.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class ProfilesViewModelTest {
     private val server = FakeOnboardingSource.SERVER
     private val source = FakeOnboardingSource().apply {
@@ -116,7 +122,7 @@ class ProfilesViewModelTest {
         vm.submit()
         advanceUntilIdle()
         val pad = vm.state.value.step as ProfilesStep.Pin
-        assertEquals("Wrong PIN.", pad.error)
+        assertEquals("Wrong PIN.", pad.error.inEnglish())
         assertEquals(0, pad.digits)
         assertEquals(1, pad.shakes)
         assertFalse(pad.lockedOut)
@@ -138,7 +144,7 @@ class ProfilesViewModelTest {
         vm.type("1234")
         vm.submit()
         advanceUntilIdle()
-        assertEquals("Too many tries: try again in 5 minutes.", (vm.state.value.step as ProfilesStep.Pin).error)
+        assertEquals("Too many tries: try again in 5 minutes.", (vm.state.value.step as ProfilesStep.Pin).error.inEnglish())
     }
 
     @Test
@@ -152,7 +158,7 @@ class ProfilesViewModelTest {
         advanceUntilIdle()
         val pad = vm.state.value.step as ProfilesStep.Pin
         assertTrue(pad.lockedOut)
-        assertTrue(pad.error!!.startsWith("This profile's PIN is locked"))
+        assertTrue(pad.error.inEnglish()!!.startsWith("This profile's PIN is locked"))
         // The keys do nothing now.
         vm.type("1234")
         assertEquals(0, (vm.state.value.step as ProfilesStep.Pin).digits)
@@ -193,7 +199,7 @@ class ProfilesViewModelTest {
         vm.pick(4)
         val pad = vm.state.value.step as ProfilesStep.Pin
         assertTrue(pad.lockedOut)
-        assertEquals("This profile can't be used from the app.", pad.error)
+        assertEquals("This profile can't be used from the app.", pad.error.inEnglish())
     }
 
     @Test
@@ -204,11 +210,11 @@ class ProfilesViewModelTest {
         vm.pick(1)
         val pad = vm.state.value.step as ProfilesStep.Pin
         assertTrue(pad.confirm)
-        source.pinCheck = { _, _ -> PinCheck.Failed("wrong PIN") }
+        source.pinCheck = { _, _ -> PinCheck.Failed(UiText.res(AuthR.string.auth_wrong_pin)) }
         vm.type("0000")
         vm.submit()
         advanceUntilIdle()
-        assertEquals("Wrong PIN.", (vm.state.value.step as ProfilesStep.Pin).error)
+        assertEquals("Wrong PIN.", (vm.state.value.step as ProfilesStep.Pin).error.inEnglish())
         source.pinCheck = { _, _ -> PinCheck.Confirmed }
         vm.type("1234")
         vm.submit()
@@ -230,7 +236,7 @@ class ProfilesViewModelTest {
         advanceUntilIdle()
 
         val pad = vm.state.value.step as ProfilesStep.Pin
-        assertEquals("Can't reach your server: no answer in time.", pad.error)
+        assertEquals("Can't reach your server: no answer in time.", pad.error.inEnglish())
         assertEquals("the pad doesn't shake", 0, pad.shakes)
         assertEquals(false, pad.lockedOut)
     }

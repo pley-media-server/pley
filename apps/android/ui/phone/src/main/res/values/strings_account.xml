@@ -110,12 +110,12 @@
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
     <string name="settings_licences">Open-source licences</string>
-    <string name="settings_licences_value">AndroidX, Media3, OkHttp, Coil, kotlinx, Lucide, QR Code generator</string>
+    <string name="settings_licences_value" translatable="false">AndroidX, Media3, OkHttp, Coil, kotlinx, Lucide, QR Code generator</string>
 
     <!-- Diagnostics. -->
     <string name="diagnostics_device">This device</string>
     <string name="diagnostics_app">App</string>
-    <string name="diagnostics_app_value">Pley %1$s</string>
+    <string name="diagnostics_app_value" translatable="false">Pley %1$s</string>
     <string name="diagnostics_plays">What it plays</string>
     <string name="diagnostics_probing">Checking what this device plays…</string>
     <string name="diagnostics_probe_failed">The check of this device failed.</string>

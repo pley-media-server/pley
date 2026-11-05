@@ -162,7 +162,7 @@ private fun creditsLine(page: ItemPage): androidx.compose.ui.text.AnnotatedStrin
         ?: page.details.crew.firstOrNull { it.role == CreditRole.Creator }
     val stars = page.cast.take(STARRING)
     if (makers == null && stars.isEmpty()) return null
-    val made = makers?.let { stringResource(if (it.role == CreditRole.Director) R.string.tv_item_directed_by else R.string.tv_item_created_by) }
+    val made = makers?.let { stringResource(if (it.role == CreditRole.Director) R.string.tv_item_directed_by else R.string.tv_item_credits_created_by) }
     val starring = stringResource(R.string.tv_item_starring)
     return buildAnnotatedString {
         if (makers != null && made != null) {

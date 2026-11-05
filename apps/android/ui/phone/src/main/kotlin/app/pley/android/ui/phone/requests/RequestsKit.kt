@@ -37,6 +37,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.DownloadState
@@ -66,11 +67,12 @@ import kotlinx.coroutines.flow.Flow
  * tells once.
  */
 
-/** Requests' words, from this screen's resources. */
+/** Requests' words, from this screen's resources; made again when the language shown changes, for what remembers them. */
 @Composable
 internal fun rememberRequestTexts(): RequestTexts {
     val resources = LocalResources.current
-    return remember(resources) { RequestTexts(resources) }
+    val locale = shownLocale()
+    return remember(resources, locale) { RequestTexts(resources) }
 }
 
 /** A title's key in lazy rows and grids: a movie and a show may share a TMDB id. */
