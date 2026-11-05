@@ -1465,3 +1465,58 @@ async fn a_profile_with_a_pin_gives_it_to_cast_to_another_profiles_receiver() {
     let _own = stream(&w, &w.other, "receiver=tv-2&casts=item").await;
     assert_eq!(cast(&w, &w.other, "tv-2", json!({"item_id": w.film})).await.status, StatusCode::ACCEPTED);
 }
+
+#[tokio::test]
+async fn a_home_member_lists_none_of_the_devices_outside_the_household_nor_a_disabled_profiles() {
+    let w = world().await;
+    let app = &w.app;
+    let (friend, _) = app.user(&w.admin, "friend", json!({"home": false})).await;
+    let (gone, gone_id) = app.user(&w.admin, "gone", json!({})).await;
+    let _friends = stream(&w, &friend, "receiver=tv-9&casts=item").await;
+    let _gones = stream(&w, &gone, "receiver=tv-8&casts=item").await;
+    let disabled = app.patch(&format!("/api/users/{gone_id}"), &w.admin, json!({"disabled": true})).await;
+    assert_eq!(disabled.status, StatusCode::OK, "{}", disabled.text());
+    for token in [&w.viewer, &w.other, &w.admin] {
+        assert_eq!(devices(&w, token).await, json!([]), "neither the friend's nor a disabled profile's");
+    }
+    // The friend's own is theirs alone, without a profile.
+    let theirs = devices(&w, &friend).await;
+    assert_eq!((theirs.as_array().unwrap().len(), theirs[0].get("profile")), (1, None));
+    let refused = cast(&w, &w.other, "tv-8", json!({"item_id": w.film, "profile_id": gone_id})).await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND, "{}", refused.text());
+}
+
+#[tokio::test]
+async fn a_cast_from_another_profile_reaches_its_receiver_alone() {
+    let w = world().await;
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let mut other_device = stream(&w, &w.viewer, "receiver=phone-1&casts=item").await;
+    let mut plain = stream(&w, &w.viewer, "").await;
+    let sent = cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    assert!(heard_cast(&mut tv).await["switch_ticket"].is_string());
+    // The profile's other streams hear neither the title nor the ticket.
+    for stream in [&mut other_device, &mut plain] {
+        let received = read_until(stream, r#""type":"cast""#, Duration::from_millis(500)).await;
+        assert!(events_of(&received, "cast").is_empty(), "{received}");
+    }
+    // A cast of the profile's own still reaches its streams as before.
+    cast(&w, &w.viewer, "phone-1", json!({"item_id": w.film})).await;
+    let received = read_until(&mut plain, r#""type":"cast""#, Duration::from_secs(2)).await;
+    assert_eq!(events_of(&received, "cast").len(), 1, "{received}");
+}
+
+#[tokio::test]
+async fn a_ticket_stops_working_once_either_profile_leaves_the_household() {
+    let w = world().await;
+    let app = &w.app;
+    let other_id = id_of(&w, &w.other).await;
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
+    let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
+    let left = app.patch(&format!("/api/users/{other_id}"), &w.admin, json!({"home": false})).await;
+    assert_eq!(left.status, StatusCode::OK, "{}", left.text());
+    let refused = app.post("/api/auth/switch", &w.viewer, json!({"user_id": other_id, "ticket": ticket})).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN, "{}", refused.text());
+    assert_eq!(id_of(&w, &w.viewer).await, w.viewer_id, "still the viewer's");
+}

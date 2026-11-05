@@ -203,6 +203,8 @@ pub async fn events(
         };
         state.receivers.open(&state.events, user.id, id, receiver)
     });
+    // The receiver this stream is, for the casts only it gets.
+    let receiver_id = receiver.as_ref().and(query.receiver.as_deref()).map(str::to_owned);
     // The session or app token is checked again every so often
     // (`Config::event_recheck`): the stream ends once it is signed out, it
     // expires or its user is disabled, and follows changes of access.
@@ -250,6 +252,8 @@ pub async fn events(
                     || (event.to_administrators() && admin.load(Ordering::Relaxed))
             }
         })
+        // A cast from another profile goes to the receiver it names alone.
+        .filter(move |event| event.receiver_only().is_none_or(|id| receiver_id.as_deref() == Some(id)))
         .filter(move |event| match (event.library_id(), &*libraries.read()) {
             (Some(id), Some(ids)) => ids.contains(&id),
             _ => true,

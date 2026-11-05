@@ -308,6 +308,16 @@ impl ServerEvent {
         }
     }
 
+    /// The one receiver whose streams alone get the event: a cast from
+    /// another profile of the household, whose title and switch ticket are
+    /// the receiver's to see, not every device of the profile it is on.
+    pub fn receiver_only(&self) -> Option<&str> {
+        match self {
+            ServerEvent::Cast { receiver_id, switch_ticket: Some(_), .. } => Some(receiver_id),
+            _ => None,
+        }
+    }
+
     /// Whether administrators' streams get the event too, whoever's it is:
     /// their dashboard lists everyone's sessions.
     pub fn to_administrators(&self) -> bool {
@@ -457,6 +467,7 @@ mod tests {
             switch_ticket: Some("t1".into()),
         };
         assert_eq!(event.user_id(), Some(5), "to the profile the receiver is on");
+        assert_eq!(event.receiver_only(), Some("tv-1"), "and only to that receiver's streams");
         assert!(
             serde_json::to_string(&event).unwrap().ends_with(r#""from":null,"profile_id":4,"switch_ticket":"t1"}"#)
         );

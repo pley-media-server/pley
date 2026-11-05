@@ -3576,8 +3576,9 @@ would.
   audio_index, subtitle_index, from }`, `from` being the remote's device
   name or `null`: the `device_name` its device gave as a receiver, where it
   is one, else one from its User-Agent. To another profile's receiver it
-  adds the caller's `profile_id` and a `switch_ticket` (below). It answers,
-  in this order:
+  adds the caller's `profile_id` and a `switch_ticket` (below), and goes to
+  that receiver's streams alone: the profile's other devices don't hear
+  what someone else cast, nor the ticket. It answers, in this order:
   - `404` for a receiver unknown, gone, or of a profile outside the
     caller's household or without `profile_id` (an administrator's request
     too: it never says which);

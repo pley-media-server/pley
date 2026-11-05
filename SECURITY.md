@@ -159,9 +159,12 @@ protect your server.
   that profile has a PIN, the remote gives it first, checked and throttled
   as a switch's. The device switches with a ticket the cast carries: random,
   stored hashed, good once for 60 seconds for that device, from the profile
-  it is on to the caster's. A copy shown by anything else spends it. Another
-  profile's devices are listed by name and profile, never with what they
-  play, and only to home members of the same household.
+  it is on to the caster's. A copy shown by anything else spends it. Such a
+  cast reaches that device's stream alone, not the profile's other
+  devices. Another profile's devices are listed by name and profile, never
+  with what they play, and only to home members of the same household, nor
+  are anyone's devices outside it, or a disabled profile's, listed or cast
+  to from it.
 
 ### Apps signing in
 
