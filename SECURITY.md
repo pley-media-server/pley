@@ -339,10 +339,10 @@ other apps (`pley_ct_…`), never with a session's
 
 - A symbolic link in a library is followed only to a file of the same kind
   (a video to a video, a picture to a picture, an NFO file to an NFO
-  file). This is checked when the library is scanned and again whenever
-  the file is used: played, transcoded, downloaded, or its pictures or
-  subtitles served. A symbolic link named like a film can't hand out other
-  files.
+  file). This is checked when the
+  library is scanned and again whenever the file is used: played,
+  transcoded, downloaded, or its pictures or subtitles served. A symbolic
+  link named like a film can't hand out other files.
 - A hard link is the file itself, which no check can tell from any other:
   where the system lets an account link a file it can't read (macOS, Linux
   without `fs.protected_hardlinks`), one that can write in a library folder
