@@ -88,6 +88,8 @@ sealed class RequestsScreen : ShellPage
         entered = true;
         // At first, the first card; coming back, where focus was.
         if (first && Tree.Enter(listGroup)) return;
+        // The list still on its way: focus waits for its first card rather than settling on a tab.
+        if (first && model.State.Value is { Problem: null, List: RequestListState.Loading } && Wait()) return;
         if (!Tree.Enter(Group) && !Wait()) Shell.FocusRail();
     }
 

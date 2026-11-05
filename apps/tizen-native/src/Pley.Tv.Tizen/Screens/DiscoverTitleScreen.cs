@@ -99,15 +99,6 @@ sealed class DiscoverTitleScreen : ShellPage
         model.Dispose();
     }
 
-    /// <summary>Back from the rows: the hero again; the next Back leaves the page.</summary>
-    public override bool Back()
-    {
-        if (inHero || actions == null) return false;
-        InHero(true);
-        if (!Tree.Enter(heroGroup)) return false;
-        return true;
-    }
-
     void Told(RequestEvent e) => RequestKit.Tell(Shell, e, (model.State.Value as TitleState.Ready)?.Summary ?? (model.State.Value as TitleState.Problem)?.Summary, go);
 
     void Clear(View view)
