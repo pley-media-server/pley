@@ -69,6 +69,10 @@ describes how they are made.
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile.
+- A pause from your phone or browser no longer brings up Roku's controls
+  on the TV: the player says what the remote did for a moment at the top
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", the audio, subtitles
+  or quality picked). Your own key brings the controls back.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - Up Next waits at the end of an episode once cancelled, or when the next

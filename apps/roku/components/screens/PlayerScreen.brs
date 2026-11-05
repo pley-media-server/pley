@@ -79,6 +79,10 @@ sub init()
     ' track or a quality picked, a cast naming tracks), which hears of it as
     ' it plays.
     m.reportAtPlay = false
+    ' Whether the Video node's own controls are off for a pause of the
+    ' user's remote, which brings them up as any pause does: on again as
+    ' the video plays, or at the person's own key.
+    m.remoteQuiet = false
     ' The audio a cast named for its title (-1: the server's pick by the
     ' user's choices); its subtitles are in the item's file
     ' (Cast.brs's castGivenTracks).
@@ -245,7 +249,9 @@ end sub
 ' A play or pause is reported as the video's own are, when its state
 ' changes; a seek at once; the next item with its own session; audio and
 ' subtitles as Pley's menu picks them (obeyTrack), and the quality too
-' (obeyQuality).
+' (obeyQuality). None brings up the player's controls: what it did shows
+' for a moment in the toast (Remote.brs's remoteNotice), and the next
+' title as it begins.
 sub onPlayerCommand(event as object)
     state = m.video.state
     if m.sessionId = "" or not m.top.active or not m.played or m.ended or m.notice.visible then return
@@ -267,6 +273,10 @@ sub onPlayerCommand(event as object)
     if action.act = "play"
         m.video.control = "resume"
     else if action.act = "pause"
+        ' Paused, the Video node shows its title, clock and bar, whoever
+        ' paused it: off until the video plays or the person presses a key.
+        m.remoteQuiet = true
+        m.video.enableUI = false
         m.video.control = "pause"
     else if action.act = "report"
         ' As it is already: said again, so a remote a little behind settles.
@@ -283,12 +293,26 @@ sub onPlayerCommand(event as object)
     else if action.act = "next"
         playNext(false)
     end if
+    remoteSays(remoteNotice(command, action))
+end sub
+
+' What the user's remote did, for a moment in the toast.
+sub remoteSays(text as string)
+    if text <> "" then showToast(text, remoteNoticeSeconds())
+end sub
+
+' The Video node's own controls back after the remote's pause.
+sub endQuiet()
+    if not m.remoteQuiet then return
+    m.remoteQuiet = false
+    m.video.enableUI = true
 end sub
 
 ' The remote's audio or subtitles (Remote.brs's remoteTrackAction), on the
 ' path of Pley's menu: saved for the show or the movie, and the stream
-' opened again with it, which tells the server at once as it plays. The
-' track playing already is said again at once.
+' opened again with it, which tells the server at once as it plays; the
+' toast names it for a moment. The track playing already is said again at
+' once, and shows nothing.
 sub obeyTrack(command as object)
     tracks = tracksIndexes(playingFile())
     player = { session: m.sessionId, audio: tracks.audio, subtitles: tracks.subtitles, audioIndex: m.audioPlaying, subtitleIndex: subtitlePlaying() }
@@ -297,14 +321,16 @@ sub obeyTrack(command as object)
         if action.report then report(reportedState())
         return
     end if
+    remoteSays(remoteTrackNotice(action, mediaTracks(playingFile())))
     m.reportAtPlay = true
     pickTrack(action.act, action.index)
 end sub
 
 ' The remote's quality (Remote.brs's remoteQualityAction), as a pick in
 ' Pley's Quality menu: kept as the Roku's, and the title opened again at
-' it where it was, which tells the server at once as it plays. The quality
-' picked already is said again at once.
+' it where it was, which tells the server at once as it plays; the toast
+' names it for a moment. The quality picked already is said again at
+' once, and shows nothing.
 sub obeyQuality(command as object)
     player = { session: m.sessionId, qualities: aqMenuIds(playingFile()), quality: qualityPicked() }
     action = remoteQualityAction(player, command)
@@ -312,6 +338,7 @@ sub obeyQuality(command as object)
         if action.report then report(reportedState())
         return
     end if
+    remoteSays(remoteQualityNotice(action, aqMenuFor(playingFile())))
     m.reportAtPlay = true
     chooseQuality(action.quality)
 end sub
@@ -404,6 +431,7 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.skipDismissed = false
     m.textTracks = 0
     m.tracksFrom = -1
+    endQuiet()
     stopPictures()
     m.sync.visible = false
     closeMenu()
@@ -757,10 +785,13 @@ sub onBitrate(event as object)
     aqAnswered(m.watch, httpNumber(spec.kbps, 0), kbps)
 end sub
 
-sub showToast(text as string)
+' A notice at the top for seconds: 4 for the player's own, which say more
+' than the remote's word of what it did.
+sub showToast(text as string, seconds = 4 as integer)
     m.toastText.text = text
     m.toast.visible = true
     m.toastTimer.control = "stop"
+    m.toastTimer.duration = seconds
     m.toastTimer.control = "start"
 end sub
 
@@ -979,6 +1010,8 @@ sub onState(event as object)
     if state = "playing"
         m.played = true
         m.everPlayed = true
+        ' Played again, by anyone: the remote's pause is over.
+        endQuiet()
         endReconnect()
         m.loading.visible = false
         if m.bannerDue then showBanner()
@@ -1200,6 +1233,7 @@ sub finish()
     m.attempt = m.attempt + 1
     m.tracksFrom = -1
     m.reportAtPlay = false
+    endQuiet()
     m.countdownTimer.control = "stop"
     m.sleepTimer.control = "stop"
     m.pausedTimer.control = "stop"
@@ -1504,6 +1538,20 @@ end sub
 ' scene), which closes the session.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    ' The person's own key after the remote's pause gives the Video node
+    ' its controls back. Without them it left this press to the screen:
+    ' Play plays on, as it would there, and its other keys are its own
+    ' again from the next press.
+    if m.remoteQuiet
+        endQuiet()
+        if m.video.hasFocus()
+            if key = "play"
+                m.video.control = "resume"
+                return true
+            end if
+            if key = "OK" or key = "left" or key = "right" or key = "fastforward" or key = "rewind" or key = "replay" then return true
+        end if
+    end if
     ' The sleep timer's Keep watching: Back leaves it to count down, the
     ' video's own keys go on as ever.
     if m.sleepButtons.isInFocusChain()

@@ -491,6 +491,20 @@ puts Up Next away, as Rewind does. The rule is
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
 (the tracks and the quality by cases of their own).
 
+A command never brings up the player's controls. Paused, the Video node
+shows its title, clock and bar whoever paused it, so for the remote's
+pause the player turns them off (`enableUI`) until the video plays again,
+from either side, or the person presses a key: Play plays on, and the
+Video node's other keys are its own again from the next press. What the
+remote did shows instead for 2 s in the player's notice at the top:
+"Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
+went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
+quality picked, named as the player's menus name them
+(`remoteNotice` and its neighbours in `components/lib/Remote.brs`). A
+command that changes nothing shows nothing; next shows the title as it
+begins, and Live TV's channel up and down the channel's card, as Up and
+Down do. Music shows nothing of a command: Now Playing is its controls.
+
 **Casts.** While its event stream is open (an `http://` server, as for
 the commands), the Roku is one of the devices the profile's remotes play
 things on ([API.md](API.md#casting)): the stream names it a receiver by

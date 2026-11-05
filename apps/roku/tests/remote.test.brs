@@ -282,3 +282,54 @@ sub test_remote_reports_the_subtitles_showing()
     tkEqual(tracksSubtitlePlaying(-2, 4), 4, "burned in, captions not known")
     tkEqual(tracksSubtitlePlaying(-2, -1), -2, "not known")
 end sub
+
+' What the video says for a moment of a command, as it obeys it.
+function remoteTestNotice(player as object, command as object) as string
+    return remoteNotice(command, remoteAction(player, command))
+end function
+
+' The video says for a moment what the remote did, and nothing of a
+' command that changes nothing: a pause or play, the skip asked for in
+' whole seconds with a real minus, where a seek went in the player's
+' times; next shows its title as it begins, as ever.
+sub test_remote_notices_what_it_did()
+    playing = { kind: "video", session: "s1", playing: true, positionMs: 600000, durationMs: 7200000, hasNext: true, index: 0 }
+    paused = { kind: "video", session: "s1", playing: false, positionMs: 600000, durationMs: 7200000, hasNext: true, index: 0 }
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "pause" }), "Paused")
+    tkEqual(remoteTestNotice(paused, { session_id: "s1", command: "pause" }), "", "paused already")
+    tkEqual(remoteTestNotice(paused, { session_id: "s1", command: "play" }), "Playing")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "play" }), "", "playing already")
+    tkEqual(remoteTestNotice(playing, { session_id: "s2", command: "pause" }), "", "another session's")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: 30000 }), "+30 s")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: -10000 }), "−10 s")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: 1500 }), "+2 s", "rounded")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: -200 }), "−1 s", "never 0 for a step there is")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: 0 }), "", "no step")
+    tkEqual(remoteTestNotice(paused, { session_id: "s1", command: "skip", offset_ms: 30000 }), "+30 s", "paused too")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "skip", offset_ms: invalid }), "", "offset_ms left out")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "seek", position_ms: 754000 }), "Jumped to 12:34")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "seek", position_ms: 3723000 }), "Jumped to 1:02:03", "from an hour")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "seek", position_ms: 9000000 }), "Jumped to 2:00:00", "no further than the end")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "next" }), "", "the next title shows as it begins")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "stop" }), "")
+    tkEqual(remoteNotice(invalid, { act: "none" }), "")
+    tkTrue(remoteNoticeSeconds() >= 2 and remoteNoticeSeconds() <= 3, "a moment")
+end sub
+
+' The remote's audio, subtitles or quality are named as the player's menus
+' name them, for a file with audio 1 to 3 and subtitles 4, 5 and 1000
+' (media.test.brs's).
+sub test_remote_notices_the_track_or_quality_picked()
+    tracks = mediaTracks(mediaTestFile())
+    tkEqual(remoteTrackNotice({ act: "audio", index: 2, report: true }, tracks), "Audio: French (AC3 5.1)")
+    tkEqual(remoteTrackNotice({ act: "subtitles", index: 4, report: true }, tracks), "Subtitles: English – SDH (SRT)")
+    tkEqual(remoteTrackNotice({ act: "subtitles", index: -1, report: true }, tracks), "Subtitles off")
+    tkEqual(remoteTrackNotice({ act: "subtitles", index: 9, report: true }, tracks), "", "a track the menu doesn't list")
+    tkEqual(remoteTrackNotice({ act: "none", index: -1, report: true }, tracks), "", "the one playing already")
+    tkEqual(remoteTrackNotice({ act: "none", index: -1, report: false }, tracks), "")
+    menu = [{ id: "original", label: "Original" }, { id: "auto", label: "Automatic" }, { id: "8m", label: "8 Mbps 720p" }]
+    tkEqual(remoteQualityNotice({ act: "quality", quality: "8m", report: true }, menu), "Quality: 8 Mbps 720p", "named for the file")
+    tkEqual(remoteQualityNotice({ act: "quality", quality: "auto", report: true }, menu), "Quality: Automatic")
+    tkEqual(remoteQualityNotice({ act: "none", quality: "", report: true }, menu), "", "the one picked already")
+    tkEqual(remoteQualityNotice({ act: "quality", quality: "30m", report: true }, menu), "")
+end sub
