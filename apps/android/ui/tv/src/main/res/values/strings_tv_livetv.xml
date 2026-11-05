@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- Live TV's page (apps/web/src/pages/livetv/LiveTvPage.tsx). -->
     <string name="tv_livetv_title">Live TV</string>
     <string name="tv_livetv_guide">Guide</string>
@@ -32,9 +32,15 @@
     <string name="tv_livetv_no_guide">No guide for this channel</string>
     <string name="tv_livetv_no_info">No information for this time</string>
     <string name="tv_livetv_next">Next %1$s · %2$s</string>
-    <string name="tv_livetv_span">%1$s – %2$s</string>
-    <string name="tv_livetv_minutes_left">%1$d min left</string>
-    <string name="tv_livetv_hours_left">%1$d h left</string>
+    <string name="tv_livetv_span" translatable="false">%1$s – %2$s</string>
+    <plurals name="tv_livetv_minutes_left">
+        <item quantity="one">%1$d min left</item>
+        <item quantity="other">%1$d min left</item>
+    </plurals>
+    <plurals name="tv_livetv_hours_left">
+        <item quantity="one">%1$d h left</item>
+        <item quantity="other">%1$d h left</item>
+    </plurals>
     <string name="tv_livetv_hours_minutes_left">%1$d h %2$d min left</string>
     <string name="tv_livetv_today">Today</string>
     <string name="tv_livetv_tomorrow">Tomorrow</string>
@@ -50,6 +56,8 @@
     <string name="tv_livetv_favorite_remove">Remove from favourites</string>
     <string name="tv_livetv_no_description">The guide says nothing more of it.</string>
     <string name="tv_livetv_ended">It has ended.</string>
+    <string name="tv_livetv_episode">S%1$d E%2$d</string>
+    <string name="tv_livetv_episode_only">E%1$d</string>
     <string name="tv_livetv_favorite_failed">The favourite wasn\'t saved: %1$s</string>
 
     <!-- The live player (apps/web/src/player/live/LivePlayerPage.tsx). -->

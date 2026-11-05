@@ -50,7 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
+import app.pley.android.common.resolve
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -112,7 +114,7 @@ internal fun PhoneLiveTvScreen() {
     LaunchedEffect(vm) {
         vm.events.collect { event ->
             when (event) {
-                is LiveTvEvent.Failed -> shell.toasts.show(resources.getString(R.string.livetv_favorite_failed, sentenceOf(event.error)))
+                is LiveTvEvent.Failed -> shell.toasts.show(UiText.res(R.string.livetv_favorite_failed, errorSentence(event.error)).resolve(resources))
             }
         }
     }
@@ -269,7 +271,7 @@ private fun Filters(page: LivePage, onQuery: (String) -> Unit, onPick: () -> Uni
                 modifier = Modifier.weight(1f, fill = false),
             )
             if (count != null && !page.searching) {
-                Text("  %,d".format(count), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Subtle, maxLines = 1)
+                Text("  ${formatCount(count)}", style = MaterialTheme.typography.bodyMedium, color = PleyColors.Subtle, maxLines = 1)
             }
             Spacer(Modifier.width(4.dp))
             Icon(PleyIcons.ChevronDown, contentDescription = null, size = 18.dp, tint = PleyColors.Muted)
@@ -316,7 +318,7 @@ private fun Filters(page: LivePage, onQuery: (String) -> Unit, onPick: () -> Uni
             ) {
                 Text(stringResource(R.string.livetv_found_groups).uppercase(), style = MaterialTheme.typography.labelSmall, color = PleyColors.Subtle)
                 for (g in page.found) {
-                    PleyChip("${LiveTv.groupName(g, g.name)}  ${"%,d".format(g.count)}", selected = false, onClick = { onGroup(g) })
+                    PleyChip("${LiveTv.groupName(g, g.name)}  ${formatCount(g.count)}", selected = false, onClick = { onGroup(g) })
                 }
             }
         }

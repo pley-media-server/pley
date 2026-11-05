@@ -415,7 +415,7 @@ private fun Focused(channel: LiveChannel?, name: String?, program: LiveProgram?,
                 if (program != null) {
                     add("${dayOf(program.start, now)} ${spanOf(program, clock)}")
                     if (program.airingAt(now)) add(timeLeft(program, now))
-                    program.episodeLabel?.let(::add)
+                    episodeOf(program)?.let(::add)
                 } else {
                     add(stringResource(if (channel.hasGuide) R.string.tv_livetv_no_info else R.string.tv_livetv_no_guide))
                 }
