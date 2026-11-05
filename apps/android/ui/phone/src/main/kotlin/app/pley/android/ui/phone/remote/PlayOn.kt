@@ -32,11 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -54,8 +56,10 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.PlayingSession
 import app.pley.android.model.format.isInProgress
 import app.pley.android.network.CastRefusal
+import app.pley.android.screens.item.TrackChoices
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
@@ -69,9 +73,11 @@ import kotlinx.coroutines.launch
 /**
  * What Play on… sends another of the profile's devices (docs/API.md,
  * "Casting"): one of a title, a playlist and a channel; [startMs] where a
- * title starts, where the page's own Play would resume it. What can be
- * shuffled ([shuffles]: an album, an artist, a playlist) is offered
- * shuffled too.
+ * title starts, where the page's own Play would resume it, and
+ * [audioIndex] and [subtitleIndex] ([PlayingSession.SUBTITLES_OFF]: none)
+ * the tracks a movie's or an episode's page picked, which the device plays
+ * with. What can be shuffled ([shuffles]: an album, an artist, a playlist)
+ * is offered shuffled too.
  */
 @Immutable
 internal data class CastTarget(
@@ -80,13 +86,22 @@ internal data class CastTarget(
     val channelId: Long? = null,
     val startMs: Long? = null,
     val shuffles: Boolean = false,
+    val audioIndex: Int? = null,
+    val subtitleIndex: Int? = null,
 ) {
     /** What a device must take to be offered: Live TV for a channel, titles for the rest. */
     val kind: CastKind get() = if (channelId != null) CastKind.Live else CastKind.Item
 
     /** The body of the cast, [shuffle]d when asked. */
-    fun request(shuffle: Boolean): CastRequest =
-        CastRequest(itemId = itemId, playlistId = playlistId, channelId = channelId, startMs = startMs, shuffle = true.takeIf { shuffle && shuffles })
+    fun request(shuffle: Boolean): CastRequest = CastRequest(
+        itemId = itemId,
+        playlistId = playlistId,
+        channelId = channelId,
+        startMs = startMs,
+        shuffle = true.takeIf { shuffle && shuffles },
+        audioIndex = audioIndex,
+        subtitleIndex = subtitleIndex,
+    )
 
     companion object {
         /** The kinds a remote casts from the library: what plays itself, a show or a season, an album or an artist. */
@@ -111,6 +126,22 @@ internal data class CastTarget(
         fun playlist(playlistId: Long): CastTarget = CastTarget(playlistId = playlistId, shuffles = true)
 
         fun channel(channelId: Long): CastTarget = CastTarget(channelId = channelId)
+
+        /**
+         * [item]'s page's Play on…: as [of], with the tracks its pickers
+         * show ([tracks], `null` when it has none to pick): the audio when
+         * one is picked (otherwise the device plays its best track of the
+         * language, as Play does here), the subtitles or none when the file
+         * has any.
+         */
+        fun page(item: ItemSummary, tracks: TrackChoices?): CastTarget? {
+            val target = of(item) ?: return null
+            if (tracks == null || (item.kind != ItemKind.Movie && item.kind != ItemKind.Episode)) return target
+            return target.copy(
+                audioIndex = tracks.audioIndex?.takeIf { tracks.audio.isNotEmpty() },
+                subtitleIndex = if (tracks.subtitles.isEmpty()) null else tracks.subtitleIndex ?: PlayingSession.SUBTITLES_OFF,
+            )
+        }
     }
 }
 
@@ -139,7 +170,7 @@ private fun playOnLabel(kind: CastKind): String = stringResource(if (kind == Cas
 
 /**
  * Play on… (Watch on… for a channel) beside a page's own Play: a 48 dp
- * round button with the cast icon, as the page's other round actions, or,
+ * square button with the cast icon, as tall as Play and with its corners, or,
  * [labelled], a secondary button with its words where its row has no room
  * left, or, [plain], the icon alone, as a player's bar has its buttons.
  * Nothing while no other device takes what [target] is; it opens
@@ -166,8 +197,17 @@ internal fun PlayOnButton(
     } else if (plain) {
         PleyIconButton(PleyIcons.Cast, label, onClick = open, modifier = modifier.testTag(PLAY_ON))
     } else {
-        Box(modifier.size(48.dp).background(PleyColors.Surface3, PleyShape.Circle).testTag(PLAY_ON), contentAlignment = Alignment.Center) {
-            PleyIconButton(PleyIcons.Cast, label, onClick = open)
+        Box(
+            modifier
+                .size(48.dp)
+                .clip(PleyShape.Control)
+                .background(PleyColors.Surface3)
+                .clickable(role = Role.Button, onClick = open)
+                .semantics { contentDescription = label }
+                .testTag(PLAY_ON),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(PleyIcons.Cast, contentDescription = null, size = 24.dp, tint = PleyColors.Fg)
         }
     }
 }

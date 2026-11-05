@@ -210,27 +210,38 @@ A device's controls, top to bottom:
 
 - the poster or the channel's logo, and what plays: an episode's show,
   season and number over its title, a track over its artist, a channel's
-  number and name over what's on, a movie over its year;
+  number and name over Live TV, a movie over its year;
 - how far it is, estimated each second while it plays from the last
   report, its age and the time since, by the phone's clock: a slider when
-  its player seeks, a bar otherwise, nothing on Live TV;
+  its player seeks, a bar otherwise. On Live TV, the programme on, a thin
+  bar of how far it is by the phone's clock, from when it started to when
+  it ends (the channel's `now_start` and `now_stop`), its times as the
+  phone writes them ("20:00 – 21:00"), and **Next:** the programme after
+  it; no seek bar;
 - the transport, centred: previous, back 10 s, play or pause, forward
   30 s where its player declares them, and next where its player declares
-  it or what plays has a next by nature (an episode, a track, a channel,
-  as next channel), dimmed when the player didn't declare it; a movie
-  whose player declares none has no next;
-- **Audio** and **Subtitles**, each where its player declares it and the
-  file has such tracks: a menu of the tracks, labelled as the phone's own
-  player labels them, the one playing ticked; Subtitles starts with
-  **Off**;
-- Stop.
+  it or what plays has a next by nature (an episode, a track), dimmed when
+  the player didn't declare it; a movie whose player declares none has no
+  next. On Live TV, play or pause only where its player declares pause,
+  then a channel rocker: one rounded pill holding channel down, the word
+  **CHANNEL** and channel up, each dimmed when the player can't change
+  channel that way;
+- on the left, **Audio**, **Subtitles** and **Quality** as icons, each
+  where its player declares it and has a choice: more than one audio
+  track, any subtitles, the qualities its Quality menu offers for the file
+  (the session's `qualities`). A long press says which is which; each
+  opens a menu, showing as selected while it is open, of the tracks
+  labelled as the phone's own player labels them, or of the qualities, the
+  one playing ticked (no quality is until its player says which);
+  Subtitles starts with **Off**. On the right, **Stop**, which asks first
+  (**Stop playing on** the device?, Stop or Cancel).
 
-A device that plays nothing shows **Nothing playing**, and how to send it
-something (Play on…).
+A device that plays nothing shows **Nothing playing**, and under it
+**Send something here with Play on…**.
 
 A command waits up to 5 s for the list to show it acted (a new state, a
-new title, a report from where it was sent, the track picked), and the
-controls say it's waiting meanwhile; without one they say the device
+new title, a report from where it was sent, the track or quality
+picked), and the controls say it's waiting meanwhile; without one they say the device
 **didn't answer**, until the device reports again. A next or previous
 with nothing there changes nothing, and isn't a failure. While a command
 waits, the sheet stays open with nothing listed, as when a next ends one
@@ -288,9 +299,13 @@ that takes it ([API.md](API.md#casting)): a receiver whose `casts` names
 `item` for titles, music and playlists, or `live` for a channel. **Play
 on…** shows only while one does:
 
-- beside Play on a movie's, an episode's, a show's and a season's page:
-  a title being watched starts there where its Resume would
-  (`start_ms`), and a show or a season plays its next episode;
+- beside Play on a movie's, an episode's, a show's and a season's page,
+  a square button as tall as Play: a title being watched starts there
+  where its Resume would (`start_ms`), with the audio and subtitles picked
+  on the page (`audio_index` when a track is picked, else the device plays
+  its best of the language as Play does; `subtitle_index`, `-1` for none,
+  when the file has subtitles), and a show or a season plays its next
+  episode;
 - beside Play and Shuffle on an album's and an artist's page;
 - under Play on a playlist's page, where the row beside it is full;
 - as **Watch on…** under Watch in a programme's details in Live TV, and

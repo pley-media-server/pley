@@ -1,5 +1,6 @@
 package app.pley.android.ui.phone.remote
 
+import android.text.format.DateFormat
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -11,6 +12,8 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -33,11 +36,13 @@ import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
+import app.pley.android.model.QualityOption
 import app.pley.android.model.RemoteDevice
 import app.pley.android.model.SessionTracks
 import app.pley.android.model.TrackOption
 import app.pley.android.network.ApiException
 import app.pley.android.ui.phone.theme.PhoneTheme
+import java.util.Date
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -45,11 +50,13 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
 /**
  * The phone's remote: the bar above the tabs while another device is on,
  * the sheet it opens with "Your devices", a device's controls (those its
- * player declares, Next where what plays has one, its audio and subtitles), the idle view,
+ * player declares, Next where what plays has one, its audio, subtitles and
+ * quality, a channel's programme), Stop that asks first, the idle view,
  * and what it says when a player doesn't answer or the server refuses.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -140,7 +147,7 @@ class RemoteUiTest {
         control("app-20")
         compose.onNodeWithTag(REMOTE_IDLE).assertExists()
         compose.onNodeWithText("Nothing playing").assertExists()
-        compose.onNodeWithText("Find something to watch or listen to, then choose Play on… and this device.").assertExists()
+        compose.onNodeWithText("Send something here with Play on…").assertExists()
         compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertDoesNotExist()
         compose.onNodeWithContentDescription("Back to your devices").performClick()
         compose.waitForIdle()
@@ -185,6 +192,7 @@ class RemoteUiTest {
             "Seek on Living room TV",
             "Audio on Living room TV",
             "Subtitles on Living room TV",
+            "Quality on Living room TV",
             "Stop on Living room TV",
         ).forEach { label ->
             compose.onNodeWithContentDescription(label).assertExists()
@@ -202,11 +210,50 @@ class RemoteUiTest {
             assertTouchTarget(label)
         }
         compose.onNodeWithContentDescription("Next channel on Kitchen phone").assertIsEnabled()
-        // A channel has no pause, no place and no tracks.
+        compose.onNodeWithContentDescription("Previous channel on Kitchen phone").assertIsEnabled()
+        // Both in one rocker, the word between them drawn only.
+        compose.onNodeWithTag(REMOTE_ROCKER).assertExists()
+        compose.onNodeWithText("CHANNEL", useUnmergedTree = true).assertDoesNotExist()
+        // A channel has no pause, no skips, no place, no tracks and no quality.
         compose.onAllNodesWithContentDescription("Pause on Kitchen phone").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Back 10 seconds on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Seek on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Audio on Kitchen phone").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Quality on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithText("The Evening News").assertExists()
+    }
+
+    @Test
+    fun aChannelShowsItsProgrammeHowFarItIsItsTimesAndWhatIsNext() {
+        val start = System.currentTimeMillis() / 1000 - 1_800
+        remote.devices.value = listOf(channel(nowStart = start, nowStop = start + 3_600, next = "The Late Show"))
+        show()
+        open()
+        // The channel over Live TV, its programme under it with its times as the device writes them.
+        compose.onNodeWithText("101 Pley News HD").assertExists()
+        compose.onNodeWithText("Live TV").assertExists()
+        compose.onNodeWithText("The Evening News").assertExists()
+        val format = DateFormat.getTimeFormat(RuntimeEnvironment.getApplication())
+        val span = format.format(Date(start * 1000)) + " – " + format.format(Date((start + 3_600) * 1000))
+        compose.onNodeWithText(span).assertExists()
+        compose.onNodeWithText("Next: The Late Show").assertExists()
+        // Its player pauses: Pause shows between the channel buttons.
+        remote.devices.value = listOf(channel(controls = listOf(Control.Next, Control.Previous, Control.Pause)))
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Pause on Kitchen phone").assertExists()
+        // Without a guide, nothing but the channel.
+        remote.devices.value = listOf(channel(now = null))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_LIVE).assertDoesNotExist()
+    }
+
+    @Test
+    fun aChannelWhosePlayerDoesNotChangeChannelHasItsButtonsDimmed() {
+        remote.devices.value = listOf(channel(controls = emptyList()))
+        show()
+        open()
+        compose.onNodeWithContentDescription("Previous channel on Kitchen phone").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Next channel on Kitchen phone").assertIsNotEnabled()
     }
 
     @Test
@@ -215,9 +262,10 @@ class RemoteUiTest {
         show()
         open()
         compose.onNodeWithContentDescription("Next on Living room TV").assertExists().assertIsNotEnabled()
-        // Nor audio and subtitles: not declared, not offered, whatever the file has.
+        // Nor audio, subtitles and quality: not declared, not offered, whatever the file has.
         compose.onNodeWithTag(REMOTE_AUDIO).assertDoesNotExist()
         compose.onNodeWithTag(REMOTE_SUBTITLES).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_QUALITY).assertDoesNotExist()
     }
 
     @Test
@@ -261,6 +309,53 @@ class RemoteUiTest {
         compose.onNodeWithText("French (SRT, Forced)").performClick()
         compose.waitForIdle()
         assertEquals("s1" to PlayerCommandRequest(Control.Subtitles, streamIndex = 4), remote.commands.last())
+    }
+
+    @Test
+    fun theQualityMenuListsWhatThePlayersMenuOffersItsPickTicked() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithTag(REMOTE_QUALITY).assertIsNotSelected().performClick()
+        compose.waitForIdle()
+        // Selected while its menu is open.
+        compose.onNodeWithTag(REMOTE_QUALITY).assertIsSelected()
+        compose.onNodeWithText("Automatic").assertIsSelected()
+        compose.onNodeWithText("Original").assertIsNotSelected()
+        compose.onNodeWithText("4 Mbps 720p").performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Quality, quality = "4m"), remote.commands.last())
+        compose.onNodeWithTag(REMOTE_QUALITY).assertIsNotSelected()
+        compose.onNodeWithText("Waiting for Living room TV").assertExists()
+        // Answered by the player saying it picked it.
+        remote.devices.value = listOf(episode(quality = "4m"))
+        compose.waitForIdle()
+        compose.onNodeWithText("Waiting for Living room TV").assertDoesNotExist()
+    }
+
+    @Test
+    fun noQualityIsTickedUntilThePlayerSaysWhich() {
+        remote.devices.value = listOf(episode(quality = null))
+        show()
+        open()
+        compose.onNodeWithContentDescription("Quality on Living room TV").performClick()
+        compose.waitForIdle()
+        listOf("Original", "Automatic", "8 Mbps 1080p", "4 Mbps 720p").forEach { compose.onNodeWithText(it).assertIsNotSelected() }
+    }
+
+    @Test
+    fun audioSubtitlesAndQualityShowOnlyWhenThereIsAChoice() {
+        val one = episode()
+        val session = one.session!!.session
+        val tracks = session.tracks.copy(audio = session.tracks.audio.take(1), subtitles = emptyList())
+        remote.devices.value = listOf(one.copy(session = one.session!!.copy(session = session.copy(tracks = tracks, qualities = emptyList()))))
+        show()
+        open()
+        // One audio track, no subtitles, no qualities: nothing to pick; Stop stays.
+        compose.onNodeWithTag(REMOTE_AUDIO).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_SUBTITLES).assertDoesNotExist()
+        compose.onNodeWithTag(REMOTE_QUALITY).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Stop on Living room TV").assertExists()
     }
 
     @Test
@@ -432,11 +527,30 @@ class RemoteUiTest {
     }
 
     @Test
+    fun stopAsksFirstAndCancelLeavesItPlaying() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithContentDescription("Stop on Living room TV").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Stop playing on Living room TV?").assertExists()
+        assertTrue(remote.stopped.isEmpty())
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Stop playing on Living room TV?").assertDoesNotExist()
+        assertTrue(remote.stopped.isEmpty())
+        compose.onNodeWithContentDescription("Pause on Living room TV").assertExists()
+    }
+
+    @Test
     fun stopStopsTheSessionAndTheDeviceIsReadyAgain() {
         remote.devices.value = listOf(episode())
         show()
         open()
         compose.onNodeWithContentDescription("Stop on Living room TV").performClick()
+        compose.waitForIdle()
+        // The dialog's Stop, not the one that opened it.
+        compose.onNode(hasText("Stop") and !hasContentDescription("Stop on Living room TV")).performClick()
         compose.waitForIdle()
         assertEquals(listOf("s1"), remote.stopped)
         remote.devices.value = listOf(episode().copy(session = null))
@@ -493,9 +607,19 @@ class RemoteUiTest {
             deviceId: String = "app-12",
             device: String? = "Living room TV",
             state: ProgressState = ProgressState.Playing,
-            controls: List<Control> = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Audio, Control.Subtitles),
+            controls: List<Control> = listOf(
+                Control.Play,
+                Control.Pause,
+                Control.Seek,
+                Control.Skip,
+                Control.Next,
+                Control.Audio,
+                Control.Subtitles,
+                Control.Quality,
+            ),
             audioIndex: Int = 1,
             receiver: Boolean = true,
+            quality: String? = "auto",
         ) = OtherDevice(
             deviceId,
             receiver = RemoteDevice("tv-$deviceId", deviceId, device, DeviceKind.Tv, listOf(CastKind.Item, CastKind.Live)).takeIf { receiver },
@@ -525,6 +649,13 @@ class RemoteUiTest {
                         ),
                         subtitles = listOf(TrackOption(3, "eng", codec = "subrip"), TrackOption(4, "fre", codec = "subrip", forced = true)),
                     ),
+                    quality = quality,
+                    qualities = listOf(
+                        QualityOption("original", "Original"),
+                        QualityOption("auto", "Automatic"),
+                        QualityOption("8m", "8 Mbps 1080p"),
+                        QualityOption("4m", "4 Mbps 720p"),
+                    ),
                 ),
                 reportedAt = 5_800,
             ),
@@ -538,8 +669,14 @@ class RemoteUiTest {
             return playing.copy(session = session.copy(session = session.session.copy(item = film, tracks = SessionTracks())))
         }
 
-        /** A channel on the Kitchen phone, which goes up and down, and takes no casts. */
-        fun channel() = OtherDevice(
+        /** A channel on the Kitchen phone, which goes up and down ([controls]), and takes no casts. */
+        fun channel(
+            now: String? = "The Evening News",
+            nowStart: Long? = null,
+            nowStop: Long? = null,
+            next: String? = null,
+            controls: List<Control> = listOf(Control.Next, Control.Previous),
+        ) = OtherDevice(
             "app-15",
             session = RemoteSession(
                 PlayingSession(
@@ -548,9 +685,9 @@ class RemoteUiTest {
                     device = "Kitchen phone",
                     deviceId = "app-15",
                     deviceKind = DeviceKind.Phone,
-                    channel = PlayingChannel(1, "Pley News HD", number = "101", now = "The Evening News"),
+                    channel = PlayingChannel(1, "Pley News HD", number = "101", now = now, nowStart = nowStart, nowStop = nowStop, next = next),
                     state = ProgressState.Playing,
-                    controls = listOf(Control.Next, Control.Previous),
+                    controls = controls,
                 ),
                 reportedAt = 9_100,
             ),

@@ -3,6 +3,8 @@ package app.pley.android.ui.phone.remote
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.model.CastKind
@@ -23,6 +26,8 @@ import app.pley.android.model.PlayingSession
 import app.pley.android.model.RemoteDevice
 import app.pley.android.model.UserState
 import app.pley.android.network.ApiException
+import app.pley.android.screens.item.TrackChoice
+import app.pley.android.screens.item.TrackChoices
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.phone.onboarding.LocalOnboardingSource
 import app.pley.android.ui.phone.shell.PhoneNavigation
@@ -217,6 +222,50 @@ class PlayOnUiTest {
         assertNull(CastTarget.of(ItemSummary(9, 1, ItemKind.Extra, "A Trailer")))
         assertEquals(CastRequest(itemId = 500), CastTarget(itemId = 500, shuffles = true).request(shuffle = false))
         assertEquals(CastRequest(itemId = 500, shuffle = true), CastTarget(itemId = 500, shuffles = true).request(shuffle = true))
+    }
+
+    @Test
+    fun aTitlesPageSendsTheTracksItsPickersShow() {
+        val movie = ItemSummary(101, 1, ItemKind.Movie, "A Film", durationMs = 6_000_000)
+        fun tracks(audio: Int?, subtitle: Int?, subtitles: Boolean = true) = TrackChoices(
+            versions = emptyList(),
+            audio = listOf(TrackChoice(1, "English", audio == 1), TrackChoice(2, "French", audio == 2)),
+            subtitles = if (subtitles) listOf(TrackChoice(3, "English", subtitle == 3)) else emptyList(),
+            versionId = 11,
+            automaticAudio = audio == null,
+            automaticLanguage = "English",
+            audioIndex = audio,
+            subtitleIndex = subtitle,
+        )
+        assertEquals(CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = 3), CastTarget.page(movie, tracks(audio = 2, subtitle = 3)))
+        // Automatic audio names no track, as Play here; subtitles off are -1.
+        assertEquals(CastTarget(itemId = 101, subtitleIndex = PlayingSession.SUBTITLES_OFF), CastTarget.page(movie, tracks(audio = null, subtitle = null)))
+        // A file without subtitles names none; a page with nothing to pick, nothing.
+        assertEquals(CastTarget(itemId = 101, audioIndex = 1), CastTarget.page(movie, tracks(audio = 1, subtitle = null, subtitles = false)))
+        assertEquals(CastTarget(itemId = 101), CastTarget.page(movie, null))
+        // A show's page plays its next episode, with that one's own tracks.
+        assertEquals(CastTarget(itemId = 201), CastTarget.page(ItemSummary(201, 2, ItemKind.Show, "A Show"), tracks(audio = 2, subtitle = 3)))
+        assertEquals(
+            CastRequest(itemId = 101, audioIndex = 2, subtitleIndex = -1),
+            CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = -1).request(shuffle = false),
+        )
+    }
+
+    @Test
+    fun theButtonBesidePlayIsASquareAsTallAsIt() {
+        compose.setContent {
+            PhoneTheme {
+                val host = object : PlayOnHost {
+                    override val devices: List<OtherDevice> = listOf(livingRoom())
+
+                    override fun playOn(target: CastTarget) = Unit
+                }
+                CompositionLocalProvider(LocalPlayOn provides host) {
+                    PlayOnButton(CastTarget(itemId = 101))
+                }
+            }
+        }
+        compose.onNodeWithTag(PLAY_ON).assertWidthIsEqualTo(48.dp).assertHeightIsEqualTo(48.dp)
     }
 
     private companion object {

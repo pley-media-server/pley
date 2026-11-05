@@ -89,11 +89,12 @@ class ItemPageTest {
     }
 
     @Test
-    fun playOnBesideResumeSendsTheTitleFromWhereItResumes() {
+    fun playOnBesideResumeSendsTheTitleFromWhereItResumesWithTheTracksPickedHere() {
         val tv = OtherDevice("app-12", RemoteDevice("tv-1", "app-12", "Living room TV", DeviceKind.Tv, listOf(CastKind.Item)))
         show(movie(positionMs = 3_480_000), listOf(tv))
         compose.onNodeWithContentDescription("Play on…").assertExists().performClick()
-        assertEquals(listOf(CastTarget(itemId = 1, startMs = 3_480_000)), castsAsked)
+        // Automatic audio, and the file's subtitles off.
+        assertEquals(listOf(CastTarget(itemId = 1, startMs = 3_480_000, subtitleIndex = -1)), castsAsked)
     }
 
     @Test

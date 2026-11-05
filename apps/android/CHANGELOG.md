@@ -45,6 +45,12 @@ describes how they are made.
   which quality they play. Phones and TVs play a title cast to them with
   the audio and subtitles picked on the remote's page, for that play
   only.
+- The phone's remote has a Quality menu beside Audio and Subtitles, all
+  three as icons, and Stop asks first. A Live TV channel shows its
+  programme, how far it is, its times and what's next, with a channel
+  rocker in place of the seek bar and the skips. Play on… on a title's
+  page is a square button as tall as Play, and sends the audio and
+  subtitles picked on the page.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

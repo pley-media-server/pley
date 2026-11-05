@@ -2,6 +2,7 @@ package app.pley.android.ui.phone.remote
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -25,10 +26,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -61,6 +68,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.pley.android.common.sentenceOf
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
@@ -80,6 +88,7 @@ import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
 import app.pley.android.model.MediaStream
 import app.pley.android.model.PlayerCommandRequest
+import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.ProgressState
@@ -91,9 +100,10 @@ import app.pley.android.model.format.fullTitle
 import app.pley.android.model.format.streamLabel
 import app.pley.android.network.CommandRefusal
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
-import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.livetv.rememberClock
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -354,7 +364,7 @@ private fun DeviceControls(
     }
 }
 
-/** A device ready to play: nothing plays there, and how to send it something. */
+/** A device ready to play, under its name: nothing plays there, and how to send it something. */
 @Composable
 private fun Idle() {
     Column(
@@ -373,11 +383,12 @@ private fun Idle() {
 }
 
 /**
- * What a device plays, top to bottom: its picture and title, how far, the
- * transport, its audio and subtitles, and Stop. A command it didn't act on
- * within [RemoteRepository.ANSWER_WAIT_MS] says so. Its session may change
- * under it (the next episode, a track that needed a new session): the
- * device's newest is followed.
+ * What a device plays, top to bottom: its picture and title, how far (a
+ * channel's programme), the transport, then its audio, subtitles and
+ * quality on the left and Stop on the right; Stop asks first. A command it
+ * didn't act on within [RemoteRepository.ANSWER_WAIT_MS] says so. Its
+ * session may change under it (the next episode, a track that needed a new
+ * session): the device's newest is followed.
  */
 @Composable
 private fun Playing(
@@ -395,6 +406,7 @@ private fun Playing(
     var sent by remember { mutableStateOf<SentCommand?>(null) }
     var sending by remember { mutableStateOf(false) }
     var stopping by remember { mutableStateOf(false) }
+    var confirmStop by rememberSaveable { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     // The report the error was said against: a newer one (the device acted late, or on something else) takes it away.
     var errorAt by remember { mutableStateOf<Long?>(null) }
@@ -431,17 +443,17 @@ private fun Playing(
         CommandRefusal.Offline, CommandRefusal.Other -> sentenceOf(e)
     }
 
-    fun send(command: Control, positionMs: Long? = null, offsetMs: Long? = null, streamIndex: Int? = null) {
+    fun send(request: PlayerCommandRequest) {
         say(null)
         sending = true
         onCommand()
         scope.launch {
             val before = current
             val sentAt = remote.clock()
-            val target = RemoteRepository.target(before, command, sentAt, positionMs, offsetMs)
+            val target = RemoteRepository.target(before, request.command, sentAt, request.positionMs, request.offsetMs)
             try {
-                remote.command(before.sessionId, PlayerCommandRequest(command, positionMs, offsetMs, streamIndex))
-                sent = SentCommand(command, before, sentAt, target, streamIndex)
+                remote.command(before.sessionId, request)
+                sent = SentCommand(request.command, before, sentAt, target, request.streamIndex, request.quality)
                 // Its answer is waited for from now.
                 onCommand()
             } catch (e: CancellationException) {
@@ -481,13 +493,17 @@ private fun Playing(
     ) {
         Header(session, origin)
         // The controls stay as they are while a command waits for its answer (the web's): another can follow it.
-        if (!live) Progress(session, device, now, onSeek = { send(Control.Seek, positionMs = it) })
+        if (live) {
+            session.session.channel?.let { LiveProgress(it) }
+        } else {
+            Progress(session, device, now, onSeek = { send(PlayerCommandRequest(Control.Seek, positionMs = it)) })
+        }
         Transport(session, device, live, ::send)
-        Tracks(session, device, onPick = { command, index -> send(command, streamIndex = index) })
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Choices(session, device, ::send, Modifier.weight(1f))
             val stopLabel = stringResource(R.string.remote_stop_on, device)
             TextButton(
-                onClick = ::stop,
+                onClick = { confirmStop = true },
                 enabled = !stopping,
                 modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = stopLabel },
                 colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.Muted, disabledContentColor = PleyColors.Disabled),
@@ -513,12 +529,27 @@ private fun Playing(
             )
         }
     }
+    if (confirmStop) {
+        // Stopping ends what someone may be watching there: it asks first.
+        ConfirmDialog(
+            title = stringResource(R.string.remote_stop_confirm, device),
+            body = null,
+            confirmLabel = stringResource(R.string.remote_stop),
+            onConfirm = {
+                confirmStop = false
+                stop()
+            },
+            onDismiss = { confirmStop = false },
+            destructive = true,
+        )
+    }
 }
 
 /**
  * What plays, beside its poster or the channel's logo: an episode as its
  * show and place over its title, a track over its artist, a channel's
- * number and name over what's on, a movie over its year.
+ * number and name over Live TV (its programme is under it, with how far
+ * it is: [LiveProgress]), a movie over its year.
  */
 @Composable
 private fun Header(session: RemoteSession, origin: String?) {
@@ -547,6 +578,51 @@ private fun Header(session: RemoteSession, origin: String?) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis)
             under?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
+/**
+ * A channel's programme on, in a title's progress' place: its title, how
+ * far it is by the clock (drawn only), its start and end times as the
+ * device writes them ("20:00 – 21:00"), and the one after it. Nothing
+ * without a guide.
+ */
+@Composable
+private fun LiveProgress(channel: PlayingChannel) {
+    val programme = channel.now?.takeIf { it.isNotEmpty() }
+    val next = channel.next?.takeIf { it.isNotEmpty() }
+    if (programme == null && next == null) return
+    val start = channel.nowStart
+    val stop = channel.nowStop?.takeIf { start != null && it > start }
+    val clock = rememberClock()
+    val seconds by produceState(System.currentTimeMillis() / 1000) {
+        while (true) {
+            delay(TICK_MS)
+            value = System.currentTimeMillis() / 1000
+        }
+    }
+    Column(Modifier.fillMaxWidth().testTag(REMOTE_LIVE), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        programme?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        if (programme != null && start != null && stop != null) {
+            val fraction = ((seconds - start).toFloat() / (stop - start)).coerceIn(0f, 1f)
+            Box(Modifier.fillMaxWidth().height(3.dp).clip(PleyShape.Badge).background(PleyColors.Surface4).clearAndSetSemantics {}) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).background(PleyColors.Accent))
+            }
+            Text(
+                stringResource(R.string.remote_live_span, clock(start), clock(stop)),
+                style = MaterialTheme.typography.labelSmall,
+                color = PleyColors.Subtle,
+            )
+        }
+        next?.let {
+            Text(
+                stringResource(R.string.remote_live_next, it),
+                style = MaterialTheme.typography.bodySmall,
+                color = PleyColors.Muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -616,141 +692,218 @@ private fun Progress(session: RemoteSession, device: String, now: Long, onSeek: 
 }
 
 /**
- * The transport, centred, in the web's order: previous, back 10 s, play or
- * pause, forward 30 s, where the player declares them, and next where the
- * player declares it or what plays has a next by nature (an episode, a
- * track, a channel, as next channel), dimmed when the player can't go
- * there; a movie whose player declares none has no Next.
+ * The transport, centred. A title's in the web's order: previous, back
+ * 10 s, play or pause, forward 30 s, where the player declares them, and
+ * next where the player declares it or what plays has a next by nature (an
+ * episode, a track), dimmed when the player can't go there; a movie whose
+ * player declares none has no Next. A channel's: play or pause where the
+ * player declares pause, then the channel rocker ([ChannelRocker]).
  */
 @Composable
-private fun Transport(
-    session: RemoteSession,
-    device: String,
-    live: Boolean,
-    send: (Control, Long?, Long?, Int?) -> Unit,
-) {
+private fun Transport(session: RemoteSession, device: String, live: Boolean, send: (PlayerCommandRequest) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        val paused = session.session.state == ProgressState.Paused
+        val toggle = when {
+            live && !session.can(Control.Pause) -> null
+            paused && session.can(Control.Play) -> Control.Play
+            !paused && session.can(Control.Pause) -> Control.Pause
+            else -> null
+        }
+        if (live) {
+            toggle?.let { PlayPause(it, device, send) }
+            ChannelRocker(session, device, send)
+            return@Row
+        }
         if (session.can(Control.Previous)) {
             PleyIconButton(
                 PleyIcons.SkipBack,
-                stringResource(if (live) R.string.remote_previous_channel else R.string.remote_previous, device),
-                onClick = { send(Control.Previous, null, null, null) },
+                stringResource(R.string.remote_previous, device),
+                onClick = { send(PlayerCommandRequest(Control.Previous)) },
             )
         }
         if (session.can(Control.Skip)) {
             PleyIconButton(
                 PleyIcons.RotateCcw,
                 stringResource(R.string.remote_back, device),
-                onClick = { send(Control.Skip, null, -RemoteRepository.SKIP_BACK_MS, null) },
+                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = -RemoteRepository.SKIP_BACK_MS)) },
             )
         }
-        val paused = session.session.state == ProgressState.Paused
-        val toggle = when {
-            paused && session.can(Control.Play) -> Control.Play
-            !paused && session.can(Control.Pause) -> Control.Pause
-            else -> null
-        }
-        if (toggle != null) {
-            val label = stringResource(if (toggle == Control.Play) R.string.remote_play else R.string.remote_pause, device)
-            // A 48 dp circle in a 56 dp touch target, between its neighbours.
-            Box(
-                Modifier
-                    .padding(horizontal = 8.dp)
-                    .size(56.dp)
-                    .clip(PleyShape.Circle)
-                    .clickable(role = Role.Button) { send(toggle, null, null, null) }
-                    .semantics { contentDescription = label },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(48.dp).clip(PleyShape.Circle).background(PleyColors.Fg), contentAlignment = Alignment.Center) {
-                    Icon(if (toggle == Control.Play) PleyIcons.Play else PleyIcons.Pause, contentDescription = null, size = 24.dp, tint = PleyColors.Bg)
-                }
-            }
-        }
+        toggle?.let { PlayPause(it, device, send) }
         if (session.can(Control.Skip)) {
             PleyIconButton(
                 PleyIcons.RotateCw,
                 stringResource(R.string.remote_forward, device),
-                onClick = { send(Control.Skip, null, RemoteRepository.SKIP_FORWARD_MS, null) },
+                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = RemoteRepository.SKIP_FORWARD_MS)) },
             )
         }
         val kind = session.session.item?.kind
-        if (session.can(Control.Next) || live || kind == ItemKind.Episode || kind == ItemKind.Track) {
+        if (session.can(Control.Next) || kind == ItemKind.Episode || kind == ItemKind.Track) {
             PleyIconButton(
                 PleyIcons.SkipForward,
-                stringResource(if (live) R.string.remote_next_channel else R.string.remote_next, device),
-                onClick = { send(Control.Next, null, null, null) },
+                stringResource(R.string.remote_next, device),
+                onClick = { send(PlayerCommandRequest(Control.Next)) },
                 enabled = session.can(Control.Next),
             )
         }
     }
 }
 
+/** Play or pause ([toggle]): a 48 dp circle in a 56 dp touch target, between its neighbours. */
+@Composable
+private fun PlayPause(toggle: Control, device: String, send: (PlayerCommandRequest) -> Unit) {
+    val label = stringResource(if (toggle == Control.Play) R.string.remote_play else R.string.remote_pause, device)
+    Box(
+        Modifier
+            .padding(horizontal = 8.dp)
+            .size(56.dp)
+            .clip(PleyShape.Circle)
+            .clickable(role = Role.Button) { send(PlayerCommandRequest(toggle)) }
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(48.dp).clip(PleyShape.Circle).background(PleyColors.Fg), contentAlignment = Alignment.Center) {
+            Icon(if (toggle == Control.Play) PleyIcons.Play else PleyIcons.Pause, contentDescription = null, size = 24.dp, tint = PleyColors.Bg)
+        }
+    }
+}
+
 /**
- * Audio and Subtitles, each where the player declares it and the file has
- * such tracks: a menu of them labelled as the player's own menu labels
- * them, the one playing ticked (subtitles' Off first).
+ * A channel's up and down, as a TV remote's rocker: one rounded pill
+ * holding channel down, the word CHANNEL and channel up, each button
+ * dimmed when the player can't change channel that way. The word is drawn
+ * only: the buttons say what they do.
  */
 @Composable
-private fun Tracks(session: RemoteSession, device: String, onPick: (Control, Int) -> Unit) {
+private fun ChannelRocker(session: RemoteSession, device: String, send: (PlayerCommandRequest) -> Unit) {
+    Row(
+        Modifier
+            .padding(horizontal = 8.dp)
+            .clip(PleyShape.Circle)
+            .background(PleyColors.Surface3)
+            .border(1.dp, PleyColors.Border, PleyShape.Circle)
+            .testTag(REMOTE_ROCKER),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PleyIconButton(
+            PleyIcons.ChevronDown,
+            stringResource(R.string.remote_previous_channel, device),
+            onClick = { send(PlayerCommandRequest(Control.Previous)) },
+            enabled = session.can(Control.Previous),
+        )
+        Text(
+            stringResource(R.string.remote_channel).uppercase(),
+            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
+            color = PleyColors.Muted,
+            modifier = Modifier.padding(horizontal = 4.dp).clearAndSetSemantics {},
+        )
+        PleyIconButton(
+            PleyIcons.ChevronUp,
+            stringResource(R.string.remote_next_channel, device),
+            onClick = { send(PlayerCommandRequest(Control.Next)) },
+            enabled = session.can(Control.Next),
+        )
+    }
+}
+
+/**
+ * Audio, Subtitles and Quality, as icons, each where the player declares
+ * it and has something to pick: more than one audio track, any subtitles,
+ * the qualities its menu offers. Each opens a menu labelled as the
+ * player's own menu labels it, what plays ticked (subtitles' Off first; no
+ * quality ticked until the player says which).
+ */
+@Composable
+private fun Choices(session: RemoteSession, device: String, send: (PlayerCommandRequest) -> Unit, modifier: Modifier = Modifier) {
     val playing = session.session
-    val audio = playing.tracks.audio.takeIf { session.can(Control.Audio) }.orEmpty()
+    val audio = playing.tracks.audio.takeIf { session.can(Control.Audio) && it.size > 1 }.orEmpty()
     val subtitles = playing.tracks.subtitles.takeIf { session.can(Control.Subtitles) }.orEmpty()
-    if (audio.isEmpty() && subtitles.isEmpty()) return
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
+    val qualities = playing.qualities.takeIf { session.can(Control.Quality) }.orEmpty()
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (audio.isNotEmpty()) {
-            TrackMenu(
+            ChoiceMenu(
                 icon = PleyIcons.AudioLines,
-                label = stringResource(R.string.remote_audio),
+                hint = stringResource(R.string.remote_audio),
                 description = stringResource(R.string.remote_audio_on, device),
                 choices = audio.map { it.index to labelOf(it, StreamKind.Audio) },
                 current = playing.audioIndex,
                 tag = REMOTE_AUDIO,
-                onPick = { onPick(Control.Audio, it) },
+                onPick = { send(PlayerCommandRequest(Control.Audio, streamIndex = it)) },
             )
         }
         if (subtitles.isNotEmpty()) {
-            TrackMenu(
+            ChoiceMenu(
                 icon = PleyIcons.Captions,
-                label = stringResource(R.string.remote_subtitles),
+                hint = stringResource(R.string.remote_subtitles),
                 description = stringResource(R.string.remote_subtitles_on, device),
                 choices = listOf(PlayingSession.SUBTITLES_OFF to stringResource(R.string.remote_subtitles_off)) +
                     subtitles.map { it.index to labelOf(it, StreamKind.Subtitle) },
                 current = playing.subtitleIndex,
                 tag = REMOTE_SUBTITLES,
-                onPick = { onPick(Control.Subtitles, it) },
+                onPick = { send(PlayerCommandRequest(Control.Subtitles, streamIndex = it)) },
+            )
+        }
+        if (qualities.isNotEmpty()) {
+            ChoiceMenu(
+                icon = PleyIcons.SlidersHorizontal,
+                hint = stringResource(R.string.remote_quality),
+                description = stringResource(R.string.remote_quality_on, device),
+                choices = qualities.map { it.id to it.label.ifEmpty { it.id } },
+                current = playing.quality,
+                tag = REMOTE_QUALITY,
+                onPick = { send(PlayerCommandRequest(Control.Quality, quality = it)) },
             )
         }
     }
 }
 
-/** A button that opens a menu of [choices] (stream index and label), [current] ticked; picking one calls [onPick] with its index. */
+/**
+ * A 48 dp icon button, read out as [description] and hinted as [hint] on a
+ * long press, that opens a menu of [choices] (a key and its label),
+ * [current] ticked; it shows as selected while the menu is open. Picking
+ * one calls [onPick] with its key and closes the menu.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TrackMenu(
+private fun <T> ChoiceMenu(
     icon: PleyIcon,
-    label: String,
+    hint: String,
     description: String,
-    choices: List<Pair<Int, String>>,
-    current: Int?,
+    choices: List<Pair<T, String>>,
+    current: T?,
     tag: String,
-    onPick: (Int) -> Unit,
+    onPick: (T) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TonalButton(
-            label,
-            onClick = { open = true },
-            icon = icon,
-            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = description }.testTag(tag),
-        )
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+            tooltip = { PlainTooltip { Text(hint) } },
+            state = rememberTooltipState(),
+        ) {
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(PleyShape.Circle)
+                    .background(if (open) PleyColors.Surface3 else Color.Transparent)
+                    .clickable(role = Role.Button) { open = true }
+                    .semantics {
+                        contentDescription = description
+                        selected = open
+                    }
+                    .testTag(tag),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, size = 24.dp, tint = if (open) PleyColors.AccentBright else PleyColors.Fg)
+            }
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = PleyColors.Surface3) {
-            choices.forEach { (index, text) ->
-                val ticked = index == current
+            choices.forEach { (key, text) ->
+                val ticked = key == current
                 DropdownMenuItem(
                     text = { Text(text, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg) },
                     onClick = {
                         open = false
-                        onPick(index)
+                        onPick(key)
                     },
                     trailingIcon = if (ticked) ({ Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.AccentBright) }) else null,
                     modifier = Modifier.heightIn(min = 48.dp).semantics { selected = ticked },
@@ -796,8 +949,9 @@ private fun linesOf(playing: PlayingSession, liveTv: String): Pair<String, Strin
     val item = playing.item
     return when {
         playing.kind == PlayingKind.Live -> {
-            val name = channel?.let { listOfNotNull(it.number, it.name.takeIf { n -> n.isNotEmpty() }).joinToString(" ") }
-            name.orEmpty().ifEmpty { liveTv } to channel?.now?.takeIf { it.isNotEmpty() }
+            // The programme on is under it, with how far it is (LiveProgress).
+            val name = channel?.let { listOfNotNull(it.number, it.name.takeIf { n -> n.isNotEmpty() }).joinToString(" ") }.orEmpty()
+            if (name.isEmpty()) liveTv to null else name to liveTv
         }
         item == null -> "" to null
         item.kind == ItemKind.Episode ->
@@ -828,6 +982,13 @@ internal const val REMOTE_CARD = "pley.phone.remote_card."
 /** A device ready to play, playing nothing. */
 internal const val REMOTE_IDLE = "pley.phone.remote_idle"
 
-/** The Audio and Subtitles buttons. */
+/** The Audio, Subtitles and Quality buttons. */
 internal const val REMOTE_AUDIO = "pley.phone.remote_audio"
 internal const val REMOTE_SUBTITLES = "pley.phone.remote_subtitles"
+internal const val REMOTE_QUALITY = "pley.phone.remote_quality"
+
+/** A channel's up and down. */
+internal const val REMOTE_ROCKER = "pley.phone.remote_rocker"
+
+/** A channel's programme, with how far it is. */
+internal const val REMOTE_LIVE = "pley.phone.remote_live"

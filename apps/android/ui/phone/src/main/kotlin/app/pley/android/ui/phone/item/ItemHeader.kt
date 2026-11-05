@@ -289,8 +289,8 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
             icon = PleyIcons.Play,
             modifier = (if (fullWidth) Modifier.weight(1f) else Modifier.widthIn(min = 220.dp)).testTag(TestTags.ITEM_PLAY),
         )
-        // Where the page's Play starts it: a title being watched resumes there too.
-        CastTarget.of(page.item)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
+        // Where the page's Play starts it, with the tracks picked here: a title being watched resumes there too.
+        CastTarget.page(page.item, page.tracks)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
     }
     if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) {
         Spacer(Modifier.height(8.dp))
