@@ -62,6 +62,9 @@ public interface IPlayerSource
     /// <summary>The server's .mks of a picture subtitle track at an absolute address.</summary>
     Task<SubtitlePictures> PictureSubtitles(string url);
 
+    /// <summary>Bytes from, to (inclusive) of the server's .mks of a picture subtitle track (<see cref="PictureRanges"/>).</summary>
+    Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to);
+
     /// <summary>The file's seek previews; null while the server makes them.</summary>
     Task<TrickplayInfo?> Trickplay(long fileId);
 
@@ -137,6 +140,8 @@ public sealed class AppPlayerSource : IPlayerSource
     public Task<SubtitleText> Subtitles(string url) => Api.Subtitles(url);
 
     public Task<SubtitlePictures> PictureSubtitles(string url) => Api.PictureSubtitles(url);
+
+    public Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to) => Api.PictureSubtitlesPart(url, from, to);
 
     public Task<TrickplayInfo?> Trickplay(long fileId) => Api.Trickplay(fileId);
 

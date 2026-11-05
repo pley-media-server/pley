@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
+using Pley.Tv.Core.Requests;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Tizen.NUI;
@@ -47,13 +48,18 @@ sealed class SearchScreen : ShellPage
     Animation? chipAnimation;
     /// <summary>The Live TV row, while the results have one.</summary>
     ChannelRowView? channelRow;
+    /// <summary>TMDB's titles for the words, after the libraries' results, for a profile that may ask.</summary>
+    readonly SearchDiscoverModel? discover;
+    TmdbRowView? tmdbRow;
 
     /// <param name="layers">The app's sheets: the field's keyboard takes the remote's keys through their input.</param>
     /// <param name="go">Opens another page: an item, a person, an album.</param>
     /// <param name="watch">Plays a Live TV channel found.</param>
-    public SearchScreen(TvShell shell, Shell layers, SearchModel model, Images images, KeyRepeatGate gate, Action<PageKey> go, Action<LiveWatch> watch)
+    public SearchScreen(TvShell shell, Shell layers, SearchModel model, Images images, KeyRepeatGate gate, Action<PageKey> go, Action<LiveWatch> watch,
+        SearchDiscoverModel? discover = null)
         : base(shell, new PageKey.Search(model.State.Value.Query), "search")
     {
+        this.discover = discover;
         this.model = model;
         this.images = images;
         this.gate = gate;
@@ -86,6 +92,7 @@ sealed class SearchScreen : ShellPage
         };
         watches.Add(model.State.Watch(Show));
         watches.Add(model.Now.Watch(now => channelRow?.SetNow(now)));
+        if (discover != null) watches.Add(discover.State.Watch(Tmdb));
     }
 
     public override void Enter()
@@ -97,6 +104,7 @@ sealed class SearchScreen : ShellPage
     {
         foreach (var w in watches) w.Dispose();
         field.Changed -= model.Type;
+        discover?.Dispose();
         chipAnimation?.Stop();
         DropRows();
         model.Dispose();
@@ -113,6 +121,20 @@ sealed class SearchScreen : ShellPage
     {
         if (s.Searching) searching.Show();
         else searching.Hide();
+        discover?.Search(s.Results switch
+        {
+            SearchResultsState.Loading l => l.Query,
+            SearchResultsState.Ready r => r.Query,
+            SearchResultsState.Empty e => e.Query,
+            SearchResultsState.Failed f => f.Query,
+            _ => "",
+        });
+        // The libraries have nothing: the line saying so, and Discover's row under it, where it stays.
+        if (s.Results is SearchResultsState.Empty empty && discover != null && discover.State.Value is not TmdbSection.Hidden)
+        {
+            if (!Equals(shown, ("tmdb", empty.Query))) OnlyTmdb(empty.Query);
+            return;
+        }
 
         if (SearchText.Message(s) is { } message)
         {
@@ -142,6 +164,7 @@ sealed class SearchScreen : ShellPage
         chipStrip = null;
         chipScroll = 0;
         channelRow = null;
+        tmdbRow = null;
         DropRows();
         below.Clear();
         foreach (var child in body.Children.ToList())
@@ -191,6 +214,39 @@ sealed class SearchScreen : ShellPage
             column.Add(row);
             rows.Add(row);
         }
+        if (discover != null)
+        {
+            tmdbRow = TmdbRow();
+            column.Add(tmdbRow, tmdbRow.Group);
+            rows.Add(tmdbRow);
+            tmdbRow.Show(discover.State.Value);
+        }
+        body.Add(column);
+        below.Add(column.Group);
+    }
+
+    TmdbRowView TmdbRow() => new TmdbRowView(gate, images, model.Origin, go, () => discover?.Retry(), Shell.FocusRail, Tree.Focus, () => Tree.Focus(field.Item));
+
+    /// <summary>The Discover row's state changed: the row shows it, or the page is drawn again when it comes or goes with no library results.</summary>
+    void Tmdb(TmdbSection section)
+    {
+        if (tmdbRow != null) tmdbRow.Show(section);
+        if (model.State.Value.Results is SearchResultsState.Empty && (section is TmdbSection.Hidden) == shown is ValueTuple<string, string>) Show(model.State.Value);
+    }
+
+    /// <summary>The libraries found nothing: "Nothing in your libraries matches", and Discover's row under it.</summary>
+    void OnlyTmdb(string query)
+    {
+        ClearBody(("tmdb", query));
+        var line = Text.Label("Nothing in your libraries matches", PleyType.Body, PleyColors.Muted, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
+        line.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ResultsTop));
+        body.Add(line);
+        var top = ResultsTop + 20 + PleyTv.RowGap;
+        var column = new RowColumnView(gate, top: top, headerY: top);
+        tmdbRow = TmdbRow();
+        column.Add(tmdbRow, tmdbRow.Group);
+        rows.Add(tmdbRow);
+        tmdbRow.Show(discover!.State.Value);
         body.Add(column);
         below.Add(column.Group);
     }
@@ -427,6 +483,147 @@ sealed class ChannelRowView : View
             scroll?.Stop();
             foreach (var card in cards) card.Dispose();
         }
+        base.Dispose(type);
+    }
+}
+
+/// <summary>
+/// Search's Discover row (the Android app's TvTmdbRow): TMDB's titles for the words as posters with
+/// their status badges, each opening its title's page, then See all for every title TMDB finds for
+/// them; a still row while TMDB is asked; or why it can't be searched, with Retry where trying again
+/// may help. It keeps its place among the rows as what it shows changes.
+/// </summary>
+sealed class TmdbRowView : View
+{
+    readonly KeyRepeatGate gate;
+    readonly Images images;
+    readonly string origin;
+    readonly Action<PageKey> go;
+    readonly Action retry;
+    readonly Func<bool> toRail;
+    readonly Func<FocusItem, bool> focus;
+    readonly Action away;
+    RowView? row;
+    TmdbSection? shown;
+
+    /// <param name="away">Focus was in the row, and what it shows now takes none (Retry pressed, TMDB asked again): where focus goes.</param>
+    public TmdbRowView(KeyRepeatGate gate, Images images, string origin, Action<PageKey> go, Action retry, Func<bool> toRail, Func<FocusItem, bool> focus, Action away)
+    {
+        this.away = away;
+        this.gate = gate;
+        this.images = images;
+        this.origin = origin;
+        this.go = go;
+        this.retry = retry;
+        this.toRail = toRail;
+        this.focus = focus;
+        Group = new FocusGroup(Axis.Column, RequestText.SearchRow);
+        Group.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
+        Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles + TileKind.Poster.Height + PleyTv.TilesToCaption + PleyTv.CaptionHeight));
+    }
+
+    public FocusGroup Group { get; }
+
+    public void Show(TmdbSection section)
+    {
+        if (Equals(section, shown)) return;
+        var hadFocus = Group.Children.Any(Holds);
+        if (shown is TmdbSection.Ready before && section is TmdbSection.Ready ready && before.Query == ready.Query && row != null)
+        {
+            // Badges that followed a request: the row stays, its tiles take their new look.
+            shown = section;
+            row.Update(ready.Titles.Select(t => RequestKit.TitleTile(t, origin)).ToList());
+            return;
+        }
+        shown = section;
+        row = null;
+        foreach (var child in Children.ToList())
+        {
+            Remove(child);
+            child.Dispose();
+        }
+        Group.Clear();
+        switch (section)
+        {
+            case TmdbSection.Ready r:
+            {
+                var titles = r.Titles;
+                row = new RowView(RequestText.SearchRow, titles.Select(t => RequestKit.TitleTile(t, origin)).ToList(), TileKind.Poster, gate, images,
+                    tile =>
+                    {
+                        var title = titles.FirstOrDefault(t => RequestKit.TileId(t) == tile.Id);
+                        if (title != null) go(new PageKey.DiscoverTitle(title.Kind, title.TmdbId));
+                    },
+                    null, toRail, focusItem: focus, seeAll: (RequestText.SeeAll, () => go(new PageKey.DiscoverResults(r.Query))));
+                Add(row);
+                Group.Add(row.Group);
+                row.ShowPictures();
+                break;
+            }
+            case TmdbSection.Failed f:
+            {
+                var header = Text.Label(RequestText.SearchRow, PleyType.Section, PleyColors.Fg, width: 600);
+                header.PositionX = Ui.Dp(PleyTv.Gutter);
+                Add(header);
+                var y = PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles;
+                var title = Text.Label(RequestKit.ProblemTitle(f.Problem, f.Summary, RequestText.SearchFailed), PleyType.Title, PleyColors.Fg, width: 560);
+                title.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(y));
+                Add(title);
+                y += PleyType.Title.Line;
+                if (RequestKit.ProblemBody(f.Problem, f.Summary) is { } body)
+                {
+                    var words = PanelColumn.Lines(body, PleyType.Body, PleyColors.Muted, 560, 2);
+                    words.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(y + 4));
+                    Add(words);
+                    y += 4 + words.SizeHeight / Ui.Scale;
+                }
+                if (f.Problem.Retry)
+                {
+                    var buttons = new ButtonRow();
+                    buttons.Add(new ButtonView(RequestText.Retry, ButtonKind.Pill, retry, iconName: "refresh-cw"));
+                    buttons.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(y + 16));
+                    Add(buttons);
+                    Group.Add(buttons.Group);
+                }
+                break;
+            }
+            case TmdbSection.Loading:
+            {
+                // A still row while TMDB is asked: its title and wells; nothing in it takes focus.
+                var header = Text.Label(RequestText.SearchRow, PleyType.Section, PleyColors.Fg, width: 600);
+                header.PositionX = Ui.Dp(PleyTv.Gutter);
+                Add(header);
+                var tile = TileKind.Poster;
+                for (var i = 0; i < 7; i++)
+                    Add(new View
+                    {
+                        Position = new Position(Ui.Dp(PleyTv.Gutter + (tile.Width + tile.Gap) * i), Ui.Dp(PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles)),
+                        Size = new Size(Ui.Dp(tile.Width), Ui.Dp(tile.Height)),
+                        CornerRadius = Ui.Dp(PleyShape.TileRadius),
+                        BackgroundColor = PleyColors.Surface2,
+                    });
+                break;
+            }
+        }
+        if (hadFocus)
+        {
+            if (Group.Children.FirstOrDefault(c => c.CanTakeFocus) is FocusGroup g && g.Children.OfType<FocusItem>().FirstOrDefault(i => i.CanTakeFocus) is { } item) focus(item);
+            else away();
+        }
+    }
+
+    static bool Holds(FocusNode node) => node switch
+    {
+        FocusItem item => item.Focused,
+        FocusGroup group => group.Children.Any(Holds),
+        _ => false,
+    };
+
+    protected override void Dispose(DisposeTypes type)
+    {
+        if (Disposed) return;
+        // Only when disposed by the app: collected, its row may have gone first (Kit/Held.cs).
+        if (type == DisposeTypes.Explicit) row?.Dispose();
         base.Dispose(type);
     }
 }

@@ -192,23 +192,21 @@ struct ScreenView: View {
     }
 }
 
-/// "Showing what Pley had saved. Reconnecting…" (after "Another device
-/// answers there." when that is why), at the foot of the screen
-/// while the server can't be reached. It takes no focus: the app tries the
-/// server again by itself.
+/// "Pley is offline", at the foot of the screen while the server can't be
+/// reached. It takes no focus: the app tries the server again by itself.
 private struct OfflineBanner: View {
     @ObservedObject var app: AppModel
 
     var body: some View {
         if app.offline {
-            Label(app.offlineMessage, systemImage: "wifi.slash")
+            Label(DownloadWords.offline, systemImage: "wifi.slash")
                 .font(.callout)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 16)
                 .background(.regularMaterial, in: Capsule())
                 .padding(.bottom, 40)
                 .accessibilityIdentifier("offline.banner")
-                .task(id: app.offlineMessage) { AccessibilityNotification.Announcement(app.offlineMessage).post() }
+                .task { AccessibilityNotification.Announcement(DownloadWords.offline).post() }
         }
     }
 }

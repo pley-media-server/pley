@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,7 @@ import app.pley.android.screens.downloads.DownloadGroup
 import app.pley.android.screens.downloads.DownloadsViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.EmptyState
+import app.pley.android.ui.phone.kit.LocalOfflineAction
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
@@ -75,7 +77,10 @@ internal fun DownloadsScreen() {
     val metrics = LocalPhoneMetrics.current
     val list = rememberLazyListState()
     Column(Modifier.fillMaxSize().testTag(DOWNLOADS_PAGE)) {
-        PleyTopAppBar(title = stringResource(R.string.downloads_title), onBack = navigator::back, scrolled = { list.canScrollBackward })
+        // Already on the downloads: the offline banner leaves out its way to them.
+        CompositionLocalProvider(LocalOfflineAction provides null) {
+            PleyTopAppBar(title = stringResource(R.string.downloads_title), onBack = navigator::back, scrolled = { list.canScrollBackward })
+        }
         if (groups.isEmpty()) {
             EmptyState(
                 title = stringResource(R.string.downloads_empty),

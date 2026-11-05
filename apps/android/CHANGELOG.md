@@ -67,6 +67,10 @@ describes how they are made.
   the list it moves along, on every page: Up held through Home's rows
   stops on the first row rather than going on to the hero, Down held
   through a library stops on its last row. A press of its own goes on.
+- When the server can't be reached, the app says "Pley is offline", with
+  Downloads beside it on phones and tablets, where it said "Showing what
+  Pley had saved. Reconnecting…". It still shows what it saved and
+  reconnects by itself.
 
 ### Fixed
 

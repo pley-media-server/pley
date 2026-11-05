@@ -37,7 +37,7 @@ use crate::screen::AppEvent;
 /// An answer older than this is asked again when something shows it (`REVALIDATE_MS`,
 /// Android's `ResourceCache.kt:279-282`).
 pub const REVALIDATE: f64 = 30.0;
-/// How long "Showing what Pley had saved. Reconnecting…" shows (`OFFLINE_NOTICE_MS`).
+/// How long "Pley is offline" shows (`OFFLINE_NOTICE_MS`).
 pub const OFFLINE_NOTICE: f64 = 6.0;
 /// While the server is out of reach it is asked this often, and given as long to answer
 /// (`OFFLINE_ASK_MS`): the event stream, backing off up to 30 s, then reconnects at once.
@@ -55,9 +55,8 @@ pub const ITEMS_KEPT: usize = 40;
 /// How many of the live channels pages showed are kept, so the player starts with one at once.
 pub const LIVE_CHANNELS_KEPT: usize = 500;
 
-/// What "Showing what Pley had saved. Reconnecting…" says: the shell's notice while the server is
-/// out of reach, then the avatar's mark.
-pub const OFFLINE_TEXT: &str = "Showing what Pley had saved. Reconnecting…";
+/// What the shell's notice says while the server is out of reach, then the avatar's mark.
+pub const OFFLINE_TEXT: &str = "Pley is offline";
 
 /// A library scan the server's events told of.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -1095,8 +1094,8 @@ impl AppState {
         self.offline
     }
 
-    /// Whether "Showing what Pley had saved. Reconnecting…" shows (its first 6 s); after it the
-    /// rail's avatar keeps a mark while [`AppState::offline`].
+    /// Whether "Pley is offline" shows (its first 6 s); after it the rail's avatar keeps a mark
+    /// while [`AppState::offline`].
     pub fn offline_notice(&self) -> bool {
         self.offline && self.notice_until.is_some_and(|t| self.now < t)
     }

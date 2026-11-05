@@ -318,6 +318,9 @@ public sealed class LocalPlayerSource : IPlayerSource
         });
     }
 
+    /// <summary>A drive's tracks are read out as the film plays, not in parts: the presenter reads them whole.</summary>
+    public Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to) => Task.FromException<SubtitlePart>(new NotSupportedException());
+
     /// <summary>A picture track of the file's own (".../subtitles/4.mks"): as much as is read out yet, handed over as it is.</summary>
     public Task<SubtitlePictures> PictureSubtitles(string url)
     {

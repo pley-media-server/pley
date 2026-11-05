@@ -5,9 +5,9 @@ namespace Pley.Tv.Core.Ui;
 
 /// <summary>
 /// D-pad rule 5, held keys (the Android app's KeyRepeatGate). A press moves focus once. Held for
-/// 180 ms, focus moves on the app's own clock (<see cref="Tick"/>) at a flat pace: sooner and more
-/// evenly than the TV's repeats, which begin after 400 ms, come unevenly, and only say the key is
-/// still down. A row scrolls under a held key as one continuous slide at that pace, the PSP's XMB
+/// 400 ms, focus moves on the app's own clock (<see cref="Tick"/>) at a flat pace: more evenly than
+/// the TV's repeats, which begin about then, come unevenly, and only say the key is still down. A
+/// row scrolls under a held key as one continuous slide at that pace, the PSP's XMB
 /// way, until <see cref="HoldEnded"/>; a page's rows step, each glide lasting a little over the
 /// time between moves (<see cref="GlideMs"/>), so each runs into the next. Backdrops and details
 /// wait until focus has rested 400 ms (<see cref="Rested"/>).
@@ -15,8 +15,11 @@ namespace Pley.Tv.Core.Ui;
 /// </summary>
 public sealed class KeyRepeatGate
 {
-    /// <summary>How long a key is down before focus starts moving by itself.</summary>
-    public const long HoldDelayMs = 180;
+    /// <summary>
+    /// How long a key is down before focus starts moving by itself: about when the TV's own repeats
+    /// begin. A remote's press can last 200 or 300 ms: at 180 ms, such a press moved focus twice.
+    /// </summary>
+    public const long HoldDelayMs = 400;
     /// <summary>The time between moves while a key is held: about 22 a second.</summary>
     public const long MoveIntervalMs = 45;
     /// <summary>How long focus rests before backdrops and details follow it.</summary>
@@ -31,6 +34,8 @@ public sealed class KeyRepeatGate
     long lastMove = long.MinValue / 2;
     long nextMove;
     long lastKey = long.MinValue / 2;
+    /// <summary>When any key last went down, or the app came back to the front.</summary>
+    long lastTouch = long.MinValue / 2;
     long pressedAt;
     string? held;
     /// <summary>The direction pressed and not let go yet: held once <see cref="HoldDelayMs"/> has passed.</summary>
@@ -52,6 +57,12 @@ public sealed class KeyRepeatGate
     /// <summary>The time between moves while a key is held.</summary>
     public long Interval => MoveIntervalMs;
 
+    /// <summary>How long since a key last went down (or <see cref="Touched"/>): news waits for the remote to rest, so it never takes a press meant for the page.</summary>
+    public long QuietFor() => clock() - lastTouch;
+
+    /// <summary>The app came back to the front: as a press, so what waits for the remote to rest waits from now.</summary>
+    public void Touched() => lastTouch = clock();
+
     /// <summary>A hold ended: the key came up, or its key-up was lost. A row sliding under it settles.</summary>
     public event Action? HoldEnded;
 
@@ -64,6 +75,7 @@ public sealed class KeyRepeatGate
     /// </summary>
     public bool Admit(string key, bool isDown)
     {
+        if (isDown) lastTouch = clock();
         if (!Directions.Contains(key)) return true;
         var now = clock();
         if (isDown)
@@ -78,7 +90,16 @@ public sealed class KeyRepeatGate
                 lastMove = now;
                 return true;
             }
-            if (!Holding || held != key) Hold(key, now);
+            if (Holding && held == key) return false;
+            // Another key's repeat (pressed before the last press) is held already. The pressed key's
+            // starts the hold only once it is due: a remote that repeats early in a press doesn't make
+            // one press move twice.
+            if (pressed != key)
+            {
+                pressed = key;
+                pressedAt = now - HoldDelayMs;
+            }
+            if (now - pressedAt >= HoldDelayMs) Hold(key, now);
             return false;
         }
         down.Remove(key);
@@ -99,7 +120,7 @@ public sealed class KeyRepeatGate
     {
         ExpireHold();
         var now = clock();
-        // Down long enough: the hold begins, before the TV's own repeats would.
+        // Down long enough: the hold begins, whether or not the TV's own repeats have.
         if (!Holding && pressed != null && down.Contains(pressed) && now - pressedAt >= HoldDelayMs) Hold(pressed, now);
         if (!Holding || held == null || now < nextMove) return null;
         // Kept to the pace: a late frame doesn't push the next move later, nor does a stall bring a burst.

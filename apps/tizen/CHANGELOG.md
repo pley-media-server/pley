@@ -90,6 +90,9 @@ describes how they are made.
 
 - The app's icon is square, as the TV's menu draws the other apps, where
   it was wider than the rest.
+- When the server can't be reached, the app says "Pley is offline", where
+  it said "Showing what Pley had saved. Reconnecting…". It still shows
+  what it saved and reconnects by itself.
 - Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
   playback starting or a seek, where they could take up to a minute: the
   TV tells the server where it plays, and the server reads those around it

@@ -52,7 +52,7 @@ export function SetupPage() {
   return (
     <AuthLayout
       title="Welcome to Pley"
-      subtitle="Create the administrator account for this server. You'll add your media libraries next."
+      subtitle="Create the administrator account for this server."
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Username" htmlFor="setup-username">
@@ -76,7 +76,7 @@ export function SetupPage() {
           <Field
             label="Setup code"
             htmlFor="setup-code"
-            hint="Pley printed it in its log when it started (with Docker: docker logs pley). Opening Pley from its tray icon fills it in."
+            hint="Open Pley from its tray icon and it's filled in for you. On a server without one, it's in Pley's log (with Docker, run docker logs pley)."
           >
             <TextInput
               id="setup-code"

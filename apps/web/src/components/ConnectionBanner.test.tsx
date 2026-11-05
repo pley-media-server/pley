@@ -15,7 +15,7 @@ describe("ConnectionBanner", () => {
     expect(screen.queryByRole("status")).toBeNull();
 
     act(() => setConnectionLost(true));
-    expect(screen.getByRole("status")).toHaveTextContent("Can't reach the server. Reconnecting…");
+    expect(screen.getByRole("status")).toHaveTextContent("Pley is offline");
     expect(screen.queryByRole("link", { name: "Downloads" })).toBeNull();
 
     act(() => setConnectionLost(false));

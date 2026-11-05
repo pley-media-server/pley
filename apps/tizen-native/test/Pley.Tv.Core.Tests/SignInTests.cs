@@ -66,6 +66,15 @@ public class SignInTests
     }
 
     [Fact]
+    public void Asks_for_requests_and_approvals_only_where_the_server_lists_them()
+    {
+        var listed = Auth.Metadata.Parse(Metadata().Replace(@"""profiles"",""admin""", @"""profiles"",""requests"",""approvals"",""admin"""), Home);
+        Assert.Equal("library play playlists profiles requests approvals", DeviceSignIn.ScopeFor(listed));
+        // An older server refuses a sign-in that asks for a scope it doesn't know.
+        Assert.Equal("library play playlists profiles", DeviceSignIn.ScopeFor(Auth.Metadata.Parse(MetadataJson, Home)));
+    }
+
+    [Fact]
     public async Task Start_refuses_plain_http_beyond_the_home_network()
     {
         var e = await Assert.ThrowsAsync<AuthException>(() => Device_(new FakeServer(), new FakeClock()).SignIn.Start("http://pley.example.com"));

@@ -365,6 +365,9 @@ public sealed class SettingsModel : IDisposable
                 var i = 0;
                 foreach (var (name, licence) in Licences)
                     items.Add(new SettingsItem.Row($"licence-{i++}", name, new SettingAction.None(), licence));
+                // Discover's titles and pictures: TMDB's terms ask every app that shows them to say this.
+                items.Add(new SettingsItem.Heading(SettingsText.Credits));
+                items.Add(new SettingsItem.Row("row-tmdb", "TMDB", new SettingAction.None(), Requests.RequestText.CreditAbout));
                 break;
             default:
                 items.Add(new SettingsItem.Intro(SettingsText.SignOutIntro(server ?? "")));

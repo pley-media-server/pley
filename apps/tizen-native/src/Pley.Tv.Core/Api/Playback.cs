@@ -116,6 +116,9 @@ public sealed record BitrateAnswer(long Bitrate);
 /// <summary>A subtitle track's WebVTT, and whether it is whole (<c>X-Pley-Complete</c>: 0 while still being read out of its file).</summary>
 public sealed record SubtitleText(string Text, bool Complete);
 
+/// <summary>A part of a picture track's .mks: its bytes, where they start in the file, the file's length (null: not known), and whether the server has it whole.</summary>
+public sealed record SubtitlePart(byte[] Bytes, long From, long? Total, bool Complete);
+
 /// <summary>The server's .mks of a picture subtitle track, and whether it is whole (<c>X-Pley-Complete</c>: 0 while still being read out of its file).</summary>
 public sealed record SubtitlePictures(byte[] Bytes, bool Complete)
 {

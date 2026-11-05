@@ -32,7 +32,8 @@
 //   apps/tizen-native/src/Pley.Tv.Tizen/shared/res/icon.png
 //                                           the native Samsung app's, unmarked
 //   apps/tizen-native/src/Pley.Tv.Tizen/icon-debug.png
-//                                           a profiling build's, marked DEBUG in yellow (its
+//                                           the named icon with a yellow DEBUG ribbon across
+//                                           its top right corner: a profiling build's (its
 //                                           project packages it in the other's place)
 //   apps/webos/assets/icon.png, largeIcon.png
 //                                           LG's 80 and 130 px, full bleed on the
@@ -121,15 +122,31 @@ function labelled(width, height, label, fill, ink) {
  * (Samsung's apps bar, Roku's home screen). The stack is drawn in a square as tall as the picture, in its
  * middle.
  */
-function named(width, height = width) {
+function named(width, height = width, over = "") {
   const s = height / 512;
   const g = 6; // in the 512 square: the mark (40 × 33 of the logo's 64, from (12, 15.5)) 240 wide, from (136, 72)
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}
   <rect width="${width}" height="${height}" fill="${TILE}"/>
   <g transform="translate(${(width - height) / 2} 0) scale(${s})">
     <g transform="translate(${136 - 12 * g} ${72 - 15.5 * g}) scale(${g})">${tvGlyph}</g>
-    <text x="256" y="410" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="128" font-weight="700" letter-spacing="-2" fill="#e9ebef">Pley</text>
+    <text x="256" y="410" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="128" font-weight="700" letter-spacing="-2" fill="#e9ebef">Pley</text>${over}
   </g></svg>`;
+}
+
+/**
+ * A band saying [label] in [ink] on [fill] across the top right corner of the 512 square, as a ribbon over
+ * a named icon: its middle line from 220 left of the corner to 220 below it. The TV's apps bar rounds the
+ * icon's corners, by about a quarter of its width, so the band sits in from the corner: its ends meet the
+ * straight edges and the label stays whole, over the back of the mark.
+ */
+function ribbon(label, fill, ink) {
+  const a = 220;
+  const band = 76;
+  return `
+    <g transform="translate(${512 - a / 2} ${a / 2}) rotate(45)">
+      <rect x="-300" y="${-band / 2}" width="600" height="${band}" fill="${fill}"/>
+      <text x="0" y="0" dominant-baseline="central" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="46" font-weight="700" letter-spacing="3" fill="${ink}">${label}</text>
+    </g>`;
 }
 
 /**
@@ -435,7 +452,7 @@ try {
   writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(labelled(512, 512, "WEB", "#0284c7", "#ffffff"), 512, 512)));
   const native = join(root, "apps/tizen-native/src/Pley.Tv.Tizen");
   writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(named(512), 512, 512)));
-  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(labelled(512, 512, "DEBUG", "#facc15", "#0a1622"), 512, 512)));
+  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(named(512, 512, ribbon("DEBUG", "#facc15", "#0a1622")), 512, 512)));
 
   // LG's: the logo at full size without its rounded corners, on the colour appinfo.json's iconColor
   // gives the TV's tile; and the launch picture with the mark's middle (32, 32 of the logo's 64)

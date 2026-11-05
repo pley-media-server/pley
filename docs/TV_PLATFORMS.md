@@ -327,8 +327,10 @@ bun run --cwd apps/tizen build       # only the app's dist/; --dev keeps it read
   as the TV's menu draws its other apps. The native app's has the mark
   above the name, as the other apps' tiles there show theirs. One TV may
   have more than one of Pley's Samsung apps, so the web app's says WEB on
-  blue under the mark, and a profiling build of the native app (an app of
-  its own, `app.pley.tizen.debug`, "Pley (debug)") says DEBUG on yellow.
+  blue under the mark. A profiling build of the native app (an app of its
+  own, `app.pley.tizen.debug`, "Pley (debug)") has the native app's icon
+  with a yellow DEBUG ribbon across its top right corner, set in from the
+  corner so the apps bar's rounded corners leave the word whole.
 
 ### Testing without a TV
 
@@ -477,7 +479,13 @@ doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
-from any of them, and pausing for a video; and the player: the stream on
+from any of them, and pausing for a video; Discover and requests, ported from Android TV
+([Requests](#requests): the rail's entry and its number, Discover's hero
+and rows, a title's page and Which seasons?, the requests and their
+actions, Discover's row in Search, Request more seasons on a show's page,
+what is ready to watch popping up, and TMDB's credit in Settings →
+About; Overview opens in a panel beside
+the page, where the TV's dialogs hold four lines); and the player: the stream on
 the TV's own player, chosen with the TV's capabilities, seeking with Left
 and Right with previews of where to (as YouTube's TV app: it waits for OK,
 and a held key runs faster the longer it's held), OK showing the
@@ -485,8 +493,12 @@ controls, the scrubber with its chapters (Up while a seek waits opens
 them as a row of cards to go to) and the control row, the title
 for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
-DVB) decoded from the server's `.mks` and drawn as the web app draws them,
-burned in by the server only when it can't make that file, the side
+DVB) decoded from the server's `.mks` and drawn as the web app draws them
+(a whole one read in parts by its Cues, `Player/PictureRanges.cs`: the
+pictures from 30 s before the film to 5 minutes after it once its picture
+shows, the next as it plays on, those around a seek as it lands; one the
+server is still making, or without Cues, read whole), burned in by the
+server only when it can't make that file, the side
 panels (Subtitles with Sync and, for text subtitles, their look, Audio,
 Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest
@@ -501,6 +513,36 @@ Android's, its music pauses while the app is hidden, since a hidden app
 gives up the TV's player, and plays on from there when the app is back.
 The other pages come next.
 
+Tizen's player prepares an HLS stream from its first segment and ignores
+`EXT-X-START`, so a film resumed part-way had it fetch the film's start,
+and the server make the stream there, before seeking to where it resumed.
+A film resumed 10 s or more in is given its playlists by the app instead,
+from the TV's loopback, its media playlist beginning at the segment the
+film resumes in and naming every segment by the server's own address: the
+player prepares there, a second or two before the resume point, with no
+seek, and the video still comes straight from the server. Only the
+server's own addresses are asked for through it, so another program on the
+TV can't use it to reach another host. The app asks the
+server for both playlists as soon as it has the stream, while the TV's
+player is still being set up: the server takes a third of a second for
+the first. The player then
+counts from that segment, which the engine adds back to every position,
+seek and duration; a seek before it starts a session there, as any new
+stream starts, under its black cover.
+The player's calls that hold their caller (making it and giving it its
+source, its position, its prepare, a seek, its streams' details) are made
+off the UI thread, one at a time, so the screen and its spinner keep
+moving while a film opens; those bound to the window (its display, the
+picture's region, starting it, letting it go) stay on it.
+Tizen's player says neither when its first picture is out nor when it
+waits for data, only where it is, so the engine reads its position again
+and again and `Player/PlaybackWatch.cs` decides: waiting from its prepare
+until the picture moves, after a seek until it moves on from where it
+landed (a little off where it was sent), and when it stands still 1.5 s
+while it should play; it puts the position on the film's timeline too.
+The engine says it is prepared apart (`Opened`), for the audio chosen to
+be switched to before it plays.
+
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
 from its last keyframe) is read while the server says what it makes of the
 channel, and plays when that is the channel as it is, or with sound every
@@ -511,8 +553,12 @@ server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
 address under a random path that lasts one channel (`Net/StreamRelay.cs`).
 Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
-Android; films the same from a server at home, and 1 s and 2 s from
-elsewhere. A film asks the server for its stream before its player
+Android; films start once 0.5 s is buffered from a server at home and 1 s
+from elsewhere, a film resumed part-way (its playlists trimmed) once 1.5 s
+is, as its 4K remux ran dry within a second on less. Tizen's player waits
+for its buffer after every seek too, not only after a stall, so films wait
+for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
+took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
 
 Someone taking over a channel's connection (the server's
@@ -671,6 +717,36 @@ frame comes every 3 ms of it for half the screen, every 6 for all of it.
 
 ```sh
 node apps/tizen-native/scripts/metrics.mjs record 20 6000 0,0,960,1080 Right   # 20× slower, 6 s, the left half
+```
+
+While a video streams, it marks the network once a second, off the UI
+thread: what each interface received, TCP's segments and retransmissions,
+the Wi-Fi driver's signal and discards, the access point's signal, link
+rate and band, the bytes waiting unread in the TV's sockets (many: the
+player reads slowly; none: the network brings slowly) and the player's
+buffering. `speed`, with the video paused, has the TV fetch the stream's
+next segments itself, one at a time as the player does, then the last one
+again (ready on the server, so the network alone), then four at once, and
+marks how long each took to start and how fast it came.
+`wifi` marks the access point the TV is joined to (by the end of its
+BSSID, which tells a mesh network's nodes apart; not the network's name)
+and those of the same network in the TV's last scan, with their signal,
+band and rate; `wifi scan` scans first (the
+profiling build alone has `network.set` for it), as Tizen lists a network
+once in an ordinary scan, however many access points it has.
+`trace on` keeps the trace going between videos, as a film opens and
+closes, with the app's memory and how busy the TV's CPUs are, until
+`trace off`. `buffer 1000` and `rebuffer 2000` have the next film wait
+for that much video before it plays from where it resumed, and after a
+stall or a seek (`buffer 0`, `rebuffer 0`: as the app has it); `trim off`
+has the next film resumed part-way given its playlists whole, as before
+the app trimmed them (`trim on` again). The trace
+marks each seek's time until the picture moves again, the engine's status
+as it changes and the player screen's spinner as it shows and goes.
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs --tv S89C speed
+node apps/tizen-native/scripts/metrics.mjs --tv S89C wifi
 ```
 
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of

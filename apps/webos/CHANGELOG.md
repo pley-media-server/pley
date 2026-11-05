@@ -27,6 +27,12 @@ describes how they are made.
   episode on the TV, as the player's own menu does, and shows which
   play.
 
+### Changed
+
+- When the server can't be reached, the app says "Pley is offline", where
+  it said "Showing what Pley had saved. Reconnecting…". It still shows
+  what it saved and reconnects by itself.
+
 ### Fixed
 
 - Live TV's channel up or down, still finding the next channel when

@@ -24,18 +24,31 @@ public sealed class PictureSample
 /// <summary>The one track of a <c>.mks</c> file: its codec, its private data, and its samples by time.</summary>
 public sealed class PictureTrack
 {
-    public PictureTrack(string codecId, byte[]? codecPrivate, IReadOnlyList<PictureSample> samples)
+    public PictureTrack(string codecId, byte[]? codecPrivate, IReadOnlyList<PictureSample> samples, IReadOnlyList<long>? unreadFrom = null)
     {
         CodecId = codecId;
         CodecPrivate = codecPrivate;
         Samples = samples;
+        UnreadFrom = unreadFrom ?? Array.Empty<long>();
     }
 
     /// <summary><c>S_HDMV/PGS</c>, <c>S_VOBSUB</c> or <c>S_DVBSUB</c>.</summary>
     public string CodecId { get; }
     public byte[]? CodecPrivate { get; }
     public IReadOnlyList<PictureSample> Samples { get; }
+
+    /// <summary>
+    /// Of a track read in parts, where each part not read yet begins, earliest first (empty when it
+    /// is read whole): a sample before one stops there, as what stops it may be in that part.
+    /// </summary>
+    public IReadOnlyList<long> UnreadFrom { get; }
 }
+
+/// <summary>Where a <c>.mks</c> file's parts are (<see cref="Mks.ReadIndex"/>): its Segment's data, its first cluster, its Cues (null: none), in bytes from its start; its time scale in ns.</summary>
+public sealed record MksIndex(long SegmentData, long FirstCluster, long? CuesAt, long ScaleNs);
+
+/// <summary>A cluster of a <c>.mks</c> file: where it starts in the file, and its first time in ms.</summary>
+public readonly record struct MksCluster(long At, long TimeMs);
 
 /// <summary>What isn't a Matroska file of a picture track this app can read.</summary>
 public sealed class MatroskaException : Exception
@@ -123,6 +136,115 @@ public static class Mks
     /// before the cut. Throws <see cref="MatroskaException"/> for anything that isn't one.
     /// </summary>
     public static PictureTrack ReadPictureTrack(byte[] bytes) => new Walker(bytes).Read();
+
+    const long SeekHead = 0x114d9b74;
+    const long Seek = 0x4dbb;
+    const long SeekID = 0x53ab;
+    const long SeekPosition = 0x53ac;
+    const long Cues = 0x1c53bb6b;
+    const long CuePoint = 0xbb;
+    const long CueTime = 0xb3;
+    const long CueTrackPositions = 0xb7;
+    const long CueClusterPosition = 0xf1;
+
+    /// <summary>Cue points read at most: a film's subtitles have one a cluster, a few thousand.</summary>
+    const int MaxCues = 200_000;
+
+    /// <summary>
+    /// What a <c>.mks</c> file's start says of where things are in it, from <paramref name="head"/>,
+    /// its first bytes: where its first cluster starts (the bytes before are its header, read again
+    /// with any run of clusters), where its Cues are, and its time scale. Null when the head doesn't
+    /// reach the first cluster, or isn't a Matroska file.
+    /// </summary>
+    public static MksIndex? ReadIndex(byte[] head)
+    {
+        var header = ElementAt(head, 0, head.Length);
+        if (header == null || header.Value.Id != Ebml || header.Value.Size is not long headerSize) return null;
+        var segment = ElementAt(head, header.Value.DataStart + headerSize, head.Length);
+        if (segment == null || segment.Value.Id != Segment) return null;
+        var data = segment.Value.DataStart;
+        long scaleNs = 1_000_000;
+        long? cues = null;
+        var at = data;
+        while (at < head.Length)
+        {
+            var found = ElementAt(head, at, head.Length);
+            if (found == null) return null;
+            var el = found.Value;
+            if (el.Id == Cluster) return new MksIndex(data, at, cues, scaleNs);
+            if (el.Size is not long size || el.DataStart + size > head.Length) return null;
+            var end = el.DataStart + size;
+            if (el.Id == Cues) cues = at;
+            else if (el.Id == Info) scaleNs = ChildUint(head, el.DataStart, end, TimecodeScale) is long scale && scale > 0 ? scale : scaleNs;
+            else if (el.Id == SeekHead)
+            {
+                foreach (var (seekFrom, seekEnd) in Children(head, el.DataStart, end, Seek))
+                {
+                    if (ChildUint(head, seekFrom, seekEnd, SeekID) == Cues && ChildUint(head, seekFrom, seekEnd, SeekPosition) is long position) cues ??= data + position;
+                }
+            }
+            at = end;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The clusters a file's Cues list, from <paramref name="bytes"/>, read from its Cues' start
+    /// (<see cref="MksIndex.CuesAt"/>): each cluster's position in the file and its first time, by
+    /// position. Null when the bytes don't hold the Cues whole.
+    /// </summary>
+    public static IReadOnlyList<MksCluster>? ReadCues(byte[] bytes, MksIndex index)
+    {
+        var cues = ElementAt(bytes, 0, bytes.Length);
+        if (cues == null || cues.Value.Id != Cues || cues.Value.Size is not long size || cues.Value.DataStart + size > bytes.Length) return null;
+        var byPosition = new Dictionary<long, long>();
+        foreach (var (from, to) in Children(bytes, cues.Value.DataStart, cues.Value.DataStart + size, CuePoint))
+        {
+            if (byPosition.Count >= MaxCues) break;
+            if (ChildUint(bytes, from, to, CueTime) is not long time) continue;
+            foreach (var (pFrom, pTo) in Children(bytes, from, to, CueTrackPositions))
+            {
+                if (ChildUint(bytes, pFrom, pTo, CueClusterPosition) is not long position) continue;
+                var at = index.SegmentData + position;
+                var ms = RoundMs(time * (double)index.ScaleNs / 1_000_000);
+                byPosition[at] = byPosition.TryGetValue(at, out var known) ? Math.Min(known, ms) : ms;
+            }
+        }
+        return byPosition.OrderBy(kv => kv.Key).Select(kv => new MksCluster(kv.Key, kv.Value)).ToList();
+    }
+
+    /// <summary>The children with id <paramref name="id"/> between <paramref name="from"/> and <paramref name="to"/>, as their data's bounds.</summary>
+    static IEnumerable<(long From, long To)> Children(byte[] bytes, long from, long to, long id)
+    {
+        var at = from;
+        while (at < to)
+        {
+            var found = ElementAt(bytes, at, to);
+            if (found == null || found.Value.Size is not long size) yield break;
+            var end = found.Value.DataStart + size;
+            if (end > to) yield break;
+            if (found.Value.Id == id) yield return (found.Value.DataStart, end);
+            at = end;
+        }
+    }
+
+    /// <summary>The first child with id <paramref name="id"/> as an unsigned integer (an id's bytes as one too); null when there is none.</summary>
+    static long? ChildUint(byte[] bytes, long from, long to, long id)
+    {
+        foreach (var (f, t) in Children(bytes, from, to, id)) return t - f <= 8 ? Uint(bytes, (int)f, (int)t) : null;
+        return null;
+    }
+
+    static Element? ElementAt(byte[] bytes, long at, long end)
+    {
+        var id = Vint(bytes, at, false);
+        if (id == null || at + id.Value.Length > end) return null;
+        var size = Vint(bytes, at + id.Value.Length, true);
+        if (size == null) return null;
+        var dataStart = at + id.Value.Length + size.Value.Length;
+        if (dataStart > end) return null;
+        return new Element(id.Value.Value, size.Value.Unknown ? null : size.Value.Value, dataStart);
+    }
 
     sealed class Track
     {

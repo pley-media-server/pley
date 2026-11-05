@@ -240,6 +240,24 @@ static class Profile
                 if (wanted == "shot") Shoot(window, dataDir, root);
                 else if (wanted.StartsWith("keys ", StringComparison.Ordinal)) Press(wanted.Substring(5).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
                 else if (wanted.StartsWith("record ", StringComparison.Ordinal)) Record(window, dataDir, root, wanted.Substring(7).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                else if (wanted == "speed") NetTrace.Speed();
+                else if (wanted is "trace on" or "trace off") NetTrace.Pin(wanted == "trace on");
+                else if (wanted.StartsWith("rebuffer ", StringComparison.Ordinal) && int.TryParse(wanted.Substring(9), out var after))
+                {
+                    TizenMediaEngine.RestartTry = after > 0 ? after : null;
+                    Mark($"buffer: after a stall or a seek, {(after > 0 ? after + " ms" : "as it was")} from the next film");
+                }
+                else if (wanted.StartsWith("buffer ", StringComparison.Ordinal) && int.TryParse(wanted.Substring(7), out var ms))
+                {
+                    TizenMediaEngine.TrimmedStartTry = ms > 0 ? ms : null;
+                    Mark($"buffer: a resumed start waits for {(ms > 0 ? ms + " ms" : "as it was")} from the next film");
+                }
+                else if (wanted == "wifi" || wanted == "wifi scan") NetTrace.WiFi(wanted == "wifi scan");
+                else if (wanted is "trim on" or "trim off")
+                {
+                    TizenMediaEngine.Trim = wanted == "trim on";
+                    Mark($"trim: {(TizenMediaEngine.Trim ? "on" : "off")} from the next film");
+                }
             }
             catch (Exception)
             {
@@ -583,7 +601,14 @@ done
             busy = what;
         }
 
-        public static void Leave() => busy = null;
+        /// <summary>The call ends: one that held the UI thread for more than 50 ms says so, as a stall alone can't name it.</summary>
+        public static void Leave()
+        {
+            var what = busy;
+            busy = null;
+            var ms = Since.ElapsedMilliseconds - Interlocked.Read(ref busyAt);
+            if (what != null && ms > 50) Mark($"call: {what} took {ms} ms");
+        }
 
         /// <summary>
         /// A thread of its own watching the UI thread's beat: one missing for 1.5 s is a hang, told

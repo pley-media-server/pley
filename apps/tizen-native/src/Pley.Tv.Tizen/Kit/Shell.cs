@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
@@ -69,8 +70,11 @@ sealed class Shell
     /// <summary>Shows <paramref name="page"/> in place of everything on screen.</summary>
     public void Show(Sheet page)
     {
-        foreach (var l in sheets) Remove(l);
+        // Taken off the list first: a sheet going can close others it opened (a page's panel), which
+        // finds them gone already rather than changing the list under this loop.
+        var old = sheets.ToList();
         sheets.Clear();
+        foreach (var l in old) Remove(l);
         sheets.Add(page);
         window.Add(page.View);
         Uncovered();

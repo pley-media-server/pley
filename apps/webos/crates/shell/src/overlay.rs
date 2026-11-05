@@ -104,8 +104,8 @@ impl Toasts {
     }
 }
 
-/// Draws "Showing what Pley had saved. Reconnecting…" at the top right while `showing`, fading
-/// in and out; never focusable. Returns the bottom of what it drew (`top` when nothing shows).
+/// Draws "Pley is offline" at the top right while `showing`, fading in and out; never
+/// focusable. Returns the bottom of what it drew (`top` when nothing shows).
 pub fn offline_notice(ui: &mut Ui, showing: bool, top: f32) -> f32 {
     let a = ui.animate(Id::new("pley.offline-notice"), if showing { 1.0 } else { 0.0 }, Motion::REVEAL);
     if a <= 0.0 {

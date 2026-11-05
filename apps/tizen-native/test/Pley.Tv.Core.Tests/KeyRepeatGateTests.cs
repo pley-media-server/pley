@@ -3,21 +3,21 @@ using Xunit;
 
 namespace Pley.Tv.Core.Tests;
 
-/// <summary>D-pad rule 5: a press moves once; held 180 ms, focus moves on the app's clock at a flat pace; focus rests after 400 ms.</summary>
+/// <summary>D-pad rule 5: a press moves once; held 400 ms, focus moves on the app's clock at a flat pace; focus rests after 400 ms.</summary>
 public class KeyRepeatGateTests
 {
     [Fact]
-    public void A_press_moves_once_and_held_180_ms_focus_moves_by_itself()
+    public void A_press_moves_once_and_held_400_ms_focus_moves_by_itself()
     {
         long now = 1000;
         var gate = new KeyRepeatGate(() => now);
         Assert.True(gate.Admit("Right", true));
         Assert.True(gate.Down);
         Assert.False(gate.Holding);
-        now += 150;
+        now += 350;
         Assert.Null(gate.Tick());
-        // Before the TV's repeats (400 ms), the hold begins, and its first move is due at once.
-        now += 30;
+        // The hold begins, and its first move is due at once.
+        now += 50;
         Assert.Equal("Right", gate.Tick());
         Assert.True(gate.Holding);
         now += 20;
@@ -33,16 +33,39 @@ public class KeyRepeatGateTests
     }
 
     [Fact]
-    public void A_quick_press_never_starts_a_hold()
+    public void A_press_of_300_ms_never_starts_a_hold()
     {
         long now = 1000;
         var gate = new KeyRepeatGate(() => now);
         gate.Admit("Left", true);
-        now += 120;
+        now += 300;
+        Assert.Null(gate.Tick());
         gate.Admit("Left", false);
         now += 500;
         Assert.Null(gate.Tick());
         Assert.False(gate.Holding);
+    }
+
+    [Fact]
+    public void A_repeat_early_in_a_press_does_not_move_focus_again()
+    {
+        long now = 1000;
+        var gate = new KeyRepeatGate(() => now);
+        Assert.True(gate.Admit("Down", true));
+        now += 50;
+        Assert.False(gate.Admit("Down", true));
+        Assert.False(gate.Holding);
+        Assert.Null(gate.Tick());
+        now += 200;
+        Assert.False(gate.Admit("Down", true));
+        Assert.Null(gate.Tick());
+        Assert.True(gate.Admit("Down", false));
+        Assert.False(gate.Holding);
+        // A repeat once the hold is due starts it.
+        gate.Admit("Down", true);
+        now += 400;
+        gate.Admit("Down", true);
+        Assert.True(gate.Holding);
     }
 
     [Fact]
@@ -56,13 +79,13 @@ public class KeyRepeatGateTests
         gate.Admit("Right", false);
         Assert.Equal(0, ended);
         gate.Admit("Right", true);
-        now += 300;
+        now += 450;
         gate.Tick();
         gate.Admit("Right", false);
         Assert.Equal(1, ended);
         // A hold whose key-up was lost ends too.
         gate.Admit("Left", true);
-        now += 300;
+        now += 450;
         gate.Tick();
         now += 600;
         gate.Tick();
@@ -83,8 +106,8 @@ public class KeyRepeatGateTests
             if (t >= 400 && t % 50 < 17) gate.Admit("Down", true);
             if (gate.Tick() != null) moves++;
         }
-        // Nothing for 180 ms, then one every 45 ms: about 41.
-        Assert.InRange(moves, 39, 43);
+        // Nothing for 400 ms, then one every 45 ms: about 36.
+        Assert.InRange(moves, 34, 38);
         Assert.True(gate.GlideMs > gate.Interval);
     }
 
@@ -94,7 +117,7 @@ public class KeyRepeatGateTests
         long now = 1000;
         var gate = new KeyRepeatGate(() => now);
         gate.Admit("Down", true);
-        now += 50;
+        now += 400;
         gate.Admit("Down", true);
         Assert.True(gate.Holding);
         Assert.False(gate.Rested());

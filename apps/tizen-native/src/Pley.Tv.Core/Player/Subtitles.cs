@@ -406,6 +406,15 @@ public sealed class SubtitlePresenter
     readonly IScheduler scheduler;
     readonly Func<string, Task<SubtitleText>> fetch;
     readonly Func<string, Task<SubtitlePictures>>? fetchPictures;
+    readonly Func<string, long, long, Task<SubtitlePart>>? fetchPart;
+    /// <summary>The picture track read in parts (<see cref="PictureRanges"/>); null when it is read whole.</summary>
+    PictureRanges? ranges;
+    /// <summary>A part being read: the next look waits for it.</summary>
+    bool reading;
+    /// <summary>The header and Cues being read: a seek meanwhile is read around once they are in, not by reading the track whole.</summary>
+    bool openingParts;
+    /// <summary>A part that failed is asked for again after <see cref="PartRetryMs"/>, not at every look.</summary>
+    long partsAgainAt;
     readonly Func<long> position;
     readonly Func<long> offset;
     readonly Func<double> speed;
@@ -425,6 +434,10 @@ public sealed class SubtitlePresenter
     /// <param name="onFailed">The track couldn't be loaded: said once per choice.</param>
     /// <param name="fetchPictures">The .mks of a picture track at an absolute address, and whether it is whole.</param>
     /// <param name="onPicturesUnavailable">The server can't make picture subtitles (404 from an older server, 503 from an older transcoder).</param>
+    /// <param name="fetchPart">
+    /// Bytes from, to (inclusive) of a picture track's .mks at an absolute address: a whole one is
+    /// read in parts, around the film first (<see cref="PictureRanges"/>); null reads it whole.
+    /// </param>
     /// <param name="local">
     /// The tracks are a file's on a drive, read out as it plays: a picture track is asked for at its
     /// own address, again after 1 s, then twice as long, <see cref="LocalPicturesRetryMs"/> at most,
@@ -432,8 +445,10 @@ public sealed class SubtitlePresenter
     /// a seek. Otherwise they are the server's, a picture track asked for from where the player is.
     /// </param>
     public SubtitlePresenter(IScheduler scheduler, Func<string, Task<SubtitleText>> fetch, Func<long> position, Func<long> offset, Func<double> speed, Action onFailed,
-        Func<string, Task<SubtitlePictures>>? fetchPictures = null, Action? onPicturesUnavailable = null, bool local = false)
+        Func<string, Task<SubtitlePictures>>? fetchPictures = null, Action? onPicturesUnavailable = null, bool local = false,
+        Func<string, long, long, Task<SubtitlePart>>? fetchPart = null)
     {
+        this.fetchPart = fetchPart;
         this.local = local;
         this.scheduler = scheduler;
         this.fetch = fetch;
@@ -483,7 +498,93 @@ public sealed class SubtitlePresenter
         }
         Reset(url, true);
         Clear();
-        FetchPictures(url, generation, local ? LocalPicturesFirstRetryMs : PartialRetryMs);
+        if (!local && fetchPart != null) OpenParts(url, generation);
+        else FetchPictures(url, generation, local ? LocalPicturesFirstRetryMs : PartialRetryMs);
+    }
+
+    /// <summary>A picture track is read this far behind the film and ahead of it, and again once less than half of what's ahead is read.</summary>
+    public const long PartBehindMs = 30_000, PartAheadMs = 300_000;
+
+    /// <summary>A part that failed is asked for again this long after.</summary>
+    public const long PartRetryMs = 10_000;
+
+    /// <summary>
+    /// The server's .mks read in parts: its header and Cues, then the pictures around where the film
+    /// is. One that can't be (being made still, without Cues), or that fails, is read whole.
+    /// </summary>
+    void OpenParts(string url, int at)
+    {
+        var from = SubtitleSync.TrackTime(position(), offset());
+        // Its header asked for from where the player is, as the whole track is: a track the server is
+        // still making is made from there, and is then asked for around there at once.
+        var head = PlaybackPlan.PictureUrlAt(url, position());
+        if (Marks.On) Marks.Note("subtitles: the pictures' .mks, read in parts");
+        openingParts = true;
+        Ui.Plays.When(scheduler, async () =>
+        {
+            var opened = await PictureRanges.Open((a, b) => fetchPart!(url, a, b), (a, b) => fetchPart!(head, a, b)).ConfigureAwait(false);
+            if (opened == null) return ((PictureRanges?)null, (PictureTrack?)null);
+            return (opened, await opened.Read(from - PartBehindMs, from + PartAheadMs).ConfigureAwait(false));
+        }, answer =>
+        {
+            if (at != generation) return;
+            openingParts = false;
+            if (answer.Item1 is not { } opened || answer.Item2 is not { } track)
+            {
+                if (Marks.On) Marks.Note("subtitles: the .mks can't be read in parts: whole");
+                FetchPictures(url, at, PartialRetryMs);
+                return;
+            }
+            if (Marks.On) Marks.Note($"subtitles: {track.Samples.Count} pictures read around {from / 1000} s, of {opened.Clusters} clusters");
+            ranges = opened;
+            ShowTrack(track);
+        }, e =>
+        {
+            if (Marks.On) Marks.Note($"subtitles: the .mks in parts failed ({e.GetType().Name} {e.Message}): whole");
+            if (at != generation) return;
+            openingParts = false;
+            FetchPictures(url, at, PartialRetryMs);
+        });
+    }
+
+    /// <summary>The pictures read so far shown, or the track burned in when this app can't decode it.</summary>
+    void ShowTrack(PictureTrack track)
+    {
+        var subs = PictureSubtitles.Of(track);
+        if (subs == null)
+        {
+            Showing = null;
+            onPicturesUnavailable?.Invoke();
+            return;
+        }
+        pictures = subs;
+        // Nothing more to ask the server for as a whole: the parts come as the film goes (ReadAround).
+        picturesWhole = true;
+        Refresh();
+    }
+
+    /// <summary>The pictures around <paramref name="ms"/> (the track's time) read, when they aren't yet: as the film plays on, and where a seek lands.</summary>
+    void ReadAround(long ms)
+    {
+        var r = ranges;
+        if (r == null || reading || scheduler.Elapsed < partsAgainAt) return;
+        if (r.Has(ms, ms + PartAheadMs / 2)) return;
+        reading = true;
+        var at = generation;
+        Ui.Plays.When(scheduler, () => r.Read(ms - PartBehindMs, ms + PartAheadMs), track =>
+        {
+            // Another track's by now: its state is its own.
+            if (at != generation || ranges != r) return;
+            reading = false;
+            if (Marks.On) Marks.Note($"subtitles: {track.Samples.Count} pictures read, around {ms / 1000} s");
+            ShowTrack(track);
+        }, e =>
+        {
+            if (at != generation || ranges != r) return;
+            reading = false;
+            partsAgainAt = scheduler.Elapsed + PartRetryMs;
+            if (Marks.On) Marks.Note($"subtitles: a part failed ({e.GetType().Name} {e.Message})");
+        });
     }
 
     public void Hide()
@@ -519,7 +620,9 @@ public sealed class SubtitlePresenter
                 if (showingPictures) FetchPictures(url, generation, LocalPicturesFirstRetryMs);
                 else Fetch(url, generation);
             }
-            else if (!local && showingPictures && !picturesWhole)
+            else if (ranges != null) ReadAround(SubtitleSync.TrackTime(atMs, offset()));
+            // With its header and Cues on their way, the parts around where it is now are read once they are in.
+            else if (!local && showingPictures && !picturesWhole && !openingParts)
             {
                 retry?.Dispose();
                 retry = null;
@@ -553,6 +656,10 @@ public sealed class SubtitlePresenter
         Showing = url;
         showingPictures = isPictures;
         picturesWhole = false;
+        ranges = null;
+        reading = false;
+        openingParts = false;
+        partsAgainAt = 0;
         index = null;
         pictures = null;
         shownKey = "";
@@ -658,8 +765,10 @@ public sealed class SubtitlePresenter
         }
         else if (pictures != null)
         {
+            ReadAround(at);
             var shown = pictures.FrameAt(at);
-            Publish(new Cue[0], shown?.Frame, shown is { } s ? $"p{s.Index}" : "");
+            // Known by its time: the samples are numbered again as parts come in.
+            Publish(new Cue[0], shown?.Frame, shown is { } s ? $"p{pictures.TimeOf(s.Index)}" : "");
             change = pictures.NextChange(at) - at;
         }
         else return;

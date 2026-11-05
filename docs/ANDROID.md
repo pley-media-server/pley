@@ -599,9 +599,9 @@ again every 10 s while they show.
 The app needs no internet. On a phone whose Wi-Fi has no internet, traffic
 to the home server still goes over the Wi-Fi (`LocalRoute`).
 
-- **Server out of reach:** screens show what was saved ("Showing what Pley
-  had saved. Reconnecting…") and recover on their own. A home address gets
-  3 s to connect.
+- **Server out of reach:** screens show what was saved, under "Pley is
+  offline" (with Downloads on phones and tablets), and recover on their
+  own. A home address gets 3 s to connect.
 - **Playback that loses the server** plays what it has, then retries for
   90 s.
 - **Downloads** (phones and tablets): Download is under Play, beside each

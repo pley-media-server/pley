@@ -169,15 +169,69 @@ sealed class TileView : View
             }
             if (placeholder != null) placeholder.Text = known ? "" : model.Title;
         }
-        foreach (var child in overlays.Children.ToList())
+        // Drawn again only when they change, the new over the old for the same item: emptied first,
+        // a badge's text and the progress bar blinked as Home came back from a film.
+        var marks = $"{model.Progress}|{model.Unwatched}|{model.Watched}|{string.Join("", model.Badges)}";
+        if (marks != overlaysFor || model.Id != overlaysId)
         {
-            overlays.Remove(child);
-            child.Dispose();
+            // Those on their way out already go with their own timer: taken again, they were let go twice.
+            var old = overlays.Children.Where(c => !leaving.Contains(c)).ToList();
+            Overlays(overlays, model, w, h);
+            if (model.Id == overlaysId && overlaysFor != null) Later(old);
+            else
+            {
+                // Another item: what the one before showed goes now, the old ones on their way out too.
+                foreach (var timer in retiring) timer.Stop();
+                retiring.Clear();
+                old.AddRange(leaving);
+                leaving.Clear();
+                foreach (var child in old)
+                {
+                    overlays.Remove(child);
+                    child.Dispose();
+                }
+            }
+            overlaysFor = marks;
+            overlaysId = model.Id;
         }
-        Overlays(overlays, model, w, h);
         titleText = model.Title;
-        title.Text = Text.Fit(titleText, PleyType.Caption with { Weight = focus.Focused ? PleyType.Bold : PleyType.Caption.Weight }, kind.Width);
-        subtitle.Text = Text.Fit(model.Subtitle, PleyType.Caption, kind.Width);
+        Set(title, Text.Fit(titleText, PleyType.Caption with { Weight = focus.Focused ? PleyType.Bold : PleyType.Caption.Weight }, kind.Width));
+        Set(subtitle, Text.Fit(model.Subtitle, PleyType.Caption, kind.Width));
+    }
+
+    /// <summary>A label's text, set only when it changes: set again, it was laid out again and blinked.</summary>
+    static void Set(TextLabel label, string text)
+    {
+        if (label.Text != text) label.Text = text;
+    }
+
+    /// <summary>What the overlays show, and for which item, as last drawn.</summary>
+    string? overlaysFor;
+    long overlaysId = -1;
+    readonly List<Timer> retiring = new List<Timer>();
+    /// <summary>The overlays on their way out (<see cref="Later"/>): each is let go once.</summary>
+    readonly HashSet<View> leaving = new HashSet<View>();
+
+    /// <summary>The overlays drawn before go a few frames after the new ones came, once those are drawn.</summary>
+    void Later(List<View> old)
+    {
+        foreach (var child in old) leaving.Add(child);
+        var timer = new Timer(60);
+        timer.Tick += (_, _) =>
+        {
+            retiring.Remove(timer);
+            if (Disposed) return false;
+            foreach (var child in old)
+            {
+                // Let go already, with an item the tile showed since.
+                if (!leaving.Remove(child)) continue;
+                overlays.Remove(child);
+                child.Dispose();
+            }
+            return false;
+        };
+        retiring.Add(timer);
+        timer.Start();
     }
 
     /// <summary>The pictures this app has shown, by their addresses: shown again, they come at once.</summary>
@@ -262,7 +316,11 @@ sealed class TileView : View
         if (Disposed) return;
         Focus.FocusChanged -= OnFocus;
         // Only when disposed by the app: collected, the animation may have gone first (Kit/Held.cs).
-        if (type == DisposeTypes.Explicit) focusAnimation?.Stop();
+        if (type == DisposeTypes.Explicit)
+        {
+            focusAnimation?.Stop();
+            foreach (var timer in retiring) timer.Stop();
+        }
         base.Dispose(type);
     }
 

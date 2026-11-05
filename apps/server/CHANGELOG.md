@@ -59,6 +59,15 @@ describes how they are made.
   remote on it. Their video player takes a remote's change of audio and
   subtitles as its own menu does, and tells remotes which it plays.
 
+### Changed
+
+- The setup page says more plainly where the setup code is: opening Pley
+  from its tray icon fills it in, and on a server without one it's in
+  Pley's log.
+- When the server can't be reached, the web app and the desktop app say
+  "Pley is offline", where they said "Can't reach the server.
+  Reconnecting…". The desktop app's Downloads stays beside it.
+
 ### Fixed
 
 - Someone who isn't an administrator no longer hears when other people's
