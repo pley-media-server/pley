@@ -50,6 +50,8 @@ wire_enum! {
         Audio = "audio",
         /// Other subtitles, by their stream index; -1 turns them off.
         Subtitles = "subtitles",
+        /// Another quality of the Quality menu, by its id.
+        Quality = "quality",
         /// A command a newer server knows: nothing obeys it.
         #[default]
         Unknown = "unknown",
@@ -310,6 +312,10 @@ pub struct ProgressReport {
     /// The subtitles a video shows, by stream index, -1 for none; left out by music.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtitle_index: Option<i64>,
+    /// The quality a video's Quality menu has picked, by id (`auto`, `original`, `8m`…), for the
+    /// user's remotes; left out by music.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality: Option<String>,
 }
 
 /// What a track choice says of the audio.

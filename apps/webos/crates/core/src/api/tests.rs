@@ -202,6 +202,7 @@ fn progress_and_track_choices_send_what_the_server_reads() {
         age_ms: None,
         audio_index: Some(2),
         subtitle_index: Some(-1),
+        quality: Some("auto".into()),
     };
     api.progress(42, &report).unwrap();
     // Music's reports name no tracks.
@@ -217,7 +218,7 @@ fn progress_and_track_choices_send_what_the_server_reads() {
         [
             json!({
                 "position_ms": 754000, "duration_ms": 5400000, "state": "paused", "session_id": "9c1e",
-                "audio_index": 2, "subtitle_index": -1,
+                "audio_index": 2, "subtitle_index": -1, "quality": "auto",
             }),
             json!({"position_ms": 1000, "state": "playing"}),
             json!({"file_id": 7}),

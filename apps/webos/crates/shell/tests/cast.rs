@@ -202,6 +202,8 @@ fn a_cast_for_another_device_plays_nothing_and_what_cant_be_found_says_why() {
         channel_id: None,
         start_ms: None,
         shuffle: false,
+        audio_index: None,
+        subtitle_index: None,
         from: Some("Pley for Android".into()),
     };
     // The profile's streams hear every cast: one for another device is that device's.
@@ -222,6 +224,8 @@ fn a_cast_for_another_device_plays_nothing_and_what_cant_be_found_says_why() {
         channel_id: None,
         start_ms: None,
         shuffle: false,
+        audio_index: None,
+        subtitle_index: None,
         from: None,
     };
     app.shell.deliver(AppEvent::Server(heard), &mut app.state, &mut app.ui, now);

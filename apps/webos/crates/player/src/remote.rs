@@ -1,10 +1,10 @@
 //! The user's remote, on another of their devices (docs/API.md, "Remote control"): what each
 //! player here obeys, and what it does with a command. The TV obeys and shows no remote of its
 //! own. The rules are the other apps' players' (the Apple apps' `Remote.swift`), pinned by the
-//! TV apps' shared fixture (packages/tv/test/fixtures/remote.json); a video's tracks, which the
-//! fixture doesn't have, by the tests here.
+//! TV apps' shared fixture (packages/tv/test/fixtures/remote.json); a video's tracks and quality,
+//! which the fixture doesn't have, by the tests here.
 
-use pley_core::model::{Control, ServerEvent};
+use pley_core::model::{Control, ServerEvent, quality_preset};
 
 /// "Previous" this far into a track starts it again, as the music's own button does.
 pub const RESTART_AFTER_MS: i64 = 3_000;
@@ -26,14 +26,18 @@ pub fn video_controls(has_next: bool) -> Vec<Control> {
 }
 
 /// What a video obeys with its tracks: [`video_controls`], then `audio` and `subtitles` where its
-/// file has tracks of that kind, which the remote picks among as the player's own menu does.
-pub fn video_controls_with_tracks(has_next: bool, audio: bool, subtitles: bool) -> Vec<Control> {
+/// file has tracks of that kind, which the remote picks among as the player's own menu does, and
+/// `quality` where it has a Quality menu (every video the server sends, not one on a drive).
+pub fn video_controls_with_tracks(has_next: bool, audio: bool, subtitles: bool, quality: bool) -> Vec<Control> {
     let mut controls = video_controls(has_next);
     if audio {
         controls.push(Control::Audio);
     }
     if subtitles {
         controls.push(Control::Subtitles);
+    }
+    if quality {
+        controls.push(Control::Quality);
     }
     controls
 }
@@ -56,19 +60,24 @@ pub struct Command<'a> {
     pub offset_ms: Option<i64>,
     /// Which track, for another audio track or other subtitles (-1: none).
     pub stream_index: Option<i64>,
+    /// Which of the Quality menu's entries, by id, for another quality.
+    pub quality: Option<&'a str>,
 }
 
 impl Command<'_> {
     /// The command `event` carries, if it is one.
     pub fn of(event: &ServerEvent) -> Option<Command<'_>> {
         match event {
-            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index } => Some(Command {
-                session_id,
-                command: *command,
-                position_ms: *position_ms,
-                offset_ms: *offset_ms,
-                stream_index: *stream_index,
-            }),
+            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index, quality } => {
+                Some(Command {
+                    session_id,
+                    command: *command,
+                    position_ms: *position_ms,
+                    offset_ms: *offset_ms,
+                    stream_index: *stream_index,
+                    quality: quality.as_deref(),
+                })
+            }
             _ => None,
         }
     }
@@ -135,6 +144,8 @@ pub enum RemoteAction {
     Audio(i64),
     /// A video's subtitles, by stream index; none turns them off.
     Subtitles(Option<i64>),
+    /// A video's quality, one of the Quality menu's ids, picked as its menu picks it.
+    Quality(&'static str),
 }
 
 /// The rule every receiver follows: a command for another session is someone else's player's;
@@ -142,8 +153,9 @@ pub enum RemoteAction {
 /// title and a skip counts from where it is; next with nothing next, or previous on a video, does
 /// nothing; previous on music starts the track again past 3 s or on the first track, else plays
 /// the one before; a live channel's next and previous are channel up and down; a video's audio
-/// and subtitles are its tracks of that stream index (subtitles -1: off), which music and live
-/// channels don't have. A command the player didn't declare does nothing.
+/// and subtitles are its tracks of that stream index (subtitles -1: off), and its quality one of
+/// the Quality menu's ids, which music and live channels don't have. A command the player didn't
+/// declare does nothing.
 pub fn remote_action(p: &RemotePlayer, c: &Command) -> RemoteAction {
     if p.session != Some(c.session_id) {
         return RemoteAction::None;
@@ -175,8 +187,11 @@ pub fn remote_action(p: &RemotePlayer, c: &Command) -> RemoteAction {
             Some(i) if restarts_track(p.position_ms, i) => RemoteAction::Seek(0),
             Some(_) => RemoteAction::Previous,
         },
-        // Music has no tracks to pick.
-        Control::Audio | Control::Subtitles if index.is_some() => RemoteAction::None,
+        // Music has no tracks or qualities to pick.
+        Control::Audio | Control::Subtitles | Control::Quality if index.is_some() => RemoteAction::None,
+        Control::Quality => {
+            c.quality.and_then(quality_preset).map_or(RemoteAction::None, |q| RemoteAction::Quality(q.id))
+        }
         Control::Audio => c.stream_index.map_or(RemoteAction::None, RemoteAction::Audio),
         Control::Subtitles => {
             c.stream_index.map_or(RemoteAction::None, |i| RemoteAction::Subtitles((i >= 0).then_some(i)))
@@ -234,6 +249,7 @@ mod tests {
             position_ms: c["position_ms"].as_i64(),
             offset_ms: c["offset_ms"].as_i64(),
             stream_index: c["stream_index"].as_i64(),
+            quality: c["quality"].as_str(),
         }
     }
 
@@ -256,6 +272,7 @@ mod tests {
             // The shared fixture has no tracks yet: the tests below have them.
             RemoteAction::Audio(i) => json!({ "act": "audio", "stream_index": i }),
             RemoteAction::Subtitles(i) => json!({ "act": "subtitles", "stream_index": i.unwrap_or(-1) }),
+            RemoteAction::Quality(id) => json!({ "act": "quality", "quality": id }),
         }
     }
 
@@ -334,7 +351,8 @@ mod tests {
             duration_ms: Some(7_200_000),
             has_next: false,
         };
-        let c = Command { session_id: session, command, position_ms: None, offset_ms: None, stream_index };
+        let c =
+            Command { session_id: session, command, position_ms: None, offset_ms: None, stream_index, quality: None };
         remote_action(&player, &c)
     }
 
@@ -343,18 +361,50 @@ mod tests {
     }
 
     #[test]
-    fn a_video_declares_its_tracks_after_the_rest_where_its_file_has_them() {
+    fn a_video_declares_its_tracks_and_quality_after_the_rest_where_it_has_them() {
         let names = |c: Vec<Control>| c.iter().map(|c| c.as_str()).collect::<Vec<_>>();
-        assert_eq!(names(video_controls_with_tracks(false, false, false)), ["play", "pause", "seek", "skip"]);
+        assert_eq!(names(video_controls_with_tracks(false, false, false, false)), ["play", "pause", "seek", "skip"]);
         assert_eq!(
-            names(video_controls_with_tracks(true, true, true)),
-            ["play", "pause", "seek", "skip", "next", "audio", "subtitles"]
+            names(video_controls_with_tracks(true, true, true, true)),
+            ["play", "pause", "seek", "skip", "next", "audio", "subtitles", "quality"]
         );
-        assert_eq!(names(video_controls_with_tracks(false, true, false)), ["play", "pause", "seek", "skip", "audio"]);
         assert_eq!(
-            names(video_controls_with_tracks(false, false, true)),
+            names(video_controls_with_tracks(false, true, false, true)),
+            ["play", "pause", "seek", "skip", "audio", "quality"]
+        );
+        assert_eq!(
+            names(video_controls_with_tracks(false, false, true, false)),
             ["play", "pause", "seek", "skip", "subtitles"]
         );
+    }
+
+    /// What a player of `kind` playing session `s1` does with a quality command for `session`.
+    fn quality_in(kind: RemoteKind, session: &str, quality: Option<&str>) -> RemoteAction {
+        let player = RemotePlayer::live(Some("s1"), true);
+        let player = RemotePlayer { kind, ..player };
+        let c = Command {
+            session_id: session,
+            command: Control::Quality,
+            position_ms: None,
+            offset_ms: None,
+            stream_index: None,
+            quality,
+        };
+        remote_action(&player, &c)
+    }
+
+    #[test]
+    fn a_video_picks_a_quality_of_the_menu_by_its_id() {
+        assert_eq!(quality_in(RemoteKind::Video, "s1", Some("8m")), RemoteAction::Quality("8m"));
+        assert_eq!(quality_in(RemoteKind::Video, "s1", Some("auto")), RemoteAction::Quality("auto"));
+        assert_eq!(quality_in(RemoteKind::Video, "s1", Some("original")), RemoteAction::Quality("original"));
+        // Not one of the menu's, none at all, or another session's.
+        assert_eq!(quality_in(RemoteKind::Video, "s1", Some("best")), RemoteAction::None);
+        assert_eq!(quality_in(RemoteKind::Video, "s1", None), RemoteAction::None);
+        assert_eq!(quality_in(RemoteKind::Video, "s2", Some("8m")), RemoteAction::None);
+        // Music and live channels have no Quality menu.
+        assert_eq!(quality_in(RemoteKind::Music { index: 1 }, "s1", Some("8m")), RemoteAction::None);
+        assert_eq!(quality_in(RemoteKind::Live { has_order: true }, "s1", Some("8m")), RemoteAction::None);
     }
 
     #[test]

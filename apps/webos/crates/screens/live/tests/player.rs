@@ -299,6 +299,7 @@ fn remote(session: &str, command: &str) -> ServerEvent {
         position_ms: None,
         offset_ms: None,
         stream_index: None,
+        quality: None,
     }
 }
 

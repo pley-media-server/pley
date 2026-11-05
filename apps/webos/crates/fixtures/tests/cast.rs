@@ -55,9 +55,16 @@ fn a_stream_naming_its_device_takes_casts_while_it_is_open() {
         heard,
         json!({
             "type": "cast", "receiver_id": "den-tv", "item_id": ids::SAMPLE_1080P, "playlist_id": null,
-            "channel_id": null, "start_ms": 60_000, "shuffle": false, "from": "Pley for Android",
+            "channel_id": null, "start_ms": 60_000, "shuffle": false, "audio_index": null,
+            "subtitle_index": null, "from": "Pley for Android",
         })
     );
+    // A movie with the tracks picked on the remote's page.
+    let tracks = json!({ "item_id": ids::SAMPLE_HDR10, "audio_index": 1, "subtitle_index": -1 });
+    assert_eq!(cast(&api, "den-tv", tracks, PHONE).status, 202);
+    let heard = tv.wait_for("cast", Duration::from_secs(5)).unwrap();
+    assert_eq!((&heard["audio_index"], &heard["subtitle_index"]), (&json!(1), &json!(-1)));
+    assert!(remote.wait_for("cast", Duration::from_secs(5)).is_some());
     // Every stream of the profile hears it: a receiver acts on its own only.
     assert!(remote.wait_for("cast", Duration::from_secs(5)).is_some());
     let shuffled = cast(&api, "den-tv", json!({ "playlist_id": ids::PLAYLIST_AUDIO, "shuffle": true }), PHONE);
@@ -98,6 +105,10 @@ fn a_cast_is_checked_in_the_servers_order() {
     );
     assert_eq!(status("den-tv", json!({ "item_id": ids::SHOW, "start_ms": -1 })), 400);
     assert_eq!(status("den-tv", json!({ "item_id": ids::SHOW, "start_ms": 86_400_001 })), 400);
+    // Tracks: a movie's or an episode's, of one of its files.
+    assert_eq!(status("den-tv", json!({ "item_id": ids::SAMPLE_HDR10, "audio_index": 9 })), 400, "no such audio");
+    assert_eq!(status("den-tv", json!({ "item_id": ids::SAMPLE_HDR10, "subtitle_index": 1 })), 400, "not subtitles");
+    assert_eq!(status("den-tv", json!({ "item_id": ids::SHOW, "audio_index": 1 })), 400, "a show has no tracks");
     // Ten a second to one receiver at most.
     let sent: Vec<u16> = (0..11).map(|_| status("den-tv", json!({ "item_id": ids::ALBUM }))).collect();
     assert_eq!(sent[..10], [202; 10]);

@@ -304,6 +304,13 @@ so the server names the TV from its `User-Agent`. They obey:
   `subtitle_index`, -1 for none), so a pick played in place, or one that
   is playing already, is said at once; a new session says its tracks as
   it starts.
+- **Quality** of a movie or episode (`quality`, declared by every video the
+  server sends; one on a USB drive has no Quality menu), one of the ids
+  its Quality menu offers for the file, picked as a pick in that menu is
+  and kept for the next titles: a new session where it asks for another
+  stream, which says the pick as it begins, else said at once. Every
+  progress report says which quality the menu has picked (`quality`:
+  `auto`, `original`, `8m`…); one the menu doesn't offer does nothing.
 - **Music:** play, pause, seek, skip, next and previous, as the buttons:
   previous more than 3 s into a track, or on the first, goes back to its
   start. Music has no tracks to pick, and its reports name none. Music
@@ -324,7 +331,8 @@ tells the server with its own session. A play on a player already
 playing, or a pause on one already paused, says so again at once, so a
 remote a little behind settles. The rule is `crates/player/src/remote.rs`,
 pinned by the TV apps' shared fixture `packages/tv/test/fixtures/remote.json`
-(and a video's tracks, which the fixture doesn't have, by its own tests).
+(and a video's tracks and quality, which the fixture doesn't have, by its
+own tests).
 
 **Casts.** The TV is one of the devices the profile's remotes play things
 on ([API.md](API.md#casting)) while its event stream is open, so while
@@ -339,8 +347,11 @@ in place of what plays, over whatever page shows (a player showing gives
 way to it):
 
 - a movie or an episode in the player, from the place sent, else where
-  Play resumes; a show or a season its next episode, where Play resumes
-  it;
+  Play resumes, with the audio and subtitles picked on the remote's page
+  (`audio_index`, `subtitle_index`, -1 for none) for that play, in place of
+  the saved ones, which stay for a track its file doesn't have; the
+  quality is the TV's own. A show or a season its next episode, where
+  Play resumes it;
 - an album or an artist as the music's queue, in order or shuffled from a
   random track, with Now Playing; a track its album from it, at the place
   sent;

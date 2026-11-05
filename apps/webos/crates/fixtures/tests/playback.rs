@@ -225,7 +225,7 @@ fn the_remote_sends_a_players_command_only_to_its_own_user_and_only_what_it_obey
         heard,
         json!({
             "type": "player_command", "session_id": session, "command": "seek",
-            "position_ms": 60_000, "offset_ms": null, "stream_index": null,
+            "position_ms": 60_000, "offset_ms": null, "stream_index": null, "quality": null,
         })
     );
     let refused = api.post(&path, &json!({ "command": "next" }));
@@ -311,6 +311,43 @@ fn the_remote_picks_one_of_the_files_tracks_and_reports_say_which_play() {
     assert_eq!(report(json!(1), json!(-1)), 204);
     let mine = listed(&api, &session);
     assert_eq!((&mine["audio_index"], &mine["subtitle_index"]), (&json!(1), &json!(-1)));
+}
+
+#[test]
+fn the_remote_picks_one_of_the_qualities_its_menu_offers_and_reports_say_which() {
+    let server =
+        FixtureServer::start_with(Options { keep_alive: Duration::from_millis(200), ..Options::default() }).unwrap();
+    let api = Api::alex(&server);
+    let mut events = Events::open(&api);
+    let body = json!({
+        "item_id": ids::SAMPLE_HDR10, "keyed_urls": true, "caps": tv_caps(),
+        "controls": ["play", "pause", "quality"], "device_kind": "tv",
+    });
+    let session = play(&api, body)["session_id"].as_str().unwrap().to_string();
+    let mine = listed(&api, &session);
+    // What its menu offers for the file, as every app works it out; none picked until it says.
+    let ids_of = |list: &Value| {
+        list.as_array().unwrap().iter().map(|q| q["id"].as_str().unwrap().to_string()).collect::<Vec<_>>()
+    };
+    let offered = ids_of(&mine["qualities"]);
+    assert_eq!(offered[..2], ["original", "auto"]);
+    assert!(offered.contains(&"8m".to_string()), "{offered:?}");
+    assert_eq!(mine["quality"], Value::Null);
+
+    let path = format!("/api/sessions/{session}/command");
+    assert_eq!(api.post(&path, &json!({ "command": "quality", "quality": "8m" })).status, 202);
+    let heard = events.wait_for("player_command", Duration::from_secs(5)).expect("the player hears it");
+    assert_eq!((heard["command"].as_str(), heard["quality"].as_str()), (Some("quality"), Some("8m")));
+    // One its menu doesn't have, or none at all.
+    assert_eq!(api.post(&path, &json!({ "command": "quality", "quality": "best" })).status, 400);
+    assert_eq!(api.post(&path, &json!({ "command": "quality" })).status, 400);
+
+    // The player says what its menu has picked: kept, and the profile's remotes hear of it.
+    while events.next(Duration::from_millis(300)).is_some() {}
+    let body = json!({ "position_ms": 30_000, "state": "playing", "session_id": session, "quality": "8m" });
+    assert_eq!(api.post(&format!("/api/items/{}/progress", ids::SAMPLE_HDR10), &body).status, 204);
+    assert!(events.wait_for("sessions_changed", Duration::from_secs(5)).is_some(), "the remotes heard nothing");
+    assert_eq!(listed(&api, &session)["quality"], "8m");
 }
 
 #[test]

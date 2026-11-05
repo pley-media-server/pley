@@ -251,7 +251,14 @@ fn a_session_the_server_stops_stops_the_music() {
 }
 
 fn command(session: &str, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
-    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms, stream_index: None }
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command,
+        position_ms,
+        offset_ms,
+        stream_index: None,
+        quality: None,
+    }
 }
 
 #[test]
@@ -328,6 +335,7 @@ fn music_has_no_tracks_for_the_remote_to_pick() {
         position_ms: None,
         offset_ms: None,
         stream_index: Some(1),
+        quality: None,
     };
     w.m.server_event(&pick);
     w.settle();

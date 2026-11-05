@@ -93,8 +93,12 @@ pub fn playing_audio(file: Option<&MediaFile>, info: &PlaybackInfo) -> Option<Me
         .map(|s| (*s).clone())
 }
 
-/// The subtitles to start with: as asked, else the profile's choice; none is off, whatever the file flags.
+/// The subtitles to start with: as asked (-1: none, as the title's page or a cast asks), else the
+/// profile's choice; none is off, whatever the file flags.
 pub fn initial_subtitle(file: Option<&MediaFile>, requested: Option<i64>) -> Option<MediaStream> {
+    if requested == Some(-1) {
+        return None;
+    }
     let subs = subtitle_streams(file);
     requested
         .and_then(|r| subs.iter().find(|s| s.index == r))

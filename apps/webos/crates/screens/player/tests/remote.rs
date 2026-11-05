@@ -1,8 +1,8 @@
 //! The player as the user's remote on another device drives it, against the fake server through
 //! the app's event stream: a film it casts, played from where it says with where it came from over
-//! the picture (and nothing for another device's cast, or while the app is hidden); the tracks it
-//! picks, switched as the player's own menu switches them and said at once, and every progress
-//! report saying which play.
+//! the picture, with the tracks picked on its page (and nothing for another device's cast, or
+//! while the app is hidden); the tracks and the quality it picks, switched as the player's own
+//! menus switch them and said at once, and every progress report saying which play.
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -163,6 +163,8 @@ fn cast_of(receiver: &str, item: i64) -> ServerEvent {
         channel_id: None,
         start_ms: None,
         shuffle: false,
+        audio_index: None,
+        subtitle_index: None,
         from: Some("Pley for Android".into()),
     }
 }
@@ -193,6 +195,7 @@ fn pick(session: &str, command: &str, index: i64) -> ServerEvent {
         position_ms: None,
         offset_ms: None,
         stream_index: Some(index),
+        quality: None,
     }
 }
 
@@ -209,7 +212,7 @@ fn the_remotes_tracks_switch_as_the_menus_do_and_every_report_says_which_play() 
     app.open(Route::Player(PlayRequest::item(ids::PGS_MOVIE)));
     let listed = app.session_of(ids::PGS_MOVIE);
     let controls: Vec<&str> = listed["controls"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
-    assert_eq!(controls, ["play", "pause", "seek", "skip", "audio", "subtitles"]);
+    assert_eq!(controls, ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"]);
     let session = listed["session_id"].as_str().unwrap().to_string();
     let engine = app.engine().expect("the player made an engine");
     assert!(app.until(|_| engine.playing()), "the film never played");
@@ -280,6 +283,63 @@ fn a_cast_film_plays_from_where_the_remote_said_with_where_it_came_from_over_it(
         "the film before never ended"
     );
     assert_eq!(app.shell.routes().len(), 2, "the second player opened over the first");
+}
+
+#[test]
+fn a_cast_film_plays_with_the_tracks_picked_on_the_remotes_page_for_that_play() {
+    let mut app = TestApp::start();
+    assert!(app.until(|a| a.receiving()), "the TV never took casts");
+    let id = app.state.install_id().to_string();
+    // The French audio and the English text subtitles, picked on the phone.
+    let film = CastBody { audio_index: Some(2), subtitle_index: Some(3), ..CastBody::item(ids::PGS_MOVIE) };
+    assert_eq!(app.server.cast(ids::ALEX, &id, &film, Some(PHONE)), 202);
+    let session = app.session_of(ids::PGS_MOVIE)["session_id"].as_str().unwrap().to_string();
+    let asked: Value = serde_json::from_str(&app.server.writes("POST", "/api/playback")[0].body).unwrap();
+    assert_eq!(asked["audio_index"].as_i64(), Some(2));
+    let engine = app.engine().expect("the player made an engine");
+    assert!(app.until(|_| engine.playing()), "the film never played");
+
+    // What it plays, said when the remote asks: the cast's tracks.
+    let before = app.reports(ids::PGS_MOVIE).len();
+    app.server.emit(ServerEvent::PlayerCommand {
+        session_id: session,
+        command: "play".into(),
+        position_ms: None,
+        offset_ms: None,
+        stream_index: None,
+        quality: None,
+    });
+    assert!(app.until(|a| a.reports(ids::PGS_MOVIE).len() > before), "nothing was said");
+    assert_eq!(tracks(&app.reports(ids::PGS_MOVIE)[before]), (Some(2), Some(3)));
+    // For that play only: nothing is saved for the film.
+    assert!(app.server.writes("PUT", &format!("/api/items/{}/streams", ids::PGS_MOVIE)).is_empty());
+}
+
+#[test]
+fn the_remotes_quality_plays_as_the_menus_does_and_reports_say_it() {
+    let mut app = TestApp::start();
+    app.open(Route::Player(PlayRequest::item(ids::SAMPLE_HDR10)));
+    let listed = app.session_of(ids::SAMPLE_HDR10);
+    let session = listed["session_id"].as_str().unwrap().to_string();
+    let engine = app.engine().expect("the player made an engine");
+    assert!(app.until(|_| engine.playing()), "the film never played");
+
+    // 8 Mbps 1080p, as picked in the Quality menu: a new session, which says the pick.
+    app.server.emit(ServerEvent::PlayerCommand {
+        session_id: session,
+        command: "quality".into(),
+        position_ms: None,
+        offset_ms: None,
+        stream_index: None,
+        quality: Some("8m".into()),
+    });
+    assert!(app.until(|a| a.server.writes("POST", "/api/playback").len() == 2), "no new session");
+    let asked: Value = serde_json::from_str(&app.server.writes("POST", "/api/playback")[1].body).unwrap();
+    assert_eq!((asked["max_bitrate"].as_i64(), asked["max_height"].as_i64()), (Some(8_000), Some(1080)));
+    assert!(
+        app.until(|a| a.server.sessions_of(ids::ALEX).iter().any(|s| s["quality"] == "8m")),
+        "the remote never saw the pick"
+    );
 }
 
 #[test]

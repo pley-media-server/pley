@@ -57,16 +57,19 @@ pub enum ServerEvent {
         by_admin: bool,
     },
     /// The user's remote, on another device, for the player of `session_id`: `position_ms` for a
-    /// seek, `offset_ms` for a skip, `stream_index` for a track (subtitles -1: none).
+    /// seek, `offset_ms` for a skip, `stream_index` for a track (subtitles -1: none), `quality` for
+    /// a quality of its menu.
     PlayerCommand {
         session_id: String,
         command: String,
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
+        quality: Option<String>,
     },
     /// The user's remote, on another device, sends receiver `receiver_id` one of a title, a
-    /// playlist or a channel to play; `from` names the remote's device.
+    /// playlist or a channel to play, a movie or an episode with the tracks picked on its page;
+    /// `from` names the remote's device.
     Cast {
         receiver_id: String,
         item_id: Option<i64>,
@@ -74,6 +77,8 @@ pub enum ServerEvent {
         channel_id: Option<i64>,
         start_ms: Option<i64>,
         shuffle: bool,
+        audio_index: Option<i64>,
+        subtitle_index: Option<i64>,
         from: Option<String>,
     },
     LiveChannelsChanged,
@@ -111,13 +116,27 @@ impl ServerEvent {
             ServerEvent::SessionStopped { session_id, message, by_admin } => json!({
                 "type": "session_stopped", "session_id": session_id, "message": message, "by_admin": by_admin,
             }),
-            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index } => json!({
-                "type": "player_command", "session_id": session_id, "command": command,
-                "position_ms": position_ms, "offset_ms": offset_ms, "stream_index": stream_index,
-            }),
-            ServerEvent::Cast { receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle, from } => json!({
+            ServerEvent::PlayerCommand { session_id, command, position_ms, offset_ms, stream_index, quality } => {
+                json!({
+                    "type": "player_command", "session_id": session_id, "command": command,
+                    "position_ms": position_ms, "offset_ms": offset_ms, "stream_index": stream_index,
+                    "quality": quality,
+                })
+            }
+            ServerEvent::Cast {
+                receiver_id,
+                item_id,
+                playlist_id,
+                channel_id,
+                start_ms,
+                shuffle,
+                audio_index,
+                subtitle_index,
+                from,
+            } => json!({
                 "type": "cast", "receiver_id": receiver_id, "item_id": item_id, "playlist_id": playlist_id,
-                "channel_id": channel_id, "start_ms": start_ms, "shuffle": shuffle, "from": from,
+                "channel_id": channel_id, "start_ms": start_ms, "shuffle": shuffle,
+                "audio_index": audio_index, "subtitle_index": subtitle_index, "from": from,
             }),
             ServerEvent::LiveChannelsChanged => json!({ "type": "live_channels_changed" }),
             ServerEvent::LiveTunersChanged => json!({ "type": "live_tuners_changed" }),

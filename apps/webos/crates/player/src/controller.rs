@@ -577,6 +577,9 @@ pub struct PlaybackController {
 
     info: Option<PlaybackInfo>,
     session_ended: bool,
+    /// The remote picked a quality that needs a new session: that session reports as it begins, so
+    /// the remote sees the pick (its play request doesn't say it).
+    report_begun: bool,
     /// Bumped by every new start; shared with the tasks opening sessions.
     generation: Arc<AtomicU64>,
     /// The generation of a session being made ready beside the one playing.
@@ -680,6 +683,7 @@ impl PlaybackController {
             guard_mode: None,
             info: None,
             session_ended: true,
+            report_begun: false,
             generation: Arc::new(AtomicU64::new(0)),
             preparing: None,
             warming: None,
@@ -1208,7 +1212,7 @@ impl PlaybackController {
         let has_next = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue));
         let file = Some(&asked.choices.file);
         let (audio, subtitles) = (!audio_streams(file).is_empty(), !subtitle_streams(file).is_empty());
-        let controls = video_controls_with_tracks(has_next, audio, subtitles);
+        let controls = video_controls_with_tracks(has_next, audio, subtitles, !local);
         let mut asked = asked;
         self.spawn(move || {
             Cancel::new().scope(|| {
@@ -1395,6 +1399,10 @@ impl PlaybackController {
         self.changed();
         self.publish_choices();
         self.arm_progress();
+        if std::mem::take(&mut self.report_begun) {
+            let state = if self.want_play { ProgressState::Playing } else { ProgressState::Paused };
+            self.report_at(state, asked.at_ms);
+        }
         self.refresh_details(false);
         let video = video_stream_of(Some(&chosen));
         let transcode = info.method == PlaybackMethod::Transcode;
@@ -1447,7 +1455,7 @@ impl PlaybackController {
         self.session_ended = true;
         self.progress_at = None;
         let item_id = self.item.as_ref().map_or(self.current.item_id, |d| d.id);
-        let report = progress(position_ms, info, ProgressState::Stopped, self.tracks_now);
+        let report = progress(position_ms, info, ProgressState::Stopped, self.tracks_now, self.quality.id);
         let (server, session) = (self.env.server.clone(), info.session_id.clone());
         self.env.reporter.send(move || {
             let _ = server.progress(item_id, &report);
@@ -2030,7 +2038,7 @@ impl PlaybackController {
     fn report_at(&mut self, state: ProgressState, position: i64) {
         let Some(info) = self.info.as_ref().filter(|_| !self.session_ended) else { return };
         let item_id = self.item.as_ref().map_or(self.current.item_id, |d| d.id);
-        let report = progress(position, info, state, self.tracks_now);
+        let report = progress(position, info, state, self.tracks_now, self.quality.id);
         let server = self.env.server.clone();
         self.env.reporter.send(move || {
             let _ = server.progress(item_id, &report);
@@ -2078,7 +2086,7 @@ impl PlaybackController {
             self.session_ended = true;
             self.progress_at = None;
             let item_id = self.item.as_ref().map_or(self.current.item_id, |d| d.id);
-            let report = progress(position, info, ProgressState::Stopped, self.tracks_now);
+            let report = progress(position, info, ProgressState::Stopped, self.tracks_now, self.quality.id);
             let server = self.env.server.clone();
             self.env.reporter.send(move || {
                 let _ = server.progress(item_id, &report);
@@ -2156,6 +2164,7 @@ impl PlaybackController {
             },
             RemoteAction::Audio(index) => self.pick_track(|c| c.select_audio(index)),
             RemoteAction::Subtitles(index) => self.pick_track(|c| c.select_subtitle(index)),
+            RemoteAction::Quality(id) => self.pick_quality(id),
             RemoteAction::None | RemoteAction::Previous | RemoteAction::Channel(_) => {}
         }
     }
@@ -2168,6 +2177,24 @@ impl PlaybackController {
         let g = self.current_generation();
         pick(self);
         if self.current_generation() == g {
+            self.report(if self.want_play { ProgressState::Playing } else { ProgressState::Paused });
+        }
+    }
+
+    /// A quality the remote picked, through the Quality menu's own path, kept for the next titles
+    /// as a pick there is. One the menu doesn't offer for the file does nothing. The one picked
+    /// already, or one the same stream plays on with, is reported at once; one that needs a new
+    /// session is reported as that session begins.
+    fn pick_quality(&mut self, id: &'static str) {
+        if self.local() || !qualities_for(self.file.as_ref()).iter().any(|q| q.id == id) {
+            return;
+        }
+        let g = self.current_generation();
+        // Set first: the new session may begin before the pick returns.
+        self.report_begun = true;
+        self.select_quality(id);
+        if self.current_generation() == g {
+            self.report_begun = false;
             self.report(if self.want_play { ProgressState::Playing } else { ProgressState::Paused });
         }
     }
@@ -3433,8 +3460,14 @@ impl Drop for PlaybackController {
     }
 }
 
-/// A progress report of `info` at `position_ms`, with the tracks it plays.
-fn progress(position_ms: i64, info: &PlaybackInfo, state: ProgressState, tracks: PlayingTracks) -> ProgressReport {
+/// A progress report of `info` at `position_ms`, with the tracks it plays and the quality picked.
+fn progress(
+    position_ms: i64,
+    info: &PlaybackInfo,
+    state: ProgressState,
+    tracks: PlayingTracks,
+    quality: &str,
+) -> ProgressReport {
     ProgressReport {
         position_ms: position_ms.max(0),
         duration_ms: (info.duration_ms > 0).then_some(info.duration_ms),
@@ -3443,6 +3476,7 @@ fn progress(position_ms: i64, info: &PlaybackInfo, state: ProgressState, tracks:
         age_ms: None,
         audio_index: tracks.audio,
         subtitle_index: Some(tracks.subtitle),
+        quality: Some(quality.to_owned()),
     }
 }
 

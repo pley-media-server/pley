@@ -481,7 +481,11 @@ impl MusicSession {
             }
             RemoteAction::Next => self.next(),
             RemoteAction::Previous => self.previous(),
-            RemoteAction::None | RemoteAction::Channel(_) | RemoteAction::Audio(_) | RemoteAction::Subtitles(_) => {}
+            RemoteAction::None
+            | RemoteAction::Channel(_)
+            | RemoteAction::Audio(_)
+            | RemoteAction::Subtitles(_)
+            | RemoteAction::Quality(_) => {}
         }
         action
     }

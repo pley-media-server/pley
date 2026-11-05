@@ -453,6 +453,7 @@ mod tests {
                 position_ms: Some(1_200_000),
                 offset_ms: None,
                 stream_index: None,
+                quality: None,
             })
         );
         assert_eq!(e.map(|e| e.kind().to_string()), Some("player_command".into()));
@@ -480,7 +481,19 @@ mod tests {
         ));
         // An older server's commands have none.
         let play = parse_event(r#"{"type":"player_command","session_id":"s1","command":"play"}"#);
-        assert!(matches!(play, Some(ServerEvent::PlayerCommand { stream_index: None, .. })));
+        assert!(matches!(play, Some(ServerEvent::PlayerCommand { stream_index: None, quality: None, .. })));
+    }
+
+    #[test]
+    fn a_remotes_quality_names_the_menus_id() {
+        use crate::model::Control;
+        let quality = parse_event(
+            r#"{"type":"player_command","session_id":"s1","command":"quality","position_ms":null,"offset_ms":null,"stream_index":null,"quality":"8m"}"#,
+        );
+        assert!(matches!(
+            quality,
+            Some(ServerEvent::PlayerCommand { command: Control::Quality, stream_index: None, quality: Some(ref q), .. }) if q == "8m"
+        ));
     }
 
     #[test]
@@ -637,7 +650,7 @@ mod tests {
     #[test]
     fn a_cast_names_its_receiver_what_to_play_and_where_it_came_from() {
         let e = parse_event(
-            r#"{"type":"cast","receiver_id":"webos-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":60000,"shuffle":false,"from":"Firefox on Linux"}"#,
+            r#"{"type":"cast","receiver_id":"webos-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":60000,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":"Firefox on Linux"}"#,
         );
         assert_eq!(
             e,
@@ -648,6 +661,8 @@ mod tests {
                 channel_id: None,
                 start_ms: Some(60_000),
                 shuffle: false,
+                audio_index: Some(2),
+                subtitle_index: Some(-1),
                 from: Some("Firefox on Linux".into()),
             })
         );
@@ -660,6 +675,15 @@ mod tests {
             Some(ServerEvent::Cast { playlist_id: Some(3), shuffle: true, from: None, item_id: None, .. })
         ));
         let channel = parse_event(r#"{"type":"cast","receiver_id":"webos-1","channel_id":7}"#);
-        assert!(matches!(channel, Some(ServerEvent::Cast { channel_id: Some(7), shuffle: false, .. })));
+        assert!(matches!(
+            channel,
+            Some(ServerEvent::Cast {
+                channel_id: Some(7),
+                shuffle: false,
+                audio_index: None,
+                subtitle_index: None,
+                ..
+            })
+        ));
     }
 }

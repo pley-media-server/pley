@@ -664,6 +664,7 @@ fn command(session: &str, command: Control) -> ServerEvent {
         position_ms: None,
         offset_ms: None,
         stream_index: None,
+        quality: None,
     }
 }
 

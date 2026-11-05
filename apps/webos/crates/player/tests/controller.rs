@@ -291,7 +291,14 @@ fn stops_for_good_when_the_server_stops_the_session_keeping_the_resume_point() {
 // ---- the user's remote, on another device
 
 fn command(session: &str, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> ServerEvent {
-    ServerEvent::PlayerCommand { session_id: session.into(), command, position_ms, offset_ms, stream_index: None }
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command,
+        position_ms,
+        offset_ms,
+        stream_index: None,
+        quality: None,
+    }
 }
 
 /// The progress reports said since the last look.
@@ -389,6 +396,7 @@ fn pick(session: &str, command: Control, stream_index: i64) -> ServerEvent {
         position_ms: None,
         offset_ms: None,
         stream_index: Some(stream_index),
+        quality: None,
     }
 }
 
@@ -403,11 +411,19 @@ fn a_video_says_the_remote_may_pick_its_tracks_and_every_report_says_which_play(
     let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
     w.start();
     w.open();
-    // Two audio tracks and two subtitle tracks: the remote picks among them.
+    // Two audio tracks and two subtitle tracks: the remote picks among them, and the quality.
     let req = w.fake.requests()[0].clone();
     assert_eq!(
         req.controls,
-        [Control::Play, Control::Pause, Control::Seek, Control::Skip, Control::Audio, Control::Subtitles]
+        [
+            Control::Play,
+            Control::Pause,
+            Control::Seek,
+            Control::Skip,
+            Control::Audio,
+            Control::Subtitles,
+            Control::Quality
+        ]
     );
     // The audio the server chose, no subtitles: in the reports every 10 s, on pause, and at the end.
     w.advance(10_000);
@@ -424,7 +440,53 @@ fn a_video_says_the_remote_may_pick_its_tracks_and_every_report_says_which_play(
     bare.streams.retain(|s| s.kind != pley_core::model::StreamKind::Subtitle);
     let mut w = World::new(Fake::new(item(bare), |_| info(|_| ())), |_| ());
     w.start();
-    assert_eq!(w.fake.requests()[0].controls.last(), Some(&Control::Audio));
+    let controls = &w.fake.requests()[0].controls;
+    assert_eq!(controls[controls.len() - 2..], [Control::Audio, Control::Quality]);
+}
+
+fn quality(session: &str, id: &str) -> ServerEvent {
+    ServerEvent::PlayerCommand {
+        session_id: session.into(),
+        command: Control::Quality,
+        position_ms: None,
+        offset_ms: None,
+        stream_index: None,
+        quality: Some(id.into()),
+    }
+}
+
+/// The quality the reports said, from the `from`-th on: `(state, quality)`.
+fn qualities_reported(w: &World, from: usize) -> Vec<(String, Option<String>)> {
+    w.fake.reports().iter().skip(from).map(|r| (r.state.as_str().to_string(), r.quality.clone())).collect()
+}
+
+#[test]
+fn the_remotes_quality_plays_as_the_menus_does_and_every_report_says_which_is_picked() {
+    let answer = |req: &PlaybackRequest| info(|i| i.session_id = format!("s{}", req.max_bitrate.map_or(1, |_| 2)));
+    let mut w = World::new(Fake::new(item(file()), answer), |_| ());
+    w.start();
+    w.open();
+    let from = w.fake.reports().len();
+    let said = |state: &str, id: &str| (state.to_string(), Some(id.to_string()));
+    // The one picked already: said again at once. One the menu doesn't offer, or another
+    // session's: nothing.
+    w.c.server_event(&quality("s1", "original"));
+    w.c.server_event(&quality("s1", "best"));
+    w.c.server_event(&quality("s2", "4m"));
+    w.settle();
+    assert_eq!(qualities_reported(&w, from), [said("playing", "original")]);
+    assert_eq!(w.fake.requests().len(), 1);
+    // Another: as picked in the menu, a new session made ready beside this one, which says the
+    // pick as it begins.
+    w.c.server_event(&quality("s1", "4m"));
+    w.settle();
+    let asked = w.fake.requests().last().cloned().unwrap();
+    assert_eq!((asked.max_bitrate.is_some(), asked.keep_previous), (true, true));
+    assert_eq!(
+        qualities_reported(&w, from),
+        [said("playing", "original"), said("stopped", "4m"), said("playing", "4m")]
+    );
+    assert_eq!(w.c.state().quality, "4 Mbps 720p");
 }
 
 #[test]

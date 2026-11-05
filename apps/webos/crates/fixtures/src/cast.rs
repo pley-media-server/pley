@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use crate::events::ServerEvent;
 use crate::http::Response;
 use crate::model::Kind;
-use crate::play::device_name;
+use crate::play::{device_name, has_track};
 use crate::server::{
     Answer, Cx, Need, PLAY, Route, Shared, State, bad_request, error, forbidden, json, locked, not_found,
 };
@@ -23,7 +23,8 @@ const MAX_START_MS: i64 = 24 * 3_600_000;
 const KINDS: [&str; 6] = ["tv", "phone", "tablet", "computer", "browser", "other"];
 
 /// What a remote casts, as `POST /api/remote/devices/{id}/cast` takes it: one of a title, a
-/// playlist or a Live TV channel, where a title starts, and whether to shuffle.
+/// playlist or a Live TV channel, where a title starts, whether to shuffle, and a movie's or an
+/// episode's tracks (subtitles -1: none).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CastBody {
     pub item_id: Option<i64>,
@@ -31,6 +32,8 @@ pub struct CastBody {
     pub channel_id: Option<i64>,
     pub start_ms: Option<i64>,
     pub shuffle: bool,
+    pub audio_index: Option<i64>,
+    pub subtitle_index: Option<i64>,
 }
 
 impl CastBody {
@@ -52,6 +55,7 @@ impl CastBody {
         json!({
             "item_id": self.item_id, "playlist_id": self.playlist_id, "channel_id": self.channel_id,
             "start_ms": self.start_ms, "shuffle": self.shuffle,
+            "audio_index": self.audio_index, "subtitle_index": self.subtitle_index,
         })
     }
 }
@@ -122,7 +126,8 @@ pub(crate) fn routes() -> Vec<Route> {
 
 /// What `POST /api/remote/devices/{id}/cast` does for `profile`, the remote's device named by
 /// `agent` (its User-Agent): the receiver, the one thing named and what it is, what the receiver
-/// takes, where a title starts and how often, in that order, then `cast` to the profile's streams.
+/// takes, where a title starts and its tracks, and how often, in that order, then `cast` to the
+/// profile's streams.
 pub(crate) fn send(
     shared: &Shared,
     state: &mut State,
@@ -170,6 +175,20 @@ pub(crate) fn send(
     if start_ms.is_some_and(|s| !(0..=MAX_START_MS).contains(&s)) {
         return Err(bad_request(&format!("start_ms must be between 0 and {MAX_START_MS}")));
     }
+    // The tracks picked on the remote's page: of one of a movie's or an episode's files.
+    let (audio_index, subtitle_index) = (body["audio_index"].as_i64(), body["subtitle_index"].as_i64());
+    if audio_index.is_some() || subtitle_index.is_some() {
+        let item =
+            item_id.and_then(|id| shared.catalog.item(id)).filter(|i| matches!(i.kind(), Kind::Movie | Kind::Episode));
+        let item = item.ok_or_else(|| bad_request("only a movie or an episode is cast with tracks"))?;
+        let one_of =
+            |kind: &str, index: i64| item.files.iter().any(|f| has_track(&shared.catalog, state, f.id, kind, index));
+        if audio_index.is_some_and(|i| !one_of("audio", i))
+            || subtitle_index.is_some_and(|i| i != -1 && !one_of("subtitle", i))
+        {
+            return Err(bad_request("a track must be one of the title's"));
+        }
+    }
     let now = shared.now_ms();
     let sent = state.casts_sent.entry((profile, receiver.to_string())).or_default();
     sent.retain(|at| now - at < 1_000);
@@ -186,6 +205,8 @@ pub(crate) fn send(
             channel_id,
             start_ms,
             shuffle: body["shuffle"].as_bool().unwrap_or(false),
+            audio_index,
+            subtitle_index,
             from: device_name(agent),
         },
     );

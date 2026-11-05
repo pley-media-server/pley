@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Your phone or browser changes the quality of the film or episode on
+  the TV, as the player's Quality menu does (the pick is kept for the
+  next ones), and shows which is picked. A film or episode sent from a
+  title's page plays with the audio and subtitles picked there.
 - Your phone or browser plays a film, an episode, a show, an album, an
   artist, a track, a playlist or a Live TV channel on the TV ("Play on…"):
   it starts as the TV's own Play would, in place of what plays, and the

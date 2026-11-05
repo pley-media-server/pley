@@ -59,18 +59,22 @@ pub enum ServerEvent {
     },
     /// The user's remote, on another of their devices, for the player of `session_id`
     /// (docs/API.md, "Remote control"): `position_ms` for a seek, `offset_ms` for a skip,
-    /// `stream_index` for another audio track or other subtitles (-1: none).
+    /// `stream_index` for another audio track or other subtitles (-1: none), `quality` for another
+    /// quality (one of the Quality menu's ids).
     PlayerCommand {
         session_id: String,
         command: Control,
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
+        quality: Option<String>,
     },
     /// The user's remote, on another of their devices, sends the device of receiver
     /// `receiver_id` something to play (docs/API.md, "Casting"): one of a title, a playlist or a
     /// Live TV channel; `start_ms` where a title starts, `shuffle` a playlist, an album or an
-    /// artist shuffled. `from` names the remote's device, when the server could.
+    /// artist shuffled; a movie or an episode with the tracks picked on the remote's page,
+    /// `audio_index` and `subtitle_index` (-1: none), when it sent them. `from` names the remote's
+    /// device, when the server could.
     Cast {
         receiver_id: String,
         item_id: Option<i64>,
@@ -78,6 +82,8 @@ pub enum ServerEvent {
         channel_id: Option<i64>,
         start_ms: Option<i64>,
         shuffle: bool,
+        audio_index: Option<i64>,
+        subtitle_index: Option<i64>,
         from: Option<String>,
     },
     /// Live TV's sources, channels or guide changed.
@@ -179,6 +185,12 @@ struct Raw {
     offset_ms: Option<i64>,
     #[serde(default)]
     stream_index: Option<i64>,
+    #[serde(default)]
+    quality: Option<String>,
+    #[serde(default)]
+    audio_index: Option<i64>,
+    #[serde(default)]
+    subtitle_index: Option<i64>,
     #[serde(default, deserialize_with = "nd")]
     receiver_id: String,
     #[serde(default)]
@@ -244,6 +256,7 @@ impl<'de> Deserialize<'de> for ServerEvent {
                 position_ms: r.position_ms,
                 offset_ms: r.offset_ms,
                 stream_index: r.stream_index,
+                quality: r.quality,
             },
             "cast" => ServerEvent::Cast {
                 receiver_id: r.receiver_id,
@@ -252,6 +265,8 @@ impl<'de> Deserialize<'de> for ServerEvent {
                 channel_id: r.channel_id,
                 start_ms: r.start_ms,
                 shuffle: r.shuffle,
+                audio_index: r.audio_index,
+                subtitle_index: r.subtitle_index,
                 from: r.from,
             },
             "live_channels_changed" => ServerEvent::LiveChannelsChanged,

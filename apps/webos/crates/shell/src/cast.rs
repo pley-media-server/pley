@@ -30,6 +30,10 @@ pub struct Cast {
     /// Where a title starts, in ms.
     pub start_ms: Option<i64>,
     pub shuffle: bool,
+    /// The tracks picked on the remote's page for a movie or an episode, by stream index
+    /// (subtitles -1: none), for this play only.
+    pub audio_index: Option<i64>,
+    pub subtitle_index: Option<i64>,
     /// The remote's device, as the server names it.
     pub from: Option<String>,
 }
@@ -40,15 +44,25 @@ impl Cast {
     /// devices is that device's.
     pub fn for_receiver(event: &ServerEvent, receiver: &str) -> Option<Cast> {
         match event {
-            ServerEvent::Cast { receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle, from }
-                if receiver_id == receiver && (item_id.is_some() || playlist_id.is_some() || channel_id.is_some()) =>
-            {
+            ServerEvent::Cast {
+                receiver_id,
+                item_id,
+                playlist_id,
+                channel_id,
+                start_ms,
+                shuffle,
+                audio_index,
+                subtitle_index,
+                from,
+            } if receiver_id == receiver && (item_id.is_some() || playlist_id.is_some() || channel_id.is_some()) => {
                 Some(Cast {
                     item_id: *item_id,
                     playlist_id: *playlist_id,
                     channel_id: *channel_id,
                     start_ms: *start_ms,
                     shuffle: *shuffle,
+                    audio_index: *audio_index,
+                    subtitle_index: *subtitle_index,
                     from: from.clone(),
                 })
             }
@@ -91,8 +105,9 @@ pub fn notice(from: Option<&str>) -> String {
 }
 
 /// Finds what `cast` plays, as the app's own Play on that page does: a movie or an episode
-/// itself, from `start_ms` when given, else where Play resumes; a show or a season its next
-/// episode (On Deck) where Play resumes it; a track its album from that track; an album, an artist
+/// itself, from `start_ms` when given, else where Play resumes, with the tracks sent (a track its
+/// file doesn't have leaves the saved choices); a show or a season its next episode (On Deck)
+/// where Play resumes it; a track its album from that track; an album, an artist
 /// (album after album) or an audio playlist its tracks, shuffled from a random one with
 /// `shuffle`; a video playlist its first entry (a random one shuffled), the playlist going on as
 /// its queue; a channel live. `seed` picks the random start. Blocking: it runs on the task pool.
@@ -119,10 +134,14 @@ pub fn resolve(api: &Api, cast: &Cast, seed: f64) -> Result<CastPlay, ApiError> 
     let Some(id) = cast.item_id else { return Ok(CastPlay::Nothing) };
     let item = api.item(id)?;
     Ok(match item.kind {
-        ItemKind::Movie | ItemKind::Episode | ItemKind::Extra => video(id, start_ms),
+        ItemKind::Movie | ItemKind::Episode | ItemKind::Extra => CastPlay::Video(PlayRequest {
+            audio_index: cast.audio_index,
+            subtitle_index: cast.subtitle_index,
+            ..video(id, start_ms)
+        }),
         // A place named with a show isn't its next episode's: that starts where Play resumes it.
         ItemKind::Show | ItemKind::Season => match api.on_deck(id)? {
-            Some(episode) => video(episode.id, None),
+            Some(episode) => CastPlay::Video(video(episode.id, None)),
             None => CastPlay::Nothing,
         },
         ItemKind::Track => {
@@ -150,8 +169,8 @@ pub fn resolve(api: &Api, cast: &Cast, seed: f64) -> Result<CastPlay, ApiError> 
     })
 }
 
-fn video(item_id: i64, start_ms: Option<i64>) -> CastPlay {
-    CastPlay::Video(PlayRequest { start_ms: start_ms.map(|ms| ms as u64), ..PlayRequest::item(item_id) })
+fn video(item_id: i64, start_ms: Option<i64>) -> PlayRequest {
+    PlayRequest { start_ms: start_ms.map(|ms| ms as u64), ..PlayRequest::item(item_id) }
 }
 
 /// The tracks among `items`.
@@ -253,6 +272,8 @@ mod tests {
             channel_id: None,
             start_ms: Some(60_000),
             shuffle: false,
+            audio_index: Some(2),
+            subtitle_index: Some(-1),
             from: Some("Chrome on Windows".into()),
         }
     }
@@ -261,8 +282,8 @@ mod tests {
     fn a_cast_is_this_tvs_only_when_it_names_its_receiver() {
         let cast = Cast::for_receiver(&cast_event("webos-1"), "webos-1").expect("this TV's");
         assert_eq!(
-            (cast.item_id, cast.start_ms, cast.from.as_deref()),
-            (Some(12), Some(60_000), Some("Chrome on Windows"))
+            (cast.item_id, cast.start_ms, cast.audio_index, cast.subtitle_index, cast.from.as_deref()),
+            (Some(12), Some(60_000), Some(2), Some(-1), Some("Chrome on Windows"))
         );
         assert_eq!(Cast::for_receiver(&cast_event("webos-2"), "webos-1"), None, "another device's");
         assert_eq!(Cast::for_receiver(&ServerEvent::SessionsChanged, "webos-1"), None);
@@ -274,6 +295,8 @@ mod tests {
             channel_id: None,
             start_ms: None,
             shuffle: true,
+            audio_index: None,
+            subtitle_index: None,
             from: None,
         };
         assert_eq!(Cast::for_receiver(&nothing, "webos-1"), None);
