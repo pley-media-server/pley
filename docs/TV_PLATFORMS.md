@@ -440,8 +440,9 @@ reopens at the same place.
 
 ## Releases
 
-The app is the `samsung` unit in [RELEASING.md](RELEASING.md). The package
-is signed with a Samsung certificate, so it is made by hand
+The app is the `samsung` unit in [RELEASING.md](RELEASING.md); the native
+app is `samsung-native` ([Installing a release](#installing-a-release)). The
+web app's package is signed with a Samsung certificate, so it is made by hand
 (`bun run tizen`); keep the author certificate, since every store update
 must be signed with it.
 
@@ -690,12 +691,29 @@ dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests   # the Core's tests
 PLEY_TIZEN_PROFILE=<profile> bun run tizen-native        # apps/tizen-native/out/pley-tizen.tpk, signed
 tizen install -n pley-tizen.tpk -t <target> -- apps/tizen-native/out
 tizen run -p app.pley.tizen -t <target>
-bun scripts/check-nuget-licenses.mjs                     # the licences of the packages it ships with
+bun scripts/check-nuget-licenses.mjs                     # the licences of the packages it ships with, and NOTICES.txt
 ```
 
 `tizen run` brings the app to the front when it is running already; an
 install ends it, so installing again starts it afresh. It is named
 "Pley (native)" among the TV's apps.
+
+### Installing a release
+
+Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
+as the .NET SDK builds it: signed with Tizen's default certificate, which
+no TV takes. Signed again with a certificate that lists the TV
+([Setting up](#setting-up)), it installs as a package built here does,
+with the Tizen SDK and no .NET SDK:
+
+```sh
+tizen package -t tpk -s <profile> -- pley-samsung-native-<version>.tpk
+tizen install -n pley-samsung-native-<version>.tpk -t <target> -- <its folder>
+```
+
+The release's build is `bun run tizen-native --unsigned`
+(`apps/tizen-native/out/pley-tizen-unsigned.tpk`). A .tpk is how Tizen
+installs a .NET app; a .wgt holds a web app, as the web Samsung app's does.
 
 ### Profiling
 

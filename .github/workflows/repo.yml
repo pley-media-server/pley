@@ -19,6 +19,7 @@ on:
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
       - apps/tizen/package.json
+      - apps/tizen-native/Directory.Build.props
       - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest
@@ -34,6 +35,7 @@ on:
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
       - apps/tizen/package.json
+      - apps/tizen-native/Directory.Build.props
       - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest

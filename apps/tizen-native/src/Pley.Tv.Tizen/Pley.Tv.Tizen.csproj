@@ -34,6 +34,12 @@
     <TizenTpkUserIncludeFiles Include="icon-debug.png" TizenTpkSubDir="shared\res" TizenTpkFileName="icon.png" />
   </ItemGroup>
 
+  <!-- Pley's licence and LICENSING.md, beside NOTICES.txt (shared/res): every build of Pley carries them. -->
+  <ItemGroup>
+    <TizenTpkUserIncludeFiles Include="..\..\..\..\LICENSE" TizenTpkSubDir="shared\res" TizenTpkFileName="LICENSE.txt" />
+    <TizenTpkUserIncludeFiles Include="..\..\..\..\LICENSING.md" TizenTpkSubDir="shared\res" TizenTpkFileName="LICENSING.md" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Pley.Tv.Core\Pley.Tv.Core.csproj" />
     <!-- The link screen's QR code: Nayuki's generator, as the Android app has it, under MIT. -->

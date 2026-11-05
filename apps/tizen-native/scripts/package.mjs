@@ -7,6 +7,9 @@
 // makes a profiling build that sends its marks there; without it, none. A profiling build is an
 // app of its own, app.pley.tizen.debug ("Pley (debug)"), in out/pley-tizen-debug.tpk, so it
 // installs beside a release.
+// --unsigned leaves the package as the .NET SDK signs it, with Tizen's default certificate, which
+// no TV takes: out/pley-tizen-unsigned.tpk, the release's package, which whoever installs it signs
+// with their own Samsung certificate. It needs no Tizen CLI.
 
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -19,10 +22,11 @@ const project = join(root, "src", "Pley.Tv.Tizen");
 const bin = join(project, "bin", "Release");
 const out = join(root, "out");
 const profile = process.env.PLEY_TIZEN_PROFILE ?? "pley-dev";
+const unsigned = process.argv.includes("--unsigned");
 const win = process.platform === "win32";
 const studio = process.env.TIZEN_STUDIO;
 const cli = studio ? join(studio, "tools", "ide", "bin", win ? "tizen.bat" : "tizen") : win ? "tizen.bat" : "tizen";
-if (studio && !existsSync(cli)) {
+if (!unsigned && studio && !existsSync(cli)) {
   console.error(`No Tizen CLI at ${cli}`);
   process.exit(1);
 }
@@ -51,12 +55,14 @@ if (!tpk) {
 }
 
 // The SDK signs with Tizen's default certificate; this signs it again with the profile's.
-const args = ["package", "-t", "tpk", "-s", profile, "--", tpk];
-// Windows runs the CLI's .bat through cmd.
-if (win) execFileSync("cmd.exe", ["/d", "/c", cli].concat(args), { stdio: "inherit" });
-else execFileSync(cli, args, { stdio: "inherit" });
+if (!unsigned) {
+  const args = ["package", "-t", "tpk", "-s", profile, "--", tpk];
+  // Windows runs the CLI's .bat through cmd.
+  if (win) execFileSync("cmd.exe", ["/d", "/c", cli].concat(args), { stdio: "inherit" });
+  else execFileSync(cli, args, { stdio: "inherit" });
+}
 
 mkdirSync(out, { recursive: true });
-const name = metrics ? "pley-tizen-debug.tpk" : "pley-tizen.tpk";
+const name = `${metrics ? "pley-tizen-debug" : "pley-tizen"}${unsigned ? "-unsigned" : ""}.tpk`;
 copyFileSync(tpk, join(out, name));
-console.log(`out/${name} (signed with the "${profile}" profile)`);
+console.log(`out/${name} (${unsigned ? "with Tizen's default certificate only" : `signed with the "${profile}" profile`})`);
