@@ -221,7 +221,7 @@ interface User {
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track
   subtitle_language: string | null; // null = the audio language
   subtitle_mode: "off" | "forced" | "foreign" | "always";
-  language: "en" | "fr" | "es" | null; // the language Pley is in for the account; null = the server's
+  language: "en" | "fr" | "es" | null; // the language Pley is in for the account; null = automatic (see Language)
   has_password: boolean;            // false: a managed profile, or an account without a password
   two_step: boolean;                // two-step sign-in is on
   request_access: "off" | "ask" | "auto"; // Requests: may not ask, asks an administrator, or approved as
@@ -516,8 +516,8 @@ lists carry (Kodi).
 | POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
 
 - `/api/server`: `id` is the one [discovery](#discovery) answers with.
-  `language` is the server's [language](#language), `null` when each
-  device's own is used.
+  `language` is the server [language](#language), for devices in a
+  language Pley doesn't have.
   With `?challenge=…&proof_id=…` it also answers `proof`, for an app
   making sure this is its server ([Telling servers
   apart](#telling-servers-apart)). `commit` is the build's short hash,
@@ -684,22 +684,23 @@ Pley is in English, French and Spanish (`en`, `fr`, `es`). The language
 an account sees is, in order:
 
 1. its own, `User.language` (`PATCH /api/me` with `{ "language": "fr" }`,
-   or `PUT /api/me/language` from an app; `null` goes back to the
-   server's);
-2. the server's, `Settings.language` (an administrator's choice in
-   Settings → General; `""` for none), which `GET /api/server` shows as
-   `language` for the pages before signing in;
-3. the device's: the first language of the browser, or of the request's
-   `Accept-Language`, that Pley has;
-4. English.
+   or `PUT /api/me/language` from an app; `null`, Automatic, goes back to
+   the next two);
+2. the device's: one picked on the device (the web app's globe on the
+   pages before signing in), else the first language of the browser or
+   the system, or of the request's `Accept-Language`, that Pley has;
+3. the server language, `Settings.language` (an administrator's choice in
+   Settings → General; English until there is one), which
+   `GET /api/server` shows as `language`.
 
 Any other code is `400`. The server writes Home's and the libraries' hub
-titles (`Hub.title`) in that language; apps write the rest themselves.
-Error messages are in English. The web app loads a language's words when
-it is first shown, and remembers the last one on the device so the next
-visit starts in it. The tray of a server on a desktop is in the server's
-language, else the desktop's; its menu takes a new one when Pley starts
-again (on Linux, the next time it opens).
+titles (`Hub.title`) in that language; apps send `Accept-Language` with the
+language they show, and write the rest themselves. Error messages are in
+English. The web app loads a language's words when it is first shown, and
+remembers the last one on the device so the next visit starts in it. The
+tray of a server on a desktop is in the server language once an
+administrator has chosen one, else the desktop's; its menu takes a new one
+when Pley starts again (on Linux, the next time it opens).
 
 ## Compatibility tokens
 
@@ -4176,7 +4177,7 @@ interface Network {
 
 interface Settings {
   server_name: string;
-  language: "" | "en" | "fr" | "es"; // for accounts without their own (see Language); "" = each device's
+  language: "" | "en" | "fr" | "es"; // the server language (see Language); "" = not chosen, English
   tmdb_api_key: string;             // "" = movies only from file names and local artwork
   metadata_language: string;        // "en-US" (TMDB and TheTVDB; TVmaze is English)
   tv_metadata: "auto" | "tmdb" | "tvdb" | "tvmaze"; // TV source. "auto" (default): TMDB if it has a key,

@@ -94,9 +94,8 @@ pub async fn server_status(
     let mut body = serde_json::json!({
         "id": state.identity.id,
         "name": settings.server_name,
-        // The language set for the server (null: each device's own), for
-        // the pages shown before signing in.
-        "language": crate::i18n::supported(&settings.language),
+        // The server language, for devices in a language Pley doesn't have.
+        "language": crate::i18n::server_language(&settings.language),
         "version": crate::VERSION,
         "commit": crate::COMMIT,
         "source": crate::SOURCE,

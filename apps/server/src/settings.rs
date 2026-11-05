@@ -47,9 +47,9 @@ pub enum LibraryWork {
 #[serde(default)]
 pub struct Settings {
     pub server_name: String,
-    /// The language Pley's apps and the server's words are in for accounts
-    /// that haven't chosen one (an ISO 639-1 code of [`crate::i18n::LANGUAGES`]);
-    /// empty: each device's own (see [`crate::i18n`]).
+    /// The server language (an ISO 639-1 code of [`crate::i18n::LANGUAGES`]):
+    /// the server's own words, and devices in a language Pley doesn't have
+    /// (see [`crate::i18n`]). Empty: not chosen, which reads as English.
     pub language: String,
     pub tmdb_api_key: String,
     pub metadata_language: String,
@@ -549,7 +549,7 @@ pub fn fit_to_accel(before: &Settings, patch: &mut SettingsPatch) -> Result<(), 
 #[derive(Debug, Default, Deserialize)]
 pub struct SettingsPatch {
     pub server_name: Option<String>,
-    /// Empty: each device's own.
+    /// Empty: not chosen (English).
     pub language: Option<String>,
     pub tmdb_api_key: Option<String>,
     pub metadata_language: Option<String>,

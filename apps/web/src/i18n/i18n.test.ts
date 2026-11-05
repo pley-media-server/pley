@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatDate } from "@/lib/format";
-import { currentLocale, i18n, LANGUAGES, pickLanguage, setLanguage, supportedLanguage } from ".";
+import { currentLocale, i18n, LANGUAGES, pickLanguage, setDeviceLanguage, setLanguage, supportedLanguage } from ".";
 
 const files = import.meta.glob<{ default: unknown }>("./locales/*/*.json", { eager: true });
 
@@ -85,16 +85,23 @@ describe("the languages' words", () => {
 });
 
 describe("pickLanguage", () => {
-  it("takes the account's, then the server's, then the device's, then English", () => {
+  it("takes the account's, then this device's, then the server language, then English", () => {
     const languages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
     Object.defineProperty(navigator, "languages", { value: ["de-DE", "es-MX"], configurable: true });
     try {
       expect(pickLanguage("fr", "es")).toBe("fr");
-      expect(pickLanguage(null, "fr")).toBe("fr");
-      expect(pickLanguage(null, null)).toBe("es");
+      // The browser's first language Pley has, before the server language.
+      expect(pickLanguage(null, "fr")).toBe("es");
+      // A language picked on this device, before the browser's.
+      setDeviceLanguage("fr");
+      expect(pickLanguage(null, "en")).toBe("fr");
+      expect(pickLanguage("en", "es")).toBe("en");
+      setDeviceLanguage(null);
       Object.defineProperty(navigator, "languages", { value: ["de-DE"], configurable: true });
+      expect(pickLanguage(undefined, "fr")).toBe("fr");
       expect(pickLanguage(undefined, "")).toBe("en");
     } finally {
+      setDeviceLanguage(null);
       delete (navigator as { languages?: unknown }).languages;
       if (languages) Object.defineProperty(Navigator.prototype, "languages", languages);
     }
