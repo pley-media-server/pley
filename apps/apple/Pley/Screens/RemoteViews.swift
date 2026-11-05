@@ -158,8 +158,10 @@ struct RemoteAccessoryButton: View {
 struct RemoteSheet: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
+    /// The app's wide layout (an iPad at regular width): told by the shell,
+    /// since a sheet on an iPad is compact itself.
+    let wide: Bool
     let close: () -> Void
-    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         NavigationStack(path: path) {
@@ -178,7 +180,7 @@ struct RemoteSheet: View {
     }
 
     /// Whether a device's controls are a page of their own: on a phone, with several devices.
-    private var paged: Bool { sizeClass == .compact && remote.devices.count > 1 }
+    private var paged: Bool { !wide && remote.devices.count > 1 }
 
     /// The page showing over the list: the device chosen, while it is on.
     private var path: Binding<[String]> {
@@ -192,7 +194,7 @@ struct RemoteSheet: View {
 
     @ViewBuilder private var root: some View {
         let devices = remote.devices
-        if sizeClass != .compact {
+        if wide {
             ScrollView {
                 RemotePanel(app: app, remote: remote)
                     .frame(maxWidth: 640)
@@ -868,12 +870,9 @@ struct PlayOnMenu: View {
             chosen?()
             Task { await remote.cast(target, to: device) }
         } label: {
-            Label {
-                Text(name)
-                Text(device.line)
-            } icon: {
-                Image(systemName: device.kind.symbol)
-            }
+            // A menu shows a Text after the Label as the item's second line.
+            Label(name, systemImage: device.kind.symbol)
+            Text(device.line)
         }
         .accessibilityIdentifier("\(prefix).playOn.\(device.id)")
     }
