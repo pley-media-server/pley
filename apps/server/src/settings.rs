@@ -55,6 +55,10 @@ pub struct Settings {
     pub tvdb_pin: String,
     /// Look artists and albums up on MusicBrainz (covers from the Cover Art Archive).
     pub music_metadata: bool,
+    /// Read the NFO files Kodi, Jellyfin and the like keep next to titles:
+    /// their ids decide the match and their fields win over the online
+    /// source's (see [`crate::library::nfo`]).
+    pub read_nfo: bool,
     pub hwaccel: HwAccel,
     pub hardware_decoding: bool,
     pub tonemapping: TonemapMode,
@@ -191,6 +195,7 @@ impl Default for Settings {
             tvdb_api_key: String::new(),
             tvdb_pin: String::new(),
             music_metadata: true,
+            read_nfo: true,
             hwaccel: HwAccel::Auto,
             hardware_decoding: true,
             tonemapping: TonemapMode::Auto,
@@ -550,6 +555,7 @@ pub struct SettingsPatch {
     pub tvdb_api_key: Option<String>,
     pub tvdb_pin: Option<String>,
     pub music_metadata: Option<bool>,
+    pub read_nfo: Option<bool>,
     pub hwaccel: Option<HwAccel>,
     pub hardware_decoding: Option<bool>,
     pub tonemapping: Option<TonemapMode>,
@@ -649,6 +655,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.music_metadata {
             next.music_metadata = v;
+        }
+        if let Some(v) = patch.read_nfo {
+            next.read_nfo = v;
         }
         match next.tv_metadata {
             TvMetadata::Tmdb if next.tmdb_api_key.is_empty() => {
@@ -1001,7 +1010,7 @@ mod tests {
         let s = SettingsStore::load(&db).await.unwrap().get();
         assert_eq!((s.server_name.as_str(), s.max_transcodes, s.hwaccel), ("Attic", 2, HwAccel::Nvenc));
         assert_eq!(s.tv_metadata, TvMetadata::Auto);
-        assert!(s.music_metadata && s.seek_previews && s.previews_in_background && s.detect_markers);
+        assert!(s.music_metadata && s.read_nfo && s.seek_previews && s.previews_in_background && s.detect_markers);
         assert_eq!((s.library_work, s.library_work_max_cpu), (LibraryWork::Auto, 50));
 
         // Unreadable settings fall back to the defaults instead of failing start-up.

@@ -19,6 +19,15 @@ describes how they are made.
   your PIN in its menu's place when your profile has one. The desktop app
   switches to the profile of the remote that sends it something, as a TV
   does, and says so when it can't.
+- Pley reads the NFO files Kodi, Jellyfin, Emby, Radarr, Sonarr,
+  tinyMediaManager and MediaElch keep next to movies, shows, seasons and
+  episodes. Their ids decide what a title is matched to, and their titles,
+  summaries, dates, genres, content ratings and other fields win over
+  TMDB's, TheTVDB's and TVmaze's; your own edits still win over them, and
+  Fix Match to another title sets them aside. Without a TMDB key, movies
+  with NFO files get their metadata from them. Jellyfin's lockdata keeps an
+  item from being fetched online. A new setting, `read_nfo`, on by default,
+  turns it off.
 
 ### Changed
 
@@ -38,6 +47,8 @@ describes how they are made.
   to 12:34", "Subtitles off"), and the controls show as before once you
   move the mouse, tap or press a key. On Live TV a remote's change of
   channel shows only the channel's tuning screen.
+- With TMDB as the TV source, a show with an IMDb or TheTVDB id but no
+  TMDB id is found by that id before it is searched for by name.
 
 ## [0.1.7] - 2026-11-05
 

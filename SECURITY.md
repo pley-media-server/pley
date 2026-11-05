@@ -358,7 +358,8 @@ other apps (`pley_ct_…`), never with a session's
 ### Files
 
 - A symbolic link in a library is followed only to a file of the same kind
-  (a video to a video, a picture to a picture). This is checked when the
+  (a video to a video, a picture to a picture, an NFO file to an NFO
+  file). This is checked when the
   library is scanned and again whenever the file is used: played,
   transcoded, downloaded, or its pictures or subtitles served. A symbolic
   link named like a film can't hand out other files.
@@ -401,6 +402,11 @@ other apps (`pley_ct_…`), never with a session's
   streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
   only when they are JPEG, PNG, WebP or GIF.
 - A profile picture is decoded only up to 4096 pixels.
+- NFO files are read up to 1 MiB, as XML with no DTD and none but XML's
+  own entities. What they say is bounded (500 characters for a title,
+  20,000 for a summary, 50 genres, 100 entries a file) and ids are checked
+  for their shape. Addresses in them, pictures' included, are never
+  fetched.
 - Subtitles from OpenSubtitles come over HTTPS only, never redirected to
   plain HTTP.
 - A file's attached fonts (for burned-in ASS subtitles) are taken up to
