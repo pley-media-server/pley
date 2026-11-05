@@ -43,20 +43,22 @@ too, each app's workflow when that app changes.
 | Apple app (`apps/apple`) | `swift test --package-path apps/apple/PleyKit`, and the `xcodebuild` builds in [docs/APPLE.md](docs/APPLE.md#building-and-testing) |
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
-**Languages.** The server, the web app and the desktop app are in
-English, French and Spanish. As the last step of a change, put every word
-people read in each language: no text written into the code. The web and
-desktop apps' words are in
-`apps/web/src/i18n/locales/<language>/<namespace>.json` and
-`apps/desktop/src/locales/<language>.json` (i18next: `t("key")`,
-`{{name}}` for values, `_one`/`_other` for counts, plus `_many` in French
-and Spanish; in `<Trans>`, tags named for what they mark, such as
-`<settings>`, since HTML's `<link>` reads as empty), the server's in
-`apps/server/locales/<language>.json`. Write English first, then French
-and Spanish as a native speaker would put them, in Pley's tone. Dates and
-numbers go through `Intl` with `currentLocale()` (`@/i18n`), never the
-browser's default. The checks above test that every language has every
-key, with the same values in it.
+**Languages.** The server, the web app, the desktop app and the Android
+app are in English, French and Spanish. As the last step of a change,
+put every word people read in each language: no text written into the
+code. Where each keeps its words:
+
+| App | Words | How |
+|---|---|---|
+| Web and desktop | `apps/web/src/i18n/locales/<language>/<namespace>.json`, `apps/desktop/src/locales/<language>.json` | i18next: `t("key")`, `{{name}}` for values, `_one`/`_other` for counts, plus `_many` in French and Spanish; in `<Trans>`, tags named for what they mark, such as `<settings>`, since HTML's `<link>` reads as empty |
+| Server | `apps/server/locales/<language>.json` | `i18n::t(language, "key")`; `t_with` for `{{name}}` values, `t_count` for counts |
+| Android | `apps/android/**/src/main/res/values{,-fr,-es}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
+
+Write English first, then French and Spanish as a native speaker would
+put them, in Pley's tone. Dates and numbers go through `Intl` with
+`currentLocale()` (`@/i18n`) on the web, `shownLocale()` and `formatWords`
+on Android, never the browser's or the device's default. The checks above
+test that every language has every key, with the same values in it.
 
 Fix what fails, including tests a change breaks elsewhere. Don't weaken or
 skip a test to make it pass; if a test is wrong, say why in the commit.
