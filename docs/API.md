@@ -3565,17 +3565,15 @@ would.
   it ([below](#casting)); only such receivers are offered across profiles,
   since an app that doesn't would play the cast as the profile it is on.
   The device takes casts
-  while the stream is open: several streams with the same `receiver` count
-  once, and it goes when the last one closes. They are the same device's
-  (`device_id`, as sessions say it): while one device holds a `receiver`,
-  another's stream with it still gets its events, but isn't one, so a
-  sign-in that copies a TV's id from the list never gets what is cast to
-  the TV. Such a stream asks again as the user's receivers change and at
-  each recheck of its token, so a device back with a new token (signed in
-  again, or switched back to the profile) takes its id once its old
-  stream has gone. A user has at most 32 receivers; a stream past them still gets
-  its events, but isn't one. A receiver appearing or going sends
-  `sessions_changed`.
+  while the stream is open: several streams of one device (`device_id`,
+  as sessions say it) with the same `receiver` count once, and it goes
+  when the last one closes. A receiver is its device's: another device
+  whose stream names the same `receiver` (a sign-in that copies a TV's id
+  from the list, or the TV back with a new token while its old stream
+  lingers) is a receiver of its own, listed beside it, never in its place,
+  whichever came first. A user has at most 32 receivers; a stream past
+  them still gets its events, but isn't one. A receiver appearing or going
+  sends `sessions_changed`.
 - **`GET /api/remote/devices`** lists the caller's receivers, an
   administrator's too. With `?household=1`, for a home member, it adds
   those of the household's other profiles (home members, not disabled)
@@ -3585,7 +3583,9 @@ would.
   and so does an app other than Pley's own, or one not allowed `profiles`:
   a cast there switches someone's device to the caller's profile, which
   only a switch's own apps may do. One per device
-  (`device_id`, as sessions say it), the one that connected last, by name.
+  (`device_id`, as sessions say it), the one that connected last, by name;
+  two devices may have the same `receiver_id` and name, which apps number
+  ("Living room TV (2)").
   Remotes show them with the sessions of the same `device_id`; another
   profile's sessions stay theirs, so its devices show as on that profile,
   without what they play. An app leaves out its own receiver.
@@ -3599,22 +3599,25 @@ would.
   doesn't suit a TV's. A receiver of another of the household's profiles
   takes that profile's id, `profile_id` (its `profile.id` in the list), the
   `device_id` the list shows for it, and the caller's `pin` when their
-  profile has one: the cast goes to that device or to none, so a receiver
-  id another device holds since never gets it. It answers `202` and sends
-  the event streams of the profile the receiver is on `{ type: "cast",
+  profile has one: the cast goes to that device or to none, so another
+  device with the same receiver id never gets it. A cast to one of the
+  caller's own is checked against the device of that id that connected
+  last. It answers `202` and sends the event streams of the profile the
+  receiver is on `{ type: "cast",
   receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle,
   audio_index, subtitle_index, from }`, `from` being the remote's device
   name or `null`: the `device_name` its device gave as a receiver, where it
   is one, else one from its User-Agent. To another profile's receiver it
   adds the caller's `profile_id` and a `switch_ticket` (below), and goes to
-  that receiver's streams alone: the profile's other devices don't hear
-  what someone else cast, nor the ticket. It answers, in this order:
+  that receiver's streams alone, on its device: the profile's other
+  devices don't hear what someone else cast, nor the ticket. It answers,
+  in this order:
   - `403` `{ code: "not_allowed" }` for `profile_id` from an app other
     than Pley's own, or one not allowed `profiles`;
   - `404` for a receiver unknown, gone, or of a profile outside the
     caller's household or without `profile_id` (an administrator's request
-    too: it never says which), or another device than its `device_id`
-    now; `400` for `profile_id` without `device_id`;
+    too: it never says which), or not on its `device_id`; `400` for
+    `profile_id` without `device_id`;
   - `400` for a body that doesn't name exactly one of the three;
   - `404` for a title the user can't see, `400` for one that isn't a
     movie, an episode, a show, a season, a track, an album or an artist;
