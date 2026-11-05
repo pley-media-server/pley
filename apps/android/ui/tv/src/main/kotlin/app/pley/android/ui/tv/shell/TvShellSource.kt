@@ -91,6 +91,12 @@ interface TvShellSource {
     /** Music a remote on another device cast here, as it starts, and where from: the shell opens Now Playing. */
     val castMusic: Flow<CastFrom> get() = emptyFlow()
 
+    /** A cast from another profile's remote switched the TV to that profile: "Who's watching?" is answered. */
+    val castSwitched: Flow<Unit> get() = emptyFlow()
+
+    /** A cast from another profile's remote couldn't switch the TV to it, and where from: nothing plays, the shell says so. */
+    val castRefused: Flow<CastFrom> get() = emptyFlow()
+
     companion object {
         /**
          * The app's: the startup read's server and tokens ([startup]),
@@ -220,6 +226,10 @@ private class GraphShellSource(
     override fun dismiss(notice: RequestNotice) = graph.data.requests.dismiss(notice)
 
     override val castMusic: Flow<CastFrom> = offMain { graph.casts.music }.map { it.from }
+
+    override val castSwitched: Flow<Unit> = offMain { graph.casts.switched }
+
+    override val castRefused: Flow<CastFrom> = offMain { graph.casts.refused }.map { it.from }
 
     private fun started(): RequestsRepository = graph.data.requests.also { it.start() }
 

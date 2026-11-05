@@ -188,8 +188,10 @@ the device; until the TV has heard it for that profile, the start asks
 ### Remote control
 
 The phone is a remote for the profile's other devices, and sends them
-what to play (Play on…); phones and TVs alike obey a remote and play
-what one sends them. A TV shows no remote and has no Play on….
+what to play (Play on…), the household's other profiles' devices too,
+which switch to the phone's profile first; phones and TVs alike obey a
+remote and play what one sends them. A TV shows no remote and has no
+Play on….
 
 On the phone, while another of the profile's devices is on, playing or
 not, Home's top bar has the remote's button, beside the profile's
@@ -202,20 +204,24 @@ apps that take casts) merged with the sessions (`GET /api/sessions`) by
 and each time the event stream connects; a session whose device takes no
 casts (a Jellyfin or Plex app) is listed too, and a device with several
 sessions shows its newest. The phone's own sessions are left out (its
-players say which they play), and so is its own receiver.
+players say which they play), and so is its own receiver. For a home
+member, the receivers include the household's other profiles' devices,
+each with the profile it is on (`profile`); what those play stays their
+profile's, so they are listed as ready to play.
 
 The button opens the remote, a sheet of **Your devices**: a row for
-each, those that play first, then the others, each by name (**Unknown
-device** when the server can't name it; two of the same name are
-numbered), with an icon for its kind (TV, phone, tablet, computer,
-browser, other), and what it plays (an episode as "Show — S1 · E2 —
-Title", a channel as its number and name) with a thin bar of how far,
-or **Ready to play**. Choosing one that plays shows its controls in the
-list's place; Back, or the arrow by its name, goes back to the list. A
-device ready to play is only listed: it has nothing to control. With one
-device only, playing, its controls show at once. The device Play on…
-sent something to is kept while the sheet is open, so its controls show
-once it plays.
+each, those that play first, then the profile's own, then the other
+profiles', each by name (**Unknown device** when the server can't name
+it; two of the same name are numbered), with an icon for its kind (TV,
+phone, tablet, computer, browser, other), and what it plays (an episode
+as "Show — S1 · E2 — Title", a channel as its number and name) with a
+thin bar of how far, or **Ready to play**; another profile's device says
+whose it is, **Ready to play · on Sam's profile**. Choosing one that
+plays shows its controls in the list's place; Back, or the arrow by its
+name, goes back to the list. A device ready to play is only listed: it
+has nothing to control. With one device only, playing, its controls show
+at once. The device Play on… sent something to is kept while the sheet
+is open, so its controls show once it plays.
 
 While the phone controls what a device plays, a bar above the tabs, over
 the mini player when music plays here too, says **Playing on** the device
@@ -352,16 +358,31 @@ on…** shows only while one does:
   after the ways to play it here.
 
 It opens a chooser of those devices as the remote lists them: an icon for
-the kind, the name, and what each plays now or **Ready to play**. An
-album, an artist or a playlist has a Shuffle switch, which makes it
-**Shuffle on…** and sends `shuffle`. Picking a device sends
-`POST /api/remote/devices/{id}/cast`; once it is on its way the chooser
-closes, **Playing on** the device shows in a toast, and the remote opens
-on that device, its controls showing once what it was sent plays. The
-live player closes as its channel goes to the device, and the shell says
-so. A refusal is said under the devices, and another can be picked: the
-device **isn't on any more** (`404`), **can't play that** (`409`), **Too
-many at once** (`429`), else the server's own words.
+the kind, the name, and what each plays now or **Ready to play** (with
+the profile it is on, for another profile's). An album, an artist or a
+playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
+`shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
+once it is on its way the chooser closes, **Playing on** the device shows
+in a toast, and the remote opens on that device, its controls showing
+once what it was sent plays. The live player closes as its channel goes
+to the device, and the shell says so. A refusal is said under the
+devices, and another can be picked: the device **isn't on any more**
+(`404`), **can't play that** (`409`), **Too many at once** (`429`), else
+the server's own words.
+
+A device of another profile of the household plays as the phone's
+profile: the cast names that device's profile (`profile_id`), and the
+device switches to the phone's before it plays. When the phone's profile
+has a PIN (`has_pin` of `GET /api/auth/me`, or the server answering
+`403 pin_needed`, for a PIN set since), the chooser shows **Enter your
+PIN** in the list's place, the PIN pad of "Who's watching?" with the
+device's icon and what it is for ("Den TV switches from Sam's profile to
+yours"), and sends the cast again with `pin`. A wrong PIN shakes the dots
+and says **Wrong PIN. Try again.**; after too many, the server's words
+say how long to wait (`429`); a locked PIN stops the pad, and **Back to
+the devices** leads back to the list, as Back and the arrow by the
+device's name do. Any other refusal goes back to the list and is said
+there.
 
 #### Taking casts
 
@@ -389,6 +410,18 @@ channel would, on a phone or a TV, Fire TV included. What plays makes way,
 as for Play there: music pauses for a video or a channel, and a player
 window open closes for music; one player window shows at a time, video
 or Live TV. A cast for another device does nothing.
+
+A cast from a remote on another profile of the household names that
+profile (`profile_id`) and carries a `switch_ticket`. The device switches
+to that profile first, as "Who's watching?" switches (the switch-profile
+grant with `ticket` in place of a PIN): what shows, its caches and the
+event stream follow the new profile, a TV at "Who's watching?" goes on
+to Home, and then it plays the cast once. A switch that fails (the ticket
+spent or expired, the server out of reach) plays nothing, and says
+**Couldn't switch profiles to play from** the remote's device, where
+**Playing from** would show on the shell: a toast on a phone, the top
+right on a TV. A cast that names another profile without a ticket is
+ignored.
 
 As it starts, it says where it came from, **Playing from** the remote's
 device (**Playing from another device** when the server can't name it),

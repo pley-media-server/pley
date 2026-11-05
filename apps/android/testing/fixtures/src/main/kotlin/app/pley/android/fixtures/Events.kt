@@ -2,11 +2,15 @@ package app.pley.android.fixtures
 
 import app.pley.android.model.CastKind
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.PleyJson
 import app.pley.android.model.RemoteDevice
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.ServerEvent
 import java.io.IOException
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
@@ -32,6 +36,9 @@ import okio.BufferedSink
  * to while it is open, as the server's (docs/API.md, "Casting"): several
  * streams with one id count once, it goes with the last, a profile has at
  * most [MAX_RECEIVERS], and one appearing or going sends `sessions_changed`.
+ * A home member's remotes list the household's other profiles' receivers
+ * too, and a cast to one carries a switch ticket ([issueTicket]) the device
+ * switches to the caster's profile with ([redeem]).
  */
 internal class EventHub(private val state: State) {
     private val streams = CopyOnWriteArraySet<LinkedBlockingQueue<String>>()
@@ -95,8 +102,58 @@ internal class EventHub(private val state: State) {
             .sortedWith(compareBy<RemoteDevice>({ it.name == null }, { it.name?.lowercase() }, { it.receiverId }))
     }
 
+    /**
+     * GET /api/remote/devices for [profileId]: its own receivers, then the
+     * household's other profiles', each with the profile it is on (its name
+     * as "Who's watching?" says it). A device on two profiles at once (while
+     * it switches) is listed once, as the caller's own; by name, those
+     * without one last, as the server sorts them.
+     */
+    fun householdDevices(profileId: Long): List<RemoteDevice> {
+        val others = state.household.profiles.values.filter { it.id != profileId }
+        val all = devices(profileId) + others.flatMap { other ->
+            devices(other.id).map { it.copy(profile = DeviceProfileName(other.id, other.name)) }
+        }
+        val seen = HashSet<String>()
+        return all.filter { seen.add(it.deviceId) }
+            .sortedWith(compareBy<RemoteDevice>({ it.name == null }, { it.name?.lowercase() }, { it.receiverId }))
+    }
+
     /** What receiver [id] of [profileId] plays when cast to; `null` when it isn't open. */
     fun casts(profileId: Long, id: String): List<CastKind>? = synchronized(receivers) { receivers[profileId]?.get(id)?.device?.casts }
+
+    /** Which device receiver [id] of [profileId] is, while it is open. */
+    fun deviceOf(profileId: Long, id: String): String? = synchronized(receivers) { receivers[profileId]?.get(id)?.device?.deviceId }
+
+    /** What a cast's switch ticket lets its receiver do: device [deviceId], on profile [from], switches to [to], once. */
+    private class Ticket(val deviceId: String, val from: Long, val to: Long, val issuedAtMs: Long)
+
+    /** The tickets waiting, by their hash, as the server keeps them, oldest first. */
+    private val tickets = LinkedHashMap<String, Ticket>()
+
+    /** A ticket for device [deviceId], on profile [from], to switch to profile [to] once within [TICKET_TTL_MS] of [nowMs]. */
+    fun issueTicket(deviceId: String, from: Long, to: Long, nowMs: Long): String = synchronized(tickets) {
+        tickets.values.removeAll { nowMs - it.issuedAtMs >= TICKET_TTL_MS }
+        if (tickets.size >= MAX_TICKETS) tickets.remove(tickets.keys.first())
+        val ticket = "pley_st_" + Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(24).also(random::nextBytes))
+        tickets[hash(ticket)] = Ticket(deviceId, from, to, nowMs)
+        ticket
+    }
+
+    /**
+     * Spends [ticket]: whether it lets device [deviceId], on profile [from],
+     * switch to profile [to] at [nowMs]. Shown for anything else, it is
+     * spent too: it was copied.
+     */
+    fun redeem(ticket: String, deviceId: String, from: Long, to: Long, nowMs: Long): Boolean = synchronized(tickets) {
+        val t = tickets.remove(hash(ticket)) ?: return false
+        nowMs - t.issuedAtMs < TICKET_TTL_MS && t.deviceId == deviceId && t.from == from && t.to == to
+    }
+
+    private val random = SecureRandom()
+
+    private fun hash(ticket: String): String =
+        Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(ticket.toByteArray(Charsets.UTF_8)))
 
     /** When casts went to each receiver in the last second, by profile and receiver id. */
     private val castsSent = HashMap<Pair<Long, String>, ArrayDeque<Long>>()
@@ -239,6 +296,10 @@ internal class EventHub(private val state: State) {
 
         /** The most casts to one receiver a second, as on the server. */
         const val CASTS_PER_SECOND = 10
+
+        /** How long a cast's switch ticket lasts, and the most waiting at once, as on the server. */
+        const val TICKET_TTL_MS = 60_000L
+        const val MAX_TICKETS = 256
 
         /** What the server keeps of a device's name. */
         const val DEVICE_NAME_MAX = 64

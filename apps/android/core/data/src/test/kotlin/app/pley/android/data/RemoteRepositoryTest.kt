@@ -6,6 +6,7 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Me
@@ -410,6 +411,46 @@ class RemoteRepositoryTest {
         data.events.send(LiveEvent.Event(ServerEvent.SessionsChanged))
         testScheduler.runCurrent()
         assertEquals(listOf("Kitchen phone", "Living room TV"), remote.devices.value.map { it.name })
+    }
+
+    @Test
+    fun `the household's other profiles' devices are listed with their profile, after the profile's own`() = runTest {
+        val data = signedIn(folder.newFolder()) {
+            api.answer("playingSessions", emptyList<PlayingSession>())
+            api.answer("remoteDevices", Fixtures.decode<List<RemoteDevice>>("remote/devices_household.json"))
+        }
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        // The Bedroom TV comes before the Living room TV by name, but it is on Sam's profile.
+        assertEquals(listOf("Living room TV", "Bedroom TV"), remote.devices.value.map { it.name })
+        assertEquals(listOf(null, DeviceProfileName(3, "Sam")), remote.devices.value.map { it.profile })
+        assertTrue(remote.devices.value.all { it.takes(CastKind.Item) && !it.playing })
+    }
+
+    @Test
+    fun `a cast to another profile's device names it, with the PIN when this profile has one`() = runTest {
+        val me: Me = Fixtures.decode("me/app_token.json")
+        val data = signedIn(folder.newFolder()) { api.answer("me", me.copy(hasPin = false)) }
+        val remote = data.graph.remote
+        assertFalse(remote.castNeedsPin)
+        remote.cast("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "1234"))
+        assertEquals(listOf("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "1234")), data.api.calls("cast").single().args)
+
+        // A PIN set elsewhere: GET /api/auth/me says so.
+        data.api.answer("me", me.copy(hasPin = true))
+        data.graph.session.refresh()
+        testScheduler.runCurrent()
+        assertTrue(remote.castNeedsPin)
+
+        // A refused PIN changes nothing listed.
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        val reads = data.api.calls("remoteDevices").size
+        data.api.fail("cast", ApiException(403, "wrong_pin", "wrong PIN"))
+        runCatching { remote.cast("bedroom-tv", CastRequest(itemId = 204, profileId = 3, pin = "0000")) }
+        testScheduler.runCurrent()
+        assertEquals(reads, data.api.calls("remoteDevices").size)
     }
 
     @Test

@@ -255,6 +255,8 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             // players say it themselves.
             val casts = withContext(Dispatchers.Default) { g.casts }
             casts.start()
+            // One from another profile that couldn't switch this phone to it plays nothing: said here too.
+            launch { casts.refused.collect { shell.toasts.show(it.from.refusal(resources)) } }
             casts.music.collect { shell.toasts.show(it.from.notice(resources)) }
         }
         launch {

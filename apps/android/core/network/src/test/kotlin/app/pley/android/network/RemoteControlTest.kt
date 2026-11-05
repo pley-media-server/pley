@@ -188,4 +188,39 @@ class RemoteControlTest {
         assertEquals(CastRefusal.Other, refusal())
         assertEquals(CastRefusal.Offline, CastRefusal.of(OfflineException(java.net.ConnectException("away"))))
     }
+
+    @Test
+    fun aCastToAnotherProfilesDeviceSendsItsProfileAndThePinAndSaysWhyItWasRefused() = runTest {
+        val api = api(null)
+        server.enqueue(MockPley.noContent())
+        api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204, profileId = 3, pin = "1234"))
+        val body = sent()
+        assertEquals(JsonPrimitive(3), body["profile_id"])
+        assertEquals(JsonPrimitive("1234"), body["pin"])
+        // To the profile's own devices, neither goes.
+        server.enqueue(MockPley.noContent())
+        api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204))
+        val own = sent()
+        assertFalse("profile_id" in own || "pin" in own)
+
+        suspend fun refusal(pin: String? = null): CastRefusal = try {
+            api.cast("android-den", app.pley.android.model.CastRequest(itemId = 204, profileId = 3, pin = pin))
+            error("expected a refusal")
+        } catch (e: IOException) {
+            CastRefusal.of(e, pinSent = pin != null)
+        }
+        server.enqueue(MockPley.error(403, "pin_needed", "this profile is protected by a PIN"))
+        assertEquals(CastRefusal.PinNeeded, refusal())
+        server.enqueue(MockPley.error(403, "wrong_pin", "wrong PIN"))
+        assertEquals(CastRefusal.WrongPin, refusal("0000"))
+        server.enqueue(MockPley.error(403, "pin_locked", "this profile's PIN is locked"))
+        assertEquals(CastRefusal.PinLocked, refusal("0000"))
+        // With a PIN, a 429 is the PIN's: checked before the casts are counted.
+        server.enqueue(MockPley.error(429, "too_many_requests", "too many attempts, try again in 14 min"))
+        assertEquals(CastRefusal.Throttled, refusal("0000"))
+        server.enqueue(MockPley.error(429, "too_many_requests", "10 casts a second at most: wait a moment"))
+        assertEquals(CastRefusal.TooMany, refusal())
+        // Its PIN is never written out where the request is.
+        assertFalse("1234" in app.pley.android.model.CastRequest(itemId = 204, pin = "1234").toString())
+    }
 }

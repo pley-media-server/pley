@@ -184,7 +184,10 @@ sealed interface ServerEvent {
      * [audioIndex] and [subtitleIndex] (`-1`: none) the tracks picked on the
      * remote's page, which it plays with, `null` when not given; [from] is
      * the remote's device, `null` when the server can't name it. Only the
-     * device of that receiver plays it.
+     * device of that receiver plays it. Sent by another profile of the
+     * household, it names that profile ([profileId]) and a ticket
+     * ([switchTicket]) the device switches to it with before it plays; both
+     * are `null` otherwise.
      */
     @Serializable
     data class Cast(
@@ -197,8 +200,16 @@ sealed interface ServerEvent {
         val audioIndex: Int? = null,
         val subtitleIndex: Int? = null,
         val from: String? = null,
+        val profileId: Long? = null,
+        val switchTicket: String? = null,
     ) : ServerEvent {
         override val type: String get() = TYPE
+
+        // A ticket is never written out where an event is.
+        override fun toString(): String =
+            "Cast(receiverId=$receiverId, itemId=$itemId, playlistId=$playlistId, channelId=$channelId, startMs=$startMs, shuffle=$shuffle, " +
+                "audioIndex=$audioIndex, subtitleIndex=$subtitleIndex, from=$from, profileId=$profileId, " +
+                "switchTicket=${if (switchTicket == null) "null" else "…"})"
 
         companion object {
             const val TYPE = "cast"

@@ -2,6 +2,7 @@ package app.pley.android.model
 
 import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -92,6 +93,11 @@ class ServerEventTest {
             ServerEvent.Cast("tv-1", itemId = 204, audioIndex = 2, subtitleIndex = -1),
             ServerEvent.parse("""{"type":"cast","receiver_id":"tv-1","item_id":204,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":null}"""),
         )
+        // From another profile of the household: the caster's profile and the ticket to switch to it with, never
+        // written out where the event is.
+        val switch = ServerEvent.parse("""{"type":"cast","receiver_id":"tv-1","item_id":204,"shuffle":false,"from":null,"profile_id":2,"switch_ticket":"t1"}""")
+        assertEquals(ServerEvent.Cast("tv-1", itemId = 204, profileId = 2, switchTicket = "t1"), switch)
+        assertFalse("t1" in switch.toString())
     }
 
     @Test

@@ -206,7 +206,9 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     override val trackDefaults: TrackDefaultsRepository by lazy { SessionTrackDefaults(sessionImpl, env.trackDefaults, cache) }
     override val playItem: PlayItem by lazy { CachedPlayItem(cache, itemsImpl) }
     override val liveTv: LiveTvRepository by lazy { CachedLiveTv(cache) }
-    override val remote: RemoteRepository by lazy { ServerRemote(cache, live, env.scope, env.clock, ownReceiver = serversImpl::clientId) }
+    override val remote: RemoteRepository by lazy {
+        ServerRemote(cache, live, env.scope, env.clock, ownReceiver = serversImpl::clientId, hasPin = { sessionImpl.meState.value?.value?.hasPin == true })
+    }
     override val requests: RequestsRepository by lazy {
         ServerRequests(
             cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,

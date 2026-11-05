@@ -82,9 +82,15 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     /** The profile's other devices that are on, for the remote's bar. */
     val remoteDevices = MutableStateFlow<List<OtherDevice>>(emptyList())
 
-    /** What Play on… sent, by receiver id; [castFailure] refuses the next ones. */
+    /**
+     * What Play on… sent, by receiver id; [castRefusals] refuse the next
+     * ones, one each, then [castFailure] all of them. [castNeedsPin]: the
+     * profile has a PIN, which a cast to another profile's device gives.
+     */
     val castsSent: MutableList<Pair<String, CastRequest>> = Collections.synchronizedList(mutableListOf())
     @Volatile var castFailure: Exception? = null
+    val castRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
+    @Volatile var castNeedsPin = false
 
     override val device = DeviceProfile(FormFactor.Phone, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 8L shl 30, lowRam = false)
 
@@ -136,9 +142,11 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
             override suspend fun command(sessionId: String, command: PlayerCommandRequest) = Unit
             override suspend fun stop(sessionId: String) = Unit
             override suspend fun cast(receiverId: String, request: CastRequest) {
+                castRefusals.poll()?.let { throw it }
                 castFailure?.let { throw it }
                 castsSent += receiverId to request
             }
+            override val castNeedsPin: Boolean get() = this@TestGraph.castNeedsPin
             override fun here(player: Any, sessionId: String?) = Unit
         }
         override val session = object : SessionRepository {

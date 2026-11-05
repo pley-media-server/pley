@@ -218,8 +218,11 @@ class Tokens(
     /**
      * Moves the sign-in to another profile of the household (the
      * switch-profile grant of pley's own apps). A wrong PIN changes nothing.
+     * [ticket]: a cast's `switch_ticket`, from a remote on [profile], which
+     * stands for its PIN; spent or expired, the grant refuses it with reason
+     * `ticket_spent`, and nothing changes either.
      */
-    suspend fun switchProfile(profile: Long, pin: String?): Unit = mutex.withLock {
+    suspend fun switchProfile(profile: Long, pin: String?, ticket: String? = null): Unit = mutex.withLock {
         val tokens = load() ?: throw SignedOutException()
         val refresh = tokens.refreshToken ?: signedOut()
         val form = mutableListOf(
@@ -229,6 +232,7 @@ class Tokens(
             "profile" to profile.toString(),
         )
         if (pin != null) form += "pin" to pin
+        if (ticket != null) form += "ticket" to ticket
         proved(tokens, now = true)
         val answer = try {
             TokenEndpoint.post(http, tokens.tokenEndpoint, form)

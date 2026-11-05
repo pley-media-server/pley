@@ -27,6 +27,7 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
 import app.pley.android.model.TitleKind
+import app.pley.android.player.CastFrom
 import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -35,6 +36,7 @@ import app.pley.android.ui.tv.onboarding.LocalOnboardingSource
 import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.Assert.assertEquals
@@ -78,7 +80,13 @@ class TvAppTest {
         override val notices: Flow<List<TvNotice>> = queue
 
         override fun dismiss(notice: RequestNotice) = queue.update { it.filterNot { n -> n.notice.key == notice.key } }
+
+        override val castSwitched = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+        override val castRefused = MutableSharedFlow<CastFrom>(extraBufferCapacity = 4)
     }
+
+    private lateinit var source: FakeSource
 
     /** The way into requests the rail shows, and the news to pop up. */
     private val requests = MutableStateFlow(RequestsEntry.None)
@@ -104,7 +112,12 @@ class TvAppTest {
         compose.setContent {
             // Getting in reads a fake server: a household of four, a code to show, nobody on the network.
             CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
-                TvApp(FakeSource(facts, threeLibraries, requests, notices), onExit = { exits++ }, reducedMotion = true, placeholder = placeholder)
+                TvApp(
+                    FakeSource(facts, threeLibraries, requests, notices).also { source = it },
+                    onExit = { exits++ },
+                    reducedMotion = true,
+                    placeholder = placeholder,
+                )
             }
         }
     }
@@ -159,6 +172,22 @@ class TvAppTest {
         waitFor("Enter Anna's PIN")
         back()
         compose.onNodeWithText("Who's watching?").assertExists()
+    }
+
+    @Test
+    fun aCastThatSwitchedTheProfileLeavesWhoIsWatchingForHome() {
+        app(StartFacts("http://s", true, profiles = 2))
+        compose.onNodeWithText("Who's watching?").assertExists()
+        source.castSwitched.tryEmit(Unit)
+        waitFor("Resume")
+        compose.onNodeWithText("Who's watching?").assertDoesNotExist()
+    }
+
+    @Test
+    fun aCastThatCouldNotSwitchTheProfileSaysSo() {
+        app()
+        source.castRefused.tryEmit(CastFrom("Kitchen phone"))
+        waitFor("Couldn't switch profiles to play from Kitchen phone")
     }
 
     @Test
