@@ -24,30 +24,31 @@
         <span class="wordmark">Pley</span>
       </header>
 
+      <!-- The words come from src/locales, in the desktop's language (src/main.ts). -->
       <section id="connecting" class="connecting" hidden>
-        <p class="connecting-text" id="connecting-text">Opening…</p>
-        <button type="button" class="link" id="choose">Choose another server</button>
+        <p class="connecting-text" id="connecting-text"></p>
+        <button type="button" class="link" id="choose"></button>
       </section>
 
       <section id="choose-section">
-        <h1>Choose a server</h1>
+        <h1 id="choose-title"></h1>
         <ul class="servers" id="servers" aria-live="polite"></ul>
         <p class="status" id="status" role="status"></p>
-        <button type="button" class="link" id="search-again" hidden>Search the network again</button>
+        <button type="button" class="link" id="search-again" hidden></button>
 
         <form class="add" id="add" novalidate>
-          <label for="address">Or enter its address</label>
+          <label for="address" id="address-label"></label>
           <div class="add-row">
-            <input id="address" name="address" autocomplete="url" spellcheck="false" placeholder="nas, 192.168.1.20 or https://pley.example.com" />
-            <button type="submit" class="primary" id="connect">Connect</button>
+            <input id="address" name="address" autocomplete="url" spellcheck="false" />
+            <button type="submit" class="primary" id="connect"></button>
           </div>
           <p class="error" id="add-error" role="alert" hidden></p>
         </form>
       </section>
 
       <section id="downloads-section" class="downloads" hidden>
-        <h2>Downloads</h2>
-        <p class="hint">They play in your video player, even when the server is away.</p>
+        <h2 id="downloads-title"></h2>
+        <p class="hint" id="downloads-hint"></p>
         <ul class="servers" id="downloads"></ul>
         <p class="status" id="downloads-status" role="status"></p>
       </section>

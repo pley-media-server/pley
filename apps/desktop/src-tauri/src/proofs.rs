@@ -25,9 +25,8 @@ use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-/// What the app says of a server that can't prove itself.
-pub const NOT_YOURS: &str =
-    "another device answers there (if your server was set up anew, forget it and connect again)";
+use crate::said::Said;
+
 /// A proof counts this long; a dropped connection or another network asks
 /// for a new one sooner.
 const PROVED_FOR: Duration = Duration::from_secs(30 * 60);
@@ -55,7 +54,7 @@ impl Key {
 #[derive(Debug, PartialEq)]
 pub enum Refused {
     /// Nothing answered, or not as a Pley server does.
-    Unreachable(String),
+    Unreachable(Said),
     /// Something answered without the proof.
     NotYours,
     /// The server proved itself for another address than the one asked: a
@@ -64,15 +63,13 @@ pub enum Refused {
     Misnamed(String),
 }
 
-impl std::fmt::Display for Refused {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Refused {
+    /// What the picker says of it.
+    pub fn said(self) -> Said {
         match self {
-            Self::Unreachable(why) => f.write_str(why),
-            Self::NotYours => f.write_str(NOT_YOURS),
-            Self::Misnamed(address) => write!(
-                f,
-                "it proves itself as {address} here: the proxy in front of it must pass on the Host and X-Forwarded-Proto it was asked with"
-            ),
+            Self::Unreachable(why) => why,
+            Self::NotYours => Said::NotYours,
+            Self::Misnamed(address) => Said::ProvesItselfAs { address },
         }
     }
 }
@@ -260,10 +257,10 @@ struct Answer {
 /// one, as JSON: what the app checks a server with before it opens it.
 pub async fn ask(server: &Url, proofs: &Proofs) -> Result<serde_json::Value, Refused> {
     let key = proofs.key(server);
-    let mut endpoint = server.join("/api/server").map_err(|e| Refused::Unreachable(e.to_string()))?;
+    let mut endpoint = server.join("/api/server").map_err(|e| Refused::Unreachable(e.to_string().into()))?;
     let challenge = match &key {
         Some(key) => {
-            let challenge = challenge().ok_or_else(|| Refused::Unreachable("no random numbers".into()))?;
+            let challenge = challenge().ok_or_else(|| Refused::Unreachable("no random numbers".to_owned().into()))?;
             endpoint.query_pairs_mut().append_pair("challenge", &challenge).append_pair("proof_id", &key.proof_id);
             Some(challenge)
         }
@@ -271,30 +268,30 @@ pub async fn ask(server: &Url, proofs: &Proofs) -> Result<serde_json::Value, Ref
     };
     let response = client().get(endpoint).send().await.map_err(|err| {
         let why = if err.is_timeout() {
-            format!("no answer within {} seconds", ANSWER_TIMEOUT.as_secs())
+            Said::NoAnswerWithin { seconds: ANSWER_TIMEOUT.as_secs() }
         } else if err.is_connect() {
-            "nothing answers there".to_owned()
+            Said::NothingAnswers
         } else {
-            err.without_url().to_string()
+            err.without_url().to_string().into()
         };
         Refused::Unreachable(why)
     })?;
     let status = response.status();
     if status.is_server_error() {
         // The server, or a proxy before it, out of reach for now.
-        return Err(Refused::Unreachable(format!("it answered HTTP {}", status.as_u16())));
+        return Err(Refused::Unreachable(Said::AnsweredHttp { status: status.as_u16() }));
     }
     if !status.is_success() {
         // A redirect or a refusal doesn't prove anything: another device,
         // when a key came from the server that was there.
         return Err(match key {
             Some(_) => Refused::NotYours,
-            None => Refused::Unreachable(format!("it answered HTTP {}, so it isn't a Pley server", status.as_u16())),
+            None => Refused::Unreachable(Said::NotPleyHttp { status: status.as_u16() }),
         });
     }
     let body: serde_json::Value = response.json().await.map_err(|_| match key {
         Some(_) => Refused::NotYours,
-        None => Refused::Unreachable("that isn't a Pley server".into()),
+        None => Refused::Unreachable(Said::NotPley),
     })?;
     if let (Some(key), Some(challenge)) = (key, challenge) {
         let answer: Answer =
@@ -610,7 +607,7 @@ pub(crate) mod tests {
         let proofs = Proofs::for_tests(&server, false);
         let refused = session(&server, &proofs, Some("pley_token=abc".to_owned())).await;
         assert_eq!(refused, Err(Refused::Misnamed(other.to_owned())));
-        assert!(Refused::Misnamed(other.to_owned()).to_string().contains("X-Forwarded-Proto"));
+        assert!(Refused::Misnamed(other.to_owned()).said().to_string().contains("X-Forwarded-Proto"));
     }
 
     #[test]

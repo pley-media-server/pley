@@ -15,6 +15,9 @@ describes how they are made.
   music, a playlist or a Live TV channel sent to it plays there, with the
   audio and subtitles picked on the page, and says where it came from. Its
   remote leaves itself out.
+- The app's own pages, choosing a server and the downloads it keeps, are in
+  French and Spanish as well as English, in the computer's language: their
+  messages too, such as why a server didn't answer or a download failed.
 
 ## [0.1.2] - 2026-11-02
 

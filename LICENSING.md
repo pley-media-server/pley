@@ -148,7 +148,8 @@ What each build contains of others' work, and where its notices are:
   `scripts/check-licenses.ps1` prints the full list.
 - The web UI uses React, React Router, TanStack Query and Virtual,
   i18next and react-i18next, and Tailwind (all MIT), hls.js and mpegts.js
-  (Apache-2.0) and lucide (ISC).
+  (Apache-2.0) and lucide (ISC). The desktop app's own pages use i18next
+  (MIT).
 - The Android app uses AndroidX, Media3, Kotlin and kotlinx, OkHttp and
   Okio, Coil, Accompanist and the Guava and annotation pieces AndroidX
   brings (Apache-2.0), Lucide's icons (ISC; the notice ships in the app's

@@ -1,5 +1,6 @@
 import { describe as group, expect, it } from "vitest";
 import { describe, formatBytes, fraction, serverName, type Download } from "./downloads";
+import { i18n } from "./i18n";
 import type { SavedServer } from "./servers";
 
 const download = (over: Partial<Download>): Download => ({
@@ -45,5 +46,20 @@ group("downloads", () => {
     expect(formatBytes(0)).toBe("0 B");
     expect(formatBytes(1536)).toBe("1.5 KB");
     expect(formatBytes(150 * 1024 ** 2)).toBe("150 MB");
+  });
+
+  it("say it all in the language shown, the app's reasons too", async () => {
+    await i18n.changeLanguage("fr");
+    try {
+      expect(describe(download({ state: "downloading", received: 3_650_722_201 }), "Salon")).toMatch(
+        /^41\s% · 3,4 Go sur 8,2 Go$/,
+      );
+      const full = download({ state: "failed", error: "The disk is full.", why: { key: "diskFull" } });
+      expect(describe(full, "Salon")).toBe("Le disque est plein.");
+      // A list an older version kept has the English only.
+      expect(describe(download({ state: "failed", error: "The disk is full." }), "Salon")).toBe("The disk is full.");
+    } finally {
+      await i18n.changeLanguage("en");
+    }
   });
 });

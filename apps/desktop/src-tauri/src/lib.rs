@@ -14,11 +14,15 @@
 //! is the one the window signed in to (`proofs`); the server's pages in the
 //! window send the session themselves, so on another network the window
 //! leaves a plain-http server at once and opens it again through a proof.
+//! What the app writes for the picker (why a server didn't answer, why a
+//! download failed) goes by key, which the picker says in the computer's
+//! language (`said`).
 
 mod discovery;
 mod downloads;
 mod notices;
 mod proofs;
+mod said;
 mod servers;
 
 use std::sync::Mutex;
@@ -199,13 +203,13 @@ fn open_in_browser<R: Runtime>(app: &AppHandle<R>, url: &Url) {
 /// Shows the server at `url` in the window (the picker calls this once the
 /// server answered).
 #[tauri::command]
-async fn open_server(window: WebviewWindow, url: String) -> Result<(), String> {
+async fn open_server(window: WebviewWindow, url: String) -> Result<(), said::Said> {
     let origin = servers::server_origin(&url)?;
     let route = route_to(origin.clone()).await;
     // The network may have changed since the picker checked it.
     let proofs = window.state::<proofs::Proofs>();
     if !proofs.may_open(&origin) {
-        return Err("the network changed: open it again".to_owned());
+        return Err(said::Said::NetworkChanged);
     }
     // The window's cookies go to every port of the host: a server proven at
     // another port keeps its session, which one without a key doesn't get.
@@ -219,7 +223,7 @@ async fn open_server(window: WebviewWindow, url: String) -> Result<(), String> {
         places.route = route;
     }
     window.state::<notices::Notices>().follow(Some(origin.clone()));
-    window.navigate(origin).map_err(|e| e.to_string())
+    window.navigate(origin).map_err(|e| e.to_string().into())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

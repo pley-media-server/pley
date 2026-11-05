@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 use url::Url;
 
 use crate::proofs::Proofs;
+use crate::said::Said;
 
 /// A server opened before.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -29,12 +30,12 @@ pub struct ServerInfo {
 }
 
 /// The origin of a server's address, for http and https only.
-pub fn server_origin(url: &str) -> Result<Url, String> {
-    let parsed = Url::parse(url).map_err(|_| format!("{url} isn't an address"))?;
+pub fn server_origin(url: &str) -> Result<Url, Said> {
+    let parsed = Url::parse(url).map_err(|_| Said::NotAnAddress { address: url.to_owned() })?;
     if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-        return Err(format!("{url} isn't a web address"));
+        return Err(Said::NotAWebAddress { address: url.to_owned() });
     }
-    Url::parse(&parsed.origin().ascii_serialization()).map_err(|e| e.to_string())
+    Url::parse(&parsed.origin().ascii_serialization()).map_err(|e| e.to_string().into())
 }
 
 /// `servers` with `server` in it: it replaces an entry with the same address
@@ -78,11 +79,11 @@ pub fn saved_servers(app: AppHandle) -> Vec<SavedServer> {
 /// Remembers `server`, opened now (the app notes when: the page can't make
 /// a server open by itself at every start).
 #[tauri::command]
-pub fn save_server(app: AppHandle, server: SavedServer) -> Result<(), String> {
+pub fn save_server(app: AppHandle, server: SavedServer) -> Result<(), Said> {
     let origin = server_origin(&server.url)?;
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64);
     let server = SavedServer { url: origin.as_str().trim_end_matches('/').to_owned(), last_used: now, ..server };
-    save(&app, &with_server(load(&app), server))
+    Ok(save(&app, &with_server(load(&app), server))?)
 }
 
 /// Forgets a server, and the window's session there: a server is forgotten
@@ -90,7 +91,7 @@ pub fn save_server(app: AppHandle, server: SavedServer) -> Result<(), String> {
 /// the session next, with no key left to check it (async: on Windows,
 /// cookies read on the main thread deadlock).
 #[tauri::command]
-pub async fn forget_server(app: AppHandle, url: String) -> Result<(), String> {
+pub async fn forget_server(app: AppHandle, url: String) -> Result<(), Said> {
     if let Ok(origin) = server_origin(&url) {
         // The session goes first, so that nothing finds it without the key.
         if let Some(window) = app.get_webview_window("main") {
@@ -99,7 +100,7 @@ pub async fn forget_server(app: AppHandle, url: String) -> Result<(), String> {
         app.state::<Proofs>().forget(&origin);
     }
     let servers: Vec<SavedServer> = load(&app).into_iter().filter(|s| s.url != url).collect();
-    save(&app, &servers)
+    Ok(save(&app, &servers)?)
 }
 
 /// Deletes the window's cookies for `server`'s host, which go to each of
@@ -117,13 +118,13 @@ pub(crate) fn sign_out<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>, serv
 /// Where the window's session has a key, the server proves it holds it
 /// (see [`crate::proofs`]). No session goes with it.
 #[tauri::command]
-pub async fn check_server(app: AppHandle, url: String) -> Result<ServerInfo, String> {
+pub async fn check_server(app: AppHandle, url: String) -> Result<ServerInfo, Said> {
     check(&server_origin(&url)?, &app.state::<Proofs>()).await
 }
 
-async fn check(origin: &Url, proofs: &Proofs) -> Result<ServerInfo, String> {
-    let body = crate::proofs::ask(origin, proofs).await.map_err(|refused| refused.to_string())?;
-    serde_json::from_value(body).map_err(|_| "that isn't a Pley server".to_owned())
+async fn check(origin: &Url, proofs: &Proofs) -> Result<ServerInfo, Said> {
+    let body = crate::proofs::ask(origin, proofs).await.map_err(crate::proofs::Refused::said)?;
+    serde_json::from_value(body).map_err(|_| Said::NotPley)
 }
 
 #[cfg(test)]
@@ -178,8 +179,9 @@ mod tests {
         format!("http://{addr}")
     }
 
+    /// What the check says, in English.
     async fn check_server(url: String) -> Result<ServerInfo, String> {
-        check(&server_origin(&url)?, &Proofs::in_memory()).await
+        check(&server_origin(&url).map_err(|e| e.to_string())?, &Proofs::in_memory()).await.map_err(|e| e.to_string())
     }
 
     #[tokio::test]

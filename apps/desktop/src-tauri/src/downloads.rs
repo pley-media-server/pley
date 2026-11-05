@@ -21,6 +21,8 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::Notify;
 use url::Url;
 
+use crate::said::Said;
+
 /// What may be kept: audio and video files only, so that nothing a server
 /// names runs as a program when it is opened.
 const MEDIA: &[&str] = &[
@@ -78,8 +80,12 @@ pub struct Download {
     /// What is on the disk so far.
     pub received: u64,
     pub state: State,
-    /// Why it failed, to show.
+    /// Why it failed, or waits for its server, in English: what the
+    /// server's page shows.
     pub error: Option<String>,
+    /// The same, for the picker to say in its language.
+    #[serde(default, deserialize_with = "known")]
+    pub why: Option<Said>,
     /// When it was asked for (Unix ms).
     pub added: i64,
     /// The title the file is of, as the page said: what the server makes a
@@ -94,6 +100,21 @@ pub struct Download {
     pub preparing: Option<f64>,
 }
 
+impl Download {
+    /// Notes why it failed or waits (`None`: nothing wrong now).
+    fn explain(&mut self, why: Option<Said>) {
+        self.error = why.as_ref().map(Said::to_string);
+        self.why = why;
+    }
+}
+
+/// A reason as the list keeps it: one this version doesn't know (a later
+/// version wrote the list) is none, and `error` still says it.
+fn known<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<Said>, D::Error> {
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(value.and_then(|value| serde_json::from_value(value).ok()))
+}
+
 /// A download as the server's page hears of it: no paths, nothing of
 /// other servers.
 #[derive(Debug, Serialize)]
@@ -104,6 +125,8 @@ struct PageDownload<'a> {
     received: u64,
     state: State,
     error: Option<&'a str>,
+    /// `error` by key (`said` in apps/desktop/src/locales).
+    why: Option<&'a Said>,
     preparing: Option<f64>,
 }
 
@@ -166,7 +189,7 @@ impl Downloads {
                     d.conversion = None;
                 }
                 d.state = State::Queued;
-                d.error = None;
+                d.explain(None);
             }
             d.item_id = d.item_id.or(item_id);
             let d = d.clone();
@@ -187,6 +210,7 @@ impl Downloads {
             received: 0,
             state: State::Queued,
             error: None,
+            why: None,
             added: now,
             item_id,
             conversion: None,
@@ -236,7 +260,7 @@ impl Downloads {
         let d = self.update(id, |d| {
             if d.state == State::Failed {
                 d.state = State::Queued;
-                d.error = None;
+                d.explain(None);
                 d.conversion = None;
             }
         });
@@ -393,6 +417,7 @@ pub fn requested<R: Runtime>(app: &AppHandle<R>, server: Option<&Url>, url: &Url
     let suggested = destination.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let Some(name) = safe_name(&suggested) else {
         // Not a kind of file to keep.
+        let why = Said::NotMedia;
         tell_page(
             app,
             &origin,
@@ -402,7 +427,8 @@ pub fn requested<R: Runtime>(app: &AppHandle<R>, server: Option<&Url>, url: &Url
                 size: None,
                 received: 0,
                 state: State::Failed,
-                error: Some("Pley keeps audio and video files only."),
+                error: Some(&why.to_string()),
+                why: Some(&why),
                 preparing: None,
             },
         );
@@ -423,6 +449,7 @@ pub fn finished<R: Runtime>(app: &AppHandle<R>, server: Option<&Url>, url: &Url,
         return;
     }
     let name = name.to_string_lossy();
+    let why = (!success).then_some(Said::NotSaved);
     tell_page(
         app,
         &server.origin().ascii_serialization(),
@@ -432,7 +459,8 @@ pub fn finished<R: Runtime>(app: &AppHandle<R>, server: Option<&Url>, url: &Url,
             size: None,
             received: 0,
             state: if success { State::Done } else { State::Failed },
-            error: (!success).then_some("The file couldn't be saved."),
+            error: why.as_ref().map(Said::to_string).as_deref(),
+            why: why.as_ref(),
             preparing: None,
         },
     );
@@ -450,6 +478,7 @@ fn announce<R: Runtime>(app: &AppHandle<R>, d: &Download) {
             received: d.received,
             state: d.state,
             error: d.error.as_deref(),
+            why: d.why.as_ref(),
             preparing: d.preparing,
         },
     );
@@ -538,24 +567,22 @@ async fn download<R: Runtime>(
     d: &Download,
 ) -> bool {
     let Ok(server) = Url::parse(&d.server) else {
-        fail(app, downloads, d.id, "This server's address isn't valid.");
+        fail(app, downloads, d.id, Said::InvalidAddress);
         return true;
     };
     let proofs = app.state::<crate::proofs::Proofs>();
     let cookie = match crate::proofs::session(&server, &proofs, cookies(app, &server)).await {
         Ok(cookie) => cookie,
         Err(crate::proofs::Refused::Unreachable(_)) => {
-            wait_for_server(app, downloads, d.id, "The server didn't answer.".to_owned());
+            wait_for_server(app, downloads, d.id, Said::NoAnswer);
             return false;
         }
         Err(refused @ (crate::proofs::Refused::NotYours | crate::proofs::Refused::Misnamed(_))) => {
             let why = match refused {
-                crate::proofs::Refused::Misnamed(_) => {
-                    "The server names itself otherwise here: check the proxy in front of it."
-                }
-                _ => "Another device answers at this server's address.",
+                crate::proofs::Refused::Misnamed(_) => Said::NamedOtherwise,
+                _ => Said::AnotherDevice,
             };
-            wait_for_server(app, downloads, d.id, why.to_owned());
+            wait_for_server(app, downloads, d.id, why);
             return false;
         }
     };
@@ -571,7 +598,7 @@ async fn download<R: Runtime>(
                 return false;
             }
             Err(problem) => {
-                fail(app, downloads, d.id, &problem.to_string());
+                fail(app, downloads, d.id, problem.said());
                 return true;
             }
         }
@@ -579,14 +606,14 @@ async fn download<R: Runtime>(
         match server.join(&format!("/api/files/{}/stream", d.file_id)) {
             Ok(url) => url,
             Err(_) => {
-                fail(app, downloads, d.id, "This server's address isn't valid.");
+                fail(app, downloads, d.id, Said::InvalidAddress);
                 return true;
             }
         }
     };
     let Some(d) = downloads.update(d.id, |d| {
         d.state = State::Downloading;
-        d.error = None;
+        d.explain(None);
         d.preparing = None;
     }) else {
         return true;
@@ -623,7 +650,7 @@ async fn download<R: Runtime>(
             true
         }
         Err(problem @ (Problem::Gone | Problem::SignedOut | Problem::Disk(_) | Problem::Failed(_))) => {
-            fail(app, downloads, d.id, &problem.to_string());
+            fail(app, downloads, d.id, problem.said());
             true
         }
         Err(Problem::Network(why)) => {
@@ -632,17 +659,17 @@ async fn download<R: Runtime>(
             false
         }
         Err(Problem::CantMake) => {
-            fail(app, downloads, d.id, &Problem::CantMake.to_string());
+            fail(app, downloads, d.id, Problem::CantMake.said());
             true
         }
     }
 }
 
 /// Download `id` waits for its server, for `why`.
-fn wait_for_server<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, id: u64, why: String) {
+fn wait_for_server<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, id: u64, why: Said) {
     if let Some(d) = downloads.update(id, |d| {
         d.state = State::Waiting;
-        d.error = Some(why);
+        d.explain(Some(why));
     }) {
         announce(app, &d);
     }
@@ -671,8 +698,8 @@ async fn for_quicktime<R: Runtime>(
         "direct" => return Ok(Some(url)),
         "failed" => {
             return Err(Problem::Failed(match made.error {
-                Some(why) => format!("The server couldn't make it for this computer: {why}"),
-                None => "The server couldn't make it for this computer.".to_owned(),
+                Some(detail) => Said::NotMadeBecause { detail },
+                None => Said::NotMade,
             }));
         }
         _ => {}
@@ -689,7 +716,7 @@ async fn for_quicktime<R: Runtime>(
         } else {
             d.state = State::Preparing;
             d.preparing = Some(made.progress);
-            d.error = None;
+            d.explain(None);
         }
     });
     let Some(changed) = changed else { return Ok(None) };
@@ -753,15 +780,15 @@ async fn ask(request: reqwest::RequestBuilder, cookie: Option<&str>) -> Result<M
     };
     let response = tokio::time::timeout(ANSWER_TIMEOUT, request.send())
         .await
-        .map_err(|_| Problem::Network("The server didn't answer.".to_owned()))?
+        .map_err(|_| Problem::Network(Said::NoAnswer))?
         .map_err(network)?;
     match response.status().as_u16() {
-        200 => response.json().await.map_err(|_| Problem::Network("The server's answer can't be read.".to_owned())),
+        200 => response.json().await.map_err(|_| Problem::Network(Said::Unreadable)),
         401 | 403 => Err(Problem::SignedOut),
         404 | 410 => Err(Problem::Gone),
         501 => Err(Problem::CantMake),
-        503 => Err(Problem::Network("The server can't make it right now.".to_owned())),
-        _ => Err(Problem::Network("The server couldn't answer.".to_owned())),
+        503 => Err(Problem::Network(Said::Busy)),
+        _ => Err(Problem::Network(Said::NoReply)),
     }
 }
 
@@ -775,13 +802,13 @@ fn finish<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, d: &Download, p
         d.path.clone()
     };
     if let Err(err) = std::fs::rename(part, &path) {
-        fail(app, downloads, d.id, &format!("The file couldn't be written: {err}"));
+        fail(app, downloads, d.id, Said::NotWritten { detail: err.to_string() });
         return;
     }
     let done = downloads.update(d.id, |d| {
         d.state = State::Done;
         d.size = Some(d.received);
-        d.error = None;
+        d.explain(None);
         if path != d.path {
             d.name = path.file_name().map_or_else(|| d.name.clone(), |n| n.to_string_lossy().into_owned());
             d.path = path.clone();
@@ -796,10 +823,10 @@ fn finish<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, d: &Download, p
     }
 }
 
-fn fail<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, id: u64, why: &str) {
+fn fail<R: Runtime>(app: &AppHandle<R>, downloads: &Downloads, id: u64, why: Said) {
     if let Some(d) = downloads.update(id, |d| {
         d.state = State::Failed;
-        d.error = Some(why.to_owned());
+        d.explain(Some(why));
     }) {
         announce(app, &d);
     }
@@ -819,33 +846,30 @@ enum Problem {
     /// The session is over.
     SignedOut,
     /// The server can't be reached or broke off: try again later.
-    Network(String),
+    Network(Said),
     Disk(std::io::Error),
     /// The server can't make files for this computer's player (too old).
     CantMake,
     /// The server failed to make the file, for this reason.
-    Failed(String),
+    Failed(Said),
 }
 
-impl std::fmt::Display for Problem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Problem {
+    /// What the download says of it.
+    fn said(self) -> Said {
         match self {
-            Self::Gone => f.write_str("This file is no longer on the server."),
-            Self::SignedOut => f.write_str("Sign in to the server again, then download it again."),
-            Self::Network(why) | Self::Failed(why) => f.write_str(why),
-            Self::Disk(err) if err.kind() == std::io::ErrorKind::StorageFull => f.write_str("The disk is full."),
-            Self::Disk(err) => write!(f, "The file couldn't be written: {err}"),
-            Self::CantMake => f.write_str("The server can't make files for this computer's player: update it."),
+            Self::Gone => Said::NotOnServer,
+            Self::SignedOut => Said::SignedOut,
+            Self::Network(why) | Self::Failed(why) => why,
+            Self::Disk(err) if err.kind() == std::io::ErrorKind::StorageFull => Said::DiskFull,
+            Self::Disk(err) => Said::NotWritten { detail: err.to_string() },
+            Self::CantMake => Said::CantMake,
         }
     }
 }
 
 fn network(err: reqwest::Error) -> Problem {
-    Problem::Network(if err.is_timeout() || err.is_connect() {
-        "The server can't be reached.".to_owned()
-    } else {
-        "The connection to the server dropped.".to_owned()
-    })
+    Problem::Network(if err.is_timeout() || err.is_connect() { Said::Unreachable } else { Said::Dropped })
 }
 
 /// `Content-Range: bytes 100-299/300`: where the part starts and the
@@ -881,7 +905,7 @@ async fn fetch(
         }
         let mut response = tokio::time::timeout(ANSWER_TIMEOUT, request.send())
             .await
-            .map_err(|_| Problem::Network("The server didn't answer.".to_owned()))?
+            .map_err(|_| Problem::Network(Said::NoAnswer))?
             .map_err(network)?;
         let (append, size) = match response.status().as_u16() {
             206 => match content_range(response.headers()) {
@@ -907,7 +931,7 @@ async fn fetch(
             }
             401 | 403 => return Err(Problem::SignedOut),
             404 | 410 => return Err(Problem::Gone),
-            _ => return Err(Problem::Network("The server couldn't send the file.".to_owned())),
+            _ => return Err(Problem::Network(Said::NotSent)),
         };
         if let Some(dir) = part.parent() {
             tokio::fs::create_dir_all(dir).await.map_err(Problem::Disk)?;
@@ -927,7 +951,7 @@ async fn fetch(
         loop {
             let chunk = tokio::time::timeout(READ_TIMEOUT, response.chunk())
                 .await
-                .map_err(|_| Problem::Network("The server stopped sending.".to_owned()))?;
+                .map_err(|_| Problem::Network(Said::StoppedSending))?;
             // What came before the connection dropped stays, to go on from.
             let chunk = match chunk {
                 Ok(Some(chunk)) => chunk,
@@ -946,11 +970,11 @@ async fn fetch(
         file.flush().await.map_err(Problem::Disk)?;
         file.get_ref().sync_all().await.map_err(Problem::Disk)?;
         if size.is_some_and(|size| received < size) {
-            return Err(Problem::Network("The connection to the server dropped.".to_owned()));
+            return Err(Problem::Network(Said::Dropped));
         }
         return Ok(Fetched::Whole);
     }
-    Err(Problem::Network("The server couldn't send the file.".to_owned()))
+    Err(Problem::Network(Said::NotSent))
 }
 
 /// A download as the picker lists it.
@@ -963,6 +987,7 @@ pub struct Listed {
     pub received: u64,
     pub state: State,
     pub error: Option<String>,
+    pub why: Option<Said>,
     pub preparing: Option<f64>,
 }
 
@@ -981,33 +1006,34 @@ pub fn downloads(app: AppHandle) -> Vec<Listed> {
             received: d.received,
             state: d.state,
             error: d.error,
+            why: d.why,
             preparing: d.preparing,
         })
         .collect()
 }
 
 /// A download that is whole, as kept: an audio or video file in its folder.
-fn kept(app: &AppHandle, id: u64) -> Result<PathBuf, String> {
-    let d = app.state::<Downloads>().get(id).ok_or("This download is gone.")?;
+fn kept(app: &AppHandle, id: u64) -> Result<PathBuf, Said> {
+    let d = app.state::<Downloads>().get(id).ok_or(Said::DownloadGone)?;
     let name = d.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     if d.state != State::Done || !d.path.is_file() || safe_name(&name).as_deref() != Some(name.as_str()) {
-        return Err("This download isn't whole.".into());
+        return Err(Said::NotWhole);
     }
     Ok(d.path)
 }
 
 /// Plays a download in the system's player for its kind of file.
 #[tauri::command]
-pub fn play_download(app: AppHandle, id: u64) -> Result<(), String> {
+pub fn play_download(app: AppHandle, id: u64) -> Result<(), Said> {
     let path = kept(&app, id)?;
-    app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+    app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| e.to_string().into())
 }
 
 /// Shows a download in its folder.
 #[tauri::command]
-pub fn show_download(app: AppHandle, id: u64) -> Result<(), String> {
+pub fn show_download(app: AppHandle, id: u64) -> Result<(), Said> {
     let path = kept(&app, id)?;
-    app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string())
+    app.opener().reveal_item_in_dir(path).map_err(|e| e.to_string().into())
 }
 
 #[tauri::command]
@@ -1106,6 +1132,24 @@ mod tests {
         let c = again.request("http://nas:7539", 7, None, "Alien (1979).mkv", 3);
         assert_eq!((c.id, c.path, c.item_id), (a.id, a.path, Some(42)));
         assert_eq!(again.request("http://nas:7539", 9, None, "Alien (1979).mkv", 4).name, "Alien (1979) (2).mkv");
+    }
+
+    #[test]
+    fn a_reason_a_later_version_wrote_is_said_in_english() {
+        let dir = tempdir("reasons");
+        let failed = |why: &str| {
+            format!(
+                r#"{{"id":1,"server":"http://nas:7539","file_id":7,"name":"a.mkv","path":"a.mkv","size":null,"received":0,"state":"failed","error":"The disk is full.",{why}"added":1}}"#
+            )
+        };
+        for (why, known) in
+            [(r#""why":{"key":"diskFull"},"#, Some(Said::DiskFull)), (r#""why":{"key":"later"},"#, None), ("", None)]
+        {
+            let list = format!(r#"{{"next_id":1,"downloads":[{}]}}"#, failed(why));
+            std::fs::write(dir.join("downloads.json"), list).unwrap();
+            let d = &Downloads::load(dir.join("downloads.json"), dir.clone()).list()[0];
+            assert_eq!((d.error.as_deref(), &d.why), (Some("The disk is full."), &known), "{why}");
+        }
     }
 
     #[test]
@@ -1303,6 +1347,7 @@ mod tests {
             received: 0,
             state: State::Queued,
             error: None,
+            why: None,
             added: 1,
             item_id: Some(42),
             conversion: None,
