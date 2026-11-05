@@ -1046,6 +1046,29 @@ fn a_session_the_watch_made_is_let_go_when_the_player_closes_before_it_plays() {
     assert!(w.sim.loads().is_empty());
 }
 
+#[test]
+fn a_tune_done_but_not_yet_taken_in_is_let_go_when_the_player_closes() {
+    let fake = LiveFake::new();
+    let mut w = Live::new(fake.clone());
+    w.c.tune(channel(1));
+    // The tune has its playlist and is done, and the player hasn't ticked since: it closes.
+    let until = Instant::now() + Duration::from_secs(5);
+    while !fake.asked().iter().any(|a| a.starts_with("GET ")) {
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    // The job hands its answer back right after the playlist: the wait lets it, so the close comes
+    // between that answer and the tick that would take it in. A job not done yet lets go itself.
+    thread::sleep(Duration::from_millis(50));
+    w.c.close();
+    while !fake.asked().contains(&"leave s1".to_string()) {
+        assert!(Instant::now() < until, "the session was never let go: {:?}", fake.asked());
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(fake.asked(), ["watch 1 webos-tv", "GET /api/live/media/pley_mk_1/index.m3u8", "leave s1"]);
+    assert!(w.sim.loads().is_empty());
+}
+
 // ---- the channel's stream.ts
 
 fn plan(video: &str, audio: &str, audio_codec: &str) -> LivePlan {

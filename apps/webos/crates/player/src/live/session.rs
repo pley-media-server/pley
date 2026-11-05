@@ -1028,6 +1028,11 @@ impl LiveSession {
         if let Some(s) = self.session.take() {
             self.leave_session(s);
         }
+        // A tune's session the player hadn't taken yet: its job may be done, its answer dropped
+        // with the jobs, so it goes now, before the next watch, and the job finds nothing to leave.
+        if let Some(s) = take(&self.answered.1) {
+            self.leave_session(s);
+        }
     }
 
     fn leave_session(&self, session: String) {
