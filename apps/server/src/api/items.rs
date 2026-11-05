@@ -229,6 +229,10 @@ pub struct Progress {
     audio_index: Option<i64>,
     #[serde(default)]
     subtitle_index: Option<i64>,
+    /// The quality its Quality menu has picked, by id: kept on the session
+    /// for the user's remotes.
+    #[serde(default)]
+    quality: Option<String>,
 }
 
 fn playing() -> String {
@@ -302,6 +306,7 @@ pub async fn progress(
     {
         let moved = session.update(body.position_ms, &body.state);
         let switched = session.report_tracks(body.audio_index, body.subtitle_index);
+        let switched = session.report_quality(body.quality.as_deref()) || switched;
         if session.should_touch_transcoder()
             && let Some(job) = session.job_id()
         {

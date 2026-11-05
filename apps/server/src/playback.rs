@@ -394,6 +394,8 @@ pub enum Control {
     Audio,
     /// Another of the file's subtitle tracks, or none.
     Subtitles,
+    /// Another quality of the player's Quality menu (docs/QUALITY.md), by id.
+    Quality,
 }
 
 /// The commands a player obeys, each once, in a fixed order.
@@ -529,6 +531,91 @@ pub const QUALITIES: [(&str, u32, u32); 7] = [
     ("4m", 4_000, 720),
     ("2m", 2_000, 480),
 ];
+
+/// One entry of the Quality menu: id, label, and the kbps and lines it
+/// holds the video to (`None` for the original and Automatic).
+type MenuEntry = (&'static str, &'static str, Option<(u32, u32)>);
+
+/// The Quality menu every player offers, in its order (docs/QUALITY.md,
+/// "The menu").
+pub const MENU: [MenuEntry; 9] = [
+    ("original", "Original", None),
+    ("auto", "Automatic", None),
+    ("30m", "30 Mbps 4K", Some((30_000, 2160))),
+    ("15m", "15 Mbps 4K", Some((15_000, 2160))),
+    ("20m", "20 Mbps 1080p", Some((20_000, 1080))),
+    ("12m", "12 Mbps 1080p", Some((12_000, 1080))),
+    ("8m", "8 Mbps 1080p", Some((8_000, 1080))),
+    ("4m", "4 Mbps 720p", Some((4_000, 720))),
+    ("2m", "2 Mbps 480p", Some((2_000, 480))),
+];
+
+/// `id` as one of the menu's, when it is one.
+pub fn menu_id(id: &str) -> Option<&'static str> {
+    MENU.iter().map(|q| q.0).find(|known| *known == id)
+}
+
+/// One quality of the menu as players offer it for a file: what a remote
+/// shows, and the id it sends.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct QualityOption {
+    pub id: &'static str,
+    pub label: String,
+}
+
+/// The qualities a player's menu offers for a `width`×`height` file of
+/// `bitrate` (bits per second), as every app works them out
+/// (apps/web/src/player/quality.ts, `qualitiesFor`): the original and
+/// Automatic, then each copy with fewer lines than the file or at most 80 %
+/// of its bitrate (every one when neither is known), named by the file's
+/// own lines when taller, once for each bitrate and lines, tallest first.
+pub fn offered_qualities(width: Option<i64>, height: Option<i64>, bitrate: Option<i64>) -> Vec<QualityOption> {
+    let (w, h) = (width.unwrap_or(0), height.unwrap_or(0));
+    let lines = (w > 0 || h > 0).then_some(if w >= 3800 || h >= 2100 {
+        2160
+    } else if w >= 1800 || h >= 1000 {
+        1080
+    } else if w >= 1200 || h >= 700 {
+        720
+    } else {
+        480
+    });
+    let kbps = bitrate.filter(|b| *b > 0).map(|b| b as f64 / 1000.0);
+    let height = height.filter(|h| *h > 0);
+    let known = kbps.is_some() || height.is_some();
+    let mut out = Vec::new();
+    let mut copies: Vec<(QualityOption, u32, u32)> = Vec::new();
+    for (id, label, cap) in MENU {
+        let Some((cap_kbps, cap_lines)) = cap else {
+            out.push(QualityOption { id, label: label.to_owned() });
+            continue;
+        };
+        if !known {
+            out.push(QualityOption { id, label: label.to_owned() });
+            continue;
+        }
+        let fewer_lines = height.is_some_and(|h| i64::from(cap_lines) < h);
+        let lighter = kbps.is_some_and(|k| f64::from(cap_kbps) <= k * 0.8);
+        if !fewer_lines && !lighter {
+            continue;
+        }
+        let shown = lines.map_or(cap_lines, |l| cap_lines.min(l));
+        if copies.iter().any(|c| (c.1, c.2) == (cap_kbps, shown)) {
+            continue;
+        }
+        let label = match lines {
+            Some(l) if cap_lines > l => {
+                let named = if l >= 2160 { "4K".to_owned() } else { format!("{l}p") };
+                format!("{} Mbps {named}", cap_kbps / 1000)
+            }
+            _ => label.to_owned(),
+        };
+        copies.push((QualityOption { id, label }, cap_kbps, shown));
+    }
+    copies.sort_by(|a, b| b.2.cmp(&a.2).then(b.1.cmp(&a.1)));
+    out.extend(copies.into_iter().map(|c| c.0));
+    out
+}
 
 /// What a transcode of the original aims for, instead of the file's own
 /// size and bitrate (heavy to make and to send, for no better picture): the
@@ -1721,6 +1808,10 @@ pub struct PlayState {
     /// The subtitles it shows, the same way; `-1`: none.
     #[serde(skip)]
     pub subtitle_index: Option<i64>,
+    /// The quality its Quality menu has picked (one of [`MENU`]'s ids), as
+    /// its player last said; `None` until it does.
+    #[serde(skip)]
+    pub quality: Option<&'static str>,
 }
 
 impl PlayState {
@@ -1831,6 +1922,7 @@ impl Session {
                 reported_at_ms: None,
                 audio_index: None,
                 subtitle_index: None,
+                quality: None,
             }),
             app_grant: None,
             compatibility_token: None,
@@ -1911,6 +2003,17 @@ impl Session {
             play.subtitle_index = Some(index);
         }
         (play.audio_index, play.subtitle_index) != before
+    }
+
+    /// Records the quality its player says its menu has picked (one of
+    /// [`MENU`]'s ids; another, or none, leaves what was known). Whether it
+    /// changed, which the user's remotes hear about at once.
+    pub fn report_quality(&self, quality: Option<&str>) -> bool {
+        let Some(id) = quality.and_then(menu_id) else { return false };
+        let mut play = self.play.lock();
+        let changed = play.quality != Some(id);
+        play.quality = Some(id);
+        changed
     }
 
     /// Counts a command sent to it: whether it may go to its player, at
@@ -2828,6 +2931,42 @@ mod tests {
         let d = decide(&file("mp4", 20_000_000), Some(&i), &i.streams, &request());
         assert_eq!(d.method, Method::Transcode);
         assert!(d.reasons.iter().any(|r| r.contains("Dolby Vision")));
+    }
+
+    /// The same cases as the web app's `qualitiesFor` (player/quality.test.ts).
+    #[test]
+    fn offered_qualities_are_the_players_menu() {
+        let mbps = |m: i64| Some(m * 1_000_000);
+        let ids = |w: Option<i64>, h: Option<i64>, b: Option<i64>| {
+            offered_qualities(w, h, b).into_iter().map(|q| q.id).collect::<Vec<_>>()
+        };
+        let labels = |w: i64, h: i64, m: i64| {
+            offered_qualities(Some(w), Some(h), mbps(m)).into_iter().map(|q| q.label).collect::<Vec<_>>()
+        };
+        assert_eq!(ids(Some(1920), Some(1080), mbps(9)), ["original", "auto", "4m", "2m"]);
+        assert_eq!(ids(Some(1920), Some(1080), mbps(10)), ["original", "auto", "8m", "4m", "2m"]);
+        assert_eq!(ids(Some(1280), Some(720), mbps(3)), ["original", "auto", "2m"]);
+        assert_eq!(ids(Some(3840), Some(2160), mbps(6)), ["original", "auto", "20m", "12m", "8m", "4m", "2m"]);
+        assert_eq!(
+            ids(Some(3840), Some(2160), mbps(60)),
+            ["original", "auto", "30m", "15m", "20m", "12m", "8m", "4m", "2m"]
+        );
+        assert_eq!(ids(Some(3840), Some(2160), mbps(20)), ["original", "auto", "15m", "20m", "12m", "8m", "4m", "2m"]);
+        assert_eq!(ids(None, None, None).len(), MENU.len(), "every one, when nothing is known");
+        assert_eq!(labels(1280, 720, 12), ["Original", "Automatic", "8 Mbps 720p", "4 Mbps 720p", "2 Mbps 480p"]);
+        assert_eq!(
+            labels(1920, 800, 25),
+            [
+                "Original",
+                "Automatic",
+                "20 Mbps 1080p",
+                "15 Mbps 1080p",
+                "12 Mbps 1080p",
+                "8 Mbps 1080p",
+                "4 Mbps 720p",
+                "2 Mbps 480p"
+            ]
+        );
     }
 
     #[test]

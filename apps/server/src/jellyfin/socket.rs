@@ -258,7 +258,7 @@ async fn translate(
                 message("Playstate", json!({"Command": "Stop"}))
             })
         }
-        ServerEvent::PlayerCommand { user_id, session_id, command, position_ms, offset_ms, stream_index }
+        ServerEvent::PlayerCommand { user_id, session_id, command, position_ms, offset_ms, stream_index, .. }
             if *user_id == user.id =>
         {
             // Only the device that plays it obeys, as for Stop.
@@ -266,6 +266,7 @@ async fn translate(
             let values = Values { position_ms: *position_ms, offset_ms: *offset_ms, stream_index: *stream_index };
             (device.is_some() && session.client_id.as_deref() == device)
                 .then(|| obey(&session, &jellyfin.ids.of(Kind::User, user.id), *command, values))
+                .flatten()
         }
         _ => None,
     }
@@ -283,8 +284,10 @@ struct Values {
 /// for the transport, a `GeneralCommand` from `user` (the user's Jellyfin
 /// id) to change track, whose index is Pley's, as the client's media
 /// streams name them; `-1` turns subtitles off. Jellyfin has no skip: it is
-/// a seek from where the player is by now.
-fn obey(session: &Session, user: &str, command: Control, values: Values) -> Message {
+/// a seek from where the player is by now. A change of quality has no
+/// message: Jellyfin clients don't take one (the server never sends them
+/// one, as they don't list it).
+fn obey(session: &Session, user: &str, command: Control, values: Values) -> Option<Message> {
     let seek = |ms: i64| json!({"Command": "Seek", "SeekPositionTicks": ms.max(0).saturating_mul(TICKS_PER_MS)});
     let track = |name: &str| {
         let index = values.stream_index.unwrap_or(-1).to_string();
@@ -303,10 +306,11 @@ fn obey(session: &Session, user: &str, command: Control, values: Values) -> Mess
         }
         Control::Next => json!({"Command": "NextTrack"}),
         Control::Previous => json!({"Command": "PreviousTrack"}),
-        Control::Audio => return track("SetAudioStreamIndex"),
-        Control::Subtitles => return track("SetSubtitleStreamIndex"),
+        Control::Audio => return Some(track("SetAudioStreamIndex")),
+        Control::Subtitles => return Some(track("SetSubtitleStreamIndex")),
+        Control::Quality => return None,
     };
-    message("Playstate", data)
+    Some(message("Playstate", data))
 }
 
 /// Where the session's player is by now: its last report's place, moved on
@@ -331,7 +335,7 @@ mod tests {
     }
 
     fn playstate(session: &Session, command: Control, position_ms: Option<i64>, offset_ms: Option<i64>) -> Message {
-        obey(session, "u1", command, Values { position_ms, offset_ms, stream_index: None })
+        obey(session, "u1", command, Values { position_ms, offset_ms, stream_index: None }).expect("a message")
     }
 
     #[test]
@@ -344,6 +348,7 @@ mod tests {
             reported_at_ms: Some(now_ms() - 10_000),
             audio_index: None,
             subtitle_index: None,
+            quality: None,
         };
         let skip = |offset| data(playstate(&session, Control::Skip, None, Some(offset)))["SeekPositionTicks"].clone();
         // Ten seconds on since its report, a second more should the clock tick.
@@ -360,7 +365,9 @@ mod tests {
     #[test]
     fn a_track_is_a_general_command() {
         let session = Session::new(1, "u".into(), Some("d".into()), 1, 1, Method::Direct, 100_000, None, None, 0);
-        let track = |command, index| obey(&session, "u1", command, Values { stream_index: index, ..Values::default() });
+        let track = |command, index| {
+            obey(&session, "u1", command, Values { stream_index: index, ..Values::default() }).expect("a message")
+        };
         let audio = track(Control::Audio, Some(2));
         assert_eq!(kind(&audio), json!("GeneralCommand"));
         let expected = json!({"Name": "SetAudioStreamIndex", "ControllingUserId": "u1", "Arguments": {"Index": "2"}});
@@ -371,5 +378,7 @@ mod tests {
             (json!("SetSubtitleStreamIndex"), json!({"Index": "-1"}))
         );
         assert_eq!(kind(&playstate(&session, Control::Pause, None, None)), json!("Playstate"));
+        let quality = Values::default();
+        assert!(obey(&session, "u1", Control::Quality, quality).is_none(), "Jellyfin clients take no quality");
     }
 }

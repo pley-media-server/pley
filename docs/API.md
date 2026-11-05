@@ -1531,7 +1531,7 @@ user's watch state and their access are unchanged.
 | GET | `/api/items/{id}/related?limit=` | `library` | `{ items: ItemSummary[] }`: "More Like This" (default 20, max 60) |
 | GET | `/api/items/{id}/images/{poster\|backdrop\|thumb}` | `library` | `image/jpeg`; query `w=<px>` (optional resize, bucketed), `v=` (cache buster, ignored) |
 | POST | `/api/items/{id}/prefetch` | `play` | `202` at once: read ahead what *Play* reads first |
-| POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms?, audio_index?, subtitle_index? }` → `204` |
+| POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms?, audio_index?, subtitle_index?, quality? }` → `204` |
 | POST | `/api/items/{id}/watched` | `play` | `204`; containers: every leaf |
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
@@ -3391,7 +3391,7 @@ administrators stop other people's sessions (above) and nothing more.
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
-  `previous`, `audio`, `subtitles`. Without it, the player obeys none, and
+  `previous`, `audio`, `subtitles`, `quality`. Without it, the player obeys none, and
   remotes show only *Stop*, which every player obeys. Its `device_name` is
   what remotes call it; without one the server names it from the
   User-Agent. A Plex app's session is named by `X-Plex-Device-Name` (else
@@ -3436,9 +3436,17 @@ administrators stop other people's sessions (above) and nothing more.
   pick (the item's `selected_subtitle`). `null` when not known. A player
   that reports another track sends `sessions_changed`. Live TV sessions
   have no tracks: both lists are empty, both indexes `null`.
+- **Quality.** A title's session lists the `qualities` its player's
+  Quality menu offers for the file (`{ id, label }`, worked out as every
+  app does it, [QUALITY.md](QUALITY.md), "The menu"), which `quality`
+  picks from, and says which its menu has picked: `quality`, a progress
+  report's `quality` (one of the menu's ids), `null` until its player
+  says. A player that reports another quality sends `sessions_changed`.
+  Music and Live TV have none: an empty list and `null`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
-  `kind: "live"`, its `channel` and `item: null`, while its player is there
+  `kind: "live"`, its `channel` (with the programme on, when it started
+  and ends, and the next) and `item: null`, while its player is there
   (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
   `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
   `next` and `previous` change channel, in the order the player tunes them;
@@ -3448,15 +3456,17 @@ administrators stop other people's sessions (above) and nothing more.
   or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
-  position_ms, offset_ms, stream_index }`. `seek` needs `position_ms`,
+  position_ms, offset_ms, stream_index, quality }`. `seek` needs `position_ms`,
   from 0 to the title's length (a day when it isn't known); `skip` needs
   `offset_ms`, up to 10 minutes either way (back when negative); `audio`
   needs `stream_index`, the index of one of the session's audio `tracks`,
-  and `subtitles` one of its subtitle `tracks` or `-1` to turn them off.
-  Live TV sessions take neither `audio` nor `subtitles`. The other
-  commands take none of these, and the event has them `null`. It answers:
-  - `400` for an unknown command, or a place, offset or track missing or
-    out of range, or a track on Live TV;
+  and `subtitles` one of its subtitle `tracks` or `-1` to turn them off;
+  `quality` needs `quality`, the id of one of the session's `qualities`.
+  Live TV sessions take none of `audio`, `subtitles` and `quality`. The
+  other commands take none of these, and the event has them `null`. It
+  answers:
+  - `400` for an unknown command, or a place, offset, track or quality
+    missing or out of range, or a track or a quality on Live TV;
   - `403` for someone else's session, an administrator's request too;
   - `404` for a session unknown, stopped, or whose player is gone;
   - `409` `{ code: "not_controllable", message }` for a command the
@@ -3465,7 +3475,9 @@ administrators stop other people's sessions (above) and nothing more.
 - **The player acts on it**, if `session_id` is the session it plays now:
   `seek` stops at the start and the end, `skip` counts from where it is,
   and `next` with nothing next or `previous` on a video does nothing;
-  `audio` and `subtitles` change track as the player's own menu would.
+  `audio` and `subtitles` change track, and `quality` the quality, as the
+  player's own menus would (a new quality is kept as its pick, as when
+  picked there).
   Then it reports at once, with the tracks it plays; a `play` or `pause`
   that changes nothing reports too, so a remote that missed a change
   settles. A report whose place is more than 5 seconds from where the
@@ -3501,9 +3513,13 @@ would.
 - **`POST /api/remote/devices/{id}/cast`**, `{id}` being a `receiver_id`,
   names exactly one of `item_id`, `playlist_id` and `channel_id`;
   `start_ms` (from 0 to a day) is where a title starts, and `shuffle`
-  plays a playlist, an album or an artist shuffled. It answers `202` and
-  sends the user's event streams `{ type: "cast", receiver_id, item_id,
-  playlist_id, channel_id, start_ms, shuffle, from }`, `from` being the
+  plays a playlist, an album or an artist shuffled. With a movie or an
+  episode, `audio_index` and `subtitle_index` (`-1`: none) are the tracks
+  the remote had picked on its page, by stream index of one of its files.
+  The quality stays the receiver's own: what suits a phone's network
+  doesn't suit a TV's. It answers `202` and sends the user's event
+  streams `{ type: "cast", receiver_id, item_id, playlist_id, channel_id,
+  start_ms, shuffle, audio_index, subtitle_index, from }`, `from` being the
   remote's device name or `null`: the `device_name` its device gave as a
   receiver, where it is one, else one from its User-Agent. It answers, in
   this order:
@@ -3517,13 +3533,17 @@ would.
     can't see;
   - `409` `{ code: "not_castable", message }` for what the receiver's
     `casts` doesn't name (`live` for a channel, `item` otherwise);
-  - `400` for a `start_ms` out of range;
+  - `400` for a `start_ms` out of range, or a track that isn't one of the
+    title's (or with something other than a movie or an episode);
   - `429` past 10 casts a second to one receiver.
 - **The receiver plays it**, if `receiver_id` is its own, as its own
   *Play* on that page would: a movie, an episode or a track where *Play*
   starts it (at `start_ms` when given), a show or a season its next
   episode (On Deck), an album, an artist or a playlist what it holds in
-  order (shuffled with `shuffle`), a channel live. Its player then starts
+  order (shuffled with `shuffle`), a channel live. The tracks given are
+  what it plays, in place of the user's saved choices for that play (a
+  track its file doesn't have, of another version, leaves the choice to
+  them). Its player then starts
   a session as any play does, which the remote sees in `GET /api/sessions`
   with the receiver's `device_id`.
 
@@ -3632,7 +3652,7 @@ interface SessionInfo {
   transcode: null | TranscodeInfo;
 }
 
-type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
+type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
 type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 interface PlayingSession {      // GET /api/sessions
@@ -3642,8 +3662,10 @@ interface PlayingSession {      // GET /api/sessions
   device_id: string;            // as SessionInfo's
   device_kind: DeviceKind;
   item: ItemSummary | null;     // kind "item"
-  channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null } | null;
-                                // kind "live"; `now`: the programme on
+  channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null;
+             now_start: number | null; now_stop: number | null; next: string | null } | null;
+                                // kind "live"; `now`: the programme on, from `now_start` to
+                                // `now_stop` (unix seconds); `next`: the one after it
   state: "playing" | "paused" | "buffering"; // live: "playing"
   position_ms: number;          // live: 0
   duration_ms: number | null;   // null when the length isn't known, and on live
@@ -3654,6 +3676,9 @@ interface PlayingSession {      // GET /api/sessions
   subtitle_index: number | null; // the subtitles it shows; -1: none (Remote control, "Tracks")
   tracks: { audio: TrackOption[]; subtitles: TrackOption[] }; // its file's, which `audio` and `subtitles`
                                 // pick from; empty on live
+  quality: string | null;       // the Quality menu's pick, by id ("auto", "8m"); null until its player says
+  qualities: { id: string; label: string }[]; // what its menu offers for the file, which `quality`
+                                // picks from; empty for music and on live (Remote control, "Quality")
 }
 
 interface TrackOption {

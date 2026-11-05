@@ -30,7 +30,8 @@ use crate::events::{EventBus, ServerEvent};
 use crate::livetv::tuner::RemoteViewer;
 use crate::oauth::clients::{self, clean_name};
 use crate::playback::{
-    COMMANDS_PER_SECOND, CommandWindow, Control, Controls, DeviceKind, Session, TrackOptions, track_options,
+    COMMANDS_PER_SECOND, CommandWindow, Control, Controls, DeviceKind, QualityOption, Session, TrackOptions,
+    offered_qualities, track_options,
 };
 use crate::state::AppState;
 use crate::util::{now, now_ms};
@@ -111,8 +112,14 @@ pub struct PlayingChannel {
     name: String,
     number: Option<String>,
     logo: Option<String>,
-    /// The programme on now.
+    /// The programme on now…
     now: Option<String>,
+    /// …when it started and when it ends (unix seconds), for how far in it
+    /// is…
+    now_start: Option<i64>,
+    now_stop: Option<i64>,
+    /// …and the one after it.
+    next: Option<String>,
 }
 
 /// One of the user's sessions as their remotes show it.
@@ -149,6 +156,12 @@ pub struct PlayingSession {
     /// Its file's tracks, which `audio` and `subtitles` pick from; none on
     /// Live TV.
     tracks: TrackOptions,
+    /// The quality its player's menu has picked, by id, as it last said;
+    /// `None` until it does, and on Live TV.
+    quality: Option<&'static str>,
+    /// The qualities its player's menu offers for the file, which `quality`
+    /// picks from; none for music and on Live TV.
+    qualities: Vec<QualityOption>,
     /// For the order they are listed in.
     #[serde(skip)]
     started_at: i64,
@@ -193,7 +206,10 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
                 name: channel.name,
                 number: channel.number,
                 logo: channel.logo,
+                now_start: channel.now.as_ref().map(|p| p.start),
+                now_stop: channel.now.as_ref().map(|p| p.stop),
                 now: channel.now.map(|p| p.title),
+                next: channel.next.map(|p| p.title),
             }),
             // Live goes on at the edge: there is no place to show.
             state: "playing".to_owned(),
@@ -205,6 +221,8 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             audio_index: None,
             subtitle_index: None,
             tracks: TrackOptions::default(),
+            quality: None,
+            qualities: Vec::new(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
         });
@@ -218,7 +236,9 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
     let mut out = Vec::new();
     for session in state.sessions.active().into_iter().filter(|s| s.user_id == user.id) {
         let Some(row) = catalog::item(&state.db, user.id, session.item_id).await? else { continue };
-        let tracks = track_options(&file_streams(state, session.file_id).await?);
+        let file = catalog::file(&state.db, session.file_id).await?;
+        let tracks = track_options(&file.as_ref().map(|f| f.streams()).unwrap_or_default());
+        let qualities = file_qualities(file.as_ref());
         let play = session.play.lock().clone();
         let reported_at_ms = play.reported_at_ms.unwrap_or(play.updated_at.saturating_mul(1000));
         out.push(PlayingSession {
@@ -240,6 +260,8 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             audio_index: play.audio_index,
             subtitle_index: play.subtitle_index,
             tracks,
+            quality: play.quality,
+            qualities,
             started_at: session.started_at,
             reported_at_ms,
         });
@@ -247,10 +269,13 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
     Ok(out)
 }
 
-/// The streams of a session's file (sidecar and added subtitles included);
-/// none once the file is gone.
-async fn file_streams(state: &AppState, file_id: i64) -> ApiResult<Vec<MediaStream>> {
-    Ok(catalog::file(&state.db, file_id).await?.map(|file| file.streams()).unwrap_or_default())
+/// The qualities a player's menu offers for a file: none for one without
+/// video (music), or once the file is gone.
+fn file_qualities(file: Option<&catalog::FileRow>) -> Vec<QualityOption> {
+    match file {
+        Some(f) if f.video_codec.is_some() => offered_qualities(f.width, f.height, f.bitrate),
+        _ => Vec::new(),
+    }
 }
 
 /// What the player of `session` obeys: what it said when it started, or,
@@ -271,6 +296,8 @@ pub struct Command {
     offset_ms: Option<i64>,
     #[serde(default)]
     stream_index: Option<i64>,
+    #[serde(default)]
+    quality: Option<String>,
 }
 
 /// What a command carries to its player, each `None` for the commands that
@@ -280,6 +307,15 @@ struct Values {
     position_ms: Option<i64>,
     offset_ms: Option<i64>,
     stream_index: Option<i64>,
+    quality: Option<&'static str>,
+}
+
+/// What a title's session picks from: its file's streams (for `audio` and
+/// `subtitles`) and the qualities its player offers for it (for `quality`).
+/// `None` on Live TV, which takes none of these.
+struct Choices {
+    streams: Vec<MediaStream>,
+    qualities: Vec<QualityOption>,
 }
 
 /// The furthest one `skip` goes, either way.
@@ -300,15 +336,17 @@ pub async fn command(
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     let target = controlled(&state, &user, &id)?;
-    // A track is one of the session file's; Live TV has none to pick.
-    let streams = match &target {
-        Controlled::Item(session) if matches!(body.command, Control::Audio | Control::Subtitles) => {
-            Some(file_streams(&state, session.file_id).await?)
+    // A track or a quality is one of the session file's; Live TV has none to pick.
+    let choices = match &target {
+        Controlled::Item(session) if matches!(body.command, Control::Audio | Control::Subtitles | Control::Quality) => {
+            let file = catalog::file(&state.db, session.file_id).await?;
+            let streams = file.as_ref().map(|f| f.streams()).unwrap_or_default();
+            Some(Choices { streams, qualities: file_qualities(file.as_ref()) })
         }
-        Controlled::Item(_) => Some(Vec::new()),
+        Controlled::Item(_) => Some(Choices { streams: Vec::new(), qualities: Vec::new() }),
         Controlled::Live(_) => None,
     };
-    let values = command_values(&body, target.duration_ms(), streams.as_deref())?;
+    let values = command_values(&body, target.duration_ms(), choices.as_ref())?;
     if !target.controls(&state).contains(&body.command) {
         return Err(AppError::ConflictAs(
             "not_controllable",
@@ -337,6 +375,7 @@ pub async fn command(
         position_ms: values.position_ms,
         offset_ms: values.offset_ms,
         stream_index: values.stream_index,
+        quality: values.quality,
     });
     Ok(StatusCode::ACCEPTED)
 }
@@ -386,10 +425,11 @@ fn controlled(state: &AppState, user: &AuthUser, id: &str) -> ApiResult<Controll
 /// The command's place, offset or track, checked: `seek` goes somewhere in
 /// the title (of `duration_ms`, 0 when not known: then at most
 /// [`MAX_UNKNOWN_SEEK_MS`]), `skip` at most [`MAX_SKIP_MS`] either way;
-/// `audio` to one of the file's audio `streams`, `subtitles` to one of its
-/// subtitle streams or `-1` for none (`streams` is `None` on Live TV, which
-/// takes neither). The others take nothing.
-fn command_values(body: &Command, duration_ms: i64, streams: Option<&[MediaStream]>) -> ApiResult<Values> {
+/// `audio` to one of the file's audio streams, `subtitles` to one of its
+/// subtitle streams or `-1` for none, `quality` to one its player offers
+/// for the file (`choices` is `None` on Live TV, which takes none of
+/// these). The others take nothing.
+fn command_values(body: &Command, duration_ms: i64, choices: Option<&Choices>) -> ApiResult<Values> {
     match body.command {
         Control::Seek => {
             let position = body.position_ms.ok_or_else(|| AppError::bad_request("seek needs position_ms"))?;
@@ -420,24 +460,41 @@ fn command_values(body: &Command, duration_ms: i64, streams: Option<&[MediaStrea
             Ok(Values { offset_ms: Some(offset), ..Values::default() })
         }
         Control::Audio | Control::Subtitles => {
-            let streams = streams.ok_or_else(|| AppError::bad_request("Live TV has no tracks to pick"))?;
+            let choices = choices.ok_or_else(|| AppError::bad_request("Live TV has no tracks to pick"))?;
             let index = body
                 .stream_index
                 .ok_or_else(|| AppError::bad_request(format!("{} needs stream_index", words(body.command))))?;
-            let (kind, off) = match body.command {
-                Control::Audio => (StreamKind::Audio, false),
-                _ => (StreamKind::Subtitle, index == -1),
-            };
-            if !off && !streams.iter().any(|s| s.kind == kind && s.index == index) {
-                return Err(AppError::bad_request(match body.command {
-                    Control::Audio => "stream_index must be one of the file's audio tracks",
-                    _ => "stream_index must be one of the file's subtitle tracks, or -1 for none",
-                }));
-            }
+            let kind = if body.command == Control::Audio { StreamKind::Audio } else { StreamKind::Subtitle };
+            check_track(&choices.streams, kind, index, "stream_index")?;
             Ok(Values { stream_index: Some(index), ..Values::default() })
+        }
+        Control::Quality => {
+            let choices = choices.ok_or_else(|| AppError::bad_request("Live TV has no quality to pick"))?;
+            let asked = body.quality.as_deref().ok_or_else(|| AppError::bad_request("quality needs quality"))?;
+            let id = choices
+                .qualities
+                .iter()
+                .map(|q| q.id)
+                .find(|id| *id == asked)
+                .ok_or_else(|| AppError::bad_request("quality must be one of the session's qualities"))?;
+            Ok(Values { quality: Some(id), ..Values::default() })
         }
         Control::Play | Control::Pause | Control::Next | Control::Previous => Ok(Values::default()),
     }
+}
+
+/// That `index`, the request's `field`, is one of `streams`' tracks of
+/// `kind`, or `-1` (none) for subtitles.
+fn check_track(streams: &[MediaStream], kind: StreamKind, index: i64, field: &str) -> ApiResult<()> {
+    let off = kind == StreamKind::Subtitle && index == -1;
+    if off || streams.iter().any(|s| s.kind == kind && s.index == index) {
+        return Ok(());
+    }
+    Err(AppError::bad_request(if kind == StreamKind::Audio {
+        format!("{field} must be one of the file's audio tracks")
+    } else {
+        format!("{field} must be one of the file's subtitle tracks, or -1 for none")
+    }))
 }
 
 fn words(command: Control) -> &'static str {
@@ -450,6 +507,7 @@ fn words(command: Control) -> &'static str {
         Control::Previous => "previous",
         Control::Audio => "audio",
         Control::Subtitles => "subtitles",
+        Control::Quality => "quality",
     }
 }
 
@@ -672,7 +730,17 @@ pub struct Cast {
     start_ms: Option<i64>,
     #[serde(default)]
     shuffle: Option<bool>,
+    /// The audio track and the subtitles (`-1`: none) the remote had
+    /// picked for a movie or an episode, by stream index of one of its
+    /// files.
+    #[serde(default)]
+    audio_index: Option<i64>,
+    #[serde(default)]
+    subtitle_index: Option<i64>,
 }
+
+/// What has tracks to pick: a title of one file's worth.
+const WITH_TRACKS: [&str; 2] = ["movie", "episode"];
 
 /// What may be cast from the library: what plays itself, a show or a season
 /// (its next episode), an album or an artist (its tracks).
@@ -693,6 +761,7 @@ pub async fn cast(
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     // Someone else's receiver is as unknown as one that isn't there.
     let takes = state.receivers.casts(user.id, &id).ok_or_else(|| AppError::not_found("no such device"))?;
+    let picked = body.audio_index.is_some() || body.subtitle_index.is_some();
     let kind = match (body.item_id, body.playlist_id, body.channel_id) {
         (Some(item_id), None, None) => {
             let row = item_or_404(&state, user.id, item_id).await?;
@@ -701,7 +770,26 @@ pub async fn cast(
                     "only movies, episodes, shows, seasons, tracks, albums and artists can be cast",
                 ));
             }
+            // The tracks are one of its files': the remote's page picked
+            // from the version it shows. The quality stays the receiver's
+            // own: what suits a phone's network doesn't suit a TV's.
+            if picked {
+                if !WITH_TRACKS.contains(&row.kind.as_str()) {
+                    return Err(AppError::bad_request("audio_index and subtitle_index go with a movie or an episode"));
+                }
+                let files = catalog::files_for_item(&state.db, row.id).await?;
+                let streams: Vec<MediaStream> = files.iter().flat_map(|f| f.streams()).collect();
+                if let Some(index) = body.audio_index {
+                    check_track(&streams, StreamKind::Audio, index, "audio_index")?;
+                }
+                if let Some(index) = body.subtitle_index {
+                    check_track(&streams, StreamKind::Subtitle, index, "subtitle_index")?;
+                }
+            }
             CastKind::Item
+        }
+        _ if picked && body.item_id.is_none() => {
+            return Err(AppError::bad_request("audio_index and subtitle_index go with item_id"));
         }
         (None, Some(playlist_id), None) => {
             if !crate::playlists::is_theirs(&state.db, &user, playlist_id).await? {
@@ -751,6 +839,8 @@ pub async fn cast(
         channel_id: body.channel_id,
         start_ms: body.start_ms,
         shuffle: body.shuffle.unwrap_or(false),
+        audio_index: body.audio_index,
+        subtitle_index: body.subtitle_index,
         from,
     });
     Ok(StatusCode::ACCEPTED)

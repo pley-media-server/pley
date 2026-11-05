@@ -128,8 +128,9 @@ pub enum ServerEvent {
     /// whose player of that session acts on it and reports at once.
     /// `position_ms` is where `seek` goes, `offset_ms` how far `skip` goes
     /// (back when negative), `stream_index` the track `audio` and
-    /// `subtitles` change to (`-1`: subtitles off); each is `null` for the
-    /// other commands.
+    /// `subtitles` change to (`-1`: subtitles off), `quality` the id of the
+    /// Quality menu's entry `quality` picks; each is `null` for the other
+    /// commands.
     PlayerCommand {
         #[serde(skip)]
         user_id: i64,
@@ -138,11 +139,15 @@ pub enum ServerEvent {
         position_ms: Option<i64>,
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
+        quality: Option<&'static str>,
     },
     /// The user's remote cast a title, a playlist or a Live TV channel to
     /// one of their devices: to that user's streams, whose app holding
     /// `receiver_id` plays it as its own Play would. One of `item_id`,
-    /// `playlist_id` and `channel_id` is set; `from` is the remote's device.
+    /// `playlist_id` and `channel_id` is set; `audio_index` and
+    /// `subtitle_index` (`-1`: none), when set, are the tracks the remote
+    /// had picked for the title, which it plays with; `from` is the
+    /// remote's device.
     Cast {
         #[serde(skip)]
         user_id: i64,
@@ -152,6 +157,8 @@ pub enum ServerEvent {
         channel_id: Option<i64>,
         start_ms: Option<i64>,
         shuffle: bool,
+        audio_index: Option<i64>,
+        subtitle_index: Option<i64>,
         from: Option<String>,
     },
     /// Live TV's sources, channels or guide changed: apps fetch the
@@ -401,11 +408,12 @@ mod tests {
             position_ms: Some(90_000),
             offset_ms: None,
             stream_index: None,
+            quality: None,
         };
         assert_eq!(event.user_id(), Some(4), "to the session's user only");
         assert_eq!(
             serde_json::to_string(&event).unwrap(),
-            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":90000,"offset_ms":null,"stream_index":null}"#
+            r#"{"type":"player_command","session_id":"s1","command":"seek","position_ms":90000,"offset_ms":null,"stream_index":null,"quality":null}"#
         );
         let event = ServerEvent::Cast {
             user_id: 4,
@@ -415,12 +423,14 @@ mod tests {
             channel_id: None,
             start_ms: None,
             shuffle: false,
+            audio_index: Some(2),
+            subtitle_index: Some(-1),
             from: Some("Chrome on Windows".into()),
         };
         assert_eq!((event.user_id(), event.to_administrators()), (Some(4), false), "to the caster's user only");
         assert_eq!(
             serde_json::to_string(&event).unwrap(),
-            r#"{"type":"cast","receiver_id":"tv-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"from":"Chrome on Windows"}"#
+            r#"{"type":"cast","receiver_id":"tv-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":"Chrome on Windows"}"#
         );
         // Request events say whom they are for, and stay off the
         // per-user path.

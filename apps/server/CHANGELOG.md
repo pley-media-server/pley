@@ -40,6 +40,11 @@ describes how they are made.
   another device: sessions list their file's tracks and which play, and
   players that say they take a change of track switch to the one picked.
   Jellyfin apps that take media control switch track too.
+- Remotes change the quality of what plays on another device, from the
+  qualities its Quality menu offers for the file, and show which it plays.
+  A cast plays with the audio track and subtitles picked on the remote's
+  page, and a Live TV channel on a remote shows how far along the
+  programme is and what's on next.
 - The web and desktop apps' remote lists your other devices that are on,
   those playing first, then those ready to play, and changes the audio
   track and the subtitles of what plays on one. Play on… beside Play

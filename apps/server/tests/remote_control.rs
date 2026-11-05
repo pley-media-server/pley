@@ -275,7 +275,7 @@ async fn a_command_reaches_the_users_own_streams() {
     let heard = events_until(&w, &w.viewer, pause, "player_command", Duration::from_secs(10)).await;
     let expected = json!({
         "type": "player_command", "session_id": session, "command": "pause", "position_ms": null, "offset_ms": null,
-        "stream_index": null,
+        "stream_index": null, "quality": null,
     });
     assert_eq!(events_of(&heard, "player_command"), vec![expected]);
 
@@ -632,7 +632,11 @@ async fn live_viewers_are_listed_with_their_channel() {
     assert_eq!(live["session_id"], json!(session));
     assert_eq!(live["device"], json!("Bedroom TV"));
     assert_eq!(live["item"], Value::Null);
-    let channel = json!({"id": one, "name": "One", "number": "1", "logo": listed["logo"], "now": "The News"});
+    let channel = json!({
+        "id": one, "name": "One", "number": "1", "logo": listed["logo"], "now": "The News",
+        "now_start": listed["now"]["start"], "now_stop": listed["now"]["stop"], "next": null,
+    });
+    assert!(listed["now"]["start"].is_i64(), "the programme's times: {listed}");
     assert_eq!(live["channel"], channel);
     assert!(live["channel"]["logo"].as_str().unwrap().starts_with(&format!("/api/live/channels/{one}/logo")));
     assert_eq!(live["state"], json!("playing"));
@@ -679,7 +683,7 @@ async fn a_command_reaches_a_live_player() {
     let heard = events_until(&w, &w.viewer, next, "player_command", Duration::from_secs(10)).await;
     let expected = json!({
         "type": "player_command", "session_id": session, "command": "next", "position_ms": null, "offset_ms": null,
-        "stream_index": null,
+        "stream_index": null, "quality": null,
     });
     assert_eq!(events_of(&heard, "player_command"), vec![expected]);
 
@@ -831,7 +835,7 @@ async fn a_change_of_track_is_one_of_the_files() {
     let heard = events_until(&w, &w.viewer, french, "player_command", Duration::from_secs(10)).await;
     let expected = json!({
         "type": "player_command", "session_id": session, "command": "audio", "position_ms": null, "offset_ms": null,
-        "stream_index": 2,
+        "stream_index": 2, "quality": null,
     });
     assert_eq!(events_of(&heard, "player_command"), vec![expected]);
     let off = async {
@@ -916,6 +920,59 @@ async fn sessions_say_which_tracks_play_and_which_there_are() {
     assert_eq!(theirs[0]["session_id"], json!(other));
     assert_eq!((theirs[0]["audio_index"].clone(), theirs[0]["subtitle_index"].clone()), (Value::Null, Value::Null));
     assert_eq!(theirs[0]["tracks"], json!({"audio": [], "subtitles": []}));
+}
+
+#[tokio::test]
+async fn a_change_of_quality_is_one_the_player_offers() {
+    let w = world().await;
+    let app = &w.app;
+    with_tracks(&w).await;
+    // A 1080p file at 10 Mbps: 8 Mbps and below make it smaller.
+    sqlx::query("UPDATE media_files SET width = 1920, height = 1080, bitrate = 10000000")
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let session = play_with(&w, &w.viewer, json!({"client_id": "tv", "controls": ["quality"]}), &[]).await;
+    let listed = app.get("/api/sessions", &w.viewer).await.body;
+    let offered: Vec<Value> = listed[0]["qualities"].as_array().unwrap().iter().map(|q| q["id"].clone()).collect();
+    assert_eq!(offered, [json!("original"), json!("auto"), json!("8m"), json!("4m"), json!("2m")]);
+    assert_eq!(listed[0]["qualities"][2], json!({"id": "8m", "label": "8 Mbps 1080p"}));
+    assert_eq!(listed[0]["quality"], Value::Null, "not said yet");
+
+    let lower = async {
+        let sent = command(&w, &w.viewer, &session, json!({"command": "quality", "quality": "8m"})).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(&w, &w.viewer, lower, "player_command", Duration::from_secs(10)).await;
+    let expected = json!({
+        "type": "player_command", "session_id": session, "command": "quality", "position_ms": null, "offset_ms": null,
+        "stream_index": null, "quality": "8m",
+    });
+    assert_eq!(events_of(&heard, "player_command"), vec![expected]);
+    for body in [json!({"command": "quality"}), json!({"command": "quality", "quality": "20m"})] {
+        let refused = command(&w, &w.viewer, &session, body.clone()).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{body}: {}", refused.text());
+    }
+    // A player that didn't say it changes quality is sent none.
+    let other = play(&w, &w.viewer).await;
+    let refused = command(&w, &w.viewer, &other, json!({"command": "quality", "quality": "auto"})).await;
+    assert_eq!((refused.status, refused.body["code"].clone()), (StatusCode::CONFLICT, json!("not_controllable")));
+
+    // The player says which it plays: remotes hear of a change at once.
+    let progress = format!("/api/items/{}/progress", w.film);
+    let report =
+        |quality: &str| json!({"position_ms": 1_000, "state": "playing", "session_id": session, "quality": quality});
+    let mut events = app.state.events.subscribe();
+    assert_eq!(app.post(&progress, &w.viewer, report("8m")).await.status, StatusCode::NO_CONTENT);
+    assert!(kinds(&mut events).contains(&"sessions_changed".to_owned()), "another quality");
+    let ours = |listed: Value| listed.as_array().unwrap().iter().find(|s| s["session_id"] == json!(session)).cloned();
+    assert_eq!(ours(app.get("/api/sessions", &w.viewer).await.body).unwrap()["quality"], json!("8m"));
+    assert_eq!(app.post(&progress, &w.viewer, report("9m")).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(
+        ours(app.get("/api/sessions", &w.viewer).await.body).unwrap()["quality"],
+        json!("8m"),
+        "none of the menu's"
+    );
 }
 
 // ------------------------------------------------------------------ casting
@@ -1046,7 +1103,8 @@ async fn a_cast_reaches_the_users_own_streams() {
     let heard = streams_until(&w, &tokens, send, r#""type":"cast""#, Duration::from_secs(1)).await;
     let expected = json!({
         "type": "cast", "receiver_id": "tv-1", "item_id": w.film, "playlist_id": null, "channel_id": null,
-        "start_ms": 5_000, "shuffle": false, "from": "Chrome on Windows",
+        "start_ms": 5_000, "shuffle": false, "audio_index": null, "subtitle_index": null,
+        "from": "Chrome on Windows",
     });
     assert_eq!(events_of(&heard[0], "cast"), vec![expected.clone()], "the user's other streams");
     assert!(events_of(&heard[1], "cast").is_empty(), "nobody else's: {}", heard[1]);
@@ -1066,6 +1124,33 @@ async fn a_cast_reaches_the_users_own_streams() {
     let event = &events_of(&heard, "cast")[0];
     assert_eq!((event["playlist_id"].clone(), event["item_id"].clone()), (json!(playlist), Value::Null));
     assert_eq!((event["shuffle"].clone(), event["start_ms"].clone()), (json!(true), Value::Null));
+}
+
+#[tokio::test]
+async fn a_cast_carries_the_tracks_picked() {
+    let w = world().await;
+    with_tracks(&w).await;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let send = async {
+        let body = json!({"item_id": w.film, "audio_index": 2, "subtitle_index": -1});
+        let sent = cast(&w, &w.viewer, "tv-1", body).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(&w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
+    let event = &events_of(&heard, "cast")[0];
+    assert_eq!((event["audio_index"].clone(), event["subtitle_index"].clone()), (json!(2), json!(-1)));
+
+    let made = w.app.post("/api/playlists", &w.viewer, json!({"title": "Mine", "item_ids": [w.film]})).await;
+    let playlist = made.body["id"].clone();
+    for body in [
+        json!({"item_id": w.film, "audio_index": 3}),
+        json!({"item_id": w.film, "subtitle_index": 1}),
+        json!({"item_id": w.film, "subtitle_index": -2}),
+        json!({"playlist_id": playlist, "audio_index": 1}),
+    ] {
+        let refused = cast(&w, &w.viewer, "tv-1", body.clone()).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{body}: {}", refused.text());
+    }
 }
 
 /// Where the cast `token` sends to `tv-1` says it came from.
