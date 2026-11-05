@@ -226,7 +226,7 @@ sealed class RequestsScreen : ShellPage
         }
         else if (s.SignInForApprovals)
         {
-            var line = Text.Label("Sign in again to approve and decline here.", PleyType.Body, PleyColors.Muted);
+            var line = Text.Label(RequestText.SignInToDecide, PleyType.Body, PleyColors.Muted);
             line.Size = new Size(line.NaturalSize2D.Width + Ui.Dp(2), Ui.Dp(PleyTv.ButtonHeight));
             line.VerticalAlignment = VerticalAlignment.Center;
             line.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(y));
@@ -575,7 +575,7 @@ sealed class RequestsScreen : ShellPage
                         }, IconOf(a), danger: a == CardAction.Delete));
                         if (used == a.ToString() || (used == null && first == null)) first = choice.Item;
                     }
-                    var details = column.Choice(new PanelChoice("Details", () =>
+                    var details = column.Choice(new PanelChoice(RequestText.Details, () =>
                     {
                         sheet.Close();
                         go(new PageKey.DiscoverTitle(request.Kind, request.TmdbId));
@@ -598,7 +598,7 @@ sealed class RequestsScreen : ShellPage
                 }
                 case Step.Reason:
                 {
-                    column.Title($"Decline “{request.Title}”?");
+                    column.Title(RequestText.DeclineTitle(request.Title));
                     if (!request.Mine) column.Sentence(RequestText.DeclineReasonHint, PleyType.Body, PleyColors.Muted);
                     var field = new TextInput(layers.Input, 288, RequestText.DeclineReason, action: InputMethod.ActionButtonTitleType.Done);
                     column.Place(field, TextInput.Height, 16, 12, field.Item);

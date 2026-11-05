@@ -47,9 +47,10 @@ public sealed record LiveProgram
     /// <summary>How far it is at <paramref name="now"/>, from 0 to 1.</summary>
     public float ProgressAt(long now) => Math.Max(0f, Math.Min(1f, (float)(now - Start) / Math.Max(1, Stop - Start)));
 
-    /// <summary>"S2 E14", or "E14", when the guide numbers the episode.</summary>
+    /// <summary>"S2 E14", or "E14", when the guide numbers the episode; in the language shown.</summary>
     [JsonIgnore]
-    public string? EpisodeLabel => Season != null && Episode != null ? $"S{Season} E{Episode}" : Episode != null ? $"E{Episode}" : null;
+    public string? EpisodeLabel => Season != null && Episode != null ? Strings.T("livetv.program.episode", ("season", Season), ("episode", Episode))
+        : Episode != null ? Strings.T("livetv.program.episodeOnly", ("episode", Episode)) : null;
 }
 
 /// <summary>A channel of the lineup, with what's on now and next; <see cref="Logo"/> is its logo's address on the server.</summary>

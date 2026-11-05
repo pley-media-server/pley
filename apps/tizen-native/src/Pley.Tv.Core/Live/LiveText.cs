@@ -15,13 +15,14 @@ public sealed class LiveClock
     readonly CultureInfo culture;
     readonly TimeZoneInfo zone;
 
+    /// <param name="culture">Times' and days' culture; the language shown's (<see cref="Strings.Culture"/>) without.</param>
     public LiveClock(CultureInfo? culture = null, TimeZoneInfo? zone = null)
     {
-        this.culture = culture ?? CultureInfo.CurrentCulture;
+        this.culture = culture ?? Strings.Culture;
         this.zone = zone ?? TimeZoneInfo.Local;
     }
 
-    /// <summary>The TV's own: its culture and time zone.</summary>
+    /// <summary>The TV's own: the language shown's culture, and the TV's time zone.</summary>
     public static LiveClock Local => new LiveClock();
 
     DateTime At(long seconds) => TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime, zone);
@@ -32,7 +33,7 @@ public sealed class LiveClock
     /// <summary>"20:00 – 21:00".</summary>
     public string Span(LiveProgram program) => $"{Time(program.Start)} – {Time(program.Stop)}";
 
-    /// <summary>"Today", "Tomorrow", "Yesterday", or the date: "Fri 30 Oct".</summary>
+    /// <summary>"Today", "Tomorrow", "Yesterday", or the date in the culture's words: "Fri 30 Oct", "ven. 30 oct.".</summary>
     public string Day(long seconds, long now)
     {
         var day = At(seconds).Date;
@@ -51,114 +52,124 @@ public sealed class LiveClock
     }
 
     /// <summary>"Next 21:00 · The News".</summary>
-    public string Next(LiveProgram next) => string.Format(CultureInfo.InvariantCulture, LiveText.NextFormat, Time(next.Start), next.Title);
+    public string Next(LiveProgram next) => Strings.T("livetv.guide.next", ("time", Time(next.Start)), ("title", next.Title));
 }
 
-/// <summary>What Live TV says (the Android app's strings_tv_livetv.xml), and how it says programmes' times.</summary>
+/// <summary>
+/// What Live TV says (the Android app's strings_tv_livetv.xml), in the language shown, and how it
+/// says programmes' times.
+/// </summary>
 public static class LiveText
 {
-    public const string Title = "Live TV";
-    public const string Guide = "Guide";
-    public const string Channels = "Channels";
-    public const string Failed = "Live TV didn't load";
-    public const string Retry = "Try again";
-    public const string NotAllowedTitle = "Live TV isn't open to this profile";
-    public const string NotAllowedBody = "An administrator can open it in Pley's web app, under Settings → Live TV.";
-    public const string NoneTitle = "No channels yet";
-    public const string NoneBody = "Channels appear here once an administrator adds an IPTV provider in Pley's web app.";
-    public const string NoMatch = "No channels in this group.";
-    public const string CategoryAll = "All channels";
-    public const string CategoryFavorites = "Favourites";
-    public const string CategoryRecent = "Recently watched";
-    public const string Groups = "Groups";
-    public const string Regions = "Regions";
-    public const string MoreGroups = "More groups";
-    public const string NoGroupName = "No group";
-    public const string FoundGroups = "Groups found";
-    public const string Search = "Search";
-    public const string NoMatchTitle = "No channels match";
-    public const string NoneFavoritesTitle = "No favourites yet";
-    public const string NoneFavoritesBody = "Hold OK on a channel and add it to your favourites to find it here.";
-    public const string NoneRecentTitle = "Nothing watched yet";
-    public const string NoneRecentBody = "The channels you watch show here, the last first.";
-    public const string NothingNow = "Nothing in the guide now";
-    public const string NoGuide = "No guide for this channel";
-    public const string NoInfo = "No information for this time";
-    public const string Today = "Today";
-    public const string Tomorrow = "Tomorrow";
-    public const string Yesterday = "Yesterday";
-    public const string BadgeLive = "Live";
-    public const string BadgeNew = "New";
-    public const string OnNow = "On now";
-    public const string WatchNow = "Watch now";
-    public const string WatchChannel = "Watch channel";
-    public const string FavoriteAdd = "Add to favourites";
-    public const string FavoriteRemove = "Remove from favourites";
-    public const string NoDescription = "The guide says nothing more of it.";
-    public const string Ended = "It has ended.";
-    internal const string NextFormat = "Next {0} · {1}";
+    public static string Title => Strings.T("livetv.title");
+    public static string Guide => Strings.T("livetv.tabs.guide");
+    public static string Channels => Strings.T("livetv.tabs.channels");
+    public static string Failed => Strings.T("livetv.page.failed");
+    public static string Retry => Strings.T("livetv.page.retry");
+    public static string NotAllowedTitle => Strings.T("livetv.page.notAllowedTitle");
+    public static string NotAllowedBody => Strings.T("livetv.page.notAllowedBody");
+    public static string NoneTitle => Strings.T("livetv.page.noneTitle");
+    public static string NoneBody => Strings.T("livetv.page.noneBody");
+    public static string NoMatch => Strings.T("livetv.page.noMatch");
+    public static string CategoryAll => Strings.T("livetv.categories.all");
+    public static string CategoryFavorites => Strings.T("livetv.categories.favorites");
+    public static string CategoryRecent => Strings.T("livetv.categories.recent");
+    public static string Groups => Strings.T("livetv.categories.groups");
+    public static string Regions => Strings.T("livetv.categories.regions");
+    public static string MoreGroups => Strings.T("livetv.categories.moreGroups");
+    public static string NoGroupName => Strings.T("livetv.categories.noGroup");
+    public static string FoundGroups => Strings.T("livetv.categories.found");
+    public static string Search => Strings.T("livetv.page.search");
+    public static string NoMatchTitle => Strings.T("livetv.page.noMatchTitle");
+    public static string NoneFavoritesTitle => Strings.T("livetv.page.noneFavoritesTitle");
+    public static string NoneFavoritesBody => Strings.T("livetv.page.noneFavoritesBody");
+    public static string NoneRecentTitle => Strings.T("livetv.page.noneRecentTitle");
+    public static string NoneRecentBody => Strings.T("livetv.page.noneRecentBody");
+    public static string NothingNow => Strings.T("livetv.guide.nothingNow");
+    public static string NoGuide => Strings.T("livetv.guide.noGuide");
+    public static string NoInfo => Strings.T("livetv.guide.noInfo");
+    public static string Today => Strings.T("livetv.time.today");
+    public static string Tomorrow => Strings.T("livetv.time.tomorrow");
+    public static string Yesterday => Strings.T("livetv.time.yesterday");
+    public static string BadgeLive => Strings.T("livetv.program.live");
+    public static string BadgeNew => Strings.T("livetv.program.new");
+    public static string OnNow => Strings.T("livetv.program.onNow");
+    public static string WatchNow => Strings.T("livetv.program.watchNow");
+    public static string WatchChannel => Strings.T("livetv.program.watchChannel");
+    public static string FavoriteAdd => Strings.T("livetv.favorites.add");
+    public static string FavoriteRemove => Strings.T("livetv.favorites.remove");
+    public static string NoDescription => Strings.T("livetv.program.noDescription");
+    public static string Ended => Strings.T("livetv.program.ended");
 
     // The live player.
-    public const string Tuning = "Tuning…";
-    public const string PlayerChannels = "Channels";
-    public const string ChannelGroups = "Channel groups";
-    public const string ChangeGroup = "Change group";
-    public const string HeldByYou = "You, on another device";
-    public const string TakeOver = "Watch here instead";
-    public const string NoneToTake = "A channel already being watched can be joined, or try again once one is stopped.";
-    public const string SearchChannels = "Search channels";
-    public const string Live = "Live";
-    public const string Radio = "Sound only";
-    public const string Hint = "▲▼ change channel · OK for channels · hold OK for more";
-    public const string PlayerRetry = "Try again";
-    public const string OtherChannels = "Other channels";
-    public const string BackToGuide = "Back to the guide";
-    public const string Busy = "All connections are in use";
+    public static string Tuning => Strings.T("livetv.player.tuning");
+    public static string PlayerChannels => Strings.T("livetv.player.channels");
+    public static string ChannelGroups => Strings.T("livetv.player.channelGroups");
+    public static string ChangeGroup => Strings.T("livetv.player.changeGroup");
+    public static string HeldByYou => Strings.T("livetv.player.heldByYou");
+    public static string TakeOver => Strings.T("livetv.player.takeOver");
+    public static string NoneToTake => Strings.T("livetv.player.noneToTake");
+    public static string SearchChannels => Strings.T("livetv.player.searchChannels");
+    public static string Live => Strings.T("livetv.player.live");
+    public static string Radio => Strings.T("livetv.player.radio");
+    public static string Hint => Strings.T("livetv.player.hint");
+    public static string PlayerRetry => Strings.T("livetv.player.retry");
+    public static string OtherChannels => Strings.T("livetv.player.otherChannels");
+    public static string BackToGuide => Strings.T("livetv.player.backToGuide");
+    public static string Busy => Strings.T("livetv.trouble.busy");
     /// <summary>Watching ended on the server (its connection taken over, or stopped there): the server's words under it, else <see cref="StoppedBody"/>.</summary>
-    public const string Stopped = "Live TV stopped";
-    public const string StoppedBody = "This channel isn't being watched any more.";
+    public static string Stopped => Strings.T("livetv.trouble.stopped");
+    public static string StoppedBody => Strings.T("livetv.trouble.stoppedBody");
     /// <summary>Watching stopped from elsewhere (the server's <c>session_stopped</c>): who stopped it, as Android says it.</summary>
-    public const string StoppedByAdmin = "Live TV was stopped by the server's administrator.";
-    public const string StoppedElsewhere = "Live TV was stopped from another device.";
+    public static string StoppedByAdmin => Strings.T("livetv.trouble.stoppedByAdmin");
+    public static string StoppedElsewhere => Strings.T("livetv.trouble.stoppedElsewhere");
     /// <summary>Try again's place when watching ended on the server: it tunes the channel as any watch does.</summary>
-    public const string WatchAgain = "Watch again";
-    public const string Missing = "This channel isn't here any more";
-    public const string NotAllowed = "Live TV isn't open to this profile";
-    public const string Offline = "Can't reach your server";
+    public static string WatchAgain => Strings.T("livetv.player.watchAgain");
+    public static string Missing => Strings.T("livetv.trouble.missing");
+    public static string NotAllowed => Strings.T("livetv.trouble.notAllowed");
+    public static string Offline => Strings.T("livetv.trouble.offline");
 
     /// <summary>
     /// The server answered the watch with an address that needs the token, which the TV's player
     /// can't send: an older Pley. Words of the web TV app's, which has the same limit; Android's
     /// player sends the token, so it has none.
     /// </summary>
-    public const string OlderTitle = "Live TV needs a newer Pley on the server";
-    public const string OlderBody = "This server can't send live channels to the TV's own player. Update Pley on the server, then try again.";
+    public static string OlderTitle => Strings.T("livetv.trouble.olderTitle");
+    public static string OlderBody => Strings.T("livetv.trouble.olderBody");
+
+    /// <summary>Why the TV's player gave up on a channel's HLS, which <see cref="PlayerSaid"/> shows once tuning again didn't help.</summary>
+    public static string StartedLate => Strings.T("livetv.engine.late");
+    public static string StreamEnded => Strings.T("livetv.engine.ended");
+    public static string Stalled => Strings.T("livetv.engine.stalled");
+
+    /// <summary>"The TV's player said: it stalled".</summary>
+    public static string PlayerSaid(string detail) => Strings.T("livetv.engine.said", ("detail", detail));
 
     /// <summary>"No channel's name, number or programme on now has “bbc” in it."</summary>
-    public static string NoMatchSearch(string query) => $"No channel's name, number or programme on now has “{query.Trim()}” in it.";
+    public static string NoMatchSearch(string query) => Strings.T("livetv.page.noMatchSearch", ("query", query.Trim()));
 
     /// <summary>"The favourite wasn't saved: No answer in time."</summary>
-    public static string FavoriteFailed(Exception e) => $"The favourite wasn't saved: {Errors.Message(e)}";
+    public static string FavoriteFailed(Exception e) => Strings.T("livetv.favorites.failed", ("error", Errors.Message(e)));
 
     /// <summary>"12 min left", "1 h left", "1 h 5 min left".</summary>
     public static string TimeLeft(LiveProgram program, long now)
     {
         var (hours, minutes) = LiveRules.Left(program, now);
-        if (hours == 0) return $"{minutes} min left";
-        return minutes == 0 ? $"{hours} h left" : $"{hours} h {minutes} min left";
+        if (hours == 0) return Strings.Count("livetv.time.minutesLeft", minutes);
+        return minutes == 0 ? Strings.Count("livetv.time.hoursLeft", hours) : Strings.T("livetv.time.hoursMinutesLeft", ("hours", hours), ("minutes", minutes));
     }
 
     /// <summary>"isn't playing": "BBC One isn't playing".</summary>
-    public static string Unavailable(string channel) => $"{channel} isn't playing";
+    public static string Unavailable(string channel) => Strings.T("livetv.trouble.unavailable", ("channel", channel));
 
     /// <summary>"BBC One didn't start".</summary>
-    public static string DidNotStart(string channel) => $"{channel} didn't start";
+    public static string DidNotStart(string channel) => Strings.T("livetv.trouble.didNotStart", ("channel", channel));
 
     /// <summary>"No channel 123".</summary>
-    public static string NoChannel(string digits) => $"No channel {digits}";
+    public static string NoChannel(string digits) => Strings.T("livetv.player.noChannel", ("number", digits));
 
     /// <summary>"Its one connection is watching:", "Its 2 connections are watching:".</summary>
-    public static string ConnectionsWatching(int count) => count == 1 ? "Its one connection is watching:" : $"Its {count} connections are watching:";
+    public static string ConnectionsWatching(int count) => Strings.Count("livetv.player.connectionsWatching", count);
 
     /// <summary>Who holds a connection: "You, on another device", their names (to administrators), or how many.</summary>
     public static string Holders(BusyConnection c)
@@ -166,7 +177,7 @@ public static class LiveText
         if (c.Yours) return HeldByYou;
         if (c.Watchers.Count > 0) return string.Join(", ", c.Watchers);
         var people = Math.Max(1, c.People);
-        return people == 1 ? "Someone else" : $"{people} people";
+        return people == 1 ? Strings.T("livetv.player.someoneElse") : Strings.Count("livetv.player.people", people);
     }
 
     /// <summary>Who stopped watching, then their message on its own line when they gave one (Android's session_stopped_message).</summary>
@@ -198,8 +209,8 @@ public static class LiveText
         _ => CategoryAll,
     };
 
-    /// <summary>A count beside a category: "1,234".</summary>
-    public static string Count(int count) => count.ToString("N0", CultureInfo.InvariantCulture);
+    /// <summary>A count beside a category, grouped as the language shown groups thousands: "1,234", "1 234".</summary>
+    public static string Count(int count) => count.ToString("N0", Strings.Culture);
 
     /// <summary>The badge a programme carries, if any: Live first, else New.</summary>
     public static string? Badge(LiveProgram program) => program.IsLive ? BadgeLive : program.IsNew ? BadgeNew : null;

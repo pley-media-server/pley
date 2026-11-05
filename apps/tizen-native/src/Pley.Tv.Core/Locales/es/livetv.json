@@ -1,0 +1,112 @@
+{
+  "title": "TV en vivo",
+  "tabs": {
+    "guide": "Guía",
+    "channels": "Canales"
+  },
+  "page": {
+    "failed": "No se pudo cargar la TV en vivo",
+    "retry": "Volver a intentar",
+    "notAllowedTitle": "La TV en vivo no está abierta a este perfil",
+    "notAllowedBody": "Un administrador puede abrirla en la aplicación web de Pley, en Ajustes → TV en vivo.",
+    "noneTitle": "Aún no hay canales",
+    "noneBody": "Los canales aparecen aquí cuando un administrador añade un proveedor de IPTV en la aplicación web de Pley.",
+    "noMatch": "No hay canales en este grupo.",
+    "search": "Buscar",
+    "noMatchTitle": "Ningún canal coincide",
+    "noMatchSearch": "Ningún canal tiene “{{query}}” en su nombre, su número o el programa en emisión.",
+    "noneFavoritesTitle": "Aún no hay favoritos",
+    "noneFavoritesBody": "Mantén OK sobre un canal y añádelo a tus favoritos para encontrarlo aquí.",
+    "noneRecentTitle": "Aún no has visto nada",
+    "noneRecentBody": "Aquí aparecen los canales que ves, el más reciente primero."
+  },
+  "categories": {
+    "all": "Todos los canales",
+    "favorites": "Favoritos",
+    "recent": "Vistos recientemente",
+    "groups": "Grupos",
+    "regions": "Regiones",
+    "moreGroups": "Otros grupos",
+    "noGroup": "Sin grupo",
+    "found": "Grupos encontrados"
+  },
+  "guide": {
+    "nothingNow": "Nada en la guía ahora",
+    "noGuide": "Sin guía para este canal",
+    "noInfo": "Sin información para esta hora",
+    "next": "A continuación {{time}} · {{title}}"
+  },
+  "time": {
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "yesterday": "Ayer",
+    "minutesLeft_one": "Queda {{count}} min",
+    "minutesLeft_many": "Quedan {{count}} min",
+    "minutesLeft_other": "Quedan {{count}} min",
+    "hoursLeft_one": "Queda {{count}} h",
+    "hoursLeft_many": "Quedan {{count}} h",
+    "hoursLeft_other": "Quedan {{count}} h",
+    "hoursMinutesLeft": "Quedan {{hours}} h {{minutes}} min"
+  },
+  "program": {
+    "live": "En vivo",
+    "new": "Estreno",
+    "onNow": "En emisión",
+    "watchNow": "Ver ahora",
+    "watchChannel": "Ver canal",
+    "noDescription": "La guía no dice nada más.",
+    "ended": "Ya terminó.",
+    "episode": "T{{season}} E{{episode}}",
+    "episodeOnly": "E{{episode}}"
+  },
+  "favorites": {
+    "add": "Añadir a favoritos",
+    "remove": "Quitar de favoritos",
+    "failed": "No se guardó el favorito: {{error}}"
+  },
+  "player": {
+    "tuning": "Sintonizando…",
+    "channels": "Canales",
+    "channelGroups": "Grupos de canales",
+    "changeGroup": "Cambiar de grupo",
+    "searchChannels": "Buscar canales",
+    "live": "En vivo",
+    "radio": "Solo sonido",
+    "hint": "▲▼ cambiar de canal · OK para los canales · mantén OK para más",
+    "retry": "Volver a intentar",
+    "watchAgain": "Volver a ver",
+    "otherChannels": "Otros canales",
+    "backToGuide": "Volver a la guía",
+    "noChannel": "No hay canal {{number}}",
+    "heldByYou": "Tú, en otro dispositivo",
+    "someoneElse": "Otra persona",
+    "people_one": "{{count}} persona",
+    "people_many": "{{count}} personas",
+    "people_other": "{{count}} personas",
+    "connectionsWatching_one": "Su única conexión está ocupada con:",
+    "connectionsWatching_many": "Sus {{count}} conexiones están ocupadas con:",
+    "connectionsWatching_other": "Sus {{count}} conexiones están ocupadas con:",
+    "takeOver": "Ver aquí en su lugar",
+    "noneToTake": "Puedes unirte a un canal que ya se está viendo, o volver a intentarlo cuando se detenga alguno."
+  },
+  "trouble": {
+    "busy": "Todas las conexiones están en uso",
+    "stopped": "La TV en vivo se detuvo",
+    "stoppedBody": "Este canal ya no se está viendo.",
+    "stoppedByAdmin": "El administrador del servidor detuvo la TV en vivo.",
+    "stoppedElsewhere": "La TV en vivo se detuvo desde otro dispositivo.",
+    "missing": "Este canal ya no existe",
+    "notAllowed": "La TV en vivo no está abierta a este perfil",
+    "offline": "No se puede conectar con tu servidor",
+    "unavailable": "{{channel}} no está emitiendo",
+    "didNotStart": "{{channel}} no se inició",
+    "olderTitle": "La TV en vivo necesita una versión más reciente de Pley en el servidor",
+    "olderBody": "Este servidor no puede enviar canales en vivo al reproductor de la TV. Actualiza Pley en el servidor y vuelve a intentarlo."
+  },
+  "engine": {
+    "said": "El reproductor de la TV indicó: {{detail}}",
+    "late": "no empezó a tiempo",
+    "ended": "la transmisión terminó",
+    "stalled": "la reproducción se atascó"
+  }
+}
