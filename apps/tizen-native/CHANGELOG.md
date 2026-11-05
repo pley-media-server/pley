@@ -3,10 +3,17 @@
 Notable changes to Pley for Samsung TV, native (Tizen .NET), newest first.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-It has no releases yet: it is built and installed by hand
-([docs/TV_PLATFORMS.md](../../docs/TV_PLATFORMS.md#the-native-samsung-app)).
+Releases are tagged `release-<date>`; [docs/RELEASING.md](../../docs/RELEASING.md)
+describes how they are made.
 
 ## [Unreleased]
+
+### Added
+
+- Someone else in your household can cast to the TV from their phone or
+  browser while it is on your profile: the TV switches to their profile
+  (their phone or browser asks their PIN, not the TV) and plays what they
+  sent. A switch that fails says so and plays nothing.
 
 ### Changed
 
@@ -20,6 +27,16 @@ It has no releases yet: it is built and installed by hand
   at the top right ("Paused", "+30 s", "Jumped to 12:34", "Audio: …"),
   without the player's controls; a pause from there doesn't keep the
   controls on screen until you press a key on the TV.
+- A programme's details in Live TV have Watch and the favourite side by
+  side, the favourite a star as in the live player, filled for a
+  favourite, where Remove from favourites was a wide button under Watch.
+  In the live player, the star no longer shows its words under it, which
+  ran under Channels.
+
+## [0.1.6] - 2026-11-05
+
+### Changed
+
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - The icon shows Pley's name under the mark, as the other apps in the
@@ -44,13 +61,36 @@ It has no releases yet: it is built and installed by hand
   resume point rather than fetching the film's start and seeking, its
   playlists are asked for while the player is set up, and the screen and
   its spinner keep moving while the film opens.
+- The native app's icon, and its debug build's, are square, as the TV's
+  menu draws the other apps, where they were wider than the rest.
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, where they could take up to a minute: the
+  TV tells the server where it plays, and the server reads those around it
+  first.
+- Search shows movies, shows and episodes first, then music, then
+  people, the closest matches first in each.
+- A Live TV channel whose connection someone else takes over stops at
+  once and says why, under "Live TV stopped", with Watch again, where it
+  said so only once its picture had stopped, after a video's "Playback was
+  stopped by the server's administrator." "Live TV stopped" stays when the
+  app is hidden and shown again, until Watch again.
+- The native app's rail has smaller entries and lists up to six
+  libraries, where four or more went behind Libraries; nothing leaves the
+  rail to make room for Live TV, Now Playing or a USB drive any more, and
+  the entries scroll between the avatar and Settings when they don't all
+  fit, keeping the focused entry fourth from the top, as the app's lists
+  keep theirs.
+- The native app's search rows hold every result, up to 200 titles, 200
+  people and 200 Live TV channels, where they stopped at 60 titles and 12
+  people and channels. A row makes its tiles as focus comes near them, so
+  a long one shows as quickly as a short one.
 
 ### Added
 
-- Someone else in your household can cast to the TV from their phone or
-  browser while it is on your profile: the TV switches to their profile
-  (their phone or browser asks their PIN, not the TV) and plays what they
-  sent. A switch that fails says so and plays nothing.
+- Pley's releases have the app's package, `pley-samsung-native-<version>.tpk`,
+  to sign with your own Samsung certificate and install on a TV in Developer
+  Mode, without building the app. The package carries Pley's licence and
+  the full licences of the libraries in it (`NOTICES.txt`).
 - Your phone or browser changes the quality of a film or episode playing
   on the TV, as the player's own Quality does, and sees which is picked.
 - A film or an episode sent from your phone or browser plays with the
@@ -340,32 +380,6 @@ It has no releases yet: it is built and installed by hand
   UTF-32, or Windows' Western code page, as in the Android app; 2 MB at
   most).
 
-### Changed
-
-- The native app's icon, and its debug build's, are square, as the TV's
-  menu draws the other apps, where they were wider than the rest.
-- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
-  playback starting or a seek, where they could take up to a minute: the
-  TV tells the server where it plays, and the server reads those around it
-  first.
-- Search shows movies, shows and episodes first, then music, then
-  people, the closest matches first in each.
-- A Live TV channel whose connection someone else takes over stops at
-  once and says why, under "Live TV stopped", with Watch again, where it
-  said so only once its picture had stopped, after a video's "Playback was
-  stopped by the server's administrator." "Live TV stopped" stays when the
-  app is hidden and shown again, until Watch again.
-- The native app's rail has smaller entries and lists up to six
-  libraries, where four or more went behind Libraries; nothing leaves the
-  rail to make room for Live TV, Now Playing or a USB drive any more, and
-  the entries scroll between the avatar and Settings when they don't all
-  fit, keeping the focused entry fourth from the top, as the app's lists
-  keep theirs.
-- The native app's search rows hold every result, up to 200 titles, 200
-  people and 200 Live TV channels, where they stopped at 60 titles and 12
-  people and channels. A row makes its tiles as focus comes near them, so
-  a long one shows as quickly as a short one.
-
 ### Fixed
 
 - Live TV's channel up or down, still finding the next channel when another
@@ -457,3 +471,13 @@ It has no releases yet: it is built and installed by hand
   TV's own network may get an access token (an hour's) within the half
   hour, never the refresh token. A sign-in from before starts checking
   within the hour, as its token is renewed.
+
+## [0.0.1] - 2026-10-31
+
+### Added
+
+- The version of the builds made by hand before the app had releases.
+
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
+[0.0.1]: https://github.com/pley-media-server/pley/tree/5f6405a7af22a8102cb0ebfa414c66492e161102

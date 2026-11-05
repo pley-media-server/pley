@@ -132,7 +132,9 @@ fun TvPillButton(
  * on [surface3][PleyColors.Surface3]. Its [label] is
  * always what screen readers hear; on screen it fades in 6 dp below while
  * the button has focus. The button keeps that room ([PleyTv.ButtonLabelRoom])
- * under itself, so a row of buttons never jumps.
+ * under itself, so a row of buttons never jumps. Without [showLabel] (a
+ * star that says it all) the label is only heard, and the button is the
+ * square alone.
  */
 @Composable
 fun TvRoundButton(
@@ -143,6 +145,7 @@ fun TvRoundButton(
     onArt: Boolean = true,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    showLabel: Boolean = true,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
@@ -182,16 +185,18 @@ fun TvRoundButton(
             Icon(icon, contentDescription = null, size = PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
         }
         // The visible label, under the button; the button above already says it to screen readers.
-        BasicText(
-            label,
-            style = PleyType.Tv.Caption.copy(color = PleyColors.Fg, textAlign = TextAlign.Center),
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier
-                .padding(top = PleyTv.ButtonHeight + 6.dp)
-                .graphicsLayer { alpha = labelAlpha }
-                .wrapContentWidthUnbounded(),
-        )
+        if (showLabel) {
+            BasicText(
+                label,
+                style = PleyType.Tv.Caption.copy(color = PleyColors.Fg, textAlign = TextAlign.Center),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .padding(top = PleyTv.ButtonHeight + 6.dp)
+                    .graphicsLayer { alpha = labelAlpha }
+                    .wrapContentWidthUnbounded(),
+            )
+        }
     }
 }
 

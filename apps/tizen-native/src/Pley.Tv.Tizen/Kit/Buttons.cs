@@ -196,18 +196,19 @@ sealed class ButtonRow : View
 /// An icon button (the Android app's TvRoundButton): From start, Info, Watched. A 40 dp square with a
 /// control's corners, a 20 dp icon and the pill's Control edge, on Bg at 80 % over a backdrop (on
 /// Surface3 off one). Its label fades in 6 dp below while it has focus; the room for it is kept, so
-/// a row never jumps.
+/// a row never jumps. Without its label (a star that says it all) it is the square alone.
 /// </summary>
 sealed class RoundButton : View
 {
     readonly View box;
     readonly ImageView icon;
-    readonly TextLabel label;
+    readonly TextLabel? label;
     readonly Color rest;
     Animation? focusAnimation;
 
     /// <param name="onArt">Over a backdrop or art (Bg at 80 %); false on the page's own ground (Surface3).</param>
-    public RoundButton(string text, string iconName, Action onClick, bool onArt = true)
+    /// <param name="showLabel">False: the label never shows; <paramref name="text"/> only names the button.</param>
+    public RoundButton(string text, string iconName, Action onClick, bool onArt = true, bool showLabel = true)
     {
         rest = onArt ? PleyColors.OnArt : PleyColors.Surface3;
         Size = new Size(Ui.Dp(PleyTv.ButtonHeight), Ui.Dp(PleyTv.ButtonHeight));
@@ -224,18 +225,27 @@ sealed class RoundButton : View
         icon.Position = new Position(Ui.Dp((PleyTv.ButtonHeight - PleyTv.IconSize) / 2), Ui.Dp((PleyTv.ButtonHeight - PleyTv.IconSize) / 2));
         box.Add(icon);
         Add(box);
-        label = Text.Label(text, PleyType.Caption, PleyColors.Fg, width: 160);
-        label.HorizontalAlignment = HorizontalAlignment.Center;
-        label.Position = new Position(Ui.Dp(PleyTv.ButtonHeight / 2 - 80), Ui.Dp(PleyTv.ButtonHeight + 6));
-        label.Opacity = 0;
-        Add(label);
+        if (showLabel)
+        {
+            label = Text.Label(text, PleyType.Caption, PleyColors.Fg, width: 160);
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.Position = new Position(Ui.Dp(PleyTv.ButtonHeight / 2 - 80), Ui.Dp(PleyTv.ButtonHeight + 6));
+            label.Opacity = 0;
+            Add(label);
+        }
         Item.FocusChanged += Look;
         Look(false);
     }
 
     public FocusItem Item { get; }
 
-    public void SetText(string text) => label.Text = text;
+    public void SetText(string text)
+    {
+        if (label != null) label.Text = text;
+    }
+
+    /// <summary>Another of the app's icons in place (a star filled once it is a favourite).</summary>
+    public void SetIcon(string iconName) => icon.ResourceUrl = Icons.Url(iconName);
 
     /// <summary>Disabled, it is at 40 % and can't take focus, as a text button (a collection of one has no Shuffle).</summary>
     public bool Enabled
@@ -262,7 +272,7 @@ sealed class RoundButton : View
             DefaultAlphaFunction = new AlphaFunction(focused ? AlphaFunction.BuiltinFunctions.EaseOut : AlphaFunction.BuiltinFunctions.EaseIn),
         };
         focusAnimation.AnimateTo(box, "Scale", new Vector3(scale, scale, 1));
-        focusAnimation.AnimateTo(label, "Opacity", focused ? 1f : 0f);
+        if (label != null) focusAnimation.AnimateTo(label, "Opacity", focused ? 1f : 0f);
         focusAnimation.Play();
     }
 }

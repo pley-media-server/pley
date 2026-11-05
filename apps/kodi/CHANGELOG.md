@@ -10,6 +10,25 @@ describes how they are made.
 
 ### Added
 
+- Sent from a device on another profile of your household, Kodi switches
+  to that profile first, and plays it as that profile. Needs a server from
+  the same release.
+
+### Changed
+
+- Pley's window opens straight on Home as the profile Kodi was left on
+  when it has no PIN, where a household of several profiles was asked
+  "Who's watching?" each time Kodi started. A profile with a PIN still
+  asks first, and Switch profile still shows every profile.
+- What your phone, the web or another device does to a film or episode
+  playing on Kodi shows for a moment as a quiet Kodi notification:
+  "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio,
+  subtitles or quality picked.
+
+## [0.1.6] - 2026-11-05
+
+### Added
+
 - Your phone, the web and your other devices control what Kodi plays:
   play, pause, seek and skip, the next title in Kodi's queue or the next
   episode, the next or previous track, and channel up and down on Live TV.
@@ -21,9 +40,6 @@ describes how they are made.
 - Your phone, the web and your other devices play things on Kodi: a film,
   an episode, a show's next episode, music, a playlist or a Live TV
   channel, in place of what plays. Kodi says which device sent it.
-- Sent from a device on another profile of your household, Kodi switches
-  to that profile first, and plays it as that profile. Needs a server from
-  the same release.
 - Your phone, the web and your other devices change the quality of a film
   or episode playing on Kodi: the Quality setting changes, as picking it
   there does, and the title plays again where it was. They see which
@@ -36,14 +52,6 @@ describes how they are made.
 
 ### Changed
 
-- Pley's window opens straight on Home as the profile Kodi was left on
-  when it has no PIN, where a household of several profiles was asked
-  "Who's watching?" each time Kodi started. A profile with a PIN still
-  asks first, and Switch profile still shows every profile.
-- What your phone, the web or another device does to a film or episode
-  playing on Kodi shows for a moment as a quiet Kodi notification:
-  "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio,
-  subtitles or quality picked.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 
@@ -229,7 +237,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

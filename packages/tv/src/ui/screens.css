@@ -1347,6 +1347,7 @@ html.avplay .engine-host { background: transparent; }
 .live-panel-facts > * + * { margin-left: 8px; }
 .live-panel-facts .live-mark { margin-right: 0; }
 .live-panel-progress { display: flex; align-items: center; margin-top: 10px; }
+.live-panel-buttons { padding: 0 16px; }
 
 /* The search at the head of the categories: the field, a line's height. */
 .live-cats-search { position: absolute; left: 12px; right: 16px; }

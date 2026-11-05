@@ -35,7 +35,7 @@ too, each app's workflow when that app changes.
 | Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
 | Samsung app, `packages/tv` | `bun run tv:check` |
 | Native Samsung app (`apps/tizen-native`), `packages/tv/test/fixtures` | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests`, `dotnet build apps/tizen-native/src/Pley.Tv.Tizen` (and `bun run tv:check` for a fixture) |
-| A NuGet package | `bun scripts/check-nuget-licenses.mjs` |
+| A NuGet package | `bun scripts/check-nuget-licenses.mjs` after a build (`--write` when the packages the app ships change) |
 | LG app | In `apps/webos`, a workspace of its own: `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test --workspace`; for a Rust dependency there, also `scripts/check-licenses.ps1`, `cargo deny check licenses` and `cargo xtask check --licenses-only` |
 | Roku app | `bun install && bun run check` in `apps/roku` |
 | Kodi add-on | `python -m unittest discover -s tests` in `apps/kodi` |

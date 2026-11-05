@@ -21,10 +21,13 @@ export function Pill(p: ButtonProps & { label: string; icon?: IconName }) {
   );
 }
 
-/** A 40×40 icon button whose label shows under it only while focused; the box keeps room for it (TvRoundButton). */
-export function Round(p: ButtonProps & { label: string; icon: IconName; offArt?: boolean }) {
+/**
+ * A 40×40 icon button whose label shows under it only while focused; the box keeps room for it
+ * (TvRoundButton). `bare`, the square alone, its label only heard (a star that says it all).
+ */
+export function Round(p: ButtonProps & { label: string; icon: IconName; offArt?: boolean; bare?: boolean }) {
   return (
-    <div class="round-box">
+    <div class={`round-box${p.bare ? " bare" : ""}`}>
       <F
         class={`round${p.offArt ? " off-art" : ""}`}
         fid={p.fid}
@@ -37,9 +40,11 @@ export function Round(p: ButtonProps & { label: string; icon: IconName; offArt?:
       >
         <Icon name={p.icon} size={20} />
       </F>
-      <div class="round-label t-caption" aria-hidden="true">
-        {p.label}
-      </div>
+      {!p.bare && (
+        <div class="round-label t-caption" aria-hidden="true">
+          {p.label}
+        </div>
+      )}
     </div>
   );
 }

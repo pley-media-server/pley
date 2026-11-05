@@ -1,6 +1,6 @@
 [package]
 name = "pley-transcoder"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 rust-version = "1.95"
 description = "Pley transcoder: FFmpeg-based media engine (probing, HLS transcoding, HDR/Dolby Vision tone mapping) for the Pley media server"
@@ -15,7 +15,7 @@ name = "pley-transcoder"
 path = "src/main.rs"
 
 [dependencies]
-pley-transcoder-api = { path = "../../packages/transcoder-api", version = "0.1.6" }
+pley-transcoder-api = { path = "../../packages/transcoder-api", version = "0.1.7" }
 
 anyhow = "1"
 axum = "0.8"

@@ -602,17 +602,20 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
 /**
  * A button of the control row (the Android TV app's PlayerRoundButton): 36 px
  * with a 20 px glyph (Play/Pause 44 and 26; the transport's 24), the glyph
- * alone until focused, its label 8 under it while focused.
+ * alone until focused, its label 8 under it while focused. `bare`, the label
+ * is only heard (a star that says it all).
  */
-export function PlayerButton(p: { fid: string; icon: IconName; label: string; big?: boolean; iconSize?: number; onSelect: () => void }) {
+export function PlayerButton(p: { fid: string; icon: IconName; label: string; big?: boolean; bare?: boolean; iconSize?: number; onSelect: () => void }) {
   return (
     <div class={`pbtn-box${p.big ? " big" : ""}`}>
       <F class={`pbtn${p.big ? " big" : ""}`} fid={p.fid} label={p.label} onSelect={p.onSelect}>
         <Icon name={p.icon} size={p.big ? 26 : p.iconSize ?? 20} />
       </F>
-      <div class="pbtn-label t-caption" aria-hidden="true">
-        {p.label}
-      </div>
+      {!p.bare && (
+        <div class="pbtn-label t-caption" aria-hidden="true">
+          {p.label}
+        </div>
+      )}
     </div>
   );
 }

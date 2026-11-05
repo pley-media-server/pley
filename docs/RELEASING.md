@@ -15,8 +15,9 @@ the changelogs link them to the source at their commit.
    commits with `bun scripts/release.mjs <unit> draft` and edit.
 2. On GitHub: **Actions → Prepare release → Run workflow**, or
    `gh workflow run prepare-release.yml`. Leave **Units** blank for every
-   unit with Unreleased entries but Samsung, or name them, each with its own
-   bump where it differs from the default: `server kodi:minor`. On the branch
+   unit with Unreleased entries but the web Samsung app (`samsung`), or name
+   them, each with its own bump where it differs from the default:
+   `server kodi:minor`. On the branch
    `release/next`, made from master, it bumps each unit and opens a pull
    request whose description is the release's notes.
 3. Review the pull request and merge it. The merge starts the Release
@@ -42,9 +43,13 @@ provenance (`gh attestation verify <file> --repo pley-media-server/pley`).
 - A release with the server also pushes the Docker image, attested like the
   files (`oci://ghcr.io/pley-media-server/pley:<version>` for `<file>`), and
   the repository's "Latest" release is the newest with the server.
-- If a run fails after tagging, **Re-run failed jobs** reuses its tag. If it
-  fails before, fix master (move Unreleased entries left behind under the
-  unit's new version, in a pull request) and run the workflow by hand.
+- Publish tags and publishes nothing until every other job in the run has
+  passed: a build that fails, or that GitHub cancels for want of a runner,
+  holds back the whole release. **Re-run failed jobs** runs what didn't
+  pass, then publishes, reusing the tag if an earlier attempt made it. If
+  **What waits** refuses the release, fix master (move Unreleased entries
+  left behind under the unit's new version, in a pull request) and run the
+  workflow by hand.
 - Prepare release commits in the name of whoever runs it. It opens the pull
   request itself only with **Settings → Actions → General → Allow GitHub
   Actions to create and approve pull requests**; without it, it pushes the
@@ -96,7 +101,8 @@ the tags, so fetch them first (`git fetch --tags`).
 | `server` | The server, its transcoder and the web app it embeds | `apps/server/Cargo.toml`, `apps/transcoder/Cargo.toml`, `packages/transcoder-api/Cargo.toml`, `apps/web/package.json` | `pley-server-<version>-<os>-<arch>.zip`/`.tar.gz` (with `linux-x86_64-static`), the Windows installers `…-setup.exe`, the Synology package `…-synology-x86_64.spk`, the Docker image `ghcr.io/pley-media-server/pley:<version>`, `:<major>.<minor>` and `:latest` |
 | `desktop` | The desktop app (Tauri) | `apps/desktop/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` | `pley-desktop-<version>-<os>-<arch>` `.msi`, `-setup.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage` |
 | `android` | Phones, tablets, Android TV, Fire TV | `apps/android/app/build.gradle.kts` (`appVersion`) | `pley-android-<version>.apk`, `pley-android-<version>-play.aab` |
-| `samsung` | Samsung TVs (`apps/tizen`) | `apps/tizen/package.json`, `config.xml` | None: the package is signed with a Samsung certificate, by hand (`bun run --cwd apps/tizen package`) |
+| `samsung` | Samsung TVs, the web app (`apps/tizen`) | `apps/tizen/package.json`, `config.xml` | None: the package is signed with a Samsung certificate, by hand (`bun run --cwd apps/tizen package`) |
+| `samsung-native` | Samsung TVs, the native app (`apps/tizen-native`, Tizen .NET) | `apps/tizen-native/Directory.Build.props`, `src/Pley.Tv.Tizen/tizen-manifest.xml` | `pley-samsung-native-<version>.tpk`, with Tizen's default certificate, which its user signs again with their own Samsung one ([TV_PLATFORMS.md](TV_PLATFORMS.md#installing-a-release)) |
 | `lg` | LG TVs (`apps/webos`, a native app) | `apps/webos/appinfo.json`, `apps/webos/crates/app/Cargo.toml` (`pley-lg`) | `pley-lg-<version>.ipk` |
 | `kodi` | The Kodi add-on | `apps/kodi/plugin.video.pley/addon.xml` | `plugin.video.pley-<version>.zip` |
 | `roku` | The Roku app | `apps/roku/manifest` (major, minor, build), `apps/roku/package.json` | `pley-roku-<version>.zip` |
@@ -133,7 +139,7 @@ workflow's `on.paths` has the exact list.
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
 | Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
-| Samsung TV (native) | `apps/tizen-native`, `packages/tv/test/fixtures`, `scripts/check-nuget-licenses.mjs`, `scripts/commit.mjs`; it has no release unit yet |
+| Samsung TV (native) | `apps/tizen-native`, `packages/tv/test/fixtures`, `scripts/check-nuget-licenses.mjs`, `scripts/commit.mjs` |
 | LG TV | `apps/webos`, `deny.toml`, `rustfmt.toml`, `LICENSE`, `LICENSING.md`, the license and version scripts |
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
@@ -157,3 +163,8 @@ by address and SHA-256 and cached, then runs `cargo xtask check`, packs
 the .ipk and reads it back; it keeps the package (`lg-ipk`) and the binary
 before stripping (`lg-symbols`) as artifacts. A release adds the package
 as `pley-lg-<version>.ipk` ([LG.md](LG.md#releases)).
+
+Samsung TV (native) checks its version, tests the app's logic, builds its
+.tpk and checks the licences of its NuGet packages and its `NOTICES.txt`; a
+release adds that .tpk as `pley-samsung-native-<version>.tpk`
+([TV_PLATFORMS.md](TV_PLATFORMS.md#installing-a-release)).

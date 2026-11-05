@@ -10,17 +10,47 @@ describes how they are made.
 
 ### Added
 
-- The phone is a remote for your other devices: a button in Home's top
-  bar, while another of them is on, opens a remote with what plays on
-  each, how far, and the controls its player obeys (play and pause, back
-  10 s and forward 30 s, next and previous, channel up and down, a slider
-  to seek, audio, subtitles and quality), and Stop. What a command asks
-  shows at once (the place a seek goes, playing or paused, the track
-  picked), and what plays stays while a next starts the one after; a
-  device that doesn't act on a command within a few seconds is said not
-  to have answered. While the phone controls what one plays (it sent it a
-  command, or something with Play on…), a bar above the tabs says where
-  and what, and opens its controls.
+- The phone's remote and Play on… list the devices of everyone in your
+  household too, each saying whose profile it is on ("On Sam's
+  profile"), never what it plays. Sending something there ends what
+  plays on that phone or TV, its place kept for its own profile, and
+  switches it to your profile before it plays, after your PIN when your
+  profile has one; one that can't says "Couldn't switch to the remote's
+  profile" and plays nothing. A phone or TV showing "Who's watching?"
+  ignores what is sent to it meanwhile: whoever is there is choosing.
+
+### Changed
+
+- The phone's remote opens from a button in Home's top bar, beside your
+  picture, while another of your devices is on. The bar above the tabs
+  shows only while the phone controls what one plays (it sent it a
+  command, or something with Play on…), says where and what, Playing or
+  Paused, and opens its controls. A command shows at once what it asks
+  (the place a seek goes, playing or paused, the track picked), and what
+  plays stays while a next starts the one after. A device ready to play is
+  only listed, without controls to open.
+- A command from your remote doesn't bring up the video player's controls
+  on the device it plays on: a toast says for a moment what it did
+  ("Paused", "Playing", "+30 s", "Jumped to 12:34", "Audio: …",
+  "Subtitles off", "Quality: …"). Controls already up as the remote pauses
+  hide as they do while it plays, until you press a key or touch the
+  screen there.
+- Android TV and Fire TV start straight into Home as the profile they were
+  left on when it has no PIN, where a household of several profiles was
+  asked "Who's watching?" each time. A profile with a PIN still asks
+  first, and Switch profile still shows every profile. Settings' Always
+  start as calls this Profile used last, where it said Ask who's watching.
+
+## [0.1.7] - 2026-11-05
+
+### Added
+
+- The phone is a remote for your other devices: while something plays on
+  one of them, a bar above the tabs says where and what, and opens a
+  remote with what plays on each, how far, and the controls its player
+  obeys (play and pause, back 10 s and forward 30 s, next and previous,
+  channel up and down, a slider to seek), and Stop. A device that doesn't
+  act on a command within a few seconds is said not to have answered.
   TVs show no remote.
 - The players obey the remote on your other devices, on phones and TVs:
   videos play, pause, seek, skip and go to the next episode; music does
@@ -28,19 +58,12 @@ describes how they are made.
   a word when stopped from elsewhere. Music playing with the screen off
   still hears it, until it has been paused for a minute and a half. Remotes show the device by its name in Android's
   settings.
-- A command from your remote doesn't bring up the video player's controls
-  on the device it plays on: a toast says for a moment what it did
-  ("Paused", "Playing", "+30 s", "Jumped to 12:34", "Audio: …",
-  "Subtitles off", "Quality: …"). Controls already up as the remote pauses
-  hide as they do while it plays, until you press a key or touch the
-  screen there.
 - The video players change their audio and subtitles when your remote on
   another device asks, as their own track menus do, and tell your remotes
   which tracks they play.
 - The phone's remote lists your devices: every other device that is on,
   playing or ready to play, those that play first, each with an icon for
-  its kind. Choosing one that plays shows its controls (one ready to play
-  is only listed), now with Next for every
+  its kind. Choosing one shows its controls, now with Next for every
   episode, track and channel (dimmed where it can't go on), and Audio and
   Subtitles menus that change what it plays.
 - Phones, tablets and TVs play what your remotes send them while Pley is
@@ -63,14 +86,6 @@ describes how they are made.
   rocker in place of the seek bar and the skips. Play on… on a title's
   page is a square button as tall as Play, and sends the audio and
   subtitles picked on the page.
-- The phone's remote and Play on… list the devices of everyone in your
-  household too, each saying whose profile it is on ("On Sam's
-  profile"), never what it plays. Sending something there ends what
-  plays on that phone or TV, its place kept for its own profile, and
-  switches it to your profile before it plays, after your PIN when your
-  profile has one; one that can't says "Couldn't switch to the remote's
-  profile" and plays nothing. A phone or TV showing "Who's watching?"
-  ignores what is sent to it meanwhile: whoever is there is choosing.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same
@@ -78,11 +93,6 @@ describes how they are made.
 
 ### Changed
 
-- Android TV and Fire TV start straight into Home as the profile they were
-  left on when it has no PIN, where a household of several profiles was
-  asked "Who's watching?" each time. A profile with a PIN still asks
-  first, and Switch profile still shows every profile. Settings' Always start as
-  calls this Profile used last, where it said Ask who's watching.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - On Android TV and Fire TV, a key held through a library's grid, along
@@ -125,6 +135,11 @@ describes how they are made.
   opens, rather than moving a moment later: the buttons along the bottom
   show once the server has answered, and the controls keep clear of the
   status and navigation bars whether they show or not.
+- On Android TV and Fire TV, a programme's details in Live TV have Watch
+  and the favourite side by side, the favourite a star as in the live
+  player, where Remove from favourites was a wide button under Watch. In
+  the live player, the star no longer shows its words under it, which ran
+  under Channels.
 
 ## [0.1.6] - 2026-11-04
 
@@ -606,7 +621,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-04...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-05...HEAD
+[0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-04
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-03
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

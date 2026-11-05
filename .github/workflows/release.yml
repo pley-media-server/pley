@@ -19,6 +19,7 @@ on:
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
       - apps/tizen/package.json
+      - apps/tizen-native/Directory.Build.props
       - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest
@@ -144,6 +145,15 @@ jobs:
       release: true
       version: ${{ fromJSON(needs.prepare.outputs.versions || '{}').samsung }}
 
+  samsung-native:
+    name: Samsung TV (native)
+    needs: prepare
+    if: contains(fromJSON(needs.prepare.outputs.units || '[]'), 'samsung-native')
+    uses: ./.github/workflows/samsung-native.yml
+    with:
+      release: true
+      version: ${{ fromJSON(needs.prepare.outputs.versions || '{}')['samsung-native'] }}
+
   lg:
     name: LG TV
     needs: prepare
@@ -176,12 +186,13 @@ jobs:
   # publishes, once every unit's build has passed.
   publish:
     name: Publish
-    needs: [prepare, server, desktop, android, samsung, lg, kodi, roku]
+    needs: [prepare, server, desktop, android, samsung, samsung-native, lg, kodi, roku]
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.units != '[]' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write # make the tag and the release
+      actions: read # see that every job in the run passed
       id-token: write # sign the provenance attestation (Sigstore)
       attestations: write # store the attestation
     env:
@@ -192,7 +203,20 @@ jobs:
       TITLE: ${{ needs.prepare.outputs.title }}
       SIGNED: ${{ needs.android.outputs.signed }}
     steps:
-      # Samsung's package is made by hand, and Android's only with its key.
+      # A unit's result can be success with one of its jobs cancelled (GitHub
+      # cancels a job it finds no runner for) and some of its files missing,
+      # so every job in this attempt has to have passed or been skipped.
+      # Re-run failed jobs runs what didn't pass again, and this job after it.
+      - name: Every job passed
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq '.jobs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped") | "\(.name): \(.conclusion)"' > unpassed
+          if [ -s unpassed ]; then
+            sed 's/^/::error::/' unpassed
+            echo "::error::Nothing is tagged or published until every job has passed: re-run the failed jobs"
+            exit 1
+          fi
+      # Samsung's web package is made by hand, and Android's only with its key.
       - name: Files built
         id: files
         run: |
@@ -227,6 +251,7 @@ jobs:
             dist/*.apk
             dist/*.aab
             dist/*.ipk
+            dist/*.tpk
             dist/*.msi
             dist/*.exe
             dist/*.dmg
@@ -239,11 +264,16 @@ jobs:
       - name: Notes
         env:
           NOTES: ${{ needs.prepare.outputs.notes }}
+          # The native Samsung app's version, when it is in the release.
+          NATIVE: ${{ fromJSON(needs.prepare.outputs.versions || '{}')['samsung-native'] }}
         run: |
           printf '%s\n' "$NOTES" > notes.md
           if jq -e 'any(. == "samsung")' <<< "$UNITS" > /dev/null; then
             printf '\n---\n\n%s\n' "The Samsung package is signed with a Samsung certificate, so it is made by hand: \`bun run --cwd apps/tizen package\` (docs/TV_PLATFORMS.md)." >> notes.md
             echo "::notice::Samsung's package is made by hand: bun run --cwd apps/tizen package, then attach it to $TAG"
+          fi
+          if [ -n "$NATIVE" ]; then
+            printf '\n---\n\n%s\n' "The native Samsung package has Tizen's default certificate only, which no TV takes: sign it with your own Samsung certificate, \`tizen package -t tpk -s <profile> -- pley-samsung-native-$NATIVE.tpk\`, then install it (docs/TV_PLATFORMS.md)." >> notes.md
           fi
           if jq -e 'any(. == "android")' <<< "$UNITS" > /dev/null && [ "$SIGNED" != true ]; then
             printf '\n---\n\nNo Android APK or Play bundle: the release key was not configured (docs/ANDROID.md, Releases).\n' >> notes.md
