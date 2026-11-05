@@ -200,6 +200,7 @@ pub async fn events(
             given_name: query.device_name.as_deref().and_then(crate::oauth::clients::clean_name),
             kind: remote::device_kind_of(declared, &user, remote::user_agent(&headers)),
             casts: query.casts.as_deref().map(remote::cast_kinds).unwrap_or_default(),
+            switches: query.casts.as_deref().is_some_and(remote::casts_switch),
         };
         state.receivers.open(&state.events, user.id, id, receiver)
     });

@@ -155,9 +155,15 @@ protect your server.
   administrator, a higher age limit, other libraries) takes that profile's
   PIN, or its password (and code).
 - A remote casting to a device of another of the household's profiles
-  switches that device to its own profile, signed in as it already. When
-  that profile has a PIN, the remote gives it first, checked and throttled
-  as a switch's. The device switches with a ticket the cast carries: random,
+  switches that device to its own profile, signed in as it already, by a
+  switch's rules from the device's profile: a freer profile (an
+  administrator, a higher age limit, other libraries) takes its PIN and,
+  without one, can't cast there, so a child's device never becomes an
+  administrator's without that PIN. When the profile has a PIN, the remote
+  gives it first, checked and throttled as a switch's, and the rules are
+  checked again as the device switches. Only devices whose app switches
+  are offered across profiles, so an older app never plays someone
+  else's cast as its own profile. The device switches with a ticket the cast carries: random,
   stored hashed, good once for 60 seconds for that device, from the profile
   it is on to the caster's. A copy shown by anything else spends it. Such a
   cast reaches that device's stream alone, not the profile's other

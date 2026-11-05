@@ -18,19 +18,19 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use parking_lot::Mutex;
 use pley_transcoder_api::{MediaStream, StreamKind};
 use serde::{Deserialize, Serialize};
 
-use super::auth::{PIN_NEEDED, check_own_pin, switch_target};
+use super::auth::{CAST_NEEDS_PIN, PIN_NEEDED, SET_UP_FIRST, check_own_pin, switch_target};
 use super::items::item_or_404;
 use crate::auth::{AuthUser, CurrentToken, hash_token, new_token};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
-use crate::events::{EventBus, ServerEvent};
+use crate::events::{EventBus, ServerEvent, SwitchTicket};
 use crate::livetv::tuner::RemoteViewer;
 use crate::oauth::clients::{self, clean_name};
 use crate::playback::{
@@ -548,6 +548,14 @@ pub(crate) fn cast_kinds(text: &str) -> BTreeSet<CastKind> {
     text.split(',').filter_map(|name| CastKind::from_name(name.trim())).collect()
 }
 
+/// Whether an event stream's `casts` names `switch`: its app switches to
+/// the profile of a remote of another profile that casts to it, before it
+/// plays. Only such receivers are offered across profiles: an app that
+/// doesn't would play the cast as the profile it is on.
+pub(crate) fn casts_switch(text: &str) -> bool {
+    text.split(',').any(|name| name.trim() == "switch")
+}
+
 /// An event stream's `receiver`, the app's own id for its device, when it
 /// is one: 1 to 128 letters, digits, `.`, `_`, `:` and `-`.
 pub(crate) fn receiver_id(text: &str) -> Option<&str> {
@@ -567,6 +575,8 @@ pub(crate) struct Receiver {
     pub given_name: Option<String>,
     pub kind: DeviceKind,
     pub casts: BTreeSet<CastKind>,
+    /// It switches to a casting remote's profile ([`casts_switch`]).
+    pub switches: bool,
 }
 
 /// A receiver while one of its streams is open.
@@ -671,6 +681,7 @@ impl Receivers {
                 kind: open.receiver.kind,
                 casts: open.receiver.casts.clone(),
                 profile: None,
+                switches: open.receiver.switches,
             })
             .collect();
         out.sort_by_cached_key(|d| (d.name.is_none(), d.name.as_deref().map(str::to_lowercase), d.receiver_id.clone()));
@@ -686,9 +697,10 @@ impl Receivers {
         newest.and_then(|open| open.receiver.given_name.clone())
     }
 
-    /// What receiver `id` of `user_id` takes, while it is there.
-    fn casts(&self, user_id: i64, id: &str) -> Option<BTreeSet<CastKind>> {
-        self.by_user.lock().get(&user_id)?.get(id).map(|open| open.receiver.casts.clone())
+    /// What receiver `id` of `user_id` takes, and whether it switches
+    /// profile ([`casts_switch`]), while it is there.
+    fn casts(&self, user_id: i64, id: &str) -> Option<(BTreeSet<CastKind>, bool)> {
+        self.by_user.lock().get(&user_id)?.get(id).map(|open| (open.receiver.casts.clone(), open.receiver.switches))
     }
 
     /// Counts a cast to receiver `id` of `user_id`: whether it may go, at
@@ -767,6 +779,8 @@ pub struct RemoteDevice {
     /// caller's own. A cast there switches it to the caller's profile.
     #[serde(skip_serializing_if = "Option::is_none")]
     profile: Option<DeviceProfile>,
+    #[serde(skip)]
+    switches: bool,
 }
 
 /// The profile another of the household's devices is on.
@@ -776,19 +790,37 @@ pub struct DeviceProfile {
     name: String,
 }
 
+/// `GET /api/remote/devices`'s query.
+#[derive(Debug, Default, Deserialize)]
+pub struct DevicesQuery {
+    /// `1`: the household's other profiles' receivers too. Remotes that
+    /// don't know them (older apps) leave it out, and get their own.
+    household: Option<String>,
+}
+
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
-/// caller's own, and for a home member those of the household's other
-/// profiles, each with the profile it is on (what they play stays theirs).
+/// caller's own, and with `household=1`, for a home member, those of the
+/// household's other profiles that switch to a casting remote's profile,
+/// each with the profile it is on (what they play stays theirs).
 /// Administrators get only the household's too.
-pub async fn devices(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Vec<RemoteDevice>>> {
+pub async fn devices(
+    State(state): State<AppState>,
+    user: AuthUser,
+    query: Result<Query<DevicesQuery>, QueryRejection>,
+) -> ApiResult<Json<Vec<RemoteDevice>>> {
     let mut out = state.receivers.listed(user.id);
+    // A query that doesn't parse asks for nothing more.
+    let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
+    if !asked {
+        return Ok(Json(out));
+    }
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
     for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
         // Its name as "Who's watching?" says it: apps never see usernames.
         let profile = DeviceProfile { id: other.id, name: other.name };
-        let theirs = state.receivers.listed(other.id);
-        out.extend(theirs.into_iter().map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
+        let theirs = state.receivers.listed(other.id).into_iter().filter(|d| d.switches);
+        out.extend(theirs.map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
     }
     // A device on two profiles at once is the same one twice only while it
     // switches: the caller's own wins, as its sessions say what it plays.
@@ -860,7 +892,12 @@ pub async fn cast(
             return Err(AppError::not_found("no such device"));
         }
     }
-    let takes = state.receivers.casts(owner, &id).ok_or_else(|| AppError::not_found("no such device"))?;
+    let (takes, switches) = state.receivers.casts(owner, &id).ok_or_else(|| AppError::not_found("no such device"))?;
+    // Another profile's receiver that doesn't switch would play it as that
+    // profile: it isn't offered, and is as unknown.
+    if owner != user.id && !switches {
+        return Err(AppError::not_found("no such device"));
+    }
     let picked = body.audio_index.is_some() || body.subtitle_index.is_some();
     let kind = match (body.item_id, body.playlist_id, body.channel_id) {
         (Some(item_id), None, None) => {
@@ -916,9 +953,12 @@ pub async fn cast(
     if body.start_ms.is_some_and(|start| !(0..=MAX_UNKNOWN_SEEK_MS).contains(&start)) {
         return Err(AppError::bad_request(format!("start_ms must be between 0 and {MAX_UNKNOWN_SEEK_MS}")));
     }
-    // The receiver will act as the caller's profile: their PIN, when it
-    // has one, as a switch to it would take.
+    // The receiver will act as the caller's profile, by a switch's rules
+    // from the profile it is on: a freer profile takes its PIN (there is no
+    // password on a TV), one that has to set up two-step sign-in can't be
+    // switched to; then the PIN, when it has one.
     if owner != user.id {
+        check_cast_switch(&state, owner, user.id).await?;
         match body.pin.as_deref() {
             Some(pin) => {
                 check_own_pin(&state, &user, pin).await?;
@@ -948,7 +988,7 @@ pub async fn cast(
         None
     } else {
         let device = state.receivers.device_of(owner, &id).ok_or_else(|| AppError::not_found("no such device"))?;
-        Some(state.receivers.issue_ticket(&device, owner, user.id))
+        Some(SwitchTicket(state.receivers.issue_ticket(&device, owner, user.id)))
     };
     state.events.send(ServerEvent::Cast {
         user_id: owner,
@@ -970,6 +1010,32 @@ pub async fn cast(
 /// Whether profile `id` has a PIN.
 async fn has_pin(state: &AppState, id: i64) -> ApiResult<bool> {
     Ok(switch_target(state, id, id).await?.is_some_and(|p| p.pin_hash.is_some()))
+}
+
+/// Whether a receiver on profile `owner` may switch to the caster's
+/// profile with a ticket, by a switch's rules as seen from `owner`, without
+/// the administrators' exemption (the receiver may be an app, which never
+/// has it): a caster freer than `owner` takes a PIN, and one that has to
+/// set up two-step sign-in, which the server requires, can't be switched
+/// to. The PIN itself is checked next.
+async fn check_cast_switch(state: &AppState, owner: i64, caster: i64) -> ApiResult<()> {
+    let (Some(device), Some(to)) =
+        (switch_target(state, owner, owner).await?, switch_target(state, owner, caster).await?)
+    else {
+        return Err(AppError::not_found("no such device"));
+    };
+    if to.sets_up_two_step(state.auth.two_step_required()) {
+        return Err(AppError::ForbiddenAs("not_allowed", SET_UP_FIRST.to_owned()));
+    }
+    let max_age = if device.is_admin { None } else { device.max_age };
+    let all_libraries = device.all_libraries || device.is_admin;
+    let freer = to.is_admin
+        || max_age.is_some_and(|mine| to.max_age.is_none_or(|theirs| theirs > mine))
+        || (!all_libraries && (to.all_libraries || to.more_libraries));
+    if freer && to.pin_hash.is_none() {
+        return Err(AppError::ForbiddenAs("not_allowed", CAST_NEEDS_PIN.to_owned()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1047,6 +1113,7 @@ mod tests {
         assert_eq!(cast_kinds("live,item,live"), BTreeSet::from([CastKind::Item, CastKind::Live]));
         assert_eq!(cast_kinds(" item ,fax,,"), BTreeSet::from([CastKind::Item]));
         assert!(cast_kinds("").is_empty() && cast_kinds("ITEM").is_empty());
+        assert!(casts_switch("item, switch") && !casts_switch("item,live") && !casts_switch("switching"));
         assert_eq!(serde_json::to_string(&cast_kinds("live,item")).unwrap(), r#"["item","live"]"#);
     }
 
@@ -1058,6 +1125,7 @@ mod tests {
             given_name: name.map(str::to_owned),
             kind: DeviceKind::Tv,
             casts: cast_kinds(casts),
+            switches: casts_switch(casts),
         }
     }
 

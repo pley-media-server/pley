@@ -167,7 +167,7 @@ pub enum ServerEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         profile_id: Option<i64>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        switch_ticket: Option<String>,
+        switch_ticket: Option<SwitchTicket>,
     },
     /// Live TV's sources, channels or guide changed: apps fetch the
     /// channels and the guide again.
@@ -261,6 +261,18 @@ pub enum ServerEvent {
         #[serde(skip)]
         user_id: Option<i64>,
     },
+}
+
+/// A cast's switch ticket (see `ServerEvent::Cast`): sent as it is, never
+/// shown in Debug output, which logs may carry.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct SwitchTicket(pub String);
+
+impl std::fmt::Debug for SwitchTicket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SwitchTicket(..)")
+    }
 }
 
 impl ServerEvent {
@@ -464,10 +476,11 @@ mod tests {
             subtitle_index: None,
             from: None,
             profile_id: Some(4),
-            switch_ticket: Some("t1".into()),
+            switch_ticket: Some(SwitchTicket("t1".into())),
         };
         assert_eq!(event.user_id(), Some(5), "to the profile the receiver is on");
         assert_eq!(event.receiver_only(), Some("tv-1"), "and only to that receiver's streams");
+        assert!(!format!("{event:?}").contains("t1"), "a ticket is never in Debug output");
         assert!(
             serde_json::to_string(&event).unwrap().ends_with(r#""from":null,"profile_id":4,"switch_ticket":"t1"}"#)
         );

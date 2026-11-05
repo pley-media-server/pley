@@ -655,6 +655,8 @@ pub(crate) const PIN_LOCKED: &str =
 pub(crate) const NO_WAY_IN: &str =
     "this profile can see more than yours: an administrator can give it a PIN to switch to it";
 pub(crate) const TICKET_SPENT: &str = "this cast's switch has expired or was used: cast again";
+pub(crate) const CAST_NEEDS_PIN: &str =
+    "this device's profile can see less than yours: give your profile a PIN to cast to it";
 pub(crate) const SET_UP_FIRST: &str =
     "this profile has to set up two-step sign-in, which this server requires: switching to it takes its password";
 
@@ -728,7 +730,9 @@ pub(crate) async fn check_switch(
 /// Checks a switch a cast asked for ([`crate::api::remote::cast`]):
 /// `ticket`, issued for device `device_id` on `from`'s profile to switch to
 /// `target`, is spent here; both are still home members, and the target
-/// is enabled. The caster's PIN was checked as the ticket was issued.
+/// is enabled. By [`switch_needs`] from `from`'s own rights, the target may
+/// take nothing more than the PIN the caster gave as the ticket was issued:
+/// never a password, and not a locked PIN.
 pub(crate) async fn check_ticket_switch(
     state: &AppState,
     from: &AuthUser,
@@ -745,7 +749,11 @@ pub(crate) async fn check_ticket_switch(
     if !profile.both_home || profile.disabled {
         return Err(SwitchError::NotAllowed);
     }
-    Ok(())
+    match switch_needs(from, &profile, state.auth.two_step_required()) {
+        Needs::None | Needs::Pin => Ok(()),
+        Needs::Locked if profile.pin_hash.is_some() => Err(SwitchError::PinLocked),
+        Needs::Password | Needs::Locked => Err(SwitchError::NoWayIn),
+    }
 }
 
 /// Whether `pin` is `profile`'s PIN (`pin_hash`), counting it in a row

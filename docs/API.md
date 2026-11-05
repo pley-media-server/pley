@@ -3547,16 +3547,21 @@ would.
   `device_name` and `device_kind` are what a play request's are, and
   without them the server names the device and tells its kind the same
   way. `casts` says what it plays: `item` (titles and playlists), `live`
-  (channels), comma-separated; others are left out. The device takes casts
+  (channels), comma-separated; others are left out. With `switch` too, the
+  app switches to the profile of a remote of another profile that casts to
+  it ([below](#casting)); only such receivers are offered across profiles,
+  since an app that doesn't would play the cast as the profile it is on.
+  The device takes casts
   while the stream is open: several streams with the same `receiver` count
   once, and it goes when the last one closes. A user has at most 32
   receivers; a stream past them still gets its events, but isn't one. A
   receiver appearing or going sends `sessions_changed`.
-- **`GET /api/remote/devices`** lists the caller's receivers and, for a
-  home member, those of the household's other profiles (home members, not
-  disabled), each of these with the `profile` it is on, `{ id, name }`,
-  its name as "Who's watching?" says it; the caller's own have no
-  `profile`. An administrator's list is the same. One per device
+- **`GET /api/remote/devices`** lists the caller's receivers, an
+  administrator's too. With `?household=1`, for a home member, it adds
+  those of the household's other profiles (home members, not disabled)
+  whose stream named `switch`, each with the `profile` it is on, `{ id,
+  name }`, its name as "Who's watching?" says it; the caller's own have no
+  `profile`. A remote that doesn't ask (an older app) gets its own alone. One per device
   (`device_id`, as sessions say it), the one that connected last, by name.
   Remotes show them with the sessions of the same `device_id`; another
   profile's sessions stay theirs, so its devices show as on that profile,
@@ -3592,10 +3597,15 @@ would.
     `casts` doesn't name (`live` for a channel, `item` otherwise);
   - `400` for a `start_ms` out of range, or a track that isn't one of the
     title's (or with something other than a movie or an episode);
-  - for another profile's receiver, when the caller's profile has a PIN:
-    `403` `{ code: "pin_needed" }` without `pin`, `wrong_pin` for a wrong
-    one, `pin_locked` once it is locked, `429` after too many wrong ones,
-    counted and throttled with the switches to the caller's profile;
+  - for another profile's receiver, by a switch's rules from the profile
+    it is on (without an administrator's exemption: the receiver may be an
+    app): `403` `{ code: "not_allowed" }` when the caller's profile is
+    freer (an administrator, a higher age limit, other libraries) and has
+    no PIN, as there is no password on a TV, or has to set up two-step
+    sign-in, which the server requires; then, when the caller's profile has
+    a PIN, `403` `{ code: "pin_needed" }` without `pin`, `wrong_pin` for a
+    wrong one, `pin_locked` once it is locked, `429` after too many wrong
+    ones, counted and throttled with the switches to the caller's profile;
   - `429` past 10 casts a second to one receiver.
 - **The receiver plays it**, if `receiver_id` is its own, as its own
   *Play* on that page would: a movie, an episode or a track where *Play*
@@ -3617,10 +3627,12 @@ would.
   the profile it is on to the caster's: shown for anything else it is
   spent, `invalid_grant` with reason `ticket_spent` from the grant and
   `403` `{ code: "ticket_spent" }` from the switch. Both profiles must
-  still be home members, and the caster's enabled. The caster's PIN was
-  checked as the ticket was issued; nothing else of a switch's rules
-  applies, since the caster signed in as that profile. A receiver that
-  can't switch (an old app) ignores the cast, as one for another receiver.
+  still be home members, and the caster's enabled. The ticket stands for
+  the PIN the caster gave; the rest of a switch's rules are checked again
+  as it is spent, from the rights the device has: a caster's profile that
+  would now take its password (its PIN removed meanwhile) or whose PIN is
+  locked isn't switched to. A receiver that doesn't name `switch` gets no
+  such cast: it isn't offered across profiles.
 
 ### Watch state on other devices
 
