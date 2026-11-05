@@ -445,7 +445,9 @@ A film resumed 10 s or more in is given its playlists by the app instead,
 from the TV's loopback, its media playlist beginning at the segment the
 film resumes in and naming every segment by the server's own address: the
 player prepares there, a second or two before the resume point, with no
-seek, and the video still comes straight from the server. The app asks the
+seek, and the video still comes straight from the server. Only the
+server's own addresses are asked for through it, so another program on the
+TV can't use it to reach another host. The app asks the
 server for both playlists as soon as it has the stream, while the TV's
 player is still being set up: the server takes a third of a second for
 the first. The player then

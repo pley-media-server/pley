@@ -107,4 +107,21 @@ public class StartWindowTests
         using var response = await player.GetAsync(new Uri(window.Url, "other.m3u8"));
         Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
     }
+
+    /// <summary>Another program on the TV can't have it ask another host for something: the connection closes unanswered.</summary>
+    [Fact]
+    public async Task Only_the_servers_own_addresses_are_asked_for()
+    {
+        var server = new Server();
+        using var window = new StartWindow(new Uri("http://pley.example.com/api/media/k3y/master.m3u8"), 3_000, server);
+        for (var i = 0; i < 200 && server.Asked.Count < 2; i++) await Task.Delay(10);
+        using var tcp = new System.Net.Sockets.TcpClient();
+        await tcp.ConnectAsync(window.Url.Host, window.Url.Port);
+        var net = tcp.GetStream();
+        var ask = Encoding.ASCII.GetBytes("GET //elsewhere.example/x HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+        await net.WriteAsync(ask, 0, ask.Length);
+        var answer = new byte[64];
+        Assert.Equal(0, await net.ReadAsync(answer, 0, answer.Length));
+        Assert.Equal(2, server.Asked.Count);
+    }
 }

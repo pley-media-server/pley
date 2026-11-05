@@ -7,7 +7,9 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using Pley.Tv.Core.Net;
 
 namespace Pley.Tv.Core.Player;
 
@@ -41,6 +43,11 @@ public sealed class StartWindow : IDisposable
     /// <summary>The playlists asked for ahead of the player, by address; each is given once.</summary>
     readonly Dictionary<string, Task<Answer>> ahead = new Dictionary<string, Task<Answer>>();
     readonly Task askedAhead;
+    /// <summary>Cancelled as the film goes: its requests to the server, and connections still open, end with it.</summary>
+    readonly CancellationTokenSource ending = new CancellationTokenSource();
+
+    /// <summary>The most of a playlist read: a film's media playlist is a few hundred KB.</summary>
+    const int MostPlaylistBytes = 4 << 20;
 
     sealed record Answer(HttpStatusCode Status, bool Ok, string? ContentType, string Body);
 
@@ -88,11 +95,26 @@ public sealed class StartWindow : IDisposable
     async Task<Answer> Get(Uri at)
     {
         var asked = System.Diagnostics.Stopwatch.StartNew();
-        using var response = await http.GetAsync(at).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        using var response = await http.GetAsync(at, HttpCompletionOption.ResponseHeadersRead, ending.Token).ConfigureAwait(false);
+        var body = await ReadText(response.Content, ending.Token).ConfigureAwait(false);
         // Its name only: the query carries the stream's key.
         mark($"{Path.GetFileName(at.AbsolutePath)} from the server in {asked.ElapsedMilliseconds} ms");
         return new Answer(response.StatusCode, response.IsSuccessStatusCode, response.Content.Headers.ContentType?.ToString(), body);
+    }
+
+    /// <summary>A playlist's text, <see cref="MostPlaylistBytes"/> at most.</summary>
+    static async Task<string> ReadText(HttpContent content, CancellationToken cancel)
+    {
+        using var from = await content.ReadAsStreamAsync().ConfigureAwait(false);
+        using var text = new MemoryStream();
+        var buffer = new byte[16 * 1024];
+        int n;
+        while ((n = await from.ReadAsync(buffer, 0, buffer.Length, cancel).ConfigureAwait(false)) > 0)
+        {
+            if (text.Length + n > MostPlaylistBytes) throw new HttpRequestException("the playlist is larger than a playlist can be");
+            text.Write(buffer, 0, n);
+        }
+        return Encoding.UTF8.GetString(text.GetBuffer(), 0, (int)text.Length);
     }
 
     /// <summary>What the player is given in place of the source.</summary>
@@ -104,6 +126,7 @@ public sealed class StartWindow : IDisposable
     public void Dispose()
     {
         gone = true;
+        ending.Cancel();
         try
         {
             listener.Stop();
@@ -205,17 +228,22 @@ public sealed class StartWindow : IDisposable
         }
     }
 
-    /// <summary>One request, then the connection closes: a playlist or two, at the start.</summary>
+    /// <summary>
+    /// One request, then the connection closes: a playlist or two, at the start. Only the server's
+    /// own addresses are asked for: another program on the TV can't use this to reach another host.
+    /// </summary>
     async Task Serve(TcpClient client)
     {
         using (client)
+        using (ending.Token.Register(client.Close))
         {
             try
             {
                 var stream = client.GetStream();
-                var target = await Target(stream).ConfigureAwait(false);
-                if (target == null) return;
+                var (method, target) = await StreamRelay.ReadHead(stream, ending.Token).ConfigureAwait(false);
+                if (method != "GET" || !target.StartsWith("/", StringComparison.Ordinal) || target.StartsWith("//", StringComparison.Ordinal)) return;
                 var at = new Uri(upstream, target);
+                if (at.GetLeftPart(UriPartial.Authority) != upstream.GetLeftPart(UriPartial.Authority)) return;
                 Task<Answer>? early;
                 lock (ahead)
                 {
@@ -243,27 +271,10 @@ public sealed class StartWindow : IDisposable
                 await stream.WriteAsync(head, 0, head.Length).ConfigureAwait(false);
                 await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
             }
-            catch (Exception e) when (e is IOException or SocketException or HttpRequestException or TaskCanceledException or ObjectDisposedException)
+            catch (Exception e) when (e is IOException or SocketException or HttpRequestException or OperationCanceledException or ObjectDisposedException)
             {
                 // The player hung up, or the server didn't answer: the player says so itself.
             }
         }
-    }
-
-    /// <summary>The request's path and query, from its first line; the rest of its head read and left.</summary>
-    static async Task<string?> Target(Stream from)
-    {
-        var head = new StringBuilder();
-        var one = new byte[1];
-        while (true)
-        {
-            if (await from.ReadAsync(one, 0, 1).ConfigureAwait(false) == 0) return null;
-            head.Append((char)one[0]);
-            if (head.Length > 16 * 1024) return null;
-            var text = head.ToString();
-            if (text.EndsWith("\r\n\r\n", StringComparison.Ordinal) || text.EndsWith("\n\n", StringComparison.Ordinal)) break;
-        }
-        var first = head.ToString().Split('\n')[0].Trim().Split(' ');
-        return first.Length >= 2 && first[0] == "GET" && first[1].StartsWith("/", StringComparison.Ordinal) ? first[1] : null;
     }
 }
