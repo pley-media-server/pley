@@ -101,6 +101,9 @@ describes how they are made.
   title's poster, Open and Close, once the remote rests, as on the other
   TVs. It gives the focus back when closed, goes by itself after 10 s,
   and never shows on the requests.
+- A movie or show in Discover or Search's Discover row that a library has
+  whole opens its library page, where it plays, not a page with only Open
+  on it.
 
 ### Fixed
 

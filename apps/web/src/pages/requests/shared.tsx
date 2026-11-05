@@ -21,8 +21,7 @@ import { TMDB_KEY_SETTING } from "@/components/MetadataNotice";
 import { Button, buttonClass, EmptyState } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { smoothScroll, useElementWidth } from "@/lib/hooks";
-import { kindLabel, problemWords, stageWords, titleBadge, titleName, type StageTone } from "@/lib/requests";
-import { titleUrl } from "@/lib/urls";
+import { kindLabel, problemWords, stageWords, titleBadge, titleName, titleOpens, type StageTone } from "@/lib/requests";
 
 /*
  * What Discover, a title's page and Requests share: TMDB's titles as
@@ -53,9 +52,12 @@ function TitleBadge({ title }: { title: DiscoverTitle }) {
   );
 }
 
-/** A TMDB title's poster, to its page, saying where it stands (in its name too, for screen readers). */
+/**
+ * A TMDB title's poster, to its page (the library's, when a library has it
+ * whole), saying where it stands (in its name too, for screen readers).
+ */
 export const TitleCard = memo(function TitleCard({ title, width, fixed }: { title: DiscoverTitle; width: number; fixed?: boolean }) {
-  const to = titleUrl(title.kind, title.tmdb_id);
+  const to = titleOpens(title);
   const subtitle = [title.year, kindLabel(title.kind)].filter(Boolean).join(" · ");
   return (
     <div className="group/card min-w-0" style={fixed ? { width } : undefined}>

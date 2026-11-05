@@ -43,6 +43,7 @@ import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R
 import app.pley.android.screens.requests.RequestTexts
+import app.pley.android.screens.requests.opens
 import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.phone.kit.MediaCard
 import app.pley.android.ui.phone.kit.PleyTextButton
@@ -132,7 +133,7 @@ internal fun OnTmdb(query: String, tmdb: TmdbSection, onRetry: () -> Unit, modif
                         MediaCard(
                             model = tile,
                             kind = TileKind.Poster,
-                            onClick = { navigator.open(PleyKey.DiscoverTitle(title.kind, title.tmdbId)) },
+                            onClick = { navigator.open(opens(title)) },
                             modifier = Modifier.width(width),
                         )
                     }

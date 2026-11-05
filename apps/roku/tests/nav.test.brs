@@ -24,10 +24,28 @@ sub test_nav_menu_focus_keeps_its_entry()
     tkEqual(navMenuFocus(menu, "", -1), 0, "nothing focused yet")
 end sub
 
+' A TMDB title a library this account can open has whole opens the
+' library's title, its TMDB page offering only Open; a show partly there,
+' one with no library item and every other status open its TMDB page.
+' The titles of the other apps' fixture (discover/trending.json).
+sub test_nav_tmdb_title_in_a_library_opens_its_item()
+    server = "http://nas:7539"
+    arrival = { kind: "movie", tmdb_id: 329865, title: "Arrival", year: 2016, status: "library", item_id: 101 }
+    severance = { kind: "show", tmdb_id: 95396, title: "Severance", year: 2022, status: "partial", item_id: 201 }
+    robot = { kind: "movie", tmdb_id: 1184918, title: "The Wild Robot", year: 2024, status: "none", item_id: invalid }
+    tkEqual(navForTile(reqTitleTile(arrival, server)), { to: "details", params: { itemId: 101 } }, "in a library: the library's title")
+    tkEqual(navForTile(reqTitleTile(severance, server)), { to: "requestTitle", params: { kind: "show", tmdbId: 95396, title: "Severance" } }, "partly there: its page, to ask for more")
+    tkEqual(navForTile(reqTitleTile(robot, server)), { to: "requestTitle", params: { kind: "movie", tmdbId: 1184918, title: "The Wild Robot" } })
+    arrival.item_id = invalid
+    tkEqual(navForTile(reqTitleTile(arrival, server)), { to: "requestTitle", params: { kind: "movie", tmdbId: 329865, title: "Arrival" } }, "in a library it can't open")
+    request = reqRequestTile({ id: 4, kind: "movie", tmdb_id: 329865, title: "Arrival", status: "approved", item_id: 101 }, server, false, 0, 0)
+    tkEqual(navForTile(request), { to: "requestTitle", params: { kind: "movie", tmdbId: 329865, title: "Arrival" } }, "a request's card: its page, with the request")
+end sub
+
 ' TMDB's titles aren't the libraries': they have no itemId.
 sub test_nav_tmdb_tiles_open_their_page_or_list()
     tkEqual(navForTile({ kind: "discover", tmdbKind: "movie", tmdbId: 603, title: "The Matrix", itemId: 0 }), { to: "requestTitle", params: { kind: "movie", tmdbId: 603, title: "The Matrix" } })
-    tkEqual(navForTile({ kind: "discover", tmdbKind: "show", tmdbId: 1396, title: "Breaking Bad", libraryId: 99 }), { to: "requestTitle", params: { kind: "show", tmdbId: 1396, title: "Breaking Bad" } }, "in a library: its TMDB page still")
+    tkEqual(navForTile({ kind: "discover", tmdbKind: "show", tmdbId: 1396, title: "Breaking Bad", libraryId: 99 }), { to: "requestTitle", params: { kind: "show", tmdbId: 1396, title: "Breaking Bad" } }, "a library's item, its status not said: its TMDB page")
     tkInvalid(navForTile({ kind: "discover", tmdbKind: "person", tmdbId: 7 }))
     tkInvalid(navForTile({ kind: "discover", tmdbKind: "movie", tmdbId: 0 }))
     tkEqual(navForTile(reqMoreTile("See all", "upcoming", "")), { to: "discoverList", params: { list: "upcoming" } })

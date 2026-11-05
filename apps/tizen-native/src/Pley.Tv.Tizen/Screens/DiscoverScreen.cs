@@ -360,7 +360,7 @@ sealed class DiscoverScreen : ShellPage
         new RowView(RequestText.Row(list), TitleTiles(list, s.Rows.First(r => r.List == list).Pages.Titles, s.Origin), TileKind.Poster, gate, images,
             tile =>
             {
-                if (Find(list, tile.Id) is { } t) go(new PageKey.DiscoverTitle(t.Kind, t.TmdbId));
+                if (Find(list, tile.Id) is { } t) go(RequestRules.Opens(t));
             },
             null,
             Shell.FocusRail,

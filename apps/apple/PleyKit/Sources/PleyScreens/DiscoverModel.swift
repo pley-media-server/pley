@@ -350,10 +350,12 @@ public final class DiscoverModel: ObservableObject {
         }
     }
 
-    /// The hero's Details: its page.
+    /// The hero's Details: its Discover page, even for a title a library
+    /// has whole (its main action, Open, goes to the library's).
     public func heroDetails() {
         guard let hero else { return }
-        app.shell.open(hero.card.screen)
+        let title = hero.card.source
+        app.shell.open(.discoverTitle(title.kind, tmdbId: title.tmdbId))
     }
 
     /// Asks for `new`, once at a time: a second press while it's on its way does nothing.

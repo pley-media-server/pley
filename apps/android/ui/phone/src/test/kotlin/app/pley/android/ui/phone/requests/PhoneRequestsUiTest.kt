@@ -151,7 +151,9 @@ class PhoneRequestsUiTest {
         // Those in a library too, with their badges.
         compose.onNodeWithTag(DISCOVER_RESULTS).performScrollToNode(hasContentDescription("In library", substring = true))
         compose.onNodeWithText("The Wild Robot", useUnmergedTree = true).performClick()
-        assertEquals(listOf<PleyKey>(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918)), opened)
+        // A title a library has whole opens there, not a page with only Open on it.
+        compose.onNodeWithText("Arrival", useUnmergedTree = true).performClick()
+        assertEquals(listOf(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), PleyKey.Item(101)), opened)
     }
 
     @Test

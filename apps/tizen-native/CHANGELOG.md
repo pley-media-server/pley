@@ -56,7 +56,8 @@ It has no releases yet: it is built and installed by hand
 - Discover and requests, as on Android TV: Discover in the rail for a
   profile that may ask (else Your requests, Requests for administrators)
   with its number; TMDB's rows, a hero and a title's page with Request,
-  Tell me too and Which seasons?; a row's See all; the requests with
+  Tell me too and Which seasons?, though a title a library has whole
+  opens its library page, where it plays; a row's See all; the requests with
   their tabs, filters and actions; Discover's row in Search; a library
   title's request and Request more seasons; and a pop-up when something
   asked for is ready to watch. Sign-in asks for requests and approvals

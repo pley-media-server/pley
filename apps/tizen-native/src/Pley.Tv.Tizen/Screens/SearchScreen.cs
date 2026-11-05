@@ -552,7 +552,7 @@ sealed class TmdbRowView : View
                     tile =>
                     {
                         var title = titles.FirstOrDefault(t => RequestKit.TileId(t) == tile.Id);
-                        if (title != null) go(new PageKey.DiscoverTitle(title.Kind, title.TmdbId));
+                        if (title != null) go(RequestRules.Opens(title));
                     },
                     null, toRail, focusItem: focus, seeAll: (RequestText.SeeAll, () => go(new PageKey.DiscoverResults(r.Query))));
                 Add(row);

@@ -53,6 +53,25 @@ public class RequestRulesTests
         Assert.Null(RequestRules.BadgeOf(TitleStatus.Restricted, null));
     }
 
+    /// <summary>packages/tv's titlePage cases: where a poster opens, as the web TV app answers.</summary>
+    public static IEnumerable<object[]> TitlePageCases =>
+        Fixtures.Load("requests").GetProperty("titlePage").EnumerateArray()
+            .Select(c => new object[] { c.GetProperty("in").GetRawText(), c.GetProperty("out").GetRawText() });
+
+    [Theory]
+    [MemberData(nameof(TitlePageCases))]
+    public void A_title_the_library_has_whole_opens_there(string input, string output)
+    {
+        var opens = RequestRules.Opens(JsonSerializer.Deserialize<DiscoverTitle>(input, ApiJson.Options)!);
+        var answer = opens switch
+        {
+            PageKey.Item item => Fixtures.Json(new { name = "item", id = item.ItemId }),
+            PageKey.DiscoverTitle title => Fixtures.Json(new { name = "title", kind = title.Kind, tmdbId = title.TmdbId }),
+            _ => throw new InvalidOperationException($"not a title's page: {opens}"),
+        };
+        Assert.Equal(Fixtures.Normalize(output), answer);
+    }
+
     [Fact]
     public void Rows_follow_a_requests_status()
     {

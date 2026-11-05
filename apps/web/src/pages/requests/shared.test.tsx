@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/api/client";
+import { itemUrl } from "@/lib/urls";
 import { renderWithProviders } from "@/test/render";
 import { makeRequest, makeTitle } from "@/test/requests";
 import { ProblemState, StagePill, TitleCard } from "./shared";
@@ -13,6 +14,13 @@ describe("TitleCard", () => {
     expect(screen.getByRole("link", { name: "The Matrix, 1999, Movie, Requested" })).toHaveAttribute("href", "/discover/movie/603");
     expect(screen.getByText("Requested")).toBeInTheDocument();
     expect(screen.getByText("1999 · Movie")).toBeInTheDocument();
+  });
+
+  it("links to the library's title when a library has it whole, and to its Discover page when partly", () => {
+    renderWithProviders(<TitleCard title={makeTitle({ status: "library", item_id: 7 })} width={150} />);
+    expect(screen.getByRole("link", { name: "The Matrix, 1999, Movie, In library" })).toHaveAttribute("href", itemUrl(7));
+    renderWithProviders(<TitleCard title={makeTitle({ kind: "show", tmdb_id: 1399, status: "partial", item_id: 8 })} width={150} />);
+    expect(screen.getByRole("link", { name: "The Matrix, 1999, Show, Partly in library" })).toHaveAttribute("href", "/discover/show/1399");
   });
 
   it("asks the server for the poster at the size it's drawn, lazily", () => {

@@ -99,6 +99,18 @@ private func decode<T: Decodable>(_ type: T.Type, _ path: String) throws -> T {
         #expect(card.screen == .discoverTitle(.movie, tmdbId: 933_260))
     }
 
+    @Test func aTitleALibraryHasWholeOpensItsLibraryPage() {
+        // Arrival: in a library this account can open, whole.
+        #expect(RequestRules.opens(title(329_865)) == .item(101))
+        #expect(DiscoverCard(title(329_865)).screen == .item(101))
+        // Severance: partly there, with more seasons to ask for on its Discover page.
+        #expect(RequestRules.opens(title(95396)) == .discoverTitle(.show, tmdbId: 95396))
+        #expect(RequestRules.opens(title(1_184_918)) == .discoverTitle(.movie, tmdbId: 1_184_918))
+        var nowhere = title(329_865)
+        nowhere.itemId = nil
+        #expect(RequestRules.opens(nowhere) == .discoverTitle(.movie, tmdbId: 329_865))
+    }
+
     @Test func rowsFollowARequestsStatus() {
         let robot = title(1_184_918)
         var asked = request(44)

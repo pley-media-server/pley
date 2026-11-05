@@ -253,6 +253,13 @@ pub fn title_badge(status: TitleStatus, item_id: Option<i64>) -> Option<&'static
     }
 }
 
+/// The library title a title's poster opens: a library this account can open has it whole, so its
+/// Discover page would offer only Open. `None` for its Discover page: a show partly there opens
+/// that, where more seasons can be asked for.
+pub fn library_item(t: &DiscoverTitle) -> Option<i64> {
+    t.item_id.filter(|_| t.status == TitleStatus::Library)
+}
+
 /// A badge's or a stage pill's colour: waiting for a decision amber, on its way blue, ready green,
 /// refused or failed red, gone gray.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

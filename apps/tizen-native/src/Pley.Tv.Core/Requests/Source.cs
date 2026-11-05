@@ -141,9 +141,10 @@ public static class RequestsSources
     /// <summary>
     /// How titles already shown change with <paramref name="change"/> (requests_changed): their
     /// badges follow its request, read once (GET /api/requests/{id}). One this account can no
-    /// longer read says nothing of its title: the title's page is read instead, for its status (the
-    /// request let go of, should that fail too). Null when none of <paramref name="shown"/> is
-    /// touched, many changed at once (rows are never read again for that), or the request couldn't be read.
+    /// longer read says nothing of its title, nor does a show's request wholly ready (the show may
+    /// still lack seasons nobody asked for): the title's page is read instead, for its status (the
+    /// request let go of, or followed, should that fail too). Null when none of <paramref name="shown"/>
+    /// is touched, many changed at once (rows are never read again for that), or the request couldn't be read.
     /// </summary>
     public static async Task<Func<DiscoverTitle, DiscoverTitle>?> PatchFor(this IRequestsSource source, RequestChange change, IEnumerable<DiscoverTitle> shown)
     {
@@ -159,7 +160,9 @@ public static class RequestsSources
         {
             return null;
         }
-        if (request != null) return title => change.Touches(title) ? RequestRules.Patched(title, request) : title;
+        // A show whose request is wholly ready may still lack seasons nobody asked for: its page says
+        // whether a library has it whole, which its poster opens then.
+        if (request != null && !ReadyShow(request)) return title => change.Touches(title) ? RequestRules.Patched(title, request) : title;
         var pages = new Dictionary<(string, long), DiscoverDetail?>();
         foreach (var t in touched)
         {
@@ -177,9 +180,11 @@ public static class RequestsSources
             if (!change.Touches(title)) return title;
             if (pages.TryGetValue((title.Kind, title.TmdbId), out var page) && page != null)
                 return title with { Status = page.Status, ItemId = page.ItemId, RequestId = page.RequestId };
-            return RequestRules.Patched(title, null);
+            return RequestRules.Patched(title, request);
         };
     }
+
+    static bool ReadyShow(MediaRequest request) => request.Kind == TitleKind.Show && request.Status == RequestStatus.Available;
 }
 
 /// <summary>

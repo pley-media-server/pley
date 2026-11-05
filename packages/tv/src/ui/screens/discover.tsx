@@ -17,6 +17,7 @@ import {
   titleBadge,
   titleFacts,
   titleKey,
+  titlePage,
   titleSubtitle,
   titleTone,
   TMDB_CREDIT,
@@ -364,7 +365,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
                 fid={`${r.list}/${titleKey(t)}`}
                 priority={place.priority}
                 onFocus={place.onFocus}
-                onSelect={() => ui.nav.open({ name: "title", kind: t.kind, tmdbId: t.tmdb_id })}
+                onSelect={() => ui.nav.open(titlePage(t))}
               />
             )}
             seeAll={(place) => <SeeAllTile kind="poster" fid={`${r.list}/all`} onFocus={place.onFocus} onSelect={() => ui.nav.open({ name: "discoverList", list: r.list })} />}
@@ -689,7 +690,7 @@ function TitleGrid(p: {
             initial={p.initial && i === 0}
             priority={place.priority}
             onFocus={place.onFocus}
-            onSelect={() => ui.nav.open({ name: "title", kind: t.kind, tmdbId: t.tmdb_id })}
+            onSelect={() => ui.nav.open(titlePage(t))}
           />
         );
       }}

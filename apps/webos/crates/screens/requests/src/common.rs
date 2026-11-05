@@ -11,8 +11,8 @@ use pley_base::{Color, Icon, ImageRequest, Point, Rect, Size, TextOpts};
 use pley_core::addresses::display_address;
 use pley_core::model::{DiscoverDetail, DiscoverTitle, MediaRequest, NewRequest, RequestSummary, TitleStatus};
 use pley_core::requests::{
-    ActionId, RequestsProblem, StageWords, Tone, TvTime, action_done, ask_refusal, asked_text, problem_words,
-    requests_problem, requests_title, title_key,
+    ActionId, RequestsProblem, StageWords, Tone, TvTime, action_done, ask_refusal, asked_text, library_item,
+    problem_words, requests_problem, requests_title, title_key,
 };
 use pley_core::{ApiError, Promise};
 use pley_kit::{Dialog, DialogButton, Message, MessageStyle, SlotMode, Tile, TileKind, TileSlot, tile_look};
@@ -152,6 +152,15 @@ impl TitleTileModel {
 
     pub fn key(&self) -> String {
         title_key(self.title.kind, self.title.tmdb_id)
+    }
+}
+
+/// Where a title's poster opens: its library title when a library this account can open has it
+/// whole ([`library_item`]), else its Discover page.
+pub fn title_page(t: &DiscoverTitle) -> Route {
+    match library_item(t) {
+        Some(id) => Route::Item { id },
+        None => Route::Title { kind: t.kind, tmdb_id: t.tmdb_id, pick: false },
     }
 }
 

@@ -40,6 +40,7 @@ import app.pley.android.screens.requests.DiscoverResultsViewModel
 import app.pley.android.screens.requests.DiscoverSearch
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.RequestsDeps
+import app.pley.android.screens.requests.opens
 import app.pley.android.screens.screensGraph
 import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.EmptyState
@@ -88,7 +89,7 @@ private fun DiscoverResultsContent(state: DiscoverResultsUiState, texts: Request
                     icon = PleyIcons.Search,
                 )
             }
-            else -> ResultsGrid(state, texts, grid, open = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) }, onMore = onMore)
+            else -> ResultsGrid(state, texts, grid, open = { navigator.open(opens(it)) }, onMore = onMore)
         }
     }
 }

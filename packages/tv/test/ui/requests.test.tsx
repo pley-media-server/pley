@@ -444,6 +444,26 @@ describe("Discover", () => {
     expect(lists).toEqual(["trending", "movies"]);
   });
 
+  it("opens a row's title at its Discover page, or at the library's page when a library has it whole", async () => {
+    const t = mount(
+      (entry) => <DiscoverScreen entry={entry} />,
+      {
+        discover: (l: string, n: number) => Promise.resolve(page(l === "trending" ? TITLES : [], n)),
+        discoverTitle: () => Promise.resolve(detail({ tmdb_id: 1 })),
+      },
+      summary(),
+    );
+    await t.settle();
+    t.select("trending/movie:1");
+    t.select("trending/movie:2");
+    t.select("trending/movie:3");
+    expect(t.opened).toEqual([
+      { name: "title", kind: "movie", tmdbId: 1 },
+      { name: "item", id: 3 },
+      { name: "title", kind: "movie", tmdbId: 3 },
+    ]);
+  });
+
   it("has no search field of its own: at its top, the way to the requests with their number, Down from it the hero", async () => {
     const t = mount(
       (entry) => <DiscoverScreen entry={entry} />,
@@ -587,7 +607,12 @@ describe("Discover", () => {
     expect(t.text(".title-badge")).toEqual(["In library", "Requested"]);
     expect(t.fid()).toBe("result/movie:1");
     t.press("ok");
-    expect(t.opened).toEqual([{ name: "title", kind: "movie", tmdbId: 1 }]);
+    // Dune, which a library has whole, opens there.
+    t.select("result/movie:2");
+    expect(t.opened).toEqual([
+      { name: "title", kind: "movie", tmdbId: 1 },
+      { name: "item", id: 3 },
+    ]);
   });
 
   it("says why search's results have nothing yet beside their Show more, which keeps focus while it reads on", async () => {
@@ -787,7 +812,7 @@ describe("search", () => {
         search: () => Promise.resolve({ items: [], people: [] }),
         discoverSearch: (q: string, n: number, missing: boolean) => {
           asked.push([q, n, missing]);
-          return Promise.resolve(page([title({ tmdb_id: 1, title: "Arrival" })], n));
+          return Promise.resolve(page([title({ tmdb_id: 1, title: "Arrival" }), title({ tmdb_id: 2, title: "Arrival II", status: "library", item_id: 3 })], n));
         },
       },
       summary(),
@@ -800,9 +825,12 @@ describe("search", () => {
     expect(t.text(".search-none")).toEqual(["Nothing in your libraries matches"]);
     expect(t.text(".search-rows .row-header")).toEqual(["Discover"]);
     t.select("tmdb/movie:1");
+    // One a library has whole (left out by the server, but a request can finish while the row shows) opens there.
+    t.select("tmdb/movie:2");
     t.select("tmdb/all");
     expect(t.opened).toEqual([
       { name: "title", kind: "movie", tmdbId: 1 },
+      { name: "item", id: 3 },
       { name: "discoverSearch", query: "arr" },
     ]);
   });

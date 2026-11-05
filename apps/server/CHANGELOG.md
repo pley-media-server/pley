@@ -73,6 +73,10 @@ describes how they are made.
 - When the server can't be reached, the web app and the desktop app say
   "Pley is offline", where they said "Can't reach the server.
   Reconnecting…". The desktop app's Downloads stays beside it.
+- In the web and desktop apps, a movie or show in Discover or Search's
+  Discover results that a library has whole opens its library page, where
+  it plays, not a page with only Open on it. A show partly there still
+  opens its Discover page, to ask for more seasons.
 
 ### Fixed
 

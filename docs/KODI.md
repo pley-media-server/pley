@@ -482,6 +482,9 @@ add-on's changelog.
   show; the profile's choice is burned in from the start.
 - Discover and the requests open in Kodi's lists, not Pley's own screens.
   Approve takes what was asked: no choice of profile, folder or seasons.
+  With no title page to stop on, a show partly in a library opens there,
+  as one a library has whole does, with Request more seasons in its
+  context menu; the other apps open its Discover page.
 - Live TV has no guide grid: Kodi draws one only for PVR add-ons. Kodi's
   PVR IPTV Simple client isn't used either: it would mean another add-on to
   set up, and favourites and recents the server doesn't know.

@@ -1619,6 +1619,11 @@ fixtures. On iPhone, iPad and Mac:
   page as it scrolls; the person's requests, with See all; and TMDB's
   credit. A movie is asked for from the hero; a show opens its page with
   Which seasons?; Stop following and the rest are on the title's page.
+  A poster, in a row, a grid or Search, opens the title's page, except
+  one a library this account can open has whole: it opens the library's
+  title, where it plays, as that page would offer only Open. A show
+  partly there opens its page, where more seasons can be asked for; the
+  hero's Details always opens the title's page.
   When requests can't be used (off, no access, signed in before them,
   TMDB's key refused or TMDB not answering), the page says why, and only
   that; every row read and none with a title says "Nothing here right

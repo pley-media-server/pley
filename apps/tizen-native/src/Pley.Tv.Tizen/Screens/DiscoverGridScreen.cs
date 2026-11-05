@@ -61,7 +61,7 @@ sealed class DiscoverGridScreen : ShellPage
         grid = new GridView(Kind, Columns, PleyTv.CanvasHeight - GridTop, gate, images, TileAt) { PositionY = Ui.Dp(GridTop) };
         grid.Open = (at, _) =>
         {
-            if (at < titles.Count) go(new PageKey.DiscoverTitle(titles[at].Kind, titles[at].TmdbId));
+            if (at < titles.Count) go(RequestRules.Opens(titles[at]));
             else if (end) ShowMore();
         };
         // Two rows from the end: the next pages, until three rows more are in.

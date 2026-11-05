@@ -9,6 +9,7 @@ import app.pley.android.data.RequestsState
 import app.pley.android.data.mayAsk
 import app.pley.android.data.summary
 import app.pley.android.model.Approval
+import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestQuery
@@ -17,6 +18,7 @@ import app.pley.android.model.RequestStage
 import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestUser
 import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
 import app.pley.android.screens.PleyKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -475,4 +477,15 @@ fun opens(request: MediaRequest, mayAsk: Boolean): PleyKey? {
         mayAsk -> PleyKey.DiscoverTitle(request.kind, request.tmdbId)
         else -> item
     }
+}
+
+/**
+ * Where [title]'s poster opens: the library's title when a library this
+ * account can open has it whole, since its Discover page would offer only
+ * Open; else its Discover page. A show partly there opens its Discover
+ * page, where more seasons can be asked for.
+ */
+fun opens(title: DiscoverTitle): PleyKey {
+    val item = title.itemId
+    return if (title.status == TitleStatus.Library && item != null) PleyKey.Item(item) else PleyKey.DiscoverTitle(title.kind, title.tmdbId)
 }

@@ -405,6 +405,15 @@ public enum RequestRules {
         return item
     }
 
+    /// Where a title's poster opens: the library's title when a library
+    /// this account can open has it whole, since its Discover page would
+    /// offer only Open; else its Discover page. A show partly there opens
+    /// its Discover page, where more seasons can be asked for.
+    public static func opens(_ title: DiscoverTitle) -> Screen {
+        if title.status == .library, let itemId = title.itemId { return .item(itemId) }
+        return .discoverTitle(title.kind, tmdbId: title.tmdbId)
+    }
+
     /// The badge of a title's poster.
     public static func badge(_ title: DiscoverTitle) -> String? { RequestWords.badge(title.status, itemId: title.itemId) }
 }

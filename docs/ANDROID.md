@@ -515,7 +515,11 @@ categories or the tabs, in the guide not within 0.5 s of Left moving.
 
 Where the server takes requests ([API.md](API.md#requests)), people ask
 for movies and shows found on TMDB and administrators decide; Radarr and
-Sonarr fetch what is approved. On phones and tablets:
+Sonarr fetch what is approved. A poster in Discover, its grids or
+Search's Discover row opens the title's page, except that a title a
+library this account can open has whole opens its library page, where
+it plays; a show partly there opens its title's page, for Request more
+seasons. On phones and tablets:
 
 - **Ways in**: Search before typing (Discover), Search's Discover row
   after the libraries' results, and Me's rows: Discover, and Your requests

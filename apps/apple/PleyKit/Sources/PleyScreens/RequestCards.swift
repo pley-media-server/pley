@@ -12,6 +12,7 @@ public struct DiscoverCard: Hashable, Sendable, Identifiable {
     public var badge: String?
     /// What VoiceOver says: "Dune: Part Two, 2024, Movie, Requested".
     public var spoken: String
+    /// Where the poster goes: the library's title, or its Discover page (`RequestRules.opens`).
     public var screen: Screen
     /// The title as read, for what its page shows before it's read.
     public var source: DiscoverTitle
@@ -26,7 +27,7 @@ public struct DiscoverCard: Hashable, Sendable, Identifiable {
         posterPath = title.posterUrl
         badge = RequestRules.badge(title)
         spoken = [title.title, title.year.map(String.init), kind, badge].compactMap { $0 }.joined(separator: ", ")
-        screen = .discoverTitle(title.kind, tmdbId: title.tmdbId)
+        screen = RequestRules.opens(title)
         source = title
     }
 }

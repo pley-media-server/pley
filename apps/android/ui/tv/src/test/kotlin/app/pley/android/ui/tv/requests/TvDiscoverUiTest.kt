@@ -164,7 +164,19 @@ class TvDiscoverUiTest {
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), stack.last())
         stack.removeAt(stack.lastIndex)
         compose.waitForIdle()
-        compose.press(Key.DirectionRight, trending.results.size)
+        // A show partly there opens its page, where more seasons can be asked for.
+        compose.press(Key.DirectionRight)
+        compose.press(Key.Enter)
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 95396), stack.last())
+        stack.removeAt(stack.lastIndex)
+        compose.waitForIdle()
+        // A title a library has whole opens there.
+        compose.press(Key.DirectionRight)
+        compose.press(Key.Enter)
+        assertEquals(PleyKey.Item(101), stack.last())
+        stack.removeAt(stack.lastIndex)
+        compose.waitForIdle()
+        compose.press(Key.DirectionRight, trending.results.size - 2)
         compose.press(Key.Enter)
         assertEquals(PleyKey.DiscoverList(DiscoverList.Trending), stack.last())
     }

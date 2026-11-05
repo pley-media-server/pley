@@ -105,7 +105,7 @@ internal fun PhoneDiscoverScreen() {
 private fun DiscoverContent(state: DiscoverUiState, texts: RequestTexts, vm: DiscoverViewModel) {
     val navigator = LocalPhoneNavigator.current
     val list = rememberLazyListState()
-    val open: (DiscoverTitle) -> Unit = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) }
+    val open: (DiscoverTitle) -> Unit = { navigator.open(opens(it)) }
     Column(Modifier.fillMaxSize().testTag(DISCOVER_PAGE)) {
         PleyTopAppBar(
             title = stringResource(R.string.requests_discover),
@@ -138,7 +138,7 @@ private fun DiscoverHome(state: DiscoverUiState, texts: RequestTexts, list: Lazy
         item(key = "hero", contentType = "hero") {
             val hero = state.hero
             if (hero != null) {
-                Hero(hero, state, texts, onDetails = { open(hero.title) }, onAction = vm::heroAction)
+                Hero(hero, state, texts, onDetails = { navigator.open(PleyKey.DiscoverTitle(hero.title.kind, hero.title.tmdbId)) }, onAction = vm::heroAction)
             } else {
                 HeroSkeleton(skeleton)
             }
