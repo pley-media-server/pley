@@ -187,13 +187,16 @@ fn a_screen_s_answer_shows_saved_first_then_fresh() {
     while snapshots.read(server.url(), profile, &key).is_none() && start.elapsed() < Duration::from_secs(5) {
         std::thread::sleep(Duration::from_millis(10));
     }
+    assert!(snapshots.read(server.url(), profile, &key).is_some(), "the answer wasn't saved");
     let mut again = Resource::new(Some(key), |api| api.libraries());
     server.set_mode(Mode::Down).unwrap();
+    // What was saved is read off the main thread, beside the ask: a server that refuses at once
+    // can fail the ask first, and what was saved shows with the failure once read, as on Android.
     let start = Instant::now();
     loop {
         let mut cx = pley_shell::AppCx::new(&mut app.state, &mut requests, app.time);
         again.update(&mut cx);
-        if again.error().is_some() || start.elapsed() > Duration::from_secs(10) {
+        if (again.error().is_some() && again.value().is_some()) || start.elapsed() > Duration::from_secs(10) {
             break;
         }
         std::thread::sleep(Duration::from_millis(5));

@@ -31,6 +31,10 @@ describes how they are made.
 
 - OK on a film or episode left untouched for a few seconds brings up the
   player's controls for 5 s; they went again at once.
+- Your phone or browser changes Live TV's channel, or stops it, while the
+  channel is still starting on the TV, as it does once it plays.
+- Leaving Live TV, or the TV hiding the app, just as a channel starts lets
+  its connection go at once, not 45 s later.
 
 ## [0.1.6] - 2026-11-05
 
