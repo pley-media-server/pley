@@ -55,6 +55,7 @@ pub fn router(state: AppState) -> Router {
         .route("/me", patch(accounts::update_me))
         .route("/me/pin", put(accounts::set_my_pin))
         .route("/me/track-defaults", put(accounts::set_track_defaults))
+        .route("/me/language", put(accounts::set_language))
         .route("/me/libraries/order", put(libraries::set_my_order).delete(libraries::forget_my_order))
         .route(
             "/me/avatar",

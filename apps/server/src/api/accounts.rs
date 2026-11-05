@@ -503,14 +503,7 @@ pub async fn update_me(
             .await?;
     }
     if let Some(language) = body.language {
-        if language.as_deref().is_some_and(|code| !i18n::LANGUAGES.contains(&code)) {
-            return Err(AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", "))));
-        }
-        sqlx::query("UPDATE users SET language = ? WHERE id = ?")
-            .bind(language)
-            .bind(user.id)
-            .execute(&state.db.write)
-            .await?;
+        save_language(&state, user.id, language).await?;
     }
     Ok(Json(accounts::user(&state.db, user.id).await?.ok_or(AppError::Unauthorized)?))
 }
@@ -538,6 +531,39 @@ pub struct TrackDefaults {
     /// `off`, `forced` (the default), `foreign` or `always`.
     #[serde(default)]
     subtitle_mode: Option<String>,
+}
+
+/// The language the profile sees Pley in: one of `i18n::LANGUAGES`, or
+/// `None` for the server's.
+async fn save_language(state: &AppState, user_id: i64, language: Option<String>) -> ApiResult<()> {
+    if language.as_deref().is_some_and(|code| !i18n::LANGUAGES.contains(&code)) {
+        return Err(AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", "))));
+    }
+    sqlx::query("UPDATE users SET language = ? WHERE id = ?")
+        .bind(language)
+        .bind(user_id)
+        .execute(&state.db.write)
+        .await?;
+    Ok(())
+}
+
+#[derive(Deserialize)]
+pub struct LanguageChoice {
+    /// `null` or left out: the server's.
+    #[serde(default)]
+    language: Option<String>,
+}
+
+/// `PUT /api/me/language`: the language the profile sees Pley in, for apps
+/// allowed `play` as for the web (which also has `PATCH /api/me`). The
+/// answer is the profile as `GET /api/auth/me` shows it.
+pub async fn set_language(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<LanguageChoice>,
+) -> ApiResult<Json<Me>> {
+    save_language(&state, user.id, body.language).await?;
+    me(State(state), user).await
 }
 
 /// `PUT /api/me/track-defaults`: the profile's audio and subtitle defaults,

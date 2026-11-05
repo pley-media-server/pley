@@ -21,7 +21,7 @@ async fn home_is_in_the_accounts_then_the_servers_then_the_devices_language() {
     let admin = app.setup_admin().await;
     app.media_file("movies/Alien (1979).mkv", 1024);
     app.library(&admin, "Movies", "movies", "movies").await;
-    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let (bob, bob_id) = app.user(&admin, "bob", json!({})).await;
 
     // Nothing chosen: the device's language, where Pley has it.
     assert_eq!(home(&app, &bob, None).await, ["Recently Added in Movies"]);
@@ -49,6 +49,19 @@ async fn home_is_in_the_accounts_then_the_servers_then_the_devices_language() {
     }
     assert_eq!(app.patch("/api/me", &bob, json!({"language": Value::Null})).await.body["language"], Value::Null);
     assert_eq!(home(&app, &bob, Some("es")).await, ["Ajouts récents dans Movies"]);
+
+    // An app sets it as the web does, with the play scope.
+    let (bob_app, _) = app.app_token(bob_id, "library play").await;
+    let chosen = app.put("/api/me/language", &bob_app, json!({"language": "es"})).await;
+    assert_eq!(chosen.status, StatusCode::OK, "{}", chosen.text());
+    assert_eq!(chosen.body["language"], json!("es"));
+    assert_eq!(app.put("/api/me/language", &bob_app, json!({"language": "de"})).await.status, StatusCode::BAD_REQUEST);
+    assert_eq!(app.put("/api/me/language", &bob_app, json!({})).await.body["language"], Value::Null);
+    let (library_only, _) = app.app_token(bob_id, "library").await;
+    assert_eq!(
+        app.put("/api/me/language", &library_only, json!({"language": "es"})).await.status,
+        StatusCode::FORBIDDEN
+    );
 
     // Each device's own again.
     app.put("/api/settings", &admin, json!({"language": ""})).await;

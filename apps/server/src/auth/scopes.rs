@@ -257,6 +257,8 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     // the profile's track choices for every title (its name, picture and
     // sign-in stay in the web app)
     ("PUT", "/api/me/track-defaults", Need::Scope(Play)),
+    // the language the profile sees Pley in, as its track choices
+    ("PUT", "/api/me/language", Need::Scope(Play)),
     // the order the profile sees its libraries in
     ("PUT", "/api/me/libraries/order", Need::Scope(Play)),
     ("DELETE", "/api/me/libraries/order", Need::Scope(Play)),
@@ -348,7 +350,7 @@ mod tests {
     fn every_app_route_is_on_a_real_path() {
         // Whether each names a route of api/mod.rs is checked by
         // tests/app_tokens.rs, which reads it.
-        assert_eq!(APP_ROUTES.len(), 104);
+        assert_eq!(APP_ROUTES.len(), 105);
         for (i, (method, path, _)) in APP_ROUTES.iter().enumerate() {
             assert!(["GET", "POST", "PUT", "PATCH", "DELETE"].contains(method), "{method} {path}");
             assert!(path.starts_with("/api/") && !path.ends_with('/'), "{path}");
