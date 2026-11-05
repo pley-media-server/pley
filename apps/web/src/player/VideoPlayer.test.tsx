@@ -923,7 +923,7 @@ describe("VideoPlayer obeying the remote", () => {
 
   const command = (
     command: Extract<ServerEvent, { type: "player_command" }>["command"],
-    more: { session_id?: string; position_ms?: number; offset_ms?: number; stream_index?: number } = {},
+    more: { session_id?: string; position_ms?: number; offset_ms?: number; stream_index?: number; quality?: string } = {},
   ): ServerEvent => ({
     type: "player_command",
     session_id: more.session_id ?? "s1",
@@ -931,6 +931,7 @@ describe("VideoPlayer obeying the remote", () => {
     position_ms: more.position_ms ?? null,
     offset_ms: more.offset_ms ?? null,
     stream_index: more.stream_index ?? null,
+    quality: more.quality ?? null,
   });
   const reports = (requests: FakeRequest[]) =>
     requests.filter((r) => r.method === "POST" && r.path === "/api/items/7/progress").map((r) => r.body);
@@ -979,15 +980,30 @@ describe("VideoPlayer obeying the remote", () => {
   it("says what it obeys as it starts: Next only where something comes next, Audio where there is a choice", async () => {
     const { requests } = await playing();
     expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
-      controls: ["play", "pause", "seek", "skip", "subtitles"],
+      controls: ["play", "pause", "seek", "skip", "subtitles", "quality"],
     });
   });
 
   it("takes a change of audio where the file has a choice of tracks", async () => {
     const { requests } = await playing(0, tracked());
     expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
-      controls: ["play", "pause", "seek", "skip", "audio", "subtitles"],
+      controls: ["play", "pause", "seek", "skip", "audio", "subtitles", "quality"],
     });
+  });
+
+  it("changes quality as its own menu does, keeps it, and says in its reports which it plays", async () => {
+    const { requests, video } = await playing(0, tracked(), { audio_index: 1 });
+    fireEvent.pause(video);
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ quality: "auto" }));
+    act(() => FakeEventSource.last?.send(command("quality", { quality: "2m" })));
+    await waitFor(() => expect(starts(requests)).toHaveLength(2));
+    expect(starts(requests)[1]?.body).toMatchObject({ max_bitrate: 2_000 });
+    expect(localStorage.getItem("pley.quality")).toContain("2m");
+    await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ quality: "2m" }));
+    // One its menu doesn't offer is left alone.
+    act(() => FakeEventSource.last?.send(command("quality", { quality: "nonsense" })));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(starts(requests)).toHaveLength(2);
   });
 
   it("plays its session in this tab until it is stopped, so the remote leaves it out", async () => {
@@ -1059,7 +1075,7 @@ describe("VideoPlayer obeying the remote", () => {
     const next = makeItem({ id: 9, kind: "episode", title: "Second" });
     const { requests } = await playing(0, episode);
     expect(requests.find((r) => r.path === "/api/playback")?.body).toMatchObject({
-      controls: ["play", "pause", "seek", "skip", "next", "subtitles"],
+      controls: ["play", "pause", "seek", "skip", "next", "subtitles", "quality"],
     });
     mockApi({
       "GET /api/items/8/next": () => ({ item: next }),

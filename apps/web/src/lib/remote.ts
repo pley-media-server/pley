@@ -153,6 +153,8 @@ export interface SentCommand {
   target?: number;
   /** `audio` and `subtitles`: the track picked (subtitles -1: off). */
   track?: number;
+  /** `quality`: the quality picked, by id. */
+  quality?: string;
 }
 
 /** Farther than this from where it should be, a report has moved (the server's rule for a seek). */
@@ -175,6 +177,7 @@ export function commandAnswered(sent: SentCommand, now: RemoteSession | undefine
   // A track is taken once its player says it plays that one: pausing meanwhile isn't an answer.
   if (sent.command === "audio") return now.audio_index === sent.track;
   if (sent.command === "subtitles") return now.subtitle_index === sent.track;
+  if (sent.command === "quality") return now.quality === sent.quality;
   if (now.state !== before.state) return true;
   if (sent.command !== "seek" && sent.command !== "skip" && sent.command !== "previous") return false;
   const reportedSince = now.updated_at > before.updated_at || now.position_ms !== before.position_ms;

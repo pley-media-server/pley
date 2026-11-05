@@ -202,11 +202,16 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               </Button>
             ) : null}
             {item.files.length ? (
-              // Where Play would resume, there too.
+              // Where Play would resume, there too, with the tracks shown here.
               <PlayOn
                 kind="item"
                 compact
-                cast={() => ({ item_id: item.id, ...(resumable ? { start_ms: item.user_state.position_ms } : {}) })}
+                cast={() => ({
+                  item_id: item.id,
+                  ...(resumable ? { start_ms: item.user_state.position_ms } : {}),
+                  ...(audioChoice !== "auto" && audioChoice != null ? { audio_index: audioChoice } : {}),
+                  ...(subStreams.length ? { subtitle_index: subIndex ?? -1 } : {}),
+                })}
               />
             ) : null}
             {item.kind === "movie" ? <MyListButton item={item} /> : null}

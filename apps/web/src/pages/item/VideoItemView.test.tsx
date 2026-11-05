@@ -97,15 +97,21 @@ describe("the title page's audio", () => {
 describe("the title page's Play on…", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  /** What casting a film in `user_state` to the living room TV asks it to play. */
-  async function castFrom(user_state: ItemDetail["user_state"]) {
+  /** What casting a film in `user_state` to the living room TV asks it to play, after `before` on the page. */
+  async function castFrom(
+    user_state: ItemDetail["user_state"],
+    f: MediaFile = file(),
+    before: (user: ReturnType<typeof userEvent.setup>) => Promise<void> = () => Promise.resolve(),
+  ) {
     const requests = mockApi({
       "GET /api/sessions": () => [],
       "GET /api/remote/devices": () => [makeReceiver()],
       "POST /api/remote/devices/tv-1/cast": () => undefined,
+      "PUT /api/items/5/streams": () => undefined,
     });
     const user = userEvent.setup();
-    const { unmount } = renderWithProviders(<VideoItemView item={{ ...movie(file()), title: "Test Pattern", user_state }} />);
+    const { unmount } = renderWithProviders(<VideoItemView item={{ ...movie(f), title: "Test Pattern", user_state }} />);
+    await before(user);
     await user.click(await screen.findByRole("button", { name: "Play on…" }));
     await user.click(screen.getByRole("menuitem", { name: "Living room TV" }));
     await waitFor(() => expect(requests.some((r) => r.method === "POST")).toBe(true));
@@ -116,6 +122,21 @@ describe("the title page's Play on…", () => {
   it("plays it on another device from where Play would resume, and as Play would otherwise", async () => {
     expect(await castFrom({ position_ms: 90_000, watched: false, play_count: 0 })).toEqual({ item_id: 5, start_ms: 90_000 });
     expect(await castFrom({ position_ms: 0, watched: true, play_count: 1 })).toEqual({ item_id: 5 });
+  });
+
+  it("sends the audio picked here, and the subtitles shown here (Off included)", async () => {
+    const watched = { position_ms: 0, watched: true, play_count: 1 };
+    const subtitled = file({
+      streams: [
+        ...file().streams,
+        makeStream({ index: 3, kind: "subtitle", codec: "subrip", language: "fre", default: false }),
+      ],
+    });
+    expect(await castFrom(watched, subtitled)).toEqual({ item_id: 5, subtitle_index: -1 });
+    const picked = await castFrom(watched, subtitled, async (user) => {
+      await user.selectOptions(audioMenu(), "English (AAC Stereo)");
+    });
+    expect(picked).toEqual({ item_id: 5, audio_index: 2, subtitle_index: -1 });
   });
 });
 

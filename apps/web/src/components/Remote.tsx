@@ -6,6 +6,7 @@ import {
   Captions,
   Check,
   ChevronDown,
+  ChevronUp,
   CircleStop,
   Laptop,
   MonitorSmartphone,
@@ -15,6 +16,7 @@ import {
   RotateCw,
   SkipBack,
   SkipForward,
+  SlidersHorizontal,
   Smartphone,
   Tablet,
   Tv,
@@ -32,6 +34,7 @@ import type { Control, DeviceKind } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { episodeLabel, formatClock, fullTitle, pluralize } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
+import { formatTime } from "@/pages/livetv/common";
 import { posterCandidates } from "@/lib/images";
 import { isPlayingHere, useSessionsHere } from "@/lib/playingHere";
 import {
@@ -255,9 +258,7 @@ function IdleDevice({ device }: { device: OtherDevice }) {
       <DeviceIcon kind={device.kind} className="mb-1 size-8 text-subtle" />
       <div className="text-sm font-semibold text-fg">{device.name}</div>
       <div className="text-sm text-muted">Nothing playing</div>
-      <p className="mt-1 text-xs text-subtle [text-wrap:pretty]">
-        Find something to watch or listen to, then choose Play on… and this device.
-      </p>
+      <p className="mt-1 text-xs text-subtle [text-wrap:pretty]">Send something here with Play on…</p>
     </div>
   );
 }
@@ -279,7 +280,21 @@ function titleLines(session: RemoteSession): [string, string | null] {
   return [fullTitle(item), null];
 }
 
-type Picker = "audio" | "subtitles";
+type Picker = "audio" | "subtitles" | "quality";
+
+/** One entry of a picker's menu: its key (a stream index, or a quality's id) and its label. */
+interface PickerOption {
+  key: string;
+  label: string;
+}
+
+const PICKER_NAMES: Record<Picker, string> = { audio: "Audio", subtitles: "Subtitles", quality: "Quality" };
+
+function PickerIcon({ picker }: { picker: Picker }) {
+  if (picker === "audio") return <AudioLines className="size-4" />;
+  if (picker === "subtitles") return <Captions className="size-4" />;
+  return <SlidersHorizontal className="size-4" />;
+}
 
 /** A playing device's controls: what plays, how far, and the commands its player listed. */
 function PlayingControls({ device, session }: { device: OtherDevice; session: RemoteSession }) {
@@ -291,7 +306,9 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
   const [sent, setSent] = useState<SentCommand | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<Picker | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const pickers = useRef<Partial<Record<Picker, HTMLButtonElement | null>>>({});
+  const stopRef = useRef<HTMLButtonElement>(null);
   const can = (c: Control) => session.controls.includes(c);
 
   // The list shows the change (the player's report brings `sessions_changed`): it answered.
@@ -326,7 +343,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
   const position = estimatedPosition(session, nowMs);
   const duration = session.duration_ms;
 
-  const send = (c: Control, extra: Pick<SessionCommand, "positionMs" | "offsetMs" | "streamIndex"> = {}) => {
+  const send = (c: Control, extra: Pick<SessionCommand, "positionMs" | "offsetMs" | "streamIndex" | "quality"> = {}) => {
     setError(null);
     const sentAt = Date.now();
     const at = estimatedPosition(session, sentAt);
@@ -341,7 +358,8 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
     command.mutate(
       { sessionId: session.session_id, command: c, ...extra },
       {
-        onSuccess: () => setSent({ command: c, before: session, sentAt, target, track: extra.streamIndex }),
+        onSuccess: () =>
+          setSent({ command: c, before: session, sentAt, target, track: extra.streamIndex, quality: extra.quality }),
         onError: (err) => setError(`${sessionCommandError(err, name)}.`),
       },
     );
@@ -354,26 +372,62 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
   // Next is there for whatever has a next (an episode, a track, a queue's
   // entry, a channel), greyed out where the player doesn't take it.
   const nextShown = can("next") || live || kind === "episode" || kind === "track";
-  const transport = can("previous") || can("skip") || !!toggle || nextShown;
+  // A channel goes back and on, and pauses where the player can: no skips.
+  const skips = can("skip") && !live;
   const [title, detail] = titleLines(session);
   const waiting = command.isPending || !!sent;
 
-  // Audio where there is a choice of tracks; subtitles where there are any, with Off.
+  // Audio where there is a choice of tracks; subtitles where there are any,
+  // with Off; quality where the player's menu offers some.
   const audio = session.tracks.audio;
   const subtitles = session.tracks.subtitles;
+  const qualities = session.qualities ?? [];
   const offered: Record<Picker, boolean> = {
     audio: can("audio") && audio.length > 1,
     subtitles: can("subtitles") && subtitles.length > 0,
+    quality: can("quality") && qualities.length > 0,
   };
-  const options =
-    picking === "audio"
-      ? audio.map((t) => ({ index: t.index, label: trackLabel(t, "audio") }))
-      : [{ index: -1, label: "Off" }, ...subtitles.map((t) => ({ index: t.index, label: trackLabel(t, "subtitle") }))];
+  const options: Record<Picker, PickerOption[]> = {
+    audio: audio.map((t) => ({ key: String(t.index), label: trackLabel(t, "audio") })),
+    subtitles: [
+      { key: "-1", label: "Off" },
+      ...subtitles.map((t) => ({ key: String(t.index), label: trackLabel(t, "subtitle") })),
+    ],
+    quality: qualities.map((q) => ({ key: q.id, label: q.label })),
+  };
+  const currentOf = (p: Picker): string | null => {
+    if (p === "quality") return session.quality ?? null;
+    const index = p === "audio" ? session.audio_index : session.subtitle_index;
+    return index == null ? null : String(index);
+  };
+  const pick = (p: Picker, key: string) => {
+    if (p === "quality") send("quality", { quality: key });
+    else send(p, { streamIndex: Number(key) });
+  };
   const closePicker = () => {
     if (picking) pickers.current[picking]?.focus();
     setPicking(null);
   };
-  const pickerLabel = (p: Picker) => `${p === "audio" ? "Audio" : "Subtitles"} on ${name}`;
+  const pickerLabel = (p: Picker) => `${PICKER_NAMES[p]} on ${name}`;
+  const pickersShown = (["audio", "subtitles", "quality"] as const).filter((p) => offered[p]);
+
+  const askStop = () => {
+    setPicking(null);
+    setConfirming(true);
+  };
+  const cancelStop = () => {
+    setConfirming(false);
+    // Back on the button that asked, once it shows again.
+    window.requestAnimationFrame(() => stopRef.current?.focus());
+  };
+  const confirmStop = () => {
+    setError(null);
+    setConfirming(false);
+    stop.mutate(
+      { sessionId: session.session_id },
+      { onError: (err) => setError(`${sessionCommandError(err, name)}.`) },
+    );
+  };
 
   return (
     <div role="group" aria-label={name} aria-busy={waiting} className="space-y-3 px-4 py-3">
@@ -399,7 +453,9 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
         </div>
       </div>
 
-      {!live && duration ? (
+      {live ? (
+        <LiveProgress channel={session.channel} nowMs={nowMs} />
+      ) : duration ? (
         <div className="flex items-center gap-2 text-[11px] tabular-nums text-subtle">
           <span className="w-11 text-right">{formatClock(position / 1000)}</span>
           {can("seek") ? (
@@ -419,14 +475,14 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
         </div>
       ) : null}
 
-      {transport ? (
+      {can("previous") || skips || toggle || nextShown ? (
         <div className={cn("flex items-center justify-center gap-2 transition-opacity", waiting && "opacity-50")}>
           {can("previous") ? (
             <IconButton label={live ? `Previous channel on ${name}` : `Previous on ${name}`} size="sm" onClick={() => send("previous")}>
-              <SkipBack className="size-4 fill-current" />
+              {live ? <ChevronDown className="size-5" /> : <SkipBack className="size-4 fill-current" />}
             </IconButton>
           ) : null}
-          {can("skip") ? (
+          {skips ? (
             <IconButton label={`Back 10 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: -SKIP_BACK_MS })}>
               <RotateCcw className="size-4" />
             </IconButton>
@@ -442,7 +498,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
               {toggle === "play" ? <Play className="ml-0.5 size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
             </button>
           ) : null}
-          {can("skip") ? (
+          {skips ? (
             <IconButton label={`Forward 30 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: SKIP_FORWARD_MS })}>
               <RotateCw className="size-4" />
             </IconButton>
@@ -454,7 +510,7 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
               disabled={!can("next")}
               onClick={() => send("next")}
             >
-              <SkipForward className="size-4 fill-current" />
+              {live ? <ChevronUp className="size-5" /> : <SkipForward className="size-4 fill-current" />}
             </IconButton>
           ) : null}
         </div>
@@ -463,55 +519,50 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
         {waiting ? `Waiting for ${name}` : ""}
       </span>
 
-      <div className="flex items-center gap-1">
-        {(["audio", "subtitles"] as const).map((p) =>
-          offered[p] ? (
-            <button
+      {confirming ? (
+        <StopConfirm name={name} onCancel={cancelStop} onStop={confirmStop} />
+      ) : (
+        <div className="flex items-center gap-1">
+          {pickersShown.map((p) => (
+            <IconButton
               key={p}
               ref={(el) => {
                 pickers.current[p] = el;
               }}
-              type="button"
-              aria-label={pickerLabel(p)}
+              label={pickerLabel(p)}
+              size="sm"
+              active={picking === p}
               aria-haspopup="menu"
               aria-expanded={picking === p}
               onClick={() => setPicking(picking === p ? null : p)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-white/5 hover:text-fg",
-                picking === p ? "text-fg" : "text-muted",
-              )}
+              className={cn(picking === p && "bg-white/10")}
             >
-              {p === "audio" ? <AudioLines className="size-3.5" /> : <Captions className="size-3.5" />}
-              {p === "audio" ? "Audio" : "Subtitles"}
-              <ChevronDown className={cn("size-3.5 transition-transform", picking === p && "rotate-180")} />
-            </button>
-          ) : null,
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            stop.mutate(
-              { sessionId: session.session_id },
-              { onError: (err) => setError(`${sessionCommandError(err, name)}.`) },
-            );
-          }}
-          disabled={stop.isPending}
-          aria-label={`Stop on ${name}`}
-          className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
-        >
-          <CircleStop className="size-3.5" />
-          Stop
-        </button>
-      </div>
-      {picking && offered[picking] ? (
+              <PickerIcon picker={p} />
+            </IconButton>
+          ))}
+          <button
+            ref={stopRef}
+            type="button"
+            onClick={askStop}
+            disabled={stop.isPending}
+            aria-label={`Stop on ${name}`}
+            aria-haspopup="dialog"
+            className="ml-auto flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+          >
+            <CircleStop className="size-4" />
+            Stop
+          </button>
+        </div>
+      )}
+      {picking && offered[picking] && !confirming ? (
         <TrackMenu
           label={pickerLabel(picking)}
-          options={options}
-          current={picking === "audio" ? session.audio_index : session.subtitle_index}
-          onPick={(index) => {
+          options={options[picking]}
+          current={currentOf(picking)}
+          onPick={(key) => {
+            const p = picking;
             closePicker();
-            send(picking, { streamIndex: index });
+            pick(p, key);
           }}
           onClose={closePicker}
         />
@@ -527,9 +578,79 @@ function PlayingControls({ device, session }: { device: OtherDevice; session: Re
 }
 
 /**
- * The tracks a remote picks from, as the player's own menu names them, the
- * one playing ticked. It opens in the panel, below its button: a menu
- * floating over the panel would be cut off at its edge.
+ * Stop asks first: what plays there ends for whoever watches it. Escape or
+ * Cancel goes back; Stop has focus, as it was the button pressed.
+ */
+function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () => void; onStop: () => void }) {
+  const stopRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  useEffect(() => stopRef.current?.focus(), []);
+  return (
+    <div
+      role="alertdialog"
+      aria-labelledby={titleId}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        // The question closes, not the remote around it.
+        e.stopPropagation();
+        onCancel();
+      }}
+      className="flex items-center gap-2 rounded-md bg-danger/10 py-1.5 pl-3 pr-1.5"
+    >
+      <span id={titleId} className="min-w-0 flex-1 truncate text-xs font-medium text-fg">
+        Stop playing on {name}?
+      </span>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="h-7 rounded-full px-3 text-xs font-medium text-muted transition-colors hover:bg-white/10 hover:text-fg"
+      >
+        Cancel
+      </button>
+      <button
+        ref={stopRef}
+        type="button"
+        onClick={onStop}
+        className="h-7 rounded-full bg-danger px-3 text-xs font-semibold text-white transition-colors hover:bg-danger/90"
+      >
+        Stop
+      </button>
+    </div>
+  );
+}
+
+/**
+ * How far along the programme on a channel is, by the clock, from its start
+ * to its end, and what's on next. Nothing without a guide.
+ */
+function LiveProgress({ channel, nowMs }: { channel: RemoteSession["channel"]; nowMs: number }) {
+  const start = channel?.now_start;
+  const stop = channel?.now_stop;
+  const next = channel?.next;
+  const timed = channel?.now && start != null && stop != null && stop > start;
+  if (!timed && !next) return null;
+  return (
+    <div className="space-y-1">
+      {timed ? (
+        <div className="flex items-center gap-2 text-[11px] tabular-nums text-subtle">
+          <span>{formatTime(start)}</span>
+          <ProgressBar
+            value={Math.min(1, Math.max(0, (nowMs / 1000 - start) / (stop - start)))}
+            className="h-1 flex-1"
+            label={`${channel.now}, ${formatTime(start)} to ${formatTime(stop)}`}
+          />
+          <span>{formatTime(stop)}</span>
+        </div>
+      ) : null}
+      {next ? <div className="truncate text-xs text-subtle">Next: {next}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The options a remote picks from (tracks as the player's own menu names
+ * them, or qualities), the one playing ticked. It opens in the panel, below
+ * its button: a menu floating over the panel would be cut off at its edge.
  */
 function TrackMenu({
   label,
@@ -539,14 +660,14 @@ function TrackMenu({
   onClose,
 }: {
   label: string;
-  options: { index: number; label: string }[];
-  current: number | null;
-  onPick: (index: number) => void;
+  options: PickerOption[];
+  current: string | null;
+  onPick: (key: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const items = () => Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? []);
-  // Opened, the track playing has focus (the first when none does).
+  // Opened, the option playing has focus (the first when none does).
   useEffect(() => {
     const list = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? []);
     (list.find((el) => el.getAttribute("aria-checked") === "true") ?? list[0])?.focus();
@@ -585,14 +706,14 @@ function TrackMenu({
     <div ref={ref} role="menu" aria-label={label} onKeyDown={onKeyDown} className="max-h-60 overflow-y-auto rounded-md border border-border bg-surface py-1">
       {options.map((o) => (
         <button
-          key={o.index}
+          key={o.key}
           type="button"
           role="menuitemradio"
-          aria-checked={o.index === current}
-          onClick={() => onPick(o.index)}
+          aria-checked={o.key === current}
+          onClick={() => onPick(o.key)}
           className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-fg outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/10"
         >
-          <Check className={cn("size-4 shrink-0 text-accent", o.index !== current && "invisible")} />
+          <Check className={cn("size-4 shrink-0 text-accent", o.key !== current && "invisible")} />
           <span className="min-w-0 flex-1 truncate">{o.label}</span>
         </button>
       ))}

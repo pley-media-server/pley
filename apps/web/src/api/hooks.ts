@@ -975,6 +975,8 @@ export interface SessionCommand {
   offsetMs?: number;
   /** `audio` and `subtitles`: the track's stream index (subtitles -1: off). */
   streamIndex?: number;
+  /** `quality`: the id of one of the session's `qualities`. */
+  quality?: string;
 }
 
 /**
@@ -984,10 +986,10 @@ export interface SessionCommand {
 export function useSessionCommand() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex }: SessionCommand) =>
+    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex, quality }: SessionCommand) =>
       request<void>(`/api/sessions/${encodeURIComponent(sessionId)}/command`, {
         method: "POST",
-        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex },
+        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex, quality },
       }),
     onError: (err, { sessionId }) => {
       // Its player is gone, or no longer obeys that: the list says what is left.

@@ -45,6 +45,12 @@ describes how they are made.
   A cast plays with the audio track and subtitles picked on the remote's
   page, and a Live TV channel on a remote shows how far along the
   programme is and what's on next.
+- The web and desktop apps' remote has Audio, Subtitles and a new Quality
+  as icons beside Stop, and asks before it stops what plays. On a Live TV
+  channel it shows the programme's progress and what's next, with
+  channel buttons. Play on… from a title's page plays with the audio and
+  subtitles picked there, and the video player takes a remote's change of
+  quality as its own menu does.
 - The web and desktop apps' remote lists your other devices that are on,
   those playing first, then those ready to play, and changes the audio
   track and the subtitles of what plays on one. Play on… beside Play

@@ -177,7 +177,7 @@ describe("RemoteButton", () => {
     const { panel } = await openRemote();
     const idle = within(panel).getByRole("group", { name: "Phone" });
     expect(idle).toHaveTextContent("Nothing playing");
-    expect(idle).toHaveTextContent("Find something to watch or listen to, then choose Play on… and this device.");
+    expect(idle).toHaveTextContent("Send something here with Play on…");
     expect(within(idle).queryByRole("button")).toBeNull();
   });
 
@@ -426,6 +426,83 @@ describe("RemoteButton", () => {
     expect(await within(panel).findByRole("alert")).toHaveTextContent("Too many at once: try again in a moment.");
   });
 
+  it("asks before it stops, and Cancel or Escape goes back to Stop", async () => {
+    const requests = serve(() => [episode()]);
+    renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+
+    await user.click(within(panel).getByRole("button", { name: "Stop on Living room TV" }));
+    const ask = within(panel).getByRole("alertdialog", { name: "Stop playing on Living room TV?" });
+    expect(within(ask).getByRole("button", { name: "Stop" })).toHaveFocus();
+    await user.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(within(panel).queryByRole("alertdialog")).toBeNull();
+    await waitFor(() => expect(within(panel).getByRole("button", { name: "Stop on Living room TV" })).toHaveFocus());
+
+    await user.click(within(panel).getByRole("button", { name: "Stop on Living room TV" }));
+    await user.keyboard("{Escape}");
+    expect(within(panel).queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Your devices" })).toBeInTheDocument();
+    expect(requests.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  it("picks the quality from those the player's menu offers, the one playing ticked", async () => {
+    let quality = "auto";
+    let controls: PlayingSession["controls"] = ["quality"];
+    const qualities = [
+      { id: "original", label: "Original" },
+      { id: "auto", label: "Automatic" },
+      { id: "8m", label: "8 Mbps 1080p" },
+    ];
+    const requests = serve(
+      () => [episode({ controls, qualities, quality })],
+      () => [],
+      {
+        "POST /api/sessions/tv/command": (req) => {
+          quality = (req.body as { quality: string }).quality;
+          return undefined;
+        },
+      },
+    );
+    const { client } = renderWithProviders(<RemoteButton />);
+    const { user, panel } = await openRemote();
+
+    await user.click(within(panel).getByRole("button", { name: "Quality on Living room TV" }));
+    const menu = within(panel).getByRole("menu", { name: "Quality on Living room TV" });
+    expect(within(menu).getAllByRole("menuitemradio").map((o) => [o.textContent, o.getAttribute("aria-checked")])).toEqual([
+      ["Original", "false"],
+      ["Automatic", "true"],
+      ["8 Mbps 1080p", "false"],
+    ]);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "8 Mbps 1080p" }));
+    expect(commands(requests)).toEqual([{ command: "quality", quality: "8m" }]);
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    await waitFor(() => expect(within(panel).getByRole("status")).toBeEmptyDOMElement());
+    expect(within(panel).queryByRole("alert")).toBeNull();
+
+    // A player that doesn't take it has no button.
+    controls = [];
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    await waitFor(() => expect(within(panel).queryByRole("button", { name: "Quality on Living room TV" })).toBeNull());
+  });
+
+  it("shows a channel's programme, how far along it is and what's next, with channel buttons", async () => {
+    const start = nowSecs() - 15 * 60;
+    const channel = { id: 3, name: "Channel One", number: "1", logo: null, now: "Evening News", now_start: start, now_stop: start + 3_600, next: "Late Show" };
+    serve(() => [live({ channel, controls: ["next", "previous", "skip"] })]);
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+
+    const box = within(panel).getByRole("group", { name: "Unknown device" });
+    expect(box).toHaveTextContent("Evening News");
+    expect(box).toHaveTextContent("Next: Late Show");
+    expect(within(box).getByRole("progressbar")).toBeInTheDocument();
+    expect(within(box).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Previous channel on Unknown device",
+      "Next channel on Unknown device",
+      "Stop on Unknown device",
+    ]);
+  });
+
   it("stops a device: one ready to play stays, one that only played goes", async () => {
     let sessions = [episode()];
     const requests = serve(
@@ -443,6 +520,8 @@ describe("RemoteButton", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Living room TV" }));
     await user.click(within(panel).getByRole("button", { name: "Stop on Living room TV" }));
+    const ask = within(panel).getByRole("alertdialog", { name: "Stop playing on Living room TV?" });
+    await user.click(within(ask).getByRole("button", { name: "Stop" }));
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/tv")).toBe(true);
     await waitFor(() => expect(within(panel).queryByRole("button", { name: "Living room TV" })).toBeNull());
     // The phone is all that's left, and shown.

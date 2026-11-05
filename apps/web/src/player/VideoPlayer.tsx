@@ -96,14 +96,14 @@ const HIDE_CONTROLS_AFTER = 3_000;
 /**
  * The remote's commands a video obeys: `next` only where something can come
  * next, `audio` where its own menu offers Audio (more than one track), and
- * `subtitles` always, as its menu offers Subtitles (a track found or added
- * while it plays can be picked too).
+ * `subtitles` and `quality` always, as its menu offers Subtitles (a track
+ * found or added while it plays can be picked too) and Quality.
  */
 function videoControls(next: boolean, audioTracks: number): Control[] {
   const controls: Control[] = ["play", "pause", "seek", "skip"];
   if (next) controls.push("next");
   if (audioTracks > 1) controls.push("audio");
-  controls.push("subtitles");
+  controls.push("subtitles", "quality");
   return controls;
 }
 
@@ -554,8 +554,17 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   useLayoutEffect(() => {
     shownSubtitle.current = shownSubtitleIndex;
   }, [shownSubtitleIndex]);
+  // …and its Quality menu's pick.
+  const pickedQuality = useRef(selectedQuality.id);
+  useLayoutEffect(() => {
+    pickedQuality.current = selectedQuality.id;
+  }, [selectedQuality.id]);
   const tracksOf = useCallback(
-    (s: PlaybackInfo) => ({ audio_index: s.audio_index ?? undefined, subtitle_index: shownSubtitle.current }),
+    (s: PlaybackInfo) => ({
+      audio_index: s.audio_index ?? undefined,
+      subtitle_index: shownSubtitle.current,
+      quality: pickedQuality.current,
+    }),
     [],
   );
   const report = useCallback(
@@ -1761,16 +1770,24 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         else changeSubtitle(index);
         break;
       }
+      // As its Quality menu picks it: the stream starts again at that
+      // quality, whose session says it as it starts.
+      case "quality":
+        if (!ev.quality || !qualities.some((q) => q.id === ev.quality)) break;
+        if (ev.quality === selectedQuality.id) report(v.paused ? "paused" : "playing");
+        else changeQuality(ev.quality);
+        break;
     }
   });
   useEffect(() => onServerEvent(onCommand), []);
 
-  // Other subtitles, wherever they were picked (the menu, C, a remote), are
-  // said at once, for the user's remotes to show.
+  // Other subtitles or another quality, wherever they were picked (the menu,
+  // C, a remote), are said at once, for the user's remotes to show.
+  const qualityShown = selectedQuality.id;
   useEffect(() => {
     const v = videoRef.current;
     if (v) report(v.paused ? "paused" : "playing");
-  }, [shownSubtitleIndex, report]);
+  }, [shownSubtitleIndex, qualityShown, report]);
 
   // Skip Intro / Skip Credits; an episode's credits bring up Up Next.
   const markers = useMemo(() => fileMarkers(item, info?.file_id ?? file?.id), [item, info?.file_id, file?.id]);

@@ -568,6 +568,8 @@ export interface ProgressRequest {
   audio_index?: number;
   /** The subtitles it shows, by stream index (-1: none). */
   subtitle_index?: number;
+  /** Its Quality menu's pick, by id ("auto", "original", "8m"…). */
+  quality?: string;
 }
 
 export type ScanPhase = "queued" | "walking" | "probing" | "metadata" | "done";
@@ -633,7 +635,7 @@ export interface SessionInfo {
 }
 
 /** A command a remote sends one of the user's players (`POST /api/sessions/{id}/command`). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
 
 /** What kind of device plays a session, or takes casts: remotes show each with its own icon. */
 export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
@@ -661,8 +663,21 @@ export interface PlayingSession {
   device_kind: DeviceKind;
   /** What plays (kind "item"). */
   item: ItemSummary | null;
-  /** The channel watched (kind "live"); `now`: the programme on. */
-  channel: { id: Id; name: string; number: string | null; logo: string | null; now: string | null } | null;
+  /**
+   * The channel watched (kind "live"): `now`, the programme on, from
+   * `now_start` to `now_stop` (unix seconds), and `next`, the one after it.
+   * The times and `next` are absent from servers before them.
+   */
+  channel: {
+    id: Id;
+    name: string;
+    number: string | null;
+    logo: string | null;
+    now: string | null;
+    now_start?: Timestamp | null;
+    now_stop?: Timestamp | null;
+    next?: string | null;
+  } | null;
   /** Live: always "playing". */
   state: "playing" | "paused" | "buffering";
   /** Live: 0. */
@@ -681,6 +696,10 @@ export interface PlayingSession {
   subtitle_index: number | null;
   /** Its file's tracks, which `audio` and `subtitles` pick from; empty on live. */
   tracks: { audio: TrackOption[]; subtitles: TrackOption[] };
+  /** Its Quality menu's pick, by id; null until its player says (absent from servers before it). */
+  quality?: string | null;
+  /** What its Quality menu offers for the file, which `quality` picks from; empty for music and on live. */
+  qualities?: { id: string; label: string }[];
 }
 
 /** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */
@@ -709,6 +728,9 @@ export interface CastRequest {
   start_ms?: number;
   /** A playlist, an album or an artist, shuffled. */
   shuffle?: boolean;
+  /** A movie or an episode: the audio track and subtitles (-1: off) picked on the page, by stream index. */
+  audio_index?: number;
+  subtitle_index?: number;
 }
 
 export interface Activity {
@@ -781,7 +803,8 @@ export type ServerEvent =
   /**
    * The user's remote sent their player of `session_id` a command: `seek`
    * has `position_ms`, `skip` has `offset_ms` (back when negative), `audio`
-   * and `subtitles` the track's `stream_index` (subtitles -1: off).
+   * and `subtitles` the track's `stream_index` (subtitles -1: off),
+   * `quality` the Quality menu's entry by id (absent from servers before it).
    */
   | {
       type: "player_command";
@@ -790,6 +813,7 @@ export type ServerEvent =
       position_ms: number | null;
       offset_ms: number | null;
       stream_index: number | null;
+      quality?: string | null;
     }
   /**
    * The user's remote sent their device of `receiver_id` something to play
@@ -804,6 +828,8 @@ export type ServerEvent =
       channel_id: Id | null;
       start_ms: number | null;
       shuffle: boolean;
+      audio_index?: number | null;
+      subtitle_index?: number | null;
       from: string | null;
     }
   /** Live TV's sources, channels or guide changed. */
