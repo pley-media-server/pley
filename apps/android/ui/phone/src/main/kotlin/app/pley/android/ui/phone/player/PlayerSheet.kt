@@ -50,8 +50,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -60,6 +61,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.pley.android.data.SubtitleFont
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyElevation
 import app.pley.android.designsystem.PleyMotion
@@ -71,7 +73,6 @@ import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.text.shownLocale
-import app.pley.android.data.SubtitleFont
 import app.pley.android.player.AudioDelays
 import app.pley.android.player.PlaybackDetailsUi
 import app.pley.android.player.PlaybackSpeeds
@@ -82,7 +83,6 @@ import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.player.subtitles.SubtitleSync
-import androidx.compose.ui.platform.LocalResources
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.PleyIconButton
@@ -249,14 +249,14 @@ private fun SettingsPage(state: PlayerScreenState, style: SubtitleChoice) {
     if (state.audio.isNotEmpty()) {
         // One track still has its delay to set.
         val track = state.audio.firstOrNull { it.selected }?.label ?: stringResource(R.string.player_default)
-        val delay = state.audioDelayMs.takeIf { it != 0L }?.let { "$track · ${AudioDelays.label(it)}" }
+        val delay = state.audioDelayMs.takeIf { it != 0L }?.let { "$track · ${AudioDelays.label(it, shownLocale())}" }
         NavRow(PleyIcons.AudioLines, stringResource(R.string.player_audio), delay ?: track) {
             state.open(SheetPage.Audio)
         }
     }
     val chosen = state.subtitles.firstOrNull { it.selected && it.index != null }
     val offset = state.subtitleOffsetMs.takeIf { chosen != null && state.subtitleSync && it != 0L }
-    val subtitle = chosen?.label?.let { label -> offset?.let { "$label · ${SubtitleSync.label(it)}" } ?: label }
+    val subtitle = chosen?.label?.let { label -> offset?.let { "$label · ${SubtitleSync.label(it, shownLocale())}" } ?: label }
         ?: state.subtitles.firstOrNull { it.selected }?.label ?: stringResource(R.string.player_none)
     NavRow(PleyIcons.Captions, stringResource(R.string.player_subtitles), subtitle, enabled = state.subtitles.isNotEmpty() || state.canFindSubtitles) {
         state.open(SheetPage.Subtitles)
@@ -265,7 +265,7 @@ private fun SettingsPage(state: PlayerScreenState, style: SubtitleChoice) {
     if (state.subtitleStyled) {
         NavRow(PleyIcons.SlidersHorizontal, stringResource(R.string.player_subtitle_style), sizeLabel(style.sizeIndex)) { state.open(SheetPage.Style) }
     }
-    NavRow(PleyIcons.FastForward, stringResource(R.string.player_speed), PlaybackSpeeds.label(state.speed)) { state.open(SheetPage.Speed) }
+    NavRow(PleyIcons.FastForward, stringResource(R.string.player_speed), PlaybackSpeeds.label(state.speed, shownLocale())) { state.open(SheetPage.Speed) }
     NavRow(MoonIcon, stringResource(R.string.player_sleep_timer), SleepTexts.summary(LocalResources.current, state.sleep)) { state.open(SheetPage.Sleep) }
     NavRow(PleyIcons.Info, stringResource(R.string.player_details), state.method.orEmpty()) { state.open(SheetPage.Details) }
 }
@@ -275,8 +275,9 @@ private fun SettingsPage(state: PlayerScreenState, style: SubtitleChoice) {
 private fun SpeedPage(state: PlayerScreenState) {
     val note = state.speedNote
     if (note != null) Note(note)
+    val locale = shownLocale()
     PlaybackSpeeds.ALL.forEach { speed ->
-        OptionRow(state.speed == speed, PlaybackSpeeds.label(speed), enabled = note == null) {
+        OptionRow(state.speed == speed, PlaybackSpeeds.label(speed, locale), enabled = note == null) {
             state.controller.setSpeed(speed)
             state.closeSheet()
         }
@@ -394,7 +395,7 @@ private fun DetailsPage(state: PlayerScreenState) {
     }
     Column(Modifier.padding(horizontal = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(details.method, style = MaterialTheme.typography.titleSmall, color = methodColors(details.method, details.playbackMethod).text)
+            Text(details.method, style = MaterialTheme.typography.titleSmall, color = methodColors(details.playbackMethod).text)
             details.pipeline?.let {
                 Text(
                     it,

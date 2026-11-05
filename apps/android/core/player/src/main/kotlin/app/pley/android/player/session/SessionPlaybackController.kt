@@ -707,6 +707,7 @@ class SessionPlaybackController(
         ui.update {
             it.copy(
                 method = texts.method(info),
+                playbackMethod = info.method,
                 note = noteNow(),
                 canPlayOriginal = canPlayOriginal(),
                 durationMs = info.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
@@ -779,6 +780,7 @@ class SessionPlaybackController(
         ui.update {
             it.copy(
                 method = if (env.drive) texts.method(info) else texts.downloaded,
+                playbackMethod = info.method,
                 note = null,
                 canPlayOriginal = false,
                 durationMs = info.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,

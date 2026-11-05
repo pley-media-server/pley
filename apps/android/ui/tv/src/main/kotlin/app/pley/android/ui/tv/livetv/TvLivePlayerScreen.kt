@@ -3,25 +3,16 @@ package app.pley.android.ui.tv.livetv
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import app.pley.android.model.LiveCategory
-import app.pley.android.screens.livetv.LiveTv
-import app.pley.android.ui.tv.kit.HeldEnds
-import app.pley.android.ui.tv.kit.heldKeyStaysIn
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -33,7 +24,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,10 +33,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import app.pley.android.ui.tv.search.TvSearchField
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -56,6 +45,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +54,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
@@ -89,7 +81,9 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.model.BusyConnection
+import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.player.engine.VideoSurface
 import app.pley.android.player.live.LivePhase
@@ -97,12 +91,18 @@ import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
 import app.pley.android.screens.livetv.ChannelDigits
 import app.pley.android.screens.livetv.LivePlayerViewModel
+import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvSidePanel
+import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.search.TvSearchField
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 
 /** What shows over the picture. */
 private enum class Overlay { None, Controls, Channels }
@@ -504,9 +504,9 @@ private fun Trouble(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
-            } else if (trouble.message.isNotBlank()) {
+            } else if (trouble.text.asString().isNotBlank()) {
                 BasicText(
-                    trouble.message,
+                    trouble.text.asString(),
                     style = PleyType.Tv.Body.copy(color = PleyColors.Muted, textAlign = TextAlign.Center),
                     modifier = Modifier.padding(top = 10.dp),
                 )

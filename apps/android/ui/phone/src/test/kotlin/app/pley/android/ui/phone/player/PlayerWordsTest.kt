@@ -12,9 +12,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import app.pley.android.player.R as PlayerR
 
-/** The player's words with numbers in them, and how it reads the session's, in English as they were and in French and Spanish. */
+/** The player's words with numbers in them, in English as they were and in French and Spanish, and its method badge's colours. */
 @RunWith(RobolectricTestRunner::class)
 class PlayerWordsTest {
     private val english = ApplicationProvider.getApplicationContext<Context>()
@@ -23,20 +22,12 @@ class PlayerWordsTest {
         english.createConfigurationContext(Configuration().apply { setLocales(LocaleList(Locale.forLanguageTag(tag))) })
 
     @Test
-    fun theMethodBadgeTakesItsColourFromTheSessionsWordsInTheLanguageShown() {
-        val r = english.resources
-        assertEquals(PleyColors.Success, PlayerLook.badgeColors(PlayerLook.methodOf(r, "Direct play")).text)
-        assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlayerLook.methodOf(r, "Direct stream")).text)
-        assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlayerLook.methodOf(r, "Direct stream · Audio transcoding")).text)
-        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(PlayerLook.methodOf(r, "Transcoding")).text)
-        // A download plays the file as it is, as the TV's badge says.
-        assertEquals(PlaybackMethod.Direct, PlayerLook.methodOf(r, "Downloaded"))
-        for (tag in listOf("fr", "es")) {
-            val words = inLanguage(tag).resources
-            assertEquals(tag, PlaybackMethod.Direct, PlayerLook.methodOf(words, words.getString(PlayerR.string.session_method_direct)))
-            assertEquals(tag, PlaybackMethod.Remux, PlayerLook.methodOf(words, words.getString(PlayerR.string.session_method_remux_audio)))
-            assertEquals(tag, PlaybackMethod.Transcode, PlayerLook.methodOf(words, words.getString(PlayerR.string.session_method_transcode)))
-        }
+    fun theMethodBadgeTakesItsColourFromTheWayItPlays() {
+        // The way, not its words: the same in every language. A download plays as it is (direct).
+        assertEquals(PleyColors.Success, PlayerLook.badgeColors(PlaybackMethod.Direct).text)
+        assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlaybackMethod.Remux).text)
+        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(PlaybackMethod.Transcode).text)
+        assertEquals(PleyColors.Accent, PlayerLook.badgeColors(null).text)
     }
 
     @Test

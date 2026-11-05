@@ -1,6 +1,5 @@
 package app.pley.android.ui.phone.player
 
-import android.content.res.Resources
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import app.pley.android.data.Settings
@@ -11,7 +10,6 @@ import app.pley.android.player.ChapterMark
 import app.pley.android.player.subtitles.CaptionLook
 import java.util.Locale
 import kotlin.math.abs
-import app.pley.android.player.R as PlayerR
 
 /** The method badge's colours: its text and its fill (the text at 20 %), as on the web. */
 @Immutable
@@ -21,28 +19,16 @@ data class BadgeColors(val text: Color, val fill: Color)
 object PlayerLook {
     /**
      * The method badge (apps/web/src/player/VideoPlayer.tsx): direct play in
-     * [PleyColors.Success], a direct stream in [PleyColors.Info], a
-     * transcode in [PleyColors.Accent].
+     * [PleyColors.Success] (a download plays so too), a direct stream in
+     * [PleyColors.Info], a transcode, or a way not known, in [PleyColors.Accent].
      */
-    fun badgeColors(method: PlaybackMethod): BadgeColors {
+    fun badgeColors(method: PlaybackMethod?): BadgeColors {
         val text = when (method) {
             PlaybackMethod.Direct -> PleyColors.Success
             PlaybackMethod.Remux -> PleyColors.Info
             else -> PleyColors.Accent
         }
         return BadgeColors(text, text.copy(alpha = 0.2f))
-    }
-
-    /**
-     * How the playback the session calls [method] goes. The state names the
-     * way only in words ("Direct play", "Downloaded"), from the player's
-     * resources in the language shown, which [resources] are in too. A
-     * download plays the file as it is; a name it doesn't know is a transcode.
-     */
-    fun methodOf(resources: Resources, method: String): PlaybackMethod = when (method) {
-        resources.getString(PlayerR.string.session_method_direct), resources.getString(PlayerR.string.session_method_downloaded) -> PlaybackMethod.Direct
-        resources.getString(PlayerR.string.session_method_remux), resources.getString(PlayerR.string.session_method_remux_audio) -> PlaybackMethod.Remux
-        else -> PlaybackMethod.Transcode
     }
 
     /** The subtitle sizes offered, as the web names them, with their share of the height. */

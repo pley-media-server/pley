@@ -10,7 +10,6 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import app.pley.android.caps.CapsSnapshot
-import app.pley.android.common.AppLanguage
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.UiText
 import app.pley.android.common.errorSentence
@@ -51,9 +50,6 @@ import kotlinx.coroutines.launch
  * app's own, put into words where it shows.
  */
 data class LiveTrouble(val kind: Kind, val text: UiText, val connections: List<BusyConnection> = emptyList()) {
-    /** [text] in the language shown, for a screen that doesn't put it into words itself. */
-    val message: String get() = AppLanguage.wordsOf(text)
-
     enum class Kind {
         /** `409`: every connection of the channel's source is in use. */
         Busy,

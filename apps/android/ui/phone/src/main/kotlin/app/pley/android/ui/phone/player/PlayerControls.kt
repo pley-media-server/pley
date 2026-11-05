@@ -42,7 +42,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -144,7 +143,7 @@ internal fun TopBar(state: PlayerScreenState, host: PlayerHost, modifier: Modifi
             }
         }
         state.method?.let {
-            MethodBadge(it) { state.open(SheetPage.Details) }
+            MethodBadge(it, state.playbackMethod) { state.open(SheetPage.Details) }
             Spacer(Modifier.size(4.dp))
         }
         if (host.pipSupported) PleyIconButton(PleyIcons.PictureInPicture2, stringResource(R.string.player_pip), onClick = host::enterPip)
@@ -313,13 +312,12 @@ private val BarItemHeight = 48.dp
 /** The badge's colours for [method], the session's name for how it plays, or for [type] where the details know it. */
 @Composable
 @ReadOnlyComposable
-internal fun methodColors(method: String, type: PlaybackMethod? = null): BadgeColors =
-    PlayerLook.badgeColors(type ?: PlayerLook.methodOf(LocalResources.current, method))
+internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type)
 
 /** "Direct play", "Direct stream" or "Transcoding" in its colour; it opens Playback details. */
 @Composable
-internal fun MethodBadge(method: String, onClick: () -> Unit) {
-    val colors = methodColors(method)
+internal fun MethodBadge(method: String, type: PlaybackMethod?, onClick: () -> Unit) {
+    val colors = methodColors(type)
     val description = stringResource(R.string.player_method_hint, method)
     Box(
         Modifier
