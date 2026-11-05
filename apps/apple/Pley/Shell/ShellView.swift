@@ -58,7 +58,7 @@ struct ShellView: View {
         // It closes by itself once no other device is on, and opens closed when one is again.
         .sheet(isPresented: Binding(get: { remote.presented && !remote.devices.isEmpty },
                                     set: { remote.presented = $0 })) {
-            RemoteSheet(app: app, remote: remote, wide: layout.wide) { remote.presented = false }
+            RemoteSheet(app: app, remote: remote) { remote.presented = false }
         }
         .onValueChange(of: remote.devices.isEmpty) { empty in
             if empty { remote.presented = false }

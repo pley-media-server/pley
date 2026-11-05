@@ -151,16 +151,13 @@ struct RemoteAccessoryButton: View {
 }
 
 /// The remote as a sheet over the app, closed with Done, or by itself once
-/// no other device is on. On a phone the devices are a list, and choosing
-/// one opens its controls on a page of their own (Back returns to the
-/// list); one device alone shows its controls at once. On an iPad the
-/// controls of the device chosen show below the list.
+/// no other device is on. The devices are a list, and choosing one opens
+/// its controls on a page of their own (Back returns to the list), on an
+/// iPad as on a phone: the sheet is as narrow there. One device alone
+/// shows its controls at once.
 struct RemoteSheet: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel
-    /// The app's wide layout (an iPad at regular width): told by the shell,
-    /// since a sheet on an iPad is compact itself.
-    let wide: Bool
     let close: () -> Void
 
     var body: some View {
@@ -175,13 +172,12 @@ struct RemoteSheet: View {
         }
         // "Playing on …" after a cast, over the sheet that opens with it.
         .overlay(alignment: .bottom) { ToastView(shell: app.shell) }
-        // On an iPad the controls sit below the list: half a screen hides them.
-        .presentationDetents(wide ? [.large] : [.medium, .large])
+        .presentationDetents([.medium, .large])
         .accessibilityIdentifier("remote.sheet")
     }
 
-    /// Whether a device's controls are a page of their own: on a phone, with several devices.
-    private var paged: Bool { !wide && remote.devices.count > 1 }
+    /// Whether a device's controls are a page of their own: with several devices.
+    private var paged: Bool { remote.devices.count > 1 }
 
     /// The page showing over the list: the device chosen, while it is on.
     private var path: Binding<[String]> {
@@ -195,13 +191,7 @@ struct RemoteSheet: View {
 
     @ViewBuilder private var root: some View {
         let devices = remote.devices
-        if wide {
-            ScrollView {
-                RemotePanel(app: app, remote: remote)
-                    .frame(maxWidth: 640)
-                    .frame(maxWidth: .infinity)
-            }
-        } else if devices.count == 1 {
+        if devices.count == 1 {
             ScrollView {
                 RemoteDeviceControls(app: app, remote: remote, device: devices[0])
             }
@@ -267,7 +257,7 @@ struct RemoteToolbarButton: View {
 #endif
 
 /// The profile's other devices, and below them the controls of the one
-/// chosen (or of the only one): the Mac's popover, and the iPad's sheet.
+/// chosen (or of the only one): the Mac's popover.
 struct RemotePanel: View {
     let app: AppModel
     @ObservedObject var remote: RemoteModel

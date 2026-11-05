@@ -1358,10 +1358,9 @@ for the rest), its name ("Living room TV", numbered when two have the
 same, in the order of their ids so a number stays as they play and stop),
 and what it plays (the title, or the channel's number and name) with a
 thin line of how far, or "Ready to play". A device with several sessions
-shows its newest. Choosing a device shows its controls: on iPhone (and an
-iPad in a narrow window) on a page of their own, which Back leaves; on
-iPad and the Mac below the list, the row marked. One device alone shows
-its controls at once. The choice is kept while the remote is open.
+shows its newest. Choosing a device shows its controls: on iPhone and
+iPad on a page of their own, which Back leaves; on the Mac below the
+list, the row marked. One device alone shows its controls at once. The choice is kept while the remote is open.
 
 A playing device's controls, top to bottom:
 
