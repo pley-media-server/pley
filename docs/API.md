@@ -3351,8 +3351,8 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`) something to play ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
@@ -3557,7 +3557,10 @@ would.
   (`device_id`, as sessions say it): while one device holds a `receiver`,
   another's stream with it still gets its events, but isn't one, so a
   sign-in that copies a TV's id from the list never gets what is cast to
-  the TV. A user has at most 32 receivers; a stream past them still gets
+  the TV. Such a stream asks again as the user's receivers change and at
+  each recheck of its token, so a device back with a new token (signed in
+  again, or switched back to the profile) takes its id once its old
+  stream has gone. A user has at most 32 receivers; a stream past them still gets
   its events, but isn't one. A receiver appearing or going sends
   `sessions_changed`.
 - **`GET /api/remote/devices`** lists the caller's receivers, an

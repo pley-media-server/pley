@@ -1418,6 +1418,41 @@ async fn a_cast_to_another_profiles_receiver_carries_a_ticket_it_switches_with_o
 }
 
 #[tokio::test]
+async fn a_device_back_with_a_new_token_takes_its_receiver_id_once_its_old_stream_goes() {
+    let w = world().await;
+    let app = &w.app;
+    let other_id = id_of(&w, &w.other).await;
+    let first = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
+    let held = household(&w, &w.other).await;
+    let device = |listed: &Value| listed.as_array().unwrap().iter().find(|d| d["receiver_id"] == "tv-1").cloned();
+    let old = device(&held).expect("the TV is listed")["device_id"].clone();
+    // The TV signed in again, a device of another id to the server, while
+    // its first sign-in's stream still holds tv-1: it isn't the receiver.
+    let again = app.login("viewer", "test-pass-1").await;
+    let mut tv = stream(&w, &again, "receiver=tv-1&casts=item,switch").await;
+    assert_eq!(device(&household(&w, &w.other).await).unwrap()["device_id"], old);
+
+    // Once the first stream goes, the new one takes tv-1 without
+    // reconnecting (as it hears of it: read, as a client reads it), and gets
+    // the casts and tickets sent to it.
+    drop(first);
+    let mut now = None;
+    for _ in 0..50 {
+        read_until(&mut tv, "sessions_changed", Duration::from_millis(20)).await;
+        now = device(&household(&w, &w.other).await).map(|d| d["device_id"].clone());
+        if now.as_ref().is_some_and(|id| *id != old) {
+            break;
+        }
+    }
+    assert!(now.is_some_and(|id| id != old), "the new stream took tv-1");
+    let sent = cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
+    let switched = app.post("/api/auth/switch", &again, json!({"user_id": other_id, "ticket": ticket})).await;
+    assert_eq!(switched.status, StatusCode::OK, "{}", switched.text());
+}
+
+#[tokio::test]
 async fn an_app_receiver_switches_with_the_ticket_through_the_switch_grant() {
     let w = world().await;
     let app = &w.app;

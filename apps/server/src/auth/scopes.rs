@@ -250,8 +250,10 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     // remote control of the profile's own players: never another's, an
     // administrator's profile included
     ("POST", "/api/sessions/{id}/command", Need::Scope(Play)),
-    // casting to the profile's own devices: never another's, an
-    // administrator's profile included
+    // casting to the profile's own devices, and for one of Pley's own apps
+    // allowed `profiles`, to the household's other profiles' devices that
+    // switch to it (checked in the handlers); never one outside the
+    // household, an administrator's profile included
     ("GET", "/api/remote/devices", Need::Scope(Play)),
     ("POST", "/api/remote/devices/{id}/cast", Need::Scope(Play)),
     // the profile's track choices for every title (its name, picture and
