@@ -273,6 +273,8 @@ class Tokens:
         # What a switch raises, when it fails.
         self.refusal = None
         self.doubts = 0
+        # What happens while a switch waits for the server's answer.
+        self.meanwhile = lambda: None
 
     def server(self):
         return self.signed_in
@@ -282,6 +284,7 @@ class Tokens:
 
     def switch_profile(self, profile_id, pin=None, ticket=None):
         self.switches.append((profile_id, pin, ticket))
+        self.meanwhile()
         if self.refusal is not None:
             raise self.refusal
         self.profile = profile_id
@@ -304,6 +307,11 @@ class KodiPlayer(Player):
         self.file = ""
         self.stopped = 0
         self.calls = []
+        self.timeouts = []
+        # The time, which each request moves on by `takes` seconds.
+        self.now = 0.0
+        self.clock = lambda: self.now
+        self.takes = 0
 
     def isPlaying(self):
         return bool(self.file)
@@ -315,8 +323,10 @@ class KodiPlayer(Player):
         self.stopped += 1
         self.file = ""
 
-    def call(self, method, path, body=None, timeout=None, fine=()):
+    def request(self, method, path, body, timeout, fine):
         self.calls.append((method, path, self.tokens.profile))
+        self.timeouts.append(timeout)
+        self.now += self.takes
 
 
 class ServiceTest(Clean):
@@ -454,6 +464,69 @@ class ServiceTest(Clean):
         self.assertEqual(self.player.calls, [("DELETE", "/api/live/sessions/l1", None)])
         self.assertEqual((self.player.reports, self.player.live, self.player.tokens.profile), (None, None, 4))
         self.assertEqual((len(xbmc.played), self.player.stopped), (1, 0), "the cast takes its place")
+
+    def test_what_plays_has_5_seconds_to_end_as_its_own_profile(self):
+        playing = {"path": "plugin://plugin.video.pley/?route=play&id=9", "item_id": 9, "session_id": "s1", "duration_ms": 600_000}
+        # Its requests go through the player, as onAVStarted wires them.
+        self.player.reports = Reports(
+            playing,
+            lambda path, body: self.player.send(playing, path, body),
+            lambda path: self.player.end(path),
+        )
+        self.player.live = {"session_id": "l1", "channel_id": 3}
+        self.player.file = playing["path"]
+        # A server slow to answer: each request takes 3 seconds.
+        self.player.takes = 3
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual(self.player.calls, [
+            ("POST", "/api/items/9/progress", None),
+            ("DELETE", "/api/playback/s1", None),
+        ], "the live channel's end, 6 seconds in, is dropped, not sent as profile 4")
+        self.assertEqual(self.player.timeouts, [2, 2])
+        self.assertEqual((self.player.tokens.switches, len(xbmc.played)), ([(4, None, "t-1")], 1))
+        # The wait is over with the switch: requests go as before.
+        self.assertIsNone(self.player.leaving_until)
+        self.player.call("GET", "/api/items/5/next")
+        self.assertEqual(self.player.calls[-1], ("GET", "/api/items/5/next", 4))
+
+    def test_the_wait_cuts_what_is_left_short(self):
+        playing = {"path": "plugin://plugin.video.pley/?route=play&id=9", "item_id": 9, "session_id": "s1", "duration_ms": 600_000}
+        self.player.reports = Reports(playing, lambda path, body: self.player.send(playing, path, body), lambda path: self.player.end(path))
+        self.player.file = playing["path"]
+        self.player.takes = 4
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual(self.player.timeouts, [2, 1], "the session's end has the last second")
+
+    def test_casts_heard_during_a_switch_are_dropped(self):
+        self.answers["/api/items/7"] = {"id": 7, "kind": "movie", "duration_ms": 5_400_000}
+
+        def meanwhile():
+            # This Kodi's own remote, and another profile's, cast as the
+            # switch waits for the server.
+            self.player.heard(cast(item_id=7))
+            self.player.heard(from_profile(6, "t-9", item_id=7))
+
+        self.player.tokens.meanwhile = meanwhile
+        self.player.heard(from_profile(item_id=5, start_ms=60000))
+        self.assertEqual(self.player.tokens.switches, [(4, None, "t-1")])
+        self.assertEqual(played(), [route(route="play", id=5, kind="movie", start=60000)])
+        self.assertEqual([notice[1] for notice in xbmcgui.notices], ["Playing from Living room phone"])
+
+    def test_casts_after_a_switch_play_as_usual(self):
+        self.answers["/api/items/7"] = {"id": 7, "kind": "movie", "duration_ms": 5_400_000}
+        self.player.heard(from_profile(item_id=5))
+        # The new profile's own remote, without a ticket, and any other.
+        self.player.heard(from_profile(4, None, item_id=7))
+        self.player.heard(cast(item_id=5))
+        self.assertEqual(played(), [route(route="play", id=n, kind="movie", start=0) for n in (5, 7, 5)])
+        self.assertEqual(self.player.tokens.switches, [(4, None, "t-1")])
+
+    def test_a_switch_that_fails_takes_casts_again(self):
+        self.player.tokens.refusal = api.ApiError(400, "ticket_spent", "spent")
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual(xbmc.played, [])
+        self.player.heard(cast(item_id=5))
+        self.assertEqual(len(xbmc.played), 1)
 
     def test_what_played_stops_when_the_switch_fails(self):
         playing = {"path": "plugin://plugin.video.pley/?route=play&id=9", "item_id": 9, "session_id": "s1", "duration_ms": 600_000}
