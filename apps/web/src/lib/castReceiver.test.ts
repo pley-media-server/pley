@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { deviceFields, receiverId, receiverName, receiverQuery, takesCasts } from "./castReceiver";
+import { castOf, castState, deviceFields, receiverId, receiverName, receiverQuery, takesCasts } from "./castReceiver";
 
 const desktop = (on: boolean) => {
   (window as { __PLEY_APP__?: string }).__PLEY_APP__ = on ? "desktop" : undefined;
@@ -34,6 +34,12 @@ describe("the desktop app as a receiver of casts", () => {
     expect(receiverName("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/140.0")).toBe("Pley for Windows");
     expect(receiverName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15")).toBe("Pley for Mac");
     expect(receiverName("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15")).toBe("Pley for Linux");
+  });
+
+  it("marks the pages a cast opens, and only those", () => {
+    expect(castOf(castState())).toEqual(expect.any(Number));
+    expect(castOf(null)).toBeNull();
+    expect(castOf({ sleep: 30 })).toBeNull();
   });
 
   it("asks for channels only while the user has Live TV", () => {

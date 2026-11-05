@@ -59,11 +59,15 @@ describe("useVideoQueue", () => {
 
   function start(items: ItemSummary[], opts?: Parameters<ReturnType<typeof useVideoQueue>>[1]) {
     const { result } = renderHook(() => useVideoQueue(), { wrapper });
-    act(() => result.current(items, opts));
+    let played = false;
+    act(() => {
+      played = result.current(items, opts);
+    });
+    return played;
   }
 
   it("plays the videos from the chosen one, resuming where it stopped", () => {
-    start([show, started, watchedMovie], { startIndex: 1, returnTo: "/collection/9" });
+    expect(start([show, started, watchedMovie], { startIndex: 1, returnTo: "/collection/9" })).toBe(true);
 
     const location = new URL(screen.getByTestId("location").textContent ?? "", "http://pley.test");
     expect(location.pathname).toBe(`/play/${encodeId(3)}`);
@@ -86,7 +90,7 @@ describe("useVideoQueue", () => {
   });
 
   it("says when there is nothing to play", () => {
-    start([show]);
+    expect(start([show])).toBe(false);
     expect(screen.getByRole("status")).toHaveTextContent("Nothing to play");
     expect(screen.getByTestId("location").textContent).toBe("/");
   });

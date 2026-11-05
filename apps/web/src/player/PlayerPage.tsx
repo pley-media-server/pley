@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { keys, useItem } from "@/api/hooks";
 import type { Id } from "@/api/types";
+import { castOf } from "@/lib/castReceiver";
 import { decodeId, idParam } from "@/lib/ids";
 import { androidPlayer } from "@/lib/shell";
 import { itemUrl } from "@/lib/urls";
@@ -59,6 +60,8 @@ export function PlayerPage() {
   const fileId = decodeId(params.get("file"));
   const audio = num(params.get("audio"));
   const sub = num(params.get("sub"));
+  // A cast starts the player again, though it plays that title already.
+  const cast = castOf(useLocation().state);
 
   // In the Android app its own player takes over, and this page steps back
   // (`?web=1`: it couldn't, the web player plays).
@@ -110,7 +113,7 @@ export function PlayerPage() {
 
   return (
     <VideoPlayer
-      key={`${data.id}:${queue?.index ?? ""}`}
+      key={`${data.id}:${queue?.index ?? ""}:${cast ?? ""}`}
       item={data}
       startMs={startMs}
       fileId={fileId}

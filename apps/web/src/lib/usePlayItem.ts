@@ -34,7 +34,8 @@ export interface PlayOptions extends Omit<PlayUrlOptions, "startMs"> {
 /**
  * Returns `play(item)` which does the right thing for every kind:
  * video → player page (resuming), show/season → on-deck episode,
- * album/artist/track → global audio queue.
+ * album/artist/track → global audio queue. It resolves to whether
+ * something plays; when nothing does, it has said why.
  */
 export function usePlayItem() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export function usePlayItem() {
   const toast = useToast();
 
   return useCallback(
-    async (item: ItemSummary, opts: PlayOptions = {}) => {
+    async (item: ItemSummary, opts: PlayOptions = {}): Promise<boolean> => {
       try {
         switch (item.kind) {
           case "movie":
@@ -52,27 +53,27 @@ export function usePlayItem() {
             const startMs = opts.fromStart ? 0 : item.user_state.watched ? 0 : item.user_state.position_ms;
             audio?.pause();
             void navigate(playUrl(item.id, { startMs, fileId: opts.fileId, audio: opts.audio, sub: opts.sub }));
-            return;
+            return true;
           }
           case "show":
           case "season": {
             const ep = await fetchOnDeck(qc, item.id);
             if (!ep) {
               toast.info("Nothing to play yet");
-              return;
+              return false;
             }
             audio?.pause();
             void navigate(playUrl(ep.id, { startMs: opts.fromStart ? 0 : ep.user_state.position_ms }));
-            return;
+            return true;
           }
           case "album": {
             const tracks = await fetchChildren(qc, item.id);
             if (!tracks.length) {
               toast.info("This album has no tracks");
-              return;
+              return false;
             }
             audio?.playQueue(tracks, 0, { shuffle: opts.shuffle });
-            return;
+            return true;
           }
           case "artist": {
             const albums = await fetchChildren(qc, item.id);
@@ -80,10 +81,10 @@ export function usePlayItem() {
             const tracks = lists.flat();
             if (!tracks.length) {
               toast.info("No tracks found for this artist");
-              return;
+              return false;
             }
             audio?.playQueue(tracks, 0, { shuffle: opts.shuffle });
-            return;
+            return true;
           }
           case "track": {
             if (item.parent_id) {
@@ -93,12 +94,13 @@ export function usePlayItem() {
             } else {
               audio?.playQueue([item], 0);
             }
-            return;
+            return true;
           }
         }
       } catch (err) {
         toast.error(errorMessage(err));
       }
+      return false;
     },
     [audio, navigate, qc, toast],
   );

@@ -56,6 +56,21 @@ export function deviceFields(): { device_name?: string; device_kind?: "computer"
 }
 
 /**
+ * The history state a cast opens the player with: a new one for each cast,
+ * so the player starts again where, and with the tracks, the remote said,
+ * even on the title it plays already (`castOf`, player/PlayerPage.tsx).
+ */
+export function castState(): { cast: number } {
+  return { cast: Date.now() };
+}
+
+/** The cast a page was opened by (`castState`), if one was. */
+export function castOf(state: unknown): number | null {
+  const cast = (state as { cast?: unknown } | null)?.cast;
+  return typeof cast === "number" ? cast : null;
+}
+
+/**
  * The event stream's query for this device as a receiver (docs/API.md,
  * "Casting"): a computer, by its name, that plays titles, music and
  * playlists, and Live TV's channels when the user has them (`live`).

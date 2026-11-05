@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Route, Routes } from "react-router";
-import { screen, waitFor } from "@testing-library/react";
+import { Route, Routes, useNavigate } from "react-router";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { keys } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
+import { castState } from "@/lib/castReceiver";
 import { encodeId } from "@/lib/ids";
 import { itemUrl } from "@/lib/urls";
 import { makeItem } from "@/test/fixtures";
@@ -105,6 +106,48 @@ describe("PlayerPage in the Android app", () => {
     renderPlayer(`/play/${encodeId(7)}`);
     expect(await screen.findByTestId("web-player")).toHaveTextContent("Pilot");
     expect(play).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Opens the same title again: plainly, or as a cast. */
+function Again() {
+  const navigate = useNavigate();
+  const again = `/play/${encodeId(7)}?t=60000`;
+  return (
+    <>
+      <button type="button" onClick={() => void navigate(again)}>
+        Same
+      </button>
+      <button type="button" onClick={() => void navigate(again, { state: castState() })}>
+        Cast
+      </button>
+    </>
+  );
+}
+
+describe("PlayerPage and casts", () => {
+  it("starts the player again for a cast, though it plays that title already", async () => {
+    mounted.length = 0;
+    mockApi({ "GET /api/items/7": () => detail() });
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/play/:id"
+          element={
+            <>
+              <PlayerPage />
+              <Again />
+            </>
+          }
+        />
+      </Routes>,
+      { route: `/play/${encodeId(7)}` },
+    );
+    await screen.findByTestId("web-player");
+    fireEvent.click(screen.getByText("Same"));
+    expect(mounted).toHaveLength(1);
+    fireEvent.click(screen.getByText("Cast"));
+    await waitFor(() => expect(mounted).toHaveLength(2));
   });
 });
 
