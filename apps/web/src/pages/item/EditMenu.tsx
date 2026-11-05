@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
+import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
 import { api, errorMessage, request } from "@/api/client";
 import type { ItemDetail } from "@/api/types";
 import { useAuth } from "@/auth";
@@ -105,6 +105,7 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
   const [values, setValues] = useState(initial);
   const [unlock, setUnlock] = useState<Set<FieldKey>>(new Set());
   const locked = new Set(item.locked_fields ?? []);
+  const fromNfo = new Set(item.nfo_fields ?? []);
   const fields = FIELDS.filter(([key]) => (item.kind === "episode" || item.kind === "season" ? !["original_title", "studio", "tagline", "content_rating", "genres"].includes(key) : true));
 
   const save = useMutation({
@@ -152,6 +153,7 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
       <p className="mb-4 text-sm text-muted">
         Edited fields are locked <Lock className="inline size-3.5 align-[-2px]" /> so metadata refreshes keep them.
         Unlock a field to let the next refresh fill it again.
+        {fromNfo.size > 0 ? " Fields from the NFO file next to it win over the metadata source; an edit here wins over them." : null}
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map(([key, label]) => {
@@ -195,6 +197,11 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
                       {isLocked ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
                       {isLocked ? "Locked: click to unlock" : "Will be unlocked"}
                     </button>
+                  ) : fromNfo.has(key) ? (
+                    <span className="inline-flex items-center gap-1 text-subtle">
+                      <FileText className="size-3.5" />
+                      From the NFO file
+                    </span>
                   ) : undefined
                 }
               >
@@ -234,9 +241,30 @@ function FixMatchDialog({ item, onClose }: { item: ItemDetail; onClose: () => vo
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
+  // Fix Match is remembered so that an NFO file's ids don't undo it; undone,
+  // the item's NFO file decides the match again.
+  const matchedByHand = (item.locked_fields ?? []).includes("match");
+  const undo = useMutation({
+    mutationFn: () => api.patch<ItemDetail>(`/api/items/${item.id}`, { match: null }),
+    onSuccess: (detail) => {
+      refresh(detail);
+      toast.success("Fix Match undone");
+      onClose();
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const busy = apply.isPending || undo.isPending;
 
   return (
-    <Modal open onClose={onClose} title="Fix match" size="lg" locked={apply.isPending}>
+    <Modal open onClose={onClose} title="Fix match" size="lg" locked={busy}>
+      {matchedByHand ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-2 p-3 text-sm">
+          <p className="min-w-0 flex-1 text-muted">Matched here by hand. An NFO file next to it doesn't change this match until you undo it.</p>
+          <Button size="sm" icon={<RotateCcw className="size-4" />} disabled={busy} onClick={() => undo.mutate()}>
+            Undo Fix Match
+          </Button>
+        </div>
+      ) : null}
       <form
         className="mb-4 flex flex-wrap gap-2"
         onSubmit={(e) => {
@@ -273,7 +301,7 @@ function FixMatchDialog({ item, onClose }: { item: ItemDetail; onClose: () => vo
               <li key={m.tmdb_id}>
                 <button
                   type="button"
-                  disabled={apply.isPending}
+                  disabled={busy}
                   onClick={() => apply.mutate(m.tmdb_id)}
                   className={cn(
                     "flex w-full gap-3 rounded-lg border p-2 text-left transition-colors hover:border-accent hover:bg-surface-2",

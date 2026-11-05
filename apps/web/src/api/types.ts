@@ -217,8 +217,10 @@ export interface ItemDetail extends ItemSummary {
   tmdb_id: number | null;
   imdb_id: string | null;
   files: MediaFile[];
-  /** Fields edited by hand; metadata refreshes keep them. */
+  /** Fields edited by hand; metadata refreshes keep them. "match" after Fix Match. */
   locked_fields?: string[];
+  /** Fields the item's NFO file sets, named as `locked_fields` are, and "rating". Absent from servers before it. */
+  nfo_fields?: string[];
   /** Intro and credits of the files (absent on servers without detection). */
   markers?: Marker[];
   /** Trailers and other bonus material (movies and shows). */
@@ -910,6 +912,11 @@ export interface Settings {
   tvdb_pin: string;
   /** Artists and albums from MusicBrainz, covers from the Cover Art Archive. */
   music_metadata: boolean;
+  /**
+   * Ids and details from the NFO files next to movies, shows, seasons and
+   * episodes, over the online source's. Absent from servers before it.
+   */
+  read_nfo?: boolean;
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;

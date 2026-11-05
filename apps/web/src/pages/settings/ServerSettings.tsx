@@ -20,6 +20,7 @@ const KEYS = [
   "tvdb_api_key",
   "tvdb_pin",
   "music_metadata",
+  "read_nfo",
   "scan_interval_minutes",
   "watch_libraries",
   "detect_markers",
@@ -127,7 +128,7 @@ export function ServerSettings() {
                   <>
                     Movies, collections and Fix Match use TMDB. Free key from{" "}
                     <Link href="https://www.themoviedb.org/settings/api">themoviedb.org/settings/api</Link>. Without one, movies keep their file
-                    names and local artwork.
+                    names and local artwork, or what their NFO files say.
                   </>
                 }
               >
@@ -188,6 +189,19 @@ ${form.tvdb_pin}`}
                 <Toggle checked={form.music_metadata} onChange={(v) => set("music_metadata", v)} label="Music metadata from MusicBrainz" />
                 <TestButton label="Test MusicBrainz" test={{ service: "musicbrainz" }} />
               </Row>
+              {form.read_nfo !== undefined ? (
+                <Row
+                  label="NFO files"
+                  hint={
+                    <>
+                      The NFO files Kodi, Jellyfin, Radarr and Sonarr keep next to movies and shows: their ids decide the match, and their
+                      details win over the metadata source's. Your edits win over them. Pley never changes them.
+                    </>
+                  }
+                >
+                  <Toggle checked={form.read_nfo} onChange={(v) => set("read_nfo", v)} label="Read NFO files" />
+                </Row>
+              ) : null}
               <Row label="Metadata language" htmlFor="meta-lang" hint="For TMDB and TheTVDB. TVmaze is in English.">
                 <Select id="meta-lang" value={form.metadata_language} onChange={(e) => set("metadata_language", e.target.value)} className="w-full">
                   {(LANGUAGES.includes(form.metadata_language) ? LANGUAGES : [form.metadata_language, ...LANGUAGES]).map((l) => (

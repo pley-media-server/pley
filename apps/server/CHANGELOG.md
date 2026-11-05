@@ -18,8 +18,11 @@ describes how they are made.
   TMDB's, TheTVDB's and TVmaze's; your own edits still win over them, and
   Fix Match to another title sets them aside. Without a TMDB key, movies
   with NFO files get their metadata from them. Jellyfin's lockdata keeps an
-  item from being fetched online. A new setting, `read_nfo`, on by default,
-  turns it off.
+  item from being fetched online. Settings → Server has a switch for it, on
+  by default.
+- In the web and desktop apps, an item's Edit details says which fields
+  come from its NFO file, and Fix match says when a title was matched by
+  hand, with Undo Fix Match to let its NFO file decide again.
 
 ### Changed
 

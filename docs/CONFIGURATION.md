@@ -134,7 +134,11 @@ the same item, with its watch state and its place in My List.
 Pley never writes NFO files. A file bigger than 1 MiB, or a link to
 anything but an NFO file, is skipped.
 
-Reading NFO files is on by default; the `read_nfo` setting
-([API.md](API.md#system-admin)) turns it off. Turning it on or off scans
-every library; turned off, what NFO files set goes back as when they are
-removed.
+Reading NFO files is on by default; Settings → Server's NFO files switch
+(the `read_nfo` setting, [API.md](API.md#system-admin)) turns it off.
+Turning it on or off scans every library; turned off, what NFO files set
+goes back as when they are removed.
+
+In an item's Edit details, fields the NFO file sets say so. Fix match says
+when a title was matched by hand, and Undo Fix Match lets its NFO file
+decide the match again.
