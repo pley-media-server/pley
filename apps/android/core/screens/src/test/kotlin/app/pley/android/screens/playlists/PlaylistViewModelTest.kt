@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.PlaylistKind
@@ -11,6 +12,7 @@ import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.R
 import app.pley.android.screens.library.FakeTile
 import app.pley.android.screens.library.FakeTiles
 import app.pley.android.screens.library.TileLook
@@ -20,9 +22,9 @@ import kotlin.reflect.KClass
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -95,7 +97,7 @@ class PlaylistViewModelTest {
         val vm = viewModel()
         advanceUntilIdle()
         val page = vm.page()
-        assertEquals("3 items · 3h 20m", page.meta)
+        assertEquals(listOf(UiText.plural(R.plurals.playlists_count_items, 3), UiText.raw("3h 20m")), page.metaTexts)
         assertTrue(page.video)
         assertTrue(page.editable)
         assertEquals(listOf(1, 2, 3), page.rows.map { it.number })
@@ -115,7 +117,7 @@ class PlaylistViewModelTest {
         val page = vm.page()
         assertTrue(page.smart)
         assertFalse(page.editable)
-        assertEquals(listOf("Genre: Comedy", "Unwatched"), page.notes)
+        assertEquals(listOf(UiText.res(R.string.library_filter_genre, "Comedy"), UiText.res(R.string.library_filter_unwatched)), page.noteTexts)
         vm.move(0, 1)
         vm.remove(1, undoable = false)
         advanceUntilIdle()
@@ -214,7 +216,7 @@ class PlaylistViewModelTest {
         vm.remove(2, undoable = true)
         runCurrent()
         assertEquals(listOf(1L, 3L), vm.order())
-        assertEquals("2 items · 2h 30m", vm.page().meta)
+        assertEquals(listOf(UiText.plural(R.plurals.playlists_count_items, 2), UiText.raw("2h 30m")), vm.page().metaTexts)
         assertEquals(PlaylistEvent.Removed(2, "Half Loop"), events.single())
         advanceTimeBy(PlaylistViewModel.UNDO_MS - 1)
         vm.undo(2)

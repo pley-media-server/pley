@@ -109,7 +109,7 @@ internal fun AddToPlaylistContent(state: AddToPlaylistUiState, onCreate: (String
     var name by rememberSaveable { mutableStateOf("") }
     val music = state.kind == PlaylistKind.Audio
     Column(Modifier.fillMaxWidth().imePadding().testTag(ADD_SHEET)) {
-        SheetTitle(stringResource(R.string.add_to_playlist), state.titleText?.asString())
+        SheetTitle(stringResource(R.string.add_to_playlist), state.title?.asString())
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

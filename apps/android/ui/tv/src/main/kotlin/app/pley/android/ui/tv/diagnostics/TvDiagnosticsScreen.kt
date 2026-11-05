@@ -35,10 +35,11 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.diagnostics.DiagnosticsViewModel
 import app.pley.android.ui.tv.R
-import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.settings.versionOf
@@ -56,7 +57,7 @@ internal fun TvDiagnosticsScreen() {
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val device = listOf(stringResource(R.string.tv_diagnostics_app) to stringResource(R.string.tv_diagnostics_app_value, versionOf(context))) +
-        state.device.map { it.label to it.value }
+        state.facts.map { it.label.asString() to it.value.asString() }
     LazyColumn(
         Modifier.fillMaxSize().heldKeyStaysIn(HeldEnds.UpDown).focusGroup().testTag(TV_DIAGNOSTICS_PAGE),
         contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = TvSafeArea.Vertical, bottom = 160.dp),

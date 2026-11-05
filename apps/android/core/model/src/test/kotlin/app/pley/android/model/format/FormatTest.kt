@@ -172,15 +172,6 @@ class FormatTest {
     }
 
     @Test
-    fun plurals() {
-        assertEquals("1 movie", pluralize(1, "movie", locale = us))
-        assertEquals("0 movies", pluralize(0, "movie", locale = us))
-        assertEquals("2 movies", pluralize(2, "movie", locale = us))
-        assertEquals("3 children", pluralize(3, "child", "children", us))
-        assertEquals("12,345 movies", pluralize(12_345, "movie", locale = us))
-    }
-
-    @Test
     fun episodeAndSeasonLabels() {
         assertEquals("S1 · E3", episodeLabel(1, 3))
         assertEquals("E3", episodeLabel(null, 3))

@@ -1,6 +1,5 @@
 package app.pley.android.screens.playlists
 
-import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -10,10 +9,8 @@ import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.cardSubtitle
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatDuration
-import app.pley.android.model.format.pluralize
 import app.pley.android.model.format.seasonTitle
 import app.pley.android.screens.R
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,10 +22,6 @@ import kotlinx.coroutines.SupervisorJob
 object Playlists {
     /** A title is at most this long, as on the web. */
     const val TITLE_MAX = 200
-
-    /** "12 items · 3h 12m", "1 item", in English: [metaTexts], joined. */
-    fun meta(itemCount: Int, durationMs: Long, locale: Locale = AppLanguage.locale): String =
-        listOf(pluralize(itemCount, "item", locale = locale), formatDuration(durationMs, FormatWords.English)).filter { it.isNotEmpty() }.joinToString(" · ")
 
     /** "12 items", "3h 12m" (its duration in [words]); just the count for a playlist without a duration. */
     fun metaTexts(itemCount: Int, durationMs: Long, words: FormatWords): List<UiText> = listOfNotNull(
@@ -90,10 +83,9 @@ object Playlists {
     }
 
     /** A playlist as its card and the sheets list it, its duration in [words]. */
-    fun card(summary: PlaylistSummary, origin: String, words: FormatWords, locale: Locale = AppLanguage.locale): PlaylistCard = PlaylistCard(
+    fun card(summary: PlaylistSummary, origin: String, words: FormatWords): PlaylistCard = PlaylistCard(
         id = summary.id,
         title = summary.title,
-        meta = meta(summary.itemCount, summary.durationMs, locale),
         metaTexts = metaTexts(summary.itemCount, summary.durationMs, words),
         video = summary.kind != PlaylistKind.Audio,
         smart = !summary.smartFilter.isNullOrEmpty(),
@@ -106,21 +98,19 @@ object Playlists {
 enum class TitleProblem { Empty, TooLong }
 
 /**
- * A playlist's card: its title, "12 items · 3h 12m" ([metaTexts]; [meta]
- * in English, the TV's until it shows them, and as it is in a card made
- * without them), whether it plays video or music, the Smart badge, and
- * the pictures of its first entries for the mosaic ([artwork], the
- * server's addresses, on [origin]).
+ * A playlist's card: its title, "12 items · 3h 12m" ([metaTexts]),
+ * whether it plays video or music, the Smart badge, and the pictures of
+ * its first entries for the mosaic ([artwork], the server's addresses, on
+ * [origin]).
  */
 data class PlaylistCard(
     val id: Long,
     val title: String,
-    val meta: String,
+    val metaTexts: List<UiText>,
     val video: Boolean,
     val smart: Boolean,
     val artwork: List<String>,
     val origin: String,
-    val metaTexts: List<UiText> = listOfNotNull(meta.takeIf { it.isNotEmpty() }?.let(UiText::raw)),
 )
 
 /**

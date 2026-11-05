@@ -79,6 +79,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkCandidates
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.QualityBadge
@@ -391,7 +392,7 @@ private fun LazyListScope.hero(
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(Modifier.height(12.dp))
-            val facts = (listOf(page.meta) + page.notes).filter { it.isNotEmpty() }
+            val facts = listOf(page.metaTexts.asString(), page.noteTexts.asString("  ·  ")).filter { it.isNotEmpty() }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (page.smart) QualityBadge(stringResource(R.string.tv_playlists_smart), TileStyle.Tv)
                 BasicText(facts.joinToString("  ·  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 2, overflow = TextOverflow.Ellipsis)

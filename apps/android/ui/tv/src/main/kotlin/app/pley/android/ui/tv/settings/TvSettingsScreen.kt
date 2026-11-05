@@ -651,12 +651,12 @@ private fun ProfileHeader(me: MeUiState) {
 @Composable
 private fun DeviceFacts() {
     val app = LocalContext.current.applicationContext
-    val facts = remember(app) { (app as? PleyGraphOwner)?.screensGraph?.device?.let { DiagnosticsViewModel.deviceFacts(it) }.orEmpty() }
+    val facts = remember(app) { (app as? PleyGraphOwner)?.screensGraph?.device?.let { DiagnosticsViewModel.factsOf(it) }.orEmpty() }
     Column(Modifier.padding(start = 20.dp, top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         facts.forEach { fact ->
             Row {
-                BasicText(fact.label, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.width(150.dp))
-                BasicText(fact.value, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg))
+                BasicText(fact.label.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.width(150.dp))
+                BasicText(fact.value.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg))
             }
         }
     }

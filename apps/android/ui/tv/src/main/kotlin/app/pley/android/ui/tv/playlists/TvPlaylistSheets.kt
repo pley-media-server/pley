@@ -127,8 +127,9 @@ internal fun TvAddToPlaylistContent(
     val music = state.kind == PlaylistKind.Audio
     Box(Modifier.fillMaxSize().testTag(TV_ADD)) {
         val backdrop = remember(state.lead, state.origin, tier) { state.lead?.let { ArtworkCandidates.backdrop(it, state.origin, tier) } }
-        TvBackdrop(backdrop, state.title.orEmpty(), scrim = BackdropScrim.Item)
-        Behind(PleyIcons.ListPlus, stringResource(R.string.tv_add_to_playlist), state.title)
+        val title = state.title?.asString()
+        TvBackdrop(backdrop, title.orEmpty(), scrim = BackdropScrim.Item)
+        Behind(PleyIcons.ListPlus, stringResource(R.string.tv_add_to_playlist), title)
         TvSidePanel(visible = true, onDismiss = onClose) {
             if (done != null) {
                 Done(done)
@@ -150,7 +151,7 @@ internal fun TvAddToPlaylistContent(
                     .focusProperties { onExit = { cancelFocusChange() } }
                     .focusGroup(),
             ) {
-                item(key = "title") { TvPanelTitle(stringResource(R.string.tv_add_to_playlist), state.title) }
+                item(key = "title") { TvPanelTitle(stringResource(R.string.tv_add_to_playlist), state.title?.asString()) }
                 item(key = "new") {
                     NewField(
                         name = name,
@@ -194,7 +195,7 @@ internal fun TvAddToPlaylistContent(
                     items(list, key = { it.id }, contentType = { "playlist" }) { card ->
                         TvPanelRow(
                             label = card.title,
-                            supporting = card.meta,
+                            supporting = card.metaTexts.asString(),
                             onClick = { onAdd(card) },
                             enabled = !state.busy,
                             focusRequester = if (card == list.first()) first else null,
@@ -284,7 +285,7 @@ internal fun TvNewPlaylistScreen(mode: NewPlaylistMode) {
     }
     TvNewPlaylistContent(
         smart = mode is NewPlaylistMode.Smart,
-        filters = vm.filters,
+        filters = vm.filterTexts.map { it.asString() },
         asksKind = vm.asksKind,
         busy = busy,
         onCreate = vm::create,

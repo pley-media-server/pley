@@ -13,6 +13,14 @@ import java.util.Locale
 @ReadOnlyComposable
 fun UiText.asString(): String = resolve(LocalResources.current)
 
+/** These words one after the other, in the language shown: "4 albums · 40 tracks". */
+@Composable
+@ReadOnlyComposable
+fun List<UiText>.asString(separator: String = " · "): String {
+    val resources = LocalResources.current
+    return joinToString(separator) { it.resolve(resources) }
+}
+
 /**
  * The locale the screen is shown in, for the dates, times and numbers it
  * writes: the language shown, in the device's region where the device is

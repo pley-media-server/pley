@@ -181,7 +181,6 @@ class AlbumViewModel(
     val highlightId: Long? = null,
     compute: CoroutineDispatcher = Dispatchers.Default,
     private val random: Random = Random.Default,
-    locale: Locale = AppLanguage.locale,
 ) : ViewModel() {
     private val retries = MutableStateFlow(0)
     private val channel = Channel<MusicEvent>(Channel.BUFFERED)
@@ -192,7 +191,7 @@ class AlbumViewModel(
         .flatMapLatest {
             // Made again when the language shown changes: the album's length is written in it.
             combine(items.detail(albumId), items.children(albumId), origin, AppLanguage.shown) { detail, tracks, server, _ ->
-                pageState(detail) { albumPage(it, tracks.valueOrNull, server, locale, AppLanguage.formatWords()) }
+                pageState(detail) { albumPage(it, tracks.valueOrNull, server, AppLanguage.formatWords()) }
             }
         }
         .flowOn(compute)

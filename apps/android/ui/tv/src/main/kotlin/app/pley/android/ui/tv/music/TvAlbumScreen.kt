@@ -56,10 +56,10 @@ import app.pley.android.screens.music.AlbumViewModel
 import app.pley.android.screens.music.MusicEvent
 import app.pley.android.screens.music.MusicPageState
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvTextButton
-import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -174,7 +174,7 @@ private fun AlbumContent(
                     BasicText(page.artist!!, style = PleyType.Tv.Label.copy(color = PleyColors.Fg))
                 }
             }
-            val meta = listOfNotNull(page.year?.toString(), page.meta.ifEmpty { null }).joinToString(" · ")
+            val meta = listOfNotNull(page.year?.toString(), page.metaTexts.asString().ifEmpty { null }).joinToString(" · ")
             if (meta.isNotEmpty()) BasicText(meta, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), modifier = Modifier.padding(top = 4.dp))
             page.userRating?.let { rating -> Stars(rating, Modifier.padding(top = 6.dp)) }
             Spacer(Modifier.height(16.dp))

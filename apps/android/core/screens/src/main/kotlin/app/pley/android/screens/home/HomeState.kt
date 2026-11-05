@@ -14,7 +14,6 @@ import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatRuntime
 import app.pley.android.model.format.formatTimeLeft
 import app.pley.android.model.format.isInProgress
-import app.pley.android.model.format.pluralize
 import app.pley.android.model.format.progressFraction
 import app.pley.android.model.format.qualityBadges
 import app.pley.android.screens.LibraryTab
@@ -121,8 +120,6 @@ data class HomeMeta(
 /** A library in the list of libraries (phone's Libraries tab, the TV's Libraries page). */
 data class LibraryEntry(
     val library: Library,
-    /** "412 movies", "38 shows", "120 artists", in English: the TV's, until it shows [countText]. */
-    val count: String,
     /** The server is scanning it now. */
     val scanning: Boolean,
 ) {
@@ -227,17 +224,6 @@ fun homeInfo(
         watched = item.userState.watched,
         complete = details != null,
     )
-}
-
-/** "412 movies", "38 shows", "120 artists": what a library holds, by its kind, in English. See [libraryCountText]. */
-fun libraryCount(library: Library, locale: Locale = AppLanguage.locale): String {
-    val (one, many) = when (library.kind) {
-        LibraryKind.Movies -> "movie" to "movies"
-        LibraryKind.Shows -> "show" to "shows"
-        LibraryKind.Music -> "artist" to "artists"
-        LibraryKind.Unknown -> "item" to "items"
-    }
-    return pluralize(library.itemCount, one, many, locale)
 }
 
 /** "412 movies", "38 shows", "120 artists": what a library holds, by its kind. */

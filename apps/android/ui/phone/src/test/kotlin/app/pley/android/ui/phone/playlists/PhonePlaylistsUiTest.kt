@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.ItemKind
@@ -70,8 +71,8 @@ class PhonePlaylistsUiTest {
         title = "Road trip",
         video = true,
         smart = smart,
-        meta = "3 items · 5h",
-        notes = if (smart) listOf("Genre: Comedy") else emptyList(),
+        metaTexts = listOf(UiText.raw("3 items · 5h")),
+        noteTexts = if (smart) listOf(UiText.raw("Genre: Comedy")) else emptyList(),
         artwork = emptyList(),
         origin = "http://pley",
         lead = null,
@@ -171,11 +172,11 @@ class PhonePlaylistsUiTest {
     fun addToPlaylistOffersANewOneAndTheOnesThatTakeIt() {
         val created = mutableListOf<String>()
         val added = mutableListOf<Long>()
-        val card = PlaylistCard(4, "Favourites", "12 items · 19h 6m", video = true, smart = false, artwork = emptyList(), origin = "http://pley")
+        val card = PlaylistCard(4, "Favourites", listOf(UiText.raw("12 items · 19h 6m")), video = true, smart = false, artwork = emptyList(), origin = "http://pley")
         compose.setContent {
             PhoneTheme {
                 AddToPlaylistContent(
-                    AddToPlaylistUiState("Heat (1995)", PlaylistKind.Video, Loadable.Ready(listOf(card), fresh = true), busy = false),
+                    AddToPlaylistUiState(UiText.raw("Heat (1995)"), PlaylistKind.Video, Loadable.Ready(listOf(card), fresh = true), busy = false),
                     onCreate = { created += it; true },
                     onAdd = { added += it.id },
                 )

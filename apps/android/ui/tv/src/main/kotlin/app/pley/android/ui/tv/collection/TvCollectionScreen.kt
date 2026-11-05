@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.UiText
 import app.pley.android.common.errorSentence
+import app.pley.android.common.resolve
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.PleyColors
@@ -191,7 +192,7 @@ private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel
         Spacer(Modifier.height(12.dp))
         val noun = if (page.kind == LibraryKind.Shows) R.plurals.tv_library_count_shows else R.plurals.tv_library_count_movies
         BasicText(
-            (listOfNotNull(tvCount(resources, noun, page.count), page.libraryName) + page.notes).joinToString("  ·  "),
+            (listOfNotNull(tvCount(resources, noun, page.count), page.libraryName) + page.noteTexts.map { it.resolve(resources) }).joinToString("  ·  "),
             style = PleyType.Tv.Label.copy(color = PleyColors.Muted),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

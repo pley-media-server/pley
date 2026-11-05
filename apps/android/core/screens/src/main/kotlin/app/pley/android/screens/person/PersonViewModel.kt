@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.data.DataGraph
 import app.pley.android.data.Loadable
@@ -16,11 +15,9 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
-import app.pley.android.model.format.pluralize
 import app.pley.android.network.ApiException
 import app.pley.android.screens.R
 import app.pley.android.screens.screensGraph
-import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,8 +51,6 @@ data class PersonPage(
     /** The photo's address as the server gave it; `null` without one. */
     val photoUrl: String?,
     val origin: String,
-    /** [countTexts] in English, joined: the TV's, until it shows them. */
-    val counts: String,
     /** "3 movies", "2 shows", for "3 movies · 2 shows in your libraries"; empty when there are none. */
     val countTexts: List<UiText>,
     /** Movies, newest first, with their roles: "2019 · as Neo". */
@@ -67,10 +62,9 @@ data class PersonPage(
 
 /**
  * A title someone is credited in, with its caption's second line: the
- * year, then their [roles] in words ("2019 · as Neo"). [subtitle] is that
- * line in English: the TV's, until it shows [roles].
+ * year, then their [roles] in words ("2019 · as Neo").
  */
-data class CreditTile(val item: ItemSummary, val subtitle: String, val roles: List<UiText>)
+data class CreditTile(val item: ItemSummary, val roles: List<UiText>)
 
 /** Titles of one role. */
 data class RoleRow(val role: CreditRole, val credits: List<CreditTile>)
@@ -81,7 +75,6 @@ class PersonViewModel(
     private val data: DataGraph,
     val personId: Long,
     compute: CoroutineDispatcher = Dispatchers.Default,
-    private val locale: Locale = AppLanguage.locale,
 ) : ViewModel() {
     private val retries = MutableStateFlow(0)
 
@@ -90,7 +83,7 @@ class PersonViewModel(
             combine(data.people.person(personId), data.servers.active.map { it.orEmpty() }.distinctUntilChanged()) { load, origin ->
                 val person = load.valueOrNull
                 when {
-                    person != null -> PersonUiState.Ready(personPage(person, origin, locale), load.map { })
+                    person != null -> PersonUiState.Ready(personPage(person, origin), load.map { })
                     load is Loadable.Failed && (load.error as? ApiException)?.status == 404 -> PersonUiState.NotFound
                     load is Loadable.Failed -> PersonUiState.Failed(load.error)
                     else -> PersonUiState.Loading
@@ -112,14 +105,10 @@ class PersonViewModel(
 }
 
 /** The page of [person], whose pictures are on [origin]. */
-fun personPage(person: PersonDetail, origin: String, locale: Locale = AppLanguage.locale): PersonPage {
+fun personPage(person: PersonDetail, origin: String): PersonPage {
     val credits = person.credits.distinctBy { it.item.id }
     val movies = credits.filter { it.item.kind == ItemKind.Movie }
     val shows = credits.filter { it.item.kind == ItemKind.Show }
-    val counts = listOfNotNull(
-        movies.size.takeIf { it > 0 }?.let { pluralize(it, "movie", locale = locale) },
-        shows.size.takeIf { it > 0 }?.let { pluralize(it, "show", locale = locale) },
-    ).joinToString(" · ")
     val countTexts = listOfNotNull(
         movies.size.takeIf { it > 0 }?.let { UiText.plural(R.plurals.person_count_movies, it) },
         shows.size.takeIf { it > 0 }?.let { UiText.plural(R.plurals.person_count_shows, it) },
@@ -137,7 +126,6 @@ fun personPage(person: PersonDetail, origin: String, locale: Locale = AppLanguag
         name = person.name,
         photoUrl = person.photoUrl?.takeIf { it.isNotEmpty() },
         origin = origin,
-        counts = counts,
         countTexts = countTexts,
         movies = movies.map { tile(it.item, it.roles) },
         shows = shows.map { tile(it.item, it.roles) },
@@ -147,30 +135,7 @@ fun personPage(person: PersonDetail, origin: String, locale: Locale = AppLanguag
 
 private val ROLE_ORDER = listOf(CreditRole.Actor, CreditRole.Director, CreditRole.Creator, CreditRole.Writer, CreditRole.Producer)
 
-private fun tile(item: ItemSummary, roles: List<PersonRole>) = CreditTile(item, subtitle(item, roles), roleWords(roles))
-
-/** "2019 · as Neo". */
-private fun subtitle(item: ItemSummary, roles: List<PersonRole>): String =
-    listOf(item.year?.toString().orEmpty(), roleText(roles)).filter { it.isNotEmpty() }.joinToString(" · ")
-
-private val ROLE_NAMES = mapOf(
-    CreditRole.Actor to "Actor",
-    CreditRole.Creator to "Creator",
-    CreditRole.Director to "Director",
-    CreditRole.Writer to "Writer",
-    CreditRole.Producer to "Producer",
-)
-
-/** "as Neo", "Director", "Guest star (3 episodes)", as the web says it, in English. See [roleWords]. */
-fun roleText(roles: List<PersonRole>): String = roles.joinToString(", ") { r ->
-    val episodes = r.episodes ?: 0
-    val base = if (r.role == CreditRole.Actor) {
-        r.character?.takeIf { it.isNotEmpty() }?.let { "as $it" } ?: if (episodes > 0) "Guest star" else "Actor"
-    } else {
-        ROLE_NAMES[r.role] ?: "Crew"
-    }
-    if (episodes > 0) "$base (${pluralize(episodes, "episode")})" else base
-}
+private fun tile(item: ItemSummary, roles: List<PersonRole>) = CreditTile(item, roleWords(roles))
 
 private val ROLE_WORDS = mapOf(
     CreditRole.Actor to R.string.person_role_actor,

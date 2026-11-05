@@ -35,6 +35,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileCaption
 import app.pley.android.designsystem.tile.TileKind
@@ -45,12 +46,11 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.playlists.PlaylistCard
 import app.pley.android.screens.playlists.PlaylistsViewModel
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTileFrame
-import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
-import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -129,7 +129,7 @@ internal fun TvPlaylistsContent(state: Loadable<List<PlaylistCard>>, onRetry: ()
                 verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
                 itemsIndexed(list, key = { _, card -> card.id }, contentType = { _, _ -> "playlist" }) { index, card ->
-                    val subtitle = listOfNotNull(card.meta.ifEmpty { null }, smartWord(card)).joinToString(" · ")
+                    val subtitle = listOfNotNull(card.metaTexts.asString().ifEmpty { null }, smartWord(card)).joinToString(" · ")
                     TvTileFrame(
                         kind = TileKind.Square,
                         onClick = { navigator.open(PleyKey.Playlist(card.id)) },

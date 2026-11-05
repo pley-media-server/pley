@@ -11,10 +11,6 @@ import java.util.Locale
  * takes its words last, English when given none.
  */
 
-/** "1 movie", "0 movies", "12,345 movies", "3 children": the count in [locale]'s digits. */
-fun pluralize(n: Int, one: String, many: String = "${one}s", locale: Locale = Locale.getDefault()): String =
-    "${NumberFormat.getIntegerInstance(locale).format(n)} ${if (n == 1) one else many}"
-
 /** "S1 · E3", "E3", or "" with neither number. */
 fun episodeLabel(seasonNumber: Int?, episodeNumber: Int?, words: FormatWords = FormatWords.English): String = when {
     seasonNumber != null && episodeNumber != null -> words.seasonEpisode(seasonNumber, episodeNumber)

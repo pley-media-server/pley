@@ -25,20 +25,6 @@ object SmartFilter {
         LibrarySort.Bitrate to "mediaBitrate",
     )
 
-    /** [SORT_WORDS] in English, for [describe]. */
-    private val SORT_NOTES = mapOf(
-        "titleSort" to ("By title" to "By title, Z to A"),
-        "year" to ("Oldest first" to "Newest first"),
-        "originallyAvailableAt" to ("Earliest release first" to "Latest release first"),
-        "addedAt" to ("First added first" to "Recently added first"),
-        "rating" to ("Lowest rated first" to "Best rated first"),
-        "audienceRating" to ("Lowest rated first" to "Best rated first"),
-        "userRating" to ("Your lowest rated first" to "Your best rated first"),
-        "lastViewedAt" to ("Least recently played first" to "Recently played first"),
-        "duration" to ("Shortest first" to "Longest first"),
-        "viewCount" to ("Least played first" to "Most played first"),
-    )
-
     /** Each field's order in words: first, then reversed. */
     private val SORT_WORDS = mapOf(
         "titleSort" to (R.string.library_filter_title_asc to R.string.library_filter_title_desc),
@@ -67,35 +53,6 @@ object SmartFilter {
         val field = PLEX_SORT.getValue(params.sort)
         add("sort" to if (params.effectiveOrder == SortOrder.Descending) "$field:desc" else field)
     }.joinToString("&") { (k, v) -> "${LibraryParams.encode(k)}=${LibraryParams.encode(v)}" }
-
-    /**
-     * What a smart filter finds, in English: "Genre: Comedy", "Unwatched",
-     * "Newest first"… The TV's, until it shows [words].
-     */
-    fun describe(filter: String): List<String> = buildList {
-        for ((key, value) in parts(filter)) {
-            when (key) {
-                "genre" -> add("Genre: $value")
-                "label" -> add("Label: $value")
-                "studio" -> add("Studio: $value")
-                "contentRating" -> add("Rated $value")
-                "unwatched" -> add(if (value == "0" || value == "false") "Watched" else "Unwatched")
-                "inProgress" -> add(if (value == "0" || value == "false") "Not in progress" else "In progress")
-                "year" -> add("From $value")
-                "year>>" -> add("After $value")
-                "year<<" -> add("Before $value")
-                "decade" -> add("The ${value}s")
-                // "4K", "Dolby Vision": the names the library's filters give them.
-                "resolution" -> add(ResolutionFilter.of(value)?.label ?: "$key: $value")
-                "dynamicRange" -> add(DynamicRangeFilter.of(value)?.label ?: "$key: $value")
-                "sort" -> add(sortNote(value))
-                "limit" -> add("At most $value")
-                // Plumbing, not part of what is found.
-                "type", "includeGuids" -> Unit
-                else -> add("$key: $value")
-            }
-        }
-    }
 
     /** What a smart filter finds, in words: "Genre: Comedy", "Unwatched", "Newest first"… */
     fun words(filter: String): List<UiText> = buildList {
@@ -133,12 +90,6 @@ object SmartFilter {
 
     /** A field Pley has no words for, as it is: "country: France". */
     private fun other(key: String, value: String): UiText = UiText.res(R.string.library_filter_other, key, value)
-
-    private fun sortNote(value: String): String {
-        val (name, descending) = sortOf(value)
-        val notes = SORT_NOTES[name] ?: return "Sorted by $name"
-        return if (descending) notes.second else notes.first
-    }
 
     private fun sortWords(value: String): UiText {
         val (name, descending) = sortOf(value)

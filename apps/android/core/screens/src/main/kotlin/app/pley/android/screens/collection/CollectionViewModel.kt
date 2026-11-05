@@ -84,8 +84,6 @@ data class CollectionPage<T : Any>(
     /** `null` while the libraries aren't known. */
     val libraryName: String?,
     val kind: LibraryKind?,
-    /** [noteTexts] in English: the TV's, until it shows them. */
-    val notes: List<String>,
     /** What it holds and in which order, in words: its filter's ("Genre: Comedy", "Newest first"), else its order ("By release date"). */
     val noteTexts: List<UiText>,
     /** The server's addresses for its pictures, made absolute by the interface ([origin]). */
@@ -182,7 +180,6 @@ class CollectionViewModel<T : Any>(
         details = detail
         val movies = detail.items.any { it.kind == ItemKind.Movie } || (detail.items.isEmpty() && kind != LibraryKind.Shows)
         val filter = detail.smartFilter?.takeIf { it.isNotEmpty() }
-        val notes = filter?.let(SmartFilter::describe) ?: listOfNotNull(sortNote(detail.sort))
         val noteTexts = filter?.let(SmartFilter::words) ?: listOfNotNull(sortNoteText(detail.sort))
         return CollectionPage(
             id = detail.id,
@@ -194,7 +191,6 @@ class CollectionViewModel<T : Any>(
             libraryId = detail.libraryId,
             libraryName = libraryName,
             kind = kind,
-            notes = notes,
             noteTexts = noteTexts,
             posterUrl = detail.posterUrl,
             backdropUrl = detail.backdropUrl,
@@ -206,14 +202,6 @@ class CollectionViewModel<T : Any>(
     }
 
     companion object {
-        /** The web's words for a collection's order, in English: [sortNoteText]'s. */
-        fun sortNote(sort: CollectionSort): String? = when (sort) {
-            CollectionSort.Release -> "By release date"
-            CollectionSort.Title -> "By title"
-            CollectionSort.Custom -> "Custom order"
-            CollectionSort.Unknown -> null
-        }
-
         /** The web's words for a collection's order: "By release date". */
         fun sortNoteText(sort: CollectionSort): UiText? = when (sort) {
             CollectionSort.Release -> UiText.res(R.string.collection_order_release)

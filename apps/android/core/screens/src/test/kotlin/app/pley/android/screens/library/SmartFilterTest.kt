@@ -4,11 +4,18 @@ import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
+import app.pley.android.screens.inEnglish
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /** apps/web/src/lib/smartFilter.test.ts's cases. */
+@RunWith(RobolectricTestRunner::class)
 class SmartFilterTest {
+    /** [filter]'s words in English, as a screen shows them. */
+    private fun english(filter: String): List<String?> = SmartFilter.words(filter).map { it.inEnglish() }
+
     @Test
     fun theLibraryPagesFiltersInPlexsSyntax() {
         assertEquals(
@@ -46,31 +53,31 @@ class SmartFilterTest {
     fun filtersInWords() {
         assertEquals(
             listOf("Genre: Comedy", "Unwatched", "Newest first"),
-            SmartFilter.describe("type=1&genre=Comedy&unwatched=1&sort=year%3Adesc"),
+            english("type=1&genre=Comedy&unwatched=1&sort=year%3Adesc"),
         )
         // As python-plexapi writes them.
         assertEquals(
             listOf("After 2019", "Recently added first", "At most 20"),
-            SmartFilter.describe("year%3E%3E=2019&sort=movie.addedAt:desc&includeGuids=1&limit=20"),
+            english("year%3E%3E=2019&sort=movie.addedAt:desc&includeGuids=1&limit=20"),
         )
         // A field it has no words for reads as it is.
-        assertEquals(listOf("country: France"), SmartFilter.describe("country=France"))
+        assertEquals(listOf("country: France"), english("country=France"))
     }
 
     @Test
     fun resolutionAndDynamicRangeReadAsTheFiltersNameThem() {
-        assertEquals(listOf("4K"), SmartFilter.describe("resolution=4k"))
-        assertEquals(listOf("1080p", "Dolby Vision"), SmartFilter.describe("resolution=1080&dynamicRange=dolby_vision"))
-        assertEquals(listOf("Any HDR", "HDR+"), SmartFilter.describe("dynamicRange=hdr&dynamicRange=hdr10plus"))
+        assertEquals(listOf("4K"), english("resolution=4k"))
+        assertEquals(listOf("1080p", "Dolby Vision"), english("resolution=1080&dynamicRange=dolby_vision"))
+        assertEquals(listOf("Any HDR", "HDR+"), english("dynamicRange=hdr&dynamicRange=hdr10plus"))
         // A value Pley's filters don't name (Plex's own): as it is.
-        assertEquals(listOf("resolution: 576"), SmartFilter.describe("resolution=576"))
+        assertEquals(listOf("resolution: 576"), english("resolution=576"))
     }
 
     @Test
     fun whatItSavesReadsBackAsTheSameWords() {
         val filter = SmartFilter.of(LibraryParams(sort = LibrarySort.Added, watched = false, genre = "Drama", year = 2001))
-        assertEquals(listOf("Genre: Drama", "From 2001", "Unwatched", "Recently added first"), SmartFilter.describe(filter))
+        assertEquals(listOf("Genre: Drama", "From 2001", "Unwatched", "Recently added first"), english(filter))
         val quality = SmartFilter.of(LibraryParams(resolution = ResolutionFilter.Sd, dynamicRange = DynamicRangeFilter.Sdr))
-        assertEquals(listOf("SD", "SDR", "By title"), SmartFilter.describe(quality))
+        assertEquals(listOf("SD", "SDR", "By title"), english(quality))
     }
 }

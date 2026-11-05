@@ -56,20 +56,16 @@ data class PlaylistPage<T : Any>(
     val video: Boolean,
     /** Filled by its filter: read-only, its entries never moved or removed. */
     val smart: Boolean,
-    /** [metaTexts] in English, joined: the TV's, until it shows them. */
-    val meta: String,
-    /** [noteTexts] in English: the TV's, until it shows them. */
-    val notes: List<String>,
+    /** "12 items", "3h 12m". */
+    val metaTexts: List<UiText>,
+    /** A smart playlist's filter in words: "Genre: Comedy", "Newest first". */
+    val noteTexts: List<UiText>,
     /** The server's addresses of its first entries' pictures, for the mosaic. */
     val artwork: List<String>,
     val origin: String,
     /** The first entry, whose backdrop the TV page shows. */
     val lead: ItemSummary?,
     val rows: List<PlaylistRow<T>>,
-    /** "12 items", "3h 12m" ([meta] as it is, by default). */
-    val metaTexts: List<UiText> = listOfNotNull(meta.takeIf { it.isNotEmpty() }?.let(UiText::raw)),
-    /** A smart playlist's filter in words: "Genre: Comedy", "Newest first" ([notes] as they are, by default). */
-    val noteTexts: List<UiText> = notes.map(UiText::raw),
 ) {
     val editable: Boolean get() = !smart
     val canPlay: Boolean get() = rows.isNotEmpty()
@@ -344,14 +340,12 @@ class PlaylistViewModel<T : Any>(
             title = detail.title,
             video = video,
             smart = smart,
-            meta = Playlists.meta(count, duration),
-            notes = if (smart) SmartFilter.describe(detail.smartFilter.orEmpty()) else emptyList(),
+            metaTexts = Playlists.metaTexts(count, duration, words),
+            noteTexts = if (smart) SmartFilter.words(detail.smartFilter.orEmpty()) else emptyList(),
             artwork = detail.artwork,
             origin = origin,
             lead = entries.firstOrNull()?.item ?: detail.entries.firstOrNull()?.item,
             rows = rows,
-            metaTexts = Playlists.metaTexts(count, duration, words),
-            noteTexts = if (smart) SmartFilter.words(detail.smartFilter.orEmpty()) else emptyList(),
         )
     }
 

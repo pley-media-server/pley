@@ -1,5 +1,6 @@
 package app.pley.android.screens.collection
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
@@ -13,6 +14,7 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
+import app.pley.android.screens.R
 import app.pley.android.screens.library.FakeCollections
 import app.pley.android.screens.library.FakeHubs
 import app.pley.android.screens.library.FakeLibraries
@@ -82,12 +84,15 @@ class CollectionViewModelTest {
         assertTrue(page.automatic)
         assertFalse(page.smart)
         assertEquals("Movies", page.libraryName)
-        assertEquals(listOf("By release date"), page.notes)
+        assertEquals(listOf(UiText.res(R.string.collection_order_release)), page.noteTexts)
         assertTrue(page.movies)
         assertTrue(page.canShuffle)
         val filtered = smart.state.value.valueOrNull!!
         assertTrue(filtered.smart)
-        assertEquals(listOf("Genre: Comedy", "The 1990s", "Oldest first"), filtered.notes)
+        assertEquals(
+            listOf(UiText.res(R.string.library_filter_genre, "Comedy"), UiText.res(R.string.library_filter_decade, "1990"), UiText.res(R.string.library_filter_year_asc)),
+            filtered.noteTexts,
+        )
         assertFalse(filtered.canPlay)
         job.cancel()
         job2.cancel()

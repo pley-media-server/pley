@@ -31,9 +31,26 @@ class DiagnosticsWordsTest {
 
     @Test
     fun englishIsWhatItAlwaysSaid() {
-        for (profile in listOf(phone, fireTv, tv)) {
-            assertEquals(DiagnosticsViewModel.deviceFacts(profile, Locale.ENGLISH).map { it.label to it.value }, said(profile, english))
-        }
+        assertEquals(
+            listOf(
+                "Model" to "Pixel 7a",
+                "Kind" to "Phone",
+                "Memory" to "8.0 GB",
+                "Memory tier" to "T2",
+                "Player buffer" to "15-50 s ahead, 10 s behind",
+            ),
+            said(phone, english),
+        )
+        assertEquals(
+            listOf(
+                "Model" to "Google TV Streamer",
+                "Kind" to "TV",
+                "Memory" to "2.4 GB",
+                "Memory tier" to "T1",
+                "Player buffer" to "50-50 s ahead, 96 MiB",
+            ),
+            said(tv, english),
+        )
         assertEquals(
             listOf(
                 "Model" to "AFTSS",

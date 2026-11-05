@@ -15,7 +15,6 @@ import app.pley.android.model.caps.ClientCaps
 import app.pley.android.player.engine.BufferPlan
 import app.pley.android.screens.R
 import app.pley.android.screens.screensGraph
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -28,17 +27,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-/** A labelled fact of Diagnostics in English ("Memory tier", "T1"), as the TV's screens show it; [DeviceFact] says it in words. */
-data class Fact(val label: String, val value: String)
-
 /** A labelled fact of Diagnostics, in words the screen puts in the language shown: "Memory tier", "T1". */
 data class DeviceFact(val label: UiText, val value: UiText)
 
 /** Diagnostics' state. */
 data class DiagnosticsUiState(
-    /** The device, in English: model, kind, memory and its tier, the player's buffers. */
-    val device: List<Fact> = emptyList(),
-    /** The same as [device], in words the screen puts in the language shown. */
+    /** The device: model, kind, memory and its tier, the player's buffers. */
     val facts: List<DeviceFact> = emptyList(),
     /**
      * What it plays, one line each: decoders (hardware or software, their
@@ -65,12 +59,10 @@ class DiagnosticsViewModel(
 ) : ViewModel() {
     private val probing = MutableStateFlow(capabilities.snapshot.value == null)
     private val failure = MutableStateFlow<Throwable?>(null)
-    private val device = deviceFacts(profile)
     private val facts = factsOf(profile)
 
     val state: StateFlow<DiagnosticsUiState> = combine(capabilities.snapshot, probing, failure) { snapshot, busy, error ->
         DiagnosticsUiState(
-            device = device,
             facts = facts,
             lines = snapshot?.lines.orEmpty(),
             capsJson = snapshot?.let(::capsJson).orEmpty(),
@@ -80,7 +72,7 @@ class DiagnosticsViewModel(
     }.flowOn(compute).stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        DiagnosticsUiState(device = device, facts = facts, probing = probing.value),
+        DiagnosticsUiState(facts = facts, probing = probing.value),
     )
 
     init {
@@ -109,29 +101,6 @@ class DiagnosticsViewModel(
 
         /** The report of [snapshot] as the server receives it, indented. */
         fun capsJson(snapshot: CapsSnapshot): String = pretty.encodeToString(ClientCaps.serializer(), snapshot.report)
-
-        /** What Diagnostics says of the device [profile], in English ([factsOf] in words). */
-        fun deviceFacts(profile: DeviceProfile, locale: Locale = Locale.getDefault()): List<Fact> {
-            val kind = when {
-                profile.fireTv -> "Fire TV"
-                profile.form == FormFactor.Tv -> "TV"
-                else -> "Phone"
-            }
-            val ram = String.format(locale, "%.1f GB", profile.totalRamBytes / GB)
-            val plan = BufferPlan.of(profile)
-            val buffer = buildString {
-                append("${plan.minMs / 1000}-${plan.maxMs / 1000} s ahead")
-                if (plan.targetBytes > 0) append(", ${plan.targetBytes / MIB} MiB")
-                if (plan.backBufferMs > 0) append(", ${plan.backBufferMs / 1000} s behind")
-            }
-            return listOf(
-                Fact("Model", profile.model),
-                Fact("Kind", kind),
-                Fact("Memory", if (profile.lowRam) "$ram (low-memory device)" else ram),
-                Fact("Memory tier", profile.tier.name),
-                Fact("Player buffer", buffer),
-            )
-        }
 
         /**
          * What Diagnostics says of the device [profile]: its model, its kind,

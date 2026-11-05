@@ -2,12 +2,14 @@
 
 package app.pley.android.screens.music
 
+import app.pley.android.common.UiText
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.model.ItemKind
 import app.pley.android.network.ApiException
 import app.pley.android.player.NowPlaying
+import app.pley.android.screens.R
 import java.util.Locale
 import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +44,7 @@ class MusicViewModelsTest {
     fun reset() = Dispatchers.resetMain()
 
     private fun TestScope.albumModel(highlight: Long? = null) =
-        AlbumViewModel(items, flowOf(ORIGIN), music, watch, 50, highlight, dispatcher, Random(2), Locale.US).also { vm ->
+        AlbumViewModel(items, flowOf(ORIGIN), music, watch, 50, highlight, dispatcher, Random(2)).also { vm ->
             backgroundScope.launch { vm.state.collect { } }
         }
 
@@ -70,7 +72,7 @@ class MusicViewModelsTest {
         assertTrue(loading.tracksLoading)
         items.kidsOf(50).value = Loadable.Ready((1..10L).map { track(it) }, fresh = true)
         val page = (vm.state.value as MusicPageState.Ready).page
-        assertEquals("10 tracks · 31m", page.meta)
+        assertEquals(listOf(UiText.plural(R.plurals.music_count_tracks, 10), UiText.raw("31m")), page.metaTexts)
         assertEquals(2019, page.year)
         assertEquals("Harbour Lights", page.artist)
         assertEquals(40L, page.artistId)
@@ -153,7 +155,7 @@ class MusicViewModelsTest {
         items.kidsOf(40).value = Loadable.Ready(listOf(album(1, 2001), album(2, 2019), album(3, null), album(4, 2019, "Aaa")), fresh = true)
         val page = (vm.state.value as MusicPageState.Ready).page
         assertEquals(listOf(4L, 2L, 1L, 3L), page.albums.map { it.id })
-        assertEquals("3 albums · 30 tracks", page.counts)
+        assertEquals(listOf(UiText.plural(R.plurals.music_count_albums, 3), UiText.plural(R.plurals.music_count_tracks, 30)), page.countTexts)
 
         vm.play(shuffle = false)
         vm.state.first { it is MusicPageState.Ready && !it.busy }

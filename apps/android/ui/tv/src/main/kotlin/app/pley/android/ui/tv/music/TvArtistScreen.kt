@@ -143,7 +143,7 @@ private fun ArtistContent(
             Column(Modifier.widthIn(max = 520.dp)) {
                 BasicText(stringResource(R.string.tv_music_artist), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
                 BasicText(page.title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val meta = listOf(page.counts, page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                val meta = listOf(page.countTexts.asString(), page.genres.take(3).joinToString(" · ")).filter { it.isNotEmpty() }.joinToString("  ·  ")
                 if (meta.isNotEmpty()) BasicText(meta, style = PleyType.Tv.Label.copy(color = PleyColors.Muted), modifier = Modifier.padding(top = 6.dp))
                 page.summary?.let {
                     BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
