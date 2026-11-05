@@ -145,18 +145,24 @@ sealed class TitleActionsView : View
             block.PositionY = (Ui.Dp(PleyTv.ButtonHeight) - block.SizeHeight) / 2;
             Place(block, null, block.SizeWidth / Ui.Scale);
         }
+        var labelled = false;
         if (unwatch)
         {
             var stop = new RoundButton(RequestText.StopFollowing, "bookmark-minus", on.StopFollowing);
             Place(stop, stop.Item, PleyTv.ButtonHeight);
+            labelled = true;
         }
         foreach (var extra in extras(Claimed))
         {
             var round = new RoundButton(extra.Label, extra.Icon, extra.Press);
             Place(round, round.Item, PleyTv.ButtonHeight);
             Extras.Add(round.Item);
+            labelled = true;
         }
-        y += PleyTv.ButtonHeight;
+        // A round button's label shows 6 dp under it while it has focus. As in the Android app, where
+        // the label is part of the button, the row keeps that room, so nothing under it lies beneath
+        // the label.
+        y += PleyTv.ButtonHeight + (labelled ? 6 + PleyType.Caption.Line : 0);
         if (!above && said.Count > 0) y = Notes(said, y + 12);
         HeightDp = y;
         Size = new Size(Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal), Ui.Dp(y));
