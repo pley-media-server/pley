@@ -98,9 +98,9 @@ interface TvShellSource {
          * the data module last saw it ([householdSize]; 1 until it says).
          * The three are read at once, in the background, as soon as it is
          * made: made before the activity's first frame, it usually knows
-         * them by then. With "Always start as" in a household of several,
-         * the session's saved profile says whether it has a PIN too (from
-         * the disk). Making it touches nothing else.
+         * them by then. In a household of several, the session's saved
+         * profile says whether it has a PIN too (from the disk). Making it
+         * touches nothing else.
          */
         fun of(
             graph: ScreensGraph,
@@ -151,7 +151,7 @@ private class GraphShellSource(
             val (server, signedIn) = start.await()
             val size = profiles.await()
             val always = settings.await().alwaysStartAs
-            val hasPin = if (signedIn && size > 1 && always != null) leftOnPin() else null
+            val hasPin = if (signedIn && size > 1) leftOnPin() else null
             StartFacts(server, signedIn, profiles = size, alwaysStartAs = always, hasPin = hasPin)
         }.also { known = it }
     }

@@ -53,22 +53,25 @@ what it saved and says "Another device answers there."
 
 ### Profiles
 
-A TV asks "Who's watching?" as it starts when the household has more than
-one profile, unless Settings' Always start as names one; Switch profile
-opens it at any time, on phones too. A profile with a PIN shows a lock and
-asks it on a number pad: a wrong one clears the dots, too many say how
-long to wait, and a PIN locked after 100 wrong ones in a row stops the
-pad. Going on as the profile a TV was left on asks its PIN at a start. A
+A TV starts as the profile it was left on, straight into Home, when that
+profile has no PIN. In a household of more than one profile it asks "Who's
+watching?" as it starts when that profile has a PIN, or while the TV
+doesn't know whether it has one. Phones open on the profile used last, and
+a sign-in on the profile picked while approving it. Switch profile opens
+"Who's watching?" at any time. A profile with a PIN shows a lock and asks
+it on a number pad: a wrong one clears the dots, too many say how long to
+wait, and a PIN locked after 100 wrong ones in a row stops the pad. Going
+on as the profile a TV was left on asks its PIN at a start. A
 profile that can see more and has no PIN takes its password: a phone signs
 in again in the browser, and a TV shows a code to approve on a phone,
 where its owner picks it.
 
-Always start as only skips the question: the TV starts as the profile it
-was left on, but never past its PIN. When that profile has one, the start
-opens "Who's watching?" on its PIN pad, and Back shows the other profiles.
-Whether it has one is the profile's `has_pin` from `GET /api/auth/me`, saved
-with the session, so the start reads it from the device; until the TV has
-heard it for that profile, the start asks "Who's watching?".
+A start never goes past a PIN: with Always start as, it opens "Who's
+watching?" on the PIN pad of the profile the TV was left on, and Back
+shows the other profiles. Whether that profile has a PIN is its `has_pin`
+from `GET /api/auth/me`, saved with the session, so the start reads it from
+the device; until the TV has heard it for that profile, the start asks
+"Who's watching?".
 
 ### Phones and tablets
 
