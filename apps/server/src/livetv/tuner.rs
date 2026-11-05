@@ -1038,7 +1038,9 @@ impl Tuners {
     }
 
     /// Ends viewer `session_id` from elsewhere (`DELETE /api/sessions/{id}`):
-    /// `user`'s own, or anyone's for an administrator. Its player hears
+    /// `user`'s own, or anyone's for who oversees playback (an administrator,
+    /// or one of Pley's own apps allowed `activity` on an administrator's
+    /// account: see [`AuthUser::oversees_playback`]). Its player hears
     /// `session_stopped` and its next requests answer `410` with `message`.
     /// `None` when no viewer of that id is known; one ended already is fine.
     /// The stream an app reads for it ends with it.
@@ -1046,7 +1048,7 @@ impl Tuners {
         let viewer = {
             let mut viewers = self.viewers.lock();
             match viewers.get(session_id) {
-                Some(v) if v.user_id == user.id || user.is_admin => {
+                Some(v) if v.user_id == user.id || user.oversees_playback() => {
                     let viewer = viewers.remove(session_id)?;
                     let readers: Vec<String> =
                         viewers.values().filter(|r| r.reads_for(&viewer)).map(|r| r.id.clone()).collect();
@@ -1062,7 +1064,7 @@ impl Tuners {
         };
         let Some(viewer) = viewer else {
             return self.ended.lock().get(session_id).map(|ended| {
-                if ended.user_id == user.id || user.is_admin {
+                if ended.user_id == user.id || user.oversees_playback() {
                     Ok(())
                 } else {
                     Err(AppError::forbidden("not your session"))

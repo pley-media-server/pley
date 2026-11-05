@@ -14,6 +14,10 @@ describes how they are made.
 - Pley for Home Assistant can sign in with a code, as Pley's TV apps do.
   It shows as Home Assistant in your signed-in apps and on a TV it plays
   something on.
+- A new permission, activity, lets an app see what's playing and stop it.
+  On an administrator's account, Pley's own apps allowed it see what
+  everyone plays and stop it, as the dashboard does; other apps, and
+  everyone else's, see and stop only the profile's own.
 - In the desktop app the web app takes casts, as a TV does: your other
   devices' Play on… lists it by its system ("Pley for Windows"), and what
   they send it plays there with the tracks picked, saying where it came

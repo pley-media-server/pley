@@ -270,6 +270,36 @@ async fn sessions_changed_goes_to_the_user_and_administrators() {
 }
 
 #[tokio::test]
+async fn an_administrators_own_app_allowed_activity_hears_everyones_sessions_and_controls_only_its_own() {
+    let w = world().await;
+    let app = &w.app;
+    let (oversees, _) = app.app_token(1, "library play activity").await;
+    let (play_only, _) = app.app_token(1, "library play").await;
+    // Everyone's sessions' changes, as the dashboard hears them; an app of
+    // the administrator's that may only play hears its own alone.
+    let start = async {
+        play(&w, &w.viewer).await;
+    };
+    let heard = streams_until(&w, &[&oversees, &play_only], start, "sessions_changed", Duration::from_secs(1)).await;
+    assert_eq!(events_of(&heard[0], "sessions_changed"), vec![json!({"type": "sessions_changed"})], "{}", heard[0]);
+    assert!(events_of(&heard[1], "sessions_changed").is_empty(), "{}", heard[1]);
+
+    // It stops the viewer's session (tests/stop_session.rs), but controls
+    // nothing of theirs and casts nothing to their devices.
+    let session = play(&w, &w.viewer).await;
+    let refused = command(&w, &oversees, &session, json!({"command": "pause"})).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN, "{}", refused.text());
+    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    assert_eq!(devices(&w, &oversees).await, json!([]), "only its own devices");
+    let refused = cast(&w, &oversees, "tv-1", json!({"item_id": w.film})).await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND, "{}", refused.text());
+    let received = read_until(&mut tv, r#""type":"cast""#, Duration::from_millis(500)).await;
+    assert!(events_of(&received, "cast").is_empty(), "{received}");
+    // Its own sessions list is its own too.
+    assert_eq!(app.get("/api/sessions", &oversees).await.body, json!([]));
+}
+
+#[tokio::test]
 async fn a_command_reaches_the_users_own_streams() {
     let w = world().await;
     let session = play(&w, &w.viewer).await;

@@ -167,9 +167,16 @@ Apps sign in on Pley's own page with OAuth 2.1.
   one used twice ends the app's access.
 - People are asked every time, Pley's own apps included, on a page that
   shows the app's address first and can't be framed.
-- Apps never get administrator rights. Every route they may use is listed
-  with the scope it needs, anything else is refused, and the compatibility
-  APIs refuse their tokens.
+- Apps never get administrator rights but two, which only Pley's own apps
+  get, on an administrator's account and when the administrator allows
+  them: approving requests (`approvals`), and seeing and stopping
+  everyone's streams (`activity`, which only Pley for Home Assistant asks
+  for). Whatever holds such a token can do as much, so whoever controls a
+  Home Assistant an administrator signed in can see what everyone plays and
+  stop it. Other apps, and apps on other accounts, see and stop only their
+  profile's own streams. Every route apps may use is listed with the scope
+  it needs, anything else is refused, and the compatibility APIs refuse
+  their tokens.
 - Apps, and people who aren't administrators, don't see library folders or
   file paths on either API (only a file's name), the transcoder's error
   messages included.

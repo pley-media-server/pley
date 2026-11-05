@@ -112,10 +112,11 @@ pub enum ServerEvent {
         item_ids: Vec<i64>,
         children: bool,
     },
-    /// A playback session was stopped by someone else than its player (an
-    /// administrator, or its owner on another device): the player stops.
-    /// `by_admin` is true when an administrator stopped another user's
-    /// session.
+    /// A playback session was stopped by someone else than its player (who
+    /// oversees playback: an administrator, or one of Pley's own apps
+    /// allowed `activity` on an administrator's account; or its owner on
+    /// another device): the player stops. `by_admin` is true when one who
+    /// oversees playback stopped another user's session.
     SessionStopped {
         #[serde(skip)]
         user_id: i64,

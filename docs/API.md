@@ -125,7 +125,7 @@ Each endpoint table has a **Who** column:
 | `public` | anyone, without a token |
 | `user` | any signed-in user; an app's token is refused (`403 insufficient_scope`) |
 | `any app` | any signed-in user, and every app's token |
-| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`) |
+| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals`, `activity` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`); with `play` or `activity`, a token with either |
 | `admin` | administrators only (`403` for others), never an app's token |
 | `page` | Pley's consent page only ([its endpoints](#the-consent-pages-endpoints)) |
 
@@ -830,7 +830,7 @@ Every other `/.well-known/` path answers `404`.
   "token_endpoint_auth_methods_supported": ["none"],
   "revocation_endpoint_auth_methods_supported": ["none"],
   "code_challenge_methods_supported": ["S256"],
-  "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
+  "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"],
   "authorization_response_iss_parameter_supported": true,
   "client_id_metadata_document_supported": false,
   "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md"
@@ -1220,23 +1220,33 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `profiles` | switch to the household's other profiles. Pley's own apps only, since a profile's PIN is typed into the app |
 | `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
 | `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; it does nothing on other accounts |
+| `activity` | see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator. Any app may be allowed it, but only Pley's own see and stop everyone's, and of those only Pley for Home Assistant asks for it |
 
 An app's token opens only the routes whose **Who** is `any app` or one of
 its scopes (`HEAD` as `GET`). Every other route answers
 `403 insufficient_scope`: administration and sign-in settings among them.
 Name, picture (`PATCH /api/me`), password, PIN, two-step sign-in, devices,
-apps, activity, switching by `/api/auth/switch` and all administration stay
-in the web app.
+apps, switching by `/api/auth/switch` and all administration stay in the
+web app.
 
 What apps see:
 
 - An app's token never has administrator rights. On an administrator's
   account it sees every library without an age limit, as the account does,
   and administers nothing: history, sessions and collections answer it as
-  they would anyone else. The one exception: on an administrator's account,
-  one of Pley's own apps allowed `approvals` manages requests (approves and
-  declines them, marks them as added by hand, sees and deletes everyone's,
-  and hears the managers' request events; see [Requests](#requests)).
+  they would anyone else. Two exceptions, on an administrator's account and
+  for Pley's own apps alone: one allowed `approvals` manages requests
+  (approves and declines them, marks them as added by hand, sees and
+  deletes everyone's, and hears the managers' request events; see
+  [Requests](#requests)), and one allowed `activity` (Pley for Home
+  Assistant, the only one that asks for it) sees and stops what everyone
+  plays, as the dashboard does: `/api/activity` lists everyone's sessions,
+  its event stream hears everyone's `sessions_changed`, and
+  `DELETE /api/sessions/{id}` stops anyone's
+  ([Stopping a stream](#stopping-a-stream)). It still controls and casts to
+  only its own profile's players, and gets none of the dashboard's library
+  work. Any other app allowed `activity` sees and stops its profile's own
+  sessions alone.
 - Libraries' `paths` are empty, and files' `path` is the file name only.
 - `/api/users/{id}/avatar` shows only the app's own profile, its
   household, and, to an app allowed `requests` while requests are on, the
@@ -1316,11 +1326,11 @@ profiles when the app's profile is in the household, else nothing:
 
 - Their descriptions are built into the server and never fetched, so they
   sign in to servers without internet access.
-- All get refresh tokens and may ask for every scope, but the desktop app
-  for `requests` and `approvals`: its window shows the server's own pages,
-  signed in as the web app is. Pley for Home Assistant asks for `library`,
+- All get refresh tokens. Pley for Home Assistant asks for `library`,
   `play` and `activity` alone: it shows and controls what plays, and plays
-  nothing itself.
+  nothing itself. The others may ask for every scope but `activity`, and
+  the desktop app not for `requests` and `approvals` either: its window
+  shows the server's own pages, signed in as the web app is.
 - The Android app and Pley for iPhone and iPad may also sign in with a
   code, on a TV or a shared screen ([TVs](#tvs)). The Kodi, Roku, Samsung,
   LG and Apple TV apps and Pley for Home Assistant sign in only that way:
@@ -3332,9 +3342,9 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
+| GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
-| DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
+| DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`) something to play ([Casting](#casting)) |
@@ -3346,34 +3356,43 @@ credits detection, `previews_pending` files waiting for seek previews
 `library_work` says why they wait while some do ([Library work](#library-work)).
 Non-administrators see only their own sessions and the scans of libraries
 they may open, with no `analysis` or `library_work`, and the counts 0; a
-session's `transcode.last_error` is "the conversion failed" for them.
+session's `transcode.last_error` is "the conversion failed" for them. An
+app allowed `activity` gets the same, but that one of Pley's own on an
+administrator's account sees everyone's sessions
+([What apps see](#scopes)).
 
 `/api/events`: each stream gets the events of the libraries its user may
 open, and the user's own events; an administrator's gets everyone's
-`sessions_changed` too, for the dashboard. A comment line keeps it alive
-every 15 s. The token is checked again every 30 s: the stream ends once it
-is signed out, expired or its account disabled, and the client connects
-again with a valid token; one whose account became an administrator, or
-stopped being one, follows that. One token may keep 16 streams open;
-another answers `429`. A stream that names its device as a `receiver`
-makes the device one the user's remotes cast to, while it is open
-([Casting](#casting)).
+`sessions_changed` too, for the dashboard, as does that of one of Pley's
+own apps allowed `activity` on an administrator's account. A comment line
+keeps it alive every 15 s. The token is checked again every 30 s: the
+stream ends once it is signed out, expired or its account disabled, and
+the client connects again with a valid token; one whose account became an
+administrator, or stopped being one, follows that, an app's too. One token
+may keep 16 streams open; another answers `429`. A stream that names its
+device as a `receiver` makes the device one the user's remotes cast to,
+while it is open ([Casting](#casting)).
 
 ### Stopping a stream
 
 `DELETE /api/sessions/{id}` ends a playback session from somewhere other
 than its player, or a Live TV viewer's session
 ([Remote control](#remote-control)). Administrators stop any session (the
-dashboard's *Stop*); anyone else, their own (on another of their
-devices). Someone else's answers `403`, an unknown one `404`, one stopped
-already `204`. Its transcode and HLS end at once, and so does the
-`stream.ts` an app reads for a live session. Then:
+dashboard's *Stop*), and so does one of Pley's own apps allowed `activity`
+on an administrator's account; anyone else, their own (on another of their
+devices), apps by other publishers allowed `activity` included. An app
+needs `play` or `activity` for it. Someone else's answers `403`, an unknown
+one `404`, one stopped already `204`. Its transcode and HLS end at once,
+and so does the `stream.ts` an app reads for a live session. Then:
 
 - the user's event streams get `{ type: "session_stopped", session_id,
   message, by_admin }`. `message` is the one given (trimmed) or `null`;
-  `by_admin` is true when an administrator stopped another user's session.
-  Only that user's streams get it; `sessions_changed` goes to that user's
-  and administrators' streams, as when any session ends;
+  `by_admin` is true when an administrator, or one of Pley's own apps
+  allowed `activity` on an administrator's account, stopped another user's
+  session. Only that user's streams get it; `sessions_changed` goes to
+  that user's and administrators' streams, and those of Pley's own apps
+  allowed `activity` on administrators' accounts, as when any session
+  ends;
 - for 30 minutes, the session's next requests answer `410`
   `{ code: "session_stopped", error: "session_stopped", message }`: its
   status, playlists and segments, and progress reports naming it (which
@@ -3395,7 +3414,8 @@ don't restart the stopped session.
 A user's devices control what plays on their other devices: pause the TV
 from a phone, skip a track from the browser, change the TV's subtitles,
 or start a film on it. Only the session's or the device's own user does;
-administrators stop other people's sessions (above) and nothing more.
+administrators, and Pley's own apps allowed `activity` on their accounts,
+stop other people's sessions (above) and nothing more.
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,
@@ -3746,7 +3766,8 @@ type ServerEvent =
                                                      // or what they may see (is_admin, all_libraries,
                                                      // library_ids, max_age changed)
   | { type: "sessions_changed" }                     // a session of the user's started, ended or changed (their
-                                                     // streams, and administrators', whose dashboard lists all)
+                                                     // streams, and administrators', whose dashboard lists all,
+                                                     // and administrators' Pley apps allowed activity)
   | { type: "watchlist_changed" }                    // the user's My List changed (their streams only)
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only

@@ -10,14 +10,19 @@ import { Avatar } from "@/components/Avatar";
 import { Badge, Button } from "@/components/ui";
 import { AuthLayout } from "./AuthLayout";
 
-/** What each scope lets an app do, for the profile it acts as. */
-const SCOPE_WORDS: Record<string, (profile: string) => string> = {
+/** What each scope lets an app do, for the profile it acts as; `own`: one of Pley's own apps. */
+const SCOPE_WORDS: Record<string, (profile: string, own: boolean) => string> = {
   library: (p) => `See ${p}'s libraries, playlists and watch history.`,
   play: (p) => `Play titles, and keep ${p}'s place, watched marks, ratings, track choices and library order.`,
   playlists: (p) => `Make, change and delete ${p}'s playlists.`,
   profiles: () => "Switch to the household's other profiles. Profiles with a PIN still ask for it.",
   requests: (p) => `Ask for movies and shows the libraries don't have, and follow ${p}'s requests.`,
   approvals: () => "Approve and decline what people ask for, where the account is an administrator.",
+  // Everyone's streams only ever go to Pley's own apps: another's sees and stops the profile's own.
+  activity: (p, own) =>
+    own
+      ? `See what's playing and stop it: ${p}'s streams, and everyone's where the account is an administrator.`
+      : `See what's playing and stop it: ${p}'s streams.`,
 };
 
 /** How long the page must have been seen before Allow can be pressed. */
@@ -169,8 +174,13 @@ export function AppConsent({
 
   const over = isApiError(error, 404);
   const canSwitch = (profiles.data?.length ?? 0) > 1;
-  // The one administrator right an app can get: managing requests.
+  // The administrator rights an app can get: managing requests, and for one
+  // of Pley's own seeing and stopping everyone's streams.
   const approves = user.is_admin && request.scopes.includes("approvals");
+  const oversees = user.is_admin && client.first_party && request.scopes.includes("activity");
+  const rights = [approves ? "approving and declining requests" : null, oversees ? "seeing and stopping everyone's streams" : null]
+    .filter((right) => right !== null)
+    .join(" and ");
 
   return (
     <AuthLayout title={`${app} wants to use your Pley account`} subtitle={server.data ? `on ${server.data.name}` : undefined}>
@@ -226,19 +236,19 @@ export function AppConsent({
             {request.scopes.map((scope) => (
               <li key={scope} className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                <span>{SCOPE_WORDS[scope]?.(user.name) ?? scope}</span>
+                <span>{SCOPE_WORDS[scope]?.(user.name, client.first_party) ?? scope}</span>
               </li>
             ))}
           </ul>
           <p className="mt-3 text-muted">
-            {approves
+            {rights
               ? "It can't change your password, sign-in settings or devices."
               : "It can't change your password, sign-in settings or devices, and it never gets administrator rights."}
           </p>
           {user.is_admin ? (
             <p className="mt-1 text-muted">
-              {approves
-                ? "Of your administrator rights it gets only approving and declining requests: the others stay in Pley's web app."
+              {rights
+                ? `Of your administrator rights it gets only ${rights}: the others stay in Pley's web app.`
                 : "Your administrator rights stay in Pley's web app."}
             </p>
           ) : null}
