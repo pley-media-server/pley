@@ -207,6 +207,43 @@ interface RemoteRepository {
             else -> null
         }
 
+        /**
+         * [session] as the remote shows it while [sent] is out (the web's
+         * lib/remote.ts): as the command asks, played or paused, at the
+         * place a seek or a skip goes, with the track or quality picked, so
+         * the controls don't wait on the player's report to move. Once the
+         * wait is over without an answer, the session as it is shows again.
+         */
+        fun asSent(session: RemoteSession, sent: SentCommand?): RemoteSession {
+            if (sent == null) return session
+            val playing = session.session
+            // A place given at the moment the command went, moving on from there while it plays.
+            fun at(positionMs: Long, state: ProgressState = playing.state) = RemoteSession(playing.copy(state = state, positionMs = positionMs), sent.sentAt)
+            return when (sent.command) {
+                Control.Play -> at(session.positionAt(sent.sentAt), ProgressState.Playing)
+                Control.Pause -> at(session.positionAt(sent.sentAt), ProgressState.Paused)
+                Control.Audio -> session.copy(session = playing.copy(audioIndex = sent.streamIndex ?: playing.audioIndex))
+                Control.Subtitles -> session.copy(session = playing.copy(subtitleIndex = sent.streamIndex ?: playing.subtitleIndex))
+                Control.Quality -> session.copy(session = playing.copy(quality = sent.quality ?: playing.quality))
+                else -> sent.target?.let { at(it) } ?: session
+            }
+        }
+
+        /** Whether a player may end its session for [command], to start another: the next or previous title, or a track or a quality it plays anew. */
+        fun mayEndSession(command: Control): Boolean =
+            command == Control.Next || command == Control.Previous || command == Control.Audio || command == Control.Subtitles || command == Control.Quality
+
+        /**
+         * [devices] with [ended] still in, playing it, while its device plays
+         * nothing else (the web's): a command may end a session to start
+         * another ([mayEndSession]), and between the two the device would look
+         * as if it played nothing, or leave the list if it takes no casts.
+         */
+        fun withEnded(devices: List<OtherDevice>, ended: RemoteSession?): List<OtherDevice> {
+            if (ended == null || devices.any { it.deviceId == deviceOf(ended) && it.playing }) return devices
+            return devicesOf(devices.mapNotNull { it.session } + ended, devices.mapNotNull { it.receiver })
+        }
+
         /** Which device plays [session]: its device id, else (a server before it said) the session alone. */
         fun deviceOf(session: RemoteSession): String = session.session.deviceId.ifEmpty { "session:${session.sessionId}" }
 

@@ -14,8 +14,11 @@ describes how they are made.
   one of them, a bar above the tabs says where and what, and opens a
   remote with what plays on each, how far, and the controls its player
   obeys (play and pause, back 10 s and forward 30 s, next and previous,
-  channel up and down, a slider to seek), and Stop. A device that doesn't
-  act on a command within a few seconds is said not to have answered.
+  channel up and down, a slider to seek), and Stop. What a command asks
+  shows at once (the place a seek goes, playing or paused, the track
+  picked), and what plays stays while a next starts the one after; a
+  device that doesn't act on a command within a few seconds is said not
+  to have answered.
   TVs show no remote.
 - The players obey the remote on your other devices, on phones and TVs:
   videos play, pause, seek, skip and go to the next episode; music does
@@ -28,7 +31,8 @@ describes how they are made.
   which tracks they play.
 - The phone's remote lists your devices: every other device that is on,
   playing or ready to play, those that play first, each with an icon for
-  its kind. Choosing one shows its controls, now with Next for every
+  its kind. Choosing one that plays shows its controls (one ready to play
+  is only listed), now with Next for every
   episode, track and channel (dimmed where it can't go on), and Audio and
   Subtitles menus that change what it plays.
 - Phones, tablets and TVs play what your remotes send them while Pley is

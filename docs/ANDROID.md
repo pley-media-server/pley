@@ -206,10 +206,12 @@ device** when the server can't name it; two of the same name are
 numbered), with an icon for its kind (TV, phone, tablet, computer,
 browser, other), and what it plays (an episode as "Show — S1 · E2 —
 Title", a channel as its number and name) with a thin bar of how far,
-or **Ready to play**. Choosing one shows its controls in the list's
-place; Back, or the arrow by its name, goes back to the list. With one
-device only, its controls show at once. The device chosen is kept while
-the sheet is open, so it shows what plays there once it starts.
+or **Ready to play**. Choosing one that plays shows its controls in the
+list's place; Back, or the arrow by its name, goes back to the list. A
+device ready to play is only listed: it has nothing to control. With one
+device only, playing, its controls show at once. The device Play on…
+sent something to is kept while the sheet is open, so its controls show
+once it plays.
 
 A device's controls, top to bottom:
 
@@ -241,18 +243,20 @@ A device's controls, top to bottom:
   Subtitles starts with **Off**. On the right, **Stop**, which asks first
   (**Stop playing on** the device?, Stop or Cancel).
 
-A device that plays nothing shows **Nothing playing**, and under it
-**Send something here with Play on…**.
-
-A command waits up to 5 s for the list to show it acted (a new state, a
-new title, a report from where it was sent, the track or quality
-picked), and the controls say it's waiting meanwhile; without one they say the device
-**didn't answer**, until the device reports again. A next or previous
-with nothing there changes nothing, and isn't a failure. While a command
-waits, the sheet stays open with nothing listed, as when a next ends one
-session before the next one's is listed. Refusals are said plainly: the
-device isn't playing any more, can't do that, or too many commands at
-once.
+What a command asks shows at once, with nothing said while it waits:
+the place a seek or a skip goes (a skip goes from there), playing or
+paused, the track or quality picked. A next or previous dims the title
+and the transport until what comes next shows. A command waits up to 5 s
+for the list to show it acted (a new state, a new title, a report from
+where it was sent, the track or quality picked); without one the
+controls say the device **didn't answer**, until the device reports
+again, and show what it plays. A next or previous with nothing there
+changes nothing, and isn't a failure. A next, or a track or quality its
+player plays as a new session, ends one session before the next one's
+is listed: until then, for up to those 5 s, what played stays on the bar
+and in the sheet, and the device stays listed even if it takes no casts.
+Refusals are said plainly: the device isn't playing any more, can't do
+that, or too many commands at once.
 
 The players obey the remote on the profile's other devices
 ([API.md](API.md#remote-control)), on phones and TVs alike, and say what
