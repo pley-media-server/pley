@@ -9,7 +9,7 @@
 // installs beside a release.
 
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commit } from "../../../scripts/commit.mjs";
@@ -30,6 +30,12 @@ if (studio && !existsSync(cli)) {
 // The commit goes into the informational version, which the app shows beside its version.
 // Always given, so a build after a profiling one compiles the profiling out again.
 const metrics = process.env.PLEY_TIZEN_METRICS ?? "";
+// A release and a profiling build share the package's staging folder, and the SDK copies a file
+// there only when it is newer than the one there: the icon of the build before would stay (DEBUG
+// on a release, or none on a profiling build). Emptied first, it is the build's own.
+if (existsSync(bin)) {
+  for (const framework of readdirSync(bin)) rmSync(join(bin, framework, "tpkroot"), { recursive: true, force: true });
+}
 execFileSync("dotnet", ["build", project, "-c", "Release", "-nologo", `-p:SourceRevisionId=${commit()}`, `-p:PleyMetrics=${metrics}`], {
   stdio: "inherit",
 });

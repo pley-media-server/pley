@@ -40,8 +40,9 @@ It has no releases yet: it is built and installed by hand
   and takes commands to measure the network (`speed`, `wifi`) and to try
   other buffering (`buffer`, `rebuffer`, `trim`).
 - A profiling build of the native app is an app of its own, "Pley (debug)",
-  with a DEBUG icon on a yellow band, so it installs beside the app rather
-  than in its place; the app's own icon is the plain logo. The metrics
+  with the app's icon under a yellow DEBUG ribbon, set in from the corner so
+  the TV's rounded corners leave the word whole, and it installs beside the
+  app rather than in its place. The metrics
   listener takes its screenshots and presses the remote's keys for it, so
   the app can be driven from the computer. A command reaches the TV at
   once, where the app asked for one every second. It records an animation
@@ -326,6 +327,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- The rail's entries scroll between the profile and Settings, where those
+  past the ninth were drawn over Settings, and those scrolled past the top
+  over the profile.
 - A film the TV can't play falls back one step at a time, to a conversion
   of its audio before one of the whole film: the TV's player says a failure
   twice, and the second skipped a step and started a second session.

@@ -29,7 +29,7 @@
       <_Parameter1>PleyMetrics</_Parameter1>
       <_Parameter2>$(PleyMetrics)</_Parameter2>
     </AssemblyAttribute>
-    <!-- Its icon says NATIVE, told apart on the TV from a release and from the web app. -->
+    <!-- Its icon has a DEBUG ribbon, told apart on the TV from a release and from the web app. -->
     <TizenTpkUserExcludeFiles Include="shared\res\icon.png" />
     <TizenTpkUserIncludeFiles Include="icon-debug.png" TizenTpkSubDir="shared\res" TizenTpkFileName="icon.png" />
   </ItemGroup>

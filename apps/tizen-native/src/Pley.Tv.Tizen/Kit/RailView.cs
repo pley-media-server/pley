@@ -105,12 +105,13 @@ sealed class RailView : View
         avatar.SetSecondLine("Switch profile");
         Group.Add(avatar.Item);
         Add(avatar.Box);
-        // As wide as the rail with its edge, so an open entry at 1.05 isn't cut.
+        // As wide as the rail with its edge, so an open entry at 1.05 isn't cut. Clipped to its box:
+        // ClipChildren needs a view that draws something, and with nothing to draw cut nothing.
         view = new View
         {
             Size = new Size(Ui.Dp(PleyTv.RailExpanded + Shadow), Ui.Dp(SettingsY - ViewTop)),
             Position = new Position(0, Ui.Dp(ViewTop)),
-            ClippingMode = ClippingModeType.ClipChildren,
+            ClippingMode = ClippingModeType.ClipToBoundingBox,
         };
         track = new View { Position = new Position(0, Ui.Dp(Rail.FirstEntry - ViewTop)) };
         view.Add(track);
