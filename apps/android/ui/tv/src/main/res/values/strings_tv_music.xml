@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- Artist and album pages (apps/web/src/pages/item/MusicViews.tsx). -->
     <string name="tv_music_artist">Artist</string>
     <string name="tv_music_albums">Albums</string>
@@ -25,6 +25,8 @@
     <string name="tv_music_next">Next</string>
     <string name="tv_music_previous">Previous</string>
     <string name="tv_music_position">Position in the track</string>
+    <!-- The sleep timer's button while it runs: "Sleep timer: 30 min". -->
+    <string name="tv_music_sleep_running">%1$s: %2$s</string>
     <string name="tv_music_loading">Loading…</string>
     <string name="tv_music_nothing_playing">Nothing is playing</string>
     <string name="tv_music_nothing_playing_body">Play an album or an artist and it shows here.</string>

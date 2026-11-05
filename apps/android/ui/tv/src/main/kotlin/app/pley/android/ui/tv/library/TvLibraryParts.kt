@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.pley.android.common.sentenceOf
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.PleyColors
@@ -43,6 +42,7 @@ import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.HubKeys
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
@@ -106,10 +106,6 @@ internal fun TvMessage(
         }
     }
 }
-
-/** An error's sentence, capitalised and ended. */
-internal fun sentence(error: Throwable): String =
-    sentenceOf(error)
 
 /**
  * The Recommended tab (the web's RecommendedTab): the library's hubs as
@@ -231,6 +227,11 @@ private fun SkeletonRows() {
     }
 }
 
+/** A dynamic range's name: "Any HDR" in the language shown, the others the formats' own names. */
+@Composable
+internal fun tvRangeLabel(range: DynamicRangeFilter): String =
+    if (range == DynamicRangeFilter.Hdr) stringResource(R.string.tv_library_any_hdr) else range.label
+
 /** The side panels the chips open. */
 internal enum class TvPanel { Sort, Filter, Genre, Year, Resolution, DynamicRange }
 
@@ -323,7 +324,7 @@ internal fun TvLibraryPanel(
                         item(key = "dynamic_range", contentType = PANEL_ROW) {
                             PanelRow(
                                 stringResource(R.string.tv_library_dynamic_range),
-                                value = params.dynamicRange?.label ?: stringResource(R.string.tv_library_all_dynamic_ranges),
+                                value = params.dynamicRange?.let { tvRangeLabel(it) } ?: stringResource(R.string.tv_library_all_dynamic_ranges),
                                 opens = true,
                                 onClick = { onPanel(TvPanel.DynamicRange) },
                             )
@@ -423,7 +424,7 @@ internal fun TvLibraryPanel(
                 }
                 items(state.dynamicRanges, key = { "d/${it.wire}" }, contentType = { PANEL_ROW }) { range ->
                     val on = range == params.dynamicRange
-                    PanelRow(range.label, checked = on, onClick = {
+                    PanelRow(tvRangeLabel(range), checked = on, onClick = {
                         vm.dynamicRange(range)
                         close()
                     }, modifier = Modifier.chosenIf(on))

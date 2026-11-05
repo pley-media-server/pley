@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- The playlists page on TV (apps/web/src/pages/playlists/PlaylistsPage.tsx). -->
     <string name="tv_playlists_title">Playlists</string>
     <string name="tv_playlists_new">New playlist</string>

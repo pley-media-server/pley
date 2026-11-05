@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -33,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.PleyColors
@@ -42,6 +45,7 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileKind
@@ -69,7 +73,6 @@ import app.pley.android.ui.tv.library.TvMessage
 import app.pley.android.ui.tv.library.TvPosterGrid
 import app.pley.android.ui.tv.library.TvTiles
 import app.pley.android.ui.tv.library.rememberTvGridState
-import app.pley.android.ui.tv.library.sentence
 import app.pley.android.ui.tv.library.tvCount
 import app.pley.android.ui.tv.library.tvGridHero
 import app.pley.android.ui.tv.shell.LocalTvNavigator
@@ -86,18 +89,17 @@ import kotlinx.coroutines.delay
  */
 @Composable
 internal fun TvCollectionScreen(key: PleyKey.Collection) {
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val vm: CollectionViewModel<ArtworkTileModel> = viewModel {
-        CollectionViewModel(key.collectionId, CollectionDeps.of(screensGraph()), TvTiles(resources))
+        CollectionViewModel(key.collectionId, CollectionDeps.of(screensGraph()), TvTiles(context))
     }
     val state by vm.state.collectAsStateWithLifecycle()
-    var message by remember { mutableStateOf<String?>(null) }
-    val nothing = stringResource(R.string.tv_collection_nothing_to_play)
+    var message by remember { mutableStateOf<UiText?>(null) }
     LaunchedEffect(vm) {
         vm.events.collect { event ->
             message = when (event) {
-                CollectionEvent.NothingToPlay -> nothing
-                is CollectionEvent.Failed -> sentence(event.error)
+                CollectionEvent.NothingToPlay -> UiText.res(R.string.tv_collection_nothing_to_play)
+                is CollectionEvent.Failed -> errorSentence(event.error)
             }
         }
     }
@@ -122,7 +124,7 @@ internal fun TvCollectionScreen(key: PleyKey.Collection) {
 }
 
 @Composable
-private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: String?) {
+private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: UiText?) {
     val navigator = LocalTvNavigator.current
     val actions = tileActions()
     val memory = rememberFocusMemory()
@@ -168,7 +170,7 @@ private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: Collec
 
 /** The text column of the page's top, and the heading of the titles under it. */
 @Composable
-private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: String?, memory: FocusMemory) {
+private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: UiText?, memory: FocusMemory) {
     val resources = LocalResources.current
     // Focus here takes the grid back to its start, gliding as a page of rows goes back to its hero.
     Column(Modifier.height(HeroHeight).tvGridHero().padding(top = 58.dp).widthIn(max = TextColumn)) {
@@ -221,7 +223,7 @@ private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel
             )
             if (message != null) {
                 BasicText(
-                    message,
+                    message.asString(),
                     style = PleyType.Tv.Label.copy(color = PleyColors.DangerText),
                     modifier = Modifier.padding(start = 12.dp, top = 14.dp).semantics { liveRegion = LiveRegionMode.Polite },
                 )

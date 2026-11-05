@@ -8,7 +8,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -45,9 +45,9 @@ import app.pley.android.ui.tv.shell.failedTitle
 @Composable
 internal fun TvCollectionsScreen(@Suppress("UNUSED_PARAMETER") key: PleyKey.Collections) {
     val navigator = app.pley.android.ui.tv.shell.LocalTvNavigator.current
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val vm: CollectionsViewModel<ArtworkTileModel> = viewModel {
-        CollectionsViewModel(null, LibraryDeps.of(screensGraph()), TvTiles(resources))
+        CollectionsViewModel(null, LibraryDeps.of(screensGraph()), TvTiles(context))
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val memory = rememberFocusMemory()

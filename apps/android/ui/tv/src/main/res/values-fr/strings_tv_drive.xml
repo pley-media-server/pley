@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_drive_title">Périphérique USB</string>
+    <string name="tv_drive_space">%1$s libres sur %2$s</string>
+    <string name="tv_drive_up">Dossier parent</string>
+    <string name="tv_drive_resumes">%1$s · Reprise à %2$s</string>
+    <string name="tv_drive_none_title">Aucun périphérique USB</string>
+    <string name="tv_drive_none_body">Branchez un périphérique USB sur la TV pour lire ses vidéos ici.</string>
+    <string name="tv_drive_unreadable_title">Impossible de lire ce dossier</string>
+    <string name="tv_drive_unreadable_body">Le périphérique a peut-être été débranché.</string>
+    <string name="tv_drive_empty_title">Rien à lire ici</string>
+    <string name="tv_drive_empty_body">Ce dossier ne contient ni vidéo ni dossier.</string>
+    <string name="tv_drive_refused_title">Autoriser Pley à lire le périphérique</string>
+    <string name="tv_drive_refused_body">Pley a besoin d’accéder à vos vidéos pour lister et lire le contenu d’un périphérique USB.</string>
+    <string name="tv_drive_open_settings">Ouvrir les paramètres</string>
+</resources>

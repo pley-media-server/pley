@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_home_resume">Reanudar</string>
+    <string name="tv_home_play">Reproducir</string>
+    <string name="tv_home_from_start">Desde el principio</string>
+    <string name="tv_home_info">Información</string>
+    <string name="tv_home_mark_watched">Marcar como visto</string>
+    <string name="tv_home_mark_unwatched">Marcar como no visto</string>
+    <string name="tv_home_see_all">Ver todo</string>
+    <string name="tv_home_rating">Valoración: %1$s</string>
+
+    <string name="tv_home_no_libraries">Aún no hay bibliotecas</string>
+    <string name="tv_home_no_libraries_body">Pide al propietario del servidor que añada una biblioteca.</string>
+    <string name="tv_home_empty">Aún no hay nada</string>
+    <string name="tv_home_empty_body">Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis.</string>
+    <string name="tv_home_scanning">Analizando tus bibliotecas…</string>
+    <string name="tv_home_scanning_body">Los nuevos elementos aparecerán aquí en cuanto se encuentren.</string>
+    <string name="tv_home_failed">No se pudo cargar tu pantalla de inicio</string>
+    <string name="tv_home_retry">Reintentar</string>
+    <string name="tv_home_nothing_to_play">No hay nada que reproducir</string>
+    <string name="tv_home_loading">Cargando tu pantalla de inicio</string>
+
+    <string name="tv_libraries_title">Bibliotecas</string>
+    <string name="tv_libraries_failed">No se pudieron cargar tus bibliotecas</string>
+    <string name="tv_libraries_scanning">Analizando…</string>
+    <string name="tv_libraries_sort">Ordenar bibliotecas</string>
+    <string name="tv_libraries_sort_done">Listo</string>
+    <string name="tv_libraries_server_order">Usar el orden del servidor</string>
+    <string name="tv_libraries_open">Abrir</string>
+    <string name="tv_libraries_move">Mover</string>
+    <string name="tv_libraries_sorting">Selecciona una biblioteca para moverla. Tu orden se aplica en todos tus dispositivos.</string>
+    <string name="tv_libraries_sort_needs_newer_server">Para ordenar las bibliotecas, el servidor necesita una versión más reciente de Pley.</string>
+    <string name="tv_libraries_moving">Flechas para moverla, OK para soltarla aquí, Atrás para devolverla a su sitio</string>
+</resources>

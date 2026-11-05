@@ -1,9 +1,11 @@
 package app.pley.android.ui.tv.library
 
+import android.content.Context
 import android.content.res.Resources
 import androidx.annotation.PluralsRes
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.AppLanguage
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.image.ArtworkImage
@@ -26,9 +28,13 @@ import kotlin.math.max
 /**
  * The TV's tiles for library pages, made by the screens' ViewModels off
  * the main thread: the design system's models, the collection counts in
- * this app's words.
+ * this app's words. A ViewModel outlives its screen, so the words are
+ * looked up in the language shown each time, never in resources kept from
+ * the screen that made it.
  */
-internal class TvTiles(private val resources: Resources) : TileFactory<ArtworkTileModel> {
+internal class TvTiles(context: Context) : TileFactory<ArtworkTileModel> {
+    private val app = context.applicationContext
+
     override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
         TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
         TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
@@ -45,7 +51,11 @@ internal class TvTiles(private val resources: Resources) : TileFactory<ArtworkTi
     }
 
     override fun collection(collection: CollectionSummary, kind: LibraryKind?, origin: String): ArtworkTileModel {
-        val count = tvCount(resources, if (kind == LibraryKind.Shows) R.plurals.tv_library_count_shows else R.plurals.tv_library_count_movies, collection.itemCount)
+        val count = tvCount(
+            AppLanguage.resources(app),
+            if (kind == LibraryKind.Shows) R.plurals.tv_library_count_shows else R.plurals.tv_library_count_movies,
+            collection.itemCount,
+        )
         return ArtworkTileModel(
             id = collection.id,
             title = collection.title,
@@ -56,15 +66,17 @@ internal class TvTiles(private val resources: Resources) : TileFactory<ArtworkTi
     }
 }
 
-/** "1,500 movies": [n] in this locale's digits, with its plural. */
+/** "1,500 movies": [n] in the digits of [resources]' language, with its plural. */
 internal fun tvCount(resources: Resources, @PluralsRes plural: Int, n: Int): String =
-    resources.getQuantityString(plural, n, NumberFormat.getIntegerInstance().format(n))
+    resources.getQuantityString(plural, n, digits(resources).format(n))
 
-/** "23 of 1,500 movies": [n] of [of] in this locale's digits, with the plural of [of]. */
+/** "23 of 1,500 movies": [n] of [of] in the digits of [resources]' language, with the plural of [of]. */
 internal fun tvCountOf(resources: Resources, @PluralsRes plural: Int, n: Int, of: Int): String {
-    val digits = NumberFormat.getIntegerInstance()
+    val digits = digits(resources)
     return resources.getQuantityString(plural, of, digits.format(n), digits.format(of))
 }
+
+private fun digits(resources: Resources): NumberFormat = NumberFormat.getIntegerInstance(resources.configuration.locales[0])
 
 /** The noun of a filtered listing of a library of [kind]: "23 of 1,500 movies". */
 @PluralsRes

@@ -295,7 +295,7 @@ private fun SleepButton(model: NowPlayingViewModel) {
     val label = when {
         notice -> SleepTexts.keep(resources, music = true)
         sleep.choice == SleepChoice.Off -> SleepTexts.title(resources)
-        else -> SleepTexts.title(resources) + ": " + SleepTexts.summary(resources, sleep, music = true)
+        else -> resources.getString(R.string.tv_music_sleep_running, SleepTexts.title(resources), SleepTexts.summary(resources, sleep, music = true))
     }
     TvRoundButton(
         label,

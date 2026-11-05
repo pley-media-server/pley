@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.errorSentence
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -50,6 +50,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkCandidates
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.PlaylistKind
@@ -173,7 +174,7 @@ internal fun TvAddToPlaylistContent(
                     is Loadable.Failed -> if (playlists.stale == null) {
                         item(key = "failed") {
                             BasicText(
-                                sentenceOf(playlists.error),
+                                errorSentence(playlists.error).asString(),
                                 style = PleyType.Tv.Body.copy(color = PleyColors.DangerText),
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             )

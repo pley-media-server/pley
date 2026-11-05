@@ -42,8 +42,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -119,9 +119,9 @@ import kotlinx.coroutines.delay
  */
 @Composable
 internal fun TvSearchScreen(key: PleyKey.Search) {
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
-        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(resources)))
+        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(context)))
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val tmdb by vm.tmdb.collectAsStateWithLifecycle()

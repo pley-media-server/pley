@@ -37,6 +37,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -94,9 +95,9 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun TvLibraryScreen(key: PleyKey.Library) {
     var saved by rememberSaveable { mutableStateOf<String?>(null) }
-    val resources = LocalResources.current
+    val context = LocalContext.current
     val vm: LibraryViewModel<ArtworkTileModel> = viewModel {
-        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(resources), key.view)
+        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(context), key.view)
     }
     LaunchedEffect(vm) {
         vm.state.map { it.params.toQueryString() }.distinctUntilChanged().collect { saved = it }
@@ -310,7 +311,7 @@ private fun TvLibraryTab(
                 }
                 params.dynamicRange?.let { range ->
                     TvChip(
-                        label = range.label,
+                        label = tvRangeLabel(range),
                         selected = true,
                         onClick = { onPanel(TvPanel.DynamicRange) },
                         modifier = Modifier.focusRequester(chips.getValue(TvPanel.DynamicRange)).rememberedFocus(memory, "chip/dynamic_range"),

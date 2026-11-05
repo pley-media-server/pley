@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- A library's page on TV (apps/web/src/pages/LibraryPage.tsx, design spec §4.2). -->
     <string name="tv_library_tab_recommended">Recommended</string>
     <string name="tv_library_tab_library">Library</string>
@@ -32,6 +32,8 @@
     <string name="tv_library_all_resolutions">All resolutions</string>
     <string name="tv_library_dynamic_range">Dynamic range</string>
     <string name="tv_library_all_dynamic_ranges">All dynamic ranges</string>
+    <!-- The dynamic range that takes any HDR format; the others are the formats' own names. -->
+    <string name="tv_library_any_hdr">Any HDR</string>
     <string name="tv_library_clear_filters">Clear filters</string>
     <string name="tv_library_save_as">Save as…</string>
 

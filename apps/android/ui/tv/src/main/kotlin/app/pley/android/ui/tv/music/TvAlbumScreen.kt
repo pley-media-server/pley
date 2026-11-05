@@ -37,7 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.pley.android.common.sentenceOf
+import app.pley.android.common.UiText
+import app.pley.android.common.errorSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -47,6 +48,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.music.AlbumPage
 import app.pley.android.screens.music.AlbumRow
@@ -80,14 +82,13 @@ internal fun TvAlbumScreen(albumId: Long, trackId: Long?) {
     val model: AlbumViewModel = viewModel(factory = AlbumViewModel.factory(albumId, trackId))
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
-    var problem by remember { mutableStateOf<String?>(null) }
-    val nothing = stringResource(R.string.tv_music_nothing_to_play)
+    var problem by remember { mutableStateOf<UiText?>(null) }
     LaunchedEffect(model) {
         model.events.collect { event ->
             when (event) {
                 MusicEvent.Played -> navigator.open(PleyKey.NowPlaying)
-                MusicEvent.NothingToPlay -> problem = nothing
-                is MusicEvent.Failed -> problem = sentenceOf(event.error)
+                MusicEvent.NothingToPlay -> problem = UiText.res(R.string.tv_music_nothing_to_play)
+                is MusicEvent.Failed -> problem = errorSentence(event.error)
             }
         }
     }
@@ -134,7 +135,7 @@ private fun AlbumContent(
     current: Long?,
     playing: Boolean,
     highlight: Long?,
-    problem: String?,
+    problem: UiText?,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
     onTrack: (Int) -> Unit,
@@ -190,7 +191,7 @@ private fun AlbumContent(
                     TvRoundButton(stringResource(R.string.tv_music_now_playing), PleyIcons.AudioLines, onClick = onNowPlaying, onArt = false, modifier = Modifier.rememberedFocus(memory, "now"))
                 }
             }
-            if (problem != null) BasicText(problem, style = PleyType.Tv.Caption.copy(color = PleyColors.DangerText), modifier = Modifier.padding(top = 8.dp))
+            if (problem != null) BasicText(problem.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.DangerText), modifier = Modifier.padding(top = 8.dp))
         }
         Spacer(Modifier.width(24.dp))
         // The tracks: from x = 400 to the right safe edge.

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_music_artist">Artiste</string>
+    <string name="tv_music_albums">Albums</string>
+    <string name="tv_music_play">Lire</string>
+    <string name="tv_music_pause">Pause</string>
+    <string name="tv_music_shuffle">Aléatoire</string>
+    <string name="tv_music_shuffle_off">Désactiver l’aléatoire</string>
+    <string name="tv_music_now_playing">En cours de lecture</string>
+    <string name="tv_music_disc">Disque %1$d</string>
+    <string name="tv_music_no_albums">Aucun album trouvé.</string>
+    <string name="tv_music_no_tracks">Aucun titre trouvé</string>
+    <string name="tv_music_nothing_to_play">Rien à lire : il n’y a aucun titre.</string>
+    <string name="tv_music_artist_not_found">Artiste introuvable</string>
+    <string name="tv_music_album_not_found">Album introuvable</string>
+    <string name="tv_music_not_found_body">Il a peut-être été supprimé, ou ce profil n’y a pas accès.</string>
+    <string name="tv_music_artist_failed">Impossible de charger cet artiste</string>
+    <string name="tv_music_album_failed">Impossible de charger cet album</string>
+    <string name="tv_music_retry">Réessayer</string>
+    <string name="tv_music_back">Retour</string>
+
+    <string name="tv_music_queue">À suivre</string>
+    <string name="tv_music_next">Suivant</string>
+    <string name="tv_music_previous">Précédent</string>
+    <string name="tv_music_position">Position dans le titre</string>
+    <string name="tv_music_sleep_running">%1$s : %2$s</string>
+    <string name="tv_music_loading">Chargement…</string>
+    <string name="tv_music_nothing_playing">Aucune lecture en cours</string>
+    <string name="tv_music_nothing_playing_body">Lancez un album ou un artiste : il s’affichera ici.</string>
+    <string name="tv_music_error_offline">Impossible de joindre le serveur.</string>
+    <string name="tv_music_error_signed_out">Reconnectez-vous pour lire.</string>
+    <string name="tv_music_error_stopped">Le serveur a arrêté la lecture.</string>
+    <string name="tv_music_error_unplayable">Impossible de lire ce titre.</string>
+</resources>

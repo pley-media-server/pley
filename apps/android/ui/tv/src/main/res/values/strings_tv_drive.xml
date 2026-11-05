@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- A USB drive's page (the Samsung app's StorageScreen). -->
     <string name="tv_drive_title">USB drive</string>
     <!-- At the drive's top, after "/ · ": "437 GB free of 1.0 TB". -->

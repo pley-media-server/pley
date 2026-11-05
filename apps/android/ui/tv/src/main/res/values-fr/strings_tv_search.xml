@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_search_field">Rechercher des films, séries, personnes…</string>
+    <string name="tv_search_recent">Recherches récentes</string>
+    <string name="tv_search_recent_clear">Effacer</string>
+    <string name="tv_search_empty_title">Rechercher dans vos bibliothèques</string>
+    <string name="tv_search_empty_body">Trouvez des films, séries, épisodes, personnes, artistes, albums, titres et chaînes de TV en direct. Appuyez sur OK dans le champ pour saisir du texte, ou utilisez le micro de votre clavier.</string>
+    <string name="tv_search_none_title">Aucun résultat pour « %1$s »</string>
+    <string name="tv_search_none_body">Essayez une autre orthographe ou moins de mots.</string>
+    <string name="tv_search_failed">La recherche a échoué</string>
+    <string name="tv_search_retry">Réessayer</string>
+    <string name="tv_search_loading">Recherche…</string>
+
+    <string name="tv_search_group_people">Personnes</string>
+    <string name="tv_search_group_live">TV en direct</string>
+    <string name="tv_search_group_movies">Films</string>
+    <string name="tv_search_group_shows">Séries</string>
+    <string name="tv_search_group_seasons">Saisons</string>
+    <string name="tv_search_group_episodes">Épisodes</string>
+    <string name="tv_search_group_artists">Artistes</string>
+    <string name="tv_search_group_albums">Albums</string>
+    <string name="tv_search_group_tracks">Titres</string>
+</resources>

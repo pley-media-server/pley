@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,8 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.pley.android.common.errorSentence
 import app.pley.android.common.perf.StartupSignals
-import app.pley.android.common.sentenceOf
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
@@ -54,6 +55,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
+import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
@@ -377,8 +379,10 @@ internal fun MarkHomeDrawn(model: TvHomeModel) {
     }
 }
 
-/** [error]'s sentence, capitalised, with a full stop. */
-internal fun sentence(error: Throwable): String = sentenceOf(error)
+/** [error]'s sentence, capitalised, with a full stop, in the language shown. */
+@Composable
+@ReadOnlyComposable
+internal fun sentence(error: Throwable): String = errorSentence(error).asString()
 
 /** The text column over backdrops (design spec §1.3): x 96 to 560. */
 internal val TextColumn = 464.dp
