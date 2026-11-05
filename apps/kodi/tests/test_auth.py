@@ -23,6 +23,8 @@ class TokenServer:
         self.extra = {}
         # What happens while a refresh is asked (another sign-in, say).
         self.during_refresh = None
+        # The switch-profile grants' forms.
+        self.switches = []
         self.lock = threading.Lock()
         self.server = support.FakeServer(self.handle)
         self.url = self.server.url
@@ -44,7 +46,11 @@ class TokenServer:
             if form.get("refresh_token") != "rt-%d" % self.issued:
                 return support.answer(400, {"error": "invalid_grant", "error_description": "used again"})
             if form["grant_type"] == auth.SWITCH_GRANT:
-                # Profile 3 has the PIN 1234; profile 9 needs its password.
+                self.switches.append(form)
+                # Profile 3 has the PIN 1234; profile 9 needs its password;
+                # a cast from profile 5 brought the ticket "tk-5".
+                if "ticket" in form and (form["profile"] != "5" or form["ticket"] != "tk-5"):
+                    return support.answer(400, {"error": "invalid_grant", "reason": "ticket_spent", "error_description": "cast again"})
                 if form["profile"] == "9":
                     return support.answer(400, {"error": "invalid_grant", "reason": "browser", "error_description": "sign in again"})
                 if form["profile"] == "3" and form.get("pin") != "1234":
@@ -155,6 +161,19 @@ class TokensTest(unittest.TestCase):
         with self.assertRaises(auth.SignedOut):
             self.tokens.switch_profile(4)
         self.assertIsNone(self.store.load())
+
+    def test_switching_to_a_casts_profile_with_its_ticket(self):
+        # A ticket that isn't this switch's spends nothing here.
+        with self.assertRaises(api.ApiError) as refused:
+            self.tokens.switch_profile(5, ticket="tk-other")
+        self.assertEqual(refused.exception.code, "ticket_spent")
+        self.assertEqual(self.store.load()["refresh_token"], "rt-1")
+        # The ticket stands for the PIN, which isn't sent with it.
+        self.tokens.switch_profile(5, pin="1234", ticket="tk-5")
+        self.assertEqual(self.server.switches[-1]["ticket"], "tk-5")
+        self.assertNotIn("pin", self.server.switches[-1])
+        self.assertEqual(self.tokens.identity(), (self.server.url, 5, None))
+        self.assertEqual(self.store.load()["refresh_token"], "rt-2")
 
     def test_a_server_that_doesnt_answer_keeps_the_tokens(self):
         self.server.down = True

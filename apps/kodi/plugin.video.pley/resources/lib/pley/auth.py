@@ -447,22 +447,26 @@ class Tokens:
         self.data, self.stamp = renewed, self.store.stamp()
         return renewed
 
-    def switch_profile(self, profile_id: int, pin=None) -> None:
+    def switch_profile(self, profile_id: int, pin=None, ticket=None) -> None:
         """Acts as another profile of the household from now on (the
         switch-profile grant), with its PIN when it has one; to the profile
-        it acts as already, with its PIN, checks that PIN. A refusal spends
-        nothing and raises ApiError, its code the server's reason
-        ("wrong_pin", "throttled", "pin_locked", "browser", "not_allowed")
-        or else its OAuth error ("invalid_request" without a reason: the
-        server can't check the PIN of the profile in use)."""
+        it acts as already, with its PIN, checks that PIN. `ticket`: a cast's
+        switch_ticket, which stands for the PIN when a remote on that profile
+        cast here (docs/API.md, Casting). A refusal spends nothing and raises
+        ApiError, its code the server's reason ("wrong_pin", "throttled",
+        "pin_locked", "browser", "not_allowed", "ticket_spent") or else its
+        OAuth error ("invalid_request" without a reason: the server can't
+        check the PIN of the profile in use)."""
         with self.lock:
             data = self.current()
             if not data:
                 raise SignedOut()
             form = {"grant_type": SWITCH_GRANT, "refresh_token": data["refresh_token"], "client_id": CLIENT_ID, "profile": str(int(profile_id))}
-            if pin:
+            if ticket:
+                form["ticket"] = ticket
+            elif pin:
                 form["pin"] = pin
-            # The refresh token and the PIN go only to a server that proves itself now.
+            # The refresh token, the PIN and the ticket go only to a server that proves itself now.
             self._proved(data, now=True)
             client = Client(data["server"], self.user_agent)
             response = client.request("POST", path_of(data["server"], data["token_endpoint"]), form=form)
