@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AppWindow,
@@ -51,6 +52,7 @@ import { TwoStepCard } from "./TwoStepCard";
 const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
 
 function ProfileCard() {
+  const { t } = useTranslation(["pages", "common"]);
   const user = useAuth();
   const toast = useToast();
   const update = useUpdateProfile();
@@ -66,16 +68,16 @@ function ProfileCard() {
     if (value === (user.display_name ?? "")) return;
     update.mutate(
       { display_name: value || null },
-      { onSuccess: () => toast.success("Name saved"), onError: (err) => toast.error(errorMessage(err)) },
+      { onSuccess: () => toast.success(t("account.profile.nameSaved")), onError: (err) => toast.error(errorMessage(err)) },
     );
   };
 
   const pick = (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toast.error("Choose a picture (JPEG, PNG, WebP or GIF).");
-    if (file.size > MAX_AVATAR_BYTES) return toast.error("Pictures must be smaller than 10 MB.");
+    if (!file.type.startsWith("image/")) return toast.error(t("account.profile.notAPicture"));
+    if (file.size > MAX_AVATAR_BYTES) return toast.error(t("account.profile.tooBig"));
     upload.mutate(file, {
-      onSuccess: () => toast.success("Picture updated"),
+      onSuccess: () => toast.success(t("account.profile.pictureUpdated")),
       onError: (err) => toast.error(errorMessage(err)),
     });
   };
@@ -88,7 +90,7 @@ function ProfileCard() {
             type="button"
             onClick={() => fileRef.current?.click()}
             className="group relative rounded-full outline-none ring-accent ring-offset-2 ring-offset-surface focus-visible:ring-2"
-            aria-label="Change picture"
+            aria-label={t("account.profile.changePicture")}
             disabled={upload.isPending}
           >
             <Avatar user={user} size="xl" />
@@ -108,7 +110,7 @@ function ProfileCard() {
           />
           <div className="flex gap-1">
             <Button size="sm" variant="ghost" loading={upload.isPending} onClick={() => fileRef.current?.click()}>
-              {user.avatar_url ? "Change" : "Add picture"}
+              {user.avatar_url ? t("account.profile.change") : t("account.profile.addPicture")}
             </Button>
             {user.avatar_url ? (
               <Button
@@ -118,12 +120,12 @@ function ProfileCard() {
                 loading={removeAvatar.isPending}
                 onClick={() =>
                   removeAvatar.mutate(undefined, {
-                    onSuccess: () => toast.success("Picture removed"),
+                    onSuccess: () => toast.success(t("account.profile.pictureRemoved")),
                     onError: (err) => toast.error(errorMessage(err)),
                   })
                 }
               >
-                Remove
+                {t("common:actions.remove")}
               </Button>
             ) : null}
           </div>
@@ -135,24 +137,24 @@ function ProfileCard() {
               <span className="truncate text-lg font-semibold">{user.name}</span>
               {user.is_admin ? (
                 <Badge tone="accent">
-                  <ShieldCheck className="size-3" /> Admin
+                  <ShieldCheck className="size-3" /> {t("account.profile.admin")}
                 </Badge>
               ) : user.managed ? (
-                <Badge tone="info">Managed profile</Badge>
+                <Badge tone="info">{t("account.profile.managed")}</Badge>
               ) : (
                 <Badge>
-                  <UserRound className="size-3" /> User
+                  <UserRound className="size-3" /> {t("account.profile.user")}
                 </Badge>
               )}
             </div>
             <div className="text-sm text-muted">
-              @{user.username} · member since {formatDay(user.created_at)}
+              {t("account.profile.memberSince", { username: user.username, date: formatDay(user.created_at) })}
             </div>
           </div>
 
           <form onSubmit={saveName} className="flex items-end gap-2">
             <div className="min-w-0 flex-1">
-              <Field label="Display name" htmlFor="profile-name">
+              <Field label={t("account.profile.displayName")} htmlFor="profile-name">
                 <TextInput
                   id="profile-name"
                   maxLength={64}
@@ -163,12 +165,12 @@ function ProfileCard() {
               </Field>
             </div>
             <Button type="submit" loading={update.isPending} disabled={name.trim() === (user.display_name ?? "")}>
-              Save
+              {t("common:actions.save")}
             </Button>
           </form>
 
           <div>
-            <div className="mb-1.5 text-sm font-medium">Color</div>
+            <div className="mb-1.5 text-sm font-medium">{t("account.profile.color")}</div>
             <div className="flex flex-wrap gap-2">
               {AVATAR_COLORS.map((c) => {
                 const selected = c.toLowerCase() === color.toLowerCase();
@@ -176,7 +178,7 @@ function ProfileCard() {
                   <button
                     key={c}
                     type="button"
-                    aria-label={`Color ${c}`}
+                    aria-label={t("account.profile.colorNamed", { color: c })}
                     aria-pressed={selected}
                     onClick={() =>
                       update.mutate({ avatar_color: c }, { onError: (err) => toast.error(errorMessage(err)) })
@@ -192,7 +194,7 @@ function ProfileCard() {
                 );
               })}
             </div>
-            {user.avatar_url ? <p className="mt-1.5 text-xs text-subtle">Shown when your picture can't be.</p> : null}
+            {user.avatar_url ? <p className="mt-1.5 text-xs text-subtle">{t("account.profile.colorFallback")}</p> : null}
           </div>
         </div>
       </div>
@@ -200,26 +202,14 @@ function ProfileCard() {
   );
 }
 
-const SUBTITLE_MODES: Record<SubtitleMode, { label: string; hint: string }> = {
-  off: { label: "Off", hint: "Subtitles stay off until you turn them on." },
-  forced: {
-    label: "Only for foreign dialogue",
-    hint: "Only forced subtitles, for signs and foreign dialogue.",
-  },
-  foreign: {
-    label: "When the audio is in another language",
-    hint: "Full subtitles come on when the audio isn't in your subtitle language.",
-  },
-  always: { label: "Always", hint: "Subtitles in your language come on whenever there are some." },
-};
 const MODE_ORDER: SubtitleMode[] = ["off", "forced", "foreign", "always"];
 
 /** Default tracks: what a film or show starts with until you pick tracks for it. */
 export function PlaybackCard() {
+  const { t } = useTranslation("pages");
   const user = useAuth();
   const toast = useToast();
   const update = useUpdateProfile();
-  const mode = SUBTITLE_MODES[user.subtitle_mode];
   const readsSubtitles = user.subtitle_mode === "foreign" || user.subtitle_mode === "always";
 
   const save = (body: ProfilePatch, message: string) =>
@@ -227,20 +217,18 @@ export function PlaybackCard() {
 
   return (
     <Card>
-      <CardTitle icon={<Languages />}>Audio and subtitles</CardTitle>
-      <p className="mb-4 text-sm text-muted">
-        Used until you pick tracks for a title. Your picks are remembered for each title.
-      </p>
+      <CardTitle icon={<Languages />}>{t("account.playback.title")}</CardTitle>
+      <p className="mb-4 text-sm text-muted">{t("account.playback.intro")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Audio language" htmlFor="audio-language">
+        <Field label={t("account.playback.audioLanguage")} htmlFor="audio-language">
           <Select
             id="audio-language"
             className="w-full"
             value={user.audio_language ?? ""}
             disabled={update.isPending}
-            onChange={(e) => save({ audio_language: e.target.value || null }, "Audio language saved")}
+            onChange={(e) => save({ audio_language: e.target.value || null }, t("account.playback.audioSaved"))}
           >
-            <option value="">The file's default</option>
+            <option value="">{t("account.playback.fileDefault")}</option>
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>
                 {l.name}
@@ -248,39 +236,39 @@ export function PlaybackCard() {
             ))}
           </Select>
         </Field>
-        <Field label="Subtitles" htmlFor="subtitle-mode" hint={mode.hint}>
+        <Field
+          label={t("account.playback.subtitles")}
+          htmlFor="subtitle-mode"
+          hint={t(`account.playback.modes.${user.subtitle_mode}.hint`)}
+        >
           <Select
             id="subtitle-mode"
             className="w-full"
             value={user.subtitle_mode}
             disabled={update.isPending}
-            onChange={(e) => save({ subtitle_mode: e.target.value as SubtitleMode }, "Subtitles saved")}
+            onChange={(e) => save({ subtitle_mode: e.target.value as SubtitleMode }, t("account.playback.subtitlesSaved"))}
           >
             {MODE_ORDER.map((m) => (
               <option key={m} value={m}>
-                {SUBTITLE_MODES[m].label}
+                {t(`account.playback.modes.${m}.label`)}
               </option>
             ))}
           </Select>
         </Field>
         {readsSubtitles ? (
           <Field
-            label="Subtitle language"
+            label={t("account.playback.subtitleLanguage")}
             htmlFor="subtitle-language"
-            hint={
-              user.subtitle_language || user.audio_language
-                ? undefined
-                : "Choose the language you read: without one, only forced subtitles come on."
-            }
+            hint={user.subtitle_language || user.audio_language ? undefined : t("account.playback.subtitleLanguageHint")}
           >
             <Select
               id="subtitle-language"
               className="w-full"
               value={user.subtitle_language ?? ""}
               disabled={update.isPending}
-              onChange={(e) => save({ subtitle_language: e.target.value || null }, "Subtitle language saved")}
+              onChange={(e) => save({ subtitle_language: e.target.value || null }, t("account.playback.subtitleLanguageSaved"))}
             >
-              <option value="">Same as the audio language</option>
+              <option value="">{t("account.playback.sameAsAudio")}</option>
               {LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code}>
                   {l.name}
@@ -295,6 +283,7 @@ export function PlaybackCard() {
 }
 
 function PinCard() {
+  const { t } = useTranslation("pages");
   const user = useAuth();
   const toast = useToast();
   const setPin = useSetPin();
@@ -305,24 +294,21 @@ function PinCard() {
   if (user.managed) {
     return (
       <Card>
-        <CardTitle icon={<Lock />}>Profile PIN</CardTitle>
-        <p className="text-sm text-muted">
-          {user.has_pin ? "This profile is protected by a PIN." : "This profile has no PIN."} Ask an administrator to change
-          it.
-        </p>
+        <CardTitle icon={<Lock />}>{t("account.pin.title")}</CardTitle>
+        <p className="text-sm text-muted">{user.has_pin ? t("account.pin.managedHasPin") : t("account.pin.managedNoPin")}</p>
       </Card>
     );
   }
 
   const submit = (next: string | null) => {
     setError(null);
-    if (next !== null && !/^\d{4,8}$/.test(next)) return setError("The PIN must be 4 to 8 digits.");
-    if (!password) return setError("Enter your password to confirm.");
+    if (next !== null && !/^\d{4,8}$/.test(next)) return setError(t("account.pin.badPin"));
+    if (!password) return setError(t("account.pin.needPassword"));
     setPin.mutate(
       { pin: next, password },
       {
         onSuccess: () => {
-          toast.success(next ? "PIN saved" : "PIN removed");
+          toast.success(next ? t("account.pin.saved") : t("account.pin.removed"));
           setPinValue("");
           setPassword("");
         },
@@ -334,12 +320,8 @@ function PinCard() {
 
   return (
     <Card>
-      <CardTitle icon={<Lock />}>Profile PIN</CardTitle>
-      <p className="mb-4 text-sm text-muted">
-        {user.has_pin
-          ? "Your profile is protected: others in your home need this PIN to switch to it."
-          : "Protect your profile so others in your home can't switch to it without a PIN."}
-      </p>
+      <CardTitle icon={<Lock />}>{t("account.pin.title")}</CardTitle>
+      <p className="mb-4 text-sm text-muted">{user.has_pin ? t("account.pin.protected") : t("account.pin.unprotected")}</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -348,7 +330,7 @@ function PinCard() {
         className="space-y-4"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={user.has_pin ? "New PIN" : "PIN"} htmlFor="pin-new" hint="4 to 8 digits">
+          <Field label={user.has_pin ? t("account.pin.newPin") : t("account.pin.pin")} htmlFor="pin-new" hint={t("account.pin.pinHint")}>
             <TextInput
               id="pin-new"
               inputMode="numeric"
@@ -358,7 +340,7 @@ function PinCard() {
               onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ""))}
             />
           </Field>
-          <Field label="Your password" htmlFor="pin-password">
+          <Field label={t("fields.yourPassword")} htmlFor="pin-password">
             <TextInput
               id="pin-password"
               type="password"
@@ -372,11 +354,11 @@ function PinCard() {
         <div className="flex justify-end gap-2">
           {user.has_pin ? (
             <Button variant="ghost" loading={setPin.isPending && setPin.variables?.pin === null} onClick={() => submit(null)}>
-              Remove PIN
+              {t("account.pin.remove")}
             </Button>
           ) : null}
           <Button type="submit" variant="primary" loading={setPin.isPending && setPin.variables?.pin !== null} disabled={!pin}>
-            {user.has_pin ? "Change PIN" : "Set PIN"}
+            {user.has_pin ? t("account.pin.change") : t("account.pin.set")}
           </Button>
         </div>
       </form>
@@ -385,6 +367,7 @@ function PinCard() {
 }
 
 function PasswordCard() {
+  const { t } = useTranslation("pages");
   const toast = useToast();
   const qc = useQueryClient();
   const change = useChangePassword();
@@ -398,12 +381,12 @@ function PasswordCard() {
     setError(null);
     const problem = passwordProblem(next);
     if (problem) return setError(problem);
-    if (next !== confirm) return setError("Passwords don't match.");
+    if (next !== confirm) return setError(t("account.password.noMatch"));
     change.mutate(
       { current_password: current, new_password: next },
       {
         onSuccess: () => {
-          toast.success("Password changed");
+          toast.success(t("account.password.changed"));
           // A new password signs the account's apps out, and ends its tokens for other apps.
           void qc.invalidateQueries({ queryKey: appKeys.mine });
           void qc.invalidateQueries({ queryKey: compatibilityTokenKeys.mine });
@@ -419,9 +402,9 @@ function PasswordCard() {
 
   return (
     <Card>
-      <CardTitle icon={<KeyRound />}>Change password</CardTitle>
+      <CardTitle icon={<KeyRound />}>{t("account.password.title")}</CardTitle>
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Current password" htmlFor="pw-current">
+        <Field label={t("account.password.current")} htmlFor="pw-current">
           <TextInput
             id="pw-current"
             type="password"
@@ -432,10 +415,10 @@ function PasswordCard() {
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="New password" htmlFor="pw-new">
+          <Field label={t("account.password.new")} htmlFor="pw-new">
             <TextInput id="pw-new" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required />
           </Field>
-          <Field label="Confirm new password" htmlFor="pw-confirm">
+          <Field label={t("account.password.confirm")} htmlFor="pw-confirm">
             <TextInput
               id="pw-confirm"
               type="password"
@@ -449,7 +432,7 @@ function PasswordCard() {
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         <div className="flex justify-end">
           <Button type="submit" variant="primary" loading={change.isPending}>
-            Update password
+            {t("account.password.update")}
           </Button>
         </div>
       </form>
@@ -459,10 +442,11 @@ function PasswordCard() {
 
 /** In place of the password form, for an account that has no password to change. */
 function NoPasswordCard() {
+  const { t } = useTranslation("pages");
   return (
     <Card>
-      <CardTitle icon={<KeyRound />}>Password</CardTitle>
-      <p className="text-sm text-muted">This account has no password: an administrator can give it one.</p>
+      <CardTitle icon={<KeyRound />}>{t("account.password.noPasswordTitle")}</CardTitle>
+      <p className="text-sm text-muted">{t("account.password.noPassword")}</p>
     </Card>
   );
 }
@@ -472,15 +456,17 @@ function deviceIcon(d: Device) {
 }
 
 function HistoryCard() {
+  const { t } = useTranslation("pages");
   return (
     <Card>
-      <CardTitle icon={<History />}>Watch history</CardTitle>
-      <HistoryList scope={{}} pageSize={15} empty="Movies, episodes and songs you finish show up here." />
+      <CardTitle icon={<History />}>{t("account.history.title")}</CardTitle>
+      <HistoryList scope={{}} pageSize={15} empty={t("account.history.empty")} />
     </Card>
   );
 }
 
 function DevicesCard() {
+  const { t } = useTranslation(["pages", "common"]);
   const toast = useToast();
   const devices = useDevices();
   const signOut = useSignOutDevice();
@@ -496,23 +482,23 @@ function DevicesCard() {
         return;
       }
     }
-    toast.success("Signed out on your other devices");
+    toast.success(t("account.devices.signedOutOthers"));
   };
 
   return (
     <Card>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Laptop className="size-4 text-accent" /> Devices
+          <Laptop className="size-4 text-accent" /> {t("account.devices.title")}
         </h2>
         {others.length > 1 ? (
           <Button size="sm" variant="ghost" icon={<LogOut className="size-4" />} loading={signOut.isPending} onClick={() => void signOutAll()}>
-            Sign out all others
+            {t("account.devices.signOutOthers")}
           </Button>
         ) : null}
       </div>
       {devices.isPending ? (
-        <p className="text-sm text-subtle">Loading…</p>
+        <p className="text-sm text-subtle">{t("common:states.loading")}</p>
       ) : devices.isError ? (
         <p className="text-sm text-danger">{errorMessage(devices.error)}</p>
       ) : (
@@ -527,10 +513,14 @@ function DevicesCard() {
                     <span className="truncate text-sm font-medium" title={d.user_agent ?? undefined}>
                       {d.name}
                     </span>
-                    {d.current ? <Badge tone="accent">This device</Badge> : null}
+                    {d.current ? <Badge tone="accent">{t("account.devices.thisDevice")}</Badge> : null}
                   </div>
                   <div className="truncate text-xs text-subtle">
-                    {[d.ip, d.current ? "active now" : `last active ${formatAgo(d.last_seen_at)}`, `signed in ${formatAgo(d.created_at)}`]
+                    {[
+                      d.ip,
+                      d.current ? t("account.devices.activeNow") : t("account.devices.lastActive", { when: formatAgo(d.last_seen_at) }),
+                      t("account.devices.signedIn", { when: formatAgo(d.created_at) }),
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
@@ -542,12 +532,12 @@ function DevicesCard() {
                     loading={signOut.isPending && signOut.variables === d.id}
                     onClick={() =>
                       signOut.mutate(d.id, {
-                        onSuccess: () => toast.success(`Signed out ${d.name}`),
+                        onSuccess: () => toast.success(t("account.devices.signedOut", { name: d.name })),
                         onError: (err) => toast.error(errorMessage(err)),
                       })
                     }
                   >
-                    Sign out
+                    {t("common:actions.signOut")}
                   </Button>
                 ) : null}
               </li>
@@ -561,6 +551,7 @@ function DevicesCard() {
 
 /** Apps allowed to use this account (or allowed by it, for another profile), on pley's own page. */
 function AppsCard() {
+  const { t } = useTranslation(["pages", "common"]);
   const me = useAuth();
   const toast = useToast();
   const apps = useMyApps();
@@ -571,19 +562,19 @@ function AppsCard() {
     <Card>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <AppWindow className="size-4 text-accent" /> Apps
+          <AppWindow className="size-4 text-accent" /> {t("account.apps.title")}
         </h2>
         {/* Where the code a TV shows is typed in. */}
         <Link to="/link" className={buttonClass("ghost", "sm")}>
-          <Tv className="size-4" aria-hidden /> Sign in on a TV
+          <Tv className="size-4" aria-hidden /> {t("account.apps.signInOnTv")}
         </Link>
       </div>
       {apps.isPending ? (
-        <p className="text-sm text-subtle">Loading…</p>
+        <p className="text-sm text-subtle">{t("common:states.loading")}</p>
       ) : apps.isError ? (
         <p className="text-sm text-danger">{errorMessage(apps.error)}</p>
       ) : list.length === 0 ? (
-        <p className="text-sm text-subtle">No apps use your account. Apps ask on a Pley page before they get access.</p>
+        <p className="text-sm text-subtle">{t("account.apps.none")}</p>
       ) : (
         <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
           {list.map((a) => {
@@ -597,22 +588,27 @@ function AppsCard() {
                       {label}
                     </span>
                     {a.first_party ? (
-                      <Badge tone="accent">Pley's own app</Badge>
+                      <Badge tone="accent">{t("account.apps.firstParty")}</Badge>
                     ) : a.name ? (
-                      <span className="truncate text-xs text-subtle">calls itself “{a.name}”</span>
+                      <span className="truncate text-xs text-subtle">{t("account.apps.callsItself", { name: a.name })}</span>
                     ) : null}
                   </div>
                   <div className="truncate text-xs text-muted">
                     {[
-                      a.profile.id !== me.id ? `Using ${a.profile.name}` : null,
-                      a.approved_by.id !== me.id ? `Allowed by ${a.approved_by.name}` : null,
+                      a.profile.id !== me.id ? t("account.apps.using", { name: a.profile.name }) : null,
+                      a.approved_by.id !== me.id ? t("account.apps.allowedBy", { name: a.approved_by.name }) : null,
                       scopesLabel(a.scopes),
                     ]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
                   <div className="truncate text-xs text-subtle">
-                    {[a.device, a.ip, `last active ${formatAgo(a.last_used_at)}`, `allowed ${formatAgo(a.created_at)}`]
+                    {[
+                      a.device,
+                      a.ip,
+                      t("account.apps.lastActive", { when: formatAgo(a.last_used_at) }),
+                      t("account.apps.allowed", { when: formatAgo(a.created_at) }),
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
@@ -620,16 +616,16 @@ function AppsCard() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  aria-label={`Sign out ${label}`}
+                  aria-label={t("account.apps.signOut", { name: label })}
                   loading={signOut.isPending && signOut.variables === a.id}
                   onClick={() =>
                     signOut.mutate(a.id, {
-                      onSuccess: () => toast.success(`Signed out ${label}`),
+                      onSuccess: () => toast.success(t("account.apps.signedOut", { name: label })),
                       onError: (err) => toast.error(errorMessage(err)),
                     })
                   }
                 >
-                  Sign out
+                  {t("common:actions.signOut")}
                 </Button>
               </li>
             );
@@ -641,7 +637,8 @@ function AppsCard() {
 }
 
 export function AccountPage() {
-  useDocumentTitle("Account");
+  const { t } = useTranslation(["pages", "common"]);
+  useDocumentTitle(t("account.title"));
   const user = useAuth();
   const navigate = useNavigate();
   const logout = useLogout();
@@ -650,7 +647,7 @@ export function AccountPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-8">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("account.title")}</h1>
         <Button
           variant="outline"
           icon={<LogOut className="size-4" />}
@@ -660,7 +657,7 @@ export function AccountPage() {
             logout.mutate(undefined, { onSettled: () => void navigate("/login", { replace: true }) });
           }}
         >
-          Sign out
+          {t("common:actions.signOut")}
         </Button>
       </div>
       <ProfileCard key={user.id} />
@@ -683,18 +680,19 @@ export function AccountPage() {
  * server's; and where the server's source is offered.
  */
 function BuildLine() {
+  const { t } = useTranslation("pages");
   const server = useServer().data;
   const web = versionLabel(WEB_VERSION, WEB_COMMIT);
   const serverLabel = server ? versionLabel(server.version, server.commit) : null;
   const source = server?.source;
   return (
     <p className="text-center text-xs text-muted" data-testid="build">
-      {serverLabel && serverLabel !== web ? `Pley ${web} · server ${serverLabel}` : `Pley ${web}`}
+      {serverLabel && serverLabel !== web ? t("account.build.withServer", { web, server: serverLabel }) : `Pley ${web}`}
       {source ? (
         <>
           {" · "}
           <a href={source} target="_blank" rel="noreferrer" className="hover:underline">
-            Source code
+            {t("account.build.sourceCode")}
           </a>
         </>
       ) : null}

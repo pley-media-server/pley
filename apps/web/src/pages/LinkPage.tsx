@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { errorMessage } from "@/api/client";
 import { decideDevice, verifyCode, type ConsentRequest } from "@/api/oauth";
@@ -17,7 +18,8 @@ import { AuthLayout } from "./AuthLayout";
  * the person compares it with the TV first (RFC 8628 §5.4).
  */
 export function LinkPage() {
-  useDocumentTitle("Sign in on your TV");
+  const { t } = useTranslation(["pages", "common"]);
+  useDocumentTitle(t("link.title"));
   const [params] = useSearchParams();
   const linked = codeLetters(params.get("code") ?? "");
   /** The code's letters, without the dash. */
@@ -31,15 +33,15 @@ export function LinkPage() {
 
   if (found && answer === "allowed") {
     return (
-      <AuthLayout title={`${appName(found.request.client)} on your TV is signing in`}>
-        <p className="text-sm text-muted">You can close this page.</p>
+      <AuthLayout title={t("link.signingIn", { app: appName(found.request.client) })}>
+        <p className="text-sm text-muted">{t("link.closePage")}</p>
       </AuthLayout>
     );
   }
   if (found && answer === "denied") {
     return (
-      <AuthLayout title="Not allowed">
-        <p className="text-sm text-muted">Your TV will say so.</p>
+      <AuthLayout title={t("link.notAllowed")}>
+        <p className="text-sm text-muted">{t("link.tvWillSay")}</p>
       </AuthLayout>
     );
   }
@@ -67,16 +69,9 @@ export function LinkPage() {
   };
 
   return (
-    <AuthLayout
-      title="Sign in on your TV"
-      subtitle={checking ? "Check that your TV shows this code, then continue." : "Enter the code your TV shows."}
-    >
+    <AuthLayout title={t("link.title")} subtitle={checking ? t("link.checkCode") : t("link.enterCode")}>
       <form onSubmit={submit} className="space-y-4">
-        <Field
-          label="Code"
-          htmlFor="code"
-          error={hasStrayLetter(code) ? "Codes don't use A, E, I, O, U or Y: check the code on your TV." : null}
-        >
+        <Field label={t("fields.code")} htmlFor="code" error={hasStrayLetter(code) ? t("link.strayLetter") : null}>
           <TextInput
             id="code"
             // Typing comes first, unless there's a whole code to check.
@@ -106,7 +101,7 @@ export function LinkPage() {
           loading={verify.isPending}
           disabled={!isWholeCode(code)}
         >
-          Continue
+          {t("common:actions.continue")}
         </Button>
       </form>
     </AuthLayout>

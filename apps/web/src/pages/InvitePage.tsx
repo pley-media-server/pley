@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { TicketX } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { useAcceptInvite, useInviteCheck, useLogin, useLogout, useMe } from "@/api/hooks";
@@ -23,7 +24,8 @@ type Joining = { kind: "setup"; setup: TwoStepSetup } | { kind: "codes"; codes: 
 
 /** `/invite/:code`: create an account with an invitation link. */
 export function InvitePage() {
-  useDocumentTitle("Invitation");
+  const { t } = useTranslation(["pages", "common"]);
+  useDocumentTitle(t("invite.documentTitle"));
   const { code = "" } = useParams();
   const navigate = useNavigate();
   const check = useInviteCheck(code);
@@ -39,7 +41,7 @@ export function InvitePage() {
 
   if (joining?.kind === "codes") {
     return (
-      <AuthLayout title="Save your recovery codes" subtitle="Your account is ready, and two-step sign-in is on.">
+      <AuthLayout title={t("twoStepSetup.saveYourCodes")} subtitle={t("invite.codesSubtitle")}>
         <RecoveryCodesView
           codes={joining.codes}
           username={joining.username}
@@ -67,8 +69,8 @@ export function InvitePage() {
       );
     return (
       <AuthLayout
-        title="Set up two-step sign-in"
-        subtitle={`Your account is made. ${check.data?.server_name ?? "This server"} asks everyone for a code from an authenticator app after their password.`}
+        title={t("twoStepSetup.setUpTitle")}
+        subtitle={t("invite.setupSubtitle", { server: check.data?.server_name ?? t("twoStepSetup.thisServer") })}
       >
         <ScanSetup
           key={joining.setup.secret}
@@ -77,7 +79,7 @@ export function InvitePage() {
           setup={joining.setup}
           busy={login.isPending}
           error={login.error ? errorMessage(login.error) : null}
-          submitLabel="Turn on and sign in"
+          submitLabel={t("twoStepSetup.turnOnAndSignIn")}
           onCode={setUp}
         />
       </AuthLayout>
@@ -88,18 +90,14 @@ export function InvitePage() {
   if (check.isError) {
     const gone = isApiError(check.error, 404);
     return (
-      <AuthLayout title={gone ? "This invitation can't be used" : "Something went wrong"}>
+      <AuthLayout title={gone ? t("invite.cantBeUsed") : t("common:states.somethingWentWrong")}>
         <div className="space-y-5">
           <div className="flex items-start gap-3 text-sm text-muted">
             <TicketX className="mt-0.5 size-5 shrink-0 text-subtle" />
-            <p>
-              {gone
-                ? "The link is wrong, has expired, or has already been used. Ask the person who sent it for a new one."
-                : errorMessage(check.error)}
-            </p>
+            <p>{gone ? t("invite.cantBeUsedHint") : errorMessage(check.error)}</p>
           </div>
           <Link to="/login" className={buttonClass("primary", "md", "w-full")}>
-            Go to sign in
+            {t("invite.goToSignIn")}
           </Link>
         </div>
       </AuthLayout>
@@ -110,19 +108,19 @@ export function InvitePage() {
 
   if (me.data && !accept.isSuccess) {
     return (
-      <AuthLayout title={`Join ${server}`} subtitle={`You're signed in as ${me.data.name}.`}>
+      <AuthLayout title={t("invite.join", { server })} subtitle={t("invite.signedInAs", { name: me.data.name })}>
         <div className="space-y-3">
-          <p className="text-sm text-muted">To create a new account with this invitation, sign out first.</p>
+          <p className="text-sm text-muted">{t("invite.signOutFirst")}</p>
           <Button
             variant="primary"
             className="w-full"
             loading={logout.isPending}
             onClick={() => logout.mutate(undefined, { onSettled: () => void me.refetch() })}
           >
-            Sign out and continue
+            {t("invite.signOutAndContinue")}
           </Button>
           <Button variant="ghost" className="w-full" onClick={() => void navigate("/", { replace: true })}>
-            Stay signed in
+            {t("invite.staySignedIn")}
           </Button>
         </div>
       </AuthLayout>
@@ -132,7 +130,7 @@ export function InvitePage() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     setLocalError(null);
-    if (!username.trim()) return setLocalError("Choose a username.");
+    if (!username.trim()) return setLocalError(t("invite.chooseUsername"));
     const problem = passwordProblem(password, username);
     if (problem) return setLocalError(problem);
     accept.mutate(
@@ -151,15 +149,15 @@ export function InvitePage() {
 
   return (
     <AuthLayout
-      title={`You're invited to ${server}`}
+      title={t("invite.invited", { server })}
       subtitle={
         check.data.expires_at
-          ? `Create your account to start watching. This invitation expires ${formatRelative(check.data.expires_at)}.`
-          : "Create your account to start watching."
+          ? t("invite.createToWatchExpires", { when: formatRelative(check.data.expires_at) })
+          : t("invite.createToWatch")
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Username" htmlFor="invite-username" hint="Letters, digits and _ - . @">
+        <Field label={t("fields.username")} htmlFor="invite-username" hint={t("invite.usernameHint")}>
           <TextInput
             id="invite-username"
             autoComplete="username"
@@ -169,10 +167,10 @@ export function InvitePage() {
             required
           />
         </Field>
-        <Field label="Your name" htmlFor="invite-name" hint="Optional: how Pley greets you.">
+        <Field label={t("invite.yourName")} htmlFor="invite-name" hint={t("invite.yourNameHint")}>
           <TextInput id="invite-name" autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </Field>
-        <Field label="Password" htmlFor="invite-password" hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
+        <Field label={t("fields.password")} htmlFor="invite-password" hint={t("invite.passwordHint", { min: MIN_PASSWORD_LENGTH })}>
           <PasswordInput id="invite-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
         {error ? (
@@ -181,12 +179,12 @@ export function InvitePage() {
           </p>
         ) : null}
         <Button type="submit" variant="primary" size="lg" className="w-full" loading={accept.isPending}>
-          Create account
+          {t("setup.createAccount")}
         </Button>
         <p className="text-center text-xs text-subtle">
-          Already have an account?{" "}
+          {t("invite.haveAccount")}{" "}
           <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
-            Sign in
+            {t("login.signIn")}
           </Link>
         </p>
       </form>

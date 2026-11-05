@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Check, Copy, Plug, Plus } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import {
@@ -65,6 +66,7 @@ function Choice({
  * more than watching; the server refuses that to anyone else anyway.
  */
 function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilityToken) => void; onCancel: () => void }) {
+  const { t } = useTranslation(["pages", "common"]);
   const me = useAuth();
   const create = useCreateCompatibilityToken();
   const [name, setName] = useState("");
@@ -77,9 +79,9 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!name.trim()) return setError("Give the token a name.");
+    if (!name.trim()) return setError(t("tokens.needName"));
     const allowed = [...new Set([...(local ? [FROM_LOCAL] : []), ...parseAllowedFrom(others)])];
-    if (allowed.length > MAX_ALLOWED_FROM) return setError(`Up to ${MAX_ALLOWED_FROM} addresses.`);
+    if (allowed.length > MAX_ALLOWED_FROM) return setError(t("tokens.tooMany", { max: MAX_ALLOWED_FROM }));
     create.mutate(
       {
         name: name.trim(),
@@ -92,11 +94,11 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
 
   return (
     <form onSubmit={submit} className="mb-4 space-y-4 rounded-md border border-border p-4">
-      <Field label="Name" htmlFor="token-name" hint="The app or tool it's for.">
+      <Field label={t("tokens.name")} htmlFor="token-name" hint={t("tokens.nameHint")}>
         <TextInput id="token-name" maxLength={MAX_NAME} autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <fieldset>
-        <legend className="mb-1.5 text-sm font-medium">What it may do</legend>
+        <legend className="mb-1.5 text-sm font-medium">{t("tokens.mayDo")}</legend>
         {choices.map((s) => (
           <Choice
             key={s.scope}
@@ -111,13 +113,9 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
           </Choice>
         ))}
       </fieldset>
-      <Field
-        label="Only from"
-        htmlFor="token-allowed-from"
-        hint="Addresses or networks, such as 192.168.1.20 or 10.0.0.0/24. Leave empty for anywhere."
-      >
+      <Field label={t("tokens.onlyFrom")} htmlFor="token-allowed-from" hint={t("tokens.onlyFromHint")}>
         <Choice id="token-local" checked={local} onChange={() => setLocal((on) => !on)}>
-          This computer and home network
+          {t("tokens.local")}
         </Choice>
         <textarea
           id="token-allowed-from"
@@ -133,10 +131,10 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("common:actions.cancel")}
         </Button>
         <Button type="submit" variant="primary" loading={create.isPending}>
-          Make token
+          {t("tokens.make")}
         </Button>
       </div>
     </form>
@@ -145,24 +143,27 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
 
 /** A new token, shown once, to copy into the app. */
 function NewToken({ made, onDone }: { made: CreatedCompatibilityToken; onDone: () => void }) {
+  const { t } = useTranslation(["pages", "common"]);
   const toast = useToast();
   return (
     <div className="mb-4 space-y-3 rounded-md border border-accent/40 bg-accent/5 p-4">
       <p className="text-sm">
-        Copy the token for <span className="font-medium">{made.name}</span> now. It won't be shown again.
+        <Trans t={t} i18nKey="tokens.copyNow" values={{ name: made.name }} components={{ bold: <span className="font-medium" /> }} />
       </p>
       <div className="flex items-center gap-2">
-        <TextInput readOnly aria-label="New token" value={made.token} className="font-mono" onFocus={(e) => e.target.select()} />
+        <TextInput readOnly aria-label={t("tokens.new")} value={made.token} className="font-mono" onFocus={(e) => e.target.select()} />
         <Button
           icon={<Copy className="size-4" />}
-          onClick={() => void copyText(made.token).then((ok) => (ok ? toast.success("Token copied") : toast.error("Couldn't copy the token")))}
+          onClick={() =>
+            void copyText(made.token).then((ok) => (ok ? toast.success(t("tokens.copied")) : toast.error(t("tokens.notCopied"))))
+          }
         >
-          Copy
+          {t("common:actions.copy")}
         </Button>
       </div>
       <div className="flex justify-end">
         <Button variant="ghost" onClick={onDone}>
-          Done
+          {t("common:actions.done")}
         </Button>
       </div>
     </div>
@@ -175,6 +176,7 @@ function NewToken({ made, onDone }: { made: CreatedCompatibilityToken; onDone: (
  * for what it may do and from where it may be used.
  */
 export function CompatibilityTokensCard() {
+  const { t } = useTranslation(["pages", "common"]);
   const toast = useToast();
   const tokens = useCompatibilityTokens();
   const revoke = useRevokeCompatibilityToken();
@@ -186,15 +188,15 @@ export function CompatibilityTokensCard() {
     <Card>
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Plug className="size-4 text-accent" /> Tokens for other apps
+          <Plug className="size-4 text-accent" /> {t("tokens.title")}
         </h2>
         {making || made ? null : (
           <Button size="sm" variant="ghost" icon={<Plus className="size-4" />} onClick={() => setMaking(true)}>
-            New token
+            {t("tokens.new")}
           </Button>
         )}
       </div>
-      <p className="mb-4 text-sm text-muted">Plex or Jellyfin compatible</p>
+      <p className="mb-4 text-sm text-muted">{t("tokens.subtitle")}</p>
       {made ? <NewToken made={made} onDone={() => setMade(null)} /> : null}
       {making ? (
         <NewTokenForm
@@ -206,25 +208,30 @@ export function CompatibilityTokensCard() {
         />
       ) : null}
       {tokens.isPending ? (
-        <p className="text-sm text-subtle">Loading…</p>
+        <p className="text-sm text-subtle">{t("common:states.loading")}</p>
       ) : tokens.isError ? (
         <p className="text-sm text-danger">{errorMessage(tokens.error)}</p>
       ) : list.length === 0 ? (
-        <p className="text-sm text-subtle">No tokens yet.</p>
+        <p className="text-sm text-subtle">{t("tokens.none")}</p>
       ) : (
         <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
-          {list.map((t) => {
-            const allows = [tokenScopesLabel(t.scopes), allowedFromLabel(t.allowed_from)].filter(Boolean).join(" · ");
+          {list.map((token) => {
+            const allows = [tokenScopesLabel(token.scopes), allowedFromLabel(token.allowed_from)].filter(Boolean).join(" · ");
             return (
-              <li key={t.id} className="flex items-center gap-3 px-3 py-2.5">
+              <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
                 <Plug className="size-5 shrink-0 text-subtle" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{t.name}</div>
+                  <div className="truncate text-sm font-medium">{token.name}</div>
                   <div className="truncate text-xs text-muted" title={allows}>
                     {allows}
                   </div>
                   <div className="truncate text-xs text-subtle">
-                    {[t.device, t.ip, t.last_used_at ? `last used ${formatAgo(t.last_used_at)}` : "not used yet", `made ${formatAgo(t.created_at)}`]
+                    {[
+                      token.device,
+                      token.ip,
+                      token.last_used_at ? t("tokens.lastUsed", { when: formatAgo(token.last_used_at) }) : t("tokens.notUsed"),
+                      t("tokens.made", { when: formatAgo(token.created_at) }),
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
@@ -232,16 +239,16 @@ export function CompatibilityTokensCard() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  aria-label={`Revoke ${t.name}`}
-                  loading={revoke.isPending && revoke.variables === t.id}
+                  aria-label={t("tokens.revokeNamed", { name: token.name })}
+                  loading={revoke.isPending && revoke.variables === token.id}
                   onClick={() =>
-                    revoke.mutate(t.id, {
-                      onSuccess: () => toast.success(`Revoked ${t.name}`),
+                    revoke.mutate(token.id, {
+                      onSuccess: () => toast.success(t("tokens.revoked", { name: token.name })),
                       onError: (err) => toast.error(errorMessage(err)),
                     })
                   }
                 >
-                  Revoke
+                  {t("tokens.revoke")}
                 </Button>
               </li>
             );

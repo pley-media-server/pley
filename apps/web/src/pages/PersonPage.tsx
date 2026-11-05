@@ -1,29 +1,27 @@
 import { useParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { UserRound } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { usePerson } from "@/api/hooks";
-import type { CreditRole, PersonCredit, PersonRole } from "@/api/types";
+import type { PersonCredit, PersonRole } from "@/api/types";
 import { CardSkeleton, MediaCard } from "@/components/cards";
 import { PersonPhoto } from "@/components/PersonCard";
 import { Button, EmptyState, SectionTitle, Skeleton } from "@/components/ui";
-import { pluralize } from "@/lib/format";
+import { t as translate } from "@/i18n";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { idParam } from "@/lib/ids";
-
-const ROLE_NAMES: Record<CreditRole, string> = {
-  actor: "Actor",
-  creator: "Creator",
-  director: "Director",
-  writer: "Writer",
-  producer: "Producer",
-};
 
 /** "as Neo", "Director", "Guest star (3 episodes)", … */
 export function roleText(roles: PersonRole[]): string {
   return roles
     .map((r) => {
-      const base = r.role === "actor" ? (r.character ? `as ${r.character}` : r.episodes ? "Guest star" : "Actor") : ROLE_NAMES[r.role];
-      return r.episodes ? `${base} (${pluralize(r.episodes, "episode")})` : base;
+      const base =
+        r.role === "actor"
+          ? r.character
+            ? translate("person.as", { ns: "pages", character: r.character })
+            : translate(r.episodes ? "person.guestStar" : "person.roles.actor", { ns: "pages" })
+          : translate(`person.roles.${r.role}`, { ns: "pages" });
+      return r.episodes ? translate("person.withEpisodes", { ns: "pages", role: base, count: r.episodes }) : base;
     })
     .join(", ");
 }
@@ -57,9 +55,10 @@ function CreditGrid({ title, credits }: { title: string; credits: PersonCredit[]
 
 /** An actor's or director's page: what they are in, in this server's libraries. */
 export function PersonPage() {
+  const { t } = useTranslation(["pages", "common"]);
   const params = useParams();
   const person = usePerson(idParam(params.id));
-  useDocumentTitle(person.data?.name ?? "Cast & crew");
+  useDocumentTitle(person.data?.name ?? t("person.documentTitle"));
 
   if (person.isPending) {
     return (
@@ -83,9 +82,9 @@ export function PersonPage() {
     return (
       <EmptyState
         className="min-h-[60vh]"
-        title="Couldn't load this person"
+        title={t("person.cantLoad")}
         description={errorMessage(person.error)}
-        action={<Button onClick={() => void person.refetch()}>Retry</Button>}
+        action={<Button onClick={() => void person.refetch()}>{t("common:actions.retry")}</Button>}
       />
     );
   }
@@ -94,7 +93,7 @@ export function PersonPage() {
       <EmptyState
         className="min-h-[60vh]"
         icon={<UserRound />}
-        title="Person not found"
+        title={t("person.notFound")}
         description={person.isError ? errorMessage(person.error) : undefined}
       />
     );
@@ -103,7 +102,10 @@ export function PersonPage() {
   const { name, photo_url, credits } = person.data;
   const movies = credits.filter((c) => c.item.kind === "movie");
   const shows = credits.filter((c) => c.item.kind === "show");
-  const counts = [movies.length ? pluralize(movies.length, "movie") : null, shows.length ? pluralize(shows.length, "show") : null];
+  const counts = [
+    movies.length ? t("library.count.movies", { count: movies.length }) : null,
+    shows.length ? t("library.count.shows", { count: shows.length }) : null,
+  ];
 
   return (
     <div className="animate-fade-in space-y-10 px-4 py-8 sm:px-8">
@@ -111,11 +113,11 @@ export function PersonPage() {
         <PersonPhoto name={name} url={photo_url} size={176} eager className="w-36 shrink-0 shadow-2xl shadow-black/50 sm:w-44" />
         <div className="min-w-0 pb-1">
           <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">{name}</h1>
-          <p className="mt-1.5 text-sm text-muted">{counts.filter(Boolean).join(" · ")} in your libraries</p>
+          <p className="mt-1.5 text-sm text-muted">{t("person.inLibraries", { counts: counts.filter(Boolean).join(" · ") })}</p>
         </div>
       </header>
-      {movies.length ? <CreditGrid title="Movies" credits={movies} /> : null}
-      {shows.length ? <CreditGrid title="Shows" credits={shows} /> : null}
+      {movies.length ? <CreditGrid title={t("person.movies")} credits={movies} /> : null}
+      {shows.length ? <CreditGrid title={t("person.shows")} credits={shows} /> : null}
     </div>
   );
 }

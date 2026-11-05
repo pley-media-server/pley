@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ShieldCheck } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useDisableTwoStep, useEnableTwoStep, useNewRecoveryCodes, useServer, useStartTwoStep, useTwoStep } from "@/api/hooks";
@@ -7,7 +8,7 @@ import { useAuth } from "@/auth";
 import { useToast } from "@/components/Toast";
 import { Button, Card, CardTitle, Field, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { formatDay, pluralize } from "@/lib/format";
+import { formatDay } from "@/lib/format";
 import { codeKind } from "@/lib/twoStep";
 import { RecoveryCodesView, ScanSetup } from "./TwoStepSetup";
 
@@ -28,6 +29,7 @@ const FEW_CODES = 3;
 
 /** Two-step sign-in: a code from an authenticator app after the password. */
 export function TwoStepCard() {
+  const { t } = useTranslation(["pages", "common"]);
   const user = useAuth();
   const usable = !user.managed && user.has_password;
   const status = useTwoStep(usable);
@@ -37,7 +39,7 @@ export function TwoStepCard() {
 
   return (
     <Card>
-      <CardTitle icon={<ShieldCheck />}>Two-step sign-in</CardTitle>
+      <CardTitle icon={<ShieldCheck />}>{t("twoStep.title")}</CardTitle>
       {stage.kind === "password" ? (
         <PasswordStep
           next={stage.next}
@@ -57,7 +59,7 @@ export function TwoStepCard() {
       ) : stage.kind === "codes" ? (
         <SavedCodes codes={stage.codes} after={stage.after} onDone={done} />
       ) : status.isPending ? (
-        <p className="text-sm text-subtle">Loading…</p>
+        <p className="text-sm text-subtle">{t("common:states.loading")}</p>
       ) : status.isError ? (
         <p className="text-sm text-danger">{errorMessage(status.error)}</p>
       ) : (
@@ -86,18 +88,16 @@ function Status({
   onNewCodes: () => void;
   onTurnOff: () => void;
 }) {
+  const { t } = useTranslation("pages");
   // The server requires it: it stays on.
   const required = !!useServer().data?.two_step_required;
   if (!status.enabled) {
     return (
       <>
-        <p className="text-sm text-muted">
-          After your password, Pley asks for a code from an authenticator app on your phone, so a password alone can't
-          sign in to your account.
-        </p>
+        <p className="text-sm text-muted">{t("twoStep.intro")}</p>
         <div className="mt-4 flex justify-end">
           <Button variant="primary" onClick={onSetUp}>
-            Set up
+            {t("twoStep.setUp")}
           </Button>
         </div>
       </>
@@ -107,27 +107,27 @@ function Status({
   return (
     <>
       <p className="text-sm text-muted">
-        On since {formatDay(status.since)}: signing in takes your password and a code from your authenticator app.
-        {required ? " This server requires it, so it stays on." : null}
+        {t("twoStep.onSince", { date: formatDay(status.since) })}
+        {required ? ` ${t("twoStep.required")}` : null}
       </p>
       <p className={cn("mt-2 text-sm", left <= FEW_CODES ? "text-danger" : "text-subtle")}>
         {left === 0
-          ? "No recovery codes left: make new ones, so a lost phone doesn't lock you out."
+          ? t("twoStep.noCodesLeft")
           : left <= FEW_CODES
-            ? `Only ${pluralize(left, "recovery code")} left: make new ones before they run out.`
-            : `${pluralize(left, "recovery code")} left, for when your phone isn't at hand.`}
+            ? t("twoStep.fewCodesLeft", { count: left })
+            : t("twoStep.codesLeft", { count: left })}
       </p>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         {required ? null : (
           <Button variant="ghost" onClick={onTurnOff}>
-            Turn off
+            {t("twoStep.turnOff")}
           </Button>
         )}
-        <Button variant="ghost" onClick={onMove} title="For a new phone, or another authenticator app">
-          Use another app
+        <Button variant="ghost" onClick={onMove} title={t("twoStep.useAnotherAppHint")}>
+          {t("twoStep.useAnotherApp")}
         </Button>
         <Button variant="outline" onClick={onNewCodes}>
-          New recovery codes
+          {t("twoStep.newCodes")}
         </Button>
       </div>
     </>
@@ -136,6 +136,7 @@ function Status({
 
 /** New recovery codes, shown once, with what came before them. */
 function SavedCodes({ codes, after, onDone }: { codes: string[]; after: "on" | "moved" | "renewed"; onDone: () => void }) {
+  const { t } = useTranslation("pages");
   const user = useAuth();
   const server = useServer();
   return (
@@ -143,13 +144,7 @@ function SavedCodes({ codes, after, onDone }: { codes: string[]; after: "on" | "
       codes={codes}
       username={user.username}
       serverName={server.data?.name}
-      note={
-        after === "on"
-          ? "Devices already signed in stay signed in. Sign out any you don't know under Devices."
-          : after === "moved"
-            ? "Codes from your old authenticator app, and your old recovery codes, don't work any more."
-            : undefined
-      }
+      note={after === "on" ? t("twoStep.noteOn") : after === "moved" ? t("twoStep.noteMoved") : undefined}
       onDone={onDone}
     />
   );
@@ -175,6 +170,7 @@ function PasswordStep({
   onSetup: (setup: TwoStepSetup) => void;
   onCodes: (codes: string[]) => void;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const start = useStartTwoStep();
   const codes = useNewRecoveryCodes();
   const [password, setPassword] = useState("");
@@ -194,14 +190,10 @@ function PasswordStep({
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <p className="text-sm text-muted">
-        {next === "setup"
-          ? "You'll need an authenticator app on your phone, such as Google Authenticator, Microsoft Authenticator, 1Password or Bitwarden."
-          : moving
-            ? "For a new phone or another authenticator app. Until you enter a code from the new one, the current one keeps working."
-            : "New recovery codes replace the ones you have: those stop working."}
+        {next === "setup" ? t("twoStep.needApp") : moving ? t("twoStep.moveHint") : t("twoStep.newCodesHint")}
       </p>
       <div className={cn("grid gap-3", moving && "sm:grid-cols-2")}>
-        <Field label="Your password" htmlFor="two-step-password">
+        <Field label={t("fields.yourPassword")} htmlFor="two-step-password">
           <TextInput
             id="two-step-password"
             type="password"
@@ -213,7 +205,7 @@ function PasswordStep({
           />
         </Field>
         {moving ? (
-          <Field label="Code from your current app" htmlFor="two-step-current-code" hint="Or a recovery code.">
+          <Field label={t("twoStep.currentCode")} htmlFor="two-step-current-code" hint={t("twoStep.currentCodeHint")}>
             <TextInput
               id="two-step-current-code"
               autoComplete="one-time-code"
@@ -229,10 +221,10 @@ function PasswordStep({
       <Problem>{error}</Problem>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel} disabled={busy}>
-          Cancel
+          {t("common:actions.cancel")}
         </Button>
         <Button type="submit" variant="primary" loading={busy} disabled={!password || (moving && !codeKind(code))}>
-          {next === "codes" ? "Make new codes" : "Continue"}
+          {next === "codes" ? t("twoStep.makeNewCodes") : t("common:actions.continue")}
         </Button>
       </div>
     </form>
@@ -251,6 +243,7 @@ function ScanStep({
   onCancel: () => void;
   onDone: (codes: string[]) => void;
 }) {
+  const { t } = useTranslation("pages");
   const enable = useEnableTwoStep();
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
@@ -259,7 +252,7 @@ function ScanStep({
     setError(null);
     enable.mutate(code, {
       onSuccess: (res) => {
-        toast.success(moving ? "Two-step sign-in uses your new app" : "Two-step sign-in is on");
+        toast.success(moving ? t("twoStep.movedToast") : t("twoStep.onToast"));
         onDone(res.recovery_codes);
       },
       onError: (err) => setError(errorMessage(err)),
@@ -271,7 +264,7 @@ function ScanStep({
       setup={setup}
       busy={enable.isPending}
       error={error}
-      submitLabel={moving ? "Use this app" : "Turn on"}
+      submitLabel={moving ? t("twoStep.useThisApp") : t("twoStep.turnOn")}
       onCode={confirm}
       onCancel={onCancel}
     />
@@ -280,6 +273,7 @@ function ScanStep({
 
 /** Turning it off takes the password and a code: neither alone can. */
 function TurnOff({ onCancel, onOff }: { onCancel: () => void; onOff: () => void }) {
+  const { t } = useTranslation(["pages", "common"]);
   const disable = useDisableTwoStep();
   const toast = useToast();
   const [password, setPassword] = useState("");
@@ -293,7 +287,7 @@ function TurnOff({ onCancel, onOff }: { onCancel: () => void; onOff: () => void 
       { password, code: code.trim() },
       {
         onSuccess: () => {
-          toast.success("Two-step sign-in is off");
+          toast.success(t("twoStep.offToast"));
           onOff();
         },
         onError: (err) => setError(errorMessage(err)),
@@ -303,9 +297,9 @@ function TurnOff({ onCancel, onOff }: { onCancel: () => void; onOff: () => void 
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <p className="text-sm text-muted">Turning it off takes your password and a code from the app, or a recovery code.</p>
+      <p className="text-sm text-muted">{t("twoStep.turnOffHint")}</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Your password" htmlFor="two-step-off-password">
+        <Field label={t("fields.yourPassword")} htmlFor="two-step-off-password">
           <TextInput
             id="two-step-off-password"
             type="password"
@@ -316,7 +310,7 @@ function TurnOff({ onCancel, onOff }: { onCancel: () => void; onOff: () => void 
             required
           />
         </Field>
-        <Field label="Code" htmlFor="two-step-off-code">
+        <Field label={t("fields.code")} htmlFor="two-step-off-code">
           <TextInput
             id="two-step-off-code"
             autoComplete="one-time-code"
@@ -331,10 +325,10 @@ function TurnOff({ onCancel, onOff }: { onCancel: () => void; onOff: () => void 
       <Problem>{error}</Problem>
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel} disabled={disable.isPending}>
-          Cancel
+          {t("common:actions.cancel")}
         </Button>
         <Button type="submit" variant="danger" loading={disable.isPending} disabled={!password || !codeKind(code)}>
-          Turn off
+          {t("twoStep.turnOff")}
         </Button>
       </div>
     </form>

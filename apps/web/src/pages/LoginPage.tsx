@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { errorMessage, isApiError } from "@/api/client";
 import { fetchProfiles, useLogin, useMe, useServer } from "@/api/hooks";
@@ -25,7 +26,8 @@ type Step =
   | { kind: "codes"; codes: string[]; username: string };
 
 export function LoginPage() {
-  useDocumentTitle("Sign in");
+  const { t } = useTranslation(["pages", "common"]);
+  useDocumentTitle(t("login.signIn"));
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   /** Signing in to allow an app (the OAuth authorize page). */
@@ -115,12 +117,12 @@ export function LoginPage() {
         ? errorMessage(login.error)
         : null
       : isApiError(login.error, 401)
-        ? "Wrong username or password."
+        ? t("login.wrongPassword")
         : errorMessage(login.error);
 
   if (step.kind === "codes") {
     return (
-      <AuthLayout title="Save your recovery codes" subtitle="Two-step sign-in is on.">
+      <AuthLayout title={t("twoStepSetup.saveYourCodes")} subtitle={t("login.codesSubtitle")}>
         <RecoveryCodesView codes={step.codes} username={step.username} serverName={server.data?.name} onDone={goOn} />
       </AuthLayout>
     );
@@ -129,8 +131,8 @@ export function LoginPage() {
   if (step.kind === "setup") {
     return (
       <AuthLayout
-        title="Set up two-step sign-in"
-        subtitle={`${server.data?.name ?? "This server"} asks everyone for a code from an authenticator app after their password. It takes a minute.`}
+        title={t("twoStepSetup.setUpTitle")}
+        subtitle={t("login.setupSubtitle", { server: server.data?.name ?? t("twoStepSetup.thisServer") })}
       >
         <ScanSetup
           // A new secret (the last one expired) starts the code over.
@@ -140,10 +142,10 @@ export function LoginPage() {
           setup={step.setup}
           busy={login.isPending || (signingIn && !login.isError)}
           error={error}
-          submitLabel="Turn on and sign in"
+          submitLabel={t("twoStepSetup.turnOnAndSignIn")}
           onCode={(value) => signIn(value, step.setup.id)}
           onCancel={back}
-          cancelLabel="Back"
+          cancelLabel={t("common:actions.back")}
         />
       </AuthLayout>
     );
@@ -151,16 +153,9 @@ export function LoginPage() {
 
   if (step.kind === "code") {
     return (
-      <AuthLayout
-        title="Two-step sign-in"
-        subtitle={
-          recovery
-            ? "Enter one of the recovery codes you saved when you turned it on. Each works once."
-            : "Enter the 6-digit code from your authenticator app."
-        }
-      >
+      <AuthLayout title={t("login.codeTitle")} subtitle={recovery ? t("login.recoveryHint") : t("login.codeHint")}>
         <form onSubmit={onSubmitCode} className="space-y-4">
-          <Field label={recovery ? "Recovery code" : "Code"} htmlFor="code">
+          <Field label={recovery ? t("login.recoveryCode") : t("fields.code")} htmlFor="code">
             <TextInput
               key={recovery ? "recovery" : "app"}
               id="code"
@@ -193,14 +188,14 @@ export function LoginPage() {
             loading={login.isPending || (signingIn && !login.isError)}
             disabled={!codeKind(code)}
           >
-            Sign in
+            {t("login.signIn")}
           </Button>
           <div className="flex items-center justify-between gap-3 text-sm">
             <button type="button" className="font-medium text-accent hover:text-accent-hover" onClick={() => chooseRecovery(!recovery)}>
-              {recovery ? "Use your authenticator app" : "Use a recovery code"}
+              {recovery ? t("login.useApp") : t("login.useRecoveryCode")}
             </button>
             <button type="button" className="text-muted hover:text-fg" onClick={back}>
-              Back
+              {t("common:actions.back")}
             </button>
           </div>
         </form>
@@ -210,19 +205,15 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
+      title={t("login.signIn")}
       subtitle={
         server.data
-          ? forApp
-            ? `to let an app use ${server.data.name}`
-            : forTv
-              ? `to let your TV use ${server.data.name}`
-              : `to ${server.data.name}`
+          ? t(forApp ? "login.toServerForApp" : forTv ? "login.toServerForTv" : "login.toServer", { server: server.data.name })
           : undefined
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Username" htmlFor="username">
+        <Field label={t("fields.username")} htmlFor="username">
           <TextInput
             id="username"
             autoComplete="username"
@@ -232,7 +223,7 @@ export function LoginPage() {
             required
           />
         </Field>
-        <Field label="Password" htmlFor="password">
+        <Field label={t("fields.password")} htmlFor="password">
           <TextInput
             id="password"
             type="password"
@@ -248,12 +239,12 @@ export function LoginPage() {
           </p>
         ) : null}
         <Button type="submit" variant="primary" size="lg" className="w-full" loading={login.isPending || (signingIn && !login.isError)}>
-          Sign in
+          {t("login.signIn")}
         </Button>
         {appShell() ? (
           <p className="text-center text-xs text-subtle">
             <a href={SWITCH_SERVER_PATH} className="font-medium text-accent hover:text-accent-hover">
-              Use another server
+              {t("login.otherServer")}
             </a>
           </p>
         ) : null}

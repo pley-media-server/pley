@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Clapperboard, FolderPlus } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useHomeHubs, useLibraries } from "@/api/hooks";
@@ -8,7 +9,8 @@ import { Button, buttonClass, EmptyState } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
 
 export function HomePage() {
-  useDocumentTitle("Home");
+  const { t } = useTranslation(["pages", "common"]);
+  useDocumentTitle(t("home.title"));
   const user = useAuth();
   const libs = useLibraries();
   const hubs = useHomeHubs();
@@ -18,16 +20,12 @@ export function HomePage() {
       <EmptyState
         className="min-h-[70vh]"
         icon={<FolderPlus />}
-        title="No libraries yet"
-        description={
-          user.is_admin
-            ? "Point Pley at the folders where your movies, shows and music live. It will scan them and build your library."
-            : "Ask the server owner to add a library."
-        }
+        title={t("home.noLibraries")}
+        description={user.is_admin ? t("home.noLibrariesAdmin") : t("home.noLibrariesUser")}
         action={
           user.is_admin ? (
             <Link to="/settings/libraries?add=1" className={buttonClass("primary", "lg")}>
-              Add a library
+              {t("home.addLibrary")}
             </Link>
           ) : undefined
         }
@@ -49,9 +47,9 @@ export function HomePage() {
     return (
       <EmptyState
         className="min-h-[60vh]"
-        title="Couldn't load your home screen"
+        title={t("home.cantLoad")}
         description={errorMessage(hubs.error)}
-        action={<Button onClick={() => void hubs.refetch()}>Retry</Button>}
+        action={<Button onClick={() => void hubs.refetch()}>{t("common:actions.retry")}</Button>}
       />
     );
   }
@@ -63,16 +61,12 @@ export function HomePage() {
       <EmptyState
         className="min-h-[70vh]"
         icon={<Clapperboard />}
-        title={scanning ? "Scanning your libraries…" : "Nothing here yet"}
-        description={
-          scanning
-            ? "New items will show up here as soon as they're found."
-            : "Your libraries are empty. Add media to the library folders and run a scan."
-        }
+        title={scanning ? t("home.scanning") : t("home.empty")}
+        description={scanning ? t("home.scanningHint") : t("home.emptyHint")}
         action={
           user.is_admin && !scanning ? (
             <Link to="/settings/libraries" className={buttonClass()}>
-              Manage libraries
+              {t("home.manage")}
             </Link>
           ) : undefined
         }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Layers, ListVideo } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useCreateCollection, useCreatePlaylist } from "@/api/lists";
@@ -13,9 +14,10 @@ import { collectionUrl, playlistUrl } from "@/lib/urls";
 
 type Target = "playlist" | "collection";
 
-const TARGETS: { value: Target; label: string; hint: string; icon: typeof Layers }[] = [
-  { value: "playlist", label: "Smart playlist", hint: "Yours: plays what these filters find.", icon: ListVideo },
-  { value: "collection", label: "Smart collection", hint: "Everyone's: shown with the library's collections.", icon: Layers },
+/** Each with its words in `saveFilters.targets`. */
+const TARGETS: { value: Target; icon: typeof Layers }[] = [
+  { value: "playlist", icon: ListVideo },
+  { value: "collection", icon: Layers },
 ];
 
 /** Save a library's filters as a smart playlist, or (administrators) a smart collection. */
@@ -31,6 +33,7 @@ export function SaveFiltersModal({
   filter: string;
   allowCollection: boolean;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const navigate = useNavigate();
   const toast = useToast();
   const playlist = useCreatePlaylist();
@@ -61,30 +64,30 @@ export function SaveFiltersModal({
     <Modal
       open
       onClose={onClose}
-      title="Save these filters"
+      title={t("saveFilters.title")}
       size="sm"
       locked={busy}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="primary" type="submit" form="save-filters" loading={busy} disabled={!title.trim()}>
-            Save
+            {t("common:actions.save")}
           </Button>
         </>
       }
     >
       <form id="save-filters" onSubmit={onSubmit} className="space-y-4">
-        <p className="text-sm text-muted">{describeSmartFilter(filter).join(" · ")}. It keeps up with the library by itself.</p>
-        <Field label="Title" htmlFor="save-filters-title">
+        <p className="text-sm text-muted">{t("saveFilters.describe", { filters: describeSmartFilter(filter).join(" · ") })}</p>
+        <Field label={t("saveFilters.titleField")} htmlFor="save-filters-title">
           <TextInput id="save-filters-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} required />
         </Field>
         {allowCollection ? (
           <div className="space-y-1.5">
-            <span className="block text-sm font-medium text-fg">Save as</span>
-            <div className="grid gap-2" role="radiogroup" aria-label="Save as">
-              {TARGETS.map(({ value, label, hint, icon: Icon }) => (
+            <span className="block text-sm font-medium text-fg">{t("saveFilters.saveAs")}</span>
+            <div className="grid gap-2" role="radiogroup" aria-label={t("saveFilters.saveAs")}>
+              {TARGETS.map(({ value, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
@@ -98,8 +101,8 @@ export function SaveFiltersModal({
                 >
                   <Icon className="mt-0.5 size-4 shrink-0 text-accent" />
                   <span>
-                    <span className="block text-sm font-medium text-fg">{label}</span>
-                    <span className="block text-xs text-muted">{hint}</span>
+                    <span className="block text-sm font-medium text-fg">{t(`saveFilters.targets.${value}.label`)}</span>
+                    <span className="block text-xs text-muted">{t(`saveFilters.targets.${value}.hint`)}</span>
                   </span>
                 </button>
               ))}

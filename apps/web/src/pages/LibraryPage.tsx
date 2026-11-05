@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
+import { useTranslation } from "react-i18next";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, FolderSearch, RefreshCw, Sparkles } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useLibrary, useLibraryFilters, useLibraryHubs, useLibraryItems, useScanLibrary } from "@/api/hooks";
@@ -17,23 +18,11 @@ import { SaveFiltersModal } from "./SaveFiltersModal";
 import { CollectionsTab } from "./collections/CollectionsTab";
 import type { CardAspect } from "@/components/cards";
 import { cn } from "@/lib/cn";
-import { pluralize, RANGE_FILTER_LABELS, rangeFilterOf, RESOLUTION_LABELS, resolutionOf } from "@/lib/format";
+import { RANGE_FILTER_LABELS, rangeFilterOf, RESOLUTION_LABELS, resolutionOf } from "@/lib/format";
 import { smartFilterOf } from "@/lib/smartFilter";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { idParam } from "@/lib/ids";
 import { keepTab, keepView, leftTab, leftView, tabOf, tabStorageKey, viewOf, viewStorageKey, withTab, withView } from "@/lib/libraryView";
-
-const SORT_LABELS: Record<LibrarySort, string> = {
-  title: "Title",
-  year: "Year",
-  added: "Date added",
-  rating: "Rating",
-  release: "Release date",
-  duration: "Duration",
-  last_played: "Last played",
-  user_rating: "Your rating",
-  bitrate: "Bitrate",
-};
 
 const SORTS_BY_KIND: Record<LibraryKind, LibrarySort[]> = {
   movies: ["title", "year", "added", "rating", "user_rating", "release", "duration", "last_played", "bitrate"],
@@ -41,17 +30,12 @@ const SORTS_BY_KIND: Record<LibraryKind, LibrarySort[]> = {
   music: ["title", "added", "user_rating", "last_played"],
 };
 
-const ITEM_NOUN: Record<LibraryKind, [string, string]> = {
-  movies: ["movie", "movies"],
-  shows: ["show", "shows"],
-  music: ["artist", "artists"],
-};
-
 function defaultOrder(sort: LibrarySort): SortOrder {
   return sort === "title" ? "asc" : "desc";
 }
 
 export function LibraryPage() {
+  const { t } = useTranslation("pages");
   const { id } = useParams();
   const libId = idParam(id);
   const lib = useLibrary(libId);
@@ -103,19 +87,19 @@ export function LibraryPage() {
           </div>
         </div>
         <div className="flex rounded-lg bg-surface-2 p-1" role="tablist">
-          {(kind === "music" ? (["recommended", "library"] as const) : (["recommended", "library", "collections"] as const)).map((t) => (
+          {(kind === "music" ? (["recommended", "library"] as const) : (["recommended", "library", "collections"] as const)).map((name) => (
             <button
-              key={t}
+              key={name}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setParam({ tab: t === "library" ? null : t })}
+              aria-selected={tab === name}
+              onClick={() => setParam({ tab: name === "library" ? null : name })}
               className={cn(
                 "rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors",
-                tab === t ? "bg-surface-3 text-fg shadow" : "text-muted hover:text-fg",
+                tab === name ? "bg-surface-3 text-fg shadow" : "text-muted hover:text-fg",
               )}
             >
-              {t}
+              {t(`library.tabs.${name}`)}
             </button>
           ))}
         </div>
@@ -141,6 +125,7 @@ export function LibraryPage() {
 }
 
 function RecommendedTab({ libraryId, kind }: { libraryId: number; kind: LibraryKind }) {
+  const { t } = useTranslation(["pages", "common"]);
   const hubs = useLibraryHubs(libraryId);
   if (hubs.isPending) {
     return (
@@ -151,11 +136,17 @@ function RecommendedTab({ libraryId, kind }: { libraryId: number; kind: LibraryK
     );
   }
   if (hubs.isError) {
-    return <EmptyState title="Couldn't load recommendations" description={errorMessage(hubs.error)} action={<Button onClick={() => void hubs.refetch()}>Retry</Button>} />;
+    return (
+      <EmptyState
+        title={t("library.cantLoadRecommendations")}
+        description={errorMessage(hubs.error)}
+        action={<Button onClick={() => void hubs.refetch()}>{t("common:actions.retry")}</Button>}
+      />
+    );
   }
   const visible = hubs.data.hubs.filter((h) => h.items.length > 0);
   if (!visible.length) {
-    return <EmptyState title="Nothing to recommend yet" description="Recommendations appear once the library has some items." />;
+    return <EmptyState title={t("library.nothingToRecommend")} description={t("library.nothingToRecommendHint")} />;
   }
   return (
     <div className="space-y-10 pt-6">
@@ -183,6 +174,7 @@ function LibraryTab({
   /** Everything the library holds for this profile: "23 of 342 movies" when filtered. */
   libraryTotal?: number;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const user = useAuth();
   const toast = useToast();
   const scan = useScanLibrary();
@@ -208,7 +200,6 @@ function LibraryTab({
 
   const aspect: CardAspect = kind === "music" ? "square" : "poster";
   const [cardWidth, setCardWidth] = useLocalStorage<number>(`pley.cardWidth.${aspect}`, aspect === "square" ? 170 : 160);
-  const noun = ITEM_NOUN[kind];
   const filtered = watched !== undefined || !!genre || year !== undefined || !!resolution || !!dynamicRange;
   const clearFilters = { watched: null, genre: null, year: null, resolution: null, dynamic_range: null };
   // Offered when the library has two or more; one chosen stays offered so it can be cleared.
@@ -220,7 +211,7 @@ function LibraryTab({
       <div className="sticky top-16 z-10 mt-3 border-b border-white/[0.04] bg-bg/85 px-4 py-2.5 backdrop-blur-md sm:px-8">
         <div className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0 [&>*]:shrink-0">
           <Select
-            aria-label="Sort by"
+            aria-label={t("library.sortBy")}
             value={sort}
             onChange={(e) => {
               const s = e.target.value as LibrarySort;
@@ -229,13 +220,13 @@ function LibraryTab({
           >
             {sorts.map((s) => (
               <option key={s} value={s}>
-                {SORT_LABELS[s]}
+                {t(`library.sorts.${s}`)}
               </option>
             ))}
           </Select>
           <IconButton
             size="sm"
-            label={order === "asc" ? "Ascending" : "Descending"}
+            label={order === "asc" ? t("library.ascending") : t("library.descending")}
             onClick={() => setParam({ order: order === "asc" ? "desc" : "asc" })}
             className="rounded-md bg-surface-2 hover:bg-surface-3"
           >
@@ -243,21 +234,21 @@ function LibraryTab({
           </IconButton>
           {kind !== "music" ? (
             <Select
-              aria-label="Watched filter"
+              aria-label={t("library.watchedFilter")}
               value={watched === undefined ? "all" : watched ? "watched" : "unwatched"}
               onChange={(e) => {
                 const v = e.target.value;
                 setParam({ watched: v === "all" ? null : v === "watched" ? "true" : "false" });
               }}
             >
-              <option value="all">All {noun[1]}</option>
-              <option value="unwatched">Unwatched</option>
-              <option value="watched">Watched</option>
+              <option value="all">{t(`library.all.${kind}`)}</option>
+              <option value="unwatched">{t("library.unwatched")}</option>
+              <option value="watched">{t("library.watched")}</option>
             </Select>
           ) : null}
           {kind !== "music" && filters.data && filters.data.genres.length > 0 ? (
-            <Select aria-label="Genre" value={genre ?? ""} onChange={(e) => setParam({ genre: e.target.value || null })}>
-              <option value="">All genres</option>
+            <Select aria-label={t("library.genre")} value={genre ?? ""} onChange={(e) => setParam({ genre: e.target.value || null })}>
+              <option value="">{t("library.allGenres")}</option>
               {filters.data.genres.map((g) => (
                 <option key={g} value={g}>
                   {g}
@@ -266,8 +257,8 @@ function LibraryTab({
             </Select>
           ) : null}
           {kind !== "music" && filters.data && filters.data.years.length > 0 ? (
-            <Select aria-label="Year" value={year ?? ""} onChange={(e) => setParam({ year: e.target.value || null })}>
-              <option value="">All years</option>
+            <Select aria-label={t("library.year")} value={year ?? ""} onChange={(e) => setParam({ year: e.target.value || null })}>
+              <option value="">{t("library.allYears")}</option>
               {filters.data.years.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -276,8 +267,12 @@ function LibraryTab({
             </Select>
           ) : null}
           {kind !== "music" && (resolutions.length > 0 || resolution) ? (
-            <Select aria-label="Resolution" value={resolution ?? ""} onChange={(e) => setParam({ resolution: e.target.value || null })}>
-              <option value="">All resolutions</option>
+            <Select
+              aria-label={t("library.resolution")}
+              value={resolution ?? ""}
+              onChange={(e) => setParam({ resolution: e.target.value || null })}
+            >
+              <option value="">{t("library.allResolutions")}</option>
               {(resolution && !resolutions.includes(resolution) ? [...resolutions, resolution] : resolutions).map((r) => (
                 <option key={r} value={r}>
                   {RESOLUTION_LABELS[r]}
@@ -286,8 +281,12 @@ function LibraryTab({
             </Select>
           ) : null}
           {kind !== "music" && (ranges.length > 0 || dynamicRange) ? (
-            <Select aria-label="Dynamic range" value={dynamicRange ?? ""} onChange={(e) => setParam({ dynamic_range: e.target.value || null })}>
-              <option value="">All dynamic ranges</option>
+            <Select
+              aria-label={t("library.dynamicRange")}
+              value={dynamicRange ?? ""}
+              onChange={(e) => setParam({ dynamic_range: e.target.value || null })}
+            >
+              <option value="">{t("library.allDynamicRanges")}</option>
               {(dynamicRange && !ranges.includes(dynamicRange) ? [...ranges, dynamicRange] : ranges).map((r) => (
                 <option key={r} value={r}>
                   {RANGE_FILTER_LABELS[r]}
@@ -297,12 +296,12 @@ function LibraryTab({
           ) : null}
           {filtered ? (
             <Button size="sm" variant="ghost" onClick={() => setParam(clearFilters)}>
-              Clear filters
+              {t("library.clearFilters")}
             </Button>
           ) : null}
           {filtered ? (
             <Button size="sm" variant="ghost" icon={<Sparkles className="size-4" />} onClick={() => setSaving(true)}>
-              Save as…
+              {t("library.saveAs")}
             </Button>
           ) : null}
           {saving ? (
@@ -318,8 +317,8 @@ function LibraryTab({
             <span className="hidden text-sm tabular-nums text-muted sm:inline">
               {items.data
                 ? filtered && libraryTotal != null && libraryTotal >= items.data.total
-                  ? `${items.data.total.toLocaleString()} of ${pluralize(libraryTotal, noun[0], noun[1])}`
-                  : pluralize(items.data.total, noun[0], noun[1])
+                  ? t(`library.countOf.${kind}`, { shown: items.data.total, count: libraryTotal })
+                  : t(`library.count.${kind}`, { count: items.data.total })
                 : ""}
             </span>
             <input
@@ -329,8 +328,8 @@ function LibraryTab({
               step={10}
               value={cardWidth}
               onChange={(e) => setCardWidth(Number(e.target.value))}
-              aria-label="Card size"
-              title="Card size"
+              aria-label={t("library.cardSize")}
+              title={t("library.cardSize")}
               className="hidden w-24 md:block"
             />
           </div>
@@ -341,19 +340,23 @@ function LibraryTab({
         {items.isPending || !ready ? (
           <ItemGridSkeleton aspect={aspect} cardWidth={cardWidth} />
         ) : items.isError || !items.data ? (
-          <EmptyState title="Couldn't load this library" description={errorMessage(items.error)} action={<Button onClick={() => void items.refetch()}>Retry</Button>} />
+          <EmptyState
+            title={t("library.cantLoad")}
+            description={errorMessage(items.error)}
+            action={<Button onClick={() => void items.refetch()}>{t("common:actions.retry")}</Button>}
+          />
         ) : items.data.items.length === 0 ? (
           filtered ? (
             <EmptyState
-              title="No matches"
-              description="Nothing in this library matches the current filters."
-              action={<Button onClick={() => setParam(clearFilters)}>Clear filters</Button>}
+              title={t("library.noMatches")}
+              description={t("library.noMatchesHint")}
+              action={<Button onClick={() => setParam(clearFilters)}>{t("library.clearFilters")}</Button>}
             />
           ) : (
             <EmptyState
               icon={<FolderSearch />}
-              title="This library is empty"
-              description="Pley didn't find any media yet. Check the library folders, then scan again."
+              title={t("library.empty")}
+              description={t("library.emptyHint")}
               action={
                 user.is_admin ? (
                   <Button
@@ -364,13 +367,13 @@ function LibraryTab({
                       scan.mutate(
                         { id: libraryId },
                         {
-                          onSuccess: () => toast.success("Scan started"),
+                          onSuccess: () => toast.success(t("library.scanStarted")),
                           onError: (e) => toast.error(errorMessage(e)),
                         },
                       )
                     }
                   >
-                    Scan library
+                    {t("library.scan")}
                   </Button>
                 ) : undefined
               }

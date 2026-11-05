@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
 import { errorMessage, isApiError } from "@/api/client";
 import { decide, startRequest, type ConsentRequest, type RequestAnswer, type RequestError } from "@/api/oauth";
 import { Splash } from "@/auth";
@@ -26,7 +27,8 @@ function useVisible(): boolean {
  * answers, as text, and never goes anywhere without a click.
  */
 export function AuthorizePage() {
-  useDocumentTitle("Allow an app");
+  const { t } = useTranslation("pages");
+  useDocumentTitle(t("authorize.documentTitle"));
   const { search } = useLocation();
   const query = search.replace(/^\?/, "");
   // One request per page (React runs effects twice in development).
@@ -50,7 +52,7 @@ export function AuthorizePage() {
   if (!current || isApiError(current.error, 401)) return <Splash />;
   if (!current.answer) {
     return (
-      <AuthLayout title={isApiError(current.error, 400) ? "This app can't sign in here" : "Couldn't load this request"}>
+      <AuthLayout title={isApiError(current.error, 400) ? t("authorize.cantSignIn") : t("authorize.cantLoad")}>
         <p className="text-sm text-muted">{errorMessage(current.error)}</p>
       </AuthLayout>
     );
@@ -64,16 +66,17 @@ export function AuthorizePage() {
  * knowing where that is (a request with a mistake can be a lure to a site).
  */
 function RequestErrorScreen({ request }: { request: RequestError }) {
+  const { t } = useTranslation("pages");
   return (
-    <AuthLayout title="This request can't be allowed" subtitle={`from ${appName(request.client)}`}>
+    <AuthLayout title={t("authorize.cantAllow")} subtitle={t("authorize.fromApp", { app: appName(request.client) })}>
       <div className="space-y-5 text-sm">
         <p className="text-muted">{errorMessage(new Error(request.message))}</p>
         <div>
-          <p className="font-medium">Back to the app goes to:</p>
+          <p className="font-medium">{t("authorize.backGoesTo")}</p>
           <p className="mt-1">{whereItGoes(request.redirect)}</p>
         </div>
         <Button variant="primary" className="w-full" onClick={() => window.location.assign(request.back_url)}>
-          Back to the app
+          {t("authorize.back")}
         </Button>
       </div>
     </AuthLayout>
@@ -82,10 +85,11 @@ function RequestErrorScreen({ request }: { request: RequestError }) {
 
 /** Where the way back to an app leads once the request is over (a link followed late, from a tab left open). */
 export function RequestOverPage() {
-  useDocumentTitle("Request over");
+  const { t } = useTranslation("pages");
+  useDocumentTitle(t("authorize.overDocumentTitle"));
   return (
-    <AuthLayout title="This request is over">
-      <p className="text-sm text-muted">Start again from the app.</p>
+    <AuthLayout title={t("authorize.over")}>
+      <p className="text-sm text-muted">{t("authorize.startAgain")}</p>
     </AuthLayout>
   );
 }
@@ -112,6 +116,7 @@ function Consent({ request }: { request: ConsentRequest }) {
 
 /** The browser is on its way back to the app; a link in case it didn't go. */
 function Returning({ app, url }: { app: string; url: string }) {
+  const { t } = useTranslation("pages");
   const visible = useVisible();
   const [late, setLate] = useState(false);
   useEffect(() => {
@@ -119,10 +124,10 @@ function Returning({ app, url }: { app: string; url: string }) {
     return () => window.clearTimeout(timer);
   }, []);
   return (
-    <AuthLayout title={`Returning to ${app}…`}>
+    <AuthLayout title={t("authorize.returning", { app })}>
       {late && visible ? (
         <a href={url} className="text-sm font-medium text-accent hover:text-accent-hover">
-          Open {app}
+          {t("authorize.open", { app })}
         </a>
       ) : (
         <Spinner />

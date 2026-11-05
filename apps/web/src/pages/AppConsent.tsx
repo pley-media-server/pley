@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { Trans, useTranslation } from "react-i18next";
 import { Check, ShieldCheck, TriangleAlert } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { useLogout, useProfiles, useServer } from "@/api/hooks";
@@ -8,17 +9,15 @@ import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { Avatar } from "@/components/Avatar";
 import { Badge, Button } from "@/components/ui";
+import { t as translate } from "@/i18n";
 import { AuthLayout } from "./AuthLayout";
 
-/** What each scope lets an app do, for the profile it acts as. */
-const SCOPE_WORDS: Record<string, (profile: string) => string> = {
-  library: (p) => `See ${p}'s libraries, playlists and watch history.`,
-  play: (p) => `Play titles, and keep ${p}'s place, watched marks, ratings, track choices and library order.`,
-  playlists: (p) => `Make, change and delete ${p}'s playlists.`,
-  profiles: () => "Switch to the household's other profiles. Profiles with a PIN still ask for it.",
-  requests: (p) => `Ask for movies and shows the libraries don't have, and follow ${p}'s requests.`,
-  approvals: () => "Approve and decline what people ask for, where the account is an administrator.",
-};
+/** The scopes Pley has words for (`consent.scopes`): what each lets an app do, for the profile it acts as. */
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals"] as const;
+
+function knownScope(scope: string): scope is (typeof SCOPES)[number] {
+  return (SCOPES as readonly string[]).includes(scope);
+}
 
 /** How long the page must have been seen before Allow can be pressed. */
 const STEADY_MS = 1000;
@@ -81,41 +80,42 @@ function useKeysSettled(ms: number) {
 /** Where an app's answer goes back to, in words. */
 export function whereItGoes(redirect: AppRedirect): string {
   return redirect.kind === "web"
-    ? `the website ${redirect.to}`
+    ? translate("consent.website", { ns: "pages", address: redirect.to })
     : redirect.kind === "loopback"
-      ? "an app on this computer"
-      : "an app on this device";
+      ? translate("consent.appOnComputer", { ns: "pages" })
+      : translate("consent.appOnDevice", { ns: "pages" });
 }
 
 /** Where the answer goes, and what to be sure of before allowing. */
 function Destination({ redirect }: { redirect: ConsentRequest["redirect"] }) {
+  const { t } = useTranslation("pages");
   if (redirect.kind === "device") {
+    const device = redirect.device ?? t("consent.aDevice");
     return (
       <div>
-        <p className="font-medium">It goes to:</p>
+        <p className="font-medium">{t("consent.goesTo")}</p>
         <p className="mt-1">
-          the TV or device showing{" "}
-          <span className="font-mono font-semibold tracking-wider">{redirect.to}</span>
+          <Trans
+            t={t}
+            i18nKey="consent.deviceShowing"
+            values={{ code: redirect.to }}
+            components={{ code: <span className="font-mono font-semibold tracking-wider" /> }}
+          />
         </p>
         {redirect.device || redirect.address ? (
           <p className="mt-1 text-muted">
-            It says it is {redirect.device ?? "a device"}
-            {redirect.address ? `, at ${redirect.address}` : ""}.
+            {redirect.address ? t("consent.saysItIsAt", { device, address: redirect.address }) : t("consent.saysItIs", { device })}
           </p>
         ) : null}
-        <p className="mt-1 text-danger">
-          Only allow this if that code is on a screen in front of you right now. Never use a code someone sent you.
-        </p>
+        <p className="mt-1 text-danger">{t("consent.onlyIfOnScreen")}</p>
       </div>
     );
   }
   return (
     <div>
-      <p className="font-medium">It goes back to:</p>
+      <p className="font-medium">{t("consent.goesBackTo")}</p>
       <p className="mt-1">{whereItGoes(redirect)}</p>
-      {redirect.kind !== "web" ? (
-        <p className="mt-1 text-danger">Only allow this if you just started signing in to the app.</p>
-      ) : null}
+      {redirect.kind !== "web" ? <p className="mt-1 text-danger">{t("consent.onlyIfStarted")}</p> : null}
     </div>
   );
 }
@@ -138,6 +138,7 @@ export function AppConsent({
   /** Sends the answer; the page takes over once it is in. A 404 means the request is over. */
   onAnswer: (allow: boolean) => Promise<unknown>;
 }) {
+  const { t } = useTranslation("pages");
   const user = useAuth();
   const server = useServer();
   const profiles = useProfiles(user.home);
@@ -173,18 +174,18 @@ export function AppConsent({
   const approves = user.is_admin && request.scopes.includes("approvals");
 
   return (
-    <AuthLayout title={`${app} wants to use your Pley account`} subtitle={server.data ? `on ${server.data.name}` : undefined}>
+    <AuthLayout title={t("consent.title", { app })} subtitle={server.data ? t("consent.onServer", { server: server.data.name }) : undefined}>
       <div className="space-y-6 text-sm">
         {client.first_party ? (
           <Badge tone="accent">
-            <ShieldCheck className="size-3.5" aria-hidden /> Pley's own app
+            <ShieldCheck className="size-3.5" aria-hidden /> {t("consent.firstParty")}
           </Badge>
         ) : (
           <div className="flex gap-2.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-fg/90">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
             <div className="space-y-1">
-              {client.name ? <p>It calls itself “{client.name}” (Pley can't check that name)</p> : null}
-              <p>This app isn't one of Pley's own</p>
+              {client.name ? <p>{t("consent.callsItself", { name: client.name })}</p> : null}
+              <p>{t("consent.notOwn")}</p>
             </div>
           </div>
         )}
@@ -200,7 +201,7 @@ export function AppConsent({
                   className="font-medium text-accent hover:text-accent-hover"
                   onClick={() => void navigate(`/profiles?next=${encodeURIComponent(returnTo)}`)}
                 >
-                  Use another profile
+                  {t("consent.otherProfile")}
                 </button>
               ) : null}
               <button
@@ -214,33 +215,25 @@ export function AppConsent({
                   });
                 }}
               >
-                Not you? Sign out
+                {t("consent.notYou")}
               </button>
             </div>
           </div>
         </div>
 
         <div>
-          <p className="font-medium">It will be able to:</p>
+          <p className="font-medium">{t("consent.willBeAble")}</p>
           <ul className="mt-2 space-y-1.5">
             {request.scopes.map((scope) => (
               <li key={scope} className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                <span>{SCOPE_WORDS[scope]?.(user.name) ?? scope}</span>
+                <span>{knownScope(scope) ? t(`consent.scopes.${scope}`, { profile: user.name }) : scope}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-muted">
-            {approves
-              ? "It can't change your password, sign-in settings or devices."
-              : "It can't change your password, sign-in settings or devices, and it never gets administrator rights."}
-          </p>
+          <p className="mt-3 text-muted">{approves ? t("consent.cantChange") : t("consent.cantChangeNoAdmin")}</p>
           {user.is_admin ? (
-            <p className="mt-1 text-muted">
-              {approves
-                ? "Of your administrator rights it gets only approving and declining requests: the others stay in Pley's web app."
-                : "Your administrator rights stay in Pley's web app."}
-            </p>
+            <p className="mt-1 text-muted">{approves ? t("consent.approvesOnly") : t("consent.adminStays")}</p>
           ) : null}
         </div>
 
@@ -248,9 +241,7 @@ export function AppConsent({
 
         {over ? (
           <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger">
-            {redirect.kind === "device"
-              ? "This request is over: start again on your TV"
-              : "This request is over: start again from the app"}
+            {redirect.kind === "device" ? t("consent.overTv") : t("consent.overApp")}
           </p>
         ) : (
           <>
@@ -272,7 +263,7 @@ export function AppConsent({
                 }}
                 onClick={() => answer(false)}
               >
-                Don't allow
+                {t("consent.deny")}
               </Button>
               <Button
                 variant="primary"
@@ -281,7 +272,7 @@ export function AppConsent({
                 disabled={!ready || deciding !== null}
                 onClick={() => answer(true)}
               >
-                Allow
+                {t("consent.allow")}
               </Button>
             </div>
           </>

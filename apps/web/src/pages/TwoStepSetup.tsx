@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Copy, Download, Smartphone } from "lucide-react";
 import type { TwoStepSetup } from "@/api/types";
 import { QrCode } from "@/components/QrCode";
@@ -27,7 +28,7 @@ export function ScanSetup({
   submitLabel,
   onCode,
   onCancel,
-  cancelLabel = "Cancel",
+  cancelLabel,
   stacked = false,
   appsHint = false,
 }: {
@@ -37,12 +38,14 @@ export function ScanSetup({
   submitLabel: string;
   onCode: (code: string) => void;
   onCancel?: () => void;
+  /** "Cancel" by default. */
   cancelLabel?: string;
   /** One column, for a narrow card: the QR code above the steps. */
   stacked?: boolean;
   /** Name a few apps, for someone who wasn't asked whether they have one. */
   appsHint?: boolean;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const toast = useToast();
   const [code, setCode] = useState("");
   const touch = isTouchDevice();
@@ -62,7 +65,7 @@ export function ScanSetup({
     <QrCode
       size={setup.qr.size}
       path={setup.qr.path}
-      label="QR code that adds Pley to an authenticator app"
+      label={t("twoStepSetup.qrLabel")}
       className={cn("mx-auto shrink-0", touch ? "size-36" : "size-44", !stacked && "sm:mx-0")}
     />
   );
@@ -73,32 +76,28 @@ export function ScanSetup({
         {touch ? null : qr}
         <div className="min-w-0 space-y-3 text-sm">
           <ol className="list-decimal space-y-1.5 pl-5 text-muted">
-            <li>{touch ? "Add Pley to an authenticator app on this phone." : "Scan this QR code with your authenticator app."}</li>
-            <li>Enter the 6-digit code the app shows for Pley.</li>
+            <li>{touch ? t("twoStepSetup.stepAddOnPhone") : t("twoStepSetup.stepScan")}</li>
+            <li>{t("twoStepSetup.stepEnterCode")}</li>
           </ol>
           {touch ? (
             <a href={setup.uri} className={buttonClass("outline", "md", "w-full")}>
               <Smartphone className="size-4" aria-hidden />
-              Open in an authenticator app
+              {t("twoStepSetup.openInApp")}
             </a>
           ) : null}
-          {appsHint ? (
-            <p className="text-xs text-subtle">
-              Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden and most password managers work.
-            </p>
-          ) : null}
+          {appsHint ? <p className="text-xs text-subtle">{t("twoStepSetup.appsHint")}</p> : null}
           <div className="rounded-md border border-border bg-surface-2 px-3 py-2">
-            <div className="text-xs text-subtle">
-              {touch ? "No app on this phone? Scan the QR code below with another device, or enter this key:" : "Can't scan it? Enter this key in the app instead:"}
-            </div>
+            <div className="text-xs text-subtle">{touch ? t("twoStepSetup.keyOnPhone") : t("twoStepSetup.keyInstead")}</div>
             <div className="mt-1 flex items-center gap-1">
               {/* Wraps between its groups of four, as they're typed. */}
               <code className="min-w-0 flex-1 break-words font-mono text-sm text-fg">{groupSecret(setup.secret)}</code>
               <IconButton
-                label="Copy the key"
+                label={t("twoStepSetup.copyKey")}
                 size="sm"
                 onClick={() =>
-                  void copyText(setup.secret).then((ok) => (ok ? toast.success("Key copied") : toast.error("Couldn't copy the key")))
+                  void copyText(setup.secret).then((ok) =>
+                    ok ? toast.success(t("twoStepSetup.keyCopied")) : toast.error(t("twoStepSetup.keyNotCopied")),
+                  )
                 }
               >
                 <Copy className="size-4" />
@@ -109,7 +108,7 @@ export function ScanSetup({
         </div>
       </div>
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Code from the app" htmlFor="two-step-code">
+        <Field label={t("twoStepSetup.codeFromApp")} htmlFor="two-step-code">
           <TextInput
             id="two-step-code"
             inputMode="numeric"
@@ -130,7 +129,7 @@ export function ScanSetup({
         <div className="flex justify-end gap-2">
           {onCancel ? (
             <Button variant="ghost" onClick={onCancel} disabled={busy}>
-              {cancelLabel}
+              {cancelLabel ?? t("common:actions.cancel")}
             </Button>
           ) : null}
           <Button type="submit" variant="primary" loading={busy} disabled={code.length !== 6}>
@@ -148,7 +147,7 @@ export function RecoveryCodesView({
   username,
   serverName,
   note,
-  doneLabel = "I've saved them",
+  doneLabel,
   onDone,
 }: {
   codes: string[];
@@ -156,21 +155,20 @@ export function RecoveryCodesView({
   serverName?: string;
   /** A line under the codes. */
   note?: ReactNode;
+  /** "I've saved them" by default. */
   doneLabel?: string;
   onDone: () => void;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const toast = useToast();
   const text = recoveryCodesText(codes, username, serverName);
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted">
-        Save these recovery codes somewhere safe, like a password manager. If you lose your phone, each one signs in once
-        instead of a code from the app. They won't be shown again.
-      </p>
+      <p className="text-sm text-muted">{t("twoStepSetup.codesIntro")}</p>
       {/* Two whole codes to a row where they fit, else one: a code split over two lines gets copied wrong. */}
       <ul
-        aria-label="Recovery codes"
+        aria-label={t("twoStepSetup.codesLabel")}
         className="grid grid-cols-[repeat(auto-fill,minmax(max(20ch,40%),1fr))] gap-x-8 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-3 font-mono text-sm text-fg"
       >
         {codes.map((c) => (
@@ -184,18 +182,22 @@ export function RecoveryCodesView({
         <Button
           variant="ghost"
           icon={<Copy className="size-4" />}
-          onClick={() => void copyText(text).then((ok) => (ok ? toast.success("Recovery codes copied") : toast.error("Couldn't copy them")))}
+          onClick={() =>
+            void copyText(text).then((ok) =>
+              ok ? toast.success(t("twoStepSetup.codesCopied")) : toast.error(t("twoStepSetup.codesNotCopied")),
+            )
+          }
         >
-          Copy
+          {t("common:actions.copy")}
         </Button>
         {/* The apps' web views don't save files. */}
         {appShell() ? null : (
           <Button variant="ghost" icon={<Download className="size-4" />} onClick={() => downloadText("pley-recovery-codes.txt", text)}>
-            Download
+            {t("common:actions.download")}
           </Button>
         )}
         <Button variant="primary" onClick={onDone}>
-          {doneLabel}
+          {doneLabel ?? t("twoStepSetup.savedThem")}
         </Button>
       </div>
     </div>
