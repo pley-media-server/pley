@@ -158,11 +158,11 @@
           "hint": "Los subtítulos siguen desactivados hasta que los actives."
         },
         "forced": {
-          "label": "Solo para diálogos en otro idioma",
+          "label": "Solo diálogos en otro idioma",
           "hint": "Solo subtítulos forzados, para carteles y diálogos en otro idioma."
         },
         "foreign": {
-          "label": "Cuando el audio está en otro idioma",
+          "label": "Audio en otro idioma",
           "hint": "Los subtítulos completos aparecen cuando el audio no está en tu idioma de subtítulos."
         },
         "always": {
