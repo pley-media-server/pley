@@ -423,7 +423,8 @@ ends what plays, video, music or Live TV, and waits up to 5 s for its
 last reports (`stopped` where it was, the session's end) and Live TV's
 leave to go out: they carry the sign-in's tokens as they are sent, so
 after the switch they would land on the caster's profile. What hasn't
-gone out by then is dropped, never sent as the caster's profile. Then it
+gone out by then is dropped, never sent as the caster's profile, a
+channel's leave from a window that closes later too. Then it
 switches to that profile, as "Who's watching?" switches (the
 switch-profile grant with `ticket` in place of a PIN): what shows, its
 caches and the event stream follow the new profile, and then it plays

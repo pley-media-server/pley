@@ -5,6 +5,7 @@ import app.pley.android.model.ServerEvent
 import app.pley.android.model.WatchRequest
 import app.pley.android.network.ApiException
 import app.pley.android.network.LiveEvent
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -108,6 +109,33 @@ class LiveTvTest {
         data.graph.liveTv.leave("s2")
         testScheduler.runCurrent()
         assertEquals(2, data.api.calls("leaveChannel").size)
+    }
+
+    @Test
+    fun `a channel watched before a drop is never left after it, as the next profile`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val live = data.graph.liveTv
+        val before = live.watch(5, "android-1").sessionId
+        // Another asked for as the profile switches, answered after.
+        data.api.hold()
+        val asked = async { live.watch(6, "android-1").sessionId }
+        testScheduler.runCurrent()
+
+        // What played ended, and its window took longer than the wait: the switch goes ahead.
+        live.drop()
+        data.api.release()
+        val during = asked.await()
+        // The windows go at last, as the next profile.
+        live.leave(before)
+        live.leave(during)
+        testScheduler.runCurrent()
+        assertTrue(data.api.calls("leaveChannel").isEmpty())
+
+        // The next profile's own channel is left as usual.
+        val after = live.watch(7, "android-1").sessionId
+        live.leave(after)
+        testScheduler.runCurrent()
+        assertEquals(listOf<Any?>(after), data.api.calls("leaveChannel").single().args)
     }
 
     @Test
