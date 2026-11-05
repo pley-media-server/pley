@@ -1,8 +1,12 @@
 package app.pley.android.network
 
+import app.pley.android.auth.R as AuthR
+import app.pley.android.common.AppLanguage
 import app.pley.android.common.LocalNetwork
+import app.pley.android.common.UiText
 import app.pley.android.common.UserFacing
 import app.pley.android.common.describe
+import app.pley.android.common.errorText
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.PleyJson
@@ -23,6 +27,9 @@ import okhttp3.Response
  *
  * [details] is the rest of pley's JSON body, for the refusals that say
  * more (requests: `setup`, `retry`, `retry_at`, the request as it is now).
+ *
+ * A refusal without the server's words has the app's ([text]): its
+ * message is them in the language shown when it was made.
  */
 class ApiException(
     val status: Int,
@@ -33,7 +40,11 @@ class ApiException(
     /** A `409` from watching a live channel: the connections in use, and which may be taken over. */
     val connections: List<BusyConnection> = emptyList(),
     val details: ApiErrorBody? = null,
+    override val text: UiText? = null,
 ) : java.io.IOException(message), UserFacing {
+    /** A refusal in the app's own words, [text], which are its message too. */
+    constructor(status: Int, code: String?, text: UiText) : this(status, code, AppLanguage.wordsOf(text), text = text)
+
     /** The token doesn't work any more: expired, signed out, or its account disabled. */
     val signedOut: Boolean get() = status == 401 && (bearerError == "invalid_token" || code == "unauthorized")
 
@@ -75,17 +86,19 @@ class ApiException(
                 null
             }
             val challenge = BearerChallenge.of(response.headers("WWW-Authenticate"))
-            val message = json?.message?.let(::plain)?.takeIf { it.isNotEmpty() }
+            val written = json?.message?.let(::plain)?.takeIf { it.isNotEmpty() }
                 ?: plain(text).takeIf { json == null && it.isNotEmpty() && !text.trimStart().startsWith("<") }
-                ?: "the server refused (HTTP ${response.code})"
+            // Without the server's words, the app's, as signing in says them: "the server refused (HTTP 502)".
+            val refused = UiText.res(AuthR.string.auth_refused_status, response.code)
             return ApiException(
                 status = response.code,
                 code = json?.code?.takeIf { it.isNotEmpty() },
-                message = message,
+                message = written ?: AppLanguage.wordsOf(refused),
                 bearerError = challenge?.error,
                 scope = challenge?.scope,
                 connections = json?.connections.orEmpty(),
                 details = json,
+                text = refused.takeIf { written == null },
             )
         }
 
@@ -125,16 +138,23 @@ internal data class BearerChallenge(val error: String?, val scope: String?) {
  * the app off the home network (Android 17's local network access, Fire
  * OS 16's nearby devices), so asking for that permission is the way out.
  */
-class OfflineException(cause: IOException) : IOException(messageFor(cause), cause), UserFacing {
+class OfflineException(cause: IOException) : IOException(cause), UserFacing {
     val blocked: Boolean = LocalNetwork.isPermissionBlock(cause)
 
-    private companion object {
-        fun messageFor(cause: IOException): String =
-            if (LocalNetwork.isPermissionBlock(cause)) "Pley isn't allowed on your home network: allow it in the app's permissions"
-            else describe(cause)
-    }
+    /** Why, in a few words: allowing the home network, or what [errorText] says of [cause]. */
+    override val text: UiText = if (blocked) UiText.res(R.string.network_not_allowed) else errorText(cause)
+
+    // The cause's words as describe gives them, in English, while code that words errors with describe remains:
+    // they go with it, and the message is then the text's, as the other errors' are.
+    override val message: String = if (blocked) AppLanguage.wordsOf(text) else describe(cause)
 }
 
 /** The server answered with something that isn't what pley answers: another program, or a much older pley. */
-class UnreadableAnswerException(val status: Int, cause: Throwable) :
-    IOException("the server's answer can't be read: is it Pley, and up to date?", cause), UserFacing
+class UnreadableAnswerException(val status: Int, cause: Throwable) : IOException(cause), UserFacing {
+    override val text: UiText = UNREADABLE_ANSWER
+
+    override val message: String get() = AppLanguage.wordsOf(text)
+}
+
+/** What [UnreadableAnswerException] says: "the server's answer can't be read: is it Pley, and up to date?". */
+val UNREADABLE_ANSWER: UiText = UiText.res(R.string.network_unreadable_answer)

@@ -182,6 +182,9 @@ class WatchlistTest {
 
         val one = ItemPatch.myList(home, 104, dune)!!
         assertEquals(listOf(HubKeys.CONTINUE_WATCHING, HubKeys.MY_LIST, "recently_added:1"), one.keys().take(3))
+        assertEquals("My List", one.row(HubKeys.MY_LIST)!!.title)
+        // In the language shown, until the server titles it.
+        assertEquals("Ma liste", ItemPatch.myList(home, 104, dune, "Ma liste")!!.row(HubKeys.MY_LIST)!!.title)
         val two = ItemPatch.myList(one, 201, show)!!
         assertEquals(listOf(201L, 104L), two.row(HubKeys.MY_LIST)!!.items.map { it.id })
         // Already first: nothing changes.

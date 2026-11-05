@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="format_seconds">%1$d s</string>
+    <string name="format_minutes">%1$d min</string>
+    <string name="format_hours">%1$d h</string>
+    <string name="format_hours_minutes">%1$d h %2$d min</string>
+    <string name="format_days_hours">%1$d j %2$d h</string>
+    <string name="format_runtime_minutes">%1$d min</string>
+    <string name="format_left">Il reste %1$s</string>
+
+    <plurals name="format_spoken_seconds">
+        <item quantity="one">%1$d seconde</item>
+        <item quantity="many">%1$d de secondes</item>
+        <item quantity="other">%1$d secondes</item>
+    </plurals>
+    <plurals name="format_spoken_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="many">%1$d de minutes</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="format_spoken_hours">
+        <item quantity="one">%1$d heure</item>
+        <item quantity="many">%1$d d’heures</item>
+        <item quantity="other">%1$d heures</item>
+    </plurals>
+    <string name="format_spoken_hours_minutes">%1$s %2$s</string>
+    <string name="format_spoken_left">il reste %1$s</string>
+
+    <string name="format_never">jamais</string>
+    <string name="format_now">maintenant</string>
+    <string name="format_this_minute">cette minute-ci</string>
+    <string name="format_this_hour">cette heure-ci</string>
+    <string name="format_today">aujourd’hui</string>
+    <string name="format_this_week">cette semaine</string>
+    <string name="format_this_month">ce mois-ci</string>
+    <string name="format_this_year">cette année</string>
+    <string name="format_yesterday">hier</string>
+    <string name="format_last_week">la semaine dernière</string>
+    <string name="format_last_month">le mois dernier</string>
+    <string name="format_last_year">l’année dernière</string>
+    <string name="format_tomorrow">demain</string>
+    <string name="format_next_week">la semaine prochaine</string>
+    <string name="format_next_month">le mois prochain</string>
+    <string name="format_next_year">l’année prochaine</string>
+    <plurals name="format_seconds_ago">
+        <item quantity="one">il y a %1$d seconde</item>
+        <item quantity="many">il y a %1$d de secondes</item>
+        <item quantity="other">il y a %1$d secondes</item>
+    </plurals>
+    <plurals name="format_minutes_ago">
+        <item quantity="one">il y a %1$d minute</item>
+        <item quantity="many">il y a %1$d de minutes</item>
+        <item quantity="other">il y a %1$d minutes</item>
+    </plurals>
+    <plurals name="format_hours_ago">
+        <item quantity="one">il y a %1$d heure</item>
+        <item quantity="many">il y a %1$d d’heures</item>
+        <item quantity="other">il y a %1$d heures</item>
+    </plurals>
+    <plurals name="format_days_ago">
+        <item quantity="one">il y a %1$d jour</item>
+        <item quantity="many">il y a %1$d de jours</item>
+        <item quantity="other">il y a %1$d jours</item>
+    </plurals>
+    <plurals name="format_weeks_ago">
+        <item quantity="one">il y a %1$d semaine</item>
+        <item quantity="many">il y a %1$d de semaines</item>
+        <item quantity="other">il y a %1$d semaines</item>
+    </plurals>
+    <plurals name="format_months_ago">
+        <item quantity="one">il y a %1$d mois</item>
+        <item quantity="many">il y a %1$d de mois</item>
+        <item quantity="other">il y a %1$d mois</item>
+    </plurals>
+    <plurals name="format_years_ago">
+        <item quantity="one">il y a %1$d an</item>
+        <item quantity="many">il y a %1$d d’années</item>
+        <item quantity="other">il y a %1$d ans</item>
+    </plurals>
+    <plurals name="format_in_seconds">
+        <item quantity="one">dans %1$d seconde</item>
+        <item quantity="many">dans %1$d de secondes</item>
+        <item quantity="other">dans %1$d secondes</item>
+    </plurals>
+    <plurals name="format_in_minutes">
+        <item quantity="one">dans %1$d minute</item>
+        <item quantity="many">dans %1$d de minutes</item>
+        <item quantity="other">dans %1$d minutes</item>
+    </plurals>
+    <plurals name="format_in_hours">
+        <item quantity="one">dans %1$d heure</item>
+        <item quantity="many">dans %1$d d’heures</item>
+        <item quantity="other">dans %1$d heures</item>
+    </plurals>
+    <plurals name="format_in_days">
+        <item quantity="one">dans %1$d jour</item>
+        <item quantity="many">dans %1$d de jours</item>
+        <item quantity="other">dans %1$d jours</item>
+    </plurals>
+    <plurals name="format_in_weeks">
+        <item quantity="one">dans %1$d semaine</item>
+        <item quantity="many">dans %1$d de semaines</item>
+        <item quantity="other">dans %1$d semaines</item>
+    </plurals>
+    <plurals name="format_in_months">
+        <item quantity="one">dans %1$d mois</item>
+        <item quantity="many">dans %1$d de mois</item>
+        <item quantity="other">dans %1$d mois</item>
+    </plurals>
+    <plurals name="format_in_years">
+        <item quantity="one">dans %1$d an</item>
+        <item quantity="many">dans %1$d d’années</item>
+        <item quantity="other">dans %1$d ans</item>
+    </plurals>
+
+    <string name="format_season_episode">S%1$d · É%2$d</string>
+    <string name="format_season_short">S%1$d</string>
+    <string name="format_episode_short">É%1$d</string>
+    <string name="format_season">Saison %1$d</string>
+    <string name="format_episode">Épisode %1$d</string>
+    <string name="format_season_unnumbered">Saison</string>
+    <string name="format_specials">Épisodes spéciaux</string>
+    <plurals name="format_seasons">
+        <item quantity="one">%1$s saison</item>
+        <item quantity="many">%1$s de saisons</item>
+        <item quantity="other">%1$s saisons</item>
+    </plurals>
+    <plurals name="format_episodes">
+        <item quantity="one">%1$s épisode</item>
+        <item quantity="many">%1$s d’épisodes</item>
+        <item quantity="other">%1$s épisodes</item>
+    </plurals>
+    <plurals name="format_albums">
+        <item quantity="one">%1$s album</item>
+        <item quantity="many">%1$s d’albums</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <string name="format_watched">vu</string>
+    <plurals name="format_unwatched">
+        <item quantity="one">%1$d non vu</item>
+        <item quantity="many">%1$d non vus</item>
+        <item quantity="other">%1$d non vus</item>
+    </plurals>
+
+    <string name="format_unknown">Inconnu</string>
+    <string name="format_stereo">Stéréo</string>
+    <string name="format_channels">%1$d canaux</string>
+    <string name="format_forced">Forcés</string>
+    <string name="format_external">Externes</string>
+    <string name="format_bit_depth">%1$d bits</string>
+    <string name="format_bitrate_unknown">Débit inconnu</string>
+    <string name="format_version">Version %1$d</string>
+    <string name="format_any_hdr">Tout HDR</string>
+    <string name="format_bytes">%1$s o</string>
+    <string name="format_kilobytes">%1$s Ko</string>
+    <string name="format_megabytes">%1$s Mo</string>
+    <string name="format_gigabytes">%1$s Go</string>
+    <string name="format_terabytes">%1$s To</string>
+    <string name="format_megabits">%1$s Mbit/s</string>
+    <string name="format_kilobits">%1$s kbit/s</string>
+
+    <string name="format_video_transcode">Transcodage vidéo</string>
+    <string name="format_video">Vidéo</string>
+    <string name="format_copied">%1$s (copie)</string>
+    <string name="format_decoded">décodage %1$s</string>
+    <string name="format_burn_in">sous-titres incrustés</string>
+
+    <string name="format_level">Niveau %1$s</string>
+    <string name="format_frame_rate">%1$s i/s</string>
+    <string name="format_dv_profile">Profil %1$s</string>
+    <string name="format_dv_base_layer">couche de base compatible %1$s</string>
+    <string name="format_dv_no_base_layer">aucune couche de base compatible</string>
+    <string name="format_dv_full_layer">couche d’amélioration complète</string>
+    <string name="format_dv_minimal_layer">couche d’amélioration minimale</string>
+
+    <string name="format_language_und">Langue inconnue</string>
+    <string name="format_language_mul">Plusieurs langues</string>
+    <string name="format_language_zxx">Aucun contenu linguistique</string>
+    <string name="format_language_qaa">Version originale</string>
+    <string name="format_language_cmn">Mandarin</string>
+</resources>

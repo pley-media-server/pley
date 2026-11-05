@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.Tier
+import app.pley.android.common.formatWords
 import app.pley.android.designsystem.LocalReducedMotion
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.image.ArtworkImage
@@ -492,6 +493,28 @@ class ArtworkTileTest {
         val poster = ArtworkTileModel.of(show, TileKind.Poster, origin, locale = java.util.Locale.US)
         assertEquals(6, poster.unwatched)
         assertEquals("2 seasons", poster.subtitle)
+    }
+
+    @Test
+    fun modelsSayItInTheLanguageShown() {
+        fun wordsIn(tag: String) = formatWords(
+            context.createConfigurationContext(
+                android.content.res.Configuration().apply { setLocales(android.os.LocaleList(java.util.Locale.forLanguageTag(tag))) },
+            ).resources,
+        )
+        val episode = ItemSummary(
+            id = 30, libraryId = 1, kind = ItemKind.Episode, title = "Glasshouse", index = 5, parentIndex = 2,
+            grandparentTitle = "Driftline", durationMs = 3_480_000, userState = UserState(positionMs = 1_920_000),
+        )
+        val french = ArtworkTileModel.of(episode, TileKind.Landscape, origin, wordsIn("fr"))
+        assertEquals("S2 · É5 · Il reste 26 min", french.subtitle)
+        assertEquals("Glasshouse, Driftline, Saison 2 Épisode 5, il reste 26 minutes", french.description)
+        val show = ItemSummary(id = 2, libraryId = 1, kind = ItemKind.Show, title = "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13)
+        val spanish = ArtworkTileModel.of(show, TileKind.Poster, origin, wordsIn("es"))
+        assertEquals("2 temporadas", spanish.subtitle)
+        assertEquals("Severance, 2 temporadas, 6 sin ver", spanish.description)
+        // In English, as without words.
+        assertEquals(ArtworkTileModel.of(episode, TileKind.Landscape, origin), ArtworkTileModel.of(episode, TileKind.Landscape, origin, wordsIn("en-US")))
     }
 
     private companion object {

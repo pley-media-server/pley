@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="data_my_list">Mi lista</string>
+    <string name="data_track_defaults_on_web">cámbialos en la aplicación web de Pley</string>
+    <string name="data_requests_off">Las solicitudes están desactivadas</string>
+</resources>

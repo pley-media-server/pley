@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The format functions' words (:core:model's format, FormatWords),
+      made by formatWords(resources). The English is what FormatWords.English
+      writes, word for word.
+    -->
+
+    <!-- Durations, short: "29s", "45m", "1h", "1h 52m", a server's uptime "1d 1h". -->
+    <string name="format_seconds">%1$ds</string>
+    <string name="format_minutes">%1$dm</string>
+    <string name="format_hours">%1$dh</string>
+    <string name="format_hours_minutes">%1$dh %2$dm</string>
+    <string name="format_days_hours">%1$dd %2$dh</string>
+    <!-- A runtime under an hour, on the TV and phone screens. -->
+    <string name="format_runtime_minutes">%1$d min</string>
+    <!-- What is left of something playing: "26 min left", "1h 12m left". -->
+    <string name="format_left">%1$s left</string>
+
+    <!-- Durations in words, for screen readers: "1 hour 12 minutes", "34 minutes left" (after a comma). -->
+    <plurals name="format_spoken_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <plurals name="format_spoken_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="format_spoken_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <string name="format_spoken_hours_minutes">%1$s %2$s</string>
+    <string name="format_spoken_left">%1$s left</string>
+
+    <!-- Relative times, as Intl.RelativeTimeFormat words them (numeric "auto"), in lower case. -->
+    <string name="format_never">never</string>
+    <string name="format_now">now</string>
+    <string name="format_this_minute">this minute</string>
+    <string name="format_this_hour">this hour</string>
+    <string name="format_today">today</string>
+    <string name="format_this_week">this week</string>
+    <string name="format_this_month">this month</string>
+    <string name="format_this_year">this year</string>
+    <string name="format_yesterday">yesterday</string>
+    <string name="format_last_week">last week</string>
+    <string name="format_last_month">last month</string>
+    <string name="format_last_year">last year</string>
+    <string name="format_tomorrow">tomorrow</string>
+    <string name="format_next_week">next week</string>
+    <string name="format_next_month">next month</string>
+    <string name="format_next_year">next year</string>
+    <plurals name="format_seconds_ago">
+        <item quantity="one">%1$d second ago</item>
+        <item quantity="other">%1$d seconds ago</item>
+    </plurals>
+    <plurals name="format_minutes_ago">
+        <item quantity="one">%1$d minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="format_hours_ago">
+        <item quantity="one">%1$d hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="format_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
+    <plurals name="format_weeks_ago">
+        <item quantity="one">%1$d week ago</item>
+        <item quantity="other">%1$d weeks ago</item>
+    </plurals>
+    <plurals name="format_months_ago">
+        <item quantity="one">%1$d month ago</item>
+        <item quantity="other">%1$d months ago</item>
+    </plurals>
+    <plurals name="format_years_ago">
+        <item quantity="one">%1$d year ago</item>
+        <item quantity="other">%1$d years ago</item>
+    </plurals>
+    <plurals name="format_in_seconds">
+        <item quantity="one">in %1$d second</item>
+        <item quantity="other">in %1$d seconds</item>
+    </plurals>
+    <plurals name="format_in_minutes">
+        <item quantity="one">in %1$d minute</item>
+        <item quantity="other">in %1$d minutes</item>
+    </plurals>
+    <plurals name="format_in_hours">
+        <item quantity="one">in %1$d hour</item>
+        <item quantity="other">in %1$d hours</item>
+    </plurals>
+    <plurals name="format_in_days">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
+    <plurals name="format_in_weeks">
+        <item quantity="one">in %1$d week</item>
+        <item quantity="other">in %1$d weeks</item>
+    </plurals>
+    <plurals name="format_in_months">
+        <item quantity="one">in %1$d month</item>
+        <item quantity="other">in %1$d months</item>
+    </plurals>
+    <plurals name="format_in_years">
+        <item quantity="one">in %1$d year</item>
+        <item quantity="other">in %1$d years</item>
+    </plurals>
+
+    <!-- Seasons and episodes: "S1 · E3", "S1", "E3", "Season 2", "Episode 5", "Season" without a number, season 0. -->
+    <string name="format_season_episode">S%1$d · E%2$d</string>
+    <string name="format_season_short">S%1$d</string>
+    <string name="format_episode_short">E%1$d</string>
+    <string name="format_season">Season %1$d</string>
+    <string name="format_episode">Episode %1$d</string>
+    <string name="format_season_unnumbered">Season</string>
+    <string name="format_specials">Specials</string>
+    <!-- Counts under a card, the number written in the language's digits ("12,345"). -->
+    <plurals name="format_seasons">
+        <item quantity="one">%1$s season</item>
+        <item quantity="other">%1$s seasons</item>
+    </plurals>
+    <plurals name="format_episodes">
+        <item quantity="one">%1$s episode</item>
+        <item quantity="other">%1$s episodes</item>
+    </plurals>
+    <plurals name="format_albums">
+        <item quantity="one">%1$s album</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <!-- A tile's state, for screen readers: "Severance, 2 seasons, 6 unwatched". -->
+    <string name="format_watched">watched</string>
+    <plurals name="format_unwatched">
+        <item quantity="one">%1$d unwatched</item>
+        <item quantity="other">%1$d unwatched</item>
+    </plurals>
+
+    <!-- Tracks and files: "English (AAC Stereo)", "Unknown (5ch)", "French (SRT, Forced, External)", "10-bit". -->
+    <string name="format_unknown">Unknown</string>
+    <string name="format_stereo">Stereo</string>
+    <string name="format_channels">%1$dch</string>
+    <string name="format_forced">Forced</string>
+    <string name="format_external">External</string>
+    <string name="format_bit_depth">%1$d-bit</string>
+    <string name="format_bitrate_unknown">Bitrate unknown</string>
+    <string name="format_version">Version %1$d</string>
+    <!-- The library filter by dynamic range that takes any of them. -->
+    <string name="format_any_hdr">Any HDR</string>
+    <!-- Sizes and rates: "1.5 KB", "8.2 Mbps". -->
+    <string name="format_bytes">%1$s B</string>
+    <string name="format_kilobytes">%1$s KB</string>
+    <string name="format_megabytes">%1$s MB</string>
+    <string name="format_gigabytes">%1$s GB</string>
+    <string name="format_terabytes">%1$s TB</string>
+    <string name="format_megabits">%1$s Mbps</string>
+    <string name="format_kilobits">%1$s kbps</string>
+
+    <!-- What the transcoder does, in the player's details: "HEVC (copy)", "cuda decode", "burn-in subs". -->
+    <string name="format_video_transcode">Video transcode</string>
+    <string name="format_video">Video</string>
+    <string name="format_copied">%1$s (copy)</string>
+    <string name="format_decoded">%1$s decode</string>
+    <string name="format_burn_in">burn-in subs</string>
+
+    <!-- A stream's technical details: "Main 10 · Level 5.1", "23.976 fps", Dolby Vision in full. -->
+    <string name="format_level">Level %1$s</string>
+    <string name="format_frame_rate">%1$s fps</string>
+    <string name="format_dv_profile">Profile %1$s</string>
+    <string name="format_dv_base_layer">%1$s-compatible base layer</string>
+    <string name="format_dv_no_base_layer">no compatible base layer</string>
+    <string name="format_dv_full_layer">full enhancement layer</string>
+    <string name="format_dv_minimal_layer">minimal enhancement layer</string>
+
+    <!-- Tracks' languages Pley names itself (und, mul, zxx, qaa, cmn); the others are named by the system. -->
+    <string name="format_language_und">Unknown</string>
+    <string name="format_language_mul">Multiple</string>
+    <string name="format_language_zxx">No linguistic content</string>
+    <string name="format_language_qaa">Original</string>
+    <string name="format_language_cmn">Mandarin</string>
+</resources>

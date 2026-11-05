@@ -5,6 +5,7 @@ import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.cardSubtitle
 import app.pley.android.model.format.episodeLabel
 import app.pley.android.model.format.formatRuntime
@@ -52,20 +53,33 @@ data class ArtworkTileModel(
             origin: String,
             badges: Boolean = false,
             locale: Locale = Locale.getDefault(),
+        ): ArtworkTileModel = of(item, kind, origin, FormatWords.English, badges, locale)
+
+        /**
+         * [of] with its words in [words] (`formatWords()`, the language
+         * shown), its counts in [locale]'s digits.
+         */
+        fun of(
+            item: ItemSummary,
+            kind: TileKind,
+            origin: String,
+            words: FormatWords,
+            badges: Boolean = false,
+            locale: Locale = words.locale,
         ): ArtworkTileModel {
             val inProgress = isInProgress(item)
-            val timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs) else ""
+            val timeLeft = if (inProgress) formatTimeLeft(item.userState.positionMs, item.durationMs, words) else ""
             val (title, subtitle) = when {
                 kind == TileKind.Episode -> {
                     val numbered = if (item.index != null) "${item.index}. ${item.title}" else item.title
-                    numbered to timeLeft.ifEmpty { formatRuntime(item.durationMs) }
+                    numbered to timeLeft.ifEmpty { formatRuntime(item.durationMs, words) }
                 }
                 kind == TileKind.Landscape && item.kind == ItemKind.Episode -> {
                     val show = item.grandparentTitle?.takeIf { it.isNotEmpty() } ?: item.title
-                    show to listOf(episodeLabel(item), timeLeft.ifEmpty { item.title.takeIf { show != it }.orEmpty() })
+                    show to listOf(episodeLabel(item, words), timeLeft.ifEmpty { item.title.takeIf { show != it }.orEmpty() })
                         .filter { it.isNotEmpty() }.joinToString(" · ")
                 }
-                else -> item.title to timeLeft.ifEmpty { cardSubtitle(item, locale) }
+                else -> item.title to timeLeft.ifEmpty { cardSubtitle(item, words, locale) }
             }
             val image = when (kind) {
                 TileKind.Landscape, TileKind.Episode -> ArtworkCandidates.thumb(item, origin)
@@ -81,7 +95,7 @@ data class ArtworkTileModel(
                 watched = item.userState.watched && unwatched == 0,
                 unwatched = unwatched,
                 badges = if (badges) qualityBadges(item.media) else emptyList(),
-                description = tileDescription(item, locale),
+                description = tileDescription(item, words, locale),
             )
         }
     }

@@ -7,7 +7,9 @@ import java.util.Locale
 /*
  * A stream's technical details in words, for media info and the player's
  * readout: codec levels, frame rates, colour, Dolby Vision. ffprobe's names
- * come in; what people read in MediaInfo goes out.
+ * come in; what people read in MediaInfo goes out. The standards' names
+ * (BT.2020, PQ, 4:2:0) are the same in every language; the labels with
+ * words take them last, English when given none.
  */
 
 /**
@@ -26,16 +28,18 @@ fun levelLabel(codec: String?, level: Int?): String? {
 }
 
 /** "Main 10 · Level 5.1", "High · Level 4", "LC"; empty when neither is known. */
-fun profileLevelLabel(s: MediaStream): String = listOfNotNull(
+fun profileLevelLabel(s: MediaStream, words: FormatWords = FormatWords.English): String = listOfNotNull(
     s.profile?.takeIf { it.isNotBlank() },
-    levelLabel(s.codec, s.level)?.let { "Level $it" },
+    levelLabel(s.codec, s.level)?.let { words.level(it) },
 ).joinToString(" · ")
 
 /** 23.976 → "23.976 fps", 24.0 → "24 fps", 29.97 → "29.97 fps"; `null` when unknown. */
-fun frameRateLabel(fps: Double?): String? = fps?.takeIf { it > 0 }?.let { trimmedNumber(it, 3) + " fps" }
+fun frameRateLabel(fps: Double?, words: FormatWords = FormatWords.English): String? =
+    fps?.takeIf { it > 0 }?.let { words.frameRate(trimmedNumber(it, 3, words.decimalSeparator)) }
 
 /** 48000 → "48 kHz", 44100 → "44.1 kHz"; `null` when unknown. */
-fun sampleRateLabel(hz: Int?): String? = hz?.takeIf { it > 0 }?.let { trimmedNumber(it / 1000.0, 1) + " kHz" }
+fun sampleRateLabel(hz: Int?, words: FormatWords = FormatWords.English): String? =
+    hz?.takeIf { it > 0 }?.let { trimmedNumber(it / 1000.0, 1, words.decimalSeparator) + " kHz" }
 
 /** "yuv420p10le" → "4:2:0"; `null` for formats that aren't YUV. */
 fun chromaLabel(pixFmt: String?): String? {
@@ -50,8 +54,8 @@ fun chromaLabel(pixFmt: String?): String? {
 }
 
 /** "10-bit · 4:2:0", from the stream's bit depth and pixel format; empty when neither is known. */
-fun bitDepthLabel(s: MediaStream): String = listOfNotNull(
-    s.bitDepth?.takeIf { it > 0 }?.let { "$it-bit" },
+fun bitDepthLabel(s: MediaStream, words: FormatWords = FormatWords.English): String = listOfNotNull(
+    s.bitDepth?.takeIf { it > 0 }?.let { words.bitDepth(it) },
     chromaLabel(s.pixFmt),
 ).joinToString(" · ")
 
@@ -102,21 +106,23 @@ fun dvCompatLabel(blCompat: Int?): String? = when (blCompat) {
  * Blu-ray HDR10-compatible base layer" (named as [dynamicRangeLabel] names
  * it: 8.1, 8.2 and 8.4 only). `null` for other streams.
  */
-fun dolbyVisionDetails(s: MediaStream): String? {
+fun dolbyVisionDetails(s: MediaStream, words: FormatWords = FormatWords.English): String? {
     if (s.dynamicRange != DynamicRange.DolbyVision) return null
     val compat = s.dvBlCompat
-    val profile = s.dvProfile?.let { p -> "Profile $p" + (compat?.takeIf { p >= 8 && it in setOf(1, 2, 4) }?.let { ".$it" } ?: "") }
+    val profile = s.dvProfile?.let { p ->
+        words.dvProfile("$p" + (compat?.takeIf { p >= 8 && it in setOf(1, 2, 4) }?.let { ".$it" } ?: ""))
+    }
     val base = when {
         compat == null -> null
-        compat == 0 -> "no compatible base layer"
-        else -> dvCompatLabel(compat)?.let { "$it-compatible base layer" }
+        compat == 0 -> words.dvNoBaseLayer
+        else -> dvCompatLabel(compat)?.let { words.dvBaseLayer(it) }
     }
     val layer = when (s.dvEl?.takeIf { s.dvProfile == 7 }) {
-        "fel" -> "full enhancement layer"
-        "mel" -> "minimal enhancement layer"
+        "fel" -> words.dvFullLayer
+        "mel" -> words.dvMinimalLayer
         else -> null
     }
-    return listOfNotNull(profile, s.dvLevel?.takeIf { it > 0 }?.let { "Level $it" }, base, layer)
+    return listOfNotNull(profile, s.dvLevel?.takeIf { it > 0 }?.let { words.level("$it") }, base, layer)
         .joinToString(" · ").ifEmpty { null }
 }
 
@@ -134,6 +140,6 @@ fun dimensionsLabel(width: Int?, height: Int?): String? {
     return "$w×$h" + (resolutionLabel(w, h)?.let { " ($it)" } ?: "")
 }
 
-/** [value] with up to [digits] decimals, trailing zeros dropped: 24.0 → "24", 23.976 → "23.976". */
-private fun trimmedNumber(value: Double, digits: Int): String =
-    String.format(Locale.ROOT, "%.${digits}f", value).trimEnd('0').trimEnd('.')
+/** [value] with up to [digits] decimals, trailing zeros dropped: 24.0 → "24", 23.976 → "23.976" ("23,976" with [separator] a comma). */
+private fun trimmedNumber(value: Double, digits: Int, separator: Char = '.'): String =
+    String.format(Locale.ROOT, "%.${digits}f", value).trimEnd('0').trimEnd('.').replace('.', separator)

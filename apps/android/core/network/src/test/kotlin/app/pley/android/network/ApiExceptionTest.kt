@@ -1,5 +1,7 @@
 package app.pley.android.network
 
+import app.pley.android.common.UiText
+import app.pley.android.common.errorText
 import java.io.IOException
 import java.net.ConnectException
 import kotlinx.serialization.SerializationException
@@ -44,7 +46,10 @@ class ApiExceptionTest {
         assertTrue(failure(SerializationException("bad")) is UnreadableAnswerException)
         val offline = failure(IOException("connect failed: EPERM (Operation not permitted)")) as OfflineException
         assertTrue(offline.blocked)
-        assertEquals("Pley isn't allowed on your home network: allow it in the app's permissions", offline.message)
+        // "Pley isn't allowed on your home network: allow it in the app's permissions" (NetworkWordsTest).
+        assertEquals(UiText.res(R.string.network_not_allowed), offline.text)
+        // Any other failure is worded as errorText words its cause.
+        assertEquals(errorText(ConnectException("refused")), (failure(ConnectException("refused")) as OfflineException).text)
         val signedOut = app.pley.android.auth.SignedOutException()
         assertSame(signedOut, failure(signedOut))
     }

@@ -1,8 +1,12 @@
 package app.pley.android.model.format
 
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+
 /*
  * Language names for audio and subtitle tracks, as apps/web/src/lib/languages.ts:
- * ISO 639-2 (both forms) and 639-1 codes to English names.
+ * ISO 639-2 (both forms) and 639-1 codes to English names, which another
+ * language takes from Locale's names (CLDR's, as the web's Intl).
  */
 
 private val NAMES: Map<String, String> = mapOf(
@@ -51,12 +55,54 @@ private val NAMES: Map<String, String> = mapOf(
     "yi" to "Yiddish", "zu" to "Zulu",
 )
 
-/** "eng" → "English", "pt-BR" → "Portuguese (BR)"; an unknown code comes back upper-cased; `null` without one. */
-fun languageName(code: String?): String? {
+/**
+ * Codes Pley names in its own words ([FormatWords.ownLanguageName]):
+ * Locale has no name for some, and calls Mandarin plain Chinese.
+ */
+internal val OWN_LANGUAGE_NAMES = setOf("und", "mul", "zxx", "qaa", "cmn")
+
+/** The English name of [code], a code of the table; `null` for any other. */
+internal fun englishLanguageName(code: String): String? = NAMES[code]
+
+/**
+ * "eng" → "English", "pt-BR" → "Portuguese (BR)", in [words]' language
+ * ("Anglais" in French); an unknown code comes back upper-cased; `null`
+ * without one.
+ */
+fun languageName(code: String?, words: FormatWords = FormatWords.English): String? {
     val raw = code?.trim().orEmpty()
     if (raw.isEmpty()) return null
     val parts = raw.lowercase().split('-', '_')
-    val name = NAMES[parts[0]] ?: return if (raw.length <= 3) raw.uppercase() else raw
+    val english = NAMES[parts[0]] ?: return if (raw.length <= 3) raw.uppercase() else raw
+    val name = nameIn(words, parts[0], english)
     val region = parts.getOrNull(1)
     return if (region != null) "$name (${region.uppercase()})" else name
+}
+
+/** Names already looked up, by locale and code: a track list asks for the same few again and again. */
+private val named = ConcurrentHashMap<String, String>()
+
+/** What [words]' language calls the language of [base] (a code of the table), [english] in English. */
+private fun nameIn(words: FormatWords, base: String, english: String): String {
+    val locale = words.locale
+    if (locale.language == "en") return english
+    words.ownLanguageName(base)?.let { return it }
+    return named.getOrPut("${locale.toLanguageTag()}:$base") {
+        val code = twoLetterCode(base)
+        val found = Locale.forLanguageTag(code).getDisplayLanguage(locale)
+        // Locale gives the code back for a language it can't name: the English name stands in.
+        if (found.isEmpty() || found.equals(code, ignoreCase = true) || found.equals(base, ignoreCase = true)) {
+            english
+        } else {
+            // French and Spanish write languages in lower case ("allemand"); a name on its own starts with a capital.
+            found.replaceFirstChar { it.titlecase(locale) }
+        }
+    }
+}
+
+/** A language's two-letter code (ISO 639-1), which Locale names: "eng" → "en", "chi" → "zh"; a code without one as it is. */
+private fun twoLetterCode(base: String): String {
+    if (base.length == 2) return base
+    val name = NAMES[base] ?: return base
+    return NAMES.entries.firstOrNull { it.key.length == 2 && it.value == name }?.key ?: base
 }

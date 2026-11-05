@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Why the server can't be used (OfflineException, UnreadableAnswerException),
+      in lower case and without a full stop, as errorText's phrases: they go
+      inside sentences, and errorSentence makes one of them alone.
+    -->
+    <string name="network_not_allowed">Pley isn\'t allowed on your home network: allow it in the app\'s permissions</string>
+    <string name="network_unreadable_answer">the server\'s answer can\'t be read: is it Pley, and up to date?</string>
+</resources>
