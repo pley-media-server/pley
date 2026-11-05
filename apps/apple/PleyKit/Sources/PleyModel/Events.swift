@@ -104,11 +104,14 @@ public enum ServerEvent: Hashable, Sendable {
         var positionMs: Int?
         var offsetMs: Int?
         var streamIndex: Int?
+        var quality: String?
         var receiverId: String?
         var playlistId: Int?
         var channelId: Int?
         var startMs: Int?
         var shuffle: Bool?
+        var audioIndex: Int?
+        var subtitleIndex: Int?
         var from: String?
     }
 
@@ -141,7 +144,8 @@ public enum ServerEvent: Hashable, Sendable {
             guard let id = wire.sessionId, let command = wire.command else { return .unknown(wire.type) }
             return .playerCommand(sessionId: id, command: PlayerCommand(command, positionMs: wire.positionMs,
                                                                          offsetMs: wire.offsetMs,
-                                                                         streamIndex: wire.streamIndex))
+                                                                         streamIndex: wire.streamIndex,
+                                                                         quality: wire.quality))
         case "cast":
             // One of a title, a playlist and a channel; without one, or a receiver, there is nothing to play.
             let what: CastTarget.What?
@@ -153,7 +157,8 @@ public enum ServerEvent: Hashable, Sendable {
                 what = wire.channelId.map { CastTarget.What.channel($0) }
             }
             guard let receiver = wire.receiverId, let what else { return .unknown(wire.type) }
-            let target = CastTarget(what, startMs: wire.startMs, shuffle: wire.shuffle ?? false)
+            let target = CastTarget(what, startMs: wire.startMs, shuffle: wire.shuffle ?? false,
+                                    audioIndex: wire.audioIndex, subtitleIndex: wire.subtitleIndex)
             return .cast(receiverId: receiver, target: target, from: wire.from)
         case "live_channels_changed": return .liveChannelsChanged
         case "live_tuners_changed": return .liveTunersChanged

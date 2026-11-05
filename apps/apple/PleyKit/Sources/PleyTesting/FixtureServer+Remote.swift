@@ -4,12 +4,12 @@ import PleyModel
 /// Remote control and casting, as the server does them (docs/API.md,
 /// "Remote control" and "Casting"): the profile's sessions whose players
 /// are there (`GET /api/sessions`), each with its device and its file's
-/// tracks; commands to them, checked and passed on as `player_command` on
+/// tracks and qualities; commands to them, checked and passed on as `player_command` on
 /// the event streams; a stop from another device (`DELETE /api/sessions/{id}`);
 /// the devices that take casts (`GET /api/remote/devices`), which event
 /// streams name as receivers or a test adds, and casts to them, passed on
 /// as `cast`. Sessions starting and ending, reports that pause, play, jump
-/// or change track, and receivers a test adds or takes away send
+/// or change track or quality, and receivers a test adds or takes away send
 /// `sessions_changed`; a stream's own receiver appears without one, so a
 /// test counting the app's events counts only those it makes.
 ///
@@ -83,13 +83,14 @@ extension FixtureServer {
 
     /// A title's session `id` reports `state` at `positionMs`, as its player
     /// on another device would; with `audioIndex` and `subtitleIndex`, the
-    /// tracks it plays.
+    /// tracks it plays, with `quality` its Quality menu's pick.
     public func reportSession(_ id: String, state playing: String, positionMs: Int, audioIndex: Int? = nil,
-                              subtitleIndex: Int? = nil) {
+                              subtitleIndex: Int? = nil, quality: String? = nil) {
         let events = state.withLock { s -> [String] in
             var report: [String: Any] = ["state": playing, "position_ms": positionMs]
             if let audioIndex { report["audio_index"] = audioIndex }
             if let subtitleIndex { report["subtitle_index"] = subtitleIndex }
+            if let quality { report["quality"] = quality }
             Self.reported(&s, id, report)
             defer { s.outbox = [] }
             return s.outbox
@@ -139,12 +140,14 @@ extension FixtureServer {
     }
 
     /// A remote on another device cast `body`'s title, playlist or channel
-    /// (`item_id`, `playlist_id`, `channel_id`, `start_ms`, `shuffle`) to
-    /// receiver `receiverId`, from the device `from`: the streams hear `cast`.
+    /// (`item_id`, `playlist_id`, `channel_id`, `start_ms`, `shuffle`,
+    /// `audio_index`, `subtitle_index`) to receiver `receiverId`, from the
+    /// device `from`: the streams hear `cast`.
     public func sendCast(to receiverId: String, _ body: [String: Any], from: String?) {
         var event: [String: Any] = ["type": "cast", "receiver_id": receiverId, "item_id": NSNull(),
                                     "playlist_id": NSNull(), "channel_id": NSNull(), "start_ms": NSNull(),
-                                    "shuffle": false, "from": from ?? NSNull()]
+                                    "shuffle": false, "audio_index": NSNull(), "subtitle_index": NSNull(),
+                                    "from": from ?? NSNull()]
         for (key, value) in body { event[key] = value }
         guard let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) else { return }
         pushEvent(String(decoding: data, as: UTF8.self))
@@ -194,8 +197,8 @@ extension FixtureServer {
                                                  order: s.remote.named)
     }
 
-    /// A title's report: its place, state and tracks, and `sessions_changed` when it paused, played, jumped
-    /// or changed track.
+    /// A title's report: its place, state, tracks and quality, and `sessions_changed` when it paused,
+    /// played, jumped, or changed track or quality.
     static func reported(_ s: inout State, _ id: String, _ body: [String: Any]) {
         guard let session = s.sessions[id] else { return }
         let now = Date()
@@ -208,13 +211,75 @@ extension FixtureServer {
         guard state != "stopped" else { return }
         let audio = body["audio_index"] as? Int ?? session.audioIndex
         let subtitles = body["subtitle_index"] as? Int ?? session.subtitleIndex
+        // One of the menu's ids; another, or none, leaves what was known.
+        let quality = (body["quality"] as? String).flatMap { id in menu.contains { $0.id == id } ? id : nil }
+            ?? session.quality
         s.sessions[id]?.positionMs = position
         s.sessions[id]?.state = state
         s.sessions[id]?.audioIndex = audio
         s.sessions[id]?.subtitleIndex = subtitles
-        if state != session.state || jumped || audio != session.audioIndex || subtitles != session.subtitleIndex {
+        s.sessions[id]?.quality = quality
+        if state != session.state || jumped || audio != session.audioIndex || subtitles != session.subtitleIndex
+            || quality != session.quality {
             s.outbox.append(sessionsChanged)
         }
+    }
+
+    /// The Quality menu every player offers, in its order: id, label, and the kbps and lines it holds the
+    /// video to (apps/server/src/playback.rs, `MENU`).
+    static let menu: [(id: String, label: String, cap: (kbps: Int, lines: Int)?)] = [
+        ("original", "Original", nil), ("auto", "Automatic", nil),
+        ("30m", "30 Mbps 4K", (30_000, 2160)), ("15m", "15 Mbps 4K", (15_000, 2160)),
+        ("20m", "20 Mbps 1080p", (20_000, 1080)), ("12m", "12 Mbps 1080p", (12_000, 1080)),
+        ("8m", "8 Mbps 1080p", (8_000, 1080)), ("4m", "4 Mbps 720p", (4_000, 720)),
+        ("2m", "2 Mbps 480p", (2_000, 480)),
+    ]
+
+    /// The qualities a player's menu offers for `playable`'s file, as the server works them out
+    /// (`offered_qualities`): the original and Automatic, then each copy with fewer lines or at most 80 % of
+    /// its bitrate, named by the file's own lines when taller, once each, tallest first. Music has none.
+    static func qualities(_ playable: Playable) -> [(id: String, label: String)] {
+        guard !playable.music else { return [] }
+        let (w, h) = (playable.width, playable.height)
+        var lines: Int?
+        if w > 0 || h > 0 {
+            if w >= 3800 || h >= 2100 {
+                lines = 2160
+            } else if w >= 1800 || h >= 1000 {
+                lines = 1080
+            } else if w >= 1200 || h >= 700 {
+                lines = 720
+            } else {
+                lines = 480
+            }
+        }
+        let kbps = playable.bitrate > 0 ? Double(playable.bitrate) / 1000 : nil
+        let height = h > 0 ? h : nil
+        let known = kbps != nil || height != nil
+        var out: [(id: String, label: String)] = []
+        var copies: [(id: String, label: String, kbps: Int, lines: Int)] = []
+        for entry in menu {
+            guard let cap = entry.cap, known else {
+                out.append((entry.id, entry.label))
+                continue
+            }
+            let fewer = height.map { cap.lines < $0 } ?? false
+            let lighter = kbps.map { Double(cap.kbps) <= $0 * 0.8 } ?? false
+            guard fewer || lighter else { continue }
+            let shown = lines.map { min(cap.lines, $0) } ?? cap.lines
+            guard !copies.contains(where: { $0.kbps == cap.kbps && $0.lines == shown }) else { continue }
+            var label = entry.label
+            if let lines, cap.lines > lines {
+                label = "\(cap.kbps / 1000) Mbps \(lines >= 2160 ? "4K" : "\(lines)p")"
+            }
+            copies.append((entry.id, label, cap.kbps, shown))
+        }
+        let sorted = copies.enumerated().sorted { a, b in
+            if a.element.lines != b.element.lines { return a.element.lines > b.element.lines }
+            if a.element.kbps != b.element.kbps { return a.element.kbps > b.element.kbps }
+            return a.offset < b.offset
+        }
+        return out + sorted.map { ($0.element.id, $0.element.label) }
     }
 
     private static func playing(_ s: State) -> [[String: Any]] {
@@ -235,16 +300,21 @@ extension FixtureServer {
             let tracks: [String: Any] = ["audio": playable.audio.map(track),
                                          "subtitles": playable.subtitles.map(track)]
             json["tracks"] = tracks
+            json["quality"] = session.quality.map { $0 as Any } ?? NSNull()
+            json["qualities"] = qualities(playable).map { ["id": $0.id, "label": $0.label] }
             out.append((session.order, json))
         }
         for (id, session) in s.live.sessions where !session.deleted && session.stopped == nil {
             guard let channel = s.live.channels.first(where: { $0.id == session.channelId }) else { continue }
             let full = channelJSON(s, channel)
-            let now = (full["now"] as? [String: Any])?["title"] ?? NSNull()
+            let now = full["now"] as? [String: Any]
+            let next = full["next"] as? [String: Any]
             var json: [String: Any] = [
                 "session_id": id, "kind": "live", "device": session.device ?? "Pley for Mac", "item": NSNull(),
                 "channel": ["id": channel.id, "name": channel.name, "number": channel.number ?? NSNull(),
-                            "logo": full["logo"] ?? NSNull(), "now": now],
+                            "logo": full["logo"] ?? NSNull(), "now": now?["title"] ?? NSNull(),
+                            "now_start": now?["start"] ?? NSNull(), "now_stop": now?["stop"] ?? NSNull(),
+                            "next": next?["title"] ?? NSNull()],
                 "state": "playing", "position_ms": 0, "duration_ms": NSNull(),
                 "updated_at": Int(Date().timeIntervalSince1970), "age_ms": 0, "controls": session.controls,
             ]
@@ -254,6 +324,8 @@ extension FixtureServer {
             json["subtitle_index"] = NSNull()
             let tracks: [String: Any] = ["audio": [Any](), "subtitles": [Any]()]
             json["tracks"] = tracks
+            json["quality"] = NSNull()
+            json["qualities"] = [Any]()
             out.append((session.order, json))
         }
         return out.sorted { $0.order < $1.order }.map(\.json)
@@ -308,7 +380,7 @@ extension FixtureServer {
         }
         var event: [String: Any] = ["type": "cast", "receiver_id": receiverId,
                                     "shuffle": asked["shuffle"] as? Bool ?? false]
-        for key in ["item_id", "playlist_id", "channel_id", "start_ms"] {
+        for key in ["item_id", "playlist_id", "channel_id", "start_ms", "audio_index", "subtitle_index"] {
             event[key] = (asked[key] as? Int).map { $0 as Any } ?? NSNull()
         }
         event["from"] = from(request.headers["user-agent"]).map { $0 as Any } ?? NSNull()
@@ -351,11 +423,12 @@ extension FixtureServer {
             return json(404, ["code": "not_found", "message": "no such session playing"])
         }
         guard let command = asked["command"] as? String,
-              ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles"].contains(command)
+              ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles", "quality"].contains(command)
         else { return json(400, ["code": "bad_request", "message": "unknown command"]) }
         var position: Int?
         var offset: Int?
         var stream: Int?
+        var quality: String?
         if command == "seek" {
             guard let at = asked["position_ms"] as? Int, at >= 0,
                   at <= (durationMs > 0 ? durationMs : maxUnknownSeekMs)
@@ -375,12 +448,19 @@ extension FixtureServer {
             else { return json(400, ["code": "bad_request", "message": "stream_index isn't one of its tracks"]) }
             stream = index
         }
+        if command == "quality" {
+            // One of the session's qualities; Live TV has none.
+            guard let playable, let picked = asked["quality"] as? String,
+                  qualities(playable).contains(where: { $0.id == picked })
+            else { return json(400, ["code": "bad_request", "message": "quality isn't one of its qualities"]) }
+            quality = picked
+        }
         guard controls.contains(command) else {
             return json(409, ["code": "not_controllable", "message": "this player doesn't take \(command) from a remote"])
         }
         let event: [String: Any] = ["type": "player_command", "session_id": id, "command": command,
                                     "position_ms": position ?? NSNull(), "offset_ms": offset ?? NSNull(),
-                                    "stream_index": stream ?? NSNull()]
+                                    "stream_index": stream ?? NSNull(), "quality": quality ?? NSNull()]
         if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
             s.outbox.append(String(decoding: data, as: UTF8.self))
         }

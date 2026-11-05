@@ -101,6 +101,32 @@ import Testing
         #expect(after.audioIndex == 2 && after.subtitleIndex == 3)
     }
 
+    @Test func aQualityCommandNamesOneOfTheSessionsQualities() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000, bitrate: 10_000_000, width: 1920,
+                                 height: 1080))
+        let api = api(server)
+        let info = try await api.startPlayback(PlaybackRequest(itemId: 7, controls: [.play, .pause, .quality]))
+        let listed = try #require(try await api.playingSessions().first)
+        // What its Quality menu offers for the file, as every app works it out; nothing picked until it says.
+        #expect(listed.qualities.map(\.id) == ["original", "auto", "8m", "4m", "2m"])
+        #expect(listed.qualities.map(\.label) == ["Original", "Automatic", "8 Mbps 1080p", "4 Mbps 720p", "2 Mbps 480p"])
+        #expect(listed.quality == nil)
+
+        try await api.send(.quality("4m"), to: info.sessionId)
+        #expect(server.sessionCommands.last.map { String(decoding: $0.body, as: UTF8.self) }
+            == #"{"command":"quality","quality":"4m"}"#)
+        await #expect(throws: PleyError.api(status: 400, code: "bad_request",
+                                            message: "quality isn't one of its qualities")) {
+            try await api.send(.quality("30m"), to: info.sessionId)
+        }
+        // The player's report says its pick: the session follows.
+        try await api.reportProgress(itemId: 7, ProgressReport(positionMs: 1_000, sessionId: info.sessionId,
+                                                               quality: "4m"))
+        #expect(try await api.playingSessions().first?.quality == "4m")
+    }
+
     @Test func devicesThatTakeCastsAreListedAndSentWhatToPlay() async throws {
         let server = try await fixture()
         defer { server.stop() }

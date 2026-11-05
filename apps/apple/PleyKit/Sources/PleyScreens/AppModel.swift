@@ -1130,16 +1130,25 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// Plays what a remote cast here as this device's own Play does on its
     /// page (docs/APPLE.md, Remote control): a movie or an episode where
-    /// Play starts it (at `startMs` when the remote gave one), a show or a
-    /// season its next episode, a track its album from it, an album, an
-    /// artist or a playlist what it holds, in order or shuffled, and a
-    /// channel live. What plays is replaced, and "Playing from …" says
-    /// where it came from: over the player, or as a toast for music.
+    /// Play starts it (at `startMs` when the remote gave one, with the
+    /// tracks it picked), a show or a season its next episode, a track its
+    /// album from it, an album, an artist or a playlist what it holds, in
+    /// order or shuffled, and a channel live (the live player open tunes
+    /// it). What plays is replaced, and "Playing from …" says where it came
+    /// from: over the player, or as a toast for music.
     func playCast(_ target: CastTarget, from: String?) async {
         let said = Words.playingFrom(from)
         guard let api = await session.api else { return }
         switch target.what {
         case .channel(let id):
+            // The live player open tunes it, as its Channels list does: its screen (the Mac's window)
+            // stays rather than closing and opening again. Otherwise it opens on the channel.
+            if let current = livePlayer, let channel = try? await live.channel(id) {
+                guard livePlayer === current else { return }
+                current.tune(channel)
+                current.showBanner(said)
+                return
+            }
             openCast(.live(LiveRequest(channelId: id, category: .all)), saying: said)
         case .playlist(let id):
             let playlist = PlaylistModel(app: self, playlistId: id)
@@ -1157,7 +1166,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
             guard let item = try? await api.item(id) else { return }
             switch item.kind {
             case .movie, .episode:
-                openCast(.video(PlayRequest(itemId: id, startMs: target.startMs)), saying: said)
+                // With the tracks picked on the remote's page, for this play.
+                let request = PlayRequest(itemId: id, startMs: target.startMs, audioIndex: target.audioIndex,
+                                          subtitleIndex: target.subtitleIndex)
+                openCast(.video(request), saying: said)
             case .show, .season:
                 guard let next = try? await api.onDeck(id) else { return }
                 openCast(.video(PlayRequest(itemId: next.id)), saying: said)
@@ -1187,12 +1199,19 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// Opens the player for a cast, "Playing from …" said over it as it
     /// starts: at once on iPhone, iPad and Apple TV, in a window of its own
-    /// on the Mac (`castOpening`).
+    /// on the Mac (`castOpening`). The shell's own sheets close first (the
+    /// remote, Now Playing, a playlist's), so the player isn't left waiting
+    /// behind one.
     private func openCast(_ opening: CastOpening, saying said: String) {
         pendingCastSaid = (opening, said)
         #if os(macOS)
         castOpening = opening
         #else
+        #if os(iOS)
+        remote.presented = false
+        #endif
+        shell.nowPlayingOpen = false
+        shell.sheet = nil
         switch opening {
         case .video(let request): Task { await self.play(request) }
         case .live(let request): Task { await self.watchLive(request) }

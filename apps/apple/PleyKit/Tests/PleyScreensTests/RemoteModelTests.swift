@@ -178,6 +178,29 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(await eventually { model.devices.isEmpty })
     }
 
+    @Test func playOnSendsTheTracksThePagesPickersShow() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        var movie = FixtureServer.Playable(itemId: 7, fileId: 70, durationMs: 600_000, positionMs: 30_000)
+        movie.audio = [MediaStream(index: 1, kind: .audio, codec: "aac", language: "eng", default: true),
+                       MediaStream(index: 2, kind: .audio, codec: "ac3", language: "fre")]
+        movie.subtitles = [MediaStream(index: 3, kind: .subtitle, codec: "subrip", language: "eng")]
+        server.addPlayable(movie)
+        let app = try await signedIn(server)
+        let page = ItemModel(app: app, itemId: 7)
+        await page.load()
+        // Automatic audio leaves the device its own; subtitles off are sent off.
+        #expect(page.castTarget == .item(7, startMs: 30_000, subtitleIndex: SessionTracks.off))
+        await page.chooseAudio(2)
+        await page.chooseSubtitle(3)
+        #expect(page.castTarget == .item(7, startMs: 30_000, audioIndex: 2, subtitleIndex: 3))
+        // A file with one audio track and no subtitles has no pickers: nothing to send.
+        server.addPlayable(.init(itemId: 8, fileId: 80, durationMs: 600_000))
+        let plain = ItemModel(app: app, itemId: 8)
+        await plain.load()
+        #expect(plain.castTarget == .item(8))
+    }
+
     @Test func thePlaceMovesOnWhilePlayingByThisDevicesClock() {
         let received = Date(timeIntervalSince1970: 1_000)
         let playing = RemoteModel.Entry(PlayingSession(sessionId: "a", state: .playing, positionMs: 60_000,

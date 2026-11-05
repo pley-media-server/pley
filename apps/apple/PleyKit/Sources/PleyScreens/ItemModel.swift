@@ -383,13 +383,32 @@ public final class ItemModel: ObservableObject {
     }
 
     /// What "Play on…" sends another of the profile's devices: a movie or
-    /// an episode from where Play starts it here (its resume point); a show
+    /// an episode from where Play starts it here (its resume point), with
+    /// the tracks its pickers show for the version shown (the audio only
+    /// when one was picked, not Automatic; the subtitles, or none); a show
     /// or a season, whose device plays its next episode as Play does here.
     /// `nil` when there's nothing to play.
     public var castTarget: CastTarget? {
         guard let item, request() != nil else { return nil }
         switch item.kind {
-        case .movie, .episode: return .item(item.id, startMs: resumeMs)
+        case .movie, .episode:
+            var target = CastTarget.item(item.id, startMs: resumeMs)
+            if let file {
+                let audio = file.streams(.audio)
+                let subtitles = file.streams(.subtitle)
+                // Automatic leaves the device its own best track of the language.
+                if audio.count > 1, file.audioPicked, let picked = file.selectedAudio,
+                   audio.contains(where: { $0.index == picked }) {
+                    target.audioIndex = picked
+                }
+                if !subtitles.isEmpty {
+                    let shown = file.selectedSubtitle.flatMap { index in
+                        subtitles.contains { $0.index == index } ? index : nil
+                    }
+                    target.subtitleIndex = shown ?? SessionTracks.off
+                }
+            }
+            return target
         case .show, .season: return .item(item.id)
         default: return nil
         }

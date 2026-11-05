@@ -126,6 +126,53 @@ struct RemoteDecodingTests {
         #expect(older.deviceId.isEmpty && older.deviceKind == .other && older.tracks == SessionTracks())
     }
 
+    @Test func aSessionSaysItsQualityAndALiveOneItsProgramme() throws {
+        let session = try decode(PlayingSession.self, #"""
+        {"session_id":"a1","kind":"item","controls":["play","pause","quality"],"quality":"8m",
+         "qualities":[{"id":"original","label":"Original"},{"id":"auto","label":"Automatic"},
+                      {"id":"8m","label":"8 Mbps 1080p"}]}
+        """#)
+        #expect(session.obeys(.quality) && session.quality == "8m")
+        #expect(session.qualities == [QualityOption(id: "original", label: "Original"),
+                                      QualityOption(id: "auto", label: "Automatic"),
+                                      QualityOption(id: "8m", label: "8 Mbps 1080p")])
+        // Not said yet, or an older server: nothing ticked, nothing to pick.
+        let older = try decode(PlayingSession.self, #"{"session_id":"c3","qualities":[{"id":7}]}"#)
+        #expect(older.quality == nil && older.qualities.isEmpty)
+
+        let live = try decode(PlayingSession.self, #"""
+        {"session_id":"b2","kind":"live","channel":{"id":3,"name":"News","number":"101","logo":null,
+         "now":"Evening news","now_start":1761300000,"now_stop":1761303600,"next":"Weather"},
+         "quality":null,"qualities":[]}
+        """#)
+        let channel = try #require(live.channel)
+        #expect(channel == PlayingChannel(id: 3, name: "News", number: "101", now: "Evening news",
+                                          nowStart: 1_761_300_000, nowStop: 1_761_303_600, next: "Weather"))
+        // How far along by the clock, never outside the programme.
+        #expect(channel.progress(at: 1_761_301_800) == 0.5)
+        #expect(channel.progress(at: 1_761_200_000) == 0 && channel.progress(at: 1_761_400_000) == 1)
+        #expect(PlayingChannel(id: 3, name: "News", now: "Evening news").progress(at: 1_761_301_800) == nil)
+    }
+
+    @Test func aQualityCommandAsABodyAndAnEvent() throws {
+        #expect(try object(PlayerCommand.quality("8m")) as? [String: String] == ["command": "quality", "quality": "8m"])
+        func event(_ json: String) -> ServerEvent? { ServerEvent.parse(Data(json.utf8)) }
+        #expect(event(#"{"type":"player_command","session_id":"a1","command":"quality","position_ms":null,"offset_ms":null,"stream_index":null,"quality":"auto"}"#)
+            == .playerCommand(sessionId: "a1", command: .quality("auto")))
+        #expect(event(#"{"type":"player_command","session_id":"a1","command":"pause","position_ms":null,"offset_ms":null,"stream_index":null,"quality":null}"#)
+            == .playerCommand(sessionId: "a1", command: .pause))
+    }
+
+    @Test func aCastCarriesTheTracksPickedOnItsPage() throws {
+        #expect(try object(CastTarget.item(101, startMs: 61_000, audioIndex: 2, subtitleIndex: SessionTracks.off))
+            as? [String: AnyHashable] == ["item_id": 101, "start_ms": 61_000, "audio_index": 2, "subtitle_index": -1])
+        func event(_ json: String) -> ServerEvent? { ServerEvent.parse(Data(json.utf8)) }
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"audio_index":2,"subtitle_index":3,"from":null}"#)
+            == .cast(receiverId: "apple-1", target: .item(12, audioIndex: 2, subtitleIndex: 3), from: nil))
+        #expect(event(#"{"type":"cast","receiver_id":"apple-1","item_id":12,"audio_index":null,"subtitle_index":-1}"#)
+            == .cast(receiverId: "apple-1", target: .item(12, subtitleIndex: SessionTracks.off), from: nil))
+    }
+
     @Test func theDevicesThatTakeCasts() throws {
         let devices = try decode([RemoteDevice].self, #"""
         [{"receiver_id":"apple-1","device_id":"app-12","name":"Living room TV","kind":"tv","casts":["item","live"]},
@@ -169,9 +216,11 @@ struct RemoteDecodingTests {
         let report = try object(ProgressReport(positionMs: 5_000, state: .playing, sessionId: "a1", audioIndex: 2,
                                                subtitleIndex: SessionTracks.off))
         #expect(report["audio_index"] as? Int == 2 && report["subtitle_index"] as? Int == -1)
+        let video = try object(ProgressReport(positionMs: 5_000, sessionId: "a1", quality: "auto"))
+        #expect(video["quality"] as? String == "auto")
         // Left out where nothing is said (music, a download).
         let music = try object(ProgressReport(positionMs: 5_000, sessionId: "a1"))
-        #expect(music["audio_index"] == nil && music["subtitle_index"] == nil)
+        #expect(music["audio_index"] == nil && music["subtitle_index"] == nil && music["quality"] == nil)
     }
 
     @Test func playRequestsSayWhatThePlayerObeysAndWhereItIs() throws {

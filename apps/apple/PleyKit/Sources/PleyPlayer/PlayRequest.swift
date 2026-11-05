@@ -13,14 +13,22 @@ public struct PlayRequest: Codable, Hashable, Sendable {
     public var fromStart: Bool
     /// The collection or playlist to keep playing, in order; `nil` for a title by itself.
     public var queue: PlayQueue?
+    /// The tracks a remote cast it with, by stream index (subtitles
+    /// `SessionTracks.off`: none): they play in place of the profile's
+    /// saved choices, for this play only. One the file doesn't have, or
+    /// `nil`, leaves the saved choice.
+    public var audioIndex: Int?
+    public var subtitleIndex: Int?
 
     public init(itemId: Int, fileId: Int? = nil, startMs: Int? = nil, fromStart: Bool = false,
-                queue: PlayQueue? = nil) {
+                queue: PlayQueue? = nil, audioIndex: Int? = nil, subtitleIndex: Int? = nil) {
         self.itemId = itemId
         self.fileId = fileId
         self.startMs = startMs
         self.fromStart = fromStart
         self.queue = queue
+        self.audioIndex = audioIndex
+        self.subtitleIndex = subtitleIndex
     }
 }
 

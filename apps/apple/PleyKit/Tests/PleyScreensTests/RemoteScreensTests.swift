@@ -68,11 +68,19 @@ private func castPlayer(_ app: AppModel) async throws -> PlaybackController {
         let listed = try #require(try await remote(app).playingSessions().first)
         #expect(listed.sessionId == id)
         #expect(listed.device == "Living room")
-        #expect(listed.controls == [.play, .pause, .seek, .skip])
+        #expect(listed.controls == [.play, .pause, .seek, .skip, .quality])
 
         try await remote(app).send(.seek(toMs: 120_000), to: id)
         #expect(await eventually { reports(server).last?.positionMs == 120_000 })
         #expect(reports(server).last?.sessionId == id)
+        // Its reports say the Quality menu's pick, which the remote's list shows and changes.
+        #expect(reports(server).last?.quality == "auto")
+        #expect(try await remote(app).playingSessions().first?.quality == "auto")
+        #expect(listed.qualities.map(\.id) == ["original", "auto"])
+        try await remote(app).send(.quality("original"), to: id)
+        #expect(await eventually { reports(server).last?.quality == "original" })
+        #expect(controller.state.qualities.first { $0.selected }?.id == "original")
+        #expect(try await remote(app).playingSessions().first?.quality == "original")
         // A movie has no next: the server refuses it before any player hears of it.
         do {
             try await remote(app).send(.next, to: id)
@@ -242,7 +250,42 @@ private func castPlayer(_ app: AppModel) async throws -> PlaybackController {
         #endif
         #expect(await eventually { model.channelId == 1002 })
         #expect(model.banner == "Playing from Kitchen tablet")
+        // Another channel while the live player is open: it tunes it there, as its Channels list does.
+        server.sendCast(to: "apple-test", ["channel_id": 1004], from: "Living room")
+        #expect(await eventually { model.channelId == 1004 })
+        #expect(app.livePlayer === model && app.castOpening == nil)
+        #expect(model.banner == "Playing from Living room")
+        #expect(await eventually { server.liveWatchRequests.count >= 2 })
         app.closeLivePlayer()
+    }
+
+    @Test func aCastsTracksPlayAndTheShellsSheetsMakeWay() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        var movie = FixtureServer.Playable(itemId: 7, fileId: 70, durationMs: 600_000)
+        movie.audio = [MediaStream(index: 1, kind: .audio, codec: "aac", language: "eng", default: true),
+                       MediaStream(index: 2, kind: .audio, codec: "ac3", language: "fre")]
+        var srt = MediaStream(index: 3, kind: .subtitle, codec: "subrip", language: "eng")
+        srt.textBased = true
+        movie.subtitles = [srt]
+        server.addPlayable(movie)
+        let app = try await signedIn(server)
+        app.shell.sheet = .newPlaylist([])
+        server.sendCast(to: "apple-test", ["item_id": 7, "audio_index": 2, "subtitle_index": 3],
+                        from: "Kitchen tablet")
+        let controller = try await castPlayer(app)
+        #expect(await eventually { controller.session != nil })
+        // The tracks picked on the remote's page play, for this play.
+        let asked = try #require(server.playbackRequests.last.flatMap {
+            try? PleyJSON.decoder.decode(PlaybackRequest.self, from: $0)
+        })
+        #expect(asked.itemId == 7 && asked.audioIndex == 2)
+        #expect(controller.state.subtitles.first(where: \.selected)?.id == "3")
+        #if !os(macOS)
+        // On iPhone, iPad and Apple TV the player opens over the app: a sheet of its own closes first.
+        #expect(app.shell.sheet == nil)
+        #endif
+        await app.closePlayer(controller)
     }
 
     @Test func aCastWhileTheAppIsAwayDoesNothing() async throws {

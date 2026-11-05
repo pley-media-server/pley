@@ -78,6 +78,9 @@ public final class ServerPlaybackSession {
     /// `SessionTracks.off`: none), which each report carries for the
     /// profile's remotes; `nil`: its reports say none (music).
     public var tracks: (@MainActor () -> (audio: Int?, subtitle: Int?))?
+    /// The Quality menu's pick now, by id, which each report carries for
+    /// the profile's remotes; `nil`: its reports say none (music).
+    public var quality: (@MainActor () -> String?)?
 
     private let api: PleyAPI
     private let reporter: SessionReporter
@@ -163,7 +166,7 @@ public final class ServerPlaybackSession {
         let playing = tracks?()
         return ProgressReport(positionMs: max(positionMs, 0), durationMs: info.durationMs > 0 ? info.durationMs : nil,
                               state: state, sessionId: local ? nil : id, audioIndex: playing?.audio,
-                              subtitleIndex: playing?.subtitle)
+                              subtitleIndex: playing?.subtitle, quality: quality?())
     }
 
     /// Queues `report`. A `paused` or `stopped` one that can't reach the

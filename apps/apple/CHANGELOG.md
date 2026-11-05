@@ -115,3 +115,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Every Apple device, Apple TV included, plays what you send it as its own
   Play would, and says where it came from; on Apple TV the player's other
   notices show too.
+- Your remotes can change the quality of a movie or an episode playing on
+  an Apple device, as its Quality menu does, and see which one it plays.
+- Play on… sends the audio and subtitles picked on a movie's or an
+  episode's page, and the device plays it with them. A channel sent to a
+  device already watching Live TV changes channel there, and what you send
+  to an iPhone, iPad or Apple TV no longer waits behind a sheet open on it.

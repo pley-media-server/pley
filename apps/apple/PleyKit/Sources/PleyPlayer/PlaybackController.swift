@@ -425,13 +425,14 @@ public final class PlaybackController: ObservableObject {
 
     /// The remote's commands a playback of `kind` (through `queue`, of
     /// `file`) obeys: a video has no previous, next only where something
-    /// can follow, audio where the file has tracks to choose between, and
-    /// subtitles where it has any, as its own menus offer them.
+    /// can follow, audio where the file has tracks to choose between,
+    /// subtitles where it has any, and quality, as its own menus offer them.
     public static func controls(_ kind: ItemKind, queue: PlayQueue? = nil, file: MediaFile? = nil) -> [Control] {
         var controls: [Control] = [.play, .pause, .seek, .skip]
         if NextUp.hasNext(kind, queue: queue) { controls.append(.next) }
         if (file?.streams(.audio).count ?? 0) > 1 { controls.append(.audio) }
         if !(file?.streams(.subtitle).isEmpty ?? true) { controls.append(.subtitles) }
+        controls.append(.quality)
         return controls
     }
 
@@ -446,7 +447,8 @@ public final class PlaybackController: ObservableObject {
     /// stops at the start and the end, a skip counts from where it is, next
     /// with nothing next does nothing, and a video has no previous. Audio
     /// and subtitles change as the player's own menus change them, saved
-    /// for the movie or show; one that plays already is said again.
+    /// for the movie or show, and the quality as its Quality menu does,
+    /// kept as its pick; one that plays already is said again.
     public func obey(_ command: PlayerCommand, for sessionId: String) {
         guard !closed, !stopped, !sessionId.isEmpty, let session, session.id == sessionId, !session.local else {
             return
@@ -484,6 +486,11 @@ public final class PlaybackController: ObservableObject {
         case .subtitles:
             guard let index = command.streamIndex else { return }
             selectSubtitle(index < 0 ? nil : index)
+            report(wantPlay ? .playing : .paused)
+        case .quality:
+            guard let id = command.quality else { return }
+            // The menu's own way: kept for this kind of network, and played beside the session playing.
+            selectQuality(id)
             report(wantPlay ? .playing : .paused)
         default:
             // Videos have no previous; a newer remote's command is left alone.
@@ -865,6 +872,14 @@ public final class PlaybackController: ObservableObject {
         state.positionMs = lastPositionMs
         markers = Markers.forFile(item, fileId: file.id)
         subtitle = file.streams(.subtitle).first { $0.index == file.selectedSubtitle }
+        // Cast with tracks: those play this time, in place of the saved ones, where the file has them.
+        if let wanted = request.subtitleIndex,
+           wanted == SessionTracks.off || file.streams(.subtitle).contains(where: { $0.index == wanted }) {
+            subtitle = file.streams(.subtitle).first { $0.index == wanted }
+        }
+        if localFile?.converted != true, let audio = PlaybackPlan.initialAudio(file, requested: request.audioIndex) {
+            pickedAudio = audio
+        }
         // A download shows only the text tracks saved with it.
         if let localFile, let chosen = subtitle, localFile.subtitles[chosen.index] == nil { subtitle = nil }
         subtitleOffset = SubtitleSync.clamp(env.subtitleOffsets.offset(offsetKey(file.id)))
@@ -1026,11 +1041,13 @@ public final class PlaybackController: ObservableObject {
     private func load(_ started: ServerPlaybackSession, url: URL, at atMs: Int) {
         session = started
         expired = false
-        // Each report says the tracks playing, for the profile's remotes; a download has no session to keep them.
+        // Each report says the tracks playing and the quality picked, for the profile's remotes; a download
+        // has no session to keep them.
         if !started.local {
             started.tracks = { [weak self] in
                 (self?.playingAudio, self.map { $0.subtitle?.index ?? SessionTracks.off })
             }
+            started.quality = { [weak self] in self?.picked.id }
         }
         // The server answered: it is in reach again.
         everLoaded = true

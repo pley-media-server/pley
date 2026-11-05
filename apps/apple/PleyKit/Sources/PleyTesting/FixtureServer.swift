@@ -256,6 +256,8 @@ public final class FixtureServer: Sendable {
         /// The tracks it plays, as its play request started and its reports say (subtitles `-1`: none).
         var audioIndex: Int?
         var subtitleIndex: Int?
+        /// The Quality menu's pick, as its reports say; `nil` until one does.
+        var quality: String?
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only

@@ -25,9 +25,11 @@ private func rig(show: Bool = false) async throws -> Rig {
 }
 
 /// A 90 s movie played as it is, its MP4 with English AAC (1) and French
-/// AC-3 5.1 (2), an English SRT (3) in it, no subtitles shown.
+/// AC-3 5.1 (2), an English SRT (3) in it, the subtitles saved shown
+/// (none unless given), played as `request` asks.
 @MainActor
-private func tracksRig() async throws -> Rig {
+private func tracksRig(_ request: PlayRequest = PlayRequest(itemId: 41), savedSubtitle: Int? = nil) async throws
+    -> Rig {
     let server = FixtureServer()
     try await server.start()
     var movie = FixtureServer.Playable(itemId: 41, fileId: 410, title: "Two Audio", durationMs: 90_000)
@@ -39,6 +41,7 @@ private func tracksRig() async throws -> Rig {
     var srt = MediaStream(index: 3, kind: .subtitle, codec: "subrip", language: "eng")
     srt.textBased = true
     movie.subtitles = [srt]
+    movie.selectedSubtitle = savedSubtitle
     server.addPlayable(movie)
     server.serveFile(path: "/api/files/410/subtitles/3.vtt", type: "text/vtt", body: Data("""
     WEBVTT
@@ -46,8 +49,8 @@ private func tracksRig() async throws -> Rig {
     00:00:02.000 --> 00:00:05.000
     A line.
     """.utf8))
-    let rig = try Rig(server: server, request: PlayRequest(itemId: 41), deviceName: "Living room")
-    rig.engine.audio = [EngineAudioOption(position: 0, language: "en"), EngineAudioOption(position: 1, language: "fr")]
+    let rig = try Rig(server: server, request: request, deviceName: "Living room")
+    rig.engine.audio =[EngineAudioOption(position: 0, language: "en"), EngineAudioOption(position: 1, language: "fr")]
     return rig
 }
 
@@ -69,13 +72,16 @@ struct RemoteControllerTests {
         defer { rig.cleanUp() }
         _ = try await playing(rig)
         let request = try #require(await rig.requests().first)
-        #expect(request.controls == [.play, .pause, .seek, .skip])
+        // Every video has a Quality menu.
+        #expect(request.controls == [.play, .pause, .seek, .skip, .quality])
         #expect(request.deviceName == "Living room")
-        #expect(PlaybackController.controls(.episode) == [.play, .pause, .seek, .skip, .next])
+        #expect(PlaybackController.controls(.episode) == [.play, .pause, .seek, .skip, .next, .quality])
         // A collection's or playlist's videos have a next until their last.
         let queue = PlayQueue(kind: .playlist, id: 3, itemIds: [7, 8])
-        #expect(PlaybackController.controls(.movie, queue: queue) == [.play, .pause, .seek, .skip, .next])
-        #expect(PlaybackController.controls(.movie, queue: queue.advanced()) == [.play, .pause, .seek, .skip])
+        #expect(PlaybackController.controls(.movie, queue: queue) == [.play, .pause, .seek, .skip, .next, .quality])
+        #expect(PlaybackController.controls(.movie, queue: queue.advanced()) == [.play, .pause, .seek, .skip, .quality])
+        // Music has none.
+        #expect(!MusicPlayback.controls.contains(.quality))
     }
 
     @Test func itObeysOnlyItsOwnSessionAndReportsAtOnce() async throws {
@@ -137,7 +143,7 @@ struct RemoteControllerTests {
         let rig = try await tracksRig()
         defer { rig.cleanUp() }
         let session = try await playing(rig)
-        #expect(await rig.requests().first?.controls == [.play, .pause, .seek, .skip, .audio, .subtitles])
+        #expect(await rig.requests().first?.controls == [.play, .pause, .seek, .skip, .audio, .subtitles, .quality])
         // The first frame's report says the tracks it plays: the server's audio, no subtitles.
         let first = try #require(await rig.reports().first)
         #expect(first.audioIndex == 1 && first.subtitleIndex == SessionTracks.off)
@@ -179,11 +185,80 @@ struct RemoteControllerTests {
         await rig.controller.close()
     }
 
+    @Test func aRemotesQualityIsPickedAsTheMenuPicksItAndEveryReportSaysIt() async throws {
+        let server = FixtureServer()
+        try await server.start()
+        // 1080p at 10 Mbps: Original, Automatic, 8, 4 and 2 Mbps.
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000, bitrate: 10_000_000, width: 1920,
+                                 height: 1080))
+        server.setPlaybackMethod("direct")
+        let memory = MemoryQuality()
+        let rig = try Rig(server: server, request: PlayRequest(itemId: 7), quality: memory, warmer: NoWarmer(),
+                          deviceName: "Living room")
+        defer { rig.cleanUp() }
+        let session = try await playing(rig)
+        // Nothing remembered: Automatic, said in every report.
+        #expect(await rig.reports().first?.quality == "auto")
+
+        // As the Quality menu picks it: remembered, ticked, said at once, and played beside the session playing.
+        rig.controller.obey(.quality("4m"), for: session.id)
+        #expect(memory.remembered() == "4m")
+        #expect(rig.controller.state.qualities.first { $0.selected }?.id == "4m")
+        let said = try #require(await rig.reports().last)
+        #expect(said.quality == "4m" && said.sessionId == session.id)
+        try await until("the new stream") { rig.engine.loads.count == 2 }
+        #expect(await rig.requests().last?.maxBitrate == 4_000)
+        rig.engine.emit(.ready)
+        let next = try #require(rig.controller.session)
+        #expect(next.id != session.id)
+
+        // The one picked already: nothing starts again, and it is said again, so a remote a little behind settles.
+        let before = await rig.reports().count
+        rig.controller.obey(.quality("4m"), for: next.id)
+        #expect(await rig.reports().count == before + 1)
+        #expect(await rig.reports().last?.quality == "4m")
+        // Another session's quality changes nothing.
+        rig.controller.obey(.quality("2m"), for: session.id)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(rig.engine.loads.count == 2)
+        #expect(memory.remembered() == "4m")
+        await rig.controller.close()
+    }
+
+    @Test func aCastsTracksPlayInPlaceOfTheSavedOnesForThatPlay() async throws {
+        let rig = try await tracksRig(PlayRequest(itemId: 41, audioIndex: 2, subtitleIndex: 3))
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        #expect(await rig.requests().first?.audioIndex == 2)
+        #expect(rig.engine.audioChoices.last == EngineAudioOption(position: 1, language: "fr"))
+        #expect(rig.controller.state.audio.map(\.selected) == [false, true])
+        #expect(rig.controller.state.subtitles.first(where: \.selected)?.id == "3")
+        let first = try #require(await rig.reports().first)
+        #expect(first.audioIndex == 2 && first.subtitleIndex == 3)
+        // For this play only: nothing is saved.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(rig.server.streamsChoices.isEmpty)
+        await rig.controller.close()
+    }
+
+    @Test func aCastsTracksTheFileHasntLeaveTheSavedOnes() async throws {
+        // An audio track of another version leaves the server's choice; subtitles off turn the saved ones off.
+        let rig = try await tracksRig(PlayRequest(itemId: 41, audioIndex: 9, subtitleIndex: SessionTracks.off),
+                                      savedSubtitle: 3)
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        #expect(await rig.requests().first?.audioIndex == nil)
+        #expect(rig.controller.state.subtitleLabel == "Off")
+        let first = try #require(await rig.reports().first)
+        #expect(first.audioIndex == 1 && first.subtitleIndex == SessionTracks.off)
+        await rig.controller.close()
+    }
+
     @Test func nextPlaysTheNextEpisodeAndNothingAfterTheLast() async throws {
         let rig = try await rig(show: true)
         defer { rig.cleanUp() }
         let first = try await playing(rig)
-        #expect(await rig.requests().first?.controls == [.play, .pause, .seek, .skip, .next])
+        #expect(await rig.requests().first?.controls == [.play, .pause, .seek, .skip, .next, .quality])
         rig.controller.obey(.next, for: first.id)
         try await until("the next episode") { rig.engine.loads.count == 2 }
         #expect(rig.controller.state.itemId == 32)

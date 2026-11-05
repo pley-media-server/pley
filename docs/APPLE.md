@@ -1411,10 +1411,15 @@ for channels), and lists those devices as the remote does, with what each
 plays now. An album's, an artist's and a playlist's has **Shuffle on…**
 in it. Choosing a device sends `POST /api/remote/devices/{id}/cast` with
 the title (a movie or an episode from where its Play starts it here, its
-resume point; a show or a season, whose device plays its next episode),
-the playlist or the channel; "Playing on Living room TV" says it went,
-and the remote opens on that device, whose controls show once its session
-does. A refusal says why: "Living room TV isn't on any more" (`404`),
+resume point, with the tracks the page's pickers show for the version
+shown: `audio_index` when an audio track was picked rather than
+Automatic, which leaves the device its own best track of the language,
+and `subtitle_index`, `-1` for Off, where the file has subtitles; a show
+or a season, whose device plays its next episode), the playlist or the
+channel. The quality is never sent: the device keeps its own, since what
+suits a phone's network doesn't suit a TV's. "Playing on Living room TV"
+says it went, and the remote opens on that device, whose controls show
+once its session does. A refusal says why: "Living room TV isn't on any more" (`404`),
 "Living room TV can't play that" (`409`), "Too many at once: try again
 in a moment" (`429`), and the server's own words otherwise.
 
@@ -1427,14 +1432,20 @@ as its play requests give it (where they do), its kind (`tv`, `phone`,
 profile (the stream reads that before it opens, and opens again when it
 changes). A `cast` for this device's id, while the app is in front and
 signed in, plays as the app's own Play does on that page: a movie or an
-episode from the remote's `start_ms` (else its resume point), a show or a
-season its next episode (On Deck), a track its album from it, an album,
-an artist or a playlist what it holds, in order or shuffled, and a
-channel live. What played is replaced. "Playing from Kitchen tablet"
-(from another device the server can't name: "Playing from another
-device") says where it came from for 4 seconds: over the player, or the
-live player, on every device (Apple TV's included), and as a toast for
-music. On the Mac a video or a channel opens in a window of its own, as
+episode from the remote's `start_ms` (else its resume point), with the
+cast's `audio_index` and `subtitle_index` in place of the profile's saved
+choices for that play only (nothing is saved; a track its file doesn't
+have, of another version, leaves the saved choice), a show or a season
+its next episode (On Deck), a track its album from it, an album, an
+artist or a playlist what it holds, in order or shuffled, and a channel
+live: the live player opens on it, or, when it is open already, tunes it
+as its Channels list does. What played is replaced. "Playing from
+Kitchen tablet" (from another device the server can't name: "Playing
+from another device") says where it came from for 4 seconds: over the
+player, or the live player, on every device (Apple TV's included), and
+as a toast for music. On iPhone, iPad and Apple TV the player covers the
+app, so the remote's sheet, Now Playing and the shell's own sheets close
+first; on the Mac a video or a channel opens in a window of its own, as
 from its page. A cast for another device, or one that comes while the
 app is in the background, does nothing.
 
@@ -1446,12 +1457,14 @@ TV the name the system gives when it is one of the person's own, and
 none otherwise (the system says only "iPhone" without Apple's
 entitlement for it), so the server names the device from the app's
 User-Agent ("Pley for iPhone"). A video's every report says the tracks it
-plays (`audio_index`, `subtitle_index`, `-1` for none), so the remotes
-follow them.
+plays (`audio_index`, `subtitle_index`, `-1` for none) and its Quality
+menu's pick (`quality`: `auto` while Automatic, `original`, `8m`…), so
+the remotes follow them; a download played here has no session, so it
+says neither.
 
 | What plays | Obeys | How |
 |---|---|---|
-| A movie or an episode | Play, Pause, Seek, Skip; Next for an episode, or a title of a collection or playlist with one after it; Audio where the file has several audio tracks, and Subtitles where it has any | A seek stops at the start and 250 ms before the end; a skip counts from where it is; Next plays what Up Next would; Audio and Subtitles change as the player's own menus do, saved for the movie or show (a track AVPlayer can't switch, or picture subtitles to burn in, start a session beside the one playing), and the one playing already is said again |
+| A movie or an episode | Play, Pause, Seek, Skip; Next for an episode, or a title of a collection or playlist with one after it; Audio where the file has several audio tracks, and Subtitles where it has any; Quality | A seek stops at the start and 250 ms before the end; a skip counts from where it is; Next plays what Up Next would; Audio and Subtitles change as the player's own menus do, saved for the movie or show (a track AVPlayer can't switch, or picture subtitles to burn in, start a session beside the one playing); Quality picks as the Quality menu does, kept for this kind of network (another quality starts a session beside the one playing); the one playing already is said again |
 | Music | Play, Pause, Seek, Skip, Next, Previous | Previous does as Now Playing's: the track again after 3 seconds of it, the one before otherwise; Next at the end of the queue does nothing |
 | Live TV | Next, Previous | Channel up and down, through the category the player was opened in, round at its ends. No pause or seek: the live player can't go back in a channel |
 
