@@ -29,6 +29,7 @@ const PLAYING: PlayerState = {
   quality: "Original",
   qualities: [],
   method: "Direct play",
+  methodKind: "direct",
   note: null,
   canPlayOriginal: false,
   suggestLowerQuality: false,

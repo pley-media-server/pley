@@ -24,8 +24,8 @@ class ShellWordsTest {
 
     @Test
     fun englishIsAsItWas() {
-        assertEquals("Playing on 1 device", english.getQuantityString(R.plurals.remote_playing_on_devices, 1, 1))
-        assertEquals("Playing on 3 devices", english.getQuantityString(R.plurals.remote_playing_on_devices, 3, 3))
+        assertEquals("Remote, 1 device playing", english.getQuantityString(R.plurals.remote_button_playing, 1, 1))
+        assertEquals("Remote, 3 devices playing", english.getQuantityString(R.plurals.remote_button_playing, 3, 3))
         assertEquals("3 downloads · 4.2 GB", english.getQuantityString(R.plurals.downloads_me_count, 3, 3, "4.2 GB"))
         assertEquals("Downloading · 45% of 1.4 GB", english.getString(R.string.downloads_progress, 45, "1.4 GB"))
         assertEquals("3.5 stars", english.getQuantityString(R.plurals.kit_rating_stars, 2, "3.5"))
@@ -37,9 +37,9 @@ class ShellWordsTest {
         val french = inLanguage("fr")
         val spanish = inLanguage("es")
         // French one covers 0 and 1.
-        assertEquals("Lecture sur 1 appareil", french.getQuantityString(R.plurals.remote_playing_on_devices, 1, 1))
-        assertEquals("Lecture sur 0 appareil", french.getQuantityString(R.plurals.remote_playing_on_devices, 0, 0))
-        assertEquals("Reproduciendo en 3 dispositivos", spanish.getQuantityString(R.plurals.remote_playing_on_devices, 3, 3))
+        assertEquals("Télécommande, 1 appareil en lecture", french.getQuantityString(R.plurals.remote_button_playing, 1, 1))
+        assertEquals("Télécommande, 0 appareil en lecture", french.getQuantityString(R.plurals.remote_button_playing, 0, 0))
+        assertEquals("Control remoto, 3 dispositivos reproduciendo", spanish.getQuantityString(R.plurals.remote_button_playing, 3, 3))
         assertEquals("1 épisode · 2,1 Go", french.getQuantityString(R.plurals.downloads_episodes, 1, 1, "2,1 Go"))
         assertEquals("1000000 de téléchargements · 9 To", french.getQuantityString(R.plurals.downloads_me_count, 1_000_000, 1_000_000, "9 To"))
         assertEquals("Descargando · 45\u00a0% de 1,4 GB", spanish.getString(R.string.downloads_progress, 45, "1,4 GB"))
