@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { t } from "../../i18n";
 import type { AppState, RequestNotice } from "../../state";
 import { useUi } from "../context";
 import { Art } from "../kit/art";
@@ -40,12 +41,12 @@ export function RequestNotices(p: { state: AppState; free: () => boolean; onOpen
   const next = queue[0] ?? null;
   useEffect(() => {
     if (shown || !next) return;
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (Date.now() - ui.input.lastKeyAt < NOTICE_IDLE_MS || !free.current()) return;
-      clearInterval(t);
+      clearInterval(timer);
       setShown(next);
     }, 250);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [shown?.id ?? null, next?.id ?? null]);
 
   // Gone from the queue meanwhile (another profile): it goes.
@@ -182,14 +183,14 @@ function NoticeCard(p: { notice: RequestNotice; onDone: (open: boolean, opener: 
         }}
       >
         <TextButton
-          label="Open"
+          label={t("common.actions.open")}
           onFocus={touched}
           onSelect={() => {
             if (!guarded()) close(false, true);
           }}
         />
         <TextButton
-          label="Close"
+          label={t("common.actions.close")}
           onFocus={touched}
           onSelect={() => {
             if (!guarded()) close(true);

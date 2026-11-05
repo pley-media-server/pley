@@ -1,6 +1,7 @@
 import { useSignal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Library, RequestSummary, User } from "../../api/types";
+import { t } from "../../i18n";
 import { hasRequests, mayAsk, requestsCount, requestsTitle } from "../../requests";
 import { useUi } from "../context";
 import { nudge } from "../focus";
@@ -70,7 +71,7 @@ export interface RailEntries {
 export function requestsEntry(s: RequestSummary | null): RailEntry | null {
   const { count, danger } = requestsCount(s);
   const badge = count > 0 ? { count, danger } : undefined;
-  if (mayAsk(s)) return { id: "discover", label: "Discover", icon: "compass", key: { name: "discover" }, badge };
+  if (mayAsk(s)) return { id: "discover", label: t("shell.rail.discover"), icon: "compass", key: { name: "discover" }, badge };
   if (hasRequests(s)) return { id: "requests", label: requestsTitle(s), icon: "inbox", key: { name: "requests" }, badge };
   return null;
 }
@@ -81,26 +82,27 @@ export function requestsEntry(s: RequestSummary | null): RailEntry | null {
  * this profile, up to six libraries, then Libraries when there are more,
  * Playlists, and Collections when there are six or fewer; Settings at
  * the foot. While music has a queue, Now Playing comes last. Every entry
- * is listed: those that don't fit scroll (`railScroll`).
+ * is listed: those that don't fit scroll (`railScroll`). Their labels are
+ * in the language shown when it is called.
  */
 export function railEntries(libraries: Library[] | null, nowPlaying = false, live = false, requests: RailEntry | null = null): RailEntries {
   const libs = libraries ?? [];
   const icon = (l: Library): IconName => (l.kind === "movies" ? "clapperboard" : l.kind === "shows" ? "tv" : l.kind === "music" ? "music" : "film");
   const top: RailEntry[] = [
-    { id: "search", label: "Search", icon: "search", key: { name: "search" } },
-    { id: "home", label: "Home", icon: "house", key: { name: "home" } },
+    { id: "search", label: t("shell.rail.search"), icon: "search", key: { name: "search" } },
+    { id: "home", label: t("shell.rail.home"), icon: "house", key: { name: "home" } },
   ];
   if (requests) top.push(requests);
-  if (live) top.push({ id: "live", label: "Live TV", icon: "tv-minimal", key: { name: "live" } });
+  if (live) top.push({ id: "live", label: t("shell.rail.live"), icon: "tv-minimal", key: { name: "live" } });
   for (const l of libs.slice(0, MAX_LIBRARIES)) top.push({ id: `library:${l.id}`, label: l.name, icon: icon(l), key: { name: "library", id: l.id } });
-  if (libs.length > MAX_LIBRARIES) top.push({ id: "libraries", label: "Libraries", icon: "layers", key: { name: "libraries" } });
-  top.push({ id: "playlists", label: "Playlists", icon: "list-music", key: { name: "playlists" } });
+  if (libs.length > MAX_LIBRARIES) top.push({ id: "libraries", label: t("shell.rail.libraries"), icon: "layers", key: { name: "libraries" } });
+  top.push({ id: "playlists", label: t("shell.rail.playlists"), icon: "list-music", key: { name: "playlists" } });
   if (libs.length > 0 && libs.length <= MAX_LIBRARIES) {
     const first = libs.filter((l) => l.kind !== "music")[0] ?? libs[0]!;
-    top.push({ id: "collections", label: "Collections", icon: "layers", key: { name: "collections", libraryId: first.id } });
+    top.push({ id: "collections", label: t("shell.rail.collections"), icon: "layers", key: { name: "collections", libraryId: first.id } });
   }
-  if (nowPlaying) top.push({ id: "now-playing", label: "Now Playing", icon: "audio-lines", key: { name: "nowPlaying" } });
-  return { top, settings: { id: "settings", label: "Settings", icon: "settings", key: { name: "settings" } } };
+  if (nowPlaying) top.push({ id: "now-playing", label: t("shell.rail.nowPlaying"), icon: "audio-lines", key: { name: "nowPlaying" } });
+  return { top, settings: { id: "settings", label: t("shell.rail.settings"), icon: "settings", key: { name: "settings" } } };
 }
 
 /**
@@ -146,11 +148,9 @@ export function initial(name: string): string {
  * The rail at the left edge: icons alone, and labels on a panel while it
  * has focus (it is open exactly then). Left from a page's first column
  * comes here, to the current entry; Right goes back to where focus was.
+ * `offline`: the avatar wears the server-off mark (once the shell's
+ * notice has had its 6 s).
  */
-/** What the TV says while the server is out of reach: the shell's notice, then the avatar's mark. */
-export const OFFLINE_TEXT = "Pley is offline";
-
-/** `offline`: the avatar wears the server-off mark (once the shell's notice has had its 6 s). */
 export function Rail(p: { entries: RailEntries; me: User | null; current: string | null; offline?: boolean; railRef: (api: RailApi) => void }) {
   const ui = useUi();
   const open = useSignal(false);
@@ -341,8 +341,8 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
         <G kind="col" class="rail-items">
           <F
             class={`rail-item avatar${p.current === "profile" ? " current" : ""}`}
-            label={p.offline ? `Switch profile. ${OFFLINE_TEXT}` : "Switch profile"}
-            onSelect={() => select({ id: "profile", label: "Profiles", icon: "users", key: { name: "profiles" } })}
+            label={p.offline ? `${t("shell.rail.switchProfile")}. ${t("shell.offline")}` : t("shell.rail.switchProfile")}
+            onSelect={() => select({ id: "profile", label: t("shell.rail.profiles"), icon: "users", key: { name: "profiles" } })}
             onKey={(key) => {
               if (key === "right") {
                 leave(true);
@@ -364,7 +364,7 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
             <span class="label" style="top:6px">
               <div class="t-label one-line">{me?.name ?? ""}</div>
               <div class="t-caption one-line" style="opacity:0.8">
-                Switch profile
+                {t("shell.rail.switchProfile")}
               </div>
             </span>
           </F>

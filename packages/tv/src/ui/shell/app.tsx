@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { AppState } from "../../state";
 import { errorMessage } from "../../api/client";
 import { networkMayHaveChanged } from "../../auth/tokens";
+import { currentLanguage, t } from "../../i18n";
 import { CAST_BANNER_MS, CastReceiver } from "../../player/cast";
 import { UiContext, type Ui } from "../context";
 import { FocusManager } from "../focus";
@@ -15,7 +16,7 @@ import { Icon } from "../kit/icons";
 import { Toast } from "../kit/toast";
 import { Navigator, type Entry, type PageKey } from "./navigator";
 import { RequestNotices, type NoticeApi } from "./notice";
-import { currentEntry, OFFLINE_TEXT, Rail, railEntries, requestsEntry, type RailApi } from "./rail";
+import { currentEntry, Rail, railEntries, requestsEntry, type RailApi } from "./rail";
 
 /** Pages without the rail: sign-in, "Who's watching?" and the players. */
 function railless(key: PageKey | undefined): boolean {
@@ -239,8 +240,8 @@ export function App(p: ShellProps) {
 
   useEffect(() => {
     if (!toast.value) return;
-    const t = setTimeout(() => (toast.value = null), toast.value.ms ?? (toast.value.error ? 6000 : 3500));
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => (toast.value = null), toast.value.ms ?? (toast.value.error ? 6000 : 3500));
+    return () => clearTimeout(timer);
   }, [toast.value?.id]);
 
   // Casts from the user's remote on another device: what it sends plays here as Play would, over the player
@@ -282,9 +283,11 @@ export function App(p: ShellProps) {
   const live = !!state.live.value?.available;
   // Discover for whoever may ask, else their requests; with the one number that waits there.
   const requests = requestsEntry(state.requests.value);
+  // The entries' labels are in the language shown: made again when it changes.
+  const language = currentLanguage();
   const entries = useMemo(
     () => railEntries(libraries, playing, live, requests),
-    [libraries, playing, live, requests?.id ?? null, requests?.badge?.count ?? 0, requests?.badge?.danger ?? false],
+    [libraries, playing, live, requests?.id ?? null, requests?.badge?.count ?? 0, requests?.badge?.danger ?? false, language],
   );
   // Ready-to-watch news pops up only where nothing else holds focus: not over a video, a panel, a dialog, the rail or typing.
   const noticeFree = () => !!pageRoot.current && focus.root === pageRoot.current && !rail.current?.hasFocus() && !input.typing && !exiting.value;
@@ -307,7 +310,7 @@ export function App(p: ShellProps) {
           // Where toasts are; never focusable, as there is nothing to do but wait.
           <div class="offline-notice t-label" role="status" aria-live="polite">
             <Icon name="server-off" size={20} color="var(--muted)" />
-            <span>{OFFLINE_TEXT}</span>
+            <span>{t("shell.offline")}</span>
           </div>
         )}
         {showRail && top?.key.name !== "requests" && (
@@ -320,11 +323,11 @@ export function App(p: ShellProps) {
         )}
         {exiting.value && (
           <Dialog
-            title="Exit Pley?"
+            title={t("shell.exit.title")}
             onDismiss={() => (exiting.value = false)}
             buttons={[
-              { label: "Cancel", onSelect: () => (exiting.value = false) },
-              { label: "Exit", initial: true, onSelect: leaveApp },
+              { label: t("common.actions.cancel"), onSelect: () => (exiting.value = false) },
+              { label: t("shell.exit.exit"), initial: true, onSelect: leaveApp },
             ]}
           />
         )}
