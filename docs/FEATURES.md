@@ -46,14 +46,17 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - A remote for your other devices: the web and desktop apps' header lists
   those that are on, the ones playing first, then those ready to play. For
   the one chosen it plays, pauses, seeks, skips, goes to the next or
-  previous title (or channel, on Live TV), changes the audio track and the
-  subtitles, and stops what plays there. Each player obeys the commands it
-  can; any can be stopped ([API.md](API.md#remote-control)).
+  previous title (or channel, on Live TV), changes the audio track, the
+  subtitles and the quality, and stops what plays there, once asked to.
+  On Live TV it shows the programme's progress and what's next. Each
+  player obeys the commands it can; any can be stopped
+  ([API.md](API.md#remote-control)).
 - Play on… in the web and desktop apps, beside Play on a movie, an episode,
   a show, a season, an artist, an album, a track and a playlist (Shuffle
   on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
   on another of your devices that takes casts, as that device's own Play
-  would, and the remote opens on it ([API.md](API.md#casting)).
+  would, with the audio and subtitles picked on the page, and the remote
+  opens on it ([API.md](API.md#casting)).
 
 ## Live TV
 
