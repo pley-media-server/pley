@@ -29,8 +29,10 @@ import {
   stageWords,
   statusFromRequest,
   titleBadge,
+  titlePage,
   titleRequest,
 } from "../src/requests";
+import fixture from "./fixtures/requests.json";
 
 /** Friday 30 October 2026, noon on the TV's clock. */
 const NOW = new Date(2026, 9, 30, 12, 0, 0).getTime();
@@ -192,6 +194,11 @@ describe("a title's badge", () => {
     // One it follows counts; someone else's, which a manager hears of too, says nothing of the title.
     expect(statusFromRequest(request({ mine: false, watching: true, status: "declined", stage: "declined" }))).toBe("declined");
     expect(statusFromRequest(request({ mine: false, watching: false, status: "declined", stage: "declined" }))).toBeNull();
+  });
+
+  // The fixture's titles are Android's discover/trending.json's; the native app answers it too.
+  it.each(fixture.titlePage)("opens a title a library has whole at the library's page, anything else at its Discover page: %j", (c) => {
+    expect(titlePage(c.in as Parameters<typeof titlePage>[0])).toEqual(c.out);
   });
 
   it("keeps each title once as pages come", () => {

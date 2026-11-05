@@ -18,6 +18,7 @@ import type {
 } from "@/api/requests";
 import type { Id, Timestamp } from "@/api/types";
 import { pluralize } from "./format";
+import { itemUrl, titleUrl } from "./urls";
 
 const nowSeconds = () => Date.now() / 1000;
 
@@ -95,6 +96,16 @@ export function titleBadge(title: Pick<DiscoverTitle, "status" | "item_id">): st
     default:
       return null;
   }
+}
+
+/**
+ * Where a title's poster goes: the library's title when a library this
+ * account can open has it whole, since its Discover page would offer only
+ * Open; else its Discover page. A show partly there goes to its Discover
+ * page, where more seasons can be asked for.
+ */
+export function titleOpens(title: Pick<DiscoverTitle, "kind" | "tmdb_id" | "status" | "item_id">): string {
+  return title.status === "library" && title.item_id !== null ? itemUrl(title.item_id) : titleUrl(title.kind, title.tmdb_id);
 }
 
 /** A title's name for screen readers, with where it stands: "Heat, 1995, Movie, In library". */

@@ -150,6 +150,7 @@ mod tests {
             art: Vec::new(),
             badge: None,
             tone: Tone::Blue,
+            item_id: None,
         }
     }
 

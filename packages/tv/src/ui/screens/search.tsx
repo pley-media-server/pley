@@ -3,7 +3,7 @@ import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../
 import { cardSubtitle, episodeLabel } from "../../format/format";
 import { nowAndNext, programProgress } from "../../live/data";
 import { Cancel } from "../../net/transport";
-import { addTitles, mayAsk, problemWords, requestsProblem, searchText, titleBadge, titleKey, titleSubtitle, titleTone } from "../../requests";
+import { addTitles, mayAsk, problemWords, requestsProblem, searchText, titleBadge, titleKey, titlePage, titleSubtitle, titleTone } from "../../requests";
 import { useUi } from "../context";
 import { Chip, Pill, TextButton } from "../kit/buttons";
 import { TextField } from "../kit/field";
@@ -359,7 +359,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
                 onFocus={place.onFocus}
                 onSelect={() => {
                   remember(query);
-                  ui.nav.open({ name: "title", kind: t.kind, tmdbId: t.tmdb_id });
+                  ui.nav.open(titlePage(t));
                 }}
               />
             )}

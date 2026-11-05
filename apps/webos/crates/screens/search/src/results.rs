@@ -12,7 +12,7 @@ use pley_core::model::{
     DiscoverPage, DiscoverTitle, ItemKind, ItemSummary, LiveChannel, LiveProgram, PersonSummary, SearchResults,
     TitleKind,
 };
-use pley_core::requests::{Tone, add_titles, title_badge, title_subtitle, title_tone};
+use pley_core::requests::{Tone, add_titles, library_item, title_badge, title_subtitle, title_tone};
 use pley_kit::TileKind;
 use pley_shell::Route;
 
@@ -363,6 +363,8 @@ pub struct TmdbTile {
     pub art: Vec<ImageRequest>,
     pub badge: Option<&'static str>,
     pub tone: Tone,
+    /// The library title it opens, when a library this account can open has it whole.
+    pub item_id: Option<i64>,
 }
 
 impl TmdbTile {
@@ -371,9 +373,12 @@ impl TmdbTile {
         ((self.tmdb_id as u64) << 1) | u64::from(self.kind == TitleKind::Show)
     }
 
-    /// Its page, Request and all.
+    /// Its library title when a library has it whole, else its page, Request and all.
     pub fn opens(&self) -> Route {
-        Route::Title { kind: self.kind, tmdb_id: self.tmdb_id, pick: false }
+        match self.item_id {
+            Some(id) => Route::Item { id },
+            None => Route::Title { kind: self.kind, tmdb_id: self.tmdb_id, pick: false },
+        }
     }
 }
 
@@ -388,6 +393,7 @@ pub fn tmdb_tile(t: &DiscoverTitle, resolve: Resolve) -> TmdbTile {
         art: poster.into_iter().collect(),
         badge: title_badge(t.status, t.item_id),
         tone: title_tone(t.status, t.item_id),
+        item_id: library_item(t),
     }
 }
 
@@ -602,6 +608,13 @@ mod tests {
         assert_eq!((s.badge, s.tone, s.subtitle.as_str()), (Some("Partly in library"), Tone::Green, "Show"));
         assert_ne!(s.key(), t.key(), "a movie and a show of the same number are two tiles");
         assert!(s.art.is_empty());
+        // Partly there: its page, where more seasons can be asked for.
+        assert_eq!(s.opens(), Route::Title { kind: TitleKind::Show, tmdb_id: 438631, pick: false });
+        // Whole in a library: its library title.
+        let mut had = title(TitleKind::Movie, 329865, "Arrival");
+        had.status = TitleStatus::Library;
+        had.item_id = Some(101);
+        assert_eq!(tmdb_tile(&had, &resolve).opens(), Route::Item { id: 101 });
         let none = tmdb_tile(&title(TitleKind::Movie, 1, "Nothing yet"), &resolve);
         assert_eq!(none.badge, None);
     }

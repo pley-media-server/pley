@@ -31,8 +31,10 @@ import {
   titleAfter,
   titleBadge,
   titleName,
+  titleOpens,
   untilText,
 } from "./requests";
+import { itemUrl } from "./urls";
 
 const NOW = 1_800_000_000;
 const DAY = 86400;
@@ -106,6 +108,23 @@ describe("badges", () => {
     expect(titleAfter(makeTitle({ status: "library", item_id: 3 }), 7, asked).status).toBe("library");
     // Another active request for it keeps it Requested.
     expect(titleAfter(makeTitle({ status: "requested", request_id: 8 }), 7, null)).toMatchObject({ status: "requested", request_id: 8 });
+  });
+});
+
+// The titles of Android's discover/trending.json, which every app's rule is pinned to: the
+// fixture itself lies outside the web app, which is built on its own.
+describe("where a poster goes", () => {
+  const arrival = makeTitle({ tmdb_id: 329865, status: "library", item_id: 101 });
+
+  it("goes to the library's title when a library has it whole", () => {
+    expect(titleOpens(arrival)).toBe(itemUrl(101));
+  });
+
+  it("goes to its Discover page otherwise", () => {
+    // Partly there: more seasons are asked for on its Discover page.
+    expect(titleOpens(makeTitle({ kind: "show", tmdb_id: 95396, status: "partial", item_id: 201 }))).toBe("/discover/show/95396");
+    expect(titleOpens(makeTitle({ tmdb_id: 1184918 }))).toBe("/discover/movie/1184918");
+    expect(titleOpens({ ...arrival, item_id: null })).toBe("/discover/movie/329865");
   });
 });
 

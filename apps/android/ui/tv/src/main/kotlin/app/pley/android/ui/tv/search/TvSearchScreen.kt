@@ -71,6 +71,7 @@ import app.pley.android.model.LiveChannel
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.TileFactory
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.requests.opens
 import app.pley.android.screens.screensGraph
 import app.pley.android.screens.search.SearchDeps
 import app.pley.android.screens.search.SearchGroupKind
@@ -145,7 +146,7 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
         onWatch = vm::watch,
         tmdb = tmdb,
         onTmdbRetry = vm::retryTmdb,
-        onTmdbOpen = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) },
+        onTmdbOpen = { navigator.open(opens(it)) },
         onTmdbAll = { navigator.open(PleyKey.DiscoverResults(it)) },
     )
 }

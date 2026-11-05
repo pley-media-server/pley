@@ -417,7 +417,7 @@ private fun TitleRow(
         kind = TileKind.Poster,
         memory = memory,
         seeAll = seeAll,
-        onOpen = { tile -> byId[tile.id]?.value?.let { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) } },
+        onOpen = { tile -> byId[tile.id]?.value?.let { navigator.open(opens(it)) } },
         onFocus = { tile ->
             byId[tile.id]?.let { at ->
                 onFocus(at.value, titles.subList(maxOf(0, at.index - 1), minOf(titles.size, at.index + 2)))

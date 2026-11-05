@@ -251,6 +251,23 @@ fn keeps_each_title_once_as_pages_come() {
 }
 
 #[test]
+fn a_title_in_a_library_whole_opens_its_library_title() {
+    // Android's fixture `discover/trending.json`.
+    let t =
+        |kind, tmdb_id, status, item_id| DiscoverTitle { kind, tmdb_id, status, item_id, ..DiscoverTitle::default() };
+    let arrival = t(TitleKind::Movie, 329865, TitleStatus::Library, Some(101));
+    assert_eq!(library_item(&arrival), Some(101));
+    // A show partly there opens its Discover page, where more seasons can be asked for.
+    let severance = t(TitleKind::Show, 95396, TitleStatus::Partial, Some(201));
+    assert_eq!(library_item(&severance), None);
+    let wild_robot = t(TitleKind::Movie, 1184918, TitleStatus::None, None);
+    assert_eq!(library_item(&wild_robot), None);
+    // No library title to open: its Discover page.
+    let elsewhere = DiscoverTitle { item_id: None, ..arrival };
+    assert_eq!(library_item(&elsewhere), None);
+}
+
+#[test]
 fn search_words_are_trimmed_and_cut_to_200_characters() {
     assert_eq!(search_text("  dune  "), "dune");
     assert_eq!(search_text(&"a".repeat(250)), "a".repeat(200));

@@ -220,6 +220,16 @@ class RequestRulesTest {
     }
 
     @Test
+    fun aTitleTheLibraryHasWholeOpensThere() {
+        assertEquals(PleyKey.Item(101), opens(title(329865)))
+        // Partly there: its Discover page, where more seasons can be asked for.
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 95396), opens(title(95396)))
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), opens(title(1184918)))
+        // In no library this account can open: nothing to open there.
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Movie, 329865), opens(title(329865).copy(itemId = null)))
+    }
+
+    @Test
     fun refusalsSayWhatTheyMean() {
         assertEquals(RequestProblem.Off, RequestProblem.of(ApiException(503, "unavailable", "off", details = ApiErrorBody("unavailable", "off", setup = false))))
         assertEquals(RequestProblem.TmdbKey, RequestProblem.of(ApiException(503, "tmdb_key", "refused")))

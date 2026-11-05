@@ -90,6 +90,10 @@ describes how they are made.
   Downloads beside it on phones and tablets, where it said "Showing what
   Pley had saved. Reconnecting…". It still shows what it saved and
   reconnects by itself.
+- A movie or show in Discover or Search's Discover row that a library
+  has whole opens its library page, where it plays, not a page with only
+  Open on it. A show partly there still opens its Discover page, for
+  Request more seasons.
 
 ### Fixed
 
@@ -98,6 +102,8 @@ describes how they are made.
   rename) while each key reached the field. Its Back closes it and keeps
   the words, as Gboard's does, where it acted as Done: it saved the
   name, made the playlist or ran the search.
+- In Discover, a show whose request is ready but that still lacks
+  seasons nobody asked for says Partly in library, not In library.
 - On Android TV and Fire TV, a press of a direction key that lasts a
   little long (200 or 300 ms) moves focus once, not twice: a held key
   starts moving by itself after 400 ms, as the system's own repeats do,

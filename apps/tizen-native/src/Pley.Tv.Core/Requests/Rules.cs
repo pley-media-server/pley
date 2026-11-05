@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pley.Tv.Core.Ui;
 
 namespace Pley.Tv.Core.Requests;
 
@@ -213,6 +214,18 @@ public static class RequestRules
         if (request.Active) return title with { Status = TitleStatus.Requested, RequestId = request.Id };
         return title;
     }
+
+    // ---- where a title opens
+
+    /// <summary>
+    /// Where <paramref name="title"/>'s poster opens: the library's title when a library this account
+    /// can open has it whole, since its Discover page would offer only Open; else its Discover page.
+    /// A show partly there opens its Discover page, where more seasons can be asked for.
+    /// </summary>
+    public static PageKey Opens(DiscoverTitle title) =>
+        title.Status == TitleStatus.Library && title.ItemId is { } id
+            ? new PageKey.Item(id)
+            : new PageKey.DiscoverTitle(title.Kind, title.TmdbId);
 
     // ---- stage pills
 

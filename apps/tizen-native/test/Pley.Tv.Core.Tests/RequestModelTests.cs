@@ -197,6 +197,24 @@ public class RequestModelTests
     }
 
     [Fact]
+    public void A_shows_request_wholly_ready_takes_its_status_from_the_shows_page()
+    {
+        source.Pages[(DiscoverList.Trending, 1)] = () => PageOf(1, 1, Title(1), Title(2, TitleKind.Show, TitleStatus.Requested));
+        source.Requests[45] = new MediaRequest { Id = 45, Kind = TitleKind.Show, TmdbId = 2, Status = RequestStatus.Available, Stage = RequestStage.Available, ItemId = 300, Mine = true };
+        // Season 1 was asked for and came; the rest nobody asked for.
+        source.Titles[(TitleKind.Show, 2)] = new DiscoverDetail { Kind = TitleKind.Show, TmdbId = 2, Status = TitleStatus.Partial, ItemId = 300 };
+        using var model = new DiscoverModel(source, scheduler);
+        source.Change(new RequestChange(45, TitleKind.Show, 2));
+        var show = model.State.Value.Rows[0].Pages.Titles[1];
+        Assert.Equal(TitleStatus.Partial, show.Status);
+        Assert.Equal(new PageKey.DiscoverTitle(TitleKind.Show, 2), RequestRules.Opens(show));
+        // Every season there: its poster opens the library's title.
+        source.Titles[(TitleKind.Show, 2)] = new DiscoverDetail { Kind = TitleKind.Show, TmdbId = 2, Status = TitleStatus.Library, ItemId = 300 };
+        source.Change(new RequestChange(45, TitleKind.Show, 2));
+        Assert.Equal(new PageKey.Item(300), RequestRules.Opens(model.State.Value.Rows[0].Pages.Titles[1]));
+    }
+
+    [Fact]
     public void Your_requests_are_read_again_every_10_s_while_one_downloads_even_after_a_read_failed()
     {
         source.Pages[(DiscoverList.Trending, 1)] = () => PageOf(1, 1, Title(1));

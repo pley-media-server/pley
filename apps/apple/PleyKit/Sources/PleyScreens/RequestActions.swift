@@ -39,10 +39,11 @@ extension AppModel {
 
     /// How titles already shown change with `change`: their badges follow
     /// their request, read once (`GET /api/requests/{id}`); a title whose
-    /// request can't be read, or that is named without one, follows its
-    /// page instead (the request let go of, should that fail too). `nil`
-    /// when none of `shown` is touched, or many changed at once (rows are
-    /// never read again for that).
+    /// request can't be read, that is named without one, or that is a show
+    /// whose request is wholly ready (it may lack seasons nobody asked for)
+    /// follows its page instead (the request let go of, or followed, should
+    /// that fail too). `nil` when none of `shown` is touched, or many changed
+    /// at once (rows are never read again for that).
     public func patchFor(_ change: RequestChange, shown: [DiscoverTitle]) async -> ((DiscoverTitle) -> DiscoverTitle)? {
         guard !change.all else { return nil }
         let touched = shown.filter { RequestRules.touches($0, change) }
@@ -55,13 +56,18 @@ extension AppModel {
                 return nil
             }
         }
+        // A show whose request is wholly ready: its page says whether a library has it whole,
+        // which its poster opens then.
+        func readyShow(_ request: MediaRequest) -> Bool { request.kind == .show && request.status == .available }
         var pages: [String: DiscoverDetail?] = [:]
-        for title in touched where requests[title.requestId ?? -1].flatMap({ $0 }) == nil && pages[title.key] == nil {
+        for title in touched where pages[title.key] == nil {
+            if let request = requests[title.requestId ?? -1] ?? nil, !readyShow(request) { continue }
             pages[title.key] = .some(try? await api.discoverDetail(title.kind, tmdbId: title.tmdbId))
         }
         return { title in
             guard RequestRules.touches(title, change) else { return title }
-            if let id = title.requestId, let request = requests[id] ?? nil { return RequestRules.patched(title, with: request) }
+            let request = title.requestId.flatMap { requests[$0] ?? nil }
+            if let request, !readyShow(request) { return RequestRules.patched(title, with: request) }
             if let page = pages[title.key] ?? nil {
                 var title = title
                 title.status = page.status
@@ -69,7 +75,7 @@ extension AppModel {
                 title.requestId = page.requestId
                 return title
             }
-            return RequestRules.patched(title, with: nil)
+            return RequestRules.patched(title, with: request)
         }
     }
 

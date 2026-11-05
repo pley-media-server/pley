@@ -43,7 +43,6 @@ import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.designsystem.tile.rememberSkeleton
-import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.requests.DiscoverResultsUiState
 import app.pley.android.screens.requests.DiscoverResultsViewModel
@@ -52,6 +51,7 @@ import app.pley.android.screens.requests.DiscoverSource
 import app.pley.android.screens.requests.Pages
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.RequestsDeps
+import app.pley.android.screens.requests.opens
 import app.pley.android.screens.screensGraph
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvSeeAllTile
@@ -160,7 +160,7 @@ private fun TitleGrid(state: DiscoverResultsUiState, pages: Pages, texts: Reques
             // By place: a well that has focus as its title comes keeps it.
             keyAt = { it },
             kind = GridKind,
-            onOpen = { i, _ -> titles.getOrNull(i)?.let { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) } },
+            onOpen = { i, _ -> titles.getOrNull(i)?.let { navigator.open(opens(it)) } },
             memory = memory,
             memoryPrefix = GRID_MEMORY,
             skeleton = skeleton,

@@ -8,6 +8,8 @@ import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestScope
+import app.pley.android.model.RequestStage
+import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
@@ -213,6 +215,27 @@ class DiscoverViewModelTest {
         assertEquals(TitleBadge.Requested, badgeOf(robot))
         // One request read, the rows not read again.
         assertEquals(listOf("request"), requests.api.calls.drop(pagesBefore).map { it.method }.filter { it != "requests" })
+    }
+
+    @Test
+    fun aShowsRequestWhollyReadyTakesItsStatusFromTheShowsPage() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val vm = viewModel(requests)
+        settle()
+        // Severance (95396): the season asked for came, the rest nobody asked for.
+        val pending = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 44L }
+        requests.api.answer(
+            "request",
+            pending.copy(id = 62, kind = TitleKind.Show, tmdbId = 95396, status = RequestStatus.Available, stage = RequestStage.Available, itemId = 201),
+        )
+        val page: DiscoverDetail = Fixtures.decode("discover/show.json")
+        requests.api.answer("discoverTitle", page.copy(tmdbId = 95396, status = TitleStatus.Partial, itemId = 201))
+        requests.change(RequestChange(62, TitleKind.Show, 95396))
+        settle()
+        val severance = vm.row(DiscoverList.Trending).titles.first { it.tmdbId == 95396L }
+        assertEquals(TitleStatus.Partial, severance.status)
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 95396), opens(severance))
+        assertEquals(listOf<Any?>(TitleKind.Show, 95396L), requests.api.calls("discoverTitle").last().args)
     }
 
     @Test

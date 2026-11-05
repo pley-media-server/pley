@@ -13,6 +13,7 @@ import type {
   TitleStatus,
 } from "./api/types";
 import { dayAndTime, formatRuntime, pluralize, relativeTime, shortDate, timeUntil } from "./format/format";
+import type { PageKey } from "./ui/shell/navigator";
 
 /*
  * Requests and Discover in words and rules, as every client has them
@@ -206,6 +207,16 @@ export function titleTone(t: { status: TitleStatus; item_id: number | null }): T
 /** A tile's second line: the year, and in rows of both kinds which it is. */
 export function titleSubtitle(t: { kind: TitleKind; year: number | null }, mixed: boolean): string {
   return [t.year ? String(t.year) : "", mixed ? (t.kind === "show" ? "Show" : "Movie") : ""].filter(Boolean).join(" · ");
+}
+
+/**
+ * Where a title's poster opens: the library's title when a library this
+ * account can open has it whole, since its Discover page would offer only
+ * Open; else its Discover page. A show partly there opens its Discover
+ * page, where more seasons can be asked for.
+ */
+export function titlePage(t: { kind: TitleKind; tmdb_id: number; status: TitleStatus; item_id: number | null }): PageKey {
+  return t.status === "library" && t.item_id !== null ? { name: "item", id: t.item_id } : { name: "title", kind: t.kind, tmdbId: t.tmdb_id };
 }
 
 /** A title page's facts line: year, runtime or seasons, the certification is shown apart. */

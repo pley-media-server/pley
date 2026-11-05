@@ -275,7 +275,9 @@ also what waits for them, in red while some failed.
   anime, each loaded as it comes near the screen, then Your requests;
   at the top, the way to the requests with their number. It has no
   search field: Search finds TMDB's titles. Posters say In library,
-  Partly in library, Requested or Declined. A list reads TMDB's pages
+  Partly in library, Requested or Declined. A title a library has
+  whole opens the library's page, here and in Search, since its page
+  would only offer Open. A list reads TMDB's pages
   until it has more than a screenful, 5 at most at a time, since an age
   limit can leave page after page empty: a row shows what they had, and
   a grid (See all, and Search's Discover row's) ends in Show more,
@@ -646,7 +648,8 @@ album, as Android TV's does. The rules are `Player/Cast.cs`.
   the TV was left on when it has one); `rail.json` pins the rail's
   entries (up to six libraries, then Libraries; nothing left out for
   Live TV or Now Playing) and how far they scroll for the entry focus is
-  on. Where the Android app is
+  on; `requests.json` pins where a Discover poster opens. Where the
+  Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which
   fixture case it answers differently.

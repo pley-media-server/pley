@@ -88,6 +88,10 @@ describes how they are made.
   to 12:34", "Subtitles off"), and the controls show as before once you
   move the mouse, tap or press a key. On Live TV a remote's change of
   channel shows only the channel's tuning screen.
+- In the web and desktop apps, a movie or show in Discover or Search's
+  Discover results that a library has whole opens its library page, where
+  it plays, not a page with only Open on it. A show partly there still
+  opens its Discover page, to ask for more seasons.
 
 ### Fixed
 

@@ -23,7 +23,7 @@ use pley_ui::{Id, Motion, Ui};
 use crate::actions::{Actions, Extra, TitleIntent};
 use crate::common::{
     Asking, Poll, ProblemAction, SignInAgain, TitleTileModel, ToneTile, TvClock, Unwatching, art, keep_title, marked,
-    marks_version, paint_title, problem_page, stage_pill, summary_problem,
+    marks_version, paint_title, problem_page, stage_pill, summary_problem, title_page,
 };
 use crate::pages::Reader;
 use crate::widgets::{Counted, count_text, title_meta};
@@ -581,7 +581,7 @@ impl DiscoverScreen {
                     }
                     if let Some(a) = r.activated {
                         open = Some(match tiles.get(a) {
-                            Some(t) => Route::Title { kind: t.title.kind, tmdb_id: t.title.tmdb_id, pick: false },
+                            Some(t) => title_page(&t.title),
                             None => Route::DiscoverList { list: DISCOVER_ROWS[index].list },
                         });
                     }

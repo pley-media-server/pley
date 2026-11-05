@@ -14,7 +14,7 @@ use pley_ui::{Id, Ui};
 
 use crate::common::{
     ProblemAction, SignInAgain, TitleTileModel, failed_title, marked, marks_version, paint_title, problem_page,
-    summary_problem,
+    summary_problem, title_page,
 };
 use crate::pages::Reader;
 
@@ -195,7 +195,7 @@ impl Screen for TitlesScreen {
             }
             if let Some(a) = r.activated {
                 match self.tiles.get(a) {
-                    Some(t) => cx.push(Route::Title { kind: t.title.kind, tmdb_id: t.title.tmdb_id, pick: false }),
+                    Some(t) => cx.push(title_page(&t.title)),
                     None if end_tile => self.reader.again(),
                     None => {}
                 }
