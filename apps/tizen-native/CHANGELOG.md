@@ -335,6 +335,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- A single press of a direction moves focus once: a held key starts
+  moving focus by itself after 400 ms, as on Android TV, where it started
+  after 180 ms and a slow press moved focus twice.
 - The rail's entries scroll between the profile and Settings, where those
   past the ninth were drawn over Settings, and those scrolled past the top
   over the profile.
