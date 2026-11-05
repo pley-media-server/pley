@@ -1068,6 +1068,30 @@ async fn a_cast_reaches_the_users_own_streams() {
     assert_eq!((event["shuffle"].clone(), event["start_ms"].clone()), (json!(true), Value::Null));
 }
 
+/// Where the cast `token` sends to `tv-1` says it came from.
+async fn cast_from(w: &World, token: &str) -> Value {
+    let send = async {
+        let uri = "/api/remote/devices/tv-1/cast";
+        let body = Some(json!({"item_id": w.film}));
+        let sent = w.app.call(Method::POST, uri, Some(token), body, &[("user-agent", "pleyAndroid/0.1.6")]).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
+    events_of(&heard, "cast")[0]["from"].clone()
+}
+
+#[tokio::test]
+async fn a_cast_comes_from_the_name_the_remote_gave_its_device() {
+    let w = world().await;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    let (android, _) = w.app.app_token(w.viewer_id, "library play").await;
+    // A remote that isn't a receiver is named from its User-Agent.
+    assert_eq!(cast_from(&w, &android).await, json!("Pley for Android"));
+    // One that is goes by the name it gave its device there.
+    let _phone = stream(&w, &android, "receiver=phone-1&device_name=Bedroom&device_kind=phone&casts=item").await;
+    assert_eq!(cast_from(&w, &android).await, json!("Bedroom"));
+}
+
 #[tokio::test]
 async fn a_cast_is_checked() {
     let w = world().await;

@@ -3504,7 +3504,8 @@ would.
   plays a playlist, an album or an artist shuffled. It answers `202` and
   sends the user's event streams `{ type: "cast", receiver_id, item_id,
   playlist_id, channel_id, start_ms, shuffle, from }`, `from` being the
-  remote's device name (from its User-Agent) or `null`. It answers, in
+  remote's device name or `null`: the `device_name` its device gave as a
+  receiver, where it is one, else one from its User-Agent. It answers, in
   this order:
   - `404` for a receiver unknown, gone or someone else's (an
     administrator's request too: it never says which);

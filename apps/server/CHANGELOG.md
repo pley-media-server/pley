@@ -33,7 +33,8 @@ describes how they are made.
   it, and pick TVs out.
 - A user's remotes can cast to their other devices: an app that keeps its
   event stream open as a receiver is listed, and plays the title,
-  playlist or Live TV channel sent to it, as its own Play would. Only the
+  playlist or Live TV channel sent to it, as its own Play would, and says
+  which device sent it, by the name that device gave itself. Only the
   user's own devices are listed and cast to, an administrator's too.
 - Remotes change the audio track and the subtitles of what plays on
   another device: sessions list their file's tracks and which play, and

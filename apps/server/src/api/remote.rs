@@ -23,7 +23,7 @@ use pley_transcoder_api::{MediaStream, StreamKind};
 use serde::{Deserialize, Serialize};
 
 use super::items::item_or_404;
-use crate::auth::AuthUser;
+use crate::auth::{AuthUser, CurrentToken};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::events::{EventBus, ServerEvent};
@@ -499,6 +499,9 @@ pub(crate) struct Receiver {
     /// Which device it is, as sessions say ([`device_id_of`]).
     pub device_id: String,
     pub name: Option<String>,
+    /// The name the app gave its device (`device_name`), cleaned, which the
+    /// casts it sends as a remote say they come from.
+    pub given_name: Option<String>,
     pub kind: DeviceKind,
     pub casts: BTreeSet<CastKind>,
 }
@@ -592,6 +595,15 @@ impl Receivers {
         out
     }
 
+    /// The name `user_id`'s device `device_id` gave itself as a receiver (its
+    /// newest stream's), while it is one.
+    fn given_name(&self, user_id: i64, device_id: &str) -> Option<String> {
+        let by_user = self.by_user.lock();
+        let theirs = by_user.get(&user_id)?;
+        let newest = theirs.values().filter(|open| open.receiver.device_id == device_id).max_by_key(|o| o.connected_at);
+        newest.and_then(|open| open.receiver.given_name.clone())
+    }
+
     /// What receiver `id` of `user_id` takes, while it is there.
     fn casts(&self, user_id: i64, id: &str) -> Option<BTreeSet<CastKind>> {
         self.by_user.lock().get(&user_id)?.get(id).map(|open| open.receiver.casts.clone())
@@ -673,6 +685,7 @@ const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "alb
 pub async fn cast(
     State(state): State<AppState>,
     user: AuthUser,
+    CurrentToken(token): CurrentToken,
     Path(id): Path<String>,
     headers: HeaderMap,
     body: Result<Json<Cast>, JsonRejection>,
@@ -724,6 +737,12 @@ pub async fn cast(
         }
         Some(true) => {}
     }
+    // The receiver says where it came from by the name the remote gave its
+    // device ("Phone"), where the remote is a receiver too: its User-Agent
+    // says only which app it is ("Pley for Android").
+    let from = device_id_of(&user, token.as_deref())
+        .and_then(|device| state.receivers.given_name(user.id, &device))
+        .or_else(|| device_name(None, &headers));
     state.events.send(ServerEvent::Cast {
         user_id: user.id,
         receiver_id: id,
@@ -732,7 +751,7 @@ pub async fn cast(
         channel_id: body.channel_id,
         start_ms: body.start_ms,
         shuffle: body.shuffle.unwrap_or(false),
-        from: device_name(None, &headers),
+        from,
     });
     Ok(StatusCode::ACCEPTED)
 }
@@ -820,6 +839,7 @@ mod tests {
         Receiver {
             device_id: device_id.into(),
             name: name.map(str::to_owned),
+            given_name: name.map(str::to_owned),
             kind: DeviceKind::Tv,
             casts: cast_kinds(casts),
         }

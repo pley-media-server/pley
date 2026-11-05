@@ -192,6 +192,7 @@ pub async fn events(
         let receiver = remote::Receiver {
             device_id: remote::device_id_of(&user, token.as_deref()).unwrap_or_else(|| format!("receiver-{id}")),
             name: remote::device_name(query.device_name.as_deref(), &headers),
+            given_name: query.device_name.as_deref().and_then(crate::oauth::clients::clean_name),
             kind: remote::device_kind_of(declared, &user, remote::user_agent(&headers)),
             casts: query.casts.as_deref().map(remote::cast_kinds).unwrap_or_default(),
         };
