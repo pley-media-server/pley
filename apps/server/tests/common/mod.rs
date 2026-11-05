@@ -24,6 +24,8 @@ pub use testing::tempdir;
 pub const ANDROID_APP: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// The client_id of pley's desktop app.
 pub const DESKTOP_APP: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
+/// The client_id of pley's Home Assistant integration.
+pub const HOMEASSISTANT_APP: &str = "https://pley-media-server.github.io/pley/oauth/homeassistant.json";
 /// The client_id of pley's Apple app on iPhone and iPad.
 pub const IOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/ios.json";
 /// The client_id of pley's Kodi add-on.

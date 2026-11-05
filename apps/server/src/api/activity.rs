@@ -64,9 +64,13 @@ pub struct Activity {
     library_work: Option<LibraryWorkStatus>,
 }
 
+/// `GET /api/activity`: what plays and what the server is busy with. Who
+/// oversees playback ([`AuthUser::oversees_playback`]) sees everyone's
+/// sessions, anyone else their own. The library work's counters go by
+/// administrator rights, which an app's token never has.
 pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Activity>> {
-    let sessions: Vec<_> =
-        state.sessions.active().into_iter().filter(|s| user.is_admin || s.user_id == user.id).collect();
+    let everyone = user.oversees_playback();
+    let sessions: Vec<_> = state.sessions.active().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
     let jobs: HashMap<String, JobStatus> = if sessions.iter().any(|s| s.job_id().is_some()) {
         match state.transcoder.status().await {
             Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),
@@ -180,9 +184,10 @@ pub async fn events(
     // those for managers to managers' streams, while the session is one.
     let asks = user.allowed(Scope::Requests);
     let manager = Arc::new(AtomicBool::new(user.manages_requests()));
-    // Everyone's sessions' changes go to administrators' streams, whose
-    // dashboard lists them, while the session is one.
-    let admin = Arc::new(AtomicBool::new(user.is_admin));
+    // Everyone's sessions' changes go to the streams of those who oversee
+    // playback (administrators, whose dashboard lists them, and pley's own
+    // apps allowed `activity` on their accounts), while they do.
+    let admin = Arc::new(AtomicBool::new(user.oversees_playback()));
     // A stream that names its device as a receiver makes it one the user's
     // remotes cast to, until the stream ends. A query that doesn't parse
     // costs the stream nothing: it just isn't a receiver.
@@ -225,7 +230,7 @@ pub async fn events(
                 }
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
-                admin.store(user.is_admin, Ordering::Relaxed);
+                admin.store(user.oversees_playback(), Ordering::Relaxed);
             }
         });
     }

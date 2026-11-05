@@ -27,12 +27,24 @@ pub enum Scope {
     /// (pley's own apps only, like `profiles`; it does nothing for other
     /// accounts).
     Approvals,
+    /// See what's playing and stop it: the profile's own streams, and
+    /// everyone's where the account is an administrator (pley's own apps
+    /// only, see `AuthUser::oversees_playback`; other apps see and stop
+    /// only the profile's own).
+    Activity,
 }
 
 impl Scope {
     /// Every scope, in the order they are written and shown.
-    pub const ALL: [Scope; 6] =
-        [Scope::Library, Scope::Play, Scope::Playlists, Scope::Profiles, Scope::Requests, Scope::Approvals];
+    pub const ALL: [Scope; 7] = [
+        Scope::Library,
+        Scope::Play,
+        Scope::Playlists,
+        Scope::Profiles,
+        Scope::Requests,
+        Scope::Approvals,
+        Scope::Activity,
+    ];
 
     /// The name in `scope` parameters and answers.
     pub fn name(self) -> &'static str {
@@ -43,6 +55,7 @@ impl Scope {
             Scope::Profiles => "profiles",
             Scope::Requests => "requests",
             Scope::Approvals => "approvals",
+            Scope::Activity => "activity",
         }
     }
 
@@ -58,6 +71,9 @@ impl Scope {
             Scope::Profiles => "switch to the household's other profiles",
             Scope::Requests => "ask for movies and shows the libraries don't have, and follow the profile's requests",
             Scope::Approvals => "approve and decline what people ask for, where the account is an administrator",
+            Scope::Activity => {
+                "see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator"
+            }
         }
     }
 
@@ -131,10 +147,12 @@ pub enum Need {
     /// Any app token (who it acts as, and pictures of its household).
     AnyApp,
     Scope(Scope),
+    /// Either scope opens it; a token with neither is told of the first.
+    Either(Scope, Scope),
 }
 
 use Need::AnyApp;
-use Scope::{Approvals, Library, Play, Playlists, Profiles, Requests};
+use Scope::{Activity, Approvals, Library, Play, Playlists, Profiles, Requests};
 
 /// The routes apps may use: (method, path as routed, with `/api`, what the
 /// token needs). HEAD is looked up as GET.
@@ -226,8 +244,9 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     ("PUT", "/api/watchlist/{id}", Need::Scope(Play)),
     ("DELETE", "/api/watchlist/{id}", Need::Scope(Play)),
     // the profile's own sessions: an app acts as a viewer, so never another's
+    // (stopping one excepted: see `activity` below, which stops them too)
     ("GET", "/api/sessions", Need::Scope(Play)),
-    ("DELETE", "/api/sessions/{id}", Need::Scope(Play)),
+    ("DELETE", "/api/sessions/{id}", Need::Either(Play, Activity)),
     // remote control of the profile's own players: never another's, an
     // administrator's profile included
     ("POST", "/api/sessions/{id}/command", Need::Scope(Play)),
@@ -270,6 +289,12 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     ("POST", "/api/requests/{id}/decline", Need::Scope(Approvals)),
     ("POST", "/api/requests/{id}/handled", Need::Scope(Approvals)),
     ("GET", "/api/requests/options", Need::Scope(Approvals)),
+    // activity: what plays, the profile's own, and on an administrator's
+    // account everyone's, as the dashboard shows it (see
+    // AuthUser::oversees_playback). Of others' sessions it reaches only
+    // stopping them (`DELETE /api/sessions/{id}`), never remote control or
+    // casting; administrators' counters stay with the web app.
+    ("GET", "/api/activity", Need::Scope(Activity)),
 ];
 
 /// What an app's token needs for `method` on the routed `path`; `None`:
@@ -294,8 +319,12 @@ mod tests {
         assert_eq!(Scopes::parse("Library"), Err("Library".to_owned()), "names are lower case");
         assert_eq!(Scopes::parse("library\tplay"), Err("library\tplay".to_owned()), "spaces only");
         assert_eq!(Scopes::from_stored("library future play"), Scopes::parse("library play").unwrap());
-        assert_eq!(Scopes::all().to_string(), "library play playlists profiles requests approvals");
-        assert_eq!(Scopes::all().names(), ["library", "play", "playlists", "profiles", "requests", "approvals"]);
+        assert_eq!(Scopes::all().to_string(), "library play playlists profiles requests approvals activity");
+        assert_eq!(
+            Scopes::all().names(),
+            ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"]
+        );
+        assert_eq!(Scopes::parse("activity library").unwrap().to_string(), "library activity");
         assert_eq!(Scopes::parse("profiles library").unwrap().to_string(), "library profiles");
         assert_eq!(Scopes::parse("approvals requests").unwrap().to_string(), "requests approvals");
         assert_eq!(
@@ -319,7 +348,7 @@ mod tests {
     fn every_app_route_is_on_a_real_path() {
         // Whether each names a route of api/mod.rs is checked by
         // tests/app_tokens.rs, which reads it.
-        assert_eq!(APP_ROUTES.len(), 103);
+        assert_eq!(APP_ROUTES.len(), 104);
         for (i, (method, path, _)) in APP_ROUTES.iter().enumerate() {
             assert!(["GET", "POST", "PUT", "PATCH", "DELETE"].contains(method), "{method} {path}");
             assert!(path.starts_with("/api/") && !path.ends_with('/'), "{path}");
@@ -338,6 +367,8 @@ mod tests {
         assert_eq!(required(&Method::POST, "/api/requests/{id}/approve"), Some(Need::Scope(Scope::Approvals)));
         assert_eq!(required(&Method::DELETE, "/api/requests/{id}/watch"), Some(Need::Scope(Scope::Requests)));
         assert_eq!(required(&Method::GET, "/api/requests/options"), Some(Need::Scope(Scope::Approvals)));
+        assert_eq!(required(&Method::GET, "/api/activity"), Some(Need::Scope(Scope::Activity)));
+        assert_eq!(required(&Method::DELETE, "/api/sessions/{id}"), Some(Need::Either(Scope::Play, Scope::Activity)));
         assert_eq!(required(&Method::PUT, "/api/me/track-defaults"), Some(Need::Scope(Scope::Play)));
         assert_eq!(required(&Method::POST, "/api/remote/devices/{id}/cast"), Some(Need::Scope(Scope::Play)));
         assert_eq!(required(&Method::PATCH, "/api/me"), None, "name and picture stay in the web app");
