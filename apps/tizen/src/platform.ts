@@ -1,4 +1,5 @@
 import { localStore } from "pley-tv/auth/tokens";
+import { navigatorLanguages } from "pley-tv/i18n";
 import type { DeviceFacts, Platform, Probe } from "pley-tv/platform";
 import { standardKey, type Key } from "pley-tv/ui/keys";
 import { tierOf, tizenCaps } from "./caps";
@@ -88,6 +89,12 @@ const DEFAULT_CODES: Record<number, Key> = {
   458: "guide",
 };
 
+/** A language tag from Tizen's "fr_FR" (its LOCALE's form); `null` for none. */
+export function localeTag(locale: string | null | undefined): string | null {
+  const tag = (locale ?? "").trim().replace(/_/g, "-").replace(/\..*$/, "");
+  return /^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$/.test(tag) ? tag : null;
+}
+
 /** Key codes to meanings: Samsung's names from the TV (codes differ between models), else the documented codes. */
 export function keyMap(supported: TizenKey[] | null): Record<number, Key> {
   const map: Record<number, Key> = { ...DEFAULT_CODES };
@@ -106,6 +113,17 @@ export function tizenPlatform(): Platform {
   let facts: TizenFacts | null = null;
   const getFacts = () => (facts ??= readFacts());
   let keys: Record<number, Key> = DEFAULT_CODES;
+  // The TV's menu language, as Tizen's system information says it; it answers in a moment, the web engine's languages meanwhile.
+  let locale: string | null = null;
+  try {
+    tizen!.systeminfo.getPropertyValue(
+      "LOCALE",
+      (l) => (locale = localeTag(l.language)),
+      () => undefined,
+    );
+  } catch {
+    // Not on a TV, or the TV doesn't say.
+  }
   return {
     name: "tizen",
     clientId: CLIENT_ID,
@@ -169,6 +187,11 @@ export function tizenPlatform(): Platform {
       } catch {
         return false;
       }
+    },
+    languages() {
+      // Tizen's web runtime gives navigator the TV's language too; the system's own answer comes first where it differs.
+      const engine = navigatorLanguages();
+      return locale ? [locale].concat(engine) : engine;
     },
     screenReader(listener) {
       // Voice Guide (Settings › General › Accessibility), from Samsung's TV info API.

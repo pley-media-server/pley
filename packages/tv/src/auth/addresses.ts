@@ -1,10 +1,6 @@
 /** pley's web port, for addresses typed without one. */
 export const DEFAULT_PORT = 7539;
 
-/** What a TV can't sign in over (the Android app's words). */
-export const UNENCRYPTED =
-  "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in";
-
 interface Parsed {
   scheme: string;
   host: string;

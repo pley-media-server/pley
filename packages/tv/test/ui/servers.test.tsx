@@ -5,6 +5,7 @@ import type { KeyValue } from "../../src/auth/tokens";
 import type { HttpRequest, HttpResponse, Transport } from "../../src/net/transport";
 import { NetworkError } from "../../src/net/transport";
 import type { Platform } from "../../src/platform";
+import { setLanguage } from "../../src/i18n";
 import { AppState } from "../../src/state";
 import { UiContext, type Ui } from "../../src/ui/context";
 import { FocusManager } from "../../src/ui/focus";
@@ -124,5 +125,21 @@ describe("entering a server's address", () => {
     press(input, "back");
     expect(page.querySelector(".field")).toBeNull();
     expect(page.textContent).toContain("Choose your server");
+  });
+});
+
+describe("choosing a server in another language", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("draws the screen again when the language changes", async () => {
+    const { page, ui, input } = await show();
+    act(() => setLanguage("fr"));
+    expect(page.querySelector(".servers-header .t-page")!.textContent).toBe("Choisissez votre serveur");
+    expect(ui.focus.current?.textContent).toBe("Saisir une adresse");
+    press(input, "ok");
+    expect(page.querySelector(".address-entry .t-title")!.textContent).toBe("Saisissez l’adresse de votre serveur");
+    act(() => setLanguage("es"));
+    expect(page.querySelector(".address-entry .t-title")!.textContent).toBe("Introduce la dirección de tu servidor");
+    expect(page.querySelector<HTMLInputElement>(".field input")!.placeholder).toBe("192.168.1.20 o pley.example.com");
   });
 });

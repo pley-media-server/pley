@@ -1,0 +1,31 @@
+{
+  "actions": {
+    "back": "Atrás",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "delete": "Eliminar",
+    "done": "Listo",
+    "ok": "Aceptar",
+    "open": "Abrir",
+    "play": "Reproducir",
+    "remove": "Quitar",
+    "resume": "Reanudar",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "seeAll": "Ver todo",
+    "showMore": "Ver más",
+    "tryAgain": "Volver a intentar"
+  },
+  "states": {
+    "loading": "Cargando",
+    "saved": "Guardado"
+  },
+  "server": {
+    "cantReach": "No se puede conectar con tu servidor",
+    "check": "{{reason}} Comprueba que el servidor esté encendido y que este dispositivo esté en su red.",
+    "nothingAnswers": "Nada responde en esa dirección.",
+    "noAnswerInTime": "No hubo respuesta a tiempo.",
+    "anotherDevice": "Otro dispositivo responde en esa dirección.",
+    "refused": "el servidor lo rechazó (HTTP {{status}})"
+  }
+}

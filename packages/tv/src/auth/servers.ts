@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { NetworkError, type Transport } from "../net/transport";
 import { candidates, DEFAULT_PORT, displayAddress, isLocalHost, origin } from "./addresses";
 
@@ -11,6 +12,8 @@ export interface ServerInfo {
    * in on a phone sets it up for whoever hasn't. False from servers before it.
    */
   twoStepRequired: boolean;
+  /** The server's language for accounts without their own ("fr"); `null` when it leaves it to each device, and from servers before it. */
+  language: string | null;
 }
 
 /** Why an address isn't a server to sign in to. */
@@ -32,11 +35,11 @@ export class ConnectError extends Error {
 export function problemText(p: ConnectProblem): string {
   switch (p.kind) {
     case "bad_address":
-      return "Enter an address such as nas, 192.168.1.20 or pley.example.com.";
+      return t("onboarding.problems.badAddress");
     case "not_pley":
-      return `Something answers at ${p.address}, but it isn't Pley.`;
+      return t("onboarding.problems.notPley", { address: p.address });
     case "unreachable":
-      return `Couldn't reach ${p.address}: ${p.reason}`;
+      return t("onboarding.problems.unreachable", { address: p.address, reason: p.reason });
   }
 }
 
@@ -63,18 +66,19 @@ function timeoutFor(url: string): number {
 export async function probe(http: Transport, url: string, timeoutMs = timeoutFor(url)): Promise<ServerInfo | null> {
   const res = await http({ method: "GET", url: `${url}/api/server`, headers: { Accept: "application/json" }, responseType: "json", timeoutMs });
   if (res.status !== 200) return null;
-  const body = res.body as { name?: unknown; version?: unknown; two_step_required?: unknown } | null;
+  const body = res.body as { name?: unknown; version?: unknown; two_step_required?: unknown; language?: unknown } | null;
   if (!body || typeof body !== "object" || typeof body.version !== "string") return null;
   return {
     url,
     name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : displayAddress(url),
     version: body.version,
     twoStepRequired: body.two_step_required === true,
+    language: typeof body.language === "string" && body.language ? body.language : null,
   };
 }
 
 function reasonOf(e: unknown): string {
-  return e instanceof NetworkError && /too long/.test(e.message) ? "no answer in time" : "nothing answers there";
+  return e instanceof NetworkError && /too long/.test(e.message) ? t("onboarding.problems.noAnswerInTime") : t("onboarding.problems.nothingAnswers");
 }
 
 /**
@@ -98,7 +102,7 @@ export async function connect(http: Transport, input: string): Promise<ServerInf
     }
   }
   if (notPley) throw new ConnectError({ kind: "not_pley", address: notPley });
-  throw new ConnectError({ kind: "unreachable", address: last?.address ?? input, reason: last?.reason ?? "nothing answers there" });
+  throw new ConnectError({ kind: "unreachable", address: last?.address ?? input, reason: last?.reason ?? t("onboarding.problems.nothingAnswers") });
 }
 
 /** A server already known (a row): it answers as pley, or why not. */

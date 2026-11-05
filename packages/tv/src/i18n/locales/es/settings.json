@@ -1,0 +1,13 @@
+{
+  "language": {
+    "label": "Idioma",
+    "names": {
+      "en": "English",
+      "fr": "Français",
+      "es": "Español"
+    },
+    "serverDefault": "Idioma del servidor ({{language}})",
+    "deviceLanguage": "idioma de este dispositivo",
+    "needsNewer": "Elegir un idioma requiere una versión más reciente de Pley en el servidor"
+  }
+}

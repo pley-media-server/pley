@@ -10,7 +10,7 @@ import { UiContext, type Ui } from "../../src/ui/context";
 import { FocusManager } from "../../src/ui/focus";
 import { Input } from "../../src/ui/input";
 import { AppContext } from "../../src/ui/screens/common";
-import { LinkScreen, TWO_STEP_REQUIRED } from "../../src/ui/screens/onboarding/link";
+import { LinkScreen } from "../../src/ui/screens/onboarding/link";
 
 /** Signing in with a code: what the screen says about two-step sign-in on a server that requires it. */
 
@@ -103,7 +103,7 @@ afterEach(() => {
 describe("signing in with a code", () => {
   it("says so when the server requires two-step sign-in", async () => {
     const page = await show({ name: "Den", version: "1.0.0", two_step_required: true });
-    expect(page.querySelector(".link-left .t-body")?.textContent).toBe(TWO_STEP_REQUIRED);
+    expect(page.querySelector(".link-left .t-body")?.textContent).toBe("This server requires two-step sign-in: your phone sets it up if you haven't yet.");
     expect(page.textContent).toContain("BCDF");
   });
 

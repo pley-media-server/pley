@@ -306,6 +306,45 @@ also what waits for them, in red while some failed.
   `Intl.RelativeTimeFormat`. Settings → About says the app uses the TMDB
   API.
 
+### Language
+
+The app is in English, French and Spanish ([API.md](API.md#language)):
+the account's language, else the server's, else the TV's, else English.
+`packages/tv/test/fixtures/language.json` pins that order for both
+Samsung apps.
+
+- **The TV's language:** what Tizen's system information says
+  (`tizen.systeminfo`, `LOCALE`), then the web engine's
+  `navigator.languages`, which Tizen's runtime sets from the TV's menu
+  language. A tag such as `fr-CA` counts as French.
+- **At a start** the app shows the language it showed last
+  (`pley.language`), never the TV's while it waits, which would flash. It
+  changes once the server has said its own (`GET /api/server`, asked again
+  when the events reconnect if it didn't answer) and, signed in, once the
+  account has been heard (`GET /api/auth/me`). The account's own language
+  counts as soon as it is heard.
+- **A change** (another profile, signing out, Settings) draws the screens
+  again in the new language at once, and asks for Home's and the
+  libraries' rows again, as the server writes their titles.
+- **Settings → Profile → Language:** Server default, with the server's
+  language, or "this device's language" and the TV's when the server
+  leaves it to each device; then English, Français and Español, each named
+  in itself. A choice is the profile's on all its devices
+  (`PUT /api/me/language`); a server without that route says it needs a
+  newer Pley.
+- **Requests** to the server carry `Accept-Language` with the language
+  shown.
+- **Dates and numbers** are written with `Intl` in the language shown,
+  with the TV's region when the TV is in that language, so `en-GB` keeps
+  its day before the month. The TVs' engines have no `Intl.PluralRules`:
+  the plural forms of English, French and Spanish are written in the app,
+  as CLDR has them.
+- **The words** are in `packages/tv/src/i18n/locales/<language>/<area>.json`,
+  in the web app's format (`{{name}}`, `_one`, `_many`, `_other`), all
+  three languages in the app's script. A key is typed from the English
+  files, so a wrong one fails the type check; English stands in for a word
+  missing elsewhere, and the tests check every language has every word.
+
 ## Building and testing
 
 ### Commands
@@ -349,7 +388,8 @@ its packages into the SDK by hand and it runs on WHPX.
 | Path | What |
 |---|---|
 | `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs, the server's proof before a token goes ([Telling servers apart](API.md#telling-servers-apart)) |
-| `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile); what the app's shell provides |
+| `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile, the language shown last); what the app's shell provides |
+| `i18n/` | The words in English, French and Spanish, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |

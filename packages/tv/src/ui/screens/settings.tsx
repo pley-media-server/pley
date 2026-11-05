@@ -4,6 +4,7 @@ import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
 import { episodeLabel, relativeTime } from "../../format/format";
+import { deviceLanguage, LANGUAGES as APP_LANGUAGES, supportedLanguage, t, type Language } from "../../i18n";
 import { AUTO, ORIGINAL, PRESETS, presetById } from "../../player/quality";
 import type { AppState, Settings } from "../../state";
 import { fontsHere, SUBTITLE_FONTS, SUBTITLE_POSITIONS } from "../../subs/style";
@@ -141,6 +142,25 @@ export function SettingsScreen(p: { entry: Entry }) {
   const langName = (code: string | null) => (code ? LANGUAGES.filter((l) => l[0] === code)[0]?.[1] ?? code : null);
   const webSuffix = canDefaults ? "" : " · change on the web";
 
+  // The language Pley is in for the profile: the server's until it picks one, each language named in itself.
+  const shownIn = supportedLanguage(me?.language) ?? null;
+  const serverLanguage = supportedLanguage(app.serverLanguage.value);
+  const serverDefault = t("settings.language.serverDefault", {
+    language: serverLanguage
+      ? t(`settings.language.names.${serverLanguage}`)
+      : `${t("settings.language.deviceLanguage")}, ${t(`settings.language.names.${deviceLanguage(app.deviceLanguages()) ?? "en"}`)}`,
+  });
+  const languageChoices: Choice<Language | null>[] = [
+    { value: null, label: serverDefault },
+    ...APP_LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.names.${l}`) })),
+  ];
+  const saveLanguage = (next: Language | null) => {
+    if (!me || next === shownIn) return;
+    app.setAccountLanguage(next).catch((e: unknown) => {
+      ui.toast(isApiError(e, 404) || isApiError(e, 405) ? t("settings.language.needsNewer") : sentence(errorMessage(e)), true);
+    });
+  };
+
   const rows: ComponentChildren[] = [];
   switch (shown) {
     case "profile":
@@ -161,6 +181,16 @@ export function SettingsScreen(p: { entry: Entry }) {
         </div>,
       );
       if (canSwitch) rows.push(<SettingRow key="switch" fid="row-switch" icon="users" label="Switch profile" chevron onSelect={() => ui.nav.restart({ name: "profiles" })} />);
+      rows.push(
+        <SettingRow
+          key="language"
+          fid="row-language"
+          icon="languages"
+          label={t("settings.language.label")}
+          value={me ? languageChoices.filter((c) => c.value === shownIn)[0]?.label : undefined}
+          onSelect={() => choose("row-language", t("settings.language.label"), languageChoices, shownIn, saveLanguage)}
+        />,
+      );
       rows.push(
         <SettingRow
           key="audio"

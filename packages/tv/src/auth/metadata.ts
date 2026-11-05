@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { NetworkError, type Transport } from "../net/transport";
 import { origin } from "./addresses";
 
@@ -9,25 +10,24 @@ export class AuthError extends Error {
   }
 }
 
-/** What older servers answer: no app sign-in at all. */
 /** The server didn't answer at all: worth trying again by itself. */
 export class UnreachableError extends AuthError {
-  constructor(message = "the server can't be reached: check its address and that it's on") {
+  constructor(message = t("onboarding.errors.unreachable")) {
     super(message);
     this.name = "UnreachableError";
   }
 }
 
-export const TOO_OLD = "this server is too old for this app";
+/** What older servers answer: no app sign-in at all. */
+function tooOld(): AuthError {
+  return new AuthError(t("onboarding.errors.tooOld"));
+}
 
 /** RFC 8628's grant: a TV collects its tokens with the code it was given. */
 export const DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
 
 /** pley's own apps move between the household's profiles with this grant. */
 export const SWITCH_PROFILE_GRANT = "urn:pley:params:oauth:grant-type:switch-profile";
-
-/** What a server without sign-in with a code answers. */
-export const NO_CODES = "this server can't sign in TVs with a code yet: update it";
 
 /**
  * Where a server signs apps in (RFC 8414), read from
@@ -54,7 +54,7 @@ export function signsInWithCodes(m: ServerMetadata): boolean {
 
 export async function fetchMetadata(http: Transport, server: string): Promise<ServerMetadata> {
   const home = origin(server);
-  if (!home) throw new AuthError("that isn't a server address");
+  if (!home) throw new AuthError(t("onboarding.errors.notAnAddress"));
   let res;
   try {
     res = await http({ method: "GET", url: home + METADATA_PATH, headers: { Accept: "application/json" }, timeoutMs: 8000 });
@@ -62,41 +62,35 @@ export async function fetchMetadata(http: Transport, server: string): Promise<Se
     if (e instanceof NetworkError) throw new UnreachableError();
     throw e;
   }
-  if (res.status === 404) throw new AuthError(TOO_OLD);
-  if (res.status < 200 || res.status >= 300) throw new AuthError(`the server couldn't answer (HTTP ${res.status})`);
+  if (res.status === 404) throw tooOld();
+  if (res.status < 200 || res.status >= 300) throw new AuthError(t("onboarding.errors.status", { status: res.status }));
   const type = (res.header("Content-Type") ?? "").toLowerCase();
   // Older servers answer their web app's page here.
-  if (type.indexOf("json") < 0) throw new AuthError(TOO_OLD);
+  if (type.indexOf("json") < 0) throw tooOld();
   return parseMetadata(String(res.body), home);
 }
 
 /** The checks of [fetchMetadata], on the answer `text` of the server at `server`. */
 export function parseMetadata(text: string, server: string): ServerMetadata {
   const home = origin(server);
-  if (!home) throw new AuthError("that isn't a server address");
+  if (!home) throw new AuthError(t("onboarding.errors.notAnAddress"));
   let o: Record<string, unknown>;
   try {
     o = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    throw new AuthError(TOO_OLD);
+    throw tooOld();
   }
-  if (!o || typeof o !== "object") throw new AuthError(TOO_OLD);
+  if (!o || typeof o !== "object") throw tooOld();
   const issuer = typeof o.issuer === "string" ? o.issuer : "";
-  if (!issuer) throw new AuthError(TOO_OLD);
+  if (!issuer) throw tooOld();
   // RFC 8414 §3.3: the issuer is exactly the address asked at.
-  if (issuer !== home) {
-    throw new AuthError(
-      `this server calls itself ${issuer.slice(0, 100)}: open it by that address, or check the proxy in front of it passes Host`,
-    );
-  }
+  if (issuer !== home) throw new AuthError(t("onboarding.errors.callsItself", { address: issuer.slice(0, 100) }));
   const strings = (v: unknown): string[] | null =>
     Array.isArray(v) ? v.filter((s): s is string => typeof s === "string" && s.length > 0) : null;
   const endpoint = (name: string): string => {
     const url = o[name];
-    if (typeof url !== "string" || !url) throw new AuthError(TOO_OLD);
-    if (origin(url) !== issuer || url.indexOf(`${issuer}/`) !== 0) {
-      throw new AuthError("this server sends apps to another address to sign in: Pley doesn't");
-    }
+    if (typeof url !== "string" || !url) throw tooOld();
+    if (origin(url) !== issuer || url.indexOf(`${issuer}/`) !== 0) throw new AuthError(t("onboarding.errors.signInElsewhere"));
     return url;
   };
   const device = typeof o.device_authorization_endpoint === "string" && o.device_authorization_endpoint

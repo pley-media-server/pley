@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { errorMessage } from "../../../api/client";
 import { candidates, origin, unencrypted } from "../../../auth/addresses";
 import { check, connect, ConnectError, hostPort, problemText, subnetOf, sweep, type ConnectProblem, type ServerInfo } from "../../../auth/servers";
+import { t } from "../../../i18n";
 import { useUi } from "../../context";
 import { nudge } from "../../focus";
 import { Pill, TextButton } from "../../kit/buttons";
@@ -24,9 +25,7 @@ interface Row {
 type Problem = ConnectProblem | { kind: "unencrypted"; address: string } | { kind: "failed"; message: string };
 
 function textOf(p: Problem): string {
-  if (p.kind === "unencrypted") {
-    return `${p.address} isn't encrypted: what you watch could be read on the way. Use its https address if it has one, or press Connect again to go ahead anyway.`;
-  }
+  if (p.kind === "unencrypted") return t("onboarding.servers.unencrypted", { address: p.address });
   if (p.kind === "failed") return p.message;
   return problemText(p);
 }
@@ -94,7 +93,7 @@ export function ServersScreen() {
       if (app.platform.discover) {
         await app.platform
           // A discovery answer doesn't say: signing in asks the server itself.
-          .discover((s) => found({ url: s.url, name: s.name, version: s.version, twoStepRequired: false }), () => stopped)
+          .discover((s) => found({ url: s.url, name: s.name, version: s.version, twoStepRequired: false, language: null }), () => stopped)
           .catch(() => undefined);
       } else if (net && !app.savedServers().length) {
         // No UDP on this TV: a first launch sweeps the network at once.
@@ -240,7 +239,7 @@ export function ServersScreen() {
       <div class="servers">
         <div class="servers-header">
           <div class="t-page c-fg one-line" style="flex:1">
-            Choose your server
+            {t("onboarding.servers.title")}
           </div>
           <PleyLogo height={32} />
         </div>
@@ -272,37 +271,37 @@ export function ServersScreen() {
           </div>
         )}
         <G kind="row" class="server-buttons" style={`margin-top:${rows.length ? 16 : 0}px`}>
-          <F class="text-btn t-label" label="Enter an address" elRef={(el) => (enterRef.current = el)} initial={!rows.length} onSelect={() => setEntering(true)}>
-            <span>Enter an address</span>
+          <F class="text-btn t-label" label={t("onboarding.servers.enterAddress")} elRef={(el) => (enterRef.current = el)} initial={!rows.length} onSelect={() => setEntering(true)}>
+            <span>{t("onboarding.servers.enterAddress")}</span>
           </F>
-          <TextButton label="Search this network" disabled={sweeping || !subnet} onSelect={runSweep} />
+          <TextButton label={t("onboarding.servers.searchNetwork")} disabled={sweeping || !subnet} onSelect={runSweep} />
         </G>
         <div class="server-status" aria-live="polite">
           {sweeping ? (
             <>
-              <StatusLine text={subnet ? `Checking ${subnet}1-254…` : "Checking this network…"} class="t-caption c-muted" />
+              <StatusLine text={subnet ? t("onboarding.servers.checkingSubnet", { subnet }) : t("onboarding.servers.checkingNetwork")} class="t-caption c-muted" />
               <div class="sweep-bar">
                 <div />
               </div>
             </>
           ) : searching ? (
-            <StatusLine text="Looking for Pley on your network…" waiting />
+            <StatusLine text={t("onboarding.servers.looking")} waiting />
           ) : searched && !rows.length && !problem ? (
-            <div class="t-body c-muted">No servers found. Make sure this TV and the server are on the same network.</div>
+            <div class="t-body c-muted">{t("onboarding.servers.noneFound")}</div>
           ) : null}
           {problem && <div class="t-body c-danger">{textOf(problem)}</div>}
         </div>
-        {anySaved && <div class="forget-hint t-caption c-subtle">Hold OK on a saved server to forget it.</div>}
+        {anySaved && <div class="forget-hint t-caption c-subtle">{t("onboarding.servers.forgetHint")}</div>}
       </div>
       {forgetting && (
         <Dialog
-          title={`Forget ${forgetting.name}?`}
-          body="Pley signs this TV out of it and deletes what it saved from it."
+          title={t("onboarding.servers.forgetTitle", { name: forgetting.name })}
+          body={t("onboarding.servers.forgetBody")}
           onDismiss={() => setForgetting(null)}
           buttons={[
-            { label: "Cancel", initial: true, onSelect: () => setForgetting(null) },
+            { label: t("common.actions.cancel"), initial: true, onSelect: () => setForgetting(null) },
             {
-              label: "Forget",
+              label: t("onboarding.servers.forget"),
               color: "var(--danger-text)",
               onSelect: () => {
                 const r = forgetting;
@@ -320,14 +319,18 @@ export function ServersScreen() {
 
 function ServerRow(p: { row: Row; busy: boolean; lookalike: boolean; onFocus: () => void; onSelect: () => void; onLongSelect?: () => void }) {
   const r = p.row;
-  const line2 = p.busy ? `Connecting to ${hostPort(r.url)}…` : r.unreachable && !r.found ? "Can't reach it" : hostPort(r.url);
+  const line2 = p.busy
+    ? t("onboarding.servers.connecting", { address: hostPort(r.url) })
+    : r.unreachable && !r.found
+      ? t("onboarding.servers.cantReach")
+      : hostPort(r.url);
   const danger = !p.busy && r.unreachable && !r.found;
   const tag = p.lookalike
-    ? { text: "Not your saved server", danger: true }
+    ? { text: t("onboarding.servers.lookalike"), danger: true }
     : unencrypted(r.url)
-      ? { text: "Not encrypted", danger: true }
+      ? { text: t("onboarding.servers.notEncrypted"), danger: true }
       : r.found
-        ? { text: "On this network", danger: false }
+        ? { text: t("onboarding.servers.onNetwork"), danger: false }
         : null;
   return (
     <F class="server-row" fid={`server/${r.url}`} label={`${r.name}, ${line2}`} onFocus={p.onFocus} onSelect={p.onSelect} onLongSelect={p.onLongSelect}>
@@ -397,12 +400,12 @@ function AddressEntry(p: {
   return (
     <BrandGlow>
       <div class="address-entry">
-        <div class="t-title c-fg">Enter your server's address</div>
+        <div class="t-title c-fg">{t("onboarding.address.title")}</div>
         <G kind="col" class="address-col">
           <div style="margin-top:8px">
             <TextField
               value={text}
-              placeholder="192.168.1.20 or pley.example.com"
+              placeholder={t("onboarding.address.placeholder")}
               type="url"
               width={480}
               initial
@@ -412,11 +415,11 @@ function AddressEntry(p: {
             />
           </div>
           <div style="margin-top:14px">
-            <Pill label={checking ? "Checking…" : "Connect"} onSelect={connectNow} />
+            <Pill label={checking ? t("onboarding.address.checking") : t("onboarding.address.connect")} onSelect={connectNow} />
           </div>
         </G>
         <div class="address-info" aria-live="polite">
-          <div class="t-caption c-muted">Port 7539 is used by default.</div>
+          <div class="t-caption c-muted">{t("onboarding.address.defaultPort")}</div>
           {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
         </div>
       </div>

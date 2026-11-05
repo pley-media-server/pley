@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { form, NetworkError, type Transport } from "../net/transport";
 import { base64url, fromBase64url, hmacSha256, utf8 } from "./hmac";
 import { AuthError, SWITCH_PROFILE_GRANT } from "./metadata";
@@ -57,23 +58,36 @@ export interface OAuthError {
 }
 
 /** RFC 6749's error codes in words, for a refusal that came without a description (rather than "Invalid_client."). */
-const OAUTH_WORDS: Record<string, string> = {
-  invalid_client: "the server doesn't know this app",
-  unauthorized_client: "the server doesn't let this app sign in this way",
-  invalid_grant: "the server refused this sign-in",
-  access_denied: "the sign-in was refused",
-  expired_token: "the code expired",
-  invalid_scope: "the server refused what this app asked for",
-  invalid_request: "the server didn't understand the request",
-  unsupported_grant_type: "the server doesn't take this kind of sign-in",
-};
+function oauthWords(code: string, status: number): string {
+  switch (code) {
+    case "invalid_client":
+      return t("onboarding.oauth.invalidClient");
+    case "unauthorized_client":
+      return t("onboarding.oauth.unauthorizedClient");
+    case "invalid_grant":
+      return t("onboarding.oauth.invalidGrant");
+    case "access_denied":
+      return t("onboarding.oauth.accessDenied");
+    case "expired_token":
+      return t("onboarding.oauth.expiredToken");
+    case "invalid_scope":
+      return t("onboarding.oauth.invalidScope");
+    case "invalid_request":
+      return t("onboarding.oauth.invalidRequest");
+    case "unsupported_grant_type":
+      return t("onboarding.oauth.unsupportedGrantType");
+    case "":
+      return t("common.server.refused", { status });
+    default:
+      return t("onboarding.oauth.refused", { code: code.replace(/_/g, " ") });
+  }
+}
 
 export class TokenError extends AuthError {
   readonly status: number;
   readonly oauth: OAuthError | null;
   constructor(status: number, oauth: OAuthError | null) {
-    const code = oauth?.error ?? "";
-    super(oauth?.description || OAUTH_WORDS[code] || (code ? `the server refused (${code.replace(/_/g, " ")})` : `the server refused (HTTP ${status})`));
+    super(oauth?.description || oauthWords(oauth?.error ?? "", status));
     this.name = "TokenError";
     this.status = status;
     this.oauth = oauth;
@@ -87,7 +101,15 @@ export class SignedOutError extends AuthError {
   }
 }
 
-export const WIDER_SCOPE_MESSAGE = "the server allowed more than this app asks for: signed out";
+/** A sign-in that got more than it asked for, which the app ends. */
+function widerScope(): AuthError {
+  return new AuthError(t("onboarding.errors.widerScope"));
+}
+
+/** A token answer that isn't one. */
+function unreadable(): AuthError {
+  return new AuthError(t("onboarding.errors.unreadable"));
+}
 
 /** How long before its end an access token is refreshed. */
 const EARLY_MS = 60_000;
@@ -121,13 +143,11 @@ function serverProof(r: Record<string, unknown>): ServerProof | null {
 
 export function parseTokenResponse(body: unknown, askedScope: string): TokenResponse {
   const o = typeof body === "string" ? safeJson(body) : body;
-  if (!o || typeof o !== "object") throw new AuthError("the server's answer can't be read: try again");
+  if (!o || typeof o !== "object") throw unreadable();
   const r = o as Record<string, unknown>;
   const access = r.access_token;
-  if (typeof access !== "string" || !access) throw new AuthError("the server's answer can't be read: try again");
-  if (typeof r.token_type === "string" && r.token_type.toLowerCase() !== "bearer") {
-    throw new AuthError("the server's answer can't be read: try again");
-  }
+  if (typeof access !== "string" || !access) throw unreadable();
+  if (typeof r.token_type === "string" && r.token_type.toLowerCase() !== "bearer") throw unreadable();
   return {
     accessToken: access,
     refreshToken: typeof r.refresh_token === "string" && r.refresh_token ? r.refresh_token : null,
@@ -515,7 +535,7 @@ export class Tokens {
       if (fresh.issuer !== this.issuer) throw new Error("tokens of another server");
       if (extraScopes(fresh.scope, askedScope).length) {
         await revoke(this.http, this.clientId, fresh);
-        throw new AuthError(WIDER_SCOPE_MESSAGE);
+        throw widerScope();
       }
       const previous = this.load();
       this.save(fresh);
@@ -544,7 +564,7 @@ export class Tokens {
     await revoke(this.http, this.clientId, fresh);
     this.wipe();
     this.onSignedOut("wider_scope");
-    throw new AuthError(WIDER_SCOPE_MESSAGE);
+    throw widerScope();
   }
 }
 

@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import qrcode from "qrcode-generator";
+import { t } from "../../../i18n";
 import { useUi } from "../../context";
 import { F, G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
@@ -181,7 +182,12 @@ export function ProfileAvatar(p: { name: string; color: string | null; picture: 
 /** A key of a number pad: a digit, or Delete / OK. */
 export type PadKey = { kind: "text"; text: string } | { kind: "delete" } | { kind: "ok" };
 
-const PAD_LABELS: Record<string, string> = { delete: "Delete", ok: "OK" };
+/** What the screen reader says for a key. */
+function padLabel(k: PadKey): string {
+  if (k.kind === "delete") return t("onboarding.pad.delete");
+  if (k.kind === "ok") return t("onboarding.pad.ok");
+  return t("onboarding.pad.digit", { digit: k.text });
+}
 
 /**
  * A number pad (TvKeypad): rows of 64 px keys 14 apart; a pressed key
@@ -224,7 +230,7 @@ export function NumberPad(p: {
               fid={p.fid ? `${p.fid}/${id}` : undefined}
               initial={enabled && id === (p.initialKey ?? "5")}
               disabled={!enabled}
-              label={k.kind === "text" ? `digit ${k.text}` : PAD_LABELS[k.kind]}
+              label={padLabel(k)}
               onSelect={() => press(k, id)}
             >
               <PadGlyph k={k} />

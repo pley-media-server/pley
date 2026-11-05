@@ -1,0 +1,31 @@
+{
+  "actions": {
+    "back": "Retour",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "delete": "Supprimer",
+    "done": "Terminé",
+    "ok": "OK",
+    "open": "Ouvrir",
+    "play": "Lire",
+    "remove": "Retirer",
+    "resume": "Reprendre",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "seeAll": "Tout voir",
+    "showMore": "Voir plus",
+    "tryAgain": "Réessayer"
+  },
+  "states": {
+    "loading": "Chargement",
+    "saved": "Enregistré"
+  },
+  "server": {
+    "cantReach": "Impossible de joindre votre serveur",
+    "check": "{{reason}} Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.",
+    "nothingAnswers": "Rien ne répond à cette adresse.",
+    "noAnswerInTime": "Pas de réponse à temps.",
+    "anotherDevice": "Un autre appareil répond à cette adresse.",
+    "refused": "le serveur a refusé (HTTP {{status}})"
+  }
+}

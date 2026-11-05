@@ -1,6 +1,7 @@
+import { t } from "../i18n";
 import { NetworkError, type Transport } from "../net/transport";
-import { origin, unencrypted, UNENCRYPTED } from "./addresses";
-import { AuthError, DEVICE_CODE_GRANT, fetchMetadata, NO_CODES, signsInWithCodes, UnreachableError, type ServerMetadata } from "./metadata";
+import { origin, unencrypted } from "./addresses";
+import { AuthError, DEVICE_CODE_GRANT, fetchMetadata, signsInWithCodes, UnreachableError, type ServerMetadata } from "./metadata";
 import { parseTokenResponse, postForm, stored, TokenError, type StoredTokens } from "./tokens";
 
 /** Everything pley's own TV apps may ask for (docs/API.md, "Scopes"). */
@@ -78,10 +79,11 @@ export class DeviceSignIn {
 
   async start(server: string): Promise<DeviceCode> {
     const home = origin(server);
-    if (!home) throw new AuthError("that isn't a server address");
-    if (unencrypted(home)) throw new AuthError(UNENCRYPTED);
+    if (!home) throw new AuthError(t("onboarding.errors.notAnAddress"));
+    // What a TV can't sign in over (the Android app's words).
+    if (unencrypted(home)) throw new AuthError(t("onboarding.errors.unencrypted"));
     const metadata = await fetchMetadata(this.http, home);
-    if (!signsInWithCodes(metadata)) throw new AuthError(NO_CODES);
+    if (!signsInWithCodes(metadata)) throw new AuthError(t("onboarding.errors.noCodes"));
     const scope = scopeFor(metadata);
     let answer: unknown;
     try {
@@ -92,9 +94,9 @@ export class DeviceSignIn {
     } catch (e) {
       if (e instanceof TokenError && (e.oauth?.error === "invalid_client" || e.oauth?.error === "unauthorized_client")) {
         // A server from before pley's TV apps were built in.
-        throw new AuthError("this server doesn't know Pley's TV apps yet: update it");
+        throw new AuthError(t("onboarding.errors.unknownApp"));
       }
-      if (e instanceof TokenError && e.status === 429) throw new AuthError("too many TVs are signing in here right now: try again in a minute");
+      if (e instanceof TokenError && e.status === 429) throw new AuthError(t("onboarding.errors.busy"));
       if (e instanceof NetworkError) throw new UnreachableError();
       throw e;
     }
@@ -145,7 +147,7 @@ export class DeviceSignIn {
               outcome = { kind: "expired" };
               break;
             case "invalid_grant":
-              outcome = { kind: "failed", message: "this code doesn't work anymore: get a new one" };
+              outcome = { kind: "failed", message: t("onboarding.errors.codeUsed") };
               break;
             default:
               outcome = { kind: "failed", message: e.message };
@@ -178,7 +180,7 @@ export class DeviceSignIn {
 
 /** The code in `body`, the answer of `server`'s device authorization endpoint (§3.2). */
 export function parseDeviceCode(body: unknown, server: string, metadata: ServerMetadata, scope: string, now: number): DeviceCode {
-  const bad = new AuthError("the server's answer can't be read: try again");
+  const bad = new AuthError(t("onboarding.errors.unreadable"));
   if (!body || typeof body !== "object") throw bad;
   const o = body as Record<string, unknown>;
   const deviceCode = o.device_code;
@@ -186,7 +188,7 @@ export function parseDeviceCode(body: unknown, server: string, metadata: ServerM
   const uri = o.verification_uri;
   if (typeof deviceCode !== "string" || !deviceCode || typeof userCode !== "string" || !userCode || typeof uri !== "string") throw bad;
   // The page to open must be this server's own: a code typed elsewhere would sign someone else's TV in.
-  if (origin(uri) !== metadata.issuer) throw new AuthError("this server sends people to another address to approve TVs: Pley doesn't");
+  if (origin(uri) !== metadata.issuer) throw new AuthError(t("onboarding.errors.approveElsewhere"));
   const complete = typeof o.verification_uri_complete === "string" && origin(o.verification_uri_complete) === metadata.issuer
     ? o.verification_uri_complete
     : null;

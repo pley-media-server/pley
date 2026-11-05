@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { tierOf, tizenCaps } from "../src/caps";
 import { avplayError, statusOf } from "../src/engine";
 import { yearOfTizen, type TizenFacts } from "../src/facts";
-import { keyMap, REGISTERED } from "../src/platform";
+import { keyMap, localeTag, REGISTERED, tizenPlatform } from "../src/platform";
 
 function tv(over: Partial<TizenFacts>): TizenFacts {
   return {
@@ -145,5 +145,35 @@ describe("Samsung's remote", () => {
     expect([map[427], map[428], map[10073]]).toEqual(["channelUp", "channelDown", "channelList"]);
     expect(keyMap(null)[458]).toBe("guide");
     expect(REGISTERED).toEqual(expect.arrayContaining(["ChannelUp", "ChannelDown", "ChannelList", "Guide"]));
+  });
+});
+
+describe("Samsung's language", () => {
+  it("reads Tizen's LOCALE as a language tag", () => {
+    expect(localeTag("fr_FR")).toBe("fr-FR");
+    expect(localeTag("es_US.UTF-8")).toBe("es-US");
+    expect(localeTag("en")).toBe("en");
+    expect(localeTag("")).toBeNull();
+    expect(localeTag(null)).toBeNull();
+    expect(localeTag("not a locale")).toBeNull();
+  });
+
+  it("puts the TV's own language before the web engine's", () => {
+    const asked: string[] = [];
+    vi.stubGlobal("tizen", {
+      systeminfo: {
+        getPropertyValue: (property: string, ok: (l: { language: string; country: string }) => void) => {
+          asked.push(property);
+          ok({ language: "es_MX", country: "es_MX" });
+        },
+      },
+    });
+    const platform = tizenPlatform();
+    expect(asked).toEqual(["LOCALE"]);
+    expect(platform.languages!()).toEqual(["es-MX"].concat(navigator.languages));
+  });
+
+  it("goes by the web engine's languages where Tizen doesn't say", () => {
+    expect(tizenPlatform().languages!()).toEqual(navigator.languages.slice());
   });
 });
