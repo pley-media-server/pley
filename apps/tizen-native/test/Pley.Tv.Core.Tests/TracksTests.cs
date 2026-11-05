@@ -16,6 +16,7 @@ public class TrackRuleTests
 {
     public static IEnumerable<object[]> ControlsCases => Indexes("controls");
     public static IEnumerable<object[]> CommandCases => Indexes("commands");
+    public static IEnumerable<object[]> QualityCases => Indexes("qualities");
 
     static IEnumerable<object[]> Indexes(string rule) =>
         Enumerable.Range(0, Fixtures.Load("tracks").GetProperty(rule).GetArrayLength()).Select(i => new object[] { i });
@@ -30,7 +31,8 @@ public class TrackRuleTests
     {
         var c = Case("controls", i);
         var input = c.GetProperty("in");
-        var declared = Remote.VideoControls(input.GetProperty("has_next").GetBoolean(), input.GetProperty("audio").GetInt32(), input.GetProperty("subtitles").GetInt32());
+        // The fixture's videos are the server's, which have a Quality menu.
+        var declared = Remote.VideoControls(input.GetProperty("has_next").GetBoolean(), input.GetProperty("audio").GetInt32(), input.GetProperty("subtitles").GetInt32(), quality: true);
         Assert.Equal(c.GetProperty("out").EnumerateArray().Select(e => e.GetString()), declared);
     }
 
@@ -56,6 +58,30 @@ public class TrackRuleTests
         var written = action.Act == TrackAct.None
             ? new Dictionary<string, object?> { ["act"] = "none", ["report"] = action.Report }
             : new Dictionary<string, object?> { ["act"] = action.Act == TrackAct.Audio ? "audio" : "subtitles", ["stream_index"] = action.Index, ["report"] = action.Report };
+        Fixtures.SameFields(input, written, c.GetProperty("out"));
+    }
+
+    [Theory]
+    [MemberData(nameof(QualityCases))]
+    public void A_quality_command_does_what_the_fixture_says(int i)
+    {
+        var c = Case("qualities", i);
+        var input = c.GetProperty("in");
+        var p = input.GetProperty("player");
+        var player = new QualityPlayer(p.GetProperty("session_id").GetString(),
+            p.GetProperty("offered").EnumerateArray().Select(e => e.GetString()!).ToList(),
+            p.GetProperty("picked").GetString()!);
+        var command = input.GetProperty("command");
+        var action = Remote.Quality(player, new ServerEvent
+        {
+            Type = "player_command",
+            SessionId = command.GetProperty("session_id").GetString(),
+            Command = command.GetProperty("command").GetString(),
+            Quality = command.GetProperty("quality").GetString(),
+        });
+        var written = action.Id == null
+            ? new Dictionary<string, object?> { ["act"] = "none", ["report"] = action.Report }
+            : new Dictionary<string, object?> { ["act"] = "quality", ["quality"] = action.Id, ["report"] = action.Report };
         Fixtures.SameFields(input, written, c.GetProperty("out"));
     }
 }
