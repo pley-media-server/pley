@@ -28,9 +28,10 @@ describes how they are made.
 - The web and desktop apps have a remote in the header while something
   plays on another of your devices: it shows what plays there and how far
   along, and plays, pauses, seeks, skips, goes to the next or previous
-  title or channel and stops it. What a command asks shows at once (the
-  place a seek goes, playing or paused), and what plays stays on the
-  remote while a next starts the one after. Their players obey the remote
+  title or channel and stops it, Previous and Next at its edges with the
+  skips and Play or Pause centred between them. What a command asks shows
+  at once (the place a seek goes, playing or paused), and what plays stays
+  on the remote while a next starts the one after. Their players obey the remote
   too, and the dashboard says which device each session plays on.
 - Every session says which device plays it, the same for everything one
   sign-in plays, and what kind of device that is (a TV, a phone, a

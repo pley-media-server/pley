@@ -244,6 +244,31 @@ class RemoteUiTest {
     }
 
     @Test
+    fun previousAndNextAreAtTheEdgesWithTheSkipsAndPlayCentredBetweenThem() {
+        remote.devices.value = listOf(episode(controls = listOf(Control.Previous, Control.Next, Control.Play, Control.Pause, Control.Skip)))
+        show()
+        open()
+        val card = compose.onNodeWithTag(REMOTE_CARD + "s1").fetchSemanticsNode()
+        val density = card.layoutInfo.density.density
+        fun bounds(label: String) = compose.onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+        val previous = bounds("Previous on Living room TV")
+        val back = bounds("Back 10 seconds on Living room TV")
+        val pause = bounds("Pause on Living room TV")
+        val forward = bounds("Forward 30 seconds on Living room TV")
+        val next = bounds("Next on Living room TV")
+        assertTrue(previous.right <= back.left && back.right <= pause.left && pause.right <= forward.left && forward.right <= next.left)
+        assertEquals(card.boundsInRoot.center.x, pause.center.x, density)
+        // At the card's edges, within its padding.
+        assertTrue(previous.left - card.boundsInRoot.left < 16 * density)
+        assertTrue(card.boundsInRoot.right - next.right < 16 * density)
+
+        // Without a Previous, play stays in the middle.
+        remote.devices.value = listOf(episode())
+        compose.waitForIdle()
+        assertEquals(card.boundsInRoot.center.x, bounds("Pause on Living room TV").center.x, density)
+    }
+
+    @Test
     fun aChannelShowsItsProgrammeHowFarItIsItsTimesAndWhatIsNext() {
         val start = System.currentTimeMillis() / 1000 - 1_800
         remote.devices.value = listOf(channel(nowStart = start, nowStop = start + 3_600, next = "The Late Show"))

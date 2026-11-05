@@ -225,6 +225,19 @@ describe("RemoteButton", () => {
     expect(within(tv).getByRole("button", { name: "Next on Living room TV" })).toBeDisabled();
   });
 
+  it("puts Previous at the left edge and Next at the right, the skips and play or pause between them", async () => {
+    serve(() => [episode({ controls: ["previous", "next", "play", "pause", "skip"] })]);
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    const previous = within(panel).getByRole("button", { name: "Previous on Living room TV" });
+    const row = previous.parentElement!.parentElement!;
+    expect(Array.from(row.children).map((cell) => Array.from(cell.querySelectorAll("button")).map((b) => b.getAttribute("aria-label")))).toEqual([
+      ["Previous on Living room TV"],
+      ["Back 10 seconds on Living room TV", "Play on Living room TV", "Forward 30 seconds on Living room TV"],
+      ["Next on Living room TV"],
+    ]);
+  });
+
   it("changes channel on Live TV, which has no place to show", async () => {
     serve(() => [live()]);
     renderWithProviders(<RemoteButton />);

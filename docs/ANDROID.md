@@ -228,11 +228,13 @@ A device's controls, top to bottom:
   it ends (the channel's `now_start` and `now_stop`), its times as the
   phone writes them ("20:00 – 21:00"), and **Next:** the programme after
   it; no seek bar;
-- the transport, centred: previous, back 10 s, play or pause, forward
-  30 s where its player declares them, and next where its player declares
-  it or what plays has a next by nature (an episode, a track), dimmed when
-  the player didn't declare it; a movie whose player declares none has no
-  next. On Live TV, play or pause only where its player declares pause,
+- the transport: previous at the left edge and next at the right, and
+  between them, centred, back 10 s, play or pause and forward 30 s, each
+  where its player declares it; play stays in the middle whichever ends
+  show. Next shows where its player declares it or what plays has a next
+  by nature (an episode, a track), dimmed when the player didn't declare
+  it; a movie whose player declares none has no next. On Live TV, centred,
+  play or pause only where its player declares pause,
   then a channel rocker: one rounded pill holding channel down, the word
   **CHANNEL** and channel up, each dimmed when the player can't change
   channel that way;

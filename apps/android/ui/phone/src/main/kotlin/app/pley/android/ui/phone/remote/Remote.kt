@@ -691,49 +691,57 @@ private fun Progress(session: RemoteSession, device: String, now: Long, onSeek: 
 }
 
 /**
- * The transport, centred. A title's in the web's order: previous, back
- * 10 s, play or pause, forward 30 s, where the player declares them, and
- * next where the player declares it or what plays has a next by nature (an
- * episode, a track), dimmed when the player can't go there; a movie whose
- * player declares none has no Next. A channel's: play or pause where the
- * player declares pause, then the channel rocker ([ChannelRocker]).
+ * The transport. A title's: previous at the left edge and next at the
+ * right, and between them, centred, back 10 s, play or pause and forward
+ * 30 s, each where the player declares it; play stays in the middle
+ * whichever ends show. Next shows where the player declares it or what
+ * plays has a next by nature (an episode, a track), dimmed when the player
+ * can't go there; a movie whose player declares none has no Next. A
+ * channel's, centred: play or pause where the player declares pause, then
+ * the channel rocker ([ChannelRocker]).
  */
 @Composable
 private fun Transport(session: RemoteSession, device: String, live: Boolean, send: (PlayerCommandRequest) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        val paused = session.session.state == ProgressState.Paused
-        val toggle = when {
-            live && !session.can(Control.Pause) -> null
-            paused && session.can(Control.Play) -> Control.Play
-            !paused && session.can(Control.Pause) -> Control.Pause
-            else -> null
-        }
-        if (live) {
+    val paused = session.session.state == ProgressState.Paused
+    val toggle = when {
+        live && !session.can(Control.Pause) -> null
+        paused && session.can(Control.Play) -> Control.Play
+        !paused && session.can(Control.Pause) -> Control.Pause
+        else -> null
+    }
+    if (live) {
+        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             toggle?.let { PlayPause(it, device, send) }
             ChannelRocker(session, device, send)
-            return@Row
         }
+        return
+    }
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // The edges' glyphs line up with the artwork and the times above: their touch targets reach past instead.
         if (session.can(Control.Previous)) {
             PleyIconButton(
                 PleyIcons.SkipBack,
                 stringResource(R.string.remote_previous, device),
                 onClick = { send(PlayerCommandRequest(Control.Previous)) },
+                modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp),
             )
         }
-        if (session.can(Control.Skip)) {
-            PleyIconButton(
-                PleyIcons.RotateCcw,
-                stringResource(R.string.remote_back, device),
-                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = -RemoteRepository.SKIP_BACK_MS)) },
-            )
-        }
-        toggle?.let { PlayPause(it, device, send) }
-        if (session.can(Control.Skip)) {
-            PleyIconButton(
-                PleyIcons.RotateCw,
-                stringResource(R.string.remote_forward, device),
-                onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = RemoteRepository.SKIP_FORWARD_MS)) },
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (session.can(Control.Skip)) {
+                PleyIconButton(
+                    PleyIcons.RotateCcw,
+                    stringResource(R.string.remote_back, device),
+                    onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = -RemoteRepository.SKIP_BACK_MS)) },
+                )
+            }
+            toggle?.let { PlayPause(it, device, send) }
+            if (session.can(Control.Skip)) {
+                PleyIconButton(
+                    PleyIcons.RotateCw,
+                    stringResource(R.string.remote_forward, device),
+                    onClick = { send(PlayerCommandRequest(Control.Skip, offsetMs = RemoteRepository.SKIP_FORWARD_MS)) },
+                )
+            }
         }
         val kind = session.session.item?.kind
         if (session.can(Control.Next) || kind == ItemKind.Episode || kind == ItemKind.Track) {
@@ -741,6 +749,7 @@ private fun Transport(session: RemoteSession, device: String, live: Boolean, sen
                 PleyIcons.SkipForward,
                 stringResource(R.string.remote_next, device),
                 onClick = { send(PlayerCommandRequest(Control.Next)) },
+                modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp),
                 enabled = session.can(Control.Next),
             )
         }

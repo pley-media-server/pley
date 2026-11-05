@@ -14,7 +14,8 @@ describes how they are made.
   one of them, a bar above the tabs says where and what, and opens a
   remote with what plays on each, how far, and the controls its player
   obeys (play and pause, back 10 s and forward 30 s, next and previous,
-  channel up and down, a slider to seek), and Stop. What a command asks
+  channel up and down, a slider to seek), and Stop; previous and next sit
+  at its edges, the skips and play or pause centred. What a command asks
   shows at once (the place a seek goes, playing or paused, the track
   picked), and what plays stays while a next starts the one after; a
   device that doesn't act on a command within a few seconds is said not

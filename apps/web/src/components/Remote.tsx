@@ -554,38 +554,46 @@ function PlayingControls({
           </div>
         </div>
       ) : can("previous") || skips || toggle || nextShown ? (
-        <div className={cn("flex items-center justify-center gap-2 transition-opacity", changing && "opacity-50")}>
-          {can("previous") ? (
-            <IconButton label={`Previous on ${name}`} size="sm" onClick={() => send("previous")}>
-              <SkipBack className="size-4 fill-current" />
-            </IconButton>
-          ) : null}
-          {skips ? (
-            <IconButton label={`Back 10 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: -SKIP_BACK_MS })}>
-              <RotateCcw className="size-4" />
-            </IconButton>
-          ) : null}
-          {toggle ? (
-            <button
-              type="button"
-              aria-label={`${toggle === "play" ? "Play" : "Pause"} on ${name}`}
-              title={toggle === "play" ? "Play" : "Pause"}
-              onClick={() => send(toggle)}
-              className="flex size-10 items-center justify-center rounded-full bg-fg text-bg transition hover:scale-105"
-            >
-              {toggle === "play" ? <Play className="ml-0.5 size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
-            </button>
-          ) : null}
-          {skips ? (
-            <IconButton label={`Forward 30 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: SKIP_FORWARD_MS })}>
-              <RotateCw className="size-4" />
-            </IconButton>
-          ) : null}
-          {nextShown ? (
-            <IconButton label={`Next on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
-              <SkipForward className="size-4 fill-current" />
-            </IconButton>
-          ) : null}
+        // Previous at the left edge and Next at the right, the skips and play or pause between them: play
+        // stays in the middle whichever ends show.
+        <div className={cn("grid grid-cols-[1fr_auto_1fr] items-center transition-opacity", changing && "opacity-50")}>
+          <div className="flex justify-start">
+            {can("previous") ? (
+              <IconButton label={`Previous on ${name}`} size="sm" onClick={() => send("previous")}>
+                <SkipBack className="size-4 fill-current" />
+              </IconButton>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            {skips ? (
+              <IconButton label={`Back 10 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: -SKIP_BACK_MS })}>
+                <RotateCcw className="size-4" />
+              </IconButton>
+            ) : null}
+            {toggle ? (
+              <button
+                type="button"
+                aria-label={`${toggle === "play" ? "Play" : "Pause"} on ${name}`}
+                title={toggle === "play" ? "Play" : "Pause"}
+                onClick={() => send(toggle)}
+                className="flex size-10 items-center justify-center rounded-full bg-fg text-bg transition hover:scale-105"
+              >
+                {toggle === "play" ? <Play className="ml-0.5 size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
+              </button>
+            ) : null}
+            {skips ? (
+              <IconButton label={`Forward 30 seconds on ${name}`} size="sm" onClick={() => send("skip", { offsetMs: SKIP_FORWARD_MS })}>
+                <RotateCw className="size-4" />
+              </IconButton>
+            ) : null}
+          </div>
+          <div className="flex justify-end">
+            {nextShown ? (
+              <IconButton label={`Next on ${name}`} size="sm" disabled={!can("next")} onClick={() => send("next")}>
+                <SkipForward className="size-4 fill-current" />
+              </IconButton>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <span className="sr-only" role="status">
