@@ -192,6 +192,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write # make the tag and the release
+      actions: read # see that every job in the run passed
       id-token: write # sign the provenance attestation (Sigstore)
       attestations: write # store the attestation
     env:
@@ -202,6 +203,19 @@ jobs:
       TITLE: ${{ needs.prepare.outputs.title }}
       SIGNED: ${{ needs.android.outputs.signed }}
     steps:
+      # A unit's result can be success with one of its jobs cancelled (GitHub
+      # cancels a job it finds no runner for) and some of its files missing,
+      # so every job in this attempt has to have passed or been skipped.
+      # Re-run failed jobs runs what didn't pass again, and this job after it.
+      - name: Every job passed
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq '.jobs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped") | "\(.name): \(.conclusion)"' > unpassed
+          if [ -s unpassed ]; then
+            sed 's/^/::error::/' unpassed
+            echo "::error::Nothing is tagged or published until every job has passed: re-run the failed jobs"
+            exit 1
+          fi
       # Samsung's web package is made by hand, and Android's only with its key.
       - name: Files built
         id: files
