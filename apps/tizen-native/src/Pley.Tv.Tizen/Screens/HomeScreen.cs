@@ -33,7 +33,9 @@ sealed class HomeScreen : ShellPage
     readonly BackdropView backdrop;
     readonly ScrimView scrim;
     readonly View hero = new View();
-    readonly View heroText = new View();
+    readonly Redrawn heroText;
+    /// <summary>What the hero says, as last drawn: the same again isn't drawn again.</summary>
+    (string, string, HomeMeta, string, bool, string, bool) heroShown;
     readonly ButtonRow heroButtons;
     readonly ButtonView resume;
     readonly RoundButton fromStart;
@@ -43,6 +45,8 @@ sealed class HomeScreen : ShellPage
     readonly View body = new View { WidthResizePolicy = ResizePolicyType.FillToParent, HeightResizePolicy = ResizePolicyType.FillToParent };
     readonly List<IDisposable> watches = new List<IDisposable>();
     RowColumnView? column;
+    /// <summary>The rows drawn, in order.</summary>
+    readonly List<RowView> rowViews = new List<RowView>();
     IReadOnlyList<HomeRow> shownRows = Array.Empty<HomeRow>();
     readonly Dictionary<(string Row, long Id), ItemSummary> itemsByTile = new Dictionary<(string, long), ItemSummary>();
     HomeInfo? heroInfo;
@@ -68,7 +72,7 @@ sealed class HomeScreen : ShellPage
         View.Add(scrim);
         View.Add(infoBlock);
         hero.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(HeroTop));
-        hero.Add(heroText);
+        heroText = new Redrawn(hero);
         heroButtons = new ButtonRow();
         resume = heroButtons.Add(new ButtonView("Resume", ButtonKind.Pill, () => Play(false), iconName: "play"));
         fromStart = new RoundButton("From start", "rotate-ccw", () => Play(true));
@@ -96,6 +100,7 @@ sealed class HomeScreen : ShellPage
         foreach (var w in watches) w.Dispose();
         model.Dispose();
         skeletonTimer?.Stop();
+        heroText.Stop();
     }
 
     /// <summary>Focus back on Home: on the tile it left from, or Resume.</summary>
@@ -179,6 +184,7 @@ sealed class HomeScreen : ShellPage
             child.Dispose();
         }
         column = null;
+        rowViews.Clear();
         shownRows = Array.Empty<HomeRow>();
         itemsByTile.Clear();
     }
@@ -235,8 +241,30 @@ sealed class HomeScreen : ShellPage
     void ShowReady(HomeState.Ready s)
     {
         if (s.Hero != null) ShowHero(s.Hero);
-        if (!SameRows(s.Rows, shownRows)) ShowRows(s);
+        if (SameRows(s.Rows, shownRows)) { }
+        else if (SameItems(s.Rows, shownRows) && rowViews.Count == s.Rows.Count) UpdateRows(s);
+        else ShowRows(s);
         FollowFocus();
+    }
+
+    /// <summary>The same rows of the same items, in the same order: only what the tiles say may differ.</summary>
+    static bool SameItems(IReadOnlyList<HomeRow> a, IReadOnlyList<HomeRow> b) =>
+        a.Count == b.Count && a.Zip(b, (x, y) => x.Key == y.Key && x.Title == y.Title && x.Items.Select(i => i.Id).SequenceEqual(y.Items.Select(i => i.Id))).All(same => same);
+
+    /// <summary>
+    /// The tiles take their new look (the progress a film just played left, a badge), in the rows
+    /// they are in: Home drawn again whole as the player closed held the UI 190 to 470 ms, as the
+    /// TV's player was let go.
+    /// </summary>
+    void UpdateRows(HomeState.Ready s)
+    {
+        shownRows = s.Rows;
+        for (var r = 0; r < s.Rows.Count; r++)
+        {
+            var row = s.Rows[r];
+            foreach (var item in row.Items) itemsByTile[(row.Key, item.Id)] = item;
+            rowViews[r].Update(row.Items.Select(i => TileModel.Of(i, row.Kind, s.Origin)).ToList());
+        }
     }
 
     static bool SameRows(IReadOnlyList<HomeRow> a, IReadOnlyList<HomeRow> b) =>
@@ -253,6 +281,7 @@ sealed class HomeScreen : ShellPage
         }
         page.Clear();
         itemsByTile.Clear();
+        rowViews.Clear();
         shownRows = s.Rows;
         page.Add(heroButtons.Group);
         hero.Show();
@@ -264,7 +293,7 @@ sealed class HomeScreen : ShellPage
             var models = row.Items.Select(i => TileModel.Of(i, kind, s.Origin)).ToList();
             foreach (var item in row.Items) itemsByTile[(row.Key, item.Id)] = item;
             var rowKey = row.Key;
-            column.Add(new RowView(row.Title, models, kind, gate, images,
+            var view = new RowView(row.Title, models, kind, gate, images,
                 m =>
                 {
                     if (itemsByTile.TryGetValue((rowKey, m.Id), out var item)) open(item);
@@ -282,7 +311,9 @@ sealed class HomeScreen : ShellPage
                 row.SeeAll is { } more ? (LibraryText.SeeAll, () =>
                 {
                     if (!Shell.Open(new PageKey.Library(more.LibraryId, LibraryTab.Library, more.View))) Shell.Toast("That page comes next in the native app.");
-                }) : null));
+                }) : null);
+            column.Add(view);
+            rowViews.Add(view);
         }
         page.Add(column.Group);
         body.Add(column);
@@ -311,23 +342,23 @@ sealed class HomeScreen : ShellPage
     void ShowHero(HomeInfo h)
     {
         if (heroInfo == h) return;
+        var said = (h.Title, h.Context, h.Meta, h.Summary, h.InProgress, h.TimeLeft, h.Watched);
+        var same = heroInfo != null && said.Equals(heroShown);
         heroInfo = h;
-        foreach (var child in heroText.Children.ToList())
-        {
-            heroText.Remove(child);
-            child.Dispose();
-        }
+        if (same) return;
+        heroShown = said;
+        var text = heroText.Next();
         var title = Text.Label(h.Title, PleyType.HeroTitle, PleyColors.Fg, maxLines: 2, width: TextColumn);
         title.VerticalAlignment = VerticalAlignment.Bottom;
         title.SizeHeight = Ui.Dp(TitleBox);
-        heroText.Add(title);
+        text.Add(title);
         float y = TitleBox;
         if (h.Context.Length > 0)
         {
             y += 10;
             var context = Text.Label(h.Context, PleyType.Title, PleyColors.Fg, width: TextColumn);
             context.PositionY = Ui.Dp(y);
-            heroText.Add(context);
+            text.Add(context);
             y += PleyType.Title.Line;
         }
         if (!h.Meta.IsEmpty)
@@ -335,7 +366,7 @@ sealed class HomeScreen : ShellPage
             y += 8;
             var meta = MetaLine.Of(h.Meta);
             meta.PositionY = Ui.Dp(y);
-            heroText.Add(meta);
+            text.Add(meta);
             y += 18;
         }
         if (h.InProgress && h.TimeLeft.Length > 0)
@@ -343,7 +374,7 @@ sealed class HomeScreen : ShellPage
             y += 10;
             var left = Text.Label(h.TimeLeft, PleyType.Caption, PleyColors.Fg, width: TextColumn);
             left.PositionY = Ui.Dp(y);
-            heroText.Add(left);
+            text.Add(left);
             y += PleyType.Caption.Line;
         }
         if (h.Summary.Length > 0)
@@ -352,7 +383,7 @@ sealed class HomeScreen : ShellPage
             var summary = Text.Label(h.Summary, PleyType.BodyLarge, Summary, maxLines: 3, width: TextColumn);
             summary.VerticalAlignment = VerticalAlignment.Top;
             summary.PositionY = Ui.Dp(y);
-            heroText.Add(summary);
+            text.Add(summary);
             y += PleyType.BodyLarge.Line * 3;
         }
         y += 20;

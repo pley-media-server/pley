@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- When the server can't be reached, the app says "Pley is offline", where
+  it said "Showing what Pley had saved. Reconnecting…". It still shows
+  what it saved and reconnects by itself.
+
 ## [0.1.5] - 2026-11-04
 
 ### Fixed

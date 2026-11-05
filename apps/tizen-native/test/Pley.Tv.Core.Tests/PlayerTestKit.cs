@@ -16,6 +16,15 @@ sealed class FakeVideoEngine : IVideoEngine
     public event Action? Started;
     public event Action<bool>? PlayingChanged;
     public event Action<EngineError>? Failed;
+    public event Action<long>? RestartAt;
+
+    /// <summary>The engine asks for a session at <paramref name="ms"/> (a trimmed stream sought before it begins).</summary>
+    public void AskRestart(long ms) => RestartAt?.Invoke(ms);
+
+    public event Action? Opened;
+
+    /// <summary>The source is prepared, its picture not yet out.</summary>
+    public void Open() => Opened?.Invoke();
 
     public List<EngineSource> Prepared { get; } = new List<EngineSource>();
     public List<long> Seeks { get; } = new List<long>();
@@ -160,6 +169,9 @@ sealed class FakePlayerSource : IPlayerSource
     /// <summary>How a .mks that isn't there fails: a 404, as a server without them.</summary>
     public Exception MksFailure { get; set; } = new ApiException(404, "not_found", "no such track");
     public List<string> MksAsked { get; } = new List<string>();
+
+    /// <summary>The parts of .mks files asked for: address, first and last byte.</summary>
+    public List<(string Url, long From, long To)> MksParts { get; } = new List<(string, long, long)>();
     public Func<long, TrickplayInfo?> TrickplayAnswer { get; set; } = _ => null;
     public int TrickplayAsks { get; private set; }
     public Dictionary<long, ItemSummary?> NextOf { get; } = new Dictionary<long, ItemSummary?>();
@@ -231,6 +243,17 @@ sealed class FakePlayerSource : IPlayerSource
     {
         MksAsked.Add(url);
         return Mks.TryGetValue(url.Split('?')[0], out var mks) ? Task.FromResult(mks) : Task.FromException<SubtitlePictures>(MksFailure);
+    }
+
+    /// <summary>A part of a .mks of <see cref="Mks"/>, as a server answers a range of its cached copy.</summary>
+    public Task<SubtitlePart> PictureSubtitlesPart(string url, long from, long to)
+    {
+        MksParts.Add((url, from, to));
+        if (!Mks.TryGetValue(url.Split('?')[0], out var mks)) return Task.FromException<SubtitlePart>(MksFailure);
+        var bytes = mks.Bytes;
+        var end = Math.Min(to, bytes.Length - 1);
+        var part = from > end ? new byte[0] : bytes.Skip((int)from).Take((int)(end - from + 1)).ToArray();
+        return Task.FromResult(new SubtitlePart(part, from, mks.Complete ? bytes.Length : null, mks.Complete));
     }
 
     public Task<TrickplayInfo?> Trickplay(long fileId)

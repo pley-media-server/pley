@@ -131,9 +131,10 @@ sealed class RowView : View
             && a.Unwatched == b.Unwatched && a.Description == b.Description && a.Images.SequenceEqual(b.Images) && a.Badges.SequenceEqual(b.Badges));
 
     /// <summary>
-    /// The row's tiles are now <paramref name="next"/>: those it has take their new look (a badge a
-    /// request changed), and those past its end are added before See all (a list's next page), focus
-    /// staying where it is. A shorter list keeps the tiles it had.
+    /// The row's tiles are now <paramref name="next"/>: those it has take their new look (the progress
+    /// a film just played left, a badge a request changed), and those past its end are added before
+    /// See all (a list's next page), focus and the tiles staying where they are. A shorter list keeps
+    /// the tiles it had.
     /// </summary>
     public void Update(IReadOnlyList<TileModel> next)
     {

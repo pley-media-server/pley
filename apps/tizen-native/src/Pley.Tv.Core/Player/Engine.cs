@@ -165,4 +165,17 @@ public interface IVideoEngine : IMediaEngine
     long? BandwidthKbps();
 
     EngineStats? Stats();
+
+    /// <summary>
+    /// The stream it plays can't go on from <c>ms</c>: a stream that begins later than a seek asks for
+    /// (a resumed film's, trimmed to where it resumed), or one the TV's player says ended far from the
+    /// film's end. The player starts a session there, as for any new stream, with its cover and spinner.
+    /// </summary>
+    event Action<long>? RestartAt;
+
+    /// <summary>
+    /// The source is prepared: its tracks can be switched now, before it plays. It is ready (<see
+    /// cref="EngineStatus.Ready"/>) only once its picture moves, or at once when it is to stay paused.
+    /// </summary>
+    event Action? Opened;
 }

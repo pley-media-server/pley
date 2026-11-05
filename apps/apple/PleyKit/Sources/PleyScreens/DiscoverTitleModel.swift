@@ -227,7 +227,7 @@ public final class DiscoverTitleModel: ObservableObject {
             show(detail)
         } catch {
             let problem = RequestProblem.of(error)
-            if case .offline = problem { app.wentOffline(error) }
+            if case .offline = problem { app.wentOffline() }
             let words = problem.words(manage: gate.summary?.manage == true, summary: gate.summary,
                                       failure: RequestWords.titleFailed, now: now())
             if detail == nil { state = .failed(words) } else { stale = words }

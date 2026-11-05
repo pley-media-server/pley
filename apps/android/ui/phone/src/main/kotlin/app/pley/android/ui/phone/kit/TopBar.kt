@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
+import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.ui.phone.R
@@ -123,10 +124,10 @@ fun PleyTopAppBar(
 }
 
 /**
- * "Showing what pley had saved. Reconnecting…" (design spec §3.4): a
- * [surface3][PleyColors.Surface3] strip under the top bar while
- * [LocalOffline] holds, announced when it appears, with the way to the
- * downloads at its end ([LocalOfflineAction]).
+ * "Pley is offline" (design spec §3.4): a [surface3][PleyColors.Surface3]
+ * strip under the top bar while [LocalOffline] holds, announced when it
+ * appears, with the way to the downloads at its end ([LocalOfflineAction]).
+ * The app tries the server again by itself; the strip goes when it answers.
  */
 @Composable
 fun OfflineBanner(modifier: Modifier = Modifier) {
@@ -146,7 +147,9 @@ fun OfflineBanner(modifier: Modifier = Modifier) {
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BusyLine(stringResource(R.string.shell_offline), Modifier.weight(1f))
+            Icon(PleyIcons.ServerOff, contentDescription = null, size = 20.dp, tint = PleyColors.Muted)
+            Spacer(Modifier.width(12.dp))
+            Text(stringResource(R.string.shell_offline), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Fg)
             LocalOfflineAction.current?.let { action ->
                 PleyTextButton(action.label, onClick = action.onClick)
             }

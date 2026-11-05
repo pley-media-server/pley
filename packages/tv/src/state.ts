@@ -62,7 +62,7 @@ const PROFILES_KEY = "pley.householdProfiles";
 const ITEM_TTL_MS = 5 * 60_000;
 /** Watch state changes come in bursts (an episode, its season and show; a play reaching 90 %): gathered this long. */
 const STATE_GATHER_MS = 300;
-/** How long "Showing what pley had saved. Reconnecting…" shows: as long as an error's toast. */
+/** How long "Pley is offline" shows: as long as an error's toast. */
 const OFFLINE_NOTICE_MS = 6_000;
 /** While the server is out of reach it is asked this often (and given as long to answer). */
 const OFFLINE_ASK_MS = 5_000;
@@ -195,7 +195,7 @@ export class AppState {
    * after a failure.
    */
   readonly offline = signal(false);
-  /** "Showing what pley had saved. Reconnecting…" shows, for 6 s from going offline; then the rail's avatar keeps a mark. */
+  /** "Pley is offline" shows, for 6 s from going offline; then the rail's avatar keeps a mark. */
   readonly offlineNotice = signal(false);
   /**
    * The requests summary (docs/API.md, "Requests"): whether Discover and

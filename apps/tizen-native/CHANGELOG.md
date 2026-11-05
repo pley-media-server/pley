@@ -12,6 +12,26 @@ It has no releases yet: it is built and installed by hand
 
 - The icon shows Pley's name under the mark, as the other apps in the
   TV's apps bar show theirs, in the Android app's icon's colours.
+- Picture subtitles show within a second of a film's picture and of a
+  seek: the app reads the pictures around the film, then those ahead as
+  it plays, rather than the whole track (20 MB for a film's PGS) each
+  time the film opens.
+- Back from a film, Home and the film's page answer sooner and don't
+  blink: Home updates its tiles in place, the film's page draws its
+  updates once, and what didn't change stays as it is.
+- A seek plays again in under a second, where it took about two; a film
+  resumed part-way buffers 1.5 s before it plays, so its sound doesn't
+  break off in its first second.
+- A film opening or seeking shows one spinner until its picture moves,
+  where it went and came back over the black.
+- Holding Left or Right in the chapters glides through the cards.
+- A film the TV's player says has ended part-way plays on from there, and
+  a seek before where a resumed film's stream begins opens it there under
+  the black, where the TV's menu showed.
+- A film resumed part-way starts sooner: the TV's player begins at the
+  resume point rather than fetching the film's start and seeking, its
+  playlists are asked for while the player is set up, and the screen and
+  its spinner keep moving while the film opens.
 
 ### Added
 
@@ -23,6 +43,10 @@ It has no releases yet: it is built and installed by hand
   title's request and Request more seasons; and a pop-up when something
   asked for is ready to watch. Sign-in asks for requests and approvals
   where the server offers them, and Settings → About credits TMDB.
+- The profiling build traces the network, the Wi-Fi link and the TV's CPUs
+  once a second, times each step of opening, seeking and closing a film,
+  and takes commands to measure the network (`speed`, `wifi`) and to try
+  other buffering (`buffer`, `rebuffer`, `trim`).
 - A profiling build of the native app is an app of its own, "Pley (debug)",
   with the app's icon under a yellow DEBUG ribbon, set in from the corner so
   the TV's rounded corners leave the word whole, and it installs beside the

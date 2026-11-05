@@ -225,8 +225,11 @@ public sealed class StreamRelay : IDisposable
         }
     }
 
-    /// <summary>The request line's method and target, from a head read up to its blank line; empty ones when it isn't HTTP.</summary>
-    static async Task<(string Method, string Target)> ReadHead(Stream net, CancellationToken cancel)
+    /// <summary>
+    /// The request line's method and target, from a head read up to its blank line, <see
+    /// cref="HeadMost"/> at most, within <see cref="HeadWaitMs"/>; empty ones when it isn't HTTP.
+    /// </summary>
+    internal static async Task<(string Method, string Target)> ReadHead(Stream net, CancellationToken cancel)
     {
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancel);
         wait.CancelAfter(HeadWaitMs);

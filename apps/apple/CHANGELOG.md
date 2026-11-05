@@ -40,8 +40,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Your token goes only to the server you signed in to: before it goes, the
   server proves it holds your sign-in's key, again after half an hour, on
   another network, or when the server didn't answer. When another device
-  answers at its address, Pley shows what it saved and says "Another device
-  answers there."
+  answers at its address, the token stays here and Pley shows what it saved,
+  as it does for a server that's offline.
 - Play movies and episodes: Play or Resume on an item's page, the system
   player on each device (its own window on the Mac, with keyboard
   shortcuts), and each file sent as this device plays it best, in HDR and
@@ -81,7 +81,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Next while the server is away; what you watched reaches the server once
   it is back.
 - When the server doesn't answer, the app opens on what it saved of your
-  screens and says so, and reconnects by itself (Apple TV too).
+  screens under "Pley is offline", with Downloads on iPhone, iPad and Mac,
+  and reconnects by itself (Apple TV too).
 - A video that loses the server plays what it has loaded and keeps trying
   to reach the server for 90 seconds, then plays on where it stood.
 - Continue Watching on Apple TV's Top Shelf: with Pley in the top row,

@@ -75,6 +75,16 @@ public class PlayerApiTests
     }
 
     [Fact]
+    public void A_parts_range_is_read_from_its_content_range()
+    {
+        Assert.Equal((0L, (long?)20_997_000), Api.Api.ContentRange("bytes 0-65535/20997000"));
+        Assert.Equal((1_000L, (long?)null), Api.Api.ContentRange("bytes 1000-1999/*"));
+        Assert.Null(Api.Api.ContentRange("bytes */20997000"));
+        Assert.Null(Api.Api.ContentRange(null));
+        Assert.Null(Api.Api.ContentRange("bytes 0-1/99999999999999999999999"));
+    }
+
+    [Fact]
     public async Task Previews_are_null_while_the_server_makes_them()
     {
         var (api, server) = SignedIn();

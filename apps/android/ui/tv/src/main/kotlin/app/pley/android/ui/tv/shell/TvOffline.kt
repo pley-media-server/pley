@@ -120,10 +120,10 @@ internal fun ReportOffline(load: Loadable<*>?) {
 }
 
 /**
- * "Showing what pley had saved. Reconnecting…" at the top right, where TV
- * toasts are (design spec §2.10), for [ANNOUNCE_MS] once the server is
- * found out of reach: the server-off icon and the line on surface3. Never
- * focusable, as there is nothing to do but wait; announced when it shows.
+ * "Pley is offline" at the top right, where TV toasts are (design spec
+ * §2.10), for [ANNOUNCE_MS] once the server is found out of reach: the
+ * server-off icon and the line on surface3. Never focusable, as there is
+ * nothing to do but wait; announced when it shows.
  */
 @Composable
 internal fun BoxScope.TvOfflineNotice(state: TvOfflineState) {

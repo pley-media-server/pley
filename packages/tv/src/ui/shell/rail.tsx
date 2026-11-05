@@ -148,7 +148,7 @@ export function initial(name: string): string {
  * comes here, to the current entry; Right goes back to where focus was.
  */
 /** What the TV says while the server is out of reach: the shell's notice, then the avatar's mark. */
-export const OFFLINE_TEXT = "Showing what Pley had saved. Reconnecting…";
+export const OFFLINE_TEXT = "Pley is offline";
 
 /** `offline`: the avatar wears the server-off mark (once the shell's notice has had its 6 s). */
 export function Rail(p: { entries: RailEntries; me: User | null; current: string | null; offline?: boolean; railRef: (api: RailApi) => void }) {

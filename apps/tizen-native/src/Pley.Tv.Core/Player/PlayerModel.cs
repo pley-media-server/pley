@@ -159,7 +159,7 @@ public sealed class PlayerModel : IDisposable
         pressedAt = scheduler.Elapsed;
         offsets = new SubtitleOffsets(source.Storage, () => source.ProfileId);
         presenter = new SubtitlePresenter(scheduler, source.Subtitles, LivePositionMs, () => offset, () => State.Value.Speed, () => Notice(SessionText.SubtitlesFailed),
-            source.PictureSubtitles, PicturesFailed, source.Local);
+            source.PictureSubtitles, PicturesFailed, source.Local, source.PictureSubtitlesPart);
         sleep = new SleepTimer(scheduler, ItemLeftMs, () => item?.Id, OnSleep);
         sleep.State.Changed += s => Update(st => st with { Sleep = s });
         lastPositionMs = request.StartMs;
@@ -327,6 +327,7 @@ public sealed class PlayerModel : IDisposable
         if (EndSession(atMs)) await Ui(() => Task.WhenAny(reporter.Flush(), Task.Delay(TimeSpan.FromMilliseconds(EndWaitMs))));
         if (at != generation || closed) return;
         Reset(atMs);
+        if (at == restartedFor) startedAtMs = restartedFrom;
 
         // A lower quality is always a transcode; the original keeps a fallback's mode, or a guard's.
         var mode = !quality.Original ? "transcode" : recovery.FallbackMode ?? guardMode ?? quality.Mode;
@@ -488,6 +489,11 @@ public sealed class PlayerModel : IDisposable
         var s = info;
         if (s == null || engine == null) return;
         ApplyAudio();
+        ApplySubtitle(s);
+    }
+
+    void ApplySubtitle(PlaybackInfo s)
+    {
         var sub = subtitle;
         if (sub == null)
         {
@@ -499,8 +505,28 @@ public sealed class PlayerModel : IDisposable
             var path = s.Subtitles.FirstOrDefault(t => t.Index == sub.Index)?.Url ?? PlaybackPlan.TextSubtitlesPath(s.FileId, sub.Index);
             presenter.Show(source.Url(path));
         }
-        else if (!s.BurnSubtitles && Sideload) presenter.ShowPictures(source.Url(PlaybackPlan.PictureSubtitlesPath(s.FileId, sub.Index)));
+        else if (!s.BurnSubtitles && Sideload)
+        {
+            var url = source.Url(PlaybackPlan.PictureSubtitlesPath(s.FileId, sub.Index));
+            // A new track's .mks (a film's is tens of MB) is asked for once the picture shows: asked
+            // for at once, it took the network and the CPUs from the video's first seconds, as the
+            // TV's player fills its buffer and starts decoding. One showing already stays.
+            picturesWaiting = !mediaShown && presenter.Showing != url;
+            if (picturesWaiting) presenter.Hide();
+            else presenter.ShowPictures(url);
+        }
         else presenter.Hide();
+    }
+
+    /// <summary>The picture track chosen waits for the picture (<see cref="ApplyTracks"/>).</summary>
+    bool picturesWaiting;
+
+    /// <summary>The picture shows: a picture track waiting for it is asked for now.</summary>
+    void PicturesNow()
+    {
+        if (!picturesWaiting) return;
+        picturesWaiting = false;
+        if (info is { } s && engine != null) ApplySubtitle(s);
     }
 
     /// <summary>
@@ -557,6 +583,8 @@ public sealed class PlayerModel : IDisposable
         e.Started += OnFirstFrame;
         e.PlayingChanged += OnPlaying;
         e.Failed += OnError;
+        e.RestartAt += OnRestartAsked;
+        e.Opened += OnOpened;
     }
 
     void Detach(IVideoEngine e)
@@ -565,7 +593,39 @@ public sealed class PlayerModel : IDisposable
         e.Started -= OnFirstFrame;
         e.PlayingChanged -= OnPlaying;
         e.Failed -= OnError;
+        e.RestartAt -= OnRestartAsked;
+        e.Opened -= OnOpened;
     }
+
+    /// <summary>Prepared: the audio chosen is switched to now, before it plays.</summary>
+    void OnOpened()
+    {
+        if (closed || engineReady) return;
+        engineReady = true;
+        ApplyAudio();
+    }
+
+    /// <summary>The engine can't go on from <paramref name="atMs"/> in the stream it has: a session there, as a seek after the end starts one.</summary>
+    void OnRestartAsked(long atMs)
+    {
+        if (closed || stopped) return;
+        HideUpNext();
+        lastPositionMs = atMs;
+        SetClock(positionMs: atMs);
+        // The session Restart starts next; its start can come before Restart returns.
+        restartedFor = generation + 1;
+        restartedFrom = startedAtMs;
+        Restart(atMs);
+    }
+
+    /// <summary>
+    /// The session the engine asked for (<see cref="OnRestartAsked"/>), and where playing started
+    /// before it: its end is weighed from there (<see cref="EndedShort"/>). Weighed from the new
+    /// session's start, a film whose file ends early ended "short" again where the engine opened
+    /// it, and fell back to a transcode instead of ending.
+    /// </summary>
+    int restartedFor = -1;
+    long restartedFrom;
 
     /// <summary>It plays again by itself (after waiting for data): the screen says so.</summary>
     void OnPlaying(bool playing)
@@ -593,6 +653,7 @@ public sealed class PlayerModel : IDisposable
                     engineReady = true;
                     ApplyAudio();
                 }
+                PicturesNow();
                 if (outage == null) Phase(engine?.Playing == true ? PlayerPhase.Playing : PlayerPhase.Paused);
                 break;
             case EngineStatus.Ended:
@@ -614,6 +675,7 @@ public sealed class PlayerModel : IDisposable
             pressedAt = null;
             Update(s => s with { FirstFrameMs = scheduler.Elapsed - from });
         }
+        PicturesNow();
         presenter.Refresh();
     }
 
