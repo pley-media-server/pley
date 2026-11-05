@@ -1,5 +1,18 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { castOf, castState, deviceFields, receiverId, receiverName, receiverQuery, takesCasts } from "./castReceiver";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  castOf,
+  castState,
+  deviceFields,
+  dropHandedOver,
+  handOver,
+  receiverId,
+  receiverName,
+  receiverQuery,
+  switchesProfile,
+  takeHandedOver,
+  takesCasts,
+  type Cast,
+} from "./castReceiver";
 
 const desktop = (on: boolean) => {
   (window as { __PLEY_APP__?: string }).__PLEY_APP__ = on ? "desktop" : undefined;
@@ -46,5 +59,59 @@ describe("the desktop app as a receiver of casts", () => {
     const query = (live: boolean) => Object.fromEntries(new URLSearchParams(receiverQuery(live)));
     expect(query(false)).toEqual({ receiver: receiverId(), device_name: receiverName(), device_kind: "computer", casts: "item" });
     expect(query(true).casts).toBe("item,live");
+  });
+});
+
+describe("a cast from another profile of the household", () => {
+  const cast = (more: Partial<Cast> = {}): Cast => ({
+    type: "cast",
+    receiver_id: "desktop-1",
+    item_id: 5,
+    playlist_id: null,
+    channel_id: null,
+    start_ms: null,
+    shuffle: false,
+    from: "Phone",
+    profile_id: 2,
+    switch_ticket: "t1",
+    ...more,
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    takeHandedOver(2);
+  });
+
+  it("switches the device to the caster's profile, and one from the profile it is on doesn't", () => {
+    expect(switchesProfile(cast(), 1)).toBe(true);
+    expect(switchesProfile(cast(), 2)).toBe(false);
+    expect(switchesProfile(cast({ profile_id: undefined, switch_ticket: undefined }), 1)).toBe(false);
+  });
+
+  it("is handed over to the receiver of the profile it switched to, once", () => {
+    const sent = cast();
+    handOver(sent);
+    expect(takeHandedOver(1)).toBeNull();
+    expect(takeHandedOver(2)).toBe(sent);
+    expect(takeHandedOver(2)).toBeNull();
+  });
+
+  it("is dropped when its switch didn't go through, and the one after it kept", () => {
+    const first = cast();
+    const second = cast({ item_id: 6 });
+    handOver(first);
+    handOver(second);
+    dropHandedOver(first);
+    expect(takeHandedOver(2)).toBe(second);
+    handOver(first);
+    dropHandedOver(first);
+    expect(takeHandedOver(2)).toBeNull();
+  });
+
+  it("isn't played once its ticket would have expired", () => {
+    vi.useFakeTimers();
+    handOver(cast());
+    vi.advanceTimersByTime(61_000);
+    expect(takeHandedOver(2)).toBeNull();
   });
 });

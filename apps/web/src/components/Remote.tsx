@@ -66,7 +66,8 @@ import { IconButton, ProgressBar } from "./ui";
 /**
  * The user's other devices: those that take casts and those that play, this
  * tab's own sessions left out (a tab controls the user's other devices, not
- * itself). `ended`, a session a command ended (`mayEndSession`), is kept
+ * itself), and those their household's other profiles are on, which take
+ * casts. `ended`, a session a command ended (`mayEndSession`), is kept
  * while its device plays nothing else. `known`: both lists have been asked
  * for.
  */
@@ -102,17 +103,22 @@ export function DeviceIcon({ kind, className }: { kind: DeviceKind; className?: 
   }
 }
 
-/** What `device` plays, as its row says it: a title in full, a channel ("1 Channel One"), or "Ready to play". */
+/**
+ * What `device` plays, as its row says it: a title in full, a channel ("1
+ * Channel One"), or "Ready to play". One on another profile says which
+ * ("On Sam's profile"), and never what it plays.
+ */
 function playingLine(device: OtherDevice): string {
   const s = device.session;
-  if (!s) return "Ready to play";
+  if (!s) return device.profile ? `On ${device.profile.name}'s profile` : "Ready to play";
   if (s.kind === "live") return s.channel ? [s.channel.number, s.channel.name].filter(Boolean).join(" ") : "Live TV";
   return s.item ? fullTitle(s.item) : "";
 }
 
 /**
  * A device as the remote lists it: its icon, its name, and what it plays,
- * with how far for a title, or "Ready to play". `lineId` names the line, for
+ * with how far for a title, "Ready to play", or the profile another of the
+ * household's devices is on. `lineId` names the line, for
  * the control around it to be described by. The device `chosen` has its
  * controls below, whose bar says how far: its row has none.
  */

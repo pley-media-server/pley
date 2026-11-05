@@ -210,6 +210,21 @@ describe("otherDevices", () => {
     expect(otherDevices([makeReceiver({ name: null })], []).map((d) => d.name)).toEqual(["Unknown device"]);
   });
 
+  it("lists the household's devices on another profile after the user's own, with that profile", () => {
+    const sam = { id: 2, name: "Sam" };
+    const devices = otherDevices(
+      [
+        makeReceiver({ receiver_id: "attic", device_id: "app-2", name: "Attic TV", profile: sam }),
+        makeReceiver({ receiver_id: "tv-1", device_id: "app-1", name: "Living room TV" }),
+      ],
+      [],
+    );
+    expect(devices.map((d) => [d.name, d.profile])).toEqual([
+      ["Living room TV", null],
+      ["Attic TV", sam],
+    ]);
+  });
+
   it("numbers devices of the same name", () => {
     const devices = otherDevices(
       [makeReceiver({ receiver_id: "tv-2", device_id: "app-2" })],
