@@ -335,6 +335,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- On a Discover title's page, a round button's label (Overview, Details)
+  shows under the button, where it was drawn over the line under the
+  buttons ("Someone asked for it already").
 - The rail's entries scroll between the profile and Settings, where those
   past the ninth were drawn over Settings, and those scrolled past the top
   over the profile.
