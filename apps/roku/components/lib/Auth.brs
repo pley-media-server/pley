@@ -320,8 +320,8 @@ end function
 ' checked for the profile signed in) means (docs/API.md, the switch-profile
 ' grant): { kind, reason, message }. kind: "tokens"; "through" (no PIN to
 ' check: the profile has none, or the server can't); "refused" (reason:
-' wrong_pin, throttled, pin_locked, browser, not_allowed,
-' unauthorized_client; nothing spent); "ended" (the refresh token doesn't
+' wrong_pin, throttled, pin_locked, browser, not_allowed, ticket_spent
+' (a cast's ticket), unauthorized_client; nothing spent); "ended" (the refresh token doesn't
 ' work: the sign-in is over); "failed" (the network or the server).
 function authSwitchOutcome(status as integer, text as dynamic) as object
     if status >= 200 and status < 300 then return { kind: "tokens", reason: "", message: "" }
@@ -345,7 +345,8 @@ function authSwitchOutcome(status as integer, text as dynamic) as object
             throttled: "Too many wrong PINs: try again in a few minutes.",
             pin_locked: "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
             browser: "This profile needs its password: sign in to it with a code, choosing it in the browser.",
-            not_allowed: "You can't switch to this profile."
+            not_allowed: "You can't switch to this profile.",
+            ticket_spent: "This cast's switch expired: cast again."
         }
         message = messages[reason]
         if reason = "throttled" and description <> "" then message = description

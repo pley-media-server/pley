@@ -1098,9 +1098,10 @@ end sub
 ' Moves the sign-in to another profile of the household, or checks the PIN
 ' of the one it acts as (docs/API.md, the switch-profile grant): with the
 ' refresh token, which a switch spends as a refresh does, so never beside
-' one. spec: { profile, pin ("" for none) }. The answer: ok ({ through:
-' true } when there was no PIN to check), or the refusal (authSwitchOutcome)
-' with its reason as the error.
+' one. spec: { profile, pin ("" for none), ticket (a cast's switch_ticket,
+' in place of the PIN, as the receiver of another profile's remote) }. The
+' answer: ok ({ through: true } when there was no PIN to check), or the
+' refusal (authSwitchOutcome) with its reason as the error.
 sub apiSwitchProfile(request as object, spec as object)
     tokens = m.tokens
     if tokens = invalid
@@ -1118,12 +1119,15 @@ sub apiSwitchProfile(request as object, spec as object)
     params = { grant_type: authSwitchGrant(), client_id: httpClientId(), refresh_token: tokens.refresh, profile: urlValue(spec.profile) }
     pin = httpString(spec.pin)
     if pin <> "" then params.pin = pin
+    ticket = httpString(spec.ticket)
+    if ticket <> "" then params.ticket = ticket
     job = apiForm(apiJob("switch", "POST", tokens.tokenEndpoint), params)
     job.tokens = tokens
     job.request = request
     ' As a refresh: an answer given up on can be a spent refresh token.
     job.timeoutMs = 120000
-    ' The refresh token and the PIN go only to a server that proves itself now.
+    ' The refresh token, the PIN and the ticket go only to a server that
+    ' proves itself now.
     apiSendProved(tokens, job)
 end sub
 

@@ -1,6 +1,7 @@
 ' Casts from the user's remote, on another device (Cast.brs): the event
 ' stream's query that makes the Roku a receiver, whose cast it is and what
-' it names, where it came from, and what a title of each kind plays.
+' it names, where it came from, whether it switches to the remote's
+' profile first, and what a title of each kind plays.
 
 ' A cast as the event stream brings it, for receiver r-1 unless changed.
 function castTestEvent(fields as object) as object
@@ -81,6 +82,40 @@ sub test_cast_for_another_device_or_while_not_taken_does_nothing()
     tkEqual(castAction("r-1", true, castTestEvent({})), none, "nothing named")
     tkEqual(castAction("", true, castTestEvent({ receiver_id: "", item_id: 5 })), none, "no id of its own")
     tkEqual(castAction("r-1", true, invalid), none)
+end sub
+
+' A cast from another profile of the household names it and a ticket: the
+' Roku switches to it first. One for the profile it is on plays as it is;
+' another profile's without a ticket does nothing, as on the other TVs.
+sub test_cast_from_another_profile_switches_first()
+    nothing = { needs: "nothing" }
+    ignore = { needs: "ignore" }
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5 })), nothing, "the remote's profile is this one")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 4 })), nothing, "named, and this one")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "Zm9vYmFy_-12" })), { needs: "switch", profileId: 7, ticket: "Zm9vYmFy_-12" })
+    tkEqual(castSwitch(0, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "t1" })), { needs: "switch", profileId: 7, ticket: "t1" }, "the profile not known yet")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7 })), ignore, "no ticket")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "" })), ignore)
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: 12 })), ignore, "not a string")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: "a b&profile=1" })), ignore, "not a ticket's shape")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: 7, switch_ticket: String(129, "a") })), ignore, "too long")
+    tkEqual(castSwitch(4, castTestEvent({ item_id: 5, profile_id: "7", switch_ticket: "t1" })), nothing, "a profile that isn't a number names none")
+    tkEqual(castSwitch(4, invalid), ignore)
+end sub
+
+' A switch that failed says why in place of playing, unless the sign-in
+' ended (the scene shows sign-in) or changed meanwhile.
+sub test_cast_switch_failed_says_why()
+    spent = authSwitchOutcome(400, "{""error"":""invalid_grant"",""reason"":""ticket_spent"",""error_description"":""this cast's switch has expired or was used: cast again""}")
+    tkEqual(spent, { kind: "refused", reason: "ticket_spent", message: "This cast's switch expired: cast again." })
+    tkEqual(castSwitchNotice({ ok: false, error: spent.reason, message: spent.message }), "This cast's switch expired: cast again.")
+    tkEqual(castSwitchNotice({ ok: false, error: "not_allowed", message: "You can't switch to this profile." }), "You can't switch to this profile.")
+    tkEqual(castSwitchNotice({ ok: false, error: "network", message: "The server can't be reached." }), "The server can't be reached.")
+    tkEqual(castSwitchNotice({ ok: false, error: "x", message: "" }), "The server couldn't switch to the remote's profile.")
+    tkEqual(castSwitchNotice({ ok: true, data: { through: true } }), "The server couldn't switch to the remote's profile.", "nothing switched")
+    tkEqual(castSwitchNotice({ ok: false, error: "signed_out", message: "" }), "")
+    tkEqual(castSwitchNotice({ ok: false, error: "server_changed", message: "The sign-in changed." }), "")
+    tkEqual(castSwitchNotice({ ok: false, error: "switch_replaced", message: "Another profile was chosen." }), "")
 end sub
 
 sub test_cast_says_where_it_came_from()
