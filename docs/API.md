@@ -3485,6 +3485,16 @@ administrators stop other people's sessions (above) and nothing more.
   the last report (a seek, a skip), sends `sessions_changed`, as a pause
   does, so remotes fetch the list again. The first report isn't compared:
   until then the session is starting.
+- **Without its controls.** Whoever sent a command is on another device,
+  so Pley's players don't bring up their controls for it: what it changed
+  shows for a moment where the player puts its brief notices ("Paused",
+  "Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+  where a seek went, "Audio: …", "Subtitles: …" or "Subtitles off" and
+  "Quality: …" as the menus name them), and a command that changes
+  nothing shows nothing. The remote's pause doesn't keep the controls up
+  as a pause there does, until someone there touches a key, the mouse or
+  the screen. Kodi's skin still shows its own controls as for any pause
+  ([KODI.md](KODI.md)); the Apple apps' players show no notice.
 
 ### Casting
 

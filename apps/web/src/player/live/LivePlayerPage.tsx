@@ -127,10 +127,12 @@ export function LivePlayerPage() {
     },
     [navigate, qc, category],
   );
+  /** Channel up or down; false where there is no channel to go to (yet). */
   const step = useCallback(
     (by: 1 | -1) => {
       const next = zap(by);
       if (next) tune(next);
+      return next !== null;
     },
     [zap, tune],
   );
@@ -237,7 +239,7 @@ function LivePlayer({
   channel: Channel;
   category: LiveCategory;
   onTune: (c: Channel, category?: LiveCategory) => void;
-  onStep: (by: 1 | -1) => void;
+  onStep: (by: 1 | -1) => boolean;
   byNumber: (digits: string) => Promise<Channel | null>;
 }) {
   const navigate = useNavigate();
@@ -273,6 +275,12 @@ function LivePlayer({
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  /**
+   * Tuned from the user's remote, on another device: the tuning screen
+   * shows, but not the controls, which nobody here asked for. Over once
+   * the channel plays, or someone here moves the mouse, taps or presses a key.
+   */
+  const [remoteTune, setRemoteTune] = useState(false);
   const [banner, setBanner] = useState(false);
   const [digits, setDigits] = useState("");
   const [notFound, setNotFound] = useState<string | null>(null);
@@ -500,8 +508,8 @@ function LivePlayer({
       // The new channel's watch tells the server, and so the remote.
       case "player_command":
         if (ev.session_id !== sessionRef.current?.id) break;
-        if (ev.command === "next") onStep(1);
-        else if (ev.command === "previous") onStep(-1);
+        if (ev.command !== "next" && ev.command !== "previous") break;
+        if (onStep(ev.command === "next" ? 1 : -1)) setRemoteTune(true);
         break;
     }
   });
@@ -544,6 +552,7 @@ function LivePlayer({
     };
     const onPlaying = () => {
       setStatus("playing");
+      setRemoteTune(false);
       going();
       setPlaying(true);
       // The last channel's picture, kept while this one tuned, is done with.
@@ -579,6 +588,7 @@ function LivePlayer({
   // Controls hide while playing and untouched.
   const poke = useCallback(() => {
     setShowControls(true);
+    setRemoteTune(false);
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setShowControls(false), HIDE_CONTROLS_AFTER);
   }, []);
@@ -586,7 +596,8 @@ function LivePlayer({
     hideTimer.current = window.setTimeout(() => setShowControls(false), HIDE_CONTROLS_AFTER);
     return () => window.clearTimeout(hideTimer.current);
   }, []);
-  const controlsVisible = showControls || !playing || panel || watchOn || status !== "playing";
+  const controlsVisible =
+    showControls || panel || watchOn || status === "error" || (!remoteTune && (!playing || status === "tuning"));
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement != null);

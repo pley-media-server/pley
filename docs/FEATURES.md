@@ -49,7 +49,8 @@ What Pley does, in full. The [README](../README.md) has the short version.
   previous title (or channel, on Live TV), changes the audio track, the
   subtitles and the quality, and stops what plays there, once asked to.
   On Live TV it shows the programme's progress and what's next. Each
-  player obeys the commands it can; any can be stopped
+  player obeys the commands it can, without bringing up its controls
+  there: a brief notice says what changed. Any can be stopped
   ([API.md](API.md#remote-control)).
 - Play on… in the web and desktop apps, beside Play on a movie, an episode,
   a show, a season, an artist, an album, a track and a playlist (Shuffle

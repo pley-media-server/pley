@@ -81,6 +81,12 @@ describes how they are made.
 - When the server can't be reached, the web app and the desktop app say
   "Pley is offline", where they said "Can't reach the server.
   Reconnecting…". The desktop app's Downloads stays beside it.
+- The web and desktop apps' video player no longer brings up its controls
+  when a remote pauses it, seeks or changes its audio, subtitles or
+  quality: a brief notice says what changed ("Paused", "+30 s", "Jumped
+  to 12:34", "Subtitles off"), and the controls show as before once you
+  move the mouse, tap or press a key. On Live TV a remote's change of
+  channel shows only the channel's tuning screen.
 
 ### Fixed
 
