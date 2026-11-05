@@ -319,10 +319,11 @@ so the server names the TV from its `User-Agent`. They obey:
   again.
 - **Live TV:** next and previous, channel up and down through the
   category the player was opened from, round its ends, as CH+ and CH− go.
-  It has no pause or seek. Stopped from another device or by an
-  administrator (`session_stopped`), it shows **Live TV stopped** with
-  who stopped it and, on a line of its own, their message, with Watch
-  again, as for a connection taken over.
+  A channel obeys from the moment the server answers its watch, as on
+  Android, not only once it plays. It has no pause or seek. Stopped from
+  another device or by an administrator (`session_stopped`), it shows
+  **Live TV stopped** with who stopped it and, on a line of its own,
+  their message, with Watch again, as for a connection taken over.
 
 Only the player of the session named acts on a command, a seek stays
 within the title, and a skip counts from where it is. Each change is

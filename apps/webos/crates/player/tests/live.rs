@@ -738,6 +738,36 @@ fn a_channel_stopped_from_another_device_or_by_an_administrator_stops_saying_who
 }
 
 #[test]
+fn the_remote_and_a_stop_are_heard_as_soon_as_the_watch_answers_before_the_channel_plays() {
+    let fake = LiveFake::new();
+    fake.plans_held.store(true, Ordering::SeqCst);
+    let mut w = Live::new(fake.clone());
+    w.c.set_steps(true);
+    w.c.tune(channel(1));
+    // The watch answered, and the tune waits on the session's plan: the server lists the session,
+    // and the remote acts on it.
+    let until = Instant::now() + Duration::from_secs(5);
+    while *fake.plans.lock().unwrap() == 0 {
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    w.c.tick(w.now);
+    assert_eq!((w.c.state().phase, w.c.session()), (LivePhase::Tuning, Some("s1")));
+    assert_eq!(w.c.server_event(&command("s1", Control::Next)), Some(1));
+    w.c.server_event(&stopped("s1", Some("Bedtime"), false));
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(
+        (t.kind, t.message.as_str()),
+        (TroubleKind::Stopped, "Live TV was stopped from another device.\nBedtime")
+    );
+    // The tune's late answer plays nothing, and the session, gone on the server, isn't let go.
+    fake.plans_held.store(false, Ordering::SeqCst);
+    w.settle();
+    assert_eq!(fake.asked(), ["watch 1 webos-tv"]);
+    assert!(w.sim.loads().is_empty());
+}
+
+#[test]
 fn a_stops_words_replace_a_410_without_any_that_came_first() {
     let mut w = Live::new(LiveFake::new());
     w.c.tune(channel(1));

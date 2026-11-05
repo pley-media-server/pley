@@ -19,8 +19,8 @@
 //!
 //! The owner calls [`LiveSession::tick`] each frame with the app's clock in ms.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use pley_base::Rect;
@@ -217,8 +217,18 @@ enum Source {
     Ts(String),
 }
 
+/// A tune's session, from the moment its watch answered. The player takes it then, as Android's
+/// does, so the remote's commands and a stop for it are heard while the channel's first segments
+/// come; whichever takes it out (the player, or the tune itself once the player has moved on) lets
+/// it go.
+type Answered = Arc<Mutex<Option<String>>>;
+
+fn take(answered: &Answered) -> Option<String> {
+    answered.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
 enum Done {
-    Tuned { g: u64, session: Option<String>, channel: Option<Box<LiveChannel>>, result: Result<Source, Trouble> },
+    Tuned { g: u64, session: Answered, channel: Option<Box<LiveChannel>>, result: Result<Source, Trouble> },
     Why { g: u64, asked: Box<Asked>, why: Option<String> },
 }
 
@@ -235,6 +245,8 @@ pub struct LiveSession {
     /// The session watched last, kept once it ends: the server's word of who stopped it may come
     /// after its `410`.
     watched: Option<String>,
+    /// The session of the tune of this generation, until the player takes it.
+    answered: (u64, Answered),
     /// The owner goes through channels with channel up and down: the remote's next and previous
     /// do the same.
     steps: bool,
@@ -288,6 +300,7 @@ impl LiveSession {
             version: 0,
             session: None,
             watched: None,
+            answered: (0, Answered::default()),
             steps: false,
             generation: Arc::new(AtomicU64::new(0)),
             retries: 0,
@@ -402,6 +415,7 @@ impl LiveSession {
         if self.closed || channel_id != self.state.channel.id {
             return;
         }
+        self.take_answered();
         let trouble = stopped_trouble(message);
         if self.state.phase == LivePhase::Error {
             let said = message.is_some_and(|m| !m.trim().is_empty());
@@ -431,6 +445,7 @@ impl LiveSession {
         if self.closed {
             return None;
         }
+        self.take_answered();
         if let Some(command) = Command::of(event) {
             if self.state.phase == LivePhase::Error {
                 return None;
@@ -525,6 +540,8 @@ impl LiveSession {
         self.state.audio_only = false;
         self.changed();
         let (server, reporter, generation) = (self.server.clone(), self.reporter.clone(), self.generation.clone());
+        let answered = Answered::default();
+        self.answered = (g, answered.clone());
         let req = WatchRequest {
             client_id: Some(self.client_id.clone()),
             keyed_urls: true,
@@ -537,26 +554,29 @@ impl LiveSession {
             reporter.flush(Duration::from_millis(LEAVE_WAIT_MS));
             // Not cancelled with the player: a session the server made is always let go.
             let watching = Cancel::new().scope(|| server.watch_channel(channel.id, &req));
+            let session = answered.clone();
             let watching = match watching {
                 Ok(w) => w,
-                Err(e) => return Done::Tuned { g, session: None, channel: None, result: Err(trouble_of(&e, &channel.name)) },
+                Err(e) => return Done::Tuned { g, session, channel: None, result: Err(trouble_of(&e, &channel.name)) },
             };
             if generation.load(Ordering::SeqCst) != g {
-                let (server, session) = (server.clone(), watching.session_id.clone());
+                let (server, id) = (server.clone(), watching.session_id.clone());
                 reporter.send(move || {
-                    let _ = server.leave_channel(&session);
+                    let _ = server.leave_channel(&id);
                 });
-                return Done::Tuned { g, session: None, channel: None, result: Err(trouble_of(&cancelled(), &channel.name)) };
+                return Done::Tuned { g, session, channel: None, result: Err(trouble_of(&cancelled(), &channel.name)) };
             }
-            let session = Some(watching.session_id.clone());
+            // The player's from now on: the server lists it, and the remote may already act on it.
+            *answered.lock().unwrap_or_else(|e| e.into_inner()) = Some(watching.session_id.clone());
             let named = watching.channel.clone().map(Box::new);
             let current = || generation.load(Ordering::SeqCst) == g;
             // A player closed, hidden or tuned elsewhere since the watch drops this job unanswered,
-            // so the job lets its session go itself (a second leave, from an answer still taken in,
-            // does no harm).
+            // so the job lets its session go itself, unless the player took it (and so let it go).
             let handed_on = |done: Done| {
-                if !current() {
-                    let (server, session) = (server.clone(), watching.session_id.clone());
+                if !current()
+                    && let Some(session) = take(&answered)
+                {
+                    let server = server.clone();
                     reporter.send(move || {
                         let _ = server.leave_channel(&session);
                     });
@@ -648,6 +668,7 @@ impl LiveSession {
     }
 
     fn collect(&mut self) {
+        self.take_answered();
         loop {
             let mut done = Vec::new();
             let mut i = 0;
@@ -718,15 +739,16 @@ impl LiveSession {
     fn on_done(&mut self, done: Done) {
         match done {
             Done::Tuned { g, session, channel, result } => {
+                let session = take(&session);
                 if g != self.current() || self.closed {
                     if let Some(s) = session {
                         self.leave_session(s);
                     }
                     return;
                 }
-                self.session = session;
-                if self.session.is_some() {
-                    self.watched = self.session.clone();
+                if let Some(s) = session {
+                    self.watched = Some(s.clone());
+                    self.session = Some(s);
                 }
                 if let Some(c) = channel {
                     self.state.channel = *c;
@@ -1013,6 +1035,16 @@ impl LiveSession {
         self.reporter.send(move || {
             let _ = server.leave_channel(&session);
         });
+    }
+
+    /// The session of the tune under way, as soon as its watch answered.
+    fn take_answered(&mut self) {
+        if self.answered.0 == self.current()
+            && let Some(s) = take(&self.answered.1)
+        {
+            self.watched = Some(s.clone());
+            self.session = Some(s);
+        }
     }
 
     fn clear_timers(&mut self) {

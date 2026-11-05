@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Your phone or browser changes Live TV's channel, or stops it, while the
+  channel is still starting on the TV, as it does once it plays.
+
 ## [0.1.6] - 2026-11-05
 
 ### Added
