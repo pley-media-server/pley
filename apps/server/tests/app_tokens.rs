@@ -41,7 +41,7 @@ const PUBLIC: &[(&str, &str)] = &[
 ];
 
 /// Routes for pley's own sign-in only: how an account signs in, its
-/// profiles and devices, and what everyone is playing.
+/// profiles and devices.
 const FIRST_PARTY: &[(&str, &str)] = &[
     ("PUT", "/api/auth/password"),
     ("GET", "/api/auth/profiles"),
@@ -62,7 +62,6 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("GET", "/api/me/compatibility-tokens"),
     ("POST", "/api/me/compatibility-tokens"),
     ("DELETE", "/api/me/compatibility-tokens/{id}"),
-    ("GET", "/api/activity"),
     // Apps have their keys in their token answers.
     ("GET", "/api/server/proof-key"),
 ];
@@ -367,7 +366,7 @@ async fn an_administrators_app_token_opens_only_app_routes() {
     let admin = app.setup_admin().await;
     app.media_file("movies/Film (2020).mkv", 2048);
     app.library(&admin, "Movies", "movies", "movies").await;
-    let (token, _) = app.app_token(1, "library play playlists profiles requests approvals").await;
+    let (token, _) = app.app_token(1, "library play playlists profiles requests approvals activity").await;
     for (method, path) in api_routes() {
         if PUBLIC.iter().any(|(m, p)| *m == method && *p == path) {
             // No sign-in needed (and logout would end the grant).
@@ -402,17 +401,23 @@ async fn each_scope_opens_only_its_routes() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let (_, ann) = app.user(&admin, "ann", json!({})).await;
-    for scope in ["library", "play", "playlists", "profiles", "requests", "approvals"] {
+    for scope in ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"] {
         let (token, _) = app.app_token(ann, scope).await;
         for (method, path, need) in APP_ROUTES {
             let uri = concrete(path);
             let (status, challenge) = status_of(&app, bearer(method, &uri, &token)).await;
-            match need {
-                Need::Scope(needed) if needed.name() != scope => {
+            // The scope a token without it is told of, when this one doesn't open the route.
+            let refused = match need {
+                Need::Scope(needed) if needed.name() != scope => Some(needed),
+                Need::Either(one, other) if one.name() != scope && other.name() != scope => Some(one),
+                _ => None,
+            };
+            match refused {
+                Some(needed) => {
                     let expected = format!(r#"Bearer error="insufficient_scope", scope="{}""#, needed.name());
                     assert_eq!((status, challenge), (StatusCode::FORBIDDEN, expected), "{scope}: {method} {uri}");
                 }
-                _ => assert!(challenge.is_empty(), "{scope}: {method} {uri}: {status} {challenge}"),
+                None => assert!(challenge.is_empty(), "{scope}: {method} {uri}: {status} {challenge}"),
             }
         }
     }
@@ -568,7 +573,8 @@ async fn an_administrators_app_sees_everything_but_administers_nothing() {
     assert_eq!(app.get(&format!("/api/playback/{session}"), &admin).await.status, StatusCode::OK);
     assert_eq!(app.get(&format!("/api/playback/{session}"), &token).await.status, StatusCode::FORBIDDEN);
     assert_eq!(app.delete(&format!("/api/playback/{session}"), &token).await.status, StatusCode::FORBIDDEN);
-    assert_eq!(app.get("/api/activity", &token).await.status, StatusCode::FORBIDDEN);
+    let activity = app.get("/api/activity", &token).await;
+    assert_eq!((activity.status, &activity.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
 
     // Empty curated collections are for administrators to fill.
     let empty = app.post(&format!("/api/libraries/{movies}/collections"), &admin, json!({"title": "Empty"})).await;
@@ -593,6 +599,97 @@ async fn an_administrators_app_sees_everything_but_administers_nothing() {
         assert_eq!((reply.status, &reply.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
         assert!(reply.body.get("token").is_none());
     }
+}
+
+/// Tokens of an app by another publisher acting as `user_id`, allowed `scope`.
+async fn third_party_token(app: &TestApp, user_id: i64, scope: &str) -> String {
+    let issued = app
+        .state
+        .auth
+        .issue(pley::auth::grants::NewGrant {
+            user_id,
+            approved_by: user_id,
+            client_id: "https://apps.example.com/player.json".into(),
+            client_name: Some("Example Player".into()),
+            scopes: pley::auth::scopes::Scopes::parse(scope).unwrap(),
+            refresh: true,
+            first_party: false,
+            session_hash: None,
+            user_agent: None,
+            ip: None,
+        })
+        .await
+        .unwrap();
+    issued.access_token
+}
+
+/// The users whose sessions `/api/activity` lists to `token`, sorted.
+async fn activity_users(app: &TestApp, token: &str) -> Vec<i64> {
+    let reply = app.get("/api/activity", token).await;
+    assert_eq!(reply.status, StatusCode::OK, "{}", reply.text());
+    let mut users: Vec<i64> =
+        reply.body["sessions"].as_array().unwrap().iter().map(|s| s["user_id"].as_i64().unwrap()).collect();
+    users.sort_unstable();
+    users
+}
+
+#[tokio::test]
+async fn an_administrators_own_app_allowed_activity_sees_everyones_sessions() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2020).mkv", 2048);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    let film = app.ids(movies, &admin).await["Film"];
+    let (bob, bob_id) = app.user(&admin, "bob", json!({})).await;
+    let caps = json!({"containers": ["mkv"], "video_codecs": ["h264"], "audio_codecs": ["aac"]});
+    for token in [&admin, &bob] {
+        let play = app.post("/api/playback", token, json!({"item_id": film, "caps": caps, "mode": "direct"})).await;
+        assert_eq!(play.status, StatusCode::OK, "{:?}", play.body);
+    }
+    assert_eq!(activity_users(&app, &admin).await, [1, bob_id], "the dashboard");
+
+    // One of pley's own apps on the administrator's account, allowed
+    // activity: everyone's, as the dashboard, and none of its counters.
+    let (own, _) = app.app_token(1, "library play activity").await;
+    assert_eq!(activity_users(&app, &own).await, [1, bob_id]);
+    let reply = app.get("/api/activity", &own).await;
+    assert_eq!(reply.body["analysis"], Value::Null);
+    assert_eq!(reply.body["library_work"], Value::Null);
+    assert_eq!((&reply.body["seasons_pending"], &reply.body["previews_pending"]), (&json!(0), &json!(0)));
+    assert_eq!(app.get("/api/auth/me", &own).await.body["is_admin"], json!(false), "still no administrator");
+    // Pley for Home Assistant the same.
+    let home = app
+        .state
+        .auth
+        .issue(pley::auth::grants::NewGrant {
+            user_id: 1,
+            approved_by: 1,
+            client_id: common::HOMEASSISTANT_APP.into(),
+            client_name: Some("pley".into()),
+            scopes: pley::auth::scopes::Scopes::parse("library play activity").unwrap(),
+            refresh: true,
+            first_party: true,
+            session_hash: None,
+            user_agent: Some("pleyHomeAssistant/0.1.0 (Home Assistant 2026.11.0)".into()),
+            ip: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(activity_users(&app, &home.access_token).await, [1, bob_id]);
+
+    // Without activity: refused, as any scope's route.
+    let (play_only, _) = app.app_token(1, "library play").await;
+    let refused = app.get("/api/activity", &play_only).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+    assert_eq!(refused.headers[header::WWW_AUTHENTICATE], r#"Bearer error="insufficient_scope", scope="activity""#);
+
+    // A non-administrator's app allowed activity: its own alone.
+    let (bobs, _) = app.app_token(bob_id, "library play activity").await;
+    assert_eq!(activity_users(&app, &bobs).await, [bob_id]);
+    // An app by another publisher allowed activity on the administrator's
+    // account: the administrator's own alone.
+    let other = third_party_token(&app, 1, "library activity").await;
+    assert_eq!(activity_users(&app, &other).await, [1]);
 }
 
 #[tokio::test]

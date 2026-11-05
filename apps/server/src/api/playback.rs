@@ -579,7 +579,8 @@ pub struct StopSession {
 
 /// `DELETE /api/sessions/{id}` with an optional `{ message }`: ends a
 /// playback session at once, from elsewhere than its player (the dashboard,
-/// another device). Administrators stop any session, others their own.
+/// another device). Administrators stop any session, as do pley's own apps
+/// allowed `activity` on their accounts; others their own.
 pub async fn stop_session(
     State(state): State<AppState>,
     user: AuthUser,
@@ -599,21 +600,22 @@ pub async fn stop_session(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Stops session `id` for `user` (an administrator: any session; anyone
-/// else: their own): its transcode ends, its player hears `session_stopped`
-/// and its next requests answer `410`. A session stopped already is fine.
-/// A Live TV viewer's session is ended the same way.
+/// Stops session `id` for `user` (who oversees playback, see
+/// [`AuthUser::oversees_playback`]: any session; anyone else: their own):
+/// its transcode ends, its player hears `session_stopped` and its next
+/// requests answer `410`. A session stopped already is fine. A Live TV
+/// viewer's session is ended the same way.
 pub(crate) fn stop_by(state: &AppState, user: &AuthUser, id: &str, message: Option<String>) -> ApiResult<()> {
     let Some(session) = state.sessions.get(id) else {
         return match state.sessions.stopped(id) {
-            Some(stopped) if stopped.user_id == user.id || user.is_admin => Ok(()),
+            Some(stopped) if stopped.user_id == user.id || user.oversees_playback() => Ok(()),
             Some(_) => Err(AppError::forbidden("not your session")),
             None => {
                 state.live.tuners.stop(id, user, message).unwrap_or_else(|| Err(AppError::not_found("no such session")))
             }
         };
     };
-    if session.user_id != user.id && !user.is_admin {
+    if session.user_id != user.id && !user.oversees_playback() {
         return Err(AppError::forbidden("not your session"));
     }
     let Some(session) = state.sessions.stop(id, message.clone()) else { return Ok(()) };

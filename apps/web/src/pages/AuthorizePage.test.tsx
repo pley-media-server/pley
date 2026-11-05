@@ -210,6 +210,31 @@ describe("AuthorizePage", () => {
     ).toBeInTheDocument();
   });
 
+  it("says Pley's own app allowed activity sees and stops everyone's streams", async () => {
+    serve({ answer: () => consent({ scopes: ["library", "play", "activity"] }) });
+    renderPage();
+
+    await consentShown();
+    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows[2]).toBe("See what's playing and stop it: Admin's streams, and everyone's where the account is an administrator.");
+    expect(screen.getByText("It can't change your password, sign-in settings or devices.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Of your administrator rights it gets only seeing and stopping everyone's streams: the others stay in Pley's web app."),
+    ).toBeInTheDocument();
+  });
+
+  it("gives another publisher's app allowed activity only the profile's own streams", async () => {
+    serve({ answer: () => consent({ client: other, scopes: ["library", "activity"], redirect: { kind: "web", to: "apps.example.com" } }) });
+    renderPage();
+
+    await consentShown();
+    expect(screen.getByText("See what's playing and stop it: Admin's streams.")).toBeInTheDocument();
+    expect(
+      screen.getByText("It can't change your password, sign-in settings or devices, and it never gets administrator rights."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Your administrator rights stay in Pley's web app.")).toBeInTheDocument();
+  });
+
   it("leaves out the administrator line for others", async () => {
     serve({ answer: () => consent({ scopes: ["library", "profiles"], redirect: { kind: "loopback", to: "127.0.0.1" } }) });
     renderPage({ user: { ...testUser, name: "Kid", is_admin: false } });

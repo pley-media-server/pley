@@ -63,7 +63,8 @@ pub enum AppError {
     #[error("{}", scope_message(*.0))]
     InsufficientScope(Option<&'static str>),
     /// A playback session that was stopped from elsewhere (an administrator,
-    /// or its owner on another device), with the message they left: `410`
+    /// one of Pley's own apps allowed `activity` on their account, or its
+    /// owner on another device), with the message they left: `410`
     /// `{ code: "session_stopped", error: "session_stopped", message }`,
     /// where `message` is theirs or `null`.
     #[error("playback was stopped")]

@@ -1445,9 +1445,10 @@ impl From<GrantRow> for AppGrant {
 /// What an app's grant was last used from, by the User-Agent of its token
 /// requests. Pley's apps say "pleyAndroid/1.0 (Android 15)",
 /// "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "pleyRoku/0.1.0 (Roku OS 14.5;
-/// Roku Ultra)", "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)" or
-/// "pleyApple/0.1.0 (iPadOS 16.7; iPad)": the row names the app already,
-/// so the platform it gives in brackets.
+/// Roku Ultra)", "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)",
+/// "pleyApple/0.1.0 (iPadOS 16.7; iPad)" or "pleyHomeAssistant/0.1.0 (Home
+/// Assistant 2026.11.0)": the row names the app already, so the platform it
+/// gives in brackets.
 fn grant_device(user_agent: &str) -> String {
     let apps = [
         ("pleyAndroid/", "Android"),
@@ -1455,6 +1456,7 @@ fn grant_device(user_agent: &str) -> String {
         ("pleyRoku/", "Roku"),
         ("pleyLG/", "webOS"),
         ("pleyApple/", "Apple"),
+        ("pleyHomeAssistant/", "Home Assistant"),
     ];
     for (app, platform) in apps {
         if user_agent.contains(app) {
@@ -1558,6 +1560,9 @@ mod tests {
         assert_eq!(grant_device("pleyKodi/0.1.0 (Kodi 21.2; Windows)"), "Kodi 21.2; Windows");
         assert_eq!(grant_device("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)"), "webOS 23; OLED65C3PUA");
         assert_eq!(grant_device("pleyLG/0.1.0"), "webOS");
+        let home_assistant = "pleyHomeAssistant/0.1.0 (Home Assistant 2026.11.0)";
+        assert_eq!(grant_device(home_assistant), "Home Assistant 2026.11.0");
+        assert_eq!(grant_device("pleyHomeAssistant/0.1.0"), "Home Assistant");
     }
 
     #[test]

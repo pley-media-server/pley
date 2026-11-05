@@ -6,7 +6,7 @@ mod common;
 
 use std::time::Duration;
 
-use axum::http::{Method, StatusCode};
+use axum::http::{Method, StatusCode, header};
 use futures::StreamExt;
 use serde_json::{Value, json};
 
@@ -21,6 +21,7 @@ struct World {
     viewer: String,
     viewer_id: i64,
     other: String,
+    other_id: i64,
     film: i64,
 }
 
@@ -31,8 +32,8 @@ async fn world() -> World {
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let film = app.ids(movies, &admin).await["Film"];
     let (viewer, viewer_id) = app.user(&admin, "viewer", json!({})).await;
-    let (other, _) = app.user(&admin, "other", json!({})).await;
-    World { app, admin, viewer, viewer_id, other, film }
+    let (other, other_id) = app.user(&admin, "other", json!({})).await;
+    World { app, admin, viewer, viewer_id, other, other_id, film }
 }
 
 /// A direct play of the film by `token`'s user: its session id.
@@ -166,6 +167,79 @@ async fn users_stop_their_own_sessions() {
     )
     .await;
     assert_eq!(stopped_event(&heard)["by_admin"], json!(false));
+}
+
+/// Tokens of an app by another publisher acting as `user_id`, allowed `scope`.
+async fn third_party_token(w: &World, user_id: i64, scope: &str) -> String {
+    let issued = w
+        .app
+        .state
+        .auth
+        .issue(pley::auth::grants::NewGrant {
+            user_id,
+            approved_by: user_id,
+            client_id: "https://apps.example.com/player.json".into(),
+            client_name: Some("Example Player".into()),
+            scopes: pley::auth::scopes::Scopes::parse(scope).unwrap(),
+            refresh: true,
+            first_party: false,
+            session_hash: None,
+            user_agent: None,
+            ip: None,
+        })
+        .await
+        .unwrap();
+    issued.access_token
+}
+
+#[tokio::test]
+async fn an_administrators_own_app_allowed_activity_stops_anyones_session() {
+    let w = world().await;
+    let app = &w.app;
+    let session = play(&w, &w.viewer).await;
+    let uri = format!("/api/sessions/{session}");
+
+    // Apps that may only play, an administrator's included, stop their
+    // profile's own; so does another publisher's app allowed activity
+    // (without play: either opens the route), and a non-administrator's own
+    // app allowed it.
+    let (play_only, _) = app.app_token(1, "library play").await;
+    let other = third_party_token(&w, 1, "library activity").await;
+    let (others_own, _) = app.app_token(w.other_id, "library play activity").await;
+    for token in [&play_only, &other, &others_own] {
+        let refused = app.app_call(Method::DELETE, &uri, token, None).await;
+        assert_eq!(refused.status, StatusCode::FORBIDDEN, "{}", refused.text());
+    }
+    assert!(app.state.sessions.get(&session).is_some(), "still playing");
+    // Each stops its own profile's session all the same.
+    let own = play(&w, &w.admin).await;
+    let stopped = app.app_call(Method::DELETE, &format!("/api/sessions/{own}"), &other, None).await;
+    assert_eq!(stopped.status, StatusCode::NO_CONTENT, "{}", stopped.text());
+    let theirs = play(&w, &w.other).await;
+    let stopped = app.app_call(Method::DELETE, &format!("/api/sessions/{theirs}"), &others_own, None).await;
+    assert_eq!(stopped.status, StatusCode::NO_CONTENT, "{}", stopped.text());
+
+    // An app allowed neither play nor activity can't stop any.
+    let (library, _) = app.app_token(1, "library").await;
+    let refused = app.app_call(Method::DELETE, &uri, &library, None).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+    assert_eq!(refused.headers[header::WWW_AUTHENTICATE], r#"Bearer error="insufficient_scope", scope="play""#);
+
+    // One of pley's own apps on the administrator's account, allowed
+    // activity (play or not): the viewer's session, as the dashboard stops
+    // it.
+    let (oversees, _) = app.app_token(1, "library activity").await;
+    let stop = async {
+        let body = Some(json!({"message": "Bedtime"}));
+        let stopped = app.app_call(Method::DELETE, &uri, &oversees, body).await;
+        assert_eq!(stopped.status, StatusCode::NO_CONTENT, "{}", stopped.text());
+    };
+    let heard = events_until(&w, &w.viewer, stop, "session_stopped").await;
+    let expected = json!({"type": "session_stopped", "session_id": session, "message": "Bedtime", "by_admin": true});
+    assert_eq!(stopped_event(&heard), expected);
+    assert_eq!(app.get(&format!("/api/playback/{session}"), &w.viewer).await.status, StatusCode::GONE);
+    assert_eq!(app.app_call(Method::DELETE, &uri, &oversees, None).await.status, StatusCode::NO_CONTENT, "again");
+    assert_eq!(app.app_call(Method::DELETE, &uri, &play_only, None).await.status, StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
