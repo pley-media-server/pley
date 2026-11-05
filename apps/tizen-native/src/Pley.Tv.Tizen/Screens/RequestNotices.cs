@@ -40,6 +40,8 @@ sealed class RequestNotices : IDisposable
     readonly Timer poll = new Timer(PollMs);
     NoticeSheet? shown;
     bool disposed;
+    /// <summary>News waited under the player: once it's gone, the remote's rest is counted from then.</summary>
+    bool underPlayer;
 
     public RequestNotices(IRequestsSource source, TvShell page, Shell layers, KeyRepeatGate gate, Images images, Func<bool> visible, Action<PageKey> open)
     {
@@ -79,6 +81,17 @@ sealed class RequestNotices : IDisposable
         if (shown != null) return false;
         var queue = source.Notices.Value;
         if (queue.Count == 0) return false;
+        // Back from the player counts as a press, whether a key closed it or the video ended by itself.
+        if (layers.Covered)
+        {
+            underPlayer = true;
+            return true;
+        }
+        if (underPlayer)
+        {
+            underPlayer = false;
+            gate.Touched();
+        }
         var current = page.Tree.Current;
         // Not on the requests, which show it, nor while the page's cards are sorted or moved.
         var free = visible() && !TextInput.Typing && layers.Top == page && page.Top is { Busy: false } top && top.Key is not PageKey.Requests && current != null
