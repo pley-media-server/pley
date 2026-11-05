@@ -1,0 +1,11 @@
+{
+  "title": "Watch history",
+  "emptyTitle": "No history yet",
+  "empty": "Movies, episodes and songs you finish show up here.",
+  "failed": "Couldn't load your watch history",
+  "more": "Show more",
+  "loading": "Loading…",
+  "plays_one": "{{count}} play",
+  "plays_other": "{{count}} plays",
+  "remove": "Remove {{title}} from history"
+}

@@ -25,20 +25,6 @@ public static class SmartFilter
         [LibrarySort.Bitrate] = "mediaBitrate",
     };
 
-    static readonly Dictionary<string, (string Ascending, string Descending)> SortNotes = new Dictionary<string, (string, string)>
-    {
-        ["titleSort"] = ("By title", "By title, Z to A"),
-        ["year"] = ("Oldest first", "Newest first"),
-        ["originallyAvailableAt"] = ("Earliest release first", "Latest release first"),
-        ["addedAt"] = ("First added first", "Recently added first"),
-        ["rating"] = ("Lowest rated first", "Best rated first"),
-        ["audienceRating"] = ("Lowest rated first", "Best rated first"),
-        ["userRating"] = ("Your lowest rated first", "Your best rated first"),
-        ["lastViewedAt"] = ("Least recently played first", "Recently played first"),
-        ["duration"] = ("Shortest first", "Longest first"),
-        ["viewCount"] = ("Least played first", "Most played first"),
-    };
-
     /// <summary>The library page's filters and order as a smart filter: what "Save as…" saves.</summary>
     public static string Of(LibraryParams p)
     {
@@ -66,29 +52,34 @@ public static class SmartFilter
             var value = at < 0 ? "" : LibraryParams.Decode(part.Substring(at + 1));
             switch (key)
             {
-                case "genre": words.Add($"Genre: {value}"); break;
-                case "label": words.Add($"Label: {value}"); break;
-                case "studio": words.Add($"Studio: {value}"); break;
-                case "contentRating": words.Add($"Rated {value}"); break;
-                case "unwatched": words.Add(value is "0" or "false" ? "Watched" : "Unwatched"); break;
-                case "inProgress": words.Add(value is "0" or "false" ? "Not in progress" : "In progress"); break;
-                case "year": words.Add($"From {value}"); break;
-                case "year>>": words.Add($"After {value}"); break;
-                case "year<<": words.Add($"Before {value}"); break;
-                case "decade": words.Add($"The {value}s"); break;
-                case "resolution": words.Add(LibraryText.ResolutionLabel(value) ?? $"{key}: {value}"); break;
-                case "dynamicRange": words.Add(LibraryText.DynamicRangeLabel(value) ?? $"{key}: {value}"); break;
+                case "genre": words.Add(Strings.T("library.smartFilter.genre", ("value", value))); break;
+                case "label": words.Add(Strings.T("library.smartFilter.label", ("value", value))); break;
+                case "studio": words.Add(Strings.T("library.smartFilter.studio", ("value", value))); break;
+                case "contentRating": words.Add(Strings.T("library.smartFilter.rated", ("value", value))); break;
+                case "unwatched": words.Add(value is "0" or "false" ? Strings.T("library.smartFilter.watched") : Strings.T("library.smartFilter.unwatched")); break;
+                case "inProgress":
+                    words.Add(value is "0" or "false" ? Strings.T("library.smartFilter.notInProgress") : Strings.T("library.smartFilter.inProgress"));
+                    break;
+                case "year": words.Add(Strings.T("library.smartFilter.from", ("value", value))); break;
+                case "year>>": words.Add(Strings.T("library.smartFilter.after", ("value", value))); break;
+                case "year<<": words.Add(Strings.T("library.smartFilter.before", ("value", value))); break;
+                case "decade": words.Add(Strings.T("library.smartFilter.decade", ("value", value))); break;
+                case "resolution": words.Add(LibraryText.ResolutionLabel(value) ?? Other(key, value)); break;
+                case "dynamicRange": words.Add(LibraryText.DynamicRangeLabel(value) ?? Other(key, value)); break;
                 case "sort": words.Add(SortNote(value)); break;
-                case "limit": words.Add($"At most {value}"); break;
+                case "limit": words.Add(Strings.T("library.smartFilter.limit", ("value", value))); break;
                 // Plumbing, not part of what is found.
                 case "type":
                 case "includeGuids":
                     break;
-                default: words.Add($"{key}: {value}"); break;
+                default: words.Add(Other(key, value)); break;
             }
         }
         return words;
     }
+
+    /// <summary>A field without words of its own, as it is named: "mood: calm".</summary>
+    static string Other(string key, string value) => Strings.T("library.smartFilter.other", ("name", key), ("value", value));
 
     static string SortNote(string value)
     {
@@ -99,7 +90,30 @@ public static class SmartFilter
         // python-plexapi may name the kind first: `movie.year`.
         var dot = field.IndexOf('.');
         var name = dot < 0 ? field : field.Substring(dot + 1);
-        if (!SortNotes.TryGetValue(name, out var notes)) return $"Sorted by {name}";
-        return direction == "desc" ? notes.Descending : notes.Ascending;
+        return SortWords(name, direction == "desc") ?? Strings.T("library.smartFilter.sortedBy", ("name", name));
     }
+
+    /// <summary>What sorting by a Plex field says, one way or the other: "Newest first"; null for a field without words of its own.</summary>
+    static string? SortWords(string field, bool descending) => (field, descending) switch
+    {
+        ("titleSort", false) => Strings.T("library.smartFilter.sort.titleSort.asc"),
+        ("titleSort", true) => Strings.T("library.smartFilter.sort.titleSort.desc"),
+        ("year", false) => Strings.T("library.smartFilter.sort.year.asc"),
+        ("year", true) => Strings.T("library.smartFilter.sort.year.desc"),
+        ("originallyAvailableAt", false) => Strings.T("library.smartFilter.sort.originallyAvailableAt.asc"),
+        ("originallyAvailableAt", true) => Strings.T("library.smartFilter.sort.originallyAvailableAt.desc"),
+        ("addedAt", false) => Strings.T("library.smartFilter.sort.addedAt.asc"),
+        ("addedAt", true) => Strings.T("library.smartFilter.sort.addedAt.desc"),
+        ("rating" or "audienceRating", false) => Strings.T("library.smartFilter.sort.rating.asc"),
+        ("rating" or "audienceRating", true) => Strings.T("library.smartFilter.sort.rating.desc"),
+        ("userRating", false) => Strings.T("library.smartFilter.sort.userRating.asc"),
+        ("userRating", true) => Strings.T("library.smartFilter.sort.userRating.desc"),
+        ("lastViewedAt", false) => Strings.T("library.smartFilter.sort.lastViewedAt.asc"),
+        ("lastViewedAt", true) => Strings.T("library.smartFilter.sort.lastViewedAt.desc"),
+        ("duration", false) => Strings.T("library.smartFilter.sort.duration.asc"),
+        ("duration", true) => Strings.T("library.smartFilter.sort.duration.desc"),
+        ("viewCount", false) => Strings.T("library.smartFilter.sort.viewCount.asc"),
+        ("viewCount", true) => Strings.T("library.smartFilter.sort.viewCount.desc"),
+        _ => null,
+    };
 }

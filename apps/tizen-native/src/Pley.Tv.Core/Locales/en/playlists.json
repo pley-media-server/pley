@@ -1,0 +1,68 @@
+{
+  "list": {
+    "title": "Playlists",
+    "new": "New playlist",
+    "failed": "Couldn't load your playlists",
+    "noneTitle": "No playlists yet",
+    "noneBody": "Make one here, or use “Add to playlist” on a movie, show, album or episode (also when holding OK on a poster).",
+    "retry": "Retry",
+    "smart": "Smart"
+  },
+  "count": {
+    "items_one": "{{count, number}} item",
+    "items_other": "{{count, number}} items"
+  },
+  "page": {
+    "video": "Video playlist",
+    "music": "Music playlist",
+    "smart": "Smart playlist",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "rename": "Rename",
+    "delete": "Delete",
+    "failed": "Couldn't load this playlist",
+    "notFound": "Playlist not found",
+    "notFoundBody": "It was deleted, or it belongs to another profile.",
+    "back": "Back",
+    "emptySmart": "Nothing matches this playlist's filter yet.",
+    "emptyVideo": "This playlist is empty. Use “Add to playlist” on a movie, show or episode, or hold OK on a poster.",
+    "emptyMusic": "This playlist is empty. Use “Add to playlist” on an artist or album, or hold OK on a cover.",
+    "more": "More",
+    "playFromHere": "Play from here",
+    "goTo": "Go to {{title}}",
+    "move": "Move",
+    "remove": "Remove from playlist",
+    "moving": "Up and down to move it, OK to drop it here, Back to put it back",
+    "removed": "Removed “{{title}}”",
+    "deleteTitle": "Delete playlist?",
+    "deleteBody": "“{{title}}” will be deleted. What's in it stays in your libraries.",
+    "cancel": "Cancel",
+    "renameTitle": "Rename playlist",
+    "save": "Save"
+  },
+  "form": {
+    "title": "Title",
+    "for": "For",
+    "video": "Movies & TV",
+    "music": "Music",
+    "create": "Create",
+    "hint": "Press OK on the title to type it.",
+    "newBody": "Name it, then add to it with “Add to playlist” on any title.",
+    "smartTitle": "Save these filters",
+    "smartBody": "It keeps up with the library by itself.",
+    "smartBodyFilters": "{{filters}}. It keeps up with the library by itself."
+  },
+  "add": {
+    "title": "Add to playlist",
+    "newVideo": "New video playlist",
+    "newMusic": "New music playlist",
+    "create": "Create",
+    "yours": "Your playlists",
+    "noneVideo": "No video playlists yet: name one above.",
+    "noneMusic": "No music playlists yet: name one above.",
+    "nothing": "Nothing to add",
+    "addedTo": "Added to {{playlist}}",
+    "addedItems_one": "Added {{count}} item to {{playlist}}",
+    "addedItems_other": "Added {{count}} items to {{playlist}}"
+  }
+}

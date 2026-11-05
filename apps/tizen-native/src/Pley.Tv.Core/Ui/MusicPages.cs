@@ -102,8 +102,8 @@ public static class MusicPages
         var albumCount = detail.ChildCount ?? albums?.Count;
         var counts = string.Join(" · ", new[]
         {
-            albumCount is { } a ? Format.Pluralize(a, "album") : null,
-            detail.LeafCount is { } t ? Format.Pluralize(t, "track") : null,
+            albumCount is { } a ? MusicText.AlbumCount(a) : null,
+            detail.LeafCount is { } t ? MusicText.TrackCount(t) : null,
         }.Where(s => s != null));
         return new ArtistView(detail.Id, detail.Title, origin, NonEmpty(detail.PosterUrl), NonEmpty(detail.BackdropUrl), NonBlank(detail.Summary), detail.Genres,
             counts, sorted, albums == null, detail);
@@ -114,7 +114,7 @@ public static class MusicPages
     {
         var list = tracks ?? Array.Empty<ItemSummary>();
         var total = list.Sum(t => t.DurationMs ?? 0);
-        var meta = string.Join(" · ", new[] { list.Count > 0 ? Format.Pluralize(list.Count, "track") : null, Format.Duration(total) }.Where(s => !string.IsNullOrEmpty(s)));
+        var meta = string.Join(" · ", new[] { list.Count > 0 ? MusicText.TrackCount(list.Count) : null, Format.Duration(total) }.Where(s => !string.IsNullOrEmpty(s)));
         var rating = detail.UserState.Rating is { } r ? (int)Math.Floor(r + 0.5) : 0;
         return new AlbumView(detail.Id, detail.Title, origin, NonEmpty(detail.PosterUrl), detail.ParentTitle, detail.ParentId, detail.Year, meta,
             rating > 0 ? rating : null, NonBlank(detail.Summary), detail.Genres, list, Rows(list, detail.ParentTitle), tracks == null);

@@ -244,18 +244,18 @@ public sealed class HistoryModel : IDisposable
 /// <summary>What the TV's watch history says (the Android app's tv_account_history* strings).</summary>
 public static class HistoryText
 {
-    public const string Title = "Watch history";
-    public const string EmptyTitle = "No history yet";
-    public const string Empty = "Movies, episodes and songs you finish show up here.";
-    public const string Failed = "Couldn't load your watch history";
-    public const string More = "Show more";
-    public const string Loading = "Loading…";
+    public static string Title => Strings.T("history.title");
+    public static string EmptyTitle => Strings.T("history.emptyTitle");
+    public static string Empty => Strings.T("history.empty");
+    public static string Failed => Strings.T("history.failed");
+    public static string More => Strings.T("history.more");
+    public static string Loading => Strings.T("history.loading");
 
     /// <summary>"1 play", "40 plays", after the title.</summary>
-    public static string Count(long n) => n == 1 ? "1 play" : $"{n.ToString(CultureInfo.InvariantCulture)} plays";
+    public static string Count(long n) => Strings.Count("history.plays", n);
 
     /// <summary>"Remove Film 1 from history": the cross, to a screen reader.</summary>
-    public static string Remove(string title) => $"Remove {title} from history";
+    public static string Remove(string title) => Strings.T("history.remove", ("title", title));
 
     /// <summary>Show more's words: "Loading…" while the next plays come.</summary>
     public static string MoreLabel(HistoryState.Ready state) => state.LoadingMore ? Loading : More;
