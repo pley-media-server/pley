@@ -327,6 +327,7 @@ public sealed class PlayerModel : IDisposable
         if (EndSession(atMs)) await Ui(() => Task.WhenAny(reporter.Flush(), Task.Delay(TimeSpan.FromMilliseconds(EndWaitMs))));
         if (at != generation || closed) return;
         Reset(atMs);
+        if (at == restartedFor) startedAtMs = restartedFrom;
 
         // A lower quality is always a transcode; the original keeps a fallback's mode, or a guard's.
         var mode = !quality.Original ? "transcode" : recovery.FallbackMode ?? guardMode ?? quality.Mode;
@@ -611,8 +612,20 @@ public sealed class PlayerModel : IDisposable
         HideUpNext();
         lastPositionMs = atMs;
         SetClock(positionMs: atMs);
+        // The session Restart starts next; its start can come before Restart returns.
+        restartedFor = generation + 1;
+        restartedFrom = startedAtMs;
         Restart(atMs);
     }
+
+    /// <summary>
+    /// The session the engine asked for (<see cref="OnRestartAsked"/>), and where playing started
+    /// before it: its end is weighed from there (<see cref="EndedShort"/>). Weighed from the new
+    /// session's start, a film whose file ends early ended "short" again where the engine opened
+    /// it, and fell back to a transcode instead of ending.
+    /// </summary>
+    int restartedFor = -1;
+    long restartedFrom;
 
     /// <summary>It plays again by itself (after waiting for data): the screen says so.</summary>
     void OnPlaying(bool playing)

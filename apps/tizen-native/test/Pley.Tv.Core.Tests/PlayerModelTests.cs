@@ -371,6 +371,26 @@ public class PlayerModelTests
         Assert.Equal(PhaseKind.Preparing, h.State.Phase.Kind);
     }
 
+    /// <summary>
+    /// A file that ends a minute or more before the item says: the engine opens it again where it
+    /// ended, and it ends there again. That is its end, weighed from where the film started, not a
+    /// stream that doesn't hold that part (which falls back to a transcode).
+    /// </summary>
+    [Fact]
+    public void A_film_that_ends_again_where_the_engine_opened_it_again_ends()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 1_000_000, false));
+        h.Play(10_000);
+        h.Engine.AskRestart(2_000_000);
+        Assert.Equal(2, h.Source.Bodies.Count);
+        h.Engine.Show();
+        h.Engine.PositionMs = 2_000_500;
+        h.Engine.Tell(EngineStatus.Ended);
+        Assert.Equal(PhaseKind.Ended, h.State.Phase.Kind);
+        Assert.Equal(2, h.Source.Bodies.Count);
+    }
+
     [Fact]
     public void Without_autoplay_the_card_waits_and_cancelling_it_at_the_end_ends_playback()
     {

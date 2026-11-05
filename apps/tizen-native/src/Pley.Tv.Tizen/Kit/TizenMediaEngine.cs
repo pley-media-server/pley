@@ -267,8 +267,16 @@ sealed class TizenMediaEngine : IVideoEngine
         StartWindow? window = null;
         if (Trim && s.Hls && !s.Live && s.StartMs >= TrimFromMs && url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            window = await Task.Run(() => new StartWindow(new Uri(url), s.StartMs, mark: m => Profile.Mark("engine: " + m)));
-            url = window.Url.ToString();
+            try
+            {
+                window = await Task.Run(() => new StartWindow(new Uri(url), s.StartMs, mark: m => Profile.Mark("engine: " + m)));
+                url = window.Url.ToString();
+            }
+            catch (Exception e) when (e is System.Net.Sockets.SocketException or UriFormatException)
+            {
+                // No port on the TV to serve them from: the film's start is fetched first, as before.
+                Profile.Mark($"engine: no trimmed playlists ({e.GetType().Name}): the stream as it is");
+            }
         }
         try
         {
@@ -1046,13 +1054,16 @@ sealed class TizenMediaEngine : IVideoEngine
     /// The TV's player says the source ended. Now and then it said so in the middle of a film, after
     /// seeks: taken as the end, the film was reported watched and the next one played. Said more than
     /// <see cref="EarlyEndMs"/> before the film's end, it is opened again where it was, once; said
-    /// again there, it is the end (a film shorter than the item says).
+    /// again there, it is the end (a film shorter than the item says). Said just after the source
+    /// started, it is the player model's to weigh (<see cref="PlayerModel.ShortPlayMs"/>): a stream
+    /// that doesn't hold that part falls back to another mode, without a session of this one first.
     /// </summary>
     void Completed()
     {
         var at = PositionMs;
         var duration = DurationMs;
-        if (duration > 0 && duration - at > EarlyEndMs && Math.Abs(at - earlyEndAt) > EarlyEndMs)
+        var started = source?.StartMs ?? 0;
+        if (duration > 0 && duration - at > EarlyEndMs && Math.Abs(at - earlyEndAt) > EarlyEndMs && at >= started + PlayerModel.ShortPlayMs)
         {
             earlyEndAt = at;
             Profile.Mark($"engine: the end said at {at / 1000} s of {duration / 1000} s: opened again there");
