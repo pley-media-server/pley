@@ -3,7 +3,9 @@ import { Api, ApiError, isApiError, unreachable } from "./api/client";
 import { EventStream } from "./api/events";
 import type { Hub, HouseholdProfile, ItemDetail, Library, LiveChannel, LiveSummary, MediaRequest, RequestSummary, ServerEvent, TitleKind, TitleStatus, User } from "./api/types";
 import { origin } from "./auth/addresses";
+import { probe } from "./auth/servers";
 import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
+import { deviceLanguage, language, navigatorLanguages, pickLanguage, setDeviceLanguages, setLanguage, supportedLanguage, type Language } from "./i18n";
 import { xhrTransport, type Transport } from "./net/transport";
 import type { Platform, Probe } from "./platform";
 import { receiverQuery } from "./player/cast";
@@ -79,6 +81,8 @@ const REQUEST_GATHER_MS = 300;
 export const SUMMARY_POLL_MS = 60_000;
 /** Ready-to-watch notices kept while they can't show (a video plays): the last three. */
 const NOTICES_KEPT = 3;
+/** The language shown last: the next start shows it before the server answers. */
+const LANGUAGE_KEY = "pley.language";
 
 /** News of requests popped up over the pages: on TVs, only what is ready to watch. */
 export interface RequestNotice {
@@ -213,6 +217,11 @@ export class AppState {
   /** The events aren't connected: pages that show requests ask on their own meanwhile. */
   readonly eventsDown = signal(false);
   /**
+   * The server's language for accounts without their own (`GET /api/server`):
+   * `undefined` until it answers, `null` when it leaves it to each device.
+   */
+  readonly serverLanguage = signal<string | null | undefined>(undefined);
+  /**
    * "Who's watching?" was answered in this launch (a profile picked, a PIN
    * checked, or a sign-in approved on a phone): the current profile's PIN
    * isn't asked again until the app starts over.
@@ -261,12 +270,17 @@ export class AppState {
   private markTimer: ReturnType<typeof setTimeout> | null = null;
   private noticeIds = 0;
   private noticeOnScreen: number | null = null;
+  /** Who is watching was heard from the server since the profile, sign-in or server last changed: its language counts. */
+  private accountHeard = false;
 
   constructor(platform: Platform, http: Transport = xhrTransport) {
     this.platform = platform;
     this.http = http;
     this.store = platform.storage;
     this.offsets = new OffsetStore(platform.storage, () => this.me.value?.id ?? null);
+    setDeviceLanguages(() => this.deviceLanguages());
+    // The language shown last, until the server says; at the first start, the TV's.
+    setLanguage(supportedLanguage(this.store.get(LANGUAGE_KEY)) ?? deviceLanguage(this.deviceLanguages()) ?? "en");
     const kept = readJson<Partial<Settings>>(this.store, SETTINGS_KEY) ?? {};
     // Original was the default before Automatic, and was saved along with any other setting: unless picked, it is Automatic now.
     if (kept.quality === "original" && this.store.get(QUALITY_PICKED_KEY) !== "1") delete kept.quality;
@@ -322,9 +336,12 @@ export class AppState {
     this.tokens = new Tokens(home, this.platform.clientId, this.store, this.http, () => {
       this.signedOut.value = true;
       this.events?.stop();
+      this.followLanguage();
     });
     this.api.value = new Api(home, this.tokens, this.http);
     this.signedOut.value = false;
+    this.serverLanguage.value = undefined;
+    void this.loadServerLanguage();
   }
 
   get signedIn(): boolean {
@@ -462,6 +479,7 @@ export class AppState {
     this.server.value = null;
     this.api.value = null;
     this.tokens = null;
+    this.serverLanguage.value = undefined;
   }
 
   /** What was shown from the server in use goes: another one comes, or none. */
@@ -491,6 +509,7 @@ export class AppState {
     this.forgetAccount();
     this.home.value = null;
     this.signedOut.value = true;
+    this.followLanguage();
   }
 
   updateSettings(patch: Partial<Settings>): void {
@@ -498,6 +517,67 @@ export class AppState {
     this.settings.value = { ...this.settings.value, ...patch };
     this.store.set(SETTINGS_KEY, JSON.stringify(this.settings.value));
     if ("quality" in patch) this.store.set(QUALITY_PICKED_KEY, "1");
+  }
+
+  // ---- the language
+
+  /** The TV's languages, its own first. */
+  deviceLanguages(): readonly string[] {
+    return this.platform.languages?.() ?? navigatorLanguages();
+  }
+
+  /** The server's language, from `GET /api/server`; asked again when its events reconnect if it didn't answer. */
+  private async loadServerLanguage(): Promise<void> {
+    const server = this.server.value;
+    if (!server) return;
+    let info;
+    try {
+      info = await probe(this.http, server);
+    } catch {
+      return;
+    }
+    if (!info || this.server.value !== server) return;
+    this.serverLanguage.value = info.language;
+    this.followLanguage();
+  }
+
+  /**
+   * The language the app is in (packages/tv/test/fixtures/language.json):
+   * the account's as soon as it is heard; else, once the server has said
+   * its own and, signed in, who is watching was heard, the server's, else
+   * the TV's. Until then the last one shown stays, as going by the TV's
+   * meanwhile would flash it.
+   */
+  private followLanguage(): void {
+    const account = this.signedIn && this.accountHeard ? this.me.value?.language : null;
+    if (!supportedLanguage(account)) {
+      if (this.serverLanguage.value === undefined) return;
+      if (this.signedIn && !this.accountHeard) return;
+    }
+    this.showLanguage(pickLanguage(account, this.serverLanguage.value, this.deviceLanguages()));
+  }
+
+  /** The app in `next` from now on, and at the next start. */
+  private showLanguage(next: Language): void {
+    this.store.set(LANGUAGE_KEY, next);
+    if (next === language.peek()) return;
+    setLanguage(next);
+    // The server writes Home's and the libraries' row titles: asked again in the new language.
+    if (this.signedIn) this.refresh();
+  }
+
+  /** The profile's own language on all its devices (`null`: the server's), shown once the server has it (`PUT /api/me/language`). */
+  async setAccountLanguage(next: Language | null): Promise<void> {
+    const api = this.api.value;
+    if (!api) throw new SignedOutError();
+    const who = this.me.value?.id;
+    const me = await api.setLanguage(next);
+    // Another profile, sign-in or server since: the answer was the one before's.
+    if (this.api.value !== api || this.me.value?.id !== who) return;
+    this.me.value = me;
+    this.store.set(ME_KEY, JSON.stringify(me));
+    this.accountHeard = true;
+    this.followLanguage();
   }
 
   // ---- what the server has
@@ -513,6 +593,7 @@ export class AppState {
     this.store.remove(LIVE_KEY);
     this.store.remove(REQUESTS_KEY);
     this.generation++;
+    this.accountHeard = false;
     this.requests.value = null;
     this.marks.value = {};
     this.markNamed.clear();
@@ -552,6 +633,8 @@ export class AppState {
     this.me.value = me;
     this.store.set(ME_KEY, JSON.stringify(me));
     this.keepLibraries(libraries);
+    this.accountHeard = true;
+    this.followLanguage();
     api.profiles().then(
       (profiles) => this.keepHousehold(profiles),
       () => undefined,
@@ -837,6 +920,7 @@ export class AppState {
     // The server may have restarted, newer: one without requests is asked again.
     this.requestsMissing = false;
     void this.loadRequests();
+    if (this.serverLanguage.value === undefined) void this.loadServerLanguage();
     if (down) this.requestsChanged(null);
     if (away || Date.now() - this.lastSync > 30_000) {
       this.lastSync = Date.now();

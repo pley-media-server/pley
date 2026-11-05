@@ -31,4 +31,9 @@
     <None Include="..\..\src\Pley.Tv.Tizen\**\*.cs" Exclude="..\..\src\Pley.Tv.Tizen\bin\**;..\..\src\Pley.Tv.Tizen\obj\**" Link="app\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Core's sources too, for CatalogTests: every key the code names is in the catalogs. -->
+  <ItemGroup>
+    <None Include="..\..\src\Pley.Tv.Core\**\*.cs" Exclude="..\..\src\Pley.Tv.Core\bin\**;..\..\src\Pley.Tv.Core\obj\**" Link="core\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

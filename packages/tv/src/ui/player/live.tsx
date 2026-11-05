@@ -3,6 +3,7 @@ import type { LiveBusyConnection, LiveChannel, LiveGroups } from "../../api/type
 import { categoryKey, categoryName, channelByNumber, channelName, formatSpan, formatTime, nowAndNext, parseCategory, programProgress, timeLeft, type LiveCategory } from "../../live/data";
 import { ChannelPages } from "../../live/pages";
 import { holders, LiveController } from "../../live/session";
+import { t } from "../../i18n";
 import { initMusic } from "../../player/music";
 import type { Key } from "../keys";
 import { useUi } from "../context";
@@ -49,14 +50,14 @@ export function LivePlayerScreen(p: { channelId: number; category: string; press
     if (fetched.error) {
       const missing = (fetched.error as { status?: number }).status === 404;
       return missing ? (
-        <Blackout title="This channel isn't here" message="It may have been hidden, or its source removed." />
+        <Blackout title={t("livetv.player.missing")} message={t("livetv.player.missingHint")} />
       ) : (
-        <Blackout title={failedTitle(fetched.error, "Live TV didn't load")} message={problem(fetched.error)} onRetry={fetched.reload} />
+        <Blackout title={failedTitle(fetched.error, t("livetv.player.didntLoad"))} message={problem(fetched.error)} onRetry={fetched.reload} />
       );
     }
     return (
       <div class="player live-player">
-        <div class="player-ring" role="status" aria-label="Loading">
+        <div class="player-ring" role="status" aria-label={t("common.states.loading")}>
           <div />
         </div>
       </div>
@@ -87,8 +88,8 @@ function Blackout(p: { title: string; message: string; onRetry?: () => void }) {
           {sentence(p.message)}
         </div>
         <G kind="row" class="buttons" style="margin-top:32px;justify-content:center">
-          {p.onRetry && <Pill label="Try again" icon="refresh-cw" fid="retry" initial onSelect={p.onRetry} />}
-          <TextButton label="Back" fid="back" initial={!p.onRetry} onSelect={() => ui.nav.pop()} />
+          {p.onRetry && <Pill label={t("common.actions.tryAgain")} icon="refresh-cw" fid="retry" initial onSelect={p.onRetry} />}
+          <TextButton label={t("common.actions.back")} fid="back" initial={!p.onRetry} onSelect={() => ui.nav.pop()} />
         </G>
       </div>
     </div>
@@ -241,7 +242,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
       },
       () => {
         zapping.current = false;
-        if (!remote) say("Couldn't find the next channel", true);
+        if (!remote) say(t("livetv.player.nextNotFound"), true);
       },
     );
   };
@@ -251,9 +252,9 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     ui.api.setLiveFavorite(channel.id, on).then(
       () => {
         c.state.value = { ...c.state.value, channel: { ...c.state.value.channel, favorite: on } };
-        say(on ? `${channel.name} is a favourite` : `${channel.name} isn't a favourite any more`);
+        say(on ? t("livetv.favourites.added", { name: channel.name }) : t("livetv.favourites.removed", { name: channel.name }));
       },
-      () => say(on ? "Couldn't add it to your favourites" : "Couldn't take it out of your favourites", true),
+      () => say(on ? t("livetv.favourites.addFailed") : t("livetv.favourites.removeFailed"), true),
     );
   };
 
@@ -394,7 +395,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           class="engine-host"
         />
         <div class={`player-scrim${controls || infoShown ? " in" : ""}`} />
-        <F class="video-holder" fid="video" disabled={controls} label={`${name}, live`} />
+        <F class="video-holder" fid="video" disabled={controls} label={t("livetv.player.liveName", { name })} />
         {s.phase === "tuning" && !s.shown && <TuningCard channel={channel} name={name} on={on} />}
         {s.shown && s.audioOnly && !trouble && <RadioCard channel={channel} name={name} on={on} hours24={hours24} />}
         <div class={`live-info${infoShown ? " in" : ""}`} aria-hidden={!infoShown}>
@@ -409,19 +410,24 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           </div>
           <G kind="row" class="player-row">
             <div class="row-left">
-              <PlayerButton fid="channels" icon="list" label="Channels" onSelect={() => setList(true)} />
-              <PlayerButton fid="favorite" icon={channel.favorite ? "star" : "star-outline"} label={channel.favorite ? "Remove from favourites" : "Add to favourites"} onSelect={toggleFavorite} />
+              <PlayerButton fid="channels" icon="list" label={t("livetv.channels")} onSelect={() => setList(true)} />
+              <PlayerButton
+                fid="favorite"
+                icon={channel.favorite ? "star" : "star-outline"}
+                label={channel.favorite ? t("livetv.favourites.remove") : t("livetv.favourites.add")}
+                onSelect={toggleFavorite}
+              />
             </div>
             <div class="row-centre" />
             <div class="row-right">
               <LiveChip />
-              <PlayerButton fid="chdown" icon="chevron-down" label="Previous channel" onSelect={() => zap(-1)} />
-              <PlayerButton fid="chup" icon="chevron-up" label="Next channel" onSelect={() => zap(1)} />
+              <PlayerButton fid="chdown" icon="chevron-down" label={t("livetv.player.previousChannel")} onSelect={() => zap(-1)} />
+              <PlayerButton fid="chup" icon="chevron-up" label={t("livetv.player.nextChannel")} onSelect={() => zap(1)} />
             </div>
           </G>
         </div>
         {ring && !trouble && (
-          <div class="player-ring" role="status" aria-label="Loading">
+          <div class="player-ring" role="status" aria-label={t("common.states.loading")}>
             <div />
           </div>
         )}
@@ -447,9 +453,16 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
           )}
           <G kind="row" class="buttons" style={`margin-top:${busy.length ? 24 : 32}px;justify-content:center`}>
             {/* Watching ended on the server: watched again as any watch is, never taking a connection over by itself. */}
-            {trouble.canRetry && <Pill label={trouble.kind === "stopped" ? "Watch again" : "Try again"} icon="refresh-cw" fid="retry" onSelect={() => c.retry()} />}
-            <Pill label="Other channels" icon="list" fid="others" onSelect={() => setList(true)} />
-            <TextButton label="Back" fid="back" onSelect={leave} />
+            {trouble.canRetry && (
+              <Pill
+                label={trouble.kind === "stopped" ? t("livetv.player.watchAgain") : t("common.actions.tryAgain")}
+                icon="refresh-cw"
+                fid="retry"
+                onSelect={() => c.retry()}
+              />
+            )}
+            <Pill label={t("livetv.player.otherChannels")} icon="list" fid="others" onSelect={() => setList(true)} />
+            <TextButton label={t("common.actions.back")} fid="back" onSelect={leave} />
           </G>
         </div>
       )}
@@ -476,9 +489,9 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
 function LiveChip() {
   return (
     <div class="live-chip-box">
-      <span class="live-badge t-badge at-live" aria-label="Live">
+      <span class="live-badge t-badge at-live" aria-label={t("livetv.live")}>
         <span class="live-dot" />
-        LIVE
+        {t("livetv.marks.live")}
       </span>
     </div>
   );
@@ -510,9 +523,13 @@ function NowCard(p: { channel: LiveChannel; name: string; on: OnNow; next: Retur
             </div>
           </>
         ) : (
-          <div class="t-title c-muted one-line live-now-title">{c.has_guide ? "Nothing in the guide now" : "No guide for this channel"}</div>
+          <div class="t-title c-muted one-line live-now-title">{c.has_guide ? t("livetv.nothingNow") : t("livetv.noGuideHere")}</div>
         )}
-        {p.next && <div class="t-caption c-muted one-line" style="margin-top:6px">{`Next  ${formatTime(p.next.start, p.hours24)} · ${p.next.title}`}</div>}
+        {p.next && (
+          <div class="t-caption c-muted one-line" style="margin-top:6px">
+            {t("livetv.player.next", { time: formatTime(p.next.start, p.hours24), title: p.next.title })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -533,7 +550,7 @@ function BusyConnections(p: { connections: LiveBusyConnection[]; onTakeOver: (ch
   return (
     <>
       <div class="t-body c-muted" style="margin-top:8px;text-align:center">
-        {n === 1 ? "Its one connection is watching:" : `Its ${n} connections are watching:`}
+        {t("livetv.player.connectionsWatching", { count: n })}
       </div>
       <G kind="col" class="live-busy">
         {shown.map((x) => (
@@ -542,14 +559,18 @@ function BusyConnections(p: { connections: LiveBusyConnection[]; onTakeOver: (ch
               <div class="t-label c-fg one-line">{x.channel_name}</div>
               <div class="t-caption c-muted one-line">{holders(x)}</div>
             </div>
-            {x.can_take_over && <Pill label="Watch here instead" fid={`take/${x.channel_id}`} onSelect={() => p.onTakeOver(x.channel_id)} />}
+            {x.can_take_over && <Pill label={t("livetv.player.watchHere")} fid={`take/${x.channel_id}`} onSelect={() => p.onTakeOver(x.channel_id)} />}
           </div>
         ))}
       </G>
-      {n > BUSY_SHOWN && <div class="t-caption c-muted" style="margin-top:6px">{`and ${n - BUSY_SHOWN} more`}</div>}
+      {n > BUSY_SHOWN && (
+        <div class="t-caption c-muted" style="margin-top:6px">
+          {t("livetv.player.andMore", { count: n - BUSY_SHOWN })}
+        </div>
+      )}
       {!p.connections.some((x) => x.can_take_over) && (
         <div class="t-caption c-subtle" style="margin-top:10px;text-align:center">
-          A channel already being watched can be joined, or try again once one is stopped.
+          {t("livetv.player.joinHint")}
         </div>
       )}
     </>
@@ -558,7 +579,7 @@ function BusyConnections(p: { connections: LiveBusyConnection[]; onTakeOver: (ch
 
 function TuningCard(p: { channel: LiveChannel; name: string; on: OnNow }) {
   return (
-    <div class="live-tuning" role="status" aria-label={`Tuning ${p.name}`}>
+    <div class="live-tuning" role="status" aria-label={t("livetv.player.tuning", { name: p.name })}>
       <ChannelLogo channel={p.channel} width={192} height={108} showName />
       <div class="live-tuning-ring">
         <div />
@@ -568,7 +589,7 @@ function TuningCard(p: { channel: LiveChannel; name: string; on: OnNow }) {
         {p.name}
       </div>
       <div class="t-label c-muted" style="margin-top:6px">
-        {p.on ? p.on.title : "Tuning…"}
+        {p.on ? p.on.title : t("livetv.player.tuningNow")}
       </div>
     </div>
   );
@@ -585,7 +606,7 @@ function RadioCard(p: { channel: LiveChannel; name: string; on: OnNow; hours24: 
       </div>
       <div class="live-radio-line t-label c-muted">
         <Icon name="radio" size={18} />
-        <span>{p.on ? `${p.on.title} · ${formatSpan(p.on, p.hours24)}` : "Radio"}</span>
+        <span>{p.on ? `${p.on.title} · ${formatSpan(p.on, p.hours24)}` : t("livetv.player.radio")}</span>
       </div>
     </div>
   );
@@ -670,7 +691,7 @@ function ChannelList(p: { category: LiveCategory; current: number; now: number; 
       const ch = pages.at(i);
       if (!ch) {
         rows.push(
-          <F key={i} class="live-list-row loading" fid={`list/at${i}`} label="Loading" style={`top:${i * LIST_PITCH}px`} onFocus={() => setAt(i)}>
+          <F key={i} class="live-list-row loading" fid={`list/at${i}`} label={t("common.states.loading")} style={`top:${i * LIST_PITCH}px`} onFocus={() => setAt(i)}>
             <span class="live-list-number" />
             <div class="skeleton" style="width:64px;height:36px;border-radius:4px" />
           </F>,
@@ -680,12 +701,13 @@ function ChannelList(p: { category: LiveCategory; current: number; now: number; 
       const { on } = nowAndNext(ch, p.now);
       const playing = ch.id === p.current;
       const name = channelName(ch, category);
+      const said = `${ch.number ? `${ch.number} ` : ""}${name}${on ? `, ${on.title}` : ""}`;
       rows.push(
         <F
           key={i}
           class={`live-list-row${playing ? " current" : ""}`}
           fid={`list/at${i}`}
-          label={`${ch.number ? `${ch.number} ` : ""}${name}${on ? `, ${on.title}` : ""}${playing ? ", playing" : ""}`}
+          label={playing ? t("livetv.player.playing", { name: said }) : said}
           style={`top:${i * LIST_PITCH}px`}
           onFocus={() => setAt(i)}
           onSelect={() => p.onTune(ch, category)}
@@ -703,7 +725,7 @@ function ChannelList(p: { category: LiveCategory; current: number; now: number; 
                 <ProgressLine fraction={programProgress(on, p.now)} />
               </>
             ) : (
-              <div class="t-caption one-line live-list-sub">{ch.has_guide ? "Nothing in the guide now" : "No guide"}</div>
+              <div class="t-caption one-line live-list-sub">{ch.has_guide ? t("livetv.nothingNow") : t("livetv.noGuide")}</div>
             )}
           </div>
           {playing && <Icon name="audio-lines" size={18} class="live-list-playing" />}
@@ -712,7 +734,7 @@ function ChannelList(p: { category: LiveCategory; current: number; now: number; 
     }
   }
   return (
-    <div ref={trap} class="panel-root" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:30" aria-label="Channels">
+    <div ref={trap} class="panel-root" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:30" aria-label={t("livetv.channels")}>
       {/* The picture moves aside for the list: nothing dims it. */}
       <div class="scrim beside" onClick={p.onClose} />
       <div class={`side-panel wide live-list${inside ? " in" : ""}`}>
@@ -720,14 +742,18 @@ function ChannelList(p: { category: LiveCategory; current: number; now: number; 
           <div class="t-title c-fg one-line">{categoryName(category, groups?.groups)}</div>
           <div class="t-caption c-muted live-list-hint">
             <Icon name="chevron-left" size={14} />
-            <span>Categories</span>
+            <span>{t("livetv.categories.title")}</span>
           </div>
         </div>
         <div ref={listBox} class="live-list-box">
           <G kind="col" class="live-list-rows" style={`height:${total * LIST_PITCH}px;transform:translateY(${-shift}px)`}>
             {rows}
           </G>
-          {ready && total === 0 && <div class="t-body c-muted" style="padding:16px">No channels here.</div>}
+          {ready && total === 0 && (
+            <div class="t-body c-muted" style="padding:16px">
+              {t("livetv.player.noChannels")}
+            </div>
+          )}
         </div>
       </div>
       {cats && (

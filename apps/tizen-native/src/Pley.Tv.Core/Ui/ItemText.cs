@@ -57,7 +57,7 @@ public sealed record SidePanel(string Title, IReadOnlyList<PanelRow> Rows, int F
 /// <param name="Starring">Up to three names; empty without a cast.</param>
 public sealed record CreditsLine(string? Made, string Makers, string Starring)
 {
-    public const string StarringLabel = ItemText.Starring;
+    public static string StarringLabel => ItemText.Starring;
 }
 
 /// <summary>A person in the Cast &amp; Crew row: their part or their job, and their picture's address.</summary>
@@ -70,48 +70,49 @@ public sealed record PersonTile(long Id, string Name, string Subtitle, string? P
 /// </summary>
 public static class ItemText
 {
-    public const string Play = "Play";
-    public const string Resume = "Resume";
-    public const string Unavailable = "Unavailable";
-    public const string FromStart = "From start";
-    public const string MarkWatched = "Mark as watched";
-    public const string MarkUnwatched = "Mark as unwatched";
-    public const string Tracks = "Audio and subtitles";
-    public const string AddToPlaylist = "Add to playlist";
-    public const string AddToMyList = "Add to My List";
-    public const string InMyList = "In My List";
-    public const string Trailer = "Trailer";
-    public const string More = "More";
-    public const string FullSummary = "Full summary";
-    public const string DirectedBy = "Directed by";
-    public const string CreatedBy = "Created by";
-    public const string Starring = "Starring";
-    public const string Extras = "Extras";
-    public const string MoreLikeThis = "More Like This";
-    public const string Episodes = "Episodes";
-    public const string NoEpisodes = "No episodes found.";
-    public const string Details = "Details";
-    public const string Versions = "Versions";
-    public const string MediaInfo = "Media info";
-    public const string MediaInfoHint = "Each file's video, audio and subtitle streams";
+    public static string Play => Strings.T("item.hero.play");
+    public static string Resume => Strings.T("item.hero.resume");
+    public static string Unavailable => Strings.T("item.hero.unavailable");
+    public static string FromStart => Strings.T("item.hero.fromStart");
+    public static string MarkWatched => Strings.T("item.hero.markWatched");
+    public static string MarkUnwatched => Strings.T("item.hero.markUnwatched");
+    public static string Tracks => Strings.T("item.hero.tracks");
+    public static string AddToPlaylist => Strings.T("item.hero.addToPlaylist");
+    public static string AddToMyList => Strings.T("item.hero.addToMyList");
+    public static string InMyList => Strings.T("item.hero.inMyList");
+    public static string Trailer => Strings.T("item.hero.trailer");
+    public static string More => Strings.T("item.hero.more");
+    public static string FullSummary => Strings.T("item.panels.fullSummary");
+    /// <summary>The credits line's "Directed by" (with a colon where the language puts one).</summary>
+    public static string DirectedBy => Strings.T("item.credits.directedBy");
+    public static string CreatedBy => Strings.T("item.credits.createdBy");
+    public static string Starring => Strings.T("item.credits.starring");
+    public static string Extras => Strings.T("item.rows.extras");
+    public static string MoreLikeThis => Strings.T("item.rows.moreLikeThis");
+    public static string Episodes => Strings.T("item.rows.episodes");
+    public static string NoEpisodes => Strings.T("item.rows.noEpisodes");
+    public static string Details => Strings.T("item.details.title");
+    public static string Versions => Strings.T("item.details.versions");
+    public static string MediaInfo => Strings.T("item.details.mediaInfo");
+    public static string MediaInfoHint => Strings.T("item.details.mediaInfoHint");
     /// <summary>Media info's state, for screen readers.</summary>
-    public const string MediaInfoOpen = "Open";
-    public const string MediaInfoClosed = "Closed";
-    public const string Close = "Close";
-    public const string Back = "Back";
-    public const string Retry = "Retry";
-    public const string Version = "Version";
-    public const string Audio = "Audio";
-    public const string Subtitles = "Subtitles";
-    public const string SubtitlesOff = "Off";
-    public const string YourRating = "Your rating";
-    public const string NoRating = "No rating";
-    public const string GoToShow = "Go to show";
-    public const string GoToSeason = "Go to season";
-    public const string FailedTitle = "Couldn't load this item";
-    public const string NotFound = "Item not found";
-    public const string NotFoundBody = "It may have been removed, or this profile can't see it.";
-    public const string NothingToPlay = "Nothing to play: this item has no media files.";
+    public static string MediaInfoOpen => Strings.T("item.details.mediaInfoOpen");
+    public static string MediaInfoClosed => Strings.T("item.details.mediaInfoClosed");
+    public static string Close => Strings.T("item.states.close");
+    public static string Back => Strings.T("item.states.back");
+    public static string Retry => Strings.T("item.states.retry");
+    public static string Version => Strings.T("item.panels.version");
+    public static string Audio => Strings.T("item.panels.audio");
+    public static string Subtitles => Strings.T("item.panels.subtitles");
+    public static string SubtitlesOff => Strings.T("item.panels.subtitlesOff");
+    public static string YourRating => Strings.T("item.panels.yourRating");
+    public static string NoRating => Strings.T("item.panels.noRating");
+    public static string GoToShow => Strings.T("item.panels.goToShow");
+    public static string GoToSeason => Strings.T("item.panels.goToSeason");
+    public static string FailedTitle => Strings.T("item.states.failed");
+    public static string NotFound => Strings.T("item.states.notFound");
+    public static string NotFoundBody => Strings.T("item.states.notFoundBody");
+    public static string NothingToPlay => Strings.T("item.states.nothingToPlay");
 
     /// <summary>Stars the rating offers; each is two points of the server's 0 to 10.</summary>
     public const int Stars = 5;
@@ -155,7 +156,7 @@ public static class ItemText
     public static string GenresLine(ItemPage page) => string.Join(" · ", page.Genres.Concat(page.PartOf.Select(c => PartOf(c.Title))));
 
     /// <summary>"Part of The Saltwind Collection".</summary>
-    public static string PartOf(string collection) => $"Part of {collection}";
+    public static string PartOf(string collection) => Strings.T("item.credits.partOf", ("collection", collection));
 
     /// <summary>"Directed by Lena Okafor · Starring Idris Vale, Maren Holt"; null with neither.</summary>
     public static CreditsLine? Credits(ItemPage page)
@@ -173,9 +174,9 @@ public static class ItemText
     public static string PrimaryLabel(PrimaryAction primary) => primary switch
     {
         { Kind: PrimaryKind.Unavailable } => Unavailable,
-        { Kind: PrimaryKind.Resume, Episode: { } episode } => $"Resume {episode}",
+        { Kind: PrimaryKind.Resume, Episode: { } episode } => Strings.T("item.hero.resumeEpisode", ("episode", episode)),
         { Kind: PrimaryKind.Resume } => Resume,
-        { Episode: { } episode } => $"Play {episode}",
+        { Episode: { } episode } => Strings.T("item.hero.playEpisode", ("episode", episode)),
         _ => Play,
     };
 
@@ -215,7 +216,7 @@ public static class ItemText
     public static string EpisodesHeading(ItemPage page, SeasonsSection seasons) => seasons.SelectedTab?.Title ?? page.Context?.SeasonTitle ?? Episodes;
 
     /// <summary>"Aired March 12, 2024".</summary>
-    public static string Aired(string date) => $"Aired {date}";
+    public static string Aired(string date) => Strings.T("item.rows.aired", ("date", date));
 
     /// <summary>The info block's line for a focused episode: "Season 2 · Episode 5 · 58 min · Aired March 12, 2024".</summary>
     public static string EpisodeInfo(EpisodeLine episode) =>
@@ -225,9 +226,9 @@ public static class ItemText
     public static string CastRowTitle(ItemPage page)
     {
         var episode = page.Kind == "episode";
-        if (page.Details.Crew.Count == 0) return episode ? "Guest Stars" : "Cast";
-        if (page.Cast.Count == 0) return "Crew";
-        return episode ? "Guest Stars & Crew" : "Cast & Crew";
+        if (page.Details.Crew.Count == 0) return episode ? Strings.T("item.rows.guestStars") : Strings.T("item.rows.cast");
+        if (page.Cast.Count == 0) return Strings.T("item.rows.crew");
+        return episode ? Strings.T("item.rows.guestStarsAndCrew") : Strings.T("item.rows.castAndCrew");
     }
 
     /// <summary>Whether the page has a Cast &amp; Crew row.</summary>
@@ -253,9 +254,9 @@ public static class ItemText
     /// <summary>A maker's job under their picture: "Director", "Writer", "Creator".</summary>
     static string CrewRole(string role) => role switch
     {
-        "director" => "Director",
-        "writer" => "Writer",
-        "creator" => "Creator",
+        "director" => Strings.T("item.roles.director"),
+        "writer" => Strings.T("item.roles.writer"),
+        "creator" => Strings.T("item.roles.creator"),
         _ => "",
     };
 
@@ -274,32 +275,35 @@ public static class ItemText
         var facts = new List<(string, string)>();
         foreach (var line in details.Crew)
         {
+            // "Directors" for two or more, as CrewLine.Plural says.
+            var people = line.People.Count + line.More;
             var label = line.Role switch
             {
-                "creator" => CreatedBy,
-                "director" => line.Plural ? "Directors" : "Director",
-                _ => line.Plural ? "Writers" : "Writer",
+                "creator" => Strings.T("item.details.createdBy"),
+                "director" => Strings.Count("item.details.directors", people),
+                _ => Strings.Count("item.details.writers", people),
             };
             var more = line.More > 0 ? " " + AndMore(line.More) : "";
             facts.Add((label, string.Join(", ", line.People.Select(p => p.Name)) + more));
         }
-        if (details.OriginalTitle != null) facts.Add(("Original title", details.OriginalTitle));
-        if (details.Released != null) facts.Add(("Released", details.Released));
-        if (details.Studio != null) facts.Add((details.Network ? "Network" : "Studio", details.Studio));
-        if (details.Plays != null) facts.Add(("Plays", details.Plays.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        if (details.OriginalTitle != null) facts.Add((Strings.T("item.details.originalTitle"), details.OriginalTitle));
+        if (details.Released != null) facts.Add((Strings.T("item.details.released"), details.Released));
+        if (details.Studio != null) facts.Add((details.Network ? Strings.T("item.details.network") : Strings.T("item.details.studio"), details.Studio));
+        if (details.Plays != null) facts.Add((Strings.T("item.details.plays"), details.Plays.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         return facts;
     }
 
     /// <summary>"and 2 more".</summary>
-    public static string AndMore(int n) => $"and {n} more";
+    public static string AndMore(int n) => Strings.Count("item.details.andMore", n);
 
     // ---- the panels
 
     /// <summary>"Automatic (English)", or "Automatic" when the tracks don't say their language.</summary>
-    public static string AutomaticAudio(TrackChoices tracks) => tracks.AutomaticLanguage != null ? $"Automatic ({tracks.AutomaticLanguage})" : "Automatic";
+    public static string AutomaticAudio(TrackChoices tracks) =>
+        tracks.AutomaticLanguage != null ? Strings.T("item.panels.automaticLanguage", ("language", tracks.AutomaticLanguage)) : Strings.T("item.panels.automatic");
 
     /// <summary>"1 star", "3 stars".</summary>
-    public static string StarsLabel(int stars) => stars == 1 ? "1 star" : $"{stars} stars";
+    public static string StarsLabel(int stars) => Strings.Count("item.panels.stars", stars);
 
     /// <summary>
     /// Audio and subtitles: Version, Audio (Automatic first) and Subtitles (Off first), each choice

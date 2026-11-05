@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LiveChannel, LiveProgram } from "../../src/api/types";
+import { setLanguage } from "../../src/i18n";
 import {
   categoryKey,
   categoryName,
@@ -7,6 +8,7 @@ import {
   channelByNumber,
   channelName,
   chunkStarts,
+  episodeText,
   formatGuideDay,
   GUIDE_CHUNK,
   browseQuery,
@@ -139,6 +141,27 @@ describe("categories", () => {
     expect(channelName({ name: "UK| Sky Sports 1", group: "UK| Sport" }, { kind: "all" })).toBe("UK| Sky Sports 1");
     expect(splitRegion("UK: Sport")).toEqual(["UK", "Sport"]);
     expect(splitRegion("Sport")).toBeNull();
+  });
+});
+
+describe("in French and Spanish", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("say how long is left, the day, the episode and the category in the language shown", () => {
+    const now = new Date(2026, 9, 27, 20).getTime() / 1000;
+    const friday = new Date(2026, 9, 30, 0, 1);
+    setLanguage("fr");
+    expect([timeLeft({ stop: 60 }, 0), timeLeft({ stop: 3900 }, 0), timeLeft({ stop: 7200 }, 0)]).toEqual(["Il reste 1 min", "Il reste 1 h 5 min", "Il reste 2 h"]);
+    expect(formatGuideDay(now, now)).toBe("Aujourd’hui");
+    // Past tomorrow, the day as Intl writes it in the language shown.
+    expect(formatGuideDay(friday.getTime() / 1000, now)).toBe(new Intl.DateTimeFormat("fr", { weekday: "short", day: "numeric", month: "short" }).format(friday));
+    expect(episodeText({ season: 2, episode: 14 })).toBe("S2 É14");
+    expect(categoryName({ kind: "search", q: "bbc" }, null)).toBe("Résultats pour « bbc »");
+    setLanguage("es");
+    expect([timeLeft({ stop: 60 }, 0), timeLeft({ stop: 600 }, 0)]).toEqual(["Queda 1 min", "Quedan 10 min"]);
+    expect(formatGuideDay(now + 86_400, now)).toBe("Mañana");
+    expect(episodeText({ season: 2, episode: 14 })).toBe("T2 E14");
+    expect(categoryName({ kind: "favorites" }, null)).toBe("Favoritos");
   });
 });
 

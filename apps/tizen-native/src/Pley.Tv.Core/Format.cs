@@ -8,7 +8,8 @@ namespace Pley.Tv.Core;
 
 /// <summary>
 /// Times, titles, counts and badges as people read them: the Android app's model/format
-/// (Durations.kt, Labels.kt, Media.kt), which says the same as the web.
+/// (Durations.kt, Labels.kt, Media.kt), which says the same as the web, in the language shown
+/// (Locales/*/format.json).
 /// </summary>
 public static class Format
 {
@@ -24,11 +25,11 @@ public static class Format
     {
         if (ms == null || ms <= 0) return "";
         var totalMin = WholeMinutes(ms.Value);
-        if (totalMin < 1) return $"{Math.Max(1, RoundHalfUp(ms.Value / 1000.0))}s";
+        if (totalMin < 1) return Strings.T("format.duration.seconds", ("n", Math.Max(1, RoundHalfUp(ms.Value / 1000.0))));
         var h = totalMin / 60;
         var m = totalMin % 60;
-        if (h == 0) return $"{m}m";
-        return m != 0 ? $"{h}h {m}m" : $"{h}h";
+        if (h == 0) return Strings.T("format.duration.minutes", ("n", m));
+        return m != 0 ? Strings.T("format.duration.hoursMinutes", ("hours", h), ("minutes", m)) : Strings.T("format.duration.hours", ("n", h));
     }
 
     /// <summary>A runtime as the TV screens show it: "58 min" under an hour, "1h 52m" from an hour, "29s" below half a minute.</summary>
@@ -36,7 +37,7 @@ public static class Format
     {
         if (ms == null || ms <= 0) return "";
         var totalMin = WholeMinutes(ms.Value);
-        return totalMin is >= 1 and <= 59 ? $"{totalMin} min" : Duration(ms);
+        return totalMin is >= 1 and <= 59 ? Strings.T("format.duration.runtimeMinutes", ("n", totalMin)) : Duration(ms);
     }
 
     /// <summary>"26 min left", "1h 12m left"; empty without a duration or once nothing is left.</summary>
@@ -44,7 +45,7 @@ public static class Format
     {
         if (durationMs == null || durationMs <= 0) return "";
         var left = Runtime(Math.Max(0, durationMs.Value - positionMs));
-        return left.Length > 0 ? $"{left} left" : "";
+        return left.Length > 0 ? Strings.T("format.duration.left", ("time", left)) : "";
     }
 
     /// <summary>A duration for screen readers, in words: "34 minutes", "1 hour 12 minutes", "45 seconds".</summary>
@@ -52,10 +53,13 @@ public static class Format
     {
         if (ms == null || ms <= 0) return "";
         var totalMin = WholeMinutes(ms.Value);
-        if (totalMin < 1) return Plural(Math.Max(1, RoundHalfUp(ms.Value / 1000.0)), "second");
+        if (totalMin < 1) return Strings.Count("format.spoken.seconds", Math.Max(1, RoundHalfUp(ms.Value / 1000.0)));
         var h = totalMin / 60;
         var m = totalMin % 60;
-        return string.Join(" ", new[] { h > 0 ? Plural(h, "hour") : null, m > 0 ? Plural(m, "minute") : null }.Where(s => s != null));
+        if (h == 0) return Strings.Count("format.spoken.minutes", m);
+        return m != 0
+            ? Strings.T("format.spoken.hoursMinutes", ("hours", Strings.Count("format.spoken.hours", h)), ("minutes", Strings.Count("format.spoken.minutes", m)))
+            : Strings.Count("format.spoken.hours", h);
     }
 
     /// <summary>"34 minutes left", for screen readers; empty once nothing is left.</summary>
@@ -63,25 +67,28 @@ public static class Format
     {
         if (durationMs == null || durationMs <= 0) return "";
         var left = SpokenDuration(Math.Max(0, durationMs.Value - positionMs));
-        return left.Length > 0 ? $"{left} left" : "";
+        return left.Length > 0 ? Strings.T("format.spoken.left", ("time", left)) : "";
     }
 
-    static string Plural(long n, string one) => n == 1 ? $"1 {one}" : $"{n} {one}s";
-
-    /// <summary>"1 movie", "0 movies", "12,345 movies", "3 children".</summary>
-    public static string Pluralize(long n, string one, string? many = null) =>
-        $"{n.ToString("N0", CultureInfo.InvariantCulture)} {(n == 1 ? one : many ?? one + "s")}";
-
     /// <summary>"S1 · E3", "E3", or "" with neither number.</summary>
-    public static string EpisodeLabel(int? season, int? episode) =>
-        string.Join(" · ", new[] { season != null ? $"S{season}" : null, episode != null ? $"E{episode}" : null }.Where(s => s != null));
+    public static string EpisodeLabel(int? season, int? episode) => (season, episode) switch
+    {
+        (int s, int e) => Strings.T("format.episode.short", ("season", s), ("episode", e)),
+        (int s, null) => Strings.T("format.episode.seasonShort", ("season", s)),
+        (null, int e) => Strings.T("format.episode.episodeShort", ("episode", e)),
+        _ => "",
+    };
 
     /// <summary><see cref="EpisodeLabel(int?, int?)"/> of an episode: its season is the parent index.</summary>
     public static string EpisodeLabel(ItemSummary item) => EpisodeLabel(item.ParentIndex, item.Index);
 
     /// <summary>"Season 2 · Episode 5", for the episode lines of item pages; the parts that are known.</summary>
     public static string EpisodeLongLabel(int? season, int? episode) =>
-        string.Join(" · ", new[] { season != null ? (season == 0 ? "Specials" : $"Season {season}") : null, episode != null ? $"Episode {episode}" : null }.Where(s => s != null));
+        string.Join(" · ", new[]
+        {
+            season != null ? (season == 0 ? Strings.T("format.episode.specials") : Strings.T("format.episode.season", ("number", season.Value))) : null,
+            episode != null ? Strings.T("format.episode.episode", ("number", episode.Value)) : null,
+        }.Where(s => s != null));
 
     /// <summary>The short line under a card, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"…</summary>
     public static string CardSubtitle(ItemSummary item)
@@ -92,15 +99,15 @@ public static class Format
             case "movie":
                 return Year();
             case "show":
-                if (item.ChildCount is > 0) return Pluralize(item.ChildCount.Value, "season");
-                if (item.LeafCount != null) return Pluralize(item.LeafCount.Value, "episode");
+                if (item.ChildCount is > 0) return Strings.Count("format.count.seasons", item.ChildCount.Value);
+                if (item.LeafCount != null) return Strings.Count("format.count.episodes", item.LeafCount.Value);
                 return Year();
             case "season":
-                return item.LeafCount != null ? Pluralize(item.LeafCount.Value, "episode") : "";
+                return item.LeafCount != null ? Strings.Count("format.count.episodes", item.LeafCount.Value) : "";
             case "episode":
                 return EpisodeLabel(item);
             case "artist":
-                return item.ChildCount != null ? Pluralize(item.ChildCount.Value, "album") : "";
+                return item.ChildCount != null ? Strings.Count("format.count.albums", item.ChildCount.Value) : "";
             case "album":
                 return string.Join(" · ", new[] { string.IsNullOrEmpty(item.ParentTitle) ? null : item.ParentTitle, item.Year?.ToString(CultureInfo.InvariantCulture) }.Where(s => s != null));
             case "track":
@@ -124,38 +131,59 @@ public static class Format
 
     /// <summary>
     /// Unix seconds → "3 minutes ago", "in 5 hours", "yesterday", "last week", "now": the largest
-    /// unit that fits, worded as the web's Intl.RelativeTimeFormat words it in English with
-    /// numeric "auto". "never" without a time.
+    /// unit that fits, worded as the web's Intl.RelativeTimeFormat words it with numeric "auto",
+    /// in the language shown. "never" without a time.
     /// </summary>
     public static string Relative(long? ts, long nowSeconds)
     {
-        if (ts == null || ts == 0) return "never";
+        if (ts == null || ts == 0) return Strings.T("format.relative.never");
         var diff = ts.Value - nowSeconds;
         var age = Math.Abs(diff);
         var (_, unit, seconds) = RelativeUnits.First(u => age < u.Below);
         // Math.round of Kotlin and JavaScript: halves go up.
         var value = (long)Math.Floor(diff / (double)seconds + 0.5);
-        switch (value)
+        var named = (value, unit) switch
         {
-            case 0:
-                return unit switch
-                {
-                    "second" => "now",
-                    "day" => "today",
-                    _ => $"this {unit}",
-                };
-            case -1 when unit == "day":
-                return "yesterday";
-            case -1 when unit is "week" or "month" or "year":
-                return $"last {unit}";
-            case 1 when unit == "day":
-                return "tomorrow";
-            case 1 when unit is "week" or "month" or "year":
-                return $"next {unit}";
-        }
+            (0, "second") => Strings.T("format.relative.now"),
+            (0, "minute") => Strings.T("format.relative.thisMinute"),
+            (0, "hour") => Strings.T("format.relative.thisHour"),
+            (0, "day") => Strings.T("format.relative.today"),
+            (0, "week") => Strings.T("format.relative.thisWeek"),
+            (0, "month") => Strings.T("format.relative.thisMonth"),
+            (0, "year") => Strings.T("format.relative.thisYear"),
+            (-1, "day") => Strings.T("format.relative.yesterday"),
+            (-1, "week") => Strings.T("format.relative.lastWeek"),
+            (-1, "month") => Strings.T("format.relative.lastMonth"),
+            (-1, "year") => Strings.T("format.relative.lastYear"),
+            (1, "day") => Strings.T("format.relative.tomorrow"),
+            (1, "week") => Strings.T("format.relative.nextWeek"),
+            (1, "month") => Strings.T("format.relative.nextMonth"),
+            (1, "year") => Strings.T("format.relative.nextYear"),
+            _ => null,
+        };
+        if (named != null) return named;
         var n = Math.Abs(value);
-        var words = n == 1 ? $"1 {unit}" : $"{n} {unit}s";
-        return value < 0 ? $"{words} ago" : $"in {words}";
+        if (value < 0)
+            return unit switch
+            {
+                "second" => Strings.Count("format.relative.secondsAgo", n),
+                "minute" => Strings.Count("format.relative.minutesAgo", n),
+                "hour" => Strings.Count("format.relative.hoursAgo", n),
+                "day" => Strings.Count("format.relative.daysAgo", n),
+                "week" => Strings.Count("format.relative.weeksAgo", n),
+                "month" => Strings.Count("format.relative.monthsAgo", n),
+                _ => Strings.Count("format.relative.yearsAgo", n),
+            };
+        return unit switch
+        {
+            "second" => Strings.Count("format.relative.inSeconds", n),
+            "minute" => Strings.Count("format.relative.inMinutes", n),
+            "hour" => Strings.Count("format.relative.inHours", n),
+            "day" => Strings.Count("format.relative.inDays", n),
+            "week" => Strings.Count("format.relative.inWeeks", n),
+            "month" => Strings.Count("format.relative.inMonths", n),
+            _ => Strings.Count("format.relative.inYears", n),
+        };
     }
 
     /// <summary>How much of an item has been played, 0 to 1.</summary>
@@ -189,8 +217,8 @@ public static class Format
             : CardSubtitle(item);
         var unwatched = UnwatchedCount(item);
         var state = IsInProgress(item) ? SpokenTimeLeft(item.UserState.PositionMs, item.DurationMs)
-            : item.UserState.Watched ? "watched"
-            : item.Kind is "show" or "season" && unwatched > 0 ? $"{unwatched} unwatched"
+            : item.UserState.Watched ? Strings.T("format.tile.watched")
+            : item.Kind is "show" or "season" && unwatched > 0 ? Strings.Count("format.tile.unwatched", unwatched)
             : "";
         return string.Join(", ", new[] { item.Title, context, state }.Where(s => s.Length > 0));
     }

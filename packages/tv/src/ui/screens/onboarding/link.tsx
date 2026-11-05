@@ -3,6 +3,7 @@ import type { ComponentChildren } from "preact";
 import { BACKOFF_MS, DeviceSignIn, type DeviceCode } from "../../../auth/device";
 import { AuthError, UnreachableError } from "../../../auth/metadata";
 import { probe } from "../../../auth/servers";
+import { t, Trans } from "../../../i18n";
 import { useUi } from "../../context";
 import { Pill, TextButton } from "../../kit/buttons";
 import { G } from "../../kit/focusable";
@@ -44,12 +45,10 @@ export function typedAddress(uri: string): string {
   return uri.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "");
 }
 
-/** Under the title, when the server requires two-step sign-in: the phone sets it up for whoever hasn't. */
-export const TWO_STEP_REQUIRED = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
-
 /**
  * Whether `server` requires two-step sign-in (GET /api/server), once it
- * answers. Signing in on the phone sets it up, so this only says so.
+ * answers. Signing in on the phone sets it up, so this only says so,
+ * under the title.
  */
 function useTwoStepRequired(server: string): boolean {
   const app = useApp();
@@ -131,7 +130,7 @@ function useLink(server: string, onApproved: () => Promise<string | null>) {
       case "signed_in": {
         const tokens = app.tokenStore;
         try {
-          if (!tokens) throw new AuthError("sign-in ended: choose the server again");
+          if (!tokens) throw new AuthError(t("onboarding.errors.signInEnded"));
           await tokens.install(result.tokens, c.scope);
         } catch (e) {
           if (!stopped()) set({ kind: "failed", message: e instanceof Error ? e.message : String(e) });
@@ -213,8 +212,8 @@ export function LinkScreen(p: { server: string }) {
       status={link.status}
       code={link.code}
       onNewCode={link.newCode}
-      intro={twoStep ? TWO_STEP_REQUIRED : undefined}
-      backLabel="Change server"
+      intro={twoStep ? t("onboarding.link.twoStepRequired") : undefined}
+      backLabel={t("onboarding.link.changeServer")}
       onBack={() => {
         app.forgetServer();
         ui.nav.restart({ name: "servers" });
@@ -245,11 +244,11 @@ export function ApproveContent(p: { server: string; profile: { id: number; name:
       }),
     [],
   );
-  const title = p.profile ? "Approve on your phone" : "Sign in as another profile";
-  const intro = p.profile
-    ? `${p.profile.name}'s profile needs its password: approve this code on a phone signed in to Pley, and pick ${p.profile.name} there.`
-    : "Approve this code on a phone signed in to Pley, and pick the profile there.";
-  return <LinkContent status={link.status} code={link.code} onNewCode={link.newCode} title={title} intro={intro} backLabel="Use another profile" onBack={p.onBack} />;
+  const title = p.profile ? t("onboarding.link.approveTitle") : t("onboarding.profiles.signInAnother");
+  const intro = p.profile ? t("onboarding.link.approveIntro", { name: p.profile.name }) : t("onboarding.link.anotherIntro");
+  return (
+    <LinkContent status={link.status} code={link.code} onNewCode={link.newCode} title={title} intro={intro} backLabel={t("onboarding.profiles.useAnother")} onBack={p.onBack} />
+  );
 }
 
 /**
@@ -311,7 +310,7 @@ function LinkContent(p: {
             <Icon name="check" size={32} color="var(--bg)" />
           </div>
           <div class="t-page c-fg lines-2" style="margin-top:20px">
-            {s.name ? `Signed in as ${s.name}` : "Signed in"}
+            {s.name ? t("onboarding.link.signedInAs", { name: s.name }) : t("onboarding.link.signedIn")}
           </div>
         </div>
       </BrandGlow>
@@ -327,19 +326,23 @@ function LinkContent(p: {
   let line: { text: string; waiting: boolean; cls: string } | null = null;
   switch (s.kind) {
     case "starting":
-      line = { text: "Getting a code…", waiting: true, cls: "t-label c-muted" };
+      line = { text: t("onboarding.link.gettingCode"), waiting: true, cls: "t-label c-muted" };
       break;
     case "waiting":
-      line = { text: "Waiting for approval…", waiting: true, cls: "t-label c-muted" };
+      line = { text: t("onboarding.link.waiting"), waiting: true, cls: "t-label c-muted" };
       break;
     case "unreachable":
-      line = { text: `Can't reach the server. Trying again in ${Math.max(0, Math.ceil((s.retryAt - now) / 1000))} s`, waiting: false, cls: "t-label c-danger" };
+      line = {
+        text: t("onboarding.link.retrying", { seconds: Math.max(0, Math.ceil((s.retryAt - now) / 1000)) }),
+        waiting: false,
+        cls: "t-label c-danger",
+      };
       break;
     case "declined":
-      line = { text: "Request declined", waiting: false, cls: "t-label c-danger" };
+      line = { text: t("onboarding.link.declined"), waiting: false, cls: "t-label c-danger" };
       break;
     case "expired":
-      line = { text: "Code expired: press OK for a new one", waiting: false, cls: "t-label c-muted" };
+      line = { text: t("onboarding.link.expired"), waiting: false, cls: "t-label c-muted" };
       break;
     case "failed":
       line = { text: sentence(s.message), waiting: false, cls: "t-label c-danger" };
@@ -351,7 +354,7 @@ function LinkContent(p: {
       <div class="link-left">
         <PleyLogo height={40} />
         <div class="t-page c-fg one-line" style="margin-top:28px">
-          {p.title ?? "Sign in to Pley"}
+          {p.title ?? t("onboarding.link.title")}
         </div>
         {p.intro && (
           <div class="t-body c-muted lines-2" style="margin-top:6px">
@@ -359,13 +362,16 @@ function LinkContent(p: {
           </div>
         )}
         <div style={`margin-top:${p.intro ? 10 : 18}px`}>
-          <Step n={1}>Scan the code with your phone</Step>
+          <Step n={1}>{t("onboarding.link.scan")}</Step>
           <Step n={2}>
-            or go to <span class="link-address">{address}</span>
+            <Trans k="onboarding.link.goTo" values={{ address }} tags={{ address: (text) => <span class="link-address">{text}</span> }} />
           </Step>
-          <Step n={3}>and enter this code</Step>
+          <Step n={3}>{t("onboarding.link.enterCode")}</Step>
         </div>
-        <div class={`code-row${dim ? " dim" : ""}`} aria-label={code ? `The code: ${halves.map((h) => h.split("").join(" ")).join(", ")}` : undefined}>
+        <div
+          class={`code-row${dim ? " dim" : ""}`}
+          aria-label={code ? t("onboarding.link.codeLabel", { code: halves.map((h) => h.split("").join(" ")).join(", ") }) : undefined}
+        >
           <div class="code-field t-code">{halves[0]}</div>
           {halves.length > 1 && (
             <>
@@ -381,13 +387,13 @@ function LinkContent(p: {
         }} style="margin-top:16px">
           {needsNew ? (
             <G kind="row">
-              <Pill label="Get a new code" icon="refresh-cw" onSelect={p.onNewCode} />
+              <Pill label={t("onboarding.link.newCode")} icon="refresh-cw" onSelect={p.onNewCode} />
             </G>
           ) : (
             <div class="link-notes t-body c-muted">
-              <div class="one-line">Your phone must be on the same Wi-Fi as this TV.</div>
+              <div class="one-line">{t("onboarding.link.sameWifi")}</div>
               <div class="one-line" style="margin-top:6px">
-                Or open Pley on a signed-in device → Link a device
+                {t("onboarding.link.otherDevice")}
               </div>
             </div>
           )}
@@ -401,7 +407,7 @@ function LinkContent(p: {
       <div class="link-right">
         <div class={`qr-tile${s.kind === "expired" ? " dim" : ""}`}>{qr ? <QrCode text={qr} size={268} /> : null}</div>
         <div class="t-caption c-muted" style="margin-top:12px;text-align:center">
-          Scan with your phone camera
+          {t("onboarding.link.scanHint")}
         </div>
         <div ref={(el) => {
           backRef.current = el;

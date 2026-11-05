@@ -12,7 +12,8 @@ import type {
   TitleKind,
   TitleStatus,
 } from "./api/types";
-import { dayAndTime, formatRuntime, pluralize, relativeTime, shortDate, timeUntil } from "./format/format";
+import { dayAndTime, formatRuntime, relativeTime, shortDate, timeUntil } from "./format/format";
+import { t } from "./i18n";
 import type { PageKey } from "./ui/shell/navigator";
 
 /*
@@ -23,63 +24,39 @@ import type { PageKey } from "./ui/shell/navigator";
  * shorten these words, never reword them.
  */
 
-/** Discover's foot and every title page say where their details come from. */
-export const TMDB_CREDIT = "Details and pictures from TMDB.";
-/** Settings → About. */
-export const TMDB_NOTICE = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
-
-export const SIGN_IN_TITLE = "Sign in again to ask for movies and shows";
-export const SIGN_IN_APPROVALS = "Sign in again to approve and decline here.";
-export const NO_ACCESS = "Requests aren't open to this account.";
-
-/** Discover's rows, in order; `mixed` rows hold movies and shows both, so their tiles say which. */
-export const DISCOVER_ROWS: { list: DiscoverList; title: string; mixed: boolean }[] = [
-  { list: "trending", title: "Trending this week", mixed: true },
-  { list: "movies", title: "Popular movies", mixed: false },
-  { list: "shows", title: "Popular shows", mixed: false },
-  { list: "upcoming", title: "Coming to cinemas", mixed: false },
-  { list: "anime", title: "Popular anime", mixed: false },
+/** Discover's rows, in order (their titles: {@link discoverRowTitle}); `mixed` rows hold movies and shows both, so their tiles say which. */
+export const DISCOVER_ROWS: { list: DiscoverList; mixed: boolean }[] = [
+  { list: "trending", mixed: true },
+  { list: "movies", mixed: false },
+  { list: "shows", mixed: false },
+  { list: "upcoming", mixed: false },
+  { list: "anime", mixed: false },
 ];
+
+/** A row of Discover's title: "Trending this week". */
+export function discoverRowTitle(list: DiscoverList): string {
+  return t(`requests.discover.lists.${list}`);
+}
 
 /** The status tabs of a list of requests, after All. */
-export const STATUS_TABS: { status: RequestStatus; label: string }[] = [
-  { status: "pending", label: "Pending" },
-  { status: "approved", label: "Approved" },
-  { status: "available", label: "Available" },
-  { status: "declined", label: "Declined" },
-  { status: "failed", label: "Failed" },
-];
+export const STATUS_TABS: RequestStatus[] = ["pending", "approved", "available", "declined", "failed"];
 
 /** A tab of a list of requests: Needs attention (managers), All, or one status. */
 export type RequestsTab = "attention" | "all" | RequestStatus;
 
 /** The tabs, Needs attention first for managers (they open on it). */
 export function requestsTabs(manage: boolean): { tab: RequestsTab; label: string }[] {
-  const tabs: { tab: RequestsTab; label: string }[] = [{ tab: "all", label: "All" }];
-  for (const t of STATUS_TABS) tabs.push({ tab: t.status, label: t.label });
-  const attention: { tab: RequestsTab; label: string }[] = [{ tab: "attention", label: "Needs attention" }];
+  const tabs: { tab: RequestsTab; label: string }[] = [{ tab: "all", label: t("requests.page.all") }];
+  for (const status of STATUS_TABS) tabs.push({ tab: status, label: t(`requests.page.statuses.${status}`) });
+  const attention: { tab: RequestsTab; label: string }[] = [{ tab: "attention", label: t("requests.page.attention") }];
   return manage ? attention.concat(tabs) : tabs;
 }
 
 /** What a tab with nothing in it says (`everyone`: a manager's list of everyone's). */
 export function requestsEmpty(tab: RequestsTab, everyone: boolean): string {
-  const whose = everyone ? "" : " of yours";
-  switch (tab) {
-    case "attention":
-      return "No requests need attention.";
-    case "pending":
-      return `No requests${whose} wait for a decision.`;
-    case "approved":
-      return `No requests${whose} are on their way.`;
-    case "available":
-      return `No requests${whose} are ready to watch yet.`;
-    case "declined":
-      return `No requests${whose} were declined.`;
-    case "failed":
-      return `No requests${whose} failed.`;
-    default:
-      return everyone ? "No one has asked for anything yet." : "You haven't asked for anything yet.";
-  }
+  if (tab === "attention") return t("requests.page.empty.attention");
+  const status = tab === "all" ? "none" : tab;
+  return everyone ? t(`requests.page.empty.everyone.${status}`) : t(`requests.page.empty.yours.${status}`);
 }
 
 /** The filters of the managers' list: movies or shows, one person's, a title's words. */
@@ -116,7 +93,7 @@ export function inRequestsTab(r: MediaRequest, tab: RequestsTab): boolean {
 export function tabCount(tab: RequestsTab, counts: Record<RequestStatus, number> | null, s: RequestSummary | null): number | null {
   if (tab === "attention") return s ? s.pending + s.failed : null;
   if (!counts) return null;
-  if (tab === "all") return STATUS_TABS.reduce((n, t) => n + (counts[t.status] ?? 0), 0);
+  if (tab === "all") return STATUS_TABS.reduce((n, status) => n + (counts[status] ?? 0), 0);
   return counts[tab] ?? 0;
 }
 
@@ -134,7 +111,7 @@ export function hasRequests(s: RequestSummary | null): boolean {
 
 /** "Requests" for managers (it opens on Needs attention), "Your requests" for everyone else. */
 export function requestsTitle(s: RequestSummary | null): string {
-  return s && s.manage ? "Requests" : "Your requests";
+  return s && s.manage ? t("requests.names.requests") : t("requests.names.yourRequests");
 }
 
 /**
@@ -156,19 +133,19 @@ export function isSummary(x: unknown): x is RequestSummary {
 
 // ---- titles
 
-export function titleKey(t: { kind: TitleKind; tmdb_id: number }): string {
-  return `${t.kind}:${t.tmdb_id}`;
+export function titleKey(title: { kind: TitleKind; tmdb_id: number }): string {
+  return `${title.kind}:${title.tmdb_id}`;
 }
 
 /** `more` after `have`, each kind and tmdb_id once (a title can come again on a later page). */
 export function addTitles(have: DiscoverTitle[], more: DiscoverTitle[]): DiscoverTitle[] {
   const seen = new Set(have.map(titleKey));
   const out = have.slice();
-  for (const t of more) {
-    const k = titleKey(t);
+  for (const title of more) {
+    const k = titleKey(title);
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push(t);
+    out.push(title);
   }
   return out;
 }
@@ -182,31 +159,36 @@ export function searchText(q: string): string {
 }
 
 /** A title's badge: "In library", "Partly in library" (where it can be opened), "Requested", "Declined"; none otherwise. */
-export function titleBadge(t: { status: TitleStatus; item_id: number | null }): string | null {
-  switch (t.status) {
+export function titleBadge(title: { status: TitleStatus; item_id: number | null }): string | null {
+  switch (title.status) {
     case "library":
-      return "In library";
+      return t("requests.badge.library");
     case "partial":
-      return t.item_id !== null ? "Partly in library" : "Requested";
+      return title.item_id !== null ? t("requests.badge.partial") : t("requests.badge.requested");
     case "requested":
-      return "Requested";
+      return t("requests.badge.requested");
     case "declined":
-      return "Declined";
+      return t("requests.badge.declined");
     default:
       return null;
   }
 }
 
 /** A badge's colour: what can be watched green, what is on its way blue, what was refused red. */
-export function titleTone(t: { status: TitleStatus; item_id: number | null }): Tone {
-  if (t.status === "library" || (t.status === "partial" && t.item_id !== null)) return "green";
-  if (t.status === "declined") return "red";
+export function titleTone(title: { status: TitleStatus; item_id: number | null }): Tone {
+  if (title.status === "library" || (title.status === "partial" && title.item_id !== null)) return "green";
+  if (title.status === "declined") return "red";
   return "blue";
 }
 
+/** "Movie" or "Show". */
+export function kindWord(kind: TitleKind): string {
+  return kind === "show" ? t("requests.kind.show") : t("requests.kind.movie");
+}
+
 /** A tile's second line: the year, and in rows of both kinds which it is. */
-export function titleSubtitle(t: { kind: TitleKind; year: number | null }, mixed: boolean): string {
-  return [t.year ? String(t.year) : "", mixed ? (t.kind === "show" ? "Show" : "Movie") : ""].filter(Boolean).join(" · ");
+export function titleSubtitle(title: { kind: TitleKind; year: number | null }, mixed: boolean): string {
+  return [title.year ? String(title.year) : "", mixed ? kindWord(title.kind) : ""].filter(Boolean).join(" · ");
 }
 
 /**
@@ -215,14 +197,14 @@ export function titleSubtitle(t: { kind: TitleKind; year: number | null }, mixed
  * Open; else its Discover page. A show partly there opens its Discover
  * page, where more seasons can be asked for.
  */
-export function titlePage(t: { kind: TitleKind; tmdb_id: number; status: TitleStatus; item_id: number | null }): PageKey {
-  return t.status === "library" && t.item_id !== null ? { name: "item", id: t.item_id } : { name: "title", kind: t.kind, tmdbId: t.tmdb_id };
+export function titlePage(title: { kind: TitleKind; tmdb_id: number; status: TitleStatus; item_id: number | null }): PageKey {
+  return title.status === "library" && title.item_id !== null ? { name: "item", id: title.item_id } : { name: "title", kind: title.kind, tmdbId: title.tmdb_id };
 }
 
 /** A title page's facts line: year, runtime or seasons, the certification is shown apart. */
 export function titleFacts(d: DiscoverDetail): string {
   const seasons = (d.seasons ?? []).filter((s) => s.number > 0).length;
-  const length = d.kind === "movie" ? formatRuntime(d.runtime_minutes ? d.runtime_minutes * 60_000 : null) : seasons ? pluralize(seasons, "season") : "";
+  const length = d.kind === "movie" ? formatRuntime(d.runtime_minutes ? d.runtime_minutes * 60_000 : null) : seasons ? t("requests.counts.seasons", { count: seasons }) : "";
   return [d.year ? String(d.year) : "", length].filter(Boolean).join(" · ");
 }
 
@@ -282,7 +264,7 @@ export type MainAction =
  */
 export function mainAction(d: DiscoverDetail, s: RequestSummary | null, now = Date.now()): MainAction {
   if (s && s.sign_in_again === "requests") return { kind: "signIn" };
-  if (d.status === "restricted") return { kind: "restricted", text: d.restriction || "Above this account's age limit" };
+  if (d.status === "restricted") return { kind: "restricted", text: d.restriction || t("requests.restricted") };
   if (d.status === "library") return { kind: "open", itemId: d.item_id };
   if (d.status === "declined") return { kind: "declined", text: declinedText(d.declined, now) };
   const ask = !s || s.access !== "off";
@@ -305,16 +287,16 @@ export function mainAction(d: DiscoverDetail, s: RequestSummary | null, now = Da
  * when they can't be had: never "Tell me too" for what this profile may
  * have asked for itself.
  */
-export function listAction(t: DiscoverTitle, s: RequestSummary | null): MainAction {
+export function listAction(title: DiscoverTitle, s: RequestSummary | null): MainAction {
   if (s && s.sign_in_again === "requests") return { kind: "signIn" };
-  if (t.status === "restricted") return { kind: "restricted", text: "Above this account's age limit" };
-  if (t.status === "library") return { kind: "open", itemId: t.item_id };
-  if (t.status === "declined") return { kind: "declined", text: "Declined." };
-  if (t.status === "requested") return { kind: "requested", request: null };
+  if (title.status === "restricted") return { kind: "restricted", text: t("requests.restricted") };
+  if (title.status === "library") return { kind: "open", itemId: title.item_id };
+  if (title.status === "declined") return { kind: "declined", text: t("requests.declined.plain") };
+  if (title.status === "requested") return { kind: "requested", request: null };
   const ask = !s || s.access !== "off";
-  const left = s ? (t.kind === "movie" ? s.movies_left : s.seasons_left) : null;
+  const left = s ? (title.kind === "movie" ? s.movies_left : s.seasons_left) : null;
   const none = left !== null && left <= 0;
-  if (t.status === "partial") return { kind: "more", itemId: t.item_id, more: true, ask, disabled: none };
+  if (title.status === "partial") return { kind: "more", itemId: title.item_id, more: true, ask, disabled: none };
   return ask ? { kind: "request", disabled: none } : { kind: "noAccess" };
 }
 
@@ -325,8 +307,8 @@ function pick(list: MediaRequest[], id: number | null): MediaRequest | null {
 /** "Declined: “Not on any service”. You can ask again in 12 days.", without the reason when there's none. */
 export function declinedText(declined: DiscoverDetail["declined"], now = Date.now()): string {
   const reason = declined && declined.reason ? declined.reason.trim().replace(/[.\s]+$/, "") : "";
-  const lead = reason ? `Declined: “${reason}”.` : "Declined.";
-  return declined ? `${lead} You can ask again ${timeUntil(declined.again_at, now)}.` : lead;
+  const lead = reason ? t("requests.declined.because", { reason }) : t("requests.declined.plain");
+  return declined ? `${lead} ${t("requests.declined.askAgain", { when: timeUntil(declined.again_at, now) })}` : lead;
 }
 
 /** The request a title page's stage pill follows: this profile's own, else one it follows, else the newest active one. */
@@ -342,7 +324,7 @@ export function seasonsLabel(seasons: number[] | null | undefined): string {
   const list = (seasons ?? []).filter((n, i, all) => all.indexOf(n) === i).sort((a, b) => a - b);
   const specials = list.indexOf(0) >= 0;
   const numbered = list.filter((n) => n > 0);
-  if (!numbered.length) return specials ? "Specials" : "";
+  if (!numbered.length) return specials ? t("requests.seasons.specials") : "";
   const runs: string[] = [];
   let start = numbered[0]!;
   let prev = start;
@@ -355,7 +337,8 @@ export function seasonsLabel(seasons: number[] | null | undefined): string {
     start = n;
     prev = n;
   }
-  return `${numbered.length === 1 ? "Season" : "Seasons"} ${runs.join(", ")}${specials ? " and specials" : ""}`;
+  const label = t("requests.seasons.list", { count: numbered.length, list: runs.join(", ") });
+  return specials ? t("requests.seasons.andSpecials", { seasons: label }) : label;
 }
 
 /** The seasons asked for already: Tell me too follows those. */
@@ -396,18 +379,23 @@ export function preselected(d: DiscoverDetail, left: number | null): number[] {
 
 /** The picker's button: "Request 3 seasons", "Request 1 season"; "Pick a season." while none is ticked. */
 export function pickerButton(n: number): string {
-  if (n <= 0) return "Pick a season.";
-  return n === 1 ? "Request 1 season" : `Request ${n} seasons`;
+  if (n <= 0) return t("requests.picker.pickOne");
+  return t("requests.picker.request", { count: n });
 }
 
 /** A season's line under its name: its state ("In library", "Requested", "Declined"…), else what it holds. */
 export function seasonLine(s: DiscoverSeason, now = Date.now()): string {
-  if (s.state === "library") return "In library";
-  if (s.state === "requested") return "Requested";
-  if (s.declined) return "Declined";
-  if (s.state === "partial") return "Partly in library";
-  if (s.state === "unaired") return s.air_date ? `Airs ${isoDay(s.air_date, now)}` : "Not aired yet";
-  return pluralize(s.episodes, "episode");
+  if (s.state === "library") return t("requests.season.library");
+  if (s.state === "requested") return t("requests.season.requested");
+  if (s.declined) return t("requests.season.declined");
+  if (s.state === "partial") return t("requests.season.partial");
+  if (s.state === "unaired") return s.air_date ? t("requests.season.airs", { day: isoDay(s.air_date, now) }) : t("requests.season.notAired");
+  return t("requests.counts.episodes", { count: s.episodes });
+}
+
+/** A season's name where TMDB gives none: "Season 2", "Specials" for season 0. */
+export function seasonName(number: number): string {
+  return number === 0 ? t("requests.seasons.specials") : t("requests.seasons.season", { number });
 }
 
 /** "2026-11-04" → "Nov 4" (with the year when it isn't this one's). */
@@ -448,20 +436,31 @@ export function allowanceLines(given: Allowance, now = Date.now()): string[] | n
   if (mOut && sOut) {
     const mw = when(a.movies_next_at);
     const sw = when(a.seasons_next_at);
-    lines.push(mw && sw ? `You've asked for all you can for now: more movies ${mw}, more seasons ${sw}.` : "You've asked for all you can for now.");
+    lines.push(mw && sw ? t("requests.allowance.allUsedUpUntil", { movies: mw, seasons: sw }) : t("requests.allowance.allUsedUp"));
   } else if (mOut || sOut) {
-    const what = mOut ? "movies" : "seasons";
     const w = when(mOut ? a.movies_next_at : a.seasons_next_at);
-    lines.push(w ? `You've asked for all the ${what} you can for now: you can ask for more ${w}.` : `You've asked for all the ${what} you can for now.`);
+    if (mOut) lines.push(w ? t("requests.allowance.moviesUsedUpUntil", { when: w }) : t("requests.allowance.moviesUsedUp"));
+    else lines.push(w ? t("requests.allowance.seasonsUsedUpUntil", { when: w }) : t("requests.allowance.seasonsUsedUp"));
     const other = mOut ? s : m;
-    if (other !== null) lines.push(`You can ask for ${pluralize(other, mOut ? "more season" : "more movie", mOut ? "more seasons" : "more movies")}.`);
+    if (other !== null) {
+      const more = mOut ? t("requests.allowance.moreSeasons", { count: other }) : t("requests.allowance.moreMovies", { count: other });
+      lines.push(t("requests.allowance.canAsk", { list: more }));
+    }
   } else {
-    const parts = [m !== null ? pluralize(m, "more movie", "more movies") : "", s !== null ? pluralize(s, "more season", "more seasons") : ""].filter(Boolean);
-    lines.push(`You can ask for ${parts.join(" and ")}.`);
+    const parts = [m !== null ? t("requests.allowance.moreMovies", { count: m }) : "", s !== null ? t("requests.allowance.moreSeasons", { count: s }) : ""].filter(Boolean);
+    lines.push(t("requests.allowance.canAsk", { list: both(parts) }));
   }
-  const limits = [a.movies_limit ? pluralize(a.movies_limit, "movie") : "", a.seasons_limit ? pluralize(a.seasons_limit, "season") : ""].filter(Boolean);
-  if (limits.length) lines.push(`Limits: ${limits.join(" and ")} per 7 days.`);
+  const limits = [
+    a.movies_limit ? t("requests.allowance.movies", { count: a.movies_limit }) : "",
+    a.seasons_limit ? t("requests.counts.seasons", { count: a.seasons_limit }) : "",
+  ].filter(Boolean);
+  if (limits.length) lines.push(t("requests.allowance.limits", { list: both(limits) }));
   return lines;
+}
+
+/** One count or two in a line: "2 more movies and 3 more seasons". */
+function both(parts: string[]): string {
+  return parts.length === 2 ? t("requests.allowance.and", { first: parts[0]!, second: parts[1]! }) : (parts[0] ?? "");
 }
 
 /** The allowance of one kind: the other's counts and limit left out. */
@@ -490,38 +489,40 @@ export function stageWords(r: MediaRequest, opts: { manage: boolean; hours24: bo
   const words = (text: string, tone: Tone, progress: number | null = null, note: string | null = null): StageWords => ({ text, tone, progress, note });
   switch (r.stage) {
     case "pending":
-      return words("Waiting for approval", "amber");
+      return words(t("requests.stage.pending"), "amber");
     case "declined":
-      return words("Declined", "red", null, r.reason ? `“${r.reason.trim()}”` : null);
+      return words(t("requests.stage.declined"), "red", null, r.reason ? t("requests.quoted", { text: r.reason.trim() }) : null);
     case "failed": {
-      const retry = r.retry_at !== null ? `Trying again ${timeUntil(r.retry_at, now)}.` : null;
+      const retry = r.retry_at !== null ? t("requests.stage.retry", { when: timeUntil(r.retry_at, now) }) : null;
       // "Couldn't send: {reason}" in two parts, so a long reason is read whole under a short pill.
-      if (opts.manage) return words("Couldn't send", "red", null, [r.reason ? tidy(r.reason) : "", retry ?? ""].filter(Boolean).join(" ") || null);
-      return words("Not sent yet", "red", null, retry ?? "It couldn't be sent to download yet: an administrator will look at it.");
+      if (opts.manage) return words(t("requests.stage.failed"), "red", null, [r.reason ? tidy(r.reason) : "", retry ?? ""].filter(Boolean).join(" ") || null);
+      return words(t("requests.stage.notSent"), "red", null, retry ?? t("requests.stage.notSentLine"));
     }
     case "approved":
-      return words("Approved", "blue");
+      return words(t("requests.stage.approved"), "blue");
     case "waiting":
-      if (r.stage_at === null) return words("Not out yet", "blue");
+      if (r.stage_at === null) return words(t("requests.stage.notOut"), "blue");
       // A release is known by its day only (sent as 12:00 UTC of it); an episode's airing exactly.
       return r.kind === "movie"
-        ? words(`Out ${dayAndTime(utcDay(r.stage_at), { time: false, hours24: opts.hours24 }, now)}`, "blue")
-        : words(`Airs ${dayAndTime(r.stage_at, { time: true, hours24: opts.hours24 }, now)}`, "blue");
+        ? words(t("requests.stage.out", { day: dayAndTime(utcDay(r.stage_at), { time: false, hours24: opts.hours24 }, now) }), "blue")
+        : words(t("requests.stage.airs", { day: dayAndTime(r.stage_at, { time: true, hours24: opts.hours24 }, now) }), "blue");
     case "searching":
-      return words("Searching", "blue");
+      return words(t("requests.stage.searching"), "blue");
     case "downloading":
       return downloadWords(r, now);
     case "importing":
-      return words("Adding to the library", "blue");
-    case "partial":
-      return words(`${seasonsLabel(r.available_seasons) || "Some seasons"} ready`, "green", r.download ? r.download.progress : null);
+      return words(t("requests.stage.importing"), "blue");
+    case "partial": {
+      const seasons = seasonsLabel(r.available_seasons);
+      return words(seasons ? t("requests.stage.partial", { seasons }) : t("requests.stage.partialSome"), "green", r.download ? r.download.progress : null);
+    }
     case "available":
-      return words("Ready to watch", "green", null, r.item_id === null ? "Ready, in a library you can't open: ask an administrator" : null);
+      return words(t("requests.stage.available"), "green", null, r.item_id === null ? t("requests.stage.outOfReach") : null);
     case "gone":
-      return words("No longer in a library", "gray");
+      return words(t("requests.stage.gone"), "gray");
     default:
       // A stage this app doesn't know (or a server from before stages): its status says as much.
-      return r.stage !== r.status && STAGE_OF_STATUS.indexOf(r.status) >= 0 ? stageWords({ ...r, stage: r.status }, opts, now) : words("Approved", "blue");
+      return r.stage !== r.status && STAGE_OF_STATUS.indexOf(r.status) >= 0 ? stageWords({ ...r, stage: r.status }, opts, now) : words(t("requests.stage.approved"), "blue");
   }
 }
 
@@ -536,19 +537,20 @@ function utcDay(seconds: number): number {
 function downloadWords(r: MediaRequest, now: number): StageWords {
   const d = r.download;
   const at = (text: string): StageWords => ({ text, tone: "blue", progress: d ? d.progress : null, note: null });
-  if (!d) return at("Downloading");
+  if (!d) return at(t("requests.download.downloading"));
   switch (d.state) {
     case "queued":
-      return at("Waiting to download");
+      return at(t("requests.download.queued"));
     case "paused":
-      return at("Download paused");
+      return at(t("requests.download.paused"));
     case "warning":
-      return at("The download has a problem");
+      return at(t("requests.download.warning"));
     case "importing":
-      return at("Adding to the library");
+      return at(t("requests.download.importing"));
     default: {
+      // The time left after " · ", which a season's caption puts on a line of its own.
       const eta = d.eta !== null && d.eta > now / 1000 + 30 ? ` · ${timeUntil(d.eta, now)}` : "";
-      return at(`Downloading ${Math.floor(Math.max(0, Math.min(1, d.progress)) * 100)}%${eta}`);
+      return at(`${t("requests.download.progress", { percent: Math.floor(Math.max(0, Math.min(1, d.progress)) * 100) })}${eta}`);
     }
   }
 }
@@ -561,7 +563,7 @@ function downloadWords(r: MediaRequest, now: number): StageWords {
  */
 export function seasonStage(r: MediaRequest, season: number, opts: { manage: boolean; hours24: boolean }, now = Date.now()): StageWords | null {
   if (r.stage !== "partial") return stageWords(r, opts, now);
-  if ((r.available_seasons ?? []).indexOf(season) >= 0) return { text: "Ready to watch", tone: "green", progress: null, note: null };
+  if ((r.available_seasons ?? []).indexOf(season) >= 0) return { text: t("requests.stage.available"), tone: "green", progress: null, note: null };
   return r.download ? downloadWords(r, now) : null;
 }
 
@@ -602,10 +604,10 @@ function sameJson(a: unknown, b: unknown): boolean {
 
 /** Who asked and when: "Asked by you · 3 days ago", "Asked by Ann · yesterday", "Asked for by someone else · now". */
 export function askedLine(r: MediaRequest, manage: boolean, now = Date.now()): string {
-  const who = r.mine ? "Asked by you" : r.requested_by ? `Asked by ${r.requested_by.name}` : "Asked for by someone else";
+  const who = r.mine ? t("requests.asked.byYou") : r.requested_by ? t("requests.asked.byName", { name: r.requested_by.name }) : t("requests.asked.bySomeone");
   const parts = [who, relativeTime(r.created_at, now)];
-  if (r.watching && !r.mine) parts.unshift("You follow it");
-  if (manage && r.watchers > 0) parts.push(`${r.watchers} following`);
+  if (r.watching && !r.mine) parts.unshift(t("requests.asked.youFollow"));
+  if (manage && r.watchers > 0) parts.push(t("requests.asked.following", { count: r.watchers }));
   return parts.join(" · ");
 }
 
@@ -636,32 +638,36 @@ export function actionRows(r: MediaRequest): ActionRow[] {
   for (const a of r.actions) {
     switch (a) {
       case "withdraw":
-        out.push(
-          r.status === "declined"
-            ? { id: a, label: "Remove", confirm: { title: `Remove “${r.title}” from your requests?`, button: "Remove" } }
-            : { id: a, label: "Withdraw", confirm: { title: `Withdraw your request for “${r.title}”?`, button: "Withdraw" } },
-        );
+        if (r.status === "declined") {
+          const remove = t("requests.actions.remove");
+          out.push({ id: a, label: remove, confirm: { title: t("requests.confirm.remove", { title: r.title }), button: remove } });
+        } else {
+          const withdraw = t("requests.actions.withdraw");
+          out.push({ id: a, label: withdraw, confirm: { title: t("requests.confirm.withdraw", { title: r.title }), button: withdraw } });
+        }
         break;
       case "unwatch":
-        out.push({ id: a, label: "Stop following" });
+        out.push({ id: a, label: t("requests.actions.unwatch") });
         break;
       case "approve":
-        out.push({ id: a, label: "Approve" });
+        out.push({ id: a, label: t("requests.actions.approve") });
         break;
       case "retry":
-        out.push({ id: a, label: "Try again" });
+        out.push({ id: a, label: t("requests.actions.retry") });
         break;
       case "decline":
-        out.push({ id: a, label: "Decline" }, { id: "decline_reason", label: "Decline with a reason…" });
+        out.push({ id: a, label: t("requests.actions.decline") }, { id: "decline_reason", label: t("requests.actions.declineReason") });
         break;
       case "handled":
-        out.push({ id: a, label: "Mark as added by hand" });
+        out.push({ id: a, label: t("requests.actions.handled") });
         break;
-      case "delete":
-        out.push({ id: a, label: "Delete", danger: true, confirm: { title: "Delete this request?", body: "Radarr and Sonarr keep what they have.", button: "Delete" } });
+      case "delete": {
+        const label = t("requests.actions.delete");
+        out.push({ id: a, label, danger: true, confirm: { title: t("requests.confirm.delete"), body: t("requests.confirm.deleteBody"), button: label } });
         break;
+      }
       case "ask_again":
-        out.push({ id: a, label: "Request again" });
+        out.push({ id: a, label: t("requests.actions.askAgain") });
         break;
       default:
         // An action a newer server offers: the web has it.
@@ -673,23 +679,23 @@ export function actionRows(r: MediaRequest): ActionRow[] {
 
 /** What a toast says once an action is done. */
 export function actionDone(a: ActionId, r: MediaRequest): string {
-  const x = `“${r.title}”`;
+  const title = { title: r.title };
   switch (a) {
     case "withdraw":
-      return r.status === "declined" ? `Removed ${x} from your requests.` : `Withdrew your request for ${x}.`;
+      return r.status === "declined" ? t("requests.done.removed", title) : t("requests.done.withdrew", title);
     case "unwatch":
-      return `You no longer follow ${x}.`;
+      return t("requests.done.unfollowed", title);
     case "approve":
-      return `Approved ${x}.`;
+      return t("requests.done.approved", title);
     case "retry":
-      return `Trying ${x} again.`;
+      return t("requests.done.retrying", title);
     case "decline":
     case "decline_reason":
-      return `Declined ${x}.`;
+      return t("requests.done.declined", title);
     case "handled":
-      return `Marked ${x} as added by hand.`;
+      return t("requests.done.handled", title);
     case "delete":
-      return `Deleted the request for ${x}.`;
+      return t("requests.done.deleted", title);
     default:
       return "";
   }
@@ -699,23 +705,24 @@ export function actionDone(a: ActionId, r: MediaRequest): string {
 
 /** What asking answered: a new request, by how it was decided, or the requests followed. */
 export function askedText(r: MediaRequest, created: boolean): string {
-  const x = `“${r.title}”`;
-  if (!created) return `You'll hear when ${x} is ready.`;
-  if (r.status === "failed") return `Asked for ${x}, but it couldn't be sent to download yet.`;
-  if (r.status === "pending") return `Asked for ${x}: an administrator decides.`;
-  return `${x} is approved and on its way.`;
+  const title = { title: r.title };
+  if (!created) return t("requests.asking.following", title);
+  if (r.status === "failed") return t("requests.asking.failed", title);
+  if (r.status === "pending") return t("requests.asking.pending", title);
+  return t("requests.asking.approved", title);
 }
 
 /** "“X” is ready to watch.", "Season 2 of “X” is ready to watch.", "Seasons 1–2 of “X” are ready to watch." */
 export function readyText(title: string, seasons: number[] | null | undefined, complete: boolean): string {
-  if (complete || !seasons || !seasons.length) return `“${title}” is ready to watch.`;
-  const several = seasons.length > 1 || seasons[0] === 0;
-  return `${seasonsLabel(seasons)} of “${title}” ${several ? "are" : "is"} ready to watch.`;
+  if (complete || !seasons || !seasons.length) return t("requests.news.ready", { title });
+  if (seasons.length === 1 && seasons[0] === 0) return t("requests.news.specialsReady", { title });
+  // The count isn't written: it says whether one season is ready ("is") or several are ("are").
+  return t("requests.news.seasonsReady", { count: seasons.length > 1 ? 2 : 1, seasons: seasonsLabel(seasons), title });
 }
 
 /** Several pieces of news at once. */
 export function newsText(n: number): string {
-  return `${n} of your requests have news`;
+  return t("requests.news.several", { count: n });
 }
 
 /** A request whose news is that it's ready to watch, whole or in part: the TVs pop up only these. */
@@ -780,15 +787,15 @@ export function requestsProblem(e: unknown): RequestsProblem {
 export function problemWords(p: RequestsProblem, manage: boolean): { title: string; body: string | null; retry: boolean } | null {
   switch (p.kind) {
     case "off":
-      return { title: "Requests are off", body: "This server doesn't take requests for movies and shows.", retry: false };
+      return { title: t("requests.problem.off"), body: t("requests.problem.offText"), retry: false };
     case "noAccess":
-      return { title: "Requests aren't open to this account", body: "An administrator can let it ask for movies and shows.", retry: false };
+      return { title: t("requests.problem.noAccess"), body: t("requests.problem.noAccessText"), retry: false };
     case "tmdbDown":
-      return { title: "TMDB isn't answering", body: "Try again in a moment.", retry: true };
+      return { title: t("requests.problem.tmdbDown"), body: t("requests.problem.tmdbDownText"), retry: true };
     case "tmdbKey":
-      return { title: "TMDB refused this server's key", body: manage ? "Check it in Settings → Server, on the web." : "An administrator needs to check it.", retry: false };
+      return { title: t("requests.problem.tmdbKey"), body: manage ? t("requests.problem.tmdbKeyManage") : t("requests.problem.tmdbKeyText"), retry: false };
     case "signIn":
-      return { title: SIGN_IN_TITLE, body: null, retry: false };
+      return { title: t("requests.problem.signIn"), body: null, retry: false };
     default:
       return null;
   }
@@ -801,18 +808,19 @@ export function problemWords(p: RequestsProblem, manage: boolean): { title: stri
 export function askRefusal(p: RequestsProblem, kind: TitleKind, limits: { movies_limit: number | null; seasons_limit: number | null } | null, now = Date.now()): string {
   switch (p.kind) {
     case "declined":
-      return p.retryAt !== null ? `You can ask again ${timeUntil(p.retryAt, now)}.` : "It was declined.";
+      return p.retryAt !== null ? t("requests.declined.askAgain", { when: timeUntil(p.retryAt, now) }) : t("requests.problem.declined");
     case "limit": {
-      if (p.retryAt !== null) return `You can ask for more ${timeUntil(p.retryAt, now)}.`;
+      if (p.retryAt !== null) return t("requests.problem.askMore", { when: timeUntil(p.retryAt, now) });
       const limit = limits ? (kind === "movie" ? limits.movies_limit : limits.seasons_limit) : null;
-      return limit ? `You can ask for at most ${pluralize(limit, kind === "movie" ? "movie" : "season")} per 7 days: pick fewer.` : "That's more than you can ask for at once: pick fewer.";
+      if (!limit) return t("requests.problem.tooMany");
+      return kind === "movie" ? t("requests.problem.atMostMovies", { count: limit }) : t("requests.problem.atMostSeasons", { count: limit });
     }
     case "restricted":
       return p.text;
     case "conflict":
       return p.text;
     case "missing":
-      return "TMDB doesn't know this title.";
+      return t("requests.problem.missing");
     case "other":
       return tidy(errorMessage(p.error));
     default: {
@@ -824,8 +832,8 @@ export function askRefusal(p: RequestsProblem, kind: TitleKind, limits: { movies
 
 /** The server's message as a sentence. */
 function tidy(text: string): string {
-  const t = text.trim();
-  if (!t) return t;
-  const s = t.charAt(0).toUpperCase() + t.slice(1);
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const s = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
   return /[.…!?]$/.test(s) ? s : `${s}.`;
 }

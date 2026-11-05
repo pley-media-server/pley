@@ -1,0 +1,12 @@
+{
+  "title": "Historique de visionnage",
+  "emptyTitle": "Aucun historique pour l’instant",
+  "empty": "Les films, épisodes et morceaux que vous terminez apparaissent ici.",
+  "failed": "Impossible de charger votre historique de visionnage",
+  "more": "Voir plus",
+  "loading": "Chargement…",
+  "plays_one": "{{count}} lecture",
+  "plays_many": "{{count}} de lectures",
+  "plays_other": "{{count}} lectures",
+  "remove": "Retirer {{title}} de l’historique"
+}

@@ -1,0 +1,122 @@
+{
+  "language": {
+    "label": "Idioma",
+    "serverDefault": "Idioma del servidor ({{language}})",
+    "deviceLanguage": "idioma de este dispositivo, {{language}}"
+  },
+  "title": "Ajustes",
+  "categories": {
+    "profile": "Perfil",
+    "playback": "Reproducción",
+    "audio": "Audio",
+    "display": "Subtítulos y pantalla",
+    "server": "Servidor",
+    "diagnostics": "Diagnóstico",
+    "about": "Acerca de",
+    "signOut": "Cerrar sesión"
+  },
+  "profile": {
+    "roleManaged": "Perfil administrado",
+    "switchProfile": "Cambiar de perfil",
+    "audioLanguage": "Idioma del audio",
+    "subtitles": "Subtítulos",
+    "subtitleLanguage": "Idioma de los subtítulos",
+    "fileDefault": "El predeterminado del archivo",
+    "sameAsAudio": "El mismo que el del audio",
+    "changeOnWeb": "se cambia en la web",
+    "readOnly": "Este servidor no deja que la aplicación los cambie: cámbialos en la web",
+    "saved": "Guardado",
+    "history": "Historial de reproducción",
+    "sortLibraries": "Ordenar bibliotecas",
+    "sortLibrariesValue": "Tu orden, en todos tus dispositivos",
+    "alwaysStartAs": "Iniciar siempre como",
+    "askWho": "Preguntar quién está viendo",
+    "manageWeb": "Gestionar tu cuenta en la web",
+    "manageWebValue": "Nombre, foto, contraseña, PIN, inicio de sesión en dos pasos, dispositivos y aplicaciones"
+  },
+  "subtitleModes": {
+    "off": "Desactivados",
+    "offHint": "Los subtítulos siguen desactivados hasta que los actives.",
+    "forced": "Solo para diálogos en otro idioma",
+    "forcedHint": "Solo subtítulos forzados, para carteles y diálogos en otro idioma.",
+    "foreign": "Cuando el audio está en otro idioma",
+    "foreignHint": "Los subtítulos completos aparecen cuando el audio no está en tu idioma de subtítulos.",
+    "always": "Siempre",
+    "alwaysHint": "Los subtítulos en tu idioma aparecen siempre que los haya."
+  },
+  "web": {
+    "title": "Gestionar tu cuenta en la web",
+    "body": "Escanea el código con tu teléfono o ve a esta dirección en un teléfono o un equipo de la misma red:"
+  },
+  "signOut": {
+    "title": "¿Cerrar sesión?",
+    "body": "Se cerrará la sesión de esta TV en {{server}}.",
+    "intro": "Cierra la sesión de esta TV en {{server}}. Necesitarás un nuevo código de vinculación para volver a iniciar sesión."
+  },
+  "playback": {
+    "quality": "Calidad",
+    "original": "Original",
+    "originalHint": "Calidad máxima. Puede detenerse a cargar con una conexión lenta.",
+    "automatic": "Automática",
+    "automaticHint": "Se adapta a las condiciones.",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "autoplay": "Reproducir el siguiente episodio automáticamente",
+    "autoplayHint": "Tras una cuenta regresiva de 10 segundos",
+    "details": "Detalles de reproducción",
+    "detailsHint": "Mostrar sobre el video cómo se reproduce (directo, remux o transcodificación)"
+  },
+  "audio": {
+    "intro": "Envía el sonido envolvente a tu TV o receptor, o decodifícalo aquí.",
+    "dtsHd": "DTS-HD y DTS:X",
+    "auto": "Auto",
+    "autoHint": "Según lo que la TV o el receptor indique que reproduce",
+    "on": "Activado",
+    "onHint": "Transmitirlo siempre sin cambios",
+    "off": "Desactivado",
+    "offHint": "Nunca: Pley lo convierte"
+  },
+  "display": {
+    "subtitleSize": "Tamaño de los subtítulos",
+    "subtitleBackground": "Fondo de los subtítulos",
+    "subtitleFont": "Fuente de los subtítulos",
+    "subtitlePosition": "Posición de los subtítulos",
+    "reduceMotion": "Reducir el movimiento",
+    "reduceMotionHint": "Sin zoom, deslizamientos ni fundidos: todo cambia en su sitio",
+    "sizes": {
+      "small": "Pequeño",
+      "normal": "Normal",
+      "large": "Grande",
+      "huge": "Muy grande"
+    },
+    "backgrounds": {
+      "none": "Ninguno",
+      "darkBox": "Recuadro oscuro"
+    },
+    "fonts": {
+      "sans": "Sans serif",
+      "serif": "Serif",
+      "monospace": "Monoespaciada",
+      "casual": "Informal"
+    },
+    "positions": {
+      "bottom": "Abajo",
+      "raised": "Un poco más arriba",
+      "higher": "Más arriba",
+      "highest": "Aún más arriba"
+    }
+  },
+  "server": {
+    "value": "El servidor que usa esta TV",
+    "unknown": "Ningún servidor",
+    "switch": "Cambiar de servidor"
+  },
+  "diagnostics": {
+    "open": "Abrir el diagnóstico",
+    "openValue": "Lo que esta TV decodifica y muestra, y por qué"
+  },
+  "about": {
+    "version": "Versión",
+    "licences": "Licencias de código abierto",
+    "credits": "Créditos"
+  }
+}

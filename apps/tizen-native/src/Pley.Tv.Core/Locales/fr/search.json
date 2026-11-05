@@ -1,0 +1,30 @@
+{
+  "field": "Rechercher des films, séries, personnes…",
+  "searching": "Recherche…",
+  "recent": {
+    "title": "Recherches récentes",
+    "clear": "Effacer"
+  },
+  "empty": {
+    "title": "Rechercher dans vos bibliothèques",
+    "body": "Trouvez des films, séries, épisodes, personnes, artistes, albums, titres et chaînes de TV en direct. Appuyez sur OK dans le champ pour saisir, ou utilisez le micro de votre clavier."
+  },
+  "none": {
+    "title": "Aucun résultat pour « {{query}} »",
+    "body": "Essayez une autre orthographe ou moins de mots."
+  },
+  "nothingInLibraries": "Rien dans vos bibliothèques ne correspond",
+  "failed": "La recherche a échoué",
+  "retry": "Réessayer",
+  "groups": {
+    "people": "Personnes",
+    "liveTv": "TV en direct",
+    "movies": "Films",
+    "shows": "Séries",
+    "seasons": "Saisons",
+    "episodes": "Épisodes",
+    "artists": "Artistes",
+    "albums": "Albums",
+    "tracks": "Titres"
+  }
+}

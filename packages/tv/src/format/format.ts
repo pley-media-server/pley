@@ -1,9 +1,19 @@
 import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary } from "../api/types";
+import { formatDate, formatNumber, t } from "../i18n";
+import { catalogs, type Catalog } from "../i18n/catalogs";
 
 /*
  * What files, streams, times and sizes are like, in words: the Android
- * app's labels (core/model/format), which follow the web's.
+ * app's labels (core/model/format), which follow the web's, in the
+ * language shown (the format area's words). Codec and format names
+ * (H.264, Dolby Vision, 5.1, Mbps) are the same in every language.
  */
+
+/** A number as toFixed writes it ("23.976"), with the language's decimal separator: "23,976" in French. */
+export function localDecimal(text: string): string {
+  const separator = formatNumber(1.5).replace(/\d/g, "") || ".";
+  return separator === "." ? text : text.replace(".", separator);
+}
 
 const CODECS: Record<string, string> = {
   h264: "H.264", hevc: "HEVC", h265: "HEVC", av1: "AV1", vp9: "VP9", vp8: "VP8", mpeg4: "MPEG-4", mpeg2video: "MPEG-2",
@@ -25,9 +35,9 @@ export function channelsLabel(channels: number | null | undefined, layout?: stri
   if (!channels) return layout ?? "";
   switch (channels) {
     case 1:
-      return "Mono";
+      return t("format.channels.mono");
     case 2:
-      return "Stereo";
+      return t("format.channels.stereo");
     case 3:
       return "2.1";
     case 6:
@@ -37,7 +47,7 @@ export function channelsLabel(channels: number | null | undefined, layout?: stri
     case 8:
       return "7.1";
     default:
-      return `${channels}ch`;
+      return t("format.channels.count", { n: channels });
   }
 }
 
@@ -168,6 +178,18 @@ function subtitleTitleRest(title: string, lang: string): string {
 }
 
 /**
+ * The name of `code`'s language that `title` has: the one shown, or the
+ * English one, which files' titles mostly use ("English SDH" in French).
+ */
+function nameInTitle(title: string, code: string | null | undefined): string | null {
+  const lower = title.toLowerCase();
+  for (const name of [languageName(code), englishLanguageName(code)]) {
+    if (name && lower.indexOf(name.toLowerCase()) >= 0) return name;
+  }
+  return null;
+}
+
+/**
  * A track as the pickers list it. Audio: "English (EAC3 5.1)", "English –
  * Commentary (AAC Stereo)". Subtitles: "French – SDH (SRT, Forced)".
  * Video: "4K HEVC Dolby Vision P8.1 10-bit".
@@ -176,18 +198,18 @@ export function streamLabel(s: MediaStream): string {
   const lang = languageName(s.language);
   const title = s.title || null;
   if (s.kind === "audio") {
-    const extra = title && lang && title.toLowerCase().indexOf(lang.toLowerCase()) < 0 ? ` – ${title}` : "";
+    const extra = title && lang && !nameInTitle(title, s.language) ? ` – ${title}` : "";
     const details = audioFormatLabel(s);
-    const base = title && !lang ? title : lang ?? title ?? "Unknown";
+    const base = title && !lang ? title : lang ?? title ?? t("format.track.unknown");
     return base + extra + (details ? ` (${details})` : "");
   }
   if (s.kind === "subtitle") {
-    const base = lang ?? title ?? "Unknown";
-    const rest = title && lang ? subtitleTitleRest(title, lang) : "";
-    const flags = [codecLabel(s.codec), isForcedSubtitle(s) ? "Forced" : "", s.external ? "External" : ""].filter(Boolean).join(", ");
+    const base = lang ?? title ?? t("format.track.unknown");
+    const rest = title && lang ? subtitleTitleRest(title, nameInTitle(title, s.language) ?? lang) : "";
+    const flags = [codecLabel(s.codec), isForcedSubtitle(s) ? t("format.track.forced") : "", s.external ? t("format.track.external") : ""].filter(Boolean).join(", ");
     return base + (rest ? ` – ${rest}` : "") + (flags ? ` (${flags})` : "");
   }
-  return [resolutionLabel(s.width, s.height), codecLabel(s.codec), streamRange(s), s.bit_depth && s.bit_depth > 8 ? `${s.bit_depth}-bit` : null]
+  return [resolutionLabel(s.width, s.height), codecLabel(s.codec), streamRange(s), s.bit_depth && s.bit_depth > 8 ? t("format.track.bitDepth", { n: s.bit_depth }) : null]
     .filter(Boolean)
     .join(" ");
 }
@@ -242,50 +264,49 @@ export function automaticAudioLabel(file: MediaFile): string {
   const track = audio.filter((s) => s.index === file.selected_audio)[0] ?? audio.filter((s) => s.default)[0] ?? audio[0];
   const code = track?.language ?? "";
   const lang = code && code !== "und" && code !== "zxx" && code !== "mul" ? languageName(code) : null;
-  return lang ? `Automatic (${lang})` : "Automatic";
+  return lang ? t("format.track.automaticLanguage", { language: lang }) : t("format.track.automatic");
 }
 
 /** "Final Cut · 4K · HEVC · MKV · 58.2 GB", else "Version 2". */
 export function versionLabel(file: MediaFile, position: number): string {
   const parts = [file.edition ?? "", resolutionLabel(file.width, file.height) ?? "", codecLabel(file.video_codec), (file.container ?? "").toUpperCase(), file.size > 0 ? formatBytes(file.size) : ""].filter(Boolean);
-  return parts.length ? parts.join(" · ") : `Version ${position + 1}`;
+  return parts.length ? parts.join(" · ") : t("format.track.version", { number: position + 1 });
 }
 
 // ---- languages
 
-const LANGUAGES: Record<string, string> = {
-  afr: "Afrikaans", alb: "Albanian", sqi: "Albanian", amh: "Amharic", ara: "Arabic", arm: "Armenian", hye: "Armenian",
-  aze: "Azerbaijani", baq: "Basque", eus: "Basque", bel: "Belarusian", ben: "Bengali", bos: "Bosnian", bre: "Breton",
-  bul: "Bulgarian", bur: "Burmese", mya: "Burmese", cat: "Catalan", chi: "Chinese", zho: "Chinese", cze: "Czech",
-  ces: "Czech", dan: "Danish", dut: "Dutch", nld: "Dutch", eng: "English", est: "Estonian", fao: "Faroese",
-  fil: "Filipino", fin: "Finnish", fre: "French", fra: "French", geo: "Georgian", kat: "Georgian", ger: "German",
-  deu: "German", gle: "Irish", glg: "Galician", gre: "Greek", ell: "Greek", guj: "Gujarati", heb: "Hebrew",
-  hin: "Hindi", hrv: "Croatian", hun: "Hungarian", ice: "Icelandic", isl: "Icelandic", ind: "Indonesian",
-  ita: "Italian", jpn: "Japanese", kan: "Kannada", kaz: "Kazakh", khm: "Khmer", kor: "Korean", kur: "Kurdish",
-  lao: "Lao", lat: "Latin", lav: "Latvian", lit: "Lithuanian", ltz: "Luxembourgish", mac: "Macedonian",
-  mkd: "Macedonian", mal: "Malayalam", mao: "Maori", mri: "Maori", mar: "Marathi", may: "Malay", msa: "Malay",
-  mlt: "Maltese", mon: "Mongolian", nep: "Nepali", nob: "Norwegian Bokmål", nno: "Norwegian Nynorsk",
-  nor: "Norwegian", per: "Persian", fas: "Persian", pol: "Polish", por: "Portuguese", pan: "Punjabi",
-  rum: "Romanian", ron: "Romanian", rus: "Russian", slo: "Slovak", slk: "Slovak", slv: "Slovenian",
-  som: "Somali", spa: "Spanish", srp: "Serbian", swa: "Swahili", swe: "Swedish", tam: "Tamil", tel: "Telugu",
-  tgl: "Tagalog", tha: "Thai", tib: "Tibetan", bod: "Tibetan", tur: "Turkish", ukr: "Ukrainian", urd: "Urdu",
-  uzb: "Uzbek", vie: "Vietnamese", wel: "Welsh", cym: "Welsh", yid: "Yiddish", zul: "Zulu", yue: "Cantonese",
-  cmn: "Mandarin", nan: "Min Nan", hat: "Haitian Creole", haw: "Hawaiian", ibo: "Igbo", yor: "Yoruba",
-  hau: "Hausa", sin: "Sinhala", pus: "Pashto", tat: "Tatar", kir: "Kyrgyz", tuk: "Turkmen", tgk: "Tajik",
-  und: "Unknown", mul: "Multiple", zxx: "No linguistic content", qaa: "Original",
-  af: "Afrikaans", sq: "Albanian", am: "Amharic", ar: "Arabic", hy: "Armenian", az: "Azerbaijani", eu: "Basque",
-  be: "Belarusian", bn: "Bengali", bs: "Bosnian", bg: "Bulgarian", my: "Burmese", ca: "Catalan", zh: "Chinese",
-  cs: "Czech", da: "Danish", nl: "Dutch", en: "English", et: "Estonian", fi: "Finnish", fr: "French", ka: "Georgian",
-  de: "German", ga: "Irish", gl: "Galician", el: "Greek", gu: "Gujarati", he: "Hebrew", hi: "Hindi", hr: "Croatian",
-  hu: "Hungarian", is: "Icelandic", id: "Indonesian", it: "Italian", ja: "Japanese", kn: "Kannada", kk: "Kazakh",
-  km: "Khmer", ko: "Korean", ku: "Kurdish", lo: "Lao", la: "Latin", lv: "Latvian", lt: "Lithuanian",
-  lb: "Luxembourgish", mk: "Macedonian", ml: "Malayalam", mi: "Maori", mr: "Marathi", ms: "Malay", mt: "Maltese",
-  mn: "Mongolian", ne: "Nepali", nb: "Norwegian Bokmål", nn: "Norwegian Nynorsk", no: "Norwegian", fa: "Persian",
-  pl: "Polish", pt: "Portuguese", pa: "Punjabi", ro: "Romanian", ru: "Russian", sk: "Slovak", sl: "Slovenian",
-  so: "Somali", es: "Spanish", sr: "Serbian", sw: "Swahili", sv: "Swedish", ta: "Tamil", te: "Telugu", tl: "Tagalog",
-  th: "Thai", bo: "Tibetan", tr: "Turkish", uk: "Ukrainian", ur: "Urdu", uz: "Uzbek", vi: "Vietnamese", cy: "Welsh",
-  yi: "Yiddish", zu: "Zulu",
+/** A language Pley names: its two-letter code (ISO 639-1), else its three-letter one, as the format area's `languages` has them. */
+type LanguageId = keyof Catalog["format"]["languages"];
+
+/** ISO 639-2 codes (bibliographic and terminology) → the language's id. */
+const LANGUAGE_IDS: Record<string, LanguageId> = {
+  afr: "af", alb: "sq", sqi: "sq", amh: "am", ara: "ar", arm: "hy", hye: "hy", aze: "az", baq: "eu", eus: "eu", bel: "be",
+  ben: "bn", bos: "bs", bre: "bre", bul: "bg", bur: "my", mya: "my", cat: "ca", chi: "zh", zho: "zh", cze: "cs", ces: "cs",
+  dan: "da", dut: "nl", nld: "nl", eng: "en", est: "et", fao: "fao", fil: "fil", fin: "fi", fre: "fr", fra: "fr", geo: "ka",
+  kat: "ka", ger: "de", deu: "de", gle: "ga", glg: "gl", gre: "el", ell: "el", guj: "gu", heb: "he", hin: "hi", hrv: "hr",
+  hun: "hu", ice: "is", isl: "is", ind: "id", ita: "it", jpn: "ja", kan: "kn", kaz: "kk", khm: "km", kor: "ko", kur: "ku",
+  lao: "lo", lat: "la", lav: "lv", lit: "lt", ltz: "lb", mac: "mk", mkd: "mk", mal: "ml", mao: "mi", mri: "mi", mar: "mr",
+  may: "ms", msa: "ms", mlt: "mt", mon: "mn", nep: "ne", nob: "nb", nno: "nn", nor: "no", per: "fa", fas: "fa", pol: "pl",
+  por: "pt", pan: "pa", rum: "ro", ron: "ro", rus: "ru", slo: "sk", slk: "sk", slv: "sl", som: "so", spa: "es", srp: "sr",
+  swa: "sw", swe: "sv", tam: "ta", tel: "te", tgl: "tl", tha: "th", tib: "bo", bod: "bo", tur: "tr", ukr: "uk", urd: "ur",
+  uzb: "uz", vie: "vi", wel: "cy", cym: "cy", yid: "yi", zul: "zu", yue: "yue", cmn: "cmn", nan: "nan", hat: "hat",
+  haw: "haw", ibo: "ibo", yor: "yor", hau: "hau", sin: "sin", pus: "pus", tat: "tat", kir: "kir", tuk: "tuk", tgk: "tgk",
+  und: "und", mul: "mul", zxx: "zxx", qaa: "qaa",
 };
+
+/** The two-letter codes Pley names, each the id of a language above. */
+const TWO_LETTER: Record<string, true> = {};
+for (const code in LANGUAGE_IDS) {
+  const id = LANGUAGE_IDS[code]!;
+  if (id.length === 2) TWO_LETTER[id] = true;
+}
+
+/** The id of the language `code` names ("eng", "en", "EN"), if Pley names it. */
+function languageId(code: string): LanguageId | undefined {
+  const base = code.trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(LANGUAGE_IDS, base)) return LANGUAGE_IDS[base];
+  return Object.prototype.hasOwnProperty.call(TWO_LETTER, base) ? (base as LanguageId) : undefined;
+}
 
 /**
  * A language's two-letter code (ISO 639-1), as subtitle sites name them:
@@ -294,39 +315,65 @@ const LANGUAGES: Record<string, string> = {
 export function twoLetterCode(code: string): string {
   const base = code.trim().toLowerCase();
   if (base.length === 2) return base;
-  const name = LANGUAGES[base];
-  if (!name) return base;
-  for (const key in LANGUAGES) if (key.length === 2 && LANGUAGES[key] === name) return key;
-  return base;
+  const id = languageId(base);
+  return id && id.length === 2 ? id : base;
 }
 
-/** "eng" → "English", "pt-BR" → "Portuguese (BR)", unknown codes upper-cased; `null` without one. */
-export function languageName(code: string | null | undefined): string | null {
+/** `code` as `name` writes a language: "pt-BR" → "Portuguese (BR)"; unknown codes upper-cased; `null` without one. */
+function nameOf(code: string | null | undefined, name: (id: LanguageId) => string): string | null {
   const raw = (code ?? "").trim();
   if (!raw) return null;
   const parts = raw.toLowerCase().split(/[-_]/);
-  const name = LANGUAGES[parts[0]!];
-  if (!name) return raw.length <= 3 ? raw.toUpperCase() : raw;
-  return parts[1] ? `${name} (${parts[1].toUpperCase()})` : name;
+  const id = languageId(parts[0]!);
+  if (!id) return raw.length <= 3 ? raw.toUpperCase() : raw;
+  return parts[1] ? `${name(id)} (${parts[1].toUpperCase()})` : name(id);
+}
+
+/** "eng" → "English" ("Anglais" in French), "pt-BR" → "Portuguese (BR)", unknown codes upper-cased; `null` without one. */
+export function languageName(code: string | null | undefined): string | null {
+  return nameOf(code, (id) => t(`format.languages.${id}`));
+}
+
+/** The language's English name, as files' titles mostly have it. */
+function englishLanguageName(code: string | null | undefined): string | null {
+  return nameOf(code, (id) => catalogs.en.format.languages[id]);
 }
 
 // ---- items
 
 /** "S1 · E3", "E3", or "" with neither number. */
 export function episodeLabel(season: number | null | undefined, episode: number | null | undefined): string {
-  return [season != null ? `S${season}` : null, episode != null ? `E${episode}` : null].filter(Boolean).join(" · ");
+  if (season != null && episode != null) return t("format.episode.both", { season, episode });
+  if (season != null) return t("format.episode.season", { season });
+  return episode != null ? t("format.episode.episode", { episode }) : "";
 }
 
 /** A season's own title, else "Specials" for season 0, else "Season 2". */
 export function seasonTitle(title: string | null | undefined, index: number | null | undefined): string {
   if (title) return title;
-  if (index === 0) return "Specials";
-  return index != null ? `Season ${index}` : "Season";
+  if (index === 0) return t("format.season.specials");
+  return index != null ? t("format.season.numbered", { number: index }) : t("format.season.plain");
 }
 
-/** "1 movie", "12,345 movies". */
-export function pluralize(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+/** What `pluralize` counts, by its English word, and the format area's `counts` key for it. */
+const COUNTED = {
+  season: "seasons",
+  episode: "episodes",
+  album: "albums",
+  track: "tracks",
+  movie: "movies",
+  show: "shows",
+  artist: "artists",
+  item: "items",
+  title: "titles",
+  collection: "collections",
+} as const;
+
+export type Counted = keyof typeof COUNTED;
+
+/** "1 movie", "12,345 movies", in the language shown. */
+export function pluralize(n: number, what: Counted): string {
+  return t(`format.counts.${COUNTED[what]}`, { count: n });
 }
 
 /** The short line under a card, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001"… */
@@ -387,25 +434,25 @@ function wholeMinutes(ms: number): number {
 export function formatDuration(ms: number | null | undefined): string {
   if (!ms || ms <= 0) return "";
   const total = wholeMinutes(ms);
-  if (total < 1) return `${Math.max(1, Math.round(ms / 1000))}s`;
+  if (total < 1) return t("format.duration.seconds", { n: Math.max(1, Math.round(ms / 1000)) });
   const h = Math.floor(total / 60);
   const m = total % 60;
-  if (!h) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  if (!h) return t("format.duration.minutes", { n: m });
+  return m ? t("format.duration.hoursMinutes", { hours: h, minutes: m }) : t("format.duration.hours", { n: h });
 }
 
 /** "58 min" under an hour, "1h 52m" from an hour, "29s" below half a minute. */
 export function formatRuntime(ms: number | null | undefined): string {
   if (!ms || ms <= 0) return "";
   const total = wholeMinutes(ms);
-  return total >= 1 && total <= 59 ? `${total} min` : formatDuration(ms);
+  return total >= 1 && total <= 59 ? t("format.duration.runtime", { n: total }) : formatDuration(ms);
 }
 
 /** "26 min left", "1h 12m left"; empty without a duration or once nothing is left. */
 export function formatTimeLeft(positionMs: number, durationMs: number | null | undefined): string {
   if (!durationMs || durationMs <= 0) return "";
   const left = formatRuntime(Math.max(0, durationMs - positionMs));
-  return left ? `${left} left` : "";
+  return left ? t("format.duration.left", { time: left }) : "";
 }
 
 /** Milliseconds → "1:02:03" or "2:03" ("0:00" for nothing). */
@@ -433,11 +480,9 @@ export function formatTimeOfDay(date: Date, hours24: boolean): string {
 }
 
 /*
- * Relative times are written here: the TVs' engines (Chromium 53 and 56)
- * have no Intl.RelativeTimeFormat.
+ * Relative times are written here, with words of the format area: the
+ * TVs' engines (Chromium 53 and 56) have no Intl.RelativeTimeFormat.
  */
-
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Calendar days from `now`'s day to `at`'s, on the TV's clock (1: tomorrow). */
 function daysBetween(now: Date, at: Date): number {
@@ -446,25 +491,22 @@ function daysBetween(now: Date, at: Date): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-/** Unix seconds → "Nov 4", with the year when it isn't `now`'s (or with `year`). */
+/** Unix seconds → "Nov 4" ("4 nov." in French), with the year when it isn't `now`'s (or with `year`). */
 export function shortDate(seconds: number, now = Date.now(), year = false): string {
   const d = new Date(seconds * 1000);
   const withYear = year || d.getFullYear() !== new Date(now).getFullYear();
-  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}${withYear ? `, ${d.getFullYear()}` : ""}`;
+  return formatDate(d, withYear ? { month: "short", day: "numeric", year: "numeric" } : { month: "short", day: "numeric" });
 }
 
 /** "3 hours ago", "yesterday", "now"; a month on, the date. */
 export function relativeTime(seconds: number, now = Date.now()): string {
   const diff = Math.max(0, now / 1000 - seconds);
-  if (diff < 60) return "now";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600);
-    return h === 1 ? "1 hour ago" : `${h} hours ago`;
-  }
+  if (diff < 60) return t("format.time.justNow");
+  if (diff < 3600) return t("format.time.minutesAgo", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("format.time.hoursAgo", { count: Math.floor(diff / 3600) });
   const days = Math.floor(diff / 86400);
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
+  if (days === 1) return t("format.time.yesterday");
+  if (days < 30) return t("format.time.daysAgo", { count: days });
   return shortDate(seconds, now, true);
 }
 
@@ -475,14 +517,11 @@ export function relativeTime(seconds: number, now = Date.now()): string {
  */
 export function timeUntil(seconds: number, now = Date.now()): string {
   const diff = seconds - now / 1000;
-  if (diff <= 30) return "now";
-  if (diff < 3600) return `in ${Math.max(1, Math.round(diff / 60))} min`;
-  if (diff < 86400) {
-    const h = Math.max(1, Math.round(diff / 3600));
-    return h === 1 ? "in 1 hour" : `in ${h} hours`;
-  }
+  if (diff <= 30) return t("format.time.now");
+  if (diff < 3600) return t("format.time.inMinutes", { n: Math.max(1, Math.round(diff / 60)) });
+  if (diff < 86400) return t("format.time.inHours", { count: Math.max(1, Math.round(diff / 3600)) });
   const days = Math.max(1, daysBetween(new Date(now), new Date(seconds * 1000)));
-  return days === 1 ? "tomorrow" : `in ${days} days`;
+  return days === 1 ? t("format.time.tomorrow") : t("format.time.inDays", { count: days });
 }
 
 /**
@@ -494,15 +533,15 @@ export function dayAndTime(seconds: number, opts: { time: boolean; hours24: bool
   const at = new Date(seconds * 1000);
   const days = daysBetween(new Date(now), at);
   const ahead = seconds * 1000 - now;
-  const day = days === 0 ? "today" : days === 1 ? "tomorrow" : shortDate(seconds, now);
-  return opts.time && ahead > 0 && ahead <= 86_400_000 ? `${day} at ${formatTimeOfDay(at, opts.hours24)}` : day;
+  const day = days === 0 ? t("format.time.today") : days === 1 ? t("format.time.tomorrow") : shortDate(seconds, now);
+  return opts.time && ahead > 0 && ahead <= 86_400_000 ? t("format.time.dayAt", { day, time: formatTimeOfDay(at, opts.hours24) }) : day;
 }
 
 // ---- sizes
 
-const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
-/** 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024. */
+/** 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024 ("1,5 Ko" in French). */
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null) return "";
   let v = bytes;
@@ -511,12 +550,12 @@ export function formatBytes(bytes: number | null | undefined): string {
     v /= 1024;
     i++;
   }
-  return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${BYTE_UNITS[i]}`;
+  return `${localDecimal(v.toFixed(v >= 100 || i === 0 ? 0 : 1))} ${t(`format.bytes.${BYTE_UNITS[i]!}`)}`;
 }
 
 /** Bits per second → "8.2 Mbps", "12 Mbps", "320 kbps"; empty without a rate. */
 export function formatBitrate(bps: number | null | undefined): string {
   if (!bps) return "";
-  if (bps >= 1_000_000) return `${(bps / 1_000_000).toFixed(bps >= 10_000_000 ? 0 : 1)} Mbps`;
+  if (bps >= 1_000_000) return `${localDecimal((bps / 1_000_000).toFixed(bps >= 10_000_000 ? 0 : 1))} Mbps`;
   return `${Math.round(bps / 1000)} kbps`;
 }

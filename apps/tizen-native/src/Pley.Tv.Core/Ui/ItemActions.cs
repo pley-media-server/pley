@@ -91,18 +91,18 @@ public static class ItemActions
     /// <summary>What the action says (the Android app's tv_item_* strings).</summary>
     public static string Label(ItemAction action) => action switch
     {
-        ItemAction.Play => "Play",
-        ItemAction.Resume => "Resume",
-        ItemAction.FromStart => "Play from start",
+        ItemAction.Play => ItemText.Play,
+        ItemAction.Resume => ItemText.Resume,
+        ItemAction.FromStart => Strings.T("item.actions.playFromStart"),
         ItemAction.MarkWatched => ItemText.MarkWatched,
         ItemAction.MarkUnwatched => ItemText.MarkUnwatched,
-        ItemAction.RemoveFromContinueWatching => "Remove from Continue Watching",
+        ItemAction.RemoveFromContinueWatching => Strings.T("item.actions.removeFromContinueWatching"),
         ItemAction.AddToMyList => ItemText.AddToMyList,
-        ItemAction.RemoveFromMyList => "Remove from My List",
+        ItemAction.RemoveFromMyList => Strings.T("item.actions.removeFromMyList"),
         ItemAction.AddToPlaylist => ItemText.AddToPlaylist,
         ItemAction.GoToShow => ItemText.GoToShow,
         ItemAction.GoToSeason => ItemText.GoToSeason,
-        _ => "Open",
+        _ => Strings.T("item.actions.open"),
     };
 
     /// <summary>The action's icon in a side panel, by Lucide's name.</summary>

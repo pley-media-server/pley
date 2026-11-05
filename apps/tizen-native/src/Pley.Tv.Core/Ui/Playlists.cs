@@ -206,7 +206,7 @@ public static class PlaylistRules
 
     /// <summary>"12 items · 3h 12m", "1 item".</summary>
     public static string Meta(long itemCount, long durationMs) =>
-        string.Join(" · ", new[] { Format.Pluralize(itemCount, "item"), Format.Duration(durationMs) }.Where(s => s.Length > 0));
+        string.Join(" · ", new[] { PlaylistText.Items(itemCount), Format.Duration(durationMs) }.Where(s => s.Length > 0));
 
     /// <summary>What a playlist of <paramref name="kind"/>'s items plays: music for artists, albums and tracks, else video.</summary>
     public static string KindOf(string kind) => kind is "artist" or "album" or "track" ? PlaylistKind.Audio : PlaylistKind.Video;
@@ -276,7 +276,7 @@ public static class PlaylistRules
     {
         0 => "",
         1 => FullTitle(items[0]),
-        _ => Format.Pluralize(items.Count, "item"),
+        _ => PlaylistText.Items(items.Count),
     };
 
     /// <summary>A playlist as its card and the panels list it.</summary>

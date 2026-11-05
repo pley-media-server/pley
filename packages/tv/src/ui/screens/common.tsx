@@ -3,7 +3,8 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact
 import { errorMessage, unreachable, unreachableReason } from "../../api/client";
 import type { ItemDetail, ItemSummary } from "../../api/types";
 import { SignedOutError } from "../../auth/tokens";
-import { formatRuntime, qualityBadges } from "../../format/format";
+import { formatRuntime, localDecimal, qualityBadges } from "../../format/format";
+import { t } from "../../i18n";
 import { Cancel, NetworkError } from "../../net/transport";
 import type { AppState } from "../../state";
 import { useUi } from "../context";
@@ -31,12 +32,12 @@ export function sentence(text: string): string {
 
 /** Why a load failed; when the server answered nothing, what to check (the Android app's failedBody). */
 export function problem(e: unknown): string {
-  return unreachable(e) ? `${unreachableReason(e)} Check that the server is on and that this device is on its network.` : sentence(errorMessage(e));
+  return unreachable(e) ? t("common.server.check", { reason: unreachableReason(e) }) : sentence(errorMessage(e));
 }
 
 /** A failed load's title: `title`, or "Can't reach your server" when the server answered nothing. */
 export function failedTitle(e: unknown, title: string): string {
-  return unreachable(e) ? "Can't reach your server" : title;
+  return unreachable(e) ? t("common.server.cantReach") : title;
 }
 
 export interface Loaded<T> {
@@ -190,12 +191,13 @@ export function MetaLine(p: { item: ItemSummary; detail?: ItemDetail | null; lea
   const runtime = p.runtime !== undefined ? p.runtime : item.kind === "movie" || item.kind === "episode" ? formatRuntime(item.duration_ms) : "";
   if (runtime) push("rt", <span key="rt" class="t-label c-muted nowrap">{runtime}</span>);
   if (item.rating && item.rating > 0) {
+    const rated = localDecimal(item.rating.toFixed(1));
     push(
       "rating",
-      <span key="rating" class="meta-rating" aria-label={`Rated ${item.rating.toFixed(1)}`}>
+      <span key="rating" class="meta-rating" aria-label={t("browse.rated", { rating: rated })}>
         <Icon name="star" size={14} color="var(--accent)" />
         <span class="t-label c-fg" style="margin-left:4px">
-          {item.rating.toFixed(1)}
+          {rated}
         </span>
       </span>,
     );

@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "Buscar",
+    "home": "Inicio",
+    "discover": "Descubrir",
+    "live": "TV en vivo",
+    "libraries": "Bibliotecas",
+    "playlists": "Listas de reproducción",
+    "collections": "Colecciones",
+    "nowPlaying": "Reproduciendo ahora",
+    "settings": "Ajustes",
+    "profiles": "Perfiles",
+    "switchProfile": "Cambiar de perfil"
+  },
+  "offline": "Pley está sin conexión",
+  "exit": {
+    "title": "¿Salir de Pley?",
+    "exit": "Salir"
+  }
+}

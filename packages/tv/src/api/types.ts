@@ -24,6 +24,8 @@ export interface User {
   audio_language: string | null;
   subtitle_language: string | null;
   subtitle_mode: SubtitleMode;
+  /** The language Pley is in for the account ("en", "fr", "es"); `null` for the server's. Absent from servers before it. */
+  language?: string | null;
   /** An app's token: what it was allowed ("library play"). */
   scope?: string;
 }

@@ -1,0 +1,21 @@
+{
+  "noDrive": {
+    "title": "Aucun périphérique USB",
+    "body": "Branchez un périphérique USB sur la TV pour lire ses vidéos ici."
+  },
+  "unreadable": {
+    "title": "Impossible de lire ce dossier",
+    "body": "Le périphérique a peut-être été débranché."
+  },
+  "empty": {
+    "title": "Rien à lire ici",
+    "body": "Ce dossier ne contient ni vidéos ni dossiers."
+  },
+  "space": "{{free}} libres sur {{total}}",
+  "up": "Dossier parent",
+  "resumesAt": "{{kind}} · Reprise à {{time}}",
+  "playback": {
+    "stuck": "Cette TV ne lit pas ce fichier : son image n’a jamais démarré. Sans serveur pour le convertir, essayez une autre copie.",
+    "cantConvert": "Cette TV ne peut pas lire ce fichier tel quel, et un fichier sur un périphérique USB n’a pas de serveur pour le convertir"
+  }
+}

@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Pley in French and Spanish: the app shows your profile's language, else
+  the server's, else the TV's, and starts in the last one it showed. Settings
+  → Profile → Language chooses it for your profile on every device, or the
+  server's.
+
 ## [0.1.6] - 2026-11-05
 
 ### Changed

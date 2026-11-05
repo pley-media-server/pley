@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { errorMessage } from "../../api/client";
 import type { Collection, ItemSummary, Library } from "../../api/types";
 import { pluralize } from "../../format/format";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { Backdrop } from "../kit/backdrop";
 import { Pill, Round } from "../kit/buttons";
@@ -33,10 +34,10 @@ export function CollectionsScreen(p: { entry: Entry; libraryId?: number }) {
   if (!app.libraries.value) return <LibrariesFailed top={ROWS_TOP} />;
   const groups = (loaded.data ?? []).filter((g) => g.collections.length > 0);
   if (!loaded.data && loaded.error) {
-    return <ColumnMessage top={ROWS_TOP} title={failedTitle(loaded.error, "Couldn't load collections")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+    return <ColumnMessage top={ROWS_TOP} title={failedTitle(loaded.error, t("browse.collections.cantLoad"))} body={problem(loaded.error)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }} />;
   }
   if (loaded.data && !groups.length) {
-    return <ColumnMessage top={ROWS_TOP} title="No collections yet" body="Movies of the same TMDB collection are grouped here once two of them are in a library." />;
+    return <ColumnMessage top={ROWS_TOP} title={t("browse.collections.none")} body={t("browse.collections.noneHint")} />;
   }
   // Each row's tile focused last, so Back from a collection comes to it, the rows drawn again.
   const rowIndex = (p.entry.state.rowIndex as Record<string, number> | undefined) ?? {};
@@ -83,7 +84,7 @@ export function CollectionsScreen(p: { entry: Entry; libraryId?: number }) {
         onFocusSection={(k) => (p.entry.state.section = k)}
       />
       <div class="t-page c-fg" style="position:absolute;left:96px;top:27px">
-        Collections
+        {t("browse.collections.title")}
       </div>
       <div class="rail-fade" />
     </div>
@@ -105,9 +106,9 @@ export function CollectionScreen(p: { entry: Entry; id: number }) {
   const [problemText, setProblemText] = useState<string | null>(null);
   const col = loaded.data;
   if (!col) {
-    if (loaded.error) return <ColumnMessage top={58} title={failedTitle(loaded.error, "Couldn't load this collection")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+    if (loaded.error) return <ColumnMessage top={58} title={failedTitle(loaded.error, t("browse.collections.cantLoadOne"))} body={problem(loaded.error)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }} />;
     return (
-      <div class="collection-page" role="status" aria-label="Loading">
+      <div class="collection-page" role="status" aria-label={t("common.states.loading")}>
         {[
           [58, 120, 18],
           [90, 360, 44],
@@ -136,21 +137,29 @@ export function CollectionScreen(p: { entry: Entry; id: number }) {
     }
     try {
       const { item } = await ui.api.onDeck(pick.id);
-      if (!item) say("Nothing to play: this show has no episodes yet");
+      if (!item) say(t("browse.collections.noEpisodes"));
       else openPlayer(ui, { itemId: item.id });
     } catch (e) {
       say(sentence(errorMessage(e)));
     }
   };
-  const notes = col.smart_filter ? describeFilter(col.smart_filter) : col.sort === "release" ? "By release date" : col.sort === "title" ? "By title" : col.sort === "custom" ? "Custom order" : "";
+  const notes = col.smart_filter
+    ? describeFilter(col.smart_filter)
+    : col.sort === "release"
+      ? t("browse.collections.byRelease")
+      : col.sort === "title"
+        ? t("browse.collections.byTitle")
+        : col.sort === "custom"
+          ? t("browse.collections.customOrder")
+          : "";
   const facts = [library ? collectionCount(col, library.kind) : pluralize(col.item_count, "title"), library?.name ?? "", notes].filter(Boolean).join("  ·  ");
   const hero = (
     <div class="collection-hero">
       <div class="collection-eyebrow">
         <Icon name="layers" size={18} color="var(--muted)" />
-        <span class="t-label c-muted">Collection</span>
+        <span class="t-label c-muted">{t("browse.collections.label")}</span>
         {col.automatic && <PageBadge text="TMDB" />}
-        {col.smart_filter && <PageBadge text="Smart" />}
+        {col.smart_filter && <PageBadge text={t("browse.smart")} />}
       </div>
       <div class="t-hero c-fg lines-2" style="margin-top:10px">
         {col.title}
@@ -161,12 +170,12 @@ export function CollectionScreen(p: { entry: Entry; id: number }) {
       {col.summary && <div class="t-body-large lines-3 hero-summary" style="margin-top:12px">{col.summary}</div>}
       <div style="flex:1" />
       <G kind="row" class="buttons">
-        <Pill label="Play" icon="play" fid="play" initial={items.length > 0} disabled={!items.length} onSelect={() => void play(false)} />
-        <Round label="Shuffle" icon="shuffle" fid="shuffle" initial={!items.length} disabled={items.length < 2} onSelect={() => void play(true)} />
+        <Pill label={t("common.actions.play")} icon="play" fid="play" initial={items.length > 0} disabled={!items.length} onSelect={() => void play(false)} />
+        <Round label={t("browse.actions.shuffle")} icon="shuffle" fid="shuffle" initial={!items.length} disabled={items.length < 2} onSelect={() => void play(true)} />
         {problemText && <div class="t-label c-danger" style="margin:14px 0 0 12px">{problemText}</div>}
       </G>
       <div style="height:36px" />
-      {!items.length && <div class="t-body c-muted">Nothing in this collection yet.</div>}
+      {!items.length && <div class="t-body c-muted">{t("browse.collections.empty")}</div>}
     </div>
   );
   return (
@@ -204,10 +213,10 @@ export function describeFilter(filter: string): string {
   const out: string[] = [];
   for (const part of filter.split("&")) {
     const [k, v = ""] = part.split("=").map((x) => decodeURIComponent(x.replace(/\+/g, " ")));
-    if (k === "genre" && v) out.push(`Genre: ${v}`);
-    else if (k === "unwatched") out.push(v === "1" ? "Unwatched" : "Watched");
-    else if (k === "year" && v) out.push(`From ${v}`);
-    else if (k === "sort" && /desc$/.test(v)) out.push("Newest first");
+    if (k === "genre" && v) out.push(t("browse.smartFilter.genre", { value: v }));
+    else if (k === "unwatched") out.push(v === "1" ? t("browse.smartFilter.unwatched") : t("browse.smartFilter.watched"));
+    else if (k === "year" && v) out.push(t("browse.smartFilter.year", { value: v }));
+    else if (k === "sort" && /desc$/.test(v)) out.push(t("browse.smartFilter.sort.year.desc"));
   }
   return out.join("  ·  ");
 }

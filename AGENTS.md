@@ -43,20 +43,28 @@ too, each app's workflow when that app changes.
 | Apple app (`apps/apple`) | `swift test --package-path apps/apple/PleyKit`, and the `xcodebuild` builds in [docs/APPLE.md](docs/APPLE.md#building-and-testing) |
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
-**Languages.** The server, the web app and the desktop app are in
-English, French and Spanish. As the last step of a change, put every word
-people read in each language: no text written into the code. The web and
-desktop apps' words are in
-`apps/web/src/i18n/locales/<language>/<namespace>.json` and
-`apps/desktop/src/locales/<language>.json` (i18next: `t("key")`,
-`{{name}}` for values, `_one`/`_other` for counts, plus `_many` in French
-and Spanish; in `<Trans>`, tags named for what they mark, such as
-`<settings>`, since HTML's `<link>` reads as empty), the server's in
-`apps/server/locales/<language>.json`. Write English first, then French
-and Spanish as a native speaker would put them, in Pley's tone. Dates and
-numbers go through `Intl` with `currentLocale()` (`@/i18n`), never the
-browser's default. The checks above test that every language has every
-key, with the same values in it.
+**Languages.** The server, the web and desktop apps and the Samsung apps
+are in English, French and Spanish. As the last step of a change, put
+every word people read in each language: no text written into the code.
+The words are in JSON files of i18next's format (`{{name}}` for values,
+`_one`/`_other` for counts, plus `_many` in French and Spanish):
+
+| App | Words | Read with |
+|---|---|---|
+| Web | `apps/web/src/i18n/locales/<language>/<namespace>.json` | i18next's `t("key")`, `<Trans>` |
+| Desktop | `apps/desktop/src/locales/<language>.json` | i18next's `t("key")` |
+| Server | `apps/server/locales/<language>.json` | `i18n::t` |
+| Samsung, web | `packages/tv/src/i18n/locales/<language>/<area>.json` | its own `t("key")`, `<Trans>` |
+| Samsung, native | `apps/tizen-native/src/Pley.Tv.Core/Locales/<language>/<area>.json` | `Strings.T`, `Strings.Count` |
+
+In a sentence with markup, name tags for what they mark (`<settings>`):
+HTML's `<link>` reads as empty in `<Trans>`. Write English first, then
+French and Spanish as a native speaker would put them, in Pley's tone, and
+check that they fit where the TVs' fixed layouts show them. Dates and
+numbers go through the language shown (`currentLocale()` on the web,
+`formatNumber`/`formatDate` in `packages/tv`, `Strings.Culture` in the
+native app), never the device's default. The checks above test that every
+language has every key, with the same values in it.
 
 Fix what fails, including tests a change breaks elsewhere. Don't weaken or
 skip a test to make it pass; if a test is wrong, say why in the commit.

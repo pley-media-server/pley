@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { LiveGroups } from "../../api/types";
+import { currentLanguage, formatNumber, t } from "../../i18n";
 import { categoryKey, groupSections, type LiveCategory } from "../../live/data";
 import { useUi } from "../context";
 import { TextField } from "../kit/field";
@@ -14,9 +15,9 @@ const DRAWN = 12;
 const SEARCH_TOP = 76;
 const LIST_TOP = 130;
 
-/** 57176 → "57,176". */
+/** 57176 → "57,176" ("57 176" in French). */
 export function count(n: number): string {
-  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return formatNumber(n);
 }
 
 type Line =
@@ -34,9 +35,9 @@ type Line =
 export function categoryLines(groups: LiveGroups | null, open: string | null): Line[] {
   const lines: Line[] = [];
   lines.push(
-    { kind: "category", key: "favorites", category: { kind: "favorites" }, label: "Favourites", icon: "star", count: groups ? groups.favorites : null },
-    { kind: "category", key: "recent", category: { kind: "recent" }, label: "Recently watched", icon: "history", count: groups ? groups.recent : null },
-    { kind: "category", key: "all", category: { kind: "all" }, label: "All channels", icon: "layers", count: groups ? groups.total : null },
+    { kind: "category", key: "favorites", category: { kind: "favorites" }, label: t("livetv.categories.favourites"), icon: "star", count: groups ? groups.favorites : null },
+    { kind: "category", key: "recent", category: { kind: "recent" }, label: t("livetv.categories.recent"), icon: "history", count: groups ? groups.recent : null },
+    { kind: "category", key: "all", category: { kind: "all" }, label: t("livetv.categories.all"), icon: "layers", count: groups ? groups.total : null },
   );
   if (!groups || groups.groups.length < 2) return lines;
   const group = (name: string, label: string, n: number, inRegion: boolean): Line => ({
@@ -49,18 +50,18 @@ export function categoryLines(groups: LiveGroups | null, open: string | null): L
   });
   const { regions, others } = groupSections(groups.groups);
   if (!regions.length) {
-    lines.push({ kind: "heading", key: "heading", label: "Groups", count: others.length });
+    lines.push({ kind: "heading", key: "heading", label: t("livetv.categories.groups"), count: others.length });
     for (const g of others) lines.push(group(g.name, g.name, g.count, false));
     return lines;
   }
-  lines.push({ kind: "heading", key: "heading:regions", label: "Regions", count: regions.length });
+  lines.push({ kind: "heading", key: "heading:regions", label: t("livetv.categories.regions"), count: regions.length });
   for (const r of regions) {
     const isOpen = open === r.region;
     lines.push({ kind: "region", key: `region:${r.region}`, region: r.region, groups: r.groups.length, count: r.count, open: isOpen });
     if (isOpen) for (const g of r.groups) lines.push(group(g.name, g.label, g.count, true));
   }
   if (others.length) {
-    lines.push({ kind: "heading", key: "heading:more", label: "More groups", count: others.length });
+    lines.push({ kind: "heading", key: "heading:more", label: t("livetv.categories.moreGroups"), count: others.length });
     for (const g of others) lines.push(group(g.name, g.name, g.count, false));
   }
   return lines;
@@ -92,7 +93,7 @@ export function CategoryPanel(p: {
     return r ? r.region : null;
   }, [p.groups, selectedGroup]);
   const [open, setOpen] = useState<string | null>(selectedRegion);
-  const lines = useMemo(() => categoryLines(p.groups, open), [p.groups, open]);
+  const lines = useMemo(() => categoryLines(p.groups, open), [p.groups, open, currentLanguage()]);
   const searching = p.selected.kind === "search";
   const startAt = Math.max(0, lines.findIndex((l) => l.key === selectedKey));
   const searchBox = useRef<HTMLDivElement>(null);
@@ -142,7 +143,7 @@ export function CategoryPanel(p: {
         class={`live-cat${current || holds ? " current" : ""}${l.kind === "group" && l.inRegion ? " inner" : ""}`}
         fid={`cat/${l.key}`}
         initial={!searching && i === startAt}
-        label={l.kind === "region" ? `${l.region}, ${l.groups} groups` : l.label}
+        label={l.kind === "region" ? t("livetv.categories.region", { region: l.region, groups: t("livetv.categories.groupCount", { count: l.groups }) }) : l.label}
         style={top}
         onFocus={() => setAt(i)}
         onSelect={() => {
@@ -155,7 +156,7 @@ export function CategoryPanel(p: {
         {l.kind === "region" ? (
           <>
             <span class="live-cat-region t-badge">{l.region}</span>
-            <span class="t-caption live-cat-sub one-line">{`${l.groups} groups`}</span>
+            <span class="t-caption live-cat-sub one-line">{t("livetv.categories.groupCount", { count: l.groups })}</span>
           </>
         ) : (
           <span class="t-label one-line live-cat-label">{l.label}</span>
@@ -165,14 +166,14 @@ export function CategoryPanel(p: {
     );
   }
   return (
-    <div ref={trap} class="panel-root" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:30" aria-label="Channel groups">
+    <div ref={trap} class="panel-root" style="position:absolute;left:0;top:0;right:0;bottom:0;z-index:30" aria-label={t("livetv.categories.label")}>
       <div class={`scrim${inside ? " in" : ""}`} onClick={p.onClose} />
       <div class={`live-cats${inside ? " in" : ""}`} style={`left:${p.left}px`}>
-        <div class="t-title c-fg live-cats-title">Categories</div>
+        <div class="t-title c-fg live-cats-title">{t("livetv.categories.title")}</div>
         <div ref={searchBox} class="live-cats-search" style={`top:${SEARCH_TOP}px`}>
           <TextField
             value={words}
-            placeholder="Search channels and groups"
+            placeholder={t("livetv.categories.search")}
             icon="search"
             type="search"
             fid="cat/search"

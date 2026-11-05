@@ -24,7 +24,7 @@ sealed class AddressEntry : Sheet
     readonly TextLabel problem;
     readonly IDisposable watch;
     readonly IDisposable keys;
-    string connectLabel = "Connect";
+    string connectLabel = Strings.T("signin.address.connect");
 
     public AddressEntry(Shell shell, ServersModel model) : base("address-entry")
     {
@@ -34,13 +34,13 @@ sealed class AddressEntry : Sheet
         View.Add(Onboarding.BrandGlow());
 
         var center = PleyTv.CanvasWidth / 2;
-        var title = Text.Label("Enter your server's address", PleyType.Title, PleyColors.Fg, width: 600);
+        var title = Text.Label(Strings.T("signin.address.title"), PleyType.Title, PleyColors.Fg, width: 600);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         title.Position = new Position(Ui.Dp(center - 300), Ui.Dp(Top));
         View.Add(title);
 
         var fieldTop = Top + PleyType.Title.Line + 8;
-        field = new TextInput(shell.Input, FieldWidth, "192.168.1.20 or pley.example.com", InputMethod.PanelLayoutType.URL, InputMethod.ActionButtonTitleType.Go)
+        field = new TextInput(shell.Input, FieldWidth, Strings.T("signin.address.placeholder"), InputMethod.PanelLayoutType.URL, InputMethod.ActionButtonTitleType.Go)
         {
             Position = new Position(Ui.Dp(center - FieldWidth / 2), Ui.Dp(fieldTop)),
         };
@@ -49,13 +49,13 @@ sealed class AddressEntry : Sheet
         View.Add(field);
 
         var connectTop = fieldTop + TextInput.Height + 14;
-        connect = new ButtonView("Connect", ButtonKind.Pill, Connect);
+        connect = new ButtonView(connectLabel, ButtonKind.Pill, Connect);
         connect.PositionY = Ui.Dp(connectTop);
         LayoutConnect();
         View.Add(connect);
 
         // Under it: how addresses work, and what went wrong.
-        var hint = Paragraph("Port 7539 is used by default.", PleyType.Caption, PleyColors.Muted, 1);
+        var hint = Paragraph(Strings.T("signin.address.port", ("port", Addresses.DefaultPort)), PleyType.Caption, PleyColors.Muted, 1);
         hint.Position = new Position(Ui.Dp(center - FieldWidth / 2), Ui.Dp(connectTop + PleyTv.ButtonHeight + 24));
         View.Add(hint);
         problem = Paragraph("", PleyType.Body, PleyColors.DangerText, 6);
@@ -97,7 +97,7 @@ sealed class AddressEntry : Sheet
     void Show(ServersState state)
     {
         problem.Text = state.AddressProblem?.Text ?? "";
-        var label = state.CheckingAddress ? "Checking…" : "Connect";
+        var label = state.CheckingAddress ? Strings.T("signin.address.checking") : Strings.T("signin.address.connect");
         if (connectLabel != label)
         {
             connectLabel = label;

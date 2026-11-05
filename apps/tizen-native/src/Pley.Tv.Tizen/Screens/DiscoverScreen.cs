@@ -308,7 +308,7 @@ sealed class DiscoverScreen : ShellPage
             _ => model.HeroAction(),
             () => RequestKit.SignInAgain(layers, s.Origin, restart));
         actions = new TitleActionsView(h.Action, title.Kind, s.Allowance, s.Manage, handlers, compact: true,
-            _ => new[] { new ExtraButton("Details", "info", () => go(new PageKey.DiscoverTitle(title.Kind, title.TmdbId))) });
+            _ => new[] { new ExtraButton(RequestText.Details, "info", () => go(new PageKey.DiscoverTitle(title.Kind, title.TmdbId))) });
         actions.PositionY = Ui.Dp(y);
         hero.Add(actions);
         heroGroup.Add(actions.Group);

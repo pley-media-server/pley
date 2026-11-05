@@ -142,7 +142,7 @@ sealed class DiscoverTitleScreen : ShellPage
                 View notice;
                 if (p.Value is RequestProblem.NotFound)
                 {
-                    notice = RequestKit.Notice("This title isn't on TMDB", "It may have been taken off since.", "compass",
+                    notice = RequestKit.Notice(RequestText.NotFound, RequestText.NotFoundBody, "compass",
                         new RequestKit.NoticeAction(RequestText.Back, "arrow-left", () => Shell.Back?.Invoke()), Group);
                 }
                 else

@@ -1,0 +1,204 @@
+{
+  "controls": {
+    "video": "Vidéo",
+    "chapters": "Chapitres",
+    "speed": "Vitesse",
+    "speedAt": "Vitesse {{speed}}",
+    "sleep": "Minuteur de veille",
+    "previous": "Précédent",
+    "pause": "Pause",
+    "next": "Suivant",
+    "subtitles": "Sous-titres",
+    "audio": "Audio",
+    "quality": "Qualité",
+    "info": "Infos",
+    "seekValue": "{{time}} sur {{duration}}",
+    "endsAt": "Se termine à {{time}}",
+    "intro": "Intro",
+    "credits": "Générique"
+  },
+  "skip": {
+    "intro": "Passer l’intro",
+    "credits": "Passer le générique"
+  },
+  "toasts": {
+    "subtitlesOff": "Sous-titres désactivés",
+    "subtitles": "Sous-titres : {{track}}",
+    "audio": "Audio : {{track}}",
+    "playOriginalInQuality": "{{note}} « Lire l’original » se trouve dans Qualité.",
+    "chooseInQuality": "{{note}} Choisissez-en une dans Qualité.",
+    "subtitlesAdded": "Sous-titres ajoutés : {{track}}",
+    "subtitlesNotLoaded": "Impossible de charger ces sous-titres.",
+    "qualityLowered": "Qualité réduite à {{quality}}",
+    "lastEpisode": "C’est le dernier épisode",
+    "lastInQueue": "C’est le dernier de la liste"
+  },
+  "sleep": {
+    "pausingIn": "Mise en pause dans {{seconds}} s",
+    "keepWatching": "Continuer à regarder",
+    "off": "Désactivé",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "Il reste {{count}} min",
+    "minutesLeft_many": "Il reste {{count}} min",
+    "minutesLeft_other": "Il reste {{count}} min",
+    "end": {
+      "episode": "Fin de cet épisode",
+      "movie": "Fin de ce film",
+      "track": "Fin de ce titre",
+      "video": "Fin de cette vidéo"
+    }
+  },
+  "upNext": {
+    "title": "À suivre",
+    "episode": "À suivre · {{episode}}",
+    "playNow": "Regarder",
+    "nextIn": "Dans {{seconds}} s"
+  },
+  "speed": {
+    "normal": "Normale"
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automatique",
+    "automaticAt": "Automatique · {{quality}}",
+    "automaticHint": "S’adapte aux conditions",
+    "now": "Actuellement {{quality}}",
+    "nowBecause": "Actuellement {{quality}} · {{why}}",
+    "playOriginal": "Lire l’original",
+    "tryOriginal": "Réessayer l’original",
+    "lowered": {
+      "network": "Réduite pour votre connexion",
+      "device": "Réduite pour cet appareil"
+    }
+  },
+  "subtitles": {
+    "off": "Désactivés",
+    "added": "Ajoutés",
+    "find": "Trouver des sous-titres…",
+    "searchNotSetUp": "La recherche de sous-titres n’est pas configurée",
+    "sync": "Synchronisation",
+    "syncAt": "Synchronisation {{offset}}",
+    "okResets": "OK pour remettre à zéro"
+  },
+  "find": {
+    "title": "Trouver des sous-titres",
+    "language": "Langue des sous-titres",
+    "languageRow": "Langue",
+    "searching": "Recherche…",
+    "searchFailed": "Impossible de rechercher des sous-titres. {{error}}",
+    "noResults": "Aucun sous-titre trouvé pour cette vidéo ({{language}}).",
+    "notSetUp": "La recherche de sous-titres n’est pas configurée sur ce serveur.",
+    "notSetUpAdmin": "La recherche de sous-titres n’est pas configurée sur ce serveur. Configurez-la dans Pley sur le web : Paramètres → Serveur → Sous-titres.",
+    "needsUpdate": "Ce serveur ne peut pas rechercher de sous-titres : il doit être mis à jour.",
+    "addFailed": "Impossible d’ajouter ces sous-titres. {{error}}",
+    "adding": "Ajout…",
+    "madeForFile": "Conçus pour ce fichier",
+    "sdh": "SME",
+    "forced": "Forcés",
+    "downloads_one": "{{count, number}} téléchargement",
+    "downloads_many": "{{count, number}} de téléchargements",
+    "downloads_other": "{{count, number}} téléchargements"
+  },
+  "chapters": {
+    "numbered": "Chapitre {{number}}",
+    "numberedTitle": "Chapitre {{number}} · {{title}}"
+  },
+  "errors": {
+    "cantPlay": "Impossible de lire cet élément",
+    "stopped": "Lecture arrêtée",
+    "reconnecting": "Reconnexion…",
+    "reachHint": "Vérifiez que le serveur est allumé et que cet appareil est sur son réseau.",
+    "noFile": "Cet élément n’a aucun fichier à lire.",
+    "slowServer": "Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure.",
+    "serverTooOld": "Ce serveur est trop ancien pour lire sur cette TV : mettez-le à jour.",
+    "unplayable": "Cette vidéo ne peut pas être lue sur cet appareil.",
+    "sameSpot": "Cette vidéo ne se lit pas sur cet appareil : elle s’arrête chaque fois au même endroit.",
+    "endsEarly": "Cette vidéo se termine avant l’endroit d’où elle devait être lue.",
+    "stalled": "La lecture s’est arrêtée et n’a pas pu reprendre.",
+    "playerGaveUp": "Le lecteur de la TV a abandonné.",
+    "playerGaveUpWith": "Le lecteur de la TV a abandonné ({{detail}}).",
+    "originalFailed": "Cet appareil n’a pas pu lire le fichier original.",
+    "originalNotSmooth": "L’original n’était pas fluide sur cet appareil.",
+    "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur.",
+    "stoppedElsewhere": "La lecture a été arrêtée depuis un autre appareil.",
+    "sessionStopped": "La lecture a été arrêtée par l’administrateur du serveur"
+  },
+  "details": {
+    "method": {
+      "direct": "Lecture directe",
+      "remux": "Flux direct",
+      "transcode": "Transcodage"
+    },
+    "audioTranscoding": "Audio transcodé",
+    "pipeline": {
+      "hybrid": "GPU et CPU",
+      "copy": "copie"
+    },
+    "toneMapped": "SDR (mappage tonal avec {{method}})",
+    "video": "Vidéo",
+    "audio": "Audio",
+    "bitrate": "Débit",
+    "encoder": "Encodeur",
+    "shownAs": "Affiché en",
+    "subtitles": "Sous-titres",
+    "burnedIn": "Incrustés",
+    "speed": "Vitesse",
+    "realTime": "{{speed}}× temps réel",
+    "realTimeReady": "{{speed}}× temps réel · {{seconds}} s d’avance"
+  },
+  "info": {
+    "title": "Infos de lecture",
+    "asking": "Interrogation du serveur…",
+    "playback": "Lecture",
+    "howItPlays": "Mode de lecture",
+    "why": "Pourquoi",
+    "quality": "Qualité",
+    "video": "Vidéo",
+    "audio": "Audio",
+    "subtitles": "Sous-titres",
+    "track": "Piste",
+    "off": "Désactivés",
+    "format": "Format",
+    "formatPicture": "{{codec}}, image",
+    "formatText": "{{codec}}, texte",
+    "language": "Langue",
+    "shown": "Affichage",
+    "burnedIn": "Incrustés par le serveur",
+    "drawnHere": "Affichés par cette TV",
+    "thisTv": "Cette TV",
+    "player": "Lecteur",
+    "decoded": "Décodé",
+    "decoder": "Décodeur vidéo",
+    "hardware": "{{decoder}} (matériel)",
+    "software": "{{decoder}} (logiciel)",
+    "output": "Sortie",
+    "currentBitrate": "Débit actuel",
+    "droppedFrames": "Images perdues",
+    "dropped": "Perdues",
+    "framesOf": "{{dropped}} sur {{frames}}",
+    "bufferedAhead": "Mémoire tampon",
+    "buffer": "Tampon",
+    "secondsAhead": "{{seconds}} s d’avance",
+    "stalls": "Interruptions",
+    "firstFrame": "Première image"
+  },
+  "subtitleStyle": {
+    "fonts": {
+      "default": "Par défaut",
+      "serif": "Serif",
+      "mono": "Chasse fixe",
+      "casual": "Informelle"
+    },
+    "positions": {
+      "bottom": "En bas",
+      "raised": "Un peu plus haut",
+      "higher": "Plus haut",
+      "highest": "Encore plus haut"
+    }
+  },
+  "cast": {
+    "playingFrom": "Lecture depuis {{device}}",
+    "playingFromAnother": "Lecture depuis un autre appareil",
+    "nothingToPlay": "Rien à lire"
+  }
+}

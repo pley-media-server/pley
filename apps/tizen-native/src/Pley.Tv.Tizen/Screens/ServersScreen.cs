@@ -47,7 +47,7 @@ sealed class ServersScreen : Sheet
         View.BackgroundColor = PleyColors.Bg;
         View.Add(Onboarding.BrandGlow());
 
-        var title = Text.Label("Choose your server", PleyType.PageTitle, PleyColors.Fg, width: 600);
+        var title = Text.Label(Strings.T("signin.servers.title"), PleyType.PageTitle, PleyColors.Fg, width: 600);
         title.SizeHeight = Ui.Dp(38);
         title.Position = new Position(Ui.Dp(Left), Ui.Dp(Top));
         View.Add(title);
@@ -66,15 +66,15 @@ sealed class ServersScreen : Sheet
         list.Add(listContent);
         View.Add(list);
 
-        enterAddress = buttons.Add(new ButtonView("Enter an address", ButtonKind.Text, OpenAddress));
-        searchNetwork = buttons.Add(new ButtonView("Search this network", ButtonKind.Text, () => _ = model.SearchNetwork()));
+        enterAddress = buttons.Add(new ButtonView(Strings.T("signin.servers.enterAddress"), ButtonKind.Text, OpenAddress));
+        searchNetwork = buttons.Add(new ButtonView(Strings.T("signin.servers.searchNetwork"), ButtonKind.Text, () => _ = model.SearchNetwork()));
         buttons.PositionX = Ui.Dp(Left);
         View.Add(buttons);
 
         status = new View { PositionX = Ui.Dp(Left), Size = new Size(Ui.Dp(RowWidth), 0) };
         View.Add(status);
 
-        forgetHint = Text.Label("Hold OK on a saved server to forget it.", PleyType.Caption, PleyColors.Subtle, width: 600);
+        forgetHint = Text.Label(Strings.T("signin.servers.forgetHint"), PleyType.Caption, PleyColors.Subtle, width: 600);
         forgetHint.Position = new Position(Ui.Dp(Left), Ui.Dp(PleyTv.CanvasHeight - Top - PleyType.Caption.Line));
         View.Add(forgetHint);
 
@@ -200,7 +200,7 @@ sealed class ServersScreen : Sheet
         if (state.Sweeping)
         {
             var line = new StatusLine(RowWidth, PleyType.Caption);
-            line.Set(state.SweepRange != null ? $"Checking {state.SweepRange}…" : "Checking this network…");
+            line.Set(state.SweepRange != null ? Strings.T("signin.servers.checkingRange", ("range", state.SweepRange)) : Strings.T("signin.servers.checkingNetwork"));
             Line(line, PleyType.Caption.Line);
             if (bar == null)
             {
@@ -223,12 +223,12 @@ sealed class ServersScreen : Sheet
             if (state.Searching)
             {
                 var line = new StatusLine(RowWidth);
-                line.Set("Looking for Pley on your network…", waiting: true);
+                line.Set(Strings.T("signin.servers.looking"), waiting: true);
                 Line(line, PleyType.Label.Line);
             }
             else if (state.Searched && state.Rows.Count == 0 && state.Problem == null)
             {
-                Line(Paragraph("No servers found. Make sure this TV and the server are on the same network.", PleyColors.Muted, out var h), h);
+                Line(Paragraph(Strings.T("signin.servers.noneFound"), PleyColors.Muted, out var h), h);
             }
         }
         if (state.Problem != null) Line(Paragraph(state.Problem.Text, PleyColors.DangerText, out var h), h);
@@ -246,9 +246,9 @@ sealed class ServersScreen : Sheet
 
     void AskForget(ServerRow row)
     {
-        var dialog = new Dialog(shell, $"Forget {row.Name}?", "Pley signs this TV out of it and deletes what it saved from it.");
-        dialog.Button("Cancel", dialog.Close, initial: true);
-        dialog.Button("Forget", () =>
+        var dialog = new Dialog(shell, Strings.T("signin.servers.forgetTitle", ("name", row.Name)), Strings.T("signin.servers.forgetBody"));
+        dialog.Button(Strings.T("common.actions.cancel"), dialog.Close, initial: true);
+        dialog.Button(Strings.T("signin.servers.forget"), () =>
         {
             dialog.Close();
             _ = model.Forget(row.Url);
@@ -288,9 +288,9 @@ sealed class ServerRowView : View
         Add(iconBox);
 
         string? tagText = null;
-        if (row.Lookalike) (tagText, tagWarns) = ("Not your saved server", true);
-        else if (row.Unencrypted) (tagText, tagWarns) = ("Not encrypted", true);
-        else if (row.Found) tagText = "On this network";
+        if (row.Lookalike) (tagText, tagWarns) = (Strings.T("signin.servers.notYours"), true);
+        else if (row.Unencrypted) (tagText, tagWarns) = (Strings.T("signin.servers.notEncrypted"), true);
+        else if (row.Found) tagText = Strings.T("signin.servers.onNetwork");
         float tagWidth = 0;
         if (tagText != null)
         {
@@ -346,10 +346,10 @@ sealed class ServerRowView : View
         icon.Color = ink;
         name.TextColor = ink;
         var danger = false;
-        if (connecting) Text.Show(line, $"Connecting to {Row.Address}…");
+        if (connecting) Text.Show(line, Strings.T("signin.servers.connecting", ("address", Row.Address)));
         else if (Row.Unreachable)
         {
-            Text.Show(line, "Can't reach it");
+            Text.Show(line, Strings.T("signin.servers.unreachable"));
             danger = true;
         }
         else Text.Show(line, Row.Address);

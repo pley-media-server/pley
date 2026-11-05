@@ -1,6 +1,7 @@
 import type { Api } from "../../api/client";
 import type { ItemSummary, LibraryFilters, LibraryKind, LibrarySort } from "../../api/types";
 import type { KeyValue } from "../../auth/tokens";
+import { t } from "../../i18n";
 import { Cancel } from "../../net/transport";
 import type { LibraryTab } from "../shell/navigator";
 
@@ -12,8 +13,8 @@ export type DynamicRangeFilter = "hdr" | "dolby_vision" | "hdr10plus" | "hdr10" 
 const RESOLUTIONS: Resolution[] = ["4k", "1080", "720", "sd"];
 const RESOLUTION_LABELS: string[] = ["4K", "1080p", "720p", "SD"];
 const DYNAMIC_RANGES: DynamicRangeFilter[] = ["hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
-// HDR10 and HDR10+ read as plain "HDR" and "HDR+", as on the posters.
-const DYNAMIC_RANGE_LABELS: string[] = ["Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR"];
+// HDR10 and HDR10+ read as plain "HDR" and "HDR+", as on the posters; any HDR (`hdr`) is in words.
+const DYNAMIC_RANGE_NAMES: Partial<Record<DynamicRangeFilter, string>> = { dolby_vision: "Dolby Vision", hdr10plus: "HDR+", hdr10: "HDR", hlg: "HLG", sdr: "SDR" };
 
 export function isResolution(v: unknown): v is Resolution {
   return RESOLUTIONS.indexOf(v as Resolution) >= 0;
@@ -28,9 +29,10 @@ export function resolutionLabel(v: string): string | null {
   return isResolution(v) ? RESOLUTION_LABELS[RESOLUTIONS.indexOf(v)]! : null;
 }
 
-/** A dynamic range's words ("Dolby Vision", "HDR+"); null for a value that isn't one. */
+/** A dynamic range's words ("Dolby Vision", "HDR+", "Any HDR"); null for a value that isn't one. */
 export function dynamicRangeLabel(v: string): string | null {
-  return isDynamicRange(v) ? DYNAMIC_RANGE_LABELS[DYNAMIC_RANGES.indexOf(v)]! : null;
+  if (!isDynamicRange(v)) return null;
+  return v === "hdr" ? t("browse.library.anyHdr") : DYNAMIC_RANGE_NAMES[v]!;
 }
 
 /**
@@ -66,17 +68,10 @@ export interface LibraryParams {
   dynamicRange: DynamicRangeFilter | null;
 }
 
-export const SORT_LABELS: Record<LibrarySort, string> = {
-  title: "Title",
-  year: "Year",
-  added: "Date added",
-  rating: "Rating",
-  user_rating: "Your rating",
-  release: "Release date",
-  duration: "Duration",
-  last_played: "Last played",
-  bitrate: "Bitrate",
-};
+/** A sort's name ("Date added"). */
+export function sortLabel(sort: LibrarySort): string {
+  return t(`browse.library.sorts.${sort}`);
+}
 
 /** The sorts each kind of library offers, in order. */
 export function sortsFor(kind: LibraryKind): LibrarySort[] {
@@ -156,18 +151,19 @@ function decodeForm(s: string): string {
   }
 }
 
-const SORT_NOTES: Record<string, [string, string]> = {
-  titleSort: ["By title", "By title, Z to A"],
-  year: ["Oldest first", "Newest first"],
-  originallyAvailableAt: ["Earliest release first", "Latest release first"],
-  addedAt: ["First added first", "Recently added first"],
-  rating: ["Lowest rated first", "Best rated first"],
-  audienceRating: ["Lowest rated first", "Best rated first"],
-  userRating: ["Your lowest rated first", "Your best rated first"],
-  lastViewedAt: ["Least recently played first", "Recently played first"],
-  duration: ["Shortest first", "Longest first"],
-  viewCount: ["Least played first", "Most played first"],
-};
+/** Plex's sort fields with words of their own (the smart filter area's `sort`); the audience's rating reads as the rating. */
+const SORT_NOTES = {
+  titleSort: "titleSort",
+  year: "year",
+  originallyAvailableAt: "originallyAvailableAt",
+  addedAt: "addedAt",
+  rating: "rating",
+  audienceRating: "rating",
+  userRating: "userRating",
+  lastViewedAt: "lastViewedAt",
+  duration: "duration",
+  viewCount: "viewCount",
+} as const;
 
 function sortNote(value: string): string {
   const first = value.split(",")[0] ?? "";
@@ -176,9 +172,9 @@ function sortNote(value: string): string {
   const direction = at < 0 ? null : first.slice(at + 1);
   // python-plexapi may name the kind first: `movie.year`.
   const name = field.indexOf(".") >= 0 ? field.slice(field.indexOf(".") + 1) : field;
-  const notes = SORT_NOTES[name];
-  if (!notes) return `Sorted by ${name}`;
-  return direction === "desc" ? notes[1] : notes[0];
+  if (!Object.prototype.hasOwnProperty.call(SORT_NOTES, name)) return t("browse.smartFilter.sortedBy", { name });
+  const notes = SORT_NOTES[name as keyof typeof SORT_NOTES];
+  return direction === "desc" ? t(`browse.smartFilter.sort.${notes}.desc`) : t(`browse.smartFilter.sort.${notes}.asc`);
 }
 
 /** What a smart filter finds, in words: "Genre: Comedy", "Unwatched", "Newest first"… */
@@ -191,34 +187,34 @@ export function describeSmartFilter(filter: string): string[] {
     const value = at < 0 ? "" : decodeForm(part.slice(at + 1));
     switch (key) {
       case "genre":
-        out.push(`Genre: ${value}`);
+        out.push(t("browse.smartFilter.genre", { value }));
         break;
       case "label":
-        out.push(`Label: ${value}`);
+        out.push(t("browse.smartFilter.label", { value }));
         break;
       case "studio":
-        out.push(`Studio: ${value}`);
+        out.push(t("browse.smartFilter.studio", { value }));
         break;
       case "contentRating":
-        out.push(`Rated ${value}`);
+        out.push(t("browse.smartFilter.rated", { value }));
         break;
       case "unwatched":
-        out.push(value === "0" || value === "false" ? "Watched" : "Unwatched");
+        out.push(value === "0" || value === "false" ? t("browse.smartFilter.watched") : t("browse.smartFilter.unwatched"));
         break;
       case "inProgress":
-        out.push(value === "0" || value === "false" ? "Not in progress" : "In progress");
+        out.push(value === "0" || value === "false" ? t("browse.smartFilter.notInProgress") : t("browse.smartFilter.inProgress"));
         break;
       case "year":
-        out.push(`From ${value}`);
+        out.push(t("browse.smartFilter.year", { value }));
         break;
       case "year>>":
-        out.push(`After ${value}`);
+        out.push(t("browse.smartFilter.after", { value }));
         break;
       case "year<<":
-        out.push(`Before ${value}`);
+        out.push(t("browse.smartFilter.before", { value }));
         break;
       case "decade":
-        out.push(`The ${value}s`);
+        out.push(t("browse.smartFilter.decade", { value }));
         break;
       case "resolution":
         out.push(resolutionLabel(value) ?? `${key}: ${value}`);
@@ -230,7 +226,7 @@ export function describeSmartFilter(filter: string): string[] {
         out.push(sortNote(value));
         break;
       case "limit":
-        out.push(`At most ${value}`);
+        out.push(t("browse.smartFilter.limit", { value }));
         break;
       // Plumbing, not part of what is found.
       case "type":
@@ -336,15 +332,9 @@ export class TabStore {
 
 /** "1,500 movies", "1 show", "12 artists"; of a filtered listing, "23 of 1,500 movies". */
 export function countLabel(n: number, kind: LibraryKind, of: number | null = null): string {
-  const m = of ?? n;
-  const noun = kind === "movies" ? (m === 1 ? "movie" : "movies") : kind === "shows" ? (m === 1 ? "show" : "shows") : m === 1 ? "artist" : "artists";
-  return of === null ? `${grouped(n)} ${noun}` : `${grouped(n)} of ${grouped(of)} ${noun}`;
-}
-
-/** 1500 → "1,500". */
-export function grouped(n: number): string {
-  const s = String(Math.round(n));
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const what = kind === "movies" ? "movies" : kind === "shows" ? "shows" : "artists";
+  const count = Math.round(n);
+  return of === null ? t(`format.counts.${what}`, { count }) : t(`browse.library.countOf.${what}`, { shown: count, count: Math.round(of) });
 }
 
 // ---- the libraries' own order

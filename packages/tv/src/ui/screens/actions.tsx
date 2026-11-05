@@ -1,6 +1,7 @@
 import { useEffect } from "preact/hooks";
 import type { ItemDetail, ItemSummary } from "../../api/types";
 import { episodeLabel, isInProgress, cardSubtitle } from "../../format/format";
+import { t } from "../../i18n";
 import type { AppState } from "../../state";
 import { useUi, type Ui } from "../context";
 import { artCandidates } from "../kit/art";
@@ -35,31 +36,31 @@ export function itemActions(
 ): ItemAction[] {
   const out: ItemAction[] = [];
   if (MUSIC.indexOf(item.kind) >= 0) {
-    out.push({ id: "open", label: "Open", icon: "arrow-right", run: () => ui.nav.open(pageOf(item)) });
+    out.push({ id: "open", label: t("common.actions.open"), icon: "arrow-right", run: () => ui.nav.open(pageOf(item)) });
   } else if (isInProgress(item)) {
-    out.push({ id: "resume", label: "Resume", icon: "play", run: () => void playItem(app, ui, item) });
-    out.push({ id: "start", label: "Play from start", icon: "rotate-ccw", run: () => void playItem(app, ui, item, { fromStart: true }) });
+    out.push({ id: "resume", label: t("common.actions.resume"), icon: "play", run: () => void playItem(app, ui, item) });
+    out.push({ id: "start", label: t("browse.actions.playFromStart"), icon: "rotate-ccw", run: () => void playItem(app, ui, item, { fromStart: true }) });
   } else {
-    out.push({ id: "play", label: "Play", icon: "play", run: () => void playItem(app, ui, item) });
+    out.push({ id: "play", label: t("common.actions.play"), icon: "play", run: () => void playItem(app, ui, item) });
   }
   if (item.kind === "movie" || item.kind === "episode" || item.kind === "show" || item.kind === "season") {
     const watched = item.kind === "show" || item.kind === "season" ? (item.leaf_count ?? 0) > 0 && (item.viewed_leaf_count ?? 0) >= (item.leaf_count ?? 0) : item.user_state.watched;
     out.push({
       id: "watched",
-      label: watched ? "Mark as unwatched" : "Mark as watched",
+      label: watched ? t("browse.actions.markUnwatched") : t("browse.actions.markWatched"),
       icon: watched ? "eye-off" : "circle-check",
       run: () => void setWatched(app, ui, item, !watched),
     });
   }
   if (!opts.inPanel && opts.continueWatching) {
-    out.push({ id: "cw", label: "Remove from Continue Watching", icon: "x", run: () => void hideFromContinueWatching(app, ui, item) });
+    out.push({ id: "cw", label: t("browse.actions.removeFromContinueWatching"), icon: "x", run: () => void hideFromContinueWatching(app, ui, item) });
   }
   if (!opts.inPanel && (item.kind === "movie" || item.kind === "show")) {
     const listed = opts.detail?.in_watchlist ?? inMyList(app, item.id);
     if (listed !== null && listed !== undefined) {
       out.push({
         id: "mylist",
-        label: listed ? "Remove from My List" : "Add to My List",
+        label: listed ? t("browse.actions.removeFromMyList") : t("browse.actions.addToMyList"),
         icon: listed ? "bookmark-check" : "bookmark-plus",
         run: () => void setInMyList(app, ui, item, !listed),
       });
@@ -68,14 +69,14 @@ export function itemActions(
   if (item.kind !== "extra") {
     out.push({
       id: "playlist",
-      label: "Add to playlist",
+      label: t("browse.actions.addToPlaylist"),
       icon: "list-plus",
       run: () => ui.nav.open({ name: "addToPlaylist", itemIds: [item.id], title: item.kind === "episode" ? item.grandparent_title || item.title : item.title }),
     });
   }
-  if (item.kind === "episode" && item.grandparent_id) out.push({ id: "show", label: "Go to show", icon: "tv", run: () => ui.nav.open({ name: "item", id: item.grandparent_id! }) });
-  if (item.kind === "season" && item.parent_id) out.push({ id: "show", label: "Go to show", icon: "tv", run: () => ui.nav.open({ name: "item", id: item.parent_id! }) });
-  if (item.kind === "episode" && item.parent_id) out.push({ id: "season", label: "Go to season", icon: "layers", run: () => ui.nav.open({ name: "item", id: item.parent_id! }) });
+  if (item.kind === "episode" && item.grandparent_id) out.push({ id: "show", label: t("browse.actions.goToShow"), icon: "tv", run: () => ui.nav.open({ name: "item", id: item.grandparent_id! }) });
+  if (item.kind === "season" && item.parent_id) out.push({ id: "show", label: t("browse.actions.goToShow"), icon: "tv", run: () => ui.nav.open({ name: "item", id: item.parent_id! }) });
+  if (item.kind === "episode" && item.parent_id) out.push({ id: "season", label: t("browse.actions.goToSeason"), icon: "layers", run: () => ui.nav.open({ name: "item", id: item.parent_id! }) });
   return out;
 }
 
@@ -106,7 +107,7 @@ export function ItemActionsScreen(p: { id: number; continueWatching: boolean }) 
     }, 16);
     return () => clearTimeout(t);
   }, [!!item]);
-  if (!item && loaded.error) return <Message title={failedTitle(loaded.error, "Couldn't load this item")} body={problem(loaded.error)} action={{ label: "Back", onSelect: () => ui.nav.pop() }} />;
+  if (!item && loaded.error) return <Message title={failedTitle(loaded.error, t("browse.item.cantLoad"))} body={problem(loaded.error)} action={{ label: t("common.actions.back"), onSelect: () => ui.nav.pop() }} />;
   if (!item) return null;
   const actions = itemActions(app, ui, item, { continueWatching: p.continueWatching, detail: item });
   const title = item.kind === "episode" ? item.grandparent_title || item.title : item.title;

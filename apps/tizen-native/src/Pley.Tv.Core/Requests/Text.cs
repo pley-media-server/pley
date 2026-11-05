@@ -9,84 +9,85 @@ namespace Pley.Tv.Core.Requests;
 
 /// <summary>
 /// Requests' words (the Android app's strings_requests.xml and strings_tv_requests.xml, and its
-/// RequestTexts): what the rules decide, said. Buttons say Request; running text says "ask for".
-/// Limits are "per 7 days" or "for now", never "this week". Times are relative to
-/// <see cref="now"/> (unix seconds) and days are in the TV's time zone: "in 3 days", "tomorrow",
+/// RequestTexts), in the language shown: what the rules decide, said. Buttons say Request; running
+/// text says "ask for". Limits are "per 7 days" or "for now", never "this week". Times are relative
+/// to <see cref="now"/> (unix seconds) and days are in the TV's time zone: "in 3 days", "tomorrow",
 /// "Out Nov 4".
 /// </summary>
 public sealed class RequestText
 {
-    public const string Discover = "Discover";
-    public const string Yours = "Your requests";
+    public static string Discover => Strings.T("requests.names.discover");
+    public static string Yours => Strings.T("requests.names.yours");
     /// <summary>The managers' page: everyone's requests.</summary>
-    public const string Manage = "Requests";
-    public const string Attention = "Needs attention";
-    public const string Open = "Open";
-    public const string Request = "Request";
-    public const string Requested = "Requested";
-    public const string Following = "Following";
-    public const string StopFollowing = "Stop following";
-    public const string TellMeToo = "Tell me too";
-    public const string AskedAlready = "Someone asked for it already.";
-    public const string MoreSeasons = "Request more seasons";
-    public const string ReadyElsewhere = "Ready, in a library you can't open: ask an administrator";
-    public const string Watch = "Watch";
-    public const string PickerTitle = "Which seasons?";
-    public const string PickerNone = "Pick a season.";
-    public const string Cancel = "Cancel";
-    public const string Retry = "Retry";
-    public const string SignIn = "Sign in";
-    public const string NoAccessLine = "Requests aren't open to this account.";
-    public const string DiscoverFailed = "Couldn't load Discover";
-    public const string SearchFailed = "Couldn't search TMDB";
-    public const string TitleFailed = "Couldn't load this title";
-    public const string ListFailed = "Couldn't load the requests";
-    public const string SeasonsHeading = "Seasons";
-    public const string Cast = "Cast";
-    public const string SearchRow = "Discover";
-    public const string SeeAll = "See all";
-    public const string Credit = "Details and pictures from TMDB.";
-    public const string CreditAbout = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
-    public const string DeclineReason = "Reason (optional)";
-    public const string DeclineReasonHint = "The person who asked sees it.";
+    public static string Manage => Strings.T("requests.names.manage");
+    public static string Attention => Strings.T("requests.list.views.attention");
+    public static string Open => Strings.T("requests.actions.open");
+    public static string Request => Strings.T("requests.actions.request");
+    public static string Requested => Strings.T("requests.title.requested");
+    public static string Following => Strings.T("requests.title.following");
+    public static string StopFollowing => Strings.T("requests.title.stopFollowing");
+    public static string TellMeToo => Strings.T("requests.title.tellMeToo");
+    public static string AskedAlready => Strings.T("requests.title.askedAlready");
+    public static string MoreSeasons => Strings.T("requests.title.moreSeasons");
+    public static string ReadyElsewhere => Strings.T("requests.title.readyElsewhere");
+    public static string Watch => Strings.T("requests.actions.watch");
+    public static string PickerTitle => Strings.T("requests.picker.title");
+    public static string PickerNone => Strings.T("requests.picker.none");
+    public static string Cancel => Strings.T("requests.actions.cancel");
+    public static string Retry => Strings.T("requests.actions.retry");
+    public static string SignIn => Strings.T("requests.actions.signIn");
+    public static string NoAccessLine => Strings.T("requests.title.noAccess");
+    public static string DiscoverFailed => Strings.T("requests.discover.failed");
+    public static string SearchFailed => Strings.T("requests.discover.searchFailed");
+    public static string TitleFailed => Strings.T("requests.title.failed");
+    public static string ListFailed => Strings.T("requests.list.failed");
+    public static string SeasonsHeading => Strings.T("requests.title.seasons");
+    public static string Cast => Strings.T("requests.title.cast");
+    public static string SearchRow => Strings.T("requests.discover.searchRow");
+    public static string SeeAll => Strings.T("requests.actions.seeAll");
+    public static string Credit => Strings.T("requests.discover.credit");
+    public static string CreditAbout => Strings.T("requests.discover.creditAbout");
+    public static string DeclineReason => Strings.T("requests.list.declineReason");
+    public static string DeclineReasonHint => Strings.T("requests.list.declineReasonHint");
 
     // The TV's own (strings_tv_requests.xml).
-    public const string Loading = "Loading Discover";
-    public const string NothingTitle = "Nothing here right now";
-    public const string NothingBody = "TMDB's lists have nothing this profile can ask for. Search for a title instead.";
-    public const string ListNothingBody = "TMDB's list has nothing this profile can ask for.";
-    public const string ListFailedShort = "Couldn't load it";
+    public static string Loading => Strings.T("requests.discover.loading");
+    public static string NothingTitle => Strings.T("requests.discover.nothingTitle");
+    public static string NothingBody => Strings.T("requests.discover.nothingBody");
+    public static string ListNothingBody => Strings.T("requests.discover.listNothingBody");
+    public static string ListFailedShort => Strings.T("requests.discover.listFailed");
     /// <summary>Beside a grid's lone Show more: the pages read so far had nothing.</summary>
-    public const string NoneYet = "Nothing here yet";
-    public const string NoneYetBody = "TMDB's pages read so far have nothing this profile can ask for.";
-    public const string ShowMore = "Show more";
-    public const string Overview = "Overview";
-    public const string Back = "Back";
-    public const string SignInTitle = "Sign in again?";
-    public const string KindAll = "Movies and shows";
-    public const string AskedByLabel = "Asked by";
-    public const string Find = "Find something to ask for";
-    public const string Close = "Close";
+    public static string NoneYet => Strings.T("requests.discover.noneYet");
+    public static string NoneYetBody => Strings.T("requests.discover.noneYetBody");
+    public static string ShowMore => Strings.T("requests.actions.showMore");
+    public static string Overview => Strings.T("requests.title.overview");
+    public static string Back => Strings.T("requests.actions.back");
+    public static string Details => Strings.T("requests.actions.details");
+    public static string SignInTitle => Strings.T("requests.signIn.title");
+    public static string KindAll => Strings.T("requests.list.kindAll");
+    public static string AskedByLabel => Strings.T("requests.list.askedBy");
+    public static string Find => Strings.T("requests.list.find");
+    public static string Close => Strings.T("requests.actions.close");
 
     // Lists.
-    public const string FilterAll = "All";
-    public const string FilterPending = "Pending";
-    public const string FilterApproved = "Approved";
-    public const string FilterAvailable = "Available";
-    public const string FilterDeclined = "Declined";
-    public const string FilterFailed = "Failed";
-    public const string FilterMovies = "Movies";
-    public const string FilterShows = "Shows";
-    public const string FilterEveryone = "Everyone";
-    public const string FilterMine = "Yours";
-    public const string FilterTitle = "Search requests";
-    public const string NoneTitle = "Nothing asked for yet";
-    public const string NoneBody = "Find movies and shows in Discover, and ask for what the libraries don't have.";
-    public const string NoneBodyOff = "Requests you made or follow show here.";
-    public const string AttentionNone = "Nothing needs you";
-    public const string AttentionNoneBody = "Requests waiting for a decision, and those that couldn't be sent, show here.";
-    public const string FilteredNone = "No requests match";
-    public const string FilteredNoneBody = "Try other filters.";
+    public static string FilterAll => Strings.T("requests.list.views.all");
+    public static string FilterPending => Strings.T("requests.list.views.pending");
+    public static string FilterApproved => Strings.T("requests.list.views.approved");
+    public static string FilterAvailable => Strings.T("requests.list.views.available");
+    public static string FilterDeclined => Strings.T("requests.list.views.declined");
+    public static string FilterFailed => Strings.T("requests.list.views.failed");
+    public static string FilterMovies => Strings.T("requests.list.movies");
+    public static string FilterShows => Strings.T("requests.list.shows");
+    public static string FilterEveryone => Strings.T("requests.list.everyone");
+    public static string FilterMine => Strings.T("requests.list.mine");
+    public static string FilterTitle => Strings.T("requests.list.search");
+    public static string NoneTitle => Strings.T("requests.list.noneTitle");
+    public static string NoneBody => Strings.T("requests.list.noneBody");
+    public static string NoneBodyOff => Strings.T("requests.list.noneBodyOff");
+    public static string AttentionNone => Strings.T("requests.list.attentionNone");
+    public static string AttentionNoneBody => Strings.T("requests.list.attentionNoneBody");
+    public static string FilteredNone => Strings.T("requests.list.filteredNone");
+    public static string FilteredNoneBody => Strings.T("requests.list.filteredNoneBody");
 
     const long Hour = 3_600, Day = 86_400;
     static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
@@ -102,48 +103,51 @@ public sealed class RequestText
         this.zone = zone ?? TimeZoneInfo.Local;
     }
 
+    /// <summary>What days and times are written in: en-US's in English, as the Android app writes them ("Nov 4", "9:00 PM"), else the language shown's.</summary>
+    static CultureInfo Culture => Strings.Language == Languages.English ? English : Strings.Culture;
+
     // ---- titles
 
     public static string Badge(TitleBadge badge) => badge switch
     {
-        TitleBadge.InLibrary => "In library",
-        TitleBadge.PartlyInLibrary => "Partly in library",
-        TitleBadge.Requested => "Requested",
-        _ => "Declined",
+        TitleBadge.InLibrary => Strings.T("requests.badge.inLibrary"),
+        TitleBadge.PartlyInLibrary => Strings.T("requests.badge.partlyInLibrary"),
+        TitleBadge.Requested => Strings.T("requests.badge.requested"),
+        _ => Strings.T("requests.badge.declined"),
     };
 
-    public static string Kind(string kind) => kind == TitleKind.Show ? "Show" : "Movie";
+    public static string Kind(string kind) => kind == TitleKind.Show ? Strings.T("requests.kind.show") : Strings.T("requests.kind.movie");
 
     public static string Row(DiscoverList list) => list switch
     {
-        DiscoverList.Trending => "Trending this week",
-        DiscoverList.Movies => "Popular movies",
-        DiscoverList.Shows => "Popular shows",
-        DiscoverList.Upcoming => "Coming to cinemas",
-        _ => "Popular anime",
+        DiscoverList.Trending => Strings.T("requests.discover.lists.trending"),
+        DiscoverList.Movies => Strings.T("requests.discover.lists.movies"),
+        DiscoverList.Shows => Strings.T("requests.discover.lists.shows"),
+        DiscoverList.Upcoming => Strings.T("requests.discover.lists.upcoming"),
+        _ => Strings.T("requests.discover.lists.anime"),
     };
 
     /// <summary>Over the grid of everything TMDB finds: "Results for “dune”".</summary>
-    public static string ResultsFor(string query) => $"Results for “{query}”";
+    public static string ResultsFor(string query) => Strings.T("requests.discover.resultsFor", ("query", query));
 
-    public static string SearchNoneYet(string query) => $"Nothing yet for “{query}”";
+    public static string SearchNoneYet(string query) => Strings.T("requests.discover.searchNoneYet", ("query", query));
 
-    public static string SearchNone(string query) => $"Nothing on TMDB matches “{query}”";
+    public static string SearchNone(string query) => Strings.T("requests.discover.searchNone", ("query", query));
 
-    public const string SearchNoneBody = "Try a different spelling, or the title in its own language.";
+    public static string SearchNoneBody => Strings.T("requests.discover.searchNoneBody");
 
     /// <summary>"This TV shows a code to link it to Home server again."</summary>
-    public static string SignInBody(string server) => $"This TV shows a code to link it to {server} again.";
+    public static string SignInBody(string server) => Strings.T("requests.signIn.body", ("server", server));
 
     /// <summary>"Declined: “Not for us”. You can ask again in 12 days."</summary>
     public string Declined(MainAction.Declined action)
     {
         var reason = action.Reason?.Trim() is { Length: > 0 } r ? r : null;
         var again = action.AgainAt is { } at ? Until(at) : null;
-        if (reason != null && again != null) return $"Declined: “{reason}”. You can ask again {again}.";
-        if (again != null) return $"Declined. You can ask again {again}.";
-        if (reason != null) return $"Declined: “{reason}”.";
-        return "Declined.";
+        if (reason != null && again != null) return Strings.T("requests.declined.reasonAndWhen", ("reason", reason), ("when", again));
+        if (again != null) return Strings.T("requests.declined.when", ("when", again));
+        if (reason != null) return Strings.T("requests.declined.reason", ("reason", reason));
+        return Strings.T("requests.declined.plain");
     }
 
     // ---- seasons
@@ -155,9 +159,9 @@ public sealed class RequestText
         var specials = list.Contains(0);
         var rest = list.Where(n => n > 0).Distinct().ToList();
         var ranges = RequestRules.SeasonRanges(rest);
-        if (rest.Count == 0) return specials ? "Specials" : "";
-        if (rest.Count == 1) return specials ? $"Season {ranges} and specials" : $"Season {ranges}";
-        return specials ? $"Seasons {ranges} and specials" : $"Seasons {ranges}";
+        if (rest.Count == 0) return specials ? Strings.T("requests.seasons.specials") : "";
+        var seasons = Strings.Count("requests.seasons.list", rest.Count, ("list", ranges));
+        return specials ? Strings.T("requests.seasons.andSpecials", ("seasons", seasons)) : seasons;
     }
 
     /// <summary>A season's name on its own: TMDB's, else "Season 2" or "Specials".</summary>
@@ -166,21 +170,26 @@ public sealed class RequestText
     /// <summary>How a season stands for this account: "In library", "4 of 10 episodes in library", "Airs Nov 4, 2026", "10 episodes".</summary>
     public static string SeasonState(DiscoverSeason season)
     {
-        if (season.Declined) return "Declined";
+        if (season.Declined) return Strings.T("requests.season.declined");
         switch (season.State)
         {
             case Requests.SeasonState.Library:
-                return "In library";
+                return Strings.T("requests.season.inLibrary");
             case Requests.SeasonState.Requested:
-                return "Requested";
+                return Strings.T("requests.season.requested");
             case Requests.SeasonState.Partial:
-                return $"{season.InLibrary} of {Math.Max(season.Episodes, season.InLibrary)} episodes in library";
+                return Strings.Count("requests.season.partial", season.InLibrary, ("episodes", Math.Max(season.Episodes, season.InLibrary)));
             case Requests.SeasonState.Unaired:
-                return season.AirDate is { Length: > 0 } date ? $"Airs {ItemFormat.Date(date, English)}" : "Not aired yet";
+                return season.AirDate is { Length: > 0 } date
+                    ? Strings.T("requests.season.airs", ("date", ItemFormat.Date(date, Culture)))
+                    : Strings.T("requests.season.notAired");
             default:
-                return Format.Pluralize(season.Episodes, "episode");
+                return Strings.Count("requests.counts.episodes", season.Episodes);
         }
     }
+
+    /// <summary>How many seasons a show has: "3 seasons".</summary>
+    public static string SeasonCount(int count) => Strings.Count("requests.counts.seasons", count);
 
     // ---- stages
 
@@ -190,49 +199,54 @@ public sealed class RequestText
         switch (pill)
         {
             case StagePill.Pending:
-                return "Waiting for approval";
+                return Strings.T("requests.stage.pending");
             case StagePill.Approved:
-                return "Approved";
+                return Strings.T("requests.stage.approved");
             case StagePill.Waiting w:
-                return w.At is { } at ? (w.Show ? $"Airs {DayOf(at)}" : $"Out {DayOf(at)}") : "Not out yet";
+                if (w.At is not { } at) return Strings.T("requests.stage.notOut");
+                return w.Show ? Strings.T("requests.stage.airs", ("day", DayOf(at))) : Strings.T("requests.stage.out", ("day", DayOf(at)));
             case StagePill.Searching:
-                return "Searching";
+                return Strings.T("requests.stage.searching");
             case StagePill.Downloading d:
                 switch (d.State)
                 {
                     case DownloadState.Queued:
-                        return "Waiting to download";
+                        return Strings.T("requests.stage.queued");
                     case DownloadState.Paused:
-                        return "Download paused";
+                        return Strings.T("requests.stage.paused");
                     case DownloadState.Warning:
-                        return "The download has a problem";
+                        return Strings.T("requests.stage.warning");
                 }
-                var words = $"Downloading {(int)(d.Progress * 100)}%";
-                return d.Eta is { } eta && eta > now() ? $"{words} · {Until(eta)}" : words;
+                var percent = (int)(d.Progress * 100);
+                return d.Eta is { } eta && eta > now()
+                    ? Strings.T("requests.stage.downloadingUntil", ("percent", percent), ("when", Until(eta)))
+                    : Strings.T("requests.stage.downloading", ("percent", percent));
             case StagePill.Importing:
-                return "Adding to the library";
+                return Strings.T("requests.stage.importing");
             case StagePill.Partial p:
-                return $"{Seasons(p.Seasons)} ready";
+                return Strings.T("requests.stage.partial", ("seasons", Seasons(p.Seasons)));
             case StagePill.Available:
-                return "Ready to watch";
+                return Strings.T("requests.stage.available");
             case StagePill.Gone:
-                return "No longer in a library";
+                return Strings.T("requests.stage.gone");
             case StagePill.Declined:
-                return "Declined";
+                return Strings.T("requests.stage.declined");
             case StagePill.CouldNotSend c:
-                return c.Reason is { } reason && !string.IsNullOrWhiteSpace(reason) ? $"Couldn't send: {reason}" : "Couldn't send";
+                return c.Reason is { } reason && !string.IsNullOrWhiteSpace(reason)
+                    ? Strings.T("requests.stage.couldNotSendBecause", ("reason", reason))
+                    : Strings.T("requests.stage.couldNotSend");
             case StagePill.NotSentYet:
-                return "Not sent yet";
+                return Strings.T("requests.stage.notSent");
             default:
-                return "Requested";
+                return Strings.T("requests.stage.requested");
         }
     }
 
     /// <summary>The line under a failed request's pill: when the server tries again, or that an administrator will look.</summary>
     public string? PillLine(StagePill pill) => pill switch
     {
-        StagePill.NotSentYet n => n.RetryAt is { } at ? $"Trying again {Until(at)}." : "It couldn't be sent to download yet: an administrator will look at it.",
-        StagePill.CouldNotSend c => c.RetryAt is { } at ? $"Trying again {Until(at)}." : null,
+        StagePill.NotSentYet n => n.RetryAt is { } at ? Strings.T("requests.stage.retrying", ("when", Until(at))) : Strings.T("requests.stage.notSentLine"),
+        StagePill.CouldNotSend c => c.RetryAt is { } at ? Strings.T("requests.stage.retrying", ("when", Until(at))) : null,
         _ => null,
     };
 
@@ -241,10 +255,10 @@ public sealed class RequestText
     {
         var at = Ago(request.CreatedAt);
         if (request.Mine && !manage) return at;
-        return $"{request.RequestedBy?.Name ?? "Asked for by someone else"} · {at}";
+        return $"{request.RequestedBy?.Name ?? Strings.T("requests.asked.someone")} · {at}";
     }
 
-    public static string Watchers(int count) => count == 1 ? "1 person follows it" : $"{count} people follow it";
+    public static string Watchers(int count) => Strings.Count("requests.asked.watchers", count);
 
     /// <summary>Managers: where it went, "Radarr · HD-1080p · /movies"; null before it was sent.</summary>
     public static string? SentTo(MediaRequest request)
@@ -270,26 +284,27 @@ public sealed class RequestText
         var seasonsOut = shows && allowance.SeasonsLeft == 0;
         var moviesAt = allowance.MoviesNextAt is { } m ? Until(m) : null;
         var seasonsAt = allowance.SeasonsNextAt is { } s ? Until(s) : null;
-        const string AllForNow = "You've asked for all you can for now.";
-        string AllMovies() => moviesAt != null ? $"You've asked for all the movies you can for now: you can ask for more {moviesAt}." : AllForNow;
-        string AllSeasons() => seasonsAt != null ? $"You've asked for all the seasons you can for now: you can ask for more {seasonsAt}." : AllForNow;
+        var allForNow = Strings.T("requests.allowance.allForNow");
+        string AllMovies() => moviesAt != null ? Strings.T("requests.allowance.allMovies", ("when", moviesAt)) : allForNow;
+        string AllSeasons() => seasonsAt != null ? Strings.T("requests.allowance.allSeasons", ("when", seasonsAt)) : allForNow;
         if (moviesOut && seasonsOut)
-            return new[] { moviesAt != null && seasonsAt != null ? $"You've asked for all you can for now: more movies {moviesAt}, more seasons {seasonsAt}." : AllForNow };
+            return new[] { moviesAt != null && seasonsAt != null ? Strings.T("requests.allowance.allBoth", ("movies", moviesAt), ("seasons", seasonsAt)) : allForNow };
         if (moviesOut && !shows) return new[] { AllMovies() };
         if (seasonsOut && !movies) return new[] { AllSeasons() };
         var lines = new List<string>();
         if (moviesOut) lines.Add(AllMovies());
         if (seasonsOut) lines.Add(AllSeasons());
+        // Movies first, then seasons, in both lines.
         var left = new List<string>();
-        if (movies && allowance.MoviesLeft is > 0 and var ml) left.Add(ml == 1 ? "1 more movie" : $"{ml} more movies");
-        if (shows && allowance.SeasonsLeft is > 0 and var sl) left.Add(sl == 1 ? "1 more season" : $"{sl} more seasons");
-        if (left.Count == 2) lines.Add($"You can ask for {left[0]} and {left[1]}.");
-        else if (left.Count == 1) lines.Add($"You can ask for {left[0]}.");
+        if (movies && allowance.MoviesLeft is > 0 and var ml) left.Add(Strings.Count("requests.allowance.moreMovies", ml));
+        if (shows && allowance.SeasonsLeft is > 0 and var sl) left.Add(Strings.Count("requests.allowance.moreSeasons", sl));
+        if (left.Count == 2) lines.Add(Strings.T("requests.allowance.canAskBoth", ("movies", left[0]), ("seasons", left[1])));
+        else if (left.Count == 1) lines.Add(Strings.T("requests.allowance.canAsk", ("what", left[0])));
         var limits = new List<string>();
-        if (movies && allowance.MoviesLimit is { } mlim) limits.Add(Format.Pluralize(mlim, "movie"));
-        if (shows && allowance.SeasonsLimit is { } slim) limits.Add(Format.Pluralize(slim, "season"));
-        if (limits.Count == 2) lines.Add($"Limits: {limits[0]} and {limits[1]} per 7 days.");
-        else if (limits.Count == 1) lines.Add($"Limit: {limits[0]} per 7 days.");
+        if (movies && allowance.MoviesLimit is { } mlim) limits.Add(Strings.Count("requests.counts.movies", mlim));
+        if (shows && allowance.SeasonsLimit is { } slim) limits.Add(SeasonCount(slim));
+        if (limits.Count == 2) lines.Add(Strings.T("requests.allowance.limits", ("movies", limits[0]), ("seasons", limits[1])));
+        else if (limits.Count == 1) lines.Add(Strings.T("requests.allowance.limit", ("what", limits[0])));
         return lines;
     }
 
@@ -298,44 +313,47 @@ public sealed class RequestText
     /// <summary>What asking for <paramref name="title"/> did: asked (waiting, approved, or not sent yet), or followed.</summary>
     public static string Asked(Asked asked, string title)
     {
-        if (!asked.Created) return $"You'll hear when “{title}” is ready.";
+        if (!asked.Created) return Strings.T("requests.asked.following", ("title", title));
         return asked.Request.Status switch
         {
-            RequestStatus.Approved or RequestStatus.Available => $"“{title}” is approved and on its way.",
-            RequestStatus.Failed => $"Asked for “{title}”, but it couldn't be sent to download yet.",
-            _ => $"Asked for “{title}”: an administrator decides.",
+            RequestStatus.Approved or RequestStatus.Available => Strings.T("requests.asked.approved", ("title", title)),
+            RequestStatus.Failed => Strings.T("requests.asked.failed", ("title", title)),
+            _ => Strings.T("requests.asked.pending", ("title", title)),
         };
     }
 
     /// <summary>"Request 3 seasons", or "Pick a season." with none picked.</summary>
     public static string PickerButton(SeasonPicker picker) =>
-        picker.Count == 0 ? PickerNone : picker.Count == 1 ? "Request 1 season" : $"Request {picker.Count} seasons";
+        picker.Count == 0 ? PickerNone : Strings.Count("requests.picker.request", picker.Count);
 
     // ---- actions
 
     public static string Action(CardAction action) => action switch
     {
-        CardAction.Withdraw => "Withdraw",
-        CardAction.Remove => "Remove",
+        CardAction.Withdraw => Strings.T("requests.actions.withdraw"),
+        CardAction.Remove => Strings.T("requests.actions.remove"),
         CardAction.StopFollowing => StopFollowing,
-        CardAction.Approve => "Approve",
-        CardAction.ApproveWith => "Approve…",
-        CardAction.TryAgain => "Try again",
-        CardAction.Decline => "Decline",
-        CardAction.DeclineWithReason => "Decline with a reason…",
-        CardAction.Handled => "Mark as added by hand",
-        CardAction.Delete => "Delete",
-        _ => "Request again",
+        CardAction.Approve => Strings.T("requests.actions.approve"),
+        CardAction.ApproveWith => Strings.T("requests.actions.approveWith"),
+        CardAction.TryAgain => Strings.T("requests.actions.tryAgain"),
+        CardAction.Decline => Strings.T("requests.actions.decline"),
+        CardAction.DeclineWithReason => Strings.T("requests.actions.declineWithReason"),
+        CardAction.Handled => Strings.T("requests.actions.handled"),
+        CardAction.Delete => Strings.T("requests.actions.delete"),
+        _ => Strings.T("requests.actions.askAgain"),
     };
 
     /// <summary>The question <paramref name="action"/> asks first, for <paramref name="title"/>; null when it asks none.</summary>
     public static string? Confirm(CardAction action, string title) => action switch
     {
-        CardAction.Withdraw => $"Withdraw your request for “{title}”?",
-        CardAction.Remove => $"Remove “{title}” from your requests?",
-        CardAction.Delete => "Delete this request? Radarr and Sonarr keep what they have.",
+        CardAction.Withdraw => Strings.T("requests.list.confirmWithdraw", ("title", title)),
+        CardAction.Remove => Strings.T("requests.list.confirmRemove", ("title", title)),
+        CardAction.Delete => Strings.T("requests.list.confirmDelete"),
         _ => null,
     };
+
+    /// <summary>The question over a decline's reason: "Decline “Dune”?".</summary>
+    public static string DeclineTitle(string title) => Strings.T("requests.list.declineTitle", ("title", title));
 
     // ---- lists
 
@@ -362,11 +380,11 @@ public sealed class RequestText
     public static string Count(RequestsEntry entry)
     {
         if (!entry.Manage) return News(entry.Badge);
-        var need = entry.Badge == 1 ? "1 request needs you" : $"{entry.Badge} requests need you";
-        return entry.Failed <= 0 ? need : $"{need}, {entry.Failed} couldn't be sent";
+        var need = Strings.Count("requests.notices.needYou", entry.Badge);
+        return entry.Failed <= 0 ? need : Strings.Count("requests.notices.notSent", entry.Failed, ("need", need));
     }
 
-    static string News(int count) => count == 1 ? "1 of your requests has news" : $"{count} of your requests have news";
+    static string News(int count) => Strings.Count("requests.notices.news", count);
 
     public static string Notice(RequestNotice notice)
     {
@@ -375,8 +393,8 @@ public sealed class RequestText
             case RequestNotice.Ready ready:
             {
                 var seasons = ready.Seasons ?? Array.Empty<int>();
-                if (ready.Complete || seasons.Count == 0) return $"“{ready.Title}” is ready to watch.";
-                return seasons.Count == 1 ? $"{Seasons(seasons)} of “{ready.Title}” is ready to watch." : $"{Seasons(seasons)} of “{ready.Title}” are ready to watch.";
+                if (ready.Complete || seasons.Count == 0) return Strings.T("requests.notices.ready", ("title", ready.Title));
+                return Strings.Count("requests.notices.seasonsReady", seasons.Count, ("seasons", Seasons(seasons)), ("title", ready.Title));
             }
             case RequestNotice.News news:
                 return News(news.Count);
@@ -390,16 +408,16 @@ public sealed class RequestText
     /// <summary>What <paramref name="problem"/> says, its first line; <paramref name="summary"/> for the limits and whether this sign-in manages.</summary>
     public string Problem(RequestProblem problem, RequestSummary? summary) => problem switch
     {
-        RequestProblem.Off => "Requests are off",
-        RequestProblem.NoAccess => "Requests aren't open to this account",
-        RequestProblem.SignInAgain s => s.Scope == RequestScope.Approvals ? "Sign in again to approve and decline here." : "Sign in again to ask for movies and shows",
-        RequestProblem.TmdbKey => "TMDB refused this server's key",
-        RequestProblem.TmdbDown => "TMDB isn't answering",
+        RequestProblem.Off => Strings.T("requests.problem.off"),
+        RequestProblem.NoAccess => Strings.T("requests.problem.noAccess"),
+        RequestProblem.SignInAgain s => s.Scope == RequestScope.Approvals ? Strings.T("requests.problem.signInApprovals") : Strings.T("requests.problem.signIn"),
+        RequestProblem.TmdbKey => Strings.T("requests.problem.tmdbKey"),
+        RequestProblem.TmdbDown => Strings.T("requests.problem.tmdbDown"),
         RequestProblem.Restricted r => r.Text,
-        RequestProblem.Declined d => d.RetryAt is { } at ? $"You can ask again {Until(at)}" : "Declined.",
-        RequestProblem.Limit l => l.RetryAt is { } at ? $"You can ask for more {Until(at)}" : AtMost(summary),
+        RequestProblem.Declined d => d.RetryAt is { } at ? Strings.T("requests.problem.askAgain", ("when", Until(at))) : Strings.T("requests.declined.plain"),
+        RequestProblem.Limit l => l.RetryAt is { } at ? Strings.T("requests.problem.askMore", ("when", Until(at))) : AtMost(summary),
         RequestProblem.Conflict c => c.Message,
-        RequestProblem.NotFound => "This title isn't on TMDB",
+        RequestProblem.NotFound => NotFound,
         RequestProblem.Offline o => Errors.Message(o.Error),
         RequestProblem.Other o => Errors.Message(o.Error),
         _ => "",
@@ -408,20 +426,28 @@ public sealed class RequestText
     /// <summary>The line under <paramref name="problem"/>'s, where it has one.</summary>
     public static string? ProblemBody(RequestProblem problem, RequestSummary? summary) => problem switch
     {
-        RequestProblem.Off => "This server doesn't take requests for movies and shows.",
-        RequestProblem.NoAccess => "An administrator can let it ask for movies and shows.",
-        RequestProblem.TmdbKey => summary?.Manage == true ? "Fix it in the server's settings: Settings → Server, on the web." : "An administrator needs to check it.",
-        RequestProblem.TmdbDown => "Its details and pictures come back once it answers again.",
-        RequestProblem.NotFound => "It may have been taken off since.",
+        RequestProblem.Off => Strings.T("requests.problem.offBody"),
+        RequestProblem.NoAccess => Strings.T("requests.problem.noAccessBody"),
+        RequestProblem.TmdbKey => summary?.Manage == true ? Strings.T("requests.problem.tmdbKeyManage") : Strings.T("requests.problem.tmdbKeyBody"),
+        RequestProblem.TmdbDown => Strings.T("requests.problem.tmdbDownBody"),
+        RequestProblem.NotFound => NotFoundBody,
         _ => null,
     };
+
+    /// <summary>A title TMDB doesn't have (any more): its page says so.</summary>
+    public static string NotFound => Strings.T("requests.problem.notFound");
+
+    public static string NotFoundBody => Strings.T("requests.problem.notFoundBody");
+
+    /// <summary>Sign-in lacks the approvals scope: the managers' list says so beside Sign in.</summary>
+    public static string SignInToDecide => Strings.T("requests.problem.signInApprovals");
 
     /// <summary>429 with no time: more was asked than the limit allows at all.</summary>
     static string AtMost(RequestSummary? summary)
     {
-        if (summary?.SeasonsLimit is { } seasons) return $"You can ask for at most {Format.Pluralize(seasons, "season")} per 7 days: pick fewer.";
-        if (summary?.MoviesLimit is { } movies) return $"You can ask for at most {Format.Pluralize(movies, "movie")} per 7 days.";
-        return "You've asked for all you can for now.";
+        if (summary?.SeasonsLimit is { } seasons) return Strings.Count("requests.problem.atMostSeasons", seasons);
+        if (summary?.MoviesLimit is { } movies) return Strings.Count("requests.problem.atMostMovies", movies);
+        return Strings.T("requests.allowance.allForNow");
     }
 
     // ---- times
@@ -430,36 +456,43 @@ public sealed class RequestText
     public string Until(long ts)
     {
         var diff = ts - now();
-        if (diff <= 0) return "in a moment";
+        if (diff <= 0) return Strings.T("requests.time.moment");
         if (diff < Hour)
         {
             var minutes = Math.Max(1, (int)Math.Ceiling(diff / 60.0));
-            return $"in {minutes} min";
+            return Strings.T("requests.time.minutes", ("minutes", minutes));
         }
         if (diff < Day)
         {
             // Kotlin's roundToInt: halves go up.
             var hours = Math.Max(1, Math.Min(23, (int)Math.Floor(diff / (double)Hour + 0.5)));
-            return hours == 1 ? "in 1 hour" : $"in {hours} hours";
+            return Strings.Count("requests.time.hours", hours);
         }
         var days = Math.Max(1, (int)(LocalDate(ts) - LocalDate(now())).TotalDays);
-        return days == 1 ? "tomorrow" : $"in {days} days";
+        return days == 1 ? Strings.T("requests.time.tomorrow") : Strings.Count("requests.time.days", days);
     }
 
     /// <summary>How long ago <paramref name="ts"/> was: "3 days ago", "yesterday".</summary>
     public string Ago(long ts) => Format.Relative(ts, now());
 
-    /// <summary>A day, "Nov 4" ("Nov 4, 2027" in another year), with the time within 24 hours: "today, 9:00 PM".</summary>
+    /// <summary>
+    /// A day, "Nov 4" ("Nov 4, 2027" in another year), with the time within 24 hours: "today, 9:00 PM".
+    /// In French and Spanish the day comes first, "4 nov.", and the time is the culture's, "21:00".
+    /// </summary>
     public string DayOf(long ts)
     {
         var at = Local(ts);
         var diff = ts - now();
+        var culture = Culture;
+        var english = ReferenceEquals(culture, English);
         if (diff >= 0 && diff < Day)
         {
-            var time = at.ToString("h:mm tt", English);
-            return at.Date == LocalDate(now()) ? $"today, {time}" : $"tomorrow, {time}";
+            var time = at.ToString(english ? "h:mm tt" : "t", culture);
+            return at.Date == LocalDate(now()) ? Strings.T("requests.time.todayAt", ("time", time)) : Strings.T("requests.time.tomorrowAt", ("time", time));
         }
-        return at.ToString(at.Year == LocalDate(now()).Year ? "MMM d" : "MMM d, yyyy", English);
+        var thisYear = at.Year == LocalDate(now()).Year;
+        if (english) return at.ToString(thisYear ? "MMM d" : "MMM d, yyyy", culture);
+        return at.ToString(thisYear ? "d MMM" : "d MMM yyyy", culture);
     }
 
     DateTime Local(long ts) => TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), zone).DateTime;

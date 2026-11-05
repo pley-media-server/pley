@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel } from "../../format/format";
+import { t } from "../../i18n";
 import { nowAndNext, programProgress } from "../../live/data";
 import { Cancel } from "../../net/transport";
 import { addTitles, mayAsk, problemWords, requestsProblem, searchText, titleBadge, titleKey, titlePage, titleSubtitle, titleTone } from "../../requests";
@@ -33,16 +34,16 @@ const TMDB_PROBLEM_H = HEADER + HEADER_TO_TILES + 22 + 4 + 40 + 16 + 40;
  * libraries' titles, then Live TV, then people, as on the web (the server
  * puts the closest matches first in each).
  */
-const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string; tile: TileKind }[] = [
-  { kind: "movie", title: "Movies", tile: "poster" },
-  { kind: "show", title: "Shows", tile: "poster" },
-  { kind: "season", title: "Seasons", tile: "poster" },
-  { kind: "episode", title: "Episodes", tile: "landscape" },
-  { kind: "artist", title: "Artists", tile: "square" },
-  { kind: "album", title: "Albums", tile: "square" },
-  { kind: "track", title: "Tracks", tile: "square" },
-  { kind: "channel", title: "Live TV", tile: "landscape" },
-  { kind: "person", title: "People", tile: "person" },
+const GROUPS: { kind: "movie" | "show" | "season" | "episode" | "artist" | "album" | "track" | "person" | "channel"; tile: TileKind }[] = [
+  { kind: "movie", tile: "poster" },
+  { kind: "show", tile: "poster" },
+  { kind: "season", tile: "poster" },
+  { kind: "episode", tile: "landscape" },
+  { kind: "artist", tile: "square" },
+  { kind: "album", tile: "square" },
+  { kind: "track", tile: "square" },
+  { kind: "channel", tile: "landscape" },
+  { kind: "person", tile: "person" },
 ];
 
 type Results = { items: ItemSummary[]; people: PersonSummary[]; channels: LiveChannel[] };
@@ -216,7 +217,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
           anchor: ROWS_TOP,
           render: (onFocus) => (
             <Row
-              title={g.title}
+              title={t("browse.search.groups.person")}
               kind="person"
               items={results.people}
               keyOf={(x) => x.id}
@@ -255,7 +256,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
           anchor: ROWS_TOP,
           render: (onFocus) => (
             <Row
-              title={g.title}
+              title={t("browse.search.groups.channel")}
               kind="landscape"
               items={channels}
               keyOf={(x) => x.id}
@@ -290,7 +291,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
         anchor: ROWS_TOP,
         render: (onFocus) => (
           <Row
-            title={g.title}
+            title={t(`browse.search.groups.${g.kind}`)}
             kind={g.tile}
             items={items}
             keyOf={(x) => x.id}
@@ -323,9 +324,9 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
   const onTmdb = tmdb && tmdb.query === words ? tmdb : null;
   if (asks && results && words && (!onTmdb || !!onTmdb.error || onTmdb.titles.length > 0)) {
     if (!fromLibraries) {
-      sections.push({ key: "none", height: NONE_H, anchor: null, render: () => <div class="t-body c-muted search-none">Nothing in your libraries matches</div> });
+      sections.push({ key: "none", height: NONE_H, anchor: null, render: () => <div class="t-body c-muted search-none">{t("browse.search.noneInLibraries")}</div> });
     }
-    const titles = onTmdb ? onTmdb.titles.map((t) => marked(t, onTmdb.at)) : [];
+    const titles = onTmdb ? onTmdb.titles.map((title) => marked(title, onTmdb.at)) : [];
     const error = onTmdb ? onTmdb.error : null;
     sections.push({
       key: "tmdb",
@@ -337,29 +338,29 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
           <TmdbProblem error={error} manage={!!s?.manage} onFocus={onFocus} onRetry={() => setTries((n) => n + 1)} />
         ) : titles.length ? (
           <Row
-            title="Discover"
+            title={t("browse.search.discover")}
             kind="poster"
             items={titles}
-            keyOf={(t) => titleKey(t)}
+            keyOf={(title) => titleKey(title)}
             enterAt={rowIndex.tmdb}
             onLeftEdge={ui.toRail}
             onFocusIndex={(i) => {
               rowIndex.tmdb = i;
               onFocus();
             }}
-            tile={(t, _i, place) => (
+            tile={(title, _i, place) => (
               <TitleTile
-                name={t.title}
-                subtitle={titleSubtitle(t, true)}
-                poster={t.poster_url}
-                badge={titleBadge(t)}
-                tone={titleTone(t)}
-                fid={`tmdb/${titleKey(t)}`}
+                name={title.title}
+                subtitle={titleSubtitle(title, true)}
+                poster={title.poster_url}
+                badge={titleBadge(title)}
+                tone={titleTone(title)}
+                fid={`tmdb/${titleKey(title)}`}
                 priority={place.priority}
                 onFocus={place.onFocus}
                 onSelect={() => {
                   remember(query);
-                  ui.nav.open(titlePage(t));
+                  ui.nav.open(titlePage(title));
                 }}
               />
             )}
@@ -376,7 +377,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
             )}
           />
         ) : (
-          <RowSkeleton title="Discover" />
+          <RowSkeleton title={t("browse.search.discover")} />
         ),
     });
   }
@@ -410,7 +411,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
       >
         <TextField
           value={text}
-          placeholder="Search movies, shows, people…"
+          placeholder={t("browse.search.placeholder")}
           icon="search"
           type="search"
           width={520}
@@ -418,12 +419,12 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
           onInput={setText}
           onSubmit={(v) => remember(v)}
         />
-        {loading && <div class="t-caption c-muted search-busy">Searching…</div>}
+        {loading && <div class="t-caption c-muted search-busy">{t("browse.search.searching")}</div>}
       </G>
       {!query && recents.length > 0 && (
         <div class="search-recents">
           <div class="t-section c-fg" style="margin-left:96px">
-            Recent searches
+            {t("browse.search.recent")}
           </div>
           <G kind="row" class="recent-chips">
             {recents.map((r) => (
@@ -440,7 +441,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
               />
             ))}
             <TextButton
-              label="Clear"
+              label={t("browse.search.clear")}
               onSelect={() => {
                 setRecents([]);
                 app.store.remove(key);
@@ -452,23 +453,23 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
       )}
       {!query && !recents.length && (
         <div class="search-notice">
-          <div class="t-title c-fg">Search your libraries</div>
+          <div class="t-title c-fg">{t("browse.search.emptyTitle")}</div>
           <div class="t-body c-muted" style="margin-top:8px">
-            Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type, or use your keyboard's microphone.
+            {t("browse.search.emptyHint")}
           </div>
         </div>
       )}
       {query && empty && (
         <div class="search-notice">
-          <div class="t-title c-fg">{`No results for “${query}”`}</div>
+          <div class="t-title c-fg">{t("browse.search.noResults", { query })}</div>
           <div class="t-body c-muted" style="margin-top:8px">
-            Try a different spelling or fewer words.
+            {t("browse.search.noResultsHint")}
           </div>
         </div>
       )}
       {query && error && !results ? (
         <div class="search-notice">
-          <div class="t-title c-fg">{failedTitle(error, "Couldn't search your libraries")}</div>
+          <div class="t-title c-fg">{failedTitle(error, t("browse.search.cantSearch"))}</div>
           <div class="t-body c-muted" style="margin-top:8px">
             {problem(error)}
           </div>
@@ -480,10 +481,10 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
 
 /** The Discover row when TMDB's search didn't answer: why, and Retry where it may help. */
 function TmdbProblem(p: { error: unknown; manage: boolean; onFocus: () => void; onRetry: () => void }) {
-  const why = problemWords(requestsProblem(p.error), p.manage) ?? { title: failedTitle(p.error, "Couldn't search TMDB"), body: problem(p.error), retry: true };
+  const why = problemWords(requestsProblem(p.error), p.manage) ?? { title: failedTitle(p.error, t("browse.search.cantSearchTmdb")), body: problem(p.error), retry: true };
   return (
     <div class="row">
-      <div class="row-header t-section one-line">Discover</div>
+      <div class="row-header t-section one-line">{t("browse.search.discover")}</div>
       <div class="search-tmdb-problem" role="status">
         <div class="t-title c-fg one-line">{why.title}</div>
         <div class="t-body c-muted lines-2" style="margin-top:4px">
@@ -491,7 +492,7 @@ function TmdbProblem(p: { error: unknown; manage: boolean; onFocus: () => void; 
         </div>
         {why.retry && (
           <G kind="row" style="margin-top:16px">
-            <Pill label="Retry" icon="refresh-cw" fid="tmdb/retry" onFocus={p.onFocus} onSelect={p.onRetry} />
+            <Pill label={t("common.actions.retry")} icon="refresh-cw" fid="tmdb/retry" onFocus={p.onFocus} onSelect={p.onRetry} />
           </G>
         )}
       </div>
@@ -507,13 +508,13 @@ function ChannelTile(p: { channel: LiveChannel; now: number; onFocus: (el: HTMLE
   const title = `${c.number ? `${c.number} ` : ""}${c.name}`;
   const subtitle = on ? on.title : c.group;
   return (
-    <F class="tile" style={`width:${spec.w}px`} fid={`channel/${c.id}`} label={[title, on ? `now: ${on.title}` : "", "Live TV"].filter(Boolean).join(", ")} onSelect={p.onSelect} onFocus={p.onFocus}>
+    <F class="tile" style={`width:${spec.w}px`} fid={`channel/${c.id}`} label={[title, on ? t("browse.search.channelNow", { title: on.title }) : "", t("browse.search.liveTv")].filter(Boolean).join(", ")} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class="tile-well search-channel" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
           <ChannelLogo channel={c} width={136} height={76} showName />
           <span class="live-badge t-badge at-live search-channel-live" aria-hidden="true">
             <span class="live-dot" />
-            LIVE
+            {t("browse.search.live")}
           </span>
           {on && <ProgressLine fraction={programProgress(on, p.now)} class="search-channel-progress" />}
           <div class="tile-hairline" />

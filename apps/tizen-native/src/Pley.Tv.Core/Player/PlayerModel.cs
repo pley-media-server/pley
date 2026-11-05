@@ -396,7 +396,7 @@ public sealed class PlayerModel : IDisposable
         {
             // The TV's player can't send the token: an address without its own key won't play.
             Discard(started);
-            Fail("This server is too old to play on this TV: update it.", canRetry: false);
+            Fail(Strings.T("player.errors.serverTooOld"), canRetry: false);
             return;
         }
         info = started;
@@ -1806,7 +1806,8 @@ public sealed class PlayerModel : IDisposable
 
     void Say(PlayerToast toast) => Toast?.Invoke(toast);
 
-    void Fail(string message, bool canRetry, string title = PlayerText.ErrorTitle) =>
+    /// <param name="title">The heading; "Can't play this item" without.</param>
+    void Fail(string message, bool canRetry, string? title = null) =>
         Update(s => s with { Phase = PlayerPhase.Error(message, canRetry, title), SkipLabel = null });
 
     void FailWith(Exception e)

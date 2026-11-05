@@ -1,5 +1,6 @@
 import type { MediaFile, PlaybackMode } from "../api/types";
 import { formatBitrate, resolutionLabel } from "../format/format";
+import { t } from "../i18n";
 import type { Rung } from "./autoquality";
 
 /**
@@ -14,9 +15,24 @@ export interface QualityPreset {
   maxHeight: number | null;
 }
 
-export const ORIGINAL: QualityPreset = { id: "original", label: "Original", maxBitrateKbps: null, maxHeight: null };
+// The two named qualities' labels are words: read where they show, in the language shown then.
+export const ORIGINAL: QualityPreset = {
+  id: "original",
+  get label() {
+    return t("player.quality.original");
+  },
+  maxBitrateKbps: null,
+  maxHeight: null,
+};
 /** The original, lower only when it doesn't play well (autoquality.ts). */
-export const AUTO: QualityPreset = { id: "auto", label: "Automatic", maxBitrateKbps: null, maxHeight: null };
+export const AUTO: QualityPreset = {
+  id: "auto",
+  get label() {
+    return t("player.quality.automatic");
+  },
+  maxBitrateKbps: null,
+  maxHeight: null,
+};
 
 /** The 4K qualities first, then 1080p and below. */
 export const PRESETS: QualityPreset[] = [

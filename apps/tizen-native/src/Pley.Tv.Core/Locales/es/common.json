@@ -1,0 +1,24 @@
+{
+  "actions": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "retry": "Reintentar"
+  },
+  "network": {
+    "nothingAnswers": "nada responde en esa dirección",
+    "noAnswerInTime": "no hubo respuesta a tiempo",
+    "unknownAddress": "esa dirección no se conoce en esta red",
+    "secureConnection": "falló su conexión segura",
+    "cancelled": "cancelado",
+    "anotherDevice": "otro dispositivo responde en esa dirección",
+    "serverFailed": "el servidor no pudo responder",
+    "connectionFailed": "falló la conexión con el servidor"
+  },
+  "errors": {
+    "notPley": "eso no es un servidor Pley",
+    "unreadable": "no se puede leer la respuesta del servidor: ¿es Pley y está actualizado?",
+    "refused": "el servidor rechazó la solicitud (HTTP {{status}})",
+    "offlineTitle": "No se puede conectar con tu servidor",
+    "offlineBody": "{{reason}} Comprueba que el servidor esté encendido y que este dispositivo esté en su red."
+  }
+}

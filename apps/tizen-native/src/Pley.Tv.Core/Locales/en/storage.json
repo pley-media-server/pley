@@ -1,0 +1,21 @@
+{
+  "noDrive": {
+    "title": "No USB drive",
+    "body": "Plug a USB drive into the TV to play its videos here."
+  },
+  "unreadable": {
+    "title": "This folder can't be read",
+    "body": "The drive may have been pulled out."
+  },
+  "empty": {
+    "title": "Nothing to play here",
+    "body": "This folder has no videos or folders in it."
+  },
+  "space": "{{free}} free of {{total}}",
+  "up": "Up a folder",
+  "resumesAt": "{{kind}} · Resumes at {{time}}",
+  "playback": {
+    "stuck": "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.",
+    "cantConvert": "This TV can't play this file as it is, and a file on a drive has no server to convert it"
+  }
+}

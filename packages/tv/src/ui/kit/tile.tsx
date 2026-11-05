@@ -1,5 +1,6 @@
 import type { ItemSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatRuntime, formatTimeLeft, isInProgress, progressFraction, summaryBadges, unwatchedCount } from "../../format/format";
+import { t } from "../../i18n";
 import { Art, artCandidates, type ArtKind } from "./art";
 import { F } from "./focusable";
 import { Icon, type IconName } from "./icons";
@@ -160,7 +161,7 @@ function SeeAllView(p: {
   style?: string;
 }) {
   const spec = TILES[p.kind];
-  const label = p.label ?? "See all";
+  const label = p.label ?? t("common.actions.seeAll");
   return (
     <F class="tile" style={`width:${spec.w}px;${p.style ?? ""}`} fid={p.fid} initial={p.initial} label={label} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class={`tile-well see-all${spec.round ? " round" : ""}`} style={`width:${spec.w}px;height:${spec.h}px`}>

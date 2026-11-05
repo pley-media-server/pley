@@ -1,0 +1,202 @@
+{
+  "controls": {
+    "video": "Video",
+    "chapters": "Chapters",
+    "speed": "Speed",
+    "speedAt": "Speed {{speed}}",
+    "sleep": "Sleep timer",
+    "previous": "Previous",
+    "pause": "Pause",
+    "next": "Next",
+    "subtitles": "Subtitles",
+    "audio": "Audio",
+    "quality": "Quality",
+    "info": "Info",
+    "seekValue": "{{time}} of {{duration}}",
+    "endsAt": "Ends at {{time}}",
+    "intro": "Intro",
+    "credits": "Credits"
+  },
+  "skip": {
+    "intro": "Skip Intro",
+    "credits": "Skip Credits"
+  },
+  "toasts": {
+    "subtitlesOff": "Subtitles off",
+    "subtitles": "Subtitles: {{track}}",
+    "audio": "Audio: {{track}}",
+    "playOriginalInQuality": "{{note}} Play original is in Quality.",
+    "chooseInQuality": "{{note}} Choose one in Quality.",
+    "subtitlesAdded": "Subtitles added: {{track}}",
+    "subtitlesNotLoaded": "These subtitles couldn't be loaded.",
+    "qualityLowered": "Quality lowered to {{quality}}",
+    "lastEpisode": "This is the last episode",
+    "lastInQueue": "This is the last one"
+  },
+  "sleep": {
+    "pausingIn": "Pausing in {{seconds}} s",
+    "keepWatching": "Keep watching",
+    "off": "Off",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "end": {
+      "episode": "End of this episode",
+      "movie": "End of this movie",
+      "track": "End of this track",
+      "video": "End of this video"
+    }
+  },
+  "upNext": {
+    "title": "Up next",
+    "episode": "Up next · {{episode}}",
+    "playNow": "Play now",
+    "nextIn": "Next in {{seconds}}"
+  },
+  "speed": {
+    "normal": "Normal"
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automatic",
+    "automaticAt": "Automatic · {{quality}}",
+    "automaticHint": "Dynamically adjust to conditions",
+    "now": "Now {{quality}}",
+    "nowBecause": "Now {{quality}} · {{why}}",
+    "playOriginal": "Play original",
+    "tryOriginal": "Try the original again",
+    "lowered": {
+      "network": "Lowered for your connection",
+      "device": "Lowered for this device"
+    }
+  },
+  "subtitles": {
+    "off": "Off",
+    "added": "Added",
+    "find": "Find subtitles…",
+    "searchNotSetUp": "Subtitle search isn't set up",
+    "sync": "Sync",
+    "syncAt": "Sync {{offset}}",
+    "okResets": "OK resets"
+  },
+  "find": {
+    "title": "Find subtitles",
+    "language": "Subtitle language",
+    "languageRow": "Language",
+    "searching": "Searching…",
+    "searchFailed": "Couldn't search for subtitles. {{error}}",
+    "noResults": "No {{language}} subtitles found for this video.",
+    "notSetUp": "Subtitle search isn't set up on this server.",
+    "notSetUpAdmin": "Subtitle search isn't set up on this server. Set it up in Pley on the web: Settings → Server → Subtitles.",
+    "needsUpdate": "This server can't search for subtitles: it needs an update.",
+    "addFailed": "These subtitles couldn't be added. {{error}}",
+    "adding": "Adding…",
+    "madeForFile": "Made for this file",
+    "sdh": "SDH",
+    "forced": "Forced",
+    "downloads_one": "{{count, number}} download",
+    "downloads_other": "{{count, number}} downloads"
+  },
+  "chapters": {
+    "numbered": "Chapter {{number}}",
+    "numberedTitle": "Chapter {{number}} · {{title}}"
+  },
+  "errors": {
+    "cantPlay": "Can't play this item",
+    "stopped": "Playback stopped",
+    "reconnecting": "Reconnecting…",
+    "reachHint": "Check that the server is on and that this device is on its network.",
+    "noFile": "This item has no file to play.",
+    "slowServer": "The server can't keep up with this video. Try a lower quality.",
+    "serverTooOld": "This server is too old to play on this TV: update it.",
+    "unplayable": "This video can't be played on this device.",
+    "sameSpot": "This video doesn't play on this device: it stops at the same spot each time.",
+    "endsEarly": "This video ends before the point it was to play from.",
+    "stalled": "Playback stopped and couldn't get going again.",
+    "playerGaveUp": "The TV's player gave up.",
+    "playerGaveUpWith": "The TV's player gave up ({{detail}}).",
+    "originalFailed": "This device couldn't play the original file.",
+    "originalNotSmooth": "The original didn't play smoothly on this device.",
+    "stoppedByAdmin": "Playback was stopped by the server's administrator.",
+    "stoppedElsewhere": "Playback was stopped from another device.",
+    "sessionStopped": "Playback was stopped by the server's administrator"
+  },
+  "details": {
+    "method": {
+      "direct": "Direct play",
+      "remux": "Direct stream",
+      "transcode": "Transcoding"
+    },
+    "audioTranscoding": "Audio transcoding",
+    "pipeline": {
+      "hybrid": "GPU and CPU",
+      "copy": "copy"
+    },
+    "toneMapped": "SDR (tone-mapped with {{method}})",
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Bitrate",
+    "encoder": "Encoder",
+    "shownAs": "Shown as",
+    "subtitles": "Subtitles",
+    "burnedIn": "Burned in",
+    "speed": "Speed",
+    "realTime": "{{speed}}× real time",
+    "realTimeReady": "{{speed}}× real time · {{seconds}} s ready"
+  },
+  "info": {
+    "title": "Playback info",
+    "asking": "Asking the server…",
+    "playback": "Playback",
+    "howItPlays": "How it plays",
+    "why": "Why",
+    "quality": "Quality",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "track": "Track",
+    "off": "Off",
+    "format": "Format",
+    "formatPicture": "{{codec}}, picture",
+    "formatText": "{{codec}}, text",
+    "language": "Language",
+    "shown": "Shown",
+    "burnedIn": "Burned in by the server",
+    "drawnHere": "Drawn by this TV",
+    "thisTv": "This TV",
+    "player": "Player",
+    "decoded": "Decoded",
+    "decoder": "Video decoder",
+    "hardware": "{{decoder}} (hardware)",
+    "software": "{{decoder}} (software)",
+    "output": "Output",
+    "currentBitrate": "Current bitrate",
+    "droppedFrames": "Dropped frames",
+    "dropped": "Dropped",
+    "framesOf": "{{dropped}} of {{frames}}",
+    "bufferedAhead": "Buffered ahead",
+    "buffer": "Buffer",
+    "secondsAhead": "{{seconds}} s ahead",
+    "stalls": "Stalls",
+    "firstFrame": "First frame"
+  },
+  "subtitleStyle": {
+    "fonts": {
+      "default": "Default",
+      "serif": "Serif",
+      "mono": "Monospace",
+      "casual": "Casual"
+    },
+    "positions": {
+      "bottom": "Bottom",
+      "raised": "A little higher",
+      "higher": "Higher",
+      "highest": "Highest"
+    }
+  },
+  "cast": {
+    "playingFrom": "Playing from {{device}}",
+    "playingFromAnother": "Playing from another device",
+    "nothingToPlay": "Nothing to play"
+  }
+}

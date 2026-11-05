@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError, unreachable, unreachableReason } from "../../../api/client";
 import type { HouseholdProfile, User } from "../../../api/types";
 import { SignedOutError, TokenError } from "../../../auth/tokens";
+import { t } from "../../../i18n";
 import { useUi } from "../../context";
 import { Pill, TextButton } from "../../kit/buttons";
 import { F, G } from "../../kit/focusable";
@@ -31,27 +32,26 @@ const FIT = 6;
 export function switchRefusal(e: unknown): { message: string; locked?: boolean; approve?: boolean; letThrough?: boolean; offline?: boolean } {
   if (unreachable(e)) {
     const reason = unreachableReason(e);
-    return { message: `Can't reach your server: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`, offline: true };
+    return { message: t("onboarding.profiles.cantReach", { reason: `${reason.charAt(0).toLowerCase()}${reason.slice(1)}` }), offline: true };
   }
   if (e instanceof TokenError) {
     const reason = e.oauth?.reason;
     if (e.oauth?.error === "invalid_request" && !reason) return { message: "", letThrough: true };
+    // The server's own words, when it gives some, stay as it wrote them.
+    const told = e.oauth?.description;
     switch (reason) {
       case "wrong_pin":
-        return { message: "Wrong PIN." };
+        return { message: t("onboarding.profiles.wrongPin") };
       case "throttled":
-        return { message: sentence(e.oauth?.description || "too many wrong PINs: try again in a few minutes") };
+        return { message: told ? sentence(told) : t("onboarding.profiles.throttled") };
       case "pin_locked":
-        return {
-          message: "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
-          locked: true,
-        };
+        return { message: t("onboarding.profiles.pinLocked"), locked: true };
       case "browser":
         return { message: "", approve: true };
       case "not_allowed":
-        return { message: "You can't switch to this profile." };
+        return { message: t("onboarding.profiles.notAllowed") };
       default:
-        return { message: e.status >= 500 ? "The server refused: try again." : sentence(e.message) };
+        return { message: e.status >= 500 ? t("onboarding.profiles.serverRefused") : sentence(e.message) };
     }
   }
   return { message: sentence(errorMessage(e)) };
@@ -75,8 +75,11 @@ export function refusal(e: unknown, onPad: boolean, confirm: boolean): { step: "
   const reason = e instanceof TokenError ? e.oauth?.reason : null;
   if (reason === "wrong_pin" && !onPad) return { step: "pad", message: null, locked: false, shake: false };
   let message = r.message;
-  if (r.letThrough) message = sentence((e as TokenError).oauth?.description || "you can't switch to this profile");
-  if (r.approve) message = "This profile needs its password: sign in again to use it.";
+  if (r.letThrough) {
+    const told = (e as TokenError).oauth?.description;
+    message = told ? sentence(told) : t("onboarding.profiles.notAllowed");
+  }
+  if (r.approve) message = t("onboarding.profiles.needsPassword");
   const forPin = reason === "pin_locked" || reason === "throttled";
   return { step: onPad || forPin ? "pad" : "pick", message, locked: !!r.locked, shake: onPad || forPin };
 }
@@ -166,7 +169,7 @@ export function ProfilesScreen(p: { pin?: boolean }) {
         setLoading(false);
         // With a list on screen, trouble stays quiet.
         setHousehold((shown) => {
-          if (!shown.length) setError(isApiError(e, 403) ? "This sign-in can't switch profiles." : sentence(errorMessage(e)));
+          if (!shown.length) setError(isApiError(e, 403) ? t("onboarding.profiles.cantSwitch") : sentence(errorMessage(e)));
           return shown;
         });
       },
@@ -218,7 +221,7 @@ export function ProfilesScreen(p: { pin?: boolean }) {
         setStep({ kind: "approve", profile: p });
         return;
       case "locked":
-        setStep({ kind: "pin", profile: p, confirm: false, locked: true, error: "This profile can't be used from the app." });
+        setStep({ kind: "pin", profile: p, confirm: false, locked: true, error: t("onboarding.profiles.unusable") });
     }
   };
 
@@ -276,7 +279,7 @@ export function ProfilesScreen(p: { pin?: boolean }) {
   return (
     <div class="step-fade plain-bg" key="pick">
       <div class="t-page c-fg" style="position:absolute;left:0;right:0;top:110px;text-align:center">
-        Who's watching?
+        {t("onboarding.profiles.title")}
       </div>
       <ProfileRow
         profiles={profiles}
@@ -294,12 +297,12 @@ export function ProfilesScreen(p: { pin?: boolean }) {
         <G kind="col" class="profiles-buttons">
           {!profiles.length && !loading && (
             <div style="margin-top:12px">
-              <Pill label="Retry" icon="refresh-cw" initial onSelect={load} />
+              <Pill label={t("common.actions.retry")} icon="refresh-cw" initial onSelect={load} />
             </div>
           )}
           {!canSwitch && (
             <div style="margin-top:12px">
-              <TextButton label="Sign in as another profile" onSelect={() => setStep({ kind: "approve", profile: null })} />
+              <TextButton label={t("onboarding.profiles.signInAnother")} onSelect={() => setStep({ kind: "approve", profile: null })} />
             </div>
           )}
         </G>
@@ -329,7 +332,7 @@ function ProfileRow(p: { profiles: HouseholdProfile[]; busy: number | null; init
             style={`left:${i * (ITEM_W + ITEM_GAP)}px`}
             fid={`profile/${x.id}`}
             initial={x.id === p.initialId}
-            label={x.needs === "pin" ? `${x.name}, protected by a PIN` : x.name}
+            label={x.needs === "pin" ? t("onboarding.profiles.protected", { name: x.name }) : x.name}
             onFocus={() => {
               setFocusedAt(i);
               p.onFocusId(x.id);
@@ -449,13 +452,13 @@ function PinPad(p: {
     <div class="pin-pad">
       <ProfileAvatar name={p.profile.name} color={p.profile.avatar_color} picture={p.profile.avatar_url} size={56} />
       <div class="t-title c-fg" style="margin-top:14px">
-        Enter {p.profile.name}'s PIN
+        {t("onboarding.profiles.enterPin", { name: p.profile.name })}
       </div>
       <div
         key={shakes}
         class={`pin-dots${shakes && !ui.reducedMotion ? " shake" : ""}`}
         aria-live="polite"
-        aria-label={`${digits.length} ${digits.length === 1 ? "digit" : "digits"} entered`}
+        aria-label={t("onboarding.profiles.digits", { count: digits.length })}
       >
         {dotEls}
       </div>
@@ -468,10 +471,10 @@ function PinPad(p: {
         }}>
         {locked ? (
           <G kind="row">
-            <TextButton label="Use another profile" onSelect={p.onBack} />
+            <TextButton label={t("onboarding.profiles.useAnother")} onSelect={p.onBack} />
           </G>
         ) : (
-          <div class="t-caption c-muted">You can also type with the number keys on your remote.</div>
+          <div class="t-caption c-muted">{t("onboarding.profiles.numberKeys")}</div>
         )}
       </div>
     </div>

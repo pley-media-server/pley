@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Library, LibraryKind, RequestSummary } from "../../src/api/types";
+import { setLanguage } from "../../src/i18n";
 import { currentEntry, RAIL_ENTRY, RAIL_FIRST, RAIL_GAP, RAIL_SETTINGS, railEntries, railScroll, requestsEntry } from "../../src/ui/shell/rail";
 import fixture from "../fixtures/rail.json";
 
@@ -191,5 +192,21 @@ describe("the rail's way to requests", () => {
     expect(currentEntry({ name: "requests" }, rail)).toBe("discover");
     const own = railEntries(libraries(2), false, false, requestsEntry(summary({ access: "off", own: 1 })));
     expect(currentEntry({ name: "requests" }, own)).toBe("requests");
+  });
+});
+
+describe("the rail's words", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("are in the language shown", () => {
+    const labels = () => {
+      const rail = railEntries(libraries(8), true, true);
+      return rail.top.filter((e) => !e.id.startsWith("library:")).map((e) => e.label).concat([rail.settings.label]);
+    };
+    expect(labels()).toEqual(["Search", "Home", "Live TV", "Libraries", "Playlists", "Now Playing", "Settings"]);
+    setLanguage("fr");
+    expect(labels()).toEqual(["Recherche", "Accueil", "TV en direct", "Bibliothèques", "Playlists", "En cours de lecture", "Paramètres"]);
+    setLanguage("es");
+    expect(labels()).toEqual(["Buscar", "Inicio", "TV en vivo", "Bibliotecas", "Listas de reproducción", "Reproduciendo ahora", "Ajustes"]);
   });
 });

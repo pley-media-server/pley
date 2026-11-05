@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "Search",
+    "home": "Home",
+    "discover": "Discover",
+    "live": "Live TV",
+    "libraries": "Libraries",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "Now Playing",
+    "settings": "Settings",
+    "profiles": "Profiles",
+    "switchProfile": "Switch profile"
+  },
+  "offline": "Pley is offline",
+  "exit": {
+    "title": "Exit Pley?",
+    "exit": "Exit"
+  }
+}

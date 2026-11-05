@@ -28,7 +28,8 @@ public sealed record PlayerPhase(PhaseKind Kind, string? Message = null, bool Ca
     public static readonly PlayerPhase Paused = new PlayerPhase(PhaseKind.Paused);
     public static readonly PlayerPhase Ended = new PlayerPhase(PhaseKind.Ended);
 
-    public static PlayerPhase Error(string message, bool canRetry, string title = PlayerText.ErrorTitle) => new PlayerPhase(PhaseKind.Error, message, canRetry, title);
+    /// <param name="title">The heading; "Can't play this item" (<see cref="PlayerText.ErrorTitle"/>) without.</param>
+    public static PlayerPhase Error(string message, bool canRetry, string? title = null) => new PlayerPhase(PhaseKind.Error, message, canRetry, title ?? PlayerText.ErrorTitle);
 
     /// <summary>Meant to play (Play/Pause shows Pause): playing, or on its way to.</summary>
     public bool WantsToPlay => Kind is PhaseKind.Playing or PhaseKind.Buffering or PhaseKind.Preparing;

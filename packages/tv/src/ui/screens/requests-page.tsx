@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { MediaRequest, RequestList, RequestUser, TitleKind } from "../../api/types";
+import { t } from "../../i18n";
 import {
   actionDone,
   actionRows,
@@ -8,6 +9,7 @@ import {
   hasRequests,
   inRequestsTab,
   keepUnchanged,
+  kindWord,
   mayAsk,
   moving,
   problemWords,
@@ -18,7 +20,6 @@ import {
   requestsTabs,
   requestsTitle,
   seasonsLabel,
-  SIGN_IN_APPROVALS,
   stageWords,
   tabCount,
   titleKey,
@@ -54,8 +55,6 @@ const MORE_LINE = 4 + 17;
 /** Answers kept for the tabs and filters seen, so going back to one draws it at once. */
 const LISTS_KEPT = 8;
 
-const KIND_LABELS: Record<string, string> = { all: "Movies and shows", movie: "Movies", show: "Shows" };
-
 const ACTION_ICONS: Record<ActionId, IconName> = {
   withdraw: "x",
   unwatch: "bell-off",
@@ -80,7 +79,7 @@ export function RequestsScreen(p: { entry: Entry }) {
   const app = useApp();
   const s = app.requests.value;
   // An account that may not ask still sees what it asked for before; one with nothing to see is told why.
-  if (s && !hasRequests(s)) return <RequestsMessage problem={summaryProblem(app) ?? { kind: "off" }} title="Couldn't load the requests" onRetry={() => void app.loadRequests()} />;
+  if (s && !hasRequests(s)) return <RequestsMessage problem={summaryProblem(app) ?? { kind: "off" }} title={t("requests.page.loadFailed")} onRetry={() => void app.loadRequests()} />;
   return <RequestsPage entry={p.entry} />;
 }
 
@@ -97,7 +96,7 @@ function RequestsPage(p: { entry: Entry }) {
 
   // The tab chosen here, else the first (Needs attention for managers, as soon as the summary says so).
   const chosen = entry.state.tab as RequestsTab | undefined;
-  const tab: RequestsTab = chosen && tabs.some((t) => t.tab === chosen) ? chosen : tabs[0]!.tab;
+  const tab: RequestsTab = chosen && tabs.some((x) => x.tab === chosen) ? chosen : tabs[0]!.tab;
   const kept = (entry.state.filters as RequestFilters | undefined) ?? { kind: null, userId: null, q: "" };
   const [filters, setFilterState] = useState<RequestFilters>(kept);
   const [person, setPerson] = useState<RequestUser | null>((entry.state.person as RequestUser | undefined) ?? null);
@@ -109,9 +108,9 @@ function RequestsPage(p: { entry: Entry }) {
   const [focusAt, setFocusAt] = useState<number>((entry.state.index as number | undefined) ?? 0);
   const f: RequestFilters = manage ? filters : { kind: null, userId: null, q: "" };
 
-  const setTab = (t: RequestsTab) => {
-    if (t === tab) return;
-    entry.state.tab = t;
+  const setTab = (next: RequestsTab) => {
+    if (next === tab) return;
+    entry.state.tab = next;
     entry.state.limit = REQUESTS_PAGE;
     entry.state.index = 0;
     setLimit(REQUESTS_PAGE);
@@ -133,8 +132,8 @@ function RequestsPage(p: { entry: Entry }) {
   useEffect(() => {
     const q = text.trim();
     if (q === filters.q) return;
-    const t = setTimeout(() => setFilters((old) => ({ ...old, q })), FILTER_DEBOUNCE_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setFilters((old) => ({ ...old, q })), FILTER_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [text]);
 
   // The list: asked again when requests change (their events), the newest answer for each tab and filter kept.
@@ -285,7 +284,7 @@ function RequestsPage(p: { entry: Entry }) {
         const why = requestsProblem(e);
         if (why.kind === "conflict" && why.request) override(r.id, why.request);
         if (why.kind === "missing") override(r.id, null);
-        ui.toast(why.kind === "missing" ? "This request was deleted meanwhile." : askRefusal(why, r.kind, null), true);
+        ui.toast(why.kind === "missing" ? t("requests.page.deletedMeanwhile") : askRefusal(why, r.kind, null), true);
         done();
       },
     );
@@ -302,7 +301,7 @@ function RequestsPage(p: { entry: Entry }) {
   }, [!!panelRequest]);
 
   const why = !list && load.error ? requestsProblem(load.error) : null;
-  if (why && problemWords(why, manage)) return <RequestsMessage problem={why} title="Couldn't load the requests" onRetry={load.reload} />;
+  if (why && problemWords(why, manage)) return <RequestsMessage problem={why} title={t("requests.page.loadFailed")} onRetry={load.reload} />;
 
   const h24 = hours24(app);
   const filtered = !!(f.kind || f.userId !== null || f.q);
@@ -310,7 +309,12 @@ function RequestsPage(p: { entry: Entry }) {
   let body;
   if (!list) {
     body = load.error ? (
-      <ListNote top={listTop} title={failedTitle(load.error, "Couldn't load the requests")} body={problem(load.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: load.reload }} />
+      <ListNote
+        top={listTop}
+        title={failedTitle(load.error, t("requests.page.loadFailed"))}
+        body={problem(load.error)}
+        action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: load.reload }}
+      />
     ) : (
       <CardSkeletons top={listTop} />
     );
@@ -318,8 +322,8 @@ function RequestsPage(p: { entry: Entry }) {
     body = (
       <ListNote
         top={listTop}
-        title={filtered ? "No requests match these filters." : requestsEmpty(tab, manage)}
-        action={findSome ? { label: "Find something to ask for", icon: "compass", onSelect: () => ui.nav.open({ name: "discover" }) } : undefined}
+        title={filtered ? t("requests.page.noMatch") : requestsEmpty(tab, manage)}
+        action={findSome ? { label: t("requests.page.findSomething"), icon: "compass", onSelect: () => ui.nav.open({ name: "discover" }) } : undefined}
       />
     );
   } else {
@@ -349,7 +353,7 @@ function RequestsPage(p: { entry: Entry }) {
               />
             ))}
           </G>
-          {moreLine && <div class="requests-more t-caption c-muted">The newest 200 show here: filter to find the others.</div>}
+          {moreLine && <div class="requests-more t-caption c-muted">{t("requests.page.newest", { number: REQUESTS_MAX })}</div>}
         </div>
         <div class={`requests-fade${goesOn ? " shown" : ""}`} />
       </div>
@@ -358,7 +362,7 @@ function RequestsPage(p: { entry: Entry }) {
 
   const counts = list?.counts ?? null;
   // Filtered, Needs attention counts what its list holds (the summary's number is everyone's): known while it shows.
-  const count = (t: RequestsTab) => (t === "attention" && filtered ? (tab === "attention" && list ? list.total : null) : tabCount(t, counts, s));
+  const count = (of: RequestsTab) => (of === "attention" && filtered ? (tab === "attention" && list ? list.total : null) : tabCount(of, counts, s));
   return (
     <div ref={page} class="requests-page">
       <PageTitle>{requestsTitle(s)}</PageTitle>
@@ -372,15 +376,15 @@ function RequestsPage(p: { entry: Entry }) {
           return dir === "right";
         }}
       >
-        {tabs.map((t) => (
+        {tabs.map((x) => (
           <CountTab
-            key={t.tab}
-            fid={`tab/${t.tab}`}
-            label={t.label}
-            count={count(t.tab)}
-            shown={t.tab === tab}
-            initial={t.tab === tab && !!list && !shown.length && !findSome}
-            onSelect={() => setTab(t.tab)}
+            key={x.tab}
+            fid={`tab/${x.tab}`}
+            label={x.label}
+            count={count(x.tab)}
+            shown={x.tab === tab}
+            initial={x.tab === tab && !!list && !shown.length && !findSome}
+            onSelect={() => setTab(x.tab)}
           />
         ))}
       </G>
@@ -397,13 +401,20 @@ function RequestsPage(p: { entry: Entry }) {
         >
           <Chip
             fid="filter/kind"
-            label={KIND_LABELS[f.kind ?? "all"]!}
+            label={t(`requests.page.kinds.${f.kind ?? "all"}`)}
             icon="film"
             selected={!!f.kind}
             onSelect={() => setFilters((old) => ({ ...old, kind: nextKind(old.kind) }))}
           />
-          <Chip fid="filter/person" label={personName ?? "Everyone"} icon="users" selected={f.userId !== null} maxWidth={180} onSelect={() => setPanel({ kind: "people" })} />
-          <TextField value={text} placeholder="Title" icon="search" type="search" width={240} fid="filter/q" onInput={setText} />
+          <Chip
+            fid="filter/person"
+            label={personName ?? t("requests.page.everyone")}
+            icon="users"
+            selected={f.userId !== null}
+            maxWidth={180}
+            onSelect={() => setPanel({ kind: "people" })}
+          />
+          <TextField value={text} placeholder={t("requests.page.titleFilter")} icon="search" type="search" width={240} fid="filter/q" onInput={setText} />
         </G>
       )}
       {!manage && s?.sign_in_again === "approvals" && (
@@ -418,8 +429,8 @@ function RequestsPage(p: { entry: Entry }) {
           }}
         >
           <Icon name="user-round" size={20} color="var(--muted)" />
-          <div class="t-body c-muted one-line requests-signin">{SIGN_IN_APPROVALS}</div>
-          <Pill label="Sign in" fid="signin" onSelect={() => setSignIn(true)} />
+          <div class="t-body c-muted one-line requests-signin">{t("requests.signInToDecide")}</div>
+          <Pill label={t("requests.buttons.signIn")} fid="signin" onSelect={() => setSignIn(true)} />
         </G>
       )}
       {body}
@@ -508,7 +519,7 @@ function RequestCardView(p: {
       class="request-card"
       fid={p.fid}
       initial={p.initial}
-      label={[r.title, r.year ? String(r.year) : "", what, stage.text, note, asked, p.news ? "New" : ""].filter(Boolean).join(", ")}
+      label={[r.title, r.year ? String(r.year) : "", what, stage.text, note, asked, p.news ? t("requests.page.new") : ""].filter(Boolean).join(", ")}
       onFocus={p.onFocus}
       onSelect={p.onSelect}
     >
@@ -534,13 +545,13 @@ function RequestCardView(p: {
 
 /** "Movie", or a show's seasons ("Seasons 1–2"). */
 function requestWhat(r: MediaRequest): string {
-  return r.kind === "show" ? seasonsLabel(r.seasons) || "Show" : "Movie";
+  return (r.kind === "show" && seasonsLabel(r.seasons)) || kindWord(r.kind);
 }
 
 /** Where the cards go while the first answer comes. */
 function CardSkeletons(p: { top: number }) {
   return (
-    <div role="status" aria-label="Loading">
+    <div role="status" aria-label={t("common.states.loading")}>
       {[0, 1, 2, 3].map((i) => (
         <div key={i} class="skeleton" style={`position:absolute;left:96px;top:${p.top + 8 + i * 98}px;width:816px;height:88px;border-radius:6px`} />
       ))}
@@ -610,19 +621,23 @@ export function RequestPanel(p: { request: MediaRequest; manage: boolean; onClos
       <>
         <PanelTitle>{c.title}</PanelTitle>
         {c.body && <div class="panel-text t-body c-muted">{c.body}</div>}
-        <PanelRow fid="cancel" label="Cancel" icon="arrow-left" initial onSelect={back} />
+        <PanelRow fid="cancel" label={t("common.actions.cancel")} icon="arrow-left" initial onSelect={back} />
         <PanelRow fid="confirm" label={c.button} icon={ACTION_ICONS[step.row.id]} danger onSelect={() => p.onAction(r, step.row.id)} />
       </>
     );
   } else if (step.kind === "reason") {
     content = (
       <>
-        <PanelTitle>{`Decline “${r.title}”?`}</PanelTitle>
-        {!r.mine && <div class="panel-text t-body c-muted">{`${r.requested_by?.name ?? "Whoever asked"} sees that it was declined, and your reason if you give one.`}</div>}
+        <PanelTitle>{t("requests.decline.title", { title: r.title })}</PanelTitle>
+        {!r.mine && (
+          <div class="panel-text t-body c-muted">
+            {r.requested_by ? t("requests.decline.nameSees", { name: r.requested_by.name }) : t("requests.decline.someoneSees")}
+          </div>
+        )}
         <div class="panel-field">
           <TextField
             value={reason}
-            placeholder="Reason (optional)"
+            placeholder={t("requests.decline.reason")}
             fid="reason"
             width={288}
             initial
@@ -635,8 +650,8 @@ export function RequestPanel(p: { request: MediaRequest; manage: boolean; onClos
             }}
           />
         </div>
-        <PanelRow fid="decline" label="Decline" icon="ban" onSelect={() => p.onAction(r, "decline_reason", reason)} />
-        <PanelRow fid="cancel" label="Cancel" icon="arrow-left" onSelect={back} />
+        <PanelRow fid="decline" label={t("requests.actions.decline")} icon="ban" onSelect={() => p.onAction(r, "decline_reason", reason)} />
+        <PanelRow fid="cancel" label={t("common.actions.cancel")} icon="arrow-left" onSelect={back} />
       </>
     );
   } else {
@@ -659,7 +674,7 @@ export function RequestPanel(p: { request: MediaRequest; manage: boolean; onClos
         {r.item_id !== null && (
           <PanelRow
             fid="open"
-            label="Open"
+            label={t("requests.buttons.open")}
             icon="play"
             initial={initial("open")}
             onSelect={() => {
@@ -687,7 +702,7 @@ export function RequestPanel(p: { request: MediaRequest; manage: boolean; onClos
         ))}
         <PanelRow
           fid="details"
-          label="Details"
+          label={t("requests.buttons.details")}
           icon="info"
           initial={initial("details")}
           onSelect={() => {
@@ -714,9 +729,9 @@ function PeoplePanel(p: { people: RequestUser[]; picked: number | null; pickedNa
     people = [picked].concat(people);
   }
   return (
-    <SidePanel onClose={p.onClose} label="Asked by">
-      <PanelTitle>Asked by</PanelTitle>
-      <PanelRow fid="person/all" label="Everyone" icon="users" checked={p.picked === null} initial={p.picked === null} onSelect={() => p.onPick(null)} />
+    <SidePanel onClose={p.onClose} label={t("requests.page.askedBy")}>
+      <PanelTitle>{t("requests.page.askedBy")}</PanelTitle>
+      <PanelRow fid="person/all" label={t("requests.page.everyone")} icon="users" checked={p.picked === null} initial={p.picked === null} onSelect={() => p.onPick(null)} />
       {people.map((u) => (
         <PanelRow key={u.id} fid={`person/${u.id}`} label={u.name} icon="user-round" checked={u.id === p.picked} initial={u.id === p.picked} onSelect={() => p.onPick(u)} />
       ))}

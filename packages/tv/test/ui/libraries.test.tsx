@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../src/api/client";
 import type { Library, User } from "../../src/api/types";
 import type { KeyValue } from "../../src/auth/tokens";
+import { setLanguage } from "../../src/i18n";
 import type { Platform } from "../../src/platform";
 import { AppState } from "../../src/state";
 import { UiContext, type Ui } from "../../src/ui/context";
@@ -11,7 +12,7 @@ import { FocusManager } from "../../src/ui/focus";
 import { Input } from "../../src/ui/input";
 import type { Key } from "../../src/ui/keys";
 import { AppContext } from "../../src/ui/screens/common";
-import { LibrariesScreen, SORT_NEEDS_NEWER } from "../../src/ui/screens/library";
+import { LibrariesScreen } from "../../src/ui/screens/library";
 import { gridStep, inOrder, moved, sameOrder } from "../../src/ui/screens/library-data";
 import type { Entry, PageKey } from "../../src/ui/shell/navigator";
 
@@ -266,7 +267,7 @@ describe("Sort libraries", () => {
     t.press("right");
     t.press("ok");
     await t.settle();
-    expect(t.toasts).toEqual([SORT_NEEDS_NEWER]);
+    expect(t.toasts).toEqual(["Sorting libraries needs a newer Pley on the server."]);
     expect(t.order()).toEqual([1, 2, 3, 4, 5]);
     expect(t.title()).toBe("Libraries");
     expect(t.el("sort")).toBeNull();
@@ -301,5 +302,23 @@ describe("Sort libraries", () => {
     expect(t.lifted()).toBeNull();
     await t.settle();
     expect(t.sent).toEqual([[2, 3, 1, 4, 5]]);
+  });
+});
+
+describe("the Libraries page in another language", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("draws again in the language shown, its counts in its words", () => {
+    const t = setup();
+    act(() => setLanguage("fr"));
+    expect(t.title()).toBe("Bibliothèques");
+    expect(t.el("sort")!.textContent).toBe("Trier les bibliothèques");
+    expect(t.el("library/1")!.querySelector(".card-sub")!.textContent).toBe("10 films");
+    act(() => setLanguage("es"));
+    expect(t.title()).toBe("Bibliotecas");
+    expect(t.el("library/1")!.getAttribute("aria-label")).toBe("Movies, 10 películas");
+    t.select("sort");
+    expect(t.title()).toBe("Ordenar bibliotecas");
+    expect(t.el("library/1")!.getAttribute("aria-label")).toBe("Movies, 10 películas, 1 de 5");
   });
 });

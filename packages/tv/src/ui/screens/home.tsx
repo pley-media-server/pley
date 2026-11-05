@@ -2,6 +2,7 @@ import { useSignal, type Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Hub, ItemDetail, ItemSummary, LibrarySort } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatRuntime, formatTimeLeft, isInProgress, isPlayableVideo } from "../../format/format";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { artCandidates } from "../kit/art";
 import { Backdrop, useRested } from "../kit/backdrop";
@@ -120,25 +121,25 @@ export function HomeScreen(p: { entry: Entry }) {
   }, []);
   const rows = (hubs ?? []).filter((h) => h.items.length > 0);
   if (!hubs) {
-    if (libraries && !libraries.length) return <Message title="No libraries yet" body="Ask the server owner to add a library." />;
+    if (libraries && !libraries.length) return <Message title={t("browse.home.noLibraries")} body={t("browse.home.noLibrariesHint")} />;
     if (error) {
       return (
         <Message
-          title={failedTitle(error, "Couldn't load your home screen")}
+          title={failedTitle(error, t("browse.home.cantLoad"))}
           body={problem(error)}
-          action={{ label: "Retry", icon: "refresh-cw", onSelect: () => void app.loadHome() }}
+          action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: () => void app.loadHome() }}
         />
       );
     }
     return slow ? <HomeSkeleton /> : null;
   }
   if (!rows.length) {
-    if (libraries && !libraries.length) return <Message title="No libraries yet" body="Ask the server owner to add a library." />;
+    if (libraries && !libraries.length) return <Message title={t("browse.home.noLibraries")} body={t("browse.home.noLibrariesHint")} />;
     const scanning = (libraries ?? []).some((l) => l.scanning);
     return scanning ? (
-      <Message title="Scanning your libraries…" body="New items will show up here as soon as they're found." />
+      <Message title={t("browse.home.scanning")} body={t("browse.home.scanningHint")} />
     ) : (
-      <Message title="Nothing here yet" body="Your libraries are empty. Add media to the library folders and run a scan." />
+      <Message title={t("browse.home.empty")} body={t("browse.home.emptyHint")} />
     );
   }
   return <HomeRows entry={p.entry} rows={rows} />;
@@ -393,12 +394,12 @@ function Hero(p: { item: ItemSummary; detail: ItemDetail | null; hidden: boolean
           <div ref={(el) => {
             resumeRef.current = el;
           }} style="display:flex">
-            <Pill label={info.inProgress ? "Resume" : "Play"} icon="play" fid="hero/play" initial onFocus={focus} onSelect={() => void playItem(app, ui, item)} />
+            <Pill label={info.inProgress ? t("common.actions.resume") : t("common.actions.play")} icon="play" fid="hero/play" initial onFocus={focus} onSelect={() => void playItem(app, ui, item)} />
           </div>
-          {info.inProgress && <Round label="From start" icon="rotate-ccw" fid="hero/start" onFocus={focus} onSelect={() => void playItem(app, ui, item, { fromStart: true })} />}
-          <Round label="Info" icon="info" fid="hero/info" onFocus={focus} onSelect={() => ui.nav.open(pageOf(item))} />
+          {info.inProgress && <Round label={t("browse.actions.fromStart")} icon="rotate-ccw" fid="hero/start" onFocus={focus} onSelect={() => void playItem(app, ui, item, { fromStart: true })} />}
+          <Round label={t("browse.actions.info")} icon="info" fid="hero/info" onFocus={focus} onSelect={() => ui.nav.open(pageOf(item))} />
           <Round
-            label={info.watched ? "Mark as unwatched" : "Mark as watched"}
+            label={info.watched ? t("browse.actions.markUnwatched") : t("browse.actions.markWatched")}
             icon="circle-check"
             fid="hero/watched"
             onFocus={focus}
@@ -424,7 +425,7 @@ function HomeSkeleton() {
   );
   const l = TILES.landscape;
   return (
-    <div class="home" aria-label="Loading your home screen" role="status">
+    <div class="home" aria-label={t("browse.home.loading")} role="status">
       {block(96, 84, 260, 38)}
       {block(96, 132, 210, 18)}
       {block(96, 168, 440, 15)}

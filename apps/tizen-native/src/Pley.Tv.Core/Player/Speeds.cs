@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace Pley.Tv.Core.Player;
 
@@ -9,8 +8,8 @@ public static class PlaybackSpeeds
 {
     public static readonly IReadOnlyList<double> All = new[] { 0.5, 0.75, 1, 1.25, 1.5, 2 };
 
-    /// <summary>"1×", "1.25×", "0.5×".</summary>
-    public static string Label(double speed) => speed.ToString("0.##", CultureInfo.InvariantCulture) + "×";
+    /// <summary>"1×", "1.25×", "0.5×" (in French "1,25×", as the web writes it).</summary>
+    public static string Label(double speed) => speed.ToString("0.##", PlayerText.Numbers) + "×";
 }
 
 /// <summary>The audio delay's range and step (the Android app's AudioDelays).</summary>
@@ -25,8 +24,8 @@ public static class AudioDelays
     /// <summary>"+0.25 s", "−1.5 s", "0 s": the sound later (+) or earlier (−) than the picture.</summary>
     public static string Label(long ms)
     {
-        if (ms == 0) return "0 s";
-        var seconds = (Math.Abs(ms) / 1000m).ToString("0.###", CultureInfo.InvariantCulture);
-        return (ms > 0 ? "+" : "−") + seconds + " s";
+        if (ms == 0) return Strings.T("player.units.seconds", ("value", "0"));
+        var seconds = (Math.Abs(ms) / 1000m).ToString("0.###", PlayerText.Numbers);
+        return Strings.T("player.units.seconds", ("value", (ms > 0 ? "+" : "−") + seconds));
     }
 }

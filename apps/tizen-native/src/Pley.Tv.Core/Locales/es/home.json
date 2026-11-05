@@ -1,0 +1,15 @@
+{
+  "hero": {
+    "info": "Información"
+  },
+  "states": {
+    "failed": "No se pudo cargar tu pantalla de inicio",
+    "noLibraries": "Aún no hay bibliotecas",
+    "noLibrariesBody": "Pide al propietario del servidor que añada una biblioteca.",
+    "scanning": "Analizando tus bibliotecas…",
+    "scanningBody": "Los nuevos elementos aparecerán aquí en cuanto se encuentren.",
+    "empty": "Aún no hay nada",
+    "emptyBody": "Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis."
+  },
+  "comesNext": "Esa página llegará pronto a la aplicación nativa."
+}

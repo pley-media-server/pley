@@ -1,4 +1,5 @@
 import type { KeyValue } from "../auth/tokens";
+import { formatNumber } from "../i18n";
 
 /**
  * Moving subtitles in time, for files whose subtitles are early or late:
@@ -15,11 +16,11 @@ export function clampOffset(ms: number): number {
   return Math.max(-SYNC_MAX_MS, Math.min(SYNC_MAX_MS, stepped)) + 0;
 }
 
-/** `+0.5 s`, `−1.2 s`, `0.0 s`. */
+/** `+0.5 s`, `−1.2 s`, `0.0 s` (`+0,5 s` in French). */
 export function formatOffset(ms: number): string {
   const v = clampOffset(ms);
   const sign = v > 0 ? "+" : v < 0 ? "−" : "";
-  return `${sign}${(Math.abs(v) / 1000).toFixed(1)} s`;
+  return `${sign}${formatNumber(Math.abs(v) / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
 }
 
 const KEY = "pley.subtitleOffsets";

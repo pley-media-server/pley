@@ -1,0 +1,30 @@
+{
+  "field": "Buscar películas, series, personas…",
+  "searching": "Buscando…",
+  "recent": {
+    "title": "Búsquedas recientes",
+    "clear": "Borrar"
+  },
+  "empty": {
+    "title": "Busca en tus bibliotecas",
+    "body": "Encuentra películas, series, episodios, personas, artistas, álbumes, pistas y canales de TV en vivo. Pulsa OK en el campo para escribir o usa el micrófono de tu teclado."
+  },
+  "none": {
+    "title": "No hay resultados para «{{query}}»",
+    "body": "Prueba con otra ortografía o con menos palabras."
+  },
+  "nothingInLibraries": "Nada en tus bibliotecas coincide",
+  "failed": "La búsqueda falló",
+  "retry": "Reintentar",
+  "groups": {
+    "people": "Personas",
+    "liveTv": "TV en vivo",
+    "movies": "Películas",
+    "shows": "Series",
+    "seasons": "Temporadas",
+    "episodes": "Episodios",
+    "artists": "Artistas",
+    "albums": "Álbumes",
+    "tracks": "Pistas"
+  }
+}

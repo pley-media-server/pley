@@ -39,77 +39,80 @@ public sealed record PlaylistButtonView(PlaylistButton Button, string Label, str
 /// </summary>
 public static class PlaylistText
 {
-    public const string PlaylistsTitle = "Playlists";
-    public const string New = "New playlist";
-    public const string PlaylistsFailed = "Couldn't load your playlists";
-    public const string NoneTitle = "No playlists yet";
-    public const string NoneBody = "Make one here, or use “Add to playlist” on a movie, show, album or episode (also when holding OK on a poster).";
-    public const string Retry = "Retry";
+    public static string PlaylistsTitle => Strings.T("playlists.list.title");
+    public static string New => Strings.T("playlists.list.new");
+    public static string PlaylistsFailed => Strings.T("playlists.list.failed");
+    public static string NoneTitle => Strings.T("playlists.list.noneTitle");
+    public static string NoneBody => Strings.T("playlists.list.noneBody");
+    public static string Retry => Strings.T("playlists.list.retry");
     /// <summary>The Smart badge, and the word after a smart playlist's meta.</summary>
-    public const string SmartBadge = "Smart";
+    public static string SmartBadge => Strings.T("playlists.list.smart");
 
-    public const string VideoPlaylist = "Video playlist";
-    public const string MusicPlaylist = "Music playlist";
-    public const string SmartPlaylist = "Smart playlist";
-    public const string Play = "Play";
-    public const string Shuffle = "Shuffle";
-    public const string Rename = "Rename";
-    public const string Delete = "Delete";
-    public const string Failed = "Couldn't load this playlist";
-    public const string NotFound = "Playlist not found";
-    public const string NotFoundBody = "It was deleted, or it belongs to another profile.";
-    public const string Back = "Back";
-    public const string EmptySmart = "Nothing matches this playlist's filter yet.";
-    public const string EmptyVideo = "This playlist is empty. Use “Add to playlist” on a movie, show or episode, or hold OK on a poster.";
-    public const string EmptyMusic = "This playlist is empty. Use “Add to playlist” on an artist or album, or hold OK on a cover.";
-    public const string More = "More";
-    public const string PlayFromHere = "Play from here";
-    public const string Move = "Move";
-    public const string Remove = "Remove from playlist";
-    public const string Moving = "Up and down to move it, OK to drop it here, Back to put it back";
-    public const string DeleteTitle = "Delete playlist?";
-    public const string Cancel = "Cancel";
-    public const string RenameTitle = "Rename playlist";
-    public const string Save = "Save";
+    public static string VideoPlaylist => Strings.T("playlists.page.video");
+    public static string MusicPlaylist => Strings.T("playlists.page.music");
+    public static string SmartPlaylist => Strings.T("playlists.page.smart");
+    public static string Play => Strings.T("playlists.page.play");
+    public static string Shuffle => Strings.T("playlists.page.shuffle");
+    public static string Rename => Strings.T("playlists.page.rename");
+    public static string Delete => Strings.T("playlists.page.delete");
+    public static string Failed => Strings.T("playlists.page.failed");
+    public static string NotFound => Strings.T("playlists.page.notFound");
+    public static string NotFoundBody => Strings.T("playlists.page.notFoundBody");
+    public static string Back => Strings.T("playlists.page.back");
+    public static string EmptySmart => Strings.T("playlists.page.emptySmart");
+    public static string EmptyVideo => Strings.T("playlists.page.emptyVideo");
+    public static string EmptyMusic => Strings.T("playlists.page.emptyMusic");
+    public static string More => Strings.T("playlists.page.more");
+    public static string PlayFromHere => Strings.T("playlists.page.playFromHere");
+    public static string Move => Strings.T("playlists.page.move");
+    public static string Remove => Strings.T("playlists.page.remove");
+    public static string Moving => Strings.T("playlists.page.moving");
+    public static string DeleteTitle => Strings.T("playlists.page.deleteTitle");
+    public static string Cancel => Strings.T("playlists.page.cancel");
+    public static string RenameTitle => Strings.T("playlists.page.renameTitle");
+    public static string Save => Strings.T("playlists.page.save");
 
-    public const string FormTitle = "Title";
-    public const string FormFor = "For";
-    public const string FormVideo = "Movies & TV";
-    public const string FormMusic = "Music";
-    public const string FormCreate = "Create";
-    public const string FormHint = "Press OK on the title to type it.";
-    public const string NewBody = "Name it, then add to it with “Add to playlist” on any title.";
-    public const string SmartTitle = "Save these filters";
-    public const string SmartBodyPlain = "It keeps up with the library by itself.";
+    public static string FormTitle => Strings.T("playlists.form.title");
+    public static string FormFor => Strings.T("playlists.form.for");
+    public static string FormVideo => Strings.T("playlists.form.video");
+    public static string FormMusic => Strings.T("playlists.form.music");
+    public static string FormCreate => Strings.T("playlists.form.create");
+    public static string FormHint => Strings.T("playlists.form.hint");
+    public static string NewBody => Strings.T("playlists.form.newBody");
+    public static string SmartTitle => Strings.T("playlists.form.smartTitle");
+    public static string SmartBodyPlain => Strings.T("playlists.form.smartBody");
 
-    public const string AddToPlaylist = "Add to playlist";
-    public const string AddNewVideo = "New video playlist";
-    public const string AddNewMusic = "New music playlist";
-    public const string AddCreate = "Create";
-    public const string AddYours = "Your playlists";
-    public const string AddNoneVideo = "No video playlists yet: name one above.";
-    public const string AddNoneMusic = "No music playlists yet: name one above.";
-    public const string AddNothing = "Nothing to add";
+    public static string AddToPlaylist => Strings.T("playlists.add.title");
+    public static string AddNewVideo => Strings.T("playlists.add.newVideo");
+    public static string AddNewMusic => Strings.T("playlists.add.newMusic");
+    public static string AddCreate => Strings.T("playlists.add.create");
+    public static string AddYours => Strings.T("playlists.add.yours");
+    public static string AddNoneVideo => Strings.T("playlists.add.noneVideo");
+    public static string AddNoneMusic => Strings.T("playlists.add.noneMusic");
+    public static string AddNothing => Strings.T("playlists.add.nothing");
+
+    /// <summary>"12 items", "1 item": a playlist's entries, or what is added.</summary>
+    public static string Items(long n) => Strings.Count("playlists.count.items", n);
 
     /// <summary>"Go to Northern Lights".</summary>
-    public static string GoTo(string title) => $"Go to {title}";
+    public static string GoTo(string title) => Strings.T("playlists.page.goTo", ("title", title));
 
     /// <summary>Removed “Half Loop”.</summary>
-    public static string Removed(string title) => $"Removed “{title}”";
+    public static string Removed(string title) => Strings.T("playlists.page.removed", ("title", title));
 
     /// <summary>“Road trip” will be deleted. What's in it stays in your libraries.</summary>
-    public static string DeleteBody(string title) => $"“{title}” will be deleted. What's in it stays in your libraries.";
+    public static string DeleteBody(string title) => Strings.T("playlists.page.deleteBody", ("title", title));
 
     /// <summary>"Genre: Comedy · Unwatched. It keeps up with the library by itself."</summary>
     public static string SmartBody(IReadOnlyList<string> filters) =>
-        filters.Count == 0 ? SmartBodyPlain : $"{string.Join(" · ", filters)}. It keeps up with the library by itself.";
+        filters.Count == 0 ? SmartBodyPlain : Strings.T("playlists.form.smartBodyFilters", ("filters", string.Join(" · ", filters)));
 
     /// <summary>"Added to Road trip", "Added 19 items to Road trip", "Nothing to add", as the web says them.</summary>
     public static string Added(AddEvent.Added added) => added.Entries switch
     {
         0 => AddNothing,
-        null or 1 => $"Added to {added.Playlist}",
-        var n => $"Added {n} items to {added.Playlist}",
+        null or 1 => Strings.T("playlists.add.addedTo", ("playlist", added.Playlist)),
+        int n => Strings.Count("playlists.add.addedItems", n, ("playlist", added.Playlist)),
     };
 
     // ---- the playlists page

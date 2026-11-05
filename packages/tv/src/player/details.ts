@@ -1,44 +1,46 @@
 import type { MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, TranscodeInfo } from "../api/types";
 import { codecLabel, formatBitrate, resolutionLabel, streamRange } from "../format/format";
+import { formatNumber, t } from "../i18n";
 import { isPicture } from "./plan";
 import type { FallbackReason } from "./recovery";
 
-/** What the player says, as the Android app's strings_session.xml does. */
-export const T = {
-  /** The menu's value while Automatic plays: "Automatic · 8 Mbps 1080p". */
-  automatic: (now: string) => `Automatic · ${now}`,
-  autoHint: "Dynamically adjust to conditions",
-  autoNow: (now: string, why: string | null) => (why ? `Now ${now} · ${why}` : `Now ${now}`),
-  lowered: { network: "Lowered for your connection", device: "Lowered for this device" },
-  smoother: (label: string) => `Quality lowered to ${label}`,
+// What the player says is in the player area's words (i18n/locales/<language>/player.json), as the
+// Android app's are in its strings_session.xml; these put together the lines made of parts.
 
-  upNext: (label: string | null) => (label ? `Up next · ${label}` : "Up next"),
-  lastEpisode: "This is the last episode",
-  lastInQueue: "This is the last one",
-  subtitlesOff: "Off",
-  subtitlesFailed: "These subtitles couldn't be loaded.",
-  subtitlesAdded: (label: string) => `Subtitles added: ${label}`,
-  slowServer: "The server can't keep up with this video. Try a lower quality.",
-  noFile: "This item has no file to play.",
-  burnedIn: "Burned in",
-  reconnecting: "Reconnecting…",
-  offlineTitle: "Can't reach your server",
-  offlineBody: "Check that the server is on and that this device is on its network.",
-} as const;
+/** The menu's value while Automatic plays: "Automatic · 8 Mbps 1080p". */
+export function automaticAt(now: string): string {
+  return t("player.quality.automaticAt", { quality: now });
+}
+
+/** Automatic's hint: what it plays now, and why that is lower when it is ("Now 4 Mbps 720p · Lowered for your connection"). */
+export function automaticNow(now: string, why: string | null): string {
+  return why ? t("player.quality.nowBecause", { quality: now, why }) : t("player.quality.now", { quality: now });
+}
+
+/** Why Automatic plays lower than the original. */
+export function loweredText(why: "network" | "device"): string {
+  return why === "network" ? t("player.quality.lowered.network") : t("player.quality.lowered.device");
+}
+
+/** Up Next's heading: "Up next · S1 · E2", or "Up next". */
+export function upNextHeading(label: string | null): string {
+  return label ? t("player.upNext.episode", { episode: label }) : t("player.upNext.title");
+}
 
 export function methodText(info: PlaybackInfo): string {
-  if (info.method === "remux") return info.audio_converted ? "Direct stream · Audio transcoding" : "Direct stream";
-  if (info.method === "transcode") return "Transcoding";
-  return "Direct play";
+  const remux = t("player.details.method.remux");
+  if (info.method === "remux") return info.audio_converted ? `${remux} · ${t("player.details.audioTranscoding")}` : remux;
+  if (info.method === "transcode") return t("player.details.method.transcode");
+  return t("player.details.method.direct");
 }
 
 export function fallbackText(reason: FallbackReason): string {
-  return reason === "unplayable" ? "This device couldn't play the original file." : "The original didn't play smoothly on this device.";
+  return reason === "unplayable" ? t("player.errors.originalFailed") : t("player.errors.originalNotSmooth");
 }
 
 /** The server stopped the playback: who did, and their message when given. */
 export function stoppedText(message: string | null, byAdmin: boolean): string {
-  const who = byAdmin ? "Playback was stopped by the server's administrator." : "Playback was stopped from another device.";
+  const who = byAdmin ? t("player.errors.stoppedByAdmin") : t("player.errors.stoppedElsewhere");
   return message && message.trim() ? `${who}\n${message.trim()}` : who;
 }
 
@@ -76,7 +78,14 @@ const ENCODERS: Record<string, string> = {
   hevc_qsv: "Intel Quick Sync", h264_amf: "AMD AMF", hevc_amf: "AMD AMF", h264_vaapi: "VA-API", hevc_vaapi: "VA-API",
   h264_videotoolbox: "VideoToolbox", hevc_videotoolbox: "VideoToolbox", h264_vulkan: "Vulkan", hevc_vulkan: "Vulkan", h264_v4l2m2m: "V4L2",
 };
-const PIPELINE: Record<string, string> = { gpu: "GPU", hybrid: "GPU and CPU", cpu: "CPU", copy: "copy" };
+/** Where the transcoder works: "GPU", "CPU", both, or "copy" (the video copied). */
+function pipelineLabel(pipeline: string): string {
+  if (pipeline === "gpu") return "GPU";
+  if (pipeline === "cpu") return "CPU";
+  if (pipeline === "hybrid") return t("player.details.pipeline.hybrid");
+  if (pipeline === "copy") return t("player.details.pipeline.copy");
+  return pipeline;
+}
 const CHANNELS: Record<number, string> = { 1: "1.0", 2: "2.0", 3: "2.1", 6: "5.1", 7: "6.1", 8: "7.1" };
 
 /** A video stream as "HEVC 4K Dolby Vision P8.1", "HEVC 4K Dolby Vision P7 FEL". */
@@ -91,7 +100,7 @@ export function videoLabel(v: MediaStream | null): string {
  * layer)"), else `null` (SDR video, or an older server).
  */
 export function shownAs(info: PlaybackInfo, live: TranscodeInfo | null): string | null {
-  if (live?.tonemap) return `SDR (tone-mapped with ${live.tonemap})`;
+  if (live?.tonemap) return t("player.details.toneMapped", { method: live.tonemap });
   return info.video_range ?? null;
 }
 
@@ -109,7 +118,7 @@ export function simplified(text: string): string {
 
 export function encoderLabel(t: TranscodeInfo): string {
   const name = t.encoder ? ENCODERS[t.encoder] ?? t.encoder : null;
-  const where = t.pipeline && t.pipeline !== "copy" ? `(${PIPELINE[t.pipeline] ?? t.pipeline})` : null;
+  const where = t.pipeline && t.pipeline !== "copy" ? `(${pipelineLabel(t.pipeline)})` : null;
   return [name, where].filter(Boolean).join(" ");
 }
 
@@ -143,21 +152,21 @@ export function buildDetails(opts: {
   const bitrate = formatBitrate(file?.bitrate);
   const ahead = transcode ? Math.max(0, Math.floor((transcode.transcoded_ms - opts.positionMs) / 1000)) : 0;
   const rows: DetailRow[] = [];
-  if (video) rows.push({ label: "Video", value: videoRow });
-  if (audio) rows.push({ label: "Audio", value: audioRow });
-  if (bitrate) rows.push({ label: "Bitrate", value: bitrate });
-  if (transcode?.video === "transcode" && transcode.encoder) rows.push({ label: "Encoder", value: encoderLabel(transcode) });
+  if (video) rows.push({ label: t("player.details.video"), value: videoRow });
+  if (audio) rows.push({ label: t("player.details.audio"), value: audioRow });
+  if (bitrate) rows.push({ label: t("player.details.bitrate"), value: bitrate });
+  if (transcode?.video === "transcode" && transcode.encoder) rows.push({ label: t("player.details.encoder"), value: encoderLabel(transcode) });
   const shown = video ? shownAs(info, transcode) : null;
-  if (shown) rows.push({ label: "Shown as", value: shown });
-  if (transcode?.subtitle_burn) rows.push({ label: "Subtitles", value: T.burnedIn });
+  if (shown) rows.push({ label: t("player.details.shownAs"), value: shown });
+  if (transcode?.subtitle_burn) rows.push({ label: t("player.details.subtitles"), value: t("player.details.burnedIn") });
   if (transcode?.speed && transcode.speed > 0) {
-    const speed = transcode.speed.toFixed(1);
-    rows.push({ label: "Speed", value: ahead > 0 ? `${speed}× real time · ${ahead} s ready` : `${speed}× real time` });
+    const speed = formatNumber(transcode.speed, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    rows.push({ label: t("player.details.speed"), value: ahead > 0 ? t("player.details.realTimeReady", { speed, seconds: ahead }) : t("player.details.realTime", { speed }) });
   }
   return {
     method: methodText(info),
     why,
-    pipeline: transcode?.pipeline && transcode.video === "transcode" ? PIPELINE[transcode.pipeline] ?? transcode.pipeline : null,
+    pipeline: transcode?.pipeline && transcode.video === "transcode" ? pipelineLabel(transcode.pipeline) : null,
     rows,
     playbackMethod: info.method,
     file,

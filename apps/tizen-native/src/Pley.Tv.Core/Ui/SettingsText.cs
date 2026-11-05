@@ -5,96 +5,108 @@ using Pley.Tv.Core.Player;
 
 namespace Pley.Tv.Core.Ui;
 
-/// <summary>What Settings and the Me page say (the Android app's strings_tv_account.xml and strings_tv_shell.xml's settings).</summary>
+/// <summary>
+/// What Settings and the Me page say (the Android app's strings_tv_account.xml and
+/// strings_tv_shell.xml's settings), in the language shown (Locales/*/settings.json).
+/// </summary>
 public static class SettingsText
 {
-    public const string Title = "Settings";
+    public static string Title => Strings.T("settings.title");
 
     // The categories.
-    public const string Profile = "Profile";
-    public const string Playback = "Playback";
-    public const string Audio = "Audio";
-    public const string Display = "Subtitles and display";
-    public const string Server = "Server";
-    public const string Diagnostics = "Diagnostics";
-    public const string About = "About";
-    public const string SignOut = "Sign out";
+    public static string Profile => Strings.T("settings.categories.profile");
+    public static string Playback => Strings.T("settings.categories.playback");
+    public static string Audio => Strings.T("settings.categories.audio");
+    public static string Display => Strings.T("settings.categories.display");
+    public static string Server => Strings.T("settings.categories.server");
+    public static string Diagnostics => Strings.T("settings.categories.diagnostics");
+    public static string About => Strings.T("settings.categories.about");
+    public static string SignOut => Strings.T("settings.categories.signOut");
 
     // Profile (the Me page).
-    public const string RoleManaged = "Managed profile";
-    public const string SwitchProfile = "Switch profile";
-    public const string AudioLanguage = "Audio language";
-    public const string Subtitles = "Subtitles";
-    public const string SubtitleLanguage = "Subtitle language";
-    public const string FileDefault = "The file's default";
-    public const string SameAsAudio = "Same as the audio language";
-    public const string ChangeOnWeb = "change on the web";
-    public const string ReadOnly = "This server doesn't let the app change these: change them on the web";
-    public const string Saved = "Saved";
-    public const string SubtitlesOff = "Off";
-    public const string SubtitlesOffHint = "Subtitles stay off until you turn them on.";
-    public const string SubtitlesForced = "Only for foreign dialogue";
-    public const string SubtitlesForcedHint = "Only forced subtitles, for signs and foreign dialogue.";
-    public const string SubtitlesForeign = "When the audio is in another language";
-    public const string SubtitlesForeignHint = "Full subtitles come on when the audio isn't in your subtitle language.";
-    public const string SubtitlesAlways = "Always";
-    public const string SubtitlesAlwaysHint = "Subtitles in your language come on whenever there are some.";
-    public const string History = "Watch history";
-    public const string SortLibraries = "Sort libraries";
-    public const string SortLibrariesValue = "Your order, on all your devices";
-    public const string AlwaysStartAs = "Always start as";
-    public const string AskWho = "Ask who's watching";
-    public const string ManageWeb = "Manage your account on the web";
-    public const string ManageWebValue = "Name, picture, password, PIN, two-step, devices and apps";
-    public const string WebTitle = "Manage your account on the web";
-    public const string WebBody = "Scan the code with your phone, or go to this address on a phone or computer on the same network:";
-    public const string Close = "Close";
-    public const string SignOutTitle = "Sign out?";
-    public const string Cancel = "Cancel";
+    public static string RoleManaged => Strings.T("settings.profile.roleManaged");
+    public static string SwitchProfile => Strings.T("settings.profile.switchProfile");
+    public static string AudioLanguage => Strings.T("settings.profile.audioLanguage");
+    public static string Subtitles => Strings.T("settings.profile.subtitles");
+    public static string SubtitleLanguage => Strings.T("settings.profile.subtitleLanguage");
+    public static string FileDefault => Strings.T("settings.profile.fileDefault");
+    public static string SameAsAudio => Strings.T("settings.profile.sameAsAudio");
+    public static string ChangeOnWeb => Strings.T("settings.profile.changeOnWeb");
+    public static string ReadOnly => Strings.T("settings.profile.readOnly");
+    public static string Saved => Strings.T("settings.profile.saved");
+    public static string SubtitlesOff => Strings.T("settings.subtitleModes.off");
+    public static string SubtitlesOffHint => Strings.T("settings.subtitleModes.offHint");
+    public static string SubtitlesForced => Strings.T("settings.subtitleModes.forced");
+    public static string SubtitlesForcedHint => Strings.T("settings.subtitleModes.forcedHint");
+    public static string SubtitlesForeign => Strings.T("settings.subtitleModes.foreign");
+    public static string SubtitlesForeignHint => Strings.T("settings.subtitleModes.foreignHint");
+    public static string SubtitlesAlways => Strings.T("settings.subtitleModes.always");
+    public static string SubtitlesAlwaysHint => Strings.T("settings.subtitleModes.alwaysHint");
+    public static string History => Strings.T("settings.profile.history");
+    public static string SortLibraries => Strings.T("settings.profile.sortLibraries");
+    public static string SortLibrariesValue => Strings.T("settings.profile.sortLibrariesValue");
+    public static string AlwaysStartAs => Strings.T("settings.profile.alwaysStartAs");
+    public static string AskWho => Strings.T("settings.profile.askWho");
+    public static string ManageWeb => Strings.T("settings.profile.manageWeb");
+    public static string ManageWebValue => Strings.T("settings.profile.manageWebValue");
+    public static string WebTitle => Strings.T("settings.web.title");
+    public static string WebBody => Strings.T("settings.web.body");
+    public static string Close => Strings.T("common.actions.close");
+    public static string SignOutTitle => Strings.T("settings.signOut.title");
+    public static string Cancel => Strings.T("common.actions.cancel");
+
+    // The language, in the catalogs (Locales/*/settings.json).
+    public static string Language => Strings.T("settings.language.label");
+
+    /// <summary>"Server default (Français)": the profile has no language of its own.</summary>
+    public static string ServerDefault(string language) => Strings.T("settings.language.serverDefault", ("language", language));
+
+    /// <summary>"this device's language, English": what Server default stands for when the server has no language.</summary>
+    public static string TvLanguage(string language) => Strings.T("settings.language.deviceLanguage", ("language", language));
 
     // Playback.
-    public const string Quality = "Quality";
-    public const string QualityOriginal = "Original";
-    public const string QualityOriginalHint = "Full quality. May buffer on a slow connection.";
-    public const string QualityAutomatic = "Automatic";
-    public const string QualityAutomaticHint = "Dynamically adjust to conditions.";
-    public const string Autoplay = "Play the next episode by itself";
-    public const string AutoplayHint = "After a 10 second countdown";
-    public const string PlaybackDetails = "Playback details";
-    public const string PlaybackDetailsHint = "Show how a video plays (direct, remux or transcode) over it";
-    public const string ReduceMotion = "Reduce motion";
-    public const string ReduceMotionHint = "No zooming, sliding or fading: things change in place";
+    public static string Quality => Strings.T("settings.playback.quality");
+    public static string QualityOriginal => Strings.T("settings.playback.original");
+    public static string QualityOriginalHint => Strings.T("settings.playback.originalHint");
+    public static string QualityAutomatic => Strings.T("settings.playback.automatic");
+    public static string QualityAutomaticHint => Strings.T("settings.playback.automaticHint");
+    public static string Autoplay => Strings.T("settings.playback.autoplay");
+    public static string AutoplayHint => Strings.T("settings.playback.autoplayHint");
+    public static string PlaybackDetails => Strings.T("settings.playback.details");
+    public static string PlaybackDetailsHint => Strings.T("settings.playback.detailsHint");
+    public static string ReduceMotion => Strings.T("settings.display.reduceMotion");
+    public static string ReduceMotionHint => Strings.T("settings.display.reduceMotionHint");
 
     // Audio.
-    public const string PassthroughIntro = "Send surround sound to your TV or receiver, or decode it here.";
-    public const string PassthroughAuto = "Auto";
-    public const string PassthroughAutoHint = "As the TV or receiver says it plays";
-    public const string PassthroughOn = "On";
-    public const string PassthroughOnHint = "Always pass it through";
-    public const string PassthroughOff = "Off";
-    public const string PassthroughOffHint = "Never: Pley converts it";
+    public static string PassthroughIntro => Strings.T("settings.audio.intro");
+    public static string PassthroughAuto => Strings.T("settings.audio.auto");
+    public static string PassthroughAutoHint => Strings.T("settings.audio.autoHint");
+    public static string PassthroughOn => Strings.T("settings.audio.on");
+    public static string PassthroughOnHint => Strings.T("settings.audio.onHint");
+    public static string PassthroughOff => Strings.T("settings.audio.off");
+    public static string PassthroughOffHint => Strings.T("settings.audio.offHint");
 
     // Subtitles and display.
-    public const string SubtitleSize = "Subtitle size";
-    public const string SubtitleBackground = "Subtitle background";
-    public const string SubtitleFont = "Subtitle font";
-    public const string SubtitlePosition = "Subtitle position";
+    public static string SubtitleSize => Strings.T("settings.display.subtitleSize");
+    public static string SubtitleBackground => Strings.T("settings.display.subtitleBackground");
+    public static string SubtitleFont => Strings.T("settings.display.subtitleFont");
+    public static string SubtitlePosition => Strings.T("settings.display.subtitlePosition");
 
     // Server, Diagnostics, About.
-    public const string ServerValue = "The server this TV uses";
-    public const string ServerUnknown = "No server";
-    public const string SwitchServer = "Switch server";
-    public const string OpenDiagnostics = "Open diagnostics";
-    public const string OpenDiagnosticsValue = "What this TV decodes and shows, and why";
-    public const string Version = "Version";
-    public const string Licences = "Open-source licences";
-    public const string Credits = "Credits";
+    public static string ServerValue => Strings.T("settings.server.value");
+    public static string ServerUnknown => Strings.T("settings.server.unknown");
+    public static string SwitchServer => Strings.T("settings.server.switch");
+    public static string OpenDiagnostics => Strings.T("settings.diagnostics.open");
+    public static string OpenDiagnosticsValue => Strings.T("settings.diagnostics.openValue");
+    public static string Version => Strings.T("settings.about.version");
+    public static string Licences => Strings.T("settings.about.licences");
+    public static string Credits => Strings.T("settings.about.credits");
 
     /// <summary>"You'll be signed out of 192.168.1.20:7539."</summary>
-    public static string SignOutBody(string server) => $"You'll be signed out of {HostPort(server)}.";
+    public static string SignOutBody(string server) => Strings.T("settings.signOut.body", ("server", HostPort(server)));
 
     /// <summary>The Sign out category's words above its row.</summary>
-    public static string SignOutIntro(string server) => $"Sign this TV out of {HostPort(server)}. You'll need a new link code to sign in again.";
+    public static string SignOutIntro(string server) => Strings.T("settings.signOut.intro", ("server", HostPort(server)));
 
     /// <summary>"http://192.168.1.20:7539" → "192.168.1.20:7539".</summary>
     public static string HostPort(string server)
@@ -157,7 +169,7 @@ public static class SettingsText
             null => "",
             var h => $"{h}p",
         };
-        return $"{(preset.MaxBitrateKbps ?? 0) / 1000} Mbps {lines}";
+        return Strings.T("settings.playback.preset", ("mbps", (preset.MaxBitrateKbps ?? 0) / 1000), ("lines", lines));
     }
 
     /// <summary>What Original and Automatic do, under their names; null for the transcodes, whose names say it.</summary>
@@ -175,7 +187,7 @@ public static class SettingsText
         "eac3-joc" => "Dolby Atmos",
         "truehd" => "Dolby TrueHD",
         "dts" => "DTS",
-        _ => "DTS-HD and DTS:X",
+        _ => Strings.T("settings.audio.dtsHd"),
     };
 
     public static string PassthroughLabel(PassthroughMode mode) => mode switch
@@ -195,29 +207,30 @@ public static class SettingsText
     /// <summary>"Small", "Normal", "Large", "Huge", by the size's place among those offered.</summary>
     public static string SizeLabel(float size) => IndexOf(Settings.SubtitleSizes, size) switch
     {
-        0 => "Small",
-        2 => "Large",
-        3 => "Huge",
-        _ => "Normal",
+        0 => Strings.T("settings.display.sizes.small"),
+        2 => Strings.T("settings.display.sizes.large"),
+        3 => Strings.T("settings.display.sizes.huge"),
+        _ => Strings.T("settings.display.sizes.normal"),
     };
 
-    public static string BackgroundLabel(SubtitleBackground background) => background == Core.SubtitleBackground.DarkBox ? "Dark box" : "None";
+    public static string BackgroundLabel(SubtitleBackground background) =>
+        background == Core.SubtitleBackground.DarkBox ? Strings.T("settings.display.backgrounds.darkBox") : Strings.T("settings.display.backgrounds.none");
 
     public static string FontLabel(SubtitleFont font) => font switch
     {
-        Core.SubtitleFont.Serif => "Serif",
-        Core.SubtitleFont.Monospace => "Monospace",
-        Core.SubtitleFont.Casual => "Casual",
-        _ => "Sans serif",
+        Core.SubtitleFont.Serif => Strings.T("settings.display.fonts.serif"),
+        Core.SubtitleFont.Monospace => Strings.T("settings.display.fonts.monospace"),
+        Core.SubtitleFont.Casual => Strings.T("settings.display.fonts.casual"),
+        _ => Strings.T("settings.display.fonts.sans"),
     };
 
     /// <summary>"Bottom", "Raised", "Higher", "Highest", by the raise's place among those offered.</summary>
     public static string RaiseLabel(float raise) => IndexOf(Settings.SubtitleRaises, raise) switch
     {
-        1 => "Raised",
-        2 => "Higher",
-        3 => "Highest",
-        _ => "Bottom",
+        1 => Strings.T("settings.display.positions.raised"),
+        2 => Strings.T("settings.display.positions.higher"),
+        3 => Strings.T("settings.display.positions.highest"),
+        _ => Strings.T("settings.display.positions.bottom"),
     };
 
     static int IndexOf(IReadOnlyList<float> list, float value)
@@ -230,7 +243,8 @@ public static class SettingsText
 
 /// <summary>
 /// The languages offered as audio and subtitle defaults, as the web offers them (ISO 639-2/B
-/// codes, the form ffprobe reports), sorted by their English names (the Android app's TrackLanguages).
+/// codes, the form ffprobe reports), sorted by their names in the language shown (the Android
+/// app's TrackLanguages): worked out each time, so a change of language names and sorts them anew.
 /// </summary>
 public static class TrackLanguages
 {
@@ -241,11 +255,10 @@ public static class TrackLanguages
         "ukr", "vie",
     };
 
-    /// <summary>Code and name, by name.</summary>
-    public static readonly IReadOnlyList<(string Code, string Name)> All =
-        Codes.Select(c => (c, ItemFormat.LanguageName(c) ?? c)).OrderBy(l => l.Item2, StringComparer.Ordinal).ToList();
+    /// <summary>Code and name, by name in the language shown's order.</summary>
+    public static IReadOnlyList<(string Code, string Name)> All =>
+        Codes.Select(c => (c, ItemFormat.LanguageName(c) ?? c)).OrderBy(l => l.Item2, StringComparer.Create(Strings.Culture, ignoreCase: false)).ToList();
 
     /// <summary><paramref name="code"/>'s name; null for none.</summary>
-    public static string? NameOf(string? code) =>
-        code == null ? null : All.Where(l => l.Code == code).Select(l => l.Name).FirstOrDefault() ?? ItemFormat.LanguageName(code);
+    public static string? NameOf(string? code) => code == null ? null : ItemFormat.LanguageName(code);
 }

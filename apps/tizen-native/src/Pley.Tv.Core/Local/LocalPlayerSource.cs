@@ -200,7 +200,7 @@ public sealed class LocalPlayerSource : IPlayerSource
     {
         var mode = body.TryGetValue("mode", out var m) ? m as string : null;
         if (mode != null && mode != "auto")
-            return Task.FromException<PlaybackInfo>(new LocalPlaybackException("This TV can't play this file as it is, and a file on a drive has no server to convert it"));
+            return Task.FromException<PlaybackInfo>(new LocalPlaybackException(Strings.T("storage.playback.cantConvert")));
         var file = detail?.Files.FirstOrDefault();
         var asked = body.TryGetValue("audio_index", out var a) && a is int i ? i : (int?)null;
         return Task.FromResult(new PlaybackInfo

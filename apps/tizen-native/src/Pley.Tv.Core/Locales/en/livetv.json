@@ -1,0 +1,108 @@
+{
+  "title": "Live TV",
+  "tabs": {
+    "guide": "Guide",
+    "channels": "Channels"
+  },
+  "page": {
+    "failed": "Live TV didn't load",
+    "retry": "Try again",
+    "notAllowedTitle": "Live TV isn't open to this profile",
+    "notAllowedBody": "An administrator can open it in Pley's web app, under Settings → Live TV.",
+    "noneTitle": "No channels yet",
+    "noneBody": "Channels appear here once an administrator adds an IPTV provider in Pley's web app.",
+    "noMatch": "No channels in this group.",
+    "search": "Search",
+    "noMatchTitle": "No channels match",
+    "noMatchSearch": "No channel's name, number or programme on now has “{{query}}” in it.",
+    "noneFavoritesTitle": "No favourites yet",
+    "noneFavoritesBody": "Hold OK on a channel and add it to your favourites to find it here.",
+    "noneRecentTitle": "Nothing watched yet",
+    "noneRecentBody": "The channels you watch show here, the last first."
+  },
+  "categories": {
+    "all": "All channels",
+    "favorites": "Favourites",
+    "recent": "Recently watched",
+    "groups": "Groups",
+    "regions": "Regions",
+    "moreGroups": "More groups",
+    "noGroup": "No group",
+    "found": "Groups found"
+  },
+  "guide": {
+    "nothingNow": "Nothing in the guide now",
+    "noGuide": "No guide for this channel",
+    "noInfo": "No information for this time",
+    "next": "Next {{time}} · {{title}}"
+  },
+  "time": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "hoursLeft_one": "{{count}} h left",
+    "hoursLeft_other": "{{count}} h left",
+    "hoursMinutesLeft": "{{hours}} h {{minutes}} min left"
+  },
+  "program": {
+    "live": "Live",
+    "new": "New",
+    "onNow": "On now",
+    "watchNow": "Watch now",
+    "watchChannel": "Watch channel",
+    "noDescription": "The guide says nothing more of it.",
+    "ended": "It has ended.",
+    "episode": "S{{season}} E{{episode}}",
+    "episodeOnly": "E{{episode}}"
+  },
+  "favorites": {
+    "add": "Add to favourites",
+    "remove": "Remove from favourites",
+    "failed": "The favourite wasn't saved: {{error}}"
+  },
+  "player": {
+    "tuning": "Tuning…",
+    "channels": "Channels",
+    "channelGroups": "Channel groups",
+    "changeGroup": "Change group",
+    "searchChannels": "Search channels",
+    "live": "Live",
+    "radio": "Sound only",
+    "hint": "▲▼ change channel · OK for channels · hold OK for more",
+    "retry": "Try again",
+    "watchAgain": "Watch again",
+    "otherChannels": "Other channels",
+    "backToGuide": "Back to the guide",
+    "noChannel": "No channel {{number}}",
+    "heldByYou": "You, on another device",
+    "someoneElse": "Someone else",
+    "people_one": "{{count}} person",
+    "people_other": "{{count}} people",
+    "connectionsWatching_one": "Its one connection is watching:",
+    "connectionsWatching_other": "Its {{count}} connections are watching:",
+    "takeOver": "Watch here instead",
+    "noneToTake": "A channel already being watched can be joined, or try again once one is stopped."
+  },
+  "trouble": {
+    "busy": "All connections are in use",
+    "stopped": "Live TV stopped",
+    "stoppedBody": "This channel isn't being watched any more.",
+    "stoppedByAdmin": "Live TV was stopped by the server's administrator.",
+    "stoppedElsewhere": "Live TV was stopped from another device.",
+    "missing": "This channel isn't here any more",
+    "notAllowed": "Live TV isn't open to this profile",
+    "offline": "Can't reach your server",
+    "unavailable": "{{channel}} isn't playing",
+    "didNotStart": "{{channel}} didn't start",
+    "olderTitle": "Live TV needs a newer Pley on the server",
+    "olderBody": "This server can't send live channels to the TV's own player. Update Pley on the server, then try again."
+  },
+  "engine": {
+    "said": "The TV's player said: {{detail}}",
+    "late": "it didn't start in time",
+    "ended": "the stream ended",
+    "stalled": "it stalled"
+  }
+}

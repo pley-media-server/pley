@@ -1,6 +1,7 @@
 import { errorMessage } from "../../api/client";
 import type { Hub, ItemSummary } from "../../api/types";
 import { isPlayableVideo } from "../../format/format";
+import { t } from "../../i18n";
 import type { PlayRequest } from "../../player/plan";
 import type { AppState } from "../../state";
 import type { Ui } from "../context";
@@ -40,7 +41,7 @@ export async function playItem(app: AppState, ui: Ui, item: ItemSummary, opts: {
     try {
       const { item: next } = await app.api.value!.onDeck(item.id);
       if (!next) {
-        ui.toast("Nothing to play");
+        ui.toast(t("browse.actions.nothingToPlay"));
         return;
       }
       openPlayer(ui, { itemId: next.id, fromStart: !!opts.fromStart });
@@ -140,7 +141,7 @@ export async function setInMyList(app: AppState, ui: Ui, item: ItemSummary, add:
       if (at >= 0) hubs[at] = { ...hubs[at]!, items: [item].concat(hubs[at]!.items) };
       else {
         const cw = hubs.findIndex((h) => h.key.indexOf("continue") === 0);
-        hubs.splice(cw + 1, 0, { key: "my_list", title: "My List", library_id: null, items: [item] });
+        hubs.splice(cw + 1, 0, { key: "my_list", title: t("browse.home.myList"), library_id: null, items: [item] });
       }
     }
     hubs = hubs.filter((h) => h.items.length > 0);

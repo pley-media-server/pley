@@ -67,7 +67,7 @@ static class RequestKit
         if (!string.IsNullOrWhiteSpace(detail.Certification)) parts.Add(new MetaPart.ContentRating(detail.Certification!));
         var seasons = (detail.Seasons ?? Array.Empty<DiscoverSeason>()).Count(s => s.Number > 0);
         var length = detail.Kind == TitleKind.Show
-            ? seasons > 0 ? Format.Pluralize(seasons, "season") : null
+            ? seasons > 0 ? RequestText.SeasonCount(seasons) : null
             : detail.RuntimeMinutes is > 0 and var m ? Format.Runtime(m * 60_000L) : null;
         if (!string.IsNullOrEmpty(length)) parts.Add(new MetaPart.Text(length!));
         if (detail.Rating is > 0 and var r) parts.Add(new MetaPart.Rating(r.ToString("0.0", CultureInfo.InvariantCulture)));

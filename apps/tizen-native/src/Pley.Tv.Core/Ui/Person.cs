@@ -120,13 +120,15 @@ public static class PersonRules
     /// <summary>The roles' rows, in their order.</summary>
     public static readonly IReadOnlyList<string> RoleOrder = new[] { "actor", "director", "creator", "writer", "producer" };
 
-    static readonly Dictionary<string, string> RoleNames = new Dictionary<string, string>
+    /// <summary>A role's name: "Director"; "Crew" for a role this app doesn't know.</summary>
+    static string RoleName(string role) => role switch
     {
-        ["actor"] = "Actor",
-        ["creator"] = "Creator",
-        ["director"] = "Director",
-        ["writer"] = "Writer",
-        ["producer"] = "Producer",
+        "actor" => Strings.T("item.roles.actor"),
+        "creator" => Strings.T("item.roles.creator"),
+        "director" => Strings.T("item.roles.director"),
+        "writer" => Strings.T("item.roles.writer"),
+        "producer" => Strings.T("item.roles.producer"),
+        _ => Strings.T("item.roles.crew"),
     };
 
     /// <summary>The page of <paramref name="person"/>, whose pictures are on <paramref name="origin"/>.</summary>
@@ -138,8 +140,8 @@ public static class PersonRules
         var shows = credits.Count(c => c.Item.Kind == "show");
         var counts = string.Join(" · ", new[]
         {
-            movies > 0 ? Format.Pluralize(movies, "movie") : null,
-            shows > 0 ? Format.Pluralize(shows, "show") : null,
+            movies > 0 ? Strings.Count("item.counts.movies", movies) : null,
+            shows > 0 ? Strings.Count("item.counts.shows", shows) : null,
         }.Where(s => s != null));
         var rows = new List<PersonRow>();
         foreach (var role in RoleOrder)
@@ -170,9 +172,9 @@ public static class PersonRules
     {
         var episodes = r.Episodes ?? 0;
         var name = r.Role == "actor"
-            ? !string.IsNullOrEmpty(r.Character) ? $"as {r.Character}" : episodes > 0 ? "Guest star" : "Actor"
-            : RoleNames.TryGetValue(r.Role, out var n) ? n : "Crew";
-        return episodes > 0 ? $"{name} ({Format.Pluralize(episodes, "episode")})" : name;
+            ? !string.IsNullOrEmpty(r.Character) ? Strings.T("item.roles.as", ("character", r.Character)) : episodes > 0 ? Strings.T("item.roles.guestStar") : RoleName(r.Role)
+            : RoleName(r.Role);
+        return episodes > 0 ? Strings.Count("item.roles.withEpisodes", episodes, ("role", name)) : name;
     }));
 
     /// <summary>"Idris Vale" → "IV": the photo's stand-in.</summary>
@@ -246,17 +248,17 @@ public sealed class PersonModel : IDisposable
 /// <summary>What the TV's person page says (the Android app's tv_person_* strings).</summary>
 public static class PersonText
 {
-    public const string Acting = "Acting";
-    public const string Directing = "Directing";
-    public const string Creating = "Creating";
-    public const string Writing = "Writing";
-    public const string Producing = "Producing";
-    public const string NotFound = "Person not found";
-    public const string NotFoundBody = "No one by that link has anything in your libraries.";
-    public const string Failed = "Couldn't load this person";
+    public static string Acting => Strings.T("item.person.acting");
+    public static string Directing => Strings.T("item.person.directing");
+    public static string Creating => Strings.T("item.person.creating");
+    public static string Writing => Strings.T("item.person.writing");
+    public static string Producing => Strings.T("item.person.producing");
+    public static string NotFound => Strings.T("item.person.notFound");
+    public static string NotFoundBody => Strings.T("item.person.notFoundBody");
+    public static string Failed => Strings.T("item.person.failed");
 
     /// <summary>"3 movies · 2 shows in your libraries".</summary>
-    public static string InLibraries(string counts) => $"{counts} in your libraries";
+    public static string InLibraries(string counts) => Strings.T("item.person.inLibraries", ("counts", counts));
 
     /// <summary>A role's row title.</summary>
     public static string RoleTitle(string role) => role switch

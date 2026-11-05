@@ -453,29 +453,31 @@ public sealed class SearchModel : IDisposable
 /// <summary>What the TV's search says (the Android app's strings_tv_search.xml).</summary>
 public static class SearchText
 {
-    public const string Field = "Search movies, shows, people…";
-    public const string Recent = "Recent searches";
-    public const string RecentClear = "Clear";
-    public const string EmptyTitle = "Search your libraries";
-    public const string EmptyBody = "Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type, or use your keyboard's microphone.";
-    public const string NoneBody = "Try a different spelling or fewer words.";
-    public const string Failed = "Search failed";
-    public const string Retry = "Retry";
-    public const string Searching = "Searching…";
+    public static string Field => Strings.T("search.field");
+    public static string Recent => Strings.T("search.recent.title");
+    public static string RecentClear => Strings.T("search.recent.clear");
+    public static string EmptyTitle => Strings.T("search.empty.title");
+    public static string EmptyBody => Strings.T("search.empty.body");
+    public static string NoneBody => Strings.T("search.none.body");
+    /// <summary>The libraries found nothing, and Discover's row shows under it.</summary>
+    public static string NothingInLibraries => Strings.T("search.nothingInLibraries");
+    public static string Failed => Strings.T("search.failed");
+    public static string Retry => Strings.T("search.retry");
+    public static string Searching => Strings.T("search.searching");
 
-    public const string People = "People";
+    public static string People => Strings.T("search.groups.people");
     /// <summary>The channels' row, after the titles and before People.</summary>
-    public const string LiveTv = "Live TV";
-    public const string Movies = "Movies";
-    public const string Shows = "Shows";
-    public const string Seasons = "Seasons";
-    public const string Episodes = "Episodes";
-    public const string Artists = "Artists";
-    public const string Albums = "Albums";
-    public const string Tracks = "Tracks";
+    public static string LiveTv => Strings.T("search.groups.liveTv");
+    public static string Movies => Strings.T("search.groups.movies");
+    public static string Shows => Strings.T("search.groups.shows");
+    public static string Seasons => Strings.T("search.groups.seasons");
+    public static string Episodes => Strings.T("search.groups.episodes");
+    public static string Artists => Strings.T("search.groups.artists");
+    public static string Albums => Strings.T("search.groups.albums");
+    public static string Tracks => Strings.T("search.groups.tracks");
 
     /// <summary>No results for “north”.</summary>
-    public static string NoneTitle(string query) => $"No results for “{query}”";
+    public static string NoneTitle(string query) => Strings.T("search.none.title", ("query", query));
 
     public static string GroupName(SearchGroupKind group) => group switch
     {

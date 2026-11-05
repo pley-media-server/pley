@@ -87,21 +87,21 @@ public sealed record RailItem(string Id, RailSlot Slot, PageKey Key, string? Nam
         _ => "settings",
     };
 
-    /// <summary>What the entry says (the Android app's tv_shell_rail_* strings).</summary>
+    /// <summary>What the entry says (the Android app's tv_shell_rail_* strings), in the language shown; a library's name is the server's.</summary>
     public string Label => Slot switch
     {
-        RailSlot.Search => "Search",
-        RailSlot.Home => "Home",
+        RailSlot.Search => Strings.T("shell.rail.search"),
+        RailSlot.Home => Strings.T("shell.rail.home"),
         RailSlot.Discover => RequestText.Discover,
         RailSlot.Requests => Requests?.Manage == true ? RequestText.Manage : RequestText.Yours,
-        RailSlot.LiveTv => "Live TV",
+        RailSlot.LiveTv => Strings.T("shell.rail.liveTv"),
         RailSlot.Library => Name ?? "",
-        RailSlot.Libraries => "Libraries",
-        RailSlot.Playlists => "Playlists",
-        RailSlot.Collections => "Collections",
-        RailSlot.NowPlaying => "Now Playing",
-        RailSlot.Storage => "USB drive",
-        _ => "Settings",
+        RailSlot.Libraries => Strings.T("shell.rail.libraries"),
+        RailSlot.Playlists => Strings.T("shell.rail.playlists"),
+        RailSlot.Collections => Strings.T("shell.rail.collections"),
+        RailSlot.NowPlaying => Strings.T("shell.rail.nowPlaying"),
+        RailSlot.Storage => Strings.T("shell.rail.storage"),
+        _ => Strings.T("shell.rail.settings"),
     };
 }
 

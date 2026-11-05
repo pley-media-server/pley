@@ -19,6 +19,7 @@ import {
   type LiveCategory,
 } from "../../live/data";
 import { ChannelPages } from "../../live/pages";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { Chip, PanelRow, Tab } from "../kit/buttons";
 import { F, G } from "../kit/focusable";
@@ -26,7 +27,7 @@ import { Icon } from "../kit/icons";
 import { SidePanel } from "../kit/panel";
 import type { Entry } from "../shell/navigator";
 import { ColumnMessage, failedTitle, PageBadge, problem, useApp, useLoad } from "./common";
-import { CategoryPanel, count } from "./live-categories";
+import { CategoryPanel } from "./live-categories";
 import { LiveGuide } from "./live-guide";
 import { ChannelLogo, NumberBox, ProgramMarks, ProgressLine, useNow, useNumberEntry } from "./live-kit";
 
@@ -159,12 +160,12 @@ export function LiveTvScreen(p: { entry: Entry }) {
     if (panel?.kind === "details") setPanel({ ...panel, channel: { ...panel.channel, favorite: on } });
     ui.api.setLiveFavorite(c.id, on).then(
       () => {
-        ui.toast(on ? `${c.name} is a favourite` : `${c.name} isn't a favourite any more`);
+        ui.toast(on ? t("livetv.favourites.added", { name: c.name }) : t("livetv.favourites.removed", { name: c.name }));
         groups.reload();
       },
       () => {
         pages.patch(c.id, { favorite: !on });
-        ui.toast(on ? "Couldn't add it to your favourites" : "Couldn't take it out of your favourites", true);
+        ui.toast(on ? t("livetv.favourites.addFailed") : t("livetv.favourites.removeFailed"), true);
       },
     );
   };
@@ -204,7 +205,7 @@ export function LiveTvScreen(p: { entry: Entry }) {
   if (summary && !summary.allowed) {
     return (
       <div class="live-page">
-        <ColumnMessage title="Live TV isn't open to this profile" body="An administrator can open it in Pley on the web: Settings → Live TV." />
+        <ColumnMessage title={t("livetv.page.notOpen")} body={t("livetv.page.notOpenHint")} />
       </div>
     );
   }
@@ -212,7 +213,11 @@ export function LiveTvScreen(p: { entry: Entry }) {
   if (total === null && error) {
     return (
       <div class="live-page">
-        <ColumnMessage title={failedTitle(error, "Couldn't load Live TV")} body={problem(error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: () => pages.want(0, 0) }} />
+        <ColumnMessage
+          title={failedTitle(error, t("livetv.page.didntLoad"))}
+          body={problem(error)}
+          action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: () => pages.want(0, 0) }}
+        />
       </div>
     );
   }
@@ -221,12 +226,8 @@ export function LiveTvScreen(p: { entry: Entry }) {
     return (
       <div class="live-page">
         <ColumnMessage
-          title={admin ? "Set up Live TV on the web" : "No channels yet"}
-          body={
-            admin
-              ? "Add your IPTV provider's playlist or Xtream Codes account in Pley on the web: Settings → Live TV. Its channels and guide show here."
-              : "Channels show here once an administrator adds an IPTV provider."
-          }
+          title={admin ? t("livetv.page.setUpTitle") : t("livetv.page.noChannelsTitle")}
+          body={admin ? t("livetv.page.setUpHint") : t("livetv.page.noChannelsHint")}
         />
       </div>
     );
@@ -245,11 +246,11 @@ export function LiveTvScreen(p: { entry: Entry }) {
     <div class="live-page">
       <div class="library-header">
         <div class="t-page c-fg one-line" style="flex:1;min-width:0">
-          Live TV
+          {t("livetv.title")}
         </div>
         <G kind="row" class="library-tabs" elRef={(el) => (tabsRef.current = el)} onEnter={() => tabsRef.current?.querySelector<HTMLElement>(`[data-fid="tab/${view}"]`) ?? null}>
-          <Tab fid="tab/guide" label="Guide" shown={view === "guide"} onSelect={() => setView("guide")} />
-          <Tab fid="tab/channels" label="Channels" shown={view === "channels"} onSelect={() => setView("channels")} />
+          <Tab fid="tab/guide" label={t("livetv.guideTab")} shown={view === "guide"} onSelect={() => setView("guide")} />
+          <Tab fid="tab/channels" label={t("livetv.channels")} shown={view === "channels"} onSelect={() => setView("channels")} />
         </G>
       </div>
       <G kind="row" class="library-chips">
@@ -257,23 +258,10 @@ export function LiveTvScreen(p: { entry: Entry }) {
         {found.map((g) => (
           <Chip key={g.name} fid={`chip/group:${g.name}`} label={g.region ? `${g.region} · ${g.label}` : g.label} maxWidth={170} onSelect={() => setCategory({ kind: "group", group: g.name })} />
         ))}
-        <div class="t-caption c-muted chips-count">{total === null ? "" : total === 1 ? "1 channel" : `${count(total)} channels`}</div>
+        <div class="t-caption c-muted chips-count">{total === null ? "" : t("livetv.page.channelCount", { count: total })}</div>
       </G>
       {total === 0 ? (
-        <ColumnMessage
-          top={146}
-          title={shown.kind === "favorites" ? "No favourites yet" : shown.kind === "recent" ? "Nothing watched yet" : shown.kind === "search" ? "No channels match" : "No channels here"}
-          body={
-            shown.kind === "favorites"
-              ? "Mark a channel with its menu key, or in the player, to find it here."
-              : shown.kind === "recent"
-                ? "The channels you watch show here."
-                : shown.kind === "search"
-                  ? `No channel's name, number or programme on now has “${shown.q}” in it.`
-                  : "This group has no channels to show."
-          }
-          action={shown.kind === "search" ? { label: "Search again", icon: "search", onSelect: openCategories } : { label: "All channels", icon: "layers", onSelect: () => setCategory({ kind: "all" }) }}
-        />
+        <EmptyCategory shown={shown} onSearch={openCategories} onAll={() => setCategory({ kind: "all" })} />
       ) : view === "guide" ? (
         <LiveGuide
           key={key}
@@ -332,6 +320,33 @@ function categoryIcon(c: LiveCategory) {
   return c.kind === "favorites" ? "star" : c.kind === "recent" ? "history" : c.kind === "all" ? "layers" : c.kind === "search" ? "search" : "list";
 }
 
+/** A category with no channels: why, and where to go instead (another search, or every channel). */
+function EmptyCategory(p: { shown: LiveCategory; onSearch: () => void; onAll: () => void }) {
+  const c = p.shown;
+  const title =
+    c.kind === "favorites" ? t("livetv.page.noFavourites") : c.kind === "recent" ? t("livetv.page.nothingWatched") : c.kind === "search" ? t("livetv.page.noMatch") : t("livetv.page.empty");
+  const body =
+    c.kind === "favorites"
+      ? t("livetv.page.noFavouritesHint")
+      : c.kind === "recent"
+        ? t("livetv.page.nothingWatchedHint")
+        : c.kind === "search"
+          ? t("livetv.page.noMatchHint", { search: c.q })
+          : t("livetv.page.emptyHint");
+  return (
+    <ColumnMessage
+      top={146}
+      title={title}
+      body={body}
+      action={
+        c.kind === "search"
+          ? { label: t("livetv.page.searchAgain"), icon: "search", onSelect: p.onSearch }
+          : { label: t("livetv.categories.all"), icon: "layers", onSelect: p.onAll }
+      }
+    />
+  );
+}
+
 // ---- a programme's details
 
 /** A programme (or a channel without one) in a side panel: what the guide says of it, Watch, and the channel's favourite. */
@@ -378,21 +393,25 @@ function ProgramPanel(p: {
             </div>
           )}
           <div class={`t-body ${prog.description ? "c-fg" : "c-subtle"} lines-6`} style="margin-top:10px">
-            {prog.description || "The guide says nothing more of it."}
+            {prog.description || t("livetv.program.noDescription")}
           </div>
           {prog.categories.length > 0 && <div class="t-caption c-subtle one-line" style="margin-top:8px">{prog.categories.join(" · ")}</div>}
-          {ended && <div class="t-caption c-subtle" style="margin-top:8px">It has ended.</div>}
+          {ended && (
+            <div class="t-caption c-subtle" style="margin-top:8px">
+              {t("livetv.program.ended")}
+            </div>
+          )}
         </div>
       ) : (
         <div class="live-panel-text">
           <div class="t-title c-fg">{name}</div>
           <div class="t-body c-subtle" style="margin-top:6px">
-            {c.has_guide ? "The guide says nothing of this time." : "The guide has nothing for this channel."}
+            {c.has_guide ? t("livetv.program.nothingThen") : t("livetv.program.nothingForChannel")}
           </div>
         </div>
       )}
-      <PanelRow icon="play" label={on ? "Watch now" : "Watch channel"} initial onSelect={p.onWatch} />
-      <PanelRow icon={c.favorite ? "star" : "star-outline"} label={c.favorite ? "Remove from favourites" : "Add to favourites"} onSelect={p.onFavorite} />
+      <PanelRow icon="play" label={on ? t("livetv.program.watchNow") : t("livetv.program.watchChannel")} initial onSelect={p.onWatch} />
+      <PanelRow icon={c.favorite ? "star" : "star-outline"} label={c.favorite ? t("livetv.favourites.remove") : t("livetv.favourites.add")} onSelect={p.onFavorite} />
     </SidePanel>
   );
 }
@@ -483,7 +502,7 @@ function ChannelCards(p: {
             onDetails={(prog) => p.onDetails(c, prog)}
           />
         ) : (
-          <F key={i} class="live-card loading" fid={`card/at${i}`} initial={i === row * 2} label="Loading" onFocus={onFocus}>
+          <F key={i} class="live-card loading" fid={`card/at${i}`} initial={i === row * 2} label={t("common.states.loading")} onFocus={onFocus}>
             <span data-index={i} style="display:none" />
             <div class="skeleton live-card-logo" style="width:120px;height:68px" />
           </F>
@@ -530,7 +549,8 @@ function ChannelCard(p: {
   const c = p.channel;
   const name = channelName(c, p.category);
   const { on, next } = nowAndNext(c, p.now);
-  const label = `${c.number ? `${c.number} ` : ""}${name}${on ? `, now: ${on.title}` : ""}`;
+  const numbered = `${c.number ? `${c.number} ` : ""}${name}`;
+  const label = on ? t("livetv.cards.now", { name: numbered, title: on.title }) : numbered;
   return (
     <F class="live-card" fid={`card/${c.id}`} initial={p.initial} label={label} onFocus={p.onFocus} onSelect={p.onWatch} onLongSelect={() => p.onDetails(on)} onMenu={() => p.onDetails(on)}>
       <span data-index={p.index} style="display:none" />
@@ -552,7 +572,7 @@ function ChannelCard(p: {
             </div>
           </>
         ) : (
-          <div class="t-body one-line live-card-sub">{c.has_guide ? "Nothing in the guide now" : "No guide for this channel"}</div>
+          <div class="t-body one-line live-card-sub">{c.has_guide ? t("livetv.nothingNow") : t("livetv.noGuideHere")}</div>
         )}
         {next && <div class="t-caption one-line live-card-sub">{`${formatTime(next.start, p.hours24)} · ${next.title}`}</div>}
       </div>

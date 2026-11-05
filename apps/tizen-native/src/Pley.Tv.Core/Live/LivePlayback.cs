@@ -400,7 +400,7 @@ public sealed class LivePlayback
             Open().Prepare(new EngineSource(playlist, Hls: true, Live: true), play: true);
             startTimer = scheduler.After(StartWaitMs, () =>
             {
-                if (mine == generation && !shown) Failed(new EngineError.Other("it didn't start in time"));
+                if (mine == generation && !shown) Failed(new EngineError.Other(LiveText.StartedLate));
             });
         }, e =>
         {
@@ -498,7 +498,7 @@ public sealed class LivePlayback
                 if (State.Value.Buffering) State.Value = State.Value with { Buffering = false };
                 break;
             case EngineStatus.Ended:
-                Failed(new EngineError.Other("the stream ended"));
+                Failed(new EngineError.Other(LiveText.StreamEnded));
                 break;
         }
     }
@@ -534,7 +534,7 @@ public sealed class LivePlayback
             stallCheck = scheduler.After(StallGiveUpMs - StallCheckMs, () =>
             {
                 stallCheck = null;
-                if (Stalled()) Failed(new EngineError.Other("it stalled"));
+                if (Stalled()) Failed(new EngineError.Other(LiveText.Stalled));
             });
             var asked = session;
             // Not of a stream.ts, as Android asks nothing of a stall: its HLS session, unread, goes
@@ -602,7 +602,7 @@ public sealed class LivePlayback
                 });
                 return;
             }
-            Fail(new LiveTrouble(LiveTroubleKind.Other, error.Detail.Length > 0 ? $"The TV's player said: {error.Detail}" : ""));
+            Fail(new LiveTrouble(LiveTroubleKind.Other, error.Detail.Length > 0 ? LiveText.PlayerSaid(error.Detail) : ""));
         }
     }
 

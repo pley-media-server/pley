@@ -1,0 +1,70 @@
+{
+  "list": {
+    "title": "Playlists",
+    "new": "Nouvelle playlist",
+    "failed": "Impossible de charger vos playlists",
+    "noneTitle": "Aucune playlist pour l’instant",
+    "noneBody": "Créez-en une ici, ou utilisez « Ajouter à une playlist » sur un film, une série, un album ou un épisode (aussi en maintenant OK sur une affiche).",
+    "retry": "Réessayer",
+    "smart": "Intelligente"
+  },
+  "count": {
+    "items_one": "{{count, number}} élément",
+    "items_many": "{{count, number}} d’éléments",
+    "items_other": "{{count, number}} éléments"
+  },
+  "page": {
+    "video": "Playlist vidéo",
+    "music": "Playlist musicale",
+    "smart": "Playlist intelligente",
+    "play": "Lire",
+    "shuffle": "Aléatoire",
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "failed": "Impossible de charger cette playlist",
+    "notFound": "Playlist introuvable",
+    "notFoundBody": "Elle a été supprimée, ou elle appartient à un autre profil.",
+    "back": "Retour",
+    "emptySmart": "Rien ne correspond encore au filtre de cette playlist.",
+    "emptyVideo": "Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un film, une série ou un épisode, ou maintenez OK sur une affiche.",
+    "emptyMusic": "Cette playlist est vide. Utilisez « Ajouter à une playlist » sur un artiste ou un album, ou maintenez OK sur une pochette.",
+    "more": "Plus",
+    "playFromHere": "Lire à partir d’ici",
+    "goTo": "Aller à {{title}}",
+    "move": "Déplacer",
+    "remove": "Retirer de la playlist",
+    "moving": "Haut et bas pour le déplacer, OK pour le déposer ici, Retour pour le remettre en place",
+    "removed": "Retiré de la playlist : « {{title}} »",
+    "deleteTitle": "Supprimer la playlist ?",
+    "deleteBody": "La playlist « {{title}} » sera supprimée. Son contenu reste dans vos bibliothèques.",
+    "cancel": "Annuler",
+    "renameTitle": "Renommer la playlist",
+    "save": "Enregistrer"
+  },
+  "form": {
+    "title": "Titre",
+    "for": "Pour",
+    "video": "Films et séries",
+    "music": "Musique",
+    "create": "Créer",
+    "hint": "Sélectionnez le titre et appuyez sur OK pour le saisir.",
+    "newBody": "Donnez-lui un nom, puis remplissez-la avec « Ajouter à une playlist » depuis n’importe quel titre.",
+    "smartTitle": "Enregistrer ces filtres",
+    "smartBody": "Elle se met à jour toute seule avec la bibliothèque.",
+    "smartBodyFilters": "{{filters}}. Elle se met à jour toute seule avec la bibliothèque."
+  },
+  "add": {
+    "title": "Ajouter à une playlist",
+    "newVideo": "Nouvelle playlist vidéo",
+    "newMusic": "Nouvelle playlist musicale",
+    "create": "Créer",
+    "yours": "Vos playlists",
+    "noneVideo": "Aucune playlist vidéo pour l’instant : saisissez un nom ci-dessus.",
+    "noneMusic": "Aucune playlist musicale pour l’instant : saisissez un nom ci-dessus.",
+    "nothing": "Rien à ajouter",
+    "addedTo": "Ajouté à {{playlist}}",
+    "addedItems_one": "{{count}} élément ajouté à {{playlist}}",
+    "addedItems_many": "{{count}} d’éléments ajoutés à {{playlist}}",
+    "addedItems_other": "{{count}} éléments ajoutés à {{playlist}}"
+  }
+}

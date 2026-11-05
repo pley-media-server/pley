@@ -1,5 +1,6 @@
 import { atHome, origin } from "../auth/addresses";
 import { NOT_YOUR_SERVER, SignedOutError, type Tokens } from "../auth/tokens";
+import { language, t, type Language } from "../i18n";
 import { Cancel, NetworkError, TIMED_OUT, withQuery, type HttpRequest, type HttpResponse, type Transport } from "../net/transport";
 import type {
   Collection,
@@ -88,7 +89,7 @@ export class SessionStoppedError extends ApiError {
   /** What the one who stopped it wrote, if anything. */
   readonly note: string | null;
   constructor(note: string | null) {
-    super(410, "session_stopped", note ?? "Playback was stopped by the server's administrator");
+    super(410, "session_stopped", note ?? t("player.errors.sessionStopped"));
     this.name = "SessionStoppedError";
     this.note = note;
   }
@@ -127,8 +128,8 @@ function pleyAnswer(e: ApiError): boolean {
 
 /** Why the server answered nothing, as the Android app says it: "Nothing answers there." or "No answer in time." */
 export function unreachableReason(e: unknown): string {
-  if (e instanceof NetworkError && e.message === NOT_YOUR_SERVER) return "Another device answers there.";
-  return e instanceof NetworkError && e.message === TIMED_OUT ? "No answer in time." : "Nothing answers there.";
+  if (e instanceof NetworkError && e.message === NOT_YOUR_SERVER) return t("common.server.anotherDevice");
+  return e instanceof NetworkError && e.message === TIMED_OUT ? t("common.server.noAnswerInTime") : t("common.server.nothingAnswers");
 }
 
 /** A server at home accepts at once or never: after this long without an answer, a quick question tells which. */
@@ -242,7 +243,8 @@ export class Api {
   }
 
   private once(path: string, opts: CallOptions, token: string): Promise<HttpResponse> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    // The words the server writes itself (Home's rows) in the language shown, for an account and a server without one.
+    const headers: Record<string, string> = { Accept: "application/json", "Accept-Language": language.peek() };
     if (this.ownServer(path)) headers.Authorization = `Bearer ${token}`;
     let body: string | null = null;
     if (opts.body !== undefined) {
@@ -283,6 +285,11 @@ export class Api {
 
   setTrackDefaults(audio: string | null, subtitle: string | null, mode: SubtitleMode): Promise<unknown> {
     return this.call("PUT", "/api/me/track-defaults", { audio_language: audio, subtitle_language: subtitle, subtitle_mode: mode });
+  }
+
+  /** The profile's language on all its devices (`null`: the server's); the profile as `me` answers it. */
+  setLanguage(lang: Language | null): Promise<User> {
+    return this.call("PUT", "/api/me/language", { language: lang }) as Promise<User>;
   }
 
   // ---- browsing
@@ -733,7 +740,7 @@ function invalidToken(res: HttpResponse): boolean {
 
 function toError(res: HttpResponse): ApiError {
   let code = statusCode(res.status);
-  let message = `the server refused (HTTP ${res.status})`;
+  let message = t("common.server.refused", { status: res.status });
   const body = res.body;
   if (body && typeof body === "object" && !(body instanceof Blob)) {
     const o = body as { code?: unknown; message?: unknown };

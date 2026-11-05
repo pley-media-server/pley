@@ -1,0 +1,175 @@
+{
+  "language": {
+    "label": "Language",
+    "names": {
+      "en": "English",
+      "fr": "Français",
+      "es": "Español"
+    },
+    "serverDefault": "Server default ({{language}})",
+    "deviceLanguage": "this device's language",
+    "needsNewer": "Choosing a language needs a newer Pley on the server"
+  },
+  "title": "Settings",
+  "categories": {
+    "profile": "Profile",
+    "playback": "Playback",
+    "audio": "Audio",
+    "display": "Subtitles and display",
+    "server": "Server",
+    "diagnostics": "Diagnostics",
+    "about": "About",
+    "signout": "Sign out"
+  },
+  "profile": {
+    "managed": "Managed profile",
+    "switch": "Switch profile",
+    "audioLanguage": "Audio language",
+    "fileDefault": "The file's default",
+    "subtitles": "Subtitles",
+    "subtitleLanguage": "Subtitle language",
+    "sameAsAudio": "Same as the audio language",
+    "changeOnWeb": "change on the web",
+    "readOnly": "This server doesn't let the app change these: change them on the web",
+    "history": "Watch history",
+    "sortLibraries": "Sort libraries",
+    "sortNeedsNewer": "Needs a newer Pley on the server",
+    "yourOrder": "Your order, on all your devices",
+    "alwaysStartAs": "Always start as",
+    "askWho": "Ask who's watching",
+    "web": "Manage your account on the web",
+    "webHint": "Name, picture, password, PIN, two-step, devices and apps"
+  },
+  "modes": {
+    "off": {
+      "label": "Off",
+      "hint": "Subtitles stay off until you turn them on."
+    },
+    "forced": {
+      "label": "Only for foreign dialogue",
+      "hint": "Only forced subtitles, for signs and foreign dialogue."
+    },
+    "foreign": {
+      "label": "When the audio is in another language",
+      "hint": "Full subtitles come on when the audio isn't in your subtitle language."
+    },
+    "always": {
+      "label": "Always",
+      "hint": "Subtitles in your language come on whenever there are some."
+    }
+  },
+  "playback": {
+    "quality": "Quality",
+    "automatic": "Automatic",
+    "original": "Original",
+    "automaticHint": "Dynamically adjust to conditions",
+    "originalHint": "Full quality. May buffer on a slow connection",
+    "autoplay": "Play the next episode by itself",
+    "autoplayHint": "After a 10 second countdown",
+    "details": "Playback details",
+    "detailsHint": "Show how a video plays (direct, remux or transcode) over it"
+  },
+  "audio": {
+    "intro": "Dolby Digital, Dolby Digital Plus and Atmos are always passed through. Turn these on if your receiver supports them; otherwise Pley converts them.",
+    "truehd": "Pass through Dolby TrueHD",
+    "truehdHint": "Only with a receiver that takes TrueHD from the TV",
+    "dts": "Pass through DTS",
+    "dtsHint": "Only with a receiver that takes DTS from the TV"
+  },
+  "display": {
+    "size": "Subtitle size",
+    "sizes": {
+      "small": "Small",
+      "normal": "Medium",
+      "large": "Large",
+      "largest": "Largest"
+    },
+    "background": "Subtitle background",
+    "box": "Dark box",
+    "outline": "None, with an outline",
+    "font": "Subtitle font",
+    "fonts": {
+      "default": "Default",
+      "serif": "Serif",
+      "mono": "Monospace",
+      "casual": "Casual"
+    },
+    "position": "Subtitle position",
+    "positions": {
+      "bottom": "Bottom",
+      "raised": "A little higher",
+      "higher": "Higher",
+      "highest": "Highest"
+    },
+    "motion": "Reduce motion",
+    "motionHint": "No zooming, sliding or fading: things change in place"
+  },
+  "server": {
+    "none": "No server",
+    "thisTv": "The server this TV uses",
+    "switch": "Switch server"
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "open": "Open diagnostics",
+    "openHint": "What this TV decodes and shows, and why",
+    "app": "App",
+    "model": "Model",
+    "system": "System",
+    "firmware": "Firmware",
+    "engine": "Web engine",
+    "tier": "Tier",
+    "tiers": {
+      "low": "low",
+      "mid": "mid",
+      "high": "high"
+    },
+    "line": "{{label}}: {{value}}",
+    "thisTv": "This TV",
+    "plays": "What it plays",
+    "checking": "Checking what this TV plays…",
+    "failed": "The check of this TV failed.",
+    "again": "Check again",
+    "caps": {
+      "tv": "TV: {{model}}",
+      "tvFirmware": "TV: {{model}} (firmware {{firmware}})",
+      "tizen": "Tizen {{version}} ({{year}} models)",
+      "panel": "Panel: {{panel}}",
+      "hdr": "HDR: {{list}} · no Samsung TV shows Dolby Vision",
+      "none": "none",
+      "video": "Video: {{list}}",
+      "audio": "Audio decoded: {{list}}",
+      "receiver": "Sent to the receiver: {{list}}",
+      "receiverOutput": "Sent to the receiver: {{list}} (sound output {{output}})",
+      "nothing": "nothing",
+      "streams": "Streams: HLS {{list}}"
+    }
+  },
+  "about": {
+    "appName": "Pley for Samsung TV",
+    "version": "Version",
+    "licences": "Open-source licences",
+    "credits": "Credits"
+  },
+  "signOut": {
+    "intro": "Sign this TV out of the server. You'll need a new link code to sign in again.",
+    "introServer": "Sign this TV out of {{server}}. You'll need a new link code to sign in again.",
+    "button": "Sign out",
+    "title": "Sign out?",
+    "body": "This TV signs out of {{server}}."
+  },
+  "web": {
+    "title": "Manage your account on the web",
+    "body": "Scan the code with your phone, or go to this address on a phone or computer on the same network:"
+  },
+  "history": {
+    "title": "Watch history",
+    "loadFailed": "Couldn't load your watch history",
+    "empty": "No history yet",
+    "emptyText": "Movies, episodes and songs you finish show up here.",
+    "plays_one": "{{count}} play",
+    "plays_other": "{{count}} plays",
+    "loadingMore": "Loading…",
+    "remove": "Remove {{title}} from history"
+  }
+}

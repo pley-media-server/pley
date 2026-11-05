@@ -1,0 +1,31 @@
+{
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "done": "Done",
+    "ok": "OK",
+    "open": "Open",
+    "play": "Play",
+    "remove": "Remove",
+    "resume": "Resume",
+    "retry": "Retry",
+    "save": "Save",
+    "seeAll": "See all",
+    "showMore": "Show more",
+    "tryAgain": "Try again"
+  },
+  "states": {
+    "loading": "Loading",
+    "saved": "Saved"
+  },
+  "server": {
+    "cantReach": "Can't reach your server",
+    "check": "{{reason}} Check that the server is on and that this device is on its network.",
+    "nothingAnswers": "Nothing answers there.",
+    "noAnswerInTime": "No answer in time.",
+    "anotherDevice": "Another device answers there.",
+    "refused": "the server refused (HTTP {{status}})"
+  }
+}

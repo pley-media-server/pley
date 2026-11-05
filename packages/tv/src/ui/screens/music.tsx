@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
 import type { ItemDetail, ItemSummary } from "../../api/types";
 import { formatClock, formatDuration, pluralize } from "../../format/format";
+import { t } from "../../i18n";
 import { musicPlayer } from "../../player/music";
 import { sleepLabel } from "../../player/sleep";
 import { useUi } from "../context";
@@ -60,10 +61,14 @@ export function ArtistScreen(p: { entry: Entry; id: number }) {
   const now = musicPlayer().now.value;
   const artist = detail.data;
   if (!artist) {
-    if (detail.error && isApiError(detail.error, 404)) return <MusicMessage title="Artist not found" body="It may have been removed, or this profile can't see it." action="Back" onAction={() => ui.nav.pop()} />;
-    if (detail.error) return <MusicMessage title={failedTitle(detail.error, "Couldn't load this artist")} body={problem(detail.error)} action="Try again" onAction={detail.reload} />;
+    if (detail.error && isApiError(detail.error, 404)) {
+      return <MusicMessage title={t("browse.music.artistNotFound")} body={t("browse.notFoundHint")} action={t("common.actions.back")} onAction={() => ui.nav.pop()} />;
+    }
+    if (detail.error) {
+      return <MusicMessage title={failedTitle(detail.error, t("browse.music.cantLoadArtist"))} body={problem(detail.error)} action={t("common.actions.tryAgain")} onAction={detail.reload} />;
+    }
     return (
-      <div class="music-page" role="status" aria-label="Loading">
+      <div class="music-page" role="status" aria-label={t("common.states.loading")}>
         <div class="skeleton" style="position:absolute;left:96px;top:40px;width:120px;height:120px;border-radius:50%" />
         <div class="skeleton" style="position:absolute;left:244px;top:72px;width:280px;height:36px" />
         <div class="skeleton" style="position:absolute;left:244px;top:118px;width:200px;height:18px" />
@@ -81,7 +86,7 @@ export function ArtistScreen(p: { entry: Entry; id: number }) {
     try {
       const fresh = (await ui.api.children(p.id)).items.filter((i) => i.kind === "album");
       const tracks = await tracksOf(ui, fresh);
-      if (!tracks.length) setProblemText("Nothing to play: it has no tracks.");
+      if (!tracks.length) setProblemText(t("browse.music.noTracksToPlay"));
       else {
         musicPlayer().play(tracks, shuffle ? Math.floor(Math.random() * tracks.length) : 0, shuffle);
         ui.nav.open({ name: "nowPlaying" });
@@ -100,7 +105,7 @@ export function ArtistScreen(p: { entry: Entry; id: number }) {
           <Art candidates={artist.poster_url ? [artist.poster_url] : []} width={120} title={artist.title} class="tile-clip" />
         </div>
         <div style="margin-left:28px;max-width:520px">
-          <div class="t-caption c-muted">Artist</div>
+          <div class="t-caption c-muted">{t("browse.music.artist")}</div>
           <div class="t-page c-fg lines-2">{artist.title}</div>
           {meta && (
             <div class="t-label c-muted" style="margin-top:6px">
@@ -115,23 +120,23 @@ export function ArtistScreen(p: { entry: Entry; id: number }) {
         </div>
       </div>
       <G kind="row" class="buttons artist-buttons">
-        <Pill label="Play" icon="play" fid="play" initial disabled={busy} onSelect={() => void play(false)} />
-        <Round label="Shuffle" icon="shuffle" fid="shuffle" disabled={busy} onSelect={() => void play(true)} />
-        {now && <Round label="Now playing" icon="audio-lines" fid="now" onSelect={() => ui.nav.open({ name: "nowPlaying" })} />}
+        <Pill label={t("common.actions.play")} icon="play" fid="play" initial disabled={busy} onSelect={() => void play(false)} />
+        <Round label={t("browse.actions.shuffle")} icon="shuffle" fid="shuffle" disabled={busy} onSelect={() => void play(true)} />
+        {now && <Round label={t("browse.music.nowPlaying")} icon="audio-lines" fid="now" onSelect={() => ui.nav.open({ name: "nowPlaying" })} />}
         {problemText && <div class="t-caption c-danger" style="margin:14px 0 0 8px">{problemText}</div>}
       </G>
       <div class="artist-albums">
         {!children.data ? (
           <div class="t-body c-muted" style="padding-left:96px">
-            Loading…
+            {t("browse.loading")}
           </div>
         ) : !albums.length ? (
           <div class="t-body c-muted" style="padding-left:96px;margin-top:12px">
-            No albums found.
+            {t("browse.music.noAlbums")}
           </div>
         ) : (
           <Row
-            title="Albums"
+            title={t("browse.music.albums")}
             kind="square"
             items={albums}
             keyOf={(a) => a.id}
@@ -184,10 +189,14 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
   const shift = useScrollToFocus(listRef, 500);
   const album: ItemDetail | null = detail.data;
   if (!album) {
-    if (detail.error && isApiError(detail.error, 404)) return <MusicMessage title="Album not found" body="It may have been removed, or this profile can't see it." action="Back" onAction={() => ui.nav.pop()} />;
-    if (detail.error) return <MusicMessage title={failedTitle(detail.error, "Couldn't load this album")} body={problem(detail.error)} action="Try again" onAction={detail.reload} />;
+    if (detail.error && isApiError(detail.error, 404)) {
+      return <MusicMessage title={t("browse.music.albumNotFound")} body={t("browse.notFoundHint")} action={t("common.actions.back")} onAction={() => ui.nav.pop()} />;
+    }
+    if (detail.error) {
+      return <MusicMessage title={failedTitle(detail.error, t("browse.music.cantLoadAlbum"))} body={problem(detail.error)} action={t("common.actions.tryAgain")} onAction={detail.reload} />;
+    }
     return (
-      <div class="music-page" role="status" aria-label="Loading">
+      <div class="music-page" role="status" aria-label={t("common.states.loading")}>
         <div class="skeleton" style="position:absolute;left:96px;top:40px;width:220px;height:220px;border-radius:4px" />
         {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div key={i} class="skeleton" style={`position:absolute;left:356px;top:${80 + i * 44}px;width:480px;height:34px;border-radius:4px`} />
@@ -203,7 +212,7 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
   const rating = Math.round(album.user_state.rating ?? 0);
   const play = (position: number, shuffle = false) => {
     if (!tracks.length) {
-      setProblemText("Nothing to play: it has no tracks.");
+      setProblemText(t("browse.music.noTracksToPlay"));
       return;
     }
     player.play(tracks, shuffle ? Math.floor(Math.random() * tracks.length) : position, shuffle);
@@ -221,7 +230,7 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
         </div>
         {album.parent_id ? (
           <div style="margin:2px 0 0 -16px">
-            <TextButton label={album.parent_title ?? "Artist"} color="var(--accent-bright)" variant="link" fid="artist" onSelect={() => ui.nav.open({ name: "artist", id: album.parent_id! })} />
+            <TextButton label={album.parent_title ?? t("browse.music.artist")} color="var(--accent-bright)" variant="link" fid="artist" onSelect={() => ui.nav.open({ name: "artist", id: album.parent_id! })} />
           </div>
         ) : (
           album.parent_title && <div class="t-label c-fg" style="margin-top:2px">{album.parent_title}</div>
@@ -239,9 +248,9 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
           </div>
         )}
         <G kind="row" class="buttons" style="margin-top:16px">
-          <Pill label="Play" icon="play" fid="play" initial={!p.trackId} disabled={!children.loading && !tracks.length} onSelect={() => play(0)} />
-          <Round label="Shuffle" icon="shuffle" fid="shuffle" offArt disabled={!tracks.length} onSelect={() => play(0, true)} />
-          {current !== null && <Round label="Now playing" icon="audio-lines" fid="now" offArt onSelect={() => ui.nav.open({ name: "nowPlaying" })} />}
+          <Pill label={t("common.actions.play")} icon="play" fid="play" initial={!p.trackId} disabled={!children.loading && !tracks.length} onSelect={() => play(0)} />
+          <Round label={t("browse.actions.shuffle")} icon="shuffle" fid="shuffle" offArt disabled={!tracks.length} onSelect={() => play(0, true)} />
+          {current !== null && <Round label={t("browse.music.nowPlaying")} icon="audio-lines" fid="now" offArt onSelect={() => ui.nav.open({ name: "nowPlaying" })} />}
         </G>
         {problemText && <div class="t-caption c-danger" style="margin-top:8px">{problemText}</div>}
       </G>
@@ -250,12 +259,12 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
           {!children.data ? (
             [0, 1, 2, 3, 4, 5, 6, 7].map((i) => <div key={i} class="skeleton" style="width:480px;height:36px;border-radius:4px;margin:4px 0" />)
           ) : !tracks.length ? (
-            <div class="t-body c-muted">No tracks found</div>
+            <div class="t-body c-muted">{t("browse.music.noTracks")}</div>
           ) : (
             <G kind="col" restore>
               {rows.map((r) =>
                 r.kind === "disc" ? (
-                  <div key={`disc-${r.disc}`} class="t-label c-subtle disc-header">{`Disc ${r.disc}`}</div>
+                  <div key={`disc-${r.disc}`} class="t-label c-subtle disc-header">{t("browse.music.disc", { number: r.disc })}</div>
                 ) : (
                   <TrackLine
                     key={r.track.id}
@@ -338,39 +347,46 @@ export function NowPlayingScreen() {
       }),
     [],
   );
-  if (!now) return <MusicMessage title="Nothing is playing" body="Play an album or an artist and it shows here." action="Back" onAction={() => ui.nav.pop()} />;
-  const t = now.track;
-  const art = t.poster_url ?? (t.parent_id ? `/api/items/${t.parent_id}/images/poster` : null);
-  const byline = [t.grandparent_title ?? "", t.parent_title ?? ""].filter(Boolean).join(" · ");
+  if (!now) return <MusicMessage title={t("browse.music.nothingPlaying")} body={t("browse.music.nothingPlayingHint")} action={t("common.actions.back")} onAction={() => ui.nav.pop()} />;
+  const track = now.track;
+  const art = track.poster_url ?? (track.parent_id ? `/api/items/${track.parent_id}/images/poster` : null);
+  const byline = [track.grandparent_title ?? "", track.parent_title ?? ""].filter(Boolean).join(" · ");
   const status =
     now.error === "offline"
-      ? "Can't reach the server."
+      ? t("browse.music.offline")
       : now.error === "signed_out"
-        ? "Sign in again to play."
+        ? t("browse.music.signIn")
         : now.error === "stopped"
-          ? "Playback was stopped by the server."
+          ? t("browse.music.stopped")
           : now.error
-            ? "This track can't be played."
+            ? t("browse.music.cantPlay")
             : now.loading
-              ? "Loading…"
+              ? t("browse.loading")
               : sleep.secondsLeft !== null
-                ? `Pausing in ${sleep.secondsLeft} s`
+                ? t("browse.music.pausingIn", { seconds: sleep.secondsLeft })
                 : "";
   const sleepText =
     sleep.secondsLeft !== null
-      ? "Keep listening"
+      ? t("browse.music.keepListening")
       : sleep.choice.kind === "off"
-        ? "Sleep timer"
-        : `Sleep timer: ${sleep.choice.kind === "end_of_item" ? "End of this track" : sleep.minutesLeft !== null ? `${sleep.minutesLeft} min left` : sleepLabel(sleep.choice)}`;
+        ? t("browse.music.sleepTimer")
+        : t("browse.music.sleepTimerSet", {
+            choice:
+              sleep.choice.kind === "end_of_item"
+                ? t("browse.music.endOfTrack")
+                : sleep.minutesLeft !== null
+                  ? t("browse.music.minutesLeft", { minutes: sleep.minutesLeft })
+                  : sleepLabel(sleep.choice),
+          });
   const list = player.list();
   return (
     <div class="music-page">
-      <FaintArt path={art} title={t.title} alpha={0.2} />
+      <FaintArt path={art} title={track.title} alpha={0.2} />
       <div class="now-art">
-        <Art candidates={art ? [art] : []} width={300} title={t.parent_title ?? t.title} class="tile-clip" />
+        <Art candidates={art ? [art] : []} width={300} title={track.parent_title ?? track.title} class="tile-clip" />
       </div>
       <G kind="col" class="now-column">
-        <div class="t-page c-fg lines-2">{t.title}</div>
+        <div class="t-page c-fg lines-2">{track.title}</div>
         <div class="t-body-large c-muted one-line" style="margin-top:4px">
           {byline}
         </div>
@@ -378,16 +394,16 @@ export function NowPlayingScreen() {
         <NowScrubber playing={now.playing} />
         <G kind="row" class="now-controls">
           <div class="now-round">
-            <Round label={now.shuffle ? "Stop shuffling" : "Shuffle"} icon="shuffle" onSelect={() => player.setShuffle(!now.shuffle)} />
+            <Round label={now.shuffle ? t("browse.music.stopShuffling") : t("browse.actions.shuffle")} icon="shuffle" onSelect={() => player.setShuffle(!now.shuffle)} />
           </div>
           <div class="now-round">
-            <Round label="Previous" icon="skip-back" onSelect={() => player.previous()} />
+            <Round label={t("browse.music.previous")} icon="skip-back" onSelect={() => player.previous()} />
           </div>
-          <F class="play-big" initial label={now.playing || (now.loading && !now.error) ? "Pause" : "Play"} onSelect={() => player.toggle()}>
+          <F class="play-big" initial label={now.playing || (now.loading && !now.error) ? t("browse.music.pause") : t("common.actions.play")} onSelect={() => player.toggle()}>
             <Icon name={now.playing || (now.loading && !now.error) ? "pause" : "play"} size={32} />
           </F>
           <div class="now-round">
-            <Round label="Next" icon="skip-forward" disabled={now.index + 1 >= now.count} onSelect={() => player.next()} />
+            <Round label={t("browse.music.next")} icon="skip-forward" disabled={now.index + 1 >= now.count} onSelect={() => player.next()} />
           </div>
           <div class="now-round">
             <Round label={sleepText} icon="moon" onSelect={() => player.stepSleep()} />
@@ -396,7 +412,7 @@ export function NowPlayingScreen() {
         {list.length > 1 && (
           <>
             <div class="t-label c-subtle" style="margin:0 0 4px 12px">
-              Up next
+              {t("browse.music.upNext")}
             </div>
             <NowQueue list={list} index={now.index} playing={now.playing} onJump={(i) => player.jumpTo(i)} />
           </>
@@ -508,7 +524,7 @@ function Scrubber(p: { positionMs: number; durationMs: number; bufferedMs: numbe
     <div class="now-scrubber">
       <F
         class="scrub-box"
-        label="Position in the track"
+        label={t("browse.music.position")}
         onSelect={p.onToggle}
         onKey={(key) => {
           if (key === "left") {

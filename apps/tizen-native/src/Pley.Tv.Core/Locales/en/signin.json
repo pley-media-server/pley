@@ -1,0 +1,76 @@
+{
+  "servers": {
+    "title": "Choose your server",
+    "enterAddress": "Enter an address",
+    "searchNetwork": "Search this network",
+    "forgetHint": "Hold OK on a saved server to forget it.",
+    "checkingRange": "Checking {{range}}…",
+    "checkingNetwork": "Checking this network…",
+    "looking": "Looking for Pley on your network…",
+    "noneFound": "No servers found. Make sure this TV and the server are on the same network.",
+    "forgetTitle": "Forget {{name}}?",
+    "forgetBody": "Pley signs this TV out of it and deletes what it saved from it.",
+    "forget": "Forget",
+    "notYours": "Not your saved server",
+    "notEncrypted": "Not encrypted",
+    "onNetwork": "On this network",
+    "connecting": "Connecting to {{address}}…",
+    "unreachable": "Can't reach it"
+  },
+  "address": {
+    "title": "Enter your server's address",
+    "placeholder": "192.168.1.20 or pley.example.com",
+    "connect": "Connect",
+    "checking": "Checking…",
+    "port": "Port {{port}} is used by default."
+  },
+  "problem": {
+    "badAddress": "Enter an address such as nas, 192.168.1.20 or pley.example.com.",
+    "notPley": "Something answers at {{address}}, but it isn't Pley.",
+    "unreachable": "Couldn't reach {{address}}: {{reason}}",
+    "unencrypted": "{{address}} isn't encrypted: what you watch could be read on the way. Use its https address if it has one, or press Connect again to go ahead anyway."
+  },
+  "link": {
+    "title": "Sign in to Pley",
+    "changeServer": "Change server",
+    "scan": "Scan the code with your phone",
+    "goTo": "or go to",
+    "enterCode": "and enter this code",
+    "sameWifi": "Your phone must be on the same Wi-Fi as this TV.",
+    "otherDevice": "Or open Pley on a signed-in device → Link a TV",
+    "newCode": "Get a new code",
+    "scanCamera": "Scan with your phone camera",
+    "gettingCode": "Getting a code…",
+    "waiting": "Waiting for approval…",
+    "retrying": "Can't reach the server. Trying again in {{seconds}} s",
+    "declined": "Request declined",
+    "expired": "Code expired: press OK for a new one",
+    "signedInAs": "Signed in as {{name}}",
+    "signedIn": "Signed in",
+    "twoStepRequired": "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+  },
+  "approve": {
+    "anyTitle": "Sign in as another profile",
+    "anyIntro": "Approve this code on a phone signed in to Pley, and pick the profile there.",
+    "otherProfile": "Use another profile",
+    "title": "Approve on your phone",
+    "intro": "{{name}}'s profile needs its password: approve this code on a phone signed in to Pley, and pick {{name}} there."
+  },
+  "errors": {
+    "notAddress": "that isn't a server address",
+    "unreachable": "the server can't be reached: check its address and that it's on",
+    "tooOld": "this server is too old for this app",
+    "noCodes": "this server can't sign in with a code yet: update it, or sign in with a password",
+    "moved": "this server answers at another address: open it by that one",
+    "failed": "the server couldn't answer (HTTP {{status}})",
+    "callsItself": "this server calls itself {{name}}: open it by that address, or check the proxy in front of it passes Host",
+    "signInElsewhere": "this server sends apps to another address to sign in: Pley doesn't",
+    "approveElsewhere": "this server sends people to another address to approve TVs: Pley doesn't",
+    "unreadable": "the server's answer can't be read: try again",
+    "codeSpent": "this code doesn't work anymore: get a new one",
+    "signedOut": "you were signed out: sign in again",
+    "widerScope": "the server allowed more than this app asks for: signed out",
+    "unkept": "the sign-in couldn't be kept on this device: sign in again",
+    "unencrypted": "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in"
+  }
+}

@@ -15,8 +15,7 @@ public static class Addresses
     public const int DefaultPort = 7539;
 
     /// <summary>What a TV can't sign in over (the Android app's words).</summary>
-    public const string Unencrypted =
-        "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in";
+    public static string Unencrypted => Strings.T("signin.errors.unencrypted");
 
     // Digits are spelled [0-9]: .NET's \d takes every script's digits, and `\z` ends the text where JavaScript's `$` does.
     // A user name before the host is passed over, as Java's URI does for the Android app; a host

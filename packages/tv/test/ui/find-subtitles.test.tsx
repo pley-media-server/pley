@@ -4,6 +4,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "../../src/api/client";
 import type { SubtitleResult, User } from "../../src/api/types";
+import { formatNumber, setLanguage } from "../../src/i18n";
 import type { PlaybackController, PlayerState } from "../../src/player/controller";
 import type { AppState } from "../../src/state";
 import { UiContext, type Ui } from "../../src/ui/context";
@@ -103,6 +104,7 @@ function setup(opts: { found: (language: string | null) => Promise<SubtitleResul
 
 beforeEach(() => forgetSubtitleSearch());
 afterEach(() => {
+  setLanguage("en");
   detach?.();
   detach = null;
   if (root) act(() => render(null, root!));
@@ -166,6 +168,20 @@ describe("Find subtitles…", () => {
     act(() => render(null, other.root));
     const again = setup({ admin: true, found: unset });
     expect(again.rows()).toEqual(["Find subtitles…Subtitle search isn't set up"]);
+  });
+
+  it("draws its words again when the language changes", async () => {
+    const t = setup({ panel: "find", found: () => Promise.resolve([result({})]) });
+    await flush();
+    expect(t.rows()[1]).toContain("Made for this file");
+    act(() => setLanguage("fr"));
+    expect(t.root.querySelector(".panel-title")?.textContent).toBe("Trouver des sous-titres");
+    expect(t.rows()[0]).toMatch(/^Langue/);
+    // The count as French writes it, whatever the engine's space between thousands.
+    expect(t.rows()[1]).toContain("Conçus pour ce fichier · ");
+    expect(t.rows()[1]).toContain(`${formatNumber(1234)} téléchargements`);
+    act(() => setLanguage("es"));
+    expect(t.rows()[1]).toContain(`${formatNumber(1234)} descargas`);
   });
 
   it("is left out on a server too old to search", async () => {

@@ -85,8 +85,17 @@ interface TizenKey {
   code: number;
 }
 
+/** The TV's menu language and region ("fr_FR"). */
+interface TizenLocale {
+  language: string;
+  country: string;
+}
+
 interface Tizen {
-  systeminfo: { getCapability(key: string): unknown };
+  systeminfo: {
+    getCapability(key: string): unknown;
+    getPropertyValue(property: "LOCALE", ok: (locale: TizenLocale) => void, error?: (e: unknown) => void): void;
+  };
   tvinputdevice: {
     getSupportedKeys(): TizenKey[];
     registerKey(name: string): void;

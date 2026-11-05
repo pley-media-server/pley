@@ -145,6 +145,9 @@ sealed class TvShell : Sheet
     /// <summary>The page the stack starts at, which the rail shows as current.</summary>
     public PageKey? RootKey => stack.Count > 0 ? stack[0].Key : null;
 
+    /// <summary>The pages' keys, the stack's root first: to open them again (in another language).</summary>
+    public IReadOnlyList<PageKey> Keys => stack.ConvertAll(p => p.Key);
+
     /// <summary>Opens <paramref name="page"/> over the one on top.</summary>
     public void Open(ShellPage page)
     {

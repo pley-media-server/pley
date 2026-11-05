@@ -87,4 +87,6 @@ export interface Platform {
   screenReader?(listener: (on: boolean) => void): void;
   /** Whether the TV draws in 24-hour time. */
   clock24(): boolean;
+  /** The TV's languages, its own first ("fr-FR"); without it, the web engine's (`navigator.languages`). */
+  languages?(): readonly string[];
 }

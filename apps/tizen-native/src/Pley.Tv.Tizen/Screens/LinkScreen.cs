@@ -47,7 +47,9 @@ sealed class LinkScreen : Sheet
     /// Under the title: why a code (approving a profile on a phone); null when signing in, where it
     /// says when the server requires two-step sign-in.
     /// </param>
-    public LinkScreen(LinkModel model, Action onBack, string title = "Sign in to Pley", string? intro = null, string backLabel = "Change server") : base("link", Axis.Row)
+    /// <param name="title">The heading; "Sign in to Pley" without.</param>
+    /// <param name="backLabel">The way back; "Change server" without.</param>
+    public LinkScreen(LinkModel model, Action onBack, string? title = null, string? intro = null, string? backLabel = null) : base("link", Axis.Row)
     {
         this.model = model;
         View.BackgroundColor = PleyColors.Bg;
@@ -56,7 +58,7 @@ sealed class LinkScreen : Sheet
         column = new View { Position = new Position(Ui.Dp(Left), Ui.Dp(56)), Size = new Size(Ui.Dp(ColumnWidth), Ui.Dp(400)) };
         View.Add(column);
         column.Add(Onboarding.Logo(40));
-        var heading = Text.Label(title, PleyType.PageTitle, PleyColors.Fg, width: ColumnWidth);
+        var heading = Text.Label(title ?? Strings.T("signin.link.title"), PleyType.PageTitle, PleyColors.Fg, width: ColumnWidth);
         heading.PositionY = Ui.Dp(40 + 28);
         column.Add(heading);
         introTop = 40 + 28 + PleyType.PageTitle.Line + 6;
@@ -65,28 +67,28 @@ sealed class LinkScreen : Sheet
         ownIntro = intro != null;
         Intro(intro);
         float y = 0;
-        steps.Add(Step(1, y, out _, "Scan the code with your phone"));
+        steps.Add(Step(1, y, out _, Strings.T("signin.link.scan")));
         y += 28 + 12;
-        var step2 = Step(2, y, out var stepText, "or go to");
+        var step2 = Step(2, y, out var stepText, Strings.T("signin.link.goTo"));
         addressLead = stepText;
         address = Text.Label("…", PleyType.Section, PleyColors.Fg);
         address.SizeHeight = Ui.Dp(28);
         step2.Add(address);
         steps.Add(step2);
         y += 28 + 12;
-        steps.Add(Step(3, y, out _, "and enter this code"));
+        steps.Add(Step(3, y, out _, Strings.T("signin.link.enterCode")));
         y += 28 + 12;
         codeFields = new View { PositionY = Ui.Dp(y), Size = new Size(Ui.Dp(ColumnWidth), Ui.Dp(76)) };
         steps.Add(codeFields);
         y += 76 + 16;
         notes = new View { PositionY = Ui.Dp(y) };
-        var sameWifi = Text.Label("Your phone must be on the same Wi-Fi as this TV.", PleyType.Body, PleyColors.Muted, width: ColumnWidth);
-        var otherDevice = Text.Label("Or open Pley on a signed-in device → Link a TV", PleyType.Body, PleyColors.Muted, width: ColumnWidth);
+        var sameWifi = Text.Label(Strings.T("signin.link.sameWifi"), PleyType.Body, PleyColors.Muted, width: ColumnWidth);
+        var otherDevice = Text.Label(Strings.T("signin.link.otherDevice"), PleyType.Body, PleyColors.Muted, width: ColumnWidth);
         otherDevice.PositionY = Ui.Dp(PleyType.Body.Line + 6);
         notes.Add(sameWifi);
         notes.Add(otherDevice);
         steps.Add(notes);
-        newCode = new ButtonView("Get a new code", ButtonKind.Pill, model.NewCode, iconName: "refresh-cw") { PositionY = Ui.Dp(y) };
+        newCode = new ButtonView(Strings.T("signin.link.newCode"), ButtonKind.Pill, model.NewCode, iconName: "refresh-cw") { PositionY = Ui.Dp(y) };
         newCode.Hide();
         newCode.Item.Shown = false;
         steps.Add(newCode);
@@ -98,11 +100,11 @@ sealed class LinkScreen : Sheet
         qrSide = new View { Position = new Position(Ui.Dp(QrLeft), Ui.Dp(QrTop)), Size = new Size(Ui.Dp(QrSize), Ui.Dp(QrSize + 12 + 17 + 18 + PleyTv.ButtonHeight)) };
         qrBox = new View { Size = new Size(Ui.Dp(QrSize), Ui.Dp(QrSize)), CornerRadius = Ui.Dp(PleyShape.DialogRadius), BackgroundColor = PleyColors.Surface2 };
         qrSide.Add(qrBox);
-        var scan = Text.Label("Scan with your phone camera", PleyType.Caption, PleyColors.Muted, width: QrSize);
+        var scan = Text.Label(Strings.T("signin.link.scanCamera"), PleyType.Caption, PleyColors.Muted, width: QrSize);
         scan.HorizontalAlignment = HorizontalAlignment.Center;
         scan.PositionY = Ui.Dp(QrSize + 12);
         qrSide.Add(scan);
-        back = new ButtonView(backLabel, ButtonKind.Text, onBack);
+        back = new ButtonView(backLabel ?? Strings.T("signin.link.changeServer"), ButtonKind.Text, onBack);
         back.Position = new Position(Ui.Dp((QrSize - back.WidthDp) / 2), Ui.Dp(QrSize + 12 + 17 + 18));
         qrSide.Add(back);
         View.Add(qrSide);
@@ -208,21 +210,21 @@ sealed class LinkScreen : Sheet
         switch (s)
         {
             case LinkStatus.Starting:
-                status.Set("Getting a code…", waiting: true, color: PleyColors.Muted);
+                status.Set(Strings.T("signin.link.gettingCode"), waiting: true, color: PleyColors.Muted);
                 break;
             case LinkStatus.Waiting:
-                status.Set("Waiting for approval…", waiting: true, color: PleyColors.Muted);
+                status.Set(Strings.T("signin.link.waiting"), waiting: true, color: PleyColors.Muted);
                 break;
             case LinkStatus.Unreachable u:
                 var seconds = Math.Max(0, (int)((u.RetryAt - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 999) / 1000));
-                status.Set($"Can't reach the server. Trying again in {seconds} s", color: PleyColors.DangerText);
+                status.Set(Strings.T("signin.link.retrying", ("seconds", seconds)), color: PleyColors.DangerText);
                 countdown.Start();
                 break;
             case LinkStatus.Declined:
-                status.Set("Request declined", color: PleyColors.DangerText);
+                status.Set(Strings.T("signin.link.declined"), color: PleyColors.DangerText);
                 break;
             case LinkStatus.Expired:
-                status.Set("Code expired: press OK for a new one", color: PleyColors.Muted);
+                status.Set(Strings.T("signin.link.expired"), color: PleyColors.Muted);
                 break;
             case LinkStatus.Failed f:
                 status.Set(f.Message, color: PleyColors.DangerText);
@@ -298,7 +300,8 @@ sealed class LinkScreen : Sheet
         check.Position = new Position(Ui.Dp(16), Ui.Dp(16));
         tile.Add(check);
         signedIn.Add(tile);
-        var words = Text.Label(name != null ? $"Signed in as {name}" : "Signed in", PleyType.PageTitle, PleyColors.Fg, maxLines: 2, width: ColumnWidth);
+        var words = Text.Label(name != null ? Strings.T("signin.link.signedInAs", ("name", name)) : Strings.T("signin.link.signedIn"), PleyType.PageTitle, PleyColors.Fg, maxLines: 2,
+            width: ColumnWidth);
         words.VerticalAlignment = VerticalAlignment.Top;
         words.PositionY = Ui.Dp(64 + 20);
         signedIn.Add(words);

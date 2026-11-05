@@ -1,0 +1,12 @@
+{
+  "title": "Historial de reproducción",
+  "emptyTitle": "Aún no hay historial",
+  "empty": "Aquí aparecen las películas, los episodios y las canciones que terminas.",
+  "failed": "No se pudo cargar tu historial de reproducción",
+  "more": "Ver más",
+  "loading": "Cargando…",
+  "plays_one": "{{count}} reproducción",
+  "plays_many": "{{count}} reproducciones",
+  "plays_other": "{{count}} reproducciones",
+  "remove": "Quitar {{title}} del historial"
+}

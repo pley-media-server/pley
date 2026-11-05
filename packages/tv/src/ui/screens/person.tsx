@@ -1,6 +1,7 @@
 import { isApiError } from "../../api/client";
 import type { CreditRole, ItemSummary, PersonDetail } from "../../api/types";
 import { pluralize } from "../../format/format";
+import { t } from "../../i18n";
 import { useUi } from "../context";
 import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
 import { Tile } from "../kit/tile";
@@ -9,13 +10,8 @@ import type { Entry } from "../shell/navigator";
 import { failedTitle, Message, problem, useLoad } from "./common";
 import { pageOf } from "./item-actions";
 
-const ROLES: { role: CreditRole; title: string }[] = [
-  { role: "actor", title: "Acting" },
-  { role: "director", title: "Directing" },
-  { role: "creator", title: "Creating" },
-  { role: "writer", title: "Writing" },
-  { role: "producer", title: "Producing" },
-];
+/** The rows, in order, each titled with what the person did ("Acting"). */
+const ROLES: CreditRole[] = ["actor", "director", "creator", "writer", "producer"];
 
 const ROWS_TOP = 240;
 
@@ -23,9 +19,9 @@ const ROWS_TOP = 240;
 export function creditCaption(item: ItemSummary, roles: { role: CreditRole; character?: string; episodes?: number }[]): string {
   const words = roles.map((r) => {
     let w: string;
-    if (r.role === "actor") w = r.character ? `as ${r.character}` : r.episodes ? "Guest star" : "Actor";
-    else w = r.role === "director" ? "Director" : r.role === "creator" ? "Creator" : r.role === "writer" ? "Writer" : "Producer";
-    return r.episodes ? `${w} (${pluralize(r.episodes, "episode")})` : w;
+    if (r.role === "actor") w = r.character ? t("browse.person.as", { character: r.character }) : r.episodes ? t("browse.person.guestStar") : t("browse.person.roles.actor");
+    else w = t(`browse.person.roles.${r.role}`);
+    return r.episodes ? t("browse.person.withEpisodes", { role: w, count: r.episodes }) : w;
   });
   return [item.year ? String(item.year) : "", words.join(", ")].filter(Boolean).join(" · ");
 }
@@ -35,7 +31,7 @@ function countsLine(p: PersonDetail): string {
   const movies = p.credits.filter((c) => c.item.kind === "movie").length;
   const shows = p.credits.filter((c) => c.item.kind === "show").length;
   const parts = [movies ? pluralize(movies, "movie") : "", shows ? pluralize(shows, "show") : ""].filter(Boolean);
-  return parts.length ? `${parts.join(" · ")} in your libraries` : "";
+  return parts.length ? t("browse.person.inLibraries", { counts: parts.join(" · ") }) : "";
 }
 
 function initials(name: string): string {
@@ -54,11 +50,11 @@ export function PersonScreen(p: { entry: Entry; id: number }) {
   const person = loaded.data;
   if (!person) {
     if (loaded.error && isApiError(loaded.error, 404)) {
-      return <Message icon="user-round" title="Person not found" body="No one by that link has anything in your libraries." action={{ label: "Back", onSelect: () => ui.nav.pop() }} />;
+      return <Message icon="user-round" title={t("browse.person.notFound")} body={t("browse.person.notFoundHint")} action={{ label: t("common.actions.back"), onSelect: () => ui.nav.pop() }} />;
     }
-    if (loaded.error) return <Message title={failedTitle(loaded.error, "Couldn't load this person")} body={problem(loaded.error)} action={{ label: "Retry", icon: "refresh-cw", onSelect: loaded.reload }} />;
+    if (loaded.error) return <Message title={failedTitle(loaded.error, t("browse.person.cantLoad"))} body={problem(loaded.error)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }} />;
     return (
-      <div class="person-page" role="status" aria-label="Loading">
+      <div class="person-page" role="status" aria-label={t("common.states.loading")}>
         <div class="person-photo" />
         <div class="skeleton" style="position:absolute;left:288px;top:110px;width:280px;height:38px" />
         <div class="skeleton" style="position:absolute;left:288px;top:156px;width:200px;height:20px" />
@@ -70,33 +66,33 @@ export function PersonScreen(p: { entry: Entry; id: number }) {
   p.entry.state.rowIndex = rowIndex;
   const sections: Section[] = [];
   let first = true;
-  for (const r of ROLES) {
-    const credits = person.credits.filter((c) => c.roles.some((x) => x.role === r.role));
+  for (const role of ROLES) {
+    const credits = person.credits.filter((c) => c.roles.some((x) => x.role === role));
     if (!credits.length) continue;
     const initialRow = first;
     first = false;
     sections.push({
-      key: r.role,
+      key: role,
       height: rowHeight("poster"),
       anchor: ROWS_TOP,
       render: (onFocus) => (
         <Row
-          title={r.title}
+          title={t(`browse.person.rows.${role}`)}
           kind="poster"
           items={credits}
           keyOf={(c) => c.item.id}
-          enterAt={rowIndex[r.role]}
+          enterAt={rowIndex[role]}
           onLeftEdge={ui.toRail}
           onFocusIndex={(i) => {
-            rowIndex[r.role] = i;
+            rowIndex[role] = i;
             onFocus();
           }}
           tile={(c, i, place) => (
             <Tile
               item={c.item}
               kind="poster"
-              subtitle={creditCaption(c.item, c.roles.filter((x) => x.role === r.role))}
-              fid={`${r.role}/${c.item.id}`}
+              subtitle={creditCaption(c.item, c.roles.filter((x) => x.role === role))}
+              fid={`${role}/${c.item.id}`}
               initial={initialRow && i === 0}
               priority={place.priority}
               onFocus={place.onFocus}

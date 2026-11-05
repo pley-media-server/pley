@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
 import type { SubtitleResult } from "../../api/types";
 import { channelsLabel, codecLabel, formatBitrate, formatClock, languageName } from "../../format/format";
+import { t } from "../../i18n";
 import { Cancel } from "../../net/transport";
 import { mediaFacts, streamBlock, type FactBlock } from "../../format/media-info";
 import type { PlaybackController, PlayerState } from "../../player/controller";
@@ -36,8 +37,8 @@ function unavailableOf(e: unknown): "setup" | "older" | null {
 
 /** A chapter's name: its title, or "Chapter N" (its title after it, unless it is one already). */
 export function chapterName(title: string | null, n: number): string {
-  if (!title) return `Chapter ${n}`;
-  return /^chapter/i.test(title) ? title : `Chapter ${n} · ${title}`;
+  if (!title) return t("player.chapters.numbered", { number: n });
+  return /^chapter/i.test(title) ? title : t("player.chapters.numberedTitle", { number: n, title });
 }
 
 /** The player's side panels (TvPlayerPanels): pick a row, it applies and closes; Back closes. */
@@ -64,25 +65,25 @@ export function PlayerPanels(p: {
       // Search the server can't do: not offered where it never will, said for an administrator who can set it up.
       const find = !!p.onOpen && searchUnavailable !== "older" && (searchUnavailable !== "setup" || !!me?.is_admin);
       return (
-        <SidePanel onClose={p.onClose} label="Subtitles">
-          <PanelTitle>Subtitles</PanelTitle>
+        <SidePanel onClose={p.onClose} label={t("player.controls.subtitles")}>
+          <PanelTitle>{t("player.controls.subtitles")}</PanelTitle>
           {s.subtitleSync && <SyncRow offsetMs={s.subtitleOffsetMs} onChange={(ms) => c.setSubtitleOffset(ms)} />}
-          {s.subtitles.map((t) => (
+          {s.subtitles.map((track) => (
             <PanelRow
-              key={String(t.index)}
-              label={t.label}
-              sub={t.added ? "Added" : null}
-              checked={t.selected}
-              initial={t.selected}
-              onSelect={pick(() => c.selectSubtitle(t.index))}
+              key={String(track.index)}
+              label={track.label}
+              sub={track.added ? t("player.subtitles.added") : null}
+              checked={track.selected}
+              initial={track.selected}
+              onSelect={pick(() => c.selectSubtitle(track.index))}
             />
           ))}
           {find && (
             <PanelRow
               fid="find-subtitles"
               icon="search"
-              label="Find subtitles…"
-              sub={searchUnavailable === "setup" ? "Subtitle search isn't set up" : null}
+              label={t("player.subtitles.find")}
+              sub={searchUnavailable === "setup" ? t("player.subtitles.searchNotSetUp") : null}
               initial={!s.subtitles.length}
               onSelect={() => p.onOpen?.("find")}
             />
@@ -94,19 +95,27 @@ export function PlayerPanels(p: {
       return <FindPanel controller={c} language={me?.subtitle_language ?? null} isAdmin={!!me?.is_admin} onClose={p.onClose} />;
     case "audio":
       return (
-        <SidePanel onClose={p.onClose} label="Audio">
-          <PanelTitle>Audio</PanelTitle>
-          {s.audio.map((t) => (
-            <PanelRow key={String(t.index)} label={t.label} checked={t.selected} initial={t.selected} onSelect={pick(() => t.index !== null && c.selectAudio(t.index))} />
+        <SidePanel onClose={p.onClose} label={t("player.controls.audio")}>
+          <PanelTitle>{t("player.controls.audio")}</PanelTitle>
+          {s.audio.map((track) => (
+            <PanelRow
+              key={String(track.index)}
+              label={track.label}
+              checked={track.selected}
+              initial={track.selected}
+              onSelect={pick(() => track.index !== null && c.selectAudio(track.index))}
+            />
           ))}
         </SidePanel>
       );
     case "quality":
       return (
-        <SidePanel onClose={p.onClose} label="Quality">
-          <PanelTitle>Quality</PanelTitle>
+        <SidePanel onClose={p.onClose} label={t("player.controls.quality")}>
+          <PanelTitle>{t("player.controls.quality")}</PanelTitle>
           {s.note && <div class="t-body c-muted panel-note">{s.note}</div>}
-          {s.canPlayOriginal && <PanelRow label="Play original" sub="Try the original again" icon="rotate-ccw" onSelect={pick(() => c.playOriginal())} />}
+          {s.canPlayOriginal && (
+            <PanelRow label={t("player.quality.playOriginal")} sub={t("player.quality.tryOriginal")} icon="rotate-ccw" onSelect={pick(() => c.playOriginal())} />
+          )}
           {s.qualities.map((q) => (
             <PanelRow key={q.id} label={q.label} sub={q.hint} checked={q.selected} initial={q.selected} onSelect={pick(() => c.selectQuality(q.id))} />
           ))}
@@ -115,12 +124,12 @@ export function PlayerPanels(p: {
     case "chapters": {
       const at = s.chapters.reduce((found, ch, i) => (ch.startMs <= p.positionMs ? i : found), -1);
       return (
-        <SidePanel onClose={p.onClose} label="Chapters">
-          <PanelTitle>Chapters</PanelTitle>
+        <SidePanel onClose={p.onClose} label={t("player.controls.chapters")}>
+          <PanelTitle>{t("player.controls.chapters")}</PanelTitle>
           {s.chapters.map((ch, i) => (
             <PanelRow
               key={ch.startMs}
-              label={ch.title || `Chapter ${i + 1}`}
+              label={ch.title || t("player.chapters.numbered", { number: i + 1 })}
               sub={formatClock(ch.startMs)}
               checked={i === at}
               initial={i === Math.max(0, at)}
@@ -132,8 +141,8 @@ export function PlayerPanels(p: {
     }
     case "speed":
       return (
-        <SidePanel onClose={p.onClose} label="Speed">
-          <PanelTitle>Speed</PanelTitle>
+        <SidePanel onClose={p.onClose} label={t("player.controls.speed")}>
+          <PanelTitle>{t("player.controls.speed")}</PanelTitle>
           {s.speeds.map((rate) => (
             <PanelRow key={String(rate)} label={speedLabel(rate)} checked={rate === s.speed} initial={rate === s.speed} onSelect={pick(() => c.setSpeed(rate))} />
           ))}
@@ -141,15 +150,15 @@ export function PlayerPanels(p: {
       );
     case "sleep":
       return (
-        <SidePanel onClose={p.onClose} label="Sleep timer">
-          <PanelTitle>Sleep timer</PanelTitle>
+        <SidePanel onClose={p.onClose} label={t("player.controls.sleep")}>
+          <PanelTitle>{t("player.controls.sleep")}</PanelTitle>
           {SLEEP_CHOICES.map((choice) => {
             const on = sameChoice(choice, s.sleep.choice);
             return (
               <PanelRow
-                key={sleepLabel(choice)}
+                key={choice.kind === "minutes" ? choice.minutes : choice.kind}
                 label={sleepLabel(choice, s.kind)}
-                sub={on && choice.kind === "minutes" && s.sleep.minutesLeft !== null ? `${s.sleep.minutesLeft} min left` : null}
+                sub={on && choice.kind === "minutes" && s.sleep.minutesLeft !== null ? t("player.sleep.minutesLeft", { count: s.sleep.minutesLeft }) : null}
                 checked={on}
                 initial={on}
                 onSelect={pick(() => c.setSleep(choice))}
@@ -164,11 +173,6 @@ export function PlayerPanels(p: {
 }
 
 type Found = { kind: "results"; results: SubtitleResult[] } | { kind: "setup" } | { kind: "older" } | { kind: "error"; message: string };
-
-/** "1,234 downloads". */
-function downloads(n: number): string {
-  return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} download${n === 1 ? "" : "s"}`;
-}
 
 /**
  * Find subtitles… (the web's): what OpenSubtitles has for the file, in the
@@ -197,8 +201,8 @@ function FindPanel(p: { controller: PlaybackController; language: string | null;
 
   if (choosing) {
     return (
-      <SidePanel key="languages" onClose={() => setChoosing(false)} label="Subtitle language">
-        <PanelTitle>Subtitle language</PanelTitle>
+      <SidePanel key="languages" onClose={() => setChoosing(false)} label={t("player.find.language")}>
+        <PanelTitle>{t("player.find.language")}</PanelTitle>
         {LANGUAGES.map(([code, name]) => (
           <PanelRow
             key={code}
@@ -222,33 +226,36 @@ function FindPanel(p: { controller: PlaybackController; language: string | null;
       () => p.onClose(),
       (e: unknown) => {
         setAdding(null);
-        setFailed(`These subtitles couldn't be added. ${errorMessage(e)}`);
+        setFailed(t("player.find.addFailed", { error: errorMessage(e) }));
       },
     );
   };
   const found = answer && answer.language === language ? answer.found : null;
   const name = languageName(language) ?? language;
   return (
-    <SidePanel key="results" onClose={p.onClose} label="Find subtitles">
-      <PanelTitle>Find subtitles</PanelTitle>
+    <SidePanel key="results" onClose={p.onClose} label={t("player.find.title")}>
+      <PanelTitle>{t("player.find.title")}</PanelTitle>
       {found?.kind === "setup" || found?.kind === "older" ? (
         <div class="t-body c-muted panel-note">
-          {found.kind === "older"
-            ? "This server can't search for subtitles: it needs an update."
-            : p.isAdmin
-              ? "Subtitle search isn't set up on this server. Set it up in Pley on the web: Settings → Server → Subtitles."
-              : "Subtitle search isn't set up on this server."}
+          {found.kind === "older" ? t("player.find.needsUpdate") : p.isAdmin ? t("player.find.notSetUpAdmin") : t("player.find.notSetUp")}
         </div>
       ) : (
         <>
-          <PanelRow fid="find-language" icon="captions" label="Language" sub={name} initial={!found || found.kind !== "results" || !found.results.length} onSelect={() => setChoosing(true)} />
+          <PanelRow
+            fid="find-language"
+            icon="captions"
+            label={t("player.find.languageRow")}
+            sub={name}
+            initial={!found || found.kind !== "results" || !found.results.length}
+            onSelect={() => setChoosing(true)}
+          />
           {failed && <div class="t-body c-muted panel-note">{failed}</div>}
           {!found ? (
-            <div class="t-body c-muted panel-note">Searching…</div>
+            <div class="t-body c-muted panel-note">{t("player.find.searching")}</div>
           ) : found.kind === "error" ? (
-            <div class="t-body c-muted panel-note">{`Couldn't search for subtitles. ${found.message}`}</div>
+            <div class="t-body c-muted panel-note">{t("player.find.searchFailed", { error: found.message })}</div>
           ) : !found.results.length ? (
-            <div class="t-body c-muted panel-note">{`No ${name} subtitles found for this video.`}</div>
+            <div class="t-body c-muted panel-note">{t("player.find.noResults", { language: name })}</div>
           ) : (
             found.results.map((r, i) => (
               <PanelRow
@@ -256,8 +263,15 @@ function FindPanel(p: { controller: PlaybackController; language: string | null;
                 label={r.name}
                 sub={
                   adding === r.id
-                    ? "Adding…"
-                    : [r.matched === "hash" ? "Made for this file" : null, languageName(r.language), r.format.toUpperCase(), r.hearing_impaired ? "SDH" : null, r.forced ? "Forced" : null, downloads(r.downloads)]
+                    ? t("player.find.adding")
+                    : [
+                        r.matched === "hash" ? t("player.find.madeForFile") : null,
+                        languageName(r.language),
+                        r.format.toUpperCase(),
+                        r.hearing_impaired ? t("player.find.sdh") : null,
+                        r.forced ? t("player.find.forced") : null,
+                        t("player.find.downloads", { count: r.downloads }),
+                      ]
                         .filter(Boolean)
                         .join(" · ")
                 }
@@ -278,7 +292,7 @@ function SyncRow(p: { offsetMs: number; onChange: (ms: number) => void }) {
   return (
     <F
       class="panel-row sync-row"
-      label={`Sync ${formatOffset(p.offsetMs)}`}
+      label={t("player.subtitles.syncAt", { offset: formatOffset(p.offsetMs) })}
       onSelect={() => p.onChange(0)}
       onKey={(key) => {
         if (key === "left") {
@@ -293,8 +307,8 @@ function SyncRow(p: { offsetMs: number; onChange: (ms: number) => void }) {
       }}
     >
       <div class="grow">
-        <div class="t-label">Sync</div>
-        <div class="t-caption sub">OK resets</div>
+        <div class="t-label">{t("player.subtitles.sync")}</div>
+        <div class="t-caption sub">{t("player.subtitles.okResets")}</div>
       </div>
       <Icon name="chevron-left" size={20} />
       <span class="t-label" style="padding:0 6px">
@@ -310,44 +324,49 @@ export function readoutSections(state: PlayerState, stats: EngineStats | null, e
   const d = state.details;
   const out: FactBlock[] = [];
   if (!d) return out;
-  const playback = { label: "Playback", value: d.pipeline ? `${d.method} · ${d.pipeline}` : d.method };
-  const how: FactBlock = { title: "How it plays", facts: d.why ? [playback, { label: "Why", value: d.why }] : [playback] };
+  const playback = { label: t("player.info.playback"), value: d.pipeline ? `${d.method} · ${d.pipeline}` : d.method };
+  const how: FactBlock = { title: t("player.info.howItPlays"), facts: d.why ? [playback, { label: t("player.info.why"), value: d.why }] : [playback] };
   for (const r of d.rows) how.facts.push({ label: r.label, value: r.value });
-  how.facts.push({ label: "Quality", value: state.quality });
+  how.facts.push({ label: t("player.info.quality"), value: state.quality });
   out.push(how);
   if (d.file) {
     const file = mediaFacts(d.file)[0];
     if (file) out.push(file);
   }
-  if (d.video) out.push(streamBlock(d.video, "Video"));
-  if (d.audio) out.push(streamBlock(d.audio, "Audio"));
-  const subs: FactBlock = { title: "Subtitles", facts: [] };
-  if (!d.subtitle) subs.facts.push({ label: "Track", value: "Off" });
+  if (d.video) out.push(streamBlock(d.video, t("player.info.video")));
+  if (d.audio) out.push(streamBlock(d.audio, t("player.info.audio")));
+  const subs: FactBlock = { title: t("player.info.subtitles"), facts: [] };
+  if (!d.subtitle) subs.facts.push({ label: t("player.info.track"), value: t("player.info.off") });
   else {
-    subs.facts.push({ label: "Format", value: `${codecLabel(d.subtitle.codec)}, ${d.subtitle.text_based === false ? "picture" : "text"}` });
-    if (d.subtitle.language) subs.facts.push({ label: "Language", value: d.subtitle.language });
-    subs.facts.push({ label: "Shown", value: d.subtitleDelivery === "burned_in" ? "Burned in by the server" : "Drawn by this TV" });
+    const codec = codecLabel(d.subtitle.codec);
+    subs.facts.push({ label: t("player.info.format"), value: d.subtitle.text_based === false ? t("player.info.formatPicture", { codec }) : t("player.info.formatText", { codec }) });
+    if (d.subtitle.language) subs.facts.push({ label: t("player.info.language"), value: d.subtitle.language });
+    subs.facts.push({ label: t("player.info.shown"), value: d.subtitleDelivery === "burned_in" ? t("player.info.burnedIn") : t("player.info.drawnHere") });
   }
   out.push(subs);
-  const tv: FactBlock = { title: "This TV", facts: [{ label: "Player", value: engineName }] };
+  const tv: FactBlock = { title: t("player.info.thisTv"), facts: [{ label: t("player.info.player"), value: engineName }] };
   if (stats) {
     const decoded = [stats.width && stats.height ? `${stats.width}×${stats.height}` : "", stats.frameRate ? `${stats.frameRate.toFixed(3).replace(/\.?0+$/, "")} fps` : "", stats.hdr ?? "", stats.codec ? codecLabel(stats.codec) : ""]
       .filter(Boolean)
       .join(" · ");
-    if (decoded) tv.facts.push({ label: "Decoded", value: decoded });
-    if (stats.decoder) tv.facts.push({ label: "Video decoder", value: `${stats.decoder} (${stats.hardware === false ? "software" : "hardware"})` });
-    if (stats.audioCodec) tv.facts.push({ label: "Audio", value: [codecLabel(stats.audioCodec), channelsLabel(stats.audioChannels ?? null)].filter(Boolean).join(" ") });
-    if (stats.audioOutput) tv.facts.push({ label: "Output", value: stats.audioOutput });
-    if (stats.bitrate) tv.facts.push({ label: "Current bitrate", value: formatBitrate(stats.bitrate) });
-    if (stats.dropped !== undefined && stats.frames) tv.facts.push({ label: "Dropped frames", value: `${stats.dropped} of ${stats.frames}` });
-    if (stats.bufferedAheadMs !== undefined) tv.facts.push({ label: "Buffered ahead", value: `${Math.round(stats.bufferedAheadMs / 1000)} s` });
-    tv.facts.push({ label: "Stalls", value: String(state.stalls) });
+    if (decoded) tv.facts.push({ label: t("player.info.decoded"), value: decoded });
+    if (stats.decoder) {
+      const decoder = stats.decoder;
+      tv.facts.push({ label: t("player.info.decoder"), value: stats.hardware === false ? t("player.info.software", { decoder }) : t("player.info.hardware", { decoder }) });
+    }
+    if (stats.audioCodec) tv.facts.push({ label: t("player.info.audio"), value: [codecLabel(stats.audioCodec), channelsLabel(stats.audioChannels ?? null)].filter(Boolean).join(" ") });
+    if (stats.audioOutput) tv.facts.push({ label: t("player.info.output"), value: stats.audioOutput });
+    if (stats.bitrate) tv.facts.push({ label: t("player.info.currentBitrate"), value: formatBitrate(stats.bitrate) });
+    if (stats.dropped !== undefined && stats.frames) tv.facts.push({ label: t("player.info.droppedFrames"), value: t("player.info.framesOf", { dropped: stats.dropped, frames: stats.frames }) });
+    if (stats.bufferedAheadMs !== undefined) tv.facts.push({ label: t("player.info.bufferedAhead"), value: `${Math.round(stats.bufferedAheadMs / 1000)} s` });
+    tv.facts.push({ label: t("player.info.stalls"), value: String(state.stalls) });
+    // The TV's own lines ("Renderer: …"), as it writes them.
     for (const line of stats.extra ?? []) {
       const i = line.indexOf(":");
       if (i > 0) tv.facts.push({ label: line.slice(0, i), value: line.slice(i + 1).trim() });
     }
   }
-  if (state.firstFrameMs !== null) tv.facts.push({ label: "First frame", value: `${state.firstFrameMs} ms` });
+  if (state.firstFrameMs !== null) tv.facts.push({ label: t("player.info.firstFrame"), value: `${state.firstFrameMs} ms` });
   out.push(tv);
   return out;
 }
@@ -366,11 +385,11 @@ function InfoPanel(p: { state: PlayerState; controller: PlaybackController; onCl
   }, []);
   const sections = readoutSections(p.state, p.stats(), p.engineName);
   return (
-    <SidePanel onClose={p.onClose} wide label="Playback info">
+    <SidePanel onClose={p.onClose} wide label={t("player.info.title")}>
       <F
         class="info-scroll"
         initial
-        label="Playback info"
+        label={t("player.info.title")}
         onKey={(key) => {
           const max = Math.max(0, (box.current?.offsetHeight ?? 0) - 440);
           if (key === "down") {
@@ -385,8 +404,8 @@ function InfoPanel(p: { state: PlayerState; controller: PlaybackController; onCl
         }}
       >
         <div ref={box} class="scroll-y" style={`transform:translateY(${-scroll}px)`}>
-          <PanelTitle>Playback info</PanelTitle>
-          {!sections.length ? <div class="t-body c-muted panel-note">Asking the server…</div> : sections.map((s) => <Facts key={s.title} block={s} />)}
+          <PanelTitle>{t("player.info.title")}</PanelTitle>
+          {!sections.length ? <div class="t-body c-muted panel-note">{t("player.info.asking")}</div> : sections.map((s) => <Facts key={s.title} block={s} />)}
           <div style="height:24px" />
         </div>
       </F>
@@ -422,16 +441,19 @@ export function CompactReadout(p: { state: PlayerState; controller: PlaybackCont
   const d = p.state.details;
   if (!d) return null;
   const stats = p.stats();
-  const lines: [string, string][] = [["Playback", d.pipeline ? `${d.method} · ${d.pipeline}` : d.method]];
+  const lines: [string, string][] = [[t("player.info.playback"), d.pipeline ? `${d.method} · ${d.pipeline}` : d.method]];
   for (const r of d.rows) lines.push([r.label, r.value]);
   const sub = d.subtitle;
-  lines.push(["Subtitles", sub ? [sub.language ?? "", codecLabel(sub.codec)].filter(Boolean).join(" · ") : "Off"]);
+  lines.push([t("player.info.subtitles"), sub ? [sub.language ?? "", codecLabel(sub.codec)].filter(Boolean).join(" · ") : t("player.info.off")]);
   // The file's bitrate, then what arrives now when that differs: "18 Mbps → 8 Mbps".
   const rates = [d.file?.bitrate ? formatBitrate(d.file.bitrate) : "", stats?.bitrate ? formatBitrate(stats.bitrate) : ""].filter((r, i, a) => r && a.indexOf(r) === i);
-  if (rates.length) lines.push(["Bitrate", rates.join(" → ")]);
-  if (stats?.width && stats.height) lines.push(["Decoded", `${stats.width}×${stats.height}${stats.hdr ? ` · ${stats.hdr}` : ""}`]);
-  if (stats?.dropped !== undefined && stats.frames) lines.push(["Dropped", `${stats.dropped} of ${stats.frames}`]);
-  if (stats?.bufferedAheadMs !== undefined) lines.push(["Buffer", `${Math.round(stats.bufferedAheadMs / 1000)} s ahead${stats.bandwidth ? ` · ${formatBitrate(stats.bandwidth)}` : ""}`]);
+  if (rates.length) lines.push([t("player.details.bitrate"), rates.join(" → ")]);
+  if (stats?.width && stats.height) lines.push([t("player.info.decoded"), `${stats.width}×${stats.height}${stats.hdr ? ` · ${stats.hdr}` : ""}`]);
+  if (stats?.dropped !== undefined && stats.frames) lines.push([t("player.info.dropped"), t("player.info.framesOf", { dropped: stats.dropped, frames: stats.frames })]);
+  if (stats?.bufferedAheadMs !== undefined) {
+    const ahead = t("player.info.secondsAhead", { seconds: Math.round(stats.bufferedAheadMs / 1000) });
+    lines.push([t("player.info.buffer"), stats.bandwidth ? `${ahead} · ${formatBitrate(stats.bandwidth)}` : ahead]);
+  }
   return (
     <div class="compact-readout">
       {lines.map(([l, v]) => (

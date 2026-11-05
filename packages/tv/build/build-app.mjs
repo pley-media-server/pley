@@ -25,6 +25,23 @@ const PRELUDE = [
 ].join("\n");
 
 /**
+ * The language catalogs (`i18n/locales/<language>/<area>.json`) as strings
+ * for JSON.parse rather than as object literals: an engine reads a JSON
+ * string much faster than the same object written as code, and they are a
+ * fifth of the script.
+ * @type {import("esbuild").Plugin}
+ */
+const catalogsAsJson = {
+  name: "catalogs-as-json",
+  setup(b) {
+    b.onLoad({ filter: /[\\/]i18n[\\/]locales[\\/][^\\/]+[\\/][^\\/]+\.json$/ }, (args) => {
+      const json = JSON.stringify(JSON.parse(readFileSync(args.path, "utf8")));
+      return { contents: `export default JSON.parse(${JSON.stringify(json)});`, loader: "js" };
+    });
+  },
+};
+
+/**
  * @param {{
  *   app: string,
  *   entry: string,
@@ -56,6 +73,7 @@ export async function buildApp(o) {
     external: ["*.woff2"],
     define: { __PLEY_VERSION__: JSON.stringify(o.version), __PLEY_COMMIT__: JSON.stringify(commit()) },
     banner: { js: PRELUDE },
+    plugins: [catalogsAsJson],
     logLevel: "warning",
     metafile: true,
   });

@@ -1,0 +1,176 @@
+{
+  "language": {
+    "label": "Idioma",
+    "names": {
+      "en": "English",
+      "fr": "Français",
+      "es": "Español"
+    },
+    "serverDefault": "Idioma del servidor ({{language}})",
+    "deviceLanguage": "idioma de este dispositivo",
+    "needsNewer": "Elegir un idioma requiere una versión más reciente de Pley en el servidor"
+  },
+  "title": "Ajustes",
+  "categories": {
+    "profile": "Perfil",
+    "playback": "Reproducción",
+    "audio": "Audio",
+    "display": "Subtítulos y pantalla",
+    "server": "Servidor",
+    "diagnostics": "Diagnóstico",
+    "about": "Acerca de",
+    "signout": "Cerrar sesión"
+  },
+  "profile": {
+    "managed": "Perfil administrado",
+    "switch": "Cambiar de perfil",
+    "audioLanguage": "Idioma del audio",
+    "fileDefault": "El predeterminado del archivo",
+    "subtitles": "Subtítulos",
+    "subtitleLanguage": "Idioma de los subtítulos",
+    "sameAsAudio": "El mismo que el del audio",
+    "changeOnWeb": "cámbialo en la web",
+    "readOnly": "Este servidor no permite que la aplicación los cambie: cámbialos en la web",
+    "history": "Historial de reproducción",
+    "sortLibraries": "Ordenar bibliotecas",
+    "sortNeedsNewer": "Requiere una versión más reciente de Pley en el servidor",
+    "yourOrder": "Tu orden, en todos tus dispositivos",
+    "alwaysStartAs": "Empezar siempre como",
+    "askWho": "Preguntar quién está viendo",
+    "web": "Gestiona tu cuenta en la web",
+    "webHint": "Nombre, foto, contraseña, PIN, inicio de sesión en dos pasos, dispositivos y aplicaciones"
+  },
+  "modes": {
+    "off": {
+      "label": "Desactivados",
+      "hint": "Los subtítulos siguen desactivados hasta que los actives."
+    },
+    "forced": {
+      "label": "Solo para diálogos en otro idioma",
+      "hint": "Solo subtítulos forzados, para carteles y diálogos en otro idioma."
+    },
+    "foreign": {
+      "label": "Cuando el audio está en otro idioma",
+      "hint": "Los subtítulos completos aparecen cuando el audio no está en tu idioma de subtítulos."
+    },
+    "always": {
+      "label": "Siempre",
+      "hint": "Los subtítulos en tu idioma aparecen siempre que los haya."
+    }
+  },
+  "playback": {
+    "quality": "Calidad",
+    "automatic": "Automática",
+    "original": "Original",
+    "automaticHint": "Se adapta a las condiciones",
+    "originalHint": "Calidad completa. Puede detenerse a cargar con una conexión lenta",
+    "autoplay": "Reproducir el siguiente episodio automáticamente",
+    "autoplayHint": "Tras una cuenta de 10 segundos",
+    "details": "Detalles de reproducción",
+    "detailsHint": "Muestra sobre el video cómo se reproduce (directo, remux o transcodificación)"
+  },
+  "audio": {
+    "intro": "Dolby Digital, Dolby Digital Plus y Atmos siempre se envían tal cual. Activa estas opciones si tu receptor los admite; si no, Pley los convierte.",
+    "truehd": "Enviar Dolby TrueHD tal cual",
+    "truehdHint": "Solo con un receptor que acepte TrueHD desde la TV",
+    "dts": "Enviar DTS tal cual",
+    "dtsHint": "Solo con un receptor que acepte DTS desde la TV"
+  },
+  "display": {
+    "size": "Tamaño de los subtítulos",
+    "sizes": {
+      "small": "Pequeño",
+      "normal": "Mediano",
+      "large": "Grande",
+      "largest": "Muy grande"
+    },
+    "background": "Fondo de los subtítulos",
+    "box": "Recuadro oscuro",
+    "outline": "Ninguno, con contorno",
+    "font": "Fuente de los subtítulos",
+    "fonts": {
+      "default": "Predeterminada",
+      "serif": "Serif",
+      "mono": "Monoespaciada",
+      "casual": "Informal"
+    },
+    "position": "Posición de los subtítulos",
+    "positions": {
+      "bottom": "Abajo",
+      "raised": "Un poco más arriba",
+      "higher": "Más arriba",
+      "highest": "Aún más arriba"
+    },
+    "motion": "Reducir el movimiento",
+    "motionHint": "Sin zoom, deslizamientos ni fundidos: todo cambia en su sitio"
+  },
+  "server": {
+    "none": "Ningún servidor",
+    "thisTv": "El servidor que usa esta TV",
+    "switch": "Cambiar de servidor"
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "open": "Abrir el diagnóstico",
+    "openHint": "Lo que esta TV decodifica y muestra, y por qué",
+    "app": "Aplicación",
+    "model": "Modelo",
+    "system": "Sistema",
+    "firmware": "Firmware",
+    "engine": "Motor web",
+    "tier": "Nivel",
+    "tiers": {
+      "low": "bajo",
+      "mid": "medio",
+      "high": "alto"
+    },
+    "line": "{{label}}: {{value}}",
+    "thisTv": "Esta TV",
+    "plays": "Lo que reproduce",
+    "checking": "Comprobando lo que reproduce esta TV…",
+    "failed": "La comprobación de esta TV falló.",
+    "again": "Volver a comprobar",
+    "caps": {
+      "tv": "TV: {{model}}",
+      "tvFirmware": "TV: {{model}} (firmware {{firmware}})",
+      "tizen": "Tizen {{version}} (modelos de {{year}})",
+      "panel": "Panel: {{panel}}",
+      "hdr": "HDR: {{list}} · ninguna TV Samsung muestra Dolby Vision",
+      "none": "ninguno",
+      "video": "Video: {{list}}",
+      "audio": "Audio decodificado: {{list}}",
+      "receiver": "Enviado al receptor: {{list}}",
+      "receiverOutput": "Enviado al receptor: {{list}} (salida de sonido {{output}})",
+      "nothing": "nada",
+      "streams": "Transmisión: HLS {{list}}"
+    }
+  },
+  "about": {
+    "appName": "Pley para TV Samsung",
+    "version": "Versión",
+    "licences": "Licencias de código abierto",
+    "credits": "Créditos"
+  },
+  "signOut": {
+    "intro": "Cierra la sesión de esta TV en el servidor. Necesitarás un nuevo código de vinculación para volver a iniciar sesión.",
+    "introServer": "Cierra la sesión de esta TV en {{server}}. Necesitarás un nuevo código de vinculación para volver a iniciar sesión.",
+    "button": "Cerrar sesión",
+    "title": "¿Cerrar sesión?",
+    "body": "Esta TV cierra la sesión en {{server}}."
+  },
+  "web": {
+    "title": "Gestiona tu cuenta en la web",
+    "body": "Escanea el código con tu teléfono o ve a esta dirección en un teléfono o una computadora de la misma red:"
+  },
+  "history": {
+    "title": "Historial de reproducción",
+    "loadFailed": "No se pudo cargar tu historial de reproducción",
+    "empty": "Aún no hay historial",
+    "emptyText": "Aquí aparecen las películas, los episodios y las canciones que terminas.",
+    "plays_one": "{{count}} reproducción",
+    "plays_many": "{{count}} reproducciones",
+    "plays_other": "{{count}} reproducciones",
+    "loadingMore": "Cargando…",
+    "remove": "Quitar {{title}} del historial"
+  }
+}

@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { setLanguage } from "pley-tv/i18n";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { tierOf, tizenCaps } from "../src/caps";
 import { avplayError, statusOf } from "../src/engine";
 import { yearOfTizen, type TizenFacts } from "../src/facts";
-import { keyMap, REGISTERED } from "../src/platform";
+import { keyMap, localeTag, REGISTERED, tizenPlatform } from "../src/platform";
 
 function tv(over: Partial<TizenFacts>): TizenFacts {
   return {
@@ -106,6 +107,40 @@ describe("Samsung capabilities, rules", () => {
   });
 });
 
+describe("Samsung's Diagnostics lines", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("say what the TV is and plays", () => {
+    const lines = tizenCaps(tv({ outputMode: "DOLBY" })).lines;
+    expect(lines.filter((_, i) => i !== 4 && i !== 5)).toEqual([
+      "TV: QN65QN90AAFXZA (firmware T-NKMAKUC-1600.5)",
+      "Tizen 6.0 (2021 models) · Chromium 76",
+      "Panel: 4K",
+      "HDR: HDR10, HDR10+, HLG · no Samsung TV shows Dolby Vision",
+      "Sent to the receiver: ac3 (sound output DOLBY)",
+      "Streams: HLS ts, fmp4",
+    ]);
+    expect(lines[5]).toMatch(/^Audio decoded: aac, ac3, eac3/);
+    const plain = tizenCaps(tv({ firmware: null, chromium: null, uhd: false, hdr: false, outputMode: null })).lines;
+    expect([plain[0], plain[1], plain[2], plain[3], plain[6]]).toEqual([
+      "TV: QN65QN90AAFXZA",
+      "Tizen 6.0 (2021 models)",
+      "Panel: HD",
+      "HDR: none · no Samsung TV shows Dolby Vision",
+      "Sent to the receiver: nothing",
+    ]);
+  });
+
+  it("are in the language shown when Diagnostics reads them", () => {
+    const report = tizenCaps(tv({ outputMode: "DOLBY" }));
+    setLanguage("fr");
+    expect(report.lines[1]).toBe("Tizen 6.0 (modèles 2021) · Chromium 76");
+    expect(report.lines[6]).toBe("Envoyé à l’ampli : ac3 (sortie son DOLBY)");
+    setLanguage("es");
+    expect(report.lines[3]).toBe("HDR: HDR10, HDR10+, HLG · ninguna TV Samsung muestra Dolby Vision");
+  });
+});
+
 describe("AVPlay", () => {
   it("reads its errors as the recovery ladder does", () => {
     expect(avplayError("PLAYER_ERROR_NOT_SUPPORTED_FILE", null, null)).toMatchObject({ kind: "unsupported", container: true });
@@ -145,5 +180,35 @@ describe("Samsung's remote", () => {
     expect([map[427], map[428], map[10073]]).toEqual(["channelUp", "channelDown", "channelList"]);
     expect(keyMap(null)[458]).toBe("guide");
     expect(REGISTERED).toEqual(expect.arrayContaining(["ChannelUp", "ChannelDown", "ChannelList", "Guide"]));
+  });
+});
+
+describe("Samsung's language", () => {
+  it("reads Tizen's LOCALE as a language tag", () => {
+    expect(localeTag("fr_FR")).toBe("fr-FR");
+    expect(localeTag("es_US.UTF-8")).toBe("es-US");
+    expect(localeTag("en")).toBe("en");
+    expect(localeTag("")).toBeNull();
+    expect(localeTag(null)).toBeNull();
+    expect(localeTag("not a locale")).toBeNull();
+  });
+
+  it("puts the TV's own language before the web engine's", () => {
+    const asked: string[] = [];
+    vi.stubGlobal("tizen", {
+      systeminfo: {
+        getPropertyValue: (property: string, ok: (l: { language: string; country: string }) => void) => {
+          asked.push(property);
+          ok({ language: "es_MX", country: "es_MX" });
+        },
+      },
+    });
+    const platform = tizenPlatform();
+    expect(asked).toEqual(["LOCALE"]);
+    expect(platform.languages!()).toEqual(["es-MX"].concat(navigator.languages));
+  });
+
+  it("goes by the web engine's languages where Tizen doesn't say", () => {
+    expect(tizenPlatform().languages!()).toEqual(navigator.languages.slice());
   });
 });

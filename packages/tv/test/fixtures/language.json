@@ -1,0 +1,46 @@
+{
+  "pickLanguage": [
+    {
+      "account": "fr",
+      "server": "es",
+      "device": ["en-US"],
+      "out": "fr"
+    },
+    {
+      "account": null,
+      "server": "es",
+      "device": ["fr-FR"],
+      "out": "es"
+    },
+    {
+      "account": null,
+      "server": null,
+      "device": ["de-DE", "es-MX", "fr-FR"],
+      "out": "es"
+    },
+    {
+      "account": null,
+      "server": null,
+      "device": ["de-DE"],
+      "out": "en"
+    },
+    {
+      "account": null,
+      "server": null,
+      "device": [],
+      "out": "en"
+    },
+    {
+      "account": "de",
+      "server": "fr-CA",
+      "device": ["en-GB"],
+      "out": "fr"
+    },
+    {
+      "account": "",
+      "server": "",
+      "device": ["FR_ca"],
+      "out": "fr"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "actions": {
+    "play": "Lire",
+    "pause": "Pause",
+    "shuffle": "Aléatoire",
+    "shuffleOff": "Arrêter l’aléatoire",
+    "nowPlaying": "En cours de lecture",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "retry": "Réessayer",
+    "back": "Retour"
+  },
+  "pages": {
+    "artist": "Artiste",
+    "albums": "Albums",
+    "noAlbums": "Aucun album trouvé.",
+    "noTracks": "Aucun titre trouvé",
+    "nothingToPlay": "Rien à lire : il n’y a aucun titre.",
+    "artistNotFound": "Artiste introuvable",
+    "albumNotFound": "Album introuvable",
+    "notFoundBody": "Il a peut-être été supprimé, ou ce profil n’y a pas accès.",
+    "artistFailed": "Impossible de charger cet artiste",
+    "albumFailed": "Impossible de charger cet album",
+    "disc": "Disque {{number}}"
+  },
+  "count": {
+    "albums_one": "{{count, number}} album",
+    "albums_many": "{{count, number}} d’albums",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} titre",
+    "tracks_many": "{{count, number}} de titres",
+    "tracks_other": "{{count, number}} titres"
+  },
+  "nowPlaying": {
+    "upNext": "À suivre",
+    "position": "Position dans le titre",
+    "loading": "Chargement…",
+    "nothingTitle": "Aucune lecture en cours",
+    "nothingBody": "Lancez un album ou un artiste pour le retrouver ici.",
+    "sleep": "{{timer}} : {{left}}"
+  },
+  "errors": {
+    "offline": "Impossible de joindre le serveur.",
+    "signedOut": "Reconnectez-vous pour lancer la lecture.",
+    "stopped": "La lecture a été arrêtée par le serveur.",
+    "unplayable": "Ce titre ne peut pas être lu."
+  }
+}

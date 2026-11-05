@@ -38,7 +38,7 @@ public class ApiException : Exception
 public class SessionStoppedException : ApiException
 {
     /// <summary>What the player says, the Android app's words: who stopped it, then their note on a line of its own.</summary>
-    public const string ByAdmin = "Playback was stopped by the server's administrator.";
+    public static string ByAdmin => Strings.T("player.stopped.byAdmin");
 
     public SessionStoppedException(string? note)
         : base(410, "session_stopped", string.IsNullOrWhiteSpace(note) ? ByAdmin : ByAdmin + "\n" + note!.Trim()) => Note = note;
@@ -49,7 +49,7 @@ public class SessionStoppedException : ApiException
 /// <summary>The server answered with something that isn't what Pley answers: another program, or a much older Pley.</summary>
 public class UnreadableAnswerException : Exception
 {
-    public UnreadableAnswerException(int status, Exception? inner = null) : base("the server's answer can't be read: is it Pley, and up to date?", inner) =>
+    public UnreadableAnswerException(int status, Exception? inner = null) : base(Strings.T("common.errors.unreadable"), inner) =>
         Status = status;
 
     public int Status { get; }
@@ -59,12 +59,16 @@ public class UnreadableAnswerException : Exception
 public static class Errors
 {
     /// <summary>A failed page's title when the server answered nothing.</summary>
-    public const string OfflineTitle = "Can't reach your server";
+    public static string OfflineTitle => Strings.T("common.errors.offlineTitle");
 
-    /// <summary>Why <paramref name="e"/> happened, in a few words in lower case: "no answer in time".</summary>
+    /// <summary>
+    /// Why <paramref name="e"/> happened, in a few words in lower case: "no answer in time". A
+    /// network failure is said in the language shown now, whichever it failed in.
+    /// </summary>
     public static string Describe(Exception e) => e switch
     {
-        JsonException => "that isn't a Pley server",
+        JsonException => Strings.T("common.errors.notPley"),
+        NetworkException n => Transports.Reason(n.Failure),
         _ => e.Message,
     };
 
@@ -87,7 +91,7 @@ public static class Errors
     public static string UnreachableReason(Exception e) => Message(e);
 
     /// <summary>A failed page's text when the server answered nothing: why, and what to check.</summary>
-    public static string OfflineBody(Exception e) => $"{Message(e)} Check that the server is on and that this device is on its network.";
+    public static string OfflineBody(Exception e) => Strings.T("common.errors.offlineBody", ("reason", Message(e)));
 }
 
 // Answers whose shape is an envelope around the types.
@@ -352,6 +356,10 @@ public sealed class Api
 
     public Task<JsonElement?> SetTrackDefaults(string? audio, string? subtitle, string mode) =>
         Call("PUT", "/api/me/track-defaults", new Dictionary<string, object?> { ["audio_language"] = audio, ["subtitle_language"] = subtitle, ["subtitle_mode"] = mode });
+
+    /// <summary>The language the profile sees Pley in (scope play): "en", "fr", "es", or null for the server's; the profile as GET /api/auth/me shows it.</summary>
+    public Task<JsonElement?> SetLanguage(string? language) =>
+        Call("PUT", "/api/me/language", new Dictionary<string, object?> { ["language"] = language });
 
     // ---- browsing
 
@@ -833,7 +841,7 @@ public sealed class Api
         var code = (json is { } c ? Json.String(c, "code") : null) is { Length: > 0 } given ? given : StatusCode(res.Status);
         var message = bodyMessage.Length > 0 ? bodyMessage
             : json == null && !start.StartsWith("<", StringComparison.Ordinal) && Plain.FirstLine(text, MaxErrorText) is { Length: > 0 } line ? line
-            : $"the server refused (HTTP {res.Status})";
+            : Strings.T("common.errors.refused", ("status", res.Status));
         if (res.Status == 410 && code == "session_stopped") return new SessionStoppedException(bodyMessage.Length > 0 ? bodyMessage : null);
         var (error, scope) = Challenge(res.Header("WWW-Authenticate"));
         return new ApiException(res.Status, code, message, json) { BearerError = error, Scope = scope };
