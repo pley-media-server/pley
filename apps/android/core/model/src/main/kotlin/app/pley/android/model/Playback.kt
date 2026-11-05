@@ -291,9 +291,10 @@ enum class CastKind(override val wire: String) : WireEnum {
 }
 
 /**
- * One of the profile's devices that takes casts (GET /api/remote/devices):
- * one of its apps with the event stream open as a receiver, the one that
- * connected last for its device.
+ * A device that takes casts (GET /api/remote/devices): one of the apps of
+ * the profile, or of another profile of the household ([profile]), with
+ * the event stream open as a receiver, the one that connected last for its
+ * device.
  */
 @Serializable
 data class RemoteDevice(
@@ -306,7 +307,17 @@ data class RemoteDevice(
     val kind: DeviceKind = DeviceKind.Unknown,
     /** What it plays when cast to. */
     val casts: List<CastKind> = emptyList(),
+    /**
+     * The household's other profile it is on, `null` for the caller's own:
+     * a cast there switches it to the caller's profile first. What it
+     * plays stays that profile's.
+     */
+    val profile: DeviceProfileName? = null,
 )
+
+/** The profile another of the household's devices is on: its id, and its name as "Who's watching?" says it. */
+@Serializable
+data class DeviceProfileName(val id: Long, val name: String)
 
 /**
  * The body of POST /api/remote/devices/{id}/cast: exactly one of [itemId]
@@ -314,7 +325,10 @@ data class RemoteDevice(
  * [playlistId] and [channelId]; [startMs] where a title starts (0 to a
  * day), [shuffle] for a playlist, an album or an artist; [audioIndex] and
  * [subtitleIndex] ([PlayingSession.SUBTITLES_OFF]: none) the tracks picked
- * on a movie's or an episode's page, which the device plays with.
+ * on a movie's or an episode's page, which the device plays with. To a
+ * device of another of the household's profiles, [profileId] is that
+ * profile's ([RemoteDevice.profile]) and [pin] the caller's PIN, when their
+ * profile has one.
  */
 @Serializable
 data class CastRequest(
@@ -325,7 +339,14 @@ data class CastRequest(
     val shuffle: Boolean? = null,
     val audioIndex: Int? = null,
     val subtitleIndex: Int? = null,
-)
+    val profileId: Long? = null,
+    val pin: String? = null,
+) {
+    // A PIN is never written out where a request is.
+    override fun toString(): String =
+        "CastRequest(itemId=$itemId, playlistId=$playlistId, channelId=$channelId, startMs=$startMs, shuffle=$shuffle, " +
+            "audioIndex=$audioIndex, subtitleIndex=$subtitleIndex, profileId=$profileId, pin=${if (pin == null) "null" else "…"})"
+}
 
 /** Where a download stands on the server (apps/server/src/api/playback.rs, `DownloadState`). */
 @Serializable(with = ConversionState.Serializer::class)

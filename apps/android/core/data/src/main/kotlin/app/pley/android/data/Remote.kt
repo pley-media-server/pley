@@ -4,6 +4,7 @@ import app.pley.android.model.CastKind
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
@@ -63,7 +64,9 @@ data class RemoteSession(val session: PlayingSession, val reportedAt: Long) {
 /**
  * One of the profile's other devices that is on, as the remote lists it
  * ([RemoteRepository.devicesOf]): what it plays now ([session], the newest
- * of its sessions), and its [receiver] when it takes casts; one or both.
+ * of its sessions), and its [receiver] when it takes casts; one or both. A
+ * device of another of the household's profiles ([profile]) is listed by
+ * its receiver only: what it plays stays that profile's.
  */
 data class OtherDevice(
     /** Which device, as its sessions and its receiver say. */
@@ -80,6 +83,9 @@ data class OtherDevice(
 
     /** Whether it plays something now. */
     val playing: Boolean get() = session != null
+
+    /** The household's other profile it is on, `null` for the profile's own: a cast there switches it first. */
+    val profile: DeviceProfileName? get() = receiver?.profile
 
     /** Whether it plays [kind] when a remote casts it there. */
     fun takes(kind: CastKind): Boolean = receiver?.casts?.contains(kind) == true
@@ -105,7 +111,8 @@ data class SentCommand(
 /**
  * The remote of the profile's other devices (docs/API.md, "Remote
  * control"): their sessions, from GET /api/sessions, the devices that take
- * casts, from GET /api/remote/devices, and the commands sent to them.
+ * casts, from GET /api/remote/devices (the household's other profiles'
+ * too, each with the profile it is on), and the commands sent to them.
  *
  * Both lists are read while something follows them: when first followed,
  * after a profile switch, on `sessions_changed` and `session_stopped`, and
@@ -139,11 +146,21 @@ interface RemoteRepository {
     /**
      * POST /api/remote/devices/{id}/cast: [receiverId]'s device plays
      * [request] as its own Play would, and its session shows here once it
-     * starts. A refusal is thrown ([app.pley.android.network.CastRefusal.of]
-     * says which); a device gone (`404`) or no longer playing that (`409`)
-     * has the lists read again.
+     * starts. To a device of another of the household's profiles, [request]
+     * names that profile ([CastRequest.profileId]) and the device switches
+     * to this one first, with this profile's PIN ([CastRequest.pin]) when it
+     * has one ([castNeedsPin]). A refusal is thrown
+     * ([app.pley.android.network.CastRefusal.of] says which); a device gone
+     * (`404`) or no longer playing that (`409`) has the lists read again.
      */
     suspend fun cast(receiverId: String, request: CastRequest)
+
+    /**
+     * Whether a cast to a device of another profile asks this profile's PIN
+     * first: it has one, as GET /api/auth/me last said. A PIN set since is
+     * asked for once the server answers `pin_needed`.
+     */
+    val castNeedsPin: Boolean get() = false
 
     /**
      * [player], on this device, plays [sessionId] now (`null`: none): it
@@ -253,14 +270,15 @@ interface RemoteRepository {
          * lists them: each with its newest session (sessions come oldest
          * first) and its receiver, a session whose device takes no casts (a
          * Jellyfin or Plex app) included; those that play first, then the
-         * others, each by name, those without one last.
+         * profile's own, then the household's other profiles', each by
+         * name, those without one last.
          */
         fun devicesOf(sessions: List<RemoteSession>, receivers: List<RemoteDevice>): List<OtherDevice> {
             val newest = LinkedHashMap<String, RemoteSession>()
             for (session in sessions) newest[deviceOf(session)] = session
             val byDevice = receivers.associateBy { it.deviceId.ifEmpty { "receiver:${it.receiverId}" } }
             val devices = (byDevice.keys + newest.keys).map { id -> OtherDevice(id, byDevice[id], newest[id]) }
-            return devices.sortedWith(compareBy<OtherDevice>({ !it.playing }, { it.name == null }, { it.name?.lowercase() }))
+            return devices.sortedWith(compareBy<OtherDevice>({ !it.playing }, { it.profile != null }, { it.name == null }, { it.name?.lowercase() }))
         }
 
         /**
@@ -306,6 +324,8 @@ internal class ServerRemote(
     app: CoroutineScope,
     override val clock: () -> Long,
     private val ownReceiver: suspend () -> String? = { null },
+    /** Whether the profile in use has a PIN, as GET /api/auth/me last said. */
+    private val hasPin: () -> Boolean = { false },
 ) : RemoteRepository {
     /** The last lists read, and whose. */
     private class Listed(val profile: ProfileScope?, val sessions: List<RemoteSession>, val receivers: List<RemoteDevice>)
@@ -446,6 +466,8 @@ internal class ServerRemote(
             throw e
         }
     }
+
+    override val castNeedsPin: Boolean get() = hasPin()
 
     override fun here(player: Any, sessionId: String?) {
         var before: String? = null

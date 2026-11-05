@@ -4,6 +4,7 @@ import app.pley.android.model.AppProfile
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.Added
 import app.pley.android.model.ArrService
+import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverPage
 import app.pley.android.model.DownloadState
@@ -151,6 +152,7 @@ class FixturesTest {
         "sessions/list.json" to ListSerializer(PlayingSession.serializer()),
         "sessions/command_request.json" to PlayerCommandRequest.serializer(),
         "remote/devices.json" to ListSerializer(RemoteDevice.serializer()),
+        "remote/devices_household.json" to ListSerializer(RemoteDevice.serializer()),
         "conversions/direct.json" to ConversionInfo.serializer(),
         "conversions/running.json" to ConversionInfo.serializer(),
         "trickplay/info.json" to TrickplayInfo.serializer(),
@@ -164,6 +166,7 @@ class FixturesTest {
         "events/sessions_changed.json" to ServerEvent.Serializer,
         "events/player_command.json" to ServerEvent.Serializer,
         "events/cast.json" to ServerEvent.Serializer,
+        "events/cast_switch.json" to ServerEvent.Serializer,
         "events/unknown_type.json" to ServerEvent.Serializer,
         "live/summary.json" to LiveSummary.serializer(),
         "live/channels.json" to ListSerializer(LiveChannel.serializer()),
@@ -209,7 +212,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(98, files.size)
+        assertEquals(100, files.size)
     }
 
     @Test
@@ -423,6 +426,11 @@ class FixturesTest {
         assertEquals(ServerEvent.ScanProgress(1, ScanPhase.Probing, 118, 412), Fixtures.decode<ServerEvent>("events/scan_progress.json"))
         assertEquals(ServerEvent.LibrariesChanged, Fixtures.decode<ServerEvent>("events/libraries_changed.json"))
         assertEquals(ServerEvent.LibraryChanged(2), ServerEvent.parse(Fixtures.text("events/library_changed.json")))
+        // A cast from another profile of the household: the caster's profile, and the ticket to switch to it with.
+        val switch = Fixtures.decode<ServerEvent>("events/cast_switch.json") as ServerEvent.Cast
+        assertEquals(2L to "pley_st_9Qe2vT4mXb7cLp1R", switch.profileId to switch.switchTicket)
+        val (own, theirs) = Fixtures.decode<List<RemoteDevice>>("remote/devices_household.json")
+        assertEquals(null to DeviceProfileName(3, "Sam"), own.profile to theirs.profile)
     }
 
     @Test

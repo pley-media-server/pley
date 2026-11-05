@@ -200,6 +200,17 @@ internal class SessionManager(
     override suspend fun switchProfile(profileId: Long, pin: String?) {
         val active = issuer() ?: throw IllegalStateException("not signed in")
         auth.tokens(active).switchProfile(profileId, pin)
+        switched(active, profileId)
+    }
+
+    override suspend fun switchForCast(profileId: Long, ticket: String) {
+        val active = issuer() ?: throw IllegalStateException("not signed in")
+        auth.tokens(active).switchProfile(profileId, pin = null, ticket = ticket)
+        switched(active, profileId)
+    }
+
+    /** The sign-in on [active] moved to [profileId]: its saved things show, as a profile switch shows them. */
+    private suspend fun switched(active: String, profileId: Long) {
         servers.setProfile(active, profileId)
         val scope = ProfileScope(active, profileId)
         val me = readMe(scope)

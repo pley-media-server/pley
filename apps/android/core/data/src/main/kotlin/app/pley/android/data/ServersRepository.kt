@@ -63,6 +63,14 @@ interface SessionRepository {
      */
     suspend fun switchProfile(profileId: Long, pin: String? = null) {}
 
+    /**
+     * Moves the sign-in to [profileId], the profile of a remote that cast
+     * here, with the cast's [ticket] in place of a PIN, then shows that
+     * profile's things as [switchProfile] does. A ticket spent or expired
+     * changes nothing (TokenException, reason `ticket_spent`).
+     */
+    suspend fun switchForCast(profileId: Long, ticket: String) {}
+
     /** Asks the server again who the app is (GET /api/auth/me). */
     suspend fun refresh() {}
 }
