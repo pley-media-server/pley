@@ -305,4 +305,12 @@ object ProfileGate {
     fun hidden() {
         shown.updateAndGet { (it - 1).coerceAtLeast(0) }
     }
+
+    /**
+     * None shows: tests, which share the process, start from this, as a
+     * screen torn down with its test needn't say it went.
+     */
+    fun reset() {
+        shown.set(0)
+    }
 }

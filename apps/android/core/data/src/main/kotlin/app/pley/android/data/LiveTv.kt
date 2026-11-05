@@ -82,6 +82,13 @@ interface LiveTvRepository {
     /** Waits until the leaves asked for so far went out (or failed). */
     suspend fun left() {}
 
+    /**
+     * Drops the leaves that haven't gone out yet: a switch of profile would
+     * send them as the next profile. The server ends those sessions by
+     * itself.
+     */
+    fun drop() {}
+
     companion object {
         /** Channels asked for at once, as the web asks. */
         const val PAGE = 100
@@ -226,4 +233,6 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
     }
 
     override suspend fun left() = leaving.toList().joinAll()
+
+    override fun drop() = leaving.toList().forEach { it.cancel() }
 }

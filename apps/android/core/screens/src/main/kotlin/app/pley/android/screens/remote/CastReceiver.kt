@@ -96,10 +96,11 @@ interface CastReceiver {
  * A cast from another profile of the household (`profile_id` other than
  * the profile in use) ends what plays, then switches to that profile, with
  * its `switch_ticket`, as a profile switch does (what shows and the event
- * stream follow it), then plays once. One that can't (a ticket spent or
- * expired, the server out of reach) plays nothing and says so; one without
- * a ticket is ignored, as one for another device. No cast plays while
- * "Who's watching?" shows, its PIN pad too ([ProfileGate.showing]).
+ * stream follow it), then plays once; any other cast heard until the switch
+ * is done is dropped. One that can't (a ticket spent or expired, the
+ * server out of reach) plays nothing and says so; one without a ticket is
+ * ignored, as one for another device. No cast plays while "Who's
+ * watching?" shows, its PIN pad too ([ProfileGate.showing]).
  */
 internal class ServerCastReceiver(
     private val data: DataGraph,
@@ -133,9 +134,9 @@ internal class ServerCastReceiver(
         scope.launch {
             val live = data.liveUpdates
             live.events.filterIsInstance<ServerEvent.Cast>()
-                // One for the profile being left, heard as it switches, isn't for the profile it plays as: dropped
-                // as it is heard, so it doesn't replace the cast that switches.
-                .filter { it.profileId != null || !switching }
+                // Any heard while a cast switches the profile is dropped as it is heard, so it neither replaces
+                // the cast that switches nor switches again.
+                .filter { !switching }
                 .collectLatest { cast ->
                     if (cast.receiverId != live.receiver.value) return@collectLatest
                     // Whoever is at the device is choosing who's watching: a cast would choose for them.
@@ -157,10 +158,11 @@ internal class ServerCastReceiver(
      * this profile's own does; another's switches to it first with its
      * ticket. What plays ends before the switch, and its last reports
      * (`stopped`, the session's end) go out first: they carry the tokens in
-     * use as they go, and would land on the caster's profile after it. A
-     * switch once begun is let finish, even when a newer cast comes
-     * meanwhile: the server rotates the tokens either way. Meanwhile a cast
-     * for the profile being left is dropped ([switching]).
+     * use as they go, and would land on the caster's profile after it;
+     * what hasn't gone out within [endPlaying]'s wait is dropped. A switch
+     * once begun is let finish: the server rotates the tokens either way.
+     * Every other cast heard until it is done is dropped ([switching]),
+     * the caster's profile's own too; once switched, casts play as usual.
      */
     private suspend fun asItsProfile(cast: ServerEvent.Cast): Boolean {
         val profile = cast.profileId ?: return true

@@ -39,8 +39,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,6 +63,10 @@ class TvAppTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     private var exits = 0
+
+    /** "Who's watching?" counts in the process the tests share: none shows before each. */
+    @Before
+    fun noProfilesShowing() = ProfileGate.reset()
 
     private class FakeSource(
         private val facts: StartFacts,
@@ -165,6 +171,7 @@ class TvAppTest {
     fun alwaysStartAsOpensOnThePadOfAProfileWithAPin() {
         ProfileGate.passed = false
         onboarding.signIn("http://s", Me(1, "anna", "Anna", hasPin = true))
+        assertFalse(ProfileGate.showing)
         app(StartFacts("http://s", true, profiles = 2, alwaysStartAs = 1, hasPin = true))
         waitFor("Enter Anna's PIN")
         // No cast plays over the pad, nor over the profiles.

@@ -24,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -37,8 +38,9 @@ interface PlayerGraph {
      * Ends what plays here, video, music and Live TV, and waits (up to
      * [END_WAIT_MS]) until each one's last reports went out: `stopped` where
      * it was, and its session's end. Their requests carry the tokens in use
-     * as they go, so a profile switch made after this sends nothing of
-     * theirs as the next profile. Main thread.
+     * as they go, so what hasn't gone out by then is dropped: a profile
+     * switch made after this sends nothing of theirs as the next profile.
+     * Main thread.
      */
     suspend fun endAll() {}
 
@@ -73,6 +75,10 @@ internal class AppPlayer(
     override val engines: PlayerEngine.Factory,
     override val services: PlaybackServices,
     private val liveTv: () -> LiveTvRepository,
+    /** Closes the player windows open ([PlayerWindows.closeAll]). */
+    private val closeWindows: () -> Unit = PlayerWindows::closeAll,
+    /** Waits until they have gone ([PlayerWindows.gone]). */
+    private val windowsGone: suspend () -> Unit = PlayerWindows::gone,
     music: () -> MusicControl,
 ) : PlayerGraph {
     private val musicMade = lazy(music)
@@ -86,13 +92,22 @@ internal class AppPlayer(
         val made = if (musicMade.isInitialized()) music else null
         made?.stop()
         // Live TV's window leaves its channel as it stops.
-        PlayerWindows.closeAll()
+        closeWindows()
+        // All waited for at once: one slow to go out doesn't keep the others from being waited for.
         withTimeoutOrNull(PlayerGraph.END_WAIT_MS) {
-            services.flush()
-            made?.flush()
-            PlayerWindows.gone()
-            liveTv().left()
+            coroutineScope {
+                launch { services.flush() }
+                launch { made?.flush() }
+                launch {
+                    windowsGone()
+                    liveTv().left()
+                }
+            }
         }
+        // What hasn't gone out by now would go with the next profile's tokens.
+        services.drop()
+        made?.drop()
+        liveTv().drop()
     }
 }
 

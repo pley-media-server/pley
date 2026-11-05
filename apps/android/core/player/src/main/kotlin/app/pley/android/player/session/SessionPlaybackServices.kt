@@ -48,8 +48,8 @@ class SessionPlaybackServices(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     /** The environment of the video on a drive at a path. */
     private val drive: (path: String) -> PlaybackEnvironment = { throw IOException("No drives here") },
-    /** Waits until the playbacks' reports made so far went out (their [SessionReporter]'s). */
-    private val reports: suspend () -> Unit = {},
+    /** Where the playbacks' reports queue: [flush] waits for it, [drop] empties it. */
+    private val reporter: SessionReporter? = null,
 ) : PlaybackServices {
     private val controllers = LinkedHashMap<String, PlaybackController>()
     private var counter = 0
@@ -79,7 +79,13 @@ class SessionPlaybackServices(
         controllers.values.toList().forEach { it.close() }
     }
 
-    override suspend fun flush() = reports()
+    override suspend fun flush() {
+        reporter?.flush()
+    }
+
+    override fun drop() {
+        reporter?.drop()
+    }
 
     companion object {
         /**
@@ -163,7 +169,7 @@ class SessionPlaybackServices(
                     tracksChosen = { itemId, c -> data.watchState.streamsChosen(itemId, c.fileId, c.audioIndex, c.subtitleIndex) },
                     warmer = OkHttpStreamWarmer(network::media),
                 )
-            }, drive = drive, reports = reporter::flush)
+            }, drive = drive, reporter = reporter)
         }
 
         /** Picture subtitles read beside a stream, in the app's cache while they show. */
