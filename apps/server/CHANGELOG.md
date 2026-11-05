@@ -11,10 +11,12 @@ describes how they are made.
 
 ### Added
 
-- Pley is in English, French and Spanish. Each account picks its language
-  on the Account page; until it does, the server's language applies,
-  which an administrator sets in Settings → General, else the browser's.
-  Home's rows and the tray's menu are in that language too.
+- Pley is in English, French and Spanish: each device's language by
+  default (the sign-in page has a globe to pick another), or the one an
+  account picks on its Account page, which follows it everywhere. The
+  server language, in Settings → General, is for the server's own words
+  (Home's rows, the tray's menu) and for devices in a language Pley
+  doesn't have.
 
 ## [0.1.7] - 2026-11-05
 

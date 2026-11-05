@@ -19,6 +19,11 @@ export function AuthUserProvider({ user, children }: { user: User; children: Rea
   return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
 }
 
+/** The signed-in user where there is one (`null` on the pages shown before signing in). */
+export function useOptionalAuth(): User | null {
+  return useContext(AuthContext);
+}
+
 export function useAuth(): User {
   const user = useContext(AuthContext);
   if (!user) throw new Error("useAuth must be used inside <RequireAuth>");

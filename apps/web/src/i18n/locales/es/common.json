@@ -53,11 +53,11 @@
       "fr": "Français",
       "es": "Español"
     },
-    "serverDefault": "Idioma del servidor ({{language}})",
-    "deviceLanguage": "idioma de este dispositivo",
-    "eachDevice": "Idioma de cada dispositivo",
-    "accountHint": "El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión.",
-    "serverHint": "El idioma de Pley para quienes no han elegido uno para su cuenta."
+    "accountHint": "El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión. Automático sigue el idioma de cada dispositivo.",
+    "serverHint": "El idioma de los textos del propio servidor, y de los dispositivos en un idioma que Pley aún no tiene. Cada persona puede elegir el suyo en su página Cuenta.",
+    "automatic": "Automático ({{language}})",
+    "serverLabel": "Idioma del servidor",
+    "choose": "Elegir un idioma"
   },
   "format": {
     "never": "nunca",

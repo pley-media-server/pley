@@ -158,11 +158,11 @@
           "hint": "Les sous-titres restent désactivés jusqu’à ce que vous les activiez."
         },
         "forced": {
-          "label": "Seulement pour les dialogues étrangers",
+          "label": "Dialogues étrangers seulement",
           "hint": "Seulement les sous-titres forcés, pour les panneaux et les dialogues étrangers."
         },
         "foreign": {
-          "label": "Quand l’audio est dans une autre langue",
+          "label": "Audio dans une autre langue",
           "hint": "Les sous-titres complets s’affichent quand l’audio n’est pas dans votre langue de sous-titres."
         },
         "always": {
