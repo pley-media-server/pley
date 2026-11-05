@@ -253,9 +253,8 @@ fn keeps_each_title_once_as_pages_come() {
 #[test]
 fn a_title_in_a_library_whole_opens_its_library_title() {
     // Android's fixture `discover/trending.json`.
-    let t = |kind, tmdb_id, status, item_id| {
-        DiscoverTitle { kind, tmdb_id, status, item_id, ..DiscoverTitle::default() }
-    };
+    let t =
+        |kind, tmdb_id, status, item_id| DiscoverTitle { kind, tmdb_id, status, item_id, ..DiscoverTitle::default() };
     let arrival = t(TitleKind::Movie, 329865, TitleStatus::Library, Some(101));
     assert_eq!(library_item(&arrival), Some(101));
     // A show partly there opens its Discover page, where more seasons can be asked for.
