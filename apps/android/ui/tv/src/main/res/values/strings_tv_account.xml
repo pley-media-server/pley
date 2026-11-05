@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <!-- Settings, two panes (design spec §4.8). -->
     <string name="tv_settings_title">Settings</string>
     <string name="tv_settings_profile">Profile</string>
@@ -9,6 +9,9 @@
     <string name="tv_settings_server">Server</string>
     <string name="tv_settings_diagnostics">Diagnostics</string>
     <string name="tv_settings_about">About</string>
+    <!-- What a screen reader says of a switch row's state. -->
+    <string name="tv_settings_switch_on">On</string>
+    <string name="tv_settings_switch_off">Off</string>
 
     <!-- Profile: who is watching and their track defaults (AccountPage.tsx). -->
     <string name="tv_account_role_managed">Managed profile</string>
@@ -90,11 +93,11 @@
 
     <!-- Audio: passthrough per format. -->
     <string name="tv_settings_passthrough_intro">Send surround sound to your TV or receiver, or decode it here.</string>
-    <string name="tv_settings_format_ac3">Dolby Digital</string>
-    <string name="tv_settings_format_eac3">Dolby Digital Plus</string>
-    <string name="tv_settings_format_atmos">Dolby Atmos</string>
-    <string name="tv_settings_format_truehd">Dolby TrueHD</string>
-    <string name="tv_settings_format_dts">DTS</string>
+    <string name="tv_settings_format_ac3" translatable="false">Dolby Digital</string>
+    <string name="tv_settings_format_eac3" translatable="false">Dolby Digital Plus</string>
+    <string name="tv_settings_format_atmos" translatable="false">Dolby Atmos</string>
+    <string name="tv_settings_format_truehd" translatable="false">Dolby TrueHD</string>
+    <string name="tv_settings_format_dts" translatable="false">DTS</string>
     <string name="tv_settings_format_dts_hd">DTS-HD and DTS:X</string>
     <string name="tv_settings_passthrough_auto">Auto</string>
     <string name="tv_settings_passthrough_auto_hint">As the TV or receiver says it plays</string>
@@ -139,7 +142,7 @@
     <string name="tv_diagnostics_title">Diagnostics</string>
     <string name="tv_diagnostics_device">This TV</string>
     <string name="tv_diagnostics_app">App</string>
-    <string name="tv_diagnostics_app_value">Pley %1$s</string>
+    <string name="tv_diagnostics_app_value" translatable="false">Pley %1$s</string>
     <string name="tv_diagnostics_plays">What it plays</string>
     <string name="tv_diagnostics_probing">Checking what this TV plays…</string>
     <string name="tv_diagnostics_probe_failed">The check of this TV failed.</string>

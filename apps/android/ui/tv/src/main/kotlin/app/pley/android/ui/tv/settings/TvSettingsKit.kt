@@ -43,6 +43,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -56,6 +57,7 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.focusRow
 
@@ -102,6 +104,7 @@ internal fun TvSettingRow(
         enabled -> PleyColors.Muted
         else -> PleyColors.Disabled
     }
+    val switchSaid = checked?.let { stringResource(if (it) R.string.tv_settings_switch_on else R.string.tv_settings_switch_off) }
     Row(
         modifier
             .fillMaxWidth()
@@ -109,7 +112,7 @@ internal fun TvSettingRow(
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .background(if (focused) PleyColors.Accent else Color.Transparent, PleyShape.Pill)
             .semantics {
-                if (checked != null) stateDescription = if (checked) "On" else "Off"
+                if (switchSaid != null) stateDescription = switchSaid
                 if (value != null) stateDescription = value
             }
             .clickable(interactionSource = interactions, indication = null, enabled = enabled, role = if (checked != null) Role.Switch else Role.Button, onClick = onClick)

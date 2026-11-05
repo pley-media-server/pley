@@ -37,7 +37,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,10 +46,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.UnstableApi
 import app.pley.android.auth.Needs
+import app.pley.android.common.UiText
 import app.pley.android.common.errorSentence
 import app.pley.android.common.perf.FrameRate
-import app.pley.android.common.resolve
-import app.pley.android.common.sentenceOf
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Passthrough
 import app.pley.android.data.Settings
@@ -143,7 +141,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
     var lastPicking by remember { mutableStateOf<Picking?>(null) }
     var web by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<UiText?>(null) }
     val rows = remember { HashMap<String, FocusRequester>() }
     fun requester(key: String) = rows.getOrPut(key) { FocusRequester() }
     // Focus goes back to Sign out once its dialog closes without signing out.
@@ -157,21 +155,17 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
             runCatching { requester("category-${Category.SignOut.name}").requestFocus() }
         }
     }
-    val savedText = stringResource(R.string.tv_account_saved)
-    val readOnlyText = stringResource(R.string.tv_account_defaults_read_only)
-
     LaunchedEffect(me) {
         me.events.collect { event ->
             when (event) {
-                is MeEvent.Saved -> message = savedText
-                MeEvent.ReadOnly -> message = readOnlyText
-                is MeEvent.Failed -> message = sentenceOf(event.error)
+                is MeEvent.Saved -> message = UiText.res(R.string.tv_account_saved)
+                MeEvent.ReadOnly -> message = UiText.res(R.string.tv_account_defaults_read_only)
+                is MeEvent.Failed -> message = errorSentence(event.error)
                 is MeEvent.SignedOut -> navigator.restart(event.server?.let { PleyKey.Link(it) } ?: PleyKey.Servers)
             }
         }
     }
-    val resources = LocalResources.current
-    LaunchedEffect(languageModel) { languageModel.errors.collect { message = errorSentence(it).resolve(resources) } }
+    LaunchedEffect(languageModel) { languageModel.errors.collect { message = errorSentence(it) } }
     LaunchedEffect(message) {
         if (message != null) {
             kotlinx.coroutines.delay(MESSAGE_MS)
@@ -265,7 +259,7 @@ internal fun TvSettingsScreen(start: Category = Category.Profile) {
         message?.let { text ->
             Box(Modifier.align(Alignment.TopEnd).padding(top = TvSafeArea.Vertical, end = TvSafeArea.Horizontal)) {
                 BasicText(
-                    text,
+                    text.asString(),
                     style = PleyType.Tv.Label.copy(color = PleyColors.Fg),
                     modifier = Modifier.background(PleyColors.Surface3, app.pley.android.designsystem.PleyShape.Pill).padding(horizontal = 20.dp, vertical = 10.dp),
                 )

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_shell_rail_search">Buscar</string>
+    <string name="tv_shell_rail_home">Inicio</string>
+    <string name="tv_shell_rail_live_tv">TV en vivo</string>
+    <string name="tv_shell_rail_libraries">Bibliotecas</string>
+    <string name="tv_shell_rail_playlists">Listas de reproducción</string>
+    <string name="tv_shell_rail_collections">Colecciones</string>
+    <string name="tv_shell_rail_now_playing">Reproduciendo ahora</string>
+    <string name="tv_shell_rail_drive">Dispositivo USB</string>
+    <string name="tv_shell_rail_settings">Ajustes</string>
+    <string name="tv_shell_switch_profile">Cambiar de perfil</string>
+
+    <string name="tv_shell_offline">Pley está sin conexión</string>
+    <string name="tv_shell_offline_title">No se puede conectar con tu servidor</string>
+    <string name="tv_shell_offline_body">%1$s Comprueba que el servidor esté encendido y que este dispositivo esté en su red.</string>
+
+    <string name="tv_shell_placeholder_title">%1$s aún no está disponible</string>
+    <string name="tv_shell_placeholder_body">Esto es Pley para TV, en camino: navegar con el control remoto, iniciar sesión con un código y reproducir con la frecuencia de fotogramas y el HDR de la propia TV.</string>
+    <string name="tv_shell_placeholder_next">Abrir otra pantalla</string>
+</resources>
