@@ -3,8 +3,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
-import { episodeLabel, relativeTime } from "../../format/format";
-import { deviceLanguage, LANGUAGES as APP_LANGUAGES, supportedLanguage, t, type Language } from "../../i18n";
+import { episodeLabel, languageName, relativeTime } from "../../format/format";
+import { currentLanguage, deviceLanguage, LANGUAGES as APP_LANGUAGES, supportedLanguage, t, type Language } from "../../i18n";
+import type { Probe } from "../../platform";
 import { AUTO, ORIGINAL, PRESETS, presetById } from "../../player/quality";
 import type { AppState, Settings } from "../../state";
 import { fontsHere, SUBTITLE_FONTS, SUBTITLE_POSITIONS } from "../../subs/style";
@@ -19,23 +20,24 @@ import type { Entry } from "../shell/navigator";
 import { Dialog, failedTitle, problem, sentence, useApp } from "./common";
 import { licenseRows } from "../../licenses";
 import { pageOf } from "./item-actions";
-import { librarySorting, SORT_NEEDS_NEWER } from "./library";
+import { librarySorting } from "./library";
 import { ProfileAvatar, QrCode } from "./onboarding/kit";
 
 type Category = "profile" | "playback" | "audio" | "display" | "server" | "diagnostics" | "about" | "signout";
 
-const CATEGORIES: { id: Category; label: string; icon: IconName }[] = [
-  { id: "profile", label: "Profile", icon: "user-round" },
-  { id: "playback", label: "Playback", icon: "play" },
-  { id: "audio", label: "Audio", icon: "audio-lines" },
-  { id: "display", label: "Subtitles and display", icon: "captions" },
-  { id: "server", label: "Server", icon: "server" },
-  { id: "diagnostics", label: "Diagnostics", icon: "gauge" },
-  { id: "about", label: "About", icon: "info" },
-  { id: "signout", label: "Sign out", icon: "log-out" },
+/** The categories, their names in `settings.categories`. */
+const CATEGORIES: { id: Category; icon: IconName }[] = [
+  { id: "profile", icon: "user-round" },
+  { id: "playback", icon: "play" },
+  { id: "audio", icon: "audio-lines" },
+  { id: "display", icon: "captions" },
+  { id: "server", icon: "server" },
+  { id: "diagnostics", icon: "gauge" },
+  { id: "about", icon: "info" },
+  { id: "signout", icon: "log-out" },
 ];
 
-/** The languages offered for track defaults, as ISO 639-2/B codes (the Android app's 34). */
+/** The languages offered for track defaults, as ISO 639-2/B codes (the Android app's 34), with their English names. */
 export const LANGUAGES: [string, string][] = [
   ["ara", "Arabic"], ["bul", "Bulgarian"], ["cat", "Catalan"], ["chi", "Chinese"], ["hrv", "Croatian"], ["cze", "Czech"], ["dan", "Danish"],
   ["dut", "Dutch"], ["eng", "English"], ["fin", "Finnish"], ["fre", "French"], ["ger", "German"], ["gre", "Greek"], ["heb", "Hebrew"],
@@ -44,20 +46,16 @@ export const LANGUAGES: [string, string][] = [
   ["spa", "Spanish"], ["swe", "Swedish"], ["tha", "Thai"], ["tur", "Turkish"], ["ukr", "Ukrainian"], ["vie", "Vietnamese"],
 ];
 
-const SUBTITLE_MODES: { id: SubtitleMode; label: string; hint: string }[] = [
-  { id: "off", label: "Off", hint: "Subtitles stay off until you turn them on." },
-  { id: "forced", label: "Only for foreign dialogue", hint: "Only forced subtitles, for signs and foreign dialogue." },
-  { id: "foreign", label: "When the audio is in another language", hint: "Full subtitles come on when the audio isn't in your subtitle language." },
-  { id: "always", label: "Always", hint: "Subtitles in your language come on whenever there are some." },
-];
+/** The track languages as the language shown names them, in its order. */
+function trackLanguages(): Choice<string>[] {
+  const lang = currentLanguage();
+  return LANGUAGES.map(([code]) => ({ value: code, label: languageName(code) ?? code })).sort((a, b) => a.label.localeCompare(b.label, lang));
+}
 
-const SIZES: { id: Settings["subtitleSize"]; label: string }[] = [
-  { id: "small", label: "Small" },
-  { id: "normal", label: "Medium" },
-  { id: "large", label: "Large" },
-  { id: "largest", label: "Largest" },
-];
+/** The subtitle modes, their words in `settings.modes`. */
+const SUBTITLE_MODES: SubtitleMode[] = ["off", "forced", "foreign", "always"];
 
+const SIZES: Settings["subtitleSize"][] = ["small", "normal", "large", "largest"];
 
 interface Choice<T> {
   value: T;
@@ -126,20 +124,21 @@ export function SettingsScreen(p: { entry: Entry }) {
       () => {
         // Titles kept start with the tracks these pick now.
         app.tracksChanged(null);
-        ui.toast("Saved");
+        ui.toast(t("common.states.saved"));
       },
       (e) => {
         app.me.value = before;
         if (isApiError(e, 403) || isApiError(e, 404) || isApiError(e, 405)) {
           setReadOnly(true);
-          ui.toast("This server doesn't let the app change these: change them on the web", true);
+          ui.toast(t("settings.profile.readOnly"), true);
         } else ui.toast(sentence(errorMessage(e)), true);
       },
     );
   };
   const setting = (patch: Partial<Settings>) => app.updateSettings(patch);
-  const langName = (code: string | null) => (code ? LANGUAGES.filter((l) => l[0] === code)[0]?.[1] ?? code : null);
-  const webSuffix = canDefaults ? "" : " · change on the web";
+  const langName = (code: string | null) => (code ? (languageName(code) ?? code) : null);
+  const webSuffix = canDefaults ? "" : ` · ${t("settings.profile.changeOnWeb")}`;
+  const modeLabel = (mode: SubtitleMode) => t(`settings.modes.${mode}.label`);
 
   // The language Pley is in for the profile: the server's until it picks one, each language named in itself.
   const shownIn = supportedLanguage(me?.language) ?? null;
@@ -171,7 +170,7 @@ export function SettingsScreen(p: { entry: Entry }) {
               <div style="margin-left:16px;min-width:0">
                 <div class="t-title c-fg one-line">{me.display_name || me.name}</div>
                 {/* A managed profile says so; an account needs no word for what it is (Android's header). */}
-                <div class="t-caption c-muted one-line">{[me.managed ? "Managed profile" : "", server ? displayAddress(server) : ""].filter(Boolean).join(" · ")}</div>
+                <div class="t-caption c-muted one-line">{[me.managed ? t("settings.profile.managed") : "", server ? displayAddress(server) : ""].filter(Boolean).join(" · ")}</div>
               </div>
             </>
           ) : (
@@ -179,7 +178,9 @@ export function SettingsScreen(p: { entry: Entry }) {
           )}
         </div>,
       );
-      if (canSwitch) rows.push(<SettingRow key="switch" fid="row-switch" icon="users" label="Switch profile" chevron onSelect={() => ui.nav.restart({ name: "profiles" })} />);
+      if (canSwitch) {
+        rows.push(<SettingRow key="switch" fid="row-switch" icon="users" label={t("settings.profile.switch")} chevron onSelect={() => ui.nav.restart({ name: "profiles" })} />);
+      }
       rows.push(
         <SettingRow
           key="language"
@@ -195,12 +196,16 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="audio"
           fid="row-audio"
           icon="audio-lines"
-          label="Audio language"
-          value={me ? `${langName(me.audio_language) ?? "The file's default"}${webSuffix}` : undefined}
+          label={t("settings.profile.audioLanguage")}
+          value={me ? `${langName(me.audio_language) ?? t("settings.profile.fileDefault")}${webSuffix}` : undefined}
           onSelect={() =>
             canDefaults
-              ? choose("row-audio", "Audio language", [{ value: null, label: "The file's default" }, ...LANGUAGES.map(([v, l]) => ({ value: v, label: l }))], me?.audio_language ?? null, (v) =>
-                  saveDefaults({ audio: v as string | null }),
+              ? choose<string | null>(
+                  "row-audio",
+                  t("settings.profile.audioLanguage"),
+                  [{ value: null, label: t("settings.profile.fileDefault") }, ...trackLanguages()],
+                  me?.audio_language ?? null,
+                  (v) => saveDefaults({ audio: v }),
                 )
               : setWeb(true)
           }
@@ -211,16 +216,16 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="subs"
           fid="row-subtitles"
           icon="captions"
-          label="Subtitles"
-          value={me ? `${SUBTITLE_MODES.filter((m) => m.id === me.subtitle_mode)[0]?.label ?? ""}${webSuffix}` : undefined}
+          label={t("settings.profile.subtitles")}
+          value={me ? `${SUBTITLE_MODES.indexOf(me.subtitle_mode) >= 0 ? modeLabel(me.subtitle_mode) : ""}${webSuffix}` : undefined}
           onSelect={() =>
             canDefaults
               ? choose(
                   "row-subtitles",
-                  "Subtitles",
-                  SUBTITLE_MODES.map((m) => ({ value: m.id, label: m.label, hint: m.hint })),
+                  t("settings.profile.subtitles"),
+                  SUBTITLE_MODES.map((m) => ({ value: m, label: modeLabel(m), hint: t(`settings.modes.${m}.hint`) })),
                   me?.subtitle_mode ?? "forced",
-                  (v) => saveDefaults({ mode: v as SubtitleMode }),
+                  (v) => saveDefaults({ mode: v }),
                 )
               : setWeb(true)
           }
@@ -232,23 +237,23 @@ export function SettingsScreen(p: { entry: Entry }) {
             key="sublang"
             fid="row-sublang"
             icon="captions"
-            label="Subtitle language"
-            value={`${langName(me.subtitle_language) ?? "Same as the audio language"}${webSuffix}`}
+            label={t("settings.profile.subtitleLanguage")}
+            value={`${langName(me.subtitle_language) ?? t("settings.profile.sameAsAudio")}${webSuffix}`}
             onSelect={() =>
               canDefaults
-                ? choose(
+                ? choose<string | null>(
                     "row-sublang",
-                    "Subtitle language",
-                    [{ value: null, label: "Same as the audio language" }, ...LANGUAGES.map(([v, l]) => ({ value: v, label: l }))],
+                    t("settings.profile.subtitleLanguage"),
+                    [{ value: null, label: t("settings.profile.sameAsAudio") }, ...trackLanguages()],
                     me.subtitle_language,
-                    (v) => saveDefaults({ subtitle: v as string | null }),
+                    (v) => saveDefaults({ subtitle: v }),
                   )
                 : setWeb(true)
             }
           />,
         );
       }
-      rows.push(<SettingRow key="history" fid="row-history" icon="history" label="Watch history" chevron onSelect={() => ui.nav.open({ name: "history" })} />);
+      rows.push(<SettingRow key="history" fid="row-history" icon="history" label={t("settings.profile.history")} chevron onSelect={() => ui.nav.open({ name: "history" })} />);
       // The Libraries page sorts them too, but with six or fewer the rail lists them and has no way there.
       if (librariesSort !== "no") {
         rows.push(
@@ -256,34 +261,47 @@ export function SettingsScreen(p: { entry: Entry }) {
             key="sortLibraries"
             fid="row-sort-libraries"
             icon="arrow-up-down"
-            label="Sort libraries"
-            value={librariesSort === "older" ? "Needs a newer Pley on the server" : `Your order, on all your devices${librariesSort === "refused" ? " · change on the web" : ""}`}
+            label={t("settings.profile.sortLibraries")}
+            value={
+              librariesSort === "older"
+                ? t("settings.profile.sortNeedsNewer")
+                : `${t("settings.profile.yourOrder")}${librariesSort === "refused" ? ` · ${t("settings.profile.changeOnWeb")}` : ""}`
+            }
             chevron={librariesSort === "yes"}
             onSelect={() =>
-              librariesSort === "yes" ? ui.nav.open({ name: "libraries", sort: true }) : librariesSort === "refused" ? setWeb(true) : ui.toast(SORT_NEEDS_NEWER, true)
+              librariesSort === "yes"
+                ? ui.nav.open({ name: "libraries", sort: true })
+                : librariesSort === "refused"
+                  ? setWeb(true)
+                  : ui.toast(t("settings.profile.sortNeedsNewerToast"), true)
             }
           />,
         );
       }
       if (household.length > 1) {
         const always = app.alwaysStartAs();
+        const askWho = t("settings.profile.askWho");
         rows.push(
           <SettingRow
             key="always"
             fid="row-always"
             icon="user-round"
-            label="Always start as"
-            value={always === null ? "Ask who's watching" : household.filter((h) => h.id === always)[0]?.name ?? "Ask who's watching"}
+            label={t("settings.profile.alwaysStartAs")}
+            value={always === null ? askWho : (household.filter((h) => h.id === always)[0]?.name ?? askWho)}
             onSelect={() =>
-              choose("row-always", "Always start as", [{ value: null, label: "Ask who's watching" }, ...household.map((h) => ({ value: h.id, label: h.name }))], always, (v) =>
-                app.setAlwaysStartAs(v as number | null),
+              choose<number | null>(
+                "row-always",
+                t("settings.profile.alwaysStartAs"),
+                [{ value: null, label: askWho }, ...household.map((h) => ({ value: h.id, label: h.name }))],
+                always,
+                (v) => app.setAlwaysStartAs(v),
               )
             }
           />,
         );
       }
       rows.push(
-        <SettingRow key="web" fid="row-web" icon="monitor" label="Manage your account on the web" value="Name, picture, password, PIN, two-step, devices and apps" onSelect={() => setWeb(true)} />,
+        <SettingRow key="web" fid="row-web" icon="monitor" label={t("settings.profile.web")} value={t("settings.profile.webHint")} onSelect={() => setWeb(true)} />,
       );
       break;
     case "playback":
@@ -292,13 +310,13 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="quality"
           fid="row-quality"
           icon="gauge"
-          label="Quality"
+          label={t("settings.playback.quality")}
           value={qualityName(settings.quality)}
           onSelect={() =>
             choose(
               "row-quality",
-              "Quality",
-              PRESETS.map((q) => ({ value: q.id, label: q.label, hint: qualityHint(q.id) })),
+              t("settings.playback.quality"),
+              PRESETS.map((q) => ({ value: q.id, label: qualityName(q.id), hint: qualityHint(q.id) })),
               settings.quality,
               (v) => setting({ quality: v as string }),
             )
@@ -306,15 +324,23 @@ export function SettingsScreen(p: { entry: Entry }) {
         />,
       );
       rows.push(
-        <SettingRow key="autoplay" fid="row-autoplay" icon="skip-forward" label="Play the next episode by itself" value="After a 10 second countdown" toggle={settings.autoplayNext} onSelect={() => setting({ autoplayNext: !settings.autoplayNext })} />,
+        <SettingRow
+          key="autoplay"
+          fid="row-autoplay"
+          icon="skip-forward"
+          label={t("settings.playback.autoplay")}
+          value={t("settings.playback.autoplayHint")}
+          toggle={settings.autoplayNext}
+          onSelect={() => setting({ autoplayNext: !settings.autoplayNext })}
+        />,
       );
       rows.push(
         <SettingRow
           key="details"
           fid="row-details"
           icon="info"
-          label="Playback details"
-          value="Show how a video plays (direct, remux or transcode) over it"
+          label={t("settings.playback.details")}
+          value={t("settings.playback.detailsHint")}
           toggle={settings.playbackDetails}
           onSelect={() => setting({ playbackDetails: !settings.playbackDetails })}
         />,
@@ -323,7 +349,7 @@ export function SettingsScreen(p: { entry: Entry }) {
     case "audio":
       rows.push(
         <div key="intro" class="settings-intro t-body c-muted">
-          Dolby Digital, Dolby Digital Plus and Atmos are always passed through. Turn these on if your receiver supports them; otherwise Pley converts them.
+          {t("settings.audio.intro")}
         </div>,
       );
       rows.push(
@@ -331,8 +357,8 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="truehd"
           fid="row-truehd"
           icon="audio-lines"
-          label="Pass through Dolby TrueHD"
-          value="Only with a receiver that takes TrueHD from the TV"
+          label={t("settings.audio.truehd")}
+          value={t("settings.audio.truehdHint")}
           toggle={settings.passthroughTrueHd}
           onSelect={() => setting({ passthroughTrueHd: !settings.passthroughTrueHd })}
         />,
@@ -342,8 +368,8 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="dts"
           fid="row-dts"
           icon="audio-lines"
-          label="Pass through DTS"
-          value="Only with a receiver that takes DTS from the TV"
+          label={t("settings.audio.dts")}
+          value={t("settings.audio.dtsHint")}
           toggle={settings.passthroughDts}
           onSelect={() => setting({ passthroughDts: !settings.passthroughDts })}
         />,
@@ -355,10 +381,16 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="size"
           fid="row-size"
           icon="captions"
-          label="Subtitle size"
-          value={SIZES.filter((s) => s.id === settings.subtitleSize)[0]?.label ?? "Medium"}
+          label={t("settings.display.size")}
+          value={t(`settings.display.sizes.${SIZES.indexOf(settings.subtitleSize) >= 0 ? settings.subtitleSize : "normal"}`)}
           onSelect={() =>
-            choose("row-size", "Subtitle size", SIZES.map((s) => ({ value: s.id, label: s.label })), settings.subtitleSize, (v) => setting({ subtitleSize: v as Settings["subtitleSize"] }))
+            choose(
+              "row-size",
+              t("settings.display.size"),
+              SIZES.map((s) => ({ value: s, label: t(`settings.display.sizes.${s}`) })),
+              settings.subtitleSize,
+              (v) => setting({ subtitleSize: v }),
+            )
           }
         />,
       );
@@ -367,18 +399,18 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="box"
           fid="row-box"
           icon="captions"
-          label="Subtitle background"
-          value={settings.subtitleBox ? "Dark box" : "None, with an outline"}
+          label={t("settings.display.background")}
+          value={settings.subtitleBox ? t("settings.display.box") : t("settings.display.outline")}
           onSelect={() =>
             choose(
               "row-box",
-              "Subtitle background",
+              t("settings.display.background"),
               [
-                { value: false, label: "None, with an outline" },
-                { value: true, label: "Dark box" },
+                { value: false, label: t("settings.display.outline") },
+                { value: true, label: t("settings.display.box") },
               ],
               settings.subtitleBox,
-              (v) => setting({ subtitleBox: v as boolean }),
+              (v) => setting({ subtitleBox: v }),
             )
           }
         />,
@@ -388,13 +420,13 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="font"
           fid="row-font"
           icon="captions"
-          label="Subtitle font"
-          value={SUBTITLE_FONTS.filter((f) => f.id === settings.subtitleFont)[0]?.label ?? "Default"}
+          label={t("settings.display.font")}
+          value={fontName(settings.subtitleFont)}
           onSelect={() =>
             choose(
               "row-font",
-              "Subtitle font",
-              SUBTITLE_FONTS.filter((f) => f.id === settings.subtitleFont || fontsHere().indexOf(f.id) >= 0).map((f) => ({ value: f.id, label: f.label })),
+              t("settings.display.font"),
+              SUBTITLE_FONTS.filter((f) => f.id === settings.subtitleFont || fontsHere().indexOf(f.id) >= 0).map((f) => ({ value: f.id, label: fontName(f.id) })),
               settings.subtitleFont,
               (v) => setting({ subtitleFont: v as Settings["subtitleFont"] }),
             )
@@ -406,13 +438,13 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="position"
           fid="row-position"
           icon="captions"
-          label="Subtitle position"
-          value={SUBTITLE_POSITIONS.filter((p) => p.id === settings.subtitlePosition)[0]?.label ?? "Bottom"}
+          label={t("settings.display.position")}
+          value={positionName(settings.subtitlePosition)}
           onSelect={() =>
             choose(
               "row-position",
-              "Subtitle position",
-              SUBTITLE_POSITIONS.map((p) => ({ value: p.id, label: p.label })),
+              t("settings.display.position"),
+              SUBTITLE_POSITIONS.map((p) => ({ value: p.id, label: positionName(p.id) })),
               settings.subtitlePosition,
               (v) => setting({ subtitlePosition: v as Settings["subtitlePosition"] }),
             )
@@ -424,16 +456,27 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="motion"
           fid="row-motion"
           icon="layers"
-          label="Reduce motion"
-          value="No zooming, sliding or fading: things change in place"
+          label={t("settings.display.motion")}
+          value={t("settings.display.motionHint")}
           toggle={settings.reduceMotion}
           onSelect={() => setting({ reduceMotion: !settings.reduceMotion })}
         />,
       );
       break;
     case "server":
-      rows.push(<SettingRow key="server" fid="row-server" icon="server" label={server ? displayAddress(server) : "No server"} value="The server this TV uses" onSelect={() => undefined} />);
-      rows.push(<SettingRow key="switchserver" fid="row-switchserver" icon="arrow-left" label="Switch server" chevron onSelect={() => ui.nav.restart({ name: "servers" })} />);
+      rows.push(
+        <SettingRow
+          key="server"
+          fid="row-server"
+          icon="server"
+          label={server ? displayAddress(server) : t("settings.server.none")}
+          value={t("settings.server.thisTv")}
+          onSelect={() => undefined}
+        />,
+      );
+      rows.push(
+        <SettingRow key="switchserver" fid="row-switchserver" icon="arrow-left" label={t("settings.server.switch")} chevron onSelect={() => ui.nav.restart({ name: "servers" })} />,
+      );
       break;
     case "diagnostics": {
       rows.push(
@@ -441,8 +484,8 @@ export function SettingsScreen(p: { entry: Entry }) {
           key="diagnostics"
           fid="row-diagnostics"
           icon="gauge"
-          label="Open diagnostics"
-          value="What this TV decodes and shows, and why"
+          label={t("settings.diagnostics.open")}
+          value={t("settings.diagnostics.openHint")}
           chevron
           onSelect={() => ui.nav.open({ name: "diagnostics" })}
         />,
@@ -460,17 +503,26 @@ export function SettingsScreen(p: { entry: Entry }) {
       break;
     }
     case "about":
-      rows.push(<SettingRow key="version" fid="row-version" icon="info" label="Version" value={`${app.platform.appName} ${buildLabel(app.platform.version)}`} onSelect={() => undefined} />);
+      rows.push(
+        <SettingRow
+          key="version"
+          fid="row-version"
+          icon="info"
+          label={t("settings.about.version")}
+          value={`${app.platform.appName} ${buildLabel(app.platform.version)}`}
+          onSelect={() => undefined}
+        />,
+      );
       rows.push(
         <div key="lic" class="settings-heading t-label c-subtle">
-          Open-source licences
+          {t("settings.about.licences")}
         </div>,
       );
       // Their texts are in the app's package, in NOTICES.txt.
       for (const [name, licence] of licenseRows()) rows.push(<SettingRow key={name} fid={`row-lic-${name}`} label={name} value={licence} onSelect={() => undefined} />);
       rows.push(
         <div key="credits" class="settings-heading t-label c-subtle">
-          Credits
+          {t("settings.about.credits")}
         </div>,
       );
       // Discover's titles and pictures (TMDB's terms ask for this line).
@@ -479,17 +531,17 @@ export function SettingsScreen(p: { entry: Entry }) {
     case "signout":
       rows.push(
         <div key="intro" class="settings-intro t-body c-muted">
-          {`Sign this TV out of ${server ? displayAddress(server) : "the server"}. You'll need a new link code to sign in again.`}
+          {server ? t("settings.signOut.introServer", { server: displayAddress(server) }) : t("settings.signOut.intro")}
         </div>,
       );
-      rows.push(<SettingRow key="signout" fid="row-signout" icon="log-out" label="Sign out" danger disabled={signingOut} onSelect={() => setSignOut(true)} />);
+      rows.push(<SettingRow key="signout" fid="row-signout" icon="log-out" label={t("settings.signOut.button")} danger disabled={signingOut} onSelect={() => setSignOut(true)} />);
       break;
   }
 
   return (
     <div class="settings-page">
       <div class="t-page c-fg" style="position:absolute;left:96px;top:27px">
-        Settings
+        {t("settings.title")}
       </div>
       <G kind="col" restore class="settings-categories">
         {CATEGORIES.map((c) => (
@@ -497,7 +549,7 @@ export function SettingsScreen(p: { entry: Entry }) {
             key={c.id}
             fid={`category-${c.id}`}
             icon={c.icon}
-            label={c.label}
+            label={t(`settings.categories.${c.id}`)}
             danger={c.id === "signout"}
             chevron={shown === c.id}
             initial={c.id === shown}
@@ -562,14 +614,27 @@ export function SettingsScreen(p: { entry: Entry }) {
 
 /** "Automatic", "Original", "30 Mbps 4K": as the player's Quality menu says. */
 function qualityName(id: string): string {
-  return (presetById(id) ?? AUTO).label;
+  const preset = presetById(id) ?? AUTO;
+  if (preset.id === AUTO.id) return t("settings.playback.automatic");
+  if (preset.id === ORIGINAL.id) return t("settings.playback.original");
+  return preset.label;
 }
 
 /** What the original and Automatic do, under their names in the list. */
 function qualityHint(id: string): string | undefined {
-  if (id === AUTO.id) return "Dynamically adjust to conditions";
-  if (id === ORIGINAL.id) return "Full quality. May buffer on a slow connection";
+  if (id === AUTO.id) return t("settings.playback.automaticHint");
+  if (id === ORIGINAL.id) return t("settings.playback.originalHint");
   return undefined;
+}
+
+/** A subtitle font's name: "Default", "Serif"… */
+function fontName(id: Settings["subtitleFont"]): string {
+  return SUBTITLE_FONTS.some((f) => f.id === id) ? t(`settings.display.fonts.${id}`) : t("settings.display.fonts.default");
+}
+
+/** A subtitle position's name: "Bottom", "A little higher"… */
+function positionName(id: Settings["subtitlePosition"]): string {
+  return SUBTITLE_POSITIONS.some((p) => p.id === id) ? t(`settings.display.positions.${id}`) : t("settings.display.positions.bottom");
 }
 
 /** A row of Settings (TvSettingRow): an icon, a label, a value line; a switch or a chevron at the end. */
@@ -631,15 +696,15 @@ function WebDialog(p: { url: string; onClose: () => void }) {
       <div class="scrim in" onClick={p.onClose} />
       <div class="dialog web-dialog">
         <div style="width:300px">
-          <div class="t-title c-fg">Manage your account on the web</div>
+          <div class="t-title c-fg">{t("settings.web.title")}</div>
           <div class="t-body c-muted" style="margin-top:10px">
-            Scan the code with your phone, or go to this address on a phone or computer on the same network:
+            {t("settings.web.body")}
           </div>
           <div class="t-title" style="margin-top:10px;color:var(--accent-bright)">
             {p.url.replace(/^https?:\/\//, "")}
           </div>
           <G kind="row" style="margin-top:18px">
-            <Pill label="Close" initial onSelect={p.onClose} />
+            <Pill label={t("common.actions.close")} initial onSelect={p.onClose} />
           </G>
         </div>
         <div class="web-qr">
@@ -685,10 +750,10 @@ export function HistoryScreen(p: { entry: Entry }) {
   const remove = (e: HistoryEntry) => {
     const before = entries;
     setEntries((list) => (list ?? []).filter((x) => x.id !== e.id));
-    setTotal((t) => t - 1);
+    setTotal((n) => n - 1);
     ui.api.removeHistory(e.id).catch((err) => {
       setEntries(before);
-      setTotal((t) => t + 1);
+      setTotal((n) => n + 1);
       setError(err);
     });
   };
@@ -696,24 +761,31 @@ export function HistoryScreen(p: { entry: Entry }) {
   if (!entries) {
     if (error) {
       return (
-        <HistoryMessage title={failedTitle(error, "Couldn't load your watch history")} body={problem(error)} action="Try again" onAction={() => (setError(null), load(0))} />
+        <HistoryMessage
+          title={failedTitle(error, t("settings.history.loadFailed"))}
+          body={problem(error)}
+          action={t("common.actions.tryAgain")}
+          onAction={() => (setError(null), load(0))}
+        />
       );
     }
     return (
-      <div class="history-page" role="status" aria-label="Loading">
+      <div class="history-page" role="status" aria-label={t("common.states.loading")}>
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} class="skeleton" style={`position:absolute;left:96px;top:${81 + i * 64}px;width:560px;height:52px;border-radius:4px`} />
         ))}
       </div>
     );
   }
-  if (!entries.length) return <HistoryMessage title="No history yet" body="Movies, episodes and songs you finish show up here." action="Back" onAction={() => ui.nav.pop()} />;
+  if (!entries.length) {
+    return <HistoryMessage title={t("settings.history.empty")} body={t("settings.history.emptyText")} action={t("common.actions.back")} onAction={() => ui.nav.pop()} />;
+  }
   return (
     <div class="history-page">
       <div class="history-header">
-        <div class="t-page c-fg">Watch history</div>
+        <div class="t-page c-fg">{t("settings.history.title")}</div>
         <div class="t-caption c-muted" style="margin-left:16px;padding-bottom:6px">
-          {total === 1 ? "1 play" : `${total} plays`}
+          {t("settings.history.plays", { count: total })}
         </div>
         <div style="flex:1" />
         {error ? <div class="t-label c-danger one-line">{sentence(errorMessage(error))}</div> : null}
@@ -739,14 +811,19 @@ export function HistoryScreen(p: { entry: Entry }) {
                     <div class="t-caption one-line sub">{[historySubtitle(e), relativeTime(e.viewed_at), e.device ?? ""].filter(Boolean).join(" · ")}</div>
                   </div>
                 </F>
-                <F class="history-remove" label={`Remove ${historyTitle(e)} from history`} onSelect={() => remove(e)}>
+                <F class="history-remove" label={t("settings.history.remove", { title: historyTitle(e) })} onSelect={() => remove(e)}>
                   <Icon name="x" size={20} />
                 </F>
               </G>
             ))}
             {entries.length < total && (
               <div style="margin-top:12px">
-                <Pill label={loading ? "Loading…" : "Show more"} icon="chevron-down" disabled={loading} onSelect={() => load(entries.length)} />
+                <Pill
+                  label={loading ? t("settings.history.loadingMore") : t("common.actions.showMore")}
+                  icon="chevron-down"
+                  disabled={loading}
+                  onSelect={() => load(entries.length)}
+                />
               </div>
             )}
           </G>
@@ -787,11 +864,11 @@ function HistoryMessage(p: { title: string; body: string; action: string; onActi
 function deviceFacts(app: AppState): [string, string][] {
   const d = app.platform.device();
   return [
-    ["Model", d.model],
-    ["System", d.os],
-    ["Firmware", d.firmware ?? "—"],
-    ["Web engine", d.chromium ? `Chromium ${d.chromium}` : "—"],
-    ["Tier", app.platform.tier()],
+    [t("settings.diagnostics.model"), d.model],
+    [t("settings.diagnostics.system"), d.os],
+    [t("settings.diagnostics.firmware"), d.firmware ?? "—"],
+    [t("settings.diagnostics.engine"), d.chromium ? `Chromium ${d.chromium}` : "—"],
+    [t("settings.diagnostics.tier"), t(`settings.diagnostics.tiers.${app.platform.tier()}`)],
   ];
 }
 
@@ -805,17 +882,19 @@ function deviceFacts(app: AppState): [string, string][] {
 export function DiagnosticsScreen() {
   const app = useApp();
   const ui = useUi();
-  const [lines, setLines] = useState<string[] | null | "failed">(null);
+  const [probe, setProbe] = useState<Probe | null | "failed">(null);
   const [checking, setChecking] = useState(true);
   const again = useRef(false);
   const check = (fresh: boolean) => {
     setChecking(true);
     again.current = fresh;
     void app.caps(fresh).then((r) => {
-      setLines(r ? r.lines : "failed");
+      setProbe(r ?? "failed");
       setChecking(false);
     });
   };
+  // Read while drawing: a platform may write them in the language shown (apps/tizen's are a getter).
+  const lines = probe === null || probe === "failed" ? probe : probe.lines;
   useEffect(() => check(false), []);
   const column = useRef<HTMLDivElement>(null);
   const shift = useScrollToFocus(column, 540 - 27);
@@ -824,31 +903,31 @@ export function DiagnosticsScreen() {
     again.current = false;
     const first = column.current?.querySelector<HTMLElement>('[data-fid="plays/0"]');
     if (first && !ui.focus.current?.isConnected) ui.focus.focus(first);
-  }, [lines]);
-  const facts: [string, string][] = [["App", `${app.platform.appName} ${buildLabel(app.platform.version)}`] as [string, string]].concat(deviceFacts(app));
+  }, [probe]);
+  const facts: [string, string][] = [[t("settings.diagnostics.app"), `${app.platform.appName} ${buildLabel(app.platform.version)}`] as [string, string]].concat(deviceFacts(app));
   return (
     <div class="diagnostics-page">
       <div ref={column} class="diagnostics-column" style={`transform:translateY(${-shift}px)`}>
-        <div class="t-page c-fg">Diagnostics</div>
+        <div class="t-page c-fg">{t("settings.diagnostics.title")}</div>
         <G kind="col" class="diagnostics-lines">
-          <div class="t-section c-fg diagnostics-heading">This TV</div>
+          <div class="t-section c-fg diagnostics-heading">{t("settings.diagnostics.thisTv")}</div>
           {facts.map(([label, value], i) => (
-            <F key={label} class="diagnostics-line" fid={`fact/${i}`} initial={i === 0} label={`${label}: ${value}`}>
+            <F key={i} class="diagnostics-line" fid={`fact/${i}`} initial={i === 0} label={t("settings.diagnostics.line", { label, value })}>
               <span class="t-body diagnostics-label">{label}</span>
               <span class="t-body diagnostics-value">{value}</span>
             </F>
           ))}
-          <div class="t-section c-fg diagnostics-heading">What it plays</div>
-          {lines === null && <div class="t-body c-muted diagnostics-note">Checking what this TV plays…</div>}
+          <div class="t-section c-fg diagnostics-heading">{t("settings.diagnostics.plays")}</div>
+          {lines === null && <div class="t-body c-muted diagnostics-note">{t("settings.diagnostics.checking")}</div>}
           {lines === "failed" && (
             <>
               {checking ? (
-                <div class="t-body c-muted diagnostics-note">Checking what this TV plays…</div>
+                <div class="t-body c-muted diagnostics-note">{t("settings.diagnostics.checking")}</div>
               ) : (
-                <div class="t-body c-danger diagnostics-note">The check of this TV failed.</div>
+                <div class="t-body c-danger diagnostics-note">{t("settings.diagnostics.failed")}</div>
               )}
               <G kind="row" class="diagnostics-again">
-                <Pill label="Check again" icon="refresh-cw" fid="again" onSelect={() => !checking && check(true)} />
+                <Pill label={t("settings.diagnostics.again")} icon="refresh-cw" fid="again" onSelect={() => !checking && check(true)} />
               </G>
             </>
           )}
@@ -875,12 +954,12 @@ export function buildLabel(version: string): string {
 export function SignOutDialog(p: { server: string | null; onCancel: () => void; onSignOut: () => void }) {
   return (
     <Dialog
-      title="Sign out?"
-      body={p.server ? `This TV signs out of ${p.server}.` : undefined}
+      title={t("settings.signOut.title")}
+      body={p.server ? t("settings.signOut.body", { server: p.server }) : undefined}
       onDismiss={p.onCancel}
       buttons={[
-        { label: "Cancel", initial: true, onSelect: p.onCancel },
-        { label: "Sign out", color: "var(--danger-text)", onSelect: p.onSignOut },
+        { label: t("common.actions.cancel"), initial: true, onSelect: p.onCancel },
+        { label: t("settings.signOut.button"), color: "var(--danger-text)", onSelect: p.onSignOut },
       ]}
     />
   );

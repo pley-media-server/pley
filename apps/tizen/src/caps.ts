@@ -1,4 +1,5 @@
 import type { ClientCaps, VideoDecoderCaps } from "pley-tv/api/types";
+import { t } from "pley-tv/i18n";
 import type { CapsOverrides } from "pley-tv/platform";
 import type { TizenFacts } from "./facts";
 
@@ -7,7 +8,8 @@ import type { TizenFacts } from "./facts";
  * so it sends files as they are whenever AVPlay takes them. From Samsung's
  * video specifications per model year (docs/TV_PLATFORMS.md), refined by
  * what the TV says of its panel, its HDR and its sound output. Samsung
- * TVs show no Dolby Vision; HDR10+ they do from 2017. Pure.
+ * TVs show no Dolby Vision; HDR10+ they do from 2017. Pure, but for
+ * Diagnostics' lines, which are in the language shown.
  */
 
 const CONTAINERS = ["mkv", "mp4", "m4v", "mov", "ts", "m2ts", "mpegts", "webm", "avi", "mpg", "mpeg", "mp3", "m4a", "aac", "flac", "ogg", "oga", "wav", "mka"];
@@ -19,7 +21,8 @@ const SUBTITLES = ["subrip", "ass", "ssa", "webvtt", "mov_text", "hdmv_pgs_subti
 
 export interface CapsResult {
   caps: ClientCaps;
-  lines: string[];
+  /** Diagnostics' lines, written in the language shown when they are read (a getter), so the page draws them again in a new one. */
+  readonly lines: string[];
 }
 
 export function tizenCaps(f: TizenFacts, o: CapsOverrides = { truehd: false, dts: false }): CapsResult {
@@ -85,7 +88,12 @@ export function tizenCaps(f: TizenFacts, o: CapsOverrides = { truehd: false, dts
     display: f.uhd8k ? { width: 7680, height: 4320, refresh_rates: [50, 60] } : f.uhd ? { width: 3840, height: 2160, refresh_rates: [50, 60] } : { width: 1920, height: 1080, refresh_rates: [50, 60] },
     device: { form: "tv", tier: tierOf(f), fire_tv: false, model: f.model },
   };
-  return { caps, lines: lines(f, caps) };
+  return {
+    caps,
+    get lines() {
+      return lines(f, caps);
+    },
+  };
 }
 
 /** Low for 2018 sets, mid until 2021, high after. */
@@ -99,15 +107,16 @@ function unique(list: string[]): string[] {
 }
 
 function lines(f: TizenFacts, caps: ClientCaps): string[] {
-  const hdr = caps.hdr_types.map((t) => (t === "hdr10" ? "HDR10" : t === "hdr10plus" ? "HDR10+" : t === "hlg" ? "HLG" : "Dolby Vision"));
+  const hdr = caps.hdr_types.map((h) => (h === "hdr10" ? "HDR10" : h === "hdr10plus" ? "HDR10+" : h === "hlg" ? "HLG" : "Dolby Vision"));
+  const sent = caps.audio_passthrough.length ? caps.audio_passthrough.join(", ") : t("settings.diagnostics.caps.nothing");
   return [
-    `TV: ${f.model}${f.firmware ? ` (firmware ${f.firmware})` : ""}`,
-    `Tizen ${f.tizen.toFixed(1)} (${f.year} models)${f.chromium ? ` · Chromium ${f.chromium}` : ""}`,
-    `Panel: ${f.uhd8k ? "8K" : f.uhd ? "4K" : "HD"}`,
-    `HDR: ${hdr.length ? hdr.join(", ") : "none"} · no Samsung TV shows Dolby Vision`,
-    `Video: ${caps.video.map((v) => `${v.codec} ${v.max_width}×${v.max_height}@${v.max_fps}`).join(", ")}`,
-    `Audio decoded: ${caps.audio_decode.join(", ")}`,
-    `Sent to the receiver: ${caps.audio_passthrough.length ? caps.audio_passthrough.join(", ") : "nothing"}${f.outputMode ? ` (sound output ${f.outputMode})` : ""}`,
-    `Streams: HLS ${caps.hls.segments.join(", ")}`,
+    f.firmware ? t("settings.diagnostics.caps.tvFirmware", { model: f.model, firmware: f.firmware }) : t("settings.diagnostics.caps.tv", { model: f.model }),
+    `${t("settings.diagnostics.caps.tizen", { version: f.tizen.toFixed(1), year: f.year })}${f.chromium ? ` · Chromium ${f.chromium}` : ""}`,
+    t("settings.diagnostics.caps.panel", { panel: f.uhd8k ? "8K" : f.uhd ? "4K" : "HD" }),
+    t("settings.diagnostics.caps.hdr", { list: hdr.length ? hdr.join(", ") : t("settings.diagnostics.caps.none") }),
+    t("settings.diagnostics.caps.video", { list: caps.video.map((v) => `${v.codec} ${v.max_width}×${v.max_height}@${v.max_fps}`).join(", ") }),
+    t("settings.diagnostics.caps.audio", { list: caps.audio_decode.join(", ") }),
+    f.outputMode ? t("settings.diagnostics.caps.receiverOutput", { list: sent, output: f.outputMode }) : t("settings.diagnostics.caps.receiver", { list: sent }),
+    t("settings.diagnostics.caps.streams", { list: caps.hls.segments.join(", ") }),
   ];
 }

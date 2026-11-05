@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { setLanguage } from "pley-tv/i18n";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { tierOf, tizenCaps } from "../src/caps";
 import { avplayError, statusOf } from "../src/engine";
 import { yearOfTizen, type TizenFacts } from "../src/facts";
@@ -103,6 +104,40 @@ describe("Samsung capabilities, rules", () => {
 
   it("knows each Tizen version's year", () => {
     expect([4, 5, 5.5, 6, 6.5, 7, 8, 9, 10].map(yearOfTizen)).toEqual([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+  });
+});
+
+describe("Samsung's Diagnostics lines", () => {
+  afterEach(() => setLanguage("en"));
+
+  it("say what the TV is and plays", () => {
+    const lines = tizenCaps(tv({ outputMode: "DOLBY" })).lines;
+    expect(lines.filter((_, i) => i !== 4 && i !== 5)).toEqual([
+      "TV: QN65QN90AAFXZA (firmware T-NKMAKUC-1600.5)",
+      "Tizen 6.0 (2021 models) · Chromium 76",
+      "Panel: 4K",
+      "HDR: HDR10, HDR10+, HLG · no Samsung TV shows Dolby Vision",
+      "Sent to the receiver: ac3 (sound output DOLBY)",
+      "Streams: HLS ts, fmp4",
+    ]);
+    expect(lines[5]).toMatch(/^Audio decoded: aac, ac3, eac3/);
+    const plain = tizenCaps(tv({ firmware: null, chromium: null, uhd: false, hdr: false, outputMode: null })).lines;
+    expect([plain[0], plain[1], plain[2], plain[3], plain[6]]).toEqual([
+      "TV: QN65QN90AAFXZA",
+      "Tizen 6.0 (2021 models)",
+      "Panel: HD",
+      "HDR: none · no Samsung TV shows Dolby Vision",
+      "Sent to the receiver: nothing",
+    ]);
+  });
+
+  it("are in the language shown when Diagnostics reads them", () => {
+    const report = tizenCaps(tv({ outputMode: "DOLBY" }));
+    setLanguage("fr");
+    expect(report.lines[1]).toBe("Tizen 6.0 (modèles 2021) · Chromium 76");
+    expect(report.lines[6]).toBe("Envoyé à l’ampli : ac3 (sortie son DOLBY)");
+    setLanguage("es");
+    expect(report.lines[3]).toBe("HDR: HDR10, HDR10+, HLG · ninguna TV Samsung muestra Dolby Vision");
   });
 });
 
