@@ -68,7 +68,8 @@ describes how they are made.
   Sam's profile"), never what it plays. Sending something there ends what
   plays on that phone or TV, its place kept for its own profile, and
   switches it to your profile before it plays, after your PIN when your
-  profile has one; a TV left at "Who's watching?" goes on to Home.
+  profile has one. A phone or TV showing "Who's watching?" ignores what
+  is sent to it meanwhile: whoever is there is choosing.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

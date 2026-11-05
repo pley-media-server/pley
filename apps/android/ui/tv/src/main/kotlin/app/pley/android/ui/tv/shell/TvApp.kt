@@ -220,10 +220,6 @@ private fun TvShell(
             cast = from.notice(resources) to ++casts
         }
     }
-    // A cast from another profile's remote switched the TV to it, past "Who's watching?": Home, under what plays.
-    LaunchedEffect(source, navigator) {
-        source.castSwitched.collect { if (navigator.root is PleyKey.Profiles) navigator.restart(PleyKey.Home) }
-    }
 
     // A Watch Next program: its page, and it plays, once past signing in and choosing a profile.
     LaunchedEffect(opened, navigator) {

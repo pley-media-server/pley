@@ -46,7 +46,7 @@ data class CastRefused(val from: CastFrom)
  * came from: a video or a channel in its player, music through
  * [music] (the phone's shell says it, the TV's opens Now Playing). A cast
  * from another profile of the household switches this device to that
- * profile first ([switched]); one that couldn't plays nothing ([refused]).
+ * profile first; one that couldn't plays nothing ([refused]).
  */
 interface CastReceiver {
     /** Starts playing what is cast here, from now on; calling it again does nothing. */
@@ -54,9 +54,6 @@ interface CastReceiver {
 
     /** Each time music cast here starts. */
     val music: Flow<CastMusic> get() = emptyFlow()
-
-    /** Each time a cast switched this device to the profile of the remote that sent it, before it plays. */
-    val switched: Flow<Unit> get() = emptyFlow()
 
     /** Each time a cast couldn't switch this device to the remote's profile: nothing plays, and the shells say so. */
     val refused: Flow<CastRefused> get() = emptyFlow()
@@ -104,7 +101,8 @@ interface CastReceiver {
  * its `switch_ticket`, as a profile switch does (what shows and the event
  * stream follow it), then plays once. One that can't (a ticket spent or
  * expired, the server out of reach) plays nothing and says so; one without
- * a ticket is ignored, as one for another device.
+ * a ticket is ignored, as one for another device. No cast plays while
+ * "Who's watching?" shows, its PIN pad too ([ProfileGate.showing]).
  */
 internal class ServerCastReceiver(
     private val data: DataGraph,
@@ -118,15 +116,14 @@ internal class ServerCastReceiver(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     /** Ends what plays here, and waits until its last reports went out: before a switch. */
     private val endPlaying: suspend () -> Unit = {},
+    /** Whether "Who's watching?" shows: no cast plays over it. */
+    private val asking: () -> Boolean = { ProfileGate.showing },
 ) : CastReceiver {
     private val started = AtomicBoolean(false)
     private val heard = MutableSharedFlow<CastMusic>(extraBufferCapacity = 4)
-    private val switches = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     private val refusals = MutableSharedFlow<CastRefused>(extraBufferCapacity = 4)
 
     override val music: Flow<CastMusic> = heard.asSharedFlow()
-
-    override val switched: Flow<Unit> = switches.asSharedFlow()
 
     override val refused: Flow<CastRefused> = refusals.asSharedFlow()
 
@@ -144,6 +141,8 @@ internal class ServerCastReceiver(
                 .filter { it.profileId != null || !switching }
                 .collectLatest { cast ->
                     if (cast.receiverId != live.receiver.value) return@collectLatest
+                    // Whoever is at the device is choosing who's watching: a cast would choose for them.
+                    if (asking()) return@collectLatest
                     if (!asItsProfile(cast)) return@collectLatest
                     try {
                         play(cast)
@@ -187,9 +186,6 @@ internal class ServerCastReceiver(
             refusals.tryEmit(CastRefused(CastFrom(cast.from)))
             return false
         }
-        // The remote's PIN was asked for this: "Who's watching?" is answered.
-        ProfileGate.passed = true
-        switches.tryEmit(Unit)
         return true
     }
 

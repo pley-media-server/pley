@@ -15,7 +15,6 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
-import app.pley.android.screens.onboarding.ProfileGate
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.auth.FakeAuthGraph
 import app.pley.android.testing.data.TestData
@@ -62,6 +61,7 @@ class CastReceiverTest {
     private suspend fun TestScope.receiving(
         auth: FakeAuthGraph = FakeAuthGraph(TestData.offlineHttp()),
         endPlaying: suspend () -> Unit = {},
+        asking: () -> Boolean = { false },
         prepare: TestData.() -> Unit = {},
     ): Pair<TestData, String> {
         val data = TestData(this, folder.newFolder(), auth = auth)
@@ -79,6 +79,7 @@ class CastReceiverTest {
             closePlayers = { closed++ },
             io = data.dispatcher,
             endPlaying = endPlaying,
+            asking = asking,
         )
             .also { receiver = it }
             .start()
@@ -248,11 +249,7 @@ class CastReceiverTest {
     @Test
     fun `a cast from another profile switches to it with its ticket, then plays once as it`() = runTest {
         val tickets = TicketServer(good = setOf("t1"))
-        ProfileGate.passed = false
-        val switched = mutableListOf<Unit>()
         val (data, id) = receiving(FakeAuthGraph(tickets.http))
-        backgroundScope.launch { receiver.switched.collect { switched += it } }
-        testScheduler.runCurrent()
         assertEquals(2L, data.graph.session.session.value?.me?.id)
         // Who the app is once switched, as the server says.
         data.api.answer("me", sam)
@@ -264,9 +261,6 @@ class CastReceiverTest {
         assertEquals("t1" to null, form["ticket"] to form["pin"])
         assertEquals(3L, data.graph.session.session.value?.me?.id)
         assertEquals(listOf(PlayRequest(itemId = 101, startMs = 5_000, castFrom = CastFrom("Kitchen phone"))), launcher.played)
-        assertEquals(1, switched.size)
-        // A TV at "Who's watching?" has its answer.
-        assertTrue(ProfileGate.passed)
 
         // Another from Sam's remote, now the profile in use, once the stream is back as Sam's: no switch.
         data.events.send(LiveEvent.Reconnected)
@@ -274,6 +268,23 @@ class CastReceiverTest {
         cast(data, ServerEvent.Cast(id, itemId = 101, profileId = 3, switchTicket = "t2"))
         assertEquals(1, tickets.forms.size)
         assertEquals(2, launcher.played.size)
+    }
+
+    @Test
+    fun `no cast plays while Who's watching shows, nor switches the profile there`() = runTest {
+        var asking = true
+        val tickets = TicketServer(good = setOf("t1"))
+        val (data, id) = receiving(FakeAuthGraph(tickets.http), asking = { asking })
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone"))
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone", profileId = 3, switchTicket = "t1"))
+        assertTrue(launcher.played.isEmpty())
+        assertTrue(tickets.forms.isEmpty())
+        assertEquals(2L, data.graph.session.session.value?.me?.id)
+
+        // A profile chosen, casts play again.
+        asking = false
+        cast(data, ServerEvent.Cast(id, itemId = 101, from = "Kitchen phone"))
+        assertEquals(listOf(CastFrom("Kitchen phone")), launcher.played.map { it.castFrom })
     }
 
     @Test

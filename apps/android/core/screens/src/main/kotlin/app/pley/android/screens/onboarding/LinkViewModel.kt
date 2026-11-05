@@ -10,6 +10,7 @@ import app.pley.android.screens.PleyKey
 import java.io.IOException
 import java.net.URI
 import java.net.URISyntaxException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -281,9 +282,27 @@ class LinkViewModel(
 /**
  * Whether "Who's watching?" was answered in this process: the TV asks at a
  * cold start only, and not after signing in (the approver picked the
- * profile on /link).
+ * profile on /link). And whether it shows now, on a phone or a TV, its PIN
+ * pad too: no cast plays over it, since whoever is at the device is
+ * choosing, and a cast would choose for them.
  */
 object ProfileGate {
     @Volatile
     var passed: Boolean = false
+
+    /** The "Who's watching?" screens showing now (one, but two as one gives way to the next). */
+    private val shown = AtomicInteger(0)
+
+    /** Whether "Who's watching?" shows now. */
+    val showing: Boolean get() = shown.get() > 0
+
+    /** "Who's watching?" shows, until [hidden]. */
+    fun shows() {
+        shown.incrementAndGet()
+    }
+
+    /** One that [shows] said shows is gone. */
+    fun hidden() {
+        shown.updateAndGet { (it - 1).coerceAtLeast(0) }
+    }
 }
