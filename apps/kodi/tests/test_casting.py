@@ -9,8 +9,8 @@ import support
 import xbmc
 import xbmcaddon
 import xbmcgui
-from pley import api, casting, kodi, profiles
-from pley.service import Player, receiver_query
+from pley import api, casting, kodi, profiles, requests
+from pley.service import Player, Reports, receiver_query
 
 BASE = "http://127.0.0.1:5000/s3cret"
 MINE = "kodi-1"
@@ -28,6 +28,11 @@ def cast(receiver=MINE, item_id=None, playlist_id=None, channel_id=None, start_m
         "shuffle": shuffle,
         "from": device,
     }
+
+
+def from_profile(profile=4, ticket="t-1", **named):
+    """A cast from a remote on another profile of the household."""
+    return dict(cast(**named), profile_id=profile, switch_ticket=ticket)
 
 
 def played():
@@ -99,6 +104,21 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(casting.action(MINE, True, cast(item_id="5")), none)
         self.assertEqual(casting.action(MINE, True, cast(item_id=True)), none)
         self.assertEqual(casting.action("", True, cast("", item_id=5)), none)
+
+    def test_a_cast_from_another_profile_switches_to_it_with_its_ticket(self):
+        self.assertIsNone(casting.switch_to(cast(item_id=5), 2), "the profile's own remote")
+        self.assertIsNone(casting.switch_to(dict(cast(item_id=5), profile_id=None, switch_ticket=None), 2))
+        self.assertEqual(casting.switch_to(from_profile(item_id=5), 2), {"profile_id": 4, "ticket": "t-1"})
+        self.assertEqual(casting.switch_to(from_profile(item_id=5), None), {"profile_id": 4, "ticket": "t-1"},
+                         "on the profile picked as it signed in")
+        self.assertIsNone(casting.switch_to(from_profile(2, item_id=5), 2), "on it already")
+        self.assertIsNone(casting.switch_to(from_profile(2, None, item_id=5), 2))
+
+    def test_another_profiles_cast_without_a_ticket_does_nothing(self):
+        for ticket in (None, "", 7, "two words", "line\n", "x" * 257):
+            self.assertEqual(casting.switch_to(from_profile(4, ticket, item_id=5), 2), casting.IGNORED, repr(ticket))
+        for profile in ("4", True, 0, -4, 4.5):
+            self.assertEqual(casting.switch_to(from_profile(profile, item_id=5), 2), casting.IGNORED, repr(profile))
 
     def test_where_it_came_from(self):
         self.assertEqual(casting.banner("Living room phone"), "Playing from Living room phone")
@@ -247,14 +267,56 @@ class PlayTest(Clean):
 class Tokens:
     def __init__(self):
         self.signed_in = "http://pley.example:7539"
+        # The profile switched to (None: the one picked as it signed in).
+        self.profile = None
+        self.switches = []
+        # What a switch raises, when it fails.
+        self.refusal = None
+        self.doubts = 0
 
     def server(self):
         return self.signed_in
+
+    def identity(self):
+        return (self.signed_in, self.profile, None) if self.signed_in else None
+
+    def switch_profile(self, profile_id, pin=None, ticket=None):
+        self.switches.append((profile_id, pin, ticket))
+        if self.refusal is not None:
+            raise self.refusal
+        self.profile = profile_id
+
+    def doubt(self):
+        self.doubts += 1
 
 
 class Now:
     def put(self, job):
         job()
+
+
+class KodiPlayer(Player):
+    """The service's player, with what Kodi plays stood in for, and its
+    requests to the server noted with the profile they go as."""
+
+    def __init__(self, tokens):
+        super().__init__(tokens, "pleyKodi/test", Now())
+        self.file = ""
+        self.stopped = 0
+        self.calls = []
+
+    def isPlaying(self):
+        return bool(self.file)
+
+    def getPlayingFile(self):
+        return self.file
+
+    def stop(self):
+        self.stopped += 1
+        self.file = ""
+
+    def call(self, method, path, body=None, timeout=None, fine=()):
+        self.calls.append((method, path, self.tokens.profile))
 
 
 class ServiceTest(Clean):
@@ -274,12 +336,19 @@ class ServiceTest(Clean):
         kodi.set_property(kodi.PROXY, self.server.url + "/s3cret")
         kodi.clear_property(profiles.PICKING)
         del xbmcgui.notices[:]
-        self.player = Player(Tokens(), "pleyKodi/test", Now())
+        self.player = KodiPlayer(Tokens())
+        del xbmc.builtins[:]
+        for name in (profiles.GATE, kodi.WINDOW_OPEN, requests.SUMMARY):
+            kodi.clear_property(name)
 
     def tearDown(self):
         self.server.close()
         kodi.clear_property(kodi.PROXY)
         kodi.clear_property(profiles.PICKING)
+        for name in (profiles.GATE, kodi.WINDOW_OPEN, requests.SUMMARY):
+            kodi.clear_property(name)
+        xbmc.info_labels.pop("Container.FolderPath", None)
+        del xbmc.builtins[:]
         xbmcaddon.settings.pop("_profile", None)
         shutil.rmtree(self.profile, ignore_errors=True)
         super().tearDown()
@@ -324,6 +393,80 @@ class ServiceTest(Clean):
         self.answers["/api/items/3/on-deck"] = {"item": None}
         self.player.heard(cast(item_id=3))
         self.assertEqual(xbmcgui.notices, [("Pley", "Nothing to play", "./resources/icon.png", 4000)])
+
+    def test_another_profiles_cast_switches_to_it_then_plays(self):
+        kodi.set_property(kodi.WINDOW_OPEN, "1")
+        kodi.set_property(requests.SUMMARY, "{}")
+        xbmc.info_labels["Container.FolderPath"] = "plugin://plugin.video.pley/?route=library&id=1"
+        self.player.heard(from_profile(item_id=5, start_ms=60000))
+        self.assertEqual(self.player.tokens.switches, [(4, None, "t-1")])
+        self.assertEqual(played(), [route(route="play", id=5, kind="movie", start=60000)])
+        self.assertEqual(xbmcgui.notices, [("Pley", "Playing from Living room phone", "./resources/icon.png", 4000)])
+        # Pley's window, the listing on screen and requests are the profile's;
+        # "Who's watching?" was answered by its remote's PIN.
+        self.assertIn("NotifyAll(plugin.video.pley,pley.switched)", xbmc.builtins)
+        self.assertIn("Container.Refresh", xbmc.builtins)
+        self.assertEqual((kodi.get_property(profiles.GATE), kodi.get_property(requests.SUMMARY)), ("1", ""))
+        # On it now: its next cast plays as it is.
+        self.player.heard(from_profile(ticket="t-2", item_id=5))
+        self.assertEqual(self.player.tokens.switches, [(4, None, "t-1")])
+        self.assertEqual(len(xbmc.played), 2)
+
+    def test_a_switch_without_the_window_or_a_listing_of_pleys(self):
+        xbmc.info_labels["Container.FolderPath"] = "plugin://plugin.video.other/"
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual(len(xbmc.played), 1)
+        self.assertEqual(xbmc.builtins, [])
+
+    def test_another_profiles_cast_without_a_ticket_does_nothing(self):
+        self.player.heard(from_profile(ticket=None, item_id=5))
+        self.player.heard(from_profile("4", item_id=5))
+        self.assertEqual((self.player.tokens.switches, xbmc.played, xbmcgui.notices, self.server.requests), ([], [], [], []))
+        # Unless it is on that profile.
+        self.player.tokens.profile = 4
+        self.player.heard(from_profile(ticket=None, item_id=5))
+        self.assertEqual((self.player.tokens.switches, len(xbmc.played)), ([], 1))
+
+    def test_a_switch_that_fails_says_so_and_plays_nothing(self):
+        self.player.tokens.refusal = api.ApiError(400, "ticket_spent", "this cast's switch has expired or was used: cast again")
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual((xbmc.played, self.server.requests), ([], []))
+        self.assertEqual(xbmcgui.notices, [("Pley", "Couldn't switch to the remote's profile", xbmcgui.NOTIFICATION_ERROR, 4000)])
+        self.assertEqual((self.player.tokens.profile, kodi.get_property(profiles.GATE), xbmc.builtins), (None, "", []))
+        self.assertEqual(self.player.tokens.doubts, 0)
+        # Nothing answered: the server proves itself again first.
+        self.player.tokens.refusal = api.ApiError(0, "unreachable", "timed out")
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual((self.player.tokens.doubts, len(xbmcgui.notices), xbmc.played), (1, 2, []))
+
+    def test_what_plays_ends_as_its_own_profile_before_the_switch(self):
+        sent = []
+        playing = {"path": "plugin://plugin.video.pley/?route=play&id=9", "item_id": 9, "session_id": "s1", "duration_ms": 600_000}
+        self.player.reports = Reports(
+            playing,
+            lambda path, body: sent.append((body["state"], self.player.tokens.profile)),
+            lambda path: sent.append((path, self.player.tokens.profile)),
+        )
+        self.player.live = {"session_id": "l1", "channel_id": 3}
+        self.player.file = playing["path"]
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual(sent, [("stopped", None), ("/api/playback/s1", None)])
+        self.assertEqual(self.player.calls, [("DELETE", "/api/live/sessions/l1", None)])
+        self.assertEqual((self.player.reports, self.player.live, self.player.tokens.profile), (None, None, 4))
+        self.assertEqual((len(xbmc.played), self.player.stopped), (1, 0), "the cast takes its place")
+
+    def test_what_played_stops_when_the_switch_fails(self):
+        playing = {"path": "plugin://plugin.video.pley/?route=play&id=9", "item_id": 9, "session_id": "s1", "duration_ms": 600_000}
+        self.player.reports = Reports(playing, lambda path, body: None, lambda path: None)
+        self.player.file = playing["path"]
+        self.player.tokens.refusal = api.ApiError(400, "ticket_spent", "spent")
+        self.player.heard(from_profile(item_id=5))
+        self.assertEqual((self.player.stopped, xbmc.played), (1, []), "its session ended for the cast")
+
+    def test_a_later_cast_drops_one_that_waits_for_its_switch(self):
+        self.player.casts = 2
+        self.player.play_cast({"act": "item", "item_id": 5, "start_ms": None, "shuffle": False}, "Den", 1, {"profile_id": 4, "ticket": "t-1"})
+        self.assertEqual((self.player.tokens.switches, xbmc.played), ([], []))
 
     def test_the_event_stream_names_it_a_receiver(self):
         query = receiver_query("pleyKodi/test")

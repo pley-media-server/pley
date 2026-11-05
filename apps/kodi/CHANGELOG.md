@@ -21,6 +21,9 @@ describes how they are made.
 - Your phone, the web and your other devices play things on Kodi: a film,
   an episode, a show's next episode, music, a playlist or a Live TV
   channel, in place of what plays. Kodi says which device sent it.
+- Sent from a device on another profile of your household, Kodi switches
+  to that profile first, and plays it as that profile. Needs a server from
+  the same release.
 - Your phone, the web and your other devices change the quality of a film
   or episode playing on Kodi: the Quality setting changes, as picking it
   there does, and the title plays again where it was. They see which

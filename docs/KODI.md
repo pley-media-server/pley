@@ -301,10 +301,22 @@ it (`casting.py`):
   device" when the remote's has no name) shows for 4 seconds as a Kodi
   notification with the add-on's icon, and "Nothing to play" when a show
   has no next episode or an album or a playlist is empty.
-- **Not taken:** a cast for another device, or one that comes while the
-  add-on is signed out or while Pley's window asks "Who's watching?" as
-  Kodi starts (a cast doesn't play past its PINs), does nothing. Of two
-  casts close together, the later plays.
+- **From another profile:** a remote on another profile of the household
+  casts with its profile and a ticket, and Kodi switches to that profile
+  first, with the switch-profile grant and the ticket in place of a PIN
+  (the remote gave its own). What played ends as the profile it played
+  as, its last report and its live channel's session sent before the
+  switch. The add-on then acts as the remote's profile:
+  Pley's window goes to its Home, a listing of the add-on on screen shows
+  again, and "Who's watching?" counts as answered until Kodi starts over.
+  A switch that fails (the ticket spent or out of time, the server out of
+  reach) says "Couldn't switch to the remote's profile" for 4 seconds,
+  plays nothing and stops what played, which was ended for the cast.
+- **Not taken:** a cast for another device, one naming another profile
+  without a ticket, or one that comes while the add-on is signed out or
+  while Pley's window asks "Who's watching?" as Kodi starts (a cast
+  neither plays past its PINs nor switches profile while one is picked),
+  does nothing. Of two casts close together, the later plays.
 
 ### Requests
 

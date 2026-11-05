@@ -360,6 +360,7 @@ TEXT = {
     "remote_subtitles": 30572,
     "remote_subtitles_off": 30573,
     "remote_quality": 30574,
+    "cast_switch_failed": 30575,
 }
 
 
