@@ -5,7 +5,7 @@ import { errorMessage } from "@/api/client";
 import { useLineupGroups, usePatchLineup, type LineupGroup } from "@/api/livetv";
 import { useToast } from "@/components/Toast";
 import { Button, EmptyState, PageSpinner, Select, TextInput, Toggle } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 type Shown = "all" | "shown" | "hidden";
@@ -205,7 +205,7 @@ function GroupRow({
         {[
           g.hidden > 0 && !hidden ? t("settings.groups.hiddenCount", { count: g.hidden }) : null,
           g.offline > 0 ? t("settings.groups.offlineCount", { count: g.offline }) : null,
-          g.count.toLocaleString(currentLanguage()),
+          g.count.toLocaleString(currentLocale()),
         ]
           .filter(Boolean)
           .join(" · ")}

@@ -10,7 +10,7 @@ import type { ItemKind, ItemSummary, PersonSummary } from "@/api/types";
 import { aspectFor, CardSkeleton, MediaCard } from "@/components/cards";
 import { PersonCard } from "@/components/PersonCard";
 import { Button, EmptyState, SectionTitle, Spinner } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { ChannelLogo, liveUrl, useNow } from "@/pages/livetv/common";
@@ -77,7 +77,7 @@ function ResultSection<T>({
         }
       >
         <span id={`${id}-title`}>
-          {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length.toLocaleString(currentLanguage())}</span>
+          {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length.toLocaleString(currentLocale())}</span>
         </span>
       </SectionTitle>
       <div id={`${id}-results`}>{children(open || !more ? items : items.slice(0, limit))}</div>

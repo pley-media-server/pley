@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LANGUAGES, pickLanguage, supportedLanguage } from ".";
+import { formatDate } from "@/lib/format";
+import { currentLocale, LANGUAGES, pickLanguage, setLanguage, supportedLanguage } from ".";
 import { en } from "./resources";
 
 const files = import.meta.glob<{ default: unknown }>("./locales/*/*.json", { eager: true });
@@ -93,6 +94,21 @@ describe("pickLanguage", () => {
     } finally {
       delete (navigator as { languages?: unknown }).languages;
       if (languages) Object.defineProperty(Navigator.prototype, "languages", languages);
+    }
+  });
+
+  it("writes dates and numbers the browser's way when it is in the language shown", async () => {
+    Object.defineProperty(navigator, "languages", { value: ["en-GB", "fr-CA"], configurable: true });
+    try {
+      expect(currentLocale()).toBe("en-GB");
+      expect(formatDate("2023-04-01")).toBe("1 Apr 2023");
+      await setLanguage("fr");
+      expect(currentLocale()).toBe("fr-CA");
+      await setLanguage("es");
+      expect(currentLocale()).toBe("es");
+    } finally {
+      await setLanguage("en");
+      delete (navigator as { languages?: unknown }).languages;
     }
   });
 

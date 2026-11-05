@@ -9,7 +9,7 @@ import { CardSkeleton, MediaCard } from "@/components/cards";
 import { PlayOn } from "@/components/PlayOn";
 import { StarRating } from "@/components/StarRating";
 import { Button, IconButton, SectionTitle, Skeleton } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatClock, formatDuration } from "@/lib/format";
 import { useElementWidth } from "@/lib/hooks";
@@ -45,7 +45,7 @@ export function ArtistView({ item }: { item: ItemDetail }) {
   const sorted = useMemo(
     () =>
       [...(albums.data ?? [])].sort(
-        (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.sort_title.localeCompare(b.sort_title, currentLanguage()),
+        (a, b) => (b.year ?? 0) - (a.year ?? 0) || a.sort_title.localeCompare(b.sort_title, currentLocale()),
       ),
     [albums.data],
   );

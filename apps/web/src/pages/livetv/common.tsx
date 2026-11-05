@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { categoryKey, liveQueries, type Channel, type LiveCategory, type Program } from "@/api/livetv";
-import { currentLanguage, t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 
 export { ChannelLogo } from "@/components/ChannelLogo";
 export { useNow } from "@/lib/hooks";
@@ -9,7 +9,7 @@ let formats: { language: string; time: Intl.DateTimeFormat; day: Intl.DateTimeFo
 
 /** The guide's time and day formats in the language shown, made once for each language: the guide formats thousands. */
 function guideFormats() {
-  const language = currentLanguage();
+  const language = currentLocale();
   if (formats?.language !== language) {
     formats = {
       language,

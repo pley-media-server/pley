@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/auth";
 import { Modal } from "@/components/Modal";
 import { Button, buttonClass, EmptyState, Skeleton, TextInput } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { CategoryRail, categoryName } from "./CategoryRail";
@@ -178,7 +178,7 @@ export function LiveTvPage() {
               className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-sm font-medium transition-colors hover:border-border-strong lg:hidden"
             >
               <span className="truncate">{searching ? t("page.resultsFor", { search: search.trim() }) : name}</span>
-              {total !== undefined && !searching ? <span className="text-xs tabular-nums text-subtle">{total.toLocaleString(currentLanguage())}</span> : null}
+              {total !== undefined && !searching ? <span className="text-xs tabular-nums text-subtle">{total.toLocaleString(currentLocale())}</span> : null}
               <ChevronDown className="ml-auto size-4 shrink-0 text-subtle" />
             </button>
             <h2 className="hidden min-w-0 flex-1 items-baseline gap-2 lg:flex">
@@ -228,7 +228,7 @@ export function LiveTvPage() {
                 >
                   {g.region ? <span className="text-xs font-semibold text-subtle">{g.region}</span> : null}
                   {g.label}
-                  <span className="text-xs tabular-nums text-subtle">{g.count.toLocaleString(currentLanguage())}</span>
+                  <span className="text-xs tabular-nums text-subtle">{g.count.toLocaleString(currentLocale())}</span>
                 </button>
               ))}
             </div>

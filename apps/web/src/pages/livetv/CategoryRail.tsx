@@ -3,7 +3,7 @@ import { ChevronRight, History, LayoutGrid, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { categoryKey, type LiveCategory, type LiveGroup, type LiveGroups } from "@/api/livetv";
 import { Skeleton } from "@/components/ui";
-import { currentLanguage, t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 export interface Region {
@@ -49,7 +49,7 @@ export function categoryName(c: LiveCategory, groups: LiveGroup[] | undefined): 
   }
 }
 
-const count = (n: number) => n.toLocaleString(currentLanguage());
+const count = (n: number) => n.toLocaleString(currentLocale());
 
 /** The categories down the side of Live TV: the marked ones, all, then the regions and groups. */
 export function CategoryRail({

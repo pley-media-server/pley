@@ -1,11 +1,11 @@
 import type { LivePlan, XtreamAccount } from "@/api/livetv";
-import { currentLanguage, t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 
 /** "Active · expires 12 Mar 2027 · 2 connections": the status as the provider writes it. */
 export function accountLine(a: XtreamAccount): string {
   const parts = [a.trial ? t("settings.account.trial", { ns: "livetv", status: a.status }) : a.status];
   if (a.expires_at) {
-    const date = new Date(a.expires_at * 1000).toLocaleDateString(currentLanguage(), { day: "numeric", month: "short", year: "numeric" });
+    const date = new Date(a.expires_at * 1000).toLocaleDateString(currentLocale(), { day: "numeric", month: "short", year: "numeric" });
     parts.push(t(a.expires_at * 1000 < Date.now() ? "settings.account.expired" : "settings.account.expires", { ns: "livetv", date }));
   } else parts.push(t("settings.account.noExpiry", { ns: "livetv" }));
   if (a.max_connections != null) parts.push(t("settings.account.connections", { ns: "livetv", count: a.max_connections }));
@@ -58,7 +58,7 @@ export function planLine(p: LivePlan): string {
 /** "4.2 Mbit/s". */
 export function formatKbps(kbps: number): string {
   if (kbps >= 1000) {
-    const value = (kbps / 1000).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+    const value = (kbps / 1000).toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
     return t("settings.rate.mbps", { ns: "livetv", value });
   }
   return t("settings.rate.kbps", { ns: "livetv", value: kbps });

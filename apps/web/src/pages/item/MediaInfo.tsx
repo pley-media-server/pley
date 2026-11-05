@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { MediaFile, MediaStream } from "@/api/types";
 import { useAuth } from "@/auth";
-import { currentLanguage, t as translate } from "@/i18n";
+import { currentLocale, t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
 import {
   channelsLabel,
@@ -32,7 +32,7 @@ function streamDetails(s: MediaStream): string[] {
     if (res) parts.push(res);
     if (s.width && s.height) parts.push(`${s.width}×${s.height}`);
     if (s.frame_rate) {
-      const value = (Math.round(s.frame_rate * 100) / 100).toLocaleString(currentLanguage());
+      const value = (Math.round(s.frame_rate * 100) / 100).toLocaleString(currentLocale());
       parts.push(translate("mediaInfo.fps", { ns: "item", value }));
     }
     if (s.bit_depth) parts.push(translate("mediaInfo.bitDepth", { ns: "item", depth: s.bit_depth }));
@@ -56,7 +56,7 @@ function streamDetails(s: MediaStream): string[] {
 
 /** 48000 → "48.0" ("48,0" in French). */
 function kilohertz(hz: number): string {
-  return (hz / 1000).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return (hz / 1000).toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function StreamTable({ streams }: { streams: MediaStream[] }) {

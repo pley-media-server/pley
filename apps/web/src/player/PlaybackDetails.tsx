@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlaybackStatus } from "@/api/hooks";
 import type { MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, TranscodeInfo, TranscodePipeline } from "@/api/types";
-import { currentLanguage, t as translate } from "@/i18n";
+import { currentLocale, t as translate } from "@/i18n";
 import { codecLabel, dynamicRangeLabel, formatBitrate, resolutionLabel } from "@/lib/format";
 
 /** What each way of playing is called (as in Plex): "Direct play", "Direct stream", "Transcoding". */
@@ -155,7 +155,7 @@ export function PlaybackDetails({
         {live?.speed ? (
           <Row label={t("details.speed")}>
             {t("details.realTime", {
-              speed: live.speed.toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+              speed: live.speed.toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
             })}
             {ahead > 0 ? ` · ${t("details.ready", { seconds: ahead })}` : ""}
           </Row>

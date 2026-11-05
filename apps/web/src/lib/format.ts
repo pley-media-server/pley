@@ -1,19 +1,19 @@
 import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, RangeFilter, Resolution, TranscodeInfo } from "@/api/types";
-import { currentLanguage, t, type Language } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 import { languageName } from "./languages";
 
-/** `make`'s value for the language shown, made once for each language. */
-function perLanguage<T>(make: (language: Language) => T): () => T {
-  const made = new Map<Language, T>();
+/** `make`'s value for the locale shown (see `currentLocale`), made once for each. */
+function perLocale<T>(make: (locale: string) => T): () => T {
+  const made = new Map<string, T>();
   return () => {
-    const language = currentLanguage();
-    if (!made.has(language)) made.set(language, make(language));
-    return made.get(language) as T;
+    const locale = currentLocale();
+    if (!made.has(locale)) made.set(locale, make(locale));
+    return made.get(locale) as T;
   };
 }
 
-const decimalSeparator = perLanguage(
-  (language) => new Intl.NumberFormat(language).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".",
+const decimalSeparator = perLocale(
+  (locale) => new Intl.NumberFormat(locale).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".",
 );
 
 /** `value.toFixed(digits)` with the language's decimal separator: "1.5", "1,5" in French. */
@@ -118,8 +118,8 @@ export function formatBitrate(bps: number | null | undefined): string {
   return t("format.kbps", { n: Math.round(bps / 1000) });
 }
 
-const relativeTime = perLanguage((language) =>
-  typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new Intl.RelativeTimeFormat(language, { numeric: "auto" }) : null,
+const relativeTime = perLocale((locale) =>
+  typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new Intl.RelativeTimeFormat(locale, { numeric: "auto" }) : null,
 );
 
 /**
@@ -162,18 +162,18 @@ export function formatDate(date: string | null | undefined): string {
   if (!date) return "";
   const d = new Date(`${date}T00:00:00`);
   if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(currentLanguage(), { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString(currentLocale(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 /** Unix seconds → localized date ("Oct 23, 2026"). */
 export function formatDay(ts: number | null | undefined): string {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleDateString(currentLanguage(), { year: "numeric", month: "short", day: "numeric" });
+  return new Date(ts * 1000).toLocaleDateString(currentLocale(), { year: "numeric", month: "short", day: "numeric" });
 }
 
 export function formatTimestamp(ts: number | null | undefined): string {
   if (!ts) return "";
-  return new Date(ts * 1000).toLocaleString(currentLanguage(), {
+  return new Date(ts * 1000).toLocaleString(currentLocale(), {
     year: "numeric",
     month: "short",
     day: "numeric",

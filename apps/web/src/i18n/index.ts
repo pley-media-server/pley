@@ -29,10 +29,15 @@ export function supportedLanguage(tag: string | null | undefined): Language | un
   return LANGUAGES.find((language) => language === base);
 }
 
+/** The browser's (or the desktop's) languages, the one it prefers first. */
+function deviceTags(): readonly string[] {
+  if (typeof navigator === "undefined") return [];
+  return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+}
+
 /** The first of the browser's (or the desktop's) languages that Pley has. */
 export function deviceLanguage(): Language | undefined {
-  const tags = typeof navigator === "undefined" ? [] : navigator.languages?.length ? navigator.languages : [navigator.language];
-  for (const tag of tags) {
+  for (const tag of deviceTags()) {
     const language = supportedLanguage(tag);
     if (language) return language;
   }
@@ -102,9 +107,27 @@ export function startLanguage(): Promise<void> {
   return setLanguage(remembered() ?? deviceLanguage() ?? "en").catch(() => setLanguage("en"));
 }
 
-/** The language shown, for `Intl` (dates, numbers, language names). */
+/** The language shown. */
 export function currentLanguage(): Language {
   return supportedLanguage(i18next.language) ?? "en";
+}
+
+/**
+ * The locale dates and numbers are written in: the browser's own when it is
+ * in the language shown, so "en-GB" keeps its day before the month and its
+ * 24-hour clock, "fr-CA" its own ways; else the language.
+ */
+export function currentLocale(): string {
+  const language = currentLanguage();
+  for (const tag of deviceTags()) {
+    if (supportedLanguage(tag) !== language) continue;
+    try {
+      return Intl.getCanonicalLocales(tag)[0] ?? language;
+    } catch {
+      return language;
+    }
+  }
+  return language;
 }
 
 export const i18n = i18next;

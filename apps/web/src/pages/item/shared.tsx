@@ -8,7 +8,7 @@ import { Artwork } from "@/components/Artwork";
 import { ASPECT_CLASS, type CardAspect } from "@/components/cards";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, IconButton, ProgressBar } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { dynamicRangeBadges, formatRemaining, progressFraction } from "@/lib/format";
 import { backdropCandidates, posterCandidates, thumbCandidates } from "@/lib/images";
@@ -119,7 +119,7 @@ export function RatingBadge({ rating }: { rating: number | null }) {
   return (
     <span className="inline-flex items-center gap-1 text-fg">
       <Star className="size-3.5 fill-accent text-accent" />
-      {rating.toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+      {rating.toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
     </span>
   );
 }

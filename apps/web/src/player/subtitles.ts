@@ -3,7 +3,7 @@
  * heavy, with a dark outline and no box, as Plex does; in a size, with a
  * background, in a font and as high up as chosen on each device.
  */
-import { currentLanguage, t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 
 export type SubtitleSize = "small" | "normal" | "large" | "huge";
 export type SubtitleBackground = "none" | "box";
@@ -165,7 +165,7 @@ export function clampSubtitleOffset(offset: number): number {
 export function formatSubtitleOffset(offset: number): string {
   const value = clampSubtitleOffset(offset);
   const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  const amount = Math.abs(value).toLocaleString(currentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const amount = Math.abs(value).toLocaleString(currentLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return t("settings.offset", { ns: "player", value: `${sign}${amount}` });
 }
 

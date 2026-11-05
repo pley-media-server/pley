@@ -17,7 +17,7 @@ import type {
   TitleKind,
 } from "@/api/requests";
 import type { Id, Timestamp } from "@/api/types";
-import { currentLanguage, t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 import { itemUrl, titleUrl } from "./urls";
 
 const nowSeconds = () => Date.now() / 1000;
@@ -32,7 +32,7 @@ export const quoted = (title: string) => t("requests.quoted", { title });
 /** "2 more movies and 5 more seasons", joined as the language shown joins them. */
 function both(items: string[]): string {
   if (typeof Intl.ListFormat !== "function") return items.join(" and ");
-  return new Intl.ListFormat(currentLanguage(), { type: "conjunction" }).format(items);
+  return new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(items);
 }
 
 /** "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials"; "" for none (movies). */
@@ -78,10 +78,10 @@ export function dayText(ts: Timestamp, now = nowSeconds()): string {
   const date = new Date(ts * 1000);
   const today = new Date(now * 1000);
   if (ts > now && ts - now < 86400) {
-    const time = date.toLocaleTimeString(currentLanguage(), { hour: "numeric", minute: "2-digit" });
+    const time = date.toLocaleTimeString(currentLocale(), { hour: "numeric", minute: "2-digit" });
     return date.toDateString() === today.toDateString() ? t("requests.todayAt", { time }) : t("requests.tomorrowAt", { time });
   }
-  return date.toLocaleDateString(currentLanguage(), {
+  return date.toLocaleDateString(currentLocale(), {
     month: "short",
     day: "numeric",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",

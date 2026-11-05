@@ -15,7 +15,7 @@ import {
 import { ConfirmModal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, Card, CardTitle, EmptyState, IconButton, PageSpinner, Toggle } from "@/components/ui";
-import { currentLanguage } from "@/i18n";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatAgo } from "@/lib/format";
 import { accountLine, expiresSoon, formatFor, formatKbps, planLine } from "./common";
@@ -138,12 +138,12 @@ function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdi
           <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
             <Stat
               label={t("channels")}
-              value={s.channels_at ? visible.toLocaleString(currentLanguage()) : "—"}
+              value={s.channels_at ? visible.toLocaleString(currentLocale()) : "—"}
               note={s.hidden_count ? t("settings.sources.hidden", { count: s.hidden_count }) : undefined}
             />
             <Stat
               label={t("settings.sources.inGuide")}
-              value={s.guide_at ? (guided / 100).toLocaleString(currentLanguage(), { style: "percent" }) : "—"}
+              value={s.guide_at ? (guided / 100).toLocaleString(currentLocale(), { style: "percent" }) : "—"}
               note={s.guide_at ? t("settings.sources.guideChannels", { count: s.guided_count }) : t("settings.sources.noGuideYet")}
             />
             <Stat
