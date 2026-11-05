@@ -1,9 +1,11 @@
 import { useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Gauge } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useResources } from "@/api/hooks";
 import type { ResourceSample, Resources } from "@/api/types";
 import { SectionTitle, Skeleton } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
 
@@ -17,8 +19,6 @@ const H = 120;
 const PLEY = "var(--color-accent)";
 const SYSTEM = "#7a8292";
 
-const PLEY_HINT = "The server, its transcoder and their FFmpegs";
-
 interface Series {
   label: string;
   color: string;
@@ -29,7 +29,11 @@ interface Series {
   title?: string;
 }
 
-const percent = (n: number) => `${n === 0 ? 0 : n < 10 ? n.toFixed(1) : Math.round(n)}%`;
+/** A share in the language shown: one decimal below 10%, "12%" above. */
+const percent = (n: number) => {
+  const digits = n === 0 || n >= 10 ? 0 : 1;
+  return new Intl.NumberFormat(currentLanguage(), { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n / 100);
+};
 
 /** The path through `points`, broken where samples are missing (the server was busy or restarted). */
 function linePath(points: [number, number, number][], gapMs: number): string {
@@ -61,6 +65,7 @@ function LineKey({ color }: { color: string }) {
 
 /** One measure over the last five minutes: pley's line in front of the machine's. */
 function Chart({ title, detail, data, series }: { title: string; detail: ReactNode; data: Resources; series: Series[] }) {
+  const { t } = useTranslation("settings");
   // The sample pointed at, by its time: new samples move the others along.
   const [hoverAt, setHoverAt] = useState<number | null>(null);
   const samples = data.samples;
@@ -98,7 +103,9 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
     setHover(next);
   };
 
-  const summary = latest ? `${title}: ${series.map((s) => `${s.label} ${s.text(latest)}`).join(", ")}` : `${title}: no readings yet`;
+  const summary = latest
+    ? t("resources.summary", { title, values: series.map((s) => `${s.label} ${s.text(latest)}`).join(", ") })
+    : t("resources.noReadings", { title });
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
@@ -106,7 +113,7 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
         <h3 className="text-base font-semibold">{title}</h3>
         <span className="text-xs text-subtle">{detail}</span>
       </div>
-      <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label={`${title} now`}>
+      <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label={t("resources.now", { title })}>
         {series.map((s) => (
           <li key={s.label} className="flex items-center gap-2" title={s.title}>
             <LineKey color={s.color} />
@@ -156,8 +163,12 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
           ) : null}
         </svg>
         {/* Each just above its line, out of the lines' way. */}
-        <span className="pointer-events-none absolute top-0 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">100%</span>
-        <span className="pointer-events-none absolute top-1/2 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">50%</span>
+        <span className="pointer-events-none absolute top-0 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">
+          {percent(100)}
+        </span>
+        <span className="pointer-events-none absolute top-1/2 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">
+          {percent(50)}
+        </span>
         {hover != null && shown ? (
           <>
             {series.map((s) => (
@@ -175,7 +186,7 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
               )}
               style={{ left: `${(x(shown.at) / W) * 100}%` }}
             >
-              <div className="mb-1 text-subtle tabular-nums">{new Date(shown.at).toLocaleTimeString()}</div>
+              <div className="mb-1 text-subtle tabular-nums">{new Date(shown.at).toLocaleTimeString(currentLanguage())}</div>
               {series.map((s) => (
                 <div key={s.label} className="flex items-center gap-2">
                   <LineKey color={s.color} />
@@ -188,8 +199,8 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
         ) : null}
       </div>
       <div className="mt-1.5 flex justify-between text-[10px] text-subtle">
-        <span>5 min ago</span>
-        <span>now</span>
+        <span>{t("resources.fiveMinutesAgo")}</span>
+        <span>{t("resources.rightNow")}</span>
       </div>
     </div>
   );
@@ -200,6 +211,7 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
  * dashboard shows it: the processors and the memory over five minutes.
  */
 export function ResourcesSection() {
+  const { t } = useTranslation("settings");
   const resources = useResources();
   const data = resources.data;
 
@@ -207,7 +219,7 @@ export function ResourcesSection() {
   if (resources.isError) {
     body = (
       <p className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        Couldn't read the processors and memory: {errorMessage(resources.error)}
+        {t("resources.couldntRead", { error: errorMessage(resources.error) })}
       </p>
     );
   } else if (!data) {
@@ -220,29 +232,31 @@ export function ResourcesSection() {
   } else if (!data.available) {
     body = (
       <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-subtle">
-        The processors and memory can't be measured on this system.
+        {t("resources.unmeasurable")}
       </p>
     );
   } else {
     const total = data.memory_total || 1;
+    const pleyHint = t("resources.pleyHint");
+    const system = t("resources.system");
     body = (
       <div className="grid gap-3 lg:grid-cols-2">
         <Chart
-          title="CPU"
-          detail={`${data.cpus} ${data.cpus === 1 ? "processor" : "processors"}`}
+          title={t("resources.cpu")}
+          detail={t("resources.processors", { count: data.cpus })}
           data={data}
           series={[
-            { label: "Pley", color: PLEY, value: (s) => s.pley_cpu / 100, text: (s) => percent(s.pley_cpu), title: PLEY_HINT },
-            { label: "System", color: SYSTEM, value: (s) => s.cpu / 100, text: (s) => percent(s.cpu) },
+            { label: "Pley", color: PLEY, value: (s) => s.pley_cpu / 100, text: (s) => percent(s.pley_cpu), title: pleyHint },
+            { label: system, color: SYSTEM, value: (s) => s.cpu / 100, text: (s) => percent(s.cpu) },
           ]}
         />
         <Chart
-          title="Memory"
-          detail={`${formatBytes(data.memory_total)} in all`}
+          title={t("resources.memory")}
+          detail={t("resources.inAll", { size: formatBytes(data.memory_total) })}
           data={data}
           series={[
-            { label: "Pley", color: PLEY, value: (s) => s.pley_memory / total, text: (s) => formatBytes(s.pley_memory), title: PLEY_HINT },
-            { label: "System", color: SYSTEM, value: (s) => s.memory / total, text: (s) => formatBytes(s.memory) },
+            { label: "Pley", color: PLEY, value: (s) => s.pley_memory / total, text: (s) => formatBytes(s.pley_memory), title: pleyHint },
+            { label: system, color: SYSTEM, value: (s) => s.memory / total, text: (s) => formatBytes(s.memory) },
           ]}
         />
       </div>
@@ -253,7 +267,7 @@ export function ResourcesSection() {
     <section>
       <SectionTitle>
         <span className="flex items-center gap-2">
-          <Gauge className="size-5 text-accent" /> Resources
+          <Gauge className="size-5 text-accent" /> {t("resources.title")}
         </span>
       </SectionTitle>
       {body}

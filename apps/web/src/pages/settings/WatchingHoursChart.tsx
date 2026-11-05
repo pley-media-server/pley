@@ -1,12 +1,15 @@
+import { useTranslation } from "react-i18next";
 import type { WatchingHours } from "@/api/types";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** Monday first; the server counts the week from Sunday (0). */
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 /** 7 January 2024 was a Sunday: day `d` of the server's week is 7 + d. */
-const dayName = (d: number) => new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(new Date(2024, 0, 7 + d));
-const hourName = (h: number) => new Intl.DateTimeFormat(undefined, { hour: "numeric" }).format(new Date(2024, 0, 7, h));
-export const hourOfDay = (h: number) => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(2024, 0, 7, h));
+const dayName = (d: number) => new Intl.DateTimeFormat(currentLanguage(), { weekday: "short" }).format(new Date(2024, 0, 7 + d));
+const hourName = (h: number) => new Intl.DateTimeFormat(currentLanguage(), { hour: "numeric" }).format(new Date(2024, 0, 7, h));
+export const hourOfDay = (h: number) =>
+  new Intl.DateTimeFormat(currentLanguage(), { hour: "numeric", minute: "2-digit" }).format(new Date(2024, 0, 7, h));
 
 /** How much a cell shows of the accent: from a trace of it (rarely watched) to all of it. */
 const shade = (playing: number) => `color-mix(in oklab, var(--color-accent) ${Math.round(8 + 92 * Math.min(1, playing))}%, var(--color-surface-2))`;
@@ -16,6 +19,7 @@ const shade = (playing: number) => `color-mix(in oklab, var(--color-accent) ${Ma
  * played, and the hours work on the rest of the libraries may begin in.
  */
 export function WatchingHoursChart({ week }: { week: WatchingHours }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="space-y-2">
       {/* The cells shrink with the page: a phone shows the whole week too. */}
@@ -32,20 +36,20 @@ export function WatchingHoursChart({ week }: { week: WatchingHours }) {
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-subtle">
         <span className="flex items-center gap-1.5">
-          Rarely watched
+          {t("watchingHours.rarely")}
           {[0, 0.33, 0.66, 1].map((p) => (
             <span key={p} className="size-3 rounded-sm" style={{ background: shade(p) }} />
           ))}
-          Often
+          {t("watchingHours.often")}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-sm border border-dashed border-border-strong" /> Not seen yet
+          <span className="size-3 rounded-sm border border-dashed border-border-strong" /> {t("watchingHours.notSeenYet")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="flex size-3 items-center justify-center rounded-sm bg-surface-3">
             <span className="size-1 rounded-full bg-fg" />
           </span>
-          The rest of the libraries may begin
+          {t("watchingHours.mayBegin")}
         </span>
       </div>
     </div>
@@ -53,6 +57,7 @@ export function WatchingHoursChart({ week }: { week: WatchingHours }) {
 }
 
 function Day({ day, week }: { day: number; week: WatchingHours }) {
+  const { t } = useTranslation("settings");
   const name = dayName(day);
   return (
     <>
@@ -60,7 +65,8 @@ function Day({ day, week }: { day: number; week: WatchingHours }) {
       {Array.from({ length: 24 }, (_, h) => {
         const at = day * 24 + h;
         const { playing, open } = week.hours[at] ?? { playing: null, open: false };
-        const label = `${name} ${hourOfDay(h)}: ${playing == null ? "not seen enough yet" : `something played ${Math.round(playing * 100)}% of the time`}${open ? ", library work may begin" : ""}`;
+        const what = playing == null ? t("watchingHours.notSeenEnough") : t("watchingHours.played", { percent: Math.round(playing * 100) });
+        const label = t(open ? "watchingHours.hourOpen" : "watchingHours.hour", { day: name, hour: hourOfDay(h), what });
         return (
           <span
             key={h}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { CircleAlert, CircleCheck, Eye, EyeOff, Info, Save } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -60,19 +61,21 @@ export function SecretInput({
   value,
   onChange,
   what,
-  placeholder = "Not set",
+  placeholder,
   required,
   className,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
-  what: string;
+  what: "key" | "pin";
   placeholder?: string;
   required?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation("settings");
   const [visible, setVisible] = useState(false);
+  const label = t(`form.secret.${visible ? "hide" : "show"}${what === "pin" ? "Pin" : "Key"}`);
   return (
     <div className="flex gap-2">
       <TextInput
@@ -82,18 +85,19 @@ export function SecretInput({
         spellCheck={false}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("form.notSet")}
         required={required}
         className={cn("font-mono text-xs", className)}
       />
-      <IconButton label={`${visible ? "Hide" : "Show"} ${what}`} onClick={() => setVisible((s) => !s)} className="rounded-md bg-surface-2">
+      <IconButton label={label} onClick={() => setVisible((s) => !s)} className="rounded-md bg-surface-2">
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </IconButton>
     </div>
   );
 }
 
-export function Link({ href, children }: { href: string; children: ReactNode }) {
+/** A link out of Pley; in translated text, `<Trans>` gives it its words. */
+export function Link({ href, children }: { href: string; children?: ReactNode }) {
   return (
     <a href={href} target="_blank" rel="noreferrer" className="text-accent hover:underline">
       {children}
@@ -107,12 +111,13 @@ export function Link({ href, children }: { href: string; children: ReactNode }) 
  * answer about another key doesn't linger.
  */
 export function TestButton({ test, label, className = "mt-2" }: { test: ServiceTest; label: string; className?: string }) {
+  const { t } = useTranslation("settings");
   const check = useTestService();
   const result = check.data;
   return (
     <div className={cn("flex min-w-0 items-start gap-3", className)}>
       <Button size="sm" variant="outline" loading={check.isPending} onClick={() => check.mutate(test)} aria-label={label} className="shrink-0">
-        Test
+        {t("form.test")}
       </Button>
       <div role="status" className="min-w-0 pt-1 text-xs">
         {check.isError ? (
@@ -169,7 +174,7 @@ export function useSettingsForm(keys: readonly (keyof Settings)[]) {
 export function SettingsForm({
   draft,
   title,
-  description = "Changes apply immediately — no restart needed.",
+  description,
   onSaved,
   children,
 }: {
@@ -179,20 +184,27 @@ export function SettingsForm({
   onSaved?: (changes: Partial<Settings>) => void;
   children: (form: Settings) => ReactNode;
 }) {
+  const { t } = useTranslation(["settings", "common"]);
   const { settings, form, setForm, changes, dirty } = draft;
   const save = useSaveSettings();
   const toast = useToast();
 
   if (settings.isPending || (!form && !settings.isError)) return <PageSpinner />;
   if (settings.isError || !form) {
-    return <EmptyState title="Couldn't load settings" description={errorMessage(settings.error)} action={<Button onClick={() => void settings.refetch()}>Retry</Button>} />;
+    return (
+      <EmptyState
+        title={t("form.couldntLoad")}
+        description={errorMessage(settings.error)}
+        action={<Button onClick={() => void settings.refetch()}>{t("common:actions.retry")}</Button>}
+      />
+    );
   }
 
   const onSave = () => {
     if (!dirty) return;
     save.mutate(changes, {
       onSuccess: () => {
-        toast.success("Settings saved");
+        toast.success(t("form.saved"));
         onSaved?.(changes);
       },
       onError: (e) => toast.error(errorMessage(e)),
@@ -209,7 +221,7 @@ export function SettingsForm({
     >
       <div>
         <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-muted">{description}</p>
+        <p className="text-sm text-muted">{description ?? t("form.applyNow")}</p>
       </div>
 
       {children(form)}
@@ -217,12 +229,12 @@ export function SettingsForm({
       {/* Floats over the page only with something to save: at rest it would cover the rows on a phone. */}
       <div className={cn("flex justify-end", (dirty || save.isPending) && "sticky bottom-4 z-10")}>
         <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2/95 px-3 py-2 shadow-xl backdrop-blur">
-          {dirty ? <span className="text-xs text-muted">Unsaved changes</span> : null}
+          {dirty ? <span className="text-xs text-muted">{t("form.unsaved")}</span> : null}
           <Button variant="ghost" size="sm" disabled={!dirty || save.isPending} onClick={() => settings.data && setForm(settings.data)}>
-            Reset
+            {t("common:actions.reset")}
           </Button>
           <Button type="submit" variant="primary" size="sm" icon={<Save className="size-4" />} loading={save.isPending} disabled={!dirty}>
-            Save
+            {t("common:actions.save")}
           </Button>
         </div>
       </div>

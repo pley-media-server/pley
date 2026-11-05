@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, CircleCheck, Inbox, Plug } from "lucide-react";
@@ -61,11 +62,7 @@ const FIELDS = {
 const NAMES: Record<ArrService, string> = { radarr: "Radarr", sonarr: "Sonarr" };
 const EXAMPLES: Record<ArrService, string> = { radarr: "http://localhost:7878", sonarr: "http://localhost:8989" };
 
-const AVAILABILITY: { value: MinimumAvailability; label: string }[] = [
-  { value: "announced", label: "Announced" },
-  { value: "in_cinemas", label: "In cinemas" },
-  { value: "released", label: "Released" },
-];
+const AVAILABILITY: MinimumAvailability[] = ["announced", "in_cinemas", "released"];
 
 /** An address as the server keeps it: trimmed, as URLs are written ("HTTP://Host/" is "http://host"), less a trailing `/`. */
 function address(url: string | undefined): string {
@@ -87,11 +84,12 @@ function limit(raw: string): number {
 
 type Draft = ReturnType<typeof useSettingsForm>;
 
-function LimitInput({ id, value, onChange, unit }: { id: string; value: number; onChange: (v: number) => void; unit: string }) {
+function LimitInput({ id, value, onChange, unit }: { id: string; value: number; onChange: (v: number) => void; unit: "movieUnit" | "seasonUnit" }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="flex items-center gap-2">
       <TextInput id={id} type="number" min={0} max={1000} value={value} onChange={(e) => onChange(limit(e.target.value))} className="w-28" />
-      <span className="text-sm text-muted">{value === 0 ? "No limit" : unit}</span>
+      <span className="text-sm text-muted">{value === 0 ? t("requests.noLimit") : t(`requests.${unit}`, { count: value })}</span>
     </div>
   );
 }
@@ -113,11 +111,14 @@ function ProfileSelect({
   none: string;
   label?: string;
 }) {
+  const { t } = useTranslation("settings");
   const known = !!profiles?.some((p) => p.id === value);
   return (
     <Select id={id} aria-label={label} value={value} disabled={!profiles} onChange={(e) => onChange(Number(e.target.value))} className="w-full">
       <option value={0}>{none}</option>
-      {value !== 0 && !known ? <option value={value}>{profiles ? `Profile ${value} (gone)` : `Profile ${value}`}</option> : null}
+      {value !== 0 && !known ? (
+        <option value={value}>{t(profiles ? "requests.arr.profileGone" : "requests.arr.profile", { id: value })}</option>
+      ) : null}
       {profiles?.map((p) => (
         <option key={p.id} value={p.id}>
           {p.name}
@@ -141,14 +142,15 @@ function FolderSelect({
   folders: ArrOptions["root_folders"] | undefined;
   none: string;
 }) {
+  const { t } = useTranslation("settings");
   const known = !!folders?.some((f) => f.path === value);
   return (
     <Select id={id} value={value} disabled={!folders} onChange={(e) => onChange(e.target.value)} className="w-full">
       <option value="">{none}</option>
-      {value !== "" && !known ? <option value={value}>{folders ? `${value} (gone)` : value}</option> : null}
+      {value !== "" && !known ? <option value={value}>{folders ? t("requests.arr.folderGone", { path: value }) : value}</option> : null}
       {folders?.map((f) => (
         <option key={f.path} value={f.path}>
-          {f.free_bytes != null ? `${f.path} (${formatBytes(f.free_bytes)} free)` : f.path}
+          {f.free_bytes != null ? t("requests.arr.folderFree", { path: f.path, size: formatBytes(f.free_bytes) }) : f.path}
         </option>
       ))}
     </Select>
@@ -160,6 +162,7 @@ function FolderSelect({
  * not saved yet), and what requests are sent with, from what it offers.
  */
 function ArrGroup({ service, form, draft }: { service: ArrService; form: Settings; draft: Draft }) {
+  const { t } = useTranslation("settings");
   const f = FIELDS[service];
   const name = NAMES[service];
   const saved = draft.settings.data;
@@ -184,7 +187,7 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
   const setKey = (value: string) => set(f.key, value === "" ? undefined : value);
 
   let status: ReactNode = null;
-  if (fresh && connect.isPending) status = <span className="text-subtle">Connecting to {name}…</span>;
+  if (fresh && connect.isPending) status = <span className="text-subtle">{t("requests.arr.connecting", { name })}</span>;
   else if (fresh && connect.isError) status = <Problem>{errorMessage(connect.error)}</Problem>;
   else if (options) {
     status = (
@@ -195,9 +198,9 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
         </span>
       </span>
     );
-  } else if (atSaved && savedOptions.isFetching) status = <span className="text-subtle">Asking {name}…</span>;
+  } else if (atSaved && savedOptions.isFetching) status = <span className="text-subtle">{t("requests.arr.asking", { name })}</span>;
   else if (atSaved && savedOptions.isError) status = <Problem>{errorMessage(savedOptions.error)}</Problem>;
-  else if (hasAddress && !needsKey) status = <span className="text-subtle">Connect to choose a quality profile and a folder.</span>;
+  else if (hasAddress && !needsKey) status = <span className="text-subtle">{t("requests.arr.connectToChoose")}</span>;
 
   const profile = form[f.profile] ?? 0;
   const folder = form[f.folder] ?? "";
@@ -205,21 +208,9 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
   return (
     <Group
       title={name}
-      description={
-        service === "radarr"
-          ? "Movies approved are added to Radarr, which finds and downloads them."
-          : "Shows approved are added to Sonarr with the seasons asked for, which it finds and downloads."
-      }
+      description={t(`requests.arr.${service}`)}
     >
-      <Row
-        label="Address"
-        htmlFor={`${service}-url`}
-        hint={
-          <>
-            Where Pley reaches {name}, as {EXAMPLES[service]}. Empty: what's approved is added by hand.
-          </>
-        }
-      >
+      <Row label={t("requests.arr.address")} htmlFor={`${service}-url`} hint={t("requests.arr.addressHint", { name, example: EXAMPLES[service] })}>
         <TextInput
           id={`${service}-url`}
           type="url"
@@ -230,18 +221,18 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
           value={url}
           onChange={(e) => set(f.url, e.target.value)}
         />
-        {savedUrl !== "" && !hasAddress && savedKey ? <Note>Saving without an address forgets the API key too.</Note> : null}
+        {savedUrl !== "" && !hasAddress && savedKey ? <Note>{t("requests.arr.forgetsKey")}</Note> : null}
       </Row>
-      <Row label="API key" htmlFor={`${service}-key`} hint={`In ${name}: Settings, General, Security.`}>
+      <Row label={t("requests.arr.apiKey")} htmlFor={`${service}-key`} hint={t("requests.arr.apiKeyHint", { name })}>
         <SecretInput
           id={`${service}-key`}
           what="key"
           value={typedKey ?? ""}
           onChange={setKey}
-          placeholder={savedKey && !moved ? "Saved" : "Not set"}
+          placeholder={savedKey && !moved ? t("requests.arr.keySaved") : t("form.notSet")}
           required={needsKey}
         />
-        {needsKey ? <Note notice>Type {name}'s API key for this address: the saved one goes only to the address it was saved with.</Note> : null}
+        {needsKey ? <Note notice>{t("requests.arr.typeKey", { name })}</Note> : null}
         <div className="mt-2 flex min-w-0 items-start gap-3">
           <Button
             size="sm"
@@ -252,7 +243,7 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
             className="shrink-0"
             onClick={() => connect.mutate({ service, url: address(url), ...(typedKey ? { api_key: typedKey } : {}) })}
           >
-            Connect
+            {t("requests.arr.connect")}
           </Button>
           <div role="status" className="min-w-0 pt-1 text-xs">
             {status}
@@ -261,28 +252,28 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
       </Row>
       {hasAddress ? (
         <>
-          <Row label="Quality profile" htmlFor={`${service}-profile`}>
+          <Row label={t("requests.arr.qualityProfile")} htmlFor={`${service}-profile`}>
             <ProfileSelect
               id={`${service}-profile`}
               value={profile}
               onChange={(v) => set(f.profile, v)}
               profiles={options?.quality_profiles}
-              none="None chosen"
+              none={t("requests.arr.noneChosen")}
             />
-            {profile === 0 ? <Note notice>Approving fails until one is chosen.</Note> : null}
+            {profile === 0 ? <Note notice>{t("requests.arr.approvingFails")}</Note> : null}
           </Row>
-          <Row label="Root folder" htmlFor={`${service}-folder`}>
+          <Row label={t("requests.arr.rootFolder")} htmlFor={`${service}-folder`}>
             <FolderSelect
               id={`${service}-folder`}
               value={folder}
               onChange={(v) => set(f.folder, v)}
               folders={options?.root_folders}
-              none="None chosen"
+              none={t("requests.arr.noneChosen")}
             />
-            {folder === "" ? <Note notice>Approving fails until one is chosen.</Note> : null}
+            {folder === "" ? <Note notice>{t("requests.arr.approvingFails")}</Note> : null}
           </Row>
           {service === "radarr" ? (
-            <Row label="Minimum availability" htmlFor="radarr-availability" hint="When Radarr may take a release of a movie asked for.">
+            <Row label={t("requests.arr.minimumAvailability")} htmlFor="radarr-availability" hint={t("requests.arr.minimumAvailabilityHint")}>
               <Select
                 id="radarr-availability"
                 value={form.radarr_minimum_availability ?? "released"}
@@ -290,52 +281,49 @@ function ArrGroup({ service, form, draft }: { service: ArrService; form: Setting
                 className="w-full"
               >
                 {AVAILABILITY.map((a) => (
-                  <option key={a.value} value={a.value}>
-                    {a.label}
+                  <option key={a} value={a}>
+                    {t(`requests.arr.availability.${a}`)}
                   </option>
                 ))}
               </Select>
             </Row>
           ) : null}
           {service === "sonarr" && (options?.language_profiles.length || form.sonarr_language_profile) ? (
-            <Row label="Language profile" htmlFor="sonarr-language" hint="Sonarr 3's. Sonarr 4 has none.">
+            <Row label={t("requests.arr.languageProfile")} htmlFor="sonarr-language" hint={t("requests.arr.languageProfileHint")}>
               <ProfileSelect
                 id="sonarr-language"
                 value={form.sonarr_language_profile ?? 0}
                 onChange={(v) => set("sonarr_language_profile", v)}
                 profiles={options?.language_profiles}
-                none="Sonarr's first"
+                none={t("requests.arr.sonarrFirst")}
               />
             </Row>
           ) : null}
-          <Row label="Anime quality profile" htmlFor={`${service}-anime-profile`} hint="For titles TMDB counts as anime.">
+          <Row label={t("requests.arr.animeProfile")} htmlFor={`${service}-anime-profile`} hint={t("requests.arr.animeProfileHint")}>
             <ProfileSelect
               id={`${service}-anime-profile`}
               value={form[f.animeProfile] ?? 0}
               onChange={(v) => set(f.animeProfile, v)}
               profiles={options?.quality_profiles}
-              none="The quality profile above"
+              none={t("requests.arr.profileAbove")}
             />
           </Row>
-          <Row label="Anime root folder" htmlFor={`${service}-anime-folder`}>
+          <Row label={t("requests.arr.animeFolder")} htmlFor={`${service}-anime-folder`}>
             <FolderSelect
               id={`${service}-anime-folder`}
               value={form[f.animeFolder] ?? ""}
               onChange={(v) => set(f.animeFolder, v)}
               folders={options?.root_folders}
-              none="The root folder above"
+              none={t("requests.arr.folderAbove")}
             />
           </Row>
           {service === "sonarr" ? (
-            <Row label="Season folders" hint="A folder for each season of a show.">
-              <Toggle checked={form.sonarr_season_folders ?? true} onChange={(v) => set("sonarr_season_folders", v)} label="Season folders" />
+            <Row label={t("requests.arr.seasonFolders")} hint={t("requests.arr.seasonFoldersHint")}>
+              <Toggle checked={form.sonarr_season_folders ?? true} onChange={(v) => set("sonarr_season_folders", v)} label={t("requests.arr.seasonFolders")} />
             </Row>
           ) : null}
-          <Row
-            label="Search when added"
-            hint={service === "radarr" ? "Look for the movie as soon as it's approved." : "Look for the seasons asked for as soon as they're approved."}
-          >
-            <Toggle checked={form[f.search] ?? true} onChange={(v) => set(f.search, v)} label={`${name}: search when added`} />
+          <Row label={t("requests.arr.search")} hint={service === "radarr" ? t("requests.arr.searchMovie") : t("requests.arr.searchSeasons")}>
+            <Toggle checked={form[f.search] ?? true} onChange={(v) => set(f.search, v)} label={t("requests.arr.searchToggle", { name })} />
           </Row>
         </>
       ) : null}
@@ -354,7 +342,8 @@ function Problem({ children }: { children: ReactNode }) {
 
 /** Settings → Requests: taking them, how many each account may make, and Radarr and Sonarr. */
 export function RequestsSettings() {
-  useDocumentTitle("Requests");
+  const { t } = useTranslation("settings");
+  useDocumentTitle(t("requests.title"));
   const draft = useSettingsForm(KEYS);
   const qc = useQueryClient();
   const onSaved = () => {
@@ -364,39 +353,45 @@ export function RequestsSettings() {
   };
 
   return (
-    <SettingsForm draft={draft} title="Requests" onSaved={onSaved}>
+    <SettingsForm draft={draft} title={t("requests.title")} onSaved={onSaved}>
       {(form) => {
         if (form.requests === undefined) {
-          return <EmptyState icon={<Inbox />} title="This server doesn't take requests" description="Update Pley to let people ask for movies and shows." />;
+          return <EmptyState icon={<Inbox />} title={t("requests.unsupported")} description={t("requests.unsupportedHint")} />;
         }
         const hasTmdb = form.tmdb_api_key.trim() !== "";
         return (
           <>
-            <Group title="Requests" description="People ask for movies and shows the libraries don't have, found on TMDB. You approve or decline each.">
-              <Row label="Take requests" hint="Discover and Requests show in the menu of every account that may ask.">
-                <Toggle checked={form.requests} disabled={!hasTmdb && !form.requests} onChange={(v) => draft.set("requests", v)} label="Take requests" />
+            <Group title={t("requests.title")} description={t("requests.description")}>
+              <Row label={t("requests.take")} hint={t("requests.takeHint")}>
+                <Toggle checked={form.requests} disabled={!hasTmdb && !form.requests} onChange={(v) => draft.set("requests", v)} label={t("requests.take")} />
                 {!hasTmdb ? (
                   <Note notice={form.requests}>
-                    Needs a TMDB API key: add one in{" "}
-                    <RouterLink to="/settings/server#tmdb-key" className="text-accent hover:underline">
-                      Server
-                    </RouterLink>
-                    .
+                    <Trans
+                      t={t}
+                      i18nKey="requests.needsTmdb"
+                      components={{ a: <RouterLink to="/settings/server#tmdb-key" className="text-accent hover:underline" /> }}
+                    />
                   </Note>
                 ) : null}
               </Row>
-              <Row label="Movies per 7 days" htmlFor="request-limit-movies" hint="How many each account may ask for in any 7 days. Administrators have no limit.">
-                <LimitInput id="request-limit-movies" value={form.request_limit_movies ?? 0} onChange={(v) => draft.set("request_limit_movies", v)} unit="movies" />
+              <Row label={t("requests.movies")} htmlFor="request-limit-movies" hint={t("requests.moviesHint")}>
+                <LimitInput
+                  id="request-limit-movies"
+                  value={form.request_limit_movies ?? 0}
+                  onChange={(v) => draft.set("request_limit_movies", v)}
+                  unit="movieUnit"
+                />
               </Row>
-              <Row label="Seasons per 7 days" htmlFor="request-limit-seasons" hint="A show counts its seasons.">
-                <LimitInput id="request-limit-seasons" value={form.request_limit_seasons ?? 0} onChange={(v) => draft.set("request_limit_seasons", v)} unit="seasons" />
+              <Row label={t("requests.seasons")} htmlFor="request-limit-seasons" hint={t("requests.seasonsHint")}>
+                <LimitInput
+                  id="request-limit-seasons"
+                  value={form.request_limit_seasons ?? 0}
+                  onChange={(v) => draft.set("request_limit_seasons", v)}
+                  unit="seasonUnit"
+                />
               </Row>
               <p className="text-xs text-subtle">
-                Who may ask, and whose requests are approved as they're made, is up to each account in{" "}
-                <RouterLink to="/settings/users" className="text-accent hover:underline">
-                  Users
-                </RouterLink>
-                . Administrators' are always approved.
+                <Trans t={t} i18nKey="requests.whoMayAsk" components={{ a: <RouterLink to="/settings/users" className="text-accent hover:underline" /> }} />
               </p>
             </Group>
             <ArrGroup service="radarr" form={form} draft={draft} />

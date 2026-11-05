@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { FolderOpen, Plus, Trash2 } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useCreateLibrary, useUpdateLibrary } from "@/api/hooks";
@@ -11,13 +12,11 @@ import { Button, Field, IconButton, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useOnChange } from "@/lib/hooks";
 
-const KINDS: { kind: LibraryKind; label: string; hint: string; defaultName: string }[] = [
-  { kind: "movies", label: "Movies", hint: "Movie Name (Year)/Movie Name (Year).mkv", defaultName: "Movies" },
-  { kind: "shows", label: "TV Shows", hint: "Show Name/Season 01/Show Name - S01E01.mkv", defaultName: "TV Shows" },
-  { kind: "music", label: "Music", hint: "Artist/Album/01 - Track.flac", defaultName: "Music" },
-];
+/** Each kind's label, recommended layout and default name are in `libraries.kinds`. */
+const KINDS: LibraryKind[] = ["movies", "shows", "music"];
 
 export function LibraryFormModal({ open, onClose, library }: { open: boolean; onClose: () => void; library?: Library | null }) {
+  const { t } = useTranslation(["settings", "common"]);
   const editing = !!library;
   const toast = useToast();
   const create = useCreateLibrary();
@@ -40,7 +39,7 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
     setError(null);
   });
 
-  const kindInfo = KINDS.find((k) => k.kind === kind)!;
+  const defaultName = t(`libraries.kinds.${kind}.defaultName`);
   const busy = create.isPending || update.isPending;
 
   const addPath = (p: string) => {
@@ -53,16 +52,16 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
     setError(null);
     const finalPaths = manual.trim() ? Array.from(new Set([...paths, manual.trim()])) : paths;
     if (finalPaths.length === 0) {
-      setError("Add at least one folder.");
+      setError(t("libraries.form.atLeastOneFolder"));
       return;
     }
-    const finalName = name.trim() || kindInfo.defaultName;
+    const finalName = name.trim() || defaultName;
     if (editing && library) {
       update.mutate(
         { id: library.id, name: finalName, paths: finalPaths },
         {
           onSuccess: () => {
-            toast.success("Library updated");
+            toast.success(t("libraries.form.updated"));
             onClose();
           },
           onError: (e) => setError(errorMessage(e)),
@@ -73,7 +72,7 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
         { name: finalName, kind, paths: finalPaths },
         {
           onSuccess: (lib) => {
-            toast.success(`“${lib.name}” added — scanning now`);
+            toast.success(t("libraries.form.added", { name: lib.name }));
             onClose();
           },
           onError: (e) => setError(errorMessage(e)),
@@ -89,14 +88,14 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
         onClose={onClose}
         locked={busy}
         size="lg"
-        title={editing ? `Edit ${library?.name}` : "Add library"}
+        title={editing ? t("libraries.form.editTitle", { name: library?.name }) : t("libraries.form.addTitle")}
         footer={
           <>
             <Button variant="ghost" onClick={onClose} disabled={busy}>
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button variant="primary" onClick={submit} loading={busy}>
-              {editing ? "Save changes" : "Add library"}
+              {editing ? t("libraries.form.saveChanges") : t("libraries.form.addTitle")}
             </Button>
           </>
         }
@@ -104,38 +103,38 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
         <div className="space-y-5">
           {!editing ? (
             <div>
-              <div className="mb-2 text-sm font-medium">Type</div>
+              <div className="mb-2 text-sm font-medium">{t("libraries.form.type")}</div>
               <div className="grid grid-cols-3 gap-2">
                 {KINDS.map((k) => (
                   <button
-                    key={k.kind}
+                    key={k}
                     type="button"
-                    onClick={() => setKind(k.kind)}
-                    aria-pressed={kind === k.kind}
+                    onClick={() => setKind(k)}
+                    aria-pressed={kind === k}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-lg border px-3 py-4 text-sm font-medium transition-colors",
-                      kind === k.kind
+                      kind === k
                         ? "border-accent bg-accent/10 text-fg"
                         : "border-border bg-surface-2 text-muted hover:border-border-strong hover:text-fg",
                     )}
                   >
-                    <LibraryIcon kind={k.kind} className={cn("size-6", kind === k.kind && "text-accent")} />
-                    {k.label}
+                    <LibraryIcon kind={k} className={cn("size-6", kind === k && "text-accent")} />
+                    {t(`libraries.kinds.${k}.label`)}
                   </button>
                 ))}
               </div>
             </div>
           ) : null}
 
-          <Field label="Name" htmlFor="lib-name">
-            <TextInput id="lib-name" value={name} placeholder={kindInfo.defaultName} onChange={(e) => setName(e.target.value)} />
+          <Field label={t("libraries.form.name")} htmlFor="lib-name">
+            <TextInput id="lib-name" value={name} placeholder={defaultName} onChange={(e) => setName(e.target.value)} />
           </Field>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">Folders</span>
+              <span className="text-sm font-medium">{t("libraries.form.folders")}</span>
               <Button size="sm" icon={<FolderOpen className="size-4" />} onClick={() => setPicker(true)}>
-                Browse…
+                {t("libraries.form.browse")}
               </Button>
             </div>
             {paths.length ? (
@@ -145,7 +144,7 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
                     <span className="min-w-0 flex-1 truncate font-mono text-xs" title={p}>
                       {p}
                     </span>
-                    <IconButton label={`Remove ${p}`} size="sm" onClick={() => setPaths((list) => list.filter((x) => x !== p))}>
+                    <IconButton label={t("libraries.form.removePath", { path: p })} size="sm" onClick={() => setPaths((list) => list.filter((x) => x !== p))}>
                       <Trash2 className="size-4" />
                     </IconButton>
                   </li>
@@ -163,9 +162,9 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
                     setManual("");
                   }
                 }}
-                placeholder="…or type a folder path"
+                placeholder={t("libraries.form.typePath")}
                 className="font-mono text-xs"
-                aria-label="Folder path"
+                aria-label={t("libraries.form.folderPath")}
               />
               <Button
                 icon={<Plus className="size-4" />}
@@ -175,11 +174,16 @@ export function LibraryFormModal({ open, onClose, library }: { open: boolean; on
                 }}
                 disabled={!manual.trim()}
               >
-                Add
+                {t("common:actions.add")}
               </Button>
             </div>
             <p className="mt-2 text-xs text-subtle">
-              Recommended layout: <span className="font-mono">{kindInfo.hint}</span>
+              <Trans
+                t={t}
+                i18nKey="libraries.form.layout"
+                values={{ layout: t(`libraries.kinds.${kind}.layout`) }}
+                components={{ path: <span className="font-mono" /> }}
+              />
             </p>
           </div>
 

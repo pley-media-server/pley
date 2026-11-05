@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
@@ -11,25 +12,12 @@ import { ConfirmModal } from "@/components/Modal";
 import { LibraryIcon } from "@/components/Sidebar";
 import { useToast } from "@/components/Toast";
 import { Button, EmptyState, IconButton, PageSpinner, ProgressBar } from "@/components/ui";
+import { currentLanguage } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatRelative, pluralize } from "@/lib/format";
+import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { LibraryFormModal } from "./LibraryFormModal";
 import { libraryUrl } from "@/lib/urls";
-
-const KIND_NOUN: Record<Library["kind"], [string, string]> = {
-  movies: ["movie", "movies"],
-  shows: ["show", "shows"],
-  music: ["artist", "artists"],
-};
-
-const PHASE_LABEL: Record<ScanStatus["phase"], string> = {
-  queued: "Queued",
-  walking: "Finding files",
-  probing: "Analyzing media",
-  metadata: "Fetching metadata",
-  done: "Finished",
-};
 
 type Direction = "up" | "down";
 
@@ -54,16 +42,16 @@ function LibraryRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation(["settings", "common"]);
   const toast = useToast();
   const scanMut = useScanLibrary();
   const running = lib.scanning || (scan && scan.phase !== "done");
-  const noun = KIND_NOUN[lib.kind];
 
   const startScan = (force: boolean) =>
     scanMut.mutate(
       { id: lib.id, force },
       {
-        onSuccess: () => toast.success(force ? `Full rescan of “${lib.name}” started` : `Scanning “${lib.name}”`),
+        onSuccess: () => toast.success(force ? t("libraries.rescanStarted", { name: lib.name }) : t("libraries.scanStarted", { name: lib.name })),
         onError: (e) => toast.error(errorMessage(e)),
       },
     );
@@ -78,7 +66,7 @@ function LibraryRow({
           <span
             draggable
             data-drag-handle
-            title="Drag to reorder"
+            title={t("libraries.dragToReorder")}
             aria-hidden
             className="-ml-2 -mr-3 mt-2.5 hidden shrink-0 cursor-grab rounded p-1 text-subtle transition-colors hover:text-fg active:cursor-grabbing sm:block"
           >
@@ -94,7 +82,8 @@ function LibraryRow({
               {lib.name}
             </Link>
             <span className="text-xs text-muted">
-              {pluralize(lib.item_count, noun[0], noun[1])} · {lib.scanned_at ? `scanned ${formatRelative(lib.scanned_at)}` : "never scanned"}
+              {t(`libraries.items.${lib.kind}`, { count: lib.item_count })} ·{" "}
+              {lib.scanned_at ? t("libraries.scanned", { when: formatRelative(lib.scanned_at) }) : t("libraries.neverScanned")}
             </span>
           </div>
           <ul className="mt-1.5 space-y-0.5">
@@ -109,11 +98,11 @@ function LibraryRow({
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5 text-accent">
                   <RefreshCw className="size-3 animate-spin" />
-                  {scan ? PHASE_LABEL[scan.phase] : "Scanning"}
+                  {scan ? t(`scanPhases.${scan.phase}`) : t("libraries.scanning")}
                 </span>
                 {scan && scan.total > 0 ? (
                   <span className="tabular-nums text-muted">
-                    {scan.processed.toLocaleString()} / {scan.total.toLocaleString()}
+                    {scan.processed.toLocaleString(currentLanguage())} / {scan.total.toLocaleString(currentLanguage())}
                   </span>
                 ) : null}
               </div>
@@ -131,7 +120,7 @@ function LibraryRow({
             // where there is a pointer to hover with, always on touch screens.
             <div className="flex flex-col items-center transition-opacity sm:flex-row [@media(hover:hover)]:sm:opacity-0 sm:group-focus-within/library:opacity-100 sm:group-hover/library:opacity-100">
               <IconButton
-                label={`Move ${lib.name} up`}
+                label={t("libraries.moveUp", { name: lib.name })}
                 size="sm"
                 data-move="up"
                 disabled={place.index === 0}
@@ -140,7 +129,7 @@ function LibraryRow({
                 <ChevronUp className="size-4" />
               </IconButton>
               <IconButton
-                label={`Move ${lib.name} down`}
+                label={t("libraries.moveDown", { name: lib.name })}
                 size="sm"
                 data-move="down"
                 disabled={place.index === place.count - 1}
@@ -151,11 +140,11 @@ function LibraryRow({
             </div>
           ) : null}
           <Button size="sm" icon={<ScanSearch className="size-4" />} onClick={() => startScan(false)} loading={scanMut.isPending} disabled={!!running}>
-            <span className="hidden sm:inline">Scan</span>
+            <span className="hidden sm:inline">{t("libraries.scan")}</span>
           </Button>
           <Menu
             trigger={({ toggle }) => (
-              <IconButton label="More actions" size="sm" onClick={toggle}>
+              <IconButton label={t("libraries.moreActions")} size="sm" onClick={toggle}>
                 <EllipsisVertical className="size-4" />
               </IconButton>
             )}
@@ -169,7 +158,7 @@ function LibraryRow({
                     startScan(true);
                   }}
                 >
-                  Force full rescan
+                  {t("libraries.forceRescan")}
                 </MenuItem>
                 <MenuItem
                   icon={<Pencil />}
@@ -178,7 +167,7 @@ function LibraryRow({
                     onEdit();
                   }}
                 >
-                  Edit
+                  {t("common:actions.edit")}
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem
@@ -189,7 +178,7 @@ function LibraryRow({
                     onDelete();
                   }}
                 >
-                  Delete
+                  {t("common:actions.delete")}
                 </MenuItem>
               </>
             )}
@@ -201,7 +190,8 @@ function LibraryRow({
 }
 
 export function LibrariesSettings() {
-  useDocumentTitle("Libraries");
+  const { t } = useTranslation(["settings", "common"]);
+  useDocumentTitle(t("libraries.title"));
   // In the shared order, whatever order the administrator sees them in.
   const libs = useSharedLibraries();
   const activity = useActivity();
@@ -225,7 +215,7 @@ export function LibrariesSettings() {
   const move = (from: number, to: number) => {
     const lib = libraries[from];
     if (!lib || to < 0 || to >= libraries.length || to === from) return;
-    setMoveNote(`${lib.name} moved to position ${to + 1} of ${libraries.length}`);
+    setMoveNote(t("libraries.moved", { name: lib.name, position: to + 1, total: libraries.length }));
     reorder.mutate(moved(libraries.map((l) => l.id), from, to), {
       onError: (e) => {
         toast.error(errorMessage(e));
@@ -233,7 +223,11 @@ export function LibrariesSettings() {
         // which also makes trying again read out (the note changes).
         const saved = qc.getQueryData<Library[]>(keys.sharedLibraries) ?? [];
         const back = saved.findIndex((l) => l.id === lib.id);
-        setMoveNote(back < 0 ? `${lib.name} wasn't moved` : `${lib.name} moved back to position ${back + 1} of ${saved.length}`);
+        setMoveNote(
+          back < 0
+            ? t("libraries.notMoved", { name: lib.name })
+            : t("libraries.movedBack", { name: lib.name, position: back + 1, total: saved.length }),
+        );
       },
     });
   };
@@ -286,9 +280,10 @@ export function LibrariesSettings() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Libraries</h2>
+          <h2 className="text-lg font-semibold">{t("libraries.title")}</h2>
           <p className="text-sm text-muted">
-            Folders Pley watches for movies, shows and music.{reorderable ? " Everyone sees them in this order, unless they sort their own." : null}
+            {t("libraries.description")}
+            {reorderable ? ` ${t("libraries.sharedOrder")}` : null}
           </p>
         </div>
         <div className="flex gap-2">
@@ -298,39 +293,43 @@ export function LibrariesSettings() {
               loading={scanAll.isPending}
               onClick={() =>
                 scanAll.mutate(undefined, {
-                  onSuccess: () => toast.success("Scanning all libraries"),
+                  onSuccess: () => toast.success(t("libraries.scanningAll")),
                   onError: (e) => toast.error(errorMessage(e)),
                 })
               }
             >
-              Scan all
+              {t("libraries.scanAll")}
             </Button>
           ) : null}
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={openAdd}>
-            Add library
+            {t("libraries.add")}
           </Button>
         </div>
       </div>
 
       {/* A list once loaded stays up when fetching it again fails. */}
       {!libs.data ? (
-        <EmptyState title="Couldn't load libraries" description={errorMessage(libs.error)} action={<Button onClick={() => void libs.refetch()}>Retry</Button>} />
+        <EmptyState
+          title={t("libraries.couldntLoad")}
+          description={errorMessage(libs.error)}
+          action={<Button onClick={() => void libs.refetch()}>{t("common:actions.retry")}</Button>}
+        />
       ) : libs.data.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border-strong">
           <EmptyState
             icon={<FolderPlus />}
-            title="Add your first library"
-            description="Choose a type and the folders that contain your media. Pley scans them and keeps them up to date."
+            title={t("libraries.emptyTitle")}
+            description={t("libraries.emptyDescription")}
             action={
               <Button variant="primary" onClick={openAdd}>
-                Add library
+                {t("libraries.add")}
               </Button>
             }
           />
         </div>
       ) : (
         <>
-          <ol ref={listRef} aria-label="Libraries" className="space-y-3" {...(reorderable ? drag.listProps : {})}>
+          <ol ref={listRef} aria-label={t("libraries.title")} className="space-y-3" {...(reorderable ? drag.listProps : {})}>
             {libs.data.map((lib, i) => {
               const mark = drag.dropMark(i);
               return (
@@ -373,21 +372,18 @@ export function LibrariesSettings() {
       <ConfirmModal
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        title="Delete library?"
+        title={t("libraries.deleteTitle")}
         danger
-        confirmLabel="Delete"
+        confirmLabel={t("common:actions.delete")}
         loading={del.isPending}
         message={
-          <>
-            <strong className="text-fg">{deleting?.name}</strong> and its watch history will be removed from Pley. Your media files
-            are not touched.
-          </>
+          <Trans t={t} i18nKey="libraries.deleteMessage" values={{ name: deleting?.name ?? "" }} components={{ name: <strong className="text-fg" /> }} />
         }
         onConfirm={() => {
           if (!deleting) return;
           del.mutate(deleting.id, {
             onSuccess: () => {
-              toast.success(`Deleted “${deleting.name}”`);
+              toast.success(t("libraries.deleted", { name: deleting.name }));
               setDeleting(null);
             },
             onError: (e) => toast.error(errorMessage(e)),

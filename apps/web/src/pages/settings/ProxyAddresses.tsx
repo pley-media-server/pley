@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlert, Plus, X } from "lucide-react";
 import { api, errorMessage } from "@/api/client";
@@ -29,6 +30,7 @@ export function droppedPort(here: string, seen: string): boolean {
  * such an address, and offers to add it.
  */
 export function ProxyAddresses() {
+  const { t } = useTranslation(["settings", "common"]);
   const settings = useSettings();
   const save = useSaveSettings();
   const toast = useToast();
@@ -50,7 +52,7 @@ export function ProxyAddresses() {
       { proxy_addresses: next },
       {
         onSuccess: () => {
-          toast.success("Saved");
+          toast.success(t("common:states.saved"));
           void seen.refetch();
           done?.();
         },
@@ -65,11 +67,9 @@ export function ProxyAddresses() {
   return (
     <Card className="space-y-3">
       <div>
-        <h3 className="text-base font-semibold">Reached through a reverse proxy</h3>
+        <h3 className="text-base font-semibold">{t("proxy.title")}</h3>
         <p className="mt-0.5 text-sm text-muted">
-          Some proxies pass the address on without its port (nginx's <code className="font-mono text-xs">$host</code>, Nginx Proxy Manager).
-          Pley then names itself without the port, and apps refuse it. Add the addresses with a port Pley is reached at that way, or have the
-          proxy pass the port (<code className="font-mono text-xs">proxy_set_header Host $http_host;</code>).
+          <Trans t={t} i18nKey="proxy.description" components={{ code: <code className="font-mono text-xs" /> }} />
         </p>
       </div>
       {hidden ? (
@@ -77,12 +77,16 @@ export function ProxyAddresses() {
           <p className="flex items-start gap-2">
             <CircleAlert className="mt-0.5 size-4 shrink-0 text-danger" />
             <span>
-              You opened Pley at <span className="font-mono text-xs">{here}</span>, but it is told{" "}
-              <span className="font-mono text-xs">{hidden}</span>: apps can't sign in at this address.
+              <Trans
+                t={t}
+                i18nKey="proxy.openedAt"
+                values={{ here, seen: hidden }}
+                components={{ address: <span className="font-mono text-xs" /> }}
+              />
             </span>
           </p>
           <Button size="sm" variant="primary" loading={save.isPending} onClick={() => saveAddresses([...addresses, here])}>
-            Add {here}
+            {t("proxy.add", { address: here })}
           </Button>
         </div>
       ) : null}
@@ -93,7 +97,7 @@ export function ProxyAddresses() {
               <span className="truncate font-mono text-xs">{address}</span>
               <IconButton
                 size="sm"
-                label={`Remove ${address}`}
+                label={t("proxy.remove", { address })}
                 disabled={save.isPending}
                 onClick={() => saveAddresses(addresses.filter((a) => a !== address))}
               >
@@ -105,7 +109,7 @@ export function ProxyAddresses() {
       ) : null}
       <div className="flex gap-2">
         <TextInput
-          aria-label="Address with a port"
+          aria-label={t("proxy.address")}
           placeholder="https://media.example.com:9999"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -119,7 +123,7 @@ export function ProxyAddresses() {
           className="min-w-0 flex-1 font-mono text-xs"
         />
         <Button size="sm" icon={<Plus className="size-4" />} disabled={!draft.trim() || save.isPending} onClick={add}>
-          Add
+          {t("common:actions.add")}
         </Button>
       </div>
     </Card>

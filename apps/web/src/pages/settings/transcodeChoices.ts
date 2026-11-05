@@ -1,11 +1,13 @@
 import type { HwAccel, Settings, SystemInfo, ToneMapping, TranscoderInfo } from "@/api/types";
+import { t } from "@/i18n";
 
 /**
  * What Settings → Transcoder offers on this server: each choice
  * with why it can't work here, or with the hardware acceleration chosen, as
  * the server judges when saving (settings.rs, `hwaccel_problem`,
  * `tonemap_problem` and `fit_to_accel`). A choice saved before (another
- * GPU, another FFmpeg) stays chosen and says what happens instead.
+ * GPU, another FFmpeg) stays chosen and says what happens instead. The
+ * words are looked up when asked for, in the language shown then.
  */
 export interface Choice<T> {
   value: T;
@@ -14,43 +16,37 @@ export interface Choice<T> {
   reason: string | null;
 }
 
-const ACCEL_NAME: Record<HwAccel, string> = {
-  auto: "Automatic",
+/** The hardware accelerations' names; Automatic and software are said in the language shown. */
+const ACCEL_BRAND: Record<Exclude<HwAccel, "auto" | "none">, string> = {
   nvenc: "NVIDIA NVENC",
   qsv: "Intel Quick Sync",
   amf: "AMD AMF",
   vaapi: "VAAPI",
   videotoolbox: "VideoToolbox",
   vulkan: "Vulkan",
-  none: "Software only",
 };
 
-const ACCEL_NEEDS: Partial<Record<HwAccel, string>> = {
-  nvenc: "needs an NVIDIA graphics card",
-  qsv: "needs an Intel graphics chip",
-  amf: "needs an AMD graphics card",
-  vaapi: "needs an Intel or AMD graphics chip",
-  videotoolbox: "needs an FFmpeg with VideoToolbox",
-};
+function accelName(accel: HwAccel): string {
+  if (accel === "auto") return t("choices.automatic", { ns: "settings" });
+  if (accel === "none") return t("choices.softwareOnly", { ns: "settings" });
+  return ACCEL_BRAND[accel];
+}
+
+/** The accelerations that need a GPU or an FFmpeg of their own. */
+const ACCEL_NEEDS = ["nvenc", "qsv", "amf", "vaapi", "videotoolbox"] as const;
+type NeedyAccel = (typeof ACCEL_NEEDS)[number];
+const needsHardware = (accel: HwAccel): accel is NeedyAccel => (ACCEL_NEEDS as readonly HwAccel[]).includes(accel);
 
 /** The menu's order; Vulkan only when saved (it is set through the API). */
 const ACCELS: HwAccel[] = ["auto", "nvenc", "qsv", "amf", "vaapi", "videotoolbox", "none"];
 
-const TONEMAP_NAME: Record<ToneMapping, string> = {
-  auto: "Automatic",
-  libplacebo: "libplacebo",
-  opencl: "OpenCL",
-  zscale: "zscale",
-  none: "Disabled",
-};
-
 const TONEMAP_SHORT: Partial<Record<ToneMapping, string>> = { libplacebo: "libplacebo", opencl: "OpenCL", zscale: "zscale" };
 
-const TONEMAP_NEEDS: Partial<Record<ToneMapping, string>> = {
-  libplacebo: "needs libplacebo and a Vulkan GPU",
-  opencl: "needs a GPU with OpenCL",
-  zscale: "this FFmpeg has no zscale",
-};
+function tonemapName(mode: ToneMapping): string {
+  if (mode === "auto") return t("choices.automatic", { ns: "settings" });
+  if (mode === "none") return t("choices.disabled", { ns: "settings" });
+  return TONEMAP_SHORT[mode] ?? mode;
+}
 
 const TONEMAPS: ToneMapping[] = ["auto", "libplacebo", "opencl", "zscale", "none"];
 
@@ -71,9 +67,9 @@ export function transcoderOs(system: SystemInfo | undefined): string | null {
 /** Why `accel` can never work on `os`, or `null`. */
 function osReason(accel: HwAccel, os: string | null): string | null {
   if (!os) return null;
-  if (accel === "vaapi" && os !== "linux") return "on Linux only";
-  if (accel === "videotoolbox" && os !== "macos") return "on macOS only";
-  if ((accel === "nvenc" || accel === "qsv" || accel === "amf") && os === "macos") return "not on macOS";
+  if (accel === "vaapi" && os !== "linux") return t("choices.linuxOnly", { ns: "settings" });
+  if (accel === "videotoolbox" && os !== "macos") return t("choices.macosOnly", { ns: "settings" });
+  if ((accel === "nvenc" || accel === "qsv" || accel === "amf") && os === "macos") return t("choices.notOnMacos", { ns: "settings" });
   return null;
 }
 
@@ -83,7 +79,7 @@ export function accelReason(accel: HwAccel, system: SystemInfo | undefined): str
   const os = osReason(accel, transcoderOs(system));
   if (os) return os;
   const tc = knownTranscoder(system);
-  return tc && !tc.accels.includes(accel) ? (ACCEL_NEEDS[accel] ?? null) : null;
+  return tc && !tc.accels.includes(accel) && needsHardware(accel) ? t(`choices.accelNeeds.${accel}`, { ns: "settings" }) : null;
 }
 
 /**
@@ -99,10 +95,10 @@ export function accelChoices(saved: HwAccel, system: SystemInfo | undefined): Ch
     .filter((value) => value === saved || !osReason(value, os))
     .map((value) => {
       const reason = accelReason(value, system);
-      let label = ACCEL_NAME[value];
-      if (value === "auto") {
-        const first = tc?.accels[0];
-        label = tc ? `Automatic · ${first ? ACCEL_NAME[first] : "software encoding"}` : "Automatic";
+      let label = accelName(value);
+      if (value === "auto" && tc) {
+        const first = tc.accels[0];
+        label = t("choices.automaticWith", { ns: "settings", name: first ? accelName(first) : t("choices.softwareEncoding", { ns: "settings" }) });
       }
       return { value, label, reason };
     });
@@ -124,10 +120,10 @@ export function tonemapChoices(system: SystemInfo | undefined, accel: HwAccel): 
   const tc = knownTranscoder(system);
   return TONEMAPS.map((value) => {
     const reason = tonemapReason(value, system) ?? tonemapAccelReason(value, accel, system);
-    let label = TONEMAP_NAME[value];
+    let label = tonemapName(value);
     if (value === "auto" && tc) {
       const first = tc.tonemapping[0] as ToneMapping | undefined;
-      label = `Automatic · ${first ? (TONEMAP_SHORT[first] ?? first) : "none available"}`;
+      label = t("choices.automaticWith", { ns: "settings", name: first ? (TONEMAP_SHORT[first] ?? first) : t("choices.noneAvailable", { ns: "settings" }) });
     }
     return { value, label, reason };
   });
@@ -137,7 +133,7 @@ export function tonemapChoices(system: SystemInfo | undefined, accel: HwAccel): 
 export function tonemapReason(mode: ToneMapping, system: SystemInfo | undefined): string | null {
   const tc = knownTranscoder(system);
   if (!tc || mode === "auto" || mode === "none") return null;
-  return tc.tonemapping.includes(mode) ? null : (TONEMAP_NEEDS[mode] ?? null);
+  return tc.tonemapping.includes(mode) ? null : t(`choices.tonemapNeeds.${mode}`, { ns: "settings" });
 }
 
 /**
@@ -154,10 +150,10 @@ export const tonemapGoesWith = (accel: HwAccel, mode: ToneMapping) => accel !== 
  * the transcoder's test (it tone maps with another then).
  */
 export function tonemapAccelReason(mode: ToneMapping, accel: HwAccel, system?: SystemInfo): string | null {
-  if (!tonemapGoesWith(accel, mode)) return `not with ${ACCEL_NAME[accel]}`;
+  if (!tonemapGoesWith(accel, mode)) return t("choices.notWith", { ns: "settings", name: accelName(accel) });
   const works = knownTranscoder(system)?.with_accel?.[accel]?.tonemappers;
   if (!works || mode === "auto" || mode === "none" || works.includes(mode)) return null;
-  return `not with ${ACCEL_NAME[accel]}`;
+  return t("choices.notWith", { ns: "settings", name: accelName(accel) });
 }
 
 /**
@@ -169,10 +165,10 @@ export function tonemapAccelReason(mode: ToneMapping, accel: HwAccel, system?: S
 export function decodingReason(accel: HwAccel, system: SystemInfo | undefined): string | null {
   const tc = knownTranscoder(system);
   if (!tc || accel === "vulkan") return null;
-  if (!tc.hardware_decoding) return "no graphics card here that FFmpeg decodes on";
+  if (!tc.hardware_decoding) return t("choices.noGpuDecoder", { ns: "settings" });
   if (tc.with_accel?.[accel]?.hardware_decoding !== false) return null;
   const encodes = accelInUse(accel, system);
-  return `not with ${encodes ? ACCEL_NAME[encodes] : "software encoding"}`;
+  return t("choices.notWith", { ns: "settings", name: encodes ? accelName(encodes) : t("choices.softwareEncoding", { ns: "settings" }) });
 }
 
 /** What follows from choosing `accel`, for what `form` holds that doesn't go with it. */
@@ -191,14 +187,14 @@ export function fitToAccel(form: Pick<Settings, "tonemapping" | "hardware_decodi
   const fit: AccelFit = { changes: {}, notes: {} };
   if (!tonemapGoesWith(accel, form.tonemapping)) {
     fit.changes.tonemapping = "auto";
-    fit.notes.tonemapping = `Set to Automatic: ${ACCEL_NAME[accel]} tone maps with libplacebo only.`;
+    fit.notes.tonemapping = t("choices.fitLibplaceboOnly", { ns: "settings", accel: accelName(accel) });
   } else if (tonemapAccelReason(form.tonemapping, accel, system)) {
     fit.changes.tonemapping = "auto";
-    fit.notes.tonemapping = `Set to Automatic: ${TONEMAP_SHORT[form.tonemapping] ?? form.tonemapping} doesn't reach ${ACCEL_NAME[accel]} here.`;
+    fit.notes.tonemapping = t("choices.fitUnreached", { ns: "settings", tonemap: tonemapName(form.tonemapping), accel: accelName(accel) });
   }
   if (accel === "vulkan" && !form.hardware_decoding) {
     fit.changes.hardware_decoding = true;
-    fit.notes.hardware_decoding = `Turned on: ${ACCEL_NAME[accel]} decodes on the GPU.`;
+    fit.notes.hardware_decoding = t("choices.fitDecoding", { ns: "settings", accel: accelName(accel) });
   }
   return fit;
 }
@@ -212,11 +208,11 @@ export function fitToAccel(form: Pick<Settings, "tonemapping" | "hardware_decodi
 export function presetNote(accel: HwAccel, system: SystemInfo | undefined): string | null {
   const encodes = accelInUse(accel, system);
   if (!encodes) return null;
-  const name = ACCEL_NAME[encodes];
+  const name = accelName(encodes);
   const software = knownTranscoder(system)?.with_accel?.[accel]?.software ?? [];
-  if (software.includes("hevc")) return `${name} encodes H.264 here: this applies to HEVC, and when software encodes instead.`;
-  if (software.includes("hdr")) return `${name} encodes here: this applies to transcodes that keep HDR, and when software encodes instead.`;
-  return `${name} encodes here: this applies only when software encodes instead.`;
+  if (software.includes("hevc")) return t("choices.presetHevc", { ns: "settings", name });
+  if (software.includes("hdr")) return t("choices.presetHdr", { ns: "settings", name });
+  return t("choices.presetSoftware", { ns: "settings", name });
 }
 
 /**
@@ -227,16 +223,16 @@ export function presetNote(accel: HwAccel, system: SystemInfo | undefined): stri
 export function memoryReason(system: SystemInfo | undefined, throttle: boolean): string | null {
   const tc = system?.transcoder;
   if (tc?.available) {
-    if (!tc.memory) return "needs a newer transcoder";
-    if (!tc.memory.available) return tc.memory.reason ?? "not available here";
+    if (!tc.memory) return t("choices.newerTranscoder", { ns: "settings" });
+    if (!tc.memory.available) return tc.memory.reason ?? t("choices.notAvailableHere", { ns: "settings" });
   }
-  return !throttle || knownTranscoder(system)?.throttling === false ? "needs throttling" : null;
+  return !throttle || knownTranscoder(system)?.throttling === false ? t("choices.needsThrottling", { ns: "settings" }) : null;
 }
 
 /** What a saved tone mapper that can't work here gives instead: Automatic's choice. */
 export function tonemapFallback(system: SystemInfo | undefined): string {
   const first = knownTranscoder(system)?.tonemapping[0] as ToneMapping | undefined;
   return first
-    ? `HDR is tone mapped with ${TONEMAP_SHORT[first] ?? first} instead.`
-    : "No tone mapper works here, so HDR may look washed out.";
+    ? t("choices.tonemappedWith", { ns: "settings", name: TONEMAP_SHORT[first] ?? first })
+    : t("choices.noTonemapper", { ns: "settings" });
 }

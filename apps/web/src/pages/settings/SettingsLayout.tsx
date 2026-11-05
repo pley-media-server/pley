@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router";
 import { Cpu, Inbox, LayoutDashboard, LibraryBig, MailPlus, Network, Server, Tv2, Users } from "lucide-react";
 import { RequireAdmin } from "@/auth";
@@ -8,25 +9,26 @@ import { useDocumentTitle } from "@/lib/hooks";
 
 /** The first is where Settings opens. */
 const NAV = [
-  { to: "/settings/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/settings/libraries", label: "Libraries", icon: LibraryBig },
-  { to: "/settings/livetv", label: "Live TV", icon: Tv2 },
-  { to: "/settings/users", label: "Users", icon: Users },
-  { to: "/settings/invitations", label: "Invitations", icon: MailPlus },
-  { to: "/settings/requests", label: "Requests", icon: Inbox },
-  { to: "/settings/server", label: "Server", icon: Server },
-  { to: "/settings/transcoder", label: "Transcoder", icon: Cpu },
-  { to: "/settings/network", label: "Network", icon: Network },
-];
+  { to: "/settings/dashboard", label: "dashboard", icon: LayoutDashboard },
+  { to: "/settings/libraries", label: "libraries", icon: LibraryBig },
+  { to: "/settings/livetv", label: "livetv", icon: Tv2 },
+  { to: "/settings/users", label: "users", icon: Users },
+  { to: "/settings/invitations", label: "invitations", icon: MailPlus },
+  { to: "/settings/requests", label: "requests", icon: Inbox },
+  { to: "/settings/server", label: "server", icon: Server },
+  { to: "/settings/transcoder", label: "transcoder", icon: Cpu },
+  { to: "/settings/network", label: "network", icon: Network },
+] as const;
 
 export function SettingsLayout() {
-  useDocumentTitle("Settings");
+  const { t } = useTranslation("settings");
+  useDocumentTitle(t("layout.title"));
   return (
     <RequireAdmin>
       <div className="px-4 py-6 sm:px-8">
-        <h1 className="mb-5 text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="mb-5 text-2xl font-bold tracking-tight">{t("layout.title")}</h1>
         <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          <nav className="scrollbar-none -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:w-48 md:shrink-0 md:flex-col md:px-0" aria-label="Settings">
+          <nav className="scrollbar-none -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:w-48 md:shrink-0 md:flex-col md:px-0" aria-label={t("layout.title")}>
             {NAV.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -41,7 +43,7 @@ export function SettingsLayout() {
                 {({ isActive }) => (
                   <>
                     <Icon className={cn("size-4", isActive ? "text-accent" : "text-subtle")} />
-                    {label}
+                    {t(`layout.nav.${label}`)}
                   </>
                 )}
               </NavLink>

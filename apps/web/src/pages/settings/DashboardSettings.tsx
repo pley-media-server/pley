@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import {
   Activity as ActivityIcon,
@@ -18,7 +19,6 @@ import { useActivity, useStopSession, useSystemInfo, useTranscoderStatus } from 
 import type {
   LibraryWorkStatus,
   PlaybackMethod,
-  ScanStatus,
   SessionInfo,
   TranscodeJobState,
   TranscodePipeline,
@@ -33,43 +33,37 @@ import { useToast } from "@/components/Toast";
 import { ResourcesSection } from "./ResourcesSection";
 import { StorageSection } from "./StorageSection";
 import { Badge, Button, Card, EmptyState, Field, ProgressBar, SectionTitle, Skeleton } from "@/components/ui";
+import { currentLanguage, t as translate } from "@/i18n";
 import { versionLabel, WEB_COMMIT, WEB_VERSION } from "@/lib/build";
 import { cn } from "@/lib/cn";
-import { formatBytes, formatClock, formatTimestamp, formatUptime, fullTitle, pluralize, transcodeSummary } from "@/lib/format";
+import { formatBytes, formatClock, formatTimestamp, formatUptime, fullTitle, transcodeSummary } from "@/lib/format";
 import { thumbCandidates } from "@/lib/images";
 import { useDocumentTitle } from "@/lib/hooks";
 import { itemUrl } from "@/lib/urls";
 
-const METHOD: Record<PlaybackMethod, { label: string; tone: "success" | "info" | "accent" }> = {
-  direct: { label: "Direct Play", tone: "success" },
-  remux: { label: "Remux", tone: "info" },
-  transcode: { label: "Transcode", tone: "accent" },
+const METHOD_TONE: Record<PlaybackMethod, "success" | "info" | "accent"> = {
+  direct: "success",
+  remux: "info",
+  transcode: "accent",
 };
 
-const PIPELINE: Record<TranscodePipeline, { label: string; tone: "success" | "info" | "neutral"; title: string }> = {
-  gpu: { label: "GPU", tone: "success", title: "Decoded, filtered and encoded on the GPU without copies" },
-  hybrid: { label: "Hybrid", tone: "info", title: "Part GPU, part CPU" },
-  cpu: { label: "CPU", tone: "neutral", title: "Software decoding and encoding" },
-  copy: { label: "Copy", tone: "neutral", title: "Video stream copied, not re-encoded" },
+const PIPELINE_TONE: Record<TranscodePipeline, "success" | "info" | "neutral"> = {
+  gpu: "success",
+  hybrid: "info",
+  cpu: "neutral",
+  copy: "neutral",
 };
 
 function PipelineBadge({ pipeline, className }: { pipeline: TranscodePipeline | null | undefined; className?: string }) {
-  const p = pipeline ? PIPELINE[pipeline] : undefined;
-  if (!p) return null;
+  const { t } = useTranslation("settings");
+  const tone = pipeline ? PIPELINE_TONE[pipeline] : undefined;
+  if (!pipeline || !tone) return null;
   return (
-    <Badge tone={p.tone} className={className}>
-      <span title={p.title}>{p.label}</span>
+    <Badge tone={tone} className={className}>
+      <span title={t(`dashboard.pipelines.${pipeline}.title`)}>{t(`dashboard.pipelines.${pipeline}.label`)}</span>
     </Badge>
   );
 }
-
-const JOB_LABEL: Record<TranscodeJobState, string> = {
-  starting: "Starting",
-  running: "Running",
-  idle: "Idle",
-  finished: "Finished",
-  failed: "Failed",
-};
 
 const JOB_TONE: Record<TranscodeJobState, "success" | "info" | "accent" | "danger" | "neutral"> = {
   starting: "info",
@@ -79,25 +73,19 @@ const JOB_TONE: Record<TranscodeJobState, "success" | "info" | "accent" | "dange
   failed: "danger",
 };
 
-const PHASE_LABEL: Record<ScanStatus["phase"], string> = {
-  queued: "Queued",
-  walking: "Finding files",
-  probing: "Analyzing media",
-  metadata: "Fetching metadata",
-  done: "Finished",
-};
-
 /** Why the libraries' intros, credits and previews wait, if they do. */
 function libraryWorkWaits(work: LibraryWorkStatus | null): string {
   if (!work) return "";
   switch (work.waiting) {
     case "playing":
-      return "waits while something plays";
+      return translate("dashboard.waits.playing", { ns: "settings" });
     case "busy":
-      return "waits while other programs keep the processors busy";
+      return translate("dashboard.waits.busy", { ns: "settings" });
     case "hours": {
-      const from = work.resumes_at ? ` (from ${formatTimestamp(work.resumes_at)})` : "";
-      return work.mode === "auto" ? `what's likely to be watched soon first, the rest in quieter hours${from}` : `waits for its hours${from}`;
+      const mode = work.mode === "auto" ? "auto" : "hours";
+      return work.resumes_at
+        ? translate(`dashboard.waits.${mode}From`, { ns: "settings", time: formatTimestamp(work.resumes_at) })
+        : translate(`dashboard.waits.${mode}`, { ns: "settings" });
     }
     default:
       return "";
@@ -109,6 +97,7 @@ const STOP_MESSAGE_MAX = 200;
 
 /** Ends someone's playback, with a message for their screen if wanted. */
 function StopSessionModal({ session, onClose }: { session: SessionInfo | null; onClose: () => void }) {
+  const { t } = useTranslation(["settings", "common"]);
   const stop = useStopSession();
   const toast = useToast();
   const [message, setMessage] = useState("");
@@ -119,7 +108,7 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
       { sessionId: session.session_id, message: message.trim() || undefined },
       {
         onSuccess: () => {
-          toast.success("Playback stopped");
+          toast.success(t("dashboard.stop.stopped"));
           onClose();
         },
         onError: (err) => toast.error(errorMessage(err)),
@@ -130,16 +119,16 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
     <Modal
       open={!!session}
       onClose={onClose}
-      title="Stop playback"
+      title={t("dashboard.stop.title")}
       size="sm"
       locked={stop.isPending}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={stop.isPending}>
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button variant="danger" type="submit" form="stop-session-form" loading={stop.isPending}>
-            Stop
+            {t("dashboard.stop.stop")}
           </Button>
         </>
       }
@@ -147,9 +136,14 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
       {session ? (
         <form id="stop-session-form" onSubmit={submit} className="space-y-4">
           <p className="text-sm text-muted">
-            <span className="font-medium text-fg">{fullTitle(session.item)}</span> stops for {session.username} right away.
+            <Trans
+              t={t}
+              i18nKey="dashboard.stop.stopsFor"
+              values={{ title: fullTitle(session.item), user: session.username }}
+              components={{ title: <span className="font-medium text-fg" /> }}
+            />
           </p>
-          <Field label="Message" htmlFor="stop-session-message" hint="Optional. Shown on their screen.">
+          <Field label={t("dashboard.stop.message")} htmlFor="stop-session-message" hint={t("dashboard.stop.messageHint")}>
             <textarea
               id="stop-session-message"
               rows={3}
@@ -166,9 +160,9 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
 }
 
 function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
+  const { t } = useTranslation("settings");
   const duration = s.item.duration_ms ?? 0;
-  const method = METHOD[s.method];
-  const t = s.transcode;
+  const tc = s.transcode;
   return (
     <div className="flex gap-4 rounded-lg border border-border bg-surface p-3">
       <Link to={itemUrl(s.item.id)} className="w-32 shrink-0 sm:w-40">
@@ -185,8 +179,8 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
           <Link to={itemUrl(s.item.id)} className="line-clamp-2 text-sm font-semibold hover:text-accent">
             {fullTitle(s.item)}
           </Link>
-          <Badge tone={method.tone} className="shrink-0">
-            {method.label}
+          <Badge tone={METHOD_TONE[s.method]} className="shrink-0">
+            {t(`dashboard.methods.${s.method}`)}
           </Badge>
         </div>
         {/* On a line of its own: beside the user, the time and Stop there is no room for it in two columns. */}
@@ -212,32 +206,34 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
           <button
             type="button"
             onClick={onStop}
-            aria-label={`Stop ${fullTitle(s.item)} for ${s.username}${s.device ? ` on ${s.device}` : ""}`}
-            title="Stop playback"
+            aria-label={
+              s.device
+                ? t("dashboard.stop.labelOn", { title: fullTitle(s.item), user: s.username, device: s.device })
+                : t("dashboard.stop.label", { title: fullTitle(s.item), user: s.username })
+            }
+            title={t("dashboard.stop.title")}
             className="-my-1 ml-auto flex items-center gap-1 rounded-md px-2 py-1 font-medium text-muted transition-colors hover:bg-danger/10 hover:text-danger"
           >
             <CircleStop className="size-3.5" />
-            Stop
+            {t("dashboard.stop.stop")}
           </button>
         </div>
         {duration ? <ProgressBar value={s.position_ms / duration} className="h-1" /> : null}
-        {t ? (
+        {tc ? (
           <div className="space-y-1 pt-0.5">
             <div className="flex items-start gap-1.5">
-              <PipelineBadge pipeline={t.pipeline} className="mt-px shrink-0" />
-              <div className="text-xs leading-snug text-fg/75" title={transcodeSummary(t)}>
-                {transcodeSummary(t) || "Preparing…"}
+              <PipelineBadge pipeline={tc.pipeline} className="mt-px shrink-0" />
+              <div className="text-xs leading-snug text-fg/75" title={transcodeSummary(tc)}>
+                {transcodeSummary(tc) || t("dashboard.preparing")}
               </div>
             </div>
-            {t.segments_total > 0 ? (
+            {tc.segments_total > 0 ? (
               <div className="flex items-center gap-2 text-[11px] text-subtle">
-                <ProgressBar value={t.segments_ready / t.segments_total} className="h-0.5 flex-1" barClassName="bg-info" />
-                <span className="tabular-nums">
-                  {t.segments_ready}/{t.segments_total} seg
-                </span>
+                <ProgressBar value={tc.segments_ready / tc.segments_total} className="h-0.5 flex-1" barClassName="bg-info" />
+                <span className="tabular-nums">{t("dashboard.segments", { ready: tc.segments_ready, total: tc.segments_total })}</span>
               </div>
             ) : null}
-            {t.last_error ? <div className="text-xs text-danger">{t.last_error}</div> : null}
+            {tc.last_error ? <div className="text-xs text-danger">{tc.last_error}</div> : null}
           </div>
         ) : null}
       </div>
@@ -255,8 +251,9 @@ function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: Re
   );
 }
 
-function Chips({ items, active, empty = "None" }: { items: string[]; active?: string | null; empty?: string }) {
-  if (!items.length) return <span className="text-sm text-subtle">{empty}</span>;
+function Chips({ items, active, empty }: { items: string[]; active?: string | null; empty?: string }) {
+  const { t } = useTranslation("common");
+  if (!items.length) return <span className="text-sm text-subtle">{empty ?? t("states.none")}</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((e) => (
@@ -284,45 +281,49 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function TranscoderCard({ tc }: { tc: TranscoderInfo }) {
+  const { t } = useTranslation("settings");
+  const available = tc.available ? t("dashboard.transcoder.available") : t("dashboard.transcoder.unavailable");
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center gap-2.5">
         <span
           className={cn("size-2.5 rounded-full ring-4", tc.available ? "bg-success ring-success/20" : "bg-danger ring-danger/20")}
-          aria-label={tc.available ? "Available" : "Unavailable"}
+          aria-label={available}
         />
-        <h3 className="text-base font-semibold">Transcoder</h3>
-        <span className="text-xs text-muted">{tc.managed ? "Managed by Pley" : "External"}</span>
+        <h3 className="text-base font-semibold">{t("dashboard.transcoder.title")}</h3>
+        <span className="text-xs text-muted">{tc.managed ? t("dashboard.transcoder.managed") : t("dashboard.transcoder.external")}</span>
       </div>
       {tc.error ? <p className="mb-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{tc.error}</p> : null}
       <dl>
-        <InfoRow label="Status">{tc.available ? "Available" : "Unavailable"}</InfoRow>
-        {tc.version ? <InfoRow label="Version">pley-transcoder {versionLabel(tc.version, tc.commit)}</InfoRow> : null}
+        <InfoRow label={t("dashboard.transcoder.status")}>{available}</InfoRow>
+        {tc.version ? <InfoRow label={t("dashboard.transcoder.version")}>pley-transcoder {versionLabel(tc.version, tc.commit)}</InfoRow> : null}
         {tc.url ? (
           <InfoRow label="URL">
             <span className="break-all font-mono text-xs">{tc.url}</span>
           </InfoRow>
         ) : null}
         <InfoRow label="ffmpeg">{tc.ffmpeg_version ?? "—"}</InfoRow>
-        <InfoRow label="Encoders">
+        <InfoRow label={t("dashboard.transcoder.encoders")}>
           <Chips items={tc.encoders} active={tc.active_encoder} />
         </InfoRow>
-        <InfoRow label="Active encoder">
+        <InfoRow label={t("dashboard.transcoder.activeEncoder")}>
           <span className="font-mono text-xs">{tc.active_encoder ?? "—"}</span>
         </InfoRow>
-        <InfoRow label="HW acceleration">
+        <InfoRow label={t("dashboard.transcoder.hwAccel")}>
           <Chips items={tc.hwaccels} />
         </InfoRow>
-        <InfoRow label="Tone mapping">
-          <Chips items={tc.tonemapping} empty="Not available" />
+        <InfoRow label={t("dashboard.transcoder.toneMapping")}>
+          <Chips items={tc.tonemapping} empty={t("dashboard.transcoder.notAvailable")} />
         </InfoRow>
         <InfoRow label="Dolby Vision">
-          {tc.dolby_vision ? <Badge tone="success">Supported</Badge> : <Badge>Not supported</Badge>}
+          {tc.dolby_vision ? (
+            <Badge tone="success">{t("dashboard.transcoder.supported")}</Badge>
+          ) : (
+            <Badge>{t("dashboard.transcoder.notSupported")}</Badge>
+          )}
         </InfoRow>
-        <InfoRow label="Jobs">
-          <span className="tabular-nums">
-            {tc.active_jobs} active / {tc.max_jobs} max
-          </span>
+        <InfoRow label={t("dashboard.transcoder.jobs")}>
+          <span className="tabular-nums">{t("dashboard.transcoder.jobCount", { active: tc.active_jobs, max: tc.max_jobs })}</span>
         </InfoRow>
       </dl>
     </Card>
@@ -330,21 +331,24 @@ function TranscoderCard({ tc }: { tc: TranscoderInfo }) {
 }
 
 function JobsTable({ jobs }: { jobs: TranscoderJob[] }) {
-  if (!jobs.length) return <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-subtle">No transcode jobs right now.</p>;
+  const { t } = useTranslation("settings");
+  if (!jobs.length) {
+    return <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-subtle">{t("dashboard.jobs.none")}</p>;
+  }
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full min-w-[960px] text-left text-xs">
         <thead className="bg-surface-2 text-subtle">
           <tr>
-            <th className="px-3 py-2 font-semibold">Job</th>
-            <th className="px-3 py-2 font-semibold">State</th>
-            <th className="px-3 py-2 font-semibold">Video</th>
-            <th className="px-3 py-2 font-semibold">Audio</th>
-            <th className="px-3 py-2 font-semibold">Encoder / decoder</th>
-            <th className="px-3 py-2 font-semibold">Tone map</th>
-            <th className="px-3 py-2 text-right font-semibold">Speed</th>
-            <th className="px-3 py-2 text-right font-semibold">FPS</th>
-            <th className="w-40 px-3 py-2 font-semibold">Segments</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.job")}</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.state")}</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.video")}</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.audio")}</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.codecs")}</th>
+            <th className="px-3 py-2 font-semibold">{t("dashboard.jobs.toneMap")}</th>
+            <th className="px-3 py-2 text-right font-semibold">{t("dashboard.jobs.speed")}</th>
+            <th className="px-3 py-2 text-right font-semibold">{t("dashboard.jobs.fps")}</th>
+            <th className="w-40 px-3 py-2 font-semibold">{t("dashboard.jobs.segments")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.05] bg-surface">
@@ -358,28 +362,36 @@ function JobsTable({ jobs }: { jobs: TranscoderJob[] }) {
                   </div>
                   <div className="truncate text-subtle">
                     {j.owner ?? "—"}
-                    {j.restarts > 0 ? ` · ${j.restarts} restart${j.restarts === 1 ? "" : "s"}` : ""}
+                    {j.restarts > 0 ? ` · ${t("dashboard.jobs.restarts", { count: j.restarts })}` : ""}
                     {j.served_bytes > 0 ? ` · ${formatBytes(j.served_bytes)}` : ""}
                   </div>
                   {i.last_error ? <div className="mt-1 text-danger">{i.last_error}</div> : null}
                   {j.warnings.length ? <div className="mt-1 text-accent">{j.warnings.join("; ")}</div> : null}
                 </td>
                 <td className="px-3 py-2">
-                  <Badge tone={JOB_TONE[j.state]}>{JOB_LABEL[j.state]}</Badge>
-                  {i.subtitle_burn ? <div className="mt-1 text-subtle">burn-in subs</div> : null}
+                  <Badge tone={JOB_TONE[j.state]}>{t(`dashboard.jobStates.${j.state}`)}</Badge>
+                  {i.subtitle_burn ? <div className="mt-1 text-subtle">{t("dashboard.jobs.burnIn")}</div> : null}
                 </td>
                 <td className="px-3 py-2 text-fg/85">
-                  {i.video === "none" ? "—" : i.video === "copy" ? `${i.video_in ?? ""} (copy)` : `${i.video_in ?? "?"} → ${i.video_out ?? "?"}`}
+                  {i.video === "none"
+                    ? "—"
+                    : i.video === "copy"
+                      ? t("dashboard.jobs.copied", { codec: i.video_in ?? "" })
+                      : `${i.video_in ?? "?"} → ${i.video_out ?? "?"}`}
                 </td>
                 <td className="px-3 py-2 text-fg/85">
-                  {i.audio === "none" ? "—" : i.audio === "copy" ? `${i.audio_in ?? ""} (copy)` : `${i.audio_in ?? "?"} → ${i.audio_out ?? "?"}`}
+                  {i.audio === "none"
+                    ? "—"
+                    : i.audio === "copy"
+                      ? t("dashboard.jobs.copied", { codec: i.audio_in ?? "" })
+                      : `${i.audio_in ?? "?"} → ${i.audio_out ?? "?"}`}
                 </td>
                 <td className="px-3 py-2 font-mono text-fg/80">
                   <div className="flex items-center gap-1.5">
                     {i.encoder ?? (i.video === "copy" ? "copy" : "—")}
                     <PipelineBadge pipeline={i.pipeline} className="font-sans" />
                   </div>
-                  {i.preset ? <div className="text-subtle">preset {i.preset}</div> : null}
+                  {i.preset ? <div className="text-subtle">{t("dashboard.jobs.preset", { preset: i.preset })}</div> : null}
                   <div className="text-subtle">{i.decoder ?? ""}</div>
                 </td>
                 <td className="px-3 py-2 font-mono text-fg/80">{i.tonemap ?? "—"}</td>
@@ -407,20 +419,38 @@ function JobsTable({ jobs }: { jobs: TranscoderJob[] }) {
 }
 
 function TranscoderLive({ status }: { status: TranscoderStatus }) {
+  const { t } = useTranslation("settings");
   const c = status.counters;
   const avgProbe = c.probes > 0 ? Math.round(c.probe_ms_total / c.probes) : null;
+  const lang = currentLanguage();
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Running jobs" value={`${status.running_processes} / ${status.max_jobs}`} sub={`${c.jobs_created.toLocaleString()} created`} />
-        <Stat label="HW sessions" value={`${status.hw_processes} / ${status.max_hw_jobs}`} />
-        <Stat label="Segments served" value={c.segments_served.toLocaleString()} sub={`${c.segments_produced.toLocaleString()} produced`} />
-        <Stat label="Data served" value={formatBytes(c.bytes_served)} sub={`${formatBytes(status.work_dir_bytes)} on disk`} />
-        <Stat label="Probes" value={c.probes.toLocaleString()} sub={avgProbe != null ? `avg ${avgProbe} ms` : undefined} />
         <Stat
-          label="Failures"
-          value={(c.jobs_failed + c.process_failures + c.probe_failures).toLocaleString()}
-          sub={`${c.thumbnails.toLocaleString()} thumbs · ${c.subtitle_extractions.toLocaleString()} subs`}
+          label={t("dashboard.live.runningJobs")}
+          value={`${status.running_processes} / ${status.max_jobs}`}
+          sub={t("dashboard.live.created", { count: c.jobs_created })}
+        />
+        <Stat label={t("dashboard.live.hwSessions")} value={`${status.hw_processes} / ${status.max_hw_jobs}`} />
+        <Stat
+          label={t("dashboard.live.segmentsServed")}
+          value={c.segments_served.toLocaleString(lang)}
+          sub={t("dashboard.live.produced", { count: c.segments_produced })}
+        />
+        <Stat
+          label={t("dashboard.live.dataServed")}
+          value={formatBytes(c.bytes_served)}
+          sub={t("dashboard.live.onDisk", { size: formatBytes(status.work_dir_bytes) })}
+        />
+        <Stat
+          label={t("dashboard.live.probes")}
+          value={c.probes.toLocaleString(lang)}
+          sub={avgProbe != null ? t("dashboard.live.average", { ms: avgProbe }) : undefined}
+        />
+        <Stat
+          label={t("dashboard.live.failures")}
+          value={(c.jobs_failed + c.process_failures + c.probe_failures).toLocaleString(lang)}
+          sub={t("dashboard.live.thumbsAndSubs", { thumbs: c.thumbnails.toLocaleString(lang), subs: c.subtitle_extractions.toLocaleString(lang) })}
         />
       </div>
       <JobsTable jobs={status.jobs} />
@@ -429,7 +459,8 @@ function TranscoderLive({ status }: { status: TranscoderStatus }) {
 }
 
 export function DashboardSettings() {
-  useDocumentTitle("Dashboard");
+  const { t } = useTranslation(["settings", "common"]);
+  useDocumentTitle(t("dashboard.title"));
   const activity = useActivity({ poll: 5_000 });
   const system = useSystemInfo();
   const transcoder = useTranscoderStatus(2_500);
@@ -448,14 +479,14 @@ export function DashboardSettings() {
       <section>
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <MonitorPlay className="size-5 text-accent" /> Now playing
+            <MonitorPlay className="size-5 text-accent" /> {t("dashboard.nowPlaying")}
             {sessions.length ? <span className="text-sm font-normal text-subtle">{sessions.length}</span> : null}
           </span>
         </SectionTitle>
         {activity.isPending ? (
           <Skeleton className="h-28" />
         ) : sessions.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-subtle">Nobody is watching anything right now.</p>
+          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-subtle">{t("dashboard.nobodyWatching")}</p>
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
             {sessions.map((s) => (
@@ -472,23 +503,23 @@ export function DashboardSettings() {
       <section>
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <History className="size-5 text-accent" /> Recently played
+            <History className="size-5 text-accent" /> {t("dashboard.recentlyPlayed")}
           </span>
         </SectionTitle>
-        <HistoryList scope={{ all: true }} showUser pageSize={10} empty="Nothing has been played to the end yet." />
+        <HistoryList scope={{ all: true }} showUser pageSize={10} empty={t("dashboard.nothingPlayed")} />
       </section>
 
       <section>
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <Cpu className="size-5 text-accent" /> Transcoder
+            <Cpu className="size-5 text-accent" /> {t("dashboard.transcoder.title")}
           </span>
         </SectionTitle>
         {transcoder.isPending ? (
           <Skeleton className="h-40" />
         ) : transcoder.isError ? (
           <p className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            Transcoder status unavailable: {errorMessage(transcoder.error)}
+            {t("dashboard.transcoder.statusUnavailable", { error: errorMessage(transcoder.error) })}
           </p>
         ) : (
           <TranscoderLive status={transcoder.data} />
@@ -499,7 +530,7 @@ export function DashboardSettings() {
         <section>
           <SectionTitle>
             <span className="flex items-center gap-2">
-              <RefreshCw className="size-5 animate-spin text-accent" /> Library scans
+              <RefreshCw className="size-5 animate-spin text-accent" /> {t("dashboard.libraryScans")}
             </span>
           </SectionTitle>
           <div className="space-y-2">
@@ -508,8 +539,8 @@ export function DashboardSettings() {
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span className="font-medium">{s.library_name}</span>
                   <span className="text-xs text-muted">
-                    {PHASE_LABEL[s.phase]}
-                    {s.total > 0 ? ` · ${s.processed.toLocaleString()} / ${s.total.toLocaleString()}` : ""}
+                    {t(`scanPhases.${s.phase}`)}
+                    {s.total > 0 ? ` · ${s.processed.toLocaleString(currentLanguage())} / ${s.total.toLocaleString(currentLanguage())}` : ""}
                   </span>
                 </div>
                 <ProgressBar value={s.total > 0 ? s.processed / s.total : 0} className="h-1.5" />
@@ -523,7 +554,7 @@ export function DashboardSettings() {
         <section>
           <SectionTitle>
             <span className="flex items-center gap-2">
-              <FastForward className="size-5 text-accent" /> Finding intros and credits
+              <FastForward className="size-5 text-accent" /> {t("dashboard.findingMarkers")}
             </span>
           </SectionTitle>
           <div className="space-y-2 rounded-lg border border-border bg-surface px-4 py-3">
@@ -531,16 +562,15 @@ export function DashboardSettings() {
               <div>
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span className="font-medium">{analysis.title}</span>
-                  <span className="text-xs text-muted">
-                    {analysis.done} / {analysis.total} audio fingerprints
-                  </span>
+                  <span className="text-xs text-muted">{t("dashboard.fingerprints", { done: analysis.done, total: analysis.total })}</span>
                 </div>
                 <ProgressBar value={analysis.total > 0 ? analysis.done / analysis.total : 0} className="h-1.5" />
               </div>
             ) : null}
             {seasonsPending > 0 ? (
               <p className="text-sm text-muted">
-                {pluralize(seasonsPending, "season")} left{waits ? ` · ${waits}` : ""}
+                {t("dashboard.seasonsLeft", { count: seasonsPending })}
+                {waits ? ` · ${waits}` : ""}
               </p>
             ) : null}
           </div>
@@ -551,11 +581,12 @@ export function DashboardSettings() {
         <section>
           <SectionTitle>
             <span className="flex items-center gap-2">
-              <Images className="size-5 text-accent" /> Making seek previews
+              <Images className="size-5 text-accent" /> {t("dashboard.makingPreviews")}
             </span>
           </SectionTitle>
           <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted">
-            {pluralize(previewsPending, "file")} left{previewsRunning > 1 ? ` · ${previewsRunning} at a time` : ""}
+            {t("dashboard.filesLeft", { count: previewsPending })}
+            {previewsRunning > 1 ? ` · ${t("dashboard.atATime", { n: previewsRunning })}` : ""}
             {waits ? ` · ${waits}` : ""}
           </p>
         </section>
@@ -564,37 +595,53 @@ export function DashboardSettings() {
       <section>
         <SectionTitle>
           <span className="flex items-center gap-2">
-            <ActivityIcon className="size-5 text-accent" /> System
+            <ActivityIcon className="size-5 text-accent" /> {t("dashboard.system")}
           </span>
         </SectionTitle>
         {system.isPending ? (
           <Skeleton className="h-48" />
         ) : system.isError ? (
-          <EmptyState title="Couldn't load system info" description={errorMessage(system.error)} action={<Button onClick={() => void system.refetch()}>Retry</Button>} />
+          <EmptyState
+            title={t("dashboard.couldntLoadSystem")}
+            description={errorMessage(system.error)}
+            action={<Button onClick={() => void system.refetch()}>{t("common:actions.retry")}</Button>}
+          />
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
             <div className="space-y-4">
               <Card>
                 <h3 className="mb-3 text-base font-semibold">{system.data.name}</h3>
                 <dl>
-                  <InfoRow label="Version">Pley {versionLabel(system.data.version, system.data.commit)}</InfoRow>
-                  <InfoRow label="Web app">{versionLabel(WEB_VERSION, WEB_COMMIT)}</InfoRow>
-                  <InfoRow label="Platform">
+                  <InfoRow label={t("dashboard.version")}>Pley {versionLabel(system.data.version, system.data.commit)}</InfoRow>
+                  <InfoRow label={t("dashboard.webApp")}>{versionLabel(WEB_VERSION, WEB_COMMIT)}</InfoRow>
+                  <InfoRow label={t("dashboard.platform")}>
                     {system.data.os} · {system.data.arch}
                   </InfoRow>
-                  <InfoRow label="Uptime">{formatUptime(system.data.uptime_secs)}</InfoRow>
-                  <InfoRow label="Data directory">
+                  <InfoRow label={t("dashboard.uptime")}>{formatUptime(system.data.uptime_secs)}</InfoRow>
+                  <InfoRow label={t("dashboard.dataDirectory")}>
                     <span className="break-all font-mono text-xs">{system.data.data_dir}</span>
                   </InfoRow>
                 </dl>
               </Card>
               <div className="grid grid-cols-3 gap-3">
-                <Stat label="Movies" value={system.data.counts.movies.toLocaleString()} />
-                <Stat label="Shows" value={system.data.counts.shows.toLocaleString()} sub={`${system.data.counts.episodes.toLocaleString()} episodes`} />
-                <Stat label="Artists" value={system.data.counts.artists.toLocaleString()} sub={`${system.data.counts.albums.toLocaleString()} albums`} />
-                <Stat label="Tracks" value={system.data.counts.tracks.toLocaleString()} />
-                <Stat label="Files" value={system.data.counts.files.toLocaleString()} />
-                <Stat label="Users" value={system.data.counts.users.toLocaleString()} sub={`${system.data.counts.libraries} libraries`} />
+                <Stat label={t("dashboard.counts.movies")} value={system.data.counts.movies.toLocaleString(currentLanguage())} />
+                <Stat
+                  label={t("dashboard.counts.shows")}
+                  value={system.data.counts.shows.toLocaleString(currentLanguage())}
+                  sub={t("dashboard.counts.episodes", { count: system.data.counts.episodes })}
+                />
+                <Stat
+                  label={t("dashboard.counts.artists")}
+                  value={system.data.counts.artists.toLocaleString(currentLanguage())}
+                  sub={t("dashboard.counts.albums", { count: system.data.counts.albums })}
+                />
+                <Stat label={t("dashboard.counts.tracks")} value={system.data.counts.tracks.toLocaleString(currentLanguage())} />
+                <Stat label={t("dashboard.counts.files")} value={system.data.counts.files.toLocaleString(currentLanguage())} />
+                <Stat
+                  label={t("dashboard.counts.users")}
+                  value={system.data.counts.users.toLocaleString(currentLanguage())}
+                  sub={t("dashboard.counts.libraries", { count: system.data.counts.libraries })}
+                />
               </div>
             </div>
             <TranscoderCard tc={system.data.transcoder} />
