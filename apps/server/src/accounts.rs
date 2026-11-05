@@ -37,6 +37,7 @@ struct UserRow {
     audio_language: Option<String>,
     subtitle_language: Option<String>,
     subtitle_mode: String,
+    language: Option<String>,
     has_password: bool,
     two_step: bool,
     request_access: String,
@@ -67,6 +68,9 @@ pub struct UserDto {
     pub audio_language: Option<String>,
     pub subtitle_language: Option<String>,
     pub subtitle_mode: SubtitleMode,
+    /// The language the account sees Pley in (see `crate::i18n`); `None`:
+    /// the server's.
+    pub language: Option<String>,
     /// Signs in with a password: false for a managed profile (reached by
     /// switching), and for an account without one until an administrator
     /// gives it one.
@@ -80,7 +84,7 @@ pub struct UserDto {
 
 const USER_COLUMNS: &str = "id, username, display_name, is_admin, managed, home, pin_hash IS NOT NULL AS has_pin,
     avatar, avatar_color, all_libraries, max_age, disabled, created_at, audio_language, subtitle_language,
-    subtitle_mode, password_hash NOT LIKE '!%' AS has_password,
+    subtitle_mode, language, password_hash NOT LIKE '!%' AS has_password,
     EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access";
 
 impl UserRow {
@@ -104,6 +108,7 @@ impl UserRow {
             audio_language: self.audio_language,
             subtitle_language: self.subtitle_language,
             subtitle_mode: SubtitleMode::parse(&self.subtitle_mode),
+            language: self.language,
             has_password: self.has_password,
             two_step: self.two_step,
             request_access: if self.is_admin {
@@ -729,6 +734,7 @@ mod tests {
             audio_language: None,
             subtitle_language: Some("fre".into()),
             subtitle_mode: "foreign".into(),
+            language: None,
             has_password: true,
             two_step: false,
             request_access: "off".into(),

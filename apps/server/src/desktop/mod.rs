@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
+use crate::i18n;
 use crate::state::AppState;
 
 /// Starts a tray icon for a running server; `None` when there is none.
@@ -104,6 +105,19 @@ impl TrayContext {
 
     pub fn status(&self) -> String {
         self.status.read().clone()
+    }
+
+    /// A menu item's words (`tray.<key>` in `locales/`), with the `&`
+    /// before the letter Windows underlines; [`TrayContext::plain_label`]
+    /// without it.
+    #[cfg_attr(not(feature = "tray"), allow(dead_code))]
+    pub(crate) fn label(&self, key: &str) -> String {
+        i18n::t(language(&self.state), &format!("tray.{key}"))
+    }
+
+    #[cfg_attr(not(all(feature = "tray", unix)), allow(dead_code))]
+    pub(crate) fn plain_label(&self, key: &str) -> String {
+        self.label(key).replace('&', "")
     }
 
     /// Tooltip / hover text.
@@ -199,28 +213,46 @@ pub fn interactive_session() -> bool {
     false
 }
 
+/// The language of the tray: the server's (Settings → General), else the
+/// desktop's, else English.
+pub(crate) fn language(state: &AppState) -> &'static str {
+    if let Some(language) = i18n::supported(&state.settings.get().language) {
+        return language;
+    }
+    #[cfg(feature = "tray")]
+    if let Some(language) = sys_locale::get_locales().find_map(|locale| i18n::supported(&locale)) {
+        return language;
+    }
+    "en"
+}
+
 /// "2 streams (1 transcoding), scanning Movies" or "idle".
 fn status_line(state: &AppState) -> String {
+    let language = language(state);
+    let t = |key: &str| i18n::t(language, &format!("tray.status.{key}"));
     if state.stopping.is_cancelled() {
-        return "shutting down".to_owned();
+        return t("stopping");
     }
     let playing = state.sessions.active().len();
     let transcoding = state.sessions.active_transcodes();
     let mut parts = Vec::new();
-    match playing {
-        0 => {}
-        1 => parts.push("1 stream".to_owned()),
-        n => parts.push(format!("{n} streams")),
+    if playing > 0 {
+        parts.push(i18n::t_count(language, "tray.status.streams", playing as u64, &[]));
     }
     if transcoding > 0 {
         let streams = parts.pop().unwrap_or_default();
-        parts.push(format!("{streams} ({transcoding} transcoding)").trim().to_owned());
+        let count = transcoding.to_string();
+        let line = i18n::t_with(language, "tray.status.transcoding", &[("streams", &streams), ("count", &count)]);
+        parts.push(line.trim().to_owned());
     }
     if let Some(scan) = state.scanner.statuses().first() {
-        let name = if scan.library_name.is_empty() { "libraries" } else { scan.library_name.as_str() };
-        parts.push(format!("scanning {name}"));
+        parts.push(if scan.library_name.is_empty() {
+            t("scanningLibraries")
+        } else {
+            i18n::t_with(language, "tray.status.scanning", &[("library", &scan.library_name)])
+        });
     }
-    if parts.is_empty() { "idle".to_owned() } else { parts.join(", ") }
+    if parts.is_empty() { t("idle") } else { parts.join(", ") }
 }
 
 pub(crate) fn web_url(bind: SocketAddr) -> String {

@@ -1,0 +1,33 @@
+{
+  "hubs": {
+    "continueWatching": "Continue Watching",
+    "myList": "My List",
+    "recentlyAddedIn": "Recently Added in {{library}}",
+    "recentlyAdded": "Recently Added",
+    "recentlyAddedShows": "Recently Added Shows",
+    "recentlyAddedAlbums": "Recently Added Albums",
+    "recentlyReleased": "Recently Released",
+    "topRated": "Top Rated"
+  },
+  "tray": {
+    "open": "&Open Pley",
+    "scan": "&Scan all libraries",
+    "logs": "Show &logs",
+    "autostart": "Start Pley at log&in",
+    "quit": "&Quit Pley",
+    "mac": {
+      "scan": "Scan All Libraries",
+      "logs": "Show Logs",
+      "autostart": "Start Pley at Login"
+    },
+    "status": {
+      "idle": "idle",
+      "stopping": "shutting down",
+      "streams_one": "{{count}} stream",
+      "streams_other": "{{count}} streams",
+      "transcoding": "{{streams}} ({{count}} transcoding)",
+      "scanning": "scanning {{library}}",
+      "scanningLibraries": "scanning libraries"
+    }
+  }
+}

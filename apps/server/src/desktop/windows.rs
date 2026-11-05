@@ -106,11 +106,11 @@ struct Items {
 
 fn build(ctx: &TrayContext) -> Result<(TrayIcon, Items), String> {
     let items = Items {
-        open: MenuItem::with_id(item::OPEN, "&Open Pley", true, None),
-        scan: MenuItem::with_id(item::SCAN, "&Scan all libraries", true, None),
-        logs: MenuItem::with_id(item::LOGS, "Show &logs", true, None),
-        autostart: CheckMenuItem::with_id(item::AUTOSTART, "Start Pley at log&in", true, autostart::is_enabled(), None),
-        quit: MenuItem::with_id(item::QUIT, "&Quit Pley", true, None),
+        open: MenuItem::with_id(item::OPEN, ctx.label("open"), true, None),
+        scan: MenuItem::with_id(item::SCAN, ctx.label("scan"), true, None),
+        logs: MenuItem::with_id(item::LOGS, ctx.label("logs"), true, None),
+        autostart: CheckMenuItem::with_id(item::AUTOSTART, ctx.label("autostart"), true, autostart::is_enabled(), None),
+        quit: MenuItem::with_id(item::QUIT, ctx.label("quit"), true, None),
     };
     let menu = Menu::new();
     menu.append_items(&[

@@ -23,7 +23,7 @@ details.
 - [Types](#types)
 - [Public endpoints](#public-endpoints), [Auth](#auth),
   [Two-step sign-in](#two-step-sign-in), [Your account](#your-account),
-  [Compatibility tokens](#compatibility-tokens)
+  [Language](#language), [Compatibility tokens](#compatibility-tokens)
 - [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
   [Telling servers apart](#telling-servers-apart),
   [Signing in](#signing-in), [Tokens](#tokens), [TVs](#tvs),
@@ -220,6 +220,7 @@ interface User {
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track
   subtitle_language: string | null; // null = the audio language
   subtitle_mode: "off" | "forced" | "foreign" | "always";
+  language: "en" | "fr" | "es" | null; // the language Pley is in for the account; null = the server's
   has_password: boolean;            // false: a managed profile, or an account without a password
   two_step: boolean;                // two-step sign-in is on
   request_access: "off" | "ask" | "auto"; // Requests: may not ask, asks an administrator, or approved as
@@ -508,12 +509,14 @@ lists carry (Kodi).
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/health` | `public` | `{ "status": "ok" }` |
-| GET | `/api/server` | `public` | `{ id, name, version, commit, source, setup_required, setup_code_required, two_step_required, proof? }` |
+| GET | `/api/server` | `public` | `{ id, name, language, version, commit, source, setup_required, setup_code_required, two_step_required, proof? }` |
 | GET | `/api/oauth/device/qr?code=` | `public` | where to type a TV's code, as a QR code (PNG): see [TVs](#tvs) |
 | POST | `/api/setup` | `public` | `{ username, password, setup_code }` → `{ user: User, token? }`: creates the first (admin) account and signs in |
 | POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
 
 - `/api/server`: `id` is the one [discovery](#discovery) answers with.
+  `language` is the server's [language](#language), `null` when each
+  device's own is used.
   With `?challenge=…&proof_id=…` it also answers `proof`, for an app
   making sure this is its server ([Telling servers
   apart](#telling-servers-apart)). `commit` is the build's short hash,
@@ -640,7 +643,7 @@ it of every account with a password (`require_two_step` in the
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| PATCH | `/api/me` | `user` | `{ display_name?, avatar_color?, audio_language?, subtitle_language?, subtitle_mode? }` (`null` clears) → `User` |
+| PATCH | `/api/me` | `user` | `{ display_name?, avatar_color?, audio_language?, subtitle_language?, subtitle_mode?, language? }` (`null` clears) → `User` |
 | PUT | `/api/me/track-defaults` | `play` | `{ audio_language?, subtitle_language?, subtitle_mode? }` → the profile as [`GET /api/auth/me`](#auth) shows it |
 | PUT | `/api/me/pin` | `user` | `{ pin: string \| null, password }` → `204`. 4–8 digits; `null` removes it; `403` for a wrong password, and for a managed profile (an administrator sets its PIN) |
 | PUT | `/api/me/avatar` | `user` | raw image bytes (JPEG, PNG, WebP, GIF, BMP; ≤ 10 MB) → `User`. Stored as a 256 px square JPEG |
@@ -672,6 +675,28 @@ A choice made for a show or movie wins over these defaults. Subtitles count
 as forced when flagged so, or when their title says so ("forced", or
 "signs" as in "Signs & Songs"). Languages match in any ISO 639 form (`en`,
 `eng`; `fr`, `fre`, `fra`); an untagged or `und` track has no language.
+
+## Language
+
+Pley is in English, French and Spanish (`en`, `fr`, `es`). The language
+an account sees is, in order:
+
+1. its own, `User.language` (`PATCH /api/me` with `{ "language": "fr" }`;
+   `null` goes back to the server's);
+2. the server's, `Settings.language` (an administrator's choice in
+   Settings → General; `""` for none), which `GET /api/server` shows as
+   `language` for the pages before signing in;
+3. the device's: the first language of the browser, or of the request's
+   `Accept-Language`, that Pley has;
+4. English.
+
+Any other code is `400`. The server writes Home's and the libraries' hub
+titles (`Hub.title`) in that language; apps write the rest themselves.
+Error messages are in English. The web app loads a language's words when
+it is first shown, and remembers the last one on the device so the next
+visit starts in it. The tray of a server on a desktop is in the server's
+language, else the desktop's; its menu takes a new one when Pley starts
+again (on Linux, the next time it opens).
 
 ## Compatibility tokens
 
@@ -4120,6 +4145,7 @@ interface Network {
 
 interface Settings {
   server_name: string;
+  language: "" | "en" | "fr" | "es"; // for accounts without their own (see Language); "" = each device's
   tmdb_api_key: string;             // "" = movies only from file names and local artwork
   metadata_language: string;        // "en-US" (TMDB and TheTVDB; TVmaze is English)
   tv_metadata: "auto" | "tmdb" | "tvdb" | "tvmaze"; // TV source. "auto" (default): TMDB if it has a key,

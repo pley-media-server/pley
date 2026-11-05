@@ -80,6 +80,8 @@ walkdir = "2"
 
 # Desktop integration: system tray icon (see src/desktop).
 open = { version = "5", optional = true }
+# The desktop's language, for the tray's menu.
+sys-locale = { version = "0.3", optional = true }
 
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
 tray-icon = { version = "0.26", default-features = false, optional = true }
@@ -138,7 +140,7 @@ embed-resource = "3"
 [features]
 default = ["tray"]
 # Tray icon while running in an interactive desktop session.
-tray = ["dep:open", "dep:tray-icon", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:ksni"]
+tray = ["dep:open", "dep:sys-locale", "dep:tray-icon", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:ksni"]
 
 [dev-dependencies]
 tempfile = "3.20"

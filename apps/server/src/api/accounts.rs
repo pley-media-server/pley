@@ -16,6 +16,7 @@ use crate::auth::{
 };
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::i18n;
 use crate::requests::{self, RequestAccess};
 use crate::state::AppState;
 use crate::streams::{self, SubtitleMode};
@@ -457,6 +458,9 @@ pub struct ProfilePatch {
     subtitle_language: Option<Option<String>>,
     #[serde(default)]
     subtitle_mode: Option<SubtitleMode>,
+    /// One of `crate::i18n::LANGUAGES`; `null`: the server's.
+    #[serde(default, deserialize_with = "nullable")]
+    language: Option<Option<String>>,
 }
 
 pub async fn update_me(
@@ -494,6 +498,16 @@ pub async fn update_me(
     if let Some(mode) = body.subtitle_mode {
         sqlx::query("UPDATE users SET subtitle_mode = ? WHERE id = ?")
             .bind(mode.as_str())
+            .bind(user.id)
+            .execute(&state.db.write)
+            .await?;
+    }
+    if let Some(language) = body.language {
+        if language.as_deref().is_some_and(|code| !i18n::LANGUAGES.contains(&code)) {
+            return Err(AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", "))));
+        }
+        sqlx::query("UPDATE users SET language = ? WHERE id = ?")
+            .bind(language)
             .bind(user.id)
             .execute(&state.db.write)
             .await?;

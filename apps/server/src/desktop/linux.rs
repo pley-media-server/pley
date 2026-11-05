@@ -40,7 +40,7 @@ impl ksni::Tray for PleyTray {
         use ksni::menu::{CheckmarkItem, MenuItem, StandardItem};
         vec![
             StandardItem {
-                label: "Open Pley".into(),
+                label: self.ctx.plain_label("open"),
                 activate: Box::new(|tray: &mut Self| tray.ctx.open_web_ui()),
                 ..Default::default()
             }
@@ -48,20 +48,20 @@ impl ksni::Tray for PleyTray {
             StandardItem { label: self.status.clone(), enabled: false, ..Default::default() }.into(),
             MenuItem::Separator,
             StandardItem {
-                label: "Scan all libraries".into(),
+                label: self.ctx.plain_label("scan"),
                 activate: Box::new(|tray: &mut Self| tray.ctx.send(Command::ScanLibraries)),
                 ..Default::default()
             }
             .into(),
             StandardItem {
-                label: "Show logs".into(),
+                label: self.ctx.plain_label("logs"),
                 activate: Box::new(|tray: &mut Self| tray.ctx.open_logs()),
                 ..Default::default()
             }
             .into(),
             MenuItem::Separator,
             CheckmarkItem {
-                label: "Start Pley at login".into(),
+                label: self.ctx.plain_label("autostart"),
                 checked: self.autostart,
                 activate: Box::new(|tray: &mut Self| tray.autostart = tray.ctx.toggle_autostart(!tray.autostart)),
                 ..Default::default()
@@ -69,7 +69,7 @@ impl ksni::Tray for PleyTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: "Quit Pley".into(),
+                label: self.ctx.plain_label("quit"),
                 activate: Box::new(|tray: &mut Self| tray.ctx.send(Command::Quit)),
                 ..Default::default()
             }

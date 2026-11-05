@@ -1,0 +1,33 @@
+{
+  "hubs": {
+    "continueWatching": "Seguir viendo",
+    "myList": "Mi lista",
+    "recentlyAddedIn": "Añadido recientemente en {{library}}",
+    "recentlyAdded": "Añadido recientemente",
+    "recentlyAddedShows": "Series añadidas recientemente",
+    "recentlyAddedAlbums": "Álbumes añadidos recientemente",
+    "recentlyReleased": "Estrenos recientes",
+    "topRated": "Mejor valorados"
+  },
+  "tray": {
+    "open": "&Abrir Pley",
+    "scan": "A&nalizar todas las bibliotecas",
+    "logs": "Mostrar &registros",
+    "autostart": "&Iniciar Pley al iniciar sesión",
+    "quit": "&Salir de Pley",
+    "mac": {
+      "scan": "Analizar todas las bibliotecas",
+      "logs": "Mostrar registros",
+      "autostart": "Iniciar Pley al iniciar sesión"
+    },
+    "status": {
+      "idle": "inactivo",
+      "stopping": "deteniéndose",
+      "streams_one": "{{count}} reproducción",
+      "streams_other": "{{count}} reproducciones",
+      "transcoding": "{{streams}} ({{count}} transcodificando)",
+      "scanning": "analizando {{library}}",
+      "scanningLibraries": "analizando bibliotecas"
+    }
+  }
+}

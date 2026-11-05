@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::{StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,6 +14,7 @@ use crate::auth::{AdminUser, AuthUser};
 use crate::catalog::{self, ItemSummary, LibraryQuery, ME_CTE, SortKey, VISIBLE, VISIBLE_ITEMS};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::i18n;
 use crate::library::{LibraryKind, LibraryRow, get_library, set_order};
 use crate::state::AppState;
 use crate::util::now;
@@ -451,8 +452,14 @@ pub struct Hubs {
     pub hubs: Vec<Hub>,
 }
 
-pub async fn hubs(State(state): State<AppState>, user: AuthUser, Path(id): Path<i64>) -> ApiResult<Json<Hubs>> {
+pub async fn hubs(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<Hubs>> {
     let lib = visible_library(&state, &user, id).await?;
+    let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
     let kind = lib.kind();
     let video = kind != LibraryKind::Music;
     let top = kind.top_level_kind();
@@ -466,21 +473,21 @@ pub async fn hubs(State(state): State<AppState>, user: AuthUser, Path(id): Path<
         async { if video { catalog::top_rated(db, user.id, lib.id, top, 30).await } else { Ok(Vec::new()) } },
     )?;
     let added_title = match kind {
-        LibraryKind::Music => "Recently Added Albums",
-        LibraryKind::Shows => "Recently Added Shows",
-        LibraryKind::Movies => "Recently Added",
+        LibraryKind::Music => "hubs.recentlyAddedAlbums",
+        LibraryKind::Shows => "hubs.recentlyAddedShows",
+        LibraryKind::Movies => "hubs.recentlyAdded",
     };
     let hub = |key: &str, title: &str, rows: Vec<catalog::ItemRow>| Hub {
         key: format!("{key}:{id}"),
-        title: title.into(),
+        title: i18n::t(language, title),
         library_id: Some(id),
         items: rows.iter().map(|r| r.to_summary()).collect(),
     };
     let mut hubs = vec![
-        hub("continue_watching", "Continue Watching", continuing),
+        hub("continue_watching", "hubs.continueWatching", continuing),
         hub("recently_added", added_title, added),
-        hub("recently_released", "Recently Released", released),
-        hub("top_rated", "Top Rated", rated),
+        hub("recently_released", "hubs.recentlyReleased", released),
+        hub("top_rated", "hubs.topRated", rated),
     ];
     hubs.retain(|h| !h.items.is_empty());
     Ok(Json(Hubs { hubs }))

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 
 use super::items::item_or_404;
@@ -11,14 +11,17 @@ use super::wants_summaries;
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
+use crate::i18n;
 use crate::people::PersonSummary;
 use crate::state::AppState;
 
 pub async fn home(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Hubs>> {
+    let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
     let summaries = wants_summaries(&query);
     // A row for each library the user may open, in their order.
     let libraries = crate::access::visible_libraries(&state.db, &user).await?;
@@ -37,13 +40,13 @@ pub async fn home(
     let mut hubs = vec![
         Hub {
             key: "continue_watching".into(),
-            title: "Continue Watching".into(),
+            title: i18n::t(language, "hubs.continueWatching"),
             library_id: None,
             items: continue_rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
         Hub {
             key: "my_list".into(),
-            title: "My List".into(),
+            title: i18n::t(language, "hubs.myList"),
             library_id: None,
             items: my_list.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
@@ -52,7 +55,7 @@ pub async fn home(
         hubs.push(Hub {
             key: format!("recently_added:{}", lib.id),
             // "in" reads right whatever the library is called.
-            title: format!("Recently Added in {}", lib.name),
+            title: i18n::t_with(language, "hubs.recentlyAddedIn", &[("library", &lib.name)]),
             library_id: Some(lib.id),
             items: rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
         });

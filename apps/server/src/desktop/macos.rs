@@ -65,14 +65,15 @@ fn build(ctx: &TrayContext) -> Result<TrayIcon, String> {
     let autostart_on = autostart::is_enabled();
     let menu = Menu::new();
     menu.append_items(&[
-        &MenuItem::with_id(item::OPEN, "Open Pley", true, None),
+        // macOS's menus are in title case in English: `tray.mac` has them so.
+        &MenuItem::with_id(item::OPEN, ctx.plain_label("open"), true, None),
         &PredefinedMenuItem::separator(),
-        &MenuItem::with_id(item::SCAN, "Scan All Libraries", true, None),
-        &MenuItem::with_id(item::LOGS, "Show Logs", true, None),
+        &MenuItem::with_id(item::SCAN, ctx.plain_label("mac.scan"), true, None),
+        &MenuItem::with_id(item::LOGS, ctx.plain_label("mac.logs"), true, None),
         &PredefinedMenuItem::separator(),
-        &CheckMenuItem::with_id(item::AUTOSTART, "Start Pley at Login", true, autostart_on, None),
+        &CheckMenuItem::with_id(item::AUTOSTART, ctx.plain_label("mac.autostart"), true, autostart_on, None),
         &PredefinedMenuItem::separator(),
-        &MenuItem::with_id(item::QUIT, "Quit Pley", true, None),
+        &MenuItem::with_id(item::QUIT, ctx.plain_label("quit"), true, None),
     ])
     .map_err(|e| e.to_string())?;
 
