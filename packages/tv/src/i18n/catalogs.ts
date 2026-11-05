@@ -5,8 +5,9 @@
  * here and as a file in every language's folder; the test
  * (test/i18n.test.ts) fails on one left out.
  *
- * All three languages are in the app's script: a TV app's files are on the
- * TV, and the words of the three are small beside the rest.
+ * All three languages are in the app's script, a TV app's files being on
+ * the TV; the build writes them as strings for JSON.parse
+ * (build/build-app.mjs), which the TVs' engines read faster than code.
  */
 import enBrowse from "./locales/en/browse.json";
 import enCommon from "./locales/en/common.json";
