@@ -87,8 +87,11 @@ function memoryStore(): KeyValue {
 
 const response = (status: number, body: unknown): HttpResponse => ({ status, header: () => null, body });
 
-/** A server at SERVER that answers proofs as `answer` says, and counts what it was asked. */
-function setup(answer: (challenge: string, proofId: string) => HttpResponse | null = (c) => response(200, { id: ID, proof: proofOf(c) })) {
+/** A server at SERVER that answers proofs as `answer` says, and its token endpoint as `token` does; it counts what it was asked. */
+function setup(
+  answer: (challenge: string, proofId: string) => HttpResponse | null = (c) => response(200, { id: ID, proof: proofOf(c) }),
+  token: () => HttpResponse = () => response(200, { access_token: "pley_at_new", token_type: "Bearer", expires_in: 3600, refresh_token: "pley_rt_new" }),
+) {
   const asked: HttpRequest[] = [];
   let clock = 1_000_000;
   const http = async (req: HttpRequest) => {
@@ -99,7 +102,7 @@ function setup(answer: (challenge: string, proofId: string) => HttpResponse | nu
       if (!r) throw new NetworkError("nothing answers");
       return r;
     }
-    return response(200, { access_token: "pley_at_new", token_type: "Bearer", expires_in: 3600, refresh_token: "pley_rt_new" });
+    return token();
   };
   const store = memoryStore();
   const tokens: StoredTokens = {
@@ -247,6 +250,17 @@ describe("a server proves itself before a token goes to it", () => {
     const impostor = setup(() => response(200, { id: ID, proof: "AAAA" }));
     expect(await refusal(impostor.t.switchProfile(2, "1234"))).toBe(NOT_YOUR_SERVER);
     expect(impostor.asked.some((r) => r.url.indexOf("/api/oauth/token") >= 0)).toBe(false);
+  });
+
+  it("switches with a cast's ticket in place of a PIN, and keeps the sign-in when the ticket is spent", async () => {
+    const { t, asked, store } = setup();
+    await t.switchProfile(4, null, "t1");
+    const sent = new URLSearchParams(String(asked[asked.length - 1]!.body));
+    expect([sent.get("profile"), sent.get("ticket"), sent.has("pin"), sent.get("refresh_token")]).toEqual(["4", "t1", false, "pley_rt_b"]);
+    expect(JSON.parse(store.get(`pley.tokens.${SERVER}`)!).accessToken).toBe("pley_at_new");
+    const spent = setup(undefined, () => response(400, { error: "invalid_grant", reason: "ticket_spent", error_description: "this cast's switch has expired or was used: cast again" }));
+    expect(await refusal(spent.t.switchProfile(4, null, "t1"))).toBe("this cast's switch has expired or was used: cast again");
+    expect(JSON.parse(spent.store.get(`pley.tokens.${SERVER}`)!).accessToken).toBe("pley_at_a");
   });
 
   it("signs out without sending the token to another device", async () => {
