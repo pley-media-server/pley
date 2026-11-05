@@ -79,6 +79,13 @@ public static class Casts
     public const string SwitchFailed = "Couldn't switch to the remote's profile";
 
     /// <summary>
+    /// The longest a cast's switch waits for the last reports of what played (progress, "stopped",
+    /// the session's end) to go out with the sign-in of the profile before, as Android's does; what
+    /// hasn't gone by then is dropped.
+    /// </summary>
+    public const long SwitchWaitMs = 5_000;
+
+    /// <summary>
     /// The event stream's query that makes this TV a receiver: its install id, a TV, taking titles
     /// and playlists always and channels where Live TV shows. The server names the TV, as it does
     /// its players.
@@ -92,11 +99,13 @@ public static class Casts
     /// does nothing; else it plays what it names. One from a remote on another profile than
     /// <paramref name="profile"/>, the one the app acts as (null while it isn't known), switches to it
     /// first with its ticket; without a ticket it does nothing, as the TV can't play it as the
-    /// profile that sent it.
+    /// profile that sent it. While such a switch is made (<paramref name="switching"/>), any other
+    /// cast does nothing: one for the profile the TV leaves isn't the new one's, and another switch
+    /// would undo the first.
     /// </summary>
-    public static CastAction Action(string receiver, long? profile, bool shown, ServerEvent e)
+    public static CastAction Action(string receiver, long? profile, bool shown, ServerEvent e, bool switching = false)
     {
-        if (!shown || e.Type != "cast" || e.ReceiverId != receiver) return CastAction.None;
+        if (!shown || switching || e.Type != "cast" || e.ReceiverId != receiver) return CastAction.None;
         CastSwitch? switchTo = null;
         if (e.ProfileId is long other && other != profile)
         {
@@ -162,10 +171,12 @@ public interface ICastTarget
 
     /// <summary>
     /// Moves the app to <paramref name="profile"/> with a cast's <paramref name="ticket"/>, as a
-    /// switch on "Who's watching?" would, what played as the profile before ending first; fails when
-    /// it can't.
+    /// switch on "Who's watching?" would (<see cref="AppState.SwitchForCast"/> has the order: what
+    /// plays ends and its reports go out first); fails when it can't. <paramref name="switched"/> is
+    /// called the moment the app acts as the new profile, its tokens in place and
+    /// <see cref="AppState.Switched"/> done, before the task ends.
     /// </summary>
-    Task SwitchTo(long profile, string ticket);
+    Task SwitchTo(long profile, string ticket, Action switched);
 
     /// <summary>Plays <paramref name="request"/> in the player, in place of what plays, <paramref name="banner"/> over it as it starts.</summary>
     void Video(PlayRequest request, string banner);
@@ -190,7 +201,8 @@ public interface ICastTarget
 /// <summary>
 /// This TV's side of casting: a cast for it plays (the latest one, when another comes while the
 /// first is still asked for), and says where it came from as it starts. One from another profile's
-/// remote plays once the TV switched to that profile, or says it couldn't. UI thread only.
+/// remote plays once the TV switched to that profile, or says it couldn't; the casts heard while the
+/// switch is made are dropped, and those heard once it is play as usual. UI thread only.
 /// </summary>
 public sealed class CastReceiver
 {
@@ -199,8 +211,8 @@ public sealed class CastReceiver
     readonly IScheduler scheduler;
     readonly Random random;
     int casts;
-    /// <summary>While a cast's switch is being made, the casts heard meanwhile, weighed once it is over; null otherwise.</summary>
-    List<ServerEvent>? waiting;
+    /// <summary>The cast whose switch is under way, from its start until the app acts as the new profile or the switch failed; null when none is.</summary>
+    int? switching;
 
     public CastReceiver(ICastServer server, ICastTarget target, IScheduler scheduler, Random? random = null)
     {
@@ -213,14 +225,7 @@ public sealed class CastReceiver
     /// <summary>A cast heard on the event stream.</summary>
     public void Take(ServerEvent e)
     {
-        if (waiting != null)
-        {
-            // Weighed once the switch is over, as the profile the TV is on then: one sent to the
-            // profile it leaves (no profile id) is that profile's, which the TV no longer is.
-            if (e.ProfileId != null) waiting.Add(e);
-            return;
-        }
-        var action = Casts.Action(target.ReceiverId, target.Profile, target.Shown, e);
+        var action = Casts.Action(target.ReceiverId, target.Profile, target.Shown, e, switching != null);
         if (action.Act == CastAct.None) return;
         var mine = ++casts;
         var banner = Casts.Banner(e.From);
@@ -229,25 +234,22 @@ public sealed class CastReceiver
             Play(action, mine, banner);
             return;
         }
-        waiting = new List<ServerEvent>();
-        Plays.When(scheduler, () => target.SwitchTo(to.Profile, to.Ticket), () =>
+        switching = mine;
+        // Casts are taken again the moment the app acts as the new profile, its own remote's too: one
+        // heard from then on plays in place of this one, as the later of two casts does.
+        void Switched()
         {
-            // Those heard meanwhile are newer: the latest of them plays in its place.
-            TakeWaiting();
+            if (switching == mine) switching = null;
+        }
+        Plays.When(scheduler, () => target.SwitchTo(to.Profile, to.Ticket, Switched), () =>
+        {
+            Switched();
             Play(action, mine, banner);
         }, _ =>
         {
+            Switched();
             if (mine == casts && target.Shown) target.Say(Casts.SwitchFailed);
-            TakeWaiting();
         });
-    }
-
-    /// <summary>The switch is over: the casts heard while it was made are taken now, in order.</summary>
-    void TakeWaiting()
-    {
-        var heard = waiting ?? new List<ServerEvent>();
-        waiting = null;
-        foreach (var e in heard) Take(e);
     }
 
     /// <summary>Plays <paramref name="action"/>, cast number <paramref name="mine"/>, as the profile the app acts as now.</summary>

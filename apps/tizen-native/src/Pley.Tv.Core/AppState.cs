@@ -277,6 +277,14 @@ public sealed class AppState
     public Transport Http => http;
     public AppPlatform Platform => platform;
     public Tokens? TokenStore => tokens;
+
+    /// <summary>
+    /// The reports of what plays to the server, the players' and the music's, in order: one for the
+    /// app, so a player's last report goes out after it closed, and a cast's switch waits for them
+    /// all (<see cref="SwitchForCast"/>).
+    /// </summary>
+    public SessionReporter Reporter { get; } = new SessionReporter();
+
     public bool SignedIn => tokens?.SignedIn == true;
 
     /// <summary>The profile the app acts as: who is watching as heard, else the one it was left on; null when neither is known.</summary>
@@ -449,6 +457,34 @@ public sealed class AppState
         ShowSaved();
         await LoadAccount();
         _ = LoadHome();
+    }
+
+    /// <summary>
+    /// Moves the app to <paramref name="to"/> for a cast from that profile's remote, with its
+    /// <paramref name="ticket"/> (docs/API.md, "Casting"). What plays ends first, and its last
+    /// reports go out with this profile's sign-in, for up to <see cref="Casts.SwitchWaitMs"/>: what
+    /// hasn't gone by then is dropped, never sent as the new profile, whose watch history it isn't.
+    /// Then the ticket is redeemed and the app acts as the new profile (<see cref="Switched"/>). A
+    /// refused ticket throws, and the app stays as it is, what played ended.
+    /// </summary>
+    public async Task SwitchForCast(long to, string ticket)
+    {
+        var tokens = TokenStore ?? throw new SignedOutException();
+        EndPlayback();
+        var late = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (scheduler.After(Casts.SwitchWaitMs, () => late.TrySetResult(true)))
+            await Task.WhenAny(Reporter.Flush(), late.Task);
+        Reporter.Drop();
+        await tokens.SwitchProfile(to, null, ticket);
+        try
+        {
+            await Switched(to);
+        }
+        catch (Exception)
+        {
+            // The switch is made: who is watching failed to load after it, which the pages' Retry
+            // has, as for a switch on "Who's watching?" (ProfilesModel).
+        }
     }
 
     // ---- what was saved, per server and profile

@@ -66,12 +66,13 @@ describe("tracks and casts, as the shared fixture has them", () => {
     }
   });
 
-  it("casts: this TV's own, while it shows, as the remote's profile", () => {
+  it("casts: this TV's own, while it shows, as the remote's profile, none while a cast's switch is made", () => {
     for (const c of fixture.casts) {
       const e = { type: "cast", ...c.in.cast } as CastEvent;
-      // The profile the TV acts as: none known when the case leaves it out.
+      // The profile the TV acts as: none known when the case leaves it out. No switch under way unless it says so.
       const profile = "profile" in c.in && typeof c.in.profile === "number" ? c.in.profile : null;
-      sameFields(c.in, writtenCast(castAction(c.in.receiver_id, profile, c.in.shown, e), e.from), c.out);
+      const switching = "switching" in c.in && c.in.switching === true;
+      sameFields(c.in, writtenCast(castAction(c.in.receiver_id, profile, c.in.shown, e, switching), e.from), c.out);
     }
   });
 

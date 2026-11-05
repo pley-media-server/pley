@@ -4,7 +4,7 @@ import { EventStream } from "../src/api/events";
 import type { ItemDetail, ItemKind, ItemSummary, LiveSummary, Playlist, PlaylistEntry } from "../src/api/types";
 import type { KeyValue, Tokens } from "../src/auth/tokens";
 import type { Platform } from "../src/platform";
-import { CAST_BANNER_MS, CastReceiver, NOTHING_TO_PLAY, receiverQuery, SWITCH_FAILED, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
+import { CAST_BANNER_MS, CAST_SWITCH_WAIT_MS, CastReceiver, NOTHING_TO_PLAY, receiverQuery, SWITCH_FAILED, type CastEnv, type CastEvent, type CastServer } from "../src/player/cast";
 import type { PlayRequest } from "../src/player/plan";
 import { AppState } from "../src/state";
 
@@ -24,7 +24,7 @@ function cast(over: Partial<CastEvent> = {}): CastEvent {
  * A TV taking casts: a server whose items, children, next episodes and
  * playlists the test gives, and what the TV did with them, in order.
  */
-function tv() {
+function tv(shown?: () => boolean) {
   const items = new Map<number, ItemDetail>();
   const children = new Map<number, ItemSummary[]>();
   const onDeck = new Map<number, ItemSummary | null>();
@@ -33,8 +33,18 @@ function tv() {
   const videos: PlayRequest[] = [];
   const queues: { tracks: number[]; at: number; shuffle: boolean; fromMs: number }[] = [];
   const said: string[] = [];
-  /** The profile the app acts as; a switch's answer, held until `release` when the test holds it, refused when `refuse` says so. */
-  const state = { shown: true, held: null as null | Promise<void>, profile: 2 as number | null, switchHeld: null as null | Promise<void>, refuse: null as null | Error };
+  /**
+   * The profile the app acts as; a switch's answer, held until `release` when the test holds it, refused when
+   * `refuse` says so, and held again once the app acts as the new profile when `afterSwitched` holds it.
+   */
+  const state = {
+    shown: true,
+    held: null as null | Promise<void>,
+    profile: 2 as number | null,
+    switchHeld: null as null | Promise<void>,
+    refuse: null as null | Error,
+    afterSwitched: null as null | Promise<void>,
+  };
   const wait = async () => {
     if (state.held) await state.held;
   };
@@ -63,13 +73,15 @@ function tv() {
   };
   const env: CastEnv = {
     id: () => "tizen-1",
-    shown: () => state.shown,
+    shown: shown ?? (() => state.shown),
     profile: () => state.profile,
-    switchTo: async (profile, ticket) => {
+    switchTo: async (profile, ticket, switched) => {
       did.push(`switch to ${profile} with ${ticket}`);
       if (state.switchHeld) await state.switchHeld;
       if (state.refuse) throw state.refuse;
       state.profile = profile;
+      switched();
+      if (state.afterSwitched) await state.afterSwitched;
     },
     server: () => server,
     video: (r) => {
@@ -259,7 +271,9 @@ describe("a cast from another profile's remote", () => {
   });
 
   it("says the switch failed and plays nothing, nor says anything once signed out", async () => {
-    const t = tv();
+    const { app } = signedIn();
+    // Taking casts as the app does: shown, signed in, not signed out.
+    const t = tv(() => app.visible.value && app.signedIn && !app.signedOut.value);
     t.items.set(5, detail(5, "movie"));
     t.state.refuse = new Error("this cast's switch has expired or was used: cast again");
     t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
@@ -269,27 +283,142 @@ describe("a cast from another profile's remote", () => {
     let release: () => void = () => undefined;
     t.state.switchHeld = new Promise<void>((r) => (release = r));
     t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t2" }));
-    t.state.shown = false;
+    await app.signOut();
     release();
     await settle();
+    expect([app.signedIn, app.signedOut.value]).toEqual([false, true]);
     expect(t.said).toEqual([SWITCH_FAILED]);
   });
 
-  it("weighs a cast heard during the switch as the profile switched to: the left profile's goes, the remote's plays", async () => {
+  it("drops every cast heard while the switch is made: the left profile's, the same remote's next, another profile's", async () => {
     const t = tv();
     t.items.set(5, detail(5, "movie"));
     t.items.set(6, detail(6, "movie"));
     let release: () => void = () => undefined;
     t.state.switchHeld = new Promise<void>((r) => (release = r));
     t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
-    // One for the profile the TV leaves, and the same remote's next, with a ticket of its own.
-    t.receiver.take(cast({ item_id: 5, from: "Kitchen tablet" }));
+    t.receiver.take(cast({ item_id: 6, from: "Kitchen tablet" }));
     t.receiver.take(cast({ item_id: 6, profile_id: 4, switch_ticket: "t2" }));
+    t.receiver.take(cast({ channel_id: 7, profile_id: 3, switch_ticket: "t3" }));
     release();
     await settle();
-    expect(t.did.filter((d) => d.startsWith("switch"))).toEqual(["switch to 4 with t1"]);
-    expect(t.videos).toEqual([{ itemId: 6, fromStart: false }]);
+    expect(t.did).toEqual(["switch to 4 with t1", "item 5", "video"]);
+    expect(t.videos).toEqual([{ itemId: 5, fromStart: false }]);
     expect(t.said).toEqual(["Playing from Living room phone"]);
+  });
+
+  it("drops a cast heard while a failed switch is made, and takes the next as before", async () => {
+    const t = tv();
+    t.items.set(6, detail(6, "movie"));
+    let release: () => void = () => undefined;
+    t.state.switchHeld = new Promise<void>((r) => (release = r));
+    t.state.refuse = new Error("this cast's switch has expired or was used: cast again");
+    t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
+    t.receiver.take(cast({ item_id: 6, from: "Kitchen tablet" }));
+    release();
+    await settle();
+    expect([t.did, t.said]).toEqual([["switch to 4 with t1"], [SWITCH_FAILED]]);
+    t.receiver.take(cast({ item_id: 6, from: "Kitchen tablet" }));
+    await settle();
+    expect(t.videos).toEqual([{ itemId: 6, fromStart: false }]);
+  });
+
+  it("plays the new profile's own cast heard the moment it is switched to, in place of the one that switched", async () => {
+    const t = tv();
+    t.items.set(5, detail(5, "movie"));
+    t.items.set(6, detail(6, "movie"));
+    let release: () => void = () => undefined;
+    // The app acts as profile 4 now; its Home is still to show.
+    t.state.afterSwitched = new Promise<void>((r) => (release = r));
+    t.receiver.take(cast({ item_id: 5, profile_id: 4, switch_ticket: "t1" }));
+    await settle();
+    expect(t.state.profile).toBe(4);
+    t.receiver.take(cast({ item_id: 6, from: "Kitchen tablet" }));
+    release();
+    await settle();
+    expect(t.did).toEqual(["switch to 4 with t1", "item 6", "video"]);
+    expect(t.videos).toEqual([{ itemId: 6, fromStart: false }]);
+    expect(t.said).toEqual(["Playing from Kitchen tablet"]);
+  });
+});
+
+/**
+ * A signed-in app on profile 2 whose switch to another profile makes the
+ * tokens that profile's; `report` queues a report of what plays, which says,
+ * as it goes out, the token it goes with.
+ */
+function signedIn() {
+  const did: string[] = [];
+  let token = "pley_at_2";
+  const tokens = {
+    signedIn: true,
+    accessToken: () => Promise.resolve(token),
+    switchProfile: async (profile: number, _pin: string | null, ticket: string | null) => {
+      did.push(`switch to ${profile} with ${ticket}`);
+      token = `pley_at_${profile}`;
+    },
+    signOut: async () => {
+      tokens.signedIn = false;
+    },
+  };
+  const app = new AppState({ name: "tizen", clientId: "tizen", storage: memoryStore() } as unknown as Platform, () => Promise.reject(new Error("no network in tests")));
+  (app as unknown as { tokens: unknown }).tokens = tokens;
+  const report = (what: string) =>
+    app.reporter.send(async () => {
+      did.push(`${what} with ${await tokens.accessToken()}`);
+    });
+  return { app, did, report };
+}
+
+describe("the switch a cast from another profile makes", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A playback whose end reports its last position, `stopped`, and its session's end; `hung` holds the first. */
+  function playing(t: ReturnType<typeof signedIn>, hung?: Promise<void>) {
+    let ended = false;
+    t.app.onLeave(() => {
+      if (ended) return;
+      ended = true;
+      t.did.push("end");
+      if (hung) t.app.reporter.send(() => hung);
+      else t.report("progress");
+      t.report("stopped");
+      t.report("session end");
+    });
+  }
+
+  it("ends what plays, sends its last reports with the profile before's token, then redeems the ticket", async () => {
+    const t = signedIn();
+    playing(t);
+    await t.app.switchForCast(4, "t1");
+    expect(t.did).toEqual(["end", "progress with pley_at_2", "stopped with pley_at_2", "session end with pley_at_2", "switch to 4 with t1"]);
+    t.report("progress");
+    await settle();
+    expect(t.did.slice(-1)).toEqual(["progress with pley_at_4"]);
+  });
+
+  it("waits 5 s for those reports, then drops what hasn't gone rather than send it with the new token", async () => {
+    vi.useFakeTimers();
+    expect(CAST_SWITCH_WAIT_MS).toBe(5_000);
+    const t = signedIn();
+    let answer: () => void = () => undefined;
+    // The server doesn't answer the last progress report.
+    playing(t, new Promise<void>((r) => (answer = r)));
+    const switching = t.app.switchForCast(4, "t1");
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(t.did).toEqual(["end"]);
+    await vi.advanceTimersByTimeAsync(1);
+    await switching;
+    expect(t.did).toEqual(["end", "switch to 4 with t1"]);
+    answer();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.did).toEqual(["end", "switch to 4 with t1"]);
+    // The new profile's own reports go as ever.
+    t.report("progress");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.did).toEqual(["end", "switch to 4 with t1", "progress with pley_at_4"]);
   });
 });
 

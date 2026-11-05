@@ -243,19 +243,25 @@ later plays.
 
 A remote on another profile of the household casts to the TV too: its
 cast names that profile (`profile_id`) and brings a `switch_ticket`. The
-TV ends what plays first, while its sign-in still works, then switches
-to that profile with the switch-profile grant, the ticket in place of a
-PIN, as "Who's watching?" switches: what was shown for the profile before
-goes, the event stream starts over as the new one, and the rail and Home
-are the new profile's. What was cast then plays over its Home, once. A
-switch that fails (the ticket spent or expired, the server out of reach)
-says "Couldn't switch to the remote's profile" and plays nothing. A cast
-naming another profile without a ticket does nothing. While the switch is
-made, a cast for the profile the TV leaves is dropped, and one from a
-remote on another profile waits, then plays as the profile switched to,
-in place of the first. "Who's watching?" still takes no casts: whoever
-stands at the TV is choosing, and a cast would choose for them. The rules
-are in `packages/tv/test/fixtures/tracks.json` too.
+TV ends what plays first, and waits up to 5 s, as Android TV does, for
+its last reports (where it got to, `stopped`, the session's end) to go
+out with the sign-in they belong to; what hasn't gone by then is
+dropped, never sent as the new profile, whose watch history it isn't.
+Then it switches to that profile with the switch-profile grant, the
+ticket in place of a PIN, as "Who's watching?" switches: what was shown
+for the profile before goes, the event stream starts over as the new
+one, and the rail and Home are the new profile's. What was cast then
+plays over its Home, once. A switch that fails (the ticket spent or
+expired, the server out of reach) says "Couldn't switch to the remote's
+profile" and plays nothing. A cast naming another profile without a
+ticket does nothing. Every other cast heard while the switch is made is
+dropped, whichever profile sent it: one for the profile the TV leaves
+isn't the new one's, and another switch would undo the first. Once the
+TV is the new profile, casts play as ever, that profile's own remote's
+too, the later of two in place of the first. "Who's watching?" still
+takes no casts: whoever stands at the TV is choosing, and a cast would
+choose for them. The rules are in `packages/tv/test/fixtures/tracks.json`
+too.
 
 ### Requests
 
@@ -637,8 +643,10 @@ live player on it, as Watch on that channel does, with channel up and
 down going through All channels. A music playlist plays as the
 music's queue, where the playlist page's own Play opens its first entry's
 album, as Android TV's does. A cast from another profile's remote closes
-the player, switches to that profile as the web app does, and plays over
-the new profile's Home. The rules are `Player/Cast.cs`.
+the player, switches to that profile as the web app does (the player's
+and the music's reports share one queue, which the switch waits up to
+5 s for), and plays over the new profile's Home. The rules are
+`Player/Cast.cs`.
 
 | | |
 |---|---|
