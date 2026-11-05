@@ -200,7 +200,8 @@ class Monitor(xbmc.Monitor):
         if method.endswith(POSTED):
             self.window.run_posted()
         elif method.endswith(SWITCHED):
-            # Switched from the add-on's settings, over the window.
+            # Switched from the add-on's settings, over the window, or by
+            # the service for a cast from another profile's remote.
             with self.window.lock:
                 if not self.window.closing:
                     self.window.switched()

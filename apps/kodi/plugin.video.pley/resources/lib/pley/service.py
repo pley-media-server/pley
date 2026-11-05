@@ -591,15 +591,92 @@ class Player(xbmc.Player):
         action = casting.action(playback.install_id(), self.taking(), event)
         if action["act"] == "none":
             return
+        switch = casting.switch_to(event, self.profile_now())
+        if switch == casting.IGNORED:
+            return
         with self.lock:
             self.casts += 1
             mine = self.casts
-        self.worker.put(lambda: self.play_cast(action, event.get("from"), mine))
+        self.worker.put(lambda: self.play_cast(action, event.get("from"), mine, switch))
 
-    def play_cast(self, action: dict, device, mine: int) -> None:
+    def profile_now(self):
+        """The profile the add-on acts as: its id, or None for the one
+        picked as it signed in."""
+        identity = self.tokens.identity()
+        return identity[1] if identity else None
+
+    def current_cast(self, mine: int) -> bool:
+        """Whether cast `mine` may still play: no other came since, and Kodi
+        takes casts."""
+        return self.casts == mine and self.taking()
+
+    def play_cast(self, action: dict, device, mine: int, switch=None) -> None:
         """Plays a cast as the add-on's own Play would, in place of what
         plays, through the service's proxy; then says where it came from,
-        over what starts, as the add-on's other notices are said."""
+        over what starts, as the add-on's other notices are said. `switch`
+        (casting.switch_to): the remote's profile to switch to first."""
+        if switch is not None and self.profile_now() != switch["profile_id"]:
+            if not self.current_cast(mine):
+                return
+            # What plays is the profile's being left: its last report, and
+            # its live channel's end, go as that profile, on the worker
+            # before the switch.
+            left = self.leave_playing()
+            self.worker.put(lambda: self.switch_for_cast(action, device, mine, switch, left))
+            return
+        self.play_now(action, device, mine)
+
+    def leave_playing(self) -> str:
+        """Ends the playback reported, and the live channel's session held,
+        as a switch to another profile nears: the file Kodi plays, which it
+        goes on playing until the cast takes its place; "" for none."""
+        with self.lock:
+            left = self.reports.playing["path"] if self.reports is not None else ""
+            if self.reports is not None:
+                self._finish_locked(ended=False)
+            live, self.live = self.live, None
+        if live is not None:
+            self.leave_live(live)
+            left = left or self.playing_file()
+        return left
+
+    def switch_for_cast(self, action: dict, device, mine: int, switch: dict, left: str) -> None:
+        """Switches to the remote's profile with the cast's ticket, then
+        plays the cast; a switch that fails says so, plays nothing, and
+        stops what played, which was left for the cast."""
+        from . import casting
+
+        if not self.current_cast(mine):
+            return
+        if self.profile_now() != switch["profile_id"]:
+            try:
+                self.tokens.switch_profile(switch["profile_id"], ticket=switch["ticket"])
+            except auth.SignedOut:
+                return
+            except api.ApiError as e:
+                kodi.log("cast's switch to profile %d: %s %s" % (switch["profile_id"], e.code, e.message), xbmc.LOGWARNING)
+                if e.status == 0:
+                    # Nothing answered: the server proves itself again before the next token.
+                    self.tokens.doubt()
+                if left and self.playing_file() == left:
+                    self.stop()
+                kodi.notify(kodi.text("cast_switch_failed"), error=True, ms=casting.BANNER_MS)
+                return
+            self.switched_for_cast()
+        self.play_now(action, device, mine)
+
+    def switched_for_cast(self) -> None:
+        """The add-on acts as the remote's profile now: the window, the
+        listing on screen and requests' summary are that profile's, as after
+        the plugin's switch."""
+        profiles.tell_switched()
+        # Requests' summary was the profile's before (news.py reads the new one).
+        kodi.clear_property(requests.SUMMARY)
+        if xbmc.getInfoLabel("Container.FolderPath").startswith("plugin://%s/" % kodi.ADDON_ID):
+            xbmc.executebuiltin("Container.Refresh")
+
+    def play_now(self, action: dict, device, mine: int) -> None:
+        """Plays the cast as the profile the add-on acts as now."""
         from . import casting
 
         base = kodi.get_property(kodi.PROXY)
@@ -607,7 +684,7 @@ class Player(xbmc.Player):
             return
 
         def current():
-            return self.casts == mine and self.taking()
+            return self.current_cast(mine)
 
         client = api.Client(base, self.user_agent, local=True)
         try:

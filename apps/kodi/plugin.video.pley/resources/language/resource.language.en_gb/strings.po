@@ -1421,3 +1421,7 @@ msgstr ""
 msgctxt "#30574"
 msgid "Quality: %s"
 msgstr ""
+
+msgctxt "#30575"
+msgid "Couldn't switch to the remote's profile"
+msgstr ""

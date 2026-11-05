@@ -7,7 +7,9 @@ picked on the phone that approves it."""
 
 from __future__ import annotations
 
-from . import api
+import xbmc
+
+from . import api, kodi
 
 # PINs are 4 to 8 digits.
 PIN_MIN, PIN_MAX = 4, 8
@@ -18,7 +20,8 @@ GATE = "pley.gate"
 # Set while that "Who's watching?" is on screen: the service plays no cast
 # from the user's remote past it and its PINs (casting.py).
 PICKING = "pley.picking"
-# What the plugin tells pley's window when it switched over it.
+# What the plugin, or the service for a cast, tells pley's window when it
+# switched over it.
 SWITCHED = "pley.switched"
 
 
@@ -45,6 +48,15 @@ def switch(client: api.Client, profile_id: int, pin=None) -> None:
     ("wrong_pin", "throttled", "pin_locked", "browser", "not_allowed"), else
     its OAuth error, "signed_out", "unreachable" or "another_device"."""
     client.json("POST", "/switch-profile", json_body={"profile": profile_id, "pin": pin})
+
+
+def tell_switched() -> None:
+    """The add-on acts as another profile now (the plugin's switch, or the
+    service's for a cast): "Who's watching?" is answered, and Pley's window,
+    when open, shows the new profile (window.Monitor hears SWITCHED)."""
+    kodi.set_property(GATE, "1")
+    if kodi.get_property(kodi.WINDOW_OPEN):
+        xbmc.executebuiltin("NotifyAll(%s,%s)" % (kodi.ADDON_ID, SWITCHED))
 
 
 def asks_at_start(household, me: dict, answered: bool) -> bool:
