@@ -65,9 +65,10 @@ describes how they are made.
   subtitles picked on the page.
 - The phone's remote and Play on… list the devices of everyone in your
   household too, each saying whose profile it is on ("Ready to play · on
-  Sam's profile"), never what it plays. Sending something there switches
-  that phone or TV to your profile before it plays, after your PIN when
-  your profile has one; a TV left at "Who's watching?" goes on to Home.
+  Sam's profile"), never what it plays. Sending something there ends what
+  plays on that phone or TV, its place kept for its own profile, and
+  switches it to your profile before it plays, after your PIN when your
+  profile has one; a TV left at "Who's watching?" goes on to Home.
 - Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
   while something moves, a small box at the top gives the frames
   drawn a second, the longest frame and how many were late, and the same

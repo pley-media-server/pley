@@ -13,6 +13,7 @@ import app.pley.android.testing.player.session.FakeEngineLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.junit.After
@@ -59,6 +60,27 @@ class ServicesTest {
         services.restore(saved)
         h.settle()
         assertEquals(5_000L, h.playbackRequests().last().startMs)
+    }
+
+    @Test
+    fun `closing every playback ends its session, and the flush returns once its last reports went out`() {
+        val dispatcher = StandardTestDispatcher(h.scheduler)
+        val services = SessionPlaybackServices({ h.environment() }, dispatcher, reports = h.reporter::flush)
+        val key = services.prepare(PlayRequest(FixtureIds.SAMPLE_1080P))
+        h.settle()
+        h.engine.ready()
+        h.advance(2_000)
+
+        services.closeAll()
+        assertNull(services.controller(key))
+        var sentBefore: List<String>? = null
+        CoroutineScope(dispatcher).launch {
+            services.flush()
+            sentBefore = h.timeline()
+        }
+        h.settle()
+        // A switch of profile after the flush sends nothing of this playback's.
+        assertEquals(listOf("progress stopped", "delete"), sentBefore?.takeLast(2))
     }
 
     @Test

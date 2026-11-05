@@ -119,6 +119,9 @@ interface MusicControl {
     /** Stops and forgets the queue (signing out). */
     fun stop() {}
 
+    /** Waits until the reports made so far went out, the end of the session [stop] ended too. */
+    suspend fun flush() {}
+
     /**
      * Pauses the music because a video or a channel starts, and ends its
      * session on the server; Play starts a new one where it was.

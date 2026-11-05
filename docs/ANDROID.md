@@ -415,12 +415,19 @@ window open closes for music; one player window shows at a time, video
 or Live TV. A cast for another device does nothing.
 
 A cast from a remote on another profile of the household names that
-profile (`profile_id`) and carries a `switch_ticket`. The device switches
-to that profile first, as "Who's watching?" switches (the switch-profile
-grant with `ticket` in place of a PIN): what shows, its caches and the
-event stream follow the new profile, a TV at "Who's watching?" goes on
-to Home, and then it plays the cast once. A switch that fails (the ticket
-spent or expired, the server out of reach) plays nothing, and says
+profile (`profile_id`) and carries a `switch_ticket`. The device first
+ends what plays, video, music or Live TV, and waits up to 5 s for its
+last reports (`stopped` where it was, the session's end) to go out: they
+carry the sign-in's tokens as they are sent, so after the switch they
+would land on the caster's profile. Then it switches to that profile, as
+"Who's watching?" switches (the switch-profile grant with `ticket` in
+place of a PIN): what shows, its caches and the event stream follow the
+new profile, a TV at "Who's watching?" goes on to Home, and then it plays
+the cast once. A cast for the profile it leaves, heard meanwhile, is
+dropped; one from another profile's remote replaces the first, and plays
+as the profile switched to (switching again if it must). A switch that
+fails (the ticket spent or expired, the server out of reach) plays
+nothing, and says
 **Couldn't switch profiles to play from** the remote's device, where
 **Playing from** would show on the shell: a toast on a phone, the top
 right on a TV. A cast that names another profile without a ticket is

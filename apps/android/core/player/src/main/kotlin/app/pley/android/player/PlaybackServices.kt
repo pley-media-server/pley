@@ -87,4 +87,10 @@ interface PlaybackServices {
 
     /** Starts again what [saved] describes, after process death: a new key. */
     fun restore(saved: SavedPlaybackState): String = prepare(saved.toPlayRequest())
+
+    /** Ends every playback now: each one's session ends, its last reports on their way ([flush]). */
+    fun closeAll() {}
+
+    /** Waits until the reports made so far went out, the ends of those [closeAll] closed too. */
+    suspend fun flush() {}
 }
