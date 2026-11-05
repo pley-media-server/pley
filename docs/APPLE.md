@@ -458,9 +458,13 @@ behind it.
   what they watch, and offers **Watch here instead** on one it may take. A stall shows a spinner after 0.7
   seconds; a channel with no picture shows its logo and "Sound only".
   When AVPlayer fails, the session's plan is asked once: a stop at the
-  server says why, anything else tunes again. Leaving ends the session at
-  the server at once. In the background the channel and its connection
-  are let go, and back in front it tunes again from the live edge. One
+  server says why, anything else tunes again. Stopped from another device
+  or by an administrator (`session_stopped`), or its connection taken over
+  (`live_taken_over`), it stops as the event comes and says who or why,
+  with Watch again. Leaving ends the session at the server at once. In the
+  background the channel and its connection are let go, and back in front
+  it tunes again from the live edge, unless it had failed (the server
+  stopped it, every connection in use): that stays, with Watch again. One
   playback at a time: a video closes the live player, and Live TV closes
   a video.
 - **The mini player and Now Playing** (while music has a queue): the mini
@@ -1372,7 +1376,7 @@ User-Agent ("Pley for iPhone").
 
 Stop is the stop from another device the players already obeyed
 ([Updates from the server](#updates-from-the-server)): a video's player
-closes and says so, and music stops.
+closes and says so, music stops, and Live TV stops and says so.
 
 **In the background.** Music playing in the background, or a video in
 Picture in Picture, keeps the event stream, as on Android, so a remote
@@ -2189,9 +2193,6 @@ Delete the folder afterwards.
   shows is read again. So Apple TV obeys a remote only while Pley is open
   or its music plays, and music paused in the background hears none until
   it plays again or the app is back.
-- Live TV stopped from a remote closes once its stream fails, not as the
-  event comes: its player then asks for the session's plan, which says
-  why.
 - The Mac app has no UI tests: driving it needs Accessibility and Screen
   Recording permissions that only a person can grant. Its views are
   checked by building it, and its models and menus' state by the
