@@ -99,7 +99,7 @@ fn without_notices_the_page_says_so_with_back() {
     assert!(app.until(|a| a.shows(pley_settings::licences::no_notices())));
     // TMDB's credit comes after the licences, whatever the file holds.
     assert!(app.shows("Credits") && app.shows("TMDB"));
-    assert!(app.shows(pley_core::requests::TMDB_NOTICE));
+    assert!(app.shows(pley_core::requests::tmdb_notice()));
     app.open(Route::Licences);
     assert!(app.until(|a| a.shows("No licence texts")));
     app.settle();

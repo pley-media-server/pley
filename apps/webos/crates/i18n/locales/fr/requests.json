@@ -1,1 +1,319 @@
-{}
+{
+  "names": {
+    "requests": "Demandes",
+    "yourRequests": "Vos demandes"
+  },
+  "kind": {
+    "movie": "Film",
+    "show": "Série"
+  },
+  "tmdb": {
+    "credit": "Informations et images fournies par TMDB.",
+    "notice": "Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB."
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} saison",
+    "seasons_many": "{{count, number}} de saisons",
+    "seasons_other": "{{count, number}} saisons",
+    "episodes_one": "{{count, number}} épisode",
+    "episodes_many": "{{count, number}} d’épisodes",
+    "episodes_other": "{{count, number}} épisodes",
+    "movies_one": "{{count, number}} film",
+    "movies_many": "{{count, number}} de films",
+    "movies_other": "{{count, number}} films"
+  },
+  "quoted": "« {{text}} »",
+  "badge": {
+    "library": "En bibliothèque",
+    "partial": "Partiellement",
+    "requested": "Demandé",
+    "declined": "Refusé"
+  },
+  "restricted": "Au-delà de la limite d’âge de ce compte",
+  "notOpen": "Les demandes ne sont pas ouvertes à ce compte.",
+  "signInToDecide": "Reconnectez-vous pour approuver et refuser ici.",
+  "askedAlready": "Quelqu’un l’a déjà demandé.",
+  "unreachable": "Impossible de joindre votre serveur",
+  "declined": {
+    "plain": "Refusé.",
+    "because": "Refusé : « {{reason}} ».",
+    "when": "Refusé. Vous pourrez redemander {{when}}.",
+    "becauseWhen": "Refusé : « {{reason}} ». Vous pourrez redemander {{when}}."
+  },
+  "seasons": {
+    "list_one": "Saison {{list}}",
+    "list_many": "Saisons {{list}}",
+    "list_other": "Saisons {{list}}",
+    "andSpecials": "{{seasons}} et épisodes spéciaux",
+    "specials": "Épisodes spéciaux",
+    "season": "Saison {{number}}"
+  },
+  "season": {
+    "library": "En bibliothèque",
+    "partly": "Partiellement",
+    "requested": "Demandée",
+    "declined": "Refusée",
+    "episodesInLibrary_one": "{{count}} épisode sur {{episodes}} en bibliothèque",
+    "episodesInLibrary_many": "{{count}} épisodes sur {{episodes}} en bibliothèque",
+    "episodesInLibrary_other": "{{count}} épisodes sur {{episodes}} en bibliothèque",
+    "airs": "Diffusion : {{day}}",
+    "notAired": "Pas encore diffusée"
+  },
+  "picker": {
+    "title": "Quelles saisons ?",
+    "pickOne": "Choisissez une saison.",
+    "request_one": "Demander {{count}} saison",
+    "request_many": "Demander {{count}} de saisons",
+    "request_other": "Demander {{count}} saisons"
+  },
+  "allowance": {
+    "canAsk": "Vous pouvez encore demander {{list}}.",
+    "moreMovies_one": "{{count, number}} film",
+    "moreMovies_many": "{{count, number}} de films",
+    "moreMovies_other": "{{count, number}} films",
+    "moreSeasons_one": "{{count, number}} saison",
+    "moreSeasons_many": "{{count, number}} de saisons",
+    "moreSeasons_other": "{{count, number}} saisons",
+    "moviesUsedUp": "Vous avez demandé tous les films possibles pour l’instant.",
+    "moviesUsedUpUntil": "Vous avez demandé tous les films possibles pour l’instant : vous pourrez en demander d’autres {{when}}.",
+    "seasonsUsedUp": "Vous avez demandé toutes les saisons possibles pour l’instant.",
+    "seasonsUsedUpUntil": "Vous avez demandé toutes les saisons possibles pour l’instant : vous pourrez en demander d’autres {{when}}.",
+    "allUsedUp": "Vous avez demandé tout ce que vous pouviez pour l’instant.",
+    "allUsedUpUntil": "Vous avez demandé tout ce que vous pouviez pour l’instant : d’autres films {{movies}}, d’autres saisons {{seasons}}.",
+    "limits": "Limites : {{list}} sur 7 jours.",
+    "and": "{{first}} et {{second}}"
+  },
+  "stage": {
+    "pending": "En attente d’approbation",
+    "approved": "Approuvée",
+    "declined": "Refusée",
+    "failed": "Envoi impossible",
+    "notSent": "Pas encore envoyée",
+    "notSentLine": "Elle n’a pas encore pu être envoyée au téléchargement : un administrateur va s’en occuper.",
+    "retry": "Nouvel essai {{when}}.",
+    "notOut": "Pas encore sorti",
+    "out": "Sortie : {{day}}",
+    "airs": "Diffusion : {{day}}",
+    "searching": "Recherche en cours",
+    "importing": "Ajout à la bibliothèque",
+    "partial": "Prêt : {{seasons}}",
+    "partialSome": "Certaines saisons prêtes",
+    "available": "Prêt à regarder",
+    "outOfReach": "Prêt, dans une bibliothèque que vous ne pouvez pas ouvrir : demandez à un administrateur",
+    "gone": "N’est plus dans une bibliothèque"
+  },
+  "download": {
+    "downloading": "Téléchargement",
+    "queued": "En attente de téléchargement",
+    "paused": "Téléchargement en pause",
+    "warning": "Le téléchargement a un problème",
+    "importing": "Ajout à la bibliothèque",
+    "progress": "{{percent}} % téléchargés"
+  },
+  "asked": {
+    "byYou": "Demandé par vous",
+    "byName": "Demandé par {{name}}",
+    "bySomeone": "Demandé par quelqu’un d’autre",
+    "youFollow": "Vous la suivez",
+    "following_one": "{{count}} personne la suit",
+    "following_many": "{{count}} de personnes la suivent",
+    "following_other": "{{count}} personnes la suivent"
+  },
+  "actions": {
+    "remove": "Retirer",
+    "withdraw": "Annuler la demande",
+    "unwatch": "Ne plus suivre",
+    "approve": "Approuver",
+    "retry": "Réessayer",
+    "decline": "Refuser",
+    "declineReason": "Refuser avec un motif…",
+    "handled": "Marquer comme ajouté à la main",
+    "delete": "Supprimer",
+    "askAgain": "Redemander"
+  },
+  "confirm": {
+    "remove": "Retirer « {{title}} » de vos demandes ?",
+    "withdraw": "Annuler votre demande pour « {{title}} » ?",
+    "delete": "Supprimer cette demande ?",
+    "deleteBody": "Radarr et Sonarr gardent ce qu’ils ont."
+  },
+  "done": {
+    "removed": "« {{title}} » a été retiré de vos demandes.",
+    "withdrew": "Votre demande pour « {{title}} » a été annulée.",
+    "unfollowed": "Vous ne suivez plus « {{title}} ».",
+    "approved": "« {{title}} » a été approuvé.",
+    "retrying": "Nouvel essai pour « {{title}} ».",
+    "declined": "« {{title}} » a été refusé.",
+    "handled": "« {{title}} » est marqué comme ajouté à la main.",
+    "deleted": "La demande pour « {{title}} » a été supprimée."
+  },
+  "asking": {
+    "following": "On vous préviendra quand « {{title}} » sera prêt.",
+    "failed": "Demande envoyée pour « {{title}} », mais elle n’a pas encore pu être envoyée au téléchargement.",
+    "pending": "Demande envoyée pour « {{title}} » : un administrateur décidera.",
+    "approved": "« {{title}} » est approuvé et en route."
+  },
+  "news": {
+    "ready": "« {{title}} » est prêt à regarder.",
+    "seasonsReady_one": "{{seasons}} de « {{title}} » est prête à regarder.",
+    "seasonsReady_many": "{{seasons}} de « {{title}} » sont prêtes à regarder.",
+    "seasonsReady_other": "{{seasons}} de « {{title}} » sont prêtes à regarder.",
+    "specialsReady": "Les épisodes spéciaux de « {{title}} » sont prêts à regarder.",
+    "several_one": "{{count}} de vos demandes a du nouveau",
+    "several_many": "{{count}} de vos demandes ont du nouveau",
+    "several_other": "{{count}} de vos demandes ont du nouveau"
+  },
+  "problem": {
+    "off": "Les demandes sont désactivées",
+    "offText": "Ce serveur n’accepte pas de demandes de films et de séries.",
+    "noAccess": "Les demandes ne sont pas ouvertes à ce compte",
+    "noAccessText": "Un administrateur peut lui permettre de demander des films et des séries.",
+    "tmdbDown": "TMDB ne répond pas",
+    "tmdbDownText": "Réessayez dans un instant.",
+    "tmdbKey": "TMDB a refusé la clé de ce serveur",
+    "tmdbKeyManage": "Vérifiez-la dans Paramètres → Serveur, sur le web.",
+    "tmdbKeyText": "Un administrateur doit la vérifier.",
+    "signIn": "Reconnectez-vous pour demander des films et des séries",
+    "askAgain": "Vous pourrez redemander {{when}}.",
+    "declined": "La demande a été refusée.",
+    "askMore": "Vous pourrez en demander d’autres {{when}}.",
+    "atMostMovies_one": "Vous pouvez demander au plus {{count, number}} film sur 7 jours : choisissez-en moins.",
+    "atMostMovies_many": "Vous pouvez demander au plus {{count, number}} de films sur 7 jours : choisissez-en moins.",
+    "atMostMovies_other": "Vous pouvez demander au plus {{count, number}} films sur 7 jours : choisissez-en moins.",
+    "atMostSeasons_one": "Vous pouvez demander au plus {{count, number}} saison sur 7 jours : choisissez-en moins.",
+    "atMostSeasons_many": "Vous pouvez demander au plus {{count, number}} de saisons sur 7 jours : choisissez-en moins.",
+    "atMostSeasons_other": "Vous pouvez demander au plus {{count, number}} saisons sur 7 jours : choisissez-en moins.",
+    "tooMany": "C’est plus que vous ne pouvez demander d’un coup : choisissez-en moins.",
+    "missing": "TMDB ne connaît pas ce titre."
+  },
+  "buttons": {
+    "signIn": "Se connecter",
+    "open": "Ouvrir",
+    "details": "Détails",
+    "request": "Demander",
+    "requested": "Demandé",
+    "following": "Vous suivez",
+    "stopFollowing": "Ne plus suivre",
+    "tellMeToo": "Me prévenir aussi",
+    "requestMoreSeasons": "Demander d’autres saisons",
+    "overview": "Résumé",
+    "retry": "Réessayer",
+    "showMore": "Voir plus",
+    "seeAll": "Tout voir",
+    "back": "Retour",
+    "cancel": "Annuler"
+  },
+  "signInAgain": {
+    "title": "Se reconnecter ?",
+    "body": "Cette TV se déconnecte du serveur et affiche un code pour l’associer à nouveau.",
+    "bodyServer": "Cette TV se déconnecte de {{server}} et affiche un code pour l’associer à nouveau."
+  },
+  "title": {
+    "notOnTmdb": "Absent de TMDB",
+    "notOnTmdbText": "TMDB ne connaît pas ce titre, ou il ne peut pas être affiché ici.",
+    "loadFailed": "Impossible de charger ce titre",
+    "seasons": "Saisons",
+    "cast": "Distribution"
+  },
+  "discover": {
+    "lists": {
+      "trending": "Tendances de la semaine",
+      "movies": "Films populaires",
+      "shows": "Séries populaires",
+      "upcoming": "Bientôt au cinéma",
+      "anime": "Animes populaires"
+    },
+    "loadFailed": "Impossible de charger Découvrir",
+    "nothing": "Rien pour le moment",
+    "nothingText": "Les listes de TMDB n’ont rien que ce profil puisse demander. Recherchez plutôt un titre.",
+    "nothingInList": "La liste de TMDB n’a rien que ce profil puisse demander.",
+    "nothingYet": "Rien ici pour l’instant",
+    "nothingSoFar": "Les pages de TMDB lues jusqu’ici n’ont rien que ce profil puisse demander.",
+    "couldNotLoad": "Chargement impossible",
+    "resultsFor": "Résultats pour « {{query}} »",
+    "searchFailed": "Impossible de rechercher sur TMDB",
+    "nothingFound": "Rien sur TMDB ne correspond à « {{query}} »",
+    "nothingFoundHint": "Essayez une autre orthographe, ou le titre dans sa langue d’origine.",
+    "nothingYetFor": "Encore rien pour « {{query}} »"
+  },
+  "page": {
+    "loadFailed": "Impossible de charger les demandes",
+    "all": "Toutes",
+    "attention": "À traiter",
+    "statuses": {
+      "pending": "En attente",
+      "approved": "Approuvées",
+      "available": "Disponibles",
+      "declined": "Refusées",
+      "failed": "En échec"
+    },
+    "kinds": {
+      "all": "Films et séries",
+      "movie": "Films",
+      "show": "Séries"
+    },
+    "everyone": "Tout le monde",
+    "askedBy": "Demandé par",
+    "titleFilter": "Titre",
+    "search": "Rechercher",
+    "findSomething": "Trouver quelque chose à demander",
+    "newest": "Les {{number}} plus récentes s’affichent ici : filtrez pour trouver les autres.",
+    "deletedMeanwhile": "Cette demande a été supprimée entre-temps.",
+    "empty": {
+      "filtered": "Aucune demande ne correspond",
+      "filteredText": "Essayez d’autres filtres.",
+      "attention": "Rien à traiter",
+      "attentionText": "Les demandes qui attendent une décision, et celles qui n’ont pas pu être envoyées, s’affichent ici.",
+      "none": "Rien n’a encore été demandé",
+      "noneText": "Trouvez des films et des séries dans Découvrir, et demandez ce que les bibliothèques n’ont pas.",
+      "noneTextOff": "Les demandes que vous avez faites ou que vous suivez s’affichent ici."
+    }
+  },
+  "decline": {
+    "title": "Refuser « {{title}} » ?",
+    "nameSees": "{{name}} verra que la demande a été refusée, avec votre motif si vous en indiquez un.",
+    "someoneSees": "La personne qui l’a demandé verra que la demande a été refusée, avec votre motif si vous en indiquez un.",
+    "reason": "Motif (facultatif)",
+    "done": "Terminé"
+  },
+  "dates": {
+    "day": "{{day}} {{month}}",
+    "dayYear": "{{day}} {{month}} {{year}}"
+  },
+  "months": {
+    "jan": "janv.",
+    "feb": "févr.",
+    "mar": "mars",
+    "apr": "avr.",
+    "may": "mai",
+    "jun": "juin",
+    "jul": "juil.",
+    "aug": "août",
+    "sep": "sept.",
+    "oct": "oct.",
+    "nov": "nov.",
+    "dec": "déc."
+  },
+  "time": {
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {{minutes}} min",
+    "hoursAgo_one": "il y a {{count}} heure",
+    "hoursAgo_many": "il y a {{count}} heures",
+    "hoursAgo_other": "il y a {{count}} heures",
+    "yesterday": "hier",
+    "daysAgo_one": "il y a {{count}} jour",
+    "daysAgo_many": "il y a {{count}} jours",
+    "daysAgo_other": "il y a {{count}} jours",
+    "now": "maintenant",
+    "inMinutes": "dans {{minutes}} min",
+    "inHours_one": "dans {{count}} heure",
+    "inHours_many": "dans {{count}} heures",
+    "inHours_other": "dans {{count}} heures",
+    "tomorrow": "demain",
+    "inDays_one": "dans {{count}} jour",
+    "inDays_many": "dans {{count}} jours",
+    "inDays_other": "dans {{count}} jours",
+    "today": "aujourd’hui",
+    "dayAt": "{{day}} à {{time}}"
+  }
+}

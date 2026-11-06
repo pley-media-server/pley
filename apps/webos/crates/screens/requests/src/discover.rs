@@ -9,9 +9,10 @@ use std::collections::HashMap;
 use pley_base::{Icon, Point, Rect, TextOpts};
 use pley_core::model::{DiscoverDetail, DiscoverTitle, MediaRequest, RequestList, RequestQuery};
 use pley_core::requests::{
-    DISCOVER_ROWS, TMDB_CREDIT, asked_line, has_requests, moving, requests_count, requests_problem, requests_title,
-    seasons_label, stage_words, title_key,
+    DISCOVER_ROWS, asked_line, has_requests, moving, requests_count, requests_problem, requests_title, seasons_label,
+    stage_words, title_key, tmdb_credit,
 };
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, ColumnState, InfoBlock, Message, MessageStyle, Row, RowColumn,
     RowState, Section, Tile, TileKind, TileSlot, backdrop_px, skeleton_block,
@@ -41,7 +42,6 @@ const TEXT_COLUMN: f32 = 464.0;
 const SKELETON_AFTER: f64 = 0.3;
 /// The requests at the foot.
 const MINE_LIMIT: i64 = 20;
-const SEE_ALL: &str = "See all";
 
 /// The hero's section, the rows' (1 + their index), the requests', the credit's.
 const HERO: u64 = 0;
@@ -305,7 +305,8 @@ impl Screen for DiscoverScreen {
 
         if let Some(gate) = summary_problem(cx.state.request_summary()) {
             self.settled = true;
-            let (pressed, focusable) = problem_page(ui, cx, page.with("gate"), &gate, "Couldn't load Discover");
+            let (pressed, focusable) =
+                problem_page(ui, cx, page.with("gate"), &gate, t!("requests.discover.loadFailed"));
             self.rail_if(cx, !focusable);
             match pressed {
                 Some(ProblemAction::Retry) => cx.state.load_requests(false),
@@ -327,7 +328,8 @@ impl Screen for DiscoverScreen {
         {
             self.settled = true;
             let problem = requests_problem(&e);
-            let (pressed, focusable) = problem_page(ui, cx, page.with("blocked"), &problem, "Couldn't load Discover");
+            let (pressed, focusable) =
+                problem_page(ui, cx, page.with("blocked"), &problem, t!("requests.discover.loadFailed"));
             self.rail_if(cx, !focusable);
             match pressed {
                 Some(ProblemAction::Retry) => self.readers[0].again(),
@@ -342,9 +344,9 @@ impl Screen for DiscoverScreen {
         let Some((hero, detail)) = self.hero(ui, cx) else {
             if self.readers.iter().all(|r| r.pages.settled()) {
                 self.settled = true;
-                Message::new(MessageStyle::Item, "Nothing here right now")
+                Message::new(MessageStyle::Item, t!("requests.discover.nothing"))
                     .icon(Some(Icon::Compass))
-                    .body("TMDB's lists have nothing this profile can ask for. Search for a title instead.")
+                    .body(t!("requests.discover.nothingText"))
                     .show(ui, page.with("nothing"));
                 self.rail_if(cx, true);
             } else if cx.now - opened >= SKELETON_AFTER {
@@ -438,7 +440,8 @@ impl DiscoverScreen {
         let main_id = DiscoverScreen::main_id(page);
         let time = self.clock.time(cx);
         let actions = Actions::of(detail, hero, cx.state.request_summary(), time);
-        let extras = [Extra { key: "details", icon: Icon::Info, label: "Details", unclaimed_only: false }];
+        let extras =
+            [Extra { key: "details", icon: Icon::Info, label: t!("requests.buttons.details"), unclaimed_only: false }];
         ui.initial_focus(main_id);
 
         // Where focus is, as the last frame left it.
@@ -531,11 +534,11 @@ impl DiscoverScreen {
                 }
                 CREDIT => {
                     let at = Point::new(theme::GUTTER, top);
-                    ui.text(at, TMDB_CREDIT, &theme::CAPTION, &TextOpts::line(800.0), theme::SUBTLE);
+                    ui.text(at, tmdb_credit(), &theme::CAPTION, &TextOpts::line(800.0), theme::SUBTLE);
                 }
                 MINE => {
                     let state = row_states.entry(MINE).or_default();
-                    let r = Row::new(TileKind::Landscape, top).header("Your requests").show(
+                    let r = Row::new(TileKind::Landscape, top).header(t!("requests.names.yourRequests")).show(
                         ui,
                         ui.id("row"),
                         state,
@@ -557,7 +560,7 @@ impl DiscoverScreen {
                 k => {
                     let index = k as usize - 1;
                     let row = &rows[index];
-                    let title = DISCOVER_ROWS[index].title;
+                    let title = DISCOVER_ROWS[index].title();
                     if row.tiles.is_empty() {
                         row_skeleton(ui, top, title);
                         return;
@@ -572,7 +575,7 @@ impl DiscoverScreen {
                         |i| tiles.get(i).map_or(u64::MAX, |t| hash(&t.key())),
                         |ui, slot| match tiles.get(slot.index) {
                             Some(t) => paint_title(ui, slot, t),
-                            None => Tile::see_all(TileKind::Poster, SEE_ALL).paint(ui, slot),
+                            None => Tile::see_all(TileKind::Poster, t!("requests.buttons.seeAll")).paint(ui, slot),
                         },
                     );
                     if let Some(f) = r.focused {
@@ -682,7 +685,7 @@ fn draw_info(ui: &mut Ui, f: &Focused, manage: bool, time: pley_core::requests::
 /// stage in the stage's colour; See all after them.
 fn paint_mine(ui: &mut Ui, slot: &TileSlot, mine: &[MineTile], manage: bool, time: pley_core::requests::TvTime) {
     let Some(t) = mine.get(slot.index) else {
-        Tile::see_all(TileKind::Landscape, SEE_ALL).paint(ui, slot);
+        Tile::see_all(TileKind::Landscape, t!("requests.buttons.seeAll")).paint(ui, slot);
         return;
     };
     let w = stage_words(&t.request, manage, time);

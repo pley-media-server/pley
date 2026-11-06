@@ -4,7 +4,7 @@
 
 use pley_base::Icon;
 use pley_core::model::{QUALITY_PRESETS, QualityPreset, SubtitleMode, TrackDefaults, quality_preset};
-use pley_core::requests::TMDB_NOTICE;
+use pley_core::requests::tmdb_notice;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
 };
@@ -418,7 +418,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
             }
             // Discover's titles and pictures come from TMDB, whose terms ask for this line.
             out.push(Item::Heading(t!("settings.about.credits")));
-            out.push(Item::Row(Row::new(None, "TMDB", TMDB_NOTICE, RowAction::None)));
+            out.push(Item::Row(Row::new(None, "TMDB", tmdb_notice(), RowAction::None)));
         }
         SettingsSection::SignOut => {
             out.push(Item::Intro(match f.server.as_deref() {
@@ -882,7 +882,7 @@ mod tests {
         let n = about.len();
         assert_eq!(about[n - 2], Item::Heading("Credits"));
         let Item::Row(tmdb) = &about[n - 1] else { panic!("the credit is a row") };
-        assert_eq!((tmdb.label.as_str(), tmdb.value.as_str()), ("TMDB", TMDB_NOTICE));
+        assert_eq!((tmdb.label.as_str(), tmdb.value.as_str()), ("TMDB", tmdb_notice()));
         assert_eq!(tmdb.action, RowAction::None);
         // With nothing to choose it still takes focus, so it is read out like the other rows.
         assert!(about[n - 1].focusable());

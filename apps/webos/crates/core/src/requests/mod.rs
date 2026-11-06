@@ -2,13 +2,15 @@
 //! who sees what, a title's badge and its one main action, the season picker, a request's stage
 //! and actions, the allowance, the news of what is ready, and what each of the server's refusals
 //! says. A platform may shorten these words, never reword them; these are the TV app's
-//! (`requests.ts`), word for word.
+//! (`requests.ts`), word for word, in the language shown (`locales/<language>/requests.json`).
 //!
 //! Times are unix seconds. Words about days ("tomorrow", "Nov 4") are the TV's own days, so the
 //! functions that write them take a [`TvTime`]: the time now, the TV's offset from UTC and its
 //! clock format, never the clock read here.
 
-use crate::format::{format_runtime, format_time_of_day, pluralize};
+use pley_i18n::t;
+
+use crate::format::{format_runtime, format_time_of_day};
 use crate::http::{ApiError, sentence};
 use crate::model::{
     Declined, DiscoverDetail, DiscoverList, DiscoverSeason, DiscoverTitle, DownloadState, MediaRequest, RequestAccess,
@@ -20,13 +22,31 @@ use crate::model::{
 mod tests;
 
 /// Discover's foot and every title page say where their details come from.
-pub const TMDB_CREDIT: &str = "Details and pictures from TMDB.";
-/// Settings → About.
-pub const TMDB_NOTICE: &str = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
+pub fn tmdb_credit() -> &'static str {
+    t!("requests.tmdb.credit")
+}
 
-pub const SIGN_IN_TITLE: &str = "Sign in again to ask for movies and shows";
-pub const SIGN_IN_APPROVALS: &str = "Sign in again to approve and decline here.";
-pub const NO_ACCESS: &str = "Requests aren't open to this account.";
+/// Settings → About.
+pub fn tmdb_notice() -> &'static str {
+    t!("requests.tmdb.notice")
+}
+
+pub fn sign_in_title() -> &'static str {
+    t!("requests.problem.signIn")
+}
+
+pub fn sign_in_approvals() -> &'static str {
+    t!("requests.signInToDecide")
+}
+
+pub fn no_access() -> &'static str {
+    t!("requests.notOpen")
+}
+
+/// `text` in quotation marks, as the language shown sets them: “…”, « … », «…».
+pub fn quoted(text: &str) -> String {
+    t!("requests.quoted", text = text)
+}
 
 /// The TV's clock, for words about time: now, the offset of its zone from UTC, and whether it
 /// shows "21:05" or "9:05 PM". One offset serves every time written, so a change to or from
@@ -55,28 +75,52 @@ impl TvTime {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DiscoverRow {
     pub list: DiscoverList,
-    pub title: &'static str,
     /// The row holds movies and shows both, so its tiles say which.
     pub mixed: bool,
 }
 
+impl DiscoverRow {
+    /// The row's title: "Trending this week", "Popular movies"…
+    pub fn title(&self) -> &'static str {
+        match self.list {
+            DiscoverList::Trending => t!("requests.discover.lists.trending"),
+            DiscoverList::Movies => t!("requests.discover.lists.movies"),
+            DiscoverList::Shows => t!("requests.discover.lists.shows"),
+            DiscoverList::Upcoming => t!("requests.discover.lists.upcoming"),
+            DiscoverList::Anime => t!("requests.discover.lists.anime"),
+        }
+    }
+}
+
 /// Discover's rows, in order.
 pub const DISCOVER_ROWS: [DiscoverRow; 5] = [
-    DiscoverRow { list: DiscoverList::Trending, title: "Trending this week", mixed: true },
-    DiscoverRow { list: DiscoverList::Movies, title: "Popular movies", mixed: false },
-    DiscoverRow { list: DiscoverList::Shows, title: "Popular shows", mixed: false },
-    DiscoverRow { list: DiscoverList::Upcoming, title: "Coming to cinemas", mixed: false },
-    DiscoverRow { list: DiscoverList::Anime, title: "Popular anime", mixed: false },
+    DiscoverRow { list: DiscoverList::Trending, mixed: true },
+    DiscoverRow { list: DiscoverList::Movies, mixed: false },
+    DiscoverRow { list: DiscoverList::Shows, mixed: false },
+    DiscoverRow { list: DiscoverList::Upcoming, mixed: false },
+    DiscoverRow { list: DiscoverList::Anime, mixed: false },
 ];
 
 /// The status tabs of a list of requests, after All.
-pub const STATUS_TABS: [(RequestStatus, &str); 5] = [
-    (RequestStatus::Pending, "Pending"),
-    (RequestStatus::Approved, "Approved"),
-    (RequestStatus::Available, "Available"),
-    (RequestStatus::Declined, "Declined"),
-    (RequestStatus::Failed, "Failed"),
+pub const STATUS_TABS: [RequestStatus; 5] = [
+    RequestStatus::Pending,
+    RequestStatus::Approved,
+    RequestStatus::Available,
+    RequestStatus::Declined,
+    RequestStatus::Failed,
 ];
+
+/// A status's tab: "Pending", "Approved"…
+fn status_tab(status: RequestStatus) -> &'static str {
+    match status {
+        RequestStatus::Pending => t!("requests.page.statuses.pending"),
+        RequestStatus::Approved => t!("requests.page.statuses.approved"),
+        RequestStatus::Available => t!("requests.page.statuses.available"),
+        RequestStatus::Declined => t!("requests.page.statuses.declined"),
+        RequestStatus::Failed => t!("requests.page.statuses.failed"),
+        RequestStatus::Unknown => "",
+    }
+}
 
 /// A tab of a list of requests: Needs attention (managers), All, or one status.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -90,10 +134,10 @@ pub enum RequestsTab {
 pub fn requests_tabs(manage: bool) -> Vec<(RequestsTab, &'static str)> {
     let mut tabs = Vec::with_capacity(STATUS_TABS.len() + 2);
     if manage {
-        tabs.push((RequestsTab::Attention, "Needs attention"));
+        tabs.push((RequestsTab::Attention, t!("requests.page.attention")));
     }
-    tabs.push((RequestsTab::All, "All"));
-    tabs.extend(STATUS_TABS.iter().map(|&(status, label)| (RequestsTab::Status(status), label)));
+    tabs.push((RequestsTab::All, t!("requests.page.all")));
+    tabs.extend(STATUS_TABS.iter().map(|&status| (RequestsTab::Status(status), status_tab(status))));
     tabs
 }
 
@@ -102,17 +146,13 @@ pub fn requests_tabs(manage: bool) -> Vec<(RequestsTab, &'static str)> {
 /// `may_ask`, the profile may ask for titles.
 pub fn requests_empty(tab: RequestsTab, filtered: bool, may_ask: bool) -> (&'static str, &'static str) {
     if filtered || matches!(tab, RequestsTab::Status(_)) {
-        return ("No requests match", "Try other filters.");
+        return (t!("requests.page.empty.filtered"), t!("requests.page.empty.filteredText"));
     }
     if tab == RequestsTab::Attention {
-        return ("Nothing needs you", "Requests waiting for a decision, and those that couldn't be sent, show here.");
+        return (t!("requests.page.empty.attention"), t!("requests.page.empty.attentionText"));
     }
-    let body = if may_ask {
-        "Find movies and shows in Discover, and ask for what the libraries don't have."
-    } else {
-        "Requests you made or follow show here."
-    };
-    ("Nothing asked for yet", body)
+    let body = if may_ask { t!("requests.page.empty.noneText") } else { t!("requests.page.empty.noneTextOff") };
+    (t!("requests.page.empty.none"), body)
 }
 
 /// The filters of the managers' list: movies or shows, one person's, a title's words.
@@ -170,7 +210,7 @@ pub fn tab_count(tab: RequestsTab, counts: Option<&RequestCounts>, s: Option<&Re
     };
     match tab {
         RequestsTab::Attention => s.map(|s| s.pending + s.failed),
-        RequestsTab::All => counts.map(|c| STATUS_TABS.iter().map(|&(status, _)| of(c, status)).sum()),
+        RequestsTab::All => counts.map(|c| STATUS_TABS.iter().map(|&status| of(c, status)).sum()),
         RequestsTab::Status(status) => counts.map(|c| of(c, status)),
     }
 }
@@ -195,7 +235,7 @@ pub fn has_requests(s: Option<&RequestSummary>) -> bool {
 
 /// "Requests" for managers (it opens on Needs attention), "Your requests" for everyone else.
 pub fn requests_title(s: Option<&RequestSummary>) -> &'static str {
-    if s.is_some_and(|s| s.manage) { "Requests" } else { "Your requests" }
+    if s.is_some_and(|s| s.manage) { t!("requests.names.requests") } else { t!("requests.names.yourRequests") }
 }
 
 /// The one number on the way to requests, and whether it takes the danger colour: for managers
@@ -245,10 +285,10 @@ fn trim(s: &str) -> &str {
 /// "Declined"; none otherwise.
 pub fn title_badge(status: TitleStatus, item_id: Option<i64>) -> Option<&'static str> {
     match status {
-        TitleStatus::Library => Some("In library"),
-        TitleStatus::Partial if item_id.is_some() => Some("Partly in library"),
-        TitleStatus::Partial | TitleStatus::Requested => Some("Requested"),
-        TitleStatus::Declined => Some("Declined"),
+        TitleStatus::Library => Some(t!("requests.badge.library")),
+        TitleStatus::Partial if item_id.is_some() => Some(t!("requests.badge.partial")),
+        TitleStatus::Partial | TitleStatus::Requested => Some(t!("requests.badge.requested")),
+        TitleStatus::Declined => Some(t!("requests.badge.declined")),
         TitleStatus::Restricted | TitleStatus::None => None,
     }
 }
@@ -284,8 +324,13 @@ pub fn title_tone(status: TitleStatus, item_id: Option<i64>) -> Tone {
 /// A tile's second line: the year, and in rows of both kinds which it is.
 pub fn title_subtitle(kind: TitleKind, year: Option<i64>, mixed: bool) -> String {
     let year = year.filter(|y| *y != 0).map(|y| y.to_string());
-    let which = mixed.then_some(if kind == TitleKind::Show { "Show" } else { "Movie" });
+    let which = mixed.then_some(kind_word(kind));
     join([year.as_deref(), which], " · ")
+}
+
+/// "Movie" or "Show".
+pub fn kind_word(kind: TitleKind) -> &'static str {
+    if kind == TitleKind::Show { t!("requests.kind.show") } else { t!("requests.kind.movie") }
 }
 
 /// A title page's facts line: the year, then the runtime or the seasons; the certification is
@@ -295,7 +340,7 @@ pub fn title_facts(d: &DiscoverDetail) -> String {
     let length = if d.title.kind == TitleKind::Movie {
         format_runtime(d.runtime_minutes.filter(|m| *m != 0).map(|m| m * 60_000))
     } else if seasons > 0 {
-        pluralize(seasons, "season", None)
+        t!("requests.counts.seasons", count = seasons)
     } else {
         String::new()
     };
@@ -381,7 +426,9 @@ pub enum MainAction<'a> {
     NoAccess,
 }
 
-const AGE_LIMIT: &str = "Above this account's age limit";
+fn age_limit() -> &'static str {
+    t!("requests.restricted")
+}
 
 /// A title page's one main action, the first that applies: sign in again, restricted, in the
 /// library, declined, requested (by this profile, or followed, or by someone else), partly in the
@@ -393,8 +440,11 @@ pub fn main_action<'a>(d: &'a DiscoverDetail, s: Option<&RequestSummary>, time: 
     let t = &d.title;
     match t.status {
         TitleStatus::Restricted => {
-            let text = d.restriction.as_deref().filter(|r| !r.is_empty()).unwrap_or(AGE_LIMIT);
-            return MainAction::Restricted { text: text.to_string() };
+            let text = match d.restriction.as_deref().filter(|r| !r.is_empty()) {
+                Some(r) => r.to_string(),
+                None => age_limit().to_string(),
+            };
+            return MainAction::Restricted { text };
         }
         TitleStatus::Library => return MainAction::Open { item_id: t.item_id },
         TitleStatus::Declined => return MainAction::Declined { text: declined_text(d.declined.as_ref(), time) },
@@ -433,9 +483,9 @@ pub fn list_action(t: &DiscoverTitle, s: Option<&RequestSummary>) -> MainAction<
         return MainAction::SignIn;
     }
     match t.status {
-        TitleStatus::Restricted => return MainAction::Restricted { text: AGE_LIMIT.to_string() },
+        TitleStatus::Restricted => return MainAction::Restricted { text: age_limit().to_string() },
         TitleStatus::Library => return MainAction::Open { item_id: t.item_id },
-        TitleStatus::Declined => return MainAction::Declined { text: "Declined.".to_string() },
+        TitleStatus::Declined => return MainAction::Declined { text: t!("requests.declined.plain").to_string() },
         TitleStatus::Requested => return MainAction::Requested { request: None },
         _ => {}
     }
@@ -460,10 +510,12 @@ pub fn declined_text(declined: Option<&Declined>, time: TvTime) -> String {
         .and_then(|d| d.reason.as_deref())
         .map(|r| trim(r).trim_end_matches(|c: char| c == '.' || c.is_whitespace()))
         .unwrap_or_default();
-    let lead = if reason.is_empty() { "Declined.".to_string() } else { format!("Declined: “{reason}”.") };
-    match declined {
-        Some(d) => format!("{lead} You can ask again {}.", time_until(d.again_at, time)),
-        None => lead,
+    let when = declined.map(|d| time_until(d.again_at, time));
+    match (reason.is_empty(), when) {
+        (true, None) => t!("requests.declined.plain").to_string(),
+        (false, None) => t!("requests.declined.because", reason = reason),
+        (true, Some(when)) => t!("requests.declined.when", when = when),
+        (false, Some(when)) => t!("requests.declined.becauseWhen", reason = reason, when = when),
     }
 }
 
@@ -487,7 +539,7 @@ pub fn seasons_label(seasons: &[i64]) -> String {
     let specials = list.contains(&0);
     let numbered: Vec<i64> = list.into_iter().filter(|n| *n > 0).collect();
     let Some(&first) = numbered.first() else {
-        return if specials { "Specials".into() } else { String::new() };
+        return if specials { t!("requests.seasons.specials").into() } else { String::new() };
     };
     let mut runs: Vec<String> = Vec::new();
     let (mut start, mut prev) = (first, first);
@@ -500,8 +552,13 @@ pub fn seasons_label(seasons: &[i64]) -> String {
         start = n;
         prev = n;
     }
-    let word = if numbered.len() == 1 { "Season" } else { "Seasons" };
-    format!("{word} {}{}", runs.join(", "), if specials { " and specials" } else { "" })
+    let seasons = t!("requests.seasons.list", count = numbered.len(), list = runs.join(", "));
+    if specials { t!("requests.seasons.andSpecials", seasons = seasons) } else { seasons }
+}
+
+/// A season by its number: "Season 2", "Specials" for 0.
+pub fn season_name(number: i64) -> String {
+    if number == 0 { t!("requests.seasons.specials").into() } else { t!("requests.seasons.season", number = number) }
 }
 
 /// The seasons asked for already: Tell me too follows those.
@@ -556,9 +613,8 @@ pub fn preselected(d: &DiscoverDetail, left: Option<i64>) -> Vec<i64> {
 /// ticked.
 pub fn picker_button(n: i64) -> String {
     match n {
-        ..=0 => "Pick a season.".into(),
-        1 => "Request 1 season".into(),
-        n => format!("Request {n} seasons"),
+        ..=0 => t!("requests.picker.pickOne").into(),
+        n => t!("requests.picker.request", count = n),
     }
 }
 
@@ -566,20 +622,22 @@ pub fn picker_button(n: i64) -> String {
 /// "Requested", "Declined"…; Android's `RequestTexts.seasonState`), else what it holds.
 pub fn season_line(s: &DiscoverSeason, time: TvTime) -> String {
     match s.state {
-        SeasonState::Library => return "In library".into(),
-        SeasonState::Requested => return "Requested".into(),
+        SeasonState::Library => return t!("requests.season.library").into(),
+        SeasonState::Requested => return t!("requests.season.requested").into(),
         _ => {}
     }
     if s.declined {
-        return "Declined".into();
+        return t!("requests.season.declined").into();
     }
     match s.state {
-        SeasonState::Partial => format!("{} of {} episodes in library", s.in_library, s.episodes.max(s.in_library)),
+        SeasonState::Partial => {
+            t!("requests.season.episodesInLibrary", count = s.in_library, episodes = s.episodes.max(s.in_library))
+        }
         SeasonState::Unaired => match s.air_date.as_deref().filter(|d| !d.is_empty()) {
-            Some(date) => format!("Airs {}", iso_day(date, time)),
-            None => "Not aired yet".into(),
+            Some(date) => t!("requests.season.airs", day = iso_day(date, time)),
+            None => t!("requests.season.notAired").into(),
         },
-        _ => pluralize(s.episodes, "episode", None),
+        _ => t!("requests.counts.episodes", count = s.episodes),
     }
 }
 
@@ -661,42 +719,48 @@ pub fn allowance_lines(given: &Allowance, time: TvTime) -> Option<Vec<String>> {
     let m_out = m.is_some_and(|m| m <= 0);
     let s_out = s.is_some_and(|s| s <= 0);
     let when = |at: Option<i64>| at.map(|at| time_until(at, time));
+    let more_movies = |n: i64| t!("requests.allowance.moreMovies", count = n);
+    let more_seasons = |n: i64| t!("requests.allowance.moreSeasons", count = n);
     let mut lines = Vec::new();
     if m_out && s_out {
         lines.push(match (when(a.movies_next_at), when(a.seasons_next_at)) {
-            (Some(mw), Some(sw)) => {
-                format!("You've asked for all you can for now: more movies {mw}, more seasons {sw}.")
-            }
-            _ => "You've asked for all you can for now.".into(),
+            (Some(mw), Some(sw)) => t!("requests.allowance.allUsedUpUntil", movies = mw, seasons = sw),
+            _ => t!("requests.allowance.allUsedUp").into(),
         });
     } else if m_out || s_out {
-        let what = if m_out { "movies" } else { "seasons" };
-        lines.push(match when(if m_out { a.movies_next_at } else { a.seasons_next_at }) {
-            Some(w) => format!("You've asked for all the {what} you can for now: you can ask for more {w}."),
-            None => format!("You've asked for all the {what} you can for now."),
+        lines.push(match (m_out, when(if m_out { a.movies_next_at } else { a.seasons_next_at })) {
+            (true, Some(w)) => t!("requests.allowance.moviesUsedUpUntil", when = w),
+            (true, None) => t!("requests.allowance.moviesUsedUp").into(),
+            (false, Some(w)) => t!("requests.allowance.seasonsUsedUpUntil", when = w),
+            (false, None) => t!("requests.allowance.seasonsUsedUp").into(),
         });
         if let Some(other) = if m_out { s } else { m } {
-            let (one, many) = if m_out { ("more season", "more seasons") } else { ("more movie", "more movies") };
-            lines.push(format!("You can ask for {}.", pluralize(other, one, Some(many))));
+            let list = if m_out { more_seasons(other) } else { more_movies(other) };
+            lines.push(t!("requests.allowance.canAsk", list = list));
         }
     } else {
-        let parts = [
-            m.map(|m| pluralize(m, "more movie", Some("more movies"))),
-            s.map(|s| pluralize(s, "more season", Some("more seasons"))),
-        ];
-        lines.push(format!("You can ask for {}.", parts.into_iter().flatten().collect::<Vec<_>>().join(" and ")));
+        let parts: Vec<String> = [m.map(more_movies), s.map(more_seasons)].into_iter().flatten().collect();
+        lines.push(t!("requests.allowance.canAsk", list = both(parts)));
     }
     let limits: Vec<String> = [
-        a.movies_limit.filter(|l| *l != 0).map(|l| pluralize(l, "movie", None)),
-        a.seasons_limit.filter(|l| *l != 0).map(|l| pluralize(l, "season", None)),
+        a.movies_limit.filter(|l| *l != 0).map(|l| t!("requests.counts.movies", count = l)),
+        a.seasons_limit.filter(|l| *l != 0).map(|l| t!("requests.counts.seasons", count = l)),
     ]
     .into_iter()
     .flatten()
     .collect();
     if !limits.is_empty() {
-        lines.push(format!("Limits: {} per 7 days.", limits.join(" and ")));
+        lines.push(t!("requests.allowance.limits", list = both(limits)));
     }
     Some(lines)
+}
+
+/// One or two counts, the second after "and".
+fn both(parts: Vec<String>) -> String {
+    match <[String; 2]>::try_from(parts) {
+        Ok([first, second]) => t!("requests.allowance.and", first = first, second = second),
+        Err(parts) => parts.join(" "),
+    }
 }
 
 // ---- a request's stage
@@ -730,50 +794,52 @@ pub fn stage_words(r: &MediaRequest, manage: bool, time: TvTime) -> StageWords {
 
 fn stage_words_at(r: &MediaRequest, stage: RequestStage, manage: bool, time: TvTime) -> StageWords {
     match stage {
-        RequestStage::Pending => StageWords::new("Waiting for approval", Tone::Amber),
-        RequestStage::Declined => StageWords::new("Declined", Tone::Red)
-            .note(r.reason.as_deref().filter(|r| !r.is_empty()).map(|r| format!("“{}”", trim(r)))),
+        RequestStage::Pending => StageWords::new(t!("requests.stage.pending"), Tone::Amber),
+        RequestStage::Declined => StageWords::new(t!("requests.stage.declined"), Tone::Red)
+            .note(r.reason.as_deref().filter(|r| !r.is_empty()).map(|r| quoted(trim(r)))),
         RequestStage::Failed => {
-            let retry = r.retry_at.map(|at| format!("Trying again {}.", time_until(at, time)));
+            let retry = r.retry_at.map(|at| t!("requests.stage.retry", when = time_until(at, time)));
             if manage {
                 // "Couldn't send: {reason}" in two parts, so a long reason is read whole under a
                 // short pill.
                 let reason = r.reason.as_deref().filter(|r| !r.is_empty()).map(sentence);
                 let note = join([reason.as_deref(), retry.as_deref()], " ");
-                return StageWords::new("Couldn't send", Tone::Red).note((!note.is_empty()).then_some(note));
+                return StageWords::new(t!("requests.stage.failed"), Tone::Red)
+                    .note((!note.is_empty()).then_some(note));
             }
-            let note = retry
-                .unwrap_or_else(|| "It couldn't be sent to download yet: an administrator will look at it.".into());
-            StageWords::new("Not sent yet", Tone::Red).note(Some(note))
+            let note = retry.unwrap_or_else(|| t!("requests.stage.notSentLine").into());
+            StageWords::new(t!("requests.stage.notSent"), Tone::Red).note(Some(note))
         }
-        RequestStage::Approved => StageWords::new("Approved", Tone::Blue),
+        RequestStage::Approved => StageWords::new(t!("requests.stage.approved"), Tone::Blue),
         RequestStage::Waiting => match r.stage_at {
-            None => StageWords::new("Not out yet", Tone::Blue),
+            None => StageWords::new(t!("requests.stage.notOut"), Tone::Blue),
             // A release is known by its day only (sent as 12:00 UTC of it); an episode's airing
             // exactly.
             Some(at) if r.kind == TitleKind::Movie => {
-                StageWords::new(format!("Out {}", day_and_time(utc_day(at, time), false, time)), Tone::Blue)
+                let day = day_and_time(utc_day(at, time), false, time);
+                StageWords::new(t!("requests.stage.out", day = day), Tone::Blue)
             }
-            Some(at) => StageWords::new(format!("Airs {}", day_and_time(at, true, time)), Tone::Blue),
+            Some(at) => StageWords::new(t!("requests.stage.airs", day = day_and_time(at, true, time)), Tone::Blue),
         },
-        RequestStage::Searching => StageWords::new("Searching", Tone::Blue),
+        RequestStage::Searching => StageWords::new(t!("requests.stage.searching"), Tone::Blue),
         RequestStage::Downloading => download_words(r, time),
-        RequestStage::Importing => StageWords::new("Adding to the library", Tone::Blue),
+        RequestStage::Importing => StageWords::new(t!("requests.stage.importing"), Tone::Blue),
         RequestStage::Partial => {
             let label = seasons_label(&r.available_seasons);
-            let label = if label.is_empty() { "Some seasons".into() } else { label };
-            StageWords {
-                progress: r.download.as_ref().map(|d| d.progress),
-                ..StageWords::new(format!("{label} ready"), Tone::Green)
-            }
+            let text = if label.is_empty() {
+                t!("requests.stage.partialSome").into()
+            } else {
+                t!("requests.stage.partial", seasons = label)
+            };
+            StageWords { progress: r.download.as_ref().map(|d| d.progress), ..StageWords::new(text, Tone::Green) }
         }
-        RequestStage::Available => StageWords::new("Ready to watch", Tone::Green)
-            .note(r.item_id.is_none().then(|| "Ready, in a library you can't open: ask an administrator".into())),
-        RequestStage::Gone => StageWords::new("No longer in a library", Tone::Gray),
+        RequestStage::Available => StageWords::new(t!("requests.stage.available"), Tone::Green)
+            .note(r.item_id.is_none().then(|| t!("requests.stage.outOfReach").into())),
+        RequestStage::Gone => StageWords::new(t!("requests.stage.gone"), Tone::Gray),
         // A stage this app doesn't know (or a server from before stages): its status says as much.
         RequestStage::Unknown => match status_stage(r.status) {
             Some(stage) => stage_words_at(r, stage, manage, time),
-            None => StageWords::new("Approved", Tone::Blue),
+            None => StageWords::new(t!("requests.stage.approved"), Tone::Blue),
         },
     }
 }
@@ -798,19 +864,20 @@ fn utc_day(seconds: i64, time: TvTime) -> i64 {
 
 /// A download's words: its state, else its share and when it ends ("Downloading 42% · in 20 min").
 fn download_words(r: &MediaRequest, time: TvTime) -> StageWords {
-    let Some(d) = &r.download else { return StageWords::new("Downloading", Tone::Blue) };
+    let Some(d) = &r.download else { return StageWords::new(t!("requests.download.downloading"), Tone::Blue) };
     let text = match d.state {
-        DownloadState::Queued => "Waiting to download".into(),
-        DownloadState::Paused => "Download paused".into(),
-        DownloadState::Warning => "The download has a problem".into(),
-        DownloadState::Importing => "Adding to the library".into(),
+        DownloadState::Queued => t!("requests.download.queued").into(),
+        DownloadState::Paused => t!("requests.download.paused").into(),
+        DownloadState::Warning => t!("requests.download.warning").into(),
+        DownloadState::Importing => t!("requests.download.importing").into(),
         DownloadState::Downloading => {
-            let eta = match d.eta {
-                Some(eta) if eta > time.now + 30 => format!(" · {}", time_until(eta, time)),
-                _ => String::new(),
-            };
             let share = (d.progress.clamp(0.0, 1.0) * 100.0).floor() as i64;
-            format!("Downloading {share}%{eta}")
+            let progress = t!("requests.download.progress", percent = share);
+            // " · " parts the share from when it ends: a tile puts the time on its second line.
+            match d.eta {
+                Some(eta) if eta > time.now + 30 => format!("{progress} · {}", time_until(eta, time)),
+                _ => progress,
+            }
         }
     };
     StageWords { progress: Some(d.progress), ..StageWords::new(text, Tone::Blue) }
@@ -824,7 +891,7 @@ pub fn season_stage(r: &MediaRequest, season: i64, manage: bool, time: TvTime) -
         return Some(stage_words(r, manage, time));
     }
     if r.available_seasons.contains(&season) {
-        return Some(StageWords::new("Ready to watch", Tone::Green));
+        return Some(StageWords::new(t!("requests.stage.available"), Tone::Green));
     }
     r.download.is_some().then(|| download_words(r, time))
 }
@@ -842,20 +909,20 @@ pub fn moving(list: &[MediaRequest]) -> bool {
 /// someone else · now"; for managers, how many follow it.
 pub fn asked_line(r: &MediaRequest, manage: bool, time: TvTime) -> String {
     let who = if r.mine {
-        "Asked by you".to_string()
+        t!("requests.asked.byYou").to_string()
     } else if let Some(by) = &r.requested_by {
-        format!("Asked by {}", by.name)
+        t!("requests.asked.byName", name = by.name)
     } else {
-        "Asked for by someone else".to_string()
+        t!("requests.asked.bySomeone").to_string()
     };
     let mut parts = Vec::with_capacity(4);
     if r.watching && !r.mine {
-        parts.push("You follow it".to_string());
+        parts.push(t!("requests.asked.youFollow").to_string());
     }
     parts.push(who);
     parts.push(relative_time(r.created_at, time));
     if manage && r.watchers > 0 {
-        parts.push(format!("{} following", r.watchers));
+        parts.push(t!("requests.asked.following", count = r.watchers));
     }
     parts.join(" · ")
 }
@@ -910,38 +977,38 @@ pub fn action_rows(r: &MediaRequest) -> Vec<ActionRow> {
         match a {
             RequestAction::Withdraw if r.status == RequestStatus::Declined => out.push(ActionRow {
                 confirm: Some(Confirm {
-                    title: format!("Remove “{}” from your requests?", r.title),
+                    title: t!("requests.confirm.remove", title = r.title),
                     body: None,
-                    button: "Remove",
+                    button: t!("requests.actions.remove"),
                 }),
-                ..ActionRow::new(id, "Remove")
+                ..ActionRow::new(id, t!("requests.actions.remove"))
             }),
             RequestAction::Withdraw => out.push(ActionRow {
                 confirm: Some(Confirm {
-                    title: format!("Withdraw your request for “{}”?", r.title),
+                    title: t!("requests.confirm.withdraw", title = r.title),
                     body: None,
-                    button: "Withdraw",
+                    button: t!("requests.actions.withdraw"),
                 }),
-                ..ActionRow::new(id, "Withdraw")
+                ..ActionRow::new(id, t!("requests.actions.withdraw"))
             }),
-            RequestAction::Unwatch => out.push(ActionRow::new(id, "Stop following")),
-            RequestAction::Approve => out.push(ActionRow::new(id, "Approve")),
-            RequestAction::Retry => out.push(ActionRow::new(id, "Try again")),
+            RequestAction::Unwatch => out.push(ActionRow::new(id, t!("requests.actions.unwatch"))),
+            RequestAction::Approve => out.push(ActionRow::new(id, t!("requests.actions.approve"))),
+            RequestAction::Retry => out.push(ActionRow::new(id, t!("requests.actions.retry"))),
             RequestAction::Decline => {
-                out.push(ActionRow::new(id, "Decline"));
-                out.push(ActionRow::new(ActionId::DeclineReason, "Decline with a reason…"));
+                out.push(ActionRow::new(id, t!("requests.actions.decline")));
+                out.push(ActionRow::new(ActionId::DeclineReason, t!("requests.actions.declineReason")));
             }
-            RequestAction::Handled => out.push(ActionRow::new(id, "Mark as added by hand")),
+            RequestAction::Handled => out.push(ActionRow::new(id, t!("requests.actions.handled"))),
             RequestAction::Delete => out.push(ActionRow {
                 danger: true,
                 confirm: Some(Confirm {
-                    title: "Delete this request?".into(),
-                    body: Some("Radarr and Sonarr keep what they have."),
-                    button: "Delete",
+                    title: t!("requests.confirm.delete").into(),
+                    body: Some(t!("requests.confirm.deleteBody")),
+                    button: t!("requests.actions.delete"),
                 }),
-                ..ActionRow::new(id, "Delete")
+                ..ActionRow::new(id, t!("requests.actions.delete"))
             }),
-            RequestAction::AskAgain => out.push(ActionRow::new(id, "Request again")),
+            RequestAction::AskAgain => out.push(ActionRow::new(id, t!("requests.actions.askAgain"))),
             RequestAction::Unknown => {}
         }
     }
@@ -950,18 +1017,20 @@ pub fn action_rows(r: &MediaRequest) -> Vec<ActionRow> {
 
 /// What a toast says once an action is done.
 pub fn action_done(a: ActionId, r: &MediaRequest) -> String {
-    let x = format!("“{}”", r.title);
+    let title = &r.title;
     match a {
         ActionId::Action(RequestAction::Withdraw) if r.status == RequestStatus::Declined => {
-            format!("Removed {x} from your requests.")
+            t!("requests.done.removed", title = title)
         }
-        ActionId::Action(RequestAction::Withdraw) => format!("Withdrew your request for {x}."),
-        ActionId::Action(RequestAction::Unwatch) => format!("You no longer follow {x}."),
-        ActionId::Action(RequestAction::Approve) => format!("Approved {x}."),
-        ActionId::Action(RequestAction::Retry) => format!("Trying {x} again."),
-        ActionId::Action(RequestAction::Decline) | ActionId::DeclineReason => format!("Declined {x}."),
-        ActionId::Action(RequestAction::Handled) => format!("Marked {x} as added by hand."),
-        ActionId::Action(RequestAction::Delete) => format!("Deleted the request for {x}."),
+        ActionId::Action(RequestAction::Withdraw) => t!("requests.done.withdrew", title = title),
+        ActionId::Action(RequestAction::Unwatch) => t!("requests.done.unfollowed", title = title),
+        ActionId::Action(RequestAction::Approve) => t!("requests.done.approved", title = title),
+        ActionId::Action(RequestAction::Retry) => t!("requests.done.retrying", title = title),
+        ActionId::Action(RequestAction::Decline) | ActionId::DeclineReason => {
+            t!("requests.done.declined", title = title)
+        }
+        ActionId::Action(RequestAction::Handled) => t!("requests.done.handled", title = title),
+        ActionId::Action(RequestAction::Delete) => t!("requests.done.deleted", title = title),
         ActionId::Action(RequestAction::AskAgain | RequestAction::Unknown) => String::new(),
     }
 }
@@ -971,14 +1040,14 @@ pub fn action_done(a: ActionId, r: &MediaRequest) -> String {
 /// What asking answered: a new request (`created`), by how it was decided, or the requests
 /// followed.
 pub fn asked_text(r: &MediaRequest, created: bool) -> String {
-    let x = format!("“{}”", r.title);
+    let title = &r.title;
     if !created {
-        return format!("You'll hear when {x} is ready.");
+        return t!("requests.asking.following", title = title);
     }
     match r.status {
-        RequestStatus::Failed => format!("Asked for {x}, but it couldn't be sent to download yet."),
-        RequestStatus::Pending => format!("Asked for {x}: an administrator decides."),
-        _ => format!("{x} is approved and on its way."),
+        RequestStatus::Failed => t!("requests.asking.failed", title = title),
+        RequestStatus::Pending => t!("requests.asking.pending", title = title),
+        _ => t!("requests.asking.approved", title = title),
     }
 }
 
@@ -986,17 +1055,17 @@ pub fn asked_text(r: &MediaRequest, created: bool) -> String {
 /// to watch."
 pub fn ready_text(title: &str, seasons: Option<&[i64]>, complete: bool) -> String {
     match seasons.filter(|s| !complete && !s.is_empty()) {
-        None => format!("“{title}” is ready to watch."),
+        None => t!("requests.news.ready", title = title),
+        Some([0]) => t!("requests.news.specialsReady", title = title),
         Some(seasons) => {
-            let several = seasons.len() > 1 || seasons[0] == 0;
-            format!("{} of “{title}” {} ready to watch.", seasons_label(seasons), if several { "are" } else { "is" })
+            t!("requests.news.seasonsReady", count = seasons.len(), seasons = seasons_label(seasons), title = title)
         }
     }
 }
 
 /// Several pieces of news at once.
 pub fn news_text(n: usize) -> String {
-    format!("{n} of your requests have news")
+    t!("requests.news.several", count = n)
 }
 
 /// A request whose news is that it's ready to watch, whole or in part: the TVs pop up only these.
@@ -1091,21 +1160,15 @@ pub struct ProblemWords {
 pub fn problem_words(p: &RequestsProblem, manage: bool) -> Option<ProblemWords> {
     let words = |title, body, retry| Some(ProblemWords { title, body, retry });
     match p {
-        RequestsProblem::Off => {
-            words("Requests are off", "This server doesn't take requests for movies and shows.", false)
-        }
-        RequestsProblem::NoAccess => words(
-            "Requests aren't open to this account",
-            "An administrator can let it ask for movies and shows.",
-            false,
-        ),
-        RequestsProblem::TmdbDown => words("TMDB isn't answering", "Try again in a moment.", true),
+        RequestsProblem::Off => words(t!("requests.problem.off"), t!("requests.problem.offText"), false),
+        RequestsProblem::NoAccess => words(t!("requests.problem.noAccess"), t!("requests.problem.noAccessText"), false),
+        RequestsProblem::TmdbDown => words(t!("requests.problem.tmdbDown"), t!("requests.problem.tmdbDownText"), true),
         RequestsProblem::TmdbKey => words(
-            "TMDB refused this server's key",
-            if manage { "Check it in Settings → Server, on the web." } else { "An administrator needs to check it." },
+            t!("requests.problem.tmdbKey"),
+            if manage { t!("requests.problem.tmdbKeyManage") } else { t!("requests.problem.tmdbKeyText") },
             false,
         ),
-        RequestsProblem::SignIn => words(SIGN_IN_TITLE, "", false),
+        RequestsProblem::SignIn => words(sign_in_title(), "", false),
         _ => None,
     }
 }
@@ -1114,33 +1177,47 @@ pub fn problem_words(p: &RequestsProblem, manage: bool) -> Option<ProblemWords> 
 /// `retry_at`, never the message's date), the limit (the summary's), the restriction.
 pub fn ask_refusal(p: &RequestsProblem, kind: TitleKind, limits: Option<&RequestSummary>, time: TvTime) -> String {
     match p {
-        RequestsProblem::Declined { retry_at: Some(at) } => format!("You can ask again {}.", time_until(*at, time)),
-        RequestsProblem::Declined { retry_at: None } => "It was declined.".into(),
-        RequestsProblem::Limit { retry_at: Some(at) } => {
-            format!("You can ask for more {}.", time_until(*at, time))
+        RequestsProblem::Declined { retry_at: Some(at) } => {
+            t!("requests.problem.askAgain", when = time_until(*at, time))
         }
+        RequestsProblem::Declined { retry_at: None } => t!("requests.problem.declined").into(),
+        RequestsProblem::Limit { retry_at: Some(at) } => t!("requests.problem.askMore", when = time_until(*at, time)),
         RequestsProblem::Limit { retry_at: None } => {
             let limit = limits
                 .and_then(|l| if kind == TitleKind::Movie { l.movies_limit } else { l.seasons_limit })
                 .filter(|l| *l != 0);
             match limit {
-                Some(limit) => {
-                    let what = if kind == TitleKind::Movie { "movie" } else { "season" };
-                    format!("You can ask for at most {} per 7 days: pick fewer.", pluralize(limit, what, None))
-                }
-                None => "That's more than you can ask for at once: pick fewer.".into(),
+                Some(limit) if kind == TitleKind::Movie => t!("requests.problem.atMostMovies", count = limit),
+                Some(limit) => t!("requests.problem.atMostSeasons", count = limit),
+                None => t!("requests.problem.tooMany").into(),
             }
         }
         RequestsProblem::Restricted { text } | RequestsProblem::Conflict { text, .. } => text.clone(),
-        RequestsProblem::Missing => "TMDB doesn't know this title.".into(),
+        RequestsProblem::Missing => t!("requests.problem.missing").into(),
         RequestsProblem::Other(e) => sentence(&e.to_string()),
-        _ => problem_words(p, false).map(|w| format!("{}.", w.title)).unwrap_or_default(),
+        _ => problem_words(p, false).map(|w| sentence(w.title)).unwrap_or_default(),
     }
 }
 
 // ---- times in words
 
-const SHORT_MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/// A month's short name: "Jan", "janv.", "ene"…
+fn short_month(month: u32) -> &'static str {
+    match month {
+        1 => t!("requests.months.jan"),
+        2 => t!("requests.months.feb"),
+        3 => t!("requests.months.mar"),
+        4 => t!("requests.months.apr"),
+        5 => t!("requests.months.may"),
+        6 => t!("requests.months.jun"),
+        7 => t!("requests.months.jul"),
+        8 => t!("requests.months.aug"),
+        9 => t!("requests.months.sep"),
+        10 => t!("requests.months.oct"),
+        11 => t!("requests.months.nov"),
+        _ => t!("requests.months.dec"),
+    }
+}
 
 /// Days since 1970-01-01 as (year, month 1–12, day 1–31) (Howard Hinnant's `civil_from_days`).
 fn civil(days: i64) -> (i64, u32, u32) {
@@ -1155,10 +1232,14 @@ fn civil(days: i64) -> (i64, u32, u32) {
     (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
-/// "Nov 4", or "Nov 4, 2027" with the year.
+/// "Nov 4", or "Nov 4, 2027" with the year (in French "4 nov.", "4 nov. 2027").
 fn date_words(year: i64, month: u32, day: u32, with_year: bool) -> String {
-    let month = SHORT_MONTHS[(month as usize).clamp(1, 12) - 1];
-    if with_year { format!("{month} {day}, {year}") } else { format!("{month} {day}") }
+    let month = short_month(month);
+    if with_year {
+        t!("requests.dates.dayYear", month = month, day = day, year = year)
+    } else {
+        t!("requests.dates.day", month = month, day = day)
+    }
 }
 
 /// Unix seconds as the TV's day: "Nov 4", with the year when it isn't now's (or with `year`).
@@ -1172,15 +1253,12 @@ pub fn short_date(seconds: i64, time: TvTime, year: bool) -> String {
 pub fn relative_time(seconds: i64, time: TvTime) -> String {
     let diff = (time.now - seconds).max(0);
     match diff {
-        0..60 => "now".into(),
-        60..3600 => format!("{} min ago", diff / 60),
-        3600..86_400 => match diff / 3600 {
-            1 => "1 hour ago".into(),
-            h => format!("{h} hours ago"),
-        },
+        0..60 => t!("requests.time.justNow").into(),
+        60..3600 => t!("requests.time.minutesAgo", minutes = diff / 60),
+        3600..86_400 => t!("requests.time.hoursAgo", count = diff / 3600),
         _ => match diff / 86_400 {
-            1 => "yesterday".into(),
-            days @ ..30 => format!("{days} days ago"),
+            1 => t!("requests.time.yesterday").into(),
+            days @ ..30 => t!("requests.time.daysAgo", count = days),
             _ => short_date(seconds, time, true),
         },
     }
@@ -1192,20 +1270,17 @@ pub fn relative_time(seconds: i64, time: TvTime) -> String {
 pub fn time_until(seconds: i64, time: TvTime) -> String {
     let diff = seconds - time.now;
     if diff <= 30 {
-        return "now".into();
+        return t!("requests.time.now").into();
     }
     if diff < 3600 {
-        return format!("in {} min", ((diff as f64 / 60.0).round() as i64).max(1));
+        return t!("requests.time.inMinutes", minutes = ((diff as f64 / 60.0).round() as i64).max(1));
     }
     if diff < 86_400 {
-        return match ((diff as f64 / 3600.0).round() as i64).max(1) {
-            1 => "in 1 hour".into(),
-            h => format!("in {h} hours"),
-        };
+        return t!("requests.time.inHours", count = ((diff as f64 / 3600.0).round() as i64).max(1));
     }
     match (time.day(seconds) - time.day(time.now)).max(1) {
-        1 => "tomorrow".into(),
-        days => format!("in {days} days"),
+        1 => t!("requests.time.tomorrow").into(),
+        days => t!("requests.time.inDays", count = days),
     }
 }
 
@@ -1213,14 +1288,15 @@ pub fn time_until(seconds: i64, time: TvTime) -> String {
 /// with `with_time` its time as well within the next 24 hours ("today at 21:05").
 pub fn day_and_time(seconds: i64, with_time: bool, time: TvTime) -> String {
     let day = match time.day(seconds) - time.day(time.now) {
-        0 => "today".to_string(),
-        1 => "tomorrow".to_string(),
+        0 => t!("requests.time.today").to_string(),
+        1 => t!("requests.time.tomorrow").to_string(),
         _ => short_date(seconds, time, false),
     };
     let ahead = seconds - time.now;
     if with_time && ahead > 0 && ahead <= 86_400 {
         let of_day = (seconds + time.offset).rem_euclid(86_400);
-        format!("{day} at {}", format_time_of_day((of_day / 3600) as u32, ((of_day % 3600) / 60) as u32, time.hours24))
+        let at = format_time_of_day((of_day / 3600) as u32, ((of_day % 3600) / 60) as u32, time.hours24);
+        t!("requests.time.dayAt", day = day, time = at)
     } else {
         day
     }

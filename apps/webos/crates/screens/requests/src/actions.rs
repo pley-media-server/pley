@@ -9,9 +9,10 @@ use pley_core::model::{
     DiscoverDetail, DiscoverTitle, MediaRequest, NewRequest, RequestAction, RequestSummary, TitleKind,
 };
 use pley_core::requests::{
-    Allowance, MainAction, NO_ACCESS, StageWords, TvTime, allowance_lines, list_action, main_action, stage_words,
+    Allowance, MainAction, StageWords, TvTime, allowance_lines, list_action, main_action, no_access, stage_words,
     title_request,
 };
+use pley_i18n::t;
 use pley_kit::{Button, RoundButton, bar_group};
 use pley_ui::theme;
 use pley_ui::{Id, Ui};
@@ -91,25 +92,30 @@ impl Actions {
         let request = d.and_then(title_request);
         match &action {
             MainAction::SignIn => {
-                out.buttons.push(main("Sign in", Icon::UserRound, Some(TitleIntent::SignIn), true));
+                out.buttons.push(main(t!("requests.buttons.signIn"), Icon::UserRound, Some(TitleIntent::SignIn), true));
             }
             MainAction::Restricted { text } => {
                 out.notes.push(Note { icon: Some(Icon::Lock), text: text.clone(), danger: false })
             }
-            MainAction::Open { item_id } => {
-                out.buttons.push(main("Open", Icon::Play, item_id.map(TitleIntent::Open), item_id.is_some()))
-            }
+            MainAction::Open { item_id } => out.buttons.push(main(
+                t!("requests.buttons.open"),
+                Icon::Play,
+                item_id.map(TitleIntent::Open),
+                item_id.is_some(),
+            )),
             MainAction::Declined { text } => {
                 out.notes.push(Note { icon: Some(Icon::CircleX), text: text.clone(), danger: true })
             }
             // Inert: it says where things are; the stage beside it says how far.
-            MainAction::Requested { .. } => out.buttons.push(main("Requested", Icon::Check, None, true)),
+            MainAction::Requested { .. } => {
+                out.buttons.push(main(t!("requests.buttons.requested"), Icon::Check, None, true))
+            }
             MainAction::Following { request: r } => {
-                out.buttons.push(main("Following", Icon::Bell, None, true));
+                out.buttons.push(main(t!("requests.buttons.following"), Icon::Bell, None, true));
                 if let Some(r) = r.filter(|r| r.can(RequestAction::Unwatch)) {
                     out.after.push(Btn {
                         key: "unwatch",
-                        label: "Stop following",
+                        label: t!("requests.buttons.stopFollowing"),
                         icon: Icon::BellOff,
                         enabled: true,
                         intent: Some(TitleIntent::Unwatch(Box::new((*r).clone()))),
@@ -120,17 +126,22 @@ impl Actions {
             MainAction::TellMeToo { seasons } => {
                 let seasons = seasons.clone().filter(|s| !s.is_empty());
                 let body = NewRequest { kind: t.kind, tmdb_id: t.tmdb_id, seasons };
-                out.buttons.push(main("Tell me too", Icon::Bell, Some(TitleIntent::Ask(body)), true));
-                out.notes.push(note("Someone asked for it already."));
+                out.buttons.push(main(
+                    t!("requests.buttons.tellMeToo"),
+                    Icon::Bell,
+                    Some(TitleIntent::Ask(body)),
+                    true,
+                ));
+                out.notes.push(note(t!("requests.askedAlready")));
             }
             MainAction::More { item_id, more, ask, disabled } => {
                 if let Some(id) = item_id {
-                    out.buttons.push(main("Open", Icon::Play, Some(TitleIntent::Open(*id)), true));
+                    out.buttons.push(main(t!("requests.buttons.open"), Icon::Play, Some(TitleIntent::Open(*id)), true));
                 }
                 if *more && *ask {
                     out.buttons.push(Btn {
                         key: "more",
-                        label: "Request more seasons",
+                        label: t!("requests.buttons.requestMoreSeasons"),
                         icon: Icon::Plus,
                         enabled: !disabled,
                         intent: Some(TitleIntent::Pick),
@@ -140,7 +151,7 @@ impl Actions {
                         allowance(&mut out);
                     }
                 } else if !ask {
-                    out.notes.push(note(NO_ACCESS));
+                    out.notes.push(note(no_access()));
                 }
             }
             MainAction::Request { disabled } => {
@@ -149,12 +160,12 @@ impl Actions {
                 } else {
                     TitleIntent::Pick
                 };
-                out.buttons.push(main("Request", Icon::Plus, Some(intent), !disabled));
+                out.buttons.push(main(t!("requests.buttons.request"), Icon::Plus, Some(intent), !disabled));
                 if *disabled {
                     allowance(&mut out);
                 }
             }
-            MainAction::NoAccess => out.notes.push(note(NO_ACCESS)),
+            MainAction::NoAccess => out.notes.push(note(no_access())),
         }
         if matches!(action, MainAction::Requested { .. } | MainAction::Following { .. }) {
             out.stage = request.map(|r| stage_words(r, manage, time));

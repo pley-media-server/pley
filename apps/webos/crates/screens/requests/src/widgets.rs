@@ -2,8 +2,8 @@
 //! the requests, the requests' tabs), and a title's facts in a line.
 
 use pley_base::{Icon, Point, Rect, Size, TextOpts};
-use pley_core::model::{DiscoverDetail, DiscoverTitle, TitleKind};
-use pley_core::requests::title_facts;
+use pley_core::model::{DiscoverDetail, DiscoverTitle};
+use pley_core::requests::{kind_word, title_facts};
 use pley_kit::MetaLine;
 use pley_kit::look::shade;
 use pley_ui::theme::{self, focus::ControlLook, radius};
@@ -90,9 +90,9 @@ pub fn title_meta(ui: &mut Ui, at: Point, t: &DiscoverTitle, d: Option<&Discover
         Some(d) => title_facts(d),
         None => t.year.filter(|y| *y != 0).map(|y| y.to_string()).unwrap_or_default(),
     };
-    let which = if t.kind == TitleKind::Show { "Show" } else { "Movie" };
+    let which = kind_word(t.kind);
     let words = [facts.as_str(), which].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ");
     let cert = d.and_then(|d| d.certification.clone()).unwrap_or_default();
-    let rating = t.rating.filter(|r| *r > 0.0).map(|r| format!("{r:.1}")).unwrap_or_default();
+    let rating = t.rating.filter(|r| *r > 0.0).map(|r| pley_i18n::decimal(r, 1)).unwrap_or_default();
     MetaLine::new().text(&words).content_rating(&cert).stars(&rating).show(ui, at, width);
 }
