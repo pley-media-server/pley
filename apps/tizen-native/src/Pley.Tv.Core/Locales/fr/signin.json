@@ -39,7 +39,7 @@
     "sameWifi": "Votre téléphone doit être sur le même Wi-Fi que cette TV.",
     "otherDevice": "Ou ouvrez Pley sur un appareil connecté → Associer une TV",
     "newCode": "Obtenir un nouveau code",
-    "scanCamera": "Scannez avec l’appareil photo de votre téléphone",
+    "scanCamera": "Scannez avec votre téléphone",
     "gettingCode": "Obtention d’un code…",
     "waiting": "En attente d’approbation…",
     "retrying": "Impossible de joindre le serveur. Nouvel essai dans {{seconds}} s",

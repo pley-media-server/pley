@@ -207,7 +207,7 @@ public static class HomeRules
                 year,
                 string.IsNullOrWhiteSpace(details?.ContentRating) ? null : details!.ContentRating,
                 item.Kind == "show" && runtime == year ? "" : runtime,
-                rating > 0 ? rating.Value.ToString("0.0", CultureInfo.InvariantCulture) : null,
+                rating > 0 ? ItemFormat.Quantity(rating.Value.ToString("0.0", CultureInfo.InvariantCulture)) : null,
                 details == null ? null : Format.QualityBadges(details.Media)),
             (details?.Summary ?? item.Summary ?? "").Trim(),
             inProgress ? Format.ProgressFraction(item) : 0f,

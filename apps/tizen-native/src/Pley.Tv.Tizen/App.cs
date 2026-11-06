@@ -81,8 +81,14 @@ class App : NUIApplication
         state.Language.Changed += language =>
         {
             ApplyLanguage(language);
-            // Posted: a page that went while a signal's listeners ran would still hear from them.
-            ui.Post(Redraw);
+            // Posted: a page that went while a signal's listeners ran would still hear from them. A
+            // change is mostly heard in an awaited continuation, whose culture lasts only as long as
+            // it does: the UI thread's is set again there.
+            ui.Post(() =>
+            {
+                UseCulture();
+                Redraw();
+            });
         };
         // Pictures come through the API in use, with its token.
         state.Api.Watch(api => images.Api = api);
@@ -168,6 +174,12 @@ class App : NUIApplication
     static void ApplyLanguage(string language)
     {
         Strings.Use(language, Platform.CultureTags());
+        UseCulture();
+    }
+
+    /// <summary>The thread's cultures, and those of threads to come, as the language shown's (<see cref="Strings.Culture"/>).</summary>
+    static void UseCulture()
+    {
         var culture = Strings.Culture;
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;

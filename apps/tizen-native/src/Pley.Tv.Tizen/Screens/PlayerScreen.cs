@@ -758,7 +758,7 @@ sealed class PlayerScreen : Sheet
         var at = chapterAt ?? seeker.Target ?? position;
         elapsed.Text = PlayerText.Time(at);
         remaining.Text = PlayerText.Remaining(at, duration);
-        var time = DateTime.Now.ToString("t", CultureInfo.CurrentCulture);
+        var time = DateTime.Now.ToString("t", Strings.Culture);
         if (time != clockText)
         {
             clockText = time;
@@ -766,7 +766,7 @@ sealed class PlayerScreen : Sheet
             PlaceMethod();
         }
         ends.Text = s.Phase.Kind == PhaseKind.Paused
-            ? PlayerText.EndsAt(DateTime.Now.AddMilliseconds(Math.Max(0, duration - position)).ToString("t", CultureInfo.CurrentCulture))
+            ? PlayerText.EndsAt(DateTime.Now.AddMilliseconds(Math.Max(0, duration - position)).ToString("t", Strings.Culture))
             : "";
         if (!ReferenceEquals(s.Chapters, segmentsOf) || duration != segmentsFor) Segments(s.Chapters, duration);
         var width = track.SizeWidth;

@@ -19,9 +19,6 @@ sealed class KeyManagerVault : ITokenVault
     const string Alias = "pley_sign_in";
     const int IvBytes = 12, TagBits = 128;
 
-    /// <summary>Why tokens couldn't be sealed: they aren't used, and the person signs in again.</summary>
-    const string Unkept = "the sign-in couldn't be kept on this device: sign in again";
-
     public byte[] Seal(byte[] plain, string aad)
     {
         try
@@ -34,7 +31,7 @@ sealed class KeyManagerVault : ITokenVault
         }
         catch (Exception e) when (e is not AuthException)
         {
-            throw new AuthException(Unkept, e);
+            throw new AuthException(TokenRequests.Unkept, e);
         }
     }
 

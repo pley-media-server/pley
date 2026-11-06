@@ -461,7 +461,7 @@ public static class ItemPages
                 break;
         }
         if (!string.IsNullOrWhiteSpace(d.ContentRating)) parts.Add(new MetaPart.ContentRating(d.ContentRating!));
-        if (d.Rating > 0) parts.Add(new MetaPart.Rating(d.Rating.Value.ToString("0.0", CultureInfo.InvariantCulture)));
+        if (d.Rating > 0) parts.Add(new MetaPart.Rating(ItemFormat.Quantity(d.Rating.Value.ToString("0.0", CultureInfo.InvariantCulture))));
         var badges = ItemFormat.QualityBadges(file);
         if (badges.Count > 0) parts.Add(new MetaPart.Badges(badges));
         return parts;
