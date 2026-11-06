@@ -9,7 +9,7 @@ import { Pill, TextButton } from "../../kit/buttons";
 import { G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
 import { sentence, useApp } from "../common";
-import { BrandGlow, PleyLogo, QrCode, StatusLine } from "./kit";
+import { BrandGlow, LanguageGlobe, LanguagePanel, PleyLogo, QrCode, StatusLine } from "./kit";
 
 /** Where signing in with a code stands (the Android app's LinkStatus). */
 export type LinkStatus =
@@ -214,6 +214,7 @@ export function LinkScreen(p: { server: string }) {
       onNewCode={link.newCode}
       intro={twoStep ? t("onboarding.link.twoStepRequired") : undefined}
       backLabel={t("onboarding.link.changeServer")}
+      globe
       onBack={() => {
         app.forgetServer();
         ui.nav.restart({ name: "servers" });
@@ -284,14 +285,18 @@ function LinkContent(p: {
   intro?: string;
   backLabel: string;
   onBack: () => void;
+  /** The globe at the top right, signing in (not approving a profile from Who's watching?). */
+  globe?: boolean;
 }) {
   const ui = useUi();
   const s = p.status;
   const needsNew = s.kind === "declined" || s.kind === "expired";
   const backRef = useRef<HTMLElement | null>(null);
   const newRef = useRef<HTMLElement | null>(null);
+  const [choosingLanguage, setChoosingLanguage] = useState(false);
   // Whenever a new code is needed, its button takes focus; back to the other one after.
   useLayoutEffect(() => {
+    if (choosingLanguage) return;
     const target = needsNew ? newRef.current?.querySelector<HTMLElement>("[data-f]") : backRef.current?.querySelector<HTMLElement>("[data-f]");
     if (target) ui.focus.focus(target);
   }, [needsNew, s.kind === "signed_in"]);
@@ -417,6 +422,8 @@ function LinkContent(p: {
           </G>
         </div>
       </div>
+      {p.globe && <LanguageGlobe class="globe-corner" onOpen={() => setChoosingLanguage(true)} />}
+      {p.globe && choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
     </BrandGlow>
   );
 }

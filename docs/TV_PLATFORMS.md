@@ -345,10 +345,18 @@ also what waits for them, in red while some failed.
 ### Language
 
 The app is in English, French and Spanish ([API.md](API.md#language)):
-the account's language, else the TV's, else the server's, else English.
-`packages/tv/test/fixtures/language.json` pins that order for both
-Samsung apps.
+the account's language, else the one picked on this TV, else the TV's,
+else the server's, else English. `packages/tv/test/fixtures/language.json`
+pins that order for both Samsung apps.
 
+- **The globe:** Choose your server, typing an address and the sign-in
+  code have a globe at the top right (by the logo on Choose your server)
+  that names the language shown; Up reaches it. OK opens a side panel:
+  Automatic, with what that is on this TV (its language, else the
+  server's, else English), then English, Français and Español, the choice
+  in force checked. A choice shows at once and is kept on the TV
+  (`pley.deviceLanguage`); Automatic forgets it. Signed in, an account's
+  own language comes first, and its Automatic is this choice.
 - **The TV's language:** what Tizen's system information says
   (`tizen.systeminfo`, `LOCALE`), then the web engine's
   `navigator.languages`, which Tizen's runtime sets from the TV's menu
@@ -364,9 +372,10 @@ Samsung apps.
   again in the new language at once, and asks for Home's and the
   libraries' rows again, as the server writes their titles.
 - **Settings → Profile → Language:** Automatic, with what that is on
-  this TV: its language, or the server's on a TV in a language Pley
-  doesn't have; then English, Français and Español, each named in
-  itself. A choice is the profile's on all its devices
+  this TV: the one picked with the globe, else its language, or the
+  server's on a TV in a language Pley doesn't have; then English, Français
+  and Español, each named in itself. A choice is the profile's on all its
+  devices
   (`PUT /api/me/language`); a server without that route says it needs a
   newer Pley.
 - **Requests** to the server carry `Accept-Language` with the language

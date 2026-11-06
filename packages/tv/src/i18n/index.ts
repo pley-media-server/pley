@@ -39,12 +39,24 @@ export function deviceLanguage(tags: readonly string[]): Language | undefined {
 }
 
 /**
- * The language to show: the account's, else the first of the device's that
- * Pley has, else the server language, else English. Anything Pley isn't in
- * counts as none (packages/tv/test/fixtures/language.json).
+ * The language to show: the account's, else the one picked on this TV
+ * (`choice`, with the globe of the screens before signing in), else the
+ * first of the device's that Pley has, else the server language, else
+ * English. Anything Pley isn't in counts as none
+ * (packages/tv/test/fixtures/language.json).
  */
-export function pickLanguage(account: string | null | undefined, server: string | null | undefined, device: readonly string[]): Language {
-  return supportedLanguage(account) ?? deviceLanguage(device) ?? supportedLanguage(server) ?? "en";
+export function pickLanguage(
+  account: string | null | undefined,
+  server: string | null | undefined,
+  device: readonly string[],
+  choice?: string | null,
+): Language {
+  return supportedLanguage(account) ?? supportedLanguage(choice) ?? systemLanguage(server, device);
+}
+
+/** The first of the device's languages that Pley has, else the server language, else English: what the globe's Automatic is. */
+export function systemLanguage(server: string | null | undefined, device: readonly string[]): Language {
+  return deviceLanguage(device) ?? supportedLanguage(server) ?? "en";
 }
 
 /** The browser engine's languages, its preferred first. */

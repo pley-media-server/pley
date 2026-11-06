@@ -85,6 +85,11 @@
 .status-line { display: flex; align-items: center; min-height: 20px; }
 .status-line .breathing-dot { margin-right: 12px; }
 
+/* The globe before signing in: at the top right, by the logo where it is there. */
+.globe-btn .icon { margin-right: 8px; }
+.globe-corner { position: absolute; top: 26px; right: 48px; }
+.servers-globe { flex: none; margin: 0 20px 0 16px; }
+
 /* Servers */
 .servers { position: absolute; left: 96px; top: 27px; right: 48px; bottom: 27px; }
 .servers-header { display: flex; align-items: center; height: 38px; }

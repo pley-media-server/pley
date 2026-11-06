@@ -83,6 +83,8 @@ export const SUMMARY_POLL_MS = 60_000;
 const NOTICES_KEPT = 3;
 /** The language shown last: the next start shows it before the server answers. */
 const LANGUAGE_KEY = "pley.language";
+/** The language picked on this TV with the globe, as the web app keeps its own. */
+const DEVICE_LANGUAGE_KEY = "pley.deviceLanguage";
 
 /** News of requests popped up over the pages: on TVs, only what is ready to watch. */
 export interface RequestNotice {
@@ -223,6 +225,12 @@ export class AppState {
    */
   readonly serverLanguage = signal<string | null | undefined>(undefined);
   /**
+   * The language picked on this TV with the globe of the screens before
+   * signing in (`null`: Automatic, the TV's own): before the TV's, and what
+   * an account's Automatic is ({@link setDeviceLanguage}).
+   */
+  readonly deviceChoice = signal<Language | null>(null);
+  /**
    * "Who's watching?" was answered in this launch (a profile picked, a PIN
    * checked, or a sign-in approved on a phone): the current profile's PIN
    * isn't asked again until the app starts over.
@@ -280,8 +288,9 @@ export class AppState {
     this.store = platform.storage;
     this.offsets = new OffsetStore(platform.storage, () => this.me.value?.id ?? null);
     setDeviceLanguages(() => this.deviceLanguages());
-    // The language shown last, until the server says; at the first start, the TV's.
-    setLanguage(supportedLanguage(this.store.get(LANGUAGE_KEY)) ?? deviceLanguage(this.deviceLanguages()) ?? "en");
+    this.deviceChoice.value = supportedLanguage(this.store.get(DEVICE_LANGUAGE_KEY)) ?? null;
+    // The language shown last, until the server says; at the first start, the one picked here or the TV's.
+    setLanguage(supportedLanguage(this.store.get(LANGUAGE_KEY)) ?? this.deviceChoice.value ?? deviceLanguage(this.deviceLanguages()) ?? "en");
     const kept = readJson<Partial<Settings>>(this.store, SETTINGS_KEY) ?? {};
     // Original was the default before Automatic, and was saved along with any other setting: unless picked, it is Automatic now.
     if (kept.quality === "original" && this.store.get(QUALITY_PICKED_KEY) !== "1") delete kept.quality;
@@ -567,17 +576,33 @@ export class AppState {
   /**
    * The language the app is in (packages/tv/test/fixtures/language.json):
    * the account's as soon as it is heard; else, once who is watching was
-   * heard (signed in), the TV's, or for a TV in a language Pley doesn't
-   * have, the server language once the server has said it. Until then the
-   * last one shown stays, as going by another meanwhile would flash it.
+   * heard (signed in), the one picked on this TV, else the TV's, or for a
+   * TV in a language Pley doesn't have, the server language once the server
+   * has said it. Until then the last one shown stays, as going by another
+   * meanwhile would flash it.
    */
   private followLanguage(): void {
     const account = this.signedIn && this.accountHeard ? this.me.value?.language : null;
+    const choice = this.deviceChoice.value;
     if (!supportedLanguage(account)) {
       if (this.signedIn && !this.accountHeard) return;
-      if (this.serverLanguage.value === undefined && !deviceLanguage(this.deviceLanguages())) return;
+      if (this.serverLanguage.value === undefined && !choice && !deviceLanguage(this.deviceLanguages())) return;
     }
-    this.showLanguage(pickLanguage(account, this.serverLanguage.value, this.deviceLanguages()));
+    this.showLanguage(pickLanguage(account, this.serverLanguage.value, this.deviceLanguages(), choice));
+  }
+
+  /**
+   * Picks this TV's language (`null`: Automatic, the TV's own again), kept
+   * on the TV. Signed out (the globe of the screens before signing in), it
+   * shows at once, Automatic as what it says it is; signed in, unless the
+   * account has its own.
+   */
+  setDeviceLanguage(next: Language | null): void {
+    this.deviceChoice.value = next;
+    if (next) this.store.set(DEVICE_LANGUAGE_KEY, next);
+    else this.store.remove(DEVICE_LANGUAGE_KEY);
+    if (this.signedIn) this.followLanguage();
+    else this.showLanguage(pickLanguage(null, this.serverLanguage.value, this.deviceLanguages(), next));
   }
 
   /** The app in `next` from now on, and at the next start. */

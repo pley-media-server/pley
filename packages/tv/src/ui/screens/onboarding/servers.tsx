@@ -10,7 +10,7 @@ import { F, G } from "../../kit/focusable";
 import { TextField } from "../../kit/field";
 import { Icon } from "../../kit/icons";
 import { Dialog, sentence, useApp } from "../common";
-import { BrandGlow, PleyLogo, StatusLine } from "./kit";
+import { BrandGlow, LanguageGlobe, LanguagePanel, PleyLogo, StatusLine } from "./kit";
 
 /** A row of the server list. */
 interface Row {
@@ -55,6 +55,7 @@ export function ServersScreen() {
   const [subnet, setSubnet] = useState<string | null>(null);
   const [entering, setEntering] = useState(false);
   const [forgetting, setForgetting] = useState<Row | null>(null);
+  const [choosingLanguage, setChoosingLanguage] = useState(false);
   const [shift, setShift] = useState(0);
   const warned = useRef<string | null>(null);
   const touched = useRef(false);
@@ -181,7 +182,7 @@ export function ServersScreen() {
   const enterRef = useRef<HTMLElement | null>(null);
   // The first row takes focus when one appears, until a key was pressed.
   useLayoutEffect(() => {
-    if (touched.current || entering || forgetting) return;
+    if (touched.current || entering || forgetting || choosingLanguage) return;
     const first = listRef.current?.querySelector<HTMLElement>("[data-f]");
     if (first) ui.focus.focus(first);
     else if (searched && enterRef.current && !ui.focus.current?.isConnected) ui.focus.focus(enterRef.current);
@@ -241,6 +242,7 @@ export function ServersScreen() {
           <div class="t-page c-fg one-line" style="flex:1">
             {t("onboarding.servers.title")}
           </div>
+          <LanguageGlobe class="servers-globe" onOpen={() => setChoosingLanguage(true)} />
           <PleyLogo height={32} />
         </div>
         {rows.length > 0 && (
@@ -293,6 +295,7 @@ export function ServersScreen() {
         </div>
         {anySaved && <div class="forget-hint t-caption c-subtle">{t("onboarding.servers.forgetHint")}</div>}
       </div>
+      {choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
       {forgetting && (
         <Dialog
           title={t("onboarding.servers.forgetTitle", { name: forgetting.name })}
@@ -366,6 +369,9 @@ function AddressEntry(p: {
   const ui = useUi();
   const [text, setText] = useState("");
   const [checking, setChecking] = useState(false);
+  const [choosingLanguage, setChoosingLanguage] = useState(false);
+  const choosingRef = useRef(false);
+  choosingRef.current = choosingLanguage;
   const textRef = useRef(text);
   textRef.current = text;
   const edit = (next: string) => {
@@ -379,10 +385,12 @@ function AddressEntry(p: {
     const t = textRef.current.trim();
     if (t) p.onConnect(t, setChecking);
   };
-  // The remote's own digits, "." and Delete while the keyboard is closed; Back to the list.
+  // The remote's own digits, "." and Delete while the keyboard is closed; Back to the list. The
+  // languages' panel over it has the keys to itself.
   useEffect(
     () =>
       ui.input.push((key, e) => {
+        if (choosingRef.current) return false;
         if (key === "back") {
           if (e.type === "down" && !e.repeat) p.onBack();
           return true;
@@ -423,6 +431,8 @@ function AddressEntry(p: {
           {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
         </div>
       </div>
+      <LanguageGlobe class="globe-corner" onOpen={() => setChoosingLanguage(true)} />
+      {choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
     </BrandGlow>
   );
 }

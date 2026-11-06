@@ -4,7 +4,7 @@ import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
 import { episodeLabel, languageName, relativeTime } from "../../format/format";
-import { currentLanguage, deviceLanguage, LANGUAGES as APP_LANGUAGES, supportedLanguage, t, type Language } from "../../i18n";
+import { currentLanguage, LANGUAGES as APP_LANGUAGES, pickLanguage, supportedLanguage, t, type Language } from "../../i18n";
 import type { Probe } from "../../platform";
 import { AUTO, ORIGINAL, PRESETS, presetById } from "../../player/quality";
 import type { AppState, Settings } from "../../state";
@@ -140,10 +140,11 @@ export function SettingsScreen(p: { entry: Entry }) {
   const webSuffix = canDefaults ? "" : ` · ${t("settings.profile.changeOnWeb")}`;
   const modeLabel = (mode: SubtitleMode) => t(`settings.modes.${mode}.label`);
 
-  // The language Pley is in for the profile: Automatic (the TV's, else the server's) until it picks one, each named in itself.
+  // The language Pley is in for the profile: Automatic (this TV's, picked with the globe or its own, else the
+  // server's) until it picks one, each named in itself.
   const shownIn = supportedLanguage(me?.language) ?? null;
   const automatic = t("settings.language.automatic", {
-    language: t(`settings.language.names.${deviceLanguage(app.deviceLanguages()) ?? supportedLanguage(app.serverLanguage.value) ?? "en"}`),
+    language: t(`settings.language.names.${pickLanguage(null, app.serverLanguage.value, app.deviceLanguages(), app.deviceChoice.value)}`),
   });
   const languageChoices: Choice<Language | null>[] = [
     { value: null, label: automatic },

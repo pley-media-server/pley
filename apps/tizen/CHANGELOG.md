@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- A globe at the top right of Choose your server, the address screen and
+  the sign-in code picks the TV's language before anyone signs in:
+  Automatic (the TV's own), English, Français or Español. The TV keeps the
+  choice, and a profile set to Automatic uses it.
 - Someone else in your household can cast to the TV from their phone or
   browser while it is on your profile: the TV switches to their profile
   (their phone or browser asks their PIN, not the TV) and plays what they

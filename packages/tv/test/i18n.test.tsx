@@ -219,6 +219,12 @@ describe("the language shown", () => {
     }
   });
 
+  it("is the one picked on the TV after the account's, and before the TV's own, as the shared fixture has it", () => {
+    for (const c of fixture.pickLanguageWithChoice) {
+      expect([c, pickLanguage(c.account, c.server, c.device, c.choice)]).toEqual([c, c.out]);
+    }
+  });
+
   it("matches tags by their language", () => {
     expect(supportedLanguage("fr-CA")).toBe("fr");
     expect(supportedLanguage("ES_es")).toBe("es");

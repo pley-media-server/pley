@@ -1,10 +1,13 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import qrcode from "qrcode-generator";
-import { t } from "../../../i18n";
+import { currentLanguage, LANGUAGES, systemLanguage, t, type Language } from "../../../i18n";
 import { useUi } from "../../context";
+import { PanelRow } from "../../kit/buttons";
 import { F, G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
+import { PanelTitle, SidePanel } from "../../kit/panel";
+import { useApp } from "../common";
 
 /** The onboarding screens' background: Bg with BrandDeep glowing up from the bottom-right corner. */
 export function BrandGlow(p: { children: ComponentChildren }) {
@@ -37,6 +40,61 @@ export function PleyLogo(p: { height: number }) {
       <LogoMark size={h} />
       <span style={`margin-left:${h * 0.4}px;font-size:${h * 0.75}px;line-height:${h}px;font-weight:700;letter-spacing:-0.25px;color:var(--fg)`}>Pley</span>
     </div>
+  );
+}
+
+/**
+ * The globe of the screens before signing in (the web's LanguagePicker): the
+ * language shown, named in itself; OK opens {@link LanguagePanel}. A row of
+ * its own, so the remote reaches it from what is under it.
+ */
+export function LanguageGlobe(p: { onOpen: () => void; class?: string }) {
+  const shown = currentLanguage();
+  const name = t(`settings.language.names.${shown}`);
+  return (
+    <G kind="row" class={p.class}>
+      <F class="text-btn t-label globe-btn" fid="language-globe" label={`${t("onboarding.language.choose")}, ${name}`} onSelect={p.onOpen}>
+        <Icon name="globe" size={20} />
+        <span class="one-line" lang={shown}>
+          {name}
+        </span>
+      </F>
+    </G>
+  );
+}
+
+/**
+ * This TV's language, as Settings lists its choices: Automatic (the TV's own
+ * where Pley has it, else the server's, else English), then each language
+ * named in itself, the one picked checked. A choice shows at once and is
+ * kept on the TV; Automatic forgets it.
+ */
+export function LanguagePanel(p: { onClose: () => void }) {
+  const app = useApp();
+  const choice = app.deviceChoice.value;
+  const automatic = t("settings.language.automatic", {
+    language: t(`settings.language.names.${systemLanguage(app.serverLanguage.value, app.deviceLanguages())}`),
+  });
+  const choices: { value: Language | null; label: string }[] = [
+    { value: null, label: automatic },
+    ...LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.names.${l}`) })),
+  ];
+  return (
+    <SidePanel onClose={p.onClose} label={t("onboarding.language.choose")}>
+      <PanelTitle>{t("onboarding.language.choose")}</PanelTitle>
+      {choices.map((c) => (
+        <PanelRow
+          key={c.value ?? "automatic"}
+          label={c.label}
+          checked={c.value === choice}
+          initial={c.value === choice}
+          onSelect={() => {
+            app.setDeviceLanguage(c.value);
+            p.onClose();
+          }}
+        />
+      ))}
+    </SidePanel>
   );
 }
 

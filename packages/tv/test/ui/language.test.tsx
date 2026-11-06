@@ -68,10 +68,11 @@ const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve
  * The app with SERVER chosen, its `GET /api/server` answered by `server`;
  * signed in, with an account whose language `account` says.
  */
-function setup(o: { remembered?: Language; device?: string[]; server: () => Promise<HttpResponse>; signedIn?: boolean; account?: string | null }) {
+function setup(o: { remembered?: Language; device?: string[]; choice?: Language; server: () => Promise<HttpResponse>; signedIn?: boolean; account?: string | null }) {
   const store = memoryStore();
   store.set("pley.server", SERVER);
   if (o.remembered) store.set("pley.language", o.remembered);
+  if (o.choice) store.set("pley.deviceLanguage", o.choice);
   const transport: Transport = (req: HttpRequest) => (req.url === `${SERVER}/api/server` ? o.server() : Promise.reject(new NetworkError("Can't reach the server")));
   const platform = { name: "tizen", clientId: "test", storage: store, languages: () => o.device ?? [] } as unknown as Platform;
   const app = new AppState(platform, transport);
@@ -160,6 +161,20 @@ describe("the language the app is in", () => {
     await app.setAccountLanguage(null);
     expect(currentLanguage()).toBe("en");
   });
+
+  it("signed in, is the one picked on the TV for an account without its own, before the TV's and the server's", async () => {
+    const { app } = setup({ device: ["en-US"], choice: "es", server: () => Promise.resolve(answer({ version: "1.0.0", language: "fr" })), signedIn: true, account: null });
+    await app.loadAccount();
+    await settle();
+    expect(currentLanguage()).toBe("es");
+  });
+
+  it("signed in, is the account's own before the one picked on the TV", async () => {
+    const { app } = setup({ device: ["en-US"], choice: "es", server: () => Promise.resolve(answer({ version: "1.0.0", language: null })), signedIn: true, account: "fr" });
+    await app.loadAccount();
+    await settle();
+    expect(currentLanguage()).toBe("fr");
+  });
 });
 
 describe("the API's requests", () => {
@@ -188,8 +203,8 @@ describe("Settings' Language row", () => {
     root = null;
   });
 
-  async function show(serverLanguage: string | null, account: string | null, device = ["en-US"]) {
-    const { app, asked } = setup({ device, server: () => Promise.resolve(answer({ version: "1.0.0", language: serverLanguage })), signedIn: true, account });
+  async function show(serverLanguage: string | null, account: string | null, device = ["en-US"], choice?: Language) {
+    const { app, asked } = setup({ device, choice, server: () => Promise.resolve(answer({ version: "1.0.0", language: serverLanguage })), signedIn: true, account });
     await app.loadAccount();
     await settle();
     document.body.innerHTML = "";
@@ -242,6 +257,11 @@ describe("Settings' Language row", () => {
     const { row } = await show("fr", null, ["de-DE"]);
     expect(row().querySelector(".row-label")!.textContent).toBe("Langue");
     expect(row().querySelector(".row-value")!.textContent).toBe("Automatique (Français)");
+  });
+
+  it("says the one picked on the TV with the globe, as Automatic is that", async () => {
+    const { row } = await show("fr", null, ["en-US"], "es");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Automático (Español)");
   });
 
   it("offers each language named in itself, and shows the one picked at once", async () => {
