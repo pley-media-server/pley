@@ -47,7 +47,9 @@
     "placeholder": "Ajouter une étiquette",
     "titles_one": "{{count, number}} titre",
     "titles_many": "{{count, number}} de titres",
-    "titles_other": "{{count, number}} titres"
+    "titles_other": "{{count, number}} titres",
+    "create": "Ajouter « {{label}} »",
+    "suggestions": "Suggestions"
   },
   "addToCollection": {
     "title": "Ajouter à une collection",

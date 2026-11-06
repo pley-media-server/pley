@@ -39,6 +39,9 @@ describes how they are made.
 - A user's settings are in three tabs, Profile, Access and Devices, and
   label exceptions fold into one line, such as "Never show 2 labels",
   until they're opened.
+- Labels are picked in one field of chips: the arrow keys move through the
+  labels titles carry, Enter or a click adds one, and a label no title has
+  yet can still be added.
 
 ## [0.1.8] - 2026-11-06
 

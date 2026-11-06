@@ -44,7 +44,9 @@
   "labelPicker": {
     "placeholder": "Add a label",
     "titles_one": "{{count, number}} title",
-    "titles_other": "{{count, number}} titles"
+    "titles_other": "{{count, number}} titles",
+    "create": "Add “{{label}}”",
+    "suggestions": "Suggestions"
   },
   "addToCollection": {
     "title": "Add to collection",

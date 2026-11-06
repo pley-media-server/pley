@@ -40,6 +40,9 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
   /** Escape closes the dialog unless it is locked (a request in flight). */
   const onEscape = useEffectEvent((e: KeyboardEvent) => {
     if (locked) return;
+    // An open list in a field (a combobox's) closes first, on its own Escape.
+    const target = e.target as HTMLElement | null;
+    if (target?.getAttribute?.("role") === "combobox" && target.getAttribute("aria-expanded") === "true") return;
     e.stopPropagation();
     onClose();
   });
