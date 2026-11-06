@@ -249,7 +249,7 @@ describe("UsersSettings", () => {
     await waitFor(() => expect(limit).toHaveValue("rating"));
     expect(within(dialog).getByLabelText("Rating system")).toHaveValue("US");
     expect(within(dialog).getByLabelText("Rating")).toHaveValue("7");
-    expect(within(dialog).getByText(/TV-Y7 and below/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/suitable for age 7: TV-Y7 and gentler ratings/)).toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Age")).not.toBeInTheDocument();
     // By age keeps the limit, and offers every age.
     await user.selectOptions(limit, "By age");
@@ -273,7 +273,7 @@ describe("UsersSettings", () => {
     const year = now.getFullYear() - 7;
     expect(within(dialog).getByLabelText("Year")).toHaveValue(String(year));
     expect(within(dialog).getByLabelText("Birthday month")).toHaveValue(String(now.getMonth() + 1));
-    expect(within(dialog).getByText(/TV-Y7 and below/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/suitable for age 7: TV-Y7 and gentler ratings/)).toBeInTheDocument();
     expect(within(dialog).getByText(new RegExp(`ends in .* ${year + 21}`))).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -430,7 +430,7 @@ describe("UsersSettings: requests", () => {
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
     const select = within(dialog).getByLabelText("Requests");
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
-    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (age 7)");
     expect(select).toHaveValue("off");
     await user.selectOptions(select, "ask");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -461,7 +461,7 @@ describe("UsersSettings: requests", () => {
     expect(select).toHaveValue("ask");
     await waitFor(() => expect(within(dialog).getByRole("option", { name: "By rating" })).toBeEnabled());
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
-    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (age 7)");
     expect(select).toHaveValue("off");
     expect(within(dialog).getByText(/leaves out titles above the age limit/)).toBeInTheDocument();
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");

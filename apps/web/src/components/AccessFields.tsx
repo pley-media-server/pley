@@ -61,14 +61,18 @@ export function AccessFields({
     (l) => l.age === value.max_age,
   );
   const born = value.birth_month ? parseBirthMonth(value.birth_month) : null;
+  const formatAge = (age: number) => age.toLocaleString(currentLocale());
   const limitHint =
     value.max_age == null
       ? born
         ? t("accessFields.grownUpHint", { age: BIRTHDAY_LIMIT_ENDS })
         : t("accessFields.noLimitHint")
       : shown?.rating
-        ? t("accessFields.ratingHint", { rating: shown.rating, age: value.max_age })
-        : t("accessFields.ageHint", { age: value.max_age });
+        ? t(value.max_age === 0 ? "accessFields.ratingHintAllAges" : "accessFields.ratingHint", {
+            rating: shown.rating,
+            age: formatAge(value.max_age),
+          })
+        : t(value.max_age === 0 ? "accessFields.ageHintAllAges" : "accessFields.ageHint", { age: formatAge(value.max_age) });
   const hint =
     born && value.birth_month && value.max_age != null
       ? `${limitHint} ${t("accessFields.birthdayHint", { month: monthNames()[born.month - 1], end: birthdayLimitEnd(value.birth_month) })}`
@@ -94,7 +98,6 @@ export function AccessFields({
     const system = value.max_age_system == null && country === systems?.region ? null : country;
     set({ ...fixed, max_age_system: system, max_age: ageIn(systems, country, value.max_age ?? 0) });
   };
-  const formatAge = (age: number) => age.toLocaleString(currentLocale());
 
   return (
     <div className="space-y-4">
