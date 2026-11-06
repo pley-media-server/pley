@@ -96,7 +96,7 @@ internal class LanguageSync(private val app: Application) : Application.Activity
                 throw e
             } catch (e: ApiException) {
                 // A Pley from before languages has no route for it: this device's, then.
-                if (e.status == 404) pickHere(picked, device, repository) else if (AppLanguage.show(app, before)) repository?.shown()
+                if (e.status == 404 || e.status == 405) pickHere(picked, device, repository) else if (AppLanguage.show(app, before)) repository?.shown()
             } catch (_: Exception) {
                 if (AppLanguage.show(app, before)) repository?.shown()
             }

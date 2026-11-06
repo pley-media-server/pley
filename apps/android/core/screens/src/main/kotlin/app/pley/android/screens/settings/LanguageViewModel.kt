@@ -72,7 +72,7 @@ data class LanguageUiState(
  * then English, Français and Español. A choice goes to the server
  * (PUT /api/me/language) and shows at once; one the server refuses is put
  * back, and said ([errors]). A Pley from before languages keeps none (its
- * GET /api/server names no language, and the route answers 404): there a
+ * GET /api/server names no language, and the route answers 404 or 405): there a
  * choice is this device's, as the globe picks it, and shows all the same.
  */
 class LanguageViewModel(
@@ -86,7 +86,7 @@ class LanguageViewModel(
 ) : ViewModel() {
     private val saving = MutableStateFlow(false)
 
-    /** This server answered a choice with 404: it keeps no account's language, though it named one. */
+    /** This server answered a choice with 404 or 405: it keeps no account's language, though it named one. */
     private val refused = MutableStateFlow(false)
     private val channel = Channel<Throwable>(Channel.BUFFERED)
 
@@ -122,7 +122,7 @@ class LanguageViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
-                if (e.status == 404) {
+                if (e.status == 404 || e.status == 405) {
                     refused.value = true
                     pick(choice)
                 } else {
