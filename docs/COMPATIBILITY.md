@@ -134,8 +134,10 @@ and its tokens do what `play` allows. On the Plex-compatible API, a token
 without `manage` gets `403` for a change only administrators make, and one
 without `activity` sees what a viewer would: its account's own sessions and
 history, and files' names rather than where they are. The
-Jellyfin-compatible API takes every token for what `play` allows, and never
-acts as an administrator.
+Jellyfin-compatible API takes every token for what `play` allows, and one
+with `manage` for changing collections too
+([Playlists and collections](#playlists-and-collections)); it never acts as
+an administrator otherwise.
 
 ### Origins
 
@@ -613,7 +615,9 @@ Apps send the token as Jellyfin's apps do:
 A token sees what Pley's [access rules](API.md#access-rules) let its
 account see, with the account's own watch state, and never acts as an
 administrator, whatever its scopes: `Policy.IsAdministrator` is `false` for
-everyone, and nothing administers through this API. `/Users` lists the
+everyone, and nothing administers through this API. A token with `manage`
+changes collections, as administrators do in Pley, and
+`Policy.EnableCollectionManagement` says so. `/Users` lists the
 caller alone and `/Users/Public` no one, so no names are shown before
 signing in; a user id in a path (`/Users/{id}/Items`) must be the caller's
 (`404` otherwise).
@@ -707,11 +711,38 @@ closes once it ends.
 | A title's versions | its `MediaSources`, named by their edition |
 | Trailers, bonus material | `LocalTrailers`, `SpecialFeatures` |
 | Collection | `BoxSet` |
-| Playlist | `Playlist` |
+| Playlist | `Playlist`, each entry with a `PlaylistItemId` of its own |
 | My List | Favorites: movies and shows (`400` for anything else) |
 | Rating | `Likes`: a like is 10 of Pley's 10 points, a dislike 2 |
 | Continue Watching | `Resume` (in progress) and `NextUp` (next episodes), with titles taken out of Continue Watching left out |
 | Cast and crew | `People`, and `Person` items |
+
+### Playlists and collections
+
+Jellyfin's apps make and change playlists and collections as Pley's own
+apps do, by Pley's rules ([API.md](API.md#playlists)):
+
+- A playlist is its owner's alone: any token makes and changes its
+  account's own, and another account's answers `404`. Making one public or
+  sharing it (`IsPublic`, `Users`) answers `400`, so `GET /Playlists/{id}`
+  says `OpenAccess` `false` with no `Shares`, and `/Playlists/{id}/Users`
+  lists no one. A playlist is for video or for music, from its `MediaType`
+  or else its first title; what doesn't fit answers `400`.
+- Each entry has an id of its own, `PlaylistItemId`, in
+  `/Playlists/{id}/Items` and in `/Items?ParentId=` of a playlist: an item
+  may be there twice. Entries are removed and moved by it, or by the
+  item's own id, which names its first entry.
+  `POST /Playlists/{id}` with `Ids` puts those titles in place of the
+  entries the caller sees, in that order, as apps that save a playlist as a
+  whole send it; entries the caller can't see stay.
+- Smart playlists and smart collections are filled by their filter: their
+  entries aren't added, removed or moved (`400`).
+- Collections are a library's, for everyone who sees it: only a token with
+  `manage` makes and changes them (`403` otherwise), with movies and shows
+  of its library. Without a library (`parentId`), a new one is in its first
+  title's.
+- `DELETE /Items/{id}` deletes the caller's playlist, or with `manage` a
+  collection; `CanDelete` says which. A title is never deleted (`403`).
 
 ### Jellyfin endpoints
 
@@ -720,6 +751,8 @@ closes once it ends.
 | Server | `GET /System/Info/Public`, `/System/Info`, `/System/Ping`, `/System/Endpoint`, `/Branding/Configuration`, `/Branding/Css`, `/QuickConnect/Enabled` (`false`; `/QuickConnect/Initiate` and `/Connect` answer `401`), `/Playback/BitrateTest` (`size` random bytes for a speed test, at most 100 MB) |
 | Users | `POST /Users/AuthenticateByName`, `GET /Users/Me`, `/Users`, `/Users/Public`, `/Users/{id}`, `/Users/{id}/Images/Primary`, `/UserImage?userId=`, `POST /Sessions/Logout`, `/Sessions/Capabilities[/Full]`, `GET|POST /DisplayPreferences/{id}` |
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
+| Playlists | `POST /Playlists` (a `CreatePlaylistDto` body, or `Name`, `Ids`, `MediaType` in the query), `GET|POST /Playlists/{id}`, `POST|DELETE /Playlists/{id}/Items` (`ids`, `position`; `entryIds`), `POST /Playlists/{id}/Items/{entry}/Move/{index}`, `GET /Playlists/{id}/Users[/{user}]`, `DELETE /Items/{id}` |
+| Collections | `POST /Collections?name=&ids=&parentId=`, `POST|DELETE /Collections/{id}/Items?ids=`, `DELETE /Items/{id}` (`manage`) |
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
 | Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
@@ -746,7 +779,8 @@ Run against Pley with the API on Pley's port and on a port of its own:
 - Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
   none), and finding the server on the network (UDP 7359): apps are given
   its address.
-- Making or changing playlists and collections, and editing metadata.
+- Editing metadata.
+- Shared and public playlists: Pley's are their owner's alone.
 - Lyrics, seek previews (trickplay), instant mixes, theme songs and
   videos, and intros before a title.
 - Downloads converted for a device: `/Items/{id}/Download` hands over the

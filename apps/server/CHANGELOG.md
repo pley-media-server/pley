@@ -21,6 +21,10 @@ describes how they are made.
   does, and says so when it can't. An administrator's remote sends only to
   Pley's apps, never to a browser or the desktop app, which would stay
   signed in with the administrator's rights.
+- Jellyfin apps make, rename, fill, reorder and delete your playlists, and
+  with a token that may manage libraries, make and change collections. Each
+  playlist entry has an id of its own, so an app removes or moves the one
+  you picked when a title is there twice.
 - Pley reads the NFO files Kodi, Jellyfin, Emby, Radarr, Sonarr,
   tinyMediaManager and MediaElch keep next to movies, shows, seasons and
   episodes. Their ids decide what a title is matched to, and their titles,

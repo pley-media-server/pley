@@ -448,6 +448,162 @@ async fn watch_state_favorites_and_ratings_are_pleys() {
 }
 
 #[tokio::test]
+async fn jellyfin_apps_make_and_change_their_own_playlists() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let movies = app.ids(w.movies, admin).await;
+    let (alpha, bravo, charlie) =
+        (app.jf_item(movies["Alpha"]), app.jf_item(movies["Bravo"]), app.jf_item(movies["Charlie"]));
+
+    // As the Kotlin SDK sends it: a body, every field there.
+    let me = app.jf_user(admin).await;
+    let made = app
+        .jf(
+            Method::POST,
+            "/Playlists",
+            admin,
+            Some(json!({"Name": "Evening", "Ids": [&alpha, &bravo], "UserId": me, "MediaType": "Video", "Users": [], "IsPublic": false})),
+        )
+        .await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let playlist = made.body["Id"].as_str().unwrap().to_owned();
+    let items = app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await;
+    assert_eq!(jf_names(&items), ["Alpha", "Bravo"]);
+    let entries: Vec<String> =
+        items["Items"].as_array().unwrap().iter().map(|i| i["PlaylistItemId"].as_str().unwrap().to_owned()).collect();
+    assert!(entries.iter().all(|e| is_hex(e, 32)) && entries[0] != entries[1], "{entries:?}");
+    // Apps that list a playlist's titles as its children get the entries too.
+    let children = app.jf_json(&format!("/Items?ParentId={playlist}"), admin).await;
+    assert_eq!(children["Items"][1]["PlaylistItemId"], json!(entries[1]));
+    let dto = app.jf_json(&format!("/Playlists/{playlist}"), admin).await;
+    assert_eq!(dto, json!({"OpenAccess": false, "Shares": [], "ItemIds": [&alpha, &bravo]}));
+
+    // Added at the end, or where asked; moved; removed by entry.
+    let added =
+        app.jf(Method::POST, &format!("/Playlists/{playlist}/Items?ids={charlie}&userId={me}"), admin, None).await;
+    assert_eq!(added.status, StatusCode::NO_CONTENT, "{}", added.text());
+    let again = app.jf(Method::POST, &format!("/Playlists/{playlist}/Items?ids={alpha}&position=0"), admin, None).await;
+    assert_eq!(again.status, StatusCode::NO_CONTENT);
+    let items = app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await;
+    assert_eq!(jf_names(&items), ["Alpha", "Alpha", "Bravo", "Charlie"], "an item may be there twice");
+    let charlie_entry = items["Items"][3]["PlaylistItemId"].as_str().unwrap().to_owned();
+    let moved = app.jf(Method::POST, &format!("/Playlists/{playlist}/Items/{charlie_entry}/Move/1"), admin, None).await;
+    assert_eq!(moved.status, StatusCode::NO_CONTENT, "{}", moved.text());
+    let items = app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await;
+    assert_eq!(jf_names(&items), ["Alpha", "Charlie", "Alpha", "Bravo"]);
+    let first = items["Items"][0]["PlaylistItemId"].as_str().unwrap();
+    let removed = app.jf(Method::DELETE, &format!("/Playlists/{playlist}/Items?entryIds={first}"), admin, None).await;
+    assert_eq!(removed.status, StatusCode::NO_CONTENT);
+    assert_eq!(
+        jf_names(&app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await),
+        ["Charlie", "Alpha", "Bravo"]
+    );
+    // An app without the entry's id sends the item's: its first entry.
+    let by_item = app.jf(Method::POST, &format!("/Playlists/{playlist}/Items/{charlie}/Move/2"), admin, None).await;
+    assert_eq!(by_item.status, StatusCode::NO_CONTENT);
+    let items = app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await;
+    assert_eq!(jf_names(&items), ["Alpha", "Bravo", "Charlie"]);
+
+    // Renamed, and filled anew as a whole, as Feishin saves an edited one.
+    let update = json!({"Name": "Late", "Ids": [&bravo, &alpha]});
+    let updated = app.jf(Method::POST, &format!("/Playlists/{playlist}"), admin, Some(update)).await;
+    assert_eq!(updated.status, StatusCode::NO_CONTENT, "{}", updated.text());
+    assert_eq!(app.jf_json(&format!("/Items/{playlist}"), admin).await["Name"], json!("Late"));
+    assert_eq!(jf_names(&app.jf_json(&format!("/Playlists/{playlist}/Items"), admin).await), ["Bravo", "Alpha"]);
+
+    // The owner's alone: not shared, nor anyone else's to see or change.
+    let shared = app.jf(Method::POST, &format!("/Playlists/{playlist}"), admin, Some(json!({"IsPublic": true}))).await;
+    assert_eq!(shared.status, StatusCode::BAD_REQUEST);
+    assert_eq!(app.jf_json(&format!("/Playlists/{playlist}/Users"), admin).await, json!([]));
+    let mine = app.jf_json(&format!("/Playlists/{playlist}/Users/{me}"), admin).await;
+    assert_eq!(mine, json!({"UserId": me, "CanEdit": true}));
+    let (ann, _) = app.user(admin, "ann", json!({})).await;
+    for (method, uri) in [
+        (Method::GET, format!("/Playlists/{playlist}")),
+        (Method::POST, format!("/Playlists/{playlist}/Items?ids={charlie}")),
+        (Method::DELETE, format!("/Playlists/{playlist}/Items?entryIds={first}")),
+        (Method::DELETE, format!("/Items/{playlist}")),
+    ] {
+        let theirs = app.jf(method.clone(), &uri, &ann, None).await;
+        assert_eq!(theirs.status, StatusCode::NOT_FOUND, "{method} {uri}");
+    }
+    let for_another = app.jf(Method::POST, &format!("/Playlists?Name=x&UserId={me}"), &ann, None).await;
+    assert_eq!(for_another.status, StatusCode::FORBIDDEN, "for its own account only");
+
+    // Older apps send the fields in the query. A playlist's kind holds.
+    let query = app.jf(Method::POST, &format!("/Playlists?Name=Songs&Ids={alpha}&MediaType=Audio"), &ann, None).await;
+    assert_eq!(query.status, StatusCode::BAD_REQUEST, "a film in a music playlist");
+    let query = app.jf(Method::POST, &format!("/Playlists?Name=Films&Ids={alpha}"), &ann, None).await;
+    assert_eq!(query.status, StatusCode::OK, "{}", query.text());
+    let films = query.body["Id"].as_str().unwrap();
+    assert_eq!(jf_names(&app.jf_json(&format!("/Playlists/{films}/Items"), &ann).await), ["Alpha"]);
+
+    // Deleted by its owner; a title never.
+    let listed = app.jf_json("/Items?IncludeItemTypes=Playlist&Recursive=true", admin).await;
+    assert_eq!(listed["Items"][0]["CanDelete"], json!(true));
+    assert_eq!(app.jf(Method::DELETE, &format!("/Items/{alpha}"), admin, None).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(app.jf(Method::DELETE, &format!("/Items/{playlist}"), admin, None).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(app.jf(Method::GET, &format!("/Playlists/{playlist}"), admin, None).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn collections_change_with_a_token_that_may_manage_libraries() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let movies = app.ids(w.movies, admin).await;
+    let (alpha, bravo) = (app.jf_item(movies["Alpha"]), app.jf_item(movies["Bravo"]));
+    let library = app.jf_library(w.movies);
+    let manager = app.compatibility_token(admin, "manage").await;
+    let as_manager = |method: Method, uri: String| {
+        let token = manager.clone();
+        async move { app.jf_raw(method, &uri, &[("x-emby-token", &token)], None).await }
+    };
+
+    // A player's token: no collection management, and clients are told so.
+    let me = app.jf_json("/Users/Me", admin).await;
+    assert_eq!(me["Policy"]["EnableCollectionManagement"], json!(false));
+    let refused = app.jf(Method::POST, &format!("/Collections?name=Picks&ids={alpha}"), admin, None).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN);
+    let me = as_manager(Method::GET, "/Users/Me".into()).await;
+    assert_eq!(me.body["Policy"]["EnableCollectionManagement"], json!(true));
+    assert_eq!(me.body["Policy"]["IsAdministrator"], json!(false), "still no administrator");
+
+    let made = as_manager(Method::POST, format!("/Collections?name=Picks&ids={alpha}&parentId={library}")).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let collection = made.body["Id"].as_str().unwrap().to_owned();
+    let added = as_manager(Method::POST, format!("/Collections/{collection}/Items?ids={bravo}")).await;
+    assert_eq!(added.status, StatusCode::NO_CONTENT, "{}", added.text());
+    let items = app.jf_json(&format!("/Items?ParentId={collection}"), admin).await;
+    assert_eq!(jf_names(&items), ["Alpha", "Bravo"]);
+    let pilot = app.jf_item(w.pilot);
+    let episode = as_manager(Method::POST, format!("/Collections/{collection}/Items?ids={pilot}")).await;
+    assert_eq!(episode.status, StatusCode::BAD_REQUEST, "movies and shows of its library only");
+    let removed = as_manager(Method::DELETE, format!("/Collections/{collection}/Items?ids={alpha}")).await;
+    assert_eq!(removed.status, StatusCode::NO_CONTENT);
+    assert_eq!(jf_names(&app.jf_json(&format!("/Items?ParentId={collection}"), admin).await), ["Bravo"]);
+    // Without a library, the first title's.
+    let first = as_manager(Method::POST, format!("/Collections?name=More&ids={bravo}")).await;
+    assert_eq!(first.status, StatusCode::OK, "{}", first.text());
+
+    // Changed by no one else; deleted with the right token only.
+    let (ann, _) = app.user(admin, "ann", json!({})).await;
+    let theirs = app.jf(Method::POST, &format!("/Collections/{collection}/Items?ids={alpha}"), &ann, None).await;
+    assert_eq!(theirs.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        app.jf(Method::DELETE, &format!("/Items/{collection}"), admin, None).await.status,
+        StatusCode::FORBIDDEN
+    );
+    let listed = as_manager(Method::GET, "/Items?IncludeItemTypes=BoxSet&Recursive=true".into()).await;
+    assert!(
+        listed.body["Items"].as_array().unwrap().iter().all(|c| c["CanDelete"] == json!(true)),
+        "{}",
+        listed.text()
+    );
+    assert_eq!(as_manager(Method::DELETE, format!("/Items/{collection}")).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(app.jf(Method::GET, &format!("/Items/{collection}"), admin, None).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn a_user_id_in_a_path_is_the_callers_own() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());

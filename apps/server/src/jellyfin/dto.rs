@@ -222,6 +222,9 @@ pub struct Item {
     pub is_folder: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    /// The entry of a playlist the item is listed as.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub playlist_item_id: Option<String>,
     #[serde(rename = "Type")]
     pub kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
