@@ -146,6 +146,56 @@ or the ready-to-watch notice as it opens, and toasts. Each control names
 itself as it draws (`Ui::name`); a new reading cuts off the one before,
 as the TV's menus do.
 
+### Language
+
+The app is in English, French and Spanish, in the language
+[API.md](API.md#language) describes, as the Samsung apps choose it: the
+account's, else the one picked on this TV, else the TV's own when Pley has
+it (the language of its menus, `localeInfo` in webOS's system settings;
+fr-CA counts as French), else the server's (`GET /api/server`), else
+English. `packages/tv/test/fixtures/language.json` pins that order for the
+LG app's tests as for the Samsung apps'. Its words are in
+`crates/i18n/locales/<language>/<area>.json`, in i18next's format, built
+into the app; English stands in for a word a language lacks.
+
+Choose your server and typing an address have a small globe at the bottom
+right, on the forget hint's line; the sign-in code has it at the top
+right, on the logo's line. It is 32 tall with no fill until focused, and
+names the language shown by its two letters ("FR"); Down or Up reaches
+it, Left and Right never do. OK opens a side panel: "Automatic (English)"
+(the TV's language where Pley has it, else the server's, else English),
+then English, Français and Español, the choice in force checked. A choice
+shows at once, the screen drawn again in it with the globe focused (an
+address being typed and the code are kept), and is kept on the TV
+(`pley.deviceLanguage`); Automatic forgets it. Signed in, an account's own
+language comes first, and its Automatic is this choice.
+
+The language shown last is kept on the TV (`pley.language`), so a start
+shows it from the first frame rather than the TV's for a moment; once the
+account, or on a TV in a language Pley doesn't have the server, has been
+heard and names another, the app changes to it. A change draws the pages
+again where they were, Settings on the row that had focus, and asks for
+Home's rows again, since the server writes their titles; a film or a
+channel keeps its words until it closes. Diagnostics' lines follow at the
+next check.
+
+Settings → Profile → Language lists "Automatic (Français)" (the one picked
+with the globe, else the TV's language, else the server's), then English,
+Français and Español, each in itself. Choosing one sends
+`PUT /api/me/language`, and the app shows it once the server has it. A
+Pley from before languages keeps no account's language (its
+`GET /api/server` names none, and the route answers 404 or 405): there the
+row is this TV's, as the globe picks it, with Automatic the TV's own
+language, and a choice shows at once and is kept on the TV, as the Android
+and Samsung apps have it.
+
+Requests carry `Accept-Language` with the language shown, so what the
+server writes itself (Home's rows, its refusals) comes in it. Dates,
+times, numbers and counts follow the language shown (`pley_i18n::number`
+and `decimal`; counts by CLDR's plural forms, one and other in English,
+one, many and other in French and Spanish), times of day in the TV's
+12- or 24-hour clock.
+
 ### Audio and subtitles
 
 - The server picks the audio track that this TV plays best in the
@@ -739,6 +789,7 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click`, and `drive:out` and `drive:in` (the drive pulled out and plugged in again) |
 | `--screenshot <file>` | After the keys (and a `wait:` at their end), once the frames go quiet, write the frame as PNG and leave |
 | `--screenshot-after <ms>` | Take the screenshot this long after the keys instead: a playing video never goes quiet, and otherwise the shot comes 15 s after the last key |
+| `--locale <tag>` | The language of the TV's menus (`en-US` by default): `fr-FR`, `es-MX`… |
 | `--tier low\|mid\|high` | Act as a TV of that tier |
 | `--reduced-motion` | As Settings' Reduce motion |
 | `--stats` | Print the time to the first frame and the frame times on leaving |
