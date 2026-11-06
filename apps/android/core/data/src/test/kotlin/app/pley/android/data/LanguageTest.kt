@@ -84,6 +84,26 @@ class LanguageTest {
     }
 
     @Test
+    fun aServerThatKeepsNoAccountsLanguageLeavesNothingToWaitFor() {
+        val spanish = Language.Spanish
+        // A Pley from before languages (its GET /api/server named none): the account's answer isn't waited for.
+        val older = signedIn(null, accountKnown = false, server = null)
+        assertEquals(false, older.keepsLanguage)
+        assertEquals(spanish, older.wanted(german, picked = spanish))
+        assertEquals(Language.French, older.wanted(french))
+        assertEquals(Language.English, older.wanted(german))
+        // What an account saved means nothing there: this device's.
+        assertEquals(spanish, signedIn("fr", accountKnown = false, server = null).wanted(german, picked = spanish))
+        assertEquals(Language.English, signedIn("fr", server = null).wanted(german))
+        // One without the route that names a language: for a device in a language Pley doesn't have, the server's, once it said it.
+        assertEquals(spanish, signedIn(null, accountKnown = false, server = "fr", keepsLanguage = false).wanted(german, picked = spanish))
+        assertEquals(Language.French, signedIn("es", accountKnown = false, server = "fr", keepsLanguage = false).wanted(german))
+        assertNull(signedIn(null, accountKnown = false, server = null, serverKnown = false, keepsLanguage = false).wanted(german))
+        // A current server's account is still waited for.
+        assertNull(signedIn(null, accountKnown = false, server = "fr").wanted(german, picked = spanish))
+    }
+
+    @Test
     fun withoutAnAccountTheDevicesLanguageShows() = runTest {
         val data = TestData(this, folder.newFolder())
         val sources = collect(data.graph.language.sources)
@@ -165,6 +185,27 @@ class LanguageTest {
         assertEquals(false, now.keepsLanguage)
         // What shows is decided as on any server: the device's, its account having none.
         assertEquals(Language.French, now.wanted(french))
+    }
+
+    @Test
+    fun onAServerFromBeforeLanguagesThePickShowsBeforeTheAccountsAnswer() = runTest {
+        val dir = folder.newFolder()
+        val first = appRun()
+        signedIn(dir, first) { api.answer("me", alex.copy(language = "es")) }
+        first.cancel()
+        testScheduler.runCurrent()
+
+        // GET /api/server names no language (the fixture is such an answer); GET /api/auth/me doesn't answer.
+        val after = TestData(this, dir)
+        after.signIn()
+        after.api.fail("me", ApiException(503, null, "unavailable"))
+        val sources = collect(after.graph.language.sources)
+        testScheduler.runCurrent()
+        val now = sources.last()
+        assertEquals(signedIn("es", accountKnown = false, server = null), now)
+        // The language picked on this device shows, and what the account saved means nothing there.
+        assertEquals(Language.French, now.wanted(german, picked = Language.French))
+        assertEquals(Language.English, now.wanted(german))
     }
 
     @Test

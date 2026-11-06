@@ -120,7 +120,8 @@ The app remembers the language it showed last and starts in it, before
 the server has answered; signed in, it waits for the account's language
 before it turns to the device's, and on a device in a language Pley
 doesn't have, for the server's, so no other language shows for a
-moment. Android 13 and later keep it as the app's own language, which
+moment. A Pley from before languages has no account's language to wait
+for, and one an account saved means nothing there. Android 13 and later keep it as the app's own language, which
 the system's settings list (Apps → Pley → Language); the app sets it
 again as it hears the account's and the server's. A language picked
 there is chosen as the app's own picker would choose it, and its System

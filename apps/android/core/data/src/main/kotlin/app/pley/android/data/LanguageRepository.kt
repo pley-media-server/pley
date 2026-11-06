@@ -40,19 +40,24 @@ sealed interface LanguageSources {
 
     /**
      * The language to show: the account's, else this device's (the one
-     * [picked] on it before signing in, else the first of the system's
-     * languages, [device], that Pley has), else the server language, else
-     * English. `null` while the server hasn't said what decides: the
-     * language shown stays, rather than another showing for a moment.
+     * [picked] on it, else the first of the system's languages, [device],
+     * that Pley has), else the server language, else English. `null` while
+     * the server hasn't said what decides: the language shown stays, rather
+     * than another showing for a moment. A server that keeps no account's
+     * language ([SignedIn.keepsLanguage]) has none to wait for.
      */
     fun wanted(device: List<Locale>, picked: Language? = null): Language? {
         val here = picked ?: Language.ofDevice(device)
         return when (this) {
             Unknown -> null
             NoAccount -> here ?: Language.English
-            is SignedIn -> Language.of(account) ?: when {
-                !accountKnown -> null
-                else -> here ?: if (serverKnown) Language.of(server) ?: Language.English else null
+            is SignedIn -> {
+                // A server that keeps no account's language has none to wait for, and what an account saved means nothing there.
+                val chosen = if (keepsLanguage) Language.of(account) else null
+                chosen ?: when {
+                    keepsLanguage && !accountKnown -> null
+                    else -> here ?: if (serverKnown) Language.of(server) ?: Language.English else null
+                }
             }
         }
     }
