@@ -1404,12 +1404,12 @@ class SessionPlaybackController(
             Control.Next -> if (item?.let { nextUp.hasNext(it.kind, current.queue) } == true) advance(fromRemote = true)
             Control.Audio -> command.streamIndex?.let {
                 val change = changeAudio(it.toLong())
-                if (change != TrackChange.Unchanged) audio?.let { a -> remoteNotice(texts.remoteAudio(streamLabel(a))) }
+                if (change != TrackChange.Unchanged) audio?.let { a -> remoteNotice(texts.remoteAudio(streamLabel(a, texts.format))) }
                 reportPicked(change)
             }
             Control.Subtitles -> command.streamIndex?.let { index ->
                 val change = changeSubtitle(index.takeIf { it != PlayingSession.SUBTITLES_OFF }?.toLong())
-                if (change != TrackChange.Unchanged) remoteNotice(texts.remoteSubtitles(subtitle?.let(::streamLabel)))
+                if (change != TrackChange.Unchanged) remoteNotice(texts.remoteSubtitles(subtitle?.let { streamLabel(it, texts.format) }))
                 reportPicked(change)
             }
             Control.Quality -> command.quality?.let { id ->

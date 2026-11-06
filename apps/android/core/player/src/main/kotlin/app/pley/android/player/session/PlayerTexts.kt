@@ -245,19 +245,19 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
 
     override fun playingFrom(from: CastFrom): String = from.notice(res)
 
-    override val remotePaused: String get() = s(R.string.remote_paused)
-    override val remotePlaying: String get() = s(R.string.remote_playing)
+    override val remotePaused: String get() = s(R.string.session_remote_paused)
+    override val remotePlaying: String get() = s(R.string.session_remote_playing)
 
     override fun remoteSkipped(offsetMs: Long): String =
-        res.getString(if (offsetMs < 0) R.string.remote_skipped_back else R.string.remote_skipped_forward, skipSeconds(offsetMs))
+        res.getString(if (offsetMs < 0) R.string.session_remote_skipped_back else R.string.session_remote_skipped_forward, skipSeconds(offsetMs))
 
-    override fun remoteJumped(positionMs: Long): String = res.getString(R.string.remote_jumped, formatClock(positionMs / 1000.0))
-    override fun remoteAudio(label: String): String = res.getString(R.string.remote_audio, label)
+    override fun remoteJumped(positionMs: Long): String = res.getString(R.string.session_remote_jumped, formatClock(positionMs / 1000.0))
+    override fun remoteAudio(label: String): String = res.getString(R.string.session_remote_audio, label)
 
     override fun remoteSubtitles(label: String?): String =
-        label?.let { res.getString(R.string.remote_subtitles, it) } ?: s(R.string.remote_subtitles_off)
+        label?.let { res.getString(R.string.session_remote_subtitles, it) } ?: s(R.string.session_remote_subtitles_off)
 
-    override fun remoteQuality(label: String): String = res.getString(R.string.remote_quality, label)
+    override fun remoteQuality(label: String): String = res.getString(R.string.session_remote_quality, label)
 
     override fun stopped(message: String?, byAdmin: Boolean): String {
         val who = s(if (byAdmin) R.string.session_stopped_by_admin else R.string.session_stopped_elsewhere)
