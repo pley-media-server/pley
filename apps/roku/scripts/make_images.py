@@ -4,7 +4,9 @@ lost it, images/button-footprint.9.png): nine-patch pictures, a rounded
 box in the app's accent or its raised surface, as its lists have. The
 Live TV guide's programmes sit on images/guide-cell.9.png, and what has
 aired on images/guide-past.9.png; images/spinner.png turns while a channel
-tunes, and images/round.png makes a person's photo round. The
+tunes, images/round.png makes a person's photo round, and images/globe.png
+is the globe that picks the language before signing in, drawn in white
+for the screens to tint. The
 icons and splash screens are pley's logo, rendered with the other apps'
 icons by scripts/render-icons.mjs at the repository's root. Standard
 library only.
@@ -36,6 +38,10 @@ SPINNER_SIZE = 64
 # The mask of round pictures, a person's photo (components/screens/
 # PersonScreen), drawn at this size.
 ROUND_SIZE = 160
+
+# The language's globe, drawn at this size beside its two letters
+# (components/shared/LanguageGlobe).
+GLOBE_SIZE = 28
 
 
 def segment_distance(px, py, ax, ay, bx, by):
@@ -151,6 +157,34 @@ def render_disc(size):
     return rows
 
 
+def render_globe(size):
+    """RGBA rows of a plain globe in white lines: its outline, a meridian
+    and the equator, as the other TV apps draw it."""
+    samples = 4
+    radius = 0.44
+    meridian = 0.2
+    half_stroke = 0.045
+    rows = []
+    for row in range(size):
+        line = bytearray()
+        for col in range(size):
+            ink = 0
+            for sy in range(samples):
+                for sx in range(samples):
+                    x = (col + (sx + 0.5) / samples) / size - 0.5
+                    y = (row + (sy + 0.5) / samples) / size - 0.5
+                    r = math.hypot(x, y)
+                    outline = abs(r - radius) <= half_stroke
+                    ellipse = abs(math.hypot(x / meridian, y / radius) - 1) * meridian <= half_stroke
+                    equator = abs(y) <= half_stroke and r <= radius
+                    if outline or (r <= radius and ellipse) or equator:
+                        ink += 1
+            line.extend((255, 255, 255))
+            line.append(round(255 * ink / (samples * samples)))
+        rows.append(bytes(line))
+    return rows
+
+
 def write_png(path, width, height, rows):
     def chunk(kind, data):
         body = kind + data
@@ -183,6 +217,8 @@ def main():
     print("images/spinner.png", SPINNER_SIZE, "x", SPINNER_SIZE)
     write_png(os.path.join(folder, "round.png"), ROUND_SIZE, ROUND_SIZE, render_disc(ROUND_SIZE))
     print("images/round.png", ROUND_SIZE, "x", ROUND_SIZE)
+    write_png(os.path.join(folder, "globe.png"), GLOBE_SIZE, GLOBE_SIZE, render_globe(GLOBE_SIZE))
+    print("images/globe.png", GLOBE_SIZE, "x", GLOBE_SIZE)
 
 
 if __name__ == "__main__":

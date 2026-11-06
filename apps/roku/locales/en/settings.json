@@ -1,0 +1,44 @@
+{
+  "title": "Settings",
+  "server": "Server",
+  "signedInAs": "Signed in as",
+  "thisRoku": "This Roku",
+  "app": "Pley for Roku",
+  "tmdb": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+  "web": "Manage your account on the web",
+  "webHint": "Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network.",
+  "unreachable": "The server can't be reached right now.",
+  "rows": {
+    "language": "Language: {{value}}",
+    "quality": "Quality: {{value}}",
+    "autoplay": "Play the next episode by itself: {{value}}",
+    "history": "Watch history",
+    "switchProfile": "Switch profile",
+    "alwaysStartAs": "Always start as: {{value}}",
+    "sortLibraries": "Sort libraries",
+    "switchServer": "Switch server",
+    "signOut": "Sign out"
+  },
+  "language": {
+    "title": "Language",
+    "automatic": "Automatic ({{language}})"
+  },
+  "quality": "Quality",
+  "alwaysStartAs": "Always start as",
+  "usedLast": "Profile used last",
+  "signOut": {
+    "title": "Sign out?",
+    "body": "You'll be signed out of {{name}}.",
+    "confirm": "Sign out"
+  },
+  "loadingProfile": "Loading your profile…",
+  "changeOnWeb": "Change these on the web, at {{address}}.",
+  "readOnly": "This server doesn't let the app change these: change them on the web, at {{address}}.",
+  "diagnostics": "Diagnostics",
+  "licences": "Open-source licences",
+  "diagnosticsPage": {
+    "app": "Pley for Roku {{version}}",
+    "plays": "What it plays"
+  },
+  "licence": "Pley for Roku is free software under the GNU Affero General Public License, version 3 (AGPL-3.0-only)."
+}

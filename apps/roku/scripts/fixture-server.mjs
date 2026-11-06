@@ -329,7 +329,10 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     });
     const agent = req.headers["user-agent"] ?? "";
     const auth = req.headers.authorization ?? "";
-    requests.push({ method: req.method, path: url.pathname + url.search, agent, auth: auth ? auth.slice(0, 20) : "", at: Date.now() });
+    const language = req.headers["accept-language"] ?? "";
+    requests.push({ method: req.method, path: url.pathname + url.search, agent, auth: auth ? auth.slice(0, 20) : "", language, at: Date.now() });
+    // The API task's requests (JSON) say the language the app shows.
+    if (req.headers.accept === "application/json" && !/^(en|fr|es)$/.test(language)) problems.push(`${req.method} ${url.pathname}: Accept-Language ${JSON.stringify(language)}`);
     if (!USER_AGENT.test(agent)) problems.push(`${req.method} ${url.pathname}: User-Agent ${JSON.stringify(agent)}`);
     if (url.searchParams.has("token")) problems.push(`${req.method} ${url.pathname}: a token in the address`);
 
@@ -435,7 +438,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     // Everything else needs the access token, in the header, but a keyed
     // session's media, which its key opens.
     if (!url.pathname.startsWith("/api/") || url.pathname === "/api/server") {
-      const server = { id: SERVER_ID, name: "Fixture", version: "0.1.0", setup_required: false, setup_code_required: false, ...(fixture.twoStep ? { two_step_required: true } : {}) };
+      const server = { id: SERVER_ID, name: "Fixture", language: fixture.serverLanguage, version: "0.1.0", setup_required: false, setup_code_required: false, ...(fixture.twoStep ? { two_step_required: true } : {}) };
       const challenge = url.searchParams.get("challenge");
       const grant = Number(url.searchParams.get("proof_id"));
       if (url.pathname !== "/api/server" || challenge === null) return json(200, server);
@@ -470,8 +473,17 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(answered.status, { "Content-Type": "application/json", "Cache-Control": "no-store", ...answered.headers });
       return res.end(JSON.stringify(answered.body));
     }
-    const me = () => ({ id: 1, username: "anna", name: "Anna", ...fixture.trackDefaults });
+    const me = () => ({ id: 1, username: "anna", name: "Anna", ...fixture.trackDefaults, language: fixture.language });
     if (path === "/api/auth/me") return json(200, me());
+    // The account's language (docs/API.md, "Language"): one of the three,
+    // or null for Automatic.
+    if (path === "/api/me/language" && req.method === "PUT") {
+      const asked = JSON.parse(body);
+      fixture.languagesSaved.push(asked.language);
+      if (asked.language !== null && !["en", "fr", "es"].includes(asked.language)) return json(400, { code: "bad_request", message: "no such language" });
+      fixture.language = asked.language;
+      return json(200, me());
+    }
     // The profile's track defaults (docs/API.md): all three at once.
     if (path === "/api/me/track-defaults" && req.method === "PUT") {
       const asked = JSON.parse(body);
@@ -938,7 +950,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
+  const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], serverLanguage: "en", language: null, languagesSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], picturesMissing: false, picturesAsked: [], picturesFetched: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, videoReports: 0, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

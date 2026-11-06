@@ -67,12 +67,17 @@ sub apiRun()
     ' liveGuideKeep; upto: how far each channel's is fetched).
     m.liveGuide = { key: "", programs: {}, upto: {} }
     apiDeviceFacts()
+    ' The words of its answers, and what it asks the server for
+    ' (Accept-Language), in the language the scene shows.
+    i18nUse(m.global.language)
+    m.global.observeField("language", m.port)
     m.top.ready = true
     while true
         msg = wait(apiWaitMs(), m.port)
         kind = type(msg)
         if kind = "roSGNodeEvent"
             if msg.getField() = "request" then apiAccept(msg.getData())
+            if msg.getField() = "language" then i18nUse(msg.getData())
         else if kind = "roUrlEvent"
             apiFinished(msg)
         else if kind = "roDeviceInfoEvent"
@@ -128,7 +133,7 @@ function apiFail(code as string, message as string) as object
 end function
 
 function apiSignedOut() as object
-    return { ok: false, status: 401, data: invalid, error: "signed_out", message: "You were signed out: sign in again." }
+    return { ok: false, status: 401, data: invalid, error: "signed_out", message: t("common.errors.signedOut") }
 end function
 
 sub apiAnswer(request as dynamic, answer as object)
@@ -173,6 +178,9 @@ sub apiAccept(request as dynamic)
         apiLivePage(request, spec)
     else if op = "liveGuide"
         apiLiveGuide(request, spec, spec.channels)
+    else if op = "serverInfo"
+        if not m.session.serverHeard then apiAskServerInfo()
+        apiAnswer(request, apiOk(invalid))
     else
         apiCall(request, spec)
     end if
@@ -208,7 +216,7 @@ end function
 ' failed.
 sub apiCall(request as object, spec as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     method = UCase(httpString(spec.method))
@@ -221,6 +229,7 @@ sub apiCall(request as object, spec as object)
     job.badges = httpTrue(spec.badges)
     job.bitrate = httpTrue(spec.bitrate)
     job.play = httpTrue(spec.play)
+    job.profile = httpTrue(spec.profile)
     job.auth = true
     if GetInterface(spec.auth, "ifBoolean") <> invalid then job.auth = spec.auth
     if spec.json <> invalid
@@ -270,6 +279,8 @@ sub apiSend(job as object)
     if LCase(Left(job.url, 8)) = "https://" then transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
     transfer.AddHeader("User-Agent", m.userAgent)
     transfer.AddHeader("Accept", "application/json")
+    ' What the server writes itself (Home's rows) comes in the language shown.
+    transfer.AddHeader("Accept-Language", i18nLanguage())
     ' The token goes in this header only, never in an address.
     if job.auth then transfer.AddHeader("Authorization", "Bearer " + job.sent)
     if job.contentType <> "" then transfer.AddHeader("Content-Type", job.contentType)
@@ -317,6 +328,8 @@ sub apiAnswered(job as object, status as integer, body as string, headers as dyn
         apiSwitchAnswered(job, status, body)
     else if purpose = "proof"
         apiProofAnswered(job, status, body)
+    else if purpose = "serverInfo"
+        apiServerInfoAnswered(job, status, body)
     else if purpose = "revoke"
         ' The app signed out whatever the answer; a busy server is asked
         ' once more.
@@ -402,6 +415,7 @@ sub apiCallAnswered(job as object, status as integer, body as string, headers as
     answer = httpAnswer(status, body)
     if job.network <> "" then aqNetworkKeep(m.networkKept, job.network, answer, m.clock.TotalMilliseconds())
     if httpTrue(job.me) then apiKnowProfile(job, answer)
+    if httpTrue(job.profile) then apiProfileLanguage(job, answer)
     if answer.ok and job.play and apiAbandoned(job.request)
         ' The player left before its session came: the server would go on
         ' preparing it.
@@ -744,7 +758,7 @@ end sub
 
 ' The answer to a request asked for the profile before a switch, dropped.
 function apiProfileChanged() as object
-    return apiFail("profile_changed", "Another profile is signed in now.")
+    return apiFail("profile_changed", t("signin.problems.profileChanged"))
 end function
 
 ' Ends the grant of tokens on its server (RFC 7009); nothing waits for it.
@@ -806,8 +820,13 @@ end sub
 
 ' Makes url the server the screens talk to, signed in when it has tokens.
 sub apiSelect(url as string, name as string)
+    ' The language facts were the server before's, or are asked again.
+    m.session.accountHeard = false
+    m.session.accountLanguage = ""
+    m.session.serverHeard = false
+    m.session.serverLanguage = ""
     if url <> m.server
-        apiFailWaiting(apiFail("server_changed", "The server changed."))
+        apiFailWaiting(apiFail("server_changed", t("signin.problems.serverChanged")))
         ' The token in use goes before the address changes: the event
         ' stream follows the two apart (MainScene's onStream), so the server
         ' before's token never goes to the one chosen, proved or not.
@@ -832,7 +851,28 @@ sub apiSelect(url as string, name as string)
     end if
     apiPublish()
     m.session.signedIn = m.tokens <> invalid
+    apiAskServerInfo()
     apiAskProfile()
+end sub
+
+' The server's language (GET /api/server): what a Roku in a language Pley
+' doesn't have shows, and whether the server keeps an account's (a Pley
+' from before languages names none). Anyone may ask, so it goes without the
+' token; the scene asks again as the event stream comes up when it got no
+' answer.
+sub apiAskServerInfo()
+    if m.server = "" then return
+    job = apiJob("serverInfo", "GET", m.server + "/api/server")
+    job.timeoutMs = 10000
+    apiSend(job)
+end sub
+
+sub apiServerInfoAnswered(job as object, status as integer, body as string)
+    if job.server <> m.server then return
+    data = httpObject(httpJson(body))
+    if status <> 200 or data = invalid or httpString(data.version) = "" then return
+    m.session.serverLanguage = httpString(data.language)
+    m.session.serverHeard = true
 end sub
 
 ' Who the sign-in acts as (GET /api/auth/me), for the screens: asked as a
@@ -841,6 +881,10 @@ sub apiAskProfile()
     m.networkKept = {}
     m.session.profileId = 0
     m.session.profileName = ""
+    ' Another profile, maybe with another language: the one shown stays
+    ' until it is heard.
+    m.session.accountHeard = false
+    m.session.accountLanguage = ""
     if m.tokens = invalid then return
     job = apiJob("call", "GET", m.server + "/api/auth/me")
     job.auth = true
@@ -859,13 +903,26 @@ sub apiKnowProfile(job as object, answer as object)
     if data = invalid then return
     m.session.profileId = httpNumber(data.id, 0)
     m.session.profileName = httpSentence(data.name)
+    m.session.accountLanguage = httpString(data.language)
+    m.session.accountHeard = true
     profKeepPin(CreateObject("roRegistrySection", "household"), m.server, data)
+end sub
+
+' A request that answers with the profile (spec.profile: PUT
+' /api/me/language): the account's language as it is now, unless another
+' profile or server came meanwhile.
+sub apiProfileLanguage(job as object, answer as object)
+    if not answer.ok or job.gen <> m.switches or job.server <> m.server then return
+    data = httpObject(answer.data)
+    if data = invalid or not data.DoesExist("language") then return
+    m.session.accountLanguage = httpString(data.language)
+    m.session.accountHeard = true
 end sub
 
 sub apiUseServer(request as object, spec as object)
     url = urlOrigin(httpString(spec.url))
     if url = invalid
-        apiAnswer(request, apiFail("address", "That isn't a server's address."))
+        apiAnswer(request, apiFail("address", t("signin.problems.notAnAddress")))
         return
     end if
     name = httpSentence(spec.name)
@@ -899,7 +956,7 @@ sub apiCheckServer(request as object, spec as object)
     address = httpString(spec.address).Trim()
     candidates = urlCandidates(address)
     if candidates.Count() = 0
-        apiAnswer(request, apiFail("address", "Enter an address such as nas, 192.168.1.20 or pley.example.com."))
+        apiAnswer(request, apiFail("address", t("signin.problems.badAddress")))
         return
     end if
     job = apiJob("check", "GET", candidates[0] + "/api/server")
@@ -918,9 +975,9 @@ sub apiCheckAnswered(job as object, status as integer, body as string)
     data = httpObject(httpJson(body))
     if status = 200 and data <> invalid and httpString(data.version) <> ""
         if httpTrue(data.setup_required)
-            apiAnswer(job.request, apiFail("setup", "This server isn't set up yet: open " + urlDisplayAddress(server) + " in a browser first."))
+            apiAnswer(job.request, apiFail("setup", t("signin.problems.notSetUp", { address: urlDisplayAddress(server) })))
         else if urlUnencrypted(server)
-            apiAnswer(job.request, apiFail("unencrypted", job.address + " isn't on your network and isn't encrypted: open it by its https address."))
+            apiAnswer(job.request, apiFail("unencrypted", t("signin.problems.unencryptedAddress", { address: job.address })))
         else
             name = httpSentence(data.name)
             if name = "" then name = urlDisplayAddress(server)
@@ -934,9 +991,9 @@ sub apiCheckAnswered(job as object, status as integer, body as string)
         job.url = job.candidates[job.index] + "/api/server"
         apiSend(job)
     else if job.answered
-        apiAnswer(job.request, apiFail("not_pley", "Something answers at " + job.address + ", but it isn't Pley."))
+        apiAnswer(job.request, apiFail("not_pley", t("signin.problems.notPley", { address: job.address })))
     else
-        apiAnswer(job.request, apiFail("unreachable", "Couldn't reach " + job.address + ". Check the address, and that the server is on."))
+        apiAnswer(job.request, apiFail("unreachable", t("signin.problems.unreachableAddress", { address: job.address })))
     end if
 end sub
 
@@ -948,11 +1005,11 @@ end sub
 sub apiSignInStart(request as object)
     m.signIn = invalid
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     if urlUnencrypted(m.server)
-        apiAnswer(request, apiFail("unencrypted", "This server isn't on your network and isn't encrypted: open it by its https address to sign in."))
+        apiAnswer(request, apiFail("unencrypted", t("signin.problems.unencrypted")))
         return
     end if
     m.signIns = m.signIns + 1
@@ -1096,7 +1153,7 @@ sub apiSignedIn(signIn as object, body as string)
     fresh = tokensFrom(answer, meta.issuer, meta.tokenEndpoint, meta.revocationEndpoint)
     if authExtraScopes(fresh.scope, signIn.scope).Count() > 0
         apiRevoke(fresh)
-        apiSignInUpdate(signIn, { status: "failed", message: "The server allowed more than Pley for Roku asks for, so it was signed out again." })
+        apiSignInUpdate(signIn, { status: "failed", message: t("signin.problems.widerScope") })
         return
     end if
     previous = tokensLoad(m.tokensSection, fresh.issuer)
@@ -1130,7 +1187,7 @@ end sub
 ' meanwhile.
 sub apiSwitchAsked(request as object, spec as object)
     if m.switchHeld <> invalid
-        apiAnswer(m.switchHeld.request, apiFail("switch_replaced", "Another profile was chosen."))
+        apiAnswer(m.switchHeld.request, apiFail("switch_replaced", t("signin.problems.anotherChosen")))
         m.switchHeld = invalid
     end if
     if not httpTrue(spec.drain)
@@ -1193,7 +1250,7 @@ sub apiSwitchProfile(request as object, spec as object)
     end if
     if m.refreshing.DoesExist(tokens.issuer)
         ' One switch waits at most: an earlier one asked for meanwhile gives way.
-        if m.switchWaiting <> invalid then apiAnswer(m.switchWaiting.request, apiFail("switch_replaced", "Another profile was chosen."))
+        if m.switchWaiting <> invalid then apiAnswer(m.switchWaiting.request, apiFail("switch_replaced", t("signin.problems.anotherChosen")))
         m.switchWaiting = { request: request, spec: spec }
         return
     end if
@@ -1236,7 +1293,7 @@ sub apiSwitchAnswered(job as object, status as integer, body as string)
         else if not current
             ' Signed out or in again meanwhile: those stay.
             apiRevoke(fresh)
-            apiAnswer(job.request, apiFail("server_changed", "The sign-in changed."))
+            apiAnswer(job.request, apiFail("server_changed", t("signin.problems.signInChanged")))
         else
             ' Saved before they are used: the old refresh token is spent.
             tokensSave(m.tokensSection, fresh)
@@ -1438,7 +1495,7 @@ end sub
 ' the server a few seconds.
 sub apiLiveWatch(request as object, spec as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     job = apiJob("call", "POST", m.server + "/api/live/channels/" + urlValue(spec.channelId) + "/watch")
@@ -1478,7 +1535,7 @@ end sub
 ' Answers { total, offset, channels }; the guide's, with upto.
 sub apiLivePage(request as object, spec as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     category = httpString(spec.category)
@@ -1537,7 +1594,7 @@ end sub
 ' not kept yet fetched first.
 sub apiLiveGuide(request as object, spec as object, channels as dynamic, page = invalid as dynamic)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     start = Int(httpNumber(spec.start, 0))
@@ -1583,7 +1640,7 @@ end sub
 ' from the last 10 minutes at once.
 sub apiNetwork(request as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     kept = aqNetworkKept(m.networkKept, m.server, m.clock.TotalMilliseconds())
@@ -1605,7 +1662,7 @@ end sub
 ' the server's answer takes its place.
 sub apiTellNetwork(request as object, spec as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     m.networkKept.Delete(m.server)
@@ -1625,7 +1682,7 @@ end sub
 ' up after timeoutMs (what came by then counts, where the Roku wrote it).
 sub apiSpeedTest(request as object, spec as object)
     if m.server = ""
-        apiAnswer(request, apiFail("no_server", "Choose a server first."))
+        apiAnswer(request, apiFail("no_server", t("signin.problems.chooseServer")))
         return
     end if
     job = apiJob("call", "GET", m.server + "/api/playback/speedtest?bytes=" + urlValue(aqProbeBytes()))

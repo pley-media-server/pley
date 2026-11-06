@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- "Choose your server": saved servers, then those that answer on the
-     local network; an address typed on the keyboard. -->
+     local network; an address typed on the keyboard. At the bottom right,
+     on the forget hint's line, the globe picks the language. -->
 <component name="ServersScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
         <field id="params" type="assocarray" />
         <field id="navigate" type="assocarray" alwaysNotify="true" />
         <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The language shown changed: the screen draws its words again. -->
+        <field id="language" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/ServersScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
@@ -17,11 +20,15 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Servers.brs" />
     <children>
-        <Label id="title" translation="[96, 72]" text="Choose your server" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[96, 72]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="wordmark" translation="[1524, 72]" width="300" horizAlign="right" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />
         <MarkupList id="list" translation="[96, 190]" itemComponentName="ServerRow" itemSize="[1000, 104]" itemSpacing="[0, 12]" numRows="6" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <ButtonGroup id="actions" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1180, 190]" minWidth="640" />
         <Label id="status" translation="[96, 900]" width="1728" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <Label id="hint" translation="[96, 996]" width="1728" color="0x8B95A5FF" text="Press * on a saved server to forget it." visible="false" font="font:SmallestSystemFont" />
+        <Label id="hint" translation="[96, 996]" width="1480" height="40" vertAlign="center" color="0x8B95A5FF" visible="false" font="font:SmallestSystemFont" />
+        <!-- Its letters end at the screen's right margin, centred on the
+             hint's line. -->
+        <LanguageGlobe id="globe" translation="[1838, 992]" />
+        <LanguagePanel id="languages" />
     </children>
 </component>

@@ -65,6 +65,60 @@ function i18nSystem(server as dynamic, device as dynamic) as string
     return language
 end function
 
+' The language to show at a start, before anything is heard: the one shown
+' last (kept in the registry), else the Roku's, else English.
+function i18nAtStart(shownLast as dynamic, device as dynamic) as string
+    language = i18nSupported(shownLast)
+    if language = "" then language = i18nSystem("", device)
+    return language
+end function
+
+' The language to show now, or "" while it waits to hear what it needs:
+' signed in, the account's language (GET /api/auth/me); on a Roku in a
+' language Pley doesn't have with none picked, the server's (GET
+' /api/server), when there is a server. Meanwhile the language shown stays,
+' so nothing flashes. facts: { signedIn, accountHeard, account, server
+' (its address, "" for none), serverHeard, serverLanguage, device, choice }.
+function i18nShown(facts as object) as string
+    account = ""
+    if facts.signedIn = true
+        if facts.accountHeard <> true then return ""
+        account = facts.account
+    end if
+    if i18nSupported(account) = "" and i18nSupported(facts.choice) = "" and i18nDeviceLanguage(facts.device) = ""
+        if i18nText(facts.server) <> "" and facts.serverHeard <> true then return ""
+    end if
+    return i18nPick(account, facts.serverLanguage, facts.device, facts.choice)
+end function
+
+' Settings' Language row, as the other TVs have it: { onDevice, automatic,
+' current }. A server that keeps an account's language (its GET /api/server
+' names one) keeps the choice for the account, on all its devices, and
+' Automatic is what this Roku would show (the one picked with the globe,
+' else its own, else the server's). A Pley from before languages names
+' none, and answers a choice 404 or 405 (refused): there the row is this
+' Roku's, as the globe picks it, and Automatic is the Roku's own language.
+' current: the language chosen, "" for Automatic.
+function i18nRow(facts as object, refused as boolean) as object
+    if refused or (facts.serverHeard = true and i18nText(facts.serverLanguage) = "")
+        return { onDevice: true, automatic: i18nSystem(facts.serverLanguage, facts.device), current: i18nSupported(facts.choice) }
+    end if
+    return { onDevice: false, automatic: i18nPick("", facts.serverLanguage, facts.device, facts.choice), current: i18nSupported(facts.account) }
+end function
+
+' The languages to choose from, as a list of choices ({ labels, values,
+' current }): "Automatic (Français)", then each language in itself; the
+' value "" is Automatic.
+function i18nChoices(automatic as string, current as string) as object
+    choice = { labels: [t("settings.language.automatic", { language: i18nName(automatic) })], values: [""], current: 0 }
+    for each language in i18nLanguages()
+        if language = current then choice.current = choice.values.Count()
+        choice.labels.Push(i18nName(language))
+        choice.values.Push(language)
+    end for
+    return choice
+end function
+
 ' A language's name in itself: "English", "Français", "Español".
 function i18nName(language as string) as string
     names = { en: "English", fr: "Français", es: "Español" }

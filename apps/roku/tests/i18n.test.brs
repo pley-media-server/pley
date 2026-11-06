@@ -120,3 +120,69 @@ sub test_i18n_the_package_words_are_read_in_the_language_shown()
     i18nUse("de")
     tkEqual(i18nLanguage(), "en", "a language Pley isn't in")
 end sub
+
+' What the scene knows: a Roku in French, not signed in, no server.
+function i18nTestFacts(more as object) as object
+    facts = { signedIn: false, accountHeard: false, account: "", server: "", serverHeard: false, serverLanguage: "", device: "fr_CA", choice: "" }
+    facts.Append(more)
+    return facts
+end function
+
+sub test_i18n_a_start_shows_the_language_shown_last()
+    tkEqual(i18nAtStart("es", "fr_CA"), "es")
+    tkEqual(i18nAtStart("", "fr_CA"), "fr", "the first start: the Roku's")
+    tkEqual(i18nAtStart("de", "de_DE"), "en", "neither known: English")
+end sub
+
+sub test_i18n_the_language_waits_for_what_picks_it()
+    tkEqual(i18nShown(i18nTestFacts({})), "fr", "no server: the Roku's")
+    tkEqual(i18nShown(i18nTestFacts({ signedIn: true, server: "http://nas:7539", serverHeard: true, serverLanguage: "en" })), "", "signed in: the account first")
+    tkEqual(i18nShown(i18nTestFacts({ signedIn: true, accountHeard: true, account: "es", server: "http://nas:7539" })), "es", "the account's, the server unheard")
+    tkEqual(i18nShown(i18nTestFacts({ signedIn: true, accountHeard: true, account: "", server: "http://nas:7539" })), "fr", "Automatic: the Roku's, which needs no server")
+    tkEqual(i18nShown(i18nTestFacts({ device: "de_DE", server: "http://nas:7539" })), "", "a Roku in German waits for the server")
+    tkEqual(i18nShown(i18nTestFacts({ device: "de_DE", server: "http://nas:7539", serverHeard: true, serverLanguage: "es" })), "es")
+    tkEqual(i18nShown(i18nTestFacts({ device: "de_DE", server: "http://nas:7539", choice: "en" })), "en", "the one picked here needs no server")
+    tkEqual(i18nShown(i18nTestFacts({ device: "de_DE", server: "http://nas:7539", serverHeard: true, serverLanguage: "" })), "en", "a server from before languages: English")
+    tkEqual(i18nShown(i18nTestFacts({ signedIn: false, accountHeard: true, account: "es", choice: "en" })), "en", "signed out, the account counts no more")
+end sub
+
+sub test_i18n_the_settings_row_is_the_accounts_where_the_server_keeps_one()
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "es", serverHeard: true, serverLanguage: "en", choice: "en" }), false)
+    tkFalse(row.onDevice)
+    tkEqual(row.current, "es")
+    tkEqual(row.automatic, "en", "Automatic: the one picked with the globe")
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "", serverLanguage: "es" }), false)
+    tkFalse(row.onDevice, "a server not heard yet is asked")
+    tkEqual(row.current, "")
+    tkEqual(row.automatic, "fr", "the Roku's")
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "", choice: "es" }), false)
+    tkTrue(row.onDevice, "a Pley from before languages names none")
+    tkEqual(row.current, "es")
+    tkEqual(row.automatic, "fr", "Automatic: the Roku's own, never the choice")
+    row = i18nRow(i18nTestFacts({ device: "de_DE", signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "es" }), true)
+    tkTrue(row.onDevice, "refused with a 404 or a 405")
+    tkEqual(row.automatic, "es", "a Roku in German: the server's")
+end sub
+
+sub test_i18n_the_choices_name_automatic_and_each_language_in_itself()
+    choice = i18nChoices("fr", "")
+    tkEqual(choice.labels, ["Automatic (Français)", "English", "Français", "Español"])
+    tkEqual(choice.values, ["", "en", "fr", "es"])
+    tkEqual(choice.current, 0)
+    i18nUse("es")
+    choice = i18nChoices("en", "es")
+    tkEqual(choice.labels[0], "Automático (English)")
+    tkEqual(choice.current, 3)
+end sub
+
+sub test_i18n_errors_and_sign_in_speak_the_language_shown()
+    tkEqual(httpStatusSentence(500), "The server couldn't answer (HTTP 500).")
+    i18nUse("fr")
+    tkEqual(httpStatusSentence(500), "Le serveur n’a pas pu répondre (HTTP 500).")
+    tkEqual(httpAnswer(0, "").message, "Le serveur est injoignable.")
+    tkEqual(profNeedsLabel("password"), "Mot de passe")
+    tkEqual(authSwitchOutcome(400, "{""error"":""invalid_grant"",""reason"":""wrong_pin""}").message, "Code PIN incorrect.")
+    i18nUse("es")
+    tkEqual(authDeviceRefusal(429, ""), "Hay demasiados inicios de sesión esperando en este servidor: vuelve a intentarlo en unos minutos.")
+    tkEqual(profStartAsLabel([], 3), "Último perfil usado")
+end sub

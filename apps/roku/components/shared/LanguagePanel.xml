@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The languages the globe offers, in a panel over the right half as
+     Settings' choices show: Automatic, naming what that is here, then
+     English, Français and Español, the choice in force checked. OK picks
+     one (picked: "auto" or the language); Back or Left closes it
+     (closed). -->
+<component name="LanguagePanel" extends="Group">
+    <interface>
+        <!-- Set before open: what Automatic is here, and the language
+             picked on this Roku ("" for Automatic). -->
+        <field id="automatic" type="string" />
+        <field id="current" type="string" />
+        <field id="open" type="boolean" alwaysNotify="true" onChange="onOpen" />
+        <field id="picked" type="string" alwaysNotify="true" />
+        <field id="closed" type="boolean" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/LanguagePanel.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <children>
+        <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
+        <Label id="title" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+        <RadioButtonList id="choices" translation="[1056, 150]" itemSize="[808, 64]" numRows="4" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+    </children>
+</component>

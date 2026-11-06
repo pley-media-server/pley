@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The globe that picks the language before signing in, as the other TV
+     apps have it: a plain globe and the language's two letters ("FR"),
+     48 high, filled with the accent only while it has the focus. Its
+     origin is its top right corner, so a screen puts it at its right
+     edge; the screen opens the languages (LanguagePanel) on OK. -->
+<component name="LanguageGlobe" extends="Group">
+    <interface>
+        <!-- The language shown ("fr"). -->
+        <field id="language" type="string" onChange="onLanguage" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/LanguageGlobe.brs" />
+    <children>
+        <Poster id="fill" uri="pkg:/images/button-focus.9.png" height="48" visible="false" />
+        <Poster id="globe" uri="pkg:/images/globe.png" width="28" height="28" blendColor="0xEBEBEBFF" />
+        <Label id="letters" height="48" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+    </children>
+</component>

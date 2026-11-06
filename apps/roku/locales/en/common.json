@@ -22,5 +22,14 @@
     "on": "On",
     "off": "Off",
     "failed": "That didn't work"
+  },
+  "errors": {
+    "unreachable": "The server can't be reached.",
+    "signedOut": "You were signed out: sign in again.",
+    "forbidden": "Pley for Roku isn't allowed to do that: use Pley's web app.",
+    "gone": "This isn't on the server any more.",
+    "stopped": "Playback was stopped by the server's administrator.",
+    "busy": "The server is busy: try again in a moment.",
+    "status": "The server couldn't answer (HTTP {{status}})."
   }
 }

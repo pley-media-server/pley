@@ -44,9 +44,9 @@ too, each app's workflow when that app changes.
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
 **Languages.** The server, the web and desktop apps, the Samsung apps,
-the Android app and the Kodi add-on are in English, French and Spanish.
-As the last step of a change, put every word people read in each
-language: no text written into the code. Where each keeps its words:
+the Android app, the Kodi add-on and the Roku app are in English, French
+and Spanish. As the last step of a change, put every word people read in
+each language: no text written into the code. Where each keeps its words:
 
 | App | Words | How |
 |---|---|---|
@@ -56,6 +56,7 @@ language: no text written into the code. Where each keeps its words:
 | Samsung, native | `apps/tizen-native/src/Pley.Tv.Core/Locales/<language>/<area>.json` | `Strings.T`, `Strings.Count`, in i18next's format |
 | Android | `apps/android/**/src/main/res/values{,-fr,-es}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
 | Kodi | `apps/kodi/plugin.video.pley/resources/language/resource.language.{en_gb,fr_fr,es_es}/strings.po` | Kodi's .po files, read by the add-on itself (`i18n.py`): `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)` for counts (`kodi.COUNTS`: three ids in a row, one, many and other); `%s` for values, `{name}` where languages order them differently; the windows' XML through `layout.WORDS` |
+| Roku | `apps/roku/locales/<language>/<area>.json` | its own `t("area.key")` (`components/lib/I18n.brs`), in i18next's format; component XML sets no text, the code does |
 
 Write English first, then French and Spanish as a native speaker would
 put them, in Pley's tone, and check that they fit where the TVs' fixed
@@ -63,9 +64,9 @@ layouts show them. Dates and numbers go through the language shown:
 `currentLocale()` (`@/i18n`) on the web, `formatNumber`/`formatDate` in
 `packages/tv`, `Strings.Culture` in the native app, `shownLocale()` and
 `formatWords` on Android, `kodi.number`/`kodi.decimal` and `words.py` in
-the Kodi add-on, never the browser's or the device's default. The
-checks above test that every language has every key, with the same values
-in it.
+the Kodi add-on, `i18nNumber` and `Format.brs` on Roku, never the
+browser's or the device's default. The checks above test that every
+language has every key, with the same values in it.
 
 Fix what fails, including tests a change breaks elsewhere. Don't weaken or
 skip a test to make it pass; if a test is wrong, say why in the commit.

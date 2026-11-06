@@ -22,5 +22,14 @@
     "on": "Activado",
     "off": "Desactivado",
     "failed": "No funcionó"
+  },
+  "errors": {
+    "unreachable": "No se puede conectar con el servidor.",
+    "signedOut": "Se cerró tu sesión: vuelve a iniciarla.",
+    "forbidden": "Pley para Roku no tiene permiso para hacer eso: usa la aplicación web de Pley.",
+    "gone": "Esto ya no está en el servidor.",
+    "stopped": "El administrador del servidor detuvo la reproducción.",
+    "busy": "El servidor está ocupado: vuelve a intentarlo en un momento.",
+    "status": "El servidor no pudo responder (HTTP {{status}})."
   }
 }

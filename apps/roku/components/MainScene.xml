@@ -48,6 +48,11 @@
              has it): the event stream says this Roku takes channels from
              the user's remotes. -->
         <field id="liveTv" type="boolean" />
+        <!-- A language picked on this Roku ("fr"; "" for Automatic): with
+             the globe before signing in, or in Settings on a server that
+             keeps no account's language. The scene keeps it in the
+             registry and shows the language it leads to. -->
+        <field id="languageChoice" type="string" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />

@@ -8,9 +8,14 @@
 ' PIN pad opens first; Cancel shows the profiles.
 
 sub init()
+    m.title = m.top.findNode("title")
     m.profiles = m.top.findNode("profiles")
     m.message = m.top.findNode("message")
     m.buttons = m.top.findNode("buttons")
+    ' What the message says ({ key, values, text }) and the buttons under
+    ' it ("tryAgain", "signInAgain"), drawn again in a new language.
+    m.words = { key: "", values: invalid, text: "" }
+    m.buttonActions = []
     m.started = false
     m.list = []
     ' Who the app is (profMe), and the answers load waits for.
@@ -27,6 +32,21 @@ sub init()
     m.profiles.observeField("itemSelected", "onPicked")
     m.buttons.observeField("buttonSelected", "onButton")
     m.top.observeField("active", "onActive")
+    m.top.observeField("language", "relabel")
+    relabel()
+end sub
+
+' The screen's words in the language shown; the profiles' names are
+' their own, what each asks for under it is drawn again.
+sub relabel()
+    m.title.text = t("signin.profiles.title")
+    showWords()
+    if m.me <> invalid and m.answers.DoesExist("profiles") and m.list.Count() > 0
+        focused = m.profiles.itemFocused
+        m.list = profTiles(m.answers.profiles.data, m.global.session.server, m.me)
+        m.profiles.content = nodesContent(m.list)
+        if focused >= 0 and focused < m.list.Count() then m.profiles.jumpToItem = focused
+    end if
 end sub
 
 sub onActive()
@@ -49,10 +69,10 @@ end sub
 ' signing in again, choosing the profile in the browser, does instead.
 sub load()
     if not authAllows(m.global.session.scope, "profiles")
-        showMessage("This sign-in can't switch profiles: sign in again, and choose the profile in the browser.", ["Sign in again"])
+        showMessage("signin.profiles.cantSwitchSignIn", ["signInAgain"])
         return
     end if
-    showMessage("Loading…", [])
+    showMessage("common.states.loading", [])
     m.answers = {}
     uiGet("/api/oauth/profiles", "onProfiles")
     ' Who the app is, for the PIN of the profile signed in; alongside the
@@ -77,16 +97,18 @@ sub showProfiles()
     if answer.ok and not m.answers.me.ok then answer = m.answers.me
     if not answer.ok
         if answer.error = "signed_out" then return
-        message = answer.message
-        if answer.status = 403 then message = "This sign-in can't switch profiles: sign in again, and choose the profile in the browser."
-        showMessage(message, ["Try again", "Sign in again"])
+        if answer.status = 403
+            showMessage("signin.profiles.cantSwitchSignIn", ["tryAgain", "signInAgain"])
+        else
+            showMessageText(answer.message, ["tryAgain", "signInAgain"])
+        end if
         return
     end if
     m.me = profMe(m.answers.me.data)
     m.list = profTiles(answer.data, m.global.session.server, m.me)
     profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
     if m.list.Count() = 0
-        showMessage("No profiles to choose from.", ["Try again", "Sign in again"])
+        showMessage("signin.profiles.none", ["tryAgain", "signInAgain"])
         return
     end if
     shown = m.list.Count()
@@ -104,16 +126,52 @@ sub showProfiles()
     if pad <> invalid then askPin(pad, "")
 end sub
 
-sub showMessage(text as string, buttons as object)
-    m.message.text = text
-    m.buttons.buttons = buttons
-    m.buttons.visible = buttons.Count() > 0
+' The message: key's words ("" for none), and the buttons under it, by
+' what they do.
+sub showMessage(key as string, buttons as object)
+    m.words = { key: key, values: invalid, text: "" }
+    m.buttonActions = buttons
+    showWords()
     if buttons.Count() > 0 and m.top.isInFocusChain() then m.buttons.setFocus(true)
+end sub
+
+' The message as it came written (an answer's), with its buttons.
+sub showMessageText(text as string, buttons as object)
+    m.words = { key: "", values: invalid, text: text }
+    m.buttonActions = buttons
+    showWords()
+    if buttons.Count() > 0 and m.top.isInFocusChain() then m.buttons.setFocus(true)
+end sub
+
+' A word under the profiles, the buttons staying ("" for none).
+sub say(key as string, values = invalid as dynamic)
+    m.words = { key: key, values: values, text: "" }
+    showWords()
+end sub
+
+sub sayText(text as string)
+    m.words = { key: "", values: invalid, text: text }
+    showWords()
+end sub
+
+sub showWords()
+    text = m.words.text
+    if m.words.key <> "" then text = t(m.words.key, m.words.values)
+    m.message.text = text
+    words = { tryAgain: "common.actions.tryAgain", signInAgain: "signin.profiles.signInAgain" }
+    labels = []
+    for each action in m.buttonActions
+        labels.Push(t(words[action]))
+    end for
+    m.buttons.buttons = labels
+    m.buttons.visible = labels.Count() > 0
 end sub
 
 sub onButton(event as object)
     if m.busy then return
-    if m.buttons.buttons[event.getData()] = "Try again"
+    at = event.getData()
+    if at < 0 or at >= m.buttonActions.Count() then return
+    if m.buttonActions[at] = "tryAgain"
         load()
     else
         uiNavigate({ to: "link" })
@@ -123,7 +181,7 @@ end sub
 sub onPicked(event as object)
     if m.busy then return
     profile = m.list[event.getData()]
-    m.message.text = ""
+    say("")
     choice = profChoice(profile, m.me, not m.top.getScene().profileChosen)
     if choice = "done"
         done()
@@ -134,18 +192,18 @@ sub onPicked(event as object)
     else if choice = "approve"
         askSignIn(profile)
     else
-        m.message.text = "This profile can't be used from the app."
+        say("signin.profiles.unusable")
     end if
 end sub
 
 sub askPin(profile as object, problem as string)
     m.picked = profile
     dialog = CreateObject("roSGNode", "StandardPinPadDialog")
-    dialog.title = "PIN for " + profile.title
+    dialog.title = t("signin.profiles.pinFor", { name: profile.title })
     lines = []
     if problem <> "" then lines.Push(problem)
     dialog.message = lines
-    dialog.buttons = ["OK", "Cancel"]
+    dialog.buttons = [t("common.actions.ok"), t("common.actions.cancel")]
     dialog.observeField("buttonSelected", "onPin")
     m.dialog = dialog
     m.top.getScene().dialog = dialog
@@ -157,7 +215,7 @@ sub onPin(event as object)
     closeDialog()
     if event.getData() <> 0 or m.picked = invalid then return
     if Len(pin) < 4
-        askPin(m.picked, "PINs are 4 to 8 digits.")
+        askPin(m.picked, t("signin.profiles.pinLength"))
         return
     end if
     switchTo(m.picked, pin)
@@ -168,8 +226,8 @@ end sub
 sub askSignIn(profile as object)
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = profile.title
-    dialog.message = ["This profile needs its password: sign in to it with a code, and choose it in the browser."]
-    dialog.buttons = ["Sign in with a code", "Cancel"]
+    dialog.message = [t("signin.profiles.needsPassword")]
+    dialog.buttons = [t("signin.profiles.signInWithCode"), t("common.actions.cancel")]
     dialog.observeField("buttonSelected", "onSignIn")
     m.dialog = dialog
     m.top.getScene().dialog = dialog
@@ -189,7 +247,7 @@ sub switchTo(profile as object, pin as string)
     m.busy = true
     m.picked = profile
     m.sentPin = pin <> ""
-    m.message.text = "Switching to " + profile.title + "…"
+    say("signin.profiles.switching", { name: profile.title })
     uiRequest({ op: "switchProfile", profile: profile.itemId, pin: pin }, "onSwitched")
 end sub
 
@@ -202,10 +260,10 @@ sub onSwitched(event as object)
         return
     end if
     if answer.ok
-        m.message.text = "The server couldn't switch to " + m.picked.title + "."
+        say("signin.profiles.couldntSwitch", { name: m.picked.title })
         return
     end if
-    m.message.text = ""
+    say("")
     if answer.error = "signed_out" then return
     if answer.error = "wrong_pin" and not m.sentPin
         ' The list was older than the profile's PIN: it is asked for.
@@ -217,7 +275,7 @@ sub onSwitched(event as object)
     else if answer.error = "browser"
         askSignIn(m.picked)
     else
-        m.message.text = answer.message
+        sayText(answer.message)
     end if
 end sub
 

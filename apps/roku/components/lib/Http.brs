@@ -123,7 +123,7 @@ function httpAnswer(status as integer, body as dynamic) as object
     fromPley = GetInterface(data, "ifAssociativeArray") <> invalid and (data.DoesExist("code") or data.DoesExist("error"))
     if status <= 0 or status = 502 or status = 504 or (status = 503 and not fromPley)
         result.error = "network"
-        result.message = "The server can't be reached."
+        result.message = t("common.errors.unreachable")
         return result
     end if
     if GetInterface(data, "ifAssociativeArray") <> invalid
@@ -138,12 +138,12 @@ end function
 
 ' What a status says when the answer doesn't.
 function httpStatusSentence(status as integer) as string
-    if status = 401 then return "You were signed out: sign in again."
-    if status = 403 then return "Pley for Roku isn't allowed to do that: use Pley's web app."
-    if status = 404 then return "This isn't on the server any more."
-    if status = 410 then return "Playback was stopped by the server's administrator."
-    if status = 429 then return "The server is busy: try again in a moment."
-    return "The server couldn't answer (HTTP " + status.ToStr() + ")."
+    if status = 401 then return t("common.errors.signedOut")
+    if status = 403 then return t("common.errors.forbidden")
+    if status = 404 then return t("common.errors.gone")
+    if status = 410 then return t("common.errors.stopped")
+    if status = 429 then return t("common.errors.busy")
+    return t("common.errors.status", { status: status })
 end function
 
 ' text parsed as JSON, or invalid. Only text that looks like JSON is
