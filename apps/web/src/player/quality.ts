@@ -41,7 +41,7 @@ export function qualityById(id: string | null | undefined): QualityOption {
  * the app's language, a conversion by its bitrate and lines ("8 Mbps
  * 1080p"), the same in every language.
  */
-export function qualityLabel(quality: QualityOption): string {
+export function qualityLabel(quality: Pick<QualityOption, "id" | "label">): string {
   if (quality.id === ORIGINAL.id) return t("quality.original", { ns: "player" });
   if (quality.id === AUTO.id) return t("quality.automatic", { ns: "player" });
   return quality.label;

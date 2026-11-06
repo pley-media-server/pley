@@ -1823,7 +1823,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
           break;
         }
         changeQuality(picked.id);
-        toast.info(t("video.qualityShown", { quality: picked.label }));
+        toast.info(t("video.qualityShown", { quality: qualityLabel(picked) }));
         break;
       }
     }

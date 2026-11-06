@@ -37,6 +37,7 @@ import { cn } from "@/lib/cn";
 import { episodeLabel, formatClock, fullTitle } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
 import { formatTime } from "@/pages/livetv/common";
+import { qualityLabel } from "@/player/quality";
 import { posterCandidates } from "@/lib/images";
 import { receiverId, takesCasts } from "@/lib/castReceiver";
 import { isPlayingHere, useSessionsHere } from "@/lib/playingHere";
@@ -457,7 +458,8 @@ function PlayingControls({
       { key: "-1", label: t("remote.subtitlesOff") },
       ...subtitles.map((track) => ({ key: String(track.index), label: trackLabel(track, "subtitle") })),
     ],
-    quality: qualities.map((q) => ({ key: q.id, label: q.label })),
+    // The server names Original and Automatic in English: in the language shown here.
+    quality: qualities.map((q) => ({ key: q.id, label: qualityLabel(q) })),
   };
   const currentOf = (p: Picker): string | null => {
     if (p === "quality") return shown.quality ?? null;
