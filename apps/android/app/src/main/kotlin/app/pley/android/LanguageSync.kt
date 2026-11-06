@@ -11,6 +11,7 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.Language
 import app.pley.android.data.LanguageRepository
 import app.pley.android.data.LanguageSources
+import app.pley.android.network.ApiException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +69,8 @@ internal class LanguageSync(private val app: Application) : Application.Activity
      * as the app's own picker would choose it, and "System default" is that
      * picker's Automatic. Signed in, that is the Language row, for the
      * account on every device (refused by the server, the language the app
-     * goes by comes back); without an account, the globe, for this device.
+     * goes by comes back); without an account, or on a Pley from before
+     * languages, which keeps no account's, the globe, for this device.
      */
     fun configurationChanged() {
         if (Build.VERSION.SDK_INT < 33) return
@@ -78,9 +80,9 @@ internal class LanguageSync(private val app: Application) : Application.Activity
         if (picked != null && picked == AppLanguage.shown.value) return
         val device = Language.ofDevice(AppLanguage.deviceLocales(app))
         val repository = followed
-        if (sources == LanguageSources.NoAccount) {
-            AppLanguage.pick(app, picked)
-            if (AppLanguage.show(app, picked ?: device ?: Language.English)) repository?.shown()
+        val keeps = (sources as? LanguageSources.SignedIn)?.keepsLanguage != false
+        if (sources == LanguageSources.NoAccount || !keeps) {
+            pickHere(picked, device, repository)
             return
         }
         // The account's Automatic is this device's language: the one picked with the globe, else the system's.
@@ -92,10 +94,19 @@ internal class LanguageSync(private val app: Application) : Application.Activity
                 checkNotNull(repository) { "no server" }.choose(picked?.code)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ApiException) {
+                // A Pley from before languages has no route for it: this device's, then.
+                if (e.status == 404) pickHere(picked, device, repository) else if (AppLanguage.show(app, before)) repository?.shown()
             } catch (_: Exception) {
                 if (AppLanguage.show(app, before)) repository?.shown()
             }
         }
+    }
+
+    /** [picked] becomes this device's language, as the globe picks it, and shows. */
+    private fun pickHere(picked: Language?, device: Language?, repository: LanguageRepository?) {
+        AppLanguage.pick(app, picked)
+        if (AppLanguage.show(app, picked ?: device ?: Language.English)) repository?.shown()
     }
 
     private fun remake() {

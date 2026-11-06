@@ -24,13 +24,16 @@ sealed interface LanguageSources {
      * Automatic, each device's), once GET /api/auth/me answered
      * ([accountKnown]); [server] the server language, for a device in a
      * language Pley doesn't have, once GET /api/server answered
-     * ([serverKnown]).
+     * ([serverKnown]). [keepsLanguage] is false for a Pley from before
+     * languages, which keeps no account's language (its GET /api/server
+     * names none): there the Language row is this device's.
      */
     data class SignedIn(
         val account: String?,
         val accountKnown: Boolean,
         val server: String?,
         val serverKnown: Boolean,
+        val keepsLanguage: Boolean = true,
     ) : LanguageSources
 
     /**
@@ -93,6 +96,8 @@ internal class SessionLanguage(
                     accountKnown = me?.fresh == true,
                     server = said?.language,
                     serverKnown = said != null,
+                    // Every Pley with languages names its own; one that answered without is from before them.
+                    keepsLanguage = said == null || said.language != null,
                 )
             }
         }

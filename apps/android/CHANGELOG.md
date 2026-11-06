@@ -19,7 +19,9 @@ describes how they are made.
   runtimes, counts, the names of audio and subtitle languages and
   connection errors follow it, and a download that failed says why in it. On Android 13 and later the system's settings list
   Pley's languages, and one picked there is your account's, as in
-  Settings, or before you sign in this device's, as with the globe.
+  Settings, or before you sign in this device's, as with the globe. On a
+  server from before languages, which can't keep your account's, the
+  Language row keeps your choice on this device.
 - The phone's remote offers Skip Intro and Skip Credits while what a TV
   plays is in an intro or the credits, as the TV's own player does.
 - The phone's remote and Play on… list the devices of everyone in your

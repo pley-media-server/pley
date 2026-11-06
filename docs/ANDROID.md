@@ -107,7 +107,11 @@ Profile: **Automatic**, naming what that is on this device ("Automatic
 language Pley doesn't have), then English, Français and Español, each
 named in itself. A choice is the account's, on every device it signs
 in on (`PUT /api/me/language`); it shows at once, and is put back, with a
-word, if the server refuses.
+word, if the server refuses. A Pley from before languages keeps no
+account's language (its `GET /api/server` names none, and the route
+answers 404): there the row is this device's, as the globe picks it, and
+a choice shows and stays on this device. A language picked in the
+system's settings is too.
 
 The app remembers the language it showed last and starts in it, before
 the server has answered; signed in, it waits for the account's language

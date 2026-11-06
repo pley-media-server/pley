@@ -10,6 +10,7 @@ import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.data.LanguageRepository
 import app.pley.android.data.LanguageSources
+import app.pley.android.network.ApiException
 import app.pley.android.screens.R
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.CancellationException
@@ -40,6 +41,12 @@ data class LanguageUiState(
     val device: Language? = null,
     /** A choice is on its way to the server. */
     val saving: Boolean = false,
+    /**
+     * The server is a Pley from before languages, which keeps no account's
+     * language: the row is this device's, as the globe picks it before
+     * signing in, and [chosen] is that pick.
+     */
+    val onDevice: Boolean = false,
 ) {
     /** The choices in order: "Automatic" (`null`), then each language. */
     val choices: List<Language?> get() = listOf<Language?>(null) + Language.entries
@@ -64,40 +71,63 @@ data class LanguageUiState(
  * language, or the server language on a device in one Pley doesn't have,
  * then English, Français and Español. A choice goes to the server
  * (PUT /api/me/language) and shows at once; one the server refuses is put
- * back, and said ([errors]).
+ * back, and said ([errors]). A Pley from before languages keeps none (its
+ * GET /api/server names no language, and the route answers 404): there a
+ * choice is this device's, as the globe picks it, and shows all the same.
  */
 class LanguageViewModel(
     private val language: LanguageRepository,
-    /** This device's language (the globe's pick, else the system's) when Pley has it, read when the row shows. */
-    private val device: () -> Language?,
+    /** The language picked on this device ([AppLanguage.picked]): the globe's, or this row's on an older server. */
+    private val picked: StateFlow<Language?> = MutableStateFlow(null),
+    /** Picks this device's language ([AppLanguage.pick]); `null`: the system's again. */
+    private val pick: (Language?) -> Unit = {},
+    /** The first of the system's languages that Pley has, read when the row shows. */
+    private val system: () -> Language?,
 ) : ViewModel() {
     private val saving = MutableStateFlow(false)
+
+    /** This server answered a choice with 404: it keeps no account's language, though it named one. */
+    private val refused = MutableStateFlow(false)
     private val channel = Channel<Throwable>(Channel.BUFFERED)
 
     /** Choices that couldn't be saved. */
     val errors: Flow<Throwable> = channel.receiveAsFlow()
 
-    val state: StateFlow<LanguageUiState> = combine(language.sources, saving) { sources, busy ->
+    val state: StateFlow<LanguageUiState> = combine(language.sources, saving, picked, refused) { sources, busy, here, older ->
         val signedIn = sources as? LanguageSources.SignedIn
+        val onDevice = signedIn != null && (!signedIn.keepsLanguage || older)
         LanguageUiState(
             available = signedIn != null,
-            chosen = Language.of(signedIn?.account),
+            chosen = if (onDevice) here else Language.of(signedIn?.account),
             server = Language.of(signedIn?.server),
-            device = device(),
+            // On this device, Automatic forgets its pick: the system's language.
+            device = if (onDevice) system() else here ?: system(),
             saving = busy,
+            onDevice = onDevice,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LanguageUiState(device = device()))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LanguageUiState(device = picked.value ?: system()))
 
-    /** Makes [choice] the account's language; `null`: Automatic. */
+    /** Makes [choice] the account's language, or this device's on an older server; `null`: Automatic. */
     fun choose(choice: Language?) {
         val now = state.value
         if (!now.available || now.saving || choice == now.chosen) return
+        if (now.onDevice) {
+            pick(choice)
+            return
+        }
         saving.value = true
         viewModelScope.launch {
             try {
                 language.choose(choice?.code)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ApiException) {
+                if (e.status == 404) {
+                    refused.value = true
+                    pick(choice)
+                } else {
+                    channel.send(e)
+                }
             } catch (e: Exception) {
                 channel.send(e)
             } finally {
@@ -110,8 +140,12 @@ class LanguageViewModel(
         val factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
-                LanguageViewModel(screensGraph().data.language) {
-                    AppLanguage.picked.value ?: app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) }
+                LanguageViewModel(
+                    screensGraph().data.language,
+                    picked = AppLanguage.picked,
+                    pick = { choice -> app?.let { AppLanguage.pick(it, choice) } },
+                ) {
+                    app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) }
                 }
             }
         }

@@ -109,13 +109,14 @@ class LanguageTest {
 
         val after = TestData(this, dir)
         after.signIn()
+        after.api.answer("server", ServerInfo("Home", "1.0", language = "en"))
         after.api.hold()
         val sources = collect(after.graph.language.sources)
         testScheduler.runCurrent()
         assertEquals(signedIn("es", accountKnown = false, server = null, serverKnown = false), sources.last())
         after.api.release()
         testScheduler.runCurrent()
-        assertEquals(signedIn(null, server = null), sources.last())
+        assertEquals(signedIn(null, server = "en"), sources.last())
     }
 
     @Test
@@ -135,13 +136,28 @@ class LanguageTest {
 
     @Test
     fun aRefusedChoiceIsPutBack() = runTest {
-        val data = signedIn(folder.newFolder())
+        val data = signedIn(folder.newFolder()) {
+            api.answer("server", ServerInfo("Home", "1.0", language = "en"))
+        }
         val sources = collect(data.graph.language.sources)
         testScheduler.runCurrent()
         data.api.fail("setLanguage", ApiException(400, "bad_request", "language is one of en, fr, es, or null"))
         val refused = runCatching { data.graph.language.choose("fr") }.exceptionOrNull()
         assertTrue(refused is ApiException)
-        assertEquals(signedIn(null, server = null), sources.last())
+        assertEquals(signedIn(null, server = "en"), sources.last())
+    }
+
+    @Test
+    fun aServerFromBeforeLanguagesKeepsNoAccountsLanguage() = runTest {
+        // Its GET /api/server names none (the fixture is such an answer): the Language row is this device's.
+        val data = signedIn(folder.newFolder())
+        val sources = collect(data.graph.language.sources)
+        testScheduler.runCurrent()
+        val now = sources.last() as LanguageSources.SignedIn
+        assertTrue(now.serverKnown)
+        assertEquals(false, now.keepsLanguage)
+        // What shows is decided as on any server: the device's, its account having none.
+        assertEquals(Language.French, now.wanted(french))
     }
 
     private val alex: Me = Fixtures.decode("me/app_token.json")

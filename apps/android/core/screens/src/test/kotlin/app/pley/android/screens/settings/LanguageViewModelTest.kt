@@ -116,6 +116,47 @@ class LanguageViewModelTest {
     }
 
     @Test
+    fun onAServerFromBeforeLanguagesAChoiceIsThisDevices() = runTest {
+        // Its GET /api/server names no language: nothing goes to it, and the pick shows.
+        val account = Account(LanguageSources.SignedIn(null, true, null, true, keepsLanguage = false))
+        val picked = MutableStateFlow<Language?>(null)
+        val vm = LanguageViewModel(account, picked, { picked.value = it }) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        val before = vm.shown()
+        assertTrue(before.onDevice)
+        assertEquals("Automatic (English)", before.value.inEnglish())
+        vm.choose(Language.French)
+        assertEquals(emptyList<String?>(), account.chosen)
+        assertEquals(Language.French, vm.state.first { it.chosen != null }.chosen)
+        // Automatic forgets the pick: the system's language, not the pick, is what it stands for.
+        vm.choose(null)
+        assertEquals(null, picked.value)
+        assertEquals("Automatic (English)", vm.state.first { it.chosen == null }.value.inEnglish())
+    }
+
+    @Test
+    fun aServerWithoutTheRouteKeepsTheChoiceOnThisDevice() = runTest {
+        // It named a language, but answers the choice 404: this device's, then, and no error.
+        val account = Account(signedIn(server = "en")).apply { refusal = ApiException(404, "not_found", "not found") }
+        val picked = MutableStateFlow<Language?>(null)
+        val vm = LanguageViewModel(account, picked, { picked.value = it }) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        vm.shown()
+        val heard = mutableListOf<Throwable>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.errors.collect { heard += it } }
+        vm.choose(Language.Spanish)
+        assertEquals(listOf<String?>("es"), account.chosen)
+        assertEquals(Language.Spanish, picked.value)
+        val after = vm.state.first { it.onDevice }
+        assertEquals(Language.Spanish, after.chosen)
+        assertEquals(emptyList<Throwable>(), heard)
+        // From then on the row is this device's: nothing more goes to the server.
+        vm.choose(Language.French)
+        assertEquals(listOf<String?>("es"), account.chosen)
+        assertEquals(Language.French, picked.value)
+    }
+
+    @Test
     fun aRefusalIsSaid() = runTest {
         val refusal = ApiException(400, "bad_request", "language is one of en, fr, es, or null")
         val account = Account(signedIn()).apply { this.refusal = refusal }
