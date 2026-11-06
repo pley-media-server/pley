@@ -616,7 +616,7 @@ def keeps_account_language() -> bool:
 
 
 def keep_no_account_language() -> None:
-    """The server answered a choice of the account's language with 404: it
+    """The server answered a choice of the account's language with 404 or 405: it
     keeps none, though it may name its own."""
     remember(ACCOUNT_LANGUAGES, NO_ACCOUNT_LANGUAGES)
 

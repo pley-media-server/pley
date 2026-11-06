@@ -414,6 +414,24 @@ class ProfileLanguageTest(Shown):
         self.assertEqual(len(client.puts), 1)
         self.assertEqual(kodi.language(), "es")
 
+    def test_a_choice_answered_405_is_this_devices_too(self):
+        self.show()
+        client = self.Client(api.ApiError(405, "method_not_allowed", "no"))
+        found, _, said = self.choose(client, 2)
+        self.assertEqual(said, [], "no error: the choice holds")
+        self.assertIsNotNone(found)
+        self.assertEqual(xbmcaddon.settings["language"], "fr")
+        self.assertEqual(kodi.language(), "fr")
+        self.assertFalse(kodi.keeps_account_language())
+
+    def test_a_403_is_said_and_isnt_an_older_server(self):
+        self.show()
+        found, _, said = self.choose(self.Client(api.ApiError(403, "forbidden", "not allowed")), 2)
+        self.assertIsNone(found)
+        self.assertEqual(said, [(kodi.text("server_error") % "not allowed", True)])
+        self.assertEqual(kodi.language(), "en")
+        self.assertTrue(kodi.keeps_account_language())
+
     def test_another_refusal_is_said_and_changes_nothing(self):
         self.show()
         found, _, said = self.choose(self.Client(api.ApiError(500, "internal", "it broke")), 2)

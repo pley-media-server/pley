@@ -4,7 +4,8 @@ profile's own, chosen in Kodi's list dialog as the other apps' Settings →
 Profile → Language has it (docs/API.md, Language).
 
 A Pley from before languages keeps no account's language: its
-GET /api/server names none, and PUT /api/me/language answers 404. There
+GET /api/server names none, and PUT /api/me/language answers 404 (or
+405). There
 Profile language is this device's choice, the add-on's Language setting,
 as Android's Language row is on such a server: a choice shows at once and
 stays on this device."""
@@ -14,7 +15,7 @@ from __future__ import annotations
 from . import api, i18n, kodi
 
 # What a Pley from before languages answers a choice of the account's.
-NOT_KEPT = 404
+NOT_KEPT = (404, 405)
 
 
 def answer(response):
@@ -70,7 +71,7 @@ def choose(client, me: dict, select, say) -> dict | None:
     try:
         found = client.put("/api/me/language", {"language": value})
     except api.ApiError as e:
-        if e.status == NOT_KEPT:
+        if e.status in NOT_KEPT:
             # A Pley from before languages, though it names its own.
             kodi.keep_no_account_language()
             return on_this_device(me, value)
