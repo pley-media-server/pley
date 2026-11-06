@@ -48,7 +48,7 @@ struct RemoteBar: View {
         if !devices.isEmpty {
             let names = remote.names
             let one = devices.count == 1 ? devices[0] : nil
-            let device = one.map { names[$0.id] ?? Words.unnamedDevice } ?? Words.pluralize(devices.count, "device")
+            let device = one.map { names[$0.id] ?? Words.unnamedDevice } ?? localized("\(devices.count) devices")
             let playing = one?.line ?? devices.compactMap { names[$0.id] }.joined(separator: ", ")
             let lines = typeSize.isAccessibilitySize && !inAccessory ? 3 : 1
             HStack(spacing: 4) {
@@ -74,7 +74,7 @@ struct RemoteBar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(Words.remoteLabel(devices.count)), \(device), \(playing)")
+                .accessibilityLabel(Text(verbatim: "\(Words.remoteLabel(devices.count)), \(device), \(playing)"))
                 .accessibilityHint("Opens the remote")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("remote.bar")
@@ -355,7 +355,7 @@ private struct RemoteDeviceRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(name), \(device.line)")
+        .accessibilityLabel(Text(verbatim: "\(name), \(device.line)"))
         .accessibilityHint("Shows its controls")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("remote.device.\(device.id)")
@@ -596,7 +596,7 @@ private struct RemotePlayingControls: View {
     }
 
     private func spoken(_ position: Int, _ duration: Int) -> String {
-        "\(Words.clock(ms: position)) of \(Words.clock(ms: duration))"
+        localized("\(Words.clock(ms: position)) of \(Words.clock(ms: duration))")
     }
 
     /// On Live TV, no seek: how far along the programme on is, by this

@@ -75,7 +75,7 @@ struct ItemView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "questionmark.square.dashed", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this title", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this title"), why: why) { Task { await model.load() } })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -181,7 +181,7 @@ struct ItemView: View {
                 }
             }
             if let season = context.seasonTitle {
-                Text("·").foregroundStyle(.secondary).accessibilityHidden(true).flowSeparator()
+                Text(verbatim: "·").foregroundStyle(.secondary).accessibilityHidden(true).flowSeparator()
                 if let id = context.seasonId {
                     Button(season) { app.shell.open(.item(id)) }
                         .accessibilityHint("Opens the season")
@@ -201,7 +201,7 @@ struct ItemView: View {
         if !parts.isEmpty {
             FlowLayout(spacing: 8, lineSpacing: 4) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
-                    if index > 0 { Text("·").flowSeparator() }
+                    if index > 0 { Text(verbatim: "·").flowSeparator() }
                     switch part {
                     case .text(let text):
                         Text(text)
@@ -370,7 +370,7 @@ struct ItemView: View {
                 } label: {
                     Label("Watched", systemImage: page.watched ? "checkmark.circle.fill" : "checkmark.circle")
                 }
-                .accessibilityValue(page.watched ? "Watched" : "Not watched")
+                .accessibilityValue(page.watched ? Text("Watched") : Text("Not watched"))
                 .accessibilityAddTraits(page.watched ? .isSelected : [])
                 .accessibilityIdentifier("item.watched")
             }
@@ -380,7 +380,7 @@ struct ItemView: View {
                 } label: {
                     Label("My List", systemImage: listed ? "checkmark" : "plus")
                 }
-                .accessibilityLabel(listed ? "Remove from My List" : "Add to My List")
+                .accessibilityLabel(listed ? Text("Remove from My List") : Text("Add to My List"))
                 .accessibilityIdentifier("item.myList")
             }
             DownloadButton(model: model)
@@ -507,7 +507,7 @@ struct ItemView: View {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(lines, id: \.role) { line in
                     FlowLayout(spacing: 4, lineSpacing: 2) {
-                        Text(line.label + ":").foregroundStyle(.secondary)
+                        Text("\(line.label):").foregroundStyle(.secondary)
                         ForEach(Array(line.people.enumerated()), id: \.element.id) { index, person in
                             Button(person.name + (index < line.people.count - 1 || line.more > 0 ? "," : "")) {
                                 app.shell.open(.person(person.id))
@@ -536,7 +536,7 @@ struct ItemView: View {
                 seasonsSection(seasons, onShow: page.kind == .show)
             }
             if !page.extras.isEmpty {
-                TileRow(app: app, key: "extras", title: "Extras", shape: .landscape,
+                TileRow(app: app, key: "extras", title: localized("Extras"), shape: .landscape,
                         tiles: page.extras.map { Tile($0, shape: .landscape, line: Words.extraSubtitle($0)) },
                         prefix: "item.row") { tile in play(model.request(for: tile.item)) }
             }
@@ -544,7 +544,7 @@ struct ItemView: View {
                 cast(page)
             }
             if !page.related.isEmpty {
-                TileRow(app: app, key: "related", title: "More Like This", shape: .poster,
+                TileRow(app: app, key: "related", title: localized("More Like This"), shape: .poster,
                         tiles: page.related.map { Tile($0, shape: .poster) }, prefix: "item.row") { tile in
                     app.shell.open(Screen.page(of: tile.item))
                 }
@@ -563,7 +563,7 @@ struct ItemView: View {
         let heading = Metrics.headingLayout(stacked: typeSize.isAccessibilitySize)
         return VStack(alignment: .leading, spacing: 12) {
             heading {
-                Text(section.seasons.isEmpty ? "Episodes" : "Seasons")
+                (section.seasons.isEmpty ? Text("Episodes") : Text("Seasons"))
                     .font(.title3.bold())
                     .accessibilityAddTraits(.isHeader)
                 if !typeSize.isAccessibilitySize { Spacer() }
@@ -817,7 +817,7 @@ private struct CastCircle: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel([person.name, person.character.map { "as \($0)" }].compactMap { $0 }
+        .accessibilityLabel([person.name, person.character.map { localized("as \($0)") }].compactMap { $0 }
             .joined(separator: ", "))
         .accessibilityHint("Opens their page")
         .accessibilityAddTraits(.isButton)

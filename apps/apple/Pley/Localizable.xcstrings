@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ of %@" : {
+      "comment" : "VoiceOver: how far a device's playback is, \"12:03 of 45:00\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ de %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ sur %2$@"
+          }
+        }
+      }
+    },
     "%@ stars" : {
       "comment" : "VoiceOver: the profile's rating with a half star, \"3.5 stars\".",
       "localizations" : {
@@ -103,6 +120,23 @@
         }
       }
     },
+    "%@, watch" : {
+      "comment" : "VoiceOver: a channel in the guide, \"BBC One, 101, watch\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, ver"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, regarder"
+          }
+        }
+      }
+    },
     "%@. Add a library on the server, or ask its owner for one." : {
       "comment" : "Home and Libraries with no library: the title, \"No libraries yet\", then how to get one.",
       "localizations" : {
@@ -133,6 +167,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@. Les titres s’affichent ici dès que vos bibliothèques en ont."
+          }
+        }
+      }
+    },
+    "%@:" : {
+      "comment" : "A title's crew line: the role before the names, \"Director:\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ :"
           }
         }
       }
@@ -201,6 +252,77 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld chaînes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld devices" : {
+      "comment" : "The remote's bar: how many of the profile's other devices are on.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld device"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld devices"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de dispositivos"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld dispositivo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld dispositivos"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld d’appareils"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld appareil"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld appareils"
                 }
               }
             }
@@ -347,6 +469,23 @@
         }
       }
     },
+    "Add to My List" : {
+      "comment" : "VoiceOver: the My List button, when the title isn't in it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter à Ma liste"
+          }
+        }
+      }
+    },
     "Add to Playlist" : {
       "comment" : "The Add to Playlist sheet's title.",
       "localizations" : {
@@ -360,6 +499,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ajouter à une playlist"
+          }
+        }
+      }
+    },
+    "Add to favourites" : {
+      "comment" : "VoiceOver: a channel's star.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter aux favoris"
           }
         }
       }
@@ -415,6 +571,23 @@
         }
       }
     },
+    "All channels" : {
+      "comment" : "Live TV's category of every channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos los canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les chaînes"
+          }
+        }
+      }
+    },
     "Any" : {
       "comment" : "A library's genre or year filter: none.",
       "localizations" : {
@@ -449,6 +622,23 @@
         }
       }
     },
+    "Audio" : {
+      "comment" : "The audio track picker (title page, Playback menu).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        }
+      }
+    },
     "Audio and subtitles" : {
       "comment" : "Me's heading for the track defaults.",
       "localizations" : {
@@ -479,6 +669,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Langue audio"
+          }
+        }
+      }
+    },
+    "Back 10 Seconds" : {
+      "comment" : "Playback menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retroceder 10 segundos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reculer de 10 secondes"
           }
         }
       }
@@ -530,6 +737,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler"
+          }
+        }
+      }
+    },
+    "Categories" : {
+      "comment" : "Live TV: the categories' button and sheet.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Categorías"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catégories"
+          }
+        }
+      }
+    },
+    "Channel Down" : {
+      "comment" : "Playback menu: Live TV's previous channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canal anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne précédente"
+          }
+        }
+      }
+    },
+    "Channel Up" : {
+      "comment" : "Playback menu: Live TV's next channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canal siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne suivante"
+          }
+        }
+      }
+    },
+    "Channel down" : {
+      "comment" : "The live player: previous channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canal anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne précédente"
+          }
+        }
+      }
+    },
+    "Channel up" : {
+      "comment" : "The live player: next channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canal siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne suivante"
+          }
+        }
+      }
+    },
+    "Channels" : {
+      "comment" : "The live player: opens the channel list.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaînes"
+          }
+        }
+      }
+    },
+    "Channels and programmes" : {
+      "comment" : "Live TV's search prompt.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canales y programas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaînes et programmes"
+          }
+        }
+      }
+    },
+    "Chapters" : {
+      "comment" : "Playback menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capítulos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapitres"
           }
         }
       }
@@ -615,6 +958,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Effacer les recherches récentes"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "comment" : "Closes the player, live player or a programme's sheet.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer"
           }
         }
       }
@@ -738,6 +1098,23 @@
         }
       }
     },
+    "Couldn't load this title" : {
+      "comment" : "A title's page, when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar este título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger ce titre"
+          }
+        }
+      }
+    },
     "Couldn't load your history" : {
       "comment" : "History failed to load.",
       "localizations" : {
@@ -840,6 +1217,23 @@
         }
       }
     },
+    "Details" : {
+      "comment" : "A title's page: the heading of its details.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detalles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détails"
+          }
+        }
+      }
+    },
     "Device class" : {
       "comment" : "Diagnostics: the device's class.",
       "localizations" : {
@@ -925,6 +1319,91 @@
         }
       }
     },
+    "Earlier (−0.1 s)" : {
+      "comment" : "Playback menu → Subtitle Sync: subtitles 0.1 s earlier.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes (−0,1 s)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus tôt (−0,1 s)"
+          }
+        }
+      }
+    },
+    "Episodes" : {
+      "comment" : "A title's page: the heading of a season's episodes.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épisodes"
+          }
+        }
+      }
+    },
+    "Extras" : {
+      "comment" : "A title's page: the row of its extras.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extras"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonus"
+          }
+        }
+      }
+    },
+    "Favourite" : {
+      "comment" : "VoiceOver: a favourite channel's star in the guide.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorito"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favori"
+          }
+        }
+      }
+    },
+    "Favourites" : {
+      "comment" : "Live TV's category of favourite channels.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoris"
+          }
+        }
+      }
+    },
     "Filter" : {
       "comment" : "A library's Filter button.",
       "localizations" : {
@@ -955,6 +1434,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filtres"
+          }
+        }
+      }
+    },
+    "Find Subtitles" : {
+      "comment" : "The subtitle search's title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar subtítulos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouver des sous-titres"
+          }
+        }
+      }
+    },
+    "Find Subtitles…" : {
+      "comment" : "Playback menu: opens the subtitle search.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar subtítulos…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouver des sous-titres…"
           }
         }
       }
@@ -993,6 +1506,57 @@
         }
       }
     },
+    "Forward 10 Seconds" : {
+      "comment" : "Playback menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avanzar 10 segundos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avancer de 10 secondes"
+          }
+        }
+      }
+    },
+    "From start" : {
+      "comment" : "A title's page: the button that plays from the beginning.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desde el principio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis le début"
+          }
+        }
+      }
+    },
+    "Full Screen" : {
+      "comment" : "The Mac's live window: F fills the screen (hidden).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla completa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plein écran"
+          }
+        }
+      }
+    },
     "General" : {
       "comment" : "The Mac's Settings window: the tab with the language.",
       "localizations" : {
@@ -1023,6 +1587,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Genre"
+          }
+        }
+      }
+    },
+    "Genres: %@" : {
+      "comment" : "VoiceOver: a title's genres, \"Genres: Drama, Crime\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Géneros: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genres : %@"
           }
         }
       }
@@ -1112,6 +1693,23 @@
         }
       }
     },
+    "Groups" : {
+      "comment" : "Live TV's categories: the channel groups.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupes"
+          }
+        }
+      }
+    },
     "Has the name of one of your servers at another address: open it only if it's yours." : {
       "comment" : "Under a found server with a saved server's name.",
       "localizations" : {
@@ -1163,6 +1761,23 @@
         }
       }
     },
+    "It has ended." : {
+      "comment" : "A programme's sheet, once it has ended.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya terminó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce programme est terminé."
+          }
+        }
+      }
+    },
     "It plays what these filters find, as the library changes." : {
       "comment" : "Save as Smart Playlist: what it plays.",
       "localizations" : {
@@ -1180,6 +1795,77 @@
         }
       }
     },
+    "Its %lld connections are watching:" : {
+      "comment" : "The live player, every connection in use: before the channels they watch.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its one connection is watching:"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its %lld connections are watching:"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sus %lld de conexiones están ocupadas con:"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Su única conexión está ocupada con:"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sus %lld conexiones están ocupadas con:"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ses %lld de connexions diffusent :"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sa seule connexion diffuse :"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ses %lld connexions diffusent :"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Jump to letter" : {
       "comment" : "VoiceOver: a library's A to Z.",
       "localizations" : {
@@ -1193,6 +1879,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aller à la lettre"
+          }
+        }
+      }
+    },
+    "Keep Watching" : {
+      "comment" : "Playback menu → Sleep Timer: cancels it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir viendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer à regarder"
+          }
+        }
+      }
+    },
+    "Keep listening" : {
+      "comment" : "Now Playing: the sleep timer's notice, cancels it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir escuchando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer à écouter"
+          }
+        }
+      }
+    },
+    "Keep watching" : {
+      "comment" : "The sleep timer's notice: cancels it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir viendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer à regarder"
           }
         }
       }
@@ -1231,6 +1968,23 @@
         }
       }
     },
+    "Later (+0.1 s)" : {
+      "comment" : "Playback menu → Subtitle Sync: subtitles 0.1 s later.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después (+0,1 s)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus tard (+0,1 s)"
+          }
+        }
+      }
+    },
     "Libraries" : {
       "comment" : "The Libraries section, its title, and the sidebar's heading.",
       "localizations" : {
@@ -1265,6 +2019,23 @@
         }
       }
     },
+    "Live" : {
+      "comment" : "The live player's badge; a programme's Live badge.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En vivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct"
+          }
+        }
+      }
+    },
     "Live TV" : {
       "comment" : "A section, the sidebar's and the libraries' entry, and the Mac's Live TV window.",
       "localizations" : {
@@ -1278,6 +2049,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TV en direct"
+          }
+        }
+      }
+    },
+    "Live TV didn't load" : {
+      "comment" : "Live TV, when it failed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar la TV en vivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger la TV en direct"
+          }
+        }
+      }
+    },
+    "Live TV isn't open to this profile. An administrator can open it in Pley's web app, under Settings → Live TV." : {
+      "comment" : "Live TV, for a profile without access.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en vivo no está abierta a este perfil. Un administrador puede abrirla en la aplicación web de Pley, en Ajustes → TV en vivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en direct n’est pas ouverte à ce profil. Un administrateur peut l’ouvrir dans l’application web de Pley, sous Paramètres → TV en direct."
           }
         }
       }
@@ -1350,6 +2155,23 @@
         }
       }
     },
+    "Media info" : {
+      "comment" : "A title's page: the section of its files' streams.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Información multimedia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informations sur le média"
+          }
+        }
+      }
+    },
     "More" : {
       "comment" : "A page's More menu.",
       "localizations" : {
@@ -1363,6 +2185,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plus"
+          }
+        }
+      }
+    },
+    "More Like This" : {
+      "comment" : "A title's page: the row of related titles.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Títulos similares"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titres similaires"
+          }
+        }
+      }
+    },
+    "More groups" : {
+      "comment" : "Live TV's categories: the groups after the regions.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otros grupos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres groupes"
           }
         }
       }
@@ -1486,6 +2342,23 @@
         }
       }
     },
+    "My List" : {
+      "comment" : "A title's page: the My List button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ma liste"
+          }
+        }
+      }
+    },
     "Needs its password" : {
       "comment" : "Under a profile that can't be chosen without its password.",
       "localizations" : {
@@ -1499,6 +2372,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mot de passe requis"
+          }
+        }
+      }
+    },
+    "New" : {
+      "comment" : "A programme's badge: a new episode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estreno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inédit"
           }
         }
       }
@@ -1520,6 +2410,57 @@
         }
       }
     },
+    "Next" : {
+      "comment" : "Music: the next track.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivant"
+          }
+        }
+      }
+    },
+    "Next %@ · %@" : {
+      "comment" : "What's next on a channel: \"Next 21:00 · News\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación %@ · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre %@ · %@"
+          }
+        }
+      }
+    },
+    "Next Track" : {
+      "comment" : "Playback menu → Music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pista siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre suivant"
+          }
+        }
+      }
+    },
     "No albums yet." : {
       "comment" : "An artist with no albums.",
       "localizations" : {
@@ -1533,6 +2474,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun album pour l’instant."
+          }
+        }
+      }
+    },
+    "No channels yet. Channels appear here once an administrator adds an IPTV provider in Pley's web app." : {
+      "comment" : "Live TV with no channels.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay canales. Los canales aparecen aquí cuando un administrador añade un proveedor de IPTV en la aplicación web de Pley."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune chaîne pour l’instant. Les chaînes apparaissent ici dès qu’un administrateur ajoute un fournisseur IPTV dans l’application web de Pley."
+          }
+        }
+      }
+    },
+    "No episodes yet." : {
+      "comment" : "A season with no episodes.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay episodios."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun épisode pour l’instant."
+          }
+        }
+      }
+    },
+    "No guide for this channel" : {
+      "comment" : "A channel without a guide.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin guía para este canal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de guide pour cette chaîne"
+          }
+        }
+      }
+    },
+    "No information for this time" : {
+      "comment" : "The guide: a programme without a title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin información para esta hora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune information pour ce créneau"
           }
         }
       }
@@ -1622,6 +2631,40 @@
         }
       }
     },
+    "Not watched" : {
+      "comment" : "VoiceOver value of the Watched button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non vu"
+          }
+        }
+      }
+    },
+    "Nothing in the guide now" : {
+      "comment" : "A channel with no programme now.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada en la guía ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun programme en ce moment"
+          }
+        }
+      }
+    },
     "Nothing in this collection yet" : {
       "comment" : "A collection with no titles.",
       "localizations" : {
@@ -1635,6 +2678,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rien dans cette collection pour l’instant"
+          }
+        }
+      }
+    },
+    "Nothing is playing" : {
+      "comment" : "Now Playing with no music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se está reproduciendo nada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune lecture en cours"
           }
         }
       }
@@ -1656,6 +2716,23 @@
         }
       }
     },
+    "Nothing to play here yet." : {
+      "comment" : "A title's page with nothing to play.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay nada que reproducir aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien à lire ici pour l’instant."
+          }
+        }
+      }
+    },
     "Now Playing" : {
       "comment" : "Music's Now Playing.",
       "localizations" : {
@@ -1669,6 +2746,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En cours de lecture"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "comment" : "Subtitles off.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivés"
+          }
+        }
+      }
+    },
+    "On now" : {
+      "comment" : "The live player: what's on, when it has no title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En emisión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours"
           }
         }
       }
@@ -1724,6 +2835,23 @@
         }
       }
     },
+    "Opens Now Playing" : {
+      "comment" : "VoiceOver hint: the mini player.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre Reproduciendo ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre En cours de lecture"
+          }
+        }
+      }
+    },
     "Opens it" : {
       "comment" : "VoiceOver's hint on a playlist's tile.",
       "localizations" : {
@@ -1775,6 +2903,74 @@
         }
       }
     },
+    "Opens the collection" : {
+      "comment" : "VoiceOver hint: a link to a collection.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la colección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la collection"
+          }
+        }
+      }
+    },
+    "Opens the remote" : {
+      "comment" : "VoiceOver hint: the remote's bar or button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre el control remoto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la télécommande"
+          }
+        }
+      }
+    },
+    "Opens the season" : {
+      "comment" : "VoiceOver hint: a link to a season's page.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la temporada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la saison"
+          }
+        }
+      }
+    },
+    "Opens the show" : {
+      "comment" : "VoiceOver hint: an episode page's link to its show.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la serie"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la série"
+          }
+        }
+      }
+    },
     "Opens their page" : {
       "comment" : "VoiceOver's hint on a person found.",
       "localizations" : {
@@ -1809,6 +3005,23 @@
         }
       }
     },
+    "Other channels" : {
+      "comment" : "The channel list's menu of categories.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otros canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres chaînes"
+          }
+        }
+      }
+    },
     "PIN" : {
       "comment" : "A profile's PIN: its lock's label, and the PIN field.",
       "localizations" : {
@@ -1822,6 +3035,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Code PIN"
+          }
+        }
+      }
+    },
+    "Part of" : {
+      "comment" : "A title's page: before the collections it is part of.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forma parte de"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fait partie de"
+          }
+        }
+      }
+    },
+    "Part of %@" : {
+      "comment" : "VoiceOver: a collection a title is part of.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forma parte de %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fait partie de %@"
+          }
+        }
+      }
+    },
+    "Pause" : {
+      "comment" : "Pause: Playback menu, music's toggle (VoiceOver).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        }
+      }
+    },
+    "Pause Music" : {
+      "comment" : "Playback menu → Music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausar la música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre la musique en pause"
           }
         }
       }
@@ -1860,6 +3141,57 @@
         }
       }
     },
+    "Play Music" : {
+      "comment" : "Playback menu → Music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir la música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire la musique"
+          }
+        }
+      }
+    },
+    "Play Next" : {
+      "comment" : "Playback menu: plays the Up Next episode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire le suivant"
+          }
+        }
+      }
+    },
+    "Play Title" : {
+      "comment" : "Playback menu: plays the title with the focus, when none has.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire le titre"
+          }
+        }
+      }
+    },
     "Play from Here" : {
       "comment" : "A playlist entry's menu.",
       "localizations" : {
@@ -1873,6 +3205,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lire à partir d’ici"
+          }
+        }
+      }
+    },
+    "Play from start" : {
+      "comment" : "VoiceOver: From start's label.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir desde el principio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire depuis le début"
           }
         }
       }
@@ -1928,6 +3277,23 @@
         }
       }
     },
+    "Playing" : {
+      "comment" : "VoiceOver: the channel playing in the channel list.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture"
+          }
+        }
+      }
+    },
     "Playlists" : {
       "comment" : "The Playlists section and its title; Add to Playlist's heading.",
       "localizations" : {
@@ -1975,6 +3341,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lit à partir d’ici"
+          }
+        }
+      }
+    },
+    "Plays it" : {
+      "comment" : "VoiceOver hint: a track in Up next; a download.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo reproduce"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le lit"
           }
         }
       }
@@ -2081,6 +3464,40 @@
         }
       }
     },
+    "Previous" : {
+      "comment" : "Music: the previous track.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Précédent"
+          }
+        }
+      }
+    },
+    "Previous Track" : {
+      "comment" : "Playback menu → Music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pista anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre précédent"
+          }
+        }
+      }
+    },
     "QR code to allow Pley" : {
       "comment" : "VoiceOver: the sign-in code's QR code.",
       "localizations" : {
@@ -2098,6 +3515,23 @@
         }
       }
     },
+    "Quality" : {
+      "comment" : "Playback menu; Settings → Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité"
+          }
+        }
+      }
+    },
     "Recent searches" : {
       "comment" : "Search's heading.",
       "localizations" : {
@@ -2111,6 +3545,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recherches récentes"
+          }
+        }
+      }
+    },
+    "Recently watched" : {
+      "comment" : "Live TV's category of channels watched lately.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vistos recientemente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regardées récemment"
+          }
+        }
+      }
+    },
+    "Regions" : {
+      "comment" : "Live TV's categories: the groups by region.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régions"
           }
         }
       }
@@ -2162,6 +3630,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de l’historique"
+          }
+        }
+      }
+    },
+    "Remove from My List" : {
+      "comment" : "VoiceOver: the My List button, when the title is in it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de Ma liste"
+          }
+        }
+      }
+    },
+    "Remove from favourites" : {
+      "comment" : "VoiceOver: a favourite channel's star.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer des favoris"
           }
         }
       }
@@ -2230,6 +3732,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Demandes"
+          }
+        }
+      }
+    },
+    "Reset" : {
+      "comment" : "Playback menu → Subtitle Sync: back to no offset.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser"
           }
         }
       }
@@ -2387,6 +3906,57 @@
         }
       }
     },
+    "Searching…" : {
+      "comment" : "The subtitle search, while it searches.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche…"
+          }
+        }
+      }
+    },
+    "Season" : {
+      "comment" : "A show's page: the season picker's label.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saison"
+          }
+        }
+      }
+    },
+    "Seasons" : {
+      "comment" : "A show's page: the heading of its seasons.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisons"
+          }
+        }
+      }
+    },
     "See all" : {
       "comment" : "A row's button: its library listed the same way.",
       "localizations" : {
@@ -2519,6 +4089,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Voir plus"
+          }
+        }
+      }
+    },
+    "Shows its controls" : {
+      "comment" : "VoiceOver hint: a device in the remote's list.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra sus controles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche ses commandes"
           }
         }
       }
@@ -2727,6 +4314,74 @@
         }
       }
     },
+    "Skip Intro" : {
+      "comment" : "Playback menu, when nothing can be skipped.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar intro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer l’intro"
+          }
+        }
+      }
+    },
+    "Sleep Timer" : {
+      "comment" : "Playback menu; Now Playing's sleep timer.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporizador de suspensión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minuteur de veille"
+          }
+        }
+      }
+    },
+    "Sleep Timer (%@)" : {
+      "comment" : "Playback menu: the sleep timer with what is left.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporizador de suspensión (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minuteur de veille (%@)"
+          }
+        }
+      }
+    },
+    "Sleep timer" : {
+      "comment" : "VoiceOver: Now Playing's sleep timer.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporizador de suspensión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minuteur de veille"
+          }
+        }
+      }
+    },
     "Smaller Tiles" : {
       "comment" : "The Mac's View menu: a size down for the grids' tiles.",
       "localizations" : {
@@ -2791,6 +4446,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trier par"
+          }
+        }
+      }
+    },
+    "Sound only" : {
+      "comment" : "The live player: a radio channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo sonido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son uniquement"
+          }
+        }
+      }
+    },
+    "Speed (%@)" : {
+      "comment" : "Playback menu: the speed, \"Speed (1×)\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velocidad (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vitesse (%@)"
+          }
+        }
+      }
+    },
+    "Subtitle Style" : {
+      "comment" : "Playback menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estilo de subtítulos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style des sous-titres"
+          }
+        }
+      }
+    },
+    "Subtitle Sync (%@)" : {
+      "comment" : "Playback menu: the subtitles' offset, \"Subtitle Sync (+0.5 s)\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronización de subtítulos (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation des sous-titres (%@)"
           }
         }
       }
@@ -2863,6 +4586,23 @@
         }
       }
     },
+    "The channel" : {
+      "comment" : "The live player's trouble, for a channel with no name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El canal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chaîne"
+          }
+        }
+      }
+    },
     "The code runs out in %@." : {
       "comment" : "Sign-in with a code: minutes and seconds left, \"4:59\".",
       "localizations" : {
@@ -2893,6 +4633,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Celle du fichier par défaut"
+          }
+        }
+      }
+    },
+    "The guide says nothing more of it." : {
+      "comment" : "A programme's sheet, without a description.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La guía no dice nada más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le guide n’en dit pas plus."
           }
         }
       }
@@ -2965,6 +4722,40 @@
         }
       }
     },
+    "Trailer" : {
+      "comment" : "A title's page: plays its trailer.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tráiler"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bande-annonce"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "comment" : "The subtitle search, when it failed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a intentar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        }
+      }
+    },
     "Try again" : {
       "comment" : "Loads a page that failed again.",
       "localizations" : {
@@ -2978,6 +4769,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réessayer"
+          }
+        }
+      }
+    },
+    "Tune" : {
+      "comment" : "A keyboard's Return in the live player (hidden).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aller à la chaîne"
+          }
+        }
+      }
+    },
+    "Tuning" : {
+      "comment" : "VoiceOver: the live player's spinner.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement de la chaîne"
+          }
+        }
+      }
+    },
+    "Tuning…" : {
+      "comment" : "The live player, before a channel is chosen.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement de la chaîne…"
           }
         }
       }
@@ -3033,6 +4875,23 @@
         }
       }
     },
+    "Up next" : {
+      "comment" : "Now Playing: the queue's heading.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre"
+          }
+        }
+      }
+    },
     "Use the Server's Order" : {
       "comment" : "Libraries' toolbar menu.",
       "localizations" : {
@@ -3063,6 +4922,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utiliser l’ordre des bibliothèques du serveur"
+          }
+        }
+      }
+    },
+    "Version" : {
+      "comment" : "A title's page: the picker of its versions (files).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
           }
         }
       }
@@ -3114,6 +4990,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Regarder"
+          }
+        }
+      }
+    },
+    "Watch here instead" : {
+      "comment" : "The live player: takes a busy connection.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver aquí en su lugar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder ici à la place"
+          }
+        }
+      }
+    },
+    "Watch now" : {
+      "comment" : "A programme's sheet, while it is on.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder maintenant"
           }
         }
       }
@@ -3250,6 +5160,117 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos serveurs"
+          }
+        }
+      }
+    },
+    "and %lld more" : {
+      "comment" : "A crew line's end: the people not listed.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld d’autres"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld autre"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld autres"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "as %@" : {
+      "comment" : "VoiceOver: a cast member's part, \"as Walter White\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "como %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dans le rôle de %@"
+          }
+        }
+      }
+    },
+    "sleepTimer.off" : {
+      "comment" : "VoiceOver: the sleep timer when it's off (French, Spanish: le minuteur, masculine).",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivé"
           }
         }
       }

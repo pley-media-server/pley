@@ -39,7 +39,7 @@ struct MiniPlayer: View {
         .accessibilityHint("Opens Now Playing")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { open() }
-        .accessibilityAction(named: page.playing ? "Pause" : "Play") { music.toggle() }
+        .accessibilityAction(named: page.playing ? Text("Pause") : Text("Play")) { music.toggle() }
         .accessibilityActions {
             if page.hasNext { Button("Next") { music.next() } }
         }
@@ -108,7 +108,7 @@ struct MiniPlayer: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel(page.playing ? "Pause" : "Play")
+            .accessibilityLabel(page.playing ? Text("Pause") : Text("Play"))
             .accessibilityIdentifier("music.mini.toggle")
             Button { music.next() } label: {
                 Image(systemName: "forward.fill")
@@ -274,7 +274,7 @@ struct NowPlayingView: View {
                 }
                 .frame(width: 72, height: 72)
             }
-            .accessibilityLabel(page.playing ? "Pause" : "Play")
+            .accessibilityLabel(page.playing ? Text("Pause") : Text("Play"))
             .accessibilityIdentifier("music.toggle")
             Button { music.next() } label: {
                 Image(systemName: "forward.fill").font(.title)
@@ -413,11 +413,12 @@ struct SleepMenu: View {
                 }
             }
         } label: {
-            Label(page.sleepSummary ?? "Sleep Timer", systemImage: page.sleep == .off ? "moon" : "moon.fill")
+            Label(page.sleepSummary ?? localized("Sleep Timer"), systemImage: page.sleep == .off ? "moon" : "moon.fill")
                 .monospacedDigit()
         }
         .accessibilityLabel("Sleep timer")
-        .accessibilityValue(page.sleepSummary ?? "Off")
+        .accessibilityValue(page.sleepSummary
+                            ?? localized(keyed: LocalizedStringResource("sleepTimer.off", defaultValue: "Off")))
         .accessibilityIdentifier("music.sleep")
     }
 }

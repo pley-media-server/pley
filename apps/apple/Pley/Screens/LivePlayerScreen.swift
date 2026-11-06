@@ -189,14 +189,14 @@ struct LivePlayerScreen: View {
                             .accessibilityIdentifier("live.favorite")
                     }
                     if let on = channel.on(at: model.now) {
-                        Text(on.title.isEmpty ? "On now" : on.title).font(.subheadline)
+                        Text(on.title.isEmpty ? localized("On now") : on.title).font(.subheadline)
                         HStack(spacing: 8) {
                             ProgressView(value: on.progress(at: model.now)).frame(maxWidth: 220).tint(.white)
                             Text(LiveTvRules.leftText(on, now: model.now)).font(.caption)
                         }
                         .accessibilityElement(children: .combine)
                     } else {
-                        Text(channel.hasGuide ? "Nothing in the guide now" : "No guide for this channel")
+                        (channel.hasGuide ? Text("Nothing in the guide now") : Text("No guide for this channel"))
                             .font(.subheadline)
                     }
                     if let next = channel.after(at: model.now) {
@@ -228,7 +228,7 @@ struct LivePlayerScreen: View {
     private var keys: some View {
         ZStack {
             ForEach(0..<10, id: \.self) { digit in
-                Button("\(digit)") { model.type(digit) }
+                Button(String(digit)) { model.type(digit) }
                     .keyboardShortcut(KeyEquivalent(Character(String(digit))), modifiers: [])
             }
             Button("Channel up") { model.zap(by: 1) }
@@ -264,14 +264,13 @@ struct TroubleView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Text(trouble.title(channel: model.channel?.name ?? "The channel"))
+            Text(trouble.title(channel: model.channel?.name ?? localized("The channel")))
                 .font(.headline)
                 .accessibilityIdentifier("live.trouble.title")
             Text(trouble.message).multilineTextAlignment(.center)
             if trouble.kind == .busy {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(trouble.connections.count == 1 ? "Its one connection is watching:"
-                         : "Its \(trouble.connections.count) connections are watching:")
+                    Text("Its \(trouble.connections.count) connections are watching:")
                         .font(.subheadline)
                     ForEach(trouble.connections, id: \.channelId) { connection in
                         HStack {
@@ -311,7 +310,7 @@ struct TroubleView: View {
 
     /// What VoiceOver reads out as the trouble shows.
     private var spoken: String {
-        "\(trouble.title(channel: model.channel?.name ?? "The channel")). \(trouble.message)"
+        "\(trouble.title(channel: model.channel?.name ?? localized("The channel"))). \(trouble.message)"
     }
 }
 
@@ -408,7 +407,7 @@ struct LiveWindow: View {
             if let model {
                 LivePlayerScreen(app: app, model: model) { dismiss() }
                     .focusedSceneObject(model)
-                    .navigationTitle(model.channel?.numberedName ?? "Live TV")
+                    .navigationTitle(model.channel?.numberedName ?? localized("Live TV"))
                     .background {
                         Button("Full Screen") { NSApp.keyWindow?.toggleFullScreen(nil) }
                             .keyboardShortcut("f", modifiers: [])
