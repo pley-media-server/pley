@@ -222,16 +222,25 @@ struct Condition {
     /// `videoprofile`, `videolevel`, `width`…
     property: String,
     value: String,
+    /// `IsRequired`, true unless it says otherwise: whether a video that
+    /// doesn't say the property's value fails the condition.
+    required: bool,
 }
 
 fn conditions(value: Option<&Value>) -> Vec<Condition> {
     let Some(list) = value.and_then(Value::as_array) else { return Vec::new() };
     list.iter()
         .filter_map(|c| {
+            let required = match field(c, "IsRequired") {
+                Some(Value::Bool(b)) => *b,
+                Some(Value::String(s)) => !s.trim().eq_ignore_ascii_case("false"),
+                _ => true,
+            };
             Some(Condition {
                 kind: text(field(c, "Condition"))?.to_ascii_lowercase(),
                 property: text(field(c, "Property"))?.to_ascii_lowercase(),
                 value: text(field(c, "Value")).unwrap_or_default(),
+                required,
             })
         })
         .collect()
@@ -244,13 +253,15 @@ fn bit_depth(s: &MediaStream) -> i64 {
 }
 
 /// Whether the video `source` meets condition `c`, as Jellyfin's server
-/// reads a codec profile's `ApplyConditions`. One it can't tell (another
-/// property, or no source) isn't met.
+/// reads a codec profile's `ApplyConditions`: a property it doesn't read
+/// (`IsInterlaced`, `RefFrames`…) is met, and so is one whose value the
+/// video doesn't say, unless the condition is required. Otherwise a
+/// profile's limits would be dropped for a condition Pley can't check.
 fn holds(c: &Condition, source: Option<&MediaStream>) -> bool {
-    let Some(s) = source else { return false };
+    let Some(s) = source else { return !c.required };
     let same = |a: &str, b: &str| a.replace(' ', "").eq_ignore_ascii_case(&b.replace(' ', ""));
     let word = |actual: Option<&str>| {
-        let Some(actual) = actual else { return false };
+        let Some(actual) = actual else { return !c.required };
         let any = c.value.split('|').any(|v| same(v, actual));
         match c.kind.as_str() {
             "equals" | "equalsany" => any,
@@ -259,7 +270,8 @@ fn holds(c: &Condition, source: Option<&MediaStream>) -> bool {
         }
     };
     let number = |actual: Option<f64>| {
-        let (Some(actual), Ok(value)) = (actual, c.value.trim().parse::<f64>()) else { return false };
+        let Some(actual) = actual else { return !c.required };
+        let Ok(value) = c.value.trim().parse::<f64>() else { return false };
         match c.kind.as_str() {
             "equals" => actual == value,
             "notequals" => actual != value,
@@ -276,7 +288,7 @@ fn holds(c: &Condition, source: Option<&MediaStream>) -> bool {
         "videolevel" => number(s.level.map(|n| n as f64)),
         "videobitdepth" => number(Some(bit_depth(s) as f64)),
         "videoframerate" => number(s.frame_rate),
-        _ => false,
+        _ => true,
     }
 }
 
@@ -599,6 +611,22 @@ mod tests {
             dynamic_range: Some(range),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn conditions_pley_cant_check_are_met_unless_required() {
+        let one = |c: Value| conditions(Some(&json!([c]))).pop().unwrap();
+        let source = hevc(DynamicRange::Sdr);
+        let interlaced = one(json!({"Condition": "Equals", "Property": "IsInterlaced", "Value": "false"}));
+        assert!(holds(&interlaced, Some(&source)), "a property Pley doesn't read");
+        let unsaid = MediaStream { frame_rate: None, ..source.clone() };
+        let rate = json!({"Condition": "LessThanEqual", "Property": "VideoFramerate", "Value": "30"});
+        assert!(!holds(&one(rate.clone()), Some(&unsaid)), "required unless it says otherwise");
+        let mut optional = rate;
+        optional["IsRequired"] = json!(false);
+        assert!(holds(&one(optional), Some(&unsaid)));
+        let level = one(json!({"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "120"}));
+        assert!(!holds(&level, Some(&source)), "one Pley reads is checked");
     }
 
     /// A TV app's profile, as Jellyfin for Android TV writes one: MPEG-TS
