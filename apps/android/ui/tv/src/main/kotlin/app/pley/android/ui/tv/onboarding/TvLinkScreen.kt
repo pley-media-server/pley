@@ -25,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -150,10 +149,7 @@ internal fun TvLinkContent(
     val newCode = remember { FocusRequester() }
     val back = remember { FocusRequester() }
     val needsNewCode = status == LinkStatus.Declined || status == LinkStatus.Expired
-    // Asked again once the window has focus: asked before, on a cold start, it is lost, and the
-    // window's own first focus goes to the left-most thing on the screen, the globe.
-    val windowFocused = LocalWindowInfo.current.isWindowFocused
-    LaunchedEffect(needsNewCode, windowFocused) {
+    LaunchedEffect(needsNewCode) {
         if (needsNewCode) runCatching { newCode.requestFocus() } else runCatching { back.requestFocus() }
     }
     Box(Modifier.fillMaxSize().brandGlow().testTag(LINK_TAG)) {
@@ -205,7 +201,7 @@ internal fun TvLinkContent(
                     Notes()
                 }
             }
-            if (language == null) Status(status, Modifier.padding(start = 96.dp, top = 478.dp))
+            Status(status, Modifier.padding(start = 96.dp, top = 478.dp))
         }
         // Signed in, the code and the way back go: only the success shows.
         if (status !is LinkStatus.SignedIn) Column(
@@ -237,7 +233,7 @@ internal fun TvLinkContent(
             )
         }
         if (language != null && status !is LinkStatus.SignedIn) {
-            TvOnboardingFoot(picker, language) { Status(status, Modifier) }
+            TvLanguageButton(picker, language, Modifier.align(Alignment.TopEnd).padding(top = 27.dp, end = 48.dp))
         }
         if (language != null) TvLanguagePanel(picker, language, onLanguage)
     }

@@ -10,8 +10,8 @@ describes how they are made.
 
 ### Added
 
-- A globe at the bottom left of Choose your server, the address screen and
-  the sign-in code picks the TV's language before anyone signs in:
+- A globe at the bottom right of Choose your server and the address
+  screen, and at the top right of the sign-in code, picks the TV's language before anyone signs in:
   Automatic (the TV's own), English, Français or Español. The TV keeps the
   choice, and a profile set to Automatic uses it.
 - Someone else in your household can cast to the TV from their phone or

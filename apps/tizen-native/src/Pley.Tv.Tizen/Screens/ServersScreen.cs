@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// "Choose your server" (design spec §4.7; the Android app's TvServersScreen): saved servers first,
 /// then those that answer as they come; "Enter an address" (on the TV's keyboard) and "Search this
-/// network". Holding OK on a saved server forgets it. The globe at the bottom left picks the TV's language.
+/// network". Holding OK on a saved server forgets it. The globe at the bottom right picks the TV's language.
 /// </summary>
 sealed class ServersScreen : Sheet
 {
@@ -56,8 +56,9 @@ sealed class ServersScreen : Sheet
         title.SizeHeight = Ui.Dp(38);
         title.Position = new Position(Ui.Dp(Left), Ui.Dp(Top));
         View.Add(title);
-        var logo = Onboarding.Logo(32);
-        logo.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - Right) - logo.SizeWidth, Ui.Dp(Top + 3));
+        // As tall as on the sign-in code, centred on the title's 38 dp line.
+        var logo = Onboarding.Logo(40);
+        logo.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - Right) - logo.SizeWidth, Ui.Dp(Top - 1));
         View.Add(logo);
 
         // The list scrolls inside its 300 dp; rows are drawn without scale, so nothing spills.
@@ -79,11 +80,11 @@ sealed class ServersScreen : Sheet
         status = new View { PositionX = Ui.Dp(Left), Size = new Size(Ui.Dp(RowWidth), 0) };
         View.Add(status);
 
-        globeButton = GlobeButton.Of(shell, globe, Left);
-        View.Add(globeButton);
         forgetHint = Text.Label(Strings.T("signin.servers.forgetHint"), PleyType.Caption, PleyColors.Subtle, width: 600);
-        forgetHint.Position = new Position(Ui.Dp(GlobeButton.Beside(globeButton)), Ui.Dp(GlobeButton.BesideTop(globeButton, PleyType.Caption.Line)));
+        forgetHint.Position = new Position(Ui.Dp(Left), Ui.Dp(PleyTv.CanvasHeight - Top - PleyType.Caption.Line));
         View.Add(forgetHint);
+        globeButton = GlobeButton.Of(shell, globe);
+        View.Add(globeButton);
 
         // Down from the list or the buttons reaches the globe.
         Root.Add(listGroup);

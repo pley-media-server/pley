@@ -4,6 +4,7 @@ import qrcode from "qrcode-generator";
 import { currentLanguage, LANGUAGES, systemLanguage, t, type Language } from "../../../i18n";
 import { useUi } from "../../context";
 import { PanelRow } from "../../kit/buttons";
+import type { Dir } from "../../focus";
 import { F, G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
 import { PanelTitle, SidePanel } from "../../kit/panel";
@@ -47,7 +48,8 @@ export function PleyLogo(p: { height: number }) {
  * The globe of the screens before signing in (the web's LanguagePicker): a
  * small plain globe and the language shown, by its two letters ("FR"), heard by
  * its name; OK opens {@link LanguagePanel}. A row of its own, at the bottom
- * left in {@link OnboardingFoot}, so the remote reaches it from above.
+ * right of Choose your server and the address screen, at the top right on the
+ * logo's line on the sign-in code, so the remote reaches it from the buttons.
  */
 export function LanguageGlobe(p: { onOpen: () => void; class?: string }) {
   const shown = currentLanguage();
@@ -62,15 +64,11 @@ export function LanguageGlobe(p: { onOpen: () => void; class?: string }) {
   );
 }
 
-/** The foot of the screens before signing in: the globe at the bottom left, then a line beside it. */
-export function OnboardingFoot(p: { onLanguage: () => void; children?: ComponentChildren }) {
-  return (
-    <div class="onboarding-foot">
-      <LanguageGlobe onOpen={p.onLanguage} />
-      {p.children && <div class="foot-text">{p.children}</div>}
-    </div>
-  );
-}
+/**
+ * An edge handler for the groups beside the globe: Right stops there, so only Down or Up reach the
+ * globe, as on the native app, whose focus follows a column.
+ */
+export const stopRight = (dir: Dir): boolean => dir === "right";
 
 /**
  * This TV's language, as Settings lists its choices: Automatic (the TV's own

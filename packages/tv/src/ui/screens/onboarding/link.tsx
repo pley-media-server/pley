@@ -9,7 +9,7 @@ import { Pill, TextButton } from "../../kit/buttons";
 import { G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
 import { sentence, useApp } from "../common";
-import { BrandGlow, LanguagePanel, OnboardingFoot, PleyLogo, QrCode, StatusLine } from "./kit";
+import { BrandGlow, LanguageGlobe, LanguagePanel, PleyLogo, QrCode, StatusLine, stopRight } from "./kit";
 
 /** Where signing in with a code stands (the Android app's LinkStatus). */
 export type LinkStatus =
@@ -391,7 +391,7 @@ function LinkContent(p: {
           newRef.current = el;
         }} style="margin-top:16px">
           {needsNew ? (
-            <G kind="row">
+            <G kind="row" onEdge={stopRight}>
               <Pill label={t("onboarding.link.newCode")} icon="refresh-cw" onSelect={p.onNewCode} />
             </G>
           ) : (
@@ -404,7 +404,7 @@ function LinkContent(p: {
           )}
         </div>
       </div>
-      {!p.globe && line && (
+      {line && (
         <div class="link-status">
           <StatusLine text={line.text} waiting={line.waiting} class={line.cls} />
         </div>
@@ -417,16 +417,12 @@ function LinkContent(p: {
         <div ref={(el) => {
           backRef.current = el;
         }} style="margin-top:18px;display:flex;justify-content:center">
-          <G kind="row">
+          <G kind="row" onEdge={stopRight}>
             <TextButton label={p.backLabel} initial={!needsNew} onSelect={p.onBack} />
           </G>
         </div>
       </div>
-      {p.globe && (
-        <OnboardingFoot onLanguage={() => setChoosingLanguage(true)}>
-          {line && <StatusLine text={line.text} waiting={line.waiting} class={line.cls} />}
-        </OnboardingFoot>
-      )}
+      {p.globe && <LanguageGlobe class="link-globe" onOpen={() => setChoosingLanguage(true)} />}
       {p.globe && choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
     </BrandGlow>
   );

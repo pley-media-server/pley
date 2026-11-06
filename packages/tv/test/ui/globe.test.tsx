@@ -14,7 +14,7 @@ import { AppContext } from "../../src/ui/screens/common";
 import { LinkScreen } from "../../src/ui/screens/onboarding/link";
 import { ServersScreen } from "../../src/ui/screens/onboarding/servers";
 
-/** The globe of the screens before signing in, at the bottom left: this TV's language, kept on the TV. */
+/** The globe of the screens before signing in: this TV's language, kept on the TV. */
 
 const SERVER = "http://192.168.1.20:7539";
 
